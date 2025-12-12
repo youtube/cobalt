@@ -13,14 +13,15 @@ void SigninUiDelegate::ShowTurnSyncOnUI(
     Profile* profile,
     signin_metrics::AccessPoint access_point,
     signin_metrics::PromoAction promo_action,
-    signin_metrics::Reason signin_reason,
     const CoreAccountId& account_id,
-    TurnSyncOnHelper::SigninAbortedMode signin_aborted_mode) {
+    TurnSyncOnHelper::SigninAbortedMode signin_aborted_mode,
+    bool is_sync_promo,
+    bool turn_sync_on_signed_profile) {
   // TurnSyncOnHelper is suicidal (it will delete itself once it finishes
   // enabling sync).
   new TurnSyncOnHelper(profile, EnsureBrowser(profile), access_point,
-                       promo_action, signin_reason, account_id,
-                       signin_aborted_mode);
+                       promo_action, account_id, signin_aborted_mode,
+                       is_sync_promo, turn_sync_on_signed_profile);
 }
 
 // static

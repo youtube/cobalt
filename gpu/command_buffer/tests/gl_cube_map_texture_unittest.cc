@@ -2,11 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <GLES2/gl2.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 
+#include "base/containers/heap_array.h"
 #include "gpu/command_buffer/tests/gl_manager.h"
 #include "gpu/command_buffer/tests/gl_test_utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -14,11 +21,14 @@
 namespace gpu {
 
 namespace {
-const GLenum kCubeMapTextureTargets[] = {
-    GL_TEXTURE_CUBE_MAP_POSITIVE_X, GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
-    GL_TEXTURE_CUBE_MAP_POSITIVE_Y, GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
-    GL_TEXTURE_CUBE_MAP_POSITIVE_Z, GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
-};
+constexpr auto kCubeMapTextureTargets = std::to_array<GLenum>({
+    GL_TEXTURE_CUBE_MAP_POSITIVE_X,
+    GL_TEXTURE_CUBE_MAP_NEGATIVE_X,
+    GL_TEXTURE_CUBE_MAP_POSITIVE_Y,
+    GL_TEXTURE_CUBE_MAP_NEGATIVE_Y,
+    GL_TEXTURE_CUBE_MAP_POSITIVE_Z,
+    GL_TEXTURE_CUBE_MAP_NEGATIVE_Z,
+});
 }  // namespace
 
 // A collection of tests that exercise the cube map texture.
@@ -84,7 +94,7 @@ TEST_P(GLCubeMapTextureTest, TexImage2DAfterFBOBinding) {
   EXPECT_EQ(static_cast<GLenum>(GL_NO_ERROR), glGetError());
 }
 
-// TODO(crbug.com/1384328): Re-enable this test
+// TODO(crbug.com/40246425): Re-enable this test
 TEST_P(GLCubeMapTextureTest, DISABLED_ReadPixels) {
   GLenum cube_map_target = GetParam();
 
@@ -111,7 +121,7 @@ TEST_P(GLCubeMapTextureTest, DISABLED_ReadPixels) {
   EXPECT_EQ(static_cast<GLenum>(GL_NO_ERROR), glGetError());
 }
 
-// TODO(crbug.com/1384328): Re-enable this test
+// TODO(crbug.com/40246425): Re-enable this test
 TEST_P(GLCubeMapTextureTest, DISABLED_ReadPixelsFromIncompleteCubeTexture) {
   GLenum cube_map_target = GetParam();
 
@@ -134,8 +144,8 @@ TEST_P(GLCubeMapTextureTest, DISABLED_ReadPixelsFromIncompleteCubeTexture) {
   EXPECT_EQ(static_cast<GLenum>(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT),
             glCheckFramebufferStatus(GL_FRAMEBUFFER));
   GLsizei size = width_ * width_ * 4;
-  std::unique_ptr<uint8_t[]> pixels(new uint8_t[size]);
-  glReadPixels(0, 0, width_, width_, GL_RGBA, GL_UNSIGNED_BYTE, pixels.get());
+  auto pixels = base::HeapArray<uint8_t>::Uninit(size);
+  glReadPixels(0, 0, width_, width_, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
   EXPECT_EQ(static_cast<GLenum>(GL_INVALID_FRAMEBUFFER_OPERATION),
             glGetError());
 }

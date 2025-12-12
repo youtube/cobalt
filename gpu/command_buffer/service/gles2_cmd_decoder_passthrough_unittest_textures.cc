@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include <stdint.h>
 
+#include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder.h"
 #include "gpu/command_buffer/service/gles2_cmd_decoder_unittest.h"
-#include "gpu/command_buffer/service/shared_image/shared_image_format_utils.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_format_service_utils.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
 #include "gpu/command_buffer/service/shared_image/test_image_backing.h"
 
@@ -21,13 +27,15 @@ std::unique_ptr<TestImageBacking> AllocateTextureAndCreateSharedImage(
     const gfx::ColorSpace& color_space,
     GrSurfaceOrigin surface_origin,
     SkAlphaType alpha_type,
-    uint32_t usage) {
+    SharedImageUsageSet usage) {
   GLuint service_id;
   glGenTextures(1, &service_id);
   glBindTexture(GL_TEXTURE_2D, service_id);
-  glTexImage2D(GL_TEXTURE_2D, 0, GLInternalFormat(format), size.width(),
-               size.height(), 0, GLDataFormat(format), GLDataType(format),
-               nullptr /* data */);
+  GLFormatDesc format_desc =
+      GLFormatCaps().ToGLFormatDesc(format, /*plane_index=*/0);
+  glTexImage2D(GL_TEXTURE_2D, 0, format_desc.image_internal_format,
+               size.width(), size.height(), 0, format_desc.data_format,
+               format_desc.data_type, nullptr /* data */);
   return std::make_unique<TestImageBacking>(mailbox, format, size, color_space,
                                             surface_origin, alpha_type, usage,
                                             0 /* estimated_size */, service_id);
@@ -37,11 +45,12 @@ std::unique_ptr<TestImageBacking> AllocateTextureAndCreateSharedImage(
 
 TEST_F(GLES2DecoderPassthroughTest, CreateAndTexStorage2DSharedImageCHROMIUM) {
   MemoryTypeTracker memory_tracker(nullptr);
-  Mailbox mailbox = Mailbox::GenerateForSharedImage();
+  Mailbox mailbox = Mailbox::Generate();
   auto format = viz::SinglePlaneFormat::kRGBA_8888;
   auto backing = AllocateTextureAndCreateSharedImage(
       mailbox, format, gfx::Size(10, 10), gfx::ColorSpace(),
-      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, 0);
+      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+      {SHARED_IMAGE_USAGE_GLES2_READ, SHARED_IMAGE_USAGE_GLES2_WRITE});
   GLuint service_id = backing->service_id();
   std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
       GetSharedImageManager()->Register(std::move(backing), &memory_tracker);
@@ -101,13 +110,14 @@ TEST_F(GLES2DecoderPassthroughTest,
        CreateAndTexStorage2DSharedImageCHROMIUMPreexistingTexture) {
   MemoryTypeTracker memory_tracker(nullptr);
   // Create a texture with kNewClientId.
-  Mailbox mailbox = Mailbox::GenerateForSharedImage();
+  Mailbox mailbox = Mailbox::Generate();
   auto format = viz::SinglePlaneFormat::kRGBA_8888;
   std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
       GetSharedImageManager()->Register(
           AllocateTextureAndCreateSharedImage(
               mailbox, format, gfx::Size(10, 10), gfx::ColorSpace(),
-              kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, 0),
+              kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+              {SHARED_IMAGE_USAGE_GLES2_READ, SHARED_IMAGE_USAGE_GLES2_WRITE}),
           &memory_tracker);
 
   {
@@ -132,18 +142,20 @@ TEST_F(GLES2DecoderPassthroughTest,
   shared_image.reset();
 }
 
-TEST_F(GLES2DecoderPassthroughTest, BeginEndSharedImageAccessCRHOMIUM) {
+TEST_F(GLES2DecoderPassthroughTest, BeginEndSharedImageAccessCHROMIUM) {
   MemoryTypeTracker memory_tracker(nullptr);
   std::vector<std::unique_ptr<SharedImageRepresentationFactoryRef>>
       shared_images;
   for (int i = 0; i < 40; i++) {
-    Mailbox mailbox = Mailbox::GenerateForSharedImage();
+    Mailbox mailbox = Mailbox::Generate();
     auto format = viz::SinglePlaneFormat::kRGBA_8888;
     std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
         GetSharedImageManager()->Register(
             AllocateTextureAndCreateSharedImage(
                 mailbox, format, gfx::Size(10, 10), gfx::ColorSpace(),
-                kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, 0),
+                kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+                {SHARED_IMAGE_USAGE_GLES2_READ,
+                 SHARED_IMAGE_USAGE_GLES2_WRITE}),
             &memory_tracker);
     shared_images.emplace_back(std::move(shared_image));
 
@@ -205,11 +217,12 @@ TEST_F(GLES2DecoderPassthroughTest,
        BeginSharedImageAccessDirectCHROMIUMCantBeginAccess) {
   // Create a shared image.
   MemoryTypeTracker memory_tracker(nullptr);
-  Mailbox mailbox = Mailbox::GenerateForSharedImage();
+  Mailbox mailbox = Mailbox::Generate();
   auto format = viz::SinglePlaneFormat::kRGBA_8888;
   auto shared_image_backing = AllocateTextureAndCreateSharedImage(
       mailbox, format, gfx::Size(10, 10), gfx::ColorSpace(),
-      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, 0);
+      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+      {SHARED_IMAGE_USAGE_GLES2_READ});
   // Set the shared image to fail BeginAccess.
   shared_image_backing->set_can_access(false);
   std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
@@ -247,13 +260,14 @@ TEST_F(GLES2DecoderPassthroughTest,
        BeginSharedImageAccessDirectCHROMIUMClearUncleared) {
   // Create an uncleared shared image.
   MemoryTypeTracker memory_tracker(nullptr);
-  Mailbox mailbox = Mailbox::GenerateForSharedImage();
+  Mailbox mailbox = Mailbox::Generate();
   auto format = viz::SinglePlaneFormat::kRGBA_8888;
   std::unique_ptr<SharedImageRepresentationFactoryRef> shared_image =
       GetSharedImageManager()->Register(
           AllocateTextureAndCreateSharedImage(
               mailbox, format, gfx::Size(10, 10), gfx::ColorSpace(),
-              kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, 0),
+              kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
+              {SHARED_IMAGE_USAGE_GLES2_READ, SHARED_IMAGE_USAGE_GLES2_WRITE}),
           &memory_tracker);
 
   // Backing should be initially uncleared.

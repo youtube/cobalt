@@ -8,10 +8,12 @@
 #include <pthread.h>
 #include <stdio.h>
 
+#include <optional>
+
+#include "base/compiler_specific.h"
 #include "base/memory/ptr_util.h"
 #include "base/process/process_handle.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if !(BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
 #include "base/profiler/stack_base_address_posix.h"
@@ -21,15 +23,16 @@ namespace base {
 // static
 std::unique_ptr<ThreadDelegatePosix> ThreadDelegatePosix::Create(
     SamplingProfilerThreadToken thread_token) {
-  absl::optional<uintptr_t> base_address;
+  std::optional<uintptr_t> base_address;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   base_address = thread_token.stack_base_address;
 #else
   base_address =
       GetThreadStackBaseAddress(thread_token.id, thread_token.pthread_id);
 #endif
-  if (!base_address)
+  if (!base_address) {
     return nullptr;
+  }
   return base::WrapUnique(
       new ThreadDelegatePosix(thread_token.id, *base_address));
 }
@@ -66,15 +69,17 @@ std::vector<uintptr_t*> ThreadDelegatePosix::GetRegistersToRewrite(
       // addresses of executable code, not addresses in the stack.
   };
 #elif defined(ARCH_CPU_ARM_FAMILY) && \
-    defined(ARCH_CPU_64_BITS)   // #if defined(ARCH_CPU_ARM_FAMILY) &&
-                                // defined(ARCH_CPU_32_BITS)
+    defined(ARCH_CPU_64_BITS)  // #if defined(ARCH_CPU_ARM_FAMILY) &&
+                               // defined(ARCH_CPU_32_BITS)
   std::vector<uintptr_t*> registers;
   registers.reserve(12);
   // Return the set of callee-save registers per the ARM 64-bit Procedure Call
   // Standard section 5.1.1, plus the stack pointer.
   registers.push_back(reinterpret_cast<uintptr_t*>(&thread_context->sp));
-  for (size_t i = 19; i <= 29; ++i)
-    registers.push_back(reinterpret_cast<uintptr_t*>(&thread_context->regs[i]));
+  for (size_t i = 19; i <= 29; ++i) {
+    registers.push_back(
+        UNSAFE_TODO(reinterpret_cast<uintptr_t*>(&thread_context->regs[i])));
+  }
   return registers;
 #elif defined(ARCH_CPU_X86_FAMILY) && defined(ARCH_CPU_32_BITS)
   return {

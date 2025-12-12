@@ -83,7 +83,7 @@ TEST_P(SimpleOperationTest, CullFaceEnabledState)
     glClear(GL_COLOR_BUFFER_BIT);
     glEnable(GL_CULL_FACE);
 
-    drawQuad(program.get(), "position", 0.0f, 1.0f, true);
+    drawQuad(program, "position", 0.0f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
 
@@ -103,7 +103,7 @@ TEST_P(SimpleOperationTest, CullFaceFrontEnabledState)
     // Should make the quad disappear since we draw it front facing.
     glCullFace(GL_FRONT);
 
-    drawQuad(program.get(), "position", 0.0f, 1.0f, true);
+    drawQuad(program, "position", 0.0f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
 
@@ -136,7 +136,7 @@ TEST_P(SimpleOperationTest, BlendingRenderState)
     ASSERT_NE(-1, positionLocation);
 
     GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(),
                  GL_STATIC_DRAW);
     glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -214,6 +214,20 @@ TEST_P(SimpleOperationTest, ClearAndSwap)
     ASSERT_FALSE(getGLWindow()->hasError());
 }
 
+// Deleting shader zero is no-op.
+TEST_P(SimpleOperationTest, DeleteShaderZero)
+{
+    glDeleteShader(0);
+    EXPECT_GL_NO_ERROR();
+}
+
+// Deleting program zero is no-op.
+TEST_P(SimpleOperationTest, DeleteProgramZero)
+{
+    glDeleteProgram(0);
+    EXPECT_GL_NO_ERROR();
+}
+
 // Simple case of setting a scissor, enabled or disabled.
 TEST_P(SimpleOperationTest, ScissorTest)
 {
@@ -225,7 +239,7 @@ TEST_P(SimpleOperationTest, ScissorTest)
               getWindowHeight() / 2);
 
     // Fill the whole screen with a quad.
-    drawQuad(program.get(), "position", 0.0f, 1.0f, true);
+    drawQuad(program, "position", 0.0f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
 
@@ -285,7 +299,7 @@ void main()
 TEST_P(SimpleOperationTest, BufferDataWithData)
 {
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
 
     std::vector<uint8_t> data(1024);
     FillVectorWithRandomUBytes(&data);
@@ -299,7 +313,7 @@ TEST_P(SimpleOperationTest, BufferDataWithData)
 TEST_P(SimpleOperationTest, BufferDataWithNoData)
 {
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
     glBufferData(GL_ARRAY_BUFFER, 1024, nullptr, GL_STATIC_DRAW);
 
     ASSERT_GL_NO_ERROR();
@@ -308,7 +322,7 @@ TEST_P(SimpleOperationTest, BufferDataWithNoData)
 TEST_P(SimpleOperationTest, BufferSubData)
 {
     GLBuffer buffer;
-    glBindBuffer(GL_ARRAY_BUFFER, buffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
 
     constexpr size_t bufferSize = 1024;
     std::vector<uint8_t> data(bufferSize);
@@ -334,7 +348,7 @@ TEST_P(SimpleOperationTest, DrawQuad)
 {
     ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
 
-    drawQuad(program.get(), "position", 0.5f, 1.0f, true);
+    drawQuad(program, "position", 0.5f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
 
@@ -346,7 +360,7 @@ TEST_P(SimpleOperationTest, DrawQuadFromClientMemory)
 {
     ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
 
-    drawQuad(program.get(), "position", 0.5f, 1.0f, false);
+    drawQuad(program, "position", 0.5f, 1.0f, false);
 
     ASSERT_GL_NO_ERROR();
 
@@ -358,8 +372,8 @@ TEST_P(SimpleOperationTest, DrawQuadTwice)
 {
     ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
 
-    drawQuad(program.get(), "position", 0.5f, 1.0f, true);
-    drawQuad(program.get(), "position", 0.5f, 1.0f, true);
+    drawQuad(program, "position", 0.5f, 1.0f, true);
+    drawQuad(program, "position", 0.5f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
 
@@ -462,7 +476,7 @@ TEST_P(SimpleOperationTest, DrawLineStrip)
     ASSERT_NE(-1, positionLocation);
 
     GLBuffer vertexBuffer;
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer.get());
+    glBindBuffer(GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * vertices.size(), vertices.data(),
                  GL_STATIC_DRAW);
     glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -504,7 +518,7 @@ class TriangleFanDrawTest : public SimpleOperationTest
         const GLint positionLocation = glGetAttribLocation(mProgram, "position");
         ASSERT_NE(-1, positionLocation);
 
-        glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer.get());
+        glBindBuffer(GL_ARRAY_BUFFER, mVertexBuffer);
         glBufferData(GL_ARRAY_BUFFER, sizeof(mVertices[0]) * mVertices.size(), mVertices.data(),
                      GL_STATIC_DRAW);
         glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
@@ -593,7 +607,7 @@ TEST_P(TriangleFanDrawTest, DrawTriangleFanElements)
     std::vector<GLubyte> indices = {0, 1, 2, 3, 4};
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
                  GL_STATIC_DRAW);
 
@@ -613,7 +627,7 @@ TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartAtMiddle)
     std::vector<GLubyte> indices = {0, 1, 2, 3, 0xff, 0, 4, 3};
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
                  GL_STATIC_DRAW);
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
@@ -634,7 +648,7 @@ TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartAtBegin)
     std::vector<GLubyte> indices = {0, 1, 2, 3, 0xff, 0, 4, 3};
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
                  GL_STATIC_DRAW);
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
@@ -656,7 +670,7 @@ TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartAtEnd)
     std::vector<GLubyte> indices = {0, 1, 2, 3, 4, 0xff};
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
                  GL_STATIC_DRAW);
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
@@ -676,7 +690,7 @@ TEST_P(TriangleFanDrawTest, DrawTriangleFanPrimitiveRestartNonIndexedDraw)
     std::vector<GLubyte> indices = {0, 1, 2, 3, 4};
 
     GLBuffer indexBuffer;
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer.get());
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * indices.size(), indices.data(),
                  GL_STATIC_DRAW);
     glEnable(GL_PRIMITIVE_RESTART_FIXED_INDEX);
@@ -695,7 +709,7 @@ TEST_P(SimpleOperationTest, DrawQuadAndSwap)
 
     for (int i = 0; i < 8; ++i)
     {
-        drawQuad(program.get(), "position", 0.5f, 1.0f, true);
+        drawQuad(program, "position", 0.5f, 1.0f, true);
         ASSERT_GL_NO_ERROR();
         EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
         swapBuffers();
@@ -709,7 +723,7 @@ TEST_P(SimpleOperationTest, DrawIndexedQuad)
 {
     ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
 
-    drawIndexedQuad(program.get(), "position", 0.5f, 1.0f, true);
+    drawIndexedQuad(program, "position", 0.5f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
@@ -724,7 +738,7 @@ TEST_P(SimpleOperationTest, DrawIndexedQuadAndSwap)
     // issues will reproduce consistently.
     for (int i = 0; i < 32; ++i)
     {
-        drawIndexedQuad(program.get(), "position", 0.5f, 1.0f, true);
+        drawIndexedQuad(program, "position", 0.5f, 1.0f, true);
         ASSERT_GL_NO_ERROR();
         EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
         swapBuffers();
@@ -750,7 +764,7 @@ TEST_P(SimpleOperationTest, DrawQuadWithFragmentUniform)
     glUseProgram(program);
     glUniform4f(location, 0.0f, 1.0f, 0.0f, 1.0f);
 
-    drawQuad(program.get(), "position", 0.5f, 1.0f, true);
+    drawQuad(program, "position", 0.5f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
@@ -782,7 +796,7 @@ TEST_P(SimpleOperationTest, DrawQuadWithVertexUniform)
     glUseProgram(program);
     glUniform4f(location, 0.0f, 1.0f, 0.0f, 1.0f);
 
-    drawQuad(program.get(), "position", 0.5f, 1.0f, true);
+    drawQuad(program, "position", 0.5f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
@@ -819,7 +833,7 @@ TEST_P(SimpleOperationTest, DrawQuadWithTwoUniforms)
     glUniform4f(location1, 0.0f, 1.0f, 0.0f, 1.0f);
     glUniform4f(location2, 1.0f, 0.0f, 0.0f, 1.0f);
 
-    drawQuad(program.get(), "position", 0.5f, 1.0f, true);
+    drawQuad(program, "position", 0.5f, 1.0f, true);
 
     ASSERT_GL_NO_ERROR();
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::yellow);
@@ -1249,6 +1263,105 @@ TEST_P(SimpleOperationTest, PrimitiveModeNegativeTest)
     EXPECT_GL_ERROR(GL_INVALID_ENUM);
 }
 
+// Tests that using GL_LINES_ADJACENCY should not crash the app even if the backend doesn't support
+// LinesAdjacent mode.
+// This is to verify that the crash in crbug.com/1457840 won't happen.
+TEST_P(SimpleOperationTest, PrimitiveModeLinesAdjacentNegativeTest)
+{
+    ANGLE_GL_PROGRAM(program, kBasicVertexShader, kGreenFragmentShader);
+    glUseProgram(program);
+
+    GLint positionLocation = glGetAttribLocation(program, "position");
+    ASSERT_NE(-1, positionLocation);
+
+    setupQuadVertexBuffer(0.5f, 1.0f);
+    glVertexAttribPointer(positionLocation, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(positionLocation);
+
+    {
+        // Tests that TRIANGLES works.
+        glDrawArrays(GL_TRIANGLES, 0, 6);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    }
+
+    {
+        // Drawing with GL_LINES_ADJACENCY won't crash even if the backend doesn't support it.
+        glDrawArrays(GL_LINES_ADJACENCY, 0, 6);
+
+        if (IsGLExtensionEnabled("GL_ANGLE_instanced_arrays"))
+        {
+            glDrawArraysInstancedANGLE(GL_LINES_ADJACENCY, 0, 6, 2);
+        }
+    }
+
+    // Indexed draws with GL_LINES_ADJACENCY
+    setupIndexedQuadVertexBuffer(0.5f, 1.0f);
+    setupIndexedQuadIndexBuffer();
+
+    // Clear GL error state, since ahove calls may have set GL_INVALID_ENUM.
+    glGetError();
+
+    {
+        // Tests that TRIANGLES works.
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr);
+        ASSERT_GL_NO_ERROR();
+        EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::green);
+    }
+
+    {
+        // Indexed drawing with GL_LINES_ADJACENCY won't crash even if the backend doesn't support
+        // it.
+        glDrawElements(GL_LINES_ADJACENCY, 6, GL_UNSIGNED_SHORT, nullptr);
+        if (IsGLExtensionEnabled("GL_ANGLE_instanced_arrays"))
+        {
+            glDrawElementsInstancedANGLE(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, nullptr, 1);
+        }
+    }
+}
+
+// Tests all primitive modes, including some invalid ones, with a vertex shader that receives
+// no data for its vertex attributes (constant values). This is a port of the test case from
+// crbug.com/1457840, exercising slightly different code paths.
+TEST_P(SimpleOperationTest, DrawsWithNoAttributeData)
+{
+    constexpr char kTestVertexShader[] =
+        R"(attribute vec4 vPosition;
+attribute vec2 texCoord0;
+varying vec2 texCoord;
+void main() {
+    gl_Position = vPosition;
+    texCoord = texCoord0;
+})";
+    constexpr char kTestFragmentShader[] =
+        R"(precision mediump float;
+uniform sampler2D tex;
+uniform float divisor;
+varying vec2 texCoord;
+void main() {
+    gl_FragData[0] = texture2DProj(tex, vec3(texCoord, divisor));
+})";
+
+    constexpr std::array<GLenum, 12> kPrimitiveModes = {
+        {GL_POINTS, GL_LINES, GL_LINE_LOOP, GL_LINE_STRIP, GL_TRIANGLES, GL_TRIANGLE_STRIP,
+         GL_TRIANGLE_FAN,
+
+         // Illegal or possibly-illegal modes
+         GL_QUERY_RESULT, GL_LINES_ADJACENCY, GL_LINE_STRIP_ADJACENCY, GL_TRIANGLES_ADJACENCY,
+         GL_TRIANGLE_STRIP_ADJACENCY}};
+
+    ANGLE_GL_PROGRAM(program, kTestVertexShader, kTestFragmentShader);
+    glUseProgram(program);
+
+    for (GLenum mode : kPrimitiveModes)
+    {
+        glDrawArrays(mode, 0, 0x8866);
+    }
+
+    // If the test reaches this point then it hasn't crashed.
+}
+
 // Verify we don't crash when attempting to draw using GL_TRIANGLES without a program bound.
 TEST_P(SimpleOperationTest31, DrawTrianglesWithoutProgramBound)
 {
@@ -1410,20 +1523,147 @@ TEST_P(SimpleOperationTest, DrawSingleMultiSampleWithCoverage)
     EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
 }
 
+// Test that alpha-to-coverage does not affect single-sampled rendering
+TEST_P(SimpleOperationTest, DrawSingleSampleWithAlphaToCoverage)
+{
+    GLint sampleBuffers = -1;
+    glGetIntegerv(GL_SAMPLE_BUFFERS, &sampleBuffers);
+    ASSERT_EQ(sampleBuffers, 0);
+
+    GLint samples = -1;
+    glGetIntegerv(GL_SAMPLES, &samples);
+    ASSERT_EQ(samples, 0);
+
+    glClearColor(1.0, 0.0, 1.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
+    glUseProgram(program);
+    glUniform4f(glGetUniformLocation(program, essl1_shaders::ColorUniform()), 0, 1, 0, 0);
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.0);
+    ASSERT_GL_NO_ERROR();
+
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor(0, 255, 0, 0));
+}
+
+// Test that alpha-to-coverage affects multisampled rendering with only one sample
+TEST_P(SimpleOperationTest, DrawSingleMultiSampleWithAlphaToCoverage)
+{
+    ANGLE_SKIP_TEST_IF(getClientMajorVersion() < 3);
+
+    GLFramebuffer fbo;
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+    GLRenderbuffer rbo;
+    glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 1, GL_RGBA8, 1, 1);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, rbo);
+    ASSERT_GL_FRAMEBUFFER_COMPLETE(GL_FRAMEBUFFER);
+
+    GLint samples = -1;
+    glGetIntegerv(GL_SAMPLES, &samples);
+    ASSERT_GT(samples, 0);
+    ANGLE_SKIP_TEST_IF(samples != 1);
+
+    glClearColor(0.0, 0.0, 1.0, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+
+    ANGLE_GL_PROGRAM(program, essl1_shaders::vs::Simple(), essl1_shaders::fs::UniformColor());
+    glUseProgram(program);
+    glUniform4f(glGetUniformLocation(program, essl1_shaders::ColorUniform()), 0, 1, 0, 0);
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.0);
+    ASSERT_GL_NO_ERROR();
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glBlitFramebuffer(0, 0, 1, 1, 0, 0, 1, 1, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    EXPECT_PIXEL_COLOR_EQ(0, 0, GLColor::blue);
+}
+
+// Test glGetRenderbufferParameteriv returned value for different render buffer
+TEST_P(SimpleOperationTest, GetRenderbufferParameter)
+{
+    GLint value = 0;
+    // call glGetRenderbufferParameteriv with renderbuffer bound to 0
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &value);
+    EXPECT_GL_ERROR(GL_INVALID_OPERATION);
+
+    // generate an empty renderbuffer, then get all parameters, they should equal to default values
+    GLRenderbuffer renderBuffer;
+    glBindRenderbuffer(GL_RENDERBUFFER, renderBuffer);
+
+    // Retrieve all values
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &value);
+    ASSERT_EQ(value, GL_RGBA4);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_RED_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_GREEN_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_BLUE_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_ALPHA_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_DEPTH_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_STENCIL_SIZE, &value);
+    ASSERT_EQ(value, 0);
+
+    // set buffer storage, then get all renderbuffer parameters
+
+    // Allocate memory for renderbuffer
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, 32, 32);
+
+    /* Retrieve all values */
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_WIDTH, &value);
+    ASSERT_EQ(value, 32);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_HEIGHT, &value);
+    ASSERT_EQ(value, 32);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_INTERNAL_FORMAT, &value);
+    ASSERT_EQ(value, GL_DEPTH_COMPONENT16);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_RED_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_GREEN_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_BLUE_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_ALPHA_SIZE, &value);
+    ASSERT_EQ(value, 0);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_DEPTH_SIZE, &value);
+    ASSERT_GE(value, 16);
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_RENDERBUFFER_STENCIL_SIZE, &value);
+    ASSERT_EQ(value, 0);
+
+    // call glGetRenderbufferParameteriv with an invalid pname
+    glGetRenderbufferParameteriv(GL_RENDERBUFFER, GL_INVALID_ENUM, &value);
+    EXPECT_GL_ERROR(GL_INVALID_ENUM);
+
+    // Call with invalid target with invalid target
+    glGetRenderbufferParameteriv(GL_INVALID_VALUE, GL_RENDERBUFFER_WIDTH, &value);
+    EXPECT_GL_ERROR(GL_INVALID_ENUM);
+}
+
 // Use this to select which configurations (e.g. which renderer, which GLES major version) these
 // tests should be run against.
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(
     SimpleOperationTest,
     ES3_METAL().enable(Feature::ForceBufferGPUStorage),
     ES3_METAL().disable(Feature::HasExplicitMemBarrier).disable(Feature::HasCheapRenderPass),
-    ES2_VULKAN().disable(Feature::SupportsNegativeViewport),
     WithVulkanSecondaries(ES3_VULKAN_SWIFTSHADER()));
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND(
     TriangleFanDrawTest,
     ES3_METAL().enable(Feature::ForceBufferGPUStorage),
-    ES3_METAL().disable(Feature::HasExplicitMemBarrier).disable(Feature::HasCheapRenderPass),
-    ES2_VULKAN().disable(Feature::SupportsNegativeViewport));
+    ES3_METAL().disable(Feature::HasExplicitMemBarrier).disable(Feature::HasCheapRenderPass));
 
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3_AND_ES31(SimpleOperationTest31);
 

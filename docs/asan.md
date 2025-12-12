@@ -7,7 +7,7 @@ Additional info on the tool itself is available at
 https://clang.llvm.org/docs/AddressSanitizer.html.
 
 For the memory leak detector built into ASan, see
-[LeakSanitizer](https://sites.google.com/a/chromium.org/dev/developers/testing/leaksanitizer).
+[LeakSanitizer](https://www.chromium.org/developers/testing/leaksanitizer).
 If you want to debug memory leaks, please refer to the instructions on that page
 instead.
 
@@ -22,11 +22,10 @@ run with --no-sandbox, but there's an extra Linux bot that enables the sandbox
 (but disables LeakSanitizer).
 
 The trybots running Chromium tests on Linux and macOS are:
-- linux\_asan (everything except browser\_tests and content\_browsertests)
-- linux\_browser\_asan (browser\_tests and content\_browsertests),
-- mac\_asan (many tests including browser\_tests and content\_browsertests)
-- linux\_chromeos\_asan (the chromeos=1 build running on a Linux machine, many
-tests including browser\_tests and content\_browsertests).
+- linux\_chromium\_asan\_rel\_ng
+- mac\_chromium\_asan\_rel\_ng
+- linux\_chromium\_chromeos\_asan\_rel\_ng (the chromeos=1 build running on a
+Linux machine)
 
 ## Pre-built Chrome binaries
 
@@ -66,10 +65,10 @@ Build with:
 ninja -C out/asan base_unittests
 ```
 
-### Goma build
+### Reclient build
 
-ASan builds should work seamlessly with Goma; just add `use_goma=true` in your
-"gn args" Don't forget to use `ninja -j <jobs>` to take advantage of goma.
+ASan builds should work seamlessly with Reclient; just add
+`use_remoteexec=true` in your "gn args".
 
 ### Build options
 
@@ -94,7 +93,7 @@ in order to enable the `--verify-heap` command line flag for v8 in Release build
 that is compatible with the sandbox. However, this is not compatible with
 LeakSanitizer. If you want to debug memory leaks, please use the instructions on
 the
-[LeakSanitizer](https://sites.google.com/a/chromium.org/dev/developers/testing/leaksanitizer)
+[LeakSanitizer](https://www.chromium.org/developers/testing/leaksanitizer)
 page instead.
 
 Now, check that the tool works. Run the following:
@@ -132,8 +131,9 @@ although it shouldn't be necessary on Linux and Windows, where Chrome uses the
 llvm-symbolizer in its source tree by default.
 
 ASan should perfectly work with Chrome's sandbox. You should only need to run
-with `--no-sandbox` on Linux if you're debugging ASan.
-Note: you have to disable the sandbox on Windows until it is supported.
+with `--no-sandbox` on Linux if you're debugging ASan. To get reports on Windows
+from sandboxed processes you will have to run with both `--enable-logging` and
+`--log-file=d:\valid\path.log` then inspect the logfile.
 
 You may need to run with `--disable-gpu` on Linux with NVIDIA driver older than
 295.20.
@@ -200,31 +200,6 @@ is_asan=true
 is_debug=false
 ```
 
-Running ASan applications on Android requires additional device setup. Chromium
-testing scripts take care of this, so testing works as expected:
-```shell
-build/android/test_runner.py instrumentation --test-apk ContentShellTest \
-    --test_data content:content/test/data/android/device_files -v -v -v \
-    --tool=asan --release
-```
-
-If the above step fails or to run stuff without Chromium testing script (ex.
-ContentShell.apk, or any third party apk or binary), device setup is needed:
-```shell
-tools/android/asan/third_party/asan_device_setup.sh \
-    --lib third_party/android_ndk/toolchains/llvm/prebuilt/linux-x86_64/lib64/clang/*/lib/linux
-# wait a few seconds for the device to reload
-```
-It only needs to be run once per device. It is safe to run it multiple times.
-Examine the output to ensure that setup was successful (you may need to run
-`adb disable-verity` and restart the device first). When this is done, the
-device will run ASan apks as well as normal apks without any further setup.
-
-To run command-line tools (i.e. binaries), prefix them with `asanwrapper`:
-```shell
-adb shell /system/bin/asanwrapper /path/to/binary
-```
-
 Use `build/android/asan_symbolize.py` to symbolize stack from `adb logcat`. It
 needs the `--output-directory` argument and takes care of translating the device
 path to the unstripped binary in the output directory.
@@ -271,7 +246,7 @@ above, just like you would for Linux.
 
 For Chromebook hardware, add `is_asan = true` to your args.gn and build.
 `deploy_chrome` with `--mount` and `--nostrip`. ASan logs can be found in
-`/var/log/asan/`.
+`/tmp/asan/`.
 
 To catch crashes in gdb:
 

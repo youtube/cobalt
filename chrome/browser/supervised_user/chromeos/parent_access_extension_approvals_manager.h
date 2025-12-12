@@ -5,9 +5,8 @@
 #ifndef CHROME_BROWSER_SUPERVISED_USER_CHROMEOS_PARENT_ACCESS_EXTENSION_APPROVALS_MANAGER_H_
 #define CHROME_BROWSER_SUPERVISED_USER_CHROMEOS_PARENT_ACCESS_EXTENSION_APPROVALS_MANAGER_H_
 
-#include <memory>
-
-#include "chrome/browser/ui/webui/ash/parent_access/parent_access_dialog.h"
+#include "base/memory/weak_ptr.h"
+#include "chromeos/crosapi/mojom/parent_access.mojom.h"
 #include "extensions/browser/supervised_user_extensions_delegate.h"
 
 namespace content {
@@ -31,28 +30,47 @@ class ParentAccessExtensionApprovalsManager {
       const ParentAccessExtensionApprovalsManager&) = delete;
   ~ParentAccessExtensionApprovalsManager();
 
+  // Models the user's permission to install extension,
+  enum ExtensionInstallMode {
+    kInstallationPermitted = 0,
+    kInstallationDenied = 1
+  };
+
+  // Opens the ParentAccessDialog via crosapi. Before calling, the caller should
+  // check that the Lacros version is at least the min version required for the
+  // GetExtensionParentApproval API.
   void ShowParentAccessDialog(
       const Extension& extension,
       content::BrowserContext* context,
       const gfx::ImageSkia& icon,
+      ExtensionInstallMode extension_install_mode,
       SupervisedUserExtensionsDelegate::ExtensionApprovalDoneCallback callback);
 
-  // For testing
-  ash::ParentAccessDialogProvider* SetDialogProviderForTest(
-      std::unique_ptr<ash::ParentAccessDialogProvider> provider);
-
  private:
-  bool CanInstallExtensions(content::BrowserContext* context) const;
-  void OnParentAccessDialogClosed(
-      std::unique_ptr<ash::ParentAccessDialog::Result> result);
-
-  // Lazily initializes dialog_provider_.
-  ash::ParentAccessDialogProvider* GetParentAccessDialogProvider();
-
-  std::unique_ptr<ash::ParentAccessDialogProvider> dialog_provider_;
+  void OnParentAccessDialogClosed(crosapi::mojom::ParentAccessResultPtr result);
 
   SupervisedUserExtensionsDelegate::ExtensionApprovalDoneCallback
       done_callback_;
+
+  base::WeakPtrFactory<ParentAccessExtensionApprovalsManager> weak_ptr_factory_{
+      this};
+};
+
+// Observes the creation of the ParentAccessDialog for testing purposes.
+class TestExtensionApprovalsManagerObserver {
+ public:
+  explicit TestExtensionApprovalsManagerObserver(
+      TestExtensionApprovalsManagerObserver* observer);
+  ~TestExtensionApprovalsManagerObserver();
+
+  virtual void OnTestParentAccessDialogCreated() = 0;
+
+  void SetParentAccessDialogResult(
+      crosapi::mojom::ParentAccessResultPtr result);
+  crosapi::mojom::ParentAccessResultPtr GetNextResult();
+
+ private:
+  crosapi::mojom::ParentAccessResultPtr next_result_;
 };
 }  // namespace extensions
 

@@ -14,7 +14,9 @@
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/gfx/color_palette.h"
 
 namespace ash::channel_indicator_utils {
@@ -52,38 +54,31 @@ int GetChannelNameStringResourceID(version_info::Channel channel,
   }
 }
 
-SkColor GetFgColor(version_info::Channel channel) {
-  bool is_dark_mode_enabled =
-      DarkLightModeController::Get()->IsDarkModeEnabled();
+ui::ColorId GetFgColorJelly(version_info::Channel channel) {
   switch (channel) {
     case version_info::Channel::BETA:
-      return is_dark_mode_enabled ? gfx::kGoogleBlue200 : gfx::kGoogleBlue900;
+      return cros_tokens::kCrosSysOnProgressContainer;
     case version_info::Channel::DEV:
-      return is_dark_mode_enabled ? gfx::kGoogleGreen200 : gfx::kGoogleGreen900;
+      return cros_tokens::kCrosSysOnPositiveContainer;
     case version_info::Channel::CANARY:
-      return is_dark_mode_enabled ? gfx::kGoogleYellow200 : gfx::kGoogleGrey900;
+      return cros_tokens::kCrosSysOnWarningContainer;
     case version_info::Channel::STABLE:
     case version_info::Channel::UNKNOWN:
-      return SkColorSetRGB(0x00, 0x00, 0x00);
+      return ui::ColorId();
   }
 }
 
-SkColor GetBgColor(version_info::Channel channel) {
-  bool is_dark_mode_enabled =
-      DarkLightModeController::Get()->IsDarkModeEnabled();
+ui::ColorId GetBgColorJelly(version_info::Channel channel) {
   switch (channel) {
     case version_info::Channel::BETA:
-      return is_dark_mode_enabled ? SkColorSetA(gfx::kGoogleBlue300, 0x55)
-                                  : gfx::kGoogleBlue200;
+      return cros_tokens::kCrosSysProgressContainer;
     case version_info::Channel::DEV:
-      return is_dark_mode_enabled ? SkColorSetA(gfx::kGoogleGreen300, 0x55)
-                                  : gfx::kGoogleGreen200;
+      return cros_tokens::kCrosSysPositiveContainer;
     case version_info::Channel::CANARY:
-      return is_dark_mode_enabled ? SkColorSetA(gfx::kGoogleYellow300, 0x55)
-                                  : gfx::kGoogleYellow200;
+      return cros_tokens::kCrosSysWarningContainer;
     case version_info::Channel::STABLE:
     case version_info::Channel::UNKNOWN:
-      return SkColorSetRGB(0x00, 0x00, 0x00);
+      return ui::ColorId();
   }
 }
 
@@ -111,7 +106,6 @@ const gfx::VectorIcon& GetVectorIcon(version_info::Channel channel) {
     case version_info::Channel::UNKNOWN:
     case version_info::Channel::STABLE:
       NOTREACHED();
-      return kChannelCanaryIcon;
   }
 }
 

@@ -16,7 +16,7 @@ namespace blink {
 namespace {
 
 // https://drafts.css-houdini.org/css-properties-values-api-1/#supported-names
-absl::optional<CSSSyntaxType> ParseSyntaxType(StringView type) {
+std::optional<CSSSyntaxType> ParseSyntaxType(StringView type) {
   if (type == "length") {
     return CSSSyntaxType::kLength;
   }
@@ -32,10 +32,8 @@ absl::optional<CSSSyntaxType> ParseSyntaxType(StringView type) {
   if (type == "color") {
     return CSSSyntaxType::kColor;
   }
-  if (RuntimeEnabledFeatures::CSSVariables2ImageValuesEnabled()) {
-    if (type == "image") {
-      return CSSSyntaxType::kImage;
-    }
+  if (type == "image") {
+    return CSSSyntaxType::kImage;
   }
   if (type == "url") {
     return CSSSyntaxType::kUrl;
@@ -52,18 +50,19 @@ absl::optional<CSSSyntaxType> ParseSyntaxType(StringView type) {
   if (type == "resolution") {
     return CSSSyntaxType::kResolution;
   }
-  if (RuntimeEnabledFeatures::CSSVariables2TransformValuesEnabled()) {
-    if (type == "transform-function") {
-      return CSSSyntaxType::kTransformFunction;
-    }
-    if (type == "transform-list") {
-      return CSSSyntaxType::kTransformList;
-    }
+  if (type == "transform-function") {
+    return CSSSyntaxType::kTransformFunction;
+  }
+  if (type == "transform-list") {
+    return CSSSyntaxType::kTransformList;
   }
   if (type == "custom-ident") {
     return CSSSyntaxType::kCustomIdent;
   }
-  return absl::nullopt;
+  if (type == "string") {
+    return CSSSyntaxType::kString;
+  }
+  return std::nullopt;
 }
 
 bool IsPreMultiplied(CSSSyntaxType type) {
@@ -73,21 +72,29 @@ bool IsPreMultiplied(CSSSyntaxType type) {
 }  // namespace
 
 CSSSyntaxStringParser::CSSSyntaxStringParser(const String& string)
-    : string_(string.StripWhiteSpace()), input_(string_) {}
+    : input_(string) {}
 
-absl::optional<CSSSyntaxDefinition> CSSSyntaxStringParser::Parse() {
-  if (string_.empty()) {
-    return absl::nullopt;
+std::optional<CSSSyntaxDefinition> CSSSyntaxStringParser::Parse() {
+  input_.AdvanceUntilNonWhitespace();
+
+  if (!input_.length()) {
+    return std::nullopt;
   }
-  if (string_.length() == 1 && string_[0] == '*') {
-    return CSSSyntaxDefinition::CreateUniversal();
+  if (input_.NextInputChar() == '*') {
+    input_.Advance();
+    input_.AdvanceUntilNonWhitespace();
+    if (input_.NextInputChar() == '\0') {
+      return CSSSyntaxDefinition::CreateUniversal();
+    } else {
+      return std::nullopt;
+    }
   }
 
   Vector<CSSSyntaxComponent> components;
 
   while (true) {
     if (!ConsumeSyntaxComponent(components)) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     input_.AdvanceUntilNonWhitespace();
     UChar cc = input_.NextInputChar();
@@ -98,7 +105,7 @@ absl::optional<CSSSyntaxDefinition> CSSSyntaxStringParser::Parse() {
     if (cc == '|') {
       continue;
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return CSSSyntaxDefinition(std::move(components));

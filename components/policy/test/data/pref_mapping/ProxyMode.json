@@ -1,0 +1,26 @@
+[
+  {
+    "os": [
+      "win",
+      "mac",
+      "linux",
+      "android",
+      "chromeos",
+      "fuchsia"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {
+          "ProxyMode": "direct"
+        },
+        "prefs": {
+          "proxy": {
+            "value": {
+              "mode": "direct"
+            }
+          }
+        }
+      }
+    ]
+  }
+]

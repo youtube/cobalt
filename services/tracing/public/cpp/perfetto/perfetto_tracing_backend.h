@@ -6,6 +6,7 @@
 #define SERVICES_TRACING_PUBLIC_CPP_PERFETTO_PERFETTO_TRACING_BACKEND_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -49,6 +50,12 @@ class PerfettoTracingBackend : public perfetto::TracingBackend {
   void SetConsumerConnectionFactory(ConsumerConnectionFactory,
                                     scoped_refptr<base::SequencedTaskRunner>);
 
+  // Only called at maximum once. When the platform thread running
+  // `muxer_task_runner_` restarts in sandbox, detaches
+  // `muxer_sequence_checker_` as well as `ProducerEndpoint`'s
+  // `sequence_checker_`.
+  void DetachFromMuxerSequence();
+
   // perfetto::TracingBackend implementation:
   std::unique_ptr<perfetto::ProducerEndpoint> ConnectProducer(
       const ConnectProducerArgs&) override;
@@ -57,18 +64,18 @@ class PerfettoTracingBackend : public perfetto::TracingBackend {
 
  private:
   void BindProducerConnectionIfNecessary();
-  void CreateConsumerConnection();
+  void CreateConsumerConnection(base::WeakPtr<ConsumerEndpoint>);
 
   SEQUENCE_CHECKER(muxer_sequence_checker_);
   base::Lock task_runner_lock_;
   base::WeakPtr<ProducerEndpoint> producer_endpoint_;
-  base::WeakPtr<ConsumerEndpoint> consumer_endpoint_;
   raw_ptr<perfetto::base::TaskRunner> muxer_task_runner_ = nullptr;
   mojo::PendingRemote<mojom::PerfettoService> perfetto_service_;
-  mojo::PendingRemote<mojom::ConsumerHost> consumer_host_remote_;
 
   scoped_refptr<base::SequencedTaskRunner> consumer_connection_task_runner_;
   ConsumerConnectionFactory consumer_connection_factory_;
+
+  base::WeakPtrFactory<PerfettoTracingBackend> weak_factory_{this};
 };
 
 }  // namespace tracing

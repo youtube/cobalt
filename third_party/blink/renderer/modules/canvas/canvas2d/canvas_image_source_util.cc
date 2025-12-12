@@ -4,15 +4,24 @@
 
 #include "third_party/blink/renderer/modules/canvas/canvas2d/canvas_image_source_util.h"
 
+#include "base/check.h"
+#include "base/memory/scoped_refptr.h"  // IWYU pragma: keep (https://github.com/clangd/clangd/issues/2052)
+#include "base/notreached.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_cssimagevalue_htmlcanvaselement_htmlimageelement_htmlvideoelement_imagebitmap_offscreencanvas_svgimageelement_videoframe.h"
-#include "third_party/blink/renderer/core/css/cssom/css_url_image_value.h"
+#include "third_party/blink/renderer/core/css/cssom/css_style_image_value.h"  // IWYU pragma: keep (https://github.com/clangd/clangd/issues/2044)
+#include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap.h"
 #include "third_party/blink/renderer/core/offscreencanvas/offscreen_canvas.h"
-#include "third_party/blink/renderer/core/svg/svg_image_element.h"
+#include "third_party/blink/renderer/core/svg/svg_image_element.h"  // IWYU pragma: keep (https://github.com/clangd/clangd/issues/2044)
 #include "third_party/blink/renderer/modules/webcodecs/video_frame.h"
+#include "third_party/blink/renderer/platform/bindings/exception_code.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace blink {
 
@@ -75,7 +84,23 @@ CanvasImageSource* ToCanvasImageSource(const V8CanvasImageSource* value,
   }
 
   NOTREACHED();
-  return nullptr;
+}
+
+bool WouldTaintCanvasOrigin(CanvasImageSource* image_source) {
+  // Don't taint the canvas on data URLs. This special case is needed here
+  // because CanvasImageSource::WouldTaintOrigin() can return false for data
+  // URLs due to restrictions on SVG foreignObject nodes as described in
+  // https://crbug.com/294129.
+  // TODO(crbug.com/294129): Remove the restriction on foreignObject nodes, then
+  // this logic isn't needed, CanvasImageSource::SourceURL() isn't needed, and
+  // this function can just be image_source->WouldTaintOrigin().
+  const KURL& source_url = image_source->SourceURL();
+  const bool has_url = (source_url.IsValid() && !source_url.IsAboutBlankURL());
+  if (has_url && source_url.ProtocolIsData()) {
+    return false;
+  }
+
+  return image_source->WouldTaintOrigin();
 }
 
 }  // namespace blink

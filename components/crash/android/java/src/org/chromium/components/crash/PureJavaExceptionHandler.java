@@ -4,21 +4,24 @@
 
 package org.chromium.components.crash;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.build.annotations.MainDex;
+import static org.chromium.base.JavaExceptionReporter.shouldReportThrowable;
+
+import org.jni_zero.CalledByNative;
+
+import org.chromium.build.annotations.NullMarked;
 
 /**
  * This UncaughtExceptionHandler will upload the stacktrace when there is an uncaught exception.
  *
- * This happens before native is loaded, and will replace by JavaExceptionReporter after native
+ * <p>This happens before native is loaded, and will replace by JavaExceptionReporter after native
  * finishes loading.
  */
-@MainDex
+@NullMarked
 public class PureJavaExceptionHandler implements Thread.UncaughtExceptionHandler {
     private final Thread.UncaughtExceptionHandler mParent;
     private boolean mHandlingException;
     private static boolean sIsEnabled = true;
-    private JavaExceptionReporterFactory mReporterFactory;
+    private final JavaExceptionReporterFactory mReporterFactory;
 
     /** Interface to allow uploading reports. */
     public interface JavaExceptionReporter {
@@ -38,7 +41,7 @@ public class PureJavaExceptionHandler implements Thread.UncaughtExceptionHandler
 
     @Override
     public void uncaughtException(Thread t, Throwable e) {
-        if (!mHandlingException && sIsEnabled) {
+        if (!mHandlingException && sIsEnabled && shouldReportThrowable(e)) {
             mHandlingException = true;
             reportJavaException(e);
         }
@@ -49,8 +52,9 @@ public class PureJavaExceptionHandler implements Thread.UncaughtExceptionHandler
 
     public static void installHandler(JavaExceptionReporterFactory reporterFactory) {
         if (sIsEnabled) {
-            Thread.setDefaultUncaughtExceptionHandler(new PureJavaExceptionHandler(
-                    Thread.getDefaultUncaughtExceptionHandler(), reporterFactory));
+            Thread.setDefaultUncaughtExceptionHandler(
+                    new PureJavaExceptionHandler(
+                            Thread.getDefaultUncaughtExceptionHandler(), reporterFactory));
         }
     }
 

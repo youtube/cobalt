@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -21,6 +22,7 @@
 #include "base/memory/memory_pressure_monitor.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/power_monitor/power_observer.h"
 #include "base/threading/thread_checker.h"
 #include "base/values.h"
 #include "build/buildflag.h"
@@ -30,14 +32,13 @@
 #include "net/http/http_auth_cache.h"
 #include "net/http/http_stream_factory.h"
 #include "net/net_buildflags.h"
-#include "net/quic/quic_stream_factory.h"
+#include "net/quic/quic_session_pool.h"
 #include "net/socket/connect_job.h"
 #include "net/socket/next_proto.h"
 #include "net/socket/websocket_endpoint_lock_manager.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/ssl/ssl_client_session_cache.h"
-#include "net/third_party/quiche/src/quiche/spdy/core/spdy_protocol.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/third_party/quiche/src/quiche/http2/core/spdy_protocol.h"
 
 namespace base {
 class Value;
@@ -45,7 +46,6 @@ class Value;
 
 namespace net {
 
-class CTPolicyEnforcer;
 class CertVerifier;
 class ClientSocketFactory;
 class ClientSocketPool;
@@ -55,6 +55,7 @@ class HttpAuthHandlerFactory;
 class HttpNetworkSessionPeer;
 class HttpResponseBodyDrainer;
 class HttpServerProperties;
+class HttpStreamPool;
 class HttpUserAgentSettings;
 class NetLog;
 #if BUILDFLAG(ENABLE_REPORTING)
@@ -63,7 +64,7 @@ class NetworkErrorLoggingService;
 class NetworkQualityEstimator;
 class ProxyDelegate;
 class ProxyResolutionService;
-class ProxyServer;
+class ProxyChain;
 class QuicCryptoClientStreamFactory;
 #if BUILDFLAG(ENABLE_REPORTING)
 class ReportingService;
@@ -79,9 +80,6 @@ const uint32_t kSpdyMaxHeaderTableSize = 64 * 1024;
 // The maximum size of header list that the server is allowed to send.
 const uint32_t kSpdyMaxHeaderListSize = 256 * 1024;
 
-// Specifies the maximum concurrent streams server could send (via push).
-const uint32_t kSpdyMaxConcurrentPushedStreams = 1000;
-
 // Self-contained structure with all the simple configuration options
 // supported by the HttpNetworkSession.
 struct NET_EXPORT HttpNetworkSessionParams {
@@ -89,7 +87,6 @@ struct NET_EXPORT HttpNetworkSessionParams {
   HttpNetworkSessionParams(const HttpNetworkSessionParams& other);
   ~HttpNetworkSessionParams();
 
-  bool enable_server_push_cancellation = false;
   HostMappingRules host_mapping_rules;
   bool ignore_certificate_errors = false;
   uint16_t testing_fixed_http_port = 0;
@@ -132,7 +129,7 @@ struct NET_EXPORT HttpNetworkSessionParams {
   // https://tools.ietf.org/html/draft-bishop-httpbis-grease-00.
   // The same frame will be sent out on all connections to prevent the retry
   // logic from hiding broken servers.
-  absl::optional<SpdySessionPool::GreasedHttp2Frame> greased_http2_frame;
+  std::optional<SpdySessionPool::GreasedHttp2Frame> greased_http2_frame;
   // If set, the HEADERS frame carrying a request without body will not have
   // the END_STREAM flag set.  The stream will be closed by a subsequent empty
   // DATA frame with END_STREAM.  Does not affect bidirectional or proxy
@@ -151,9 +148,6 @@ struct NET_EXPORT HttpNetworkSessionParams {
 
   // Enables QUIC support.
   bool enable_quic = true;
-
-  // If true, HTTPS URLs can be sent to QUIC proxies.
-  bool enable_quic_proxies_for_https_urls = false;
 
   // If non-empty, QUIC will only be spoken to hosts in this list.
   base::flat_set<std::string> quic_host_allowlist;
@@ -180,11 +174,11 @@ struct NET_EXPORT HttpNetworkSessionParams {
   bool ignore_ip_address_changes = false;
 
   // Whether to use the ALPN information in the DNS HTTPS record.
-  bool use_dns_https_svcb_alpn = false;
+  bool use_dns_https_svcb_alpn = true;
 };
 
-  // Structure with pointers to the dependencies of the HttpNetworkSession.
-  // These objects must all outlive the HttpNetworkSession.
+// Structure with pointers to the dependencies of the HttpNetworkSession.
+// These objects must all outlive the HttpNetworkSession.
 struct NET_EXPORT HttpNetworkSessionContext {
   HttpNetworkSessionContext();
   HttpNetworkSessionContext(const HttpNetworkSessionContext& other);
@@ -194,7 +188,6 @@ struct NET_EXPORT HttpNetworkSessionContext {
   raw_ptr<HostResolver> host_resolver;
   raw_ptr<CertVerifier> cert_verifier;
   raw_ptr<TransportSecurityState> transport_security_state;
-  raw_ptr<CTPolicyEnforcer> ct_policy_enforcer;
   raw_ptr<SCTAuditingDelegate> sct_auditing_delegate;
   raw_ptr<ProxyResolutionService> proxy_resolution_service;
   raw_ptr<ProxyDelegate> proxy_delegate;
@@ -211,12 +204,12 @@ struct NET_EXPORT HttpNetworkSessionContext {
   raw_ptr<NetworkErrorLoggingService> network_error_logging_service;
 #endif
 
-    // Optional factory to use for creating QuicCryptoClientStreams.
+  // Optional factory to use for creating QuicCryptoClientStreams.
   raw_ptr<QuicCryptoClientStreamFactory> quic_crypto_client_stream_factory;
 };
 
 // This class holds session objects used by HttpNetworkTransaction objects.
-class NET_EXPORT HttpNetworkSession {
+class NET_EXPORT HttpNetworkSession : public base::PowerSuspendObserver {
  public:
   enum SocketPoolType {
     NORMAL_SOCKET_POOL,
@@ -226,7 +219,11 @@ class NET_EXPORT HttpNetworkSession {
 
   HttpNetworkSession(const HttpNetworkSessionParams& params,
                      const HttpNetworkSessionContext& context);
-  ~HttpNetworkSession();
+  ~HttpNetworkSession() override;
+
+  // base::PowerSuspendObserver methods:
+  void OnSuspend() override;
+  void OnResume() override;
 
   HttpAuthCache* http_auth_cache() { return &http_auth_cache_; }
   SSLClientContext* ssl_client_context() { return &ssl_client_context_; }
@@ -237,10 +234,10 @@ class NET_EXPORT HttpNetworkSession {
   void RemoveResponseDrainer(HttpResponseBodyDrainer* drainer);
 
   // Returns the socket pool of the given type for use with the specified
-  // ProxyServer. Use ProxyServer::Direct() to get the pool for use with direct
+  // ProxyChain. Use ProxyChain::Direct() to get the pool for use with direct
   // connections.
   ClientSocketPool* GetSocketPool(SocketPoolType pool_type,
-                                  const ProxyServer& proxy_server);
+                                  const ProxyChain& proxy_chain);
 
   CertVerifier* cert_verifier() { return cert_verifier_; }
   ProxyResolutionService* proxy_resolution_service() {
@@ -251,19 +248,18 @@ class NET_EXPORT HttpNetworkSession {
     return &websocket_endpoint_lock_manager_;
   }
   SpdySessionPool* spdy_session_pool() { return &spdy_session_pool_; }
-  QuicStreamFactory* quic_stream_factory() { return &quic_stream_factory_; }
+  QuicSessionPool* quic_session_pool() { return &quic_session_pool_; }
   HttpAuthHandlerFactory* http_auth_handler_factory() {
     return http_auth_handler_factory_;
   }
   HttpServerProperties* http_server_properties() {
     return http_server_properties_;
   }
+  HttpStreamPool* http_stream_pool() { return http_stream_pool_.get(); }
   HttpStreamFactory* http_stream_factory() {
     return http_stream_factory_.get();
   }
-  NetLog* net_log() {
-    return net_log_;
-  }
+  NetLog* net_log() { return net_log_; }
   HostResolver* host_resolver() { return host_resolver_; }
 #if BUILDFLAG(ENABLE_REPORTING)
   ReportingService* reporting_service() const { return reporting_service_; }
@@ -290,8 +286,6 @@ class NET_EXPORT HttpNetworkSession {
   // Returns the original Context used to construct this session.
   const HttpNetworkSessionContext& context() const { return context_; }
 
-  void SetServerPushDelegate(std::unique_ptr<ServerPushDelegate> push_delegate);
-
   // Returns protocols to be used with ALPN.
   const NextProtoVector& GetAlpnProtos() const { return next_protos_; }
 
@@ -301,11 +295,21 @@ class NET_EXPORT HttpNetworkSession {
     return application_settings_;
   }
 
+  void SetTLS13EarlyDataEnabled(bool enabled);
+
   // Evaluates if QUIC is enabled for new streams.
   bool IsQuicEnabled() const;
 
   // Disable QUIC for new streams.
   void DisableQuic();
+
+  // Returns true when QUIC is forcibly used for `destination`.
+  bool ShouldForceQuic(const url::SchemeHostPort& destination,
+                       const ProxyInfo& proxy_info,
+                       bool is_websocket);
+
+  // Ignores certificate errors on new connection attempts.
+  void IgnoreCertificateErrorsForTesting();
 
   // Clear the SSL session cache.
   void ClearSSLSessionCache();
@@ -316,6 +320,11 @@ class NET_EXPORT HttpNetworkSession {
   // will be nullptr.
   CommonConnectJobParams CreateCommonConnectJobParams(
       bool for_websockets = false);
+
+  // Rewrite the port of `endpoint` when testing fixed port is specified.
+  void ApplyTestingFixedPort(url::SchemeHostPort& endpoint) const;
+
+  bool power_suspended() const { return power_suspended_; }
 
  private:
   friend class HttpNetworkSessionPeer;
@@ -345,8 +354,15 @@ class NET_EXPORT HttpNetworkSession {
   WebSocketEndpointLockManager websocket_endpoint_lock_manager_;
   std::unique_ptr<ClientSocketPoolManager> normal_socket_pool_manager_;
   std::unique_ptr<ClientSocketPoolManager> websocket_socket_pool_manager_;
-  std::unique_ptr<ServerPushDelegate> push_delegate_;
-  QuicStreamFactory quic_stream_factory_;
+  QuicSessionPool quic_session_pool_;
+  // `http_stream_pool_` needs to outlive `spdy_session_pool_` because it owns
+  // SpdySessions, which own HttpStreamHandle and handles are owned by
+  // `http_stream_pool_`.
+  // `http_stream_pool_` needs to be destroyed before `quic_session_pool_`
+  // because an HttpStreamPool::QuicTask, which is owned by `http_stream_pool_`,
+  // may have a QuicSessionAttempt that must be destroyed before
+  // `quic_session_pool_`.
+  std::unique_ptr<HttpStreamPool> http_stream_pool_;
   SpdySessionPool spdy_session_pool_;
   std::unique_ptr<HttpStreamFactory> http_stream_factory_;
   std::set<std::unique_ptr<HttpResponseBodyDrainer>, base::UniquePtrComparator>
@@ -358,6 +374,8 @@ class NET_EXPORT HttpNetworkSession {
   HttpNetworkSessionContext context_;
 
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
+
+  bool power_suspended_ = false;
 
   THREAD_CHECKER(thread_checker_);
 };

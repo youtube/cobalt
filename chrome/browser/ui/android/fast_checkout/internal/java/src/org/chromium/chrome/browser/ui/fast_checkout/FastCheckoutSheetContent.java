@@ -8,21 +8,23 @@ import static org.chromium.chrome.browser.ui.fast_checkout.FastCheckoutPropertie
 import static org.chromium.chrome.browser.ui.fast_checkout.FastCheckoutProperties.ScreenType.CREDIT_CARD_SCREEN;
 import static org.chromium.chrome.browser.ui.fast_checkout.FastCheckoutProperties.ScreenType.HOME_SCREEN;
 
+import android.content.Context;
 import android.view.View;
 import android.view.View.MeasureSpec;
 import android.view.ViewGroup;
 
-import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 import androidx.recyclerview.widget.RecyclerView;
 
-import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetContent;
+import org.chromium.ui.UiUtils;
 import org.chromium.ui.base.LocalizationUtils;
 
-/**
- * The {@link BottomSheetContent} for Fast Checkout.
- */
+/** The {@link BottomSheetContent} for Fast Checkout. */
+@NullMarked
 public class FastCheckoutSheetContent implements BottomSheetContent {
     private static final float MAX_VISIBLE_WHOLE_ADDRESSES = 2.5f;
     private static final float MAX_VISIBLE_WHOLE_CREDIT_CARDS = 3.5f;
@@ -38,8 +40,10 @@ public class FastCheckoutSheetContent implements BottomSheetContent {
         mContentView = contentView;
 
         // Apply RTL layout changes for tests.
-        int layoutDirection = LocalizationUtils.isLayoutRtl() ? View.LAYOUT_DIRECTION_RTL
-                                                              : View.LAYOUT_DIRECTION_LTR;
+        int layoutDirection =
+                LocalizationUtils.isLayoutRtl()
+                        ? View.LAYOUT_DIRECTION_RTL
+                        : View.LAYOUT_DIRECTION_LTR;
         mContentView.setLayoutDirection(layoutDirection);
     }
 
@@ -48,9 +52,8 @@ public class FastCheckoutSheetContent implements BottomSheetContent {
         return mContentView;
     }
 
-    @Nullable
     @Override
-    public View getToolbarView() {
+    public @Nullable View getToolbarView() {
         return null;
     }
 
@@ -84,11 +87,6 @@ public class FastCheckoutSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public int getPeekHeight() {
-        return HeightMode.DISABLED;
-    }
-
-    @Override
     public float getHalfHeightRatio() {
         if (shouldWrapContent()) {
             return HeightMode.DISABLED;
@@ -110,22 +108,22 @@ public class FastCheckoutSheetContent implements BottomSheetContent {
     }
 
     @Override
-    public int getSheetContentDescriptionStringId() {
-        return R.string.fast_checkout_content_description;
+    public String getSheetContentDescription(Context context) {
+        return context.getString(R.string.fast_checkout_content_description);
     }
 
     @Override
-    public int getSheetClosedAccessibilityStringId() {
+    public @StringRes int getSheetClosedAccessibilityStringId() {
         return R.string.fast_checkout_sheet_closed;
     }
 
     @Override
-    public int getSheetHalfHeightAccessibilityStringId() {
+    public @StringRes int getSheetHalfHeightAccessibilityStringId() {
         return R.string.fast_checkout_content_description;
     }
 
     @Override
-    public int getSheetFullHeightAccessibilityStringId() {
+    public @StringRes int getSheetFullHeightAccessibilityStringId() {
         return R.string.fast_checkout_content_description;
     }
 
@@ -143,9 +141,10 @@ public class FastCheckoutSheetContent implements BottomSheetContent {
 
     private float getBottomSheetHeight() {
         ViewGroup parent = (ViewGroup) getContentView().getParent();
-        getContentView().measure(
-                MeasureSpec.makeMeasureSpec(parent.getWidth(), MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(parent.getHeight(), MeasureSpec.AT_MOST));
+        getContentView()
+                .measure(
+                        MeasureSpec.makeMeasureSpec(parent.getWidth(), MeasureSpec.EXACTLY),
+                        MeasureSpec.makeMeasureSpec(parent.getHeight(), MeasureSpec.AT_MOST));
         return getContentView().getMeasuredHeight();
     }
 
@@ -153,33 +152,40 @@ public class FastCheckoutSheetContent implements BottomSheetContent {
         // Always got to FULL state in accessibility mode or when an external keyboard is connected
         // to allow scrolling the RecyclerView with e.g. side swipes or the Tab key.
         if (ChromeAccessibilityUtil.get().isAccessibilityEnabled()
-                || ChromeAccessibilityUtil.isHardwareKeyboardAttached(
-                        ContextUtils.getApplicationContext().getResources().getConfiguration())) {
+                || UiUtils.isHardwareKeyboardAttached()) {
             return true;
         }
         // If there are 1 or 2 Autofill profiles, it shows all items fully. For 3+ suggestions, it
         // shows the first 2.5 suggestions to encourage scrolling.
-        boolean shouldWrapAutofillProfiles = isAutofillProfileScreen()
-                && mState.getNumOfAutofillProfiles() < MAX_VISIBLE_WHOLE_ADDRESSES;
+        boolean shouldWrapAutofillProfiles =
+                isAutofillProfileScreen()
+                        && mState.getNumOfAutofillProfiles() < MAX_VISIBLE_WHOLE_ADDRESSES;
         // If there are less than 4 credit cards, it shows all items fully. For 4+ suggestions, it
         // shows the first 3.5 suggestions to encourage scrolling.
-        boolean shouldWrapCreditCards = isCreditCardScreen()
-                && mState.getNumOfCreditCards() < MAX_VISIBLE_WHOLE_CREDIT_CARDS;
+        boolean shouldWrapCreditCards =
+                isCreditCardScreen()
+                        && mState.getNumOfCreditCards() < MAX_VISIBLE_WHOLE_CREDIT_CARDS;
         return isHomeScreen() || shouldWrapAutofillProfiles || shouldWrapCreditCards;
     }
 
     private int getDesiredDetailSheetHeight() {
-        // TODO(crbug.com/1334642): Investigate measuring heights dynamically instead of using
+        // TODO(crbug.com/40228235): Investigate measuring heights dynamically instead of using
         // hard-coded values.
         int height = getDimensionPixelSize(R.dimen.fast_checkout_detail_sheet_header_height);
         if (isAutofillProfileScreen()) {
-            height += Math.round(MAX_VISIBLE_WHOLE_ADDRESSES
-                    * getDimensionPixelSize(
-                            R.dimen.fast_checkout_detail_sheet_height_single_address));
+            height +=
+                    Math.round(
+                            MAX_VISIBLE_WHOLE_ADDRESSES
+                                    * getDimensionPixelSize(
+                                            R.dimen
+                                                    .fast_checkout_detail_sheet_height_single_address));
         } else {
-            height += Math.round(MAX_VISIBLE_WHOLE_CREDIT_CARDS
-                    * getDimensionPixelSize(
-                            R.dimen.fast_checkout_detail_sheet_height_single_credit_card));
+            height +=
+                    Math.round(
+                            MAX_VISIBLE_WHOLE_CREDIT_CARDS
+                                    * getDimensionPixelSize(
+                                            R.dimen
+                                                    .fast_checkout_detail_sheet_height_single_credit_card));
         }
         return height;
     }

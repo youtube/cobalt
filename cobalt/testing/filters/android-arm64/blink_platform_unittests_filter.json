@@ -1,6 +1,5 @@
 {
   "failing_tests": [
-    "KeySystemConfigSelectorTest.*",
-    "*RTCVideoDecoder*"
+    "*"
   ]
 }

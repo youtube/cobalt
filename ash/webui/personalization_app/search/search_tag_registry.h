@@ -41,6 +41,8 @@ class SearchTagRegistry : public EnterprisePolicyDelegate::Observer {
 
   using SearchConceptUpdates = std::map<const SearchConcept*, bool>;
 
+  static std::u16string MessageIdToString(int message_id);
+
   SearchTagRegistry(
       local_search_service::LocalSearchServiceProxy& local_search_service_proxy,
       PrefService* pref_service,
@@ -76,7 +78,8 @@ class SearchTagRegistry : public EnterprisePolicyDelegate::Observer {
 
   base::ObserverList<Observer> observer_list_;
   mojo::Remote<local_search_service::mojom::Index> index_remote_;
-  std::map<std::string, const SearchConcept*> result_id_to_search_concept_;
+  std::map<std::string, raw_ptr<const SearchConcept, CtnExperimental>>
+      result_id_to_search_concept_;
   raw_ptr<PrefService> pref_service_;
   std::unique_ptr<EnterprisePolicyDelegate> enterprise_policy_delegate_;
   PrefChangeRegistrar pref_change_registrar_;

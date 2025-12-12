@@ -9,9 +9,9 @@
 
 namespace ui {
 
-EventProcessor::EventProcessor() {}
+EventProcessor::EventProcessor() = default;
 
-EventProcessor::~EventProcessor() {}
+EventProcessor::~EventProcessor() = default;
 
 EventDispatchDetails EventProcessor::OnEventFromSource(Event* event) {
   base::WeakPtr<EventProcessor> weak_this = weak_ptr_factory_.GetWeakPtr();
@@ -49,7 +49,7 @@ EventDispatchDetails EventProcessor::OnEventFromSource(Event* event) {
     DCHECK(targeter);
     // FindTargetForEvent may dispatch event, which may delete the event
     // processor or targeter.
-    // TODO(crbug.com/1345952): Remove these returns and change this to DCHECK.
+    // TODO(crbug.com/40232309): Remove these returns and change this to DCHECK.
     if (!weak_this) {
       details.dispatcher_destroyed = true;
       return details;

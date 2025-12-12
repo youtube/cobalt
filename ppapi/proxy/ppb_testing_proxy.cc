@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ppapi/proxy/ppb_testing_proxy.h"
 
 #include <stddef.h>
@@ -55,13 +60,13 @@ PP_Bool ReadImageData(PP_Resource graphics_2d,
 void RunMessageLoop(PP_Instance instance) {
   CHECK(PpapiGlobals::Get()->GetMainThreadMessageLoop()->
       BelongsToCurrentThread());
-  base::RunLoop(base::RunLoop::Type::kNestableTasksAllowed).Run();
+  PpapiGlobals::Get()->RunMsgLoop();
 }
 
 void QuitMessageLoop(PP_Instance instance) {
   CHECK(PpapiGlobals::Get()->GetMainThreadMessageLoop()->
             BelongsToCurrentThread());
-  base::RunLoop::QuitCurrentDeprecated();
+  PpapiGlobals::Get()->QuitMsgLoop();
 }
 
 uint32_t GetLiveObjectsForInstance(PP_Instance instance_id) {

@@ -5,11 +5,11 @@
 #include "ash/keyboard/ui/container_floating_behavior.h"
 
 #include <memory>
+#include <optional>
 
 #include "ash/keyboard/ui/display_util.h"
 #include "ash/keyboard/ui/drag_descriptor.h"
 #include "base/numerics/safe_conversions.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/aura/window.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
@@ -223,11 +223,11 @@ bool ContainerFloatingBehavior::HandlePointerEvent(
 
   const ui::EventType type = event.type();
   switch (type) {
-    case ui::ET_TOUCH_PRESSED:
-    case ui::ET_MOUSE_PRESSED:
+    case ui::EventType::kTouchPressed:
+    case ui::EventType::kMousePressed:
       if (!draggable_area_.Contains(kb_offset.x(), kb_offset.y())) {
         drag_descriptor_.reset();
-      } else if (type == ui::ET_MOUSE_PRESSED &&
+      } else if (type == ui::EventType::kMousePressed &&
                  !static_cast<const ui::MouseEvent&>(event)
                       .IsOnlyLeftMouseButton()) {
         // Mouse events are limited to just the left mouse button.
@@ -238,8 +238,8 @@ bool ContainerFloatingBehavior::HandlePointerEvent(
       }
       break;
 
-    case ui::ET_MOUSE_DRAGGED:
-    case ui::ET_TOUCH_MOVED:
+    case ui::EventType::kMouseDragged:
+    case ui::EventType::kTouchMoved:
       if (drag_descriptor_ && drag_descriptor_->pointer_id == pointer_id) {
         // Drag continues.
         // If there is an active drag, use it to determine the new location

@@ -4,6 +4,11 @@
 
 #include "quiche/http2/hpack/decoder/hpack_decoder_tables.h"
 
+#include <ostream>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "absl/strings/str_cat.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -97,7 +102,7 @@ void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
   ++insert_count_;
   size_t insert_limit = size_limit_ - entry_size;
   EnsureSizeNoMoreThan(insert_limit);
-  table_.push_front(entry);
+  table_.push_front(std::move(entry));
   current_size_ += entry_size;
   QUICHE_DVLOG(2) << "InsertEntry: current_size_=" << current_size_;
   QUICHE_DCHECK_GE(current_size_, entry_size);

@@ -3,21 +3,20 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
-import 'chrome://resources/polymer/v3_0/paper-spinner/paper-spinner-lite.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import './strings.m.js';
+import 'chrome://resources/cr_elements/cr_spinner_style.css.js';
+import '/strings.m.js';
 import './shared_style.css.js';
 import './privacy_sandbox_dialog_consent_step.js';
 import './privacy_sandbox_dialog_notice_step.js';
 
-import {CrScrollableMixinInterface} from 'chrome://resources/cr_elements/cr_scrollable_mixin.js';
-import {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {CrViewManagerElement} from 'chrome://resources/cr_elements/cr_view_manager/cr_view_manager.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './privacy_sandbox_combined_dialog_app.html.js';
 import {PrivacySandboxDialogBrowserProxy, PrivacySandboxPromptAction} from './privacy_sandbox_dialog_browser_proxy.js';
-import {PrivacySandboxDialogMixinInterface} from './privacy_sandbox_dialog_mixin';
+import type {PrivacySandboxDialogMixinInterface} from './privacy_sandbox_dialog_mixin.js';
 import {PrivacySandboxDialogResizeMixin} from './privacy_sandbox_dialog_resize_mixin.js';
 
 export enum PrivacySandboxCombinedDialogStep {
@@ -32,8 +31,7 @@ export interface PrivacySandboxCombinedDialogAppElement {
   };
 }
 
-type PrivacySandboxStepElement =
-    CrScrollableMixinInterface&PrivacySandboxDialogMixinInterface;
+type PrivacySandboxStepElement = PrivacySandboxDialogMixinInterface&HTMLElement;
 
 const PrivacySandboxCombinedDialogAppElementBase =
     PrivacySandboxDialogResizeMixin(PolymerElement);
@@ -58,7 +56,7 @@ export class PrivacySandboxCombinedDialogAppElement extends
     };
   }
 
-  private step_: PrivacySandboxCombinedDialogStep;
+  declare private step_: PrivacySandboxCombinedDialogStep;
   private animationsEnabled_: boolean = true;
 
   override ready() {
@@ -74,11 +72,11 @@ export class PrivacySandboxCombinedDialogAppElement extends
     // After the initial step was loaded, resize the native dialog to fit it.
     this.navigateToStep_(firstStep)
         .then(() => this.resizeAndShowNativeDialog())
-        .then(() => this.updateScrollableContentsCurrentStep_())
         .then(
             () => this.promptActionOccurred(
                 startWithNotice ? PrivacySandboxPromptAction.NOTICE_SHOWN :
-                                  PrivacySandboxPromptAction.CONSENT_SHOWN));
+                                  PrivacySandboxPromptAction.CONSENT_SHOWN))
+        .then(() => this.updateScrollableContentsCurrentStep_());
   }
 
   disableAnimationsForTesting() {
@@ -89,12 +87,12 @@ export class PrivacySandboxCombinedDialogAppElement extends
     const savingDurationMs = this.animationsEnabled_ ? 1500 : 0;
     this.navigateToStep_(PrivacySandboxCombinedDialogStep.SAVING)
         .then(() => new Promise(r => setTimeout(r, savingDurationMs)))
-        .then(() => {
-          this.navigateToStep_(PrivacySandboxCombinedDialogStep.NOTICE);
-          this.updateScrollableContentsCurrentStep_().then(
-              () => this.promptActionOccurred(
-                  PrivacySandboxPromptAction.NOTICE_SHOWN));
-        });
+        .then(
+            () => this.navigateToStep_(PrivacySandboxCombinedDialogStep.NOTICE))
+        .then(
+            () => this.promptActionOccurred(
+                PrivacySandboxPromptAction.NOTICE_SHOWN))
+        .then(() => this.updateScrollableContentsCurrentStep_());
   }
 
   private navigateToStep_(step: PrivacySandboxCombinedDialogStep):
@@ -122,8 +120,8 @@ export class PrivacySandboxCombinedDialogAppElement extends
 
   private getStepElement_(step: PrivacySandboxCombinedDialogStep):
       PrivacySandboxStepElement {
-    return this.shadowRoot!.querySelector(`#${step}`)! as unknown as
-        PrivacySandboxStepElement;
+    return this.shadowRoot!.querySelector<PrivacySandboxStepElement>(
+        `#${step}`)!;
   }
 }
 

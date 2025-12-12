@@ -6,12 +6,15 @@
 
 #include <stddef.h>
 
+#include <algorithm>
+
+#include "base/containers/contains.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
+#include "components/pdf/common/pdf_util.h"
 #include "content/public/common/webplugininfo.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/error_utils.h"
@@ -51,7 +54,6 @@ static_assert(
         static_cast<size_t>(MimeHandlerType::kMaxValue) + 1,
     "MimeHandlerType enum is not in sync with kMIMETypeHandlersAllowlist.");
 
-constexpr SkColor kPdfExtensionBackgroundColor = SkColorSetRGB(82, 86, 89);
 constexpr SkColor kQuickOfficeExtensionBackgroundColor =
     SkColorSetRGB(241, 241, 241);
 
@@ -76,17 +78,6 @@ const std::vector<std::string>& MimeTypesHandler::GetMIMETypeAllowlist() {
   return *allowlist_vector;
 }
 
-// static
-void MimeTypesHandler::ReportUsedHandler(const std::string& extension_id) {
-  auto* const* it =
-      base::ranges::find(kMIMETypeHandlersAllowlist, extension_id);
-  if (it != std::end(kMIMETypeHandlersAllowlist)) {
-    MimeHandlerType type = static_cast<MimeHandlerType>(
-        it - std::begin(kMIMETypeHandlersAllowlist));
-    base::UmaHistogramEnumeration("Extensions.UsedMimeTypeHandler", type);
-  }
-}
-
 MimeTypesHandler::MimeTypesHandler() = default;
 MimeTypesHandler::~MimeTypesHandler() = default;
 
@@ -95,7 +86,7 @@ void MimeTypesHandler::AddMIMEType(const std::string& mime_type) {
 }
 
 bool MimeTypesHandler::CanHandleMIMEType(const std::string& mime_type) const {
-  return mime_type_set_.find(mime_type) != mime_type_set_.end();
+  return base::Contains(mime_type_set_, mime_type);
 }
 
 bool MimeTypesHandler::HasPlugin() const {
@@ -104,7 +95,7 @@ bool MimeTypesHandler::HasPlugin() const {
 
 SkColor MimeTypesHandler::GetBackgroundColor() const {
   if (extension_id_ == extension_misc::kPdfExtensionId) {
-    return kPdfExtensionBackgroundColor;
+    return GetPdfBackgroundColor();
   }
   if (extension_misc::IsQuickOfficeExtension(extension_id_)) {
     return kQuickOfficeExtensionBackgroundColor;
@@ -125,16 +116,14 @@ MimeTypesHandler* MimeTypesHandler::GetHandler(
     const extensions::Extension* extension) {
   MimeTypesHandlerInfo* info = static_cast<MimeTypesHandlerInfo*>(
       extension->GetManifestData(keys::kMimeTypesHandler));
-  if (info)
+  if (info) {
     return &info->handler_;
+  }
   return nullptr;
 }
 
-MimeTypesHandlerParser::MimeTypesHandlerParser() {
-}
-
-MimeTypesHandlerParser::~MimeTypesHandlerParser() {
-}
+MimeTypesHandlerParser::MimeTypesHandlerParser() = default;
+MimeTypesHandlerParser::~MimeTypesHandlerParser() = default;
 
 bool MimeTypesHandlerParser::Parse(extensions::Extension* extension,
                                    std::u16string* error) {

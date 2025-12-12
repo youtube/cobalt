@@ -12,7 +12,6 @@
 #include "base/power_monitor/power_monitor.h"
 #include "base/win/windows_types.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
-#include "gpu/command_buffer/service/mailbox_manager.h"
 #include "gpu/command_buffer/service/scheduler.h"
 #include "gpu/command_buffer/service/scheduler_task_runner.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
@@ -45,9 +44,9 @@ class DCOMPTextureRepresentation : public OverlayImageRepresentation {
       : OverlayImageRepresentation(manager, backing, tracker),
         dcomp_surface_proxy_(std::move(dcomp_surface_proxy)) {}
 
-  absl::optional<gl::DCLayerOverlayImage> GetDCLayerOverlayImage() override {
-    return absl::make_optional<gl::DCLayerOverlayImage>(size(),
-                                                        dcomp_surface_proxy_);
+  std::optional<gl::DCLayerOverlayImage> GetDCLayerOverlayImage() override {
+    return std::make_optional<gl::DCLayerOverlayImage>(size(),
+                                                       dcomp_surface_proxy_);
   }
 
   bool BeginReadAccess(gfx::GpuFenceHandle& acquire_fence) override {
@@ -65,15 +64,18 @@ class DCOMPTextureBacking : public ClearTrackingSharedImageBacking {
   DCOMPTextureBacking(scoped_refptr<gl::DCOMPSurfaceProxy> dcomp_surface_proxy,
                       const Mailbox& mailbox,
                       const gfx::Size& size)
-      : ClearTrackingSharedImageBacking(mailbox,
-                                        viz::SinglePlaneFormat::kBGRA_8888,
-                                        size,
-                                        gfx::ColorSpace::CreateSRGB(),
-                                        kTopLeft_GrSurfaceOrigin,
-                                        kPremul_SkAlphaType,
-                                        gpu::SHARED_IMAGE_USAGE_SCANOUT,
-                                        /*estimated_size=*/0,
-                                        /*is_thread_safe=*/false),
+      : ClearTrackingSharedImageBacking(
+            mailbox,
+            viz::SinglePlaneFormat::kBGRA_8888,
+            size,
+            gfx::ColorSpace(gfx::ColorSpace::PrimaryID::BT709,
+                            gfx::ColorSpace::TransferID::BT709),
+            kTopLeft_GrSurfaceOrigin,
+            kPremul_SkAlphaType,
+            gpu::SHARED_IMAGE_USAGE_SCANOUT,
+            {},
+            /*estimated_size=*/0,
+            /*is_thread_safe=*/false),
         dcomp_surface_proxy_(std::move(dcomp_surface_proxy)) {
     SetCleared();
   }
@@ -127,7 +129,7 @@ DCOMPTexture::DCOMPTexture(
   IPC::ScopedAllowOffSequenceChannelAssociatedBindings allow_binding;
   receiver_.Bind(std::move(receiver), runner);
   context_state_->AddContextLostObserver(this);
-  base::PowerMonitor::AddPowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
   channel_->AddRoute(route_id, sequence_);
 }
 
@@ -138,7 +140,7 @@ DCOMPTexture::~DCOMPTexture() {
   DCHECK(!channel_);
 
   context_state_->RemoveContextLostObserver(this);
-  base::PowerMonitor::RemovePowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
 
   if (window_pos_timer_.IsRunning()) {
     window_pos_timer_.Stop();
@@ -238,7 +240,7 @@ void DCOMPTexture::SetDCOMPSurfaceHandle(
 gpu::Mailbox DCOMPTexture::CreateSharedImage() {
   DCHECK(channel_);
 
-  auto mailbox = gpu::Mailbox::GenerateForSharedImage();
+  auto mailbox = gpu::Mailbox::Generate();
 
   // Use DCOMPTextureBacking as the backing to hold DCOMPSurfaceProxy i.e. this,
   // and be able to retrieve it later via ProduceOverlay.

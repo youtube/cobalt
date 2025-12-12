@@ -14,17 +14,20 @@ import android.net.Uri;
 import android.net.http.SslCertificate;
 import android.net.http.SslError;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.CalledByNativeUnchecked;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
 import org.chromium.android_webview.safe_browsing.AwSafeBrowsingConversionHelper;
 import org.chromium.android_webview.safe_browsing.AwSafeBrowsingResponse;
 import org.chromium.base.Callback;
 import org.chromium.base.Log;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.CalledByNativeUnchecked;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.TraceEvent;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 import org.chromium.net.NetError;
 
@@ -61,8 +64,8 @@ public class AwContentsClientBridge {
         mLookupTable = table;
     }
 
-    public AwContentsClientBridge(Context context, AwContentsClient client,
-            ClientCertLookupTable table) {
+    public AwContentsClientBridge(
+            Context context, AwContentsClient client, ClientCertLookupTable table) {
         assert client != null;
         mContext = context;
         mClient = client;
@@ -144,9 +147,9 @@ public class AwContentsClientBridge {
 
         private void provideResponse(PrivateKey privateKey, byte[][] certChain) {
             if (mNativeContentsClientBridge == 0) return;
-            AwContentsClientBridgeJni.get().provideClientCertificateResponse(
-                    mNativeContentsClientBridge, AwContentsClientBridge.this, mId, certChain,
-                    privateKey);
+            AwContentsClientBridgeJni.get()
+                    .provideClientCertificateResponse(
+                            mNativeContentsClientBridge, mId, certChain, privateKey);
         }
     }
 
@@ -163,7 +166,10 @@ public class AwContentsClientBridge {
     // are allowed by the user, because this functionality is already handled via
     // ssl_policy in native layers.
     @CalledByNative
-    private boolean allowCertificateError(int certError, byte[] derBytes, final String url,
+    private boolean allowCertificateError(
+            int certError,
+            byte[] derBytes,
+            final @JniType("std::string") String url,
             final int id) {
         final SslCertificate cert = SslUtil.getCertificateFromDerBytes(derBytes);
         if (cert == null) {
@@ -171,9 +177,11 @@ public class AwContentsClientBridge {
             return false;
         }
         final SslError sslError = SslUtil.sslErrorFromNetErrorCode(certError, cert, url);
-        final Callback<Boolean> callback = value
-                -> PostTask.runOrPostTask(
-                        TaskTraits.UI_DEFAULT, () -> proceedSslError(value.booleanValue(), id));
+        final Callback<Boolean> callback =
+                value ->
+                        PostTask.runOrPostTask(
+                                TaskTraits.UI_DEFAULT,
+                                () -> proceedSslError(value.booleanValue(), id));
         // Post the application callback back to the current thread to ensure the application
         // callback is executed without any native code on the stack. This so that any exception
         // thrown by the application callback won't have to be propagated through a native call
@@ -184,25 +192,28 @@ public class AwContentsClientBridge {
 
     private void proceedSslError(boolean proceed, int id) {
         if (mNativeContentsClientBridge == 0) return;
-        AwContentsClientBridgeJni.get().proceedSslError(
-                mNativeContentsClientBridge, AwContentsClientBridge.this, proceed, id);
+        AwContentsClientBridgeJni.get().proceedSslError(mNativeContentsClientBridge, proceed, id);
     }
 
     // Intentionally not private for testing the native peer of this class.
     @CalledByNative
-    protected void selectClientCertificate(final int id, final String[] keyTypes,
-            byte[][] encodedPrincipals, final String host, final int port) {
+    protected void selectClientCertificate(
+            final int id,
+            final @JniType("std::vector<std::string>") String[] keyTypes,
+            byte[][] encodedPrincipals,
+            final @JniType("std::string") String host,
+            final int port) {
         assert mNativeContentsClientBridge != 0;
         ClientCertLookupTable.Cert cert = mLookupTable.getCertData(host, port);
         if (mLookupTable.isDenied(host, port)) {
-            AwContentsClientBridgeJni.get().provideClientCertificateResponse(
-                    mNativeContentsClientBridge, AwContentsClientBridge.this, id, null, null);
+            AwContentsClientBridgeJni.get()
+                    .provideClientCertificateResponse(mNativeContentsClientBridge, id, null, null);
             return;
         }
         if (cert != null) {
-            AwContentsClientBridgeJni.get().provideClientCertificateResponse(
-                    mNativeContentsClientBridge, AwContentsClientBridge.this, id, cert.mCertChain,
-                    cert.mPrivateKey);
+            AwContentsClientBridgeJni.get()
+                    .provideClientCertificateResponse(
+                            mNativeContentsClientBridge, id, cert.mCertChain, cert.mPrivateKey);
             return;
         }
         // Build the list of principals from encoded versions.
@@ -214,112 +225,140 @@ public class AwContentsClientBridge {
                     principals[n] = new X500Principal(encodedPrincipals[n]);
                 } catch (IllegalArgumentException e) {
                     Log.w(TAG, "Exception while decoding issuers list: " + e);
-                    AwContentsClientBridgeJni.get().provideClientCertificateResponse(
-                            mNativeContentsClientBridge, AwContentsClientBridge.this, id, null,
-                            null);
+                    AwContentsClientBridgeJni.get()
+                            .provideClientCertificateResponse(
+                                    mNativeContentsClientBridge, id, null, null);
                     return;
                 }
             }
-
         }
 
-        final ClientCertificateRequestCallback callback =
-                new ClientCertificateRequestCallback(id, host, port);
-        mClient.onReceivedClientCertRequest(callback, keyTypes, principals, host, port);
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.APICallback.ON_RECEIVED_CLIENT_CERT_REQUEST")) {
+            final ClientCertificateRequestCallback callback =
+                    new ClientCertificateRequestCallback(id, host, port);
+            mClient.onReceivedClientCertRequest(callback, keyTypes, principals, host, port);
 
-        // Record UMA for onReceivedClientCertRequest.
-        AwHistogramRecorder.recordCallbackInvocation(
-                AwHistogramRecorder.WebViewCallbackType.ON_RECEIVED_CLIENT_CERT_REQUEST);
+            // Record UMA for onReceivedClientCertRequest.
+            AwHistogramRecorder.recordCallbackInvocation(
+                    AwHistogramRecorder.WebViewCallbackType.ON_RECEIVED_CLIENT_CERT_REQUEST);
+        }
     }
 
     @CalledByNative
-    private void handleJsAlert(final String url, final String message, final int id) {
+    private void handleJsAlert(
+            final @JniType("std::string") String url,
+            final @JniType("std::u16string") String message,
+            final int id) {
         // Post the application callback back to the current thread to ensure the application
         // callback is executed without any native code on the stack. This so that any exception
         // thrown by the application callback won't have to be propagated through a native call
         // stack.
-        AwThreadUtils.postToCurrentLooper(() -> {
-            JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
-            mClient.handleJsAlert(url, message, handler);
-        });
+        AwThreadUtils.postToCurrentLooper(
+                () -> {
+                    JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
+                    mClient.handleJsAlert(url, message, handler);
+                });
     }
 
     @CalledByNative
-    private void handleJsConfirm(final String url, final String message, final int id) {
+    private void handleJsConfirm(
+            final @JniType("std::string") String url,
+            final @JniType("std::u16string") String message,
+            final int id) {
         // Post the application callback back to the current thread to ensure the application
         // callback is executed without any native code on the stack. This so that any exception
         // thrown by the application callback won't have to be propagated through a native call
         // stack.
-        AwThreadUtils.postToCurrentLooper(() -> {
-            JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
-            mClient.handleJsConfirm(url, message, handler);
-        });
+        AwThreadUtils.postToCurrentLooper(
+                () -> {
+                    JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
+                    mClient.handleJsConfirm(url, message, handler);
+                });
     }
 
     @CalledByNative
     private void handleJsPrompt(
-            final String url, final String message, final String defaultValue, final int id) {
+            final @JniType("std::string") String url,
+            final @JniType("std::u16string") String message,
+            final @JniType("std::u16string") String defaultValue,
+            final int id) {
         // Post the application callback back to the current thread to ensure the application
         // callback is executed without any native code on the stack. This so that any exception
         // thrown by the application callback won't have to be propagated through a native call
         // stack.
-        AwThreadUtils.postToCurrentLooper(() -> {
-            JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
-            mClient.handleJsPrompt(url, message, defaultValue, handler);
-        });
+        AwThreadUtils.postToCurrentLooper(
+                () -> {
+                    JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
+                    mClient.handleJsPrompt(url, message, defaultValue, handler);
+                });
     }
 
     @CalledByNative
-    private void handleJsBeforeUnload(final String url, final String message, final int id) {
+    private void handleJsBeforeUnload(
+            final @JniType("std::string") String url,
+            final @JniType("std::u16string") String message,
+            final int id) {
         // Post the application callback back to the current thread to ensure the application
         // callback is executed without any native code on the stack. This so that any exception
         // thrown by the application callback won't have to be propagated through a native call
         // stack.
-        AwThreadUtils.postToCurrentLooper(() -> {
-            JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
-            mClient.handleJsBeforeUnload(url, message, handler);
-        });
+        AwThreadUtils.postToCurrentLooper(
+                () -> {
+                    JsResultHandler handler = new JsResultHandler(AwContentsClientBridge.this, id);
+                    mClient.handleJsBeforeUnload(url, message, handler);
+                });
     }
 
     @CalledByNative
-    private void newDownload(String url, String userAgent, String contentDisposition,
-            String mimeType, long contentLength) {
-        mClient.getCallbackHelper().postOnDownloadStart(
-                url, userAgent, contentDisposition, mimeType, contentLength);
+    private void newDownload(
+            @JniType("std::string") String url,
+            @JniType("std::string") String userAgent,
+            @JniType("std::string") String contentDisposition,
+            @JniType("std::string") String mimeType,
+            long contentLength) {
+        try (TraceEvent event = TraceEvent.scoped("WebView.APICallback.ON_DOWNLOAD_START")) {
+            mClient.getCallbackHelper()
+                    .postOnDownloadStart(
+                            url, userAgent, contentDisposition, mimeType, contentLength);
 
-        // Record UMA for onDownloadStart.
-        AwHistogramRecorder.recordCallbackInvocation(
-                AwHistogramRecorder.WebViewCallbackType.ON_DOWNLOAD_START);
+            // Record UMA for onDownloadStart.
+            AwHistogramRecorder.recordCallbackInvocation(
+                    AwHistogramRecorder.WebViewCallbackType.ON_DOWNLOAD_START);
+        }
     }
 
     @CalledByNative
-    private void newLoginRequest(String realm, String account, String args) {
-        mClient.getCallbackHelper().postOnReceivedLoginRequest(realm, account, args);
+    private void newLoginRequest(
+            @JniType("std::string") String realm,
+            @JniType("const std::string*") @Nullable String account,
+            @JniType("std::string") String args) {
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.APICallback.ON_RECEIVED_LOGIN_REQUEST")) {
+            mClient.getCallbackHelper().postOnReceivedLoginRequest(realm, account, args);
 
-        // Record UMA for onReceivedLoginRequest.
-        AwHistogramRecorder.recordCallbackInvocation(
-                AwHistogramRecorder.WebViewCallbackType.ON_RECEIVED_LOGIN_REQUEST);
+            // Record UMA for onReceivedLoginRequest.
+            AwHistogramRecorder.recordCallbackInvocation(
+                    AwHistogramRecorder.WebViewCallbackType.ON_RECEIVED_LOGIN_REQUEST);
+        }
     }
 
     @CalledByNative
     private void onReceivedError(
-            // WebResourceRequest
-            String url, boolean isOutermostMainFrame, boolean hasUserGesture,
-            boolean isRendererInitiated, String method, String[] requestHeaderNames,
-            String[] requestHeaderValues,
+            @JniType("android_webview::AwWebResourceRequest") AwWebResourceRequest request,
+            boolean isRendererInitiated,
             // WebResourceError
-            @NetError int errorCode, String description, boolean safebrowsingHit,
+            @NetError int errorCode,
+            @JniType("std::string") String description,
+            boolean safebrowsingHit,
             boolean shouldOmitNotificationsForSafeBrowsingHit) {
-        AwContentsClient.AwWebResourceRequest request =
-                new AwContentsClient.AwWebResourceRequest(url, isOutermostMainFrame, hasUserGesture,
-                        method, requestHeaderNames, requestHeaderValues);
         AwContentsClient.AwWebResourceError error = new AwContentsClient.AwWebResourceError();
         error.errorCode = ErrorCodeConversionHelper.convertErrorCode(errorCode);
         error.description = description;
 
         String unreachableWebDataUrl = AwContentsStatics.getUnreachableWebDataUrl();
         boolean isErrorUrl =
-                unreachableWebDataUrl != null && unreachableWebDataUrl.equals(request.url);
+                unreachableWebDataUrl != null && unreachableWebDataUrl.equals(request.getUrl());
 
         if ((!isErrorUrl && errorCode != NetError.ERR_ABORTED) || safebrowsingHit) {
             // NetError.ERR_ABORTED error code is generated for the following reasons:
@@ -339,38 +378,36 @@ public class AwContentsClientBridge {
                     error.errorCode = WebviewErrorCode.ERROR_UNSAFE_RESOURCE;
                 }
             }
-            if (request.isOutermostMainFrame
-                    && AwFeatureList.pageStartedOnCommitEnabled(isRendererInitiated)) {
-                mClient.getCallbackHelper().postOnPageStarted(request.url);
+            if (request.isOutermostMainFrame()
+                    && AwComputedFlags.pageStartedOnCommitEnabled(isRendererInitiated)) {
+                mClient.getCallbackHelper().postOnPageStarted(request.getUrl());
             }
             mClient.getCallbackHelper().postOnReceivedError(request, error);
-            if (request.isOutermostMainFrame) {
+            if (request.isOutermostMainFrame()) {
                 // Need to call onPageFinished after onReceivedError for backwards compatibility
                 // with the classic webview. See also AwWebContentsObserver.didFailLoad which is
                 // used when we want to send onPageFinished alone.
-                mClient.getCallbackHelper().postOnPageFinished(request.url);
+                mClient.getCallbackHelper().postOnPageFinished(request.getUrl());
             }
         }
     }
 
     @CalledByNative
     public void onSafeBrowsingHit(
-            // WebResourceRequest
-            String url, boolean isOutermostMainFrame, boolean hasUserGesture, String method,
-            String[] requestHeaderNames, String[] requestHeaderValues, int threatType,
+            @JniType("android_webview::AwWebResourceRequest") AwWebResourceRequest request,
+            int threatType,
             final int requestId) {
-        AwContentsClient.AwWebResourceRequest request =
-                new AwContentsClient.AwWebResourceRequest(url, isOutermostMainFrame, hasUserGesture,
-                        method, requestHeaderNames, requestHeaderValues);
-
-        // TODO(ntfschr): remove clang-format directives once crbug/764582 is resolved
-        // clang-format off
         Callback<AwSafeBrowsingResponse> callback =
-                response -> PostTask.runOrPostTask(TaskTraits.UI_DEFAULT,
-                        () -> AwContentsClientBridgeJni.get().takeSafeBrowsingAction(
-                                mNativeContentsClientBridge, AwContentsClientBridge.this,
-                                response.action(), response.reporting(), requestId));
-        // clang-format on
+                response ->
+                        PostTask.runOrPostTask(
+                                TaskTraits.UI_DEFAULT,
+                                () ->
+                                        AwContentsClientBridgeJni.get()
+                                                .takeSafeBrowsingAction(
+                                                        mNativeContentsClientBridge,
+                                                        response.action(),
+                                                        response.reporting(),
+                                                        requestId));
 
         int webViewThreatType = AwSafeBrowsingConversionHelper.convertThreatType(threatType);
         mClient.getCallbackHelper().postOnSafeBrowsingHit(request, webViewThreatType, callback);
@@ -378,17 +415,15 @@ public class AwContentsClientBridge {
 
     @CalledByNative
     private void onReceivedHttpError(
-            // WebResourceRequest
-            String url, boolean isOutermostMainFrame, boolean hasUserGesture, String method,
-            String[] requestHeaderNames, String[] requestHeaderValues,
+            @JniType("android_webview::AwWebResourceRequest") AwWebResourceRequest request,
             // WebResourceResponse
-            String mimeType, String encoding, int statusCode, String reasonPhrase,
-            String[] responseHeaderNames, String[] responseHeaderValues) {
-        AwContentsClient.AwWebResourceRequest request =
-                new AwContentsClient.AwWebResourceRequest(url, isOutermostMainFrame, hasUserGesture,
-                        method, requestHeaderNames, requestHeaderValues);
-        Map<String, String> responseHeaders =
-                new HashMap<String, String>(responseHeaderNames.length);
+            @JniType("std::string") String mimeType,
+            @JniType("std::string") String encoding,
+            int statusCode,
+            @JniType("std::string") String reasonPhrase,
+            @JniType("std::vector<std::string>") String[] responseHeaderNames,
+            @JniType("std::vector<std::string>") String[] responseHeaderValues) {
+        Map<String, String> responseHeaders = new HashMap<>(responseHeaderNames.length);
         // Note that we receive un-coalesced response header lines, thus we need to combine
         // values for the same header.
         for (int i = 0; i < responseHeaderNames.length; ++i) {
@@ -402,38 +437,52 @@ public class AwContentsClientBridge {
                 responseHeaders.put(responseHeaderNames[i], currentValue + responseHeaderValues[i]);
             }
         }
-        WebResourceResponseInfo response = new WebResourceResponseInfo(
-                mimeType, encoding, null, statusCode, reasonPhrase, responseHeaders);
+        WebResourceResponseInfo response =
+                new WebResourceResponseInfo(
+                        mimeType, encoding, null, statusCode, reasonPhrase, responseHeaders);
         mClient.getCallbackHelper().postOnReceivedHttpError(request, response);
-
-        // Record UMA on http response status.
-        RecordHistogram.recordSparseHistogram(
-                "Android.WebView.onReceivedHttpError.StatusCode", statusCode);
     }
 
     @CalledByNativeUnchecked
     private boolean shouldOverrideUrlLoading(
-            String url, boolean hasUserGesture, boolean isRedirect, boolean isOutermostMainFrame) {
+            @JniType("std::u16string") String url,
+            boolean hasUserGesture,
+            boolean isRedirect,
+            @JniType("std::vector<std::string>") String[] requestHeaderNames,
+            @JniType("std::vector<std::string>") String[] requestHeaderValues,
+            boolean isOutermostMainFrame) {
+        HashMap<String, String> requestHeaders = null;
+        if (requestHeaderNames.length > 0) {
+            requestHeaders = new HashMap<String, String>(requestHeaderNames.length);
+            for (int i = 0; i < requestHeaderNames.length; ++i) {
+                assert !requestHeaders.containsKey(requestHeaderNames[i]);
+                assert !requestHeaderValues[i].isEmpty();
+                requestHeaders.put(requestHeaderNames[i], requestHeaderValues[i]);
+            }
+        }
         return mClient.shouldIgnoreNavigation(
-                mContext, url, isOutermostMainFrame, hasUserGesture, isRedirect);
+                mContext, url, isOutermostMainFrame, hasUserGesture, requestHeaders, isRedirect);
     }
 
     @CalledByNative
-    private boolean sendBrowseIntent(String url) {
+    private boolean sendBrowseIntent(@JniType("std::u16string") String url) {
         try {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
             intent.addCategory(Intent.CATEGORY_BROWSABLE);
             intent.addCategory(Intent.CATEGORY_DEFAULT);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                intent.setFlags(Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER
-                        | Intent.FLAG_ACTIVITY_REQUIRE_DEFAULT);
+                intent.setFlags(
+                        Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER
+                                | Intent.FLAG_ACTIVITY_REQUIRE_DEFAULT);
             } else {
                 ResolveInfo bestActivity = getBestActivityForIntent(intent);
                 if (bestActivity == null) {
                     return false;
                 }
-                intent.setComponent(new ComponentName(
-                        bestActivity.activityInfo.packageName, bestActivity.activityInfo.name));
+                intent.setComponent(
+                        new ComponentName(
+                                bestActivity.activityInfo.packageName,
+                                bestActivity.activityInfo.name));
             }
             mContext.startActivity(intent);
             return true;
@@ -446,8 +495,9 @@ public class AwContentsClientBridge {
     }
 
     private ResolveInfo getBestActivityForIntent(Intent intent) {
-        List<ResolveInfo> resolveInfos = mContext.getPackageManager().queryIntentActivities(
-                intent, PackageManager.GET_RESOLVED_FILTER);
+        List<ResolveInfo> resolveInfos =
+                mContext.getPackageManager()
+                        .queryIntentActivities(intent, PackageManager.GET_RESOLVED_FILTER);
 
         ResolveInfo bestActivity = null;
         final int n = resolveInfos.size();
@@ -461,7 +511,8 @@ public class AwContentsClientBridge {
             // If the first activity has a higher priority, or a different
             // default, then it is always desirable to pick it, else there is a tie
             // between the first and second activity and we cant choose one(best one).
-            if (r0.priority > r1.priority || r0.preferredOrder > r1.preferredOrder
+            if (r0.priority > r1.priority
+                    || r0.preferredOrder > r1.preferredOrder
                     || r0.isDefault != r1.isDefault) {
                 bestActivity = resolveInfos.get(0);
             }
@@ -478,7 +529,8 @@ public class AwContentsClientBridge {
 
     private boolean isBrowserApp(ResolveInfo ri) {
         if (ri.filter.hasCategory(Intent.CATEGORY_APP_BROWSER)
-                || (ri.filter.hasDataScheme("http") && ri.filter.hasDataScheme("https")
+                || (ri.filter.hasDataScheme("http")
+                        && ri.filter.hasDataScheme("https")
                         && ri.filter.countDataAuthorities() == 0)) {
             return true;
         }
@@ -487,28 +539,32 @@ public class AwContentsClientBridge {
 
     void confirmJsResult(int id, String prompt) {
         if (mNativeContentsClientBridge == 0) return;
-        AwContentsClientBridgeJni.get().confirmJsResult(
-                mNativeContentsClientBridge, AwContentsClientBridge.this, id, prompt);
+        AwContentsClientBridgeJni.get().confirmJsResult(mNativeContentsClientBridge, id, prompt);
     }
 
     void cancelJsResult(int id) {
         if (mNativeContentsClientBridge == 0) return;
-        AwContentsClientBridgeJni.get().cancelJsResult(
-                mNativeContentsClientBridge, AwContentsClientBridge.this, id);
+        AwContentsClientBridgeJni.get().cancelJsResult(mNativeContentsClientBridge, id);
     }
 
     @NativeMethods
     interface Natives {
-        void takeSafeBrowsingAction(long nativeAwContentsClientBridge,
-                AwContentsClientBridge caller, int action, boolean reporting, int requestId);
+        void takeSafeBrowsingAction(
+                long nativeAwContentsClientBridge, int action, boolean reporting, int requestId);
 
-        void proceedSslError(long nativeAwContentsClientBridge, AwContentsClientBridge caller,
-                boolean proceed, int id);
-        void provideClientCertificateResponse(long nativeAwContentsClientBridge,
-                AwContentsClientBridge caller, int id, byte[][] certChain, PrivateKey androidKey);
-        void confirmJsResult(long nativeAwContentsClientBridge, AwContentsClientBridge caller,
-                int id, String prompt);
-        void cancelJsResult(
-                long nativeAwContentsClientBridge, AwContentsClientBridge caller, int id);
+        void proceedSslError(long nativeAwContentsClientBridge, boolean proceed, int id);
+
+        void provideClientCertificateResponse(
+                long nativeAwContentsClientBridge,
+                int id,
+                byte[][] certChain,
+                PrivateKey androidKey);
+
+        void confirmJsResult(
+                long nativeAwContentsClientBridge,
+                int id,
+                @JniType("std::optional<std::u16string>") @Nullable String prompt);
+
+        void cancelJsResult(long nativeAwContentsClientBridge, int id);
     }
 }

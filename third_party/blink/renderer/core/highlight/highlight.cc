@@ -25,7 +25,7 @@ Highlight::~Highlight() = default;
 void Highlight::Trace(blink::Visitor* visitor) const {
   visitor->Trace(highlight_ranges_);
   visitor->Trace(containing_highlight_registries_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
 void Highlight::ScheduleRepaintsInContainingHighlightRegistries() const {
@@ -39,8 +39,9 @@ void Highlight::ScheduleRepaintsInContainingHighlightRegistries() const {
 Highlight* Highlight::addForBinding(ScriptState*,
                                     AbstractRange* range,
                                     ExceptionState&) {
-  if (highlight_ranges_.insert(range).is_new_entry)
+  if (highlight_ranges_.insert(range).is_new_entry) {
     ScheduleRepaintsInContainingHighlightRegistries();
+  }
   return this;
 }
 
@@ -104,7 +105,7 @@ void Highlight::RegisterIn(HighlightRegistry* highlight_registry) {
 
 void Highlight::DeregisterFrom(HighlightRegistry* highlight_registry) {
   auto map_iterator = containing_highlight_registries_.find(highlight_registry);
-  DCHECK_NE(map_iterator, containing_highlight_registries_.end());
+  CHECK_NE(map_iterator, containing_highlight_registries_.end());
   DCHECK_GT(map_iterator->value, 0u);
   if (--map_iterator->value == 0)
     containing_highlight_registries_.erase(map_iterator);

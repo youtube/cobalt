@@ -41,7 +41,10 @@
 #include "v8/include/v8.h"
 
 namespace blink {
-
+namespace bindings {
+class DictionaryBase;
+class UnionBase;
+}  // namespace bindings
 class ScriptState;
 
 // ScriptValue is used when an idl specifies the type as 'any'. ScriptValue
@@ -50,41 +53,22 @@ class CORE_EXPORT ScriptValue final {
   DISALLOW_NEW();
 
  public:
-  // Defined in ToV8.h due to circular dependency
+  // ScriptValue::From() is restricted to certain types that are unambiguous in
+  // how they are exposed to V8. Objects that need to know what the expected IDL
+  // type is in order to be correctly converted must explicitly use ToV8Traits<>
+  // to get a v8::Value, then pass it directly to the constructor.
   template <typename T>
-  static ScriptValue From(ScriptState*, T&& value);
-
-  template <typename T, typename... Arguments>
-  static inline T To(v8::Isolate* isolate,
-                     v8::Local<v8::Value> value,
-                     ExceptionState& exception_state,
-                     Arguments const&... arguments) {
-    return NativeValueTraits<T>::NativeValue(isolate, value, exception_state,
-                                             arguments...);
-  }
-
-  template <typename T, typename... Arguments>
-  static inline T To(v8::Isolate* isolate,
-                     const ScriptValue& value,
-                     ExceptionState& exception_state,
-                     Arguments const&... arguments) {
-    return To<T>(isolate, value.V8Value(), exception_state, arguments...);
+    requires std::derived_from<T, bindings::DictionaryBase> ||
+             std::derived_from<T, ScriptWrappable> ||
+             std::derived_from<T, bindings::UnionBase>
+  static ScriptValue From(ScriptState* script_state, T* value) {
+    return ScriptValue(script_state->GetIsolate(), value->ToV8(script_state));
   }
 
   ScriptValue() = default;
 
   ScriptValue(v8::Isolate* isolate, v8::Local<v8::Value> value)
-      : isolate_(isolate), value_(isolate, value) {
-    DCHECK(isolate_);
-  }
-
-  template <typename T>
-  ScriptValue(v8::Isolate* isolate, v8::MaybeLocal<T> value)
-      : isolate_(isolate),
-        value_(isolate,
-               value.IsEmpty() ? v8::Local<T>() : value.ToLocalChecked()) {
-    DCHECK(isolate_);
-  }
+      : value_(isolate, value) {}
 
   ~ScriptValue() {
     // Reset() below eagerly cleans up Oilpan-internal book-keeping data
@@ -109,11 +93,10 @@ class CORE_EXPORT ScriptValue final {
 
   ScriptValue(const ScriptValue& value) = default;
 
-  // TODO(riakf): Use this GetIsolate() only when doing DCHECK inside
-  // ScriptValue.
+  // Prefer getting the Isolate from ScriptState or similar.
   v8::Isolate* GetIsolate() const {
-    DCHECK(isolate_);
-    return isolate_;
+    DCHECK(!IsEmpty());
+    return value_.GetIsolate();
   }
 
   ScriptValue& operator=(const ScriptValue& value) = default;
@@ -163,7 +146,6 @@ class CORE_EXPORT ScriptValue final {
   bool IsEmpty() const { return value_.IsEmpty(); }
 
   void Clear() {
-    isolate_ = nullptr;
     value_.Reset();
   }
 
@@ -173,6 +155,7 @@ class CORE_EXPORT ScriptValue final {
   // this "clones" the v8 value and returns it.
   v8::Local<v8::Value> V8ValueFor(ScriptState*) const;
 
+  // Coereces the underlying v8::Value to a string.
   bool ToString(String&) const;
 
   static ScriptValue CreateNull(v8::Isolate*);
@@ -180,8 +163,65 @@ class CORE_EXPORT ScriptValue final {
   void Trace(Visitor* visitor) const { visitor->Trace(value_); }
 
  private:
-  v8::Isolate* isolate_ = nullptr;
   WorldSafeV8Reference<v8::Value> value_;
+};
+
+// ScriptObject is used when an idl specifies the type as 'object'
+class CORE_EXPORT ScriptObject final {
+  DISALLOW_NEW();
+
+ public:
+  // ScriptObject::From() is restricted to certain types that are unambiguous in
+  // how they are exposed to V8 and that are known to be objects.
+  template <typename T>
+    requires std::derived_from<T, bindings::DictionaryBase> ||
+             std::derived_from<T, ScriptWrappable>
+  static ScriptObject From(ScriptState* script_state, T* value) {
+    return ScriptObject(script_state->GetIsolate(), value->ToV8(script_state));
+  }
+
+  ScriptObject() = default;
+  ScriptObject(v8::Isolate* isolate, v8::Local<v8::Value> value)
+      : object_(isolate, value) {
+    CHECK(!value.IsEmpty());
+    CHECK(value->IsObject() || value->IsNull());
+  }
+
+  static ScriptObject CreateNull(v8::Isolate* isolate) {
+    return ScriptObject(isolate, v8::Null(isolate));
+  }
+
+  v8::Local<v8::Object> V8Object() const {
+    CHECK(object_.IsObject());
+    return object_.V8Value().As<v8::Object>();
+  }
+
+  v8::Local<v8::Object> V8ObjectFor(ScriptState* script_state) const {
+    CHECK(object_.IsObject());
+    return object_.V8ValueFor(script_state).As<v8::Object>();
+  }
+
+  bool IsNull() const { return object_.IsNull(); }
+
+  void Clear() { object_.Clear(); }
+
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  operator const ScriptValue&() const { return object_; }
+  // NOLINTNEXTLINE(google-explicit-constructor)
+  operator ScriptValue&() { return object_; }
+
+  bool operator==(const ScriptObject& object) const {
+    return object_ == object.object_;
+  }
+
+  bool operator!=(const ScriptObject& object) const {
+    return !operator==(object);
+  }
+
+  void Trace(Visitor* visitor) const { visitor->Trace(object_); }
+
+ private:
+  ScriptValue object_;
 };
 
 }  // namespace blink
@@ -192,6 +232,10 @@ namespace WTF {
 // WorldSafeV8Reference<v8::Value>.
 template <>
 struct VectorTraits<blink::ScriptValue>
+    : VectorTraits<blink::WorldSafeV8Reference<v8::Value>> {};
+
+template <>
+struct VectorTraits<blink::ScriptObject>
     : VectorTraits<blink::WorldSafeV8Reference<v8::Value>> {};
 
 }  // namespace WTF

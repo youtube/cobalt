@@ -61,10 +61,10 @@ void VideoFrameMonitor::OnCloseFrameLocked(const std::string& source_id,
   DCHECK(!source_id.empty());
   lock_.AssertAcquired();
   auto it_source = map_.find(source_id);
-  DCHECK(it_source != map_.end());
+  CHECK(it_source != map_.end());
   FrameMap& frame_map = it_source->second;
   auto it_frame = frame_map.find(frame_id);
-  DCHECK(it_frame != frame_map.end());
+  CHECK(it_frame != frame_map.end());
   DCHECK_GT(it_frame->value, 0);
   if (--it_frame->value == 0) {
     frame_map.erase(it_frame);

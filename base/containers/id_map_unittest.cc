@@ -6,6 +6,7 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <functional>
 #include <memory>
 
@@ -139,8 +140,8 @@ TEST(IDMapTest, IteratorRemainsValidWhenRemovingOtherElements) {
   }
 
   // IDMap has no predictable iteration order.
-  int32_t ids_in_iteration_order[kCount];
-  const TestObject* objs_in_iteration_order[kCount];
+  std::array<int32_t, kCount> ids_in_iteration_order;
+  std::array<const TestObject*, kCount> objs_in_iteration_order;
   int counter = 0;
   for (IDMap<TestObject*>::const_iterator iter(&map); !iter.IsAtEnd();
        iter.Advance()) {
@@ -249,8 +250,8 @@ TEST(IDMapTest, IteratorRemainsValidWhenClearing) {
   }
 
   // IDMap has no predictable iteration order.
-  int32_t ids_in_iteration_order[kCount];
-  const TestObject* objs_in_iteration_order[kCount];
+  std::array<int32_t, kCount> ids_in_iteration_order;
+  std::array<const TestObject*, kCount> objs_in_iteration_order;
   int counter = 0;
   for (IDMap<TestObject*>::const_iterator iter(&map); !iter.IsAtEnd();
        iter.Advance()) {
@@ -288,11 +289,11 @@ TEST(IDMapTest, OwningPointersDeletesThemOnRemove) {
   const int kCount = 3;
 
   int external_del_count = 0;
-  DestructorCounter* external_obj[kCount];
-  int map_external_ids[kCount];
+  std::array<DestructorCounter*, kCount> external_obj;
+  std::array<int, kCount> map_external_ids;
 
   int owned_del_count = 0;
-  int map_owned_ids[kCount];
+  std::array<int, kCount> map_owned_ids;
 
   IDMap<DestructorCounter*> map_external;
   IDMap<std::unique_ptr<DestructorCounter>> map_owned;

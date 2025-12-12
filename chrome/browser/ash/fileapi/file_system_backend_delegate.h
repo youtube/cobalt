@@ -32,7 +32,7 @@ namespace ash {
 // of FileSystemBackend.
 class FileSystemBackendDelegate {
  public:
-  virtual ~FileSystemBackendDelegate() {}
+  virtual ~FileSystemBackendDelegate() = default;
 
   // Called from FileSystemBackend::GetAsyncFileUtil().
   virtual storage::AsyncFileUtil* GetAsyncFileUtil(
@@ -56,12 +56,6 @@ class FileSystemBackendDelegate {
   // stay valid until shutdown.
   virtual storage::WatcherManager* GetWatcherManager(
       storage::FileSystemType type) = 0;
-
-  // Called from FileSystemBackend::GetRedirectURLForContents.  Please ensure
-  // that the returned URL is secure to be opened in a browser tab, or referred
-  // from <img>, <video>, XMLHttpRequest, etc...
-  virtual void GetRedirectURLForContents(const storage::FileSystemURL& url,
-                                         storage::URLCallback callback) = 0;
 };
 
 }  // namespace ash

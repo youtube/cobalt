@@ -7,11 +7,14 @@
 
 #include "base/component_export.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
+#include "components/user_manager/user_manager.h"
 
 namespace ash {
 
 // Tracks the login state of chrome, accessible to Ash and other chromeos code.
-class COMPONENT_EXPORT(LOGIN_STATE) LoginState {
+class COMPONENT_EXPORT(LOGIN_STATE) LoginState
+    : public user_manager::UserManager::UserSessionStateObserver {
  public:
   enum LoggedInState {
     LOGGED_IN_NONE,       // Not logged in
@@ -22,7 +25,6 @@ class COMPONENT_EXPORT(LOGIN_STATE) LoginState {
   enum LoggedInUserType {
     LOGGED_IN_USER_NONE,     // User is not logged in
     LOGGED_IN_USER_REGULAR,  // A regular user is logged in
-    LOGGED_IN_USER_OWNER,    // The owner of the device is logged in
     LOGGED_IN_USER_GUEST,    // A guest is logged in (i.e. incognito)
     // A user is logged in to a managed guest session ("Public Session v2").
     LOGGED_IN_USER_PUBLIC_ACCOUNT,
@@ -53,12 +55,6 @@ class COMPONENT_EXPORT(LOGIN_STATE) LoginState {
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  // Sets the logged in state, user type, and primary user hash when the
-  // primary user initialy logs in. Also notifies observers.
-  void SetLoggedInStateAndPrimaryUser(LoggedInState state,
-                                      LoggedInUserType type,
-                                      const std::string& primary_user_hash);
-
   // Sets the logged in state and user type. Also notifies observers. Used
   // in tests or situations where there is no primary user (e.g. from the
   // login screen).
@@ -77,8 +73,8 @@ class COMPONENT_EXPORT(LOGIN_STATE) LoginState {
   // Returns true if logged in to a guest session.
   bool IsGuestSessionUser() const;
 
-  // Returns true if logged in to a public session.
-  bool IsPublicSessionUser() const;
+  // Returns true if logged in to a managed guest session.
+  bool IsManagedGuestSessionUser() const;
 
   // Returns true if logged in as a kiosk session.
   bool IsKioskSession() const;
@@ -97,13 +93,26 @@ class COMPONENT_EXPORT(LOGIN_STATE) LoginState {
     always_logged_in_ = always_logged_in;
   }
 
-  const std::string& primary_user_hash() const { return primary_user_hash_; }
+  // DEPRECATED: please use
+  // user_manager::UserManager::Get()->GetPrimaryUser()->username_hash().
+  // TODO(b/278643115): Remove this.
+  const std::string& primary_user_hash() const;
+
+  void OnUserManagerCreated(user_manager::UserManager* user_manager);
+  void OnUserManagerWillBeDestroyed(user_manager::UserManager* user_manager);
+
+  // user_manager::UserManager::UserSessionStateObserver:
+  void OnLoginStateUpdated(const user_manager::User* active_user) override;
 
  private:
   LoginState();
-  virtual ~LoginState();
+  ~LoginState() override;
 
   void NotifyObservers();
+
+  base::ScopedObservation<user_manager::UserManager,
+                          user_manager::UserManager::UserSessionStateObserver>
+      observation_{this};
 
   LoggedInState logged_in_state_;
   LoggedInUserType logged_in_user_type_;

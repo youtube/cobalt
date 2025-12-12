@@ -7,17 +7,19 @@
 
 #include <stdint.h>
 
-#include <memory>
-
 #include "base/check_op.h"
+#include "base/containers/heap_array.h"
+#include "base/containers/span.h"
 #include "base/memory/ref_counted.h"
 #include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "media/base/media_export.h"
 
 namespace media {
 
 // A simple buffer that takes ownership of the given data pointer or allocates
-// as necessary.
+// as necessary. The capacity of the buffer is constant and set at construction,
+// and its size may fluctuate as data is written to the buffer.
 //
 // Unlike DecoderBuffer, allocations are assumed to be allocated with the
 // default memory allocator (i.e., new uint8_t[]).
@@ -25,19 +27,29 @@ namespace media {
 // NOTE: It is illegal to call any method when end_of_stream() is true.
 class MEDIA_EXPORT DataBuffer : public base::RefCountedThreadSafe<DataBuffer> {
  public:
-  // Allocates buffer of size |buffer_size| >= 0.
-  explicit DataBuffer(int buffer_size);
+  REQUIRE_ADOPTION_FOR_REFCOUNTED_TYPE();
 
-  // Assumes valid data of size |buffer_size|.
-  DataBuffer(std::unique_ptr<uint8_t[]> buffer, int buffer_size);
+  // Constructs an empty buffer with max `capacity`, uninitialized `data_` and
+  // a size of zero.
+  explicit DataBuffer(size_t capacity);
 
+  // Constructs a filled buffer by moving `buffer` into the `data_` property,
+  // with a size of `buffer.size()`.
+  explicit DataBuffer(base::HeapArray<uint8_t> buffer);
+
+  // Allocates a buffer with a copy of `data` in it
+  DataBuffer(base::PassKey<DataBuffer>, base::span<const uint8_t> data);
+
+  enum class DataBufferType { kNormal, kEndOfStream };
+  DataBuffer(base::PassKey<DataBuffer>, DataBufferType data_buffer_type);
+
+  DataBuffer(DataBuffer&&) = delete;
   DataBuffer(const DataBuffer&) = delete;
+  DataBuffer& operator=(DataBuffer&&) = delete;
   DataBuffer& operator=(const DataBuffer&) = delete;
 
   // Create a DataBuffer whose |data_| is copied from |data|.
-  //
-  // |data| must not be null and |size| must be >= 0.
-  static scoped_refptr<DataBuffer> CopyFrom(const uint8_t* data, int size);
+  static scoped_refptr<DataBuffer> CopyFrom(base::span<const uint8_t> data);
 
   // Create a DataBuffer indicating we've reached end of stream.
   //
@@ -45,71 +57,83 @@ class MEDIA_EXPORT DataBuffer : public base::RefCountedThreadSafe<DataBuffer> {
   // is disallowed.
   static scoped_refptr<DataBuffer> CreateEOSBuffer();
 
+  // Convenience method for initializing `data_` to zero. By default, data_
+  // is constructed with its value uninitialized.
+  void FillWithZeroes() {
+    CHECK(!end_of_stream());
+    std::fill(data_.begin(), data_.end(), 0);
+  }
+
   base::TimeDelta timestamp() const {
-    DCHECK(!end_of_stream());
+    CHECK(!end_of_stream());
     return timestamp_;
   }
 
   void set_timestamp(const base::TimeDelta& timestamp) {
-    DCHECK(!end_of_stream());
+    CHECK(!end_of_stream());
     timestamp_ = timestamp;
   }
 
   base::TimeDelta duration() const {
-    DCHECK(!end_of_stream());
+    CHECK(!end_of_stream());
     return duration_;
   }
 
   void set_duration(const base::TimeDelta& duration) {
-    DCHECK(!end_of_stream());
+    CHECK(!end_of_stream());
     duration_ = duration;
   }
 
-  const uint8_t* data() const {
-    DCHECK(!end_of_stream());
-    return data_.get();
+  // The capacity of the buffer, set at construction.
+  size_t capacity() const {
+    CHECK(!end_of_stream());
+    return data_.size();
   }
 
-  uint8_t* writable_data() {
-    DCHECK(!end_of_stream());
-    return data_.get();
+  // Adds the elements from data to the beginning of the free space within the
+  // buffer, and updates `size_`. Caller is responsible for ensuring there is
+  // enough space for this method to succeed.
+  void Append(base::span<const uint8_t> data);
+
+  // Returns a span over `data_` that is truncated by the valid size().
+  base::span<const uint8_t> data() const {
+    CHECK(!end_of_stream());
+    return data_.first(size_);
+  }
+
+  // Returns a span over `data_`, including any initialized portion. Care should
+  // be taken that uninitialized memory is written to before being accessed.
+  base::span<uint8_t> writable_data() {
+    CHECK(!end_of_stream());
+    return data_;
   }
 
   // The size of valid data in bytes.
   //
-  // Setting this value beyond the buffer size is disallowed.
-  int data_size() const {
-    DCHECK(!end_of_stream());
-    return data_size_;
+  // Setting this value beyond the buffer capacity is disallowed.
+  size_t size() const {
+    CHECK(!end_of_stream());
+    return size_;
   }
 
-  void set_data_size(int data_size) {
-    DCHECK(!end_of_stream());
-    CHECK_LE(data_size, buffer_size_);
-    data_size_ = data_size;
+  void set_size(size_t size) {
+    CHECK(!end_of_stream());
+    CHECK_LE(size, data_.size());
+    size_ = size;
   }
 
-  // If there's no data in this buffer, it represents end of stream.
-  bool end_of_stream() const { return data_ == NULL; }
-
- protected:
-  friend class base::RefCountedThreadSafe<DataBuffer>;
-
-  // Allocates buffer of size |data_size|, copies [data,data+data_size) to
-  // the allocated buffer and sets data size to |data_size|.
-  //
-  // If |data| is null an end of stream buffer is created.
-  DataBuffer(const uint8_t* data, int data_size);
-
-  virtual ~DataBuffer();
+  bool end_of_stream() const { return is_end_of_stream_; }
 
  private:
+  friend class base::RefCountedThreadSafe<DataBuffer>;
+  virtual ~DataBuffer();
+
   base::TimeDelta timestamp_;
   base::TimeDelta duration_;
 
-  std::unique_ptr<uint8_t[]> data_;
-  int buffer_size_;
-  int data_size_;
+  base::HeapArray<uint8_t> data_;
+  size_t size_ = 0;
+  const bool is_end_of_stream_ = false;
 };
 
 }  // namespace media

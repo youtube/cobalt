@@ -11,7 +11,7 @@
 #include "chrome/test/chromedriver/chrome/network_list.h"
 #include "chrome/test/chromedriver/chrome/status.h"
 
-NetworkConditions::NetworkConditions() {}
+NetworkConditions::NetworkConditions() = default;
 NetworkConditions::NetworkConditions(
     bool offline, double latency, double download_throughput,
     double upload_throughput)
@@ -19,7 +19,7 @@ NetworkConditions::NetworkConditions(
     latency(latency),
     download_throughput(download_throughput),
     upload_throughput(upload_throughput) {}
-NetworkConditions::~NetworkConditions() {}
+NetworkConditions::~NetworkConditions() = default;
 
 Status FindPresetNetwork(std::string network_name,
                          NetworkConditions* network_conditions) {
@@ -48,8 +48,8 @@ Status FindPresetNetwork(std::string network_name,
     if (*title != network_name)
       continue;
 
-    absl::optional<double> maybe_latency = network.FindDouble("latency");
-    absl::optional<double> maybe_throughput = network.FindDouble("throughput");
+    std::optional<double> maybe_latency = network.FindDouble("latency");
+    std::optional<double> maybe_throughput = network.FindDouble("throughput");
 
     if (!maybe_latency.has_value()) {
       return Status(kUnknownError,

@@ -6,12 +6,16 @@
 #define CHROME_BROWSER_SSL_HTTPS_ONLY_MODE_CONTROLLER_CLIENT_H_
 
 #include "base/memory/raw_ptr.h"
-#include "components/security_interstitials/content/content_metrics_helper.h"
 #include "components/security_interstitials/content/security_interstitial_controller_client.h"
 
 namespace content {
 class WebContents;
 }  // namespace content
+
+namespace security_interstitials {
+class MetricsHelper;
+class SettingsPageHelper;
+}  // namespace security_interstitials
 
 class HttpsOnlyModeControllerClient
     : public security_interstitials::SecurityInterstitialControllerClient {
@@ -19,8 +23,11 @@ class HttpsOnlyModeControllerClient
   static std::unique_ptr<security_interstitials::MetricsHelper>
   GetMetricsHelper(const GURL& url);
 
-  HttpsOnlyModeControllerClient(content::WebContents* web_contents,
-                                const GURL& request_url);
+  HttpsOnlyModeControllerClient(
+      content::WebContents* web_contents,
+      const GURL& request_url,
+      std::unique_ptr<security_interstitials::SettingsPageHelper>
+          settings_page_helper);
   HttpsOnlyModeControllerClient(const HttpsOnlyModeControllerClient&) = delete;
   HttpsOnlyModeControllerClient& operator=(
       const HttpsOnlyModeControllerClient&) = delete;

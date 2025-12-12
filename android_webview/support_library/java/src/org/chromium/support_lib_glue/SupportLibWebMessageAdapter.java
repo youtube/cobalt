@@ -6,6 +6,7 @@ package org.chromium.support_lib_glue;
 
 import static org.chromium.support_lib_glue.SupportLibWebViewChromiumFactory.recordApiCall;
 
+import org.chromium.base.TraceEvent;
 import org.chromium.content_public.browser.MessagePayload;
 import org.chromium.content_public.browser.MessagePort;
 import org.chromium.support_lib_boundary.WebMessageBoundaryInterface;
@@ -19,8 +20,8 @@ import java.lang.reflect.InvocationHandler;
  * WebMessage back across the boundary).
  */
 public class SupportLibWebMessageAdapter implements WebMessageBoundaryInterface {
-    private MessagePayload mMessagePayload;
-    private MessagePort[] mPorts;
+    private final MessagePayload mMessagePayload;
+    private final MessagePort[] mPorts;
 
     /* package */ SupportLibWebMessageAdapter(MessagePayload messagePayload, MessagePort[] ports) {
         mMessagePayload = messagePayload;
@@ -29,20 +30,29 @@ public class SupportLibWebMessageAdapter implements WebMessageBoundaryInterface 
 
     @Override
     public String getData() {
-        recordApiCall(ApiCall.WEB_MESSAGE_GET_DATA);
-        return mMessagePayload.getAsString();
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.APICall.AndroidX.WEB_MESSAGE_GET_DATA")) {
+            recordApiCall(ApiCall.WEB_MESSAGE_GET_DATA);
+            return mMessagePayload.getAsString();
+        }
     }
 
     @Override
     public /* MessagePayload */ InvocationHandler getMessagePayload() {
-        recordApiCall(ApiCall.WEB_MESSAGE_GET_MESSAGE_PAYLOAD);
-        return new SupportLibWebMessagePayloadAdapter(mMessagePayload).getInvocationHandler();
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.APICall.AndroidX.WEB_MESSAGE_GET_MESSAGE_PAYLOAD")) {
+            recordApiCall(ApiCall.WEB_MESSAGE_GET_MESSAGE_PAYLOAD);
+            return new SupportLibWebMessagePayloadAdapter(mMessagePayload).getInvocationHandler();
+        }
     }
 
     @Override
     public /* WebMessagePort */ InvocationHandler[] getPorts() {
-        recordApiCall(ApiCall.WEB_MESSAGE_GET_PORTS);
-        return SupportLibWebMessagePortAdapter.fromMessagePorts(mPorts);
+        try (TraceEvent event =
+                TraceEvent.scoped("WebView.APICall.AndroidX.WEB_MESSAGE_GET_PORTS")) {
+            recordApiCall(ApiCall.WEB_MESSAGE_GET_PORTS);
+            return SupportLibWebMessagePortAdapter.fromMessagePorts(mPorts);
+        }
     }
 
     @Override

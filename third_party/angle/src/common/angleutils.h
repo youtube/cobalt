@@ -11,26 +11,22 @@
 
 #include "common/platform.h"
 
-#if defined(ANGLE_USE_ABSEIL)
-#    include "absl/container/flat_hash_map.h"
-#    include "absl/container/flat_hash_set.h"
-#endif  // defined(ANGLE_USE_ABSEIL)
-
 #if defined(ANGLE_WITH_LSAN)
 #    include <sanitizer/lsan_interface.h>
 #endif  // defined(ANGLE_WITH_LSAN)
 
+#if defined(ANGLE_WITH_MSAN)
+#    include <sanitizer/msan_interface.h>
+#endif  // defined(ANGLE_WITH_MSAN)
+
 #include <climits>
 #include <cstdarg>
 #include <cstddef>
-#include <fstream>
 #include <mutex>
 #include <set>
 #include <sstream>
 #include <string>
 #include <thread>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace angle
@@ -40,40 +36,8 @@ namespace angle
 using Microsoft::WRL::ComPtr;
 #endif  // defined(ANGLE_ENABLE_D3D9) || defined(ANGLE_ENABLE_D3D11)
 
-#if defined(ANGLE_USE_ABSEIL)
-template <typename Key,
-          typename T,
-          class Hash = absl::container_internal::hash_default_hash<Key>,
-          class Eq   = absl::container_internal::hash_default_eq<Key>>
-using HashMap = absl::flat_hash_map<Key, T, Hash, Eq>;
-template <typename Key,
-          class Hash = absl::container_internal::hash_default_hash<Key>,
-          class Eq   = absl::container_internal::hash_default_eq<Key>>
-using HashSet = absl::flat_hash_set<Key, Hash, Eq>;
-
-// Absl has generic lookup unconditionally
-#    define ANGLE_HAS_HASH_MAP_GENERIC_LOOKUP 1
-#else
-template <typename Key,
-          typename T,
-          class Hash     = std::hash<Key>,
-          class KeyEqual = std::equal_to<Key>>
-using HashMap = std::unordered_map<Key, T, Hash, KeyEqual>;
-template <typename Key, class Hash = std::hash<Key>, class KeyEqual = std::equal_to<Key>>
-using HashSet  = std::unordered_set<Key, Hash, KeyEqual>;
-#    if __cpp_lib_generic_unordered_lookup >= 201811L
-#        define ANGLE_HAS_HASH_MAP_GENERIC_LOOKUP 1
-#    else
-#        define ANGLE_HAS_HASH_MAP_GENERIC_LOOKUP 0
-#    endif
-#endif  // defined(ANGLE_USE_ABSEIL)
-
 // Forward declaration. Implementation in system_utils.h
-#if defined(ANGLE_PLATFORM_LINUX) || defined(ANGLE_PLATFORM_WINDOWS)
-using ThreadId = uint64_t;
-#else
 using ThreadId = std::thread::id;
-#endif
 
 // A helper class to disallow copy and assignment operators
 class NonCopyable
@@ -88,30 +52,6 @@ class NonCopyable
 };
 
 extern const uintptr_t DirtyPointer;
-
-struct SaveFileHelper
-{
-  public:
-    // We always use ios::binary to avoid inconsistent line endings when captured on Linux vs Win.
-    SaveFileHelper(const std::string &filePathIn);
-    ~SaveFileHelper();
-
-    template <typename T>
-    SaveFileHelper &operator<<(const T &value)
-    {
-        mOfs << value;
-        checkError();
-        return *this;
-    }
-
-    void write(const uint8_t *data, size_t size);
-
-  private:
-    void checkError();
-
-    std::ofstream mOfs;
-    std::string mFilePath;
-};
 
 // AMD_performance_monitor helpers.
 constexpr char kPerfMonitorExtensionName[] = "GL_AMD_performance_monitor";
@@ -163,6 +103,7 @@ struct PerfMonitorTriplet
     FN(renderPasses)                               \
     FN(writeDescriptorSets)                        \
     FN(flushedOutsideRenderPassCommandBuffers)     \
+    FN(swapchainCreate)                            \
     FN(swapchainResolveInSubpass)                  \
     FN(swapchainResolveOutsideSubpass)             \
     FN(resolveImageCommands)                       \
@@ -206,7 +147,9 @@ struct PerfMonitorTriplet
     FN(textureDescriptorSetCacheMisses)            \
     FN(textureDescriptorSetCacheTotalSize)         \
     FN(shaderResourcesDescriptorSetCacheHits)      \
+    FN(deviceMemoryImageAllocationFallbacks)       \
     FN(mutableTexturesUploaded)                    \
+    FN(fullImageClears)                            \
     FN(shaderResourcesDescriptorSetCacheMisses)    \
     FN(shaderResourcesDescriptorSetCacheTotalSize) \
     FN(buffersGhosted)                             \
@@ -214,7 +157,9 @@ struct PerfMonitorTriplet
     FN(allocateNewBufferBlockCalls)                \
     FN(bufferSuballocationCalls)                   \
     FN(dynamicBufferAllocations)                   \
-    FN(framebufferCacheSize)
+    FN(framebufferCacheSize)                       \
+    FN(pendingSubmissionGarbageObjects)            \
+    FN(graphicsDriverUniformsUpdated)
 
 #define ANGLE_DECLARE_PERF_COUNTER(COUNTER) uint64_t COUNTER;
 
@@ -332,18 +277,7 @@ inline bool IsMaskFlagSet(T mask, T flag)
     return (mask & flag) == flag;
 }
 
-inline const char *MakeStaticString(const std::string &str)
-{
-    // On the heap so that no destructor runs on application exit.
-    static std::set<std::string> *strings = new std::set<std::string>;
-    std::set<std::string>::iterator it    = strings->find(str);
-    if (it != strings->end())
-    {
-        return it->c_str();
-    }
-
-    return strings->insert(str).first->c_str();
-}
+const char *MakeStaticString(const std::string &str);
 
 std::string ArrayString(unsigned int i);
 
@@ -373,31 +307,14 @@ inline bool IsLittleEndian()
     return isLittleEndian;
 }
 
-// Helper class to use a mutex with the control of boolean.
-class ConditionalMutex final : angle::NonCopyable
-{
-  public:
-    ConditionalMutex() : mUseMutex(true) {}
-    void init(bool useMutex) { mUseMutex = useMutex; }
-    void lock()
-    {
-        if (mUseMutex)
-        {
-            mMutex.lock();
-        }
-    }
-    void unlock()
-    {
-        if (mUseMutex)
-        {
-            mMutex.unlock();
-        }
-    }
-
-  private:
-    std::mutex mMutex;
-    bool mUseMutex;
-};
+// Helper macro that casts to a bitfield type then verifies no bits were dropped.
+#define SetBitField(lhs, rhs)                                                         \
+    do                                                                                \
+    {                                                                                 \
+        auto ANGLE_LOCAL_VAR = rhs;                                                   \
+        lhs = static_cast<typename std::decay<decltype(lhs)>::type>(ANGLE_LOCAL_VAR); \
+        ASSERT(static_cast<decltype(ANGLE_LOCAL_VAR)>(lhs) == ANGLE_LOCAL_VAR);       \
+    } while (0)
 
 // snprintf is not defined with MSVC prior to to msvc14
 #if defined(_MSC_VER) && _MSC_VER < 1900
@@ -413,6 +330,11 @@ class ConditionalMutex final : angle::NonCopyable
 #define GL_UINT_64_ANGLEX 0x6ABF
 #define GL_BGRA8_SRGB_ANGLEX 0x6AC0
 #define GL_BGR10_A2_ANGLEX 0x6AF9
+#define GL_BGRX8_SRGB_ANGLEX 0x6AFC
+// fake format for GL_ANGLE_rgbx_internal_format
+#define GL_RGBX8_SRGB_ANGLEX 0x6AFA
+
+#define GL_R10X6G10X6B10X6A10X6_UNORM_ANGLEX 0x6AFD
 
 // These are fake formats used to fit typeless D3D textures that can be bound to EGL pbuffers into
 // the format system (for extension EGL_ANGLE_d3d_texture_client_buffer):
@@ -467,9 +389,6 @@ class ConditionalMutex final : angle::NonCopyable
 #define GL_RGB10_A2_SSCALED_ANGLEX 0x6AEC
 #define GL_RGB10_A2_USCALED_ANGLEX 0x6AED
 
-// EXT_texture_type_2_10_10_10_REV
-#define GL_RGB10_UNORM_ANGLEX 0x6AEE
-
 // These are fake formats for OES_vertex_type_10_10_10_2
 #define GL_A2_RGB10_UNORM_ANGLEX 0x6AEF
 #define GL_A2_RGB10_SNORM_ANGLEX 0x6AF0
@@ -483,14 +402,14 @@ class ConditionalMutex final : angle::NonCopyable
 #define GL_X2_RGB10_SNORM_ANGLEX 0x6AF8
 
 #define ANGLE_CHECK_GL_ALLOC(context, result) \
-    ANGLE_CHECK(context, result, "Failed to allocate host memory", GL_OUT_OF_MEMORY)
+    ANGLE_CHECK(context, result, "Failed to allocate host memory.", GL_OUT_OF_MEMORY)
 
 #define ANGLE_CHECK_GL_MATH(context, result) \
     ANGLE_CHECK(context, result, "Integer overflow.", GL_INVALID_OPERATION)
 
 #define ANGLE_GL_UNREACHABLE(context) \
     UNREACHABLE();                    \
-    ANGLE_CHECK(context, false, "Unreachable Code.", GL_INVALID_OPERATION)
+    ANGLE_CHECK(context, false, "Unreachable code.", GL_INVALID_OPERATION)
 
 #if defined(ANGLE_WITH_LSAN)
 #    define ANGLE_SCOPED_DISABLE_LSAN() __lsan::ScopedDisabler lsanDisabler
@@ -525,6 +444,13 @@ class MsanScopedDisableInterceptorChecks final : angle::NonCopyable
 #    define ANGLE_NO_SANITIZE_THREAD __attribute__((no_sanitize_thread))
 #else
 #    define ANGLE_NO_SANITIZE_THREAD
+#endif
+
+// Similar to the above, but for cfi-icall.
+#ifdef __clang__
+#    define ANGLE_NO_SANITIZE_CFI_ICALL __attribute__((no_sanitize("cfi-icall")))
+#else
+#    define ANGLE_NO_SANITIZE_CFI_ICALL
 #endif
 
 // The below inlining code lifted from V8.
@@ -567,6 +493,22 @@ class MsanScopedDisableInterceptorChecks final : angle::NonCopyable
 #    endif
 #else
 #    define ANGLE_FORMAT_PRINTF(fmt, args)
+#endif
+
+#if defined(__clang__) || (defined(__GNUC__) && defined(__has_attribute))
+#    define ANGLE_HAS_ATTRIBUTE_CONSTRUCTOR (__has_attribute(constructor))
+#    define ANGLE_HAS_ATTRIBUTE_DESTRUCTOR (__has_attribute(destructor))
+#else
+#    define ANGLE_HAS_ATTRIBUTE_CONSTRUCTOR 0
+#    define ANGLE_HAS_ATTRIBUTE_DESTRUCTOR 0
+#endif
+
+#if ANGLE_HAS_ATTRIBUTE_CONSTRUCTOR
+#    define ANGLE_CONSTRUCTOR __attribute__((constructor))
+#endif
+
+#if ANGLE_HAS_ATTRIBUTE_DESTRUCTOR
+#    define ANGLE_DESTRUCTOR __attribute__((destructor))
 #endif
 
 ANGLE_FORMAT_PRINTF(1, 0)

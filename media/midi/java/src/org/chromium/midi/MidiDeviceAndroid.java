@@ -7,29 +7,26 @@ package org.chromium.midi;
 import android.media.midi.MidiDevice;
 import android.media.midi.MidiDeviceInfo;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** A class implementing midi::MidiDeviceAndroid functionality. */
 @JNINamespace("midi")
-/**
- * A class implementing midi::MidiDeviceAndroid functionality.
- */
+@NullMarked
 class MidiDeviceAndroid {
-    /**
-     * The underlying device.
-     */
+    /** The underlying device. */
     private final MidiDevice mDevice;
-    /**
-     * The input ports in the device.
-     */
+
+    /** The input ports in the device. */
     private final MidiInputPortAndroid[] mInputPorts;
-    /**
-     * The output ports in the device.
-     */
+
+    /** The output ports in the device. */
     private final MidiOutputPortAndroid[] mOutputPorts;
-    /**
-     * True when the device is open.
-     */
+
+    /** True when the device is open. */
     private boolean mIsOpen;
 
     /**
@@ -52,16 +49,12 @@ class MidiDeviceAndroid {
         }
     }
 
-    /**
-     * Returns true when the device is open.
-     */
+    /** Returns true when the device is open. */
     boolean isOpen() {
         return mIsOpen;
     }
 
-    /**
-     * Closes the device.
-     */
+    /** Closes the device. */
     void close() {
         mIsOpen = false;
         for (MidiInputPortAndroid port : mInputPorts) {
@@ -72,35 +65,29 @@ class MidiDeviceAndroid {
         }
     }
 
-    /**
-     * Returns the underlying device.
-     */
+    /** Returns the underlying device. */
     MidiDevice getDevice() {
         return mDevice;
     }
 
-    /**
-     * Returns the underlying device information.
-     */
+    /** Returns the underlying device information. */
     MidiDeviceInfo getInfo() {
         return mDevice.getInfo();
     }
 
-    /**
-     * Returns the manufacturer name.
-     */
+    /** Returns the manufacturer name. */
     @CalledByNative
+    @Nullable
     String getManufacturer() {
         return getProperty(MidiDeviceInfo.PROPERTY_MANUFACTURER);
     }
 
-    /**
-     * Returns the product name.
-     */
+    /** Returns the product name. */
     @CalledByNative
+    @Nullable
     String getProduct() {
         String product = getProperty(MidiDeviceInfo.PROPERTY_PRODUCT);
-        // TODO(crbug.com/636455): Following code to use PROPERTY_NAME is a
+        // TODO(crbug.com/40480119): Following code to use PROPERTY_NAME is a
         // workaround for a BLE MIDI device issue that Android does not provide
         // information for PROPERTY_MANUFACTURER, PROPERTY_PRODUCT, and
         // PROPERTY_VERSION. Confirmed on Android M and N.
@@ -111,31 +98,26 @@ class MidiDeviceAndroid {
         return product;
     }
 
-    /**
-     * Returns the version string.
-     */
+    /** Returns the version string. */
     @CalledByNative
+    @Nullable
     String getVersion() {
         return getProperty(MidiDeviceInfo.PROPERTY_VERSION);
     }
 
-    /**
-     * Returns the associated input ports.
-     */
+    /** Returns the associated input ports. */
     @CalledByNative
     MidiInputPortAndroid[] getInputPorts() {
         return mInputPorts;
     }
 
-    /**
-     * Returns the associated output ports.
-     */
+    /** Returns the associated output ports. */
     @CalledByNative
     MidiOutputPortAndroid[] getOutputPorts() {
         return mOutputPorts;
     }
 
-    private String getProperty(String name) {
+    private @Nullable String getProperty(String name) {
         return mDevice.getInfo().getProperties().getString(name);
     }
 }

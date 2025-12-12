@@ -36,7 +36,7 @@ class RttStats;
 // pacing is disabled.
 //
 // TODO(vasilvv): implement traffic policer (long-term sampling) mode.
-class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
+class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
  public:
   enum Mode {
     // Startup phase of the connection.
@@ -64,7 +64,7 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
 
   // Debug state can be exported in order to troubleshoot potential congestion
   // control issues.
-  struct QUIC_EXPORT_PRIVATE DebugState {
+  struct QUICHE_EXPORT DebugState {
     explicit DebugState(const BbrSender& sender);
     DebugState(const DebugState& state);
 
@@ -108,6 +108,8 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   void AdjustNetworkParameters(const NetworkParams& params) override;
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
+  void SetApplicationDrivenPacingRate(
+      QuicBandwidth /*application_bandwidth_target*/) override {}
   void OnCongestionEvent(bool rtt_updated, QuicByteCount prior_in_flight,
                          QuicTime event_time,
                          const AckedPacketVector& acked_packets,
@@ -132,8 +134,8 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   std::string GetDebugState() const override;
   void OnApplicationLimited(QuicByteCount bytes_in_flight) override;
   void PopulateConnectionStats(QuicConnectionStats* stats) const override;
-  bool SupportsECT0() const override { return false; }
-  bool SupportsECT1() const override { return false; }
+  bool EnableECT0() override { return false; }
+  bool EnableECT1() override { return false; }
   // End implementation of SendAlgorithmInterface.
 
   // Gets the number of RTTs BBR remains in STARTUP phase.
@@ -381,10 +383,10 @@ class QUIC_EXPORT_PRIVATE BbrSender : public SendAlgorithmInterface {
   QuicByteCount max_congestion_window_with_network_parameters_adjusted_;
 };
 
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
-                                             const BbrSender::Mode& mode);
-QUIC_EXPORT_PRIVATE std::ostream& operator<<(
-    std::ostream& os, const BbrSender::DebugState& state);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const BbrSender::Mode& mode);
+QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
+                                       const BbrSender::DebugState& state);
 
 }  // namespace quic
 

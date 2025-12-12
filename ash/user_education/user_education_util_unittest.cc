@@ -5,6 +5,7 @@
 #include "ash/user_education/user_education_util.h"
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -17,9 +18,13 @@
 #include "ash/test/test_widget_builder.h"
 #include "ash/user_education/user_education_types.h"
 #include "components/account_id/account_id.h"
+#include "components/user_education/common/help_bubble/help_bubble_params.h"
+#include "components/user_manager/user_names.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
+#include "ui/gfx/vector_icon_types.h"
 #include "ui/views/metadata/view_factory.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
@@ -29,9 +34,10 @@ namespace ash::user_education_util {
 namespace {
 
 // Aliases.
-using session_manager::SessionState;
-using testing::AnyOf;
-using testing::Eq;
+using ::session_manager::SessionState;
+using ::testing::AnyOf;
+using ::testing::Eq;
+using ::user_education::HelpBubbleParams;
 
 // Helpers ---------------------------------------------------------------------
 
@@ -54,12 +60,109 @@ std::unique_ptr<views::Widget> ShowFramelessTestWidgetOnDisplay(
 // UserEducationUtilTest -------------------------------------------------------
 
 // Base class for tests of user education utilities.
-using UserEducationUtilTest = NoSessionAshTestBase;
+using UserEducationUtilTest = ::testing::Test;
+
+// Tests -----------------------------------------------------------------------
+
+TEST_F(UserEducationUtilTest, CreateExtendedProperties) {
+  const user_education::HelpBubbleParams::ExtendedProperties
+      extended_properties = CreateExtendedProperties(
+          CreateExtendedProperties(HelpBubbleId::kTest),
+          CreateExtendedProperties(ui::mojom::ModalType::kSystem));
+
+  EXPECT_EQ(GetHelpBubbleId(extended_properties), HelpBubbleId::kTest);
+  EXPECT_EQ(GetHelpBubbleModalType(extended_properties),
+            ui::mojom::ModalType::kSystem);
+}
+
+// Verifies that `CreateExtendedProperties()` can be used to create extended
+// properties for a help bubble having set body icon, and that
+// `GetHelpBubbleBodyIcon()` can be used to retrieve help bubble body icon from
+// extended properties.
+TEST_F(UserEducationUtilTest, CreateExtendedPropertiesWithBodyIcon) {
+  EXPECT_EQ(&GetHelpBubbleBodyIcon(
+                 CreateExtendedProperties(gfx::VectorIcon::EmptyIcon()))
+                 ->get(),
+            &gfx::VectorIcon::EmptyIcon());
+
+  // It is permissible to query help bubble body icon even when absent.
+  EXPECT_EQ(GetHelpBubbleBodyIcon(HelpBubbleParams::ExtendedProperties()),
+            std::nullopt);
+}
+
+// Verifies that `CreateExtendedProperties()` can be used to create extended
+// properties for a help bubble having set ID, and that `GetHelpBubbleId()` can
+// be used to retrieve help bubble ID from extended properties.
+TEST_F(UserEducationUtilTest, ExtendedPropertiesWithId) {
+  EXPECT_EQ(GetHelpBubbleId(CreateExtendedProperties(HelpBubbleId::kTest)),
+            HelpBubbleId::kTest);
+}
+
+// Verifies that `CreateExtendedProperties()` can be used to create extended
+// properties for a help bubble having set modal type, and that
+// `GetHelpBubbleModalType()` can be used to retrieve help bubble modal type
+// from extended properties.
+TEST_F(UserEducationUtilTest, CreateExtendedPropertiesWithModalType) {
+  EXPECT_EQ(GetHelpBubbleModalType(
+                CreateExtendedProperties(ui::mojom::ModalType::kSystem)),
+            ui::mojom::ModalType::kSystem);
+
+  // It is permissible to query help bubble modal type even when absent.
+  EXPECT_EQ(GetHelpBubbleModalType(HelpBubbleParams::ExtendedProperties()),
+            ui::mojom::ModalType::kNone);
+}
+
+// Verifies that `CreateExtendedPropertiesWithAccessibleName()` can be used to
+// create extended properties for a help bubble having set accessible name, and
+// that `GetHelpBubbleAccessibleName()` can be used to retrieve help bubble
+// accessible name from extended properties.
+TEST_F(UserEducationUtilTest, ExtendedPropertiesWithAccessibleName) {
+  std::string accessible_name = "Accessible Name";
+  EXPECT_EQ(GetHelpBubbleAccessibleName(
+                CreateExtendedPropertiesWithAccessibleName(accessible_name)),
+            accessible_name);
+
+  // It is permissible to query help bubble accessible name even when absent.
+  EXPECT_EQ(GetHelpBubbleAccessibleName(HelpBubbleParams::ExtendedProperties()),
+            std::nullopt);
+}
+
+// Verifies that `CreateExtendedPropertiesWithBodyText()` can be used to create
+// extended properties for a help bubble having set body text, and that
+// `GetHelpBubbleBodyText()` can be used to retrieve help bubble body text from
+// extended properties.
+TEST_F(UserEducationUtilTest, ExtendedPropertiesWithBodyText) {
+  std::string body_text = "Body Text";
+  EXPECT_EQ(
+      GetHelpBubbleBodyText(CreateExtendedPropertiesWithBodyText(body_text)),
+      body_text);
+
+  // It is permissible to query help bubble body text even when absent.
+  EXPECT_EQ(GetHelpBubbleBodyText(HelpBubbleParams::ExtendedProperties()),
+            std::nullopt);
+}
+
+// Verifies that `ToString()` is working as intended.
+TEST_F(UserEducationUtilTest, ToString) {
+  std::set<std::string> tutorial_id_strs;
+  for (size_t i = static_cast<size_t>(TutorialId::kMinValue);
+       i <= static_cast<size_t>(TutorialId::kMaxValue); ++i) {
+    // Currently the only constraint on `ToString()` is that it returns a unique
+    // value for each distinct tutorial ID.
+    auto tutorial_id_str = ToString(static_cast<TutorialId>(i));
+    EXPECT_TRUE(tutorial_id_strs.emplace(std::move(tutorial_id_str)).second);
+  }
+}
+
+// UserEducationUtilAshTest ----------------------------------------------------
+
+// Base class for tests of user education utilities which require Ash.
+using UserEducationUtilAshTest = NoSessionAshTestBase;
 
 // Tests -----------------------------------------------------------------------
 
 // Verifies that `GetAccountId()` is working as intended.
-TEST_F(UserEducationUtilTest, GetAccountId) {
+TEST_F(UserEducationUtilAshTest, GetAccountId) {
   // Case: null `UserSession`.
   AccountId account_id;
   EXPECT_EQ(GetAccountId(/*user_session=*/nullptr), account_id);
@@ -72,7 +175,7 @@ TEST_F(UserEducationUtilTest, GetAccountId) {
 }
 
 // Verifies that `GetMatchingViewInRootWindow()` is working as intended.
-TEST_F(UserEducationUtilTest, GetMatchingViewInRootWindow) {
+TEST_F(UserEducationUtilAshTest, GetMatchingViewInRootWindow) {
   // Set up a primary and secondary display.
   UpdateDisplay("1024x768,1024x768");
 
@@ -153,18 +256,40 @@ TEST_F(UserEducationUtilTest, GetMatchingViewInRootWindow) {
       AnyOf(Eq(secondary_display_view), Eq(another_secondary_display_view)));
 }
 
+// Verifies that `GetUserType()` is working as intended.
+TEST_F(UserEducationUtilAshTest, GetUserType) {
+  AccountId regular_account_id = AccountId::FromUserEmail(kDefaultUserEmail);
+  AccountId guest_account_id = user_manager::GuestAccountId();
+
+  // Case: no user sessions added.
+  EXPECT_FALSE(GetUserType(AccountId()));
+  EXPECT_FALSE(GetUserType(guest_account_id));
+  EXPECT_FALSE(GetUserType(regular_account_id));
+
+  EXPECT_EQ(SimulateGuestLogin(), guest_account_id);
+
+  EXPECT_FALSE(GetUserType(AccountId()));
+  EXPECT_EQ(GetUserType(guest_account_id), user_manager::UserType::kGuest);
+
+  ClearLogin();
+
+  SimulateUserLogin(regular_account_id);
+  EXPECT_FALSE(GetUserType(AccountId()));
+  // Case: multiple user sessions added.
+  EXPECT_EQ(GetUserType(regular_account_id), user_manager::UserType::kRegular);
+}
+
 // Verifies that `IsPrimaryAccountActive()` is working as intended.
-TEST_F(UserEducationUtilTest, IsPrimaryAccountActive) {
+TEST_F(UserEducationUtilAshTest, IsPrimaryAccountActive) {
   AccountId primary_account_id = AccountId::FromUserEmail("primary@test");
   AccountId secondary_account_id = AccountId::FromUserEmail("secondary@test");
 
   // Case: no user sessions added.
   EXPECT_FALSE(IsPrimaryAccountActive());
 
-  // Case: primary user session added but inactive.
+  // Case: primary user session added and activate it.
   auto* session_controller_client = GetSessionControllerClient();
-  session_controller_client->AddUserSession(primary_account_id.GetUserEmail());
-  EXPECT_FALSE(IsPrimaryAccountActive());
+  SimulateUserLogin({.activate_session = false}, primary_account_id);
 
   // Case: primary user session activated.
   session_controller_client->SetSessionState(SessionState::ACTIVE);
@@ -176,12 +301,8 @@ TEST_F(UserEducationUtilTest, IsPrimaryAccountActive) {
   session_controller_client->SetSessionState(SessionState::ACTIVE);
   EXPECT_TRUE(IsPrimaryAccountActive());
 
-  // Case: secondary user session added but inactive.
-  session_controller_client->AddUserSession(
-      secondary_account_id.GetUserEmail());
-  EXPECT_TRUE(IsPrimaryAccountActive());
-
-  // Case: secondary user activated and then deactivated.
+  // Case: secondary user session added and activate it.
+  SimulateUserLogin({.activate_session = false}, secondary_account_id);
   session_controller_client->SwitchActiveUser(secondary_account_id);
   EXPECT_FALSE(IsPrimaryAccountActive());
   session_controller_client->SwitchActiveUser(primary_account_id);
@@ -189,7 +310,7 @@ TEST_F(UserEducationUtilTest, IsPrimaryAccountActive) {
 }
 
 // Verifies that `IsPrimaryAccountId()` is working as intended.
-TEST_F(UserEducationUtilTest, IsPrimaryAccountId) {
+TEST_F(UserEducationUtilAshTest, IsPrimaryAccountId) {
   AccountId primary_account_id = AccountId::FromUserEmail("primary@test");
   AccountId secondary_account_id = AccountId::FromUserEmail("secondary@test");
 
@@ -198,27 +319,13 @@ TEST_F(UserEducationUtilTest, IsPrimaryAccountId) {
   EXPECT_FALSE(IsPrimaryAccountId(primary_account_id));
   EXPECT_FALSE(IsPrimaryAccountId(secondary_account_id));
 
-  auto* session_controller_client = GetSessionControllerClient();
-  session_controller_client->AddUserSession(primary_account_id.GetUserEmail());
-  session_controller_client->AddUserSession(
-      secondary_account_id.GetUserEmail());
+  SimulateUserLogin(primary_account_id);
+  SimulateUserLogin(secondary_account_id);
 
   // Case: multiple user sessions added.
   EXPECT_FALSE(IsPrimaryAccountId(AccountId()));
   EXPECT_TRUE(IsPrimaryAccountId(primary_account_id));
   EXPECT_FALSE(IsPrimaryAccountId(secondary_account_id));
-}
-
-// Verifies that `ToString()` is working as intended.
-TEST_F(UserEducationUtilTest, ToString) {
-  std::set<std::string> tutorial_id_strs;
-  for (size_t i = static_cast<size_t>(TutorialId::kMinValue);
-       i <= static_cast<size_t>(TutorialId::kMaxValue); ++i) {
-    // Currently the only constraint on `ToString()` is that it returns a unique
-    // value for each distinct tutorial ID.
-    auto tutorial_id_str = ToString(static_cast<TutorialId>(i));
-    EXPECT_TRUE(tutorial_id_strs.emplace(std::move(tutorial_id_str)).second);
-  }
 }
 
 }  // namespace ash::user_education_util

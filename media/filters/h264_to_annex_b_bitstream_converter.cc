@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/h264_to_annex_b_bitstream_converter.h"
 
 #include <stddef.h>
 
 #include "base/logging.h"
 #include "media/formats/mp4/box_definitions.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 
 namespace media {
 
@@ -107,7 +112,7 @@ uint32_t H264ToAnnexBBitstreamConverter::CalculateNeededOutputBufferSize(
       nal_unit_length |= *input;
     }
 
-    if (nal_unit_length == 0) {
+    if (nal_unit_length == 0 || data_left == 0) {
       break;  // Signifies that no more data left in the buffer
     } else if (nal_unit_length > data_left) {
       return 0;  // Error: Not enough data for correct conversion
@@ -189,7 +194,7 @@ bool H264ToAnnexBBitstreamConverter::ConvertNalUnitStreamToByteStream(
       nal_unit_length |= *inscan;
     }
 
-    if (nal_unit_length == 0) {
+    if (nal_unit_length == 0 || data_left == 0) {
       break;  // Successful conversion, end of buffer
     } else if (nal_unit_length > data_left) {
       *output_size = 0;
@@ -218,7 +223,7 @@ bool H264ToAnnexBBitstreamConverter::ConvertNalUnitStreamToByteStream(
         return false;  // Failed to convert the buffer.
       }
       outscan += config_size;
-      avc_config = NULL;
+      avc_config = nullptr;
     }
     uint32_t start_code_len;
     first_nal_unit_in_access_unit_ ?
@@ -258,7 +263,7 @@ bool H264ToAnnexBBitstreamConverter::ConvertNalUnitStreamToByteStream(
   }
   // Successful conversion, output the freshly allocated bitstream buffer.
   *output_size = static_cast<uint32_t>(outscan - output);
-  return true;
+  return *output_size != 0;
 }
 
 bool H264ToAnnexBBitstreamConverter::WriteParamSet(

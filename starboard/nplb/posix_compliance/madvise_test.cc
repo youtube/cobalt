@@ -37,11 +37,6 @@ class MadviseTest : public ::testing::Test {
   int* memory;
 };
 
-TEST_F(MadviseTest, BadSizeValue) {
-  EXPECT_EQ(-1, madvise(memory, -1, MADV_NORMAL));
-  EXPECT_EQ(errno, EINVAL);
-}
-
 TEST_F(MadviseTest, NullPtrMemory) {
   EXPECT_EQ(-1, madvise(nullptr, kSbMemoryPageSize, MADV_NORMAL));
   EXPECT_EQ(errno, ENOMEM);

@@ -7,21 +7,24 @@ package org.chromium.content.browser.accessibility.captioning;
 import android.graphics.Typeface;
 import android.view.accessibility.CaptioningManager.CaptionStyle;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /**
- * This is an internal representation of the captioning. This class follows
- * the paradigm that was introduced in KitKat while not using that API directly so that it can be
- * used everywhere.
+ * This is an internal representation of the captioning. This class follows the paradigm that was
+ * introduced in KitKat while not using that API directly so that it can be used everywhere.
  *
- * For information on CaptionStyle, introduced in KitKat, see:
- * @link https://developer.android.com/reference/android/view/accessibility/CaptioningManager.CaptionStyle.html
+ * <p>For information on CaptionStyle, introduced in KitKat, see: {@link}
+ * https://developer.android.com/reference/android/view/accessibility/CaptioningManager.CaptionStyle.html
  */
+@NullMarked
 public class CaptioningStyle {
-    private Integer mBackgroundColor;
-    private Integer mEdgeColor;
-    private Integer mEdgeType;
-    private Integer mForegroundColor;
-    private Integer mWindowColor;
-    private Typeface mTypeface;
+    private final @Nullable Integer mBackgroundColor;
+    private final @Nullable Integer mEdgeColor;
+    private final @Nullable Integer mEdgeType;
+    private final @Nullable Integer mForegroundColor;
+    private final @Nullable Integer mWindowColor;
+    private final @Nullable Typeface mTypeface;
 
     /**
      * Construct a Chromium CaptioningStyle object.
@@ -33,8 +36,13 @@ public class CaptioningStyle {
      * @param windowColor window color of the CaptioningStyle
      * @param typeFace Typeface of the CaptioningStyle
      */
-    public CaptioningStyle(Integer backgroundColor, Integer edgeColor, Integer edgeType,
-            Integer foregroundColor, Integer windowColor, Typeface typeface) {
+    public CaptioningStyle(
+            @Nullable Integer backgroundColor,
+            @Nullable Integer edgeColor,
+            @Nullable Integer edgeType,
+            @Nullable Integer foregroundColor,
+            @Nullable Integer windowColor,
+            @Nullable Typeface typeface) {
         mBackgroundColor = backgroundColor;
         mEdgeColor = edgeColor;
         mEdgeType = edgeType;
@@ -47,7 +55,7 @@ public class CaptioningStyle {
      * @return the background color specified by the platform if one was specified
      *         otherwise returns null
      */
-    public Integer getBackgroundColor() {
+    public @Nullable Integer getBackgroundColor() {
         return mBackgroundColor;
     }
 
@@ -55,7 +63,7 @@ public class CaptioningStyle {
      * @return the edge color specified by the platform if one was specified
      *         otherwise returns null
      */
-    public Integer getEdgeColor() {
+    public @Nullable Integer getEdgeColor() {
         return mEdgeColor;
     }
 
@@ -63,7 +71,7 @@ public class CaptioningStyle {
      * @return the edge type specified by the platform if one was specified
      *         otherwise returns null
      */
-    public Integer getEdgeType() {
+    public @Nullable Integer getEdgeType() {
         return mEdgeType;
     }
 
@@ -71,7 +79,7 @@ public class CaptioningStyle {
      * @return the foreground color specified by the platform if one was specified
      *         otherwise returns null
      */
-    public Integer getForegroundColor() {
+    public @Nullable Integer getForegroundColor() {
         return mForegroundColor;
     }
 
@@ -79,7 +87,7 @@ public class CaptioningStyle {
      * @return the window color specified by the platform if one was specified
      *         otherwise returns null
      */
-    public Integer getWindowColor() {
+    public @Nullable Integer getWindowColor() {
         return mWindowColor;
     }
 
@@ -87,7 +95,7 @@ public class CaptioningStyle {
      * @return the Typeface specified by the platform if one was specified
      *         otherwise returns null
      */
-    public Typeface getTypeface() {
+    public @Nullable Typeface getTypeface() {
         return mTypeface;
     }
 
@@ -127,7 +135,12 @@ public class CaptioningStyle {
             windowColor = Integer.valueOf(captionStyle.windowColor);
         }
 
-        return new CaptioningStyle(backgroundColor, edgeColor, edgeType, foregroundColor,
-                windowColor, captionStyle.getTypeface());
+        return new CaptioningStyle(
+                backgroundColor,
+                edgeColor,
+                edgeType,
+                foregroundColor,
+                windowColor,
+                captionStyle.getTypeface());
     }
 }

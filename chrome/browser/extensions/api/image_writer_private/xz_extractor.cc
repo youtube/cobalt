@@ -19,7 +19,7 @@ namespace image_writer {
 
 namespace {
 
-constexpr base::FilePath::StringPieceType kExtractedBinFileName =
+constexpr base::FilePath::StringViewType kExtractedBinFileName =
     FILE_PATH_LITERAL("extracted.bin");
 
 // https://tukaani.org/xz/xz-file-format-1.0.4.txt
@@ -32,13 +32,14 @@ bool XzExtractor::IsXzFile(const base::FilePath& image_path) {
                                       base::File::FLAG_READ |
                                       base::File::FLAG_WIN_EXCLUSIVE_WRITE |
                                       base::File::FLAG_WIN_SHARE_DELETE);
-  if (!src_file.IsValid())
+  if (!src_file.IsValid()) {
     return false;
+  }
 
   constexpr size_t kExpectedSize = sizeof(kExpectedMagic);
   uint8_t actual_magic[kExpectedSize] = {};
   return src_file.ReadAtCurrentPosAndCheck(actual_magic) &&
-         base::ranges::equal(kExpectedMagic, actual_magic);
+         std::ranges::equal(kExpectedMagic, actual_magic);
 }
 
 // static

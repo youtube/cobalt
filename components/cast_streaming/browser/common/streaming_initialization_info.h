@@ -5,12 +5,13 @@
 #ifndef COMPONENTS_CAST_STREAMING_BROWSER_COMMON_STREAMING_INITIALIZATION_INFO_H_
 #define COMPONENTS_CAST_STREAMING_BROWSER_COMMON_STREAMING_INITIALIZATION_INFO_H_
 
-#include "base/memory/raw_ptr_exclusion.h"
+#include <optional>
+
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/cast_streaming/browser/common/demuxer_stream_client.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/video_decoder_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace openscreen::cast {
 class Receiver;
@@ -38,9 +39,7 @@ struct StreamingInitializationInfo {
 
     // The Receiver for the audio stream. This pointer will remain valid for the
     // duration of the streaming session.
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #union
-    RAW_PTR_EXCLUSION openscreen::cast::Receiver* receiver;
+    raw_ptr<openscreen::cast::Receiver> receiver;
 
     // Client with methods to be called when the DemuxerStream requires an
     // action be executed.
@@ -62,9 +61,7 @@ struct StreamingInitializationInfo {
 
     // The Receiver for the video stream. This pointer will remain valid for the
     // duration of the streaming session.
-    // This field is not a raw_ptr<> because it was filtered by the rewriter
-    // for: #union
-    RAW_PTR_EXCLUSION openscreen::cast::Receiver* receiver;
+    raw_ptr<openscreen::cast::Receiver> receiver;
 
     // Client with methods to be called when the DemuxerStream requires an
     // action be executed.
@@ -73,8 +70,8 @@ struct StreamingInitializationInfo {
 
   StreamingInitializationInfo(
       const openscreen::cast::ReceiverSession* receiver_session,
-      absl::optional<AudioStreamInfo> audio_info,
-      absl::optional<VideoStreamInfo> video_info,
+      std::optional<AudioStreamInfo> audio_info,
+      std::optional<VideoStreamInfo> video_info,
       bool is_remoting);
   StreamingInitializationInfo();
   StreamingInitializationInfo(const StreamingInitializationInfo& other);
@@ -82,17 +79,15 @@ struct StreamingInitializationInfo {
 
   // The receiver session for which the remainder of this config is valid. This
   // pointer will remain valid for the duration of the streaming session.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION const openscreen::cast::ReceiverSession* session;
+  raw_ptr<const openscreen::cast::ReceiverSession> session;
 
   // Information detailing the audio stream. Will be populated iff the streaming
   // session has audio.
-  absl::optional<AudioStreamInfo> audio_stream_info;
+  std::optional<AudioStreamInfo> audio_stream_info;
 
   // Information detailing the video stream. Will be populated iff the streaming
   // session has video.
-  absl::optional<VideoStreamInfo> video_stream_info;
+  std::optional<VideoStreamInfo> video_stream_info;
 
   // Whether or not this streaming session is associated with remoting (as
   // opposed to mirroring).

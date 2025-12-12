@@ -10,20 +10,22 @@ import android.util.AttributeSet;
 import android.view.Gravity;
 import android.widget.TextView;
 
-import org.chromium.base.ApiCompatibilityUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
 
 /** Container view for omnibox tail suggestions. */
+@NullMarked
 public class TailSuggestionView extends TextView {
-    private AlignmentManager mAlignmentManager;
+    private @Nullable AlignmentManager mAlignmentManager;
     private int mFullTextWidth;
     private int mQueryTextWidth;
 
-    public TailSuggestionView(Context context, AttributeSet attrs) {
+    public TailSuggestionView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         setGravity(Gravity.CENTER_VERTICAL);
         setMaxLines(1);
-        ApiCompatibilityUtils.setTextAppearance(this, R.style.TextAppearance_TextLarge_Primary);
+        setTextAppearance(R.style.TextAppearance_TextLarge_Primary);
     }
 
     public TailSuggestionView(Context context) {
@@ -37,12 +39,14 @@ public class TailSuggestionView extends TextView {
      */
     void setAlignmentManager(AlignmentManager coordinator) {
         mAlignmentManager = coordinator;
-        mAlignmentManager.registerView(this);
+        if (mAlignmentManager != null) {
+            mAlignmentManager.registerView(this);
+        }
     }
 
     /**
-     * Specify query full text.
-     * This text is used for measurement purposes and is not displayed anywhere.
+     * Specify query full text. This text is used for measurement purposes and is not displayed
+     * anywhere.
      *
      * @param fullText Full query text that will be executed if user selects this suggestion.
      */
@@ -63,8 +67,9 @@ public class TailSuggestionView extends TextView {
     @Override
     public void layout(int left, int top, int right, int bottom) {
         if (mAlignmentManager != null) {
-            final int pad = mAlignmentManager.requestStartPadding(
-                    this, mQueryTextWidth, mFullTextWidth, right - left);
+            final int pad =
+                    mAlignmentManager.requestStartPadding(
+                            this, mQueryTextWidth, mFullTextWidth, right - left);
             if (getLayoutDirection() == LAYOUT_DIRECTION_RTL) {
                 right -= pad;
             } else {

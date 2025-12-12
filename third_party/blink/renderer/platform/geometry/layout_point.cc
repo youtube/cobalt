@@ -4,24 +4,16 @@
 
 #include "third_party/blink/renderer/platform/geometry/layout_point.h"
 
-#include <algorithm>
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-LayoutPoint LayoutPoint::ExpandedTo(const LayoutPoint& other) const {
-  return LayoutPoint(std::max(x_, other.x_), std::max(y_, other.y_));
-}
-
-LayoutPoint LayoutPoint::ShrunkTo(const LayoutPoint& other) const {
-  return LayoutPoint(std::min(x_, other.x_), std::min(y_, other.y_));
-}
-
-std::ostream& operator<<(std::ostream& ostream, const LayoutPoint& point) {
+std::ostream& operator<<(std::ostream& ostream,
+                         const DeprecatedLayoutPoint& point) {
   return ostream << point.ToString();
 }
 
-String LayoutPoint::ToString() const {
+String DeprecatedLayoutPoint::ToString() const {
   return String::Format("%s,%s", X().ToString().Ascii().c_str(),
                         Y().ToString().Ascii().c_str());
 }

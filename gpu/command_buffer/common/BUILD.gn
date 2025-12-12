@@ -70,8 +70,6 @@ source_set("common_sources") {
   visibility = [ "//gpu/*" ]
 
   sources = [
-    "activity_flags.cc",
-    "activity_flags.h",
     "buffer.cc",
     "buffer.h",
     "capabilities.cc",
@@ -95,10 +93,16 @@ source_set("common_sources") {
     "presentation_feedback_utils.h",
     "scheduling_priority.cc",
     "scheduling_priority.h",
+    "shared_image_capabilities.cc",
+    "shared_image_capabilities.h",
+    "shared_image_pool_id.cc",
+    "shared_image_pool_id.h",
     "shared_image_trace_utils.cc",
     "shared_image_trace_utils.h",
     "shared_image_usage.cc",
     "shared_image_usage.h",
+    "shm_count.cc",
+    "shm_count.h",
     "swap_buffers_complete_params.cc",
     "swap_buffers_complete_params.h",
     "swap_buffers_flags.h",
@@ -118,10 +122,6 @@ source_set("common_sources") {
   ]
 
   deps = [ "//base" ]
-
-  # TODO(piman): needed for gpu_memory_buffer_support.cc. Split common vs gles2
-  # specifics.
-  configs += [ "//third_party/khronos:khronos_headers" ]
 }
 
 source_set("mailbox_sources") {
@@ -178,7 +178,7 @@ source_set("raster_sources") {
   ]
   public_deps = [
     ":common",
-    "//components/viz/common:resource_format",
+    "//components/viz/common:shared_image_format",
   ]
 }
 
@@ -224,7 +224,10 @@ component("gles2_utils") {
 
   defines = [ "GLES2_UTILS_IMPLEMENTATION" ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//ui/gl:gl_enums",
+  ]
 
   all_dependent_configs = [ "//third_party/khronos:khronos_headers" ]
 }

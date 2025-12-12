@@ -42,26 +42,22 @@ public abstract class BidirectionalStream {
          */
         public abstract Builder addHeader(String header, String value);
 
-        /**
-         * Lowest stream priority. Passed to {@link #setPriority}.
-         */
+        /** Lowest stream priority. Passed to {@link #setPriority}. */
         public static final int STREAM_PRIORITY_IDLE = 0;
-        /**
-         * Very low stream priority. Passed to {@link #setPriority}.
-         */
+
+        /** Very low stream priority. Passed to {@link #setPriority}. */
         public static final int STREAM_PRIORITY_LOWEST = 1;
-        /**
-         * Low stream priority. Passed to {@link #setPriority}.
-         */
+
+        /** Low stream priority. Passed to {@link #setPriority}. */
         public static final int STREAM_PRIORITY_LOW = 2;
+
         /**
          * Medium stream priority. Passed to {@link #setPriority}. This is the default priority
          * given to the stream.
          */
         public static final int STREAM_PRIORITY_MEDIUM = 3;
-        /**
-         * Highest stream priority. Passed to {@link #setPriority}.
-         */
+
+        /** Highest stream priority. Passed to {@link #setPriority}. */
         public static final int STREAM_PRIORITY_HIGHEST = 4;
 
         /**
@@ -140,6 +136,21 @@ public abstract class BidirectionalStream {
         }
 
         /**
+         * Binds the request to the specified network handle. Cronet will send this request only
+         * using the network associated to this handle. If this network disconnects the request will
+         * fail, the exact error will depend on the stage of request processing when the network
+         * disconnects. Network handles can be obtained through {@code Network#getNetworkHandle}.
+         * Only available starting from Android Marshmallow.
+         *
+         * @param networkHandle the network handle to bind the request to. Specify {@link
+         * CronetEngine#UNBIND_NETWORK_HANDLE} to unbind.
+         * @return the builder to facilitate chaining.
+         */
+        public Builder bindToNetwork(long networkHandle) {
+            return this;
+        }
+
+        /**
          * Creates a {@link BidirectionalStream} using configuration from this {@link Builder}. The
          * returned {@code BidirectionalStream} can then be started by calling {@link
          * BidirectionalStream#start}.
@@ -151,9 +162,7 @@ public abstract class BidirectionalStream {
         public abstract BidirectionalStream build();
     }
 
-    /**
-     * Callback class used to receive callbacks from a {@link BidirectionalStream}.
-     */
+    /** Callback class used to receive callbacks from a {@link BidirectionalStream}. */
     public abstract static class Callback {
         /**
          * Invoked when the stream is ready for reading and writing. Consumer may call {@link
@@ -193,8 +202,11 @@ public abstract class BidirectionalStream {
          *         and
          * the read side is closed.
          */
-        public abstract void onReadCompleted(BidirectionalStream stream, UrlResponseInfo info,
-                ByteBuffer buffer, boolean endOfStream);
+        public abstract void onReadCompleted(
+                BidirectionalStream stream,
+                UrlResponseInfo info,
+                ByteBuffer buffer,
+                boolean endOfStream);
 
         /**
          * Invoked when the entire ByteBuffer passed to {@link BidirectionalStream#write write()} is
@@ -210,8 +222,11 @@ public abstract class BidirectionalStream {
          * @param endOfStream the endOfStream flag that was passed to the corresponding {@link
          * BidirectionalStream#write write()}. If true, the write side is closed.
          */
-        public abstract void onWriteCompleted(BidirectionalStream stream, UrlResponseInfo info,
-                ByteBuffer buffer, boolean endOfStream);
+        public abstract void onWriteCompleted(
+                BidirectionalStream stream,
+                UrlResponseInfo info,
+                ByteBuffer buffer,
+                boolean endOfStream);
 
         /**
          * Invoked when trailers are received before closing the stream. Only invoked when server
@@ -224,7 +239,9 @@ public abstract class BidirectionalStream {
          * @param info the response information
          * @param trailers the trailers received
          */
-        public void onResponseTrailersReceived(BidirectionalStream stream, UrlResponseInfo info,
+        public void onResponseTrailersReceived(
+                BidirectionalStream stream,
+                UrlResponseInfo info,
                 UrlResponseInfo.HeaderBlock trailers) {}
 
         /**
@@ -289,24 +306,23 @@ public abstract class BidirectionalStream {
     public abstract void read(ByteBuffer buffer);
 
     /**
-     * Attempts to write data from the provided buffer into the stream. If auto flush is disabled,
-     * data will be sent only after {@link #flush flush()} is called. Each call will result in an
-     * invocation of one of the {@link Callback Callback}'s {@link Callback#onWriteCompleted
-     * onWriteCompleted()} method if data is sent, or its {@link Callback#onFailed onFailed()}
-     * method if there's an error.
+     * Adds data to be written to the stream. Data will be sent only after {@link #flush flush()} is
+     * called. Each call will result in an invocation of one of the {@link Callback Callback}'s
+     * {@link Callback#onWriteCompleted onWriteCompleted()} method if data is sent, or its {@link
+     * Callback#onFailed onFailed()} method if there's an error.
      *
-     * An attempt to write data from {@code buffer} starting at {@code buffer.position()} is begun.
-     * {@code buffer.remaining()} bytes will be written. {@link Callback#onWriteCompleted
+     * <p>An attempt to write data from {@code buffer} starting at {@code buffer.position()} is
+     * begun. {@code buffer.remaining()} bytes will be written. {@link Callback#onWriteCompleted
      * onWriteCompleted()} will be invoked only when the full ByteBuffer is written.
      *
      * @param buffer the {@link ByteBuffer} to write data from. Must be a direct ByteBuffer. The
-     * embedder must not read or modify buffer's position, limit, or data between its position and
-     * limit until {@link Callback#onWriteCompleted onWriteCompleted()}, {@link Callback#onCanceled
-     * onCanceled()}, or {@link Callback#onFailed onFailed()} are invoked. Can be empty when {@code
-     * endOfStream} is {@code true}.
+     *     embedder must not read or modify buffer's position, limit, or data between its position
+     *     and limit until {@link Callback#onWriteCompleted onWriteCompleted()}, {@link
+     *     Callback#onCanceled onCanceled()}, or {@link Callback#onFailed onFailed()} are invoked.
+     *     Can be empty when {@code endOfStream} is {@code true}.
      * @param endOfStream if {@code true}, then {@code buffer} is the last buffer to be written, and
-     * once written, stream is closed from the client side, resulting in half-closed stream or a
-     * fully closed stream if the remote side has already closed.
+     *     once written, stream is closed from the client side, resulting in half-closed stream or a
+     *     fully closed stream if the remote side has already closed.
      */
     public abstract void write(ByteBuffer buffer, boolean endOfStream);
 

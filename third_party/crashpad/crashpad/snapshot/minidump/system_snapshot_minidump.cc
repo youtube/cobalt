@@ -68,6 +68,8 @@ CPUArchitecture SystemSnapshotMinidump::GetCPUArchitecture() const {
     case kMinidumpCPUArchitectureMIPS:
       return kCPUArchitectureMIPSEL;
     // No word on how MIPS64 is signalled
+    case kMinidumpCPUArchitectureRISCV64Breakpad:
+      return kCPUArchitectureRISCV64;
 
     default:
       return CPUArchitecture::kCPUArchitectureUnknown;
@@ -104,31 +106,26 @@ void SystemSnapshotMinidump::CPUFrequency(uint64_t* current_hz,
 uint32_t SystemSnapshotMinidump::CPUX86Signature() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return 0;
 }
 
 uint64_t SystemSnapshotMinidump::CPUX86Features() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return 0;
 }
 
 uint64_t SystemSnapshotMinidump::CPUX86ExtendedFeatures() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return 0;
 }
 
 uint32_t SystemSnapshotMinidump::CPUX86Leaf7Features() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return 0;
 }
 
 bool SystemSnapshotMinidump::CPUX86SupportsDAZ() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return false;
 }
 
 SystemSnapshot::OperatingSystem SystemSnapshotMinidump::GetOperatingSystem()
@@ -177,13 +174,11 @@ std::string SystemSnapshotMinidump::OSVersionFull() const {
 std::string SystemSnapshotMinidump::MachineDescription() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return std::string();
 }
 
 bool SystemSnapshotMinidump::NXEnabled() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return false;
 }
 
 void SystemSnapshotMinidump::TimeZone(DaylightSavingTimeStatus* dst_status,
@@ -198,7 +193,6 @@ void SystemSnapshotMinidump::TimeZone(DaylightSavingTimeStatus* dst_status,
 uint64_t SystemSnapshotMinidump::AddressMask() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
   NOTREACHED();  // https://crashpad.chromium.org/bug/10
-  return 0;
 }
 
 }  // namespace internal

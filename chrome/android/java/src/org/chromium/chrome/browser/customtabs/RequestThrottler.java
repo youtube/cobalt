@@ -11,11 +11,11 @@ import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.SparseArray;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.ContextUtils;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * This class is *not* thread-safe.
  */
+@NullMarked
 class RequestThrottler {
     // These are for (a).
     private static final long MIN_DELAY = 100;
@@ -49,14 +50,14 @@ class RequestThrottler {
     private static final String BANNED_UNTIL = "banned_until_";
 
     private static final AtomicBoolean sAccessedSharedPreferences = new AtomicBoolean();
-    private static SparseArray<RequestThrottler> sUidToThrottler;
+    private static @Nullable SparseArray<RequestThrottler> sUidToThrottler;
 
     private final SharedPreferences mSharedPreferences;
     private final int mUid;
     private float mScore;
     private long mLastPrerenderRequestMs;
     private long mBannedUntilMs;
-    private String mUrl;
+    private @Nullable String mUrl;
 
     /**
      * Updates the prediction stats and returns whether prediction is allowed.
@@ -175,7 +176,8 @@ class RequestThrottler {
     /** Resets the banning state. */
     void reset() {
         if (sUidToThrottler != null) sUidToThrottler.remove(mUid);
-        mSharedPreferences.edit()
+        mSharedPreferences
+                .edit()
                 .remove(SCORE + mUid)
                 .remove(LAST_REQUEST + mUid)
                 .remove(BANNED_UNTIL + mUid)
@@ -193,20 +195,23 @@ class RequestThrottler {
     /**
      * Loads the SharedPreferences in the background.
      *
-     * SharedPreferences#edit() blocks until the preferences are loaded from disk. This results in a
-     * StrictMode violation as this may be called from the UI thread. This loads the preferences in
-     * the background to hopefully avoid the violation (if the next edit() call happens once the
-     * preferences are loaded).
-     *
+     * <p>SharedPreferences#edit() blocks until the preferences are loaded from disk. This results
+     * in a StrictMode violation as this may be called from the UI thread. This loads the
+     * preferences in the background to hopefully avoid the violation (if the next edit() call
+     * happens once the preferences are loaded).
      */
-    // TODO(crbug.com/635567): Fix this properly.
+    // TODO(crbug.com/40479664): Fix this properly.
     @SuppressLint("CommitPrefEdits")
     static void loadInBackground() {
         boolean alreadyDone = !sAccessedSharedPreferences.compareAndSet(false, true);
         if (alreadyDone) return;
-        PostTask.postTask(TaskTraits.BEST_EFFORT_MAY_BLOCK, () -> {
-            ContextUtils.getApplicationContext().getSharedPreferences(PREFERENCES_NAME, 0).edit();
-        });
+        PostTask.postTask(
+                TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                () -> {
+                    ContextUtils.getApplicationContext()
+                            .getSharedPreferences(PREFERENCES_NAME, 0)
+                            .edit();
+                });
     }
 
     /** Removes all the UIDs that haven't been seen since at least {@link FORGET_AFTER_MS}. */
@@ -233,7 +238,6 @@ class RequestThrottler {
         editor.apply();
     }
 
-    @VisibleForTesting
     static void purgeAllEntriesForTesting() {
         SharedPreferences sharedPreferences =
                 ContextUtils.getApplicationContext().getSharedPreferences(PREFERENCES_NAME, 0);

@@ -3,7 +3,8 @@
 // found in the LICENSE file.
 
 // clang-format off
-import {Route, Router, SettingsRoutes} from 'chrome://settings/settings.js';
+import type {SettingsRoutes} from 'chrome://settings/settings.js';
+import {Route, Router} from 'chrome://settings/settings.js';
 import {assertEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {eventToPromise} from 'chrome://webui-test/test_util.js';
 import {getTrustedHtml} from 'chrome://webui-test/trusted_html.js';
@@ -63,7 +64,7 @@ suite('settings-animated-pages', function() {
 
     const trigger = document.body.querySelector('#subpage-trigger');
     assertTrue(!!trigger);
-    const whenDone = eventToPromise('focus', trigger!);
+    const whenDone = eventToPromise('focus', trigger);
 
     // Trigger subpage exit navigation.
     Router.getInstance().navigateTo(testRoutes.BASIC);
@@ -102,7 +103,7 @@ suite('settings-animated-pages', function() {
     // correct element #subpageTrigger1 is focused.
     const trigger1 = document.body.querySelector('#subpage-trigger1');
     assertTrue(!!trigger1);
-    let whenDone = eventToPromise('focus', trigger1!);
+    let whenDone = eventToPromise('focus', trigger1);
 
     Router.getInstance().navigateTo(testRoutes.PRIVACY);
     Router.getInstance().navigateTo(testRoutes.SITE_SETTINGS_COOKIES);
@@ -113,7 +114,7 @@ suite('settings-animated-pages', function() {
     // correct element #subpageTrigger1 is focused.
     const trigger2 = document.body.querySelector('#subpage-trigger2');
     assertTrue(!!trigger2);
-    whenDone = eventToPromise('focus', trigger2!);
+    whenDone = eventToPromise('focus', trigger2);
 
     Router.getInstance().navigateTo(testRoutes.SITE_SETTINGS);
     Router.getInstance().navigateTo(testRoutes.SITE_SETTINGS_COOKIES);

@@ -7,6 +7,8 @@
 // Tests of HpackDecoderStringBuffer.
 
 #include <initializer_list>
+#include <sstream>
+#include <string>
 
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
@@ -16,7 +18,6 @@
 
 using ::testing::AssertionResult;
 using ::testing::AssertionSuccess;
-using ::testing::HasSubstr;
 
 namespace http2 {
 namespace test {
@@ -45,31 +46,6 @@ class HpackDecoderStringBufferTest : public quiche::test::QuicheTest {
 
   HpackDecoderStringBuffer buf_;
 };
-
-TEST_F(HpackDecoderStringBufferTest, SetStatic) {
-  absl::string_view data("static string");
-
-  EXPECT_EQ(state(), State::RESET);
-  EXPECT_TRUE(VerifyLogHasSubstrs({"state=RESET"}));
-
-  buf_.Set(data, /*is_static*/ true);
-  QUICHE_LOG(INFO) << buf_;
-  EXPECT_EQ(state(), State::COMPLETE);
-  EXPECT_EQ(backing(), Backing::STATIC);
-  EXPECT_EQ(data, buf_.str());
-  EXPECT_EQ(data.data(), buf_.str().data());
-  EXPECT_TRUE(VerifyLogHasSubstrs(
-      {"state=COMPLETE", "backing=STATIC", "value: static string"}));
-
-  // The string is static, so BufferStringIfUnbuffered won't change anything.
-  buf_.BufferStringIfUnbuffered();
-  EXPECT_EQ(state(), State::COMPLETE);
-  EXPECT_EQ(backing(), Backing::STATIC);
-  EXPECT_EQ(data, buf_.str());
-  EXPECT_EQ(data.data(), buf_.str().data());
-  EXPECT_TRUE(VerifyLogHasSubstrs(
-      {"state=COMPLETE", "backing=STATIC", "value: static string"}));
-}
 
 TEST_F(HpackDecoderStringBufferTest, PlainWhole) {
   absl::string_view data("some text.");
@@ -152,7 +128,8 @@ TEST_F(HpackDecoderStringBufferTest, PlainSplit) {
 }
 
 TEST_F(HpackDecoderStringBufferTest, HuffmanWhole) {
-  std::string encoded = absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff");
+  std::string encoded;
+  ASSERT_TRUE(absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff", &encoded));
   absl::string_view decoded("www.example.com");
 
   EXPECT_EQ(state(), State::RESET);
@@ -177,7 +154,8 @@ TEST_F(HpackDecoderStringBufferTest, HuffmanWhole) {
 }
 
 TEST_F(HpackDecoderStringBufferTest, HuffmanSplit) {
-  std::string encoded = absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff");
+  std::string encoded;
+  ASSERT_TRUE(absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff", &encoded));
   std::string part1 = encoded.substr(0, 5);
   std::string part2 = encoded.substr(5);
   absl::string_view decoded("www.example.com");
@@ -216,7 +194,8 @@ TEST_F(HpackDecoderStringBufferTest, HuffmanSplit) {
 
 TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnData) {
   // Explicitly encode the End-of-String symbol, a no-no.
-  std::string encoded = absl::HexStringToBytes("ffffffff");
+  std::string encoded;
+  ASSERT_TRUE(absl::HexStringToBytes("ffffffff", &encoded));
 
   buf_.OnStart(/*huffman_encoded*/ true, encoded.size());
   EXPECT_EQ(state(), State::COLLECTING);
@@ -230,7 +209,8 @@ TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnData) {
 
 TEST_F(HpackDecoderStringBufferTest, InvalidHuffmanOnEnd) {
   // Last byte of string doesn't end with prefix of End-of-String symbol.
-  std::string encoded = absl::HexStringToBytes("00");
+  std::string encoded;
+  ASSERT_TRUE(absl::HexStringToBytes("00", &encoded));
 
   buf_.OnStart(/*huffman_encoded*/ true, encoded.size());
   EXPECT_EQ(state(), State::COLLECTING);

@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/features.h"
 #include "base/memory/discardable_memory.h"
 #include "base/memory/discardable_memory_allocator.h"
 #include "base/system/sys_info.h"
@@ -14,6 +15,7 @@
 #include "build/build_config.h"
 #include "components/crash/core/common/crash_key.h"
 #include "content/public/utility/utility_thread.h"
+#include "skia/ext/font_utils.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkGraphics.h"
 #include "third_party/skia/include/ports/SkFontConfigInterface.h"
@@ -27,6 +29,16 @@
 namespace paint_preview {
 
 namespace {
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+// A parameter to exclude or not exclude PaintPreviewCompositor from
+// PartialLowModeOnMidRangeDevices. This is used to see how
+// PaintPreviewCompositor affects
+// Startup.Android.Cold.TimeToFirstVisibleContent.
+const base::FeatureParam<bool> kPartialLowEndModeExcludePaintPreviewCompositor{
+    &base::features::kPartialLowEndModeOnMidRangeDevices,
+    "exclude-paint-preview-compositor", false};
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
+
 // Record whether the compositor is in shutdown. Discardable memory allocations
 // manifest as OOMs during shutdown due to failure to send IPC messages. By
 // recording whether the process is shutting down it is possible to determine if
@@ -47,18 +59,19 @@ PaintPreviewCompositorCollectionImpl::PaintPreviewCompositorCollectionImpl(
     receiver_.Bind(std::move(receiver));
 
   // Adapted from content::InitializeSkia().
-  // TODO(crbug/1199857): Tune these limits.
+  // TODO(crbug.com/40178027): Tune these limits.
   constexpr int kMB = 1024 * 1024;
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
   bool is_low_end_mode =
-      base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled();
+      base::SysInfo::IsLowEndDeviceOrPartialLowEndModeEnabled(
+          kPartialLowEndModeExcludePaintPreviewCompositor);
   SkGraphics::SetFontCacheLimit(is_low_end_mode ? kMB : 8 * kMB);
   SkGraphics::SetResourceCacheTotalByteLimit(is_low_end_mode ? 32 * kMB
                                                              : 64 * kMB);
   SkGraphics::SetResourceCacheSingleAllocationByteLimit(16 * kMB);
 #else
   SkGraphics::SetResourceCacheSingleAllocationByteLimit(64 * kMB);
-#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 
   if (!initialize_environment_)
     return;
@@ -73,20 +86,20 @@ PaintPreviewCompositorCollectionImpl::PaintPreviewCompositorCollectionImpl(
   SkFontConfigInterface::SetGlobal(
       sk_make_sp<font_service::FontLoader>(std::move(font_service)));
 #endif
-  // TODO(crbug/1023377): Determine if EnsureBlinkInitialized*() does any other
-  // initialization we require. Possibly for other platforms (e.g. MacOS,
+  // TODO(crbug.com/40106998): Determine if EnsureBlinkInitialized*() does any
+  // other initialization we require. Possibly for other platforms (e.g. MacOS,
   // Android). In theory, WebSandboxSupport isn't required since we subset and
   // load all required fonts into the Skia Pictures for portability so they are
   // all local; however, this may be required for initialization on MacOS?
 
-  // TODO(crbug/1013585): PDF compositor initializes Blink to leverage some
+  // TODO(crbug.com/40102887): PDF compositor initializes Blink to leverage some
   // codecs for images. This is a huge overhead and shouldn't be necessary for
   // us. However, this may break some formats (WEBP?) so we may need to force
   // encoding to PNG or we could provide our own codec implementations.
 
   // Init this on the background thread for a startup performance improvement.
   base::ThreadPool::PostTask(FROM_HERE,
-                             base::BindOnce([] { SkFontMgr::RefDefault(); }));
+                             base::BindOnce([] { skia::DefaultFontMgr(); }));
 
   // Sanity check that fonts are working.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -94,9 +107,9 @@ PaintPreviewCompositorCollectionImpl::PaintPreviewCompositorCollectionImpl(
   // This is fine since since the subsetted fonts are provided in the SkPicture.
   // However, we still need to check that the SkFontMgr starts as it is used by
   // Skia when handling the SkPicture.
-  DCHECK(SkFontMgr::RefDefault());
+  DCHECK(skia::DefaultFontMgr());
 #else
-  DCHECK(SkFontMgr::RefDefault()->countFamilies());
+  DCHECK(skia::DefaultFontMgr()->countFamilies());
 #endif
 }
 

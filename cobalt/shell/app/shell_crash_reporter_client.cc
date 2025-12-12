@@ -34,22 +34,6 @@ ShellCrashReporterClient::ShellCrashReporterClient() {}
 ShellCrashReporterClient::~ShellCrashReporterClient() {}
 
 #if BUILDFLAG(IS_POSIX)
-void ShellCrashReporterClient::GetProductNameAndVersion(
-    const char** product_name,
-    const char** version) {
-  *product_name = "content_shell";
-  *version = CONTENT_SHELL_VERSION;
-}
-
-void ShellCrashReporterClient::GetProductNameAndVersion(
-    std::string* product_name,
-    std::string* version,
-    std::string* channel) {
-  *product_name = "content_shell";
-  *version = CONTENT_SHELL_VERSION;
-  *channel = "";
-}
-
 base::FilePath ShellCrashReporterClient::GetReporterLogFilename() {
   return base::FilePath(FILE_PATH_LITERAL("uploads.log"));
 }
@@ -67,11 +51,10 @@ bool ShellCrashReporterClient::GetCrashDumpLocation(base::FilePath* crash_dir) {
   return true;
 }
 
-#if BUILDFLAG(IS_ANDROID)
-int ShellCrashReporterClient::GetAndroidMinidumpDescriptor() {
-  return kAndroidMinidumpDescriptor;
+void ShellCrashReporterClient::GetProductInfo(ProductInfo* product_info) {
+  product_info->product_name = "content_shell";
+  product_info->version = CONTENT_SHELL_VERSION;
 }
-#endif
 
 bool ShellCrashReporterClient::EnableBreakpadForProcess(
     const std::string& process_type) {

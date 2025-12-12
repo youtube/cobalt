@@ -24,9 +24,9 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "components/js_injection/browser/js_communication_host.h"
 #include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -37,7 +37,6 @@
 class GURL;
 
 namespace content {
-class FileSelectListener;
 class BrowserContext;
 class JavaScriptDialogManager;
 class ShellDevToolsFrontend;
@@ -120,15 +119,19 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 #endif
 
   // WebContentsDelegate
-  WebContents* OpenURLFromTab(WebContents* source,
-                              const OpenURLParams& params) override;
-  void AddNewContents(WebContents* source,
-                      std::unique_ptr<WebContents> new_contents,
-                      const GURL& target_url,
-                      WindowOpenDisposition disposition,
-                      const blink::mojom::WindowFeatures& window_features,
-                      bool user_gesture,
-                      bool* was_blocked) override;
+  WebContents* OpenURLFromTab(
+      WebContents* source,
+      const OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
+  WebContents* AddNewContents(
+      WebContents* source,
+      std::unique_ptr<WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
   void LoadingStateChanged(WebContents* source,
                            bool should_show_loading_ui) override;
 #if BUILDFLAG(IS_ANDROID)
@@ -141,7 +144,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool IsFullscreenForTabOrPending(const WebContents* web_contents) override;
   blink::mojom::DisplayMode GetDisplayMode(
       const WebContents* web_contents) override;
-  void RequestToLockMouse(WebContents* web_contents,
+  void RequestPointerLock(WebContents* web_contents,
                           bool user_gesture,
                           bool last_unlocked_by_target) override;
   void CloseContents(WebContents* source) override;
@@ -155,25 +158,15 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                               const std::u16string& message,
                               int32_t line_no,
                               const std::u16string& source_id) override;
-  void PortalWebContentsCreated(WebContents* portal_web_contents) override;
   void RendererUnresponsive(
       WebContents* source,
       RenderWidgetHost* render_widget_host,
       base::RepeatingClosure hang_monitor_restarter) override;
   void ActivateContents(WebContents* contents) override;
-  void RunFileChooser(RenderFrameHost* render_frame_host,
-                      scoped_refptr<FileSelectListener> listener,
-                      const blink::mojom::FileChooserParams& params) override;
-  bool IsBackForwardCacheSupported() override;
+  bool IsBackForwardCacheSupported(WebContents& contents) override;
   PreloadingEligibility IsPrerender2Supported(
-      WebContents& web_contents) override;
-  std::unique_ptr<WebContents> ActivatePortalWebContents(
-      WebContents* predecessor_contents,
-      std::unique_ptr<WebContents> portal_contents) override;
-  void UpdateInspectedWebContentsIfNecessary(
-      WebContents* old_contents,
-      WebContents* new_contents,
-      base::OnceCallback<void()> callback) override;
+      WebContents& web_contents,
+      PreloadingTriggerType trigger_type) override;
   bool ShouldAllowRunningInsecureContent(WebContents* web_contents,
                                          bool allowed_per_prefs,
                                          const url::Origin& origin,
@@ -182,6 +175,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       WebContents* web_contents) override;
   bool ShouldResumeRequestsForCreatedWindow() override;
   void SetContentsBounds(WebContents* source, const gfx::Rect& bounds) override;
+  void RequestMediaAccessPermission(WebContents*,
+                                    const MediaStreamRequest&,
+                                    MediaResponseCallback) override;
+  bool CheckMediaAccessPermission(RenderFrameHost*,
+                                  const url::Origin&,
+                                  blink::mojom::MediaStreamType) override;
 
   static gfx::Size GetShellDefaultSize();
 
@@ -225,6 +224,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 #endif
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
+  void PrimaryMainDocumentElementAvailable() override;
+  void DidStopLoading() override;
+
+  void RegisterInjectedJavaScript();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -233,10 +236,11 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
   bool is_fullscreen_ = false;
-
   gfx::Size content_size_;
 
   bool delay_popup_contents_delegate_for_testing_ = false;
+
+  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 
   // A container of all the open windows. We use a vector so we can keep track
   // of ordering.

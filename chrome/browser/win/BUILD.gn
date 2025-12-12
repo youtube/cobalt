@@ -1,0 +1,26 @@
+# Copyright 2024 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("mica_titlebar") {
+  sources = [
+    "mica_titlebar.cc",
+    "mica_titlebar.h",
+  ]
+  deps = [
+    "//base",
+    "//ui/color:accent_color_observer",
+    "//ui/native_theme",
+  ]
+}
+
+source_set("cloud_synced_folder_checker") {
+  sources = [
+    "cloud_synced_folder_checker.cc",
+    "cloud_synced_folder_checker.h",
+  ]
+  deps = [
+    "//base",
+    "//chrome/common:constants",
+  ]
+}

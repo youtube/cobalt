@@ -7,7 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
-#include "components/subresource_filter/content/browser/subresource_filter_safe_browsing_activation_throttle.h"
+#include "components/subresource_filter/content/browser/safe_browsing_page_activation_throttle.h"
 #include "components/subresource_filter/core/common/activation_decision.h"
 #include "components/subresource_filter/core/mojom/subresource_filter.mojom.h"
 
@@ -21,6 +21,10 @@ class RenderFrameHost;
 class WebContents;
 }  // namespace content
 
+namespace content_settings {
+class CookieSettings;
+}  // namespace content_settings
+
 namespace subresource_filter {
 
 class SubresourceFilterProfileContext;
@@ -29,7 +33,7 @@ class SubresourceFilterProfileContext;
 // subresource filter objects (i.e., the throttles and throttle manager) and
 // the per-profile objects (e.g., content settings).
 class ProfileInteractionManager
-    : public SubresourceFilterSafeBrowsingActivationThrottle::Delegate {
+    : public SafeBrowsingPageActivationThrottle::Delegate {
  public:
   explicit ProfileInteractionManager(
       SubresourceFilterProfileContext* profile_context);
@@ -38,6 +42,10 @@ class ProfileInteractionManager
   ProfileInteractionManager(const ProfileInteractionManager&) = delete;
   ProfileInteractionManager& operator=(const ProfileInteractionManager&) =
       delete;
+
+  base::WeakPtr<ProfileInteractionManager> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
 
   void DidCreatePage(content::Page& page);
 
@@ -56,7 +64,7 @@ class ProfileInteractionManager
   // has been installed in web_contents() by the embedder.
   void MaybeShowNotification();
 
-  // SubresourceFilterSafeBrowsingActivationThrottle::Delegate:
+  // SafeBrowsingPageActivationThrottle::Delegate:
   mojom::ActivationLevel OnPageActivationComputed(
       content::NavigationHandle* navigation_handle,
       mojom::ActivationLevel initial_activation_level,
@@ -68,6 +76,8 @@ class ProfileInteractionManager
   }
 #endif
 
+  content_settings::CookieSettings* GetCookieSettings();
+
  private:
   content::WebContents* GetWebContents();
 
@@ -78,13 +88,16 @@ class ProfileInteractionManager
   raw_ptr<content::Page> page_ = nullptr;
 
   // Unowned and must outlive this object.
-  raw_ptr<SubresourceFilterProfileContext> profile_context_ = nullptr;
+  raw_ptr<SubresourceFilterProfileContext, DanglingUntriaged> profile_context_ =
+      nullptr;
 
   bool ads_violation_triggered_for_last_committed_navigation_ = false;
 
 #if BUILDFLAG(IS_ANDROID)
   raw_ptr<AdsBlockedMessageDelegate> ads_blocked_message_delegate_;
 #endif
+
+  base::WeakPtrFactory<ProfileInteractionManager> weak_ptr_factory_{this};
 };
 
 }  // namespace subresource_filter

@@ -72,14 +72,20 @@ interface HelpContentProvider {
 struct FeedbackContext {
   // The e-mail of the user that initiated this feedback.
   string? email;
+  // Whether or not the Wifi debug logs is allowed by user.
+  bool wifi_debug_logs_allowed;
+  // Whether or not this ChromeOS device is linked to a phone
+  // (Google Internal only).
+  bool has_linked_cross_device_phone;
   // Whether or not the signed in email is an internal google account.
   bool is_internal_account;
   // Whether or not the feedback app is opened from Assistant.
   bool from_assistant;
   // Whether or not the assistant debug info is allowed by user.
   bool assistant_debug_info_allowed;
-  // Whether or not the feedback app is opened from OS Settings Search.
-  bool from_settings_search;
+  // Whether or not the feedback app is opened from OS Settings Search
+  // and should not record user metrics.
+  bool settings_search_do_not_record_metrics;
   // Whether or not the feedback app is opened from autofill context menu.
   bool from_autofill;
   // Autofill metadata provided by source CrOS application by
@@ -145,6 +151,9 @@ struct Report {
   // Whether or not the report has sendBluetoothLogs
   // flag set true by internal google account only.
   bool send_bluetooth_logs;
+  // Whether or not the report has sendWifiDebugLogs
+  // flag set true by internal google account only.
+  bool send_wifi_debug_logs;
   // Whether or not to send autofill metadata with this report. Set by internal
   // google account only.
   bool include_autofill_metadata;

@@ -7,42 +7,42 @@ package org.chromium.chrome.browser.app.usb;
 import android.content.Intent;
 import android.os.IBinder;
 
-import org.chromium.base.ContextUtils;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.usb.UsbNotificationManager;
 import org.chromium.chrome.browser.usb.UsbNotificationManagerDelegate;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
 
 /**
  * Service that manages the WebUSB notification when a website is connected
  * to a USB device.
  */
 public class UsbNotificationServiceImpl extends UsbNotificationService.Impl {
-    private static final String TAG = "UsbNotificationServiceImpl";
+    private final UsbNotificationManagerDelegate mManagerDelegate =
+            new UsbNotificationManagerDelegate() {
+                @Override
+                public Intent createTrustedBringTabToFrontIntent(int tabId) {
+                    return IntentHandler.createTrustedBringTabToFrontIntent(
+                            tabId, IntentHandler.BringToFrontSource.NOTIFICATION);
+                }
 
-    private UsbNotificationManagerDelegate mManagerDelegate = new UsbNotificationManagerDelegate() {
-        @Override
-        public Intent createTrustedBringTabToFrontIntent(int tabId) {
-            return IntentHandler.createTrustedBringTabToFrontIntent(
-                    tabId, IntentHandler.BringToFrontSource.NOTIFICATION);
-        }
-        @Override
-        public void stopSelf() {
-            getService().stopSelf();
-        }
-        @Override
-        public void stopSelf(int startId) {
-            getService().stopSelf(startId);
-        }
-    };
+                @Override
+                public void stopSelf() {
+                    getService().stopSelf();
+                }
+
+                @Override
+                public void stopSelf(int startId) {
+                    getService().stopSelf(startId);
+                }
+            };
 
     private UsbNotificationManager mManager;
 
     @Override
     public void onCreate() {
-        mManager = new UsbNotificationManager(
-                new NotificationManagerProxyImpl(ContextUtils.getApplicationContext()),
-                mManagerDelegate);
+        mManager =
+                new UsbNotificationManager(
+                        BaseNotificationManagerProxyFactory.create(), mManagerDelegate);
         super.onCreate();
     }
 

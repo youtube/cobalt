@@ -63,13 +63,13 @@ class GlobalFeaturesTest : public testing::Test {
     ASSERT_NE(instance_, nullptr);
     auto experiment_config = instance_->experiment_config();
     experiment_config->ClearPref(kExperimentConfig);
+    experiment_config->ClearPref(kExperimentConfigActiveConfigData);
     experiment_config->ClearPref(kExperimentConfigFeatures);
     experiment_config->ClearPref(kExperimentConfigFeatureParams);
-    experiment_config->ClearPref(kExperimentConfigExpIds);
     experiment_config->ClearPref(kSafeConfig);
+    experiment_config->ClearPref(kSafeConfigActiveConfigData);
     experiment_config->ClearPref(kSafeConfigFeatures);
     experiment_config->ClearPref(kSafeConfigFeatureParams);
-    experiment_config->ClearPref(kSafeConfigExpIds);
     // auto metrics_local_state = instance_->metrics_local_state();
   }
 
@@ -114,29 +114,30 @@ TEST_F(GlobalFeaturesTest, RegisterPrefsRegistersExpectedPrefs) {
   GlobalFeatures::RegisterPrefs(pref_service.registry());
 
   EXPECT_TRUE(pref_service.FindPreference(kExperimentConfig));
+  EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigActiveConfigData));
   EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigFeatures));
   EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigFeatureParams));
-  EXPECT_TRUE(pref_service.FindPreference(kExperimentConfigExpIds));
   EXPECT_TRUE(pref_service.FindPreference(kSafeConfig));
+  EXPECT_TRUE(pref_service.FindPreference(kSafeConfigActiveConfigData));
   EXPECT_TRUE(pref_service.FindPreference(kSafeConfigFeatures));
   EXPECT_TRUE(pref_service.FindPreference(kSafeConfigFeatureParams));
-  EXPECT_TRUE(pref_service.FindPreference(kSafeConfigExpIds));
 }
 
-TEST_F(GlobalFeaturesTest, ActiveExperimentIdsUnchangedAfterInitialization) {
+TEST_F(GlobalFeaturesTest,
+       InitializedActiveConfigDataUnchangedAfterChangeToStoredData) {
   ASSERT_NE(instance_, nullptr);
-  auto active_experiment_ids = instance_->active_experiment_ids();
-  EXPECT_TRUE(active_experiment_ids.empty());
+  auto active_config_data = instance_->active_config_data();
+  EXPECT_TRUE(active_config_data.empty());
 
   base::FilePath config_file =
       temp_dir_->GetPath().Append(FILE_PATH_LITERAL("Experiment Config"));
-  base::WriteFile(config_file,
-                  R"({"features": {"feature_a": true},
-                     "feature_params": {"param1": "value1"},
-                     "exp_ids": [1234]})");
+  base::WriteFile(
+      config_file,
+      R"({"experiment_config":{"features":{"feature_a":true},"feature_params":{"param1":"value1"},"active_config_data":"ab"},"latest_config_hash":"cd")");
 
-  active_experiment_ids = instance_->active_experiment_ids();
-  EXPECT_TRUE(active_experiment_ids.empty());
+  // Active config data in memory should remain the same.
+  active_config_data = instance_->active_config_data();
+  EXPECT_TRUE(active_config_data.empty());
 }
 
 }  // namespace cobalt

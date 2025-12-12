@@ -33,10 +33,12 @@ import android.database.MatrixCursor;
 import android.provider.SearchIndexablesProvider;
 import android.provider.Settings;
 
+import com.android.angle.R;
+
 public class SearchProvider extends SearchIndexablesProvider
 {
 
-    private static final String TAG = "SearchProvider";
+    private static final String TAG = "AngleSearchProvider";
 
     @Override
     public boolean onCreate()
@@ -85,9 +87,6 @@ public class SearchProvider extends SearchIndexablesProvider
             cursor.addRow(row);
             return cursor;
         }
-        else
-        {
-            return null;
-        }
+        return null;
     }
 }

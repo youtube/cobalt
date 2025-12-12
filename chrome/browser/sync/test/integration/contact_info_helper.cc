@@ -5,7 +5,10 @@
 #include "chrome/browser/sync/test/integration/contact_info_helper.h"
 
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
+#include "components/autofill/core/browser/data_manager/addresses/address_data_manager.h"
+#include "components/autofill/core/browser/data_manager/personal_data_manager.h"
+#include "components/autofill/core/browser/data_model/addresses/autofill_profile_test_api.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace contact_info_helper {
@@ -13,37 +16,41 @@ namespace contact_info_helper {
 namespace {
 
 using autofill::AutofillProfile;
-using autofill::PersonalDataManager;
 
 }  // namespace
 
-autofill::AutofillProfile BuildTestAccountProfile() {
+AutofillProfile BuildTestAccountProfile() {
   AutofillProfile profile = autofill::test::GetFullProfile();
   // The CONTACT_INFO data type is only concerned with kAccount profiles.
   // kLocalOrSyncable profiles are handled by the AUTOFILL_PROFILE type.
-  profile.set_source_for_testing(AutofillProfile::Source::kAccount);
+  test_api(profile).set_record_type(AutofillProfile::RecordType::kAccount);
   return profile;
 }
 
-PersonalDataManager* GetPersonalDataManager(Profile* profile) {
-  return autofill::PersonalDataManagerFactory::GetForProfile(profile);
+autofill::AddressDataManager* GetAddressDataManager(Profile* profile) {
+  autofill::PersonalDataManager* pdm = GetPersonalDataManager(profile);
+  return pdm ? &pdm->address_data_manager() : nullptr;
 }
 
-PersonalDataManagerProfileChecker::PersonalDataManagerProfileChecker(
-    PersonalDataManager* pdm,
+autofill::PersonalDataManager* GetPersonalDataManager(Profile* profile) {
+  return autofill::PersonalDataManagerFactory::GetForBrowserContext(profile);
+}
+
+AddressDataManagerProfileChecker::AddressDataManagerProfileChecker(
+    autofill::AddressDataManager* adm,
     const testing::Matcher<std::vector<AutofillProfile>>& matcher)
-    : pdm_(pdm), matcher_(matcher) {
-  pdm_->AddObserver(this);
+    : adm_(adm), matcher_(matcher) {
+  adm_->AddObserver(this);
 }
 
-PersonalDataManagerProfileChecker::~PersonalDataManagerProfileChecker() {
-  pdm_->RemoveObserver(this);
+AddressDataManagerProfileChecker::~AddressDataManagerProfileChecker() {
+  adm_->RemoveObserver(this);
 }
 
-bool PersonalDataManagerProfileChecker::IsExitConditionSatisfied(
+bool AddressDataManagerProfileChecker::IsExitConditionSatisfied(
     std::ostream* os) {
   std::vector<AutofillProfile> profiles;
-  for (AutofillProfile* profile : pdm_->GetProfiles()) {
+  for (const AutofillProfile* profile : adm_->GetProfiles()) {
     profiles.push_back(*profile);
   }
   testing::StringMatchResultListener listener;
@@ -52,7 +59,7 @@ bool PersonalDataManagerProfileChecker::IsExitConditionSatisfied(
   return matches;
 }
 
-void PersonalDataManagerProfileChecker::OnPersonalDataChanged() {
+void AddressDataManagerProfileChecker::OnAddressDataChanged() {
   CheckExitCondition();
 }
 

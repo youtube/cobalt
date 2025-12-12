@@ -4,16 +4,17 @@
 
 package org.chromium.chrome.browser.ui.fast_checkout.data;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 
-/**
- * A profile, similar to the one used by the PersonalDataManager.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.ui.fast_checkout.R;
+import org.chromium.components.autofill.RecordType;
+
+/** A profile, similar to the one used by the PersonalDataManager. */
+@NullMarked
 public class FastCheckoutAutofillProfile {
     private final String mGUID;
-    private final String mOrigin;
-    private final boolean mIsLocal;
-    private final String mHonorificPrefix;
     private final String mFullName;
     private final String mCompanyName;
     private final String mStreetAddress;
@@ -27,17 +28,26 @@ public class FastCheckoutAutofillProfile {
     private final String mPhoneNumber;
     private final String mEmailAddress;
     private final String mLanguageCode;
+    private final @RecordType int mRecordType;
 
     @CalledByNative
-    public FastCheckoutAutofillProfile(String guid, String origin, boolean isLocal,
-            String honorificPrefix, String fullName, String companyName, String streetAddress,
-            String region, String locality, String dependentLocality, String postalCode,
-            String sortingCode, String countryCode, String countryName, String phoneNumber,
-            String emailAddress, String languageCode) {
+    public FastCheckoutAutofillProfile(
+            String guid,
+            String fullName,
+            String companyName,
+            String streetAddress,
+            String region,
+            String locality,
+            String dependentLocality,
+            String postalCode,
+            String sortingCode,
+            String countryCode,
+            String countryName,
+            String phoneNumber,
+            String emailAddress,
+            String languageCode,
+            @RecordType int recordType) {
         mGUID = guid;
-        mOrigin = origin;
-        mIsLocal = isLocal;
-        mHonorificPrefix = honorificPrefix;
         mFullName = fullName;
         mCompanyName = companyName;
         mStreetAddress = streetAddress;
@@ -51,25 +61,12 @@ public class FastCheckoutAutofillProfile {
         mPhoneNumber = phoneNumber;
         mEmailAddress = emailAddress;
         mLanguageCode = languageCode;
+        mRecordType = recordType;
     }
 
     @CalledByNative
     public String getGUID() {
         return mGUID;
-    }
-
-    @CalledByNative
-    public String getOrigin() {
-        return mOrigin;
-    }
-
-    public boolean getIsLocal() {
-        return mIsLocal;
-    }
-
-    @CalledByNative
-    public String getHonorificPrefix() {
-        return mHonorificPrefix;
     }
 
     @CalledByNative
@@ -134,5 +131,26 @@ public class FastCheckoutAutofillProfile {
     @CalledByNative
     public String getLanguageCode() {
         return mLanguageCode;
+    }
+
+    public @RecordType int getRecordType() {
+        return mRecordType;
+    }
+
+    public int getAddressHomeAndWorkIconId() {
+        if (!ChromeFeatureList.isEnabled(
+                ChromeFeatureList.AUTOFILL_ENABLE_SUPPORT_FOR_HOME_AND_WORK)) {
+            return R.drawable.location_on_logo;
+        }
+
+        @RecordType int recordType = getRecordType();
+        switch (recordType) {
+            case RecordType.ACCOUNT_HOME:
+                return R.drawable.home_logo;
+            case RecordType.ACCOUNT_WORK:
+                return R.drawable.work_logo;
+            default:
+                return R.drawable.location_on_logo;
+        }
     }
 }

@@ -41,7 +41,8 @@ class AXWindowObjWrapper : public AXAuraObjWrapper,
   // AXAuraObjWrapper overrides.
   bool HandleAccessibleAction(const ui::AXActionData& action) override;
   AXAuraObjWrapper* GetParent() override;
-  void GetChildren(std::vector<AXAuraObjWrapper*>* out_children) override;
+  void GetChildren(std::vector<raw_ptr<AXAuraObjWrapper, VectorExperimental>>*
+                       out_children) override;
   void Serialize(ui::AXNodeData* out_node_data) override;
   ui::AXNodeID GetUniqueId() const final;
   std::string ToString() const override;
@@ -79,7 +80,7 @@ class AXWindowObjWrapper : public AXAuraObjWrapper,
 
   const bool is_root_window_;
 
-  const ui::AXUniqueId unique_id_;
+  const ui::AXUniqueId unique_id_{ui::AXUniqueId::Create()};
 
   // Whether OnWindowDestroying has happened for |window_|. Used to suppress
   // further events from |window| after OnWindowDestroying. Otherwise, dangling

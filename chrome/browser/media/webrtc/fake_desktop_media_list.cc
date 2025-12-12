@@ -97,7 +97,7 @@ DesktopMediaList::Type FakeDesktopMediaList::GetMediaListType() const {
 }
 
 void FakeDesktopMediaList::SetPreviewedSource(
-    const absl::optional<content::DesktopMediaID>& id) {}
+    const std::optional<content::DesktopMediaID>& id) {}
 
 bool FakeDesktopMediaList::IsSourceListDelegated() const {
   return is_source_list_delegated_;
@@ -114,6 +114,8 @@ void FakeDesktopMediaList::FocusList() {
 void FakeDesktopMediaList::HideList() {
   is_focused_ = false;
 }
+
+void FakeDesktopMediaList::ShowDelegatedList() {}
 
 void FakeDesktopMediaList::OnDelegatedSourceListSelection() {
   observer_->OnDelegatedSourceListSelection();

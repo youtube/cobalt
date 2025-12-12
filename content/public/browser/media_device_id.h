@@ -10,13 +10,12 @@
 #ifndef CONTENT_PUBLIC_BROWSER_MEDIA_DEVICE_ID_H_
 #define CONTENT_PUBLIC_BROWSER_MEDIA_DEVICE_ID_H_
 
+#include <optional>
 #include <string>
 
 #include "base/task/sequenced_task_runner.h"
 #include "content/common/content_export.h"
-#include "content/public/browser/resource_context.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/public/common/mediastream/media_stream_request.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "url/origin.h"
 
 namespace content {
@@ -47,7 +46,7 @@ CONTENT_EXPORT void GetMediaDeviceIDForHMAC(
     url::Origin security_origin,
     std::string hmac_device_id,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
-    base::OnceCallback<void(const absl::optional<std::string>&)> callback);
+    base::OnceCallback<void(const std::optional<std::string>&)> callback);
 
 CONTENT_EXPORT bool IsValidDeviceId(const std::string& device_id);
 

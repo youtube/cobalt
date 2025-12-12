@@ -2,9 +2,16 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/features.gni")
+
 if (is_android) {
   import("//build/config/android/config.gni")
   import("//build/config/android/rules.gni")
+  import("//third_party/jni_zero/jni_zero.gni")
+}
+
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")  # For `target_platform`
 }
 
 component("devices") {
@@ -19,11 +26,15 @@ component("devices") {
     "input_device.cc",
     "input_device.h",
     "input_device_event_observer.h",
+    "keyboard_device.cc",
+    "keyboard_device.h",
     "microphone_mute_switch_monitor.cc",
     "microphone_mute_switch_monitor.h",
     "stylus_state.h",
     "touch_device_transform.cc",
     "touch_device_transform.h",
+    "touchpad_device.cc",
+    "touchpad_device.h",
     "touchscreen_device.cc",
     "touchscreen_device.h",
   ]
@@ -49,6 +60,13 @@ component("devices") {
     ]
   }
 
+  if (is_ios && use_blink && target_platform == "iphoneos") {
+    sources += [
+      "input_device_observer_ios.h",
+      "input_device_observer_ios.mm",
+    ]
+  }
+
   defines = [ "EVENTS_DEVICES_IMPLEMENTATION" ]
 
   public_deps = [
@@ -58,7 +76,7 @@ component("devices") {
 
   deps = [
     "//base",
-    "//base/third_party/dynamic_annotations",
+    "//build:blink_buildflags",
     "//skia",
     "//ui/events:platform_event",
     "//ui/gfx/geometry",
@@ -84,10 +102,15 @@ source_set("unittests") {
     "touchscreen_device_unittest.cc",
   ]
 
+  if (is_ios && use_blink) {
+    sources += [ "input_device_observer_ios_unittest.cc" ]
+  }
+
   deps = [
     ":devices",
     "//base",
     "//base/test:test_support",
+    "//build:blink_buildflags",
   ]
 }
 

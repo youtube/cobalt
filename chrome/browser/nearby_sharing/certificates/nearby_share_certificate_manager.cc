@@ -4,6 +4,10 @@
 
 #include "chrome/browser/nearby_sharing/certificates/nearby_share_certificate_manager.h"
 
+#include <array>
+
+#include "chrome/browser/nearby_sharing/certificates/constants.h"
+
 NearbyShareCertificateManager::NearbyShareCertificateManager() = default;
 
 NearbyShareCertificateManager::~NearbyShareCertificateManager() = default;
@@ -32,15 +36,15 @@ void NearbyShareCertificateManager::Stop() {
   OnStop();
 }
 
-absl::optional<NearbyShareEncryptedMetadataKey>
+std::optional<NearbyShareEncryptedMetadataKey>
 NearbyShareCertificateManager::EncryptPrivateCertificateMetadataKey(
     nearby_share::mojom::Visibility visibility) {
-  absl::optional<NearbySharePrivateCertificate> cert =
+  std::optional<NearbySharePrivateCertificate> cert =
       GetValidPrivateCertificate(visibility);
   if (!cert)
-    return absl::nullopt;
+    return std::nullopt;
 
-  absl::optional<NearbyShareEncryptedMetadataKey> encrypted_key =
+  std::optional<NearbyShareEncryptedMetadataKey> encrypted_key =
       cert->EncryptMetadataKey();
 
   // Every salt consumed to encrypt the metadata encryption key is tracked by
@@ -51,26 +55,26 @@ NearbyShareCertificateManager::EncryptPrivateCertificateMetadataKey(
   return encrypted_key;
 }
 
-absl::optional<std::vector<uint8_t>>
+std::optional<std::vector<uint8_t>>
 NearbyShareCertificateManager::SignWithPrivateCertificate(
     nearby_share::mojom::Visibility visibility,
     base::span<const uint8_t> payload) const {
-  absl::optional<NearbySharePrivateCertificate> cert =
+  std::optional<NearbySharePrivateCertificate> cert =
       GetValidPrivateCertificate(visibility);
   if (!cert)
-    return absl::nullopt;
+    return std::nullopt;
 
   return cert->Sign(payload);
 }
 
-absl::optional<std::vector<uint8_t>>
+std::optional<std::array<uint8_t, kNearbyShareNumBytesAuthenticationTokenHash>>
 NearbyShareCertificateManager::HashAuthenticationTokenWithPrivateCertificate(
     nearby_share::mojom::Visibility visibility,
     base::span<const uint8_t> authentication_token) const {
-  absl::optional<NearbySharePrivateCertificate> cert =
+  std::optional<NearbySharePrivateCertificate> cert =
       GetValidPrivateCertificate(visibility);
   if (!cert)
-    return absl::nullopt;
+    return std::nullopt;
 
   return cert->HashAuthenticationToken(authentication_token);
 }

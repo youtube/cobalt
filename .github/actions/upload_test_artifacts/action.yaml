@@ -1,6 +1,9 @@
 name: Test Artifact Upload
 description: Uploads test archives for on-device and on-host tests.
 inputs:
+  upload_e2e_test_artifacts:
+    description: "Indicates if E2E test artifacts should be uploaded."
+    required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -16,35 +19,42 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Create Artifacts Directory
+      run: mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
+      shell: bash
     - name: Copy Runnables to Artifacts
       if: inputs.upload_on_device_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -eux
-        cd src/
+        cd cobalt/src/
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
         for target in $(cat "${TEST_TARGETS_JSON_FILE}" | jq -r '.executables | .[]'); do
           cp "${target}" "${GITHUB_WORKSPACE}/artifacts/"
         done
       shell: bash
     - name: Archive Test Dependencies
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_on_host_test_artifacts == 'true'
       env:
         TEST_TARGETS_JSON_FILE: ${{ inputs.test_targets_json_file }}
       run: |
         set -x
         mkdir -p "${GITHUB_WORKSPACE}/artifacts/"
-        cd src/
+        cd cobalt/src/
 
+        # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
         FLAGS=""
         if [[ "${{ matrix.platform }}" == *android* ]]; then
-          FLAGS="--archive-per-target --use-android-deps-path --flatten-deps"
+          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
         elif [[ "${{ matrix.platform }}" == *raspi* || "${{ matrix.platform }}" == *rdk* ]]; then
-          FLAGS="--archive-per-target --flatten-deps"
+          FLAGS="--compression gz --archive-per-target --flatten-deps"
+        else
+          FLAGS="--compression zstd --compression-level=9"
         fi
 
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
-          --source-dir ${GITHUB_WORKSPACE}/src \
+          --source-dir ${GITHUB_WORKSPACE}/cobalt/src \
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --targets $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(",")') \
@@ -58,24 +68,28 @@ runs:
         path: artifacts/*
         retention-days: 3
     - name: Set up Cloud SDK
-      if: inputs.upload_on_device_test_artifacts == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Upload Android Test Artifacts to GCS
-      if: inputs.upload_on_device_test_artifacts == 'true'
+    - name: Upload On-Device Test Artifacts to GCS
+      if: inputs.upload_on_device_test_artifacts == 'true' || inputs.upload_e2e_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
 
+        # Add Cobalt release artifacts for smoke tests.
+        if [[ "${{ inputs.upload_e2e_test_artifacts }}" == "true" ]]; then
+          mv ${GITHUB_WORKSPACE}/cobalt/src/out/test-package/* \
+             ${GITHUB_WORKSPACE}/artifacts/
+        fi
+
         # Upload cobalt.apk for smoke tests.
         if [[ "${{ matrix.platform }}" == *android* ]]; then
-          cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
+          cp "${GITHUB_WORKSPACE}/cobalt/src/out/${{ matrix.platform }}_${{ matrix.config }}/apks/Cobalt.apk" \
              "${GITHUB_WORKSPACE}/artifacts/"
         fi
 
-        # Upload gtest target artifacts.
-        gsutil -m cp "${GITHUB_WORKSPACE}/artifacts/*" \
+        gsutil -m cp -r "${GITHUB_WORKSPACE}/artifacts/*" \
           "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
-
       shell: bash

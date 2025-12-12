@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
 
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -33,13 +33,9 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
-class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccRuntime final
-    // TODO: EventTargetWithInlineData should be replaced with EventTarget
-    // after Chromium base version update, see
-    // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_runtime::mojom::blink::DeepLinkListener {
   DEFINE_WRAPPERTYPEINFO();
@@ -62,7 +58,7 @@ class MODULES_EXPORT H5vccRuntime final
   // Mojom interface:
   void NotifyDeepLink(const WTF::String& deep_link) override;
 
-  // EventTargetWithInlineData impl.
+  // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
     return ExecutionContextLifecycleObserver::GetExecutionContext();
   }
@@ -89,4 +85,4 @@ class MODULES_EXPORT H5vccRuntime final
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_

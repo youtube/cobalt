@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_INPUT_METHOD_ASSISTIVE_SUGGESTER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -22,9 +23,22 @@
 #include "chrome/browser/ash/input_method/suggestion_handler_interface.h"
 #include "chrome/browser/ash/input_method/suggestions_source.h"
 #include "chromeos/ash/services/ime/public/cpp/assistive_suggestions.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace ash::input_method {
+
+enum class AssistiveSuggesterKeyResult {
+  // The key event was not handled by the assistive suggester.
+  // The key event should be handled via normal key event flow.
+  kNotHandled,
+  // The key event was handled by the assistive suggester.
+  // The key event should not be propagated as-is. Instead, it should be
+  // dispatched as a PROCESS key to prevent the client from triggering the
+  // default behaviour for the key.
+  kHandled,
+  // Same as not kNotHandled, except the key event should not trigger
+  // autorepeat.
+  kNotHandledSuppressAutoRepeat,
+};
 
 // An agent to suggest assistive information when the user types, and adopt or
 // dismiss the suggestion according to the user action.
@@ -58,7 +72,7 @@ class AssistiveSuggester : public SuggestionsSource {
   void OnActivate(const std::string& engine_id);
 
   // Called when a text field gains focus, and suggester starts working.
-  void OnFocus(int context_id);
+  void OnFocus(int context_id, const TextInputMethod::InputContext& context);
 
   // Called when a text field loses focus, and suggester stops working.
   void OnBlur();
@@ -70,12 +84,12 @@ class AssistiveSuggester : public SuggestionsSource {
                                 gfx::Range selection_range);
 
   // Called when the user pressed a key.
-  // Returns true if it should stop further processing of event.
-  bool OnKeyEvent(const ui::KeyEvent& event);
+  AssistiveSuggesterKeyResult OnKeyEvent(const ui::KeyEvent& event);
 
   // Called when suggestions are generated outside of the assistive framework.
   void OnExternalSuggestionsUpdated(
-      const std::vector<ime::AssistiveSuggestion>& suggestions);
+      const std::vector<ime::AssistiveSuggestion>& suggestions,
+      const std::optional<ime::SuggestionsTextContext>& context);
 
   // Accepts the suggestion at a given index if a suggester is currently
   // active.
@@ -88,7 +102,7 @@ class AssistiveSuggester : public SuggestionsSource {
     return &emoji_suggester_;
   }
 
-  absl::optional<AssistiveSuggesterSwitch::EnabledSuggestions>
+  std::optional<AssistiveSuggesterSwitch::EnabledSuggestions>
   get_enabled_suggestion_from_last_onfocus_for_testing() {
     return enabled_suggestions_from_last_onfocus_;
   }
@@ -111,11 +125,7 @@ class AssistiveSuggester : public SuggestionsSource {
 
   bool IsEmojiSuggestAdditionEnabled();
 
-  bool IsEnhancedEmojiSuggestEnabled();
-
   bool IsMultiWordSuggestEnabled();
-
-  bool IsExpandedMultiWordSuggestEnabled();
 
   bool IsDiacriticsOnPhysicalKeyboardLongpressEnabled();
 
@@ -150,6 +160,7 @@ class AssistiveSuggester : public SuggestionsSource {
 
   void ProcessExternalSuggestions(
       const std::vector<ime::AssistiveSuggestion>& suggestions,
+      const std::optional<ime::SuggestionsTextContext>& context,
       const AssistiveSuggesterSwitch::EnabledSuggestions& enabled_suggestions);
 
   // This records any text input state metrics for each relevant assistive
@@ -161,7 +172,8 @@ class AssistiveSuggester : public SuggestionsSource {
   // Returns true if we block the keyevent from passing to IME, and stop
   // dispatch.
   // Returns false, if we want IME to process the event and dispatch it.
-  bool HandleLongpressEnabledKeyEvent(const ui::KeyEvent& key_character);
+  AssistiveSuggesterKeyResult HandleLongpressEnabledKeyEvent(
+      const ui::KeyEvent& key_character);
 
   void HandleEnabledSuggestionsOnFocus(
       const AssistiveSuggesterSwitch::EnabledSuggestions& enabled_suggestions);
@@ -172,7 +184,7 @@ class AssistiveSuggester : public SuggestionsSource {
   // status of the clipboard history menu, as indicated by `will_paste_item`.
   void OnClipboardHistoryMenuClosing(bool will_paste_item);
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
   EmojiSuggester emoji_suggester_;
   MultiWordSuggester multi_word_suggester_;
   LongpressDiacriticsSuggester longpress_diacritics_suggester_;
@@ -183,20 +195,20 @@ class AssistiveSuggester : public SuggestionsSource {
   std::string active_engine_id_;
 
   // ID of the focused text field, nullopt if none focused.
-  absl::optional<int> focused_context_id_;
+  std::optional<int> focused_context_id_;
 
   // KeyEvent of the held down key at key down. nullopt if no longpress in
   // progress.
-  absl::optional<ui::KeyEvent> current_longpress_keydown_;
+  std::optional<ui::KeyEvent> current_longpress_keydown_;
 
   // Timer for longpress. Starts when key is held down. Fires when successfully
   // held down for a specified longpress duration.
   base::OneShotTimer longpress_timer_;
 
   // The current suggester in use, nullptr means no suggestion is shown.
-  raw_ptr<Suggester, ExperimentalAsh> current_suggester_ = nullptr;
+  raw_ptr<Suggester> current_suggester_ = nullptr;
 
-  absl::optional<AssistiveSuggesterSwitch::EnabledSuggestions>
+  std::optional<AssistiveSuggesterSwitch::EnabledSuggestions>
       enabled_suggestions_from_last_onfocus_;
 
   std::u16string last_surrounding_text_ = u"";
@@ -206,6 +218,8 @@ class AssistiveSuggester : public SuggestionsSource {
   bool auto_repeat_suppress_metric_emitted_ = false;
 
   int last_cursor_pos_ = 0;
+
+  TextInputMethod::InputContext context_;
 
   base::WeakPtrFactory<AssistiveSuggester> weak_ptr_factory_{this};
 };

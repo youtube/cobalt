@@ -35,7 +35,7 @@ P2PSocketClient::P2PSocketClient(
       random_socket_id_(0),
       next_packet_id_(0) {
   DCHECK(socket_manager_.is_bound());
-  crypto::RandBytes(&random_socket_id_, sizeof(random_socket_id_));
+  crypto::RandBytes(base::byte_span_from_ref(random_socket_id_));
 }
 
 P2PSocketClient::~P2PSocketClient() {
@@ -59,15 +59,16 @@ void P2PSocketClient::Init(network::P2PSocketType type,
       type, local_address, network::P2PPortRange(min_port, max_port),
       remote_address,
       net::MutableNetworkTrafficAnnotationTag(traffic_annotation_),
-      receiver_.BindNewPipeAndPassRemote(),
+      /*devtools_token=*/std::nullopt, receiver_.BindNewPipeAndPassRemote(),
       socket_.BindNewPipeAndPassReceiver());
   receiver_.set_disconnect_handler(base::BindOnce(
       &P2PSocketClient::OnConnectionError, base::Unretained(this)));
 }
 
-uint64_t P2PSocketClient::Send(const net::IPEndPoint& address,
-                               base::span<const uint8_t> data,
-                               const rtc::PacketOptions& options) {
+uint64_t P2PSocketClient::Send(
+    const net::IPEndPoint& address,
+    base::span<const uint8_t> data,
+    const webrtc::AsyncSocketPacketOptions& options) {
   uint64_t unique_id = GetUniqueId(random_socket_id_, ++next_packet_id_);
 
   // Can send data only when the socket is open.
@@ -79,10 +80,11 @@ uint64_t P2PSocketClient::Send(const net::IPEndPoint& address,
   return unique_id;
 }
 
-void P2PSocketClient::SendWithPacketId(const net::IPEndPoint& address,
-                                       base::span<const uint8_t> data,
-                                       const rtc::PacketOptions& options,
-                                       uint64_t packet_id) {
+void P2PSocketClient::SendWithPacketId(
+    const net::IPEndPoint& address,
+    base::span<const uint8_t> data,
+    const webrtc::AsyncSocketPacketOptions& options,
+    uint64_t packet_id) {
   socket_->Send(data, network::P2PPacketInfo(address, options, packet_id));
 }
 
@@ -124,6 +126,16 @@ void P2PSocketClient::SendComplete(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (delegate_)
     delegate_->OnSendComplete(send_metrics);
+}
+
+void P2PSocketClient::SendBatchComplete(
+    const std::vector<::network::P2PSendPacketMetrics>& send_metrics_batch) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (delegate_) {
+    for (const auto& send_metrics : send_metrics_batch) {
+      delegate_->OnSendComplete(send_metrics);
+    }
+  }
 }
 
 void P2PSocketClient::DataReceived(

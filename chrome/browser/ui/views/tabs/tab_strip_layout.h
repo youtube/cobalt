@@ -5,11 +5,11 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_LAYOUT_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_LAYOUT_H_
 
+#include <optional>
 #include <vector>
 
 #include "chrome/browser/ui/views/tabs/tab_strip_layout_types.h"
 #include "chrome/browser/ui/views/tabs/tab_width_constraints.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace gfx {
 class Rect;
@@ -26,10 +26,12 @@ class TabSizer {
   int CalculateTabWidth(const TabWidthConstraints& tab) const;
 
   // Returns true iff it's OK for this tab to be one pixel wider than
-  // CalculateTabWidth(|tab|).
+  // CalculateTabWidth(`tab`).
   bool TabAcceptsExtraSpace(const TabWidthConstraints& tab) const;
 
   bool IsAlreadyPreferredWidth() const;
+
+  LayoutDomain domain() { return domain_; }
 
  private:
   LayoutDomain domain_;
@@ -47,13 +49,12 @@ struct TabWidthOverride {
   int extra_space;
 };
 
-// Calculates and returns the bounds of the tabs. |width| is the available
+// Calculates and returns the bounds of the tabs. `width` is the available
 // width to use for tab layout. This never sizes the tabs smaller then the
 // minimum widths in TabSizeInfo, and as a result the calculated bounds may go
-// beyond |width|.
-std::vector<gfx::Rect> CalculateTabBounds(
-    const TabLayoutConstants& layout_constants,
+// beyond `width`.
+std::pair<std::vector<gfx::Rect>, LayoutDomain> CalculateTabBounds(
     const std::vector<TabWidthConstraints>& tabs,
-    absl::optional<int> width);
+    std::optional<int> width);
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_TAB_STRIP_LAYOUT_H_

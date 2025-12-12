@@ -46,7 +46,7 @@ base::Value::Dict MapParams(
 // Converts the string |keys| in |params| from base64url to base64. Returns a
 // status error if conversion of one of the keys failed.
 Status ConvertBase64UrlToBase64(base::Value::Dict& params,
-                                const std::vector<std::string> keys) {
+                                const std::vector<std::string>& keys) {
   for (const std::string& key : keys) {
     base::Value* maybe_value = params.Find(key);
     if (!maybe_value)
@@ -62,7 +62,7 @@ Status ConvertBase64UrlToBase64(base::Value::Dict& params,
       return Status(kInvalidArgument, key + kBase64UrlError);
     }
 
-    base::Base64Encode(temp, &value);
+    value = base::Base64Encode(temp);
   }
 
   return Status(kOk);
@@ -70,7 +70,7 @@ Status ConvertBase64UrlToBase64(base::Value::Dict& params,
 
 // Converts the string |keys| in |params| from base64 to base64url.
 void ConvertBase64ToBase64Url(base::Value::Dict& params,
-                              const std::vector<std::string> keys) {
+                              const std::vector<std::string>& keys) {
   for (const std::string& key : keys) {
     std::string* maybe_value = params.FindString(key);
     if (!maybe_value)
@@ -114,6 +114,8 @@ Status ExecuteAddVirtualAuthenticator(WebView* web_view,
           {"options.hasUserVerification", "hasUserVerification"},
           {"options.automaticPresenceSimulation", "isUserConsenting"},
           {"options.isUserVerified", "isUserVerified"},
+          {"options.defaultBackupState", "defaultBackupState"},
+          {"options.defaultBackupEligibility", "defaultBackupEligibility"},
       },
       params);
 
@@ -163,7 +165,7 @@ Status ExecuteAddVirtualAuthenticator(WebView* web_view,
   if (status.IsError())
     return status;
 
-  absl::optional<base::Value> authenticator_id =
+  std::optional<base::Value> authenticator_id =
       result->GetDict().Extract("authenticatorId");
   if (!authenticator_id)
     return Status(kUnknownError, kDevToolsDidNotReturnExpectedValue);
@@ -193,6 +195,10 @@ Status ExecuteAddCredential(WebView* web_view,
           {"credential.userHandle", "userHandle"},
           {"credential.signCount", "signCount"},
           {"credential.largeBlob", "largeBlob"},
+          {"credential.backupEligibility", "backupEligibility"},
+          {"credential.backupState", "backupState"},
+          {"credential.userName", "userName"},
+          {"credential.userDisplayName", "userDisplayName"},
       },
       params);
   base::Value::Dict* credential = mapped_params.FindDict("credential");
@@ -217,7 +223,7 @@ Status ExecuteGetCredentials(WebView* web_view,
   if (status.IsError())
     return status;
 
-  absl::optional<base::Value> credentials =
+  std::optional<base::Value> credentials =
       result->GetDict().Extract("credentials");
   if (!credentials)
     return Status(kUnknownError, kDevToolsDidNotReturnExpectedValue);
@@ -267,6 +273,22 @@ Status ExecuteSetUserVerified(WebView* web_view,
           {
               {"authenticatorId", "authenticatorId"},
               {"isUserVerified", "isUserVerified"},
+          },
+          params),
+      value);
+}
+
+Status ExecuteSetCredentialProperties(WebView* web_view,
+                                      const base::Value::Dict& params,
+                                      std::unique_ptr<base::Value>* value) {
+  return web_view->SendCommandAndGetResult(
+      "WebAuthn.setCredentialProperties",
+      MapParams(
+          {
+              {"authenticatorId", "authenticatorId"},
+              {"credentialId", "credentialId"},
+              {"backupEligibility", "backupEligibility"},
+              {"backupState", "backupState"},
           },
           params),
       value);

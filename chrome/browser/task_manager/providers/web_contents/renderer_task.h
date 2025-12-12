@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "chrome/browser/task_manager/providers/task.h"
 #include "components/favicon/core/favicon_driver_observer.h"
 
@@ -81,6 +82,8 @@ class RendererTask : public Task,
 
   content::WebContents* web_contents() const { return web_contents_; }
 
+  base::WeakPtr<RendererTask> AsWeakPtr();
+
  protected:
   // Returns the title of the given |web_contents|.
   static std::u16string GetTitleFromWebContents(
@@ -100,6 +103,8 @@ class RendererTask : public Task,
                                                   bool is_incognito,
                                                   bool is_background);
 
+  void DefaultUpdateFaviconImpl();
+
  private:
   RendererTask(const std::u16string& title,
                const gfx::ImageSkia* icon,
@@ -107,10 +112,10 @@ class RendererTask : public Task,
                content::RenderProcessHost* render_process_host);
 
   // The WebContents of the task this object represents.
-  raw_ptr<content::WebContents> web_contents_;
+  const raw_ptr<content::WebContents> web_contents_;
 
   // The render process host of the task this object represents.
-  raw_ptr<content::RenderProcessHost> render_process_host_;
+  const raw_ptr<content::RenderProcessHost> render_process_host_;
 
   // The Mojo service wrapper that will provide us with the V8 memory usage and
   // the WebCache resource stats of the render process represented by this
@@ -121,18 +126,21 @@ class RendererTask : public Task,
   const int render_process_id_;
 
   // The allocated and used V8 memory (in bytes).
-  int64_t v8_memory_allocated_;
-  int64_t v8_memory_used_;
+  int64_t v8_memory_allocated_ = 0;
+  int64_t v8_memory_used_ = 0;
 
   // The WebKit resource cache statistics for this renderer.
-  blink::WebCacheResourceTypeStats webcache_stats_;
+  blink::WebCacheResourceTypeStats webcache_stats_ = {};
 
   // The profile name associated with the browser context of the render view
   // host.
   const std::u16string profile_name_;
 
-  base::TerminationStatus termination_status_;
-  int termination_error_code_;
+  base::TerminationStatus termination_status_ =
+      base::TERMINATION_STATUS_STILL_RUNNING;
+  int termination_error_code_ = 0;
+
+  base::WeakPtrFactory<RendererTask> weak_ptr_factor_{this};
 };
 
 }  // namespace task_manager

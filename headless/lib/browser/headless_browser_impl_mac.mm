@@ -4,59 +4,22 @@
 
 #include "headless/lib/browser/headless_browser_impl.h"
 
-#import "base/mac/scoped_objc_class_swizzler.h"
 #include "base/memory/weak_ptr.h"
-#include "base/no_destructor.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/popup_menu.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
+#include "headless/lib/browser/headless_screen_mac.h"
 #include "headless/lib/browser/headless_web_contents_impl.h"
+#include "services/device/public/cpp/geolocation/system_geolocation_source_apple.h"
 #import "ui/base/cocoa/base_view.h"
+#include "ui/display/screen.h"
 #import "ui/gfx/mac/coordinate_conversion.h"
-
-// Overrides events and actions for NSPopUpButtonCell.
-@interface FakeNSPopUpButtonCell : NSObject
-@end
-
-@implementation FakeNSPopUpButtonCell
-
-- (void)performClickWithFrame:(NSRect)frame inView:(NSView*)view {
-}
-
-- (void)attachPopUpWithFrame:(NSRect)frame inView:(NSView*)view {
-}
-
-@end
 
 namespace headless {
 
 namespace {
-
-// Swizzles all event and acctions for NSPopUpButtonCell to avoid showing in
-// headless mode.
-class HeadlessPopUpMethods {
- public:
-  HeadlessPopUpMethods(const HeadlessPopUpMethods&) = delete;
-  HeadlessPopUpMethods& operator=(const HeadlessPopUpMethods&) = delete;
-
-  static void Init() {
-    [[maybe_unused]] static base::NoDestructor<HeadlessPopUpMethods> swizzler;
-  }
-
- private:
-  friend class base::NoDestructor<HeadlessPopUpMethods>;
-  HeadlessPopUpMethods()
-      : popup_perform_click_swizzler_([NSPopUpButtonCell class],
-                                      [FakeNSPopUpButtonCell class],
-                                      @selector(performClickWithFrame:inView:)),
-        popup_attach_swizzler_([NSPopUpButtonCell class],
-                               [FakeNSPopUpButtonCell class],
-                               @selector(attachPopUpWithFrame:inView:)) {}
-
-  base::mac::ScopedObjCClassSwizzler popup_perform_click_swizzler_;
-  base::mac::ScopedObjCClassSwizzler popup_attach_swizzler_;
-};
 
 NSString* const kActivityReason = @"Batch headless process";
 const NSActivityOptions kActivityOptions =
@@ -68,14 +31,23 @@ const NSActivityOptions kActivityOptions =
 }  // namespace
 
 void HeadlessBrowserImpl::PlatformInitialize() {
-  screen_ = std::make_unique<display::ScopedNativeScreen>();
-  HeadlessPopUpMethods::Init();
+  if (!geolocation_system_permission_manager_) {
+    geolocation_system_permission_manager_ =
+        device::SystemGeolocationSourceApple::
+            CreateGeolocationSystemPermissionManager();
+  }
+
+  HeadlessScreen* screen = HeadlessScreenMac::Create(
+      options()->window_size, options()->screen_info_spec);
+  display::Screen::SetScreenInstance(screen);
+
+  content::DontShowPopupMenus();
 }
 
 void HeadlessBrowserImpl::PlatformStart() {
   // Disallow headless to be throttled as a background process.
-  [[NSProcessInfo processInfo] beginActivityWithOptions:kActivityOptions
-                                                 reason:kActivityReason];
+  [NSProcessInfo.processInfo beginActivityWithOptions:kActivityOptions
+                                               reason:kActivityReason];
 }
 
 void HeadlessBrowserImpl::PlatformInitializeWebContents(
@@ -92,10 +64,12 @@ void HeadlessBrowserImpl::PlatformSetWebContentsBounds(
     HeadlessWebContentsImpl* web_contents,
     const gfx::Rect& bounds) {
   content::WebContents* content_web_contents = web_contents->web_contents();
+  NSView* ns_view = content_web_contents->GetNativeView().GetNativeNSView();
 
-  NSView* web_view = content_web_contents->GetNativeView().GetNativeNSView();
-  NSRect frame = gfx::ScreenRectToNSRect(bounds);
-  [web_view setFrame:frame];
+  // Note that by now -[NSScreen frame] implementation is overriden with
+  // the headless screen aware version so vertical coordinates conversion works
+  // correctly.
+  ns_view.frame = gfx::ScreenRectToNSRect(bounds);
 
   // Render widget host view is not ready at this point, so post a task to set
   // bounds at later time.
@@ -119,6 +93,18 @@ ui::Compositor* HeadlessBrowserImpl::PlatformGetCompositor(
     HeadlessWebContentsImpl* web_contents) {
   // TODO(eseckler): Support BeginFrameControl on Mac.
   return nullptr;
+}
+
+device::GeolocationSystemPermissionManager*
+HeadlessBrowserImpl::GetGeolocationSystemPermissionManager() {
+  return geolocation_system_permission_manager_.get();
+}
+
+void HeadlessBrowserImpl::SetGeolocationSystemPermissionManagerForTesting(
+    std::unique_ptr<device::GeolocationSystemPermissionManager>
+        fake_geolocation_system_permission_manager) {
+  geolocation_system_permission_manager_ =
+      std::move(fake_geolocation_system_permission_manager);
 }
 
 }  // namespace headless

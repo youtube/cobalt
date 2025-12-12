@@ -13,12 +13,7 @@
 
 namespace android_webview {
 
-namespace {
-BASE_FEATURE(kWorkaroundMali450StenciLBug,
-             "WorkaroundMali450StenciLBug",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-}
-
+// Lifetime: WebView
 class AwGLSurfaceExternalStencil::BlitContext {
  public:
   BlitContext() {
@@ -108,6 +103,7 @@ class AwGLSurfaceExternalStencil::BlitContext {
   GLint gl_max_vertex_attribs_;
 };
 
+// Lifetime: WebView
 class AwGLSurfaceExternalStencil::FrameBuffer {
  public:
   FrameBuffer(gfx::Size size) : size_(size) {
@@ -167,7 +163,9 @@ AwGLSurfaceExternalStencil::AwGLSurfaceExternalStencil(
     bool is_angle)
     : AwGLSurface(display, is_angle) {}
 
-AwGLSurfaceExternalStencil::~AwGLSurfaceExternalStencil() = default;
+AwGLSurfaceExternalStencil::~AwGLSurfaceExternalStencil() {
+  InvalidateWeakPtrs();
+}
 
 unsigned int AwGLSurfaceExternalStencil::GetBackingFramebufferObject() {
   const auto& stencil_state =
@@ -196,25 +194,6 @@ gfx::SwapResult AwGLSurfaceExternalStencil::SwapBuffers(
     // a driver bug that causes rendering to break.
     glFlush();
 
-    if (!base::FeatureList::IsEnabled(kWorkaroundMali450StenciLBug)) {
-      // Restore stencil state.
-      glEnable(GL_STENCIL_TEST);
-      glStencilFuncSeparate(GL_FRONT, stencil_state.stencil_front_func,
-                            stencil_state.stencil_front_mask,
-                            stencil_state.stencil_front_ref);
-      glStencilFuncSeparate(GL_BACK, stencil_state.stencil_back_func,
-                            stencil_state.stencil_back_mask,
-                            stencil_state.stencil_back_ref);
-      glStencilMaskSeparate(GL_FRONT, stencil_state.stencil_front_writemask);
-      glStencilMaskSeparate(GL_BACK, stencil_state.stencil_back_writemask);
-      glStencilOpSeparate(GL_FRONT, stencil_state.stencil_front_fail_op,
-                          stencil_state.stencil_front_z_fail_op,
-                          stencil_state.stencil_front_z_pass_op);
-      glStencilOpSeparate(GL_BACK, stencil_state.stencil_back_fail_op,
-                          stencil_state.stencil_back_z_fail_op,
-                          stencil_state.stencil_back_z_pass_op);
-    }
-
     // Bind required context.
     blit_context_->Bind();
 
@@ -222,24 +201,22 @@ gfx::SwapResult AwGLSurfaceExternalStencil::SwapBuffers(
     glBindFramebufferEXT(GL_FRAMEBUFFER,
                          AwGLSurface::GetBackingFramebufferObject());
 
-    if (base::FeatureList::IsEnabled(kWorkaroundMali450StenciLBug)) {
-      // Restore stencil state.
-      glEnable(GL_STENCIL_TEST);
-      glStencilFuncSeparate(GL_FRONT, stencil_state.stencil_front_func,
-                            stencil_state.stencil_front_ref,
-                            stencil_state.stencil_front_mask);
-      glStencilFuncSeparate(GL_BACK, stencil_state.stencil_back_func,
-                            stencil_state.stencil_back_ref,
-                            stencil_state.stencil_back_mask);
-      glStencilMaskSeparate(GL_FRONT, stencil_state.stencil_front_writemask);
-      glStencilMaskSeparate(GL_BACK, stencil_state.stencil_back_writemask);
-      glStencilOpSeparate(GL_FRONT, stencil_state.stencil_front_fail_op,
-                          stencil_state.stencil_front_z_fail_op,
-                          stencil_state.stencil_front_z_pass_op);
-      glStencilOpSeparate(GL_BACK, stencil_state.stencil_back_fail_op,
-                          stencil_state.stencil_back_z_fail_op,
-                          stencil_state.stencil_back_z_pass_op);
-    }
+    // Restore stencil state.
+    glEnable(GL_STENCIL_TEST);
+    glStencilFuncSeparate(GL_FRONT, stencil_state.stencil_front_func,
+                          stencil_state.stencil_front_ref,
+                          stencil_state.stencil_front_mask);
+    glStencilFuncSeparate(GL_BACK, stencil_state.stencil_back_func,
+                          stencil_state.stencil_back_ref,
+                          stencil_state.stencil_back_mask);
+    glStencilMaskSeparate(GL_FRONT, stencil_state.stencil_front_writemask);
+    glStencilMaskSeparate(GL_BACK, stencil_state.stencil_back_writemask);
+    glStencilOpSeparate(GL_FRONT, stencil_state.stencil_front_fail_op,
+                        stencil_state.stencil_front_z_fail_op,
+                        stencil_state.stencil_front_z_pass_op);
+    glStencilOpSeparate(GL_BACK, stencil_state.stencil_back_fail_op,
+                        stencil_state.stencil_back_z_fail_op,
+                        stencil_state.stencil_back_z_pass_op);
 
     // Scale clip rect to (0, 0)x(1, 1) space.
     gfx::QuadF quad = gfx::QuadF(gfx::RectF(clip_rect_));
@@ -332,6 +309,11 @@ bool AwGLSurfaceExternalStencil::IsDrawingToFBO() {
   const auto& stencil_state =
       android_webview::ScopedAppGLStateRestore::Current()->stencil_state();
   return stencil_state.stencil_test_enabled;
+}
+
+void AwGLSurfaceExternalStencil::DestroyExternalStencilFramebuffer() {
+  framebuffer_.reset();
+  blit_context_.reset();
 }
 
 }  // namespace android_webview

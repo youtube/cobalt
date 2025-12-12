@@ -6,8 +6,11 @@
 
 #include <netinet/ip6.h>
 
+#include <algorithm>
+
 #include "absl/strings/string_view.h"
-#include "quiche/quic/qbone/platform/internet_checksum.h"
+#include "quiche/common/internet_checksum.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {
@@ -41,7 +44,7 @@ struct IPv6PseudoHeader {
 
 void CreateIcmpPacket(in6_addr src, in6_addr dst, const icmp6_hdr& icmp_header,
                       absl::string_view body,
-                      const std::function<void(absl::string_view)>& cb) {
+                      quiche::UnretainedCallback<void(absl::string_view)> cb) {
   const size_t body_size = std::min(body.size(), kICMPv6BodyMaxSize);
   const size_t payload_size = kICMPv6HeaderSize + body_size;
 
@@ -64,7 +67,7 @@ void CreateIcmpPacket(in6_addr src, in6_addr dst, const icmp6_hdr& icmp_header,
   IPv6PseudoHeader pseudo_header{};
   pseudo_header.payload_size = quiche::QuicheEndian::HostToNet32(payload_size);
 
-  InternetChecksum checksum;
+  quiche::InternetChecksum checksum;
   // Pseudoheader.
   checksum.Update(icmp_packet.ip_header.ip6_src.s6_addr, kIPv6AddressSize);
   checksum.Update(icmp_packet.ip_header.ip6_dst.s6_addr, kIPv6AddressSize);

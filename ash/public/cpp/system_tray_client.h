@@ -5,13 +5,13 @@
 #ifndef ASH_PUBLIC_CPP_SYSTEM_TRAY_CLIENT_H_
 #define ASH_PUBLIC_CPP_SYSTEM_TRAY_CLIENT_H_
 
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "ash/public/cpp/ash_public_export.h"
-#include "base/strings/string_piece.h"
 #include "components/access_code_cast/common/access_code_cast_metrics.h"
 #include "components/version_info/channel.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace ash {
@@ -24,6 +24,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Shows general settings UI.
   virtual void ShowSettings(int64_t display_id) = 0;
 
+  // Shows settings related to the user account.
+  virtual void ShowAccountSettings() = 0;
+
   // Shows settings related to Bluetooth devices (e.g. to add a device).
   virtual void ShowBluetoothSettings() = 0;
 
@@ -35,7 +38,7 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // should be in the form "XX:XX:XX:XX:XX:XX". When |device_address| is not
   // provided the dialog will show the device list instead.
   virtual void ShowBluetoothPairingDialog(
-      absl::optional<base::StringPiece> device_address) = 0;
+      std::optional<std::string_view> device_address) = 0;
 
   // Shows the settings related to date, timezone etc.
   virtual void ShowDateSettings() = 0;
@@ -60,6 +63,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
 
   // Shows OS settings page for Privacy Hub.
   virtual void ShowPrivacyHubSettings() = 0;
+
+  // Shows OS settings page for speak-on-mute detection setting in Privacy Hub.
+  virtual void ShowSpeakOnMuteDetectionSettings() = 0;
 
   // Show OS smart privacy settings.
   virtual void ShowSmartPrivacySettings() = 0;
@@ -92,6 +98,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Shows the settings related to accessibility.
   virtual void ShowAccessibilitySettings() = 0;
 
+  // Shows the settings related to color correction.
+  virtual void ShowColorCorrectionSettings() = 0;
+
   // Shows gesture education help.
   virtual void ShowGestureEducationHelp() = 0;
 
@@ -117,8 +126,14 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // allows the user to select which flow they wish to enter (pSIM or eSIM).
   virtual void ShowSettingsCellularSetup(bool show_psim_flow) = 0;
 
+  // Opens Mobile data subpage.
+  virtual void ShowMobileDataSubpage() = 0;
+
   // Opens SIM unlock dialog in OS Settings.
   virtual void ShowSettingsSimUnlock() = 0;
+
+  // Opens the APN subpage for network with guid |network_id|.
+  virtual void ShowApnSubpage(const std::string& network_id) = 0;
 
   // Shows the "add network" UI to create a third-party extension-backed VPN
   // connection (e.g. Cisco AnyConnect).
@@ -132,6 +147,9 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // On devices |network_id| is a GUID, but on Linux desktop and in tests it can
   // be any string.
   virtual void ShowNetworkSettings(const std::string& network_id) = 0;
+
+  // Shows the Hotspot subpage.
+  virtual void ShowHotspotSubpage() = 0;
 
   // Shows the MultiDevice setup flow dialog.
   virtual void ShowMultiDeviceSetup() = 0;
@@ -157,7 +175,7 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // so the URL actually opened may not be the same as the passed-in URL.  This
   // is guaranteed to be the case if no event URL was passed in.  The URL that's
   // actually opened is assigned to `finalized_event_url`.
-  virtual void ShowCalendarEvent(const absl::optional<GURL>& event_url,
+  virtual void ShowCalendarEvent(const std::optional<GURL>& event_url,
                                  const base::Time& date,
                                  bool& opened_pwa,
                                  GURL& finalized_event_url) = 0;
@@ -188,6 +206,32 @@ class ASH_PUBLIC_EXPORT SystemTrayClient {
   // Returns 'true' if the user preference is set to allow users to submit
   // feedback, 'false' otherwise.
   virtual bool IsUserFeedbackEnabled() = 0;
+
+  // Shows settings related to graphics tablets.
+  virtual void ShowGraphicsTabletSettings() = 0;
+
+  // Shows settings related to mice.
+  virtual void ShowMouseSettings() = 0;
+
+  // Shows settings related to touchpads.
+  virtual void ShowTouchpadSettings() = 0;
+
+  // Shows the remap keyboard keys settings subpage for the keyboard with
+  // `device_id`.
+  virtual void ShowRemapKeysSubpage(int device_id) = 0;
+
+  // Shows a page about premium plans.
+  virtual void ShowYouTubeMusicPremiumPage() = 0;
+  virtual void ShowChromebookPerksYouTubePage() = 0;
+
+  // Shows settings related to keyboards.
+  virtual void ShowKeyboardSettings() = 0;
+
+  // Shows settings related to pointing sticks.
+  virtual void ShowPointingStickSettings() = 0;
+
+  // Shows settings related to Quick Share (formerly Nearby Share).
+  virtual void ShowNearbyShareSettings() = 0;
 
  protected:
   SystemTrayClient() {}

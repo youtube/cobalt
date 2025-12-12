@@ -6,7 +6,9 @@
 
 #include "base/containers/contains.h"
 #include "third_party/blink/renderer/core/event_type_names.h"
+#include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
 
@@ -37,13 +39,47 @@ bool IsPointerEventType(const AtomicString& event_type) {
          event_type == event_type_names::kPointerup;
 }
 
-bool IsDOMMutationEventType(const AtomicString& event_type) {
-  return event_type == event_type_names::kDOMCharacterDataModified ||
-         event_type == event_type_names::kDOMNodeInserted ||
-         event_type == event_type_names::kDOMNodeInsertedIntoDocument ||
-         event_type == event_type_names::kDOMNodeRemoved ||
-         event_type == event_type_names::kDOMNodeRemovedFromDocument ||
-         event_type == event_type_names::kDOMSubtreeModified;
+MutationEventInfo IsDOMMutationEventType(const AtomicString& event_type) {
+  if (event_type == event_type_names::kDOMSubtreeModified) {
+    return {.is_mutation_event = true,
+            .listener_feature = WebFeature::kDOMSubtreeModifiedEvent,
+            .event_fired_feature = WebFeature::kDOMSubtreeModifiedEventFired,
+            .listener_type = Document::kDOMSubtreeModifiedListener};
+  } else if (event_type == event_type_names::kDOMNodeInserted) {
+    return {.is_mutation_event = true,
+            .listener_feature = WebFeature::kDOMNodeInsertedEvent,
+            .event_fired_feature = WebFeature::kDOMNodeInsertedEventFired,
+            .listener_type = Document::kDOMNodeInsertedListener};
+  } else if (event_type == event_type_names::kDOMNodeRemoved) {
+    return {.is_mutation_event = true,
+            .listener_feature = WebFeature::kDOMNodeRemovedEvent,
+            .event_fired_feature = WebFeature::kDOMNodeRemovedEventFired,
+            .listener_type = Document::kDOMNodeRemovedListener};
+  } else if (event_type == event_type_names::kDOMNodeRemovedFromDocument) {
+    return {.is_mutation_event = true,
+            .listener_feature = WebFeature::kDOMNodeRemovedFromDocumentEvent,
+            .event_fired_feature =
+                WebFeature::kDOMNodeRemovedFromDocumentEventFired,
+            .listener_type = Document::kDOMNodeRemovedFromDocumentListener};
+  } else if (event_type == event_type_names::kDOMNodeInsertedIntoDocument) {
+    return {.is_mutation_event = true,
+            .listener_feature = WebFeature::kDOMNodeInsertedIntoDocumentEvent,
+            .event_fired_feature =
+                WebFeature::kDOMNodeInsertedIntoDocumentEventFired,
+            .listener_type = Document::kDOMNodeInsertedIntoDocumentListener};
+  } else if (event_type == event_type_names::kDOMCharacterDataModified) {
+    return {
+        .is_mutation_event = true,
+        .listener_feature = WebFeature::kDOMCharacterDataModifiedEvent,
+        .event_fired_feature = WebFeature::kDOMCharacterDataModifiedEventFired,
+        .listener_type = Document::kDOMCharacterDataModifiedListener};
+  }
+  return {.is_mutation_event = false};
+}
+
+bool IsSnapEventType(const AtomicString& event_type) {
+  return event_type == event_type_names::kScrollsnapchanging ||
+         event_type == event_type_names::kScrollsnapchange;
 }
 
 }  // namespace event_util

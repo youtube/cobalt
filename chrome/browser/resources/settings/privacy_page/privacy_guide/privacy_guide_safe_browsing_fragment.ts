@@ -7,21 +7,28 @@
  * 'privacy-guide-safe-browsing-fragment' is the fragment in a privacy
  * guide card that contains the safe browsing settings and their descriptions.
  */
-import 'chrome://resources/cr_components/settings_prefs/prefs.js';
-import './privacy_guide_description_item.js';
+
+import 'chrome://resources/cr_elements/cr_icon/cr_icon.js';
+import '/shared/settings/prefs/prefs.js';
 import './privacy_guide_fragment_shared.css.js';
 import '../../controls/settings_radio_group.js';
+import '../../icons.html.js';
 import '../../privacy_page/collapse_radio_button.js';
 
-import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
+import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
+import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {MetricsBrowserProxy, MetricsBrowserProxyImpl, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached} from '../../metrics_browser_proxy.js';
+import {loadTimeData} from '../../i18n_setup.js';
+import type {MetricsBrowserProxy} from '../../metrics_browser_proxy.js';
+import {MetricsBrowserProxyImpl, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached} from '../../metrics_browser_proxy.js';
 import {SafeBrowsingSetting} from '../../privacy_page/security_page.js';
 
 import {getTemplate} from './privacy_guide_safe_browsing_fragment.html.js';
 
-const PrivacyGuideSafeBrowsingFragmentBase = PrefsMixin(PolymerElement);
+
+const PrivacyGuideSafeBrowsingFragmentBase =
+    I18nMixin(PrefsMixin(PolymerElement));
 
 export class PrivacyGuideSafeBrowsingFragmentElement extends
     PrivacyGuideSafeBrowsingFragmentBase {
@@ -36,19 +43,18 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
   static get properties() {
     return {
       /**
-       * Preferences state.
-       */
-      prefs: {
-        type: Object,
-        notify: true,
-      },
-
-      /**
        * Valid safe browsing states.
        */
       safeBrowsingSettingEnum_: {
         type: Object,
         value: SafeBrowsingSetting,
+      },
+
+      enableHashPrefixRealTimeLookups_: {
+        type: Boolean,
+        value() {
+          return loadTimeData.getBoolean('enableHashPrefixRealTimeLookups');
+        },
       },
     };
   }
@@ -56,6 +62,7 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
   private metricsBrowserProxy_: MetricsBrowserProxy =
       MetricsBrowserProxyImpl.getInstance();
   private startStateEnhanced_: boolean;
+  declare private enableHashPrefixRealTimeLookups_: boolean;
 
   override ready() {
     super.ready();
@@ -64,6 +71,11 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
   }
 
   override focus() {
+    // The fragment element is focused when it becomes visible. Move the focus
+    // to the fragment header, so that the newly shown content of the fragment
+    // is downwards from the focus position. This allows users of screen readers
+    // to continue navigating the screen reader position downwards through the
+    // newly visible content.
     this.shadowRoot!.querySelector<HTMLElement>('[focus-element]')!.focus();
   }
 
@@ -89,7 +101,7 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
           PrivacyGuideSettingsStates.SAFE_BROWSING_STANDARD_TO_ENHANCED :
           PrivacyGuideSettingsStates.SAFE_BROWSING_STANDARD_TO_STANDARD;
     }
-    this.metricsBrowserProxy_.recordPrivacyGuideSettingsStatesHistogram(state!);
+    this.metricsBrowserProxy_.recordPrivacyGuideSettingsStatesHistogram(state);
   }
 
   private onSafeBrowsingEnhancedClick_() {
@@ -102,16 +114,25 @@ export class PrivacyGuideSafeBrowsingFragmentElement extends
         'Settings.PrivacyGuide.ChangeSafeBrowsingStandard');
   }
 
-  private onRadioGroupKeyDown_(event: KeyboardEvent) {
-    switch (event.key) {
-      case 'ArrowLeft':
-      case 'ArrowRight':
-        // This event got consumed by the radio group to change the radio button
-        // selection. Do not propagate further, to not cause a privacy guide
-        // navigation.
-        event.stopPropagation();
-        break;
-    }
+  private getSafeBrowsingStandardSubLabel_(): string {
+    return this.i18n(
+        this.enableHashPrefixRealTimeLookups_ ?
+            'safeBrowsingStandardDescProxy' :
+            'safeBrowsingStandardDesc');
+  }
+
+  private getStandardProtectionFeatureDescription2_(): string {
+    return this.i18n(
+        this.enableHashPrefixRealTimeLookups_ ?
+            'privacyGuideSafeBrowsingCardStandardProtectionFeatureDescription2Proxy' :
+            'privacyGuideSafeBrowsingCardStandardProtectionFeatureDescription2');
+  }
+
+  private getStandardProtectionPrivacyDescription1_(): string {
+    return this.i18n(
+        this.enableHashPrefixRealTimeLookups_ ?
+            'privacyGuideSafeBrowsingCardStandardProtectionPrivacyDescription1Proxy' :
+            'privacyGuideSafeBrowsingCardStandardProtectionPrivacyDescription1');
   }
 }
 

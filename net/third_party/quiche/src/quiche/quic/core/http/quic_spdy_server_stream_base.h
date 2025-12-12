@@ -9,7 +9,7 @@
 
 namespace quic {
 
-class QUIC_NO_EXPORT QuicSpdyServerStreamBase : public QuicSpdyStream {
+class QUICHE_EXPORT QuicSpdyServerStreamBase : public QuicSpdyStream {
  public:
   QuicSpdyServerStreamBase(QuicStreamId id, QuicSpdySession* session,
                            StreamType type);
@@ -23,7 +23,7 @@ class QUIC_NO_EXPORT QuicSpdyServerStreamBase : public QuicSpdyStream {
   void StopReading() override;
 
  protected:
-  bool AreHeadersValid(const QuicHeaderList& header_list) const override;
+  bool ValidateReceivedHeaders(const QuicHeaderList& header_list) override;
 };
 
 }  // namespace quic

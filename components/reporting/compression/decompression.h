@@ -1,10 +1,11 @@
 // Copyright 2021 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-#include "base/feature_list.h"
 
+#include <string>
+
+#include "base/feature_list.h"
 #include "base/memory/ref_counted.h"
-#include "base/strings/string_piece.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/util/statusor.h"
 
@@ -27,7 +28,7 @@ class Decompression : public base::RefCountedThreadSafe<Decompression> {
   // which compression algorithm is used. On success the returned std::string
   // sink will contain a decompressed EncryptedWrappedRecord string. The sink
   // string then can be further updated by the caller. std::string is used
-  // instead of base::StringPiece because ownership is taken of |record| through
+  // instead of std::string_view because ownership is taken of |record| through
   // std::move(record).
   [[nodiscard]] static std::string DecompressRecord(
       std::string record,

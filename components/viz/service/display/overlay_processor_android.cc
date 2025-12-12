@@ -48,7 +48,8 @@ OverlayProcessorAndroid::OverlayProcessorAndroid(
         &OverlayProcessorAndroid::InitializeOverlayProcessorOnGpu,
         base::Unretained(this), display_controller->controller_on_gpu(),
         &event);
-    gpu_task_scheduler_->ScheduleGpuTask(std::move(callback), {});
+    gpu_task_scheduler_->ScheduleGpuTask(
+        std::move(callback), /*sync_token_fences=*/{}, gpu::SyncToken());
     event.Wait();
   }
 
@@ -79,7 +80,8 @@ OverlayProcessorAndroid::~OverlayProcessorAndroid() {
     auto callback =
         base::BindOnce(&OverlayProcessorAndroid::DestroyOverlayProcessorOnGpu,
                        base::Unretained(this), &event);
-    gpu_task_scheduler_->ScheduleGpuTask(std::move(callback), {});
+    gpu_task_scheduler_->ScheduleGpuTask(
+        std::move(callback), /*sync_token_fences=*/{}, gpu::SyncToken());
     event.Wait();
   }
 }
@@ -132,7 +134,8 @@ void OverlayProcessorAndroid::ScheduleOverlays(
   auto task = base::BindOnce(&OverlayProcessorOnGpu::ScheduleOverlays,
                              base::Unretained(processor_on_gpu_.get()),
                              std::move(overlay_candidates_));
-  gpu_task_scheduler_->ScheduleGpuTask(std::move(task), locks_sync_tokens);
+  gpu_task_scheduler_->ScheduleGpuTask(std::move(task), locks_sync_tokens,
+                                       gpu::SyncToken());
   overlay_candidates_.clear();
 }
 
@@ -170,7 +173,7 @@ void OverlayProcessorAndroid::CheckOverlaySupportImpl(
     // SurfaceView.  Record that it should get a promotion hint.
     promotion_hint_info_map_[candidate.resource_id] = candidate.display_rect;
 
-    if (candidate.is_backed_by_surface_texture) {
+    if (!candidate.is_video_in_surface_view) {
       // This quad would be promoted if it were backed by a SurfaceView.  Since
       // it isn't, we can't promote it.
       return;
@@ -220,9 +223,7 @@ void OverlayProcessorAndroid::NotifyOverlayPromotion(
     if (quad->material != DrawQuad::Material::kTextureContent)
       continue;
     const TextureDrawQuad* texture_quad = TextureDrawQuad::MaterialCast(quad);
-    if (!texture_quad->is_stream_video)
-      continue;
-    ResourceId id = texture_quad->resource_id();
+    ResourceId id = texture_quad->resource_id;
     if (!resource_provider->DoesResourceWantPromotionHint(id))
       continue;
     promotion_hint_requestor_set.insert(id);
@@ -269,7 +270,8 @@ void OverlayProcessorAndroid::NotifyOverlayPromotion(
                                base::Unretained(processor_on_gpu_.get()),
                                std::move(promotion_denied),
                                std::move(possible_promotions));
-    gpu_task_scheduler_->ScheduleGpuTask(std::move(task), locks_sync_tokens);
+    gpu_task_scheduler_->ScheduleGpuTask(std::move(task), locks_sync_tokens,
+                                         gpu::SyncToken());
   }
   promotion_hint_info_map_.clear();
 }

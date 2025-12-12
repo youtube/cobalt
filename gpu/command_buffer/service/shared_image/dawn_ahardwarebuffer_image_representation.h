@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -22,14 +22,15 @@ class DawnAHardwareBufferImageRepresentation : public DawnImageRepresentation {
       SharedImageManager* manager,
       AndroidImageBacking* backing,
       MemoryTypeTracker* tracker,
-      WGPUDevice device,
-      WGPUTextureFormat format,
-      std::vector<WGPUTextureFormat> view_formats,
-      AHardwareBuffer* buffer,
-      scoped_refptr<base::RefCountedData<DawnProcTable>> dawn_procs);
+      wgpu::Device device,
+      wgpu::BackendType backend_type,
+      wgpu::TextureFormat format,
+      std::vector<wgpu::TextureFormat> view_formats,
+      AHardwareBuffer* buffer);
   ~DawnAHardwareBufferImageRepresentation() override;
 
-  WGPUTexture BeginAccess(WGPUTextureUsage usage) override;
+  wgpu::Texture BeginAccess(wgpu::TextureUsage usage,
+                            wgpu::TextureUsage internal_usage) override;
   void EndAccess() override;
 
  private:
@@ -38,13 +39,19 @@ class DawnAHardwareBufferImageRepresentation : public DawnImageRepresentation {
   }
 
   base::android::ScopedHardwareBufferHandle handle_;
-  WGPUTexture texture_ = nullptr;
-  WGPUDevice device_;
-  WGPUTextureFormat format_;
-  std::vector<WGPUTextureFormat> view_formats_;
-  scoped_refptr<base::RefCountedData<DawnProcTable>> dawn_procs_;
+  wgpu::Texture texture_;
+  wgpu::Device device_;
+  wgpu::BackendType backend_type_;
+  wgpu::TextureFormat format_;
+  std::vector<wgpu::TextureFormat> view_formats_;
+  // There is a SharedTextureMemory per representation with how this works
+  // currently. Switching to a single cached SharedTextureMemory for the backing
+  // needs some care as multiple representations would use the same VkImage and
+  // layout/queue transitions might be problematic.
+  wgpu::SharedTextureMemory shared_texture_memory_;
+  AccessMode access_mode_ = AccessMode::kNone;
 };
 
 }  // namespace gpu
 
-#endif  // GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_DAWN_EGL_IMAGE_REPRESENTATION_H_
+#endif  // GPU_COMMAND_BUFFER_SERVICE_SHARED_IMAGE_DAWN_AHARDWAREBUFFER_IMAGE_REPRESENTATION_H_

@@ -22,15 +22,17 @@ XRImageTrackingResult::XRImageTrackingResult(
       width_in_meters_(result.width_in_meters) {
   DVLOG(2) << __func__ << ": image index=" << index_;
   if (result.actively_tracked) {
-    tracking_state_string_ = "tracked";
+    tracking_state_ =
+        V8XRImageTrackingState(V8XRImageTrackingState::Enum::kTracked);
   } else {
-    tracking_state_string_ = "emulated";
+    tracking_state_ =
+        V8XRImageTrackingState(V8XRImageTrackingState::Enum::kEmulated);
   }
 }
 
-absl::optional<gfx::Transform> XRImageTrackingResult::MojoFromObject() const {
+std::optional<gfx::Transform> XRImageTrackingResult::MojoFromObject() const {
   if (!mojo_from_this_) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return mojo_from_this_->ToTransform();
@@ -42,7 +44,7 @@ XRSpace* XRImageTrackingResult::imageSpace() const {
         session_, this);
   }
 
-  return image_space_;
+  return image_space_.Get();
 }
 
 device::mojom::blink::XRNativeOriginInformationPtr

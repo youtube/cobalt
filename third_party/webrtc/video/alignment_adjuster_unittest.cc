@@ -10,13 +10,16 @@
 
 #include "video/alignment_adjuster.h"
 
-#include <memory>
+#include <cstddef>
+#include <optional>
 #include <tuple>
 #include <vector>
 
-#include "rtc_base/numerics/safe_conversions.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/video_encoder.h"
 #include "test/encoder_settings.h"
 #include "test/gtest.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 namespace test {
@@ -125,7 +128,7 @@ TEST_P(AlignmentAdjusterTest, AlignmentAppliedToAllLayers) {
   VideoEncoder::EncoderInfo info =
       GetEncoderInfo(kRequestedAlignment, kApplyAlignmentToAllLayers);
   int alignment = AlignmentAdjuster::GetAlignmentAndMaybeAdjustScaleFactors(
-      info, &config, absl::nullopt);
+      info, &config, std::nullopt);
   EXPECT_EQ(alignment, kAdjustedAlignment);
 
   // Verify adjusted scale factors.
@@ -150,7 +153,7 @@ TEST_P(AlignmentAdjusterTest, AlignmentNotAppliedToAllLayers) {
   VideoEncoder::EncoderInfo info =
       GetEncoderInfo(kRequestedAlignment, kApplyAlignmentToAllLayers);
   int alignment = AlignmentAdjuster::GetAlignmentAndMaybeAdjustScaleFactors(
-      info, &config, absl::nullopt);
+      info, &config, std::nullopt);
   EXPECT_EQ(alignment, kRequestedAlignment);
 
   // Verify that scale factors are not adjusted.
@@ -175,7 +178,7 @@ TEST_P(AlignmentAdjusterTestTwoLayers, AlignmentAppliedToAllLayers) {
   VideoEncoder::EncoderInfo info =
       GetEncoderInfo(kRequestedAlignment, kApplyAlignmentToAllLayers);
   int alignment = AlignmentAdjuster::GetAlignmentAndMaybeAdjustScaleFactors(
-      info, &config, absl::optional<size_t>(kMaxLayers));
+      info, &config, std::optional<size_t>(kMaxLayers));
   EXPECT_EQ(alignment, kAdjustedAlignment);
 
   // Verify adjusted scale factors.

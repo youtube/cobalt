@@ -22,10 +22,11 @@ own. Note that a
 identity is incompatible with the _library validation_ signing option that
 Chrome uses.
 
-A sample invocation to use during development would be:
+A sample invocation to use the
+[internal Google development identity](https://goto.google.com/appledev/book/getting_started/provisioning/index.md#googles-development-certificate) during development would be:
 
     $ ninja -C out/release chrome chrome/installer/mac
-    $ ./out/release/Chromium\ Packaging/sign_chrome.py --input out/release --output out/release/signed --identity 'MacOS Developer' --development --disable-packaging
+    $ ./out/release/Chromium\ Packaging/sign_chrome.py --input out/release --output out/release/signed --identity 'Google Development' --development --disable-packaging
 
 The `--disable-packaging` flag skips the creation of DMG and PKG files, which
 speeds up the signing process when one is only interested in a signed .app
@@ -53,9 +54,11 @@ Directions on how to create a self-signed certificate with the special Extended
 Key Usage extension for installer use can be found on
 [security.stackexchange](https://security.stackexchange.com/a/47908).
 
-You will need to explicitly mark the certificate in Keychain Access as trusted.
-Be sure that `security -v find-identity` lists this new certificate as a valid
-identity.
+You will need to explicitly mark the certificate as trusted. This can be done
+with
+`sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain my_installer_cert.crt`.
+Be sure that `sudo security -v find-identity` lists this new certificate as a
+valid identity.
 
 ## Chromium
 

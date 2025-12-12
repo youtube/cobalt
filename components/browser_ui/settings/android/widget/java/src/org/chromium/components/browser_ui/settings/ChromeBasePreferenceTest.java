@@ -23,36 +23,29 @@ import androidx.test.filters.LargeTest;
 
 import com.google.common.collect.ImmutableList;
 
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.FeatureList;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.components.browser_ui.settings.test.R;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.test.util.DisableAnimationsTestRule;
 
-/**
- * Tests of {@link ChromeBasePreference}.
- */
+/** Tests of {@link ChromeBasePreference}. */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.PER_CLASS)
 public class ChromeBasePreferenceTest {
-    @ClassRule
-    public static final DisableAnimationsTestRule disableAnimationsRule =
-            new DisableAnimationsTestRule();
     @Rule
     public final BlankUiTestActivitySettingsTestRule mSettingsRule =
             new BlankUiTestActivitySettingsTestRule();
 
     private static final String TITLE = "Preference Title";
     private static final String SUMMARY = "This is a summary.";
+
+    private static final String CUSTOM_LAYOUT_PREF_NAME = "preference_with_custom_layout";
 
     private Activity mActivity;
     private PreferenceScreen mPreferenceScreen;
@@ -62,11 +55,6 @@ public class ChromeBasePreferenceTest {
         mSettingsRule.launchPreference(PlaceholderSettingsForTest.class);
         mActivity = mSettingsRule.getActivity();
         mPreferenceScreen = mSettingsRule.getPreferenceScreen();
-    }
-
-    @After
-    public void tearDown() {
-        FeatureList.setTestValues(null);
     }
 
     @Test
@@ -102,8 +90,12 @@ public class ChromeBasePreferenceTest {
         onView(withId(android.R.id.title)).check(matches(allOf(withText(TITLE), isDisplayed())));
         onView(withId(android.R.id.summary)).check(matches(not(isDisplayed())));
         onView(withId(R.id.managed_disclaimer_text))
-                .check(matches(allOf(withText(R.string.managed_by_your_organization),
-                        Matchers.hasDrawableStart(), isDisplayed())));
+                .check(
+                        matches(
+                                allOf(
+                                        withText(R.string.managed_by_your_organization),
+                                        Matchers.hasDrawableStart(),
+                                        isDisplayed())));
         onView(withId(android.R.id.icon)).check(matches(not(isDisplayed())));
     }
 
@@ -121,8 +113,12 @@ public class ChromeBasePreferenceTest {
         onView(withId(android.R.id.summary))
                 .check(matches(allOf(withText(SUMMARY), isDisplayed())));
         onView(withId(R.id.managed_disclaimer_text))
-                .check(matches(allOf(withText(R.string.managed_by_your_organization),
-                        Matchers.hasDrawableStart(), isDisplayed())));
+                .check(
+                        matches(
+                                allOf(
+                                        withText(R.string.managed_by_your_organization),
+                                        Matchers.hasDrawableStart(),
+                                        isDisplayed())));
         onView(withId(android.R.id.icon)).check(matches(not(isDisplayed())));
     }
 
@@ -168,17 +164,19 @@ public class ChromeBasePreferenceTest {
         PreferenceFragmentCompat fragment = mSettingsRule.getPreferenceFragment();
         SettingsUtils.addPreferencesFromResource(
                 fragment, R.xml.test_chrome_base_preference_screen);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ChromeBasePreference preference =
-                    fragment.findPreference("preference_with_custom_layout");
-            preference.setTitle(TITLE);
-            preference.setSummary(SUMMARY);
-            preference.setManagedPreferenceDelegate(
-                    ManagedPreferenceTestDelegates.UNMANAGED_DELEGATE);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ChromeBasePreference preference =
+                            fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+                    preference.setTitle(TITLE);
+                    preference.setSummary(SUMMARY);
+                    preference.setManagedPreferenceDelegate(
+                            ManagedPreferenceTestDelegates.UNMANAGED_DELEGATE);
+                });
 
-        ChromeBasePreference preference = fragment.findPreference("preference_with_custom_layout");
-        Assert.assertEquals(preference.getLayoutResource(),
+        ChromeBasePreference preference = fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+        Assert.assertEquals(
+                preference.getLayoutResource(),
                 R.layout.chrome_managed_preference_with_custom_layout);
         Assert.assertTrue(preference.isEnabled());
         onView(withId(android.R.id.title)).check(matches(allOf(withText(TITLE), isDisplayed())));
@@ -194,24 +192,34 @@ public class ChromeBasePreferenceTest {
         PreferenceFragmentCompat fragment = mSettingsRule.getPreferenceFragment();
         SettingsUtils.addPreferencesFromResource(
                 fragment, R.xml.test_chrome_base_preference_screen);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ChromeBasePreference preference =
-                    fragment.findPreference("preference_with_custom_layout");
-            preference.setTitle(TITLE);
-            preference.setSummary(SUMMARY);
-            preference.setManagedPreferenceDelegate(ManagedPreferenceTestDelegates.POLICY_DELEGATE);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ChromeBasePreference preference =
+                            fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+                    preference.setTitle(TITLE);
+                    preference.setSummary(SUMMARY);
+                    preference.setManagedPreferenceDelegate(
+                            ManagedPreferenceTestDelegates.POLICY_DELEGATE);
+                });
 
-        ChromeBasePreference preference = fragment.findPreference("preference_with_custom_layout");
-        Assert.assertEquals(preference.getLayoutResource(),
+        ChromeBasePreference preference = fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+        Assert.assertEquals(
+                preference.getLayoutResource(),
                 R.layout.chrome_managed_preference_with_custom_layout);
         Assert.assertFalse(preference.isEnabled());
         onView(withId(android.R.id.title)).check(matches(allOf(withText(TITLE), isDisplayed())));
         onView(withId(android.R.id.summary))
-                .check(matches(
-                        allOf(withText(stringContainsInOrder(ImmutableList.of(SUMMARY,
-                                      mActivity.getString(R.string.managed_by_your_organization)))),
-                                isDisplayed())));
+                .check(
+                        matches(
+                                allOf(
+                                        withText(
+                                                stringContainsInOrder(
+                                                        ImmutableList.of(
+                                                                SUMMARY,
+                                                                mActivity.getString(
+                                                                        R.string
+                                                                                .managed_by_your_organization)))),
+                                        isDisplayed())));
         onView(withId(R.id.managed_disclaimer_text)).check(doesNotExist());
         onView(withId(android.R.id.icon)).check(matches(isDisplayed()));
     }
@@ -222,21 +230,27 @@ public class ChromeBasePreferenceTest {
         PreferenceFragmentCompat fragment = mSettingsRule.getPreferenceFragment();
         SettingsUtils.addPreferencesFromResource(
                 fragment, R.xml.test_chrome_base_preference_screen);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ChromeBasePreference preference =
-                    fragment.findPreference("preference_with_custom_layout");
-            preference.setTitle(TITLE);
-            preference.setManagedPreferenceDelegate(ManagedPreferenceTestDelegates.POLICY_DELEGATE);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ChromeBasePreference preference =
+                            fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+                    preference.setTitle(TITLE);
+                    preference.setManagedPreferenceDelegate(
+                            ManagedPreferenceTestDelegates.POLICY_DELEGATE);
+                });
 
-        ChromeBasePreference preference = fragment.findPreference("preference_with_custom_layout");
-        Assert.assertEquals(preference.getLayoutResource(),
+        ChromeBasePreference preference = fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+        Assert.assertEquals(
+                preference.getLayoutResource(),
                 R.layout.chrome_managed_preference_with_custom_layout);
         Assert.assertFalse(preference.isEnabled());
         onView(withId(android.R.id.title)).check(matches(allOf(withText(TITLE), isDisplayed())));
         onView(withId(android.R.id.summary))
-                .check(matches(
-                        allOf(withText(R.string.managed_by_your_organization), isDisplayed())));
+                .check(
+                        matches(
+                                allOf(
+                                        withText(R.string.managed_by_your_organization),
+                                        isDisplayed())));
         onView(withId(R.id.managed_disclaimer_text)).check(doesNotExist());
         onView(withId(android.R.id.icon)).check(matches(isDisplayed()));
     }
@@ -247,16 +261,18 @@ public class ChromeBasePreferenceTest {
         PreferenceFragmentCompat fragment = mSettingsRule.getPreferenceFragment();
         SettingsUtils.addPreferencesFromResource(
                 fragment, R.xml.test_chrome_base_preference_screen);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ChromeBasePreference preference =
-                    fragment.findPreference("preference_with_custom_layout");
-            preference.setTitle(TITLE);
-            preference.setManagedPreferenceDelegate(
-                    ManagedPreferenceTestDelegates.SINGLE_CUSTODIAN_DELEGATE);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ChromeBasePreference preference =
+                            fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+                    preference.setTitle(TITLE);
+                    preference.setManagedPreferenceDelegate(
+                            ManagedPreferenceTestDelegates.SINGLE_CUSTODIAN_DELEGATE);
+                });
 
-        ChromeBasePreference preference = fragment.findPreference("preference_with_custom_layout");
-        Assert.assertEquals(preference.getLayoutResource(),
+        ChromeBasePreference preference = fragment.findPreference(CUSTOM_LAYOUT_PREF_NAME);
+        Assert.assertEquals(
+                preference.getLayoutResource(),
                 R.layout.chrome_managed_preference_with_custom_layout);
         Assert.assertFalse(preference.isEnabled());
         onView(withId(android.R.id.title)).check(matches(allOf(withText(TITLE), isDisplayed())));

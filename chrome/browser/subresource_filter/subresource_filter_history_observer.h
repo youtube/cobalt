@@ -38,8 +38,8 @@ class SubresourceFilterHistoryObserver
 
  private:
   // history::HistoryServiceObserver:
-  void OnURLsDeleted(history::HistoryService* history_service,
-                     const history::DeletionInfo& deletion_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
 
   base::ScopedObservation<history::HistoryService,
                           history::HistoryServiceObserver>
@@ -47,7 +47,7 @@ class SubresourceFilterHistoryObserver
 
   // Outlives this object.
   raw_ptr<subresource_filter::SubresourceFilterContentSettingsManager,
-          DanglingUntriaged>
+          AcrossTasksDanglingUntriaged>
       settings_manager_;
 };
 

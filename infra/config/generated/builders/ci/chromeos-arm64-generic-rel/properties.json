@@ -1,13 +1,16 @@
 {
   "$build/chromium_tests_builder_config": {
     "builder_config": {
+      "additional_exclusions": [
+        "infra/config/generated/builders/ci/chromeos-arm64-generic-rel/gn-args.json"
+      ],
       "builder_db": {
         "entries": [
           {
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-arm64-generic-rel",
-              "project": "chromium-m114"
+              "project": "chromium-m138"
             },
             "builder_spec": {
               "builder_group": "chromium.chromiumos",
@@ -18,11 +21,11 @@
                 ],
                 "build_config": "Release",
                 "config": "chromium",
+                "cros_boards_with_qemu_images": [
+                  "arm64-generic-vm"
+                ],
                 "target_arch": "arm",
                 "target_bits": 64,
-                "target_cros_boards": [
-                  "arm64-generic"
-                ],
                 "target_platform": "chromeos"
               },
               "legacy_gclient_config": {
@@ -39,7 +42,7 @@
         {
           "bucket": "ci",
           "builder": "chromeos-arm64-generic-rel",
-          "project": "chromium-m114"
+          "project": "chromium-m138"
         }
       ],
       "mirroring_builder_group_and_names": [
@@ -47,13 +50,22 @@
           "builder": "chromeos-arm64-generic-rel",
           "group": "tryserver.chromium.chromiumos"
         }
-      ]
+      ],
+      "retry_failed_shards": true,
+      "targets_spec_directory": "src/infra/config/generated/builders/ci/chromeos-arm64-generic-rel/targets"
     }
   },
-  "$build/reclient": {
-    "instance": "rbe-chromium-trusted",
-    "jobs": 250,
-    "metrics_project": "chromium-reclient-metrics"
+  "$build/siso": {
+    "configs": [
+      "builder"
+    ],
+    "enable_cloud_monitoring": true,
+    "enable_cloud_profiler": true,
+    "enable_cloud_trace": true,
+    "experiments": [],
+    "metrics_project": "chromium-reclient-metrics",
+    "project": "rbe-chromium-trusted",
+    "remote_jobs": 250
   },
   "$recipe_engine/resultdb/test_presentation": {
     "column_keys": [],

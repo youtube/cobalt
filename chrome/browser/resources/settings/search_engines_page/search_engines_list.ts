@@ -7,13 +7,14 @@
  * list of search engines.
  */
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
+import 'chrome://resources/cr_elements/cr_collapse/cr_collapse.js';
 import '../settings_shared.css.js';
 import '../settings_vars.css.js';
 import './search_engine_entry.js';
 
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {SearchEngine} from './search_engines_browser_proxy.js';
+import type {SearchEngine} from './search_engines_browser_proxy.js';
 import {getTemplate} from './search_engines_list.html.js';
 
 export class SettingsSearchEnginesListElement extends PolymerElement {
@@ -47,11 +48,6 @@ export class SettingsSearchEnginesListElement extends PolymerElement {
         reflectToAttribute: true,
       },
 
-      nameColumnHeader: {
-        type: String,
-        reflectToAttribute: true,
-      },
-
       /**
        * The number of engines visible when the list is collapsed.
        */
@@ -76,9 +72,6 @@ export class SettingsSearchEnginesListElement extends PolymerElement {
       collapsedEngines:
           {type: Array, computed: 'computeCollapsedEngines_(engines)'},
 
-      /** Used to fix scrolling glitch when list is not top most element. */
-      scrollOffset: Number,
-
       lastFocused_: Object,
 
       listBlurred_: Boolean,
@@ -96,18 +89,17 @@ export class SettingsSearchEnginesListElement extends PolymerElement {
     };
   }
 
-  engines: SearchEngine[];
-  visibleEngines: SearchEngine[];
-  collapsedEngines: SearchEngine[];
-  visibleEnginesSize: number;
-  fixedHeight: boolean;
-  showShortcut: boolean;
-  showQueryUrl: boolean;
-  collapseList: boolean;
-  nameColumnHeader: string;
-  expandListText: string;
-  private lastFocused_: HTMLElement;
-  private listBlurred_: boolean;
+  declare engines: SearchEngine[];
+  declare visibleEngines: SearchEngine[];
+  declare collapsedEngines: SearchEngine[];
+  declare visibleEnginesSize: number;
+  declare fixedHeight: boolean;
+  declare showShortcut: boolean;
+  declare showQueryUrl: boolean;
+  declare collapseList: boolean;
+  declare expandListText: string;
+  declare private lastFocused_: HTMLElement;
+  declare private listBlurred_: boolean;
 
   private computeVisibleEngines_(engines: SearchEngine[]) {
     if (!engines || !engines.length) {

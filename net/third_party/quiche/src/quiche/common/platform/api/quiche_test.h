@@ -5,7 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_TEST_H_
 
-#include "quiche_platform_impl/quiche_test_impl.h"
+#include "quiche_platform_impl/quiche_test_impl.h"  // IWYU pragma: export
 
 namespace quiche::test {
 
@@ -15,6 +15,8 @@ template <class T>
 using QuicheTestWithParam = QuicheTestWithParamImpl<T>;
 
 using QuicheFlagSaver = QuicheFlagSaverImpl;
+
+using QuicheScopedDisableExitOnDFatal = QuicheScopedDisableExitOnDFatalImpl;
 
 // Class which needs to be instantiated in tests which use threads.
 using ScopedEnvironmentForThreads = ScopedEnvironmentForThreadsImpl;
@@ -33,6 +35,9 @@ inline std::string QuicheGetCommonSourcePath() {
 
 #define EXPECT_QUICHE_DEBUG_DEATH(condition, message) \
   EXPECT_QUICHE_DEBUG_DEATH_IMPL(condition, message)
+
+#define EXPECT_QUICHE_DEATH(condition, message) \
+  EXPECT_QUICHE_DEATH_IMPL(condition, message)
 
 #define QUICHE_TEST_DISABLED_IN_CHROME(name) \
   QUICHE_TEST_DISABLED_IN_CHROME_IMPL(name)

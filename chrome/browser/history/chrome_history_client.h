@@ -41,7 +41,7 @@ class ChromeHistoryClient : public history::HistoryClient,
   void NotifyProfileError(sql::InitStatus init_status,
                           const std::string& diagnostics) override;
   std::unique_ptr<history::HistoryBackendClient> CreateBackendClient() override;
-  void UpdateBookmarkLastUsedTime(const base::Uuid& bookmark_node_uuid,
+  void UpdateBookmarkLastUsedTime(int64_t bookmark_node_id,
                                   base::Time time) override;
 
  private:
@@ -49,14 +49,14 @@ class ChromeHistoryClient : public history::HistoryClient,
 
   // bookmarks::BaseBookmarkModelObserver implementation.
   void BookmarkModelChanged() override;
-  void BookmarkModelBeingDeleted(bookmarks::BookmarkModel* model) override;
-  void BookmarkNodeRemoved(bookmarks::BookmarkModel* bookmark_model,
-                           const bookmarks::BookmarkNode* parent,
+  void BookmarkModelBeingDeleted() override;
+  void BookmarkNodeRemoved(const bookmarks::BookmarkNode* parent,
                            size_t old_index,
                            const bookmarks::BookmarkNode* node,
-                           const std::set<GURL>& removed_url) override;
-  void BookmarkAllUserNodesRemoved(bookmarks::BookmarkModel* bookmark_model,
-                                   const std::set<GURL>& removed_urls) override;
+                           const std::set<GURL>& removed_url,
+                           const base::Location& location) override;
+  void BookmarkAllUserNodesRemoved(const std::set<GURL>& removed_urls,
+                                   const base::Location& location) override;
 
   // BookmarkModel instance providing access to bookmarks. May be null during
   // testing, and is null while shutting down.

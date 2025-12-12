@@ -10,15 +10,18 @@
 #include "ash/public/mojom/accelerator_info.mojom-forward.h"
 #include "ash/public/mojom/accelerator_info.mojom-shared.h"
 #include "ash/webui/shortcut_customization_ui/backend/search/search.mojom.h"
-#include "ash/webui/shortcut_customization_ui/backend/search/search_concept.h"
 
 namespace ash::shortcut_ui::fake_search_data {
 
 enum FakeActionIds { kAction1 = 1, kAction2 = 2, kAction3 = 3, kAction4 = 4 };
 
-ash::mojom::AcceleratorInfoPtr CreateFakeStandardAcceleratorInfo();
+ash::mojom::AcceleratorInfoPtr CreateFakeStandardAcceleratorInfo(
+    ash::mojom::AcceleratorState state);
 
-std::vector<ash::mojom::AcceleratorInfoPtr> CreateFakeAcceleratorInfoList();
+// Default state is kEnabled.
+std::vector<ash::mojom::AcceleratorInfoPtr> CreateFakeAcceleratorInfoList(
+    ash::mojom::AcceleratorState state =
+        ash::mojom::AcceleratorState::kEnabled);
 
 ash::mojom::AcceleratorLayoutInfoPtr CreateFakeAcceleratorLayoutInfo(
     const std::u16string& description,

@@ -23,7 +23,7 @@ NetConnectionTypeToWebConnectionType(
     case net::NetworkChangeNotifier::CONNECTION_3G:
       return blink::kWebConnectionTypeCellular3G;
     case net::NetworkChangeNotifier::CONNECTION_4G:
-    // TODO(crbug.com/1127134): Introduce a new WebConnectionType for 5G.
+    // TODO(crbug.com/40148439): Introduce a new WebConnectionType for 5G.
     case net::NetworkChangeNotifier::CONNECTION_5G:
       return blink::kWebConnectionTypeCellular4G;
     case net::NetworkChangeNotifier::CONNECTION_BLUETOOTH:
@@ -31,7 +31,6 @@ NetConnectionTypeToWebConnectionType(
   }
 
   NOTREACHED();
-  return blink::kWebConnectionTypeNone;
 }
 
 }  // namespace content

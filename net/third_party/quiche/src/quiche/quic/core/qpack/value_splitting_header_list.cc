@@ -4,7 +4,10 @@
 
 #include "quiche/quic/core/qpack/value_splitting_header_list.h"
 
+#include <utility>
+
 #include "absl/strings/string_view.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -18,10 +21,12 @@ const char kNonCookieSeparator = '\0';
 }  // namespace
 
 ValueSplittingHeaderList::const_iterator::const_iterator(
-    const spdy::Http2HeaderBlock* header_list,
-    spdy::Http2HeaderBlock::const_iterator header_list_iterator)
+    const quiche::HttpHeaderBlock* header_list,
+    quiche::HttpHeaderBlock::const_iterator header_list_iterator,
+    CookieCrumbling cookie_crumbling)
     : header_list_(header_list),
       header_list_iterator_(header_list_iterator),
+      cookie_crumbling_(cookie_crumbling),
       value_start_(0) {
   UpdateHeaderField();
 }
@@ -73,7 +78,11 @@ void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
   const absl::string_view original_value = header_list_iterator_->second;
 
   if (name == kCookieKey) {
-    value_end_ = original_value.find(kCookieSeparator, value_start_);
+    if (cookie_crumbling_ == CookieCrumbling::kEnabled) {
+      value_end_ = original_value.find(kCookieSeparator, value_start_);
+    } else {
+      value_end_ = absl::string_view::npos;
+    }
   } else {
     value_end_ = original_value.find(kNonCookieSeparator, value_start_);
   }
@@ -84,25 +93,30 @@ void ValueSplittingHeaderList::const_iterator::UpdateHeaderField() {
 
   // Skip character after ';' separator if it is a space.
   if (name == kCookieKey && value_end_ != absl::string_view::npos &&
-      value_end_ + 1 < original_value.size() &&
-      original_value[value_end_ + 1] == kOptionalSpaceAfterCookieSeparator) {
-    ++value_end_;
+      value_end_ + 1 < original_value.size()) {
+    if (original_value[value_end_ + 1] == kOptionalSpaceAfterCookieSeparator) {
+      ++value_end_;
+      QUIC_CODE_COUNT(quic_crumbled_cookie_with_optional_space);
+    } else {
+      QUIC_CODE_COUNT(quic_crumbled_cookie_without_optional_space);
+    }
   }
 }
 
 ValueSplittingHeaderList::ValueSplittingHeaderList(
-    const spdy::Http2HeaderBlock* header_list)
-    : header_list_(header_list) {
+    const quiche::HttpHeaderBlock* header_list,
+    CookieCrumbling cookie_crumbling)
+    : header_list_(header_list), cookie_crumbling_(cookie_crumbling) {
   QUICHE_DCHECK(header_list_);
 }
 
 ValueSplittingHeaderList::const_iterator ValueSplittingHeaderList::begin()
     const {
-  return const_iterator(header_list_, header_list_->begin());
+  return const_iterator(header_list_, header_list_->begin(), cookie_crumbling_);
 }
 
 ValueSplittingHeaderList::const_iterator ValueSplittingHeaderList::end() const {
-  return const_iterator(header_list_, header_list_->end());
+  return const_iterator(header_list_, header_list_->end(), cookie_crumbling_);
 }
 
 }  // namespace quic

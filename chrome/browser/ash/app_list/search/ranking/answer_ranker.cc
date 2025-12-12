@@ -93,8 +93,7 @@ AnswerRanker::AnswerRanker() = default;
 AnswerRanker::~AnswerRanker() = default;
 
 void AnswerRanker::Start(const std::u16string& query,
-                         ResultsMap& results,
-                         CategoriesList& categories) {
+                         const CategoriesList& categories) {
   burn_in_elapsed_ = false;
   chosen_answer_ = nullptr;
   omnibox_candidates_.clear();
@@ -169,7 +168,7 @@ void AnswerRanker::PromoteChosenAnswer() {
   }
 
   // Filter out unsuccessful Omnibox candidates.
-  for (auto* result : omnibox_candidates_) {
+  for (ChromeSearchResult* result : omnibox_candidates_) {
     if (result && result->id() != chosen_answer_->id()) {
       result->scoring().set_filtered(true);
     }
@@ -177,7 +176,11 @@ void AnswerRanker::PromoteChosenAnswer() {
 
   chosen_answer_->SetDisplayType(DisplayType::kAnswerCard);
   chosen_answer_->SetMultilineTitle(true);
-  chosen_answer_->SetIconDimension(kAnswerCardIconDimension);
+  if (chosen_answer_->result_type() == ResultType::kSystemInfo) {
+    chosen_answer_->SetIconDimension(kSystemAnswerCardIconDimension);
+  } else {
+    chosen_answer_->SetIconDimension(kAnswerCardIconDimension);
+  }
 }
 
 }  // namespace app_list

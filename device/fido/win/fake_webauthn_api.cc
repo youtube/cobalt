@@ -2,21 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/fido/win/fake_webauthn_api.h"
 
 #include <stdint.h>
 #include <winerror.h>
+
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/check.h"
 #include "base/containers/span.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/string_util_win.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/cbor/values.h"
 #include "components/cbor/writer.h"
+#include "crypto/hash.h"
 #include "crypto/sha2.h"
 #include "device/fido/attestation_statement.h"
 #include "device/fido/attested_credential_data.h"
@@ -28,7 +36,6 @@
 #include "device/fido/public_key_credential_rp_entity.h"
 #include "device/fido/public_key_credential_user_entity.h"
 #include "device/fido/virtual_fido_device.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/microsoft_webauthn/webauthn.h"
 
 namespace device {
@@ -71,7 +78,9 @@ std::unique_ptr<VirtualFidoDevice::PrivateKey> MakePrivateKey(
 
 struct FakeWinWebAuthnApi::CredentialInfoList {
   WEBAUTHN_CREDENTIAL_DETAILS_LIST credential_details_list;
-  std::vector<WEBAUTHN_CREDENTIAL_DETAILS*> win_credentials;
+  // This field is not vector<raw_ptr<...>> due to interaction with third_party
+  // api.
+  RAW_PTR_EXCLUSION std::vector<WEBAUTHN_CREDENTIAL_DETAILS*> win_credentials;
   std::vector<std::unique_ptr<CredentialInfo>> credentials;
 };
 
@@ -86,6 +95,7 @@ struct FakeWinWebAuthnApi::CredentialInfo {
 
   WEBAUTHN_CREDENTIAL_DETAILS details;
   std::vector<uint8_t> credential_id;
+  std::optional<std::u16string> provider_name;
 
   WEBAUTHN_RP_ENTITY_INFORMATION rp;
   std::u16string rp_id;
@@ -124,10 +134,10 @@ struct FakeWinWebAuthnApi::WebAuthnAssertionEx {
   WebAuthnAssertionEx& operator=(const WebAuthnAssertionEx&) = delete;
 
   std::vector<uint8_t> credential_id;
-  absl::optional<std::vector<uint8_t>> user_id;
+  std::optional<std::vector<uint8_t>> user_id;
   std::vector<uint8_t> authenticator_data;
   std::vector<uint8_t> signature;
-  absl::optional<std::vector<uint8_t>> large_blob;
+  std::optional<std::vector<uint8_t>> large_blob;
   WEBAUTHN_ASSERTION assertion;
 };
 
@@ -146,7 +156,7 @@ bool FakeWinWebAuthnApi::InjectNonDiscoverableCredential(
   std::tie(std::ignore, was_inserted) = registrations_.insert(
       {fido_parsing_utils::Materialize(credential_id),
        RegistrationData(VirtualFidoDevice::PrivateKey::FreshP256Key(),
-                        fido_parsing_utils::CreateSHA256Hash(rp_id),
+                        crypto::hash::Sha256(rp_id),
                         /*counter=*/0)});
   return was_inserted;
 }
@@ -154,13 +164,15 @@ bool FakeWinWebAuthnApi::InjectNonDiscoverableCredential(
 bool FakeWinWebAuthnApi::InjectDiscoverableCredential(
     base::span<const uint8_t> credential_id,
     device::PublicKeyCredentialRpEntity rp,
-    device::PublicKeyCredentialUserEntity user) {
+    device::PublicKeyCredentialUserEntity user,
+    std::optional<std::string> provider_name) {
   RegistrationData registration(VirtualFidoDevice::PrivateKey::FreshP256Key(),
-                                fido_parsing_utils::CreateSHA256Hash(rp.id),
+                                crypto::hash::Sha256(rp.id),
                                 /*counter=*/0);
   registration.is_resident = true;
   registration.user = std::move(user);
   registration.rp = std::move(rp);
+  registration.provider_name = std::move(provider_name);
 
   bool was_inserted;
   std::tie(std::ignore, was_inserted) =
@@ -228,7 +240,7 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorMakeCredential(
     PWEBAUTHN_CREDENTIAL_EX exclude_credential =
         options->pExcludeCredentialList->ppCredentials[i];
     std::vector<uint8_t> credential_id = fido_parsing_utils::Materialize(
-        base::make_span(exclude_credential->pbId, exclude_credential->cbId));
+        base::span(exclude_credential->pbId, exclude_credential->cbId));
     if (registrations_.contains(credential_id)) {
       return NTE_EXISTS;
     }
@@ -239,14 +251,15 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorMakeCredential(
       crypto::SHA256Hash(public_key->cose_key_bytes));
   std::string rp_id = base::WideToUTF8(rp->pwszId);
   std::array<uint8_t, crypto::kSHA256Length> rp_id_hash =
-      fido_parsing_utils::CreateSHA256Hash(rp_id);
+      crypto::hash::Sha256(rp_id);
   std::vector<uint8_t> user_id =
-      fido_parsing_utils::Materialize(base::make_span(user->pbId, user->cbId));
+      fido_parsing_utils::Materialize(base::span(user->pbId, user->cbId));
 
   RegistrationData registration(std::move(private_key), std::move(rp_id_hash),
                                 /*counter=*/1);
   bool resident_key =
       options->bRequireResidentKey || options->bPreferResidentKey;
+  registration.is_resident = resident_key;
   if (resident_key) {
     registration.rp =
         PublicKeyCredentialRpEntity(rp_id, base::WideToUTF8(rp->pwszName));
@@ -265,9 +278,9 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorMakeCredential(
                         /*user_present=*/true,
                         options->dwUserVerificationRequirement !=
                             WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED,
-                        /*backup_eligible=*/false, registration.counter,
-                        std::move(credential_data),
-                        /*extensions=*/absl::nullopt)
+                        /*backup_eligible=*/false, /*backup_state=*/false,
+                        registration.counter, std::move(credential_data),
+                        /*extensions=*/std::nullopt)
           .SerializeToByteArray();
   attestation->credential_id = credential_id;
   // For now, only support none attestation.
@@ -286,7 +299,7 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorMakeCredential(
   attestation->win_attestation.bResidentKey = resident_key;
   attestation->win_attestation.bLargeBlobSupported =
       options->dwLargeBlobSupport != WEBAUTHN_LARGE_BLOB_SUPPORT_NONE &&
-      version_ >= WEBAUTHN_API_VERSION_3;
+      version_ >= WEBAUTHN_API_VERSION_3 && large_blob_supported_;
   attestation->win_attestation.dwUsedTransport =
       attachment == WEBAUTHN_AUTHENTICATOR_ATTACHMENT_PLATFORM
           ? WEBAUTHN_CTAP_TRANSPORT_INTERNAL
@@ -314,8 +327,7 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorGetAssertion(
     return result_override_;
   }
 
-  const auto rp_id_hash =
-      fido_parsing_utils::CreateSHA256Hash(base::WideToUTF8(rp_id));
+  const auto rp_id_hash = crypto::hash::Sha256(base::WideToUTF8(rp_id));
 
   RegistrationData* registration = nullptr;
   base::span<const uint8_t> credential_id;
@@ -363,9 +375,10 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorGetAssertion(
           /*user_present=*/true,
           /*user_verified=*/options->dwUserVerificationRequirement !=
               WEBAUTHN_USER_VERIFICATION_REQUIREMENT_DISCOURAGED,
-          /*backup_eligible=*/false, registration->counter++,
-          /*attested_credential_data=*/absl::nullopt,
-          /*extensions=*/absl::nullopt)
+          /*backup_eligible=*/false, /*backup_state=*/false,
+          registration->counter++,
+          /*attested_credential_data=*/std::nullopt,
+          /*extensions=*/std::nullopt)
           .SerializeToByteArray();
 
   // Create the assertion signature.
@@ -463,7 +476,6 @@ HRESULT FakeWinWebAuthnApi::AuthenticatorGetAssertion(
 HRESULT FakeWinWebAuthnApi::CancelCurrentOperation(GUID* cancellation_id) {
   DCHECK(is_available_);
   NOTREACHED() << "not implemented";
-  return E_NOTIMPL;
 }
 
 HRESULT FakeWinWebAuthnApi::GetPlatformCredentialList(
@@ -475,10 +487,7 @@ HRESULT FakeWinWebAuthnApi::GetPlatformCredentialList(
   if (result_override_ != S_OK) {
     return result_override_;
   }
-  returned_credential_lists_.emplace_back(
-      std::make_unique<CredentialInfoList>());
-  CredentialInfoList& credential_list =
-      *returned_credential_lists_.back().get();
+  auto credential_list = std::make_unique<CredentialInfoList>();
   for (const auto& registration : registrations_) {
     if (!registration.second.is_resident) {
       continue;
@@ -490,56 +499,69 @@ HRESULT FakeWinWebAuthnApi::GetPlatformCredentialList(
       }
     }
 
-    credential_list.credentials.emplace_back(
-        std::make_unique<CredentialInfo>());
-    auto& credential = *credential_list.credentials.back().get();
-    credential.credential_id = registration.first;
-    credential.rp_id = base::UTF8ToUTF16(registration.second.rp->id);
-    credential.rp_name =
+    auto credential = std::make_unique<CredentialInfo>();
+    credential->credential_id = registration.first;
+    credential->provider_name = registration.second.provider_name
+                                    ? std::make_optional(base::UTF8ToUTF16(
+                                          *registration.second.provider_name))
+                                    : std::nullopt;
+    credential->rp_id = base::UTF8ToUTF16(registration.second.rp->id);
+    credential->rp_name =
         base::UTF8ToUTF16(registration.second.rp->name.value_or(""));
-    credential.user_id = registration.second.user->id;
-    credential.user_name =
+    credential->user_id = registration.second.user->id;
+    credential->user_name =
         base::UTF8ToUTF16(registration.second.user->name.value_or(""));
-    credential.user_display_name =
+    credential->user_display_name =
         base::UTF8ToUTF16(registration.second.user->display_name.value_or(""));
-    credential.rp = {
+    credential->rp = {
         .dwVersion = WEBAUTHN_RP_ENTITY_INFORMATION_CURRENT_VERSION,
-        .pwszId = base::as_wcstr(credential.rp_id),
-        .pwszName = base::as_wcstr(credential.rp_name),
+        .pwszId = base::as_wcstr(credential->rp_id),
+        .pwszName = base::as_wcstr(credential->rp_name),
     };
-    credential.user = {
+    credential->user = {
         .dwVersion = WEBAUTHN_USER_ENTITY_INFORMATION_CURRENT_VERSION,
-        .cbId = static_cast<DWORD>(credential.user_id.size()),
-        .pbId = credential.user_id.data(),
-        .pwszName = base::as_wcstr(credential.user_name),
-        .pwszDisplayName = base::as_wcstr(credential.user_display_name),
+        .cbId = static_cast<DWORD>(credential->user_id.size()),
+        .pbId = credential->user_id.data(),
+        .pwszName = base::as_wcstr(credential->user_name),
+        .pwszDisplayName = base::as_wcstr(credential->user_display_name),
     };
-    credential.details = {
-        .dwVersion = WEBAUTHN_CREDENTIAL_DETAILS_VERSION_1,
-        .cbCredentialID = static_cast<DWORD>(credential.credential_id.size()),
-        .pbCredentialID = credential.credential_id.data(),
-        .pRpInformation = &credential.rp,
-        .pUserInformation = &credential.user,
+    credential->details = {
+        .dwVersion = WEBAUTHN_CREDENTIAL_DETAILS_CURRENT_VERSION,
+        .cbCredentialID = static_cast<DWORD>(credential->credential_id.size()),
+        .pbCredentialID = credential->credential_id.data(),
+        .pRpInformation = &credential->rp,
+        .pUserInformation = &credential->user,
         .bRemovable = true,
+        .pwszAuthenticatorName =
+            credential->provider_name
+                ? base::as_wcstr(*credential->provider_name)
+                : nullptr,
     };
+    credential_list->win_credentials.push_back(&credential->details);
+    credential_list->credentials.push_back(std::move(credential));
   }
 
-  for (auto& credential : credential_list.credentials) {
-    credential_list.win_credentials.push_back(&credential->details);
+  if (credential_list->credentials.empty()) {
+    return NTE_NOT_FOUND;
   }
-  credential_list.credential_details_list = {
+
+  credential_list->credential_details_list = {
       .cCredentialDetails =
-          static_cast<DWORD>(credential_list.win_credentials.size()),
-      .ppCredentialDetails = credential_list.win_credentials.data(),
+          static_cast<DWORD>(credential_list->win_credentials.size()),
+      .ppCredentialDetails = credential_list->win_credentials.data(),
   };
-  *credentials = &credential_list.credential_details_list;
-  return credential_list.credentials.empty() ? NTE_NOT_FOUND : S_OK;
+  returned_credential_lists_.push_back(std::move(credential_list));
+  *credentials = &returned_credential_lists_.back()->credential_details_list;
+  return S_OK;
 }
 
 HRESULT FakeWinWebAuthnApi::DeletePlatformCredential(
     base::span<const uint8_t> credential_id) {
-  // TODO: not yet implemented.
-  CHECK(false);
+  const auto registration_it = registrations_.find(credential_id);
+  if (registration_it == registrations_.end()) {
+    return NTE_NOT_FOUND;
+  }
+  registrations_.erase(registration_it);
   return S_OK;
 }
 

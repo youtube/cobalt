@@ -8,45 +8,64 @@
 #include <utility>
 
 #include "ash/accelerators/accelerator_commands.h"
+#include "ash/capture_mode/capture_mode_controller.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/ash_pref_names.h"
 #include "ash/constants/ash_switches.h"
 #include "ash/constants/notifier_catalogs.h"
-#include "ash/glanceables/glanceables_controller.h"
 #include "ash/hud_display/hud_display.h"
 #include "ash/public/cpp/accelerators.h"
+#include "ash/public/cpp/capture_mode/capture_mode_api.h"
 #include "ash/public/cpp/debug_utils.h"
 #include "ash/public/cpp/system/toast_data.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/root_window_controller.h"
+#include "ash/scanner/scanner_metrics.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shell.h"
+#include "ash/style/ash_color_id.h"
+#include "ash/style/color_palette_controller.h"
 #include "ash/style/dark_light_mode_controller_impl.h"
+#include "ash/style/mojom/color_scheme.mojom-shared.h"
 #include "ash/style/style_viewer/system_ui_components_style_viewer_view.h"
+#include "ash/system/focus_mode/focus_mode_controller.h"
+#include "ash/system/power/power_button_controller.h"
 #include "ash/system/status_area_widget.h"
+#include "ash/system/toast/anchored_nudge_manager_impl.h"
 #include "ash/system/toast/toast_manager_impl.h"
 #include "ash/system/video_conference/video_conference_common.h"
 #include "ash/system/video_conference/video_conference_tray.h"
 #include "ash/system/video_conference/video_conference_tray_controller.h"
 #include "ash/touch/touch_devices_controller.h"
+#include "ash/virtual_trackpad/virtual_trackpad_view.h"
 #include "ash/wallpaper/wallpaper_controller_impl.h"
 #include "ash/wm/float/float_controller.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/window_restore/informed_restore_controller.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_util.h"
 #include "base/command_line.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
 #include "base/strings/utf_string_conversions.h"
+#include "build/chromeos_buildflags.h"
 #include "chromeos/constants/chromeos_features.h"
+#include "components/prefs/pref_service.h"
+#include "components/vector_icons/vector_icons.h"
 #include "ui/accessibility/ax_tree_id.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/display/manager/display_manager.h"
+#include "ui/display/screen.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_skia_rep.h"
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/widget/widget.h"
+
+#if !BUILDFLAG(IS_CHROMEOS_DEVICE)
+#include "ash/examples/test_app_window.h"
+#endif
 
 namespace ash {
 namespace debug {
@@ -130,10 +149,6 @@ void HandleToggleDarkMode() {
 }
 
 void HandleToggleDynamicColor() {
-  if (!chromeos::features::IsJellyEnabled()) {
-    // Only toggle colors when Dynamic Colors are enabled.
-    return;
-  }
   static int index = 0;
   SkColor color;
   switch (++index % 2) {
@@ -152,22 +167,35 @@ void HandleToggleDynamicColor() {
   theme->NotifyOnNativeThemeUpdated();
 }
 
-void HandleToggleGlanceables() {
-  if (!features::AreGlanceablesEnabled())
+// TODO(b/292584649): Remove this shortcut after testing is complete.
+void HandleClearKMeansPref() {
+  if (auto* controller = Shell::Get()->session_controller();
+      !(controller && controller->IsActiveUserSessionStarted())) {
     return;
-  auto* controller = Shell::Get()->glanceables_controller();
-  DCHECK(controller);
-  if (controller->IsShowing())
-    controller->DestroyUi();
-  else
-    controller->CreateUi();
+  }
+
+  const UserSession* session =
+      Shell::Get()->session_controller()->GetUserSession(/*index=*/0);
+  const AccountId& account_id = session->user_info.account_id;
+  PrefService* pref_service =
+      Shell::Get()->session_controller()->GetUserPrefServiceForUser(account_id);
+  pref_service->ClearPref(prefs::kDynamicColorUseKMeans);
+
+  // Setting the color scheme is a visual indicator that the pref has been
+  // cleared. Tonal spot is the default color scheme, which is necessary to see
+  // the k means color.
+  Shell::Get()->color_palette_controller()->SetColorScheme(
+      style::mojom::ColorScheme::kTonalSpot, account_id, base::DoNothing());
+}
+
+void HandleTogglePowerButtonMenu() {
+  auto* controller = Shell::Get()->power_button_controller();
+  controller->ShowMenuOnDebugAccelerator();
 }
 
 void HandleToggleKeyboardBacklight() {
-  if (ash::features::IsKeyboardBacklightToggleEnabled()) {
-    base::RecordAction(base::UserMetricsAction("Accel_Keyboard_Backlight"));
-    accelerators::ToggleKeyboardBacklight();
-  }
+  base::RecordAction(base::UserMetricsAction("Accel_Keyboard_Backlight"));
+  accelerators::ToggleKeyboardBacklight();
 }
 
 void HandleToggleMicrophoneMute() {
@@ -189,8 +217,8 @@ void HandleToggleTouchscreen() {
 }
 
 void HandleToggleTabletMode() {
-  TabletModeController* controller = Shell::Get()->tablet_mode_controller();
-  controller->SetEnabledForDev(!controller->InTabletMode());
+  Shell::Get()->tablet_mode_controller()->SetEnabledForDev(
+      !display::Screen::GetScreen()->InTabletMode());
 }
 
 void HandleToggleVideoConferenceCameraTrayIcon() {
@@ -221,15 +249,14 @@ void HandleTriggerHUDDisplay() {
   hud_display::HUDDisplayView::Toggle();
 }
 
-void HandleTuckFloatedWindow(AcceleratorAction action) {
-  auto* floated_window = window_util::GetFloatedWindowForActiveDesk();
-  DCHECK(floated_window);
+void HandleToggleVirtualTrackpad() {
+  VirtualTrackpadView::Toggle();
+}
 
-  const float velocity_x =
-      action == DEBUG_TUCK_FLOATED_WINDOW_LEFT ? -500.f : 500.f;
-  Shell::Get()->float_controller()->OnFlingOrSwipeForTablet(floated_window,
-                                                            velocity_x,
-                                                            /*velocity_y=*/0.f);
+void HandleShowInformedRestore() {
+  if (auto* pine_controller = Shell::Get()->informed_restore_controller()) {
+    pine_controller->MaybeStartInformedRestoreSessionDevAccelerator();
+  }
 }
 
 // Toast debug shortcut constants.
@@ -241,24 +268,103 @@ const std::u16string multiline_toast_text =
 
 void HandleShowToast() {
   // Iterates through all toast variations, which are a combination of having
-  // multi-line text, dismiss button, and a leading icon.
-  // `has_multiline_text` changes value every 4 iterations.
-  // `has_dismiss_button` changes value every 2 iterations.
-  // `has_leading_icon` changes value every iteration.
+  // multi-line text, a leading icon, and a text or icon button.
+  // `has_multiline_text` changes value every 6 iterations.
+  // `has_leading_icon` changes value every 3 iterations.
+  // `button_type` changes value every iteration.
   static int index = 0;
-  bool has_multiline_text = (index / 4) % 2;
-  bool has_dismiss_button = (index / 2) % 2;
-  bool has_leading_icon = index % 2;
+  const bool has_multiline_text = (index / 6) % 2;
+  const bool has_leading_icon = (index / 3) % 2;
+  const auto button_type = static_cast<ToastData::ButtonType>(index % 3);
   index++;
 
-  Shell::Get()->toast_manager()->Show(ToastData(
+  ToastData toast_data(
       /*id=*/"id", ToastCatalogName::kDebugCommand,
       has_multiline_text ? multiline_toast_text : oneline_toast_text,
       ToastData::kDefaultToastDuration,
-      /*visible_on_lock_screen=*/true, has_dismiss_button,
-      /*custom_dismiss_text=*/u"Button",
-      /*dismiss_callback=*/base::RepeatingClosure(),
-      has_leading_icon ? kSystemMenuBusinessIcon : gfx::kNoneIcon));
+      /*visible_on_lock_screen=*/true);
+  if (has_leading_icon) {
+    toast_data.leading_icon = &kSystemMenuBusinessIcon;
+  }
+  toast_data.button_type = button_type;
+  switch (button_type) {
+    case ToastData::ButtonType::kNone:
+      break;
+    case ToastData::ButtonType::kTextButton:
+      toast_data.button_text = u"Dismiss";
+      break;
+    case ToastData::ButtonType::kIconButton:
+      toast_data.button_text = u"Feedback";
+      toast_data.button_icon = &kFeedbackIcon;
+      break;
+  }
+  Shell::Get()->toast_manager()->Show(std::move(toast_data));
+}
+
+// Iterates through different system nudge variations:
+// 1. Body text only
+// 2. Body text and buttons
+// 3. Title, body text and buttons
+// 4. Image, title, body text and buttons
+void HandleShowSystemNudge() {
+  static int index = 0;
+  bool use_long_text = index > 0;
+  bool has_buttons = index > 1;
+  bool has_title = index > 2;
+  bool has_image = index > 3;
+  ++index %= 5;
+
+  const std::u16string title_text = u"Title text";
+  const std::u16string short_body_text = u"Nudge body text";
+  const std::u16string long_body_text =
+      u"Nudge body text should be clear, short and succinct (80 characters "
+      u"recommended)";
+
+  AnchoredNudgeData nudge_data(
+      /*id=*/"id", NudgeCatalogName::kTestCatalogName,
+      use_long_text ? long_body_text : short_body_text);
+
+  if (has_title) {
+    nudge_data.title_text = title_text;
+  }
+
+  if (has_image) {
+    nudge_data.image_model = ui::ImageModel::FromVectorIcon(
+        vector_icons::kDogfoodIcon, kColorAshIconColorPrimary,
+        /*icon_size=*/60);
+  }
+
+  if (has_buttons) {
+    nudge_data.primary_button_text = u"Primary";
+    nudge_data.secondary_button_text = u"Secondary";
+  }
+
+  Shell::Get()->anchored_nudge_manager()->Show(nudge_data);
+}
+
+void HandleStartSunfishSession() {
+  if (CanShowSunfishOrScannerUi() &&
+      !Shell::Get()->session_controller()->IsUserSessionBlocked()) {
+    RecordScannerFeatureUserState(
+        ScannerFeatureUserState::kSunfishSessionStartedFromDebugShortcut);
+    CaptureModeController::Get()->StartSunfishSession();
+  }
+}
+
+// TODO(b/318897434): Remove this shortcut after testing is complete.
+void HandleToggleFocusModeState() {
+  auto* controller = FocusModeController::Get();
+  switch (controller->GetSnapshot(base::Time::Now()).state) {
+    case FocusModeSession::State::kOn:
+      controller->TriggerEndingMomentImmediately();
+      return;
+    case FocusModeSession::State::kEnding:
+      controller->ResetFocusSession();
+      return;
+    default:
+      controller->ToggleFocusMode();
+      return;
+  }
 }
 
 }  // namespace
@@ -270,10 +376,6 @@ void PrintUIHierarchies() {
   HandlePrintLayerHierarchy();
   HandlePrintWindowHierarchy();
   HandlePrintViewHierarchy();
-}
-
-bool CanTuckFloatedWindow() {
-  return !!window_util::GetFloatedWindowForActiveDesk();
 }
 
 bool DebugAcceleratorsEnabled() {
@@ -291,60 +393,79 @@ void PerformDebugActionIfEnabled(AcceleratorAction action) {
     return;
 
   switch (action) {
-    case DEBUG_KEYBOARD_BACKLIGHT_TOGGLE:
+    case AcceleratorAction::kDebugKeyboardBacklightToggle:
       HandleToggleKeyboardBacklight();
       break;
-    case DEBUG_MICROPHONE_MUTE_TOGGLE:
+    case AcceleratorAction::kDebugMicrophoneMuteToggle:
       HandleToggleMicrophoneMute();
       break;
-    case DEBUG_PRINT_LAYER_HIERARCHY:
+    case AcceleratorAction::kDebugPrintLayerHierarchy:
       HandlePrintLayerHierarchy();
       break;
-    case DEBUG_PRINT_VIEW_HIERARCHY:
+    case AcceleratorAction::kDebugPrintViewHierarchy:
       HandlePrintViewHierarchy();
       break;
-    case DEBUG_PRINT_WINDOW_HIERARCHY:
+    case AcceleratorAction::kDebugPrintWindowHierarchy:
       HandlePrintWindowHierarchy();
       break;
-    case DEBUG_SHOW_TOAST:
+    case AcceleratorAction::kDebugStartSunfishSession:
+      HandleStartSunfishSession();
+      break;
+    case AcceleratorAction::kDebugShowInformedRestore:
+      HandleShowInformedRestore();
+      break;
+    case AcceleratorAction::kDebugShowToast:
       HandleShowToast();
       break;
-    case DEBUG_SYSTEM_UI_STYLE_VIEWER:
+    case AcceleratorAction::kDebugShowSystemNudge:
+      HandleShowSystemNudge();
+      break;
+    case AcceleratorAction::kDebugSystemUiStyleViewer:
       SystemUIComponentsStyleViewerView::CreateAndShowWidget();
       break;
-    case DEBUG_TOGGLE_DARK_MODE:
+    case AcceleratorAction::kDebugToggleDarkMode:
       HandleToggleDarkMode();
       break;
-    case DEBUG_TOGGLE_DYNAMIC_COLOR:
+    case AcceleratorAction::kDebugToggleDynamicColor:
       HandleToggleDynamicColor();
       break;
-    case DEBUG_TOGGLE_GLANCEABLES:
-      HandleToggleGlanceables();
+    case AcceleratorAction::kDebugClearUseKMeansPref:
+      HandleClearKMeansPref();
       break;
-    case DEBUG_TOGGLE_TOUCH_PAD:
+    case AcceleratorAction::kDebugToggleFocusModeState:
+      HandleToggleFocusModeState();
+      break;
+    case AcceleratorAction::kDebugTogglePowerButtonMenu:
+      HandleTogglePowerButtonMenu();
+      break;
+    case AcceleratorAction::kDebugToggleTouchPad:
       HandleToggleTouchpad();
       break;
-    case DEBUG_TOGGLE_TOUCH_SCREEN:
+    case AcceleratorAction::kDebugToggleTouchScreen:
       HandleToggleTouchscreen();
       break;
-    case DEBUG_TOGGLE_TABLET_MODE:
+    case AcceleratorAction::kDebugToggleTabletMode:
       HandleToggleTabletMode();
       break;
-    case DEBUG_TOGGLE_WALLPAPER_MODE:
+    case AcceleratorAction::kDebugToggleWallpaperMode:
       HandleToggleWallpaperMode();
       break;
-    case DEBUG_TRIGGER_CRASH:
+    case AcceleratorAction::kDebugTriggerCrash:
       HandleTriggerCrash();
       break;
-    case DEBUG_TOGGLE_HUD_DISPLAY:
+    case AcceleratorAction::kDebugToggleHudDisplay:
       HandleTriggerHUDDisplay();
       break;
-    case DEBUG_TUCK_FLOATED_WINDOW_LEFT:
-    case DEBUG_TUCK_FLOATED_WINDOW_RIGHT:
-      HandleTuckFloatedWindow(action);
+    case AcceleratorAction::kDebugToggleVirtualTrackpad:
+      HandleToggleVirtualTrackpad();
       break;
-    case DEBUG_TOGGLE_VIDEO_CONFERENCE_CAMERA_TRAY_ICON:
+    case AcceleratorAction::kDebugToggleVideoConferenceCameraTrayIcon:
       HandleToggleVideoConferenceCameraTrayIcon();
+      break;
+    case AcceleratorAction::kDebugShowTestWindow:
+#if !BUILDFLAG(IS_CHROMEOS_DEVICE)
+      OpenTestAppWindow();
+#endif
       break;
     default:
       break;

@@ -10,7 +10,7 @@ namespace media {
 
 // static
 AudioType AudioType::FromDecoderConfig(const AudioDecoderConfig& config) {
-  return {config.codec(), AudioCodecProfile::kUnknown, false};
+  return {config.codec(), config.profile(), false};
 }
 
 // static
@@ -24,7 +24,7 @@ VideoType VideoType::FromDecoderConfig(const VideoDecoderConfig& config) {
 
   // Zero is not a valid level for any of the following codecs. It means
   // "unknown" or "no level" (e.g. VP8).
-  int level = 0;
+  VideoCodecLevel level = 0;
 
   switch (config.codec()) {
     // These have no notion of level.
@@ -37,9 +37,13 @@ VideoType VideoType::FromDecoderConfig(const VideoDecoderConfig& config) {
     case VideoCodec::kMPEG2:
     case VideoCodec::kMPEG4:
       break;
+    case VideoCodec::kHEVC:
+      // According to https://www.iana.org/assignments/media-types/video/H265 we
+      // should infer a value of 93 (level 3.1) if we do not know the level.
+      level = 93;
+      break;
     case VideoCodec::kH264:
     case VideoCodec::kVP9:
-    case VideoCodec::kHEVC:
       // 10 is the level_idc for level 1.0.
       level = 10;
       break;
@@ -63,6 +67,11 @@ bool operator==(const AudioType& x, const AudioType& y) {
 
 bool operator!=(const AudioType& x, const AudioType& y) {
   return !(x == y);
+}
+
+bool operator<(const AudioType& x, const AudioType& y) {
+  return std::tie(x.codec, x.profile, x.spatial_rendering) <
+         std::tie(y.codec, y.profile, y.spatial_rendering);
 }
 
 bool operator==(const VideoType& x, const VideoType& y) {

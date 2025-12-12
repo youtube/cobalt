@@ -16,7 +16,6 @@
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/event_router_forwarder.h"
-#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/common/extensions/api/activity_log_private.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_context.h"
@@ -100,7 +99,7 @@ void ActivityLogAPI::OnExtensionActivity(scoped_refptr<Action> activity) {
 
 ExtensionFunction::ResponseAction
 ActivityLogPrivateGetExtensionActivitiesFunction::Run() {
-  absl::optional<activity_log_private::GetExtensionActivities::Params> params =
+  std::optional<activity_log_private::GetExtensionActivities::Params> params =
       activity_log_private::GetExtensionActivities::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -168,7 +167,7 @@ void ActivityLogPrivateGetExtensionActivitiesFunction::OnLookupCompleted(
 
 ExtensionFunction::ResponseAction
 ActivityLogPrivateDeleteActivitiesFunction::Run() {
-  absl::optional<activity_log_private::DeleteActivities::Params> params =
+  std::optional<activity_log_private::DeleteActivities::Params> params =
       activity_log_private::DeleteActivities::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
@@ -188,7 +187,7 @@ ActivityLogPrivateDeleteActivitiesFunction::Run() {
 
 ExtensionFunction::ResponseAction
 ActivityLogPrivateDeleteActivitiesByExtensionFunction::Run() {
-  absl::optional<activity_log_private::DeleteActivitiesByExtension::Params>
+  std::optional<activity_log_private::DeleteActivitiesByExtension::Params>
       params =
           activity_log_private::DeleteActivitiesByExtension::Params::Create(
               args());
@@ -209,7 +208,7 @@ ActivityLogPrivateDeleteDatabaseFunction::Run() {
 }
 
 ExtensionFunction::ResponseAction ActivityLogPrivateDeleteUrlsFunction::Run() {
-  absl::optional<activity_log_private::DeleteUrls::Params> params =
+  std::optional<activity_log_private::DeleteUrls::Params> params =
       activity_log_private::DeleteUrls::Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 

@@ -12,9 +12,11 @@
 #include "base/android/jni_string.h"
 #include "base/check.h"
 #include "base/memory/ptr_util.h"
-#include "components/subresource_filter/android/subresource_filter_jni_headers/AdsBlockedDialog_jni.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/android/window_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/subresource_filter/android/subresource_filter_jni_headers/AdsBlockedDialog_jni.h"
 
 AdsBlockedDialogBase::~AdsBlockedDialogBase() = default;
 
@@ -24,11 +26,12 @@ std::unique_ptr<AdsBlockedDialogBase> AdsBlockedDialog::Create(
     base::OnceClosure allow_ads_clicked_callback,
     base::OnceClosure learn_more_clicked_callback,
     base::OnceClosure dialog_dismissed_callback) {
-  DCHECK(web_contents);
+  CHECK(web_contents);
 
   ui::WindowAndroid* window_android = web_contents->GetTopLevelNativeWindow();
-  if (!window_android)
+  if (!window_android) {
     return nullptr;
+  }
   return base::WrapUnique(new AdsBlockedDialog(
       window_android->GetJavaObject(), std::move(allow_ads_clicked_callback),
       std::move(learn_more_clicked_callback),
@@ -51,8 +54,9 @@ AdsBlockedDialog::AdsBlockedDialog(
 AdsBlockedDialog::~AdsBlockedDialog() {
   // When the owning class is destroyed, ensure that any active dialog
   // associated with the class is dismissed.
-  if (java_ads_blocked_dialog_)
+  if (java_ads_blocked_dialog_) {
     Dismiss();
+  }
 }
 
 void AdsBlockedDialog::Show(bool should_post_dialog) {

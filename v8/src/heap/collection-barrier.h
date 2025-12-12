@@ -7,7 +7,6 @@
 
 #include <atomic>
 
-#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/mutex.h"
@@ -22,7 +21,8 @@ class Heap;
 // This class stops and resumes all background threads waiting for GC.
 class CollectionBarrier {
  public:
-  explicit CollectionBarrier(Heap* heap);
+  CollectionBarrier(
+      Heap* heap, std::shared_ptr<v8::TaskRunner> foreground_task_runner);
 
   // Returns true when collection was requested.
   bool WasGCRequested();

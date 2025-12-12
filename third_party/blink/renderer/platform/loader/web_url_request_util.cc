@@ -98,13 +98,12 @@ WebHTTPBody GetWebHTTPBodyForRequestBody(
     switch (element.type()) {
       case network::DataElement::Tag::kBytes: {
         const auto& bytes = element.As<network::DataElementBytes>().bytes();
-        http_body.AppendData(
-            WebData(reinterpret_cast<const char*>(bytes.data()), bytes.size()));
+        http_body.AppendData(WebData(bytes));
         break;
       }
       case network::DataElement::Tag::kFile: {
         const auto& file = element.As<network::DataElementFile>();
-        absl::optional<base::Time> modification_time;
+        std::optional<base::Time> modification_time;
         if (!file.expected_modification_time().is_null())
           modification_time = file.expected_modification_time();
         http_body.AppendFileRange(
@@ -122,7 +121,6 @@ WebHTTPBody GetWebHTTPBodyForRequestBody(
       }
       case network::DataElement::Tag::kChunkedDataPipe:
         NOTREACHED();
-        break;
     }
   }
   return http_body;
@@ -152,7 +150,7 @@ scoped_refptr<network::ResourceRequestBody> GetRequestBodyForWebHTTPBody(
   while (httpBody.ElementAt(i++, element)) {
     switch (element.type) {
       case HTTPBodyElementType::kTypeData:
-        request_body->AppendBytes(element.data.Copy().ReleaseVector());
+        request_body->AppendBytes(element.data.Copy());
         break;
       case HTTPBodyElementType::kTypeFile:
         if (element.file_length == -1) {

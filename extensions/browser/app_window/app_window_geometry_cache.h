@@ -22,7 +22,8 @@
 #include "components/keyed_service/core/keyed_service.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
-#include "ui/base/ui_base_types.h"
+#include "extensions/common/extension_id.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace extensions {
@@ -50,7 +51,7 @@ class AppWindowGeometryCache : public KeyedService,
     ~Factory() override;
 
     // BrowserContextKeyedServiceFactory
-    KeyedService* BuildServiceInstanceFor(
+    std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
         content::BrowserContext* context) const override;
     content::BrowserContext* GetBrowserContextToUse(
         content::BrowserContext* context) const override;
@@ -58,7 +59,7 @@ class AppWindowGeometryCache : public KeyedService,
 
   class Observer {
    public:
-    virtual void OnGeometryCacheChanged(const std::string& extension_id,
+    virtual void OnGeometryCacheChanged(const ExtensionId& extension_id,
                                         const std::string& window_id,
                                         const gfx::Rect& bounds) = 0;
 
@@ -74,21 +75,21 @@ class AppWindowGeometryCache : public KeyedService,
   // Returns the instance for the given browsing context.
   static AppWindowGeometryCache* Get(content::BrowserContext* context);
 
-  // Save the geometry and state associated with |extension_id| and |window_id|.
-  void SaveGeometry(const std::string& extension_id,
+  // Save the geometry and state associated with `extension_id` and `window_id`.
+  void SaveGeometry(const ExtensionId& extension_id,
                     const std::string& window_id,
                     const gfx::Rect& bounds,
                     const gfx::Rect& screen_bounds,
-                    ui::WindowShowState state);
+                    ui::mojom::WindowShowState state);
 
-  // Get any saved geometry and state associated with |extension_id| and
-  // |window_id|. If saved data exists, sets |bounds|, |screen_bounds| and
-  // |state| if not NULL and returns true.
-  bool GetGeometry(const std::string& extension_id,
+  // Get any saved geometry and state associated with `extension_id` and
+  // `window_id`. If saved data exists, sets `bounds`, `screen_bounds` and
+  // `state` if not NULL and returns true.
+  bool GetGeometry(const ExtensionId& extension_id,
                    const std::string& window_id,
                    gfx::Rect* bounds,
                    gfx::Rect* screen_bounds,
-                   ui::WindowShowState* state);
+                   ui::mojom::WindowShowState* state);
 
   // KeyedService
   void Shutdown() override;
@@ -114,7 +115,7 @@ class AppWindowGeometryCache : public KeyedService,
     ~WindowData();
     gfx::Rect bounds;
     gfx::Rect screen_bounds;
-    ui::WindowShowState window_state;
+    ui::mojom::WindowShowState window_state;
     base::Time last_change;
   };
 
@@ -128,22 +129,22 @@ class AppWindowGeometryCache : public KeyedService,
                            const Extension* extension,
                            UnloadedExtensionReason reason) override;
 
-  void LoadGeometryFromStorage(const std::string& extension_id);
+  void LoadGeometryFromStorage(const ExtensionId& extension_id);
   void SyncToStorage();
 
   // Preferences storage.
   raw_ptr<ExtensionPrefs> prefs_;
 
   // Cached data.
-  std::map<std::string, ExtensionData> cache_;
+  std::map<ExtensionId, ExtensionData> cache_;
 
   // Data that still needs saving.
-  std::set<std::string> unsynced_extensions_;
+  std::set<ExtensionId> unsynced_extensions_;
 
   // The timer used to save the data.
   base::OneShotTimer sync_timer_;
 
-  // The timeout value we'll use for |sync_timer_|.
+  // The timeout value we'll use for `sync_timer_`.
   base::TimeDelta sync_delay_;
 
   // Listen to extension load, unloaded notifications.

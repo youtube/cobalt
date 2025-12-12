@@ -13,10 +13,6 @@
 #import "third_party/ocmock/OCMock/NSInvocation+OCMAdditions.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // Returns an OCMocked WKWebView whose `evaluateJavaScript:completionHandler:`
@@ -53,25 +49,24 @@ void SimulateWKWebViewCrash(WKWebView* webView) {
 
 WKWebView* BuildTerminatedWKWebView() {
   id fail = ^void(NSInvocation* invocation) {
-      // Always fails with WKErrorWebContentProcessTerminated error.
-      NSError* error =
-          [NSError errorWithDomain:WKErrorDomain
-                              code:WKErrorWebContentProcessTerminated
-                          userInfo:nil];
+    // Always fails with WKErrorWebContentProcessTerminated error.
+    NSError* error = [NSError errorWithDomain:WKErrorDomain
+                                         code:WKErrorWebContentProcessTerminated
+                                     userInfo:nil];
 
-      void (^completionHandler)(id, NSError*) =
-          [invocation getArgumentAtIndexAsObject:3];
-      completionHandler(nil, error);
+    void (^completionHandler)(id, NSError*) =
+        [invocation getArgumentAtIndexAsObject:3];
+    completionHandler(nil, error);
   };
   return BuildMockWKWebViewWithStubbedJSEvalFunction(fail);
 }
 
 WKWebView* BuildHealthyWKWebView() {
   id succeed = ^void(NSInvocation* invocation) {
-      void (^completionHandler)(id, NSError*) =
-          [invocation getArgumentAtIndexAsObject:3];
-      // Always succceeds with nil result.
-      completionHandler(nil, nil);
+    void (^completionHandler)(id, NSError*) =
+        [invocation getArgumentAtIndexAsObject:3];
+    // Always succceeds with nil result.
+    completionHandler(nil, nil);
   };
   return BuildMockWKWebViewWithStubbedJSEvalFunction(succeed);
 }

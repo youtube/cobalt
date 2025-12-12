@@ -5,7 +5,7 @@
 #include "content/browser/worker_host/dedicated_worker_hosts_for_document.h"
 
 #include "content/browser/renderer_host/render_frame_host_impl.h"
-#include "content/browser/service_worker/service_worker_container_host.h"
+#include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/worker_host/dedicated_worker_host.h"
 
 namespace content {
@@ -58,9 +58,9 @@ void DedicatedWorkerHostsForDocument::OnEnterBackForwardCache() {
             RenderFrameHost::LifecycleState::kInBackForwardCache);
 
   for (auto worker : dedicated_workers_) {
-    if (base::WeakPtr<ServiceWorkerContainerHost> container_host =
-            worker->GetServiceWorkerContainerHost()) {
-      container_host->OnEnterBackForwardCache();
+    if (base::WeakPtr<ServiceWorkerClient> service_worker_client =
+            worker->GetServiceWorkerClient()) {
+      service_worker_client->OnEnterBackForwardCache();
     }
   }
 }
@@ -71,10 +71,16 @@ void DedicatedWorkerHostsForDocument::OnRestoreFromBackForwardCache() {
             RenderFrameHost::LifecycleState::kInBackForwardCache);
 
   for (auto worker : dedicated_workers_) {
-    if (base::WeakPtr<ServiceWorkerContainerHost> container_host =
-            worker->GetServiceWorkerContainerHost()) {
-      container_host->OnRestoreFromBackForwardCache();
+    if (base::WeakPtr<ServiceWorkerClient> service_worker_client =
+            worker->GetServiceWorkerClient()) {
+      service_worker_client->OnRestoreFromBackForwardCache();
     }
+  }
+}
+
+void DedicatedWorkerHostsForDocument::UpdateSubresourceLoaderFactories() {
+  for (auto worker : dedicated_workers_) {
+    worker->UpdateSubresourceLoaderFactories();
   }
 }
 

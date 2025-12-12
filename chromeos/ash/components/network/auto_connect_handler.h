@@ -19,7 +19,6 @@
 
 namespace ash {
 
-class NetworkHandler;
 class NetworkStateHandler;
 
 class COMPONENT_EXPORT(CHROMEOS_NETWORK) AutoConnectHandler
@@ -44,8 +43,14 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) AutoConnectHandler
 
   AutoConnectHandler(const AutoConnectHandler&) = delete;
   AutoConnectHandler& operator=(const AutoConnectHandler&) = delete;
-
+  AutoConnectHandler();
   ~AutoConnectHandler() override;
+
+  void Init(ClientCertResolver* client_cert_resolver,
+            NetworkConnectionHandler* network_connection_handler,
+            NetworkStateHandler* network_state_handler,
+            ManagedNetworkConfigurationHandler*
+                managed_network_configuration_handler);
 
   // LoginState::Observer
   void LoggedInStateChanged() override;
@@ -68,17 +73,6 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) AutoConnectHandler
   void NotifyAutoConnectInitiatedForTest(int auto_connect_reasons);
 
  private:
-  friend class NetworkHandler;
-  friend class AutoConnectHandlerTest;
-
-  AutoConnectHandler();
-
-  void Init(ClientCertResolver* client_cert_resolver,
-            NetworkConnectionHandler* network_connection_handler,
-            NetworkStateHandler* network_state_handler,
-            ManagedNetworkConfigurationHandler*
-                managed_network_configuration_handler);
-
   void NotifyAutoConnectInitiated(int auto_connect_reasons);
 
   // This function is called whenever the logged in state changes or when a new
@@ -136,13 +130,11 @@ class COMPONENT_EXPORT(CHROMEOS_NETWORK) AutoConnectHandler
   void CallShillScanAndConnectToBestServices();
 
   // Local references to the associated handler instances.
-  raw_ptr<ClientCertResolver, ExperimentalAsh> client_cert_resolver_;
-  raw_ptr<NetworkConnectionHandler, ExperimentalAsh>
-      network_connection_handler_;
-  raw_ptr<NetworkStateHandler, ExperimentalAsh> network_state_handler_;
+  raw_ptr<ClientCertResolver> client_cert_resolver_;
+  raw_ptr<NetworkConnectionHandler> network_connection_handler_;
+  raw_ptr<NetworkStateHandler> network_state_handler_;
   NetworkStateHandlerScopedObservation network_state_handler_observer_{this};
-  raw_ptr<ManagedNetworkConfigurationHandler, ExperimentalAsh>
-      managed_configuration_handler_;
+  raw_ptr<ManagedNetworkConfigurationHandler> managed_configuration_handler_;
 
   // Whether a request to connect to the best network is pending. If true, once
   // all requirements are met (like policy loaded, certificate patterns being

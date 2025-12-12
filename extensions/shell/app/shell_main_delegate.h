@@ -6,13 +6,14 @@
 #define EXTENSIONS_SHELL_APP_SHELL_MAIN_DELEGATE_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "content/public/app/content_main_delegate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "content/public/common/zygote/zygote_buildflags.h"
 
 namespace content {
 class ContentBrowserClient;
@@ -32,22 +33,22 @@ class ShellMainDelegate : public content::ContentMainDelegate {
   ~ShellMainDelegate() override;
 
   // ContentMainDelegate implementation:
-  absl::optional<int> BasicStartupComplete() override;
+  std::optional<int> BasicStartupComplete() override;
   void PreSandboxStartup() override;
   content::ContentClient* CreateContentClient() override;
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   content::ContentRendererClient* CreateContentRendererClient() override;
   void ProcessExiting(const std::string& process_type) override;
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_ZYGOTE)
   void ZygoteStarting(std::vector<std::unique_ptr<content::ZygoteForkDelegate>>*
                           delegates) override;
 #endif
 #if BUILDFLAG(IS_MAC)
-  absl::optional<int> PreBrowserMain() override;
+  std::optional<int> PreBrowserMain() override;
 #endif
 
  private:
-  // |process_type| is zygote, renderer, utility, etc. Returns true if the
+  // `process_type` is zygote, renderer, utility, etc. Returns true if the
   // process needs data from resources.pak.
   static bool ProcessNeedsResourceBundle(const std::string& process_type);
 

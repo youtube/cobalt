@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/crostini/crostini_sshfs.h"
 
 #include <inttypes.h>
+
 #include <memory>
 #include <utility>
 
@@ -20,6 +21,7 @@
 #include "chrome/browser/ash/file_manager/path_util.h"
 #include "chrome/browser/ash/file_manager/volume_manager.h"
 #include "chrome/browser/ash/guest_os/guest_os_session_tracker.h"
+#include "chrome/browser/ash/guest_os/guest_os_session_tracker_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/cros_disks/cros_disks_client.h"
 #include "content/public/browser/browser_thread.h"
@@ -51,7 +53,7 @@ void CrostiniSshfs::SetSshfsMounted(const guest_os::GuestId& container,
 
 void CrostiniSshfs::UnmountCrostiniFiles(const guest_os::GuestId& container_id,
                                          MountCrostiniFilesCallback callback) {
-  // TODO(crbug/1197986): Unmounting should cancel an in-progress mount.
+  // TODO(crbug.com/40760488): Unmounting should cancel an in-progress mount.
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   auto* vmgr = file_manager::VolumeManager::Get(profile_);
@@ -105,17 +107,17 @@ void CrostiniSshfs::MountCrostiniFiles(const guest_os::GuestId& container_id,
     return;
   }
 
-  bool running =
-      guest_os::GuestOsSessionTracker::GetForProfile(profile_)->IsRunning(
-          in_progress_mount_->container_id);
+  bool running = guest_os::GuestOsSessionTrackerFactory::GetForProfile(profile_)
+                     ->IsRunning(in_progress_mount_->container_id);
   if (!running) {
     LOG(ERROR) << "Unable to mount files for a container that's not running";
     Finish(CrostiniSshfsResult::kContainerNotRunning);
     return;
   }
 
-  auto info = guest_os::GuestOsSessionTracker::GetForProfile(profile_)->GetInfo(
-      in_progress_mount_->container_id);
+  auto info =
+      guest_os::GuestOsSessionTrackerFactory::GetForProfile(profile_)->GetInfo(
+          in_progress_mount_->container_id);
   if (!info) {
     LOG(ERROR) << "Got ssh keys for a container that's not running. Aborting.";
     Finish(CrostiniSshfsResult::kGetContainerInfoFailed);
@@ -174,11 +176,11 @@ void CrostiniSshfs::OnMountEvent(
           mount_path)) {
     // We don't revoke the filesystem on unmount and this call fails if a
     // filesystem of the same name already exists, so ignore errors.
-    // TODO(crbug/1197986): Should we revoke? Keeping it this way for now since
-    // that's how it's been for years and it's not come up as an issue before.
-    // Since the most common reason for unmounting is to work around an issue
-    // with suspend/resume where we promptly remount it's probably good this
-    // way.
+    // TODO(crbug.com/40760488): Should we revoke? Keeping it this way for now
+    // since that's how it's been for years and it's not come up as an issue
+    // before. Since the most common reason for unmounting is to work around an
+    // issue with suspend/resume where we promptly remount it's probably good
+    // this way.
   }
 
   auto* vmgr = file_manager::VolumeManager::Get(profile_);

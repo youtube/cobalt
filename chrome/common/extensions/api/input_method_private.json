@@ -64,6 +64,41 @@
         "enum": ["off", "characters", "words", "sentences"]
       },
       {
+        "id": "LanguagePackStatus",
+        "type": "string",
+        "description": "The aggregated status of all language packs for a given input method.",
+        "enum": [
+          // This should only be used when we have uninitialised data.
+          "unknown",
+          "notInstalled",
+          "inProgress",
+          // If there are no language packs associated with an input method,
+          // such as for input methods which aren't Google 1P, installed is
+          // returned.
+          "installed",
+          "errorOther",
+          "errorNeedsReboot"
+        ]
+      },
+      {
+        "id": "LanguagePackStatusChange",
+        "type": "object",
+        "description": "Object returned by callbacks when the status of language packs change.",
+        "properties": {
+          "engineIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "All engine IDs for which this language pack status change applies to."
+          },
+          "status": {
+            "$ref": "LanguagePackStatus",
+            "description": "The new language pack status."
+          }
+        }
+      },
+      {
         "id": "InputContext",
         "type": "object",
         "description": "Describes an input Context",
@@ -77,7 +112,6 @@
           "spellCheck": {"type": "boolean", "description": "Whether the text field wants spell-check."},
           "shouldDoLearning": {"type": "boolean", "description": "Whether text entered into the text field should be used to improve typing suggestions for the user."},
           "focusReason": {"$ref": "FocusReason", "description": "How the text field was focused"},
-          "hasBeenPassword": {"type": "boolean", "description": "DEPRECATED: when this was true, we now just set input field type to be password. Was: Whether the text field has ever been a password field."},
           "appKey": {"type": "string", "optional": true, "description": "Key of the app associated with this text field if any."}
         }
       },
@@ -91,9 +125,11 @@
           "enableGestureTyping": { "type": "boolean", "optional": true, "description": "Whether to enable gesture typing."},
           "enablePrediction": { "type": "boolean", "optional": true, "description": "Whether to enable word prediction."},
           "enableSoundOnKeypress": { "type": "boolean", "optional": true, "description": "Whether to enable sound on keypress."},
+          "physicalKeyboardAutoCorrectionEnabledByDefault": {"type": "boolean", "optional": true, "description": "Whether auto correction should be enabled for physical keyboard by default."},
           "physicalKeyboardAutoCorrectionLevel": { "type": "integer", "optional": true, "description": "The level of auto correction for physical keyboard (0: Off, 1: Modest, 2: Aggressive)."},
           "physicalKeyboardEnableCapitalization": { "type": "boolean", "optional": true, "description": "Whether to enable auto capitalization for physical keyboard."},
           "physicalKeyboardEnableDiacriticsOnLongpress": { "type": "boolean", "optional": true, "description": "Whether to enable diacritics on longpress for physical keyboard."},
+          "physicalKeyboardEnablePredictiveWriting" : {"type": "boolean", "optional": true, "description": "Whether to enable physical keyboard predictive writing"},
           "virtualKeyboardAutoCorrectionLevel": { "type": "integer", "optional": true, "description": "The level of auto correction for virtual keyboard (0: Off, 1: Modest, 2: Aggressive)."},
           "virtualKeyboardEnableCapitalization": { "type": "boolean", "optional": true, "description": "Whether enable auto capitalization for virtual keyboard."},
           "xkbLayout": { "type": "string", "optional": true, "description": "The xkb keyboard (system provided keyboard) layout."},
@@ -131,7 +167,16 @@
           },
           "zhuyinKeyboardLayout": { "type": "string", "optional": true, "description": "The layout of zhuyin keyboard."},
           "zhuyinPageSize": { "type": "integer", "optional": true, "description": "The page size of zhuyin candidate page."},
-          "zhuyinSelectKeys": { "type": "string", "optional": true, "description": "The keys used to select candidates in zhuyin."}
+          "zhuyinSelectKeys": { "type": "string", "optional": true, "description": "The keys used to select candidates in zhuyin."},
+          "vietnameseVniAllowFlexibleDiacritics": { "type": "boolean", "optional": true, "description": "Enable VNI flexible Vietnamese typing mode"},
+          "vietnameseVniNewStyleToneMarkPlacement": { "type": "boolean", "optional": true, "description": "Enable VNI modern tone mark placement"},
+          "vietnameseVniInsertDoubleHornOnUo": { "type": "boolean", "optional": true, "description": "Enable VNI insert-double-horn-on-UO shortcut"},
+          "vietnameseVniShowUnderline": { "type": "boolean", "optional": true, "description": "Enable VNI showing underline on composition text"},
+          "vietnameseTelexAllowFlexibleDiacritics": { "type": "boolean", "optional": true, "description": "Enable Telex flexible Vietnamese typing mode"},
+          "vietnameseTelexNewStyleToneMarkPlacement": { "type": "boolean", "optional": true, "description": "Enable Telex modern tone mark placement"},
+          "vietnameseTelexInsertDoubleHornOnUo": { "type": "boolean", "optional": true, "description": "Enable Telex insert-double-horn-on-UO horn shortcut"},
+          "vietnameseTelexInsertUHornOnW": { "type": "boolean", "optional": true, "description": "Enable Telex inser-U-Horn-on-W shortcut"},
+          "vietnameseTelexShowUnderline": { "type": "boolean", "optional": true, "description": "Enable Telex showing underline on composition text"}
         }
       }
     ],
@@ -501,55 +546,33 @@
         }]
     },
     {
-      "name" : "getTextFieldBounds",
-      "type" : "function",
-      "description" : "Get the bounds of the current text field",
-      "parameters" :[
-        {
-            "name": "parameters",
-            "type": "object",
-            "properties": {
-              "contextID": {
-                "description": "ID of the context.",
-                "type": "integer"
-              }
-            }
-        }
-      ],
-      "returns_async": {
-        "name": "callback",
-        "description": "Called with screen coordinates of the text field when the operation completes. On failure, $(ref:runtime.lastError) is set.",
-        "parameters": [
-          {
-            "name": "textFieldBounds",
-            "type": "object",
-            "properties": {
-              "x": {
-                "description": "The x-coordinate of the text field's bounds.",
-                "type": "integer"
-              },
-              "y": {
-                "description": "The y-coordinate of the text field's bounds.",
-                "type": "integer"
-              },
-              "width": {
-                "description": "The width of the text field's bounds.",
-                "type": "integer"
-              },
-              "height":{
-                "description": "The height of the  bounds.",
-                "type": "integer"
-              }
-            }
-          }
-        ]
-      }
-    },
-    {
       "name" : "notifyInputMethodReadyForTesting",
       "type" : "function",
       "description" : "Notifies Chrome that the current input method is ready to accept key events from Tast.",
       "parameters": []
+    },
+    {
+      "name": "getLanguagePackStatus",
+      "type": "function",
+      "description": "Gets the aggregate status of all language packs for a given input method.",
+      "parameters": [
+        {
+          "name": "inputMethodId",
+          "type": "string",
+          "description": "Fully qualified ID of the input method"
+        }
+      ],
+      "returns_async": {
+        "name": "callback",
+        "description": "Called with a LanguagePackStatus when the operation completes.",
+        "parameters": [
+          {
+            "name": "status",
+            "$ref": "LanguagePackStatus",
+            "description": "The aggregated status of all language packs for the given input method, or 'installed' if there are no language packs."
+          }
+        ]
+      }
     }
     ],
     "events": [
@@ -655,17 +678,6 @@
           }
         ]
       }, {
-        "name": "onTouch",
-        "type": "function",
-        "description": "This event is sent when a touch occurs in a text field. Should only happen after onFocus()",
-        "parameters": [
-          {
-            "$ref": "FocusReason",
-            "name": "pointerType",
-            "description": "Pointer type used to touch the text field"
-          }
-        ]
-      }, {
         "name": "onSettingsChanged",
         "type": "function",
         "description": "This event is sent when the settings for any input method changed. It is sent to all extensions that are listening to this event, and enabled by the user.",
@@ -715,6 +727,17 @@
             "name": "engineID",
             "type": "string",
             "description": "The engine ID for the input method being changed."
+          }
+        ]
+      }, {
+        "name": "onLanguagePackStatusChanged",
+        "type": "function",
+        "description": "This event is sent when any IME's language pack status is changed.",
+        "parameters": [
+          {
+            "name": "change",
+            "$ref": "LanguagePackStatusChange",
+            "description": "Information about what changed."
           }
         ]
       }

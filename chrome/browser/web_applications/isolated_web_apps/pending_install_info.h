@@ -1,12 +1,13 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #ifndef CHROME_BROWSER_WEB_APPLICATIONS_ISOLATED_WEB_APPS_PENDING_INSTALL_INFO_H_
 #define CHROME_BROWSER_WEB_APPLICATIONS_ISOLATED_WEB_APPS_PENDING_INSTALL_INFO_H_
 
-#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_location.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
+#include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_source.h"
 
 namespace content {
 class WebContents;
@@ -32,16 +33,16 @@ class IsolatedWebAppPendingInstallInfo {
 
   ~IsolatedWebAppPendingInstallInfo();
 
-  void set_isolated_web_app_location(const IsolatedWebAppLocation& location);
+  void set_source(const IwaSourceWithMode& source);
 
-  const absl::optional<IsolatedWebAppLocation>& location() const;
+  const std::optional<IwaSourceWithMode>& source() const;
 
-  void ResetIsolatedWebAppLocation();
+  void ResetSource();
 
  private:
   IsolatedWebAppPendingInstallInfo();
 
-  absl::optional<IsolatedWebAppLocation> location_ = absl::nullopt;
+  std::optional<IwaSourceWithMode> source_ = std::nullopt;
 };
 
 }  // namespace web_app

@@ -35,9 +35,16 @@ constexpr char kGetAssertionStatusHistogram[] =
 
 // Some methods trigger an OS modal dialog that needs to be completed or
 // dismissed before the method returns. These methods are cancelled explicitly
-// once original WebAuthn request times out. Hence, they are invoked with
-// infinite DBus timeouts.
-const int kU2FInfiniteTimeout = dbus::ObjectProxy::TIMEOUT_INFINITE;
+// once original WebAuthn request times out.
+//
+// W3C spec recommends 5 min timeout:
+// https://w3c.github.io/webauthn/#sctn-timeout-recommended-range
+//
+// Chrome since M120 can support up to 20 hours:
+// https://lists.w3.org/Archives/Public/public-webauthn/2023Oct/0151.html
+//
+// In practice, `TIMEOUT_MAX` (1 hour) should be long enough.
+const int kU2FMaxTimeout = dbus::ObjectProxy::TIMEOUT_MAX;
 
 // Timeout for methods which don't take time proportional to the number of total
 // credentials.
@@ -46,28 +53,15 @@ constexpr int kU2FShortTimeout = 3000;
 // credentials.
 constexpr int kU2FMediumTimeout = 10000;
 
-// U2FClientStatus represents the outcome of a DBus method call to u2fd. It
-// needs to be kept in sync with the WebAuthenticationU2FClientStatus metrics
-// enum.
-//
-// These values are persisted to logs. Entries should not be renumbered and
-// numeric values should never be reused.
-enum class U2FClientStatus {
-  kOk = 0,
-  kUnknownError = 1,
-  // Add new values here.
-  kMaxValue = kUnknownError,
-};
-
 template <typename ResponseProto>
-absl::optional<ResponseProto> ConvertResponse(dbus::Response* dbus_response) {
+std::optional<ResponseProto> ConvertResponse(dbus::Response* dbus_response) {
   if (!dbus_response) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   dbus::MessageReader reader(dbus_response);
   ResponseProto response_proto;
   if (!reader.PopArrayOfBytesAsProto(&response_proto)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   return response_proto;
 }
@@ -125,7 +119,7 @@ class U2FClientImpl : public U2FClient {
       DBusMethodCallback<u2f::GetSupportedFeaturesResponse> callback) override;
 
  private:
-  raw_ptr<dbus::ObjectProxy> proxy_ = nullptr;
+  raw_ptr<dbus::ObjectProxy, LeakedDanglingUntriaged> proxy_ = nullptr;
 
   base::WeakPtrFactory<U2FClientImpl> weak_factory_{this};
 };
@@ -144,21 +138,13 @@ void U2FClientImpl::IsUvpaa(const u2f::IsUvpaaRequest& request,
   proxy_->CallMethod(
       &method_call, kU2FShortTimeout,
       base::BindOnce(
-          [](base::TimeTicks start,
-             DBusMethodCallback<u2f::IsUvpaaResponse> callback,
+          [](DBusMethodCallback<u2f::IsUvpaaResponse> callback,
              dbus::Response* dbus_response) {
-            base::UmaHistogramTimes(
-                "WebAuthentication.ChromeOS.U2FClient.IsUvpaaDuration",
-                base::TimeTicks::Now() - start);
-            absl::optional<u2f::IsUvpaaResponse> response =
+            std::optional<u2f::IsUvpaaResponse> response =
                 ConvertResponse<u2f::IsUvpaaResponse>(dbus_response);
-            base::UmaHistogramEnumeration(
-                "WebAuthentication.ChromeOS.U2FClient.IsUvpaaStatus",
-                response ? U2FClientStatus::kOk
-                         : U2FClientStatus::kUnknownError);
             std::move(callback).Run(std::move(response));
           },
-          base::TimeTicks::Now(), std::move(callback)));
+          std::move(callback)));
 }
 
 void U2FClientImpl::IsU2FEnabled(
@@ -170,21 +156,13 @@ void U2FClientImpl::IsU2FEnabled(
   proxy_->CallMethod(
       &method_call, kU2FShortTimeout,
       base::BindOnce(
-          [](base::TimeTicks start,
-             DBusMethodCallback<u2f::IsU2fEnabledResponse> callback,
+          [](DBusMethodCallback<u2f::IsU2fEnabledResponse> callback,
              dbus::Response* dbus_response) {
-            base::UmaHistogramTimes(
-                "WebAuthentication.ChromeOS.U2FClient.IsU2fEnabledDuration",
-                base::TimeTicks::Now() - start);
-            absl::optional<u2f::IsU2fEnabledResponse> response =
+            std::optional<u2f::IsU2fEnabledResponse> response =
                 ConvertResponse<u2f::IsU2fEnabledResponse>(dbus_response);
-            base::UmaHistogramEnumeration(
-                "WebAuthentication.ChromeOS.U2FClient.IsU2fEnabledStatus",
-                response ? U2FClientStatus::kOk
-                         : U2FClientStatus::kUnknownError);
             std::move(callback).Run(std::move(response));
           },
-          base::TimeTicks::Now(), std::move(callback)));
+          std::move(callback)));
 }
 
 void U2FClientImpl::MakeCredential(
@@ -194,15 +172,11 @@ void U2FClientImpl::MakeCredential(
   dbus::MessageWriter writer(&method_call);
   writer.AppendProtoAsArrayOfBytes(request);
   proxy_->CallMethod(
-      &method_call, kU2FInfiniteTimeout,
+      &method_call, kU2FMaxTimeout,
       base::BindOnce(
-          [](base::TimeTicks start,
-             DBusMethodCallback<u2f::MakeCredentialResponse> callback,
+          [](DBusMethodCallback<u2f::MakeCredentialResponse> callback,
              dbus::Response* dbus_response) {
-            base::UmaHistogramMediumTimes(
-                "WebAuthentication.ChromeOS.U2FClient.IsU2fEnabledDuration",
-                base::TimeTicks::Now() - start);
-            absl::optional<u2f::MakeCredentialResponse> response =
+            std::optional<u2f::MakeCredentialResponse> response =
                 ConvertResponse<u2f::MakeCredentialResponse>(dbus_response);
             if (response) {
               base::UmaHistogramEnumeration(
@@ -214,7 +188,7 @@ void U2FClientImpl::MakeCredential(
             }
             std::move(callback).Run(std::move(response));
           },
-          base::TimeTicks::Now(), std::move(callback)));
+          std::move(callback)));
 }
 
 void U2FClientImpl::GetAssertion(
@@ -225,7 +199,7 @@ void U2FClientImpl::GetAssertion(
   writer.AppendProtoAsArrayOfBytes(request);
   auto uma_callback_wrapper = base::BindOnce(
       [](DBusMethodCallback<u2f::GetAssertionResponse> callback,
-         absl::optional<u2f::GetAssertionResponse> response) {
+         std::optional<u2f::GetAssertionResponse> response) {
         if (response) {
           base::UmaHistogramEnumeration(
               kGetAssertionStatusHistogram, response->status(),
@@ -236,7 +210,7 @@ void U2FClientImpl::GetAssertion(
       },
       std::move(callback));
   proxy_->CallMethod(
-      &method_call, kU2FInfiniteTimeout,
+      &method_call, kU2FMaxTimeout,
       base::BindOnce(&U2FClientImpl::HandleResponse<u2f::GetAssertionResponse>,
                      weak_factory_.GetWeakPtr(),
                      std::move(uma_callback_wrapper)));
@@ -376,7 +350,12 @@ U2FClient* U2FClient::Get() {
 // static
 void U2FClient::IsU2FServiceAvailable(
     base::OnceCallback<void(bool is_supported)> callback) {
-  chromeos::TpmManagerClient::Get()->GetSupportedFeatures(
+  auto* tpm_manager_client = chromeos::TpmManagerClient::Get();
+  if (!tpm_manager_client) {
+    std::move(callback).Run(false);
+    return;
+  }
+  tpm_manager_client->GetSupportedFeatures(
       tpm_manager::GetSupportedFeaturesRequest(),
       base::BindOnce(
           [](base::OnceCallback<void(bool is_available)> callback,

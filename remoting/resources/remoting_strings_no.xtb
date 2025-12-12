@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Det ble oppdaget en ikke-kompatibel protokollversjon. Kontroller at du har nyeste programvareversjon installert på begge datamaskinene, og prøv igjen.</translation>
 <translation id="1008557486741366299">Ikke nå</translation>
 <translation id="1201402288615127009">Neste</translation>
-<translation id="1296511125400541222">Copyright 2023 The Chromium Authors. Med enerett.</translation>
 <translation id="1297009705180977556">Det oppsto en feil ved tilkobling til <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">Det forespurte elementet finnes ikke.</translation>
 <translation id="1480046233931937785">Medvirkende</translation>
@@ -29,7 +28,7 @@ Hvis det allerede er merket av for «<ph name="SERVICE_SCRIPT_NAME" />», fjerne
 <translation id="2329392777730037872">Kunne ikke åpne <ph name="URL" /> på klienten.</translation>
 <translation id="2359808026110333948">Fortsett</translation>
 <translation id="2366718077645204424">Kunne ikke nå verten. Dette er sannsynligvis på grunn av innstillingene for nettverket du bruker.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" /> Sist pålogget <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. Med enerett.</translation>
 <translation id="2504109125669302160">Gi «Tilgjengelighet»-tillatelsen til <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Koblet til <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Har du lyst til å dele denne datamaskinen slik at en annen bruker kan se og kontrollere den?</translation>
@@ -41,6 +40,7 @@ Hvis det allerede er merket av for «<ph name="SERVICE_SCRIPT_NAME" />», fjerne
 <translation id="2758123043070977469">Det oppsto en feil under autentiseringen. Logg på igjen.</translation>
 <translation id="2803375539583399270">Skriv inn PIN-koden</translation>
 <translation id="2919669478609886916">Du deler denne datamaskinen med en annen bruker. Vil du fortsette å dele?</translation>
+<translation id="2929683002824598593">Del enheten</translation>
 <translation id="2939145106548231838">Autentiser for å være vert</translation>
 <translation id="3027681561976217984">Berøringsmodus</translation>
 <translation id="3106379468611574572">Den eksterne datamaskinen svarer ikke på tilkoblingsforespørsler. Kontroller at datamaskinen er koblet til Internett, og prøv på nytt.</translation>
@@ -54,7 +54,6 @@ Hvis det allerede er merket av for «<ph name="SERVICE_SCRIPT_NAME" />», fjerne
 <translation id="3423542133075182604">Prosess for ekstern sikkerhetsnøkkel</translation>
 <translation id="3581045510967524389">Kunne ikke koble til nettverket. Ssjekk at enheten har nettilkobling.</translation>
 <translation id="3596628256176442606">Med denne tjenesten kan du motta innkommende tilkoblinger fra Chromoting-klienter.</translation>
-<translation id="369442766917958684">Utenfor nettet.</translation>
 <translation id="3695446226812920698">Sånn gjør du det</translation>
 <translation id="3776024066357219166">Chrome Eksternt skrivebord-økten din er avsluttet.</translation>
 <translation id="3858860766373142691">Navn</translation>
@@ -89,12 +88,12 @@ Hvis det allerede er merket av for «<ph name="SERVICE_SCRIPT_NAME" />», fjerne
 <translation id="4808503597364150972">Skriv inn PIN-koden for <ph name="HOSTNAME" />.</translation>
 <translation id="4812684235631257312">Vert</translation>
 <translation id="4867841927763172006">Send PrtScn</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC. Med enerett.</translation>
 <translation id="4974476491460646149">Koblet fra <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Du må først konfigurere en datamaskin for ekstern tilgang.</translation>
 <translation id="4987330545941822761">Chrome Eksternt skrivebord kan ikke fastslå hvilken nettleser som skal brukes til å åpne nettadresser lokalt. Velg den på listen under.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (ikke på nett)</translation>
 <translation id="507204348399810022">Er du sikker på at du vil deaktivere eksterne forbindelser til <ph name="HOSTNAME" />?</translation>
+<translation id="5095424396646120601">Krasjrapportering</translation>
 <translation id="5170982930780719864">Ugyldig verts-ID.</translation>
 <translation id="5204575267916639804">Vanlige spørsmål</translation>
 <translation id="5222676887888702881">Logg av</translation>
@@ -107,7 +106,6 @@ Hvis det allerede er merket av for «<ph name="SERVICE_SCRIPT_NAME" />», fjerne
 <translation id="5601503069213153581">PIN</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Skrivebordet ditt deles for øyeblikket med <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Logget på som <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Koble til på nytt</translation>
 <translation id="5810269635982033450">Skjermen fungerer som en styreflate</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> har bedt om tilgang til å se skjermen din og styre tastaturet og musen. Trykk på «<ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" />» hvis du ikke forventet å få denne forespørselen. Ellers velger du «<ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" />» for å tillate tilkoblingen når du er klar.</translation>
@@ -121,10 +119,12 @@ Hvis det allerede er merket av for «<ph name="SERVICE_SCRIPT_NAME" />», fjerne
 <translation id="6178645564515549384">Innebygd meldingsvert for ekstern hjelp</translation>
 <translation id="618120821413932081">Oppdater oppløsningen på det eksterne skrivebordet, så den samsvarer med vinduet</translation>
 <translation id="6223301979382383752">Åpne innstillinger for skjermopptak</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> har bedt om tilgang til å se skjermen din og styre tastaturet og musen. Vil du dele enheten din?</translation>
 <translation id="6284412385303060032">Verten som kjører på skjermen for konsollpålogging, har blitt avsluttet for å støtte gardinmodus ved å bytte til en vert som kjører i en brukerspesifikk økt.</translation>
 <translation id="6542902059648396432">Rapporter et problem</translation>
 <translation id="6583902294974160967">Brukerstøtte</translation>
 <translation id="6612717000975622067">Send Ctrl-Alt-Del</translation>
+<translation id="6625262630437221505">{0,plural, =1{Hvis du ikke gjør noe, begynner enheten automatisk å dele om # sekund.}other{Hvis du ikke gjør noe, begynner enheten automatisk å dele om # sekunder.}}</translation>
 <translation id="6654753848497929428">Del</translation>
 <translation id="677755392401385740">Vert startet for brukeren: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Hjelpeprogram for å åpne en nettadresse på <ph name="PRODUCT_NAME" />-klienten</translation>
@@ -138,6 +138,7 @@ Hvis det allerede er merket av for «<ph name="SERVICE_SCRIPT_NAME" />», fjerne
 <translation id="7067321367069083429">Skjermen fungerer som en berøringsskjerm</translation>
 <translation id="7116737094673640201">Velkommen til Chrome Eksternt skrivebord</translation>
 <translation id="7144878232160441200">Prøv på nytt</translation>
+<translation id="7298392173540380852">Copyright 2025 The Chromium Authors. Med enerett.</translation>
 <translation id="7312846573060934304">Verten er uten nett.</translation>
 <translation id="7319983568955948908">Stopp deling</translation>
 <translation id="7359298090707901886">Den valgte nettleseren kan ikke brukes til å åpne nettadresser på den lokale maskinen.</translation>

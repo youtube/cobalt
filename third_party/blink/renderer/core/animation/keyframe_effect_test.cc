@@ -10,6 +10,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/native_value_traits_impl.h"
 #include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_composite_operation.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_effect_timing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_keyframe_effect_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_object_builder.h"
@@ -25,12 +26,10 @@
 #include "third_party/blink/renderer/core/animation/timing.h"
 #include "third_party/blink/renderer/core/css/properties/longhands.h"
 #include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/execution_context/security_context.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "v8/include/v8.h"
 
 namespace blink {
@@ -46,7 +45,7 @@ class KeyframeEffectTest : public PageTestBase {
  protected:
   void SetUp() override {
     PageTestBase::SetUp(gfx::Size());
-    element = GetDocument().CreateElementForBinding("foo");
+    element = GetDocument().CreateElementForBinding(AtomicString("foo"));
     GetDocument().documentElement()->AppendChild(element.Get());
   }
 
@@ -123,22 +122,21 @@ TEST_F(AnimationKeyframeEffectV8Test, CanCreateAnAnimation) {
   ScriptState* script_state = scope.GetScriptState();
   NonThrowableExceptionState exception_state;
 
-  HeapVector<ScriptValue> blink_keyframes = {
+  HeapVector<ScriptObject> blink_keyframes = {
       V8ObjectBuilder(script_state)
           .AddString("width", "100px")
           .AddString("offset", "0")
           .AddString("easing", "ease-in-out")
-          .GetScriptValue(),
+          .ToScriptObject(),
       V8ObjectBuilder(script_state)
           .AddString("width", "0px")
           .AddString("offset", "1")
           .AddString("easing", "cubic-bezier(1, 1, 0.3, 0.3)")
-          .GetScriptValue()};
+          .ToScriptObject()};
 
-  ScriptValue js_keyframes(
+  ScriptObject js_keyframes(
       scope.GetIsolate(),
-      ToV8Traits<IDLSequence<IDLObject>>::ToV8(script_state, blink_keyframes)
-          .ToLocalChecked());
+      ToV8Traits<IDLSequence<IDLObject>>::ToV8(script_state, blink_keyframes));
 
   KeyframeEffect* animation =
       CreateAnimationFromTiming(script_state, element.Get(), js_keyframes, 0);
@@ -186,11 +184,13 @@ TEST_F(AnimationKeyframeEffectV8Test, SetAndRetrieveEffectComposite) {
       script_state, element.Get(), js_keyframes, effect_options_dictionary);
   EXPECT_EQ("add", effect->composite());
 
-  effect->setComposite("replace");
-  EXPECT_EQ("replace", effect->composite());
+  effect->setComposite(
+      V8CompositeOperation(V8CompositeOperation::Enum::kReplace));
+  EXPECT_EQ("replace", effect->composite().AsString());
 
-  effect->setComposite("accumulate");
-  EXPECT_EQ("accumulate", effect->composite());
+  effect->setComposite(
+      V8CompositeOperation(V8CompositeOperation::Enum::kAccumulate));
+  EXPECT_EQ("accumulate", effect->composite().AsString());
 }
 
 TEST_F(AnimationKeyframeEffectV8Test, KeyframeCompositeOverridesEffect) {
@@ -206,17 +206,16 @@ TEST_F(AnimationKeyframeEffectV8Test, KeyframeCompositeOverridesEffect) {
           scope.GetIsolate(), effect_options, exception_state);
   EXPECT_FALSE(exception_state.HadException());
 
-  HeapVector<ScriptValue> blink_keyframes = {
+  HeapVector<ScriptObject> blink_keyframes = {
       V8ObjectBuilder(script_state)
           .AddString("width", "100px")
           .AddString("composite", "replace")
-          .GetScriptValue(),
-      V8ObjectBuilder(script_state).AddString("width", "0px").GetScriptValue()};
+          .ToScriptObject(),
+      V8ObjectBuilder(script_state).AddString("width", "0px").ToScriptObject()};
 
-  ScriptValue js_keyframes(
+  ScriptObject js_keyframes(
       scope.GetIsolate(),
-      ToV8Traits<IDLSequence<IDLObject>>::ToV8(script_state, blink_keyframes)
-          .ToLocalChecked());
+      ToV8Traits<IDLSequence<IDLObject>>::ToV8(script_state, blink_keyframes));
 
   KeyframeEffect* effect = CreateAnimationFromOption(
       script_state, element.Get(), js_keyframes, effect_options_dictionary);
@@ -333,42 +332,6 @@ TEST_F(AnimationKeyframeEffectV8Test, SpecifiedDurationGetter) {
   EXPECT_EQ("auto", duration2->GetAsString());
 }
 
-TEST_F(AnimationKeyframeEffectV8Test, SetKeyframesAdditiveCompositeOperation) {
-  // AnimationWorklet also needs to be disabled since it depends on
-  // WebAnimationsAPI and prevents us from turning it off if enabled.
-  ScopedAnimationWorkletForTest no_animation_worklet(false);
-  ScopedWebAnimationsAPIForTest no_web_animations(false);
-  V8TestingScope scope;
-  ScriptState* script_state = scope.GetScriptState();
-  ScriptValue js_keyframes = ScriptValue::CreateNull(scope.GetIsolate());
-  v8::Local<v8::Object> timing_input = v8::Object::New(scope.GetIsolate());
-  DummyExceptionStateForTesting exception_state;
-  KeyframeEffectOptions* timing_input_dictionary =
-      NativeValueTraits<KeyframeEffectOptions>::NativeValue(
-          scope.GetIsolate(), timing_input, exception_state);
-  ASSERT_FALSE(exception_state.HadException());
-
-  // Since there are no CSS-targeting keyframes, we can create a KeyframeEffect
-  // with composite = 'add'.
-  timing_input_dictionary->setComposite("add");
-  KeyframeEffect* effect = CreateAnimationFromOption(
-      script_state, element.Get(), js_keyframes, timing_input_dictionary);
-  EXPECT_EQ(effect->Model()->Composite(), EffectModel::kCompositeAdd);
-
-  // But if we then setKeyframes with CSS-targeting keyframes, the composite
-  // should fallback to 'replace'.
-  HeapVector<ScriptValue> blink_keyframes = {
-      V8ObjectBuilder(script_state).AddString("width", "10px").GetScriptValue(),
-      V8ObjectBuilder(script_state).AddString("width", "0px").GetScriptValue()};
-  ScriptValue new_js_keyframes(
-      scope.GetIsolate(),
-      ToV8Traits<IDLSequence<IDLObject>>::ToV8(script_state, blink_keyframes)
-          .ToLocalChecked());
-  effect->setKeyframes(script_state, new_js_keyframes, exception_state);
-  ASSERT_FALSE(exception_state.HadException());
-  EXPECT_EQ(effect->Model()->Composite(), EffectModel::kCompositeReplace);
-}
-
 TEST_F(KeyframeEffectTest, TimeToEffectChange) {
   Timing timing;
   timing.iteration_duration = ANIMATION_TIME_DELTA_FROM_SECONDS(100);
@@ -398,7 +361,7 @@ TEST_F(KeyframeEffectTest, TimeToEffectChange) {
                             ASSERT_NO_EXCEPTION);
   EXPECT_TIMEDELTA(ANIMATION_TIME_DELTA_FROM_SECONDS(1),
                    keyframe_effect->TimeToForwardsEffectChange());
-  EXPECT_TIMEDELTA(AnimationTimeDelta(),
+  EXPECT_TIMEDELTA(ANIMATION_TIME_DELTA_FROM_SECONDS(99),
                    keyframe_effect->TimeToReverseEffectChange());
 
   // End of the active phase.

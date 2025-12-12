@@ -5,7 +5,7 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_CARD_UNMASK_AUTHENTICATION_METRICS_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_CARD_UNMASK_AUTHENTICATION_METRICS_H_
 
-#include "components/autofill/core/browser/data_model/credit_card.h"
+#include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/payments/card_unmask_challenge_option.h"
 
 namespace autofill::autofill_metrics {
@@ -123,48 +123,87 @@ enum class OtpInputDialogError {
 };
 
 // Logs when an OTP authentication starts.
-void LogOtpAuthAttempt(CardUnmaskChallengeOptionType type);
+void LogOtpAuthAttempt(CreditCard::RecordType card_type,
+                       CardUnmaskChallengeOptionType type);
 
 // Logs the final reason the OTP authentication dialog is closed, even if
 // there were prior failures like OTP mismatch, and is done once per Attempt.
-void LogOtpAuthResult(OtpAuthEvent event, CardUnmaskChallengeOptionType type);
+void LogOtpAuthResult(CreditCard::RecordType card_type,
+                      OtpAuthEvent event,
+                      CardUnmaskChallengeOptionType type);
 
 // Logged every time a retriable error occurs, which could potentially be
 // several times in the same flow (mismatch then mismatch then cancel, etc.).
-void LogOtpAuthRetriableError(OtpAuthEvent event,
+void LogOtpAuthRetriableError(CreditCard::RecordType card_type,
+                              OtpAuthEvent event,
                               CardUnmaskChallengeOptionType type);
 
 // Logs the roundtrip latency for UnmaskCardRequest sent by OTP
 // authentication.
-void LogOtpAuthUnmaskCardRequestLatency(const base::TimeDelta& latency,
+void LogOtpAuthUnmaskCardRequestLatency(CreditCard::RecordType card_type,
+                                        base::TimeDelta latency,
                                         CardUnmaskChallengeOptionType type);
 
 // Logs the roundtrip latency for SelectChallengeOptionRequest sent by OTP
 // authentication.
 void LogOtpAuthSelectChallengeOptionRequestLatency(
-    const base::TimeDelta& latency,
+    CreditCard::RecordType card_type,
+    base::TimeDelta latency,
     CardUnmaskChallengeOptionType type);
 
 // Logs whenever the OTP input dialog is triggered and it is shown.
-void LogOtpInputDialogShown(CardUnmaskChallengeOptionType type);
+void LogOtpInputDialogShown(CreditCard::RecordType card_type,
+                            CardUnmaskChallengeOptionType type);
 
 // Logs the result of how the dialog is dismissed.
-void LogOtpInputDialogResult(OtpInputDialogResult result,
+void LogOtpInputDialogResult(CreditCard::RecordType card_type,
+                             OtpInputDialogResult result,
                              bool temporary_error_shown,
                              CardUnmaskChallengeOptionType type);
 
 // Logs when the temporary error shown in the dialog.
-void LogOtpInputDialogErrorMessageShown(OtpInputDialogError error,
+void LogOtpInputDialogErrorMessageShown(CreditCard::RecordType card_type,
+                                        OtpInputDialogError error,
                                         CardUnmaskChallengeOptionType type);
 
 // Logs when the "Get New Code" button in the dialog is clicked and user is
 // requesting a new OTP.
-void LogOtpInputDialogNewOtpRequested(CardUnmaskChallengeOptionType type);
+void LogOtpInputDialogNewOtpRequested(CreditCard::RecordType card_type,
+                                      CardUnmaskChallengeOptionType type);
 
 // Generate the OTP auth type string according to the challenge option type.
 // This is used as a helper function for LogOtp methods.
 std::string GetOtpAuthType(CardUnmaskChallengeOptionType type);
 
+// Card unmasking risk-based authentication-related metrics.
+// Risk-based authentication-related events.
+enum class RiskBasedAuthEvent {
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+
+  // No further authentication is required.
+  kNoAuthenticationRequired = 0,
+  // The user needs to complete further authentication to retrieve the card.
+  kAuthenticationRequired = 1,
+  // The risk-based auth failed because the authentication was cancelled.
+  kAuthenticationCancelled = 2,
+  // The risk-based auth failed due to unexpected errors.
+  kUnexpectedError = 3,
+  kMaxValue = kUnexpectedError
+};
+
+// Logs when a risk-based authentication starts.
+void LogRiskBasedAuthAttempt(CreditCard::RecordType card_type);
+
+// Logs when a risk-based authentication finishes.
+void LogRiskBasedAuthResult(CreditCard::RecordType card_type,
+                            RiskBasedAuthEvent event);
+
+// Logs the roundtrip latency for UnmaskCardRequest sent by risk-based
+// authentication.
+void LogRiskBasedAuthLatency(base::TimeDelta duration,
+                             CreditCard::RecordType card_type);
+
 }  // namespace autofill::autofill_metrics
 
-#endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_CARD_UNMASK_AUTHNTICATION_METRICS_H_
+#endif  // COMPONENTS_AUTOFILL_CORE_BROWSER_METRICS_PAYMENTS_CARD_UNMASK_AUTHENTICATION_METRICS_H_

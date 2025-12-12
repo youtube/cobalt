@@ -3,12 +3,13 @@
 // found in the LICENSE file.
 
 import './icons.html.js';
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+import 'chrome://resources/ash/common/cr_elements/cr_icon_button/cr_icon_button.js';
 
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './emoji_group_button.html.js';
-import {createCustomEvent, GROUP_BUTTON_CLICK, GroupButtonClickEvent} from './events.js';
+import type {GroupButtonClickEvent} from './events.js';
+import {createCustomEvent, GROUP_BUTTON_CLICK} from './events.js';
 
 export class EmojiGroupButton extends PolymerElement {
   static get is() {
@@ -44,6 +45,10 @@ export class EmojiGroupButton extends PolymerElement {
 
   private calculateClassName(active: boolean): string {
     return active ? 'emoji-group-active' : '';
+  }
+
+  private getAriaPressedState(active: boolean): string {
+    return active ? 'true' : 'false';
   }
 }
 

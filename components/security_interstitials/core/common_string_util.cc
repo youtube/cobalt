@@ -14,9 +14,7 @@
 #include "net/cert/x509_certificate.h"
 #include "ui/base/l10n/l10n_util.h"
 
-namespace security_interstitials {
-
-namespace common_string_util {
+namespace security_interstitials::common_string_util {
 
 std::u16string GetFormattedHostName(const GURL& gurl) {
   std::u16string host = url_formatter::IDNToUnicode(gurl.host());
@@ -33,10 +31,6 @@ void PopulateSSLLayoutStrings(int cert_error,
                      l10n_util::GetStringUTF16(IDS_SSL_OPEN_DETAILS_BUTTON));
   load_time_data.Set("closeDetails",
                      l10n_util::GetStringUTF16(IDS_SSL_CLOSE_DETAILS_BUTTON));
-  // Not used by most interstitials; can be overridden by individual
-  // interstitials as needed.
-  load_time_data.Set("recurrentErrorParagraph", "");
-  load_time_data.Set("show_recurrent_error_paragraph", false);
   load_time_data.Set("optInLink", l10n_util::GetStringUTF16(
                                       IDS_SAFE_BROWSING_SCOUT_REPORTING_AGREE));
   load_time_data.Set(
@@ -44,8 +38,8 @@ void PopulateSSLLayoutStrings(int cert_error,
       l10n_util::GetStringUTF16(IDS_SAFE_BROWSING_ENHANCED_PROTECTION_MESSAGE));
 }
 
-void PopulateSSLDebuggingStrings(const net::SSLInfo ssl_info,
-                                 const base::Time time_triggered,
+void PopulateSSLDebuggingStrings(const net::SSLInfo& ssl_info,
+                                 base::Time time_triggered,
                                  base::Value::Dict& load_time_data) {
   load_time_data.Set("subject", ssl_info.cert->subject().GetDisplayName());
   load_time_data.Set("issuer", ssl_info.cert->issuer().GetDisplayName());
@@ -65,26 +59,4 @@ void PopulateSSLDebuggingStrings(const net::SSLInfo ssl_info,
   load_time_data.Set("pem", base::StrCat(encoded_chain));
 }
 
-void PopulateLegacyTLSStrings(base::Value* load_time_data,
-                              const std::u16string& hostname) {
-  load_time_data->SetStringKey("tabTitle",
-                               l10n_util::GetStringUTF16(IDS_SSL_V2_TITLE));
-  load_time_data->SetStringKey(
-      "heading", l10n_util::GetStringUTF16(IDS_LEGACY_TLS_HEADING));
-  load_time_data->SetStringKey(
-      "primaryButtonText",
-      l10n_util::GetStringUTF16(IDS_SSL_OVERRIDABLE_SAFETY_BUTTON));
-  load_time_data->SetStringKey(
-      "primaryParagraph",
-      l10n_util::GetStringUTF16(IDS_LEGACY_TLS_PRIMARY_PARAGRAPH));
-  load_time_data->SetStringKey(
-      "explanationParagraph",
-      l10n_util::GetStringUTF16(IDS_LEGACY_TLS_EXPLANATION));
-  load_time_data->SetStringKey(
-      "finalParagraph", l10n_util::GetStringFUTF16(
-                            IDS_SSL_OVERRIDABLE_PROCEED_PARAGRAPH, hostname));
-}
-
-}  // namespace common_string_util
-
-}  // namespace security_interstitials
+}  // namespace security_interstitials::common_string_util

@@ -8,12 +8,20 @@
 #include <set>
 
 #include "base/containers/fixed_flat_map.h"
+#include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
+#include "net/base/features.h"
+#include "net/base/ip_endpoint.h"
+#include "net/base/parse_number.h"
 #include "url/url_constants.h"
 
 namespace net {
@@ -23,8 +31,9 @@ namespace {
 // The general list of blocked ports. Will be blocked unless a specific
 // protocol overrides it. (Ex: ftp can use port 21)
 // When adding a port to the list, consider also adding it to kAllowablePorts,
-// below.
+// below. See <https://fetch.spec.whatwg.org/#port-blocking>.
 const int kRestrictedPorts[] = {
+    0,      // Not in Fetch Spec.
     1,      // tcpmux
     7,      // echo
     9,      // discard
@@ -120,6 +129,30 @@ constexpr int kAllowablePorts[] = {};
 
 int g_scoped_allowable_port = 0;
 
+using PortSet = base::flat_set<int>;
+
+PortSet ParseRestrictedPortsFromFeatureParam(const base::Feature& feature,
+                                             std::string_view param_name) {
+  const std::string ports_string =
+      base::GetFieldTrialParamValueByFeature(feature, std::string(param_name));
+  PortSet::container_type ports;
+  for (const auto& port_string :
+       base::SplitStringPiece(ports_string, ",", base::TRIM_WHITESPACE,
+                              base::SPLIT_WANT_NONEMPTY)) {
+    int port;
+    if (net::ParseInt32(port_string, net::ParseIntFormat::STRICT_NON_NEGATIVE,
+                        &port)) {
+      ports.push_back(port);
+    } else {
+      DLOG(ERROR) << "Ignoring invalid port for " << param_name << ": "
+                  << port_string;
+    }
+  }
+  return PortSet(std::move(ports));
+}
+
+constinit bool g_need_to_reset_restrict_localhost_ports = false;
+
 }  // namespace
 
 bool IsPortValid(int port) {
@@ -130,7 +163,7 @@ bool IsWellKnownPort(int port) {
   return port >= 0 && port < 1024;
 }
 
-bool IsPortAllowedForScheme(int port, base::StringPiece url_scheme) {
+bool IsPortAllowedForScheme(int port, std::string_view url_scheme) {
   // Reject invalid ports.
   if (!IsPortValid(port))
     return false;
@@ -146,6 +179,57 @@ bool IsPortAllowedForScheme(int port, base::StringPiece url_scheme) {
       return false;
   }
 
+  if (base::FeatureList::IsEnabled(features::kRestrictAbusePorts)) {
+    static const base::NoDestructor<PortSet> restrict_ports(
+        ParseRestrictedPortsFromFeatureParam(features::kRestrictAbusePorts,
+                                             "restrict_ports"));
+    static const base::NoDestructor<PortSet> monitor_ports(
+        ParseRestrictedPortsFromFeatureParam(features::kRestrictAbusePorts,
+                                             "monitor_ports"));
+
+    if (restrict_ports->contains(port)) {
+      base::UmaHistogramSparse("Net.RestrictedPorts", port);
+      return false;
+    } else if (monitor_ports->contains(port)) {
+      base::UmaHistogramSparse("Net.RestrictedPorts", port);
+    }
+  }
+
+  return true;
+}
+
+bool IsPortAllowedForIpEndpoint(const IPEndPoint& endpoint) {
+  if (!base::FeatureList::IsEnabled(features::kRestrictAbusePortsOnLocalhost)) {
+    return true;
+  }
+
+  // This function currently restricts only on localhost.
+  if (!endpoint.address().IsLoopback()) {
+    return true;
+  }
+
+  int port = endpoint.port();
+
+  // Allow explicitly allowed ports.
+  if (g_explicitly_allowed_ports.Get().count(port) > 0) {
+    return true;
+  }
+
+  static base::NoDestructor<PortSet> restrict_localhost_ports(
+      ParseRestrictedPortsFromFeatureParam(
+          features::kRestrictAbusePortsOnLocalhost,
+          "localhost_restrict_ports"));
+
+  if (g_need_to_reset_restrict_localhost_ports) {
+    *restrict_localhost_ports = ParseRestrictedPortsFromFeatureParam(
+        features::kRestrictAbusePortsOnLocalhost, "localhost_restrict_ports");
+    g_need_to_reset_restrict_localhost_ports = false;
+  }
+
+  if (restrict_localhost_ports->contains(port)) {
+    base::UmaHistogramSparse("Net.RestrictedLocalhostPorts", port);
+    return false;
+  }
   return true;
 }
 
@@ -166,10 +250,11 @@ ScopedPortException::ScopedPortException(int port) : port_(port) {
 
 ScopedPortException::~ScopedPortException() {
   auto it = g_explicitly_allowed_ports.Get().find(port_);
-  if (it != g_explicitly_allowed_ports.Get().end())
+  if (it != g_explicitly_allowed_ports.Get().end()) {
     g_explicitly_allowed_ports.Get().erase(it);
-  else
+  } else {
     NOTREACHED();
+  }
 }
 
 NET_EXPORT bool IsAllowablePort(int port) {
@@ -192,6 +277,10 @@ ScopedAllowablePortForTesting::ScopedAllowablePortForTesting(int port) {
 
 ScopedAllowablePortForTesting::~ScopedAllowablePortForTesting() {
   g_scoped_allowable_port = 0;
+}
+
+void ReloadLocalhostRestrictedPortsForTesting() {
+  g_need_to_reset_restrict_localhost_ports = true;
 }
 
 }  // namespace net

@@ -12,9 +12,9 @@
 #include "base/path_service.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/media/webrtc/webrtc_browsertest_base.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
@@ -114,7 +114,7 @@ struct TabInfo {
                   web_contents->GetPrimaryMainFrame(),
                   base::StringPrintf(
                       "callSetCaptureHandleConfig(%s, \"%s\", %s);",
-                      expose_origin ? "true" : "false", handle.c_str(),
+                      base::ToString(expose_origin), handle.c_str(),
                       StringifyPermittedOrigins(permitted_origins).c_str())),
               "capture-handle-set");
 
@@ -165,7 +165,7 @@ struct TabInfo {
   }
 
   raw_ptr<Browser> browser;
-  raw_ptr<WebContents, DanglingUntriaged> web_contents;
+  raw_ptr<WebContents, AcrossTasksDanglingUntriaged> web_contents;
   int tab_strip_index;
   std::string capture_handle;  // Expected value for those who may observe.
 };
@@ -204,11 +204,12 @@ class CaptureHandleBrowserTest : public WebRtcTestBase {
         switches::kEnableExperimentalWebPlatformFeatures);
     command_line->AppendSwitchASCII(
         switches::kAutoSelectTabCaptureSourceByTitle, kCapturedTabTitle);
-    // TODO(https://crbug.com/1424557): Remove this after fixing feature
+    // MSan and GL do not get along so avoid using the GPU with MSan.
+    // TODO(crbug.com/40260482): Remove the CrOS exception after fixing feature
     // detection in 0c tab capture path as it'll no longer be needed.
-    if constexpr (!BUILDFLAG(IS_CHROMEOS)) {
-      command_line->AppendSwitch(switches::kUseGpuInTests);
-    }
+#if !BUILDFLAG(IS_CHROMEOS) && !defined(MEMORY_SANITIZER)
+    command_line->AppendSwitch(switches::kUseGpuInTests);
+#endif
   }
 
   void TearDownOnMainThread() override {
@@ -262,7 +263,7 @@ class CaptureHandleBrowserTest : public WebRtcTestBase {
       result.StartCapturing();
     }
 
-    event_sinks_.push_back(result.web_contents);
+    event_sinks_.push_back(result.web_contents.get());
 
     return result;
   }
@@ -309,7 +310,7 @@ class CaptureHandleBrowserTest : public WebRtcTestBase {
   };
 
   // Checked for no unconsumed events.
-  std::vector<WebContents*> event_sinks_;
+  std::vector<raw_ptr<WebContents, VectorExperimental>> event_sinks_;
 
   // Three servers to create three origins (different ports). One server for the
   // captured page, one for the top-level capturer and one for the embedded
@@ -319,7 +320,7 @@ class CaptureHandleBrowserTest : public WebRtcTestBase {
 
   // Incognito browser.
   // Note: The regular one is accessible via browser().
-  raw_ptr<Browser, DanglingUntriaged> incognito_browser_ = nullptr;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> incognito_browser_ = nullptr;
 };
 
 IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
@@ -359,7 +360,7 @@ IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
   EXPECT_EQ(capturing_tab.ReadCaptureHandle(), "null");
 }
 
-// TODO(crbug.com/1217873): Test disabled on Mac due to multiple failing bots.
+// TODO(crbug.com/40185394): Test disabled on Mac due to multiple failing bots.
 #if BUILDFLAG(IS_MAC)
 #define MAYBE_HandleNotExposedIfTopLevelAllowlistedButCallingFrameNotAllowlisted \
   DISABLED_HandleNotExposedIfTopLevelAllowlistedButCallingFrameNotAllowlisted
@@ -398,9 +399,9 @@ IN_PROC_BROWSER_TEST_F(
                                       {top_level_capturer_origin.Serialize()});
 }
 
-// TODO(crbug.com/1217873): Test disabled on Mac due to multiple failing bots.
+// TODO(crbug.com/40185394): Test disabled on Mac due to multiple failing bots.
 // TODO(crbug.com/1287616, crbug.com/1362946): Flaky on Chrome OS and Windows.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN)
 #define MAYBE_HandleExposedIfCallingFrameAllowlistedEvenIfTopLevelNotAllowlisted \
   DISABLED_HandleExposedIfCallingFrameAllowlistedEvenIfTopLevelNotAllowlisted
 #else
@@ -685,7 +686,7 @@ IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
   EXPECT_EQ(tab.ReadCaptureHandle(), "null");
 }
 
-// TODO(crbug/1219998): Disabled because of flakiness.
+// TODO(crbug.com/40772597): Disabled because of flakiness.
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_RegularTabCannotReadIncognitoTabCaptureHandle \
   DISABLED_RegularTabCannotReadIncognitoTabCaptureHandle
@@ -710,7 +711,7 @@ IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
   EXPECT_EQ(capturing_tab.ReadCaptureHandle(), "null");
 }
 
-// TODO(crbug/1248619): Disabled because of flakiness.
+// TODO(crbug.com/40790671): Disabled because of flakiness.
 IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
                        DISABLED_IncognitoTabCannotReadRegularTabCaptureHandle) {
   TabInfo captured_tab =
@@ -745,7 +746,7 @@ IN_PROC_BROWSER_TEST_F(CaptureHandleBrowserTest,
   EXPECT_EQ(capturing_tab.ReadCaptureHandle(), "null");
 }
 
-// TODO(crbug/1219998): Disabled because of flakiness.
+// TODO(crbug.com/40772597): Disabled because of flakiness.
 #if BUILDFLAG(IS_WIN)
 #define MAYBE_IncognitoTabCanReadIncognitoTabCaptureHandleIfSelfCapture \
   DISABLED_IncognitoTabCanReadIncognitoTabCaptureHandleIfSelfCapture
@@ -786,7 +787,8 @@ class CaptureHandleBrowserTestPrerender : public CaptureHandleBrowserTest {
 
  protected:
   std::unique_ptr<content::test::PrerenderTestHelper> prerender_helper_;
-  raw_ptr<WebContents, DanglingUntriaged> captured_web_contents_ = nullptr;
+  raw_ptr<WebContents, AcrossTasksDanglingUntriaged> captured_web_contents_ =
+      nullptr;
 };
 
 // Verifies that pre-rendered pages don't change the capture handle config.

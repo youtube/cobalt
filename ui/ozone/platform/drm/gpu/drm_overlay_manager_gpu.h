@@ -19,9 +19,9 @@ class DrmThreadProxy;
 // overlay validations requests to the DRM thread.
 class DrmOverlayManagerGpu : public DrmOverlayManager {
  public:
-  explicit DrmOverlayManagerGpu(
-      DrmThreadProxy* drm_thread_proxy,
-      bool allow_sync_and_real_buffer_page_flip_testing);
+  DrmOverlayManagerGpu(DrmThreadProxy* drm_thread_proxy,
+                       bool handle_overlays_swap_failure,
+                       bool allow_sync_and_real_buffer_page_flip_testing);
 
   DrmOverlayManagerGpu(const DrmOverlayManagerGpu&) = delete;
   DrmOverlayManagerGpu& operator=(const DrmOverlayManagerGpu&) = delete;
@@ -48,7 +48,7 @@ class DrmOverlayManagerGpu : public DrmOverlayManager {
       const std::vector<OverlaySurfaceCandidate>& candidates,
       const std::vector<OverlayStatus>& status);
 
-  const raw_ptr<DrmThreadProxy, ExperimentalAsh> drm_thread_proxy_;
+  const raw_ptr<DrmThreadProxy> drm_thread_proxy_;
 
   bool has_set_displays_configured_callback_ = false;
 

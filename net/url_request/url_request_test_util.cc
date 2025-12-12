@@ -14,11 +14,12 @@
 #include "base/supports_user_data.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread.h"
+#include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/cert/cert_verifier.h"
-#include "net/cert/ct_policy_enforcer.h"
 #include "net/cert/do_nothing_ct_verifier.h"
 #include "net/cookies/cookie_setting_override.h"
+#include "net/cookies/cookie_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/http/http_network_session.h"
 #include "net/http/http_response_headers.h"
@@ -27,7 +28,9 @@
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_retry_info.h"
 #include "net/quic/quic_context.h"
+#include "net/url_request/redirect_info.h"
 #include "net/url_request/static_http_user_agent_settings.h"
+#include "net/url_request/url_request.h"
 #include "net/url_request/url_request_context_builder.h"
 #include "net/url_request/url_request_filter.h"
 #include "net/url_request/url_request_job.h"
@@ -46,11 +49,12 @@ const int kStageBeforeURLRequest = 1 << 0;
 const int kStageBeforeStartTransaction = 1 << 1;
 const int kStageHeadersReceived = 1 << 2;
 const int kStageBeforeRedirect = 1 << 3;
-const int kStageResponseStarted = 1 << 4;
-const int kStageCompletedSuccess = 1 << 5;
-const int kStageCompletedError = 1 << 6;
-const int kStageURLRequestDestroyed = 1 << 7;
-const int kStageDestruction = 1 << 8;
+const int kStageBeforeRetry = 1 << 4;
+const int kStageResponseStarted = 1 << 5;
+const int kStageCompletedSuccess = 1 << 6;
+const int kStageCompletedError = 1 << 7;
+const int kStageURLRequestDestroyed = 1 << 8;
+const int kStageDestruction = 1 << 9;
 
 const char kTestNetworkDelegateRequestIdKey[] =
     "TestNetworkDelegateRequestIdKey";
@@ -78,7 +82,6 @@ std::unique_ptr<URLRequestContextBuilder> CreateTestURLRequestContextBuilder() {
       ConfiguredProxyResolutionService::CreateDirect());
   builder->SetCertVerifier(
       CertVerifier::CreateDefault(/*cert_net_fetcher=*/nullptr));
-  builder->set_ct_policy_enforcer(std::make_unique<DefaultCTPolicyEnforcer>());
   builder->set_ssl_config_service(std::make_unique<SSLConfigServiceDefaults>());
   builder->SetHttpAuthHandlerFactory(HttpAuthHandlerFactory::CreateDefault());
   builder->SetHttpServerProperties(std::make_unique<HttpServerProperties>());
@@ -131,26 +134,23 @@ TestURLRequestContextGetter::GetNetworkTaskRunner() const {
 const int TestDelegate::kBufferSize;
 
 TestDelegate::TestDelegate()
-    : buf_(base::MakeRefCounted<IOBuffer>(kBufferSize)) {}
+    : buf_(base::MakeRefCounted<IOBufferWithSize>(kBufferSize)) {}
 
 TestDelegate::~TestDelegate() = default;
 
 void TestDelegate::RunUntilComplete() {
-  use_legacy_on_complete_ = false;
   base::RunLoop run_loop;
   on_complete_ = run_loop.QuitClosure();
   run_loop.Run();
 }
 
 void TestDelegate::RunUntilRedirect() {
-  use_legacy_on_complete_ = false;
   base::RunLoop run_loop;
   on_redirect_ = run_loop.QuitClosure();
   run_loop.Run();
 }
 
 void TestDelegate::RunUntilAuthRequired() {
-  use_legacy_on_complete_ = false;
   base::RunLoop run_loop;
   on_auth_required_ = run_loop.QuitClosure();
   run_loop.Run();
@@ -221,6 +221,10 @@ void TestDelegate::OnResponseStarted(URLRequest* request, int net_error) {
   DCHECK_NE(ERR_IO_PENDING, net_error);
   EXPECT_FALSE(request->is_redirecting());
 
+  if (net_error == OK) {
+    response_code_ = request->GetResponseCode();
+  }
+
   response_started_count_++;
   request_status_ = net_error;
   if (cancel_in_rs_) {
@@ -243,11 +247,11 @@ void TestDelegate::OnReadCompleted(URLRequest* request, int bytes_read) {
   // It doesn't make sense for the request to have IO pending at this point.
   DCHECK_NE(bytes_read, ERR_IO_PENDING);
 
-  // If you've reached this, you've either called "RunUntilComplete" or are
-  // using legacy "QuitCurrent*Deprecated". If this DCHECK fails, that probably
-  // means you've run "RunUntilRedirect" or "RunUntilAuthRequired" and haven't
+  // If you've reached this, you've either called "RunUntilComplete"
+  // If this DCHECK fails, that probably  means you've run
+  // "RunUntilRedirect" or "RunUntilAuthRequired" and haven't
   // redirected/auth-challenged
-  DCHECK(on_complete_ || use_legacy_on_complete_);
+  DCHECK(on_complete_);
 
   // If the request was cancelled in a redirect, it should not signal
   // OnReadCompleted. Note that |cancel_in_rs_| may be true due to
@@ -268,9 +272,6 @@ void TestDelegate::OnReadCompleted(URLRequest* request, int bytes_read) {
       request_status_ = request->Cancel();
       // If bytes_read is 0, won't get a notification on cancelation.
       if (bytes_read == 0) {
-        if (use_legacy_on_complete_)
-          base::RunLoop::QuitCurrentWhenIdleDeprecated();
-        else
           std::move(on_complete_).Run();
       }
       return;
@@ -295,10 +296,7 @@ void TestDelegate::OnReadCompleted(URLRequest* request, int bytes_read) {
 
 void TestDelegate::OnResponseCompleted(URLRequest* request) {
   response_completed_ = true;
-  if (use_legacy_on_complete_)
-    base::RunLoop::QuitCurrentWhenIdleDeprecated();
-  else
-    std::move(on_complete_).Run();
+  std::move(on_complete_).Run();
 }
 
 TestNetworkDelegate::TestNetworkDelegate() = default;
@@ -368,7 +366,7 @@ int TestNetworkDelegate::OnHeadersReceived(
     const HttpResponseHeaders* original_response_headers,
     scoped_refptr<HttpResponseHeaders>* override_response_headers,
     const IPEndPoint& endpoint,
-    absl::optional<GURL>* preserve_fragment_on_redirect_url) {
+    std::optional<GURL>* preserve_fragment_on_redirect_url) {
   EXPECT_FALSE(preserve_fragment_on_redirect_url->has_value());
   int req_id = GetRequestId(request);
   bool is_first_response =
@@ -377,10 +375,9 @@ int TestNetworkDelegate::OnHeadersReceived(
   InitRequestStatesIfNew(req_id);
   EXPECT_TRUE(next_states_[req_id] & kStageHeadersReceived) <<
       event_order_[req_id];
-  next_states_[req_id] =
-      kStageBeforeRedirect |
-      kStageResponseStarted |
-      kStageCompletedError;  // e.g. proxy resolution problem
+  next_states_[req_id] = kStageBeforeRedirect | kStageBeforeRetry |
+                         kStageResponseStarted |
+                         kStageCompletedError;  // e.g. proxy resolution problem
 
   // Basic authentication sends a second request from the URLRequestHttpJob
   // layer before the URLRequest reports that a response has started.
@@ -396,7 +393,7 @@ int TestNetworkDelegate::OnHeadersReceived(
 
     redirect_on_headers_received_url_ = GURL();
 
-    // Since both values are absl::optionals, can just copy this over.
+    // Since both values are std::optionals, can just copy this over.
     *preserve_fragment_on_redirect_url = preserve_fragment_on_redirect_url_;
   } else if (add_header_to_first_response_ && is_first_response) {
     *override_response_headers = base::MakeRefCounted<HttpResponseHeaders>(
@@ -432,6 +429,14 @@ void TestNetworkDelegate::OnBeforeRedirect(URLRequest* request,
   // A redirect can lead to a file or a data URL. In this case, we do not send
   // headers.
   next_states_[req_id] |= kStageResponseStarted;
+}
+
+void TestNetworkDelegate::OnBeforeRetry(URLRequest* request) {
+  int req_id = GetRequestId(request);
+  InitRequestStatesIfNew(req_id);
+  event_order_[req_id] += "OnBeforeRetry\n";
+  EXPECT_TRUE(next_states_[req_id] & kStageBeforeRetry) << event_order_[req_id];
+  next_states_[req_id] = kStageBeforeURLRequest;
 }
 
 void TestNetworkDelegate::OnResponseStarted(URLRequest* request,
@@ -508,8 +513,9 @@ bool TestNetworkDelegate::OnAnnotateAndMoveUserBlockedCookies(
 
   if (!allow) {
     blocked_annotate_cookies_count_++;
-    ExcludeAllCookies(CookieInclusionStatus::EXCLUDE_USER_PREFERENCES,
-                      maybe_included_cookies, excluded_cookies);
+    ExcludeAllCookies(
+        CookieInclusionStatus::ExclusionReason::EXCLUDE_USER_PREFERENCES,
+        maybe_included_cookies, excluded_cookies);
   }
 
   return allow;
@@ -521,9 +527,12 @@ NetworkDelegate::PrivacySetting TestNetworkDelegate::OnForcePrivacyMode(
   return NetworkDelegate::PrivacySetting::kStateAllowed;
 }
 
-bool TestNetworkDelegate::OnCanSetCookie(const URLRequest& request,
-                                         const net::CanonicalCookie& cookie,
-                                         CookieOptions* options) {
+bool TestNetworkDelegate::OnCanSetCookie(
+    const URLRequest& request,
+    const net::CanonicalCookie& cookie,
+    CookieOptions* options,
+    const net::FirstPartySetMetadata& first_party_set_metadata,
+    CookieInclusionStatus* inclusion_status) {
   RecordCookieSettingOverrides(request.cookie_setting_overrides());
   bool allow = true;
   if (cookie_options_bit_mask_ & NO_SET_COOKIE)
@@ -545,14 +554,6 @@ bool TestNetworkDelegate::OnCancelURLRequestWithPolicyViolatingReferrerHeader(
   return cancel_request_with_policy_violating_referrer_;
 }
 
-absl::optional<FirstPartySetsCacheFilter::MatchInfo>
-TestNetworkDelegate::OnGetFirstPartySetsCacheFilterMatchInfoMaybeAsync(
-    const SchemefulSite& request_site,
-    base::OnceCallback<void(FirstPartySetsCacheFilter::MatchInfo)> callback)
-    const {
-  return fps_cache_filter_.GetMatchInfo(request_site);
-}
-
 int TestNetworkDelegate::GetRequestId(URLRequest* request) {
   TestRequestId* test_request_id = reinterpret_cast<TestRequestId*>(
       request->GetUserData(kTestNetworkDelegateRequestIdKey));
@@ -564,13 +565,22 @@ int TestNetworkDelegate::GetRequestId(URLRequest* request) {
   return id;
 }
 
+std::optional<cookie_util::StorageAccessStatus>
+TestNetworkDelegate::OnGetStorageAccessStatus(
+    const URLRequest& request,
+    base::optional_ref<const RedirectInfo> redirect_info) const {
+  return storage_access_status_;
+}
+
 FilteringTestNetworkDelegate::FilteringTestNetworkDelegate() = default;
 FilteringTestNetworkDelegate::~FilteringTestNetworkDelegate() = default;
 
 bool FilteringTestNetworkDelegate::OnCanSetCookie(
     const URLRequest& request,
     const net::CanonicalCookie& cookie,
-    CookieOptions* options) {
+    CookieOptions* options,
+    const net::FirstPartySetMetadata& first_party_set_metadata,
+    CookieInclusionStatus* inclusion_status) {
   // Filter out cookies with the same name as |cookie_name_filter_| and
   // combine with |allowed_from_caller|.
   bool allowed = cookie.Name() != cookie_name_filter_;
@@ -581,7 +591,9 @@ bool FilteringTestNetworkDelegate::OnCanSetCookie(
     ++blocked_set_cookie_count_;
 
   // Call the nested delegate's method first to avoid a short circuit.
-  return TestNetworkDelegate::OnCanSetCookie(request, cookie, options) &&
+  return TestNetworkDelegate::OnCanSetCookie(request, cookie, options,
+                                             first_party_set_metadata,
+                                             inclusion_status) &&
          allowed;
 }
 
@@ -610,21 +622,24 @@ bool FilteringTestNetworkDelegate::OnAnnotateAndMoveUserBlockedCookies(
 
   if (!allowed) {
     ++blocked_annotate_cookies_count_;
-    ExcludeAllCookies(net::CookieInclusionStatus::EXCLUDE_USER_PREFERENCES,
-                      maybe_included_cookies, excluded_cookies);
+    ExcludeAllCookies(
+        net::CookieInclusionStatus::ExclusionReason::EXCLUDE_USER_PREFERENCES,
+        maybe_included_cookies, excluded_cookies);
   }
 
   if (allowed && block_get_cookies_by_name_ && !cookie_name_filter_.empty()) {
     for (auto& cookie : maybe_included_cookies) {
       if (cookie.cookie.Name().find(cookie_name_filter_) != std::string::npos) {
         cookie.access_result.status.AddExclusionReason(
-            net::CookieInclusionStatus::EXCLUDE_USER_PREFERENCES);
+            net::CookieInclusionStatus::ExclusionReason::
+                EXCLUDE_USER_PREFERENCES);
       }
     }
     for (auto& cookie : excluded_cookies) {
       if (cookie.cookie.Name().find(cookie_name_filter_) != std::string::npos) {
         cookie.access_result.status.AddExclusionReason(
-            net::CookieInclusionStatus::EXCLUDE_USER_PREFERENCES);
+            net::CookieInclusionStatus::ExclusionReason::
+                EXCLUDE_USER_PREFERENCES);
       }
     }
 

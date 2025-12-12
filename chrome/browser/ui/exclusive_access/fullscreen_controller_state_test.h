@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_UI_EXCLUSIVE_ACCESS_FULLSCREEN_CONTROLLER_STATE_TEST_H_
 #define CHROME_BROWSER_UI_EXCLUSIVE_ACCESS_FULLSCREEN_CONTROLLER_STATE_TEST_H_
 
+#include <array>
 #include <memory>
 #include <sstream>
 
@@ -12,10 +13,11 @@
 
 class Browser;
 class FullscreenController;
-class FullscreenNotificationObserver;
 
 // Utility definition for mapping enum values to strings in switch statements.
-#define ENUM_TO_STRING(enum) case enum: return #enum
+#define ENUM_TO_STRING(enum) \
+  case enum:                 \
+    return #enum
 
 // Test fixture used to test Fullscreen Controller through exhaustive sequences
 // of events in unit and interactive tests.
@@ -77,10 +79,6 @@ class FullscreenControllerStateTest {
   // FullscreenController methods complete.
   static bool IsWindowFullscreenStateChangedReentrant();
 
-  // Returns true if |state| can be persistent. This is true for all of the
-  // states without "_TO_" in their name.
-  static bool IsPersistentState(State state);
-
   // Causes Fullscreen Controller to transition to an arbitrary state.
   void TransitionToState(State state);
 
@@ -103,10 +101,6 @@ class FullscreenControllerStateTest {
   // Checks that window state matches the expected controller state.
   virtual void VerifyWindowState();
 
-  // Wait for a fullscreen change if a notification should have been sent in
-  // transitioning to |state_| from the previous persistent state.
-  void MaybeWaitForNotification();
-
   // Tests all states with all permutations of multiple events to detect
   // lingering state issues that would bleed over to other states.
   // I.E. for each state test all combinations of events E1, E2, E3.
@@ -123,25 +117,23 @@ class FullscreenControllerStateTest {
   std::string GetStateTransitionsAsString() const;
 
  protected:
-  // Set of enumerations (created with a helper macro) for _FALSE, _TRUE, and
-  // _NO_EXPECTATION values to be passed to VerifyWindowStateExpectations().
-  #define EXPECTATION_ENUM(enum_name, enum_prefix) \
-      enum enum_name { \
-        enum_prefix##_FALSE, \
-        enum_prefix##_TRUE, \
-        enum_prefix##_NO_EXPECTATION \
-      }
+// Set of enumerations (created with a helper macro) for _FALSE, _TRUE, and
+// _NO_EXPECTATION values to be passed to VerifyWindowStateExpectations().
+#define EXPECTATION_ENUM(enum_name, enum_prefix) \
+  enum enum_name {                               \
+    enum_prefix##_FALSE,                         \
+    enum_prefix##_TRUE,                          \
+    enum_prefix##_NO_EXPECTATION                 \
+  }
   EXPECTATION_ENUM(FullscreenForBrowserExpectation, FULLSCREEN_FOR_BROWSER);
   EXPECTATION_ENUM(FullscreenForTabExpectation, FULLSCREEN_FOR_TAB);
 
   // Generated information about the transitions between states.
   struct StateTransitionInfo {
     StateTransitionInfo()
-        : event(EVENT_INVALID),
-          state(STATE_INVALID),
-          distance(NUM_STATES) {}
-    Event event;  // The |Event| that will cause the state transition.
-    State state;  // The adjacent |State| transitioned to; not the final state.
+        : event(EVENT_INVALID), state(STATE_INVALID), distance(NUM_STATES) {}
+    Event event;   // The |Event| that will cause the state transition.
+    State state;   // The adjacent |State| transitioned to; not the final state.
     int distance;  // Steps to final state. NUM_STATES represents unknown.
   };
 
@@ -180,14 +172,6 @@ class FullscreenControllerStateTest {
   // The state the FullscreenController is expected to be in.
   State state_ = STATE_NORMAL;
 
-  // The state when the previous NOTIFICATION_FULLSCREEN_CHANGED notification
-  // was received.
-  State last_notification_received_state_ = STATE_NORMAL;
-
-  // Listens for the NOTIFICATION_FULLSCREEN_CHANGED notification.
-  std::unique_ptr<FullscreenNotificationObserver>
-      fullscreen_notification_observer_;
-
   // Human defined |State| that results given each [state][event] pair.
   State transition_table_[NUM_STATES][NUM_EVENTS];
 
@@ -195,7 +179,8 @@ class FullscreenControllerStateTest {
   // View generated data with: out/Release/unit_tests
   //     --gtest_filter="FullscreenController*DebugLogStateTables"
   //     --gtest_also_run_disabled_tests
-  StateTransitionInfo state_transitions_[NUM_STATES][NUM_STATES];
+  std::array<std::array<StateTransitionInfo, NUM_STATES>, NUM_STATES>
+      state_transitions_;
 
   // Log of operations reported on errors via GetAndClearDebugLog().
   std::ostringstream debugging_log_;

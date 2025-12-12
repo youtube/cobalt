@@ -4,14 +4,14 @@
 
 package org.chromium.chrome.browser.password_manager;
 
-import static org.chromium.content_public.browser.test.util.TestThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.After;
 import org.junit.Before;
@@ -19,36 +19,35 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DoNotBatch;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
+import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetTestSupport;
-import org.chromium.components.signin.AccountUtils;
+import org.chromium.components.signin.test.util.TestAccounts;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_public.browser.test.util.DOMUtils;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.net.test.EmbeddedTestServer;
 import org.chromium.net.test.ServerCertificate;
 import org.chromium.url.GURL;
 
 import java.util.concurrent.TimeoutException;
 
-/**
- * Integration tests that check the main flow using Touch to Fill component.
- */
+/** Integration tests that check the main flow using Touch to Fill component. */
 @RunWith(ChromeJUnit4ClassRunner.class)
-@DoNotBatch(reason = "TODO(crbug.com/1346583): add resetting logic for"
-                + "FakePasswordStoreAndroidBackend to allow batching")
-@EnableFeatures({ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_ANDROID})
+@DoNotBatch(
+        reason =
+                "TODO(crbug.com/40232561): add resetting logic for"
+                        + "FakePasswordStoreAndroidBackend to allow batching")
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE, "show-autofill-signatures"})
 public class TouchToFillMainFlowIntegrationTest {
     private static final String FORM_URL = "/chrome/test/data/password/simple_password.html";
@@ -63,40 +62,47 @@ public class TouchToFillMainFlowIntegrationTest {
     private PasswordStoreBridge mPasswordStoreBridge;
 
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
-    @Rule
-    public SigninTestRule mSigninTestRule = new SigninTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
+
+    @Rule public SigninTestRule mSigninTestRule = new SigninTestRule();
+
+    private WebPageStation mStartingPage;
+
+    public TouchToFillMainFlowIntegrationTest() {
+        // This test suite relies on the real password store. However, that can only store
+        // passwords if the device it runs on has the required min GMS Core version.
+        // To ensure the tests don't depend on the device configuration, set up a fake GMS
+        // Core version instead.
+        PasswordManagerTestHelper.setUpPwmRequiredMinGmsVersion();
+    }
 
     @Before
     public void setUp() {
-        PasswordStoreAndroidBackendFactory.setFactoryInstanceForTesting(
-                new FakePasswordStoreAndroidBackendFactoryImpl());
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            ((FakePasswordStoreAndroidBackend) PasswordStoreAndroidBackendFactory.getInstance()
-                            .createBackend())
-                    .setSyncingAccount(
-                            AccountUtils.createAccountFromName(SigninTestRule.TEST_ACCOUNT_EMAIL));
-        });
-        PasswordSyncControllerDelegateFactory.setFactoryInstanceForTesting(
-                new FakePasswordSyncControllerDelegateFactoryImpl());
-
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mStartingPage = mActivityTestRule.startOnBlankPage();
+        PasswordManagerTestHelper.setAccountForPasswordStore(SigninTestRule.TEST_ACCOUNT_EMAIL);
         PasswordManagerTestUtilsBridge.disableServerPredictions();
-        mSigninTestRule.addTestAccountThenSigninAndEnableSync();
+        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
 
-        mTestServer = EmbeddedTestServer.createAndStartHTTPSServer(
-                InstrumentationRegistry.getInstrumentation().getContext(),
-                ServerCertificate.CERT_OK);
+        mTestServer =
+                EmbeddedTestServer.createAndStartHTTPSServer(
+                        InstrumentationRegistry.getInstrumentation().getContext(),
+                        ServerCertificate.CERT_OK);
 
-        runOnUiThreadBlocking(() -> {
-            mBottomSheetController = BottomSheetControllerProvider.from(
-                    mActivityTestRule.getActivity().getWindowAndroid());
-        });
+        runOnUiThreadBlocking(
+                () -> {
+                    mBottomSheetController =
+                            BottomSheetControllerProvider.from(
+                                    mStartingPage.getActivity().getWindowAndroid());
+                });
 
-        mWebContents = mActivityTestRule.getWebContents();
+        mWebContents = mStartingPage.webContentsElement.get();
 
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mPasswordStoreBridge = new PasswordStoreBridge(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPasswordStoreBridge =
+                            new PasswordStoreBridge(mActivityTestRule.getProfile(false));
+                });
     }
 
     @After
@@ -109,10 +115,14 @@ public class TouchToFillMainFlowIntegrationTest {
     public void testClickingSuggestionPopulatesForm()
             throws TimeoutException, InterruptedException {
         // Fill the password store.
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPasswordStoreBridge.insertPasswordCredential(new PasswordStoreCredential(
-                    new GURL(mTestServer.getURL("/")), TEST_ACCOUNT_NAME, TEST_ACCOUNT_PASSWORD));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPasswordStoreBridge.insertPasswordCredential(
+                            new PasswordStoreCredential(
+                                    new GURL(mTestServer.getURL("/")),
+                                    TEST_ACCOUNT_NAME,
+                                    TEST_ACCOUNT_PASSWORD));
+                });
 
         mActivityTestRule.loadUrl(mTestServer.getURL(FORM_URL));
 
@@ -129,11 +139,13 @@ public class TouchToFillMainFlowIntegrationTest {
         CriteriaHelper.pollUiThread(() -> getCredentials().getChildAt(1) != null);
 
         // Check if the correct credential is shown.
-        CriteriaHelper.pollUiThread(() -> {
-            LinearLayout credentialItemLayout = (LinearLayout) getCredentials().getChildAt(1);
-            TextView usernameTextView = credentialItemLayout.findViewById(R.id.username);
-            return TEST_ACCOUNT_NAME.equals(usernameTextView.getText());
-        });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    LinearLayout credentialItemLayout =
+                            (LinearLayout) getCredentials().getChildAt(1);
+                    TextView usernameTextView = credentialItemLayout.findViewById(R.id.username);
+                    return TEST_ACCOUNT_NAME.equals(usernameTextView.getText());
+                });
     }
 
     private RecyclerView getCredentials() {
@@ -146,10 +158,15 @@ public class TouchToFillMainFlowIntegrationTest {
     }
 
     private void waitForPasswordElementLabel() {
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            String attribute = DOMUtils.getNodeAttribute(
-                    PASSWORD_ATTRIBUTE_NAME, mWebContents, PASSWORD_NODE_ID, String.class);
-            return attribute != null;
-        });
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    String attribute =
+                            DOMUtils.getNodeAttribute(
+                                    PASSWORD_ATTRIBUTE_NAME,
+                                    mWebContents,
+                                    PASSWORD_NODE_ID,
+                                    String.class);
+                    return attribute != null;
+                });
     }
 }

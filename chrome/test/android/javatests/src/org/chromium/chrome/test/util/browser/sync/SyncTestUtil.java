@@ -12,20 +12,24 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.chrome.browser.sync.SyncService;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
+import org.chromium.chrome.browser.profiles.ProfileManager;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
+import org.chromium.components.sync.SyncService;
+import org.chromium.components.sync.TransportState;
+import org.chromium.components.sync.UserSelectableType;
 
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Utility class for shared sync test functionality.
- */
+/** Utility class for shared sync test functionality. */
 public final class SyncTestUtil {
     private static final String TAG = "SyncTestUtil";
 
@@ -35,104 +39,176 @@ public final class SyncTestUtil {
     private SyncTestUtil() {}
 
     /**
-     * Returns whether sync-the-feature can start.
+     * Return the {@link SyncService} for the {@link ProfileManager#getLastUsedRegularProfile()}.
      */
-    public static boolean canSyncFeatureStart() {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().canSyncFeatureStart());
+    public static SyncService getSyncServiceForLastUsedProfile() {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    return SyncServiceFactory.getForProfile(
+                            ProfileManager.getLastUsedRegularProfile());
+                });
     }
 
     /**
-     * Returns whether sync-the-feature is enabled.
+     * Returns whether the user has sync consent.
+     *
+     * <p>TODO(crbug.com/40066949): Remove once kSync becomes unreachable or is deleted from the
+     * codebase. See ConsentLevel::kSync documentation for details.
      */
+    public static boolean hasSyncConsent() {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> getSyncServiceForLastUsedProfile().hasSyncConsent());
+    }
+
+    /** Returns whether sync-the-feature is enabled. */
     public static boolean isSyncFeatureEnabled() {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().isSyncFeatureEnabled());
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> getSyncServiceForLastUsedProfile().isSyncFeatureEnabled());
     }
 
-    /**
-     * Returns whether sync-the-feature is active.
-     */
+    /** Returns whether sync-the-feature is active. */
     public static boolean isSyncFeatureActive() {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().isSyncFeatureActive());
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> getSyncServiceForLastUsedProfile().isSyncFeatureActive());
     }
 
     /**
      * Waits for sync-the-feature to become enabled.
      * WARNING: This is does not wait for the feature to be active, see the distinction in
-     * components/sync/driver/sync_service.h. If the FakeServer isn't running - e.g. because of
+     * components/sync/service/sync_service.h. If the FakeServer isn't running - e.g. because of
      * SyncTestRule - this is all you can hope for. For tests that don't rely on sync data this
      * might just be enough.
      */
     public static void waitForSyncFeatureEnabled() {
-        CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isSyncFeatureEnabled(),
-                "Timed out waiting for sync to become enabled.", TIMEOUT_MS, INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> getSyncServiceForLastUsedProfile().isSyncFeatureEnabled(),
+                "Timed out waiting for sync to become enabled.",
+                TIMEOUT_MS,
+                INTERVAL_MS);
     }
 
-    /**
-     * Waits for sync-the-feature to become active.
-     */
+    /** Waits for sync-the-feature to become active. */
     public static void waitForSyncFeatureActive() {
-        CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isSyncFeatureActive(),
-                "Timed out waiting for sync to become active.", TIMEOUT_MS, INTERVAL_MS);
-    }
-
-    /**
-     * Waits for canSyncFeatureStart() to return true.
-     */
-    public static void waitForCanSyncFeatureStart() {
-        CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().canSyncFeatureStart(),
-                "Timed out waiting for sync being able to start.", TIMEOUT_MS, INTERVAL_MS);
-    }
-
-    /**
-     * Waits for sync machinery to become active.
-     */
-    public static void waitForSyncTransportActive() {
-        CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isTransportStateActive(),
-                "Timed out waiting for sync transport state to become active.", TIMEOUT_MS,
+        CriteriaHelper.pollUiThread(
+                () -> getSyncServiceForLastUsedProfile().isSyncFeatureActive(),
+                "Timed out waiting for sync to become active.",
+                TIMEOUT_MS,
                 INTERVAL_MS);
     }
 
     /**
-     * Waits for sync's engine to be initialized.
+     * Waits for hasSyncConsent() to return true.
+     *
+     * <p>TODO(crbug.com/40066949): Remove once kSync becomes unreachable or is deleted from the
+     * codebase. See ConsentLevel::kSync documentation for details.
      */
+    public static void waitForSyncConsent() {
+        CriteriaHelper.pollUiThread(
+                () -> getSyncServiceForLastUsedProfile().hasSyncConsent(),
+                "Timed out waiting for sync consent.",
+                TIMEOUT_MS,
+                INTERVAL_MS);
+    }
+
+    /** Waits for sync machinery to become active. */
+    public static void waitForSyncTransportActive() {
+        CriteriaHelper.pollUiThread(
+                () ->
+                        getSyncServiceForLastUsedProfile().getTransportState()
+                                == TransportState.ACTIVE,
+                "Timed out waiting for sync transport state to become active.",
+                TIMEOUT_MS,
+                INTERVAL_MS);
+    }
+
+    /** Waits for sync's engine to be initialized. */
     public static void waitForEngineInitialized() {
-        CriteriaHelper.pollUiThread(()
-                                            -> SyncService.get().isEngineInitialized(),
-                "Timed out waiting for sync's engine to initialize.", TIMEOUT_MS, INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> getSyncServiceForLastUsedProfile().isEngineInitialized(),
+                "Timed out waiting for sync's engine to initialize.",
+                TIMEOUT_MS,
+                INTERVAL_MS);
     }
 
-    /**
-     * Waits for sync being in the desired TrustedVaultKeyRequired state.
-     */
+    /** Waits for sync being in the desired TrustedVaultKeyRequired state. */
     public static void waitForTrustedVaultKeyRequired(boolean desiredValue) {
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat(
-                    SyncService.get().isTrustedVaultKeyRequired(), Matchers.is(desiredValue));
-        }, TIMEOUT_MS, INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            getSyncServiceForLastUsedProfile().isTrustedVaultKeyRequired(),
+                            Matchers.is(desiredValue));
+                },
+                TIMEOUT_MS,
+                INTERVAL_MS);
     }
 
-    /**
-     * Waits for sync being in the desired value for isTrustedVaultRecoverabilityDegraded().
-     */
+    /** Waits for sync being in the desired value for isTrustedVaultRecoverabilityDegraded(). */
     public static void waitForTrustedVaultRecoverabilityDegraded(boolean desiredValue) {
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat(SyncService.get().isTrustedVaultRecoverabilityDegraded(),
-                    Matchers.is(desiredValue));
-        }, TIMEOUT_MS, INTERVAL_MS);
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            getSyncServiceForLastUsedProfile()
+                                    .isTrustedVaultRecoverabilityDegraded(),
+                            Matchers.is(desiredValue));
+                },
+                TIMEOUT_MS,
+                INTERVAL_MS);
     }
 
-    /**
-     * Triggers a sync cycle.
-     */
+    /** Returns whether history sync is active. */
+    public static boolean isHistorySyncEnabled() {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        getSyncServiceForLastUsedProfile()
+                                .getSelectedTypes()
+                                .containsAll(
+                                        Set.of(
+                                                UserSelectableType.HISTORY,
+                                                UserSelectableType.TABS)));
+    }
+
+    /** Waits for history and tabs sync to be active. */
+    public static void waitForHistorySyncEnabled() {
+        CriteriaHelper.pollUiThread(
+                () ->
+                        getSyncServiceForLastUsedProfile()
+                                .getSelectedTypes()
+                                .containsAll(
+                                        Set.of(
+                                                UserSelectableType.HISTORY,
+                                                UserSelectableType.TABS)));
+    }
+
+    /** Returns whether bookmarks and reading list are active. */
+    public static boolean isBookmarksAndReadingListEnabled() {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        getSyncServiceForLastUsedProfile()
+                                .getSelectedTypes()
+                                .containsAll(
+                                        Set.of(
+                                                UserSelectableType.BOOKMARKS,
+                                                UserSelectableType.READING_LIST)));
+    }
+
+    /** Waits for bookmarks and reading list to be active. */
+    public static void waitForBookmarksAndReadingListEnabled() {
+        CriteriaHelper.pollUiThread(
+                () ->
+                        getSyncServiceForLastUsedProfile()
+                                .getSelectedTypes()
+                                .containsAll(
+                                        Set.of(
+                                                UserSelectableType.BOOKMARKS,
+                                                UserSelectableType.READING_LIST)));
+    }
+
+    /** Triggers a sync cycle. */
     public static void triggerSync() {
-        TestThreadUtils.runOnUiThreadBlocking(() -> { SyncService.get().triggerRefresh(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getSyncServiceForLastUsedProfile().triggerRefresh();
+                });
     }
 
     /**
@@ -145,14 +221,17 @@ public final class SyncTestUtil {
     public static void triggerSyncAndWaitForCompletion() {
         final long oldSyncTime = getCurrentSyncTime();
         triggerSync();
-        CriteriaHelper.pollInstrumentationThread(() -> {
-            Criteria.checkThat(getCurrentSyncTime(), Matchers.greaterThan(oldSyncTime));
-        }, TIMEOUT_MS, INTERVAL_MS);
+        CriteriaHelper.pollInstrumentationThread(
+                () -> {
+                    Criteria.checkThat(getCurrentSyncTime(), Matchers.greaterThan(oldSyncTime));
+                },
+                TIMEOUT_MS,
+                INTERVAL_MS);
     }
 
     private static long getCurrentSyncTime() {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
-                () -> SyncService.get().getLastSyncedTimeForDebugging());
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> getSyncServiceForLastUsedProfile().getLastSyncedTimeForDebugging());
     }
 
     /**
@@ -163,17 +242,20 @@ public final class SyncTestUtil {
     private static JSONArray getAllNodesAsJsonArray() {
         class NodesCallbackHelper extends CallbackHelper {
             public JSONArray nodes;
-        };
+        }
         NodesCallbackHelper callbackHelper = new NodesCallbackHelper();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            SyncService.get().getAllNodes((nodes) -> {
-                callbackHelper.nodes = nodes;
-                callbackHelper.notifyCalled();
-            });
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getSyncServiceForLastUsedProfile()
+                            .getAllNodes(
+                                    (nodes) -> {
+                                        callbackHelper.nodes = nodes;
+                                        callbackHelper.notifyCalled();
+                                    });
+                });
 
         try {
-            callbackHelper.waitForNext();
+            callbackHelper.waitForNext(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
             assert false : "Timed out waiting for SyncService.getAllNodes()";
         }
@@ -183,7 +265,7 @@ public final class SyncTestUtil {
 
     /**
      * Extracts datatype-specific information from the given JSONObject. The returned JSONObject
-     * contains the same data as a specifics protocol buffer (e.g., TypedUrlSpecifics).
+     * contains the same data as a specifics protocol buffer (e.g., ReadingListSpecifics).
      */
     private static JSONObject extractSpecifics(JSONObject node) throws JSONException {
         JSONObject specifics = node.getJSONObject("SPECIFICS");
@@ -206,19 +288,19 @@ public final class SyncTestUtil {
             return bookmarkSpecifics;
         }
 
-        JSONObject model_type_info = specifics.getJSONObject(key);
+        JSONObject specificsWithMetadata = specifics.getJSONObject(key);
         if (node.has("metadata")) {
-            model_type_info.put("metadata", node.getJSONObject("metadata"));
+            specificsWithMetadata.put("metadata", node.getJSONObject("metadata"));
         }
-        return model_type_info;
+        return specificsWithMetadata;
     }
 
     /**
      * Converts the given ID to the format stored by the server.
      *
-     * See the SyncableId (C++) class for more information about ID encoding. To paraphrase,
-     * the client prepends "s" or "c" to the server's ID depending on the commit state of the data.
-     * IDs can also be "r" to indicate the root node, but that entity is not supported here.
+     * <p>See the SyncableId (C++) class for more information about ID encoding. To paraphrase, the
+     * client prepends "s" or "c" to the server's ID depending on the commit state of the data. IDs
+     * can also be "r" to indicate the root node, but that entity is not supported here.
      *
      * @param clientId the ID to be converted
      * @return the converted ID
@@ -239,17 +321,15 @@ public final class SyncTestUtil {
     /**
      * Returns the local Sync data present for a single datatype.
      *
-     * For each data entity, a Pair is returned. The first piece of data is the entity's server ID.
-     * This is useful for activities like deleting an entity on the server. The second piece of data
-     * is a JSONObject representing the datatype-specific information for the entity. This data is
-     * the same as the data stored in a specifics protocol buffer (e.g., TypedUrlSpecifics).
+     * <p>For each data entity, a Pair is returned. The first piece of data is the entity's server
+     * ID. This is useful for activities like deleting an entity on the server. The second piece of
+     * data is a JSONObject representing the datatype-specific information for the entity. This data
+     * is the same as the data stored in a specifics protocol buffer (e.g., ReadingListSpecifics).
      *
      * @param context the Context used to retreive the correct SyncService
      * @param typeString a String representing a specific datatype.
-     *
-     * TODO(pvalenzuela): Replace typeString with the native ModelType enum or something else
-     * that will avoid callers needing to specify the native string version.
-     *
+     *     <p>TODO(pvalenzuela): Replace typeString with the native DataType enum or something else
+     *     that will avoid callers needing to specify the native string version.
      * @return a List of Pair<String, JSONObject> representing the local Sync data
      */
     public static List<Pair<String, JSONObject>> getLocalData(Context context, String typeString)
@@ -280,21 +360,21 @@ public final class SyncTestUtil {
     }
 
     /**
-     * Encrypts the profile with the input |passphrase|. It will then block until the sync server
-     * is successfully using the passphrase.
+     * Encrypts the profile with the input |passphrase|. It will then block until the sync server is
+     * successfully using the passphrase.
      */
     public static void encryptWithPassphrase(final String passphrase) {
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> SyncService.get().setEncryptionPassphrase(passphrase));
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> getSyncServiceForLastUsedProfile().setEncryptionPassphrase(passphrase));
         // Make sure the new encryption settings make it to the server.
         SyncTestUtil.triggerSyncAndWaitForCompletion();
     }
 
-    /**
-     * Decrypts the profile using the input |passphrase|.
-     */
+    /** Decrypts the profile using the input |passphrase|. */
     public static void decryptWithPassphrase(final String passphrase) {
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { SyncService.get().setDecryptionPassphrase(passphrase); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    getSyncServiceForLastUsedProfile().setDecryptionPassphrase(passphrase);
+                });
     }
 }

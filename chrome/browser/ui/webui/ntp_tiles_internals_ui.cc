@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -16,7 +17,8 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/common/url_constants.h"
-#include "components/grit/dev_ui_components_resources.h"
+#include "components/grit/ntp_tiles_internals_resources.h"
+#include "components/grit/ntp_tiles_internals_resources_map.h"
 #include "components/history/core/browser/top_sites.h"
 #include "components/image_fetcher/core/image_fetcher_impl.h"
 #include "components/ntp_tiles/features.h"
@@ -29,6 +31,17 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
 #include "services/network/public/mojom/content_security_policy.mojom.h"
+#include "ui/webui/webui_util.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/feature_list.h"
+#include "chrome/browser/flags/android/chrome_feature_list.h"
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/webui/new_tab_page/ntp_pref_names.h"
+#include "components/prefs/pref_service.h"
+#endif
 
 namespace {
 
@@ -53,15 +66,14 @@ class ChromeNTPTilesInternalsMessageHandlerClient
 
   // ntp_tiles::NTPTilesInternalsMessageHandlerClient
   bool SupportsNTPTiles() override;
-  bool DoesSourceExist(ntp_tiles::TileSource source) override;
   std::unique_ptr<ntp_tiles::MostVisitedSites> MakeMostVisitedSites() override;
   PrefService* GetPrefs() override;
   void RegisterMessageCallback(
-      base::StringPiece message,
+      std::string_view message,
       base::RepeatingCallback<void(const base::Value::List&)> callback)
       override;
   void CallJavascriptFunctionSpan(
-      base::StringPiece name,
+      std::string_view name,
       base::span<const base::ValueView> values) override;
 
   ntp_tiles::NTPTilesInternalsMessageHandler handler_;
@@ -76,35 +88,21 @@ bool ChromeNTPTilesInternalsMessageHandlerClient::SupportsNTPTiles() {
   return !(profile->IsGuestSession() || profile->IsOffTheRecord());
 }
 
-bool ChromeNTPTilesInternalsMessageHandlerClient::DoesSourceExist(
-    ntp_tiles::TileSource source) {
-  switch (source) {
-    case ntp_tiles::TileSource::TOP_SITES:
-    case ntp_tiles::TileSource::ALLOWLIST:
-    case ntp_tiles::TileSource::HOMEPAGE:
-      return true;
-    case ntp_tiles::TileSource::POPULAR_BAKED_IN:
-    case ntp_tiles::TileSource::POPULAR:
-#if BUILDFLAG(IS_ANDROID)
-      return true;
-#else
-      return false;
-#endif
-    case ntp_tiles::TileSource::CUSTOM_LINKS:
-#if BUILDFLAG(IS_ANDROID)
-      return false;
-#else
-      return true;
-#endif
-  }
-  NOTREACHED();
-  return false;
-}
-
 std::unique_ptr<ntp_tiles::MostVisitedSites>
 ChromeNTPTilesInternalsMessageHandlerClient::MakeMostVisitedSites() {
-  return ChromeMostVisitedSitesFactory::NewForProfile(
+  auto most_visited_sites = ChromeMostVisitedSitesFactory::NewForProfile(
       Profile::FromWebUI(web_ui()));
+#if BUILDFLAG(IS_ANDROID)
+  // Custom links on Android: ntp_prefs::kNtpUseMostVisitedTiles is
+  // unavailable. Use feature list instead.
+  most_visited_sites->EnableCustomLinks(base::FeatureList::IsEnabled(
+      chrome::android::kMostVisitedTilesCustomization));
+#else
+  // Custom links on Desktop.
+  most_visited_sites->EnableCustomLinks(
+      !GetPrefs()->GetBoolean(ntp_prefs::kNtpUseMostVisitedTiles));
+#endif
+  return most_visited_sites;
 }
 
 PrefService* ChromeNTPTilesInternalsMessageHandlerClient::GetPrefs() {
@@ -112,13 +110,13 @@ PrefService* ChromeNTPTilesInternalsMessageHandlerClient::GetPrefs() {
 }
 
 void ChromeNTPTilesInternalsMessageHandlerClient::RegisterMessageCallback(
-    base::StringPiece message,
+    std::string_view message,
     base::RepeatingCallback<void(const base::Value::List&)> callback) {
   web_ui()->RegisterMessageCallback(message, std::move(callback));
 }
 
 void ChromeNTPTilesInternalsMessageHandlerClient::CallJavascriptFunctionSpan(
-    base::StringPiece name,
+    std::string_view name,
     base::span<const base::ValueView> values) {
   web_ui()->CallJavascriptFunctionUnsafe(name, values);
 }
@@ -126,17 +124,17 @@ void ChromeNTPTilesInternalsMessageHandlerClient::CallJavascriptFunctionSpan(
 void CreateAndAddNTPTilesInternalsHTMLSource(Profile* profile) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       profile, chrome::kChromeUINTPTilesInternalsHost);
+  webui::SetupWebUIDataSource(
+      source,
+      base::span<const webui::ResourcePath>(kNtpTilesInternalsResources),
+      IDR_NTP_TILES_INTERNALS_NTP_TILES_INTERNALS_HTML);
+
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::ScriptSrc,
-      "script-src chrome://resources 'self' 'unsafe-eval';");
+      "script-src chrome://resources 'self';");
   source->OverrideContentSecurityPolicy(
       network::mojom::CSPDirectiveName::TrustedTypes,
-      "trusted-types jstemplate;");
-
-  source->AddResourcePath("ntp_tiles_internals.js", IDR_NTP_TILES_INTERNALS_JS);
-  source->AddResourcePath("ntp_tiles_internals.css",
-                          IDR_NTP_TILES_INTERNALS_CSS);
-  source->SetDefaultResource(IDR_NTP_TILES_INTERNALS_HTML);
+      "trusted-types lit-html-desktop;");
 }
 
 }  // namespace
@@ -151,4 +149,4 @@ NTPTilesInternalsUI::NTPTilesInternalsUI(content::WebUI* web_ui)
               profile, ServiceAccessType::EXPLICIT_ACCESS)));
 }
 
-NTPTilesInternalsUI::~NTPTilesInternalsUI() {}
+NTPTilesInternalsUI::~NTPTilesInternalsUI() = default;

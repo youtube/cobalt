@@ -4,6 +4,9 @@
 
 package org.chromium.chrome.browser.feed;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,25 +14,24 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.widget.TextView;
 
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.widget.AppCompatTextView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.chromium.build.annotations.MonotonicNonNull;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.xsurface.HybridListRenderer;
 import org.chromium.chrome.browser.xsurface.ListContentManager;
 import org.chromium.chrome.browser.xsurface.ListContentManagerObserver;
 import org.chromium.chrome.browser.xsurface.ListLayoutHelper;
 import org.chromium.ui.base.ViewUtils;
 
-/**
- * Implementation of {@link HybridListRenderer} for list consisting all native views.
- */
+/** Implementation of {@link HybridListRenderer} for list consisting all native views. */
+@NullMarked
 public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListRenderer.ViewHolder>
         implements HybridListRenderer, ListContentManagerObserver {
-    /**
-     * A ViewHolder for the underlying RecyclerView.
-     */
+    /** A ViewHolder for the underlying RecyclerView. */
     public static class ViewHolder extends RecyclerView.ViewHolder {
         ViewHolder(View v) {
             super(v);
@@ -38,9 +40,9 @@ public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListR
 
     private final Context mContext;
 
-    private ListContentManager mManager;
-    private ListLayoutHelper mLayoutHelper;
-    private RecyclerView mView;
+    private @Nullable ListContentManager mManager;
+    private @Nullable ListLayoutHelper mLayoutHelper;
+    private @MonotonicNonNull RecyclerView mView;
 
     public NativeViewListRenderer(Context mContext) {
         this.mContext = mContext;
@@ -49,11 +51,12 @@ public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListR
     /* RecyclerView.Adapter methods */
     @Override
     public int getItemCount() {
-        return mManager.getItemCount();
+        return assumeNonNull(mManager).getItemCount();
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
+        assert mManager != null;
         if (mManager.isNativeView(position)) {
             mManager.bindNativeView(position, holder.itemView);
         }
@@ -63,15 +66,17 @@ public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListR
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View v;
         if (viewType >= 0) {
-            v = mManager.getNativeView(viewType, parent);
+            v = assumeNonNull(mManager).getNativeView(viewType, parent);
         } else {
             v = createCannotRenderViewItem();
         }
+        assert v != null;
         return new ViewHolder(v);
     }
 
     @Override
     public int getItemViewType(int position) {
+        assert mManager != null;
         if (!mManager.isNativeView(position)) return -1;
         return mManager.getViewType(position);
     }
@@ -92,6 +97,7 @@ public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListR
 
     @Override
     public void unbind() {
+        assert mManager != null && mView != null;
         mManager.removeObserver(this);
         onItemRangeRemoved(0, mManager.getItemCount());
         mView.setAdapter(null);
@@ -111,7 +117,6 @@ public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListR
     @Override
     public void onItemRangeRemoved(int startIndex, int count) {
         notifyItemRangeRemoved(startIndex, count);
-        ;
     }
 
     @Override
@@ -125,13 +130,17 @@ public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListR
     }
 
     @Override
-    public ListLayoutHelper getListLayoutHelper() {
+    public @Nullable ListLayoutHelper getListLayoutHelper() {
         return mLayoutHelper;
     }
 
-    @VisibleForTesting
+    @Override
+    public RecyclerView.Adapter<?> getAdapter() {
+        return this;
+    }
+
     RecyclerView getListViewForTest() {
-        return mView;
+        return assertNonNull(mView);
     }
 
     private View createCannotRenderViewItem() {
@@ -148,8 +157,8 @@ public class NativeViewListRenderer extends RecyclerView.Adapter<NativeViewListR
         return viewItem;
     }
 
-    class NativeViewListLayoutHelper implements ListLayoutHelper {
-        private LinearLayoutManager mLayoutManager;
+    static class NativeViewListLayoutHelper implements ListLayoutHelper {
+        private final LinearLayoutManager mLayoutManager;
 
         public NativeViewListLayoutHelper(LinearLayoutManager layoutManager) {
             mLayoutManager = layoutManager;

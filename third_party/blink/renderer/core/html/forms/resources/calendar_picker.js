@@ -3559,6 +3559,8 @@ class CalendarHeaderView extends View {
         this.onNavigationButtonClick.bind(this));
     this._previousMonthButton.element.setAttribute(
         'aria-label', global.params.axShowPreviousMonth);
+    this._previousMonthButton.element.setAttribute(
+        'title', global.params.axShowPreviousMonth);
 
     /**
      * @type {!CalendarNavigationButton}
@@ -3574,6 +3576,8 @@ class CalendarHeaderView extends View {
         this.onNavigationButtonClick.bind(this));
     this._nextMonthButton.element.setAttribute(
         'aria-label', global.params.axShowNextMonth);
+    this._nextMonthButton.element.setAttribute(
+        'title', global.params.axShowNextMonth);
 
     if (global.params.isLocaleRTL) {
       this._nextMonthButton.element.innerHTML =
@@ -4124,7 +4128,8 @@ class CalendarTableView extends ListView {
   }
 
   onClearButtonClick() {
-    window.pagePopupController.setValueAndClosePopup(0, '');
+    window.pagePopupController.setValueAndClosePopup(
+        0, '', /* is_keyboard_event= */ false);
   }
 
   onTodayButtonClick(sender) {
@@ -4685,13 +4690,15 @@ class CalendarPicker extends dateRangeManagerMixin(View) {
     const value = this._selection.toString();
     if (CalendarPicker.commitDelayMs == 0) {
       // For testing.
-      window.pagePopupController.setValueAndClosePopup(0, value);
+      window.pagePopupController.setValueAndClosePopup(
+          0, value, /* is_keyboard_event= */ false);
     } else if (CalendarPicker.commitDelayMs < 0) {
       // For testing.
       window.pagePopupController.setValue(value);
     } else {
       setTimeout(function() {
-        window.pagePopupController.setValueAndClosePopup(0, value);
+        window.pagePopupController.setValueAndClosePopup(
+            0, value, /* is_keyboard_event= */ false);
       }, CalendarPicker.commitDelayMs);
     }
   }
@@ -4983,7 +4990,7 @@ class CalendarPicker extends dateRangeManagerMixin(View) {
                   '.month-popup-button, .year-list-view')) {
             if (this._selection) {
               window.pagePopupController.setValueAndClosePopup(
-                  0, this.getSelectedValue());
+                  0, this.getSelectedValue(), /* is_keyboard_event= */ true);
             } else {
               // If there is no selection it must be the case that there are no
               // valid values (because min >= max).  There's nothing useful to

@@ -77,7 +77,6 @@ PrinterDetector::DetectedPrinter MakeExpectedPrinter(const std::string& name,
                                                      ServiceType service_type) {
   PrinterDetector::DetectedPrinter detected;
   chromeos::Printer& printer = detected.printer;
-  net::IPAddress ip_address = GetIPAddressFor(name);
   int port = GetPortFor(name);
   std::string scheme;
   std::string rp = base::StrCat({name, "_rp"});
@@ -288,12 +287,12 @@ class ZeroconfPrinterDetectorTest : public testing::Test {
   // with this class in listers_ when the test starts, and is transferred to
   // detector_ when the detector is created.  Throughout, the listers remain
   // available to the test via these pointers.
-  raw_ptr<FakeServiceDiscoveryDeviceLister, ExperimentalAsh> ipp_lister_;
-  raw_ptr<FakeServiceDiscoveryDeviceLister, ExperimentalAsh> ipps_lister_;
-  raw_ptr<FakeServiceDiscoveryDeviceLister, ExperimentalAsh> ippe_lister_;
-  raw_ptr<FakeServiceDiscoveryDeviceLister, ExperimentalAsh> ippse_lister_;
-  raw_ptr<FakeServiceDiscoveryDeviceLister, ExperimentalAsh> socket_lister_;
-  raw_ptr<FakeServiceDiscoveryDeviceLister, ExperimentalAsh> lpd_lister_;
+  raw_ptr<FakeServiceDiscoveryDeviceLister, DanglingUntriaged> ipp_lister_;
+  raw_ptr<FakeServiceDiscoveryDeviceLister, DanglingUntriaged> ipps_lister_;
+  raw_ptr<FakeServiceDiscoveryDeviceLister, DanglingUntriaged> ippe_lister_;
+  raw_ptr<FakeServiceDiscoveryDeviceLister, DanglingUntriaged> ippse_lister_;
+  raw_ptr<FakeServiceDiscoveryDeviceLister, DanglingUntriaged> socket_lister_;
+  raw_ptr<FakeServiceDiscoveryDeviceLister, DanglingUntriaged> lpd_lister_;
 
   // Detector under test.
   std::unique_ptr<ZeroconfPrinterDetector> detector_;

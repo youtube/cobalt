@@ -6,6 +6,7 @@
 
 #include <utility>
 
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "content/browser/renderer_host/render_frame_proxy_host.h"
 #include "content/browser/renderer_host/render_widget_host_view_child_frame.h"
@@ -40,7 +41,7 @@ class NoOpPopupMenuHelperDelegate : public PopupMenuHelper::Delegate {
 WebContentsViewChildFrame::WebContentsViewChildFrame(
     WebContentsImpl* web_contents,
     std::unique_ptr<WebContentsViewDelegate> delegate,
-    RenderViewHostDelegateView** delegate_view)
+    raw_ptr<RenderViewHostDelegateView>* delegate_view)
     : web_contents_(web_contents), delegate_(std::move(delegate)) {
   *delegate_view = this;
 }
@@ -48,11 +49,19 @@ WebContentsViewChildFrame::WebContentsViewChildFrame(
 WebContentsViewChildFrame::~WebContentsViewChildFrame() = default;
 
 WebContentsView* WebContentsViewChildFrame::GetOuterView() {
-  return web_contents_->GetOuterWebContents()->GetView();
+  if (auto* outer_web_contents = web_contents_->GetOuterWebContents()) {
+    return outer_web_contents->GetView();
+  }
+
+  return nullptr;
 }
 
 const WebContentsView* WebContentsViewChildFrame::GetOuterView() const {
-  return web_contents_->GetOuterWebContents()->GetView();
+  if (auto* outer_web_contents = web_contents_->GetOuterWebContents()) {
+    return outer_web_contents->GetView();
+  }
+
+  return nullptr;
 }
 
 RenderViewHostDelegateView* WebContentsViewChildFrame::GetOuterDelegateView() {
@@ -63,15 +72,27 @@ RenderViewHostDelegateView* WebContentsViewChildFrame::GetOuterDelegateView() {
 }
 
 gfx::NativeView WebContentsViewChildFrame::GetNativeView() const {
-  return GetOuterView()->GetNativeView();
+  if (auto* outer_view = GetOuterView()) {
+    return outer_view->GetNativeView();
+  }
+
+  return gfx::NativeView();
 }
 
 gfx::NativeView WebContentsViewChildFrame::GetContentNativeView() const {
-  return GetOuterView()->GetContentNativeView();
+  if (auto* outer_view = GetOuterView()) {
+    return outer_view->GetContentNativeView();
+  }
+
+  return gfx::NativeView();
 }
 
 gfx::NativeWindow WebContentsViewChildFrame::GetTopLevelNativeWindow() const {
-  return GetOuterView()->GetTopLevelNativeWindow();
+  if (auto* outer_view = GetOuterView()) {
+    return outer_view->GetTopLevelNativeWindow();
+  }
+
+  return gfx::NativeWindow();
 }
 
 gfx::Rect WebContentsViewChildFrame::GetContainerBounds() const {
@@ -87,7 +108,6 @@ void WebContentsViewChildFrame::SetInitialFocus() {
 
 gfx::Rect WebContentsViewChildFrame::GetViewBounds() const {
   NOTREACHED();
-  return gfx::Rect();
 }
 
 void WebContentsViewChildFrame::CreateView(gfx::NativeView context) {
@@ -132,16 +152,24 @@ void WebContentsViewChildFrame::FullscreenStateChanged(bool is_fullscreen) {}
 void WebContentsViewChildFrame::UpdateWindowControlsOverlay(
     const gfx::Rect& bounding_rect) {}
 
+BackForwardTransitionAnimationManager*
+WebContentsViewChildFrame::GetBackForwardTransitionAnimationManager() {
+  return nullptr;
+}
+
+void WebContentsViewChildFrame::DestroyBackForwardTransitionAnimationManager() {
+}
+
 void WebContentsViewChildFrame::RestoreFocus() {
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void WebContentsViewChildFrame::Focus() {
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void WebContentsViewChildFrame::StoreFocus() {
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void WebContentsViewChildFrame::FocusThroughTabTraversal(bool reverse) {
@@ -150,13 +178,14 @@ void WebContentsViewChildFrame::FocusThroughTabTraversal(bool reverse) {
 
 DropData* WebContentsViewChildFrame::GetDropData() const {
   NOTREACHED();
-  return nullptr;
 }
 
-void WebContentsViewChildFrame::UpdateDragCursor(
-    ui::mojom::DragOperation operation) {
-  if (auto* view = GetOuterDelegateView())
-    view->UpdateDragCursor(operation);
+void WebContentsViewChildFrame::UpdateDragOperation(
+    ui::mojom::DragOperation operation,
+    bool document_is_handling_drag) {
+  if (auto* view = GetOuterDelegateView()) {
+    view->UpdateDragOperation(operation, document_is_handling_drag);
+  }
 }
 
 void WebContentsViewChildFrame::GotFocus(
@@ -181,7 +210,6 @@ void WebContentsViewChildFrame::ShowPopupMenu(
     RenderFrameHost* render_frame_host,
     mojo::PendingRemote<blink::mojom::PopupMenuClient> popup_client,
     const gfx::Rect& bounds,
-    int item_height,
     double item_font_size,
     int selected_item,
     std::vector<blink::mojom::MenuItemPtr> menu_items,
@@ -190,7 +218,7 @@ void WebContentsViewChildFrame::ShowPopupMenu(
 #if BUILDFLAG(IS_MAC)
   NoOpPopupMenuHelperDelegate delegate;
   PopupMenuHelper helper(&delegate, render_frame_host, std::move(popup_client));
-  helper.ShowPopupMenu(bounds, item_height, item_font_size, selected_item,
+  helper.ShowPopupMenu(bounds, item_font_size, selected_item,
                        std::move(menu_items), right_aligned,
                        allow_multiple_selection);
 #endif  // BUILDFLAG(IS_MAC)
@@ -199,6 +227,7 @@ void WebContentsViewChildFrame::ShowPopupMenu(
 
 void WebContentsViewChildFrame::StartDragging(
     const DropData& drop_data,
+    const url::Origin& source_origin,
     DragOperationsMask ops,
     const gfx::ImageSkia& image,
     const gfx::Vector2d& cursor_offset,
@@ -206,8 +235,8 @@ void WebContentsViewChildFrame::StartDragging(
     const blink::mojom::DragEventSourceInfo& event_info,
     RenderWidgetHostImpl* source_rwh) {
   if (auto* view = GetOuterDelegateView()) {
-    view->StartDragging(drop_data, ops, image, cursor_offset, drag_obj_rect,
-                        event_info, source_rwh);
+    view->StartDragging(drop_data, source_origin, ops, image, cursor_offset,
+                        drag_obj_rect, event_info, source_rwh);
   } else {
     web_contents_->GetOuterWebContents()->SystemDragEnded(source_rwh);
   }

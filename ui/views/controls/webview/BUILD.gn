@@ -33,7 +33,7 @@ component("webview") {
 
   deps = [
     "//base:i18n",
-    "//base/third_party/dynamic_annotations",
+    "//components/input",
     "//ipc",
     "//skia",
     "//ui/accessibility",
@@ -41,6 +41,7 @@ component("webview") {
     "//ui/content_accelerators",
     "//ui/events",
     "//ui/events:events_base",
+    "//ui/gfx:native_widget_types",
     "//ui/web_dialogs",
     "//url",
   ]

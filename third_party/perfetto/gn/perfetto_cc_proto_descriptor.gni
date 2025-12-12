@@ -33,7 +33,11 @@ template("perfetto_cc_proto_descriptor") {
       descriptor_file_path =
           get_label_info(invoker.descriptor_target, "target_gen_dir") +
           "/${invoker.descriptor_name}"
-      deps = [ invoker.descriptor_target ]
+      if (build_with_chromium) {
+        deps = [ "${invoker.descriptor_target}_gen" ]
+      } else {
+        deps = [ invoker.descriptor_target ]
+      }
     } else {
       descriptor_file_path = invoker.descriptor_path
       deps = []
@@ -45,8 +49,14 @@ template("perfetto_cc_proto_descriptor") {
       rebase_path(root_gen_dir, root_build_dir),
       "--cpp_out",
       rebase_path(generated_header, root_build_dir),
-      rebase_path(descriptor_file_path, root_build_dir),
     ]
+    if (defined(invoker.namespace)) {
+      args += [
+        "--namespace",
+        invoker.namespace,
+      ]
+    }
+    args += [ rebase_path(descriptor_file_path, root_build_dir) ]
     inputs = [ descriptor_file_path ]
     outputs = [ generated_header ]
     public_configs = [ ":${target_name}_config" ]

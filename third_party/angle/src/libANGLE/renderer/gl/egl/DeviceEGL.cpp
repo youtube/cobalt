@@ -43,13 +43,7 @@ egl::Error DeviceEGL::initialize()
 egl::Error DeviceEGL::getAttribute(const egl::Display *display, EGLint attribute, void **outValue)
 {
     UNREACHABLE();
-    return egl::EglBadAttribute();
-}
-
-EGLint DeviceEGL::getType()
-{
-    UNREACHABLE();
-    return EGL_NONE;
+    return egl::Error(EGL_BAD_ATTRIBUTE);
 }
 
 void DeviceEGL::generateExtensions(egl::DeviceExtensions *outExtensions) const
@@ -71,7 +65,12 @@ const std::string DeviceEGL::getDeviceString(EGLint name)
     {
         case EGL_DRM_DEVICE_FILE_EXT:
         case EGL_DRM_RENDER_NODE_FILE_EXT:
-            return std::string(mDisplay->getFunctionsEGL()->queryDeviceStringEXT(mDevice, name));
+        {
+            // eglQueryDeviceStringEXT can return nullptr if there is no render
+            // node attached to egl device.
+            const char *str = mDisplay->getFunctionsEGL()->queryDeviceStringEXT(mDevice, name);
+            return str ? std::string(str) : std::string();
+        }
         default:
             UNREACHABLE();
             return std::string();

@@ -11,6 +11,7 @@
 #include "third_party/blink/public/platform/web_graphics_context_3d_provider.h"
 #include "third_party/blink/renderer/platform/context_lifecycle_notifier.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/drawing_buffer.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
@@ -29,7 +30,8 @@ class GLES2Interface;
 
 namespace blink {
 
-class GpuMemoryBufferImageCopy;
+class DawnControlClientHolder;
+class ImageToBufferCopier;
 class Image;
 
 class PLATFORM_EXPORT XRFrameTransport final
@@ -54,19 +56,30 @@ class PLATFORM_EXPORT XRFrameTransport final
 
   // Call before finalizing the frame's image snapshot.
   void FramePreImage(gpu::gles2::GLES2Interface*);
+  void FramePreImageWebGPU(scoped_refptr<DawnControlClientHolder>);
 
-  void FrameSubmit(device::mojom::blink::XRPresentationProvider*,
+  bool FrameSubmit(device::mojom::blink::XRPresentationProvider*,
                    gpu::gles2::GLES2Interface*,
                    gpu::SharedImageInterface*,
                    DrawingBuffer::Client*,
                    scoped_refptr<Image> image_ref,
                    int16_t vr_frame_id);
 
+  bool FrameSubmitWebGPU(device::mojom::blink::XRPresentationProvider*,
+                         scoped_refptr<DawnControlClientHolder>,
+                         wgpu::Device,
+                         int16_t vr_frame_id);
+
   void FrameSubmitMissing(device::mojom::blink::XRPresentationProvider*,
                           gpu::gles2::GLES2Interface*,
                           int16_t vr_frame_id);
+  void FrameSubmitMissingWebGPU(device::mojom::blink::XRPresentationProvider*,
+                                scoped_refptr<DawnControlClientHolder>,
+                                int16_t vr_frame_id);
 
-  virtual void Trace(Visitor*) const;
+  void RegisterFrameRenderedCallback(base::RepeatingClosure callback);
+
+  void Trace(Visitor*) const;
 
  private:
   void WaitForPreviousTransfer();
@@ -97,7 +110,9 @@ class PLATFORM_EXPORT XRFrameTransport final
 
   device::mojom::blink::XRPresentationTransportOptionsPtr transport_options_;
 
-  std::unique_ptr<GpuMemoryBufferImageCopy> frame_copier_;
+  base::RepeatingClosure on_submit_frame_rendered_callback_;
+
+  std::unique_ptr<ImageToBufferCopier> frame_copier_;
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 };
 

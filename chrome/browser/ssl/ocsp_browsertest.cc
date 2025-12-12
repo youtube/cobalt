@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <string_view>
 
 #include "base/task/current_thread.h"
 #include "build/build_config.h"
@@ -21,8 +22,8 @@
 #include "components/security_interstitials/content/ssl_error_handler.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/network_service_instance.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/ssl_status.h"
-#include "content/public/common/network_service_util.h"
 #include "content/public/test/browser_test.h"
 #include "net/cert/ev_root_ca_metadata.h"
 #include "net/dns/mock_host_resolver.h"
@@ -43,7 +44,7 @@ static const char kOCSPTestCertPolicy[] = "1.3.6.1.4.1.11129.2.4.1";
 
 }  // namespace
 
-class OCSPBrowserTest : public PlatformBrowserTest,
+class OCSPBrowserTest : public InProcessBrowserTest,
                         public network::mojom::SSLConfigClient {
  public:
   OCSPBrowserTest() = default;
@@ -66,7 +67,7 @@ class OCSPBrowserTest : public PlatformBrowserTest,
     InProcessBrowserTest::TearDown();
 
     SystemNetworkContextManager::SetEnableCertificateTransparencyForTesting(
-        absl::nullopt);
+        std::nullopt);
   }
 
   void SetUpOnMainThread() override {
@@ -122,7 +123,7 @@ class OCSPBrowserTest : public PlatformBrowserTest,
   }
 
   void DoConnection(
-      base::StringPiece hostname,
+      std::string_view hostname,
       const net::EmbeddedTestServer::ServerCertificateConfig& config) {
     net::EmbeddedTestServer server(net::EmbeddedTestServer::TYPE_HTTPS);
 
@@ -191,7 +192,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPRevokedButNotChecked) {
 
   net::EmbeddedTestServer::ServerCertificateConfig revoked_cert_config;
   revoked_cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
   DoConnection(revoked_cert_config);
 
@@ -208,7 +209,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPOk) {
 
   net::EmbeddedTestServer::ServerCertificateConfig ok_cert_config;
   ok_cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(ok_cert_config);
@@ -226,7 +227,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPRevoked) {
 
   net::EmbeddedTestServer::ServerCertificateConfig revoked_cert_config;
   revoked_cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(revoked_cert_config);
@@ -264,11 +265,11 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPIntermediateValid) {
       net::EmbeddedTestServer::IntermediateType::kInHandshake;
   intermediate_invalid_cert_config
       .ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
   intermediate_invalid_cert_config
       .intermediate_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(intermediate_invalid_cert_config);
@@ -288,12 +289,12 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest,
   cert_config.intermediate =
       net::EmbeddedTestServer::IntermediateType::kInHandshake;
   cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
   // Use an OCSP response for the intermediate that would be too old for a leaf
   // cert, but is still valid for an intermediate.
   cert_config.intermediate_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLong}});
 
   DoConnection(cert_config);
@@ -318,11 +319,11 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest,
   cert_config.intermediate =
       net::EmbeddedTestServer::IntermediateType::kInHandshake;
   cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
   // OCSP Response is too old and so should be ignored.
   cert_config.intermediate_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLonger}});
   cert_config.dns_names = {"example.com"};
 
@@ -352,10 +353,10 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest,
   cert_config.intermediate =
       net::EmbeddedTestServer::IntermediateType::kInHandshake;
   cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
   cert_config.intermediate_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kLonger}});
 
   DoConnection(cert_config);
@@ -376,10 +377,10 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPIntermediateRevoked) {
   cert_config.intermediate =
       net::EmbeddedTestServer::IntermediateType::kInHandshake;
   cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
   cert_config.intermediate_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(cert_config);
@@ -407,7 +408,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPValidStapled) {
       net::EmbeddedTestServer::OCSPConfig::ResponseType::kTryLater);
 
   cert_config.stapled_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(cert_config);
@@ -435,7 +436,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPRevokedStapled) {
       net::EmbeddedTestServer::OCSPConfig::ResponseType::kTryLater);
 
   cert_config.stapled_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(cert_config);
@@ -460,7 +461,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPOldStapledAndInvalidAIA) {
   net::EmbeddedTestServer::ServerCertificateConfig cert_config;
   // Stapled response indicates good, but is too old.
   cert_config.stapled_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld}});
 
   // AIA OCSP url is included, but does not return a successful ocsp response.
@@ -488,12 +489,12 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPOldStapledButValidAIA) {
 
   // Stapled response indicates good, but response is too old.
   cert_config.stapled_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld}});
 
   // AIA OCSP url is included, and returns a successful ocsp response.
   cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(cert_config);
@@ -504,8 +505,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, TestHTTPSOCSPOldStapledButValidAIA) {
   EXPECT_TRUE(cert_status & net::CERT_STATUS_REV_CHECKING_ENABLED);
 }
 
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA) || \
-    BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, HardFailOnOCSPInvalid) {
   if (!ssl_test_util::SystemSupportsHardFailRevocationChecking()) {
     LOG(WARNING) << "Skipping test because system doesn't support hard fail "
@@ -588,7 +588,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest, HardFailOCSPInvalidUseStapled) {
       net::EmbeddedTestServer::OCSPConfig::ResponseType::kTryLater);
 
   cert_config.stapled_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(cert_config);
@@ -637,7 +637,7 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest,
   net::EmbeddedTestServer::ServerCertificateConfig cert_config;
   // Stapled response indicates good, but is too old.
   cert_config.stapled_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld}});
 
   // AIA OCSP url is included, but does not return a successful ocsp response.
@@ -692,12 +692,12 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest,
 
   // Stapled response indicates good, but response is too old.
   cert_config.stapled_ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kOld}});
 
   // AIA OCSP url is included, and returns a successful ocsp response.
   cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::GOOD,
+      {{bssl::OCSPRevocationStatus::GOOD,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(cert_config);
@@ -707,26 +707,14 @@ IN_PROC_BROWSER_TEST_F(OCSPBrowserTest,
   net::CertStatus cert_status = GetCurrentCertStatus();
   EXPECT_TRUE(cert_status & net::CERT_STATUS_REV_CHECKING_ENABLED);
 }
-#endif  //  BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || \
-        //  BUILDFLAG(IS_FUCHSIA) ||  BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
-
-using AIABrowserTest = OCSPBrowserTest;
-
-IN_PROC_BROWSER_TEST_F(AIABrowserTest, TestHTTPSAIA) {
-  net::EmbeddedTestServer::ServerCertificateConfig cert_config;
-  cert_config.intermediate = net::EmbeddedTestServer::IntermediateType::kByAIA;
-
-  DoConnection(cert_config);
-  ssl_test_util::CheckAuthenticatedState(
-      chrome_test_utils::GetActiveWebContents(this), AuthState::NONE);
-}
+#endif  // BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 
 class EVBrowserTest : public OCSPBrowserTest {
  public:
   void SetUpOnMainThread() override {
     OCSPBrowserTest::SetUpOnMainThread();
 
-    // TODO(https://crbug.com/1085233): when the CertVerifierService is moved
+    // TODO(crbug.com/40693524): when the CertVerifierService is moved
     // out of process, the ScopedTestEVPolicy needs to be instantiated in
     // that process.
     scoped_refptr<net::X509Certificate> root_cert = net::ImportCertFromFile(
@@ -789,7 +777,7 @@ IN_PROC_BROWSER_TEST_F(EVBrowserTest, TestHTTPSOCSPRevoked) {
   net::EmbeddedTestServer::ServerCertificateConfig revoked_cert_config;
   revoked_cert_config.policy_oids = {kOCSPTestCertPolicy};
   revoked_cert_config.ocsp_config = net::EmbeddedTestServer::OCSPConfig(
-      {{net::OCSPRevocationStatus::REVOKED,
+      {{bssl::OCSPRevocationStatus::REVOKED,
         net::EmbeddedTestServer::OCSPConfig::SingleResponse::Date::kValid}});
 
   DoConnection(revoked_cert_config);

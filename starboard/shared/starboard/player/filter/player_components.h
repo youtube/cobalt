@@ -69,7 +69,7 @@ class PlayerComponents {
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
-      CreationParameters(const CreationParameters& that);
+      CreationParameters(const CreationParameters& that) = default;
       void operator=(const CreationParameters& that) = delete;
 
       void reset_audio_codec() {
@@ -156,34 +156,37 @@ class PlayerComponents {
     virtual NonNullResult<std::unique_ptr<PlayerComponents>> CreateComponents(
         const CreationParameters& creation_parameters);
 
+    struct AudioComponents {
+      std::unique_ptr<AudioDecoder> decoder;
+      std::unique_ptr<AudioRendererSink> renderer_sink;
+    };
+    struct VideoComponents {
+      std::unique_ptr<VideoDecoder> decoder;
+      std::unique_ptr<VideoRenderAlgorithm> render_algorithm;
+      scoped_refptr<VideoRendererSink> renderer_sink;
+    };
+    struct MediaComponents {
+      AudioComponents audio;
+      VideoComponents video;
+    };
+
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
    private:
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 
     // Note that the following function is exposed in non-Gold build to allow
     // unit tests to run.
-    virtual bool CreateSubComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink,
-        std::string* error_message) = 0;
+    virtual Result<MediaComponents> CreateSubComponents(
+        const CreationParameters& creation_parameters) = 0;
 
    protected:
     Factory() {}
 
-    void CreateStubAudioComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
+    AudioComponents CreateStubAudioComponents(
+        const CreationParameters& creation_parameters);
 
-    void CreateStubVideoComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink);
+    VideoComponents CreateStubVideoComponents(
+        const CreationParameters& creation_parameters);
 
     // Check AudioRenderer ctor for more details on the parameters.
     virtual void GetAudioRendererParams(

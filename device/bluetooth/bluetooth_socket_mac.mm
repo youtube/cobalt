@@ -4,27 +4,30 @@
 
 #include "device/bluetooth/bluetooth_socket_mac.h"
 
-#include "base/memory/raw_ptr.h"
-
 #import <IOBluetooth/IOBluetooth.h>
 #include <stdint.h>
 
 #include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <utility>
 
+#include "base/apple/scoped_cftyperef.h"
+#include "base/compiler_specific.h"
 #include "base/containers/queue.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/location.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/threading/thread_restrictions.h"
+#include "base/time/time.h"
 #include "device/bluetooth/bluetooth_adapter_mac.h"
 #include "device/bluetooth/bluetooth_channel_mac.h"
 #include "device/bluetooth/bluetooth_classic_device_mac.h"
@@ -33,7 +36,6 @@
 #include "device/bluetooth/bluetooth_rfcomm_channel_mac.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using device::BluetoothSocket;
 
@@ -49,7 +51,7 @@ using device::BluetoothSocket;
   BluetoothSocket::ErrorCompletionCallback _error_callback;
 
   // The device being queried.
-  IOBluetoothDevice* _device;  // weak
+  IOBluetoothDevice* __weak _device;
 }
 
 - (instancetype)initWithSocket:(scoped_refptr<device::BluetoothSocketMac>)socket
@@ -58,6 +60,7 @@ using device::BluetoothSocket;
                 error_callback:
                     (BluetoothSocket::ErrorCompletionCallback)error_callback;
 - (void)sdpQueryComplete:(IOBluetoothDevice*)device status:(IOReturn)status;
+- (BluetoothSocket::ErrorCompletionCallback)takeErrorCallback;
 
 @end
 
@@ -84,13 +87,20 @@ using device::BluetoothSocket;
     // target is specified.
     std::move(_error_callback).Run("No target");
   }
-  [super dealloc];
 }
 
 - (void)sdpQueryComplete:(IOBluetoothDevice*)device status:(IOReturn)status {
   DCHECK_EQ(device, _device);
+  if (!_error_callback) {
+    // This can happen when the target is called after SDP query timeout.
+    return;
+  }
   _socket->OnSDPQueryComplete(status, device, std::move(_success_callback),
                               std::move(_error_callback));
+}
+
+- (BluetoothSocket::ErrorCompletionCallback)takeErrorCallback {
+  return std::move(_error_callback);
 }
 
 @end
@@ -104,7 +114,7 @@ using device::BluetoothSocket;
 
   // The OS mechanism used to subscribe to and unsubscribe from RFCOMM channel
   // creation notifications.
-  IOBluetoothUserNotification* _rfcommNewChannelNotification;  // weak
+  IOBluetoothUserNotification* __weak _rfcommNewChannelNotification;
 }
 
 - (instancetype)initWithSocket:(device::BluetoothSocketMac*)socket
@@ -137,7 +147,6 @@ using device::BluetoothSocket;
 
 - (void)dealloc {
   [_rfcommNewChannelNotification unregister];
-  [super dealloc];
 }
 
 - (void)rfcommChannelOpened:(IOBluetoothUserNotification*)notification
@@ -152,7 +161,8 @@ using device::BluetoothSocket;
   }
 
   _socket->OnChannelOpened(std::unique_ptr<device::BluetoothChannelMac>(
-      new device::BluetoothRfcommChannelMac(NULL, [rfcommChannel retain])));
+      new device::BluetoothRfcommChannelMac(/*socket=*/nullptr,
+                                            rfcommChannel)));
 }
 
 @end
@@ -166,7 +176,7 @@ using device::BluetoothSocket;
 
   // The OS mechanism used to subscribe to and unsubscribe from L2CAP channel
   // creation notifications.
-  IOBluetoothUserNotification* _l2capNewChannelNotification;  // weak
+  IOBluetoothUserNotification* __weak _l2capNewChannelNotification;
 }
 
 - (instancetype)initWithSocket:(device::BluetoothSocketMac*)socket
@@ -199,7 +209,6 @@ using device::BluetoothSocket;
 
 - (void)dealloc {
   [_l2capNewChannelNotification unregister];
-  [super dealloc];
 }
 
 - (void)l2capChannelOpened:(IOBluetoothUserNotification*)notification
@@ -214,7 +223,7 @@ using device::BluetoothSocket;
   }
 
   _socket->OnChannelOpened(std::unique_ptr<device::BluetoothChannelMac>(
-      new device::BluetoothL2capChannelMac(NULL, [l2capChannel retain])));
+      new device::BluetoothL2capChannelMac(/*socket=*/nullptr, l2capChannel)));
 }
 
 @end
@@ -235,6 +244,13 @@ const char kSocketConnecting[] = "The socket is currently connecting";
 const char kSocketAlreadyConnected[] = "The socket is already connected";
 const char kSocketNotConnected[] = "The socket is not connected";
 const char kReceivePending[] = "A Receive operation is pending";
+const char kChannelOpeningTimeout[] = "Channel opening timeout";
+const char kSDPQueryTimeout[] = "SDP query timeout";
+
+// The timeout (in ms) for SDP query.
+const int kSDPQueryTimeoutInterval = 10000;
+// The timeout (in ms) for channel opening.
+const int kChannelOpeningTimeoutInterval = 10000;
 
 template <class T>
 void empty_queue(base::queue<T>& queue) {
@@ -258,7 +274,7 @@ NSString* IntToNSString(int integer) {
 // corresponding to the provided |uuid|, |name|, and |protocol_definition|. Does
 // not include a service name in the definition if |name| is null.
 NSDictionary* BuildServiceDefinition(const BluetoothUUID& uuid,
-                                     const absl::optional<std::string>& name,
+                                     const std::optional<std::string>& name,
                                      NSArray* protocol_definition) {
   NSMutableDictionary* service_definition = [NSMutableDictionary dictionary];
 
@@ -274,7 +290,7 @@ NSDictionary* BuildServiceDefinition(const BluetoothUUID& uuid,
   }
 
   const int kUUIDsKey = kBluetoothSDPAttributeIdentifierServiceClassIDList;
-  NSArray* uuids = @[GetIOBluetoothSDPUUID(uuid)];
+  NSArray* uuids = @[ GetIOBluetoothSDPUUID(uuid) ];
   service_definition[IntToNSString(kUUIDsKey)] = uuids;
 
   const int kProtocolDefinitionsKey =
@@ -350,7 +366,7 @@ IOBluetoothSDPServiceRecord* RegisterService(
 // Returns true iff the |requested_channel_id| was registered in the RFCOMM
 // |service_record|. If it was, also updates |registered_channel_id| with the
 // registered value, as the requested id may have been left unspecified.
-bool VerifyRfcommService(const absl::optional<int>& requested_channel_id,
+bool VerifyRfcommService(const std::optional<int>& requested_channel_id,
                          BluetoothRFCOMMChannelID* registered_channel_id,
                          IOBluetoothSDPServiceRecord* service_record) {
   // Test whether the requested channel id was available.
@@ -386,7 +402,7 @@ IOBluetoothSDPServiceRecord* RegisterRfcommService(
 // Returns true iff the |requested_psm| was registered in the L2CAP
 // |service_record|. If it was, also updates |registered_psm| with the
 // registered value, as the requested PSM may have been left unspecified.
-bool VerifyL2capService(const absl::optional<int>& requested_psm,
+bool VerifyL2capService(const std::optional<int>& requested_psm,
                         BluetoothL2CAPPSM* registered_psm,
                         IOBluetoothSDPServiceRecord* service_record) {
   // Test whether the requested PSM was available.
@@ -437,13 +453,14 @@ void BluetoothSocketMac::Connect(IOBluetoothDevice* device,
   // query.
   DVLOG(1) << BluetoothClassicDeviceMac::GetDeviceAddress(device) << " "
            << uuid_.canonical_value() << ": Sending SDP query.";
-  SDPQueryListener* listener =
+  sdp_query_listener_ =
       [[SDPQueryListener alloc] initWithSocket:this
                                         device:device
                               success_callback:std::move(success_callback)
                                 error_callback:std::move(error_callback)];
-  [device performSDPQuery:[listener autorelease]
-                    uuids:@[GetIOBluetoothSDPUUID(uuid_)]];
+  [device performSDPQuery:sdp_query_listener_];
+  timer_.Start(FROM_HERE, base::Milliseconds(kSDPQueryTimeoutInterval),
+               base::BindOnce(&BluetoothSocketMac::OnSDPQueryTimeout, this));
 }
 
 void BluetoothSocketMac::ListenUsingRfcomm(
@@ -459,17 +476,16 @@ void BluetoothSocketMac::ListenUsingRfcomm(
 
   DVLOG(1) << uuid_.canonical_value() << ": Registering RFCOMM service.";
   BluetoothRFCOMMChannelID registered_channel_id;
-  service_record_.reset(
-      RegisterRfcommService(uuid, options, &registered_channel_id));
-  if (!service_record_.get()) {
+  service_record_ =
+      RegisterRfcommService(uuid, options, &registered_channel_id);
+  if (!service_record_) {
     std::move(error_callback).Run(kInvalidOrUsedChannel);
     return;
   }
 
-  rfcomm_connection_listener_.reset(
-      [[BluetoothRfcommConnectionListener alloc]
-          initWithSocket:this
-               channelID:registered_channel_id]);
+  rfcomm_connection_listener_ = [[BluetoothRfcommConnectionListener alloc]
+      initWithSocket:this
+           channelID:registered_channel_id];
 
   std::move(success_callback).Run();
 }
@@ -487,15 +503,15 @@ void BluetoothSocketMac::ListenUsingL2cap(
 
   DVLOG(1) << uuid_.canonical_value() << ": Registering L2CAP service.";
   BluetoothL2CAPPSM registered_psm;
-  service_record_.reset(RegisterL2capService(uuid, options, &registered_psm));
-  if (!service_record_.get()) {
+  service_record_ = RegisterL2capService(uuid, options, &registered_psm);
+  if (!service_record_) {
     std::move(error_callback).Run(kInvalidOrUsedPsm);
     return;
   }
 
-  l2cap_connection_listener_.reset(
+  l2cap_connection_listener_ =
       [[BluetoothL2capConnectionListener alloc] initWithSocket:this
-                                                           psm:registered_psm]);
+                                                           psm:registered_psm];
 
   std::move(success_callback).Run();
 }
@@ -509,6 +525,8 @@ void BluetoothSocketMac::OnSDPQueryComplete(
   DVLOG(1) << BluetoothClassicDeviceMac::GetDeviceAddress(device) << " "
            << uuid_.canonical_value() << ": SDP query complete.";
 
+  timer_.Stop();
+  sdp_query_listener_ = nil;
   if (status != kIOReturnSuccess) {
     std::move(error_callback).Run(kSDPQueryFailed);
     return;
@@ -585,6 +603,10 @@ void BluetoothSocketMac::OnSDPQueryComplete(
 
   DVLOG(1) << BluetoothClassicDeviceMac::GetDeviceAddress(device) << " "
            << uuid_.canonical_value() << ": channel opening in background.";
+
+  timer_.Start(
+      FROM_HERE, base::Milliseconds(kChannelOpeningTimeoutInterval),
+      base::BindOnce(&BluetoothSocketMac::OnChannelOpeningTimeout, this));
 }
 
 void BluetoothSocketMac::OnChannelOpened(
@@ -615,6 +637,7 @@ void BluetoothSocketMac::OnChannelOpenComplete(
   DVLOG(1) << device_address << " " << uuid_.canonical_value()
            << ": channel open complete.";
 
+  timer_.Stop();
   std::unique_ptr<ConnectCallbacks> temp = std::move(connect_callbacks_);
   if (status != kIOReturnSuccess) {
     ReleaseChannel();
@@ -628,13 +651,36 @@ void BluetoothSocketMac::OnChannelOpenComplete(
   std::move(temp->success_callback).Run();
 }
 
+void BluetoothSocketMac::OnChannelOpeningTimeout() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!is_connecting()) {
+    return;
+  }
+  std::unique_ptr<ConnectCallbacks> temp = std::move(connect_callbacks_);
+  ReleaseChannel();
+  std::move(temp->error_callback).Run(kChannelOpeningTimeout);
+}
+
+void BluetoothSocketMac::OnSDPQueryTimeout() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!sdp_query_listener_) {
+    return;
+  }
+  auto error_callback = [sdp_query_listener_ takeErrorCallback];
+  if (error_callback) {
+    std::move(error_callback).Run(kSDPQueryTimeout);
+  }
+  sdp_query_listener_ = nil;
+}
+
 void BluetoothSocketMac::Disconnect(base::OnceClosure callback) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
-  if (channel_)
+  if (channel_) {
     ReleaseChannel();
-  else if (service_record_.get())
+  } else if (service_record_) {
     ReleaseListener();
+  }
 
   std::move(callback).Run();
 }
@@ -683,7 +729,7 @@ void BluetoothSocketMac::OnChannelDataReceived(void* data, size_t length) {
 
   int data_size = base::checked_cast<int>(length);
   auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(data_size);
-  memcpy(buffer->data(), data, buffer->size());
+  UNSAFE_TODO(memcpy(buffer->data(), data, buffer->size()));
 
   // If there is a pending read callback, call it now.
   if (receive_callbacks_) {
@@ -830,7 +876,8 @@ void BluetoothSocketMac::AcceptConnectionRequest() {
       std::move(accept_queue_.front());
   accept_queue_.pop();
 
-  adapter_->DeviceConnected(channel->GetDevice());
+  adapter_->DeviceConnected(std::make_unique<device::BluetoothClassicDeviceMac>(
+      adapter_.get(), channel->GetDevice()));
   BluetoothDevice* device = adapter_->GetDevice(channel->GetDeviceAddress());
   DCHECK(device);
 
@@ -856,24 +903,23 @@ void BluetoothSocketMac::AcceptConnectionRequest() {
   DVLOG(1) << uuid_.canonical_value() << ": Accept complete.";
 }
 
-BluetoothSocketMac::AcceptRequest::AcceptRequest() {}
+BluetoothSocketMac::AcceptRequest::AcceptRequest() = default;
 
-BluetoothSocketMac::AcceptRequest::~AcceptRequest() {}
+BluetoothSocketMac::AcceptRequest::~AcceptRequest() = default;
 
-BluetoothSocketMac::SendRequest::SendRequest()
-    : status(kIOReturnSuccess), active_async_writes(0), error_signaled(false) {}
+BluetoothSocketMac::SendRequest::SendRequest() = default;
 
-BluetoothSocketMac::SendRequest::~SendRequest() {}
+BluetoothSocketMac::SendRequest::~SendRequest() = default;
 
-BluetoothSocketMac::ReceiveCallbacks::ReceiveCallbacks() {}
+BluetoothSocketMac::ReceiveCallbacks::ReceiveCallbacks() = default;
 
-BluetoothSocketMac::ReceiveCallbacks::~ReceiveCallbacks() {}
+BluetoothSocketMac::ReceiveCallbacks::~ReceiveCallbacks() = default;
 
-BluetoothSocketMac::ConnectCallbacks::ConnectCallbacks() {}
+BluetoothSocketMac::ConnectCallbacks::ConnectCallbacks() = default;
 
-BluetoothSocketMac::ConnectCallbacks::~ConnectCallbacks() {}
+BluetoothSocketMac::ConnectCallbacks::~ConnectCallbacks() = default;
 
-BluetoothSocketMac::BluetoothSocketMac() {}
+BluetoothSocketMac::BluetoothSocketMac() = default;
 
 BluetoothSocketMac::~BluetoothSocketMac() {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -895,12 +941,12 @@ void BluetoothSocketMac::ReleaseChannel() {
 
 void BluetoothSocketMac::ReleaseListener() {
   DCHECK(thread_checker_.CalledOnValidThread());
-  DCHECK(service_record_.get());
+  DCHECK(service_record_);
 
   [service_record_ removeServiceRecord];
-  service_record_.reset();
-  rfcomm_connection_listener_.reset();
-  l2cap_connection_listener_.reset();
+  service_record_ = nil;
+  rfcomm_connection_listener_ = nil;
+  l2cap_connection_listener_ = nil;
 
   // Destroying the listener above prevents the callback delegate from being
   // called so it is now safe to release all callback state.

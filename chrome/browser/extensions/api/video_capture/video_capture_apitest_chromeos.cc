@@ -4,14 +4,18 @@
 
 #include <memory>
 
+#include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/memory/ptr_util.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
-#include "chrome/browser/ash/app_mode/kiosk_app_manager.h"
+#include "chrome/browser/ash/app_mode/consumer_kiosk_test_helper.h"
+#include "chrome/browser/ash/app_mode/kiosk_chrome_app_manager.h"
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/ownership/fake_owner_settings_service.h"
 #include "chrome/browser/ash/settings/scoped_cros_settings_test_helper.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/ui/browser.h"
+#include "chromeos/components/kiosk/kiosk_test_utils.h"
 #include "components/account_id/account_id.h"
 #include "components/user_manager/scoped_user_manager.h"
 #include "content/public/test/browser_test.h"
@@ -29,7 +33,7 @@ namespace {
 class VideoCaptureApiTestChromeOs : public PlatformAppBrowserTest {
  public:
   VideoCaptureApiTestChromeOs() : settings_helper_(false) {}
-  ~VideoCaptureApiTestChromeOs() override {}
+  ~VideoCaptureApiTestChromeOs() override = default;
 
   void SetUpOnMainThread() override {
     PlatformAppBrowserTest::SetUpOnMainThread();
@@ -47,31 +51,31 @@ class VideoCaptureApiTestChromeOs : public PlatformAppBrowserTest {
   void TearDownOnMainThread() override {
     owner_settings_service_.reset();
     settings_helper_.RestoreRealDeviceSettingsProvider();
-    user_manager_enabler_.reset();
+    user_manager_.Reset();
     PlatformAppBrowserTest::TearDownOnMainThread();
   }
 
  protected:
   void EnterKioskSession() {
-    auto fake_user_manager = std::make_unique<ash::FakeChromeUserManager>();
-    auto* fake_user_manager_ptr = fake_user_manager.get();
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::move(fake_user_manager));
-    const AccountId kiosk_account_id(
-        AccountId::FromUserEmail("kiosk@foobar.com"));
-    fake_user_manager_ptr->AddKioskAppUser(kiosk_account_id);
-    fake_user_manager_ptr->LoginUser(kiosk_account_id);
+    user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
+    chromeos::SetUpFakeKioskSession();
   }
 
   void SetAutoLaunchApp() {
-    manager()->AddApp(kTestingAppId, owner_settings_service_.get());
-    manager()->SetAutoLaunchApp(kTestingAppId, owner_settings_service_.get());
+    AddConsumerKioskChromeAppForTesting(
+        CHECK_DEREF(owner_settings_service_.get()), kTestingAppId);
+    SetConsumerKioskAutoLaunchChromeAppForTesting(
+        CHECK_DEREF(manager()), CHECK_DEREF(owner_settings_service_.get()),
+        kTestingAppId);
     manager()->SetAppWasAutoLaunchedWithZeroDelay(kTestingAppId);
   }
 
-  ash::KioskAppManager* manager() const { return ash::KioskAppManager::Get(); }
+  ash::KioskChromeAppManager* manager() const {
+    return ash::KioskChromeAppManager::Get();
+  }
 
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      user_manager_;
 
   ash::ScopedCrosSettingsTestHelper settings_helper_;
   std::unique_ptr<ash::FakeOwnerSettingsService> owner_settings_service_;
@@ -85,8 +89,10 @@ IN_PROC_BROWSER_TEST_F(VideoCaptureApiTestChromeOs,
       << message_;
 }
 
+// TODO(crbug.com/405347945): EnterKioskSession is not actually emulating what
+// Kiosk is doing in the production. Fix the test set up.
 IN_PROC_BROWSER_TEST_F(VideoCaptureApiTestChromeOs,
-                       CameraPanTiltZoom_KioskSessionOnly) {
+                       DISABLED_CameraPanTiltZoom_KioskSessionOnly) {
   EnterKioskSession();
   ASSERT_TRUE(
       RunExtensionTest("api_test/video_capture/"
@@ -95,7 +101,10 @@ IN_PROC_BROWSER_TEST_F(VideoCaptureApiTestChromeOs,
       << message_;
 }
 
-IN_PROC_BROWSER_TEST_F(VideoCaptureApiTestChromeOs, CameraPanTiltZoom) {
+// TODO(crbug.com/405347945): EnterKioskSession is not actually emulating what
+// Kiosk is doing in the production. Fix the test set up.
+IN_PROC_BROWSER_TEST_F(VideoCaptureApiTestChromeOs,
+                       DISABLED_CameraPanTiltZoom) {
   EnterKioskSession();
   SetAutoLaunchApp();
   ASSERT_TRUE(RunExtensionTest("api_test/video_capture/camera_pan_tilt_zoom",

@@ -2,10 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/marking.h"
+#include <limits>
+
+#include "src/heap/marking-inl.h"
 
 namespace v8 {
 namespace internal {
+
+namespace {
+constexpr MarkBit::CellType kAllBitsSetInCellValue =
+    std::numeric_limits<MarkBit::CellType>::max();
+}
 
 bool MarkingBitmap::AllBitsSetInRange(MarkBitIndex start_index,
                                       MarkBitIndex end_index) const {
@@ -24,7 +31,7 @@ bool MarkingBitmap::AllBitsSetInRange(MarkBitIndex start_index,
       return false;
     }
     for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-      if (cells()[i] != ~0u) return false;
+      if (cells()[i] != kAllBitsSetInCellValue) return false;
     }
     matching_mask = end_index_mask | (end_index_mask - 1);
     return ((cells()[end_cell_index] & matching_mask) == matching_mask);
@@ -48,7 +55,7 @@ bool MarkingBitmap::AllBitsClearInRange(MarkBitIndex start_index,
   if (start_cell_index != end_cell_index) {
     matching_mask = ~(start_index_mask - 1);
     if ((cells()[start_cell_index] & matching_mask)) return false;
-    for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
+    for (size_t i = start_cell_index + 1; i < end_cell_index; i++) {
       if (cells()[i]) return false;
     }
     matching_mask = end_index_mask | (end_index_mask - 1);
@@ -61,8 +68,8 @@ bool MarkingBitmap::AllBitsClearInRange(MarkBitIndex start_index,
 
 namespace {
 
-void PrintWord(uint32_t word, uint32_t himask = 0) {
-  for (uint32_t mask = 1; mask != 0; mask <<= 1) {
+void PrintWord(MarkBit::CellType word, MarkBit::CellType himask = 0) {
+  for (MarkBit::CellType mask = 1; mask != 0; mask <<= 1) {
     if ((mask & himask) != 0) PrintF("[");
     PrintF((mask & word) ? "1" : "0");
     if ((mask & himask) != 0) PrintF("]");
@@ -73,7 +80,7 @@ class CellPrinter final {
  public:
   CellPrinter() = default;
 
-  void Print(size_t pos, uint32_t cell) {
+  void Print(size_t pos, MarkBit::CellType cell) {
     if (cell == seq_type) {
       seq_length++;
       return;
@@ -101,11 +108,13 @@ class CellPrinter final {
     }
   }
 
-  static bool IsSeq(uint32_t cell) { return cell == 0 || cell == 0xFFFFFFFF; }
+  static bool IsSeq(MarkBit::CellType cell) {
+    return cell == 0 || cell == kAllBitsSetInCellValue;
+  }
 
  private:
   size_t seq_start = 0;
-  uint32_t seq_type = 0;
+  MarkBit::CellType seq_type = 0;
   size_t seq_length = 0;
 };
 
@@ -127,6 +136,16 @@ bool MarkingBitmap::IsClean() const {
     }
   }
   return true;
+}
+
+// static
+MarkBit MarkBit::FromForTesting(Address address) {
+  return MarkingBitmap::MarkBitFromAddress(address);
+}
+
+// static
+MarkBit MarkBit::FromForTesting(Tagged<HeapObject> heap_object) {
+  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 
 }  // namespace internal

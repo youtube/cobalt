@@ -6,16 +6,22 @@
 #define COMPONENTS_SAFE_BROWSING_CONTENT_RENDERER_RENDERER_URL_LOADER_THROTTLE_H_
 
 #include <memory>
+#include <optional>
 
+#include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "base/types/optional_ref.h"
 #include "components/safe_browsing/content/common/safe_browsing.mojom.h"
 #include "components/safe_browsing/core/common/safe_browsing_url_checker.mojom.h"
+#include "extensions/buildflags/buildflags.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "url/gurl.h"
 
 namespace safe_browsing {
@@ -24,37 +30,36 @@ namespace safe_browsing {
 // SafeBrowsing and determine whether a URL and its redirect URLs are safe to
 // load. It defers response processing until all URL checks are completed;
 // cancels the load if any URLs turn out to be bad.
-class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
-                                  public mojom::UrlCheckNotifier {
+class RendererURLLoaderThrottle : public blink::URLLoaderThrottle {
  public:
   // |safe_browsing| must stay alive until WillStartRequest() (if it is called)
   // or the end of this object.
-  // |render_frame_id| is used for displaying SafeBrowsing UI when necessary.
-  RendererURLLoaderThrottle(mojom::SafeBrowsing* safe_browsing,
-                            int render_frame_id);
+  // |local_frame_token| is used for displaying SafeBrowsing UI when necessary.
+  RendererURLLoaderThrottle(
+      mojom::SafeBrowsing* safe_browsing,
+      base::optional_ref<const blink::LocalFrameToken> local_frame_token);
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // |extension_web_request_reporter| is used for sending
+  // extension web requests to the browser.
+  RendererURLLoaderThrottle(
+      mojom::SafeBrowsing* safe_browsing,
+      base::optional_ref<const blink::LocalFrameToken> local_frame_token,
+      mojo::PendingRemote<mojom::ExtensionWebRequestReporter>
+          extension_web_request_reporter);
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
   ~RendererURLLoaderThrottle() override;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest, DefersHttpsUrl);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            DoesNotDeferHttpsImageUrl);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
+                           DoesNotDeferHttpsScriptUrl);
+  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
                            DoesNotDeferChromeUrl);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_DoesNotDefer);
+                           DoesNotDeferIframeUrl);
   FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_DoesNotDeferFromCache);
-  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_Defer);
-  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_DeferFromCache);
-  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_SkipChromeUrl);
-  FRIEND_TEST_ALL_PREFIXES(SBRendererUrlLoaderThrottleTest,
-                           VerifyTotalDelayHistograms_SkipImageUrl);
-  FRIEND_TEST_ALL_PREFIXES(
-      SBRendererUrlLoaderThrottleDisableSkipImageCssFontTest,
-      DefersHttpsImageUrl);
+                           WillRedirectRequest_ProviderDestroyed_NoCrash);
 
   // blink::URLLoaderThrottle implementation.
   void DetachFromCurrentSequence() override;
@@ -72,30 +77,16 @@ class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
                            bool* defer) override;
   const char* NameForLoggingWillProcessResponse() override;
 
-  // mojom::UrlCheckNotifier implementation.
-  void OnCompleteCheck(bool proceed,
-                       bool showed_interstitial,
-                       bool did_perform_real_time_check,
-                       bool did_check_allowlist) override;
-
   void OnCheckUrlResult(
-      mojo::PendingReceiver<mojom::UrlCheckNotifier> slow_check_notifier,
       bool proceed,
-      bool showed_interstitial,
-      bool did_perform_real_time_check,
-      bool did_check_allowlist);
-
-  // Called by the two methods above.
-  // |slow_check| indicates whether it reports the result of a slow check.
-  // (Please see comments in safe_browsing.mojom for what slow check means).
-  void OnCompleteCheckInternal(bool slow_check,
-                               bool proceed,
-                               bool showed_interstitial);
+      bool showed_interstitial);
 
   void OnMojoDisconnect();
 
-  mojom::SafeBrowsing* safe_browsing_;
-  const int render_frame_id_;
+  // TODO(crbug.com/324108312): Remove `safe_browsing_`, `frame_token_`,
+  // `safe_browsing_pending_remote_`, `safe_browsing_remote_` that are unused.
+  raw_ptr<mojom::SafeBrowsing, DanglingUntriaged> safe_browsing_;
+  const std::optional<blink::LocalFrameToken> frame_token_;
 
   // These fields hold the connection to this instance's private connection to
   // the Safe Browsing service if DetachFromCurrentThread has been called.
@@ -105,26 +96,30 @@ class RendererURLLoaderThrottle : public blink::URLLoaderThrottle,
   mojo::Remote<mojom::SafeBrowsingUrlChecker> url_checker_;
 
   size_t pending_checks_ = 0;
-  size_t pending_slow_checks_ = 0;
   bool blocked_ = false;
 
-  // The time when |WillStartRequest| is called.
-  base::TimeTicks start_request_time_;
-  bool is_start_request_called_ = false;
-
-  // The time when we started deferring the request.
-  base::TimeTicks defer_start_time_;
   bool deferred_ = false;
-  // Whether the response loaded is from cache.
-  bool is_response_from_cache_ = false;
-
-  // The total delay caused by SafeBrowsing deferring the resource load.
-  base::TimeDelta total_delay_;
-
-  std::unique_ptr<mojo::ReceiverSet<mojom::UrlCheckNotifier>>
-      notifier_receivers_;
 
   GURL original_url_;
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+  // Bind the pipe created in DetachFromCurrentSequence to the current
+  // sequence.
+  void BindExtensionWebRequestReporterPipeIfDetached();
+
+  // Send web request data to the browser if the request
+  // originated from an extension and destination is HTTP/HTTPS scheme only.
+  void MaybeSendExtensionWebRequestData(network::ResourceRequest* request);
+
+  mojo::Remote<mojom::ExtensionWebRequestReporter>
+      extension_web_request_reporter_;
+  mojo::PendingRemote<mojom::ExtensionWebRequestReporter>
+      pending_extension_web_request_reporter_;
+  // Tracks if the request originated from an extension, used during redirects
+  // to send web request data to the telemetry service.
+  std::string origin_extension_id_;
+  bool initiated_from_content_script_ = false;
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
   base::WeakPtrFactory<RendererURLLoaderThrottle> weak_factory_{this};
 };

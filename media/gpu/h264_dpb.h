@@ -15,7 +15,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "media/gpu/codec_picture.h"
 #include "media/gpu/media_gpu_export.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 #include "media/video/video_encode_accelerator.h"
 #include "ui/gfx/geometry/rect.h"
 
@@ -94,7 +94,7 @@ class MEDIA_GPU_EXPORT H264Picture : public CodecPicture {
   // Position in DPB (i.e. index in DPB).
   int dpb_position;
 
-  absl::optional<H264Metadata> metadata_for_encoding;
+  std::optional<H264Metadata> metadata_for_encoding;
 
  protected:
   ~H264Picture() override;
@@ -103,7 +103,7 @@ class MEDIA_GPU_EXPORT H264Picture : public CodecPicture {
 // DPB - Decoded Picture Buffer.
 // Stores decoded pictures that will be used for future display
 // and/or reference.
-class H264DPB {
+class MEDIA_GPU_EXPORT H264DPB {
  public:
   H264DPB();
 

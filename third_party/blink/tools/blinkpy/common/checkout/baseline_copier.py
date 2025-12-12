@@ -1,9 +1,8 @@
-# Copyright 2023 The Chromium Authors. All rights reserved.
+# Copyright 2023 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import hashlib
-import uuid
 from typing import Dict, Iterable, Iterator, List, Optional, Tuple
 
 from blinkpy.common.host import Host
@@ -14,19 +13,20 @@ from blinkpy.common.checkout.baseline_optimizer import (
     SearchPath,
     BaselineLocation,
     find_redundant_locations,
+    random_digest,
 )
 from blinkpy.web_tests.port.base import Port
-from blinkpy.web_tests.models.testharness_results import ABBREVIATED_ALL_PASS
 
 SourceMap = Dict[BaselineLocation, BaselineLocation]
 CopyOperation = Tuple[Optional[str], str]
 
 
 class BaselineCopier:
-    def __init__(self, host: Host, default_port: Optional[Port] = None):
+
+    def __init__(self, host: Host, default_port: Port):
         self._host = host
         self._fs = host.filesystem
-        self._default_port = default_port or host.port_factory.get()
+        self._default_port = default_port
         self._optimizer = BaselineOptimizer(host, self._default_port,
                                             host.port_factory.all_port_names())
 
@@ -113,7 +113,7 @@ class BaselineCopier:
             for location in self._locations_to_rebaseline(test, baseline_set):
                 # Provides its own physical file.
                 sources[location] = location
-                digests[location] = self._random_digest()
+                digests[location] = random_digest()
         redundant_copies = find_redundant_locations(paths, digests)
 
         # Find destinations to copy to. These are locations that:
@@ -140,8 +140,16 @@ class BaselineCopier:
                 flag_specific = self._host.builders.flag_specific_option(
                     build.builder_name, step_name)
             port = self._optimizer.port(port_name, flag_specific)
-            yield self._optimizer.location(
+            location = self._optimizer.location(
                 self._fs.join(port.baseline_version_dir(), test))
+            maybe_test_file_path = self._fs.join(port.web_tests_dir(), test)
+            # Coerce this location to a non-virtual one for physical tests under
+            # a virtual directory. See crbug.com/1450725.
+            if self._fs.exists(maybe_test_file_path):
+                location = BaselineLocation(
+                    platform=location.platform,
+                    flag_specific=location.flag_specific)
+            yield location
 
     def _resolve_sources(
         self,
@@ -185,18 +193,12 @@ class BaselineCopier:
                     hashlib.sha1(path.encode()).hexdigest(), path)
         return digests
 
-    def write_copies(self, copies: Iterable[CopyOperation]) -> None:
+    def write_copies(self,
+                     copies: Iterable[CopyOperation],
+                     placeholder: str = '') -> None:
         for source, dest in copies:
             self._fs.maybe_make_directory(self._fs.dirname(dest))
             if source:
                 self._fs.copyfile(source, dest)
             else:
-                self._fs.write_text_file(dest, ABBREVIATED_ALL_PASS)
-
-    def _random_digest(self) -> ResultDigest:
-        """Synthesize a digest that is guaranteed to not equal any other.
-
-        The purpose of this digest is to simulate a new baseline that prevents
-        copied predecessors from being optimized up.
-        """
-        return ResultDigest(uuid.uuid4().hex)
+                self._fs.write_text_file(dest, placeholder)

@@ -4,28 +4,31 @@
 
 #include "chrome/browser/media/capture_access_handler_base.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 
-#include "base/ranges/algorithm.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
-#include "extensions/common/extension.h"
+#include "extensions/buildflags/buildflags.h"
 #include "ui/gfx/native_widget_types.h"
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "extensions/common/extension.h"
+#endif
 
 #if defined(USE_AURA)
 #include "ui/aura/window.h"
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "base/hash/sha1.h"
 #include "base/strings/string_number_conversions.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 using content::BrowserThread;
 
@@ -114,7 +117,7 @@ void CaptureAccessHandlerBase::AddCaptureSession(int render_process_id,
       // Assume that the target is the same tab that is
       // requesting capture, not the display or any particular
       // window. This can be changed by calling UpdateTarget().
-      content::DesktopMediaID::TYPE_WEB_CONTENTS, gfx::kNullNativeWindow};
+      content::DesktopMediaID::TYPE_WEB_CONTENTS, gfx::NativeWindow()};
 
   sessions_.push_back(std::move(session));
 }
@@ -131,7 +134,7 @@ std::list<CaptureAccessHandlerBase::Session>::iterator
 CaptureAccessHandlerBase::FindSession(int render_process_id,
                                       int render_frame_id,
                                       int page_request_id) {
-  return base::ranges::find_if(
+  return std::ranges::find_if(
       sessions_, [render_process_id, render_frame_id,
                   page_request_id](const Session& session) {
         return session.request_process_id == render_process_id &&
@@ -227,7 +230,7 @@ void CaptureAccessHandlerBase::UpdateTarget(
   if (target.type == content::DesktopMediaID::TYPE_WINDOW) {
     // If this is the Chrome window, then any tab in this window could be
     // captured.
-    // TODO(crbug.com/856276): Implement this for MacOS.
+    // TODO(crbug.com/41396679): Implement this for MacOS.
 #if defined(USE_AURA)
     it->target_window = content::DesktopMediaID::GetNativeWindowById(target);
 #endif
@@ -284,7 +287,7 @@ bool CaptureAccessHandlerBase::MatchesSession(const Session& session,
     }
 #else
       // Unable to determine the window.
-      // TODO(crbug.com/856276): Implement this for MacOS.
+      // TODO(crbug.com/41396679): Implement this for MacOS.
       return false;
 #endif  // defined(USE_AURA)
 
@@ -301,7 +304,6 @@ bool CaptureAccessHandlerBase::MatchesSession(const Session& session,
   }
 
   NOTREACHED();
-  return false;
 }
 
 void CaptureAccessHandlerBase::UpdateVideoScreenCaptureStatus(
@@ -320,14 +322,15 @@ void CaptureAccessHandlerBase::UpdateVideoScreenCaptureStatus(
   }
 }
 
+#if BUILDFLAG(ENABLE_EXTENSIONS)
 bool CaptureAccessHandlerBase::IsExtensionAllowedForScreenCapture(
     const extensions::Extension* extension) {
   if (!extension)
     return false;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   std::string hash = base::SHA1HashString(extension->id());
-  std::string hex_hash = base::HexEncode(hash.c_str(), hash.length());
+  std::string hex_hash = base::HexEncode(hash);
 
   // crbug.com/446688
   return hex_hash == "4F25792AF1AA7483936DE29C07806F203C7170A0" ||
@@ -336,8 +339,9 @@ bool CaptureAccessHandlerBase::IsExtensionAllowedForScreenCapture(
          hex_hash == "81986D4F846CEDDDB962643FA501D1780DD441BB";
 #else
   return false;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
+#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 bool CaptureAccessHandlerBase::IsBuiltInFeedbackUI(const GURL& origin) {
   return origin.spec() == chrome::kChromeUIFeedbackURL;

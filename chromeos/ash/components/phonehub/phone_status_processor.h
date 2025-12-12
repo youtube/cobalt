@@ -13,6 +13,7 @@
 #include "chromeos/ash/components/phonehub/feature_status_provider.h"
 #include "chromeos/ash/components/phonehub/icon_decoder.h"
 #include "chromeos/ash/components/phonehub/message_receiver.h"
+#include "chromeos/ash/components/phonehub/phone_hub_structured_metrics_logger.h"
 #include "chromeos/ash/components/phonehub/proto/phonehub_api.pb.h"
 #include "chromeos/ash/services/multidevice_setup/public/cpp/multidevice_setup_client.h"
 
@@ -30,7 +31,7 @@ class NotificationProcessor;
 class ScreenLockManager;
 class RecentAppsInteractionHandler;
 class AppStreamManager;
-class CrosStateMessageRecorder;
+class PhoneHubUiReadinessRecorder;
 
 // Responsible for receiving incoming protos and calling on clients to update
 // their models.
@@ -62,7 +63,8 @@ class PhoneStatusProcessor
       AppStreamManager* app_stream_manager,
       AppStreamLauncherDataModel* app_stream_launcher_data_model,
       IconDecoder* icon_decoder_,
-      CrosStateMessageRecorder* cros_state_message_recorder);
+      PhoneHubUiReadinessRecorder* phone_hub_ui_readiness_recorder,
+      PhoneHubStructuredMetricsLogger* phone_hub_structured_metrics_logger);
   ~PhoneStatusProcessor() override;
 
   PhoneStatusProcessor(const PhoneStatusProcessor&) = delete;
@@ -99,7 +101,7 @@ class PhoneStatusProcessor
       const proto::PhoneProperties& phone_properties);
 
   void MaybeSetPhoneModelName(
-      const absl::optional<multidevice::RemoteDeviceRef>& remote_device);
+      const std::optional<multidevice::RemoteDeviceRef>& remote_device);
 
   void SetEcheFeatureStatusReceivedFromPhoneHub(
       proto::FeatureStatus eche_feature_status);
@@ -112,26 +114,22 @@ class PhoneStatusProcessor
       AppListUpdateType app_list_update_type,
       std::unique_ptr<std::vector<IconDecoder::DecodingData>> decode_items);
 
-  raw_ptr<DoNotDisturbController, ExperimentalAsh> do_not_disturb_controller_;
-  raw_ptr<FeatureStatusProvider, ExperimentalAsh> feature_status_provider_;
-  raw_ptr<MessageReceiver, ExperimentalAsh> message_receiver_;
-  raw_ptr<FindMyDeviceController, ExperimentalAsh> find_my_device_controller_;
-  raw_ptr<MultideviceFeatureAccessManager, ExperimentalAsh>
-      multidevice_feature_access_manager_;
-  raw_ptr<ScreenLockManager, ExperimentalAsh> screen_lock_manager_;
-  raw_ptr<NotificationProcessor, ExperimentalAsh> notification_processor_;
-  raw_ptr<multidevice_setup::MultiDeviceSetupClient, ExperimentalAsh>
-      multidevice_setup_client_;
-  raw_ptr<MutablePhoneModel, ExperimentalAsh> phone_model_;
-  raw_ptr<RecentAppsInteractionHandler, ExperimentalAsh>
-      recent_apps_interaction_handler_;
-  raw_ptr<PrefService, ExperimentalAsh> pref_service_;
-  raw_ptr<AppStreamManager, ExperimentalAsh> app_stream_manager_;
-  raw_ptr<AppStreamLauncherDataModel, ExperimentalAsh>
-      app_stream_launcher_data_model_;
-  raw_ptr<IconDecoder, ExperimentalAsh> icon_decoder_;
-  raw_ptr<CrosStateMessageRecorder, ExperimentalAsh>
-      cros_state_message_recorder_;
+  raw_ptr<DoNotDisturbController> do_not_disturb_controller_;
+  raw_ptr<FeatureStatusProvider> feature_status_provider_;
+  raw_ptr<MessageReceiver> message_receiver_;
+  raw_ptr<FindMyDeviceController> find_my_device_controller_;
+  raw_ptr<MultideviceFeatureAccessManager> multidevice_feature_access_manager_;
+  raw_ptr<ScreenLockManager> screen_lock_manager_;
+  raw_ptr<NotificationProcessor> notification_processor_;
+  raw_ptr<multidevice_setup::MultiDeviceSetupClient> multidevice_setup_client_;
+  raw_ptr<MutablePhoneModel> phone_model_;
+  raw_ptr<RecentAppsInteractionHandler> recent_apps_interaction_handler_;
+  raw_ptr<PrefService> pref_service_;
+  raw_ptr<AppStreamManager> app_stream_manager_;
+  raw_ptr<AppStreamLauncherDataModel> app_stream_launcher_data_model_;
+  raw_ptr<IconDecoder> icon_decoder_;
+  raw_ptr<PhoneHubUiReadinessRecorder> phone_hub_ui_readiness_recorder_;
+  raw_ptr<PhoneHubStructuredMetricsLogger> phone_hub_structured_metrics_logger_;
   base::TimeTicks connection_initialized_timestamp_ = base::TimeTicks();
   bool has_received_first_app_list_update_ = false;
 

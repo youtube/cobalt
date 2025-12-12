@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/views/drag_utils.h"
-
+#include "base/check.h"
 #include "ui/aura/client/drag_drop_client.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_event_dispatcher.h"
+#include "ui/views/drag_utils.h"
 #include "ui/wm/core/coordinate_conversion.h"
 
 namespace views {
@@ -24,6 +24,15 @@ void RunShellDrag(gfx::NativeView view,
         ->StartDragAndDrop(std::move(data), root_window, view, screen_location,
                            operation, source);
   }
+}
+
+void CancelShellDrag(gfx::NativeView view, bool allow_widget_mismatch) {
+  aura::Window* root_window = view->GetRootWindow();
+  aura::client::DragDropClient* client =
+      aura::client::GetDragDropClient(root_window);
+  CHECK(client);
+  CHECK(client->IsDragDropInProgress() || allow_widget_mismatch);
+  client->DragCancel();
 }
 
 }  // namespace views

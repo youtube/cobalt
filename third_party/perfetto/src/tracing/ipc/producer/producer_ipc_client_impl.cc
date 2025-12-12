@@ -22,15 +22,18 @@
 
 #include "perfetto/base/logging.h"
 #include "perfetto/base/task_runner.h"
+#include "perfetto/ext/base/unix_socket.h"
 #include "perfetto/ext/base/version.h"
 #include "perfetto/ext/ipc/client.h"
 #include "perfetto/ext/tracing/core/commit_data_request.h"
 #include "perfetto/ext/tracing/core/producer.h"
+#include "perfetto/ext/tracing/core/shared_memory_abi.h"
 #include "perfetto/ext/tracing/core/shared_memory_arbiter.h"
 #include "perfetto/ext/tracing/core/trace_writer.h"
 #include "perfetto/tracing/core/data_source_config.h"
 #include "perfetto/tracing/core/data_source_descriptor.h"
 #include "perfetto/tracing/core/trace_config.h"
+#include "src/tracing/core/in_process_shared_memory.h"
 
 #if PERFETTO_BUILDFLAG(PERFETTO_OS_WIN)
 #include "src/tracing/ipc/shared_memory_windows.h"
@@ -63,7 +66,7 @@ std::unique_ptr<TracingService::ProducerEndpoint> ProducerIPCClient::Connect(
                ProducerIPCClient::ConnectionFlags::kRetryIfUnreachable},
           producer, producer_name, task_runner, smb_scraping_mode,
           shared_memory_size_hint_bytes, shared_memory_page_size_hint_bytes,
-          std::move(shm), std::move(shm_arbiter)));
+          std::move(shm), std::move(shm_arbiter), nullptr));
 }
 
 // static. (Declared in include/tracing/ipc/producer_ipc_client.h).
@@ -76,13 +79,14 @@ std::unique_ptr<TracingService::ProducerEndpoint> ProducerIPCClient::Connect(
     size_t shared_memory_size_hint_bytes,
     size_t shared_memory_page_size_hint_bytes,
     std::unique_ptr<SharedMemory> shm,
-    std::unique_ptr<SharedMemoryArbiter> shm_arbiter) {
+    std::unique_ptr<SharedMemoryArbiter> shm_arbiter,
+    CreateSocketAsync create_socket_async) {
   return std::unique_ptr<TracingService::ProducerEndpoint>(
-      new ProducerIPCClientImpl(std::move(conn_args), producer, producer_name,
-                                task_runner, smb_scraping_mode,
-                                shared_memory_size_hint_bytes,
-                                shared_memory_page_size_hint_bytes,
-                                std::move(shm), std::move(shm_arbiter)));
+      new ProducerIPCClientImpl(
+          std::move(conn_args), producer, producer_name, task_runner,
+          smb_scraping_mode, shared_memory_size_hint_bytes,
+          shared_memory_page_size_hint_bytes, std::move(shm),
+          std::move(shm_arbiter), create_socket_async));
 }
 
 ProducerIPCClientImpl::ProducerIPCClientImpl(
@@ -94,13 +98,12 @@ ProducerIPCClientImpl::ProducerIPCClientImpl(
     size_t shared_memory_size_hint_bytes,
     size_t shared_memory_page_size_hint_bytes,
     std::unique_ptr<SharedMemory> shm,
-    std::unique_ptr<SharedMemoryArbiter> shm_arbiter)
+    std::unique_ptr<SharedMemoryArbiter> shm_arbiter,
+    CreateSocketAsync create_socket_async)
     : producer_(producer),
       task_runner_(task_runner),
       receive_shmem_fd_cb_fuchsia_(
           std::move(conn_args.receive_shmem_fd_cb_fuchsia)),
-      ipc_channel_(
-          ipc::Client::CreateInstance(std::move(conn_args), task_runner)),
       producer_port_(
           new protos::gen::ProducerPortProxy(this /* event_listener */)),
       shared_memory_(std::move(shm)),
@@ -121,7 +124,28 @@ ProducerIPCClientImpl::ProducerIPCClientImpl(
     shared_buffer_page_size_kb_ = shared_memory_page_size_hint_bytes_ / 1024;
   }
 
-  ipc_channel_->BindService(producer_port_->GetWeakPtr());
+  if (create_socket_async) {
+    PERFETTO_DCHECK(conn_args.socket_name);
+    auto weak_this = weak_factory_.GetWeakPtr();
+    create_socket_async(
+        [weak_this, task_runner = task_runner_](base::SocketHandle fd) {
+          task_runner->PostTask([weak_this, fd] {
+            base::ScopedSocketHandle handle(fd);
+            if (!weak_this) {
+              return;
+            }
+            ipc::Client::ConnArgs args(std::move(handle));
+            weak_this->ipc_channel_ = ipc::Client::CreateInstance(
+                std::move(args), weak_this->task_runner_);
+            weak_this->ipc_channel_->BindService(
+                weak_this->producer_port_->GetWeakPtr());
+          });
+        });
+  } else {
+    ipc_channel_ =
+        ipc::Client::CreateInstance(std::move(conn_args), task_runner);
+    ipc_channel_->BindService(producer_port_->GetWeakPtr());
+  }
   PERFETTO_DCHECK_THREAD(thread_checker_);
 }
 
@@ -156,7 +180,8 @@ void ProducerIPCClientImpl::OnConnect() {
         OnConnectionInitialized(
             resp.success(),
             resp.success() ? resp->using_shmem_provided_by_producer() : false,
-            resp.success() ? resp->direct_smb_patching_supported() : false);
+            resp.success() ? resp->direct_smb_patching_supported() : false,
+            resp.success() ? resp->use_shmem_emulation() : false);
       });
   protos::gen::InitializeConnectionRequest req;
   req.set_producer_name(name_);
@@ -205,7 +230,7 @@ void ProducerIPCClientImpl::OnConnect() {
                                   std::move(on_cmd));
 
   // If there are pending Sync() requests, send them now.
-  for (const auto& pending_sync : pending_sync_reqs_)
+  for (auto& pending_sync : pending_sync_reqs_)
     Sync(std::move(pending_sync));
   pending_sync_reqs_.clear();
 }
@@ -239,7 +264,8 @@ void ProducerIPCClientImpl::ScheduleDisconnect() {
 void ProducerIPCClientImpl::OnConnectionInitialized(
     bool connection_succeeded,
     bool using_shmem_provided_by_producer,
-    bool direct_smb_patching_supported) {
+    bool direct_smb_patching_supported,
+    bool use_shmem_emulation) {
   PERFETTO_DCHECK_THREAD(thread_checker_);
   // If connection_succeeded == false, the OnDisconnect() call will follow next
   // and there we'll notify the |producer_|. TODO: add a test for this.
@@ -247,6 +273,11 @@ void ProducerIPCClientImpl::OnConnectionInitialized(
     return;
   is_shmem_provided_by_producer_ = using_shmem_provided_by_producer;
   direct_smb_patching_supported_ = direct_smb_patching_supported;
+  // The tracing service may reject using shared memory and tell the client to
+  // commit data over the socket. This can happen when the client connects to
+  // the service via a relay service:
+  // client <-Unix socket-> relay service <- vsock -> tracing service.
+  use_shmem_emulation_ = use_shmem_emulation;
   producer_->OnConnect();
 
   // Bail out if the service failed to adopt our producer-allocated SMB.
@@ -324,7 +355,17 @@ void ProducerIPCClientImpl::OnServiceRequest(
                                         /*require_seals_if_supported=*/false);
     }
 #endif
+    if (use_shmem_emulation_) {
+      PERFETTO_CHECK(!ipc_shared_memory);
+      // Need to create an emulated shmem buffer when the transport deosn't
+      // support it.
+      ipc_shared_memory = InProcessSharedMemory::Create(
+          /*size=*/InProcessSharedMemory::kShmemEmulationSize);
+    }
     if (ipc_shared_memory) {
+      auto shmem_mode = use_shmem_emulation_
+                            ? SharedMemoryABI::ShmemMode::kShmemEmulation
+                            : SharedMemoryABI::ShmemMode::kDefault;
       // This is the nominal case used in most configurations, where the service
       // provides the SMB.
       PERFETTO_CHECK(!is_shmem_provided_by_producer_ && !shared_memory_);
@@ -332,8 +373,8 @@ void ProducerIPCClientImpl::OnServiceRequest(
       shared_buffer_page_size_kb_ =
           cmd.setup_tracing().shared_buffer_page_size_kb();
       shared_memory_arbiter_ = SharedMemoryArbiter::CreateInstance(
-          shared_memory_.get(), shared_buffer_page_size_kb_ * 1024, this,
-          task_runner_);
+          shared_memory_.get(), shared_buffer_page_size_kb_ * 1024, shmem_mode,
+          this, task_runner_);
       if (direct_smb_patching_supported_)
         shared_memory_arbiter_->SetDirectSMBPatchingSupportedByService();
     } else {
@@ -352,10 +393,12 @@ void ProducerIPCClientImpl::OnServiceRequest(
     const auto* data_source_ids = cmd.flush().data_source_ids().data();
     static_assert(sizeof(data_source_ids[0]) == sizeof(DataSourceInstanceID),
                   "data_source_ids should be 64-bit");
+
+    FlushFlags flags(cmd.flush().flags());
     producer_->Flush(
         cmd.flush().request_id(),
         reinterpret_cast<const DataSourceInstanceID*>(data_source_ids),
-        static_cast<size_t>(cmd.flush().data_source_ids().size()));
+        static_cast<size_t>(cmd.flush().data_source_ids().size()), flags);
     return;
   }
 

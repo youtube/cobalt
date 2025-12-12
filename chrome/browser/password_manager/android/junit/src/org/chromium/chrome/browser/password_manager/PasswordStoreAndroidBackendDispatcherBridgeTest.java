@@ -23,36 +23,32 @@ import com.google.android.gms.common.api.Status;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.Callback;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.test.util.browser.Features;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
+import org.chromium.components.password_manager.core.browser.proto.ListAffiliatedPasswordsResult;
+import org.chromium.components.password_manager.core.browser.proto.ListAffiliatedPasswordsResult.AffiliatedPassword;
 import org.chromium.components.password_manager.core.browser.proto.ListPasswordsResult;
+import org.chromium.components.password_manager.core.browser.proto.ListPasswordsWithUiInfoResult;
+import org.chromium.components.password_manager.core.browser.proto.ListPasswordsWithUiInfoResult.PasswordWithUiInfo;
 import org.chromium.components.password_manager.core.browser.proto.PasswordWithLocalData;
 import org.chromium.components.signin.AccountUtils;
 import org.chromium.components.sync.protocol.PasswordSpecificsData;
 
 import java.util.Optional;
 
-/**
- * Tests that dispatcher bridge calls as invoked by the password store reach the backend.
- */
+/** Tests that dispatcher bridge calls as invoked by the password store reach the backend. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @Batch(Batch.PER_CLASS)
-@EnableFeatures(ChromeFeatureList.UNIFIED_PASSWORD_MANAGER_ANDROID)
 public class PasswordStoreAndroidBackendDispatcherBridgeTest {
-    @Rule
-    public TestRule mProcessor = new Features.JUnitProcessor();
 
     private static final PasswordSpecificsData.Builder sTestProfile =
             PasswordSpecificsData.newBuilder()
@@ -68,20 +64,20 @@ public class PasswordStoreAndroidBackendDispatcherBridgeTest {
             ListPasswordsResult.newBuilder().addPasswordData(sTestPwdWithLocalData);
     private static final String sTestAccountEmail = "test@email.com";
     private static final Optional<Account> sTestAccount =
-            Optional.of(AccountUtils.createAccountFromName(sTestAccountEmail));
+            Optional.of(AccountUtils.createAccountFromEmail(sTestAccountEmail));
 
-    @Mock
-    private PasswordStoreAndroidBackendReceiverBridgeImpl mBackendReceiverBridgeMock;
-    @Mock
-    private PasswordStoreAndroidBackend mBackendMock;
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    @Mock private PasswordStoreAndroidBackendReceiverBridgeImpl mBackendReceiverBridgeMock;
+    @Mock private PasswordStoreAndroidBackend mBackendMock;
 
     private PasswordStoreAndroidBackendDispatcherBridgeImpl mBackendDispatcherBridge;
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-        mBackendDispatcherBridge = new PasswordStoreAndroidBackendDispatcherBridgeImpl(
-                mBackendReceiverBridgeMock, mBackendMock);
+        mBackendDispatcherBridge =
+                new PasswordStoreAndroidBackendDispatcherBridgeImpl(
+                        mBackendReceiverBridgeMock, mBackendMock);
     }
 
     @Test
@@ -127,8 +123,9 @@ public class PasswordStoreAndroidBackendDispatcherBridgeTest {
         verify(mBackendMock).getAllLogins(eq(sTestAccount), any(), failureCallback.capture());
         assertNotNull(failureCallback.getValue());
 
-        Exception kExpectedException = new PasswordStoreAndroidBackend.BackendException(
-                "Sample failure", AndroidBackendErrorType.NO_ACCOUNT);
+        Exception kExpectedException =
+                new PasswordStoreAndroidBackend.BackendException(
+                        "Sample failure", AndroidBackendErrorType.NO_ACCOUNT);
         failureCallback.getValue().onResult(kExpectedException);
         verify(mBackendReceiverBridgeMock)
                 .handleAndroidBackendException(kTestTaskId, kExpectedException);
@@ -145,8 +142,47 @@ public class PasswordStoreAndroidBackendDispatcherBridgeTest {
         verify(mBackendMock).getAllLogins(eq(Optional.empty()), any(), failureCallback.capture());
         assertNotNull(failureCallback.getValue());
 
-        Exception kExpectedException = new ApiException(
-                new Status(new ConnectionResult(ConnectionResult.API_UNAVAILABLE), ""));
+        Exception kExpectedException =
+                new ApiException(
+                        new Status(new ConnectionResult(ConnectionResult.API_UNAVAILABLE), ""));
+        failureCallback.getValue().onResult(kExpectedException);
+        verify(mBackendReceiverBridgeMock)
+                .handleAndroidBackendException(kTestTaskId, kExpectedException);
+    }
+
+    @Test
+    public void testGetAllLoginsWithBrandingInfoOnSuccess() {
+        final int kTestTaskId = 1337;
+
+        // Ensure the backend is called with a valid success callback.
+        mBackendDispatcherBridge.getAllLoginsWithBrandingInfo(kTestTaskId, sTestAccountEmail);
+        ArgumentCaptor<Callback<byte[]>> successCallback = ArgumentCaptor.forClass(Callback.class);
+        verify(mBackendMock)
+                .getAllLoginsWithBrandingInfo(eq(sTestAccount), successCallback.capture(), any());
+        assertNotNull(successCallback.getValue());
+
+        PasswordWithUiInfo password =
+                PasswordWithUiInfo.newBuilder().setPasswordData(sTestPwdWithLocalData).build();
+        ListPasswordsWithUiInfoResult.Builder passwordsResult =
+                ListPasswordsWithUiInfoResult.newBuilder().addPasswordsWithUiInfo(password);
+        byte[] kExpectedList = passwordsResult.build().toByteArray();
+        successCallback.getValue().onResult(kExpectedList);
+        verify(mBackendReceiverBridgeMock).onCompleteWithBrandedLogins(kTestTaskId, kExpectedList);
+    }
+
+    @Test
+    public void testGetAllLoginsWithBrandingInfoFailure() {
+        final int kTestTaskId = 42069;
+
+        // Ensure the backend is called with a valid failure callback.
+        mBackendDispatcherBridge.getAllLoginsWithBrandingInfo(kTestTaskId, sTestAccountEmail);
+        ArgumentCaptor<Callback<Exception>> failureCallback =
+                ArgumentCaptor.forClass(Callback.class);
+        verify(mBackendMock)
+                .getAllLoginsWithBrandingInfo(eq(sTestAccount), any(), failureCallback.capture());
+        assertNotNull(failureCallback.getValue());
+
+        Exception kExpectedException = new Exception("Sample failure");
         failureCallback.getValue().onResult(kExpectedException);
         verify(mBackendReceiverBridgeMock)
                 .handleAndroidBackendException(kTestTaskId, kExpectedException);
@@ -164,8 +200,9 @@ public class PasswordStoreAndroidBackendDispatcherBridgeTest {
         assertNotNull(failureCallback.getValue());
 
         PendingIntent pendingIntentMock = mock(PendingIntent.class);
-        Exception kExpectedException = new ResolvableApiException(
-                new Status(CommonStatusCodes.RESOLUTION_REQUIRED, "", pendingIntentMock));
+        Exception kExpectedException =
+                new ResolvableApiException(
+                        new Status(CommonStatusCodes.RESOLUTION_REQUIRED, "", pendingIntentMock));
         failureCallback.getValue().onResult(kExpectedException);
         verify(pendingIntentMock, never()).send();
         verify(mBackendReceiverBridgeMock)
@@ -235,6 +272,50 @@ public class PasswordStoreAndroidBackendDispatcherBridgeTest {
                 ArgumentCaptor.forClass(Callback.class);
         verify(mBackendMock)
                 .getLoginsForSignonRealm(any(), eq(sTestAccount), any(), failureCallback.capture());
+        assertNotNull(failureCallback.getValue());
+
+        Exception kExpectedException = new Exception("Sample failure");
+        failureCallback.getValue().onResult(kExpectedException);
+        verify(mBackendReceiverBridgeMock)
+                .handleAndroidBackendException(kTestTaskId, kExpectedException);
+    }
+
+    @Test
+    public void testGetAffiliatedLoginsForSignonRealmOnSuccess() {
+        final int kTestTaskId = 1337;
+
+        // Ensure the backend is called with a valid success callback.
+        mBackendDispatcherBridge.getAffiliatedLoginsForSignonRealm(
+                kTestTaskId, "https://test_signon_realm.com", sTestAccountEmail);
+        ArgumentCaptor<Callback<byte[]>> successCallback = ArgumentCaptor.forClass(Callback.class);
+        verify(mBackendMock)
+                .getAffiliatedLoginsForSignonRealm(
+                        any(), eq(sTestAccount), successCallback.capture(), any());
+        assertNotNull(successCallback.getValue());
+
+        AffiliatedPassword affiliatedPassword =
+                AffiliatedPassword.newBuilder().setPasswordData(sTestPwdWithLocalData).build();
+        ListAffiliatedPasswordsResult.Builder affiliatedPasswordsResult =
+                ListAffiliatedPasswordsResult.newBuilder()
+                        .addAffiliatedPasswords(affiliatedPassword);
+        byte[] kExpectedList = affiliatedPasswordsResult.build().toByteArray();
+        successCallback.getValue().onResult(kExpectedList);
+        verify(mBackendReceiverBridgeMock)
+                .onCompleteWithAffiliatedLogins(kTestTaskId, kExpectedList);
+    }
+
+    @Test
+    public void testGetAffiliatedLoginsForSignonRealmOnFailure() {
+        final int kTestTaskId = 42069;
+
+        // Ensure the backend is called with a valid failure callback.
+        mBackendDispatcherBridge.getAffiliatedLoginsForSignonRealm(
+                kTestTaskId, "https://test_signon_realm.com", sTestAccountEmail);
+        ArgumentCaptor<Callback<Exception>> failureCallback =
+                ArgumentCaptor.forClass(Callback.class);
+        verify(mBackendMock)
+                .getAffiliatedLoginsForSignonRealm(
+                        any(), eq(sTestAccount), any(), failureCallback.capture());
         assertNotNull(failureCallback.getValue());
 
         Exception kExpectedException = new Exception("Sample failure");

@@ -4,6 +4,7 @@
 
 #include "components/reading_list/core/reading_list_model.h"
 
+#include "base/location.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/simple_test_clock.h"
 #include "components/reading_list/core/fake_reading_list_model_storage.h"
@@ -80,7 +81,8 @@ class ReadingListModelTest : public FakeReadingListModelStorage::Observer,
         storage->AsWeakPtr();
 
     model_ = std::make_unique<ReadingListModelImpl>(
-        std::move(storage), syncer::StorageType::kUnspecified, &clock_);
+        std::move(storage), syncer::StorageType::kUnspecified,
+        syncer::WipeModelUponSyncDisabledBehavior::kNever, &clock_);
     model_->AddObserver(&observer_);
 
     return storage_ptr;
@@ -97,11 +99,11 @@ class ReadingListModelTest : public FakeReadingListModelStorage::Observer,
     base::WeakPtr<FakeReadingListModelStorage> storage = ResetStorage();
 
     auto metadata_batch = std::make_unique<syncer::MetadataBatch>();
-    sync_pb::ModelTypeState state;
+    sync_pb::DataTypeState state;
     state.set_initial_sync_state(
-        sync_pb::ModelTypeState_InitialSyncState_INITIAL_SYNC_DONE);
-    state.set_authenticated_account_id(kTestAccountId);
-    metadata_batch->SetModelTypeState(state);
+        sync_pb::DataTypeState_InitialSyncState_INITIAL_SYNC_DONE);
+    state.set_authenticated_obfuscated_gaia_id(kTestGaiaId.ToString());
+    metadata_batch->SetDataTypeState(state);
 
     return storage->TriggerLoadCompletion(std::move(initial_syncable_entries),
                                           std::move(metadata_batch));
@@ -153,7 +155,7 @@ class ReadingListModelTest : public FakeReadingListModelStorage::Observer,
   }
 
  protected:
-  const std::string kTestAccountId = "TestAccountId";
+  const GaiaId kTestGaiaId = GaiaId("TestGaiaId");
 
   int storage_saved_ = 0;
   int storage_removed_ = 0;
@@ -324,7 +326,7 @@ TEST_F(ReadingListModelTest, DeleteAllEntries) {
         .RetiresOnSaturation();
   }
 
-  EXPECT_TRUE(model_->DeleteAllEntries());
+  EXPECT_TRUE(model_->DeleteAllEntries(FROM_HERE));
 
   EXPECT_THAT(model_->GetEntryByURL(example1), IsNull());
   EXPECT_THAT(model_->GetEntryByURL(example2), IsNull());
@@ -349,12 +351,29 @@ TEST_F(ReadingListModelTest, GetAccountWhereEntryIsSavedToWhenSyncEnabled) {
       /*initial_syncable_entries=*/{base::MakeRefCounted<ReadingListEntry>(
           example, "example_title", clock_.Now())}));
 
-  EXPECT_EQ(model_->GetAccountWhereEntryIsSavedTo(example).ToString(),
-            kTestAccountId);
+  EXPECT_EQ(model_->GetAccountWhereEntryIsSavedTo(example),
+            kTestGaiaId);
   EXPECT_TRUE(
       model_
           ->GetAccountWhereEntryIsSavedTo(GURL("http://non_existing_url.com/"))
           .empty());
+}
+
+TEST_F(ReadingListModelTest,
+       ReadingListModelCompletedBatchUpdatesShouldBeCalledUponSyncEnabled) {
+  ASSERT_TRUE(ResetStorageAndMimicSyncEnabled());
+  EXPECT_CALL(observer_, ReadingListModelCompletedBatchUpdates);
+  model_->GetSyncBridgeForTest()->MergeFullSyncData(
+      model_->GetSyncBridgeForTest()->CreateMetadataChangeList(),
+      /*syncer::EntityChangeList*/ {});
+}
+
+TEST_F(ReadingListModelTest,
+       ReadingListModelCompletedBatchUpdatesShouldBeCalledUponSyncDisabled) {
+  ASSERT_TRUE(ResetStorageAndMimicSyncEnabled());
+  EXPECT_CALL(observer_, ReadingListModelCompletedBatchUpdates);
+  model_->GetSyncBridgeForTest()->ApplyDisableSyncChanges(
+      model_->GetSyncBridgeForTest()->CreateMetadataChangeList());
 }
 
 // Tests adding entry.
@@ -452,7 +471,7 @@ TEST_F(ReadingListModelTest, SyncAddEntry) {
                                                 reading_list::ADDED_VIA_SYNC));
   EXPECT_CALL(observer_, ReadingListDidApplyChanges(model_.get()));
 
-  model_->SyncAddEntry(std::move(entry));
+  model_->AddEntry(std::move(entry), reading_list::ADDED_VIA_SYNC);
 
   EXPECT_EQ(1, storage_saved_);
   EXPECT_EQ(0, storage_removed_);
@@ -492,8 +511,8 @@ TEST_F(ReadingListModelTest, SyncMergeEntry) {
   EXPECT_CALL(observer_, ReadingListDidUpdateEntry(_, _)).Times(0);
 
   testing::InSequence seq;
-  EXPECT_CALL(observer_, ReadingListWillMoveEntry(model_.get(), url));
-  EXPECT_CALL(observer_, ReadingListDidMoveEntry(model_.get(), url));
+  EXPECT_CALL(observer_, ReadingListWillUpdateEntry(model_.get(), url));
+  EXPECT_CALL(observer_, ReadingListDidUpdateEntry(model_.get(), url));
   EXPECT_CALL(observer_, ReadingListDidApplyChanges(model_.get()));
 
   // DCHECKs verify that sync updates are issued as batch updates.
@@ -526,7 +545,7 @@ TEST_F(ReadingListModelTest, RemoveEntryByUrlWhenUnread) {
   EXPECT_CALL(observer_, ReadingListDidRemoveEntry(model_.get(), url));
   EXPECT_CALL(observer_, ReadingListDidApplyChanges(model_.get()));
 
-  model_->RemoveEntryByURL(url);
+  model_->RemoveEntryByURL(url, FROM_HERE);
 
   EXPECT_EQ(0, storage_saved_);
   EXPECT_EQ(1, storage_removed_);
@@ -551,7 +570,7 @@ TEST_F(ReadingListModelTest, RemoveEntryByUrlWhenRead) {
   EXPECT_CALL(observer_, ReadingListDidRemoveEntry(model_.get(), url));
   EXPECT_CALL(observer_, ReadingListDidApplyChanges(model_.get()));
 
-  model_->RemoveEntryByURL(url);
+  model_->RemoveEntryByURL(url, FROM_HERE);
 
   EXPECT_EQ(0, storage_saved_);
   EXPECT_EQ(1, storage_removed_);
@@ -620,8 +639,8 @@ TEST_F(ReadingListModelTest, ReadEntry) {
                             /*estimated_read_time=*/base::TimeDelta());
 
   testing::InSequence seq;
-  EXPECT_CALL(observer_, ReadingListWillMoveEntry(model_.get(), url));
-  EXPECT_CALL(observer_, ReadingListDidMoveEntry(model_.get(), url));
+  EXPECT_CALL(observer_, ReadingListWillUpdateEntry(model_.get(), url));
+  EXPECT_CALL(observer_, ReadingListDidUpdateEntry(model_.get(), url));
   EXPECT_CALL(observer_, ReadingListDidApplyChanges(model_.get()));
 
   model_->SetReadStatusIfExists(url, true);
@@ -677,8 +696,8 @@ TEST_F(ReadingListModelTest, UnreadEntry) {
   ASSERT_EQ(1ul, ReadSize());
 
   testing::InSequence seq;
-  EXPECT_CALL(observer_, ReadingListWillMoveEntry(model_.get(), url));
-  EXPECT_CALL(observer_, ReadingListDidMoveEntry(model_.get(), url));
+  EXPECT_CALL(observer_, ReadingListWillUpdateEntry(model_.get(), url));
+  EXPECT_CALL(observer_, ReadingListDidUpdateEntry(model_.get(), url));
   EXPECT_CALL(observer_, ReadingListDidApplyChanges(model_.get()));
 
   model_->SetReadStatusIfExists(url, false);

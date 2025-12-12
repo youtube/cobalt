@@ -16,14 +16,9 @@
 
 #include "src/tools/ftrace_proto_gen/ftrace_proto_gen.h"
 
-#include <algorithm>
 #include <fstream>
-#include <regex>
+#include <vector>
 
-#include "perfetto/base/logging.h"
-#include "perfetto/ext/base/file_utils.h"
-#include "perfetto/ext/base/pipe.h"
-#include "perfetto/ext/base/string_splitter.h"
 #include "perfetto/ext/base/string_utils.h"
 
 namespace perfetto {
@@ -59,7 +54,7 @@ std::string EventNameToProtoFieldName(const std::string& group,
   // These groups have events where the name alone conflicts with an existing
   // proto:
   if (group == "sde" || group == "g2d" || group == "dpu" || group == "mali" ||
-      group == "lwis") {
+      group == "lwis" || group == "samsung" || group == "kgsl") {
     event_name = group + "_" + event_name;
   }
   return event_name;
@@ -133,6 +128,9 @@ void GenerateFtraceEventProto(const std::vector<FtraceEventName>& raw_eventlist,
   // consider merging with common_preempt_count to avoid extra proto tags.
   optional uint32 common_flags = 5;
 
+  // Range reserved for self-describing messages.
+  reserved 65536 to 131072;
+
   oneof event {
 )";
 
@@ -169,6 +167,10 @@ void GenerateFtraceEventProto(const std::vector<FtraceEventName>& raw_eventlist,
       *fout << "    GenericFtraceEvent generic = " << i << ";\n";
       ++i;
     }
+    if (i == 542) {
+      *fout << "    KprobeEvent kprobe_event = " << i << ";\n";
+      ++i;
+    }
   }
   *fout << "  }\n";
   *fout << "}\n";
@@ -190,6 +192,11 @@ std::string SingleEventInfo(perfetto::Proto proto,
     // PrintFtraceEvent size and up to 12% of the entire trace in some
     // configurations)
     if (group == "ftrace" && proto.event_name == "print" && field->name == "ip")
+      continue;
+    // Ignore the "nid" field. On new kernels, this field has a type that we
+    // don't know how to parse. See b/281660544
+    if (group == "f2fs" && proto.event_name == "f2fs_truncate_partial_nodes" &&
+        field->name == "nid")
       continue;
     s += "{";
     s += "kUnsetOffset, ";
@@ -218,8 +225,9 @@ void GenerateEventInfo(const std::vector<std::string>& events_info,
   s += std::string("// ") + __FILE__ + "\n";
   s += "// Do not edit.\n";
   s += R"(
-#include "perfetto/protozero/proto_utils.h"
 #include "src/traced/probes/ftrace/event_info.h"
+
+#include "perfetto/protozero/proto_utils.h"
 
 namespace perfetto {
 

@@ -6,19 +6,25 @@ package org.chromium.components.policy;
 
 import android.os.Bundle;
 
+import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
 
-/**
- * Base class for Policy providers.
- */
+/** Base class for Policy providers. */
+@NullMarked
 public abstract class PolicyProvider {
+    private static final String TAG = "PolicyProvider";
+
     private CombinedPolicyProvider mCombinedPolicyProvider;
+
     private int mSource = -1;
 
     protected PolicyProvider() {}
 
     public void notifySettingsAvailable(Bundle settings) {
         ThreadUtils.assertOnUiThread();
+        Log.i(TAG, "#notifySettingsAvailable() " + mSource);
         mCombinedPolicyProvider.onSettingsAvailable(mSource, settings);
     }
 
@@ -32,9 +38,7 @@ public abstract class PolicyProvider {
      */
     public abstract void refresh();
 
-    /**
-     * Register the PolicyProvider for receiving policy changes.
-     */
+    /** Register the PolicyProvider for receiving policy changes. */
     protected void startListeningForPolicyChanges() {}
 
     /**
@@ -44,6 +48,7 @@ public abstract class PolicyProvider {
      *            delegate.
      * @param source tags the PolicyProvider with a source.
      */
+    @Initializer
     final void setManagerAndSource(CombinedPolicyProvider combinedPolicyProvider, int source) {
         assert mSource < 0;
         assert source >= 0;
@@ -51,6 +56,7 @@ public abstract class PolicyProvider {
         assert mCombinedPolicyProvider == null;
         mCombinedPolicyProvider = combinedPolicyProvider;
         startListeningForPolicyChanges();
+        Log.i(TAG, "#setManagerAndSource() " + mSource);
     }
 
     /** Called when the provider is unregistered */

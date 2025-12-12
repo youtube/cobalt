@@ -55,6 +55,7 @@
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/paint_layer_scrollable_area.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
@@ -144,6 +145,8 @@ class TouchActionTest : public testing::Test {
   WebViewImpl* SetupTest(String file);
   void RunTestOnTree(ContainerNode* root, WebView*);
 
+  test::TaskEnvironment task_environment_;
+
   String base_url_;
   frame_test_helpers::WebViewHelper web_view_helper_;
 };
@@ -179,7 +182,7 @@ void TouchActionTest::RunShadowDOMTest(String file) {
   Persistent<Document> document =
       static_cast<Document*>(web_view->MainFrameImpl()->GetDocument());
   Persistent<StaticElementList> host_nodes =
-      document->QuerySelectorAll("[shadow-host]", es);
+      document->QuerySelectorAll(AtomicString("[shadow-host]"), es);
   ASSERT_FALSE(es.HadException());
   ASSERT_GE(host_nodes->length(), 1u);
 
@@ -251,7 +254,7 @@ void TouchActionTest::RunTestOnTree(ContainerNode* root, WebView* web_view) {
   // Oilpan: see runTouchActionTest() comment why these are persistent
   // references.
   Persistent<StaticElementList> elements =
-      root->QuerySelectorAll("[expected-action]", es);
+      root->QuerySelectorAll(AtomicString("[expected-action]"), es);
   ASSERT_FALSE(es.HadException());
 
   for (unsigned index = 0; index < elements->length(); index++) {
@@ -355,7 +358,8 @@ void TouchActionTest::RunTestOnTree(ContainerNode* root, WebView* web_view) {
           static_cast<TouchActionTrackingWebFrameWidget*>(
               web_view->MainFrameWidget());
 
-      AtomicString expected_action = element->getAttribute("expected-action");
+      AtomicString expected_action =
+          element->getAttribute(AtomicString("expected-action"));
       // Should have received exactly one touch action, even for auto.
       EXPECT_EQ(1, widget->TouchActionSetCount()) << failure_context_pos;
       if (widget->TouchActionSetCount()) {
@@ -376,9 +380,12 @@ void TouchActionTest::RunTestOnTree(ContainerNode* root, WebView* web_view) {
                                             ~TouchAction::kInternalNotWritable)
               << failure_context_pos;
         } else if (expected_action == "pan-x-y") {
-          EXPECT_EQ(TouchAction::kPan, widget->LastTouchAction() &
-                                           ~TouchAction::kInternalPanXScrolls &
-                                           ~TouchAction::kInternalNotWritable)
+          EXPECT_EQ(TouchAction::kPan,
+                    widget->LastTouchAction() &
+                        ~TouchAction::kInternalPanXScrolls &
+                        ~TouchAction::kInternalNotWritable &
+                        ~TouchAction::kInternalHandwriting &
+                        ~TouchAction::kInternalHandwritingPanningRules)
               << failure_context_pos;
         } else if (expected_action == "manipulation") {
           EXPECT_EQ(TouchAction::kManipulation,

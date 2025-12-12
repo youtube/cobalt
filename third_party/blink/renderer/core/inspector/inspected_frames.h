@@ -40,14 +40,14 @@ class CORE_EXPORT InspectedFrames final
   InspectedFrames(const InspectedFrames&) = delete;
   InspectedFrames& operator=(const InspectedFrames&) = delete;
 
-  LocalFrame* Root() { return root_; }
+  LocalFrame* Root() { return root_.Get(); }
   bool Contains(LocalFrame*) const;
   LocalFrame* FrameWithSecurityOrigin(const String& origin_raw_string);
   LocalFrame* FrameWithStorageKey(const String& key_raw_string);
   Iterator begin();
   Iterator end();
 
-  virtual void Trace(Visitor*) const;
+  void Trace(Visitor*) const;
 
  private:
   Member<LocalFrame> root_;

@@ -4,30 +4,42 @@
 
 package org.chromium.chrome.browser.ui.fast_checkout;
 
-import androidx.annotation.Nullable;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import android.content.Context;
+
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutAutofillProfile;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutCreditCard;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetControllerProvider;
 import org.chromium.ui.base.WindowAndroid;
 
+import java.util.Arrays;
+import java.util.List;
+
 /**
  * This bridge creates and initializes a {@link FastCheckoutComponent} on construction and forwards
  * native calls to it.
  */
+@NullMarked
 class FastCheckoutBridge implements FastCheckoutComponent.Delegate {
     private long mNativeFastCheckoutBridge;
     private final FastCheckoutComponent mFastCheckoutComponent;
 
-    private FastCheckoutBridge(long nativeBridge, WindowAndroid windowAndroid,
+    private FastCheckoutBridge(
+            long nativeBridge,
+            WindowAndroid windowAndroid,
             BottomSheetController bottomSheetController) {
         mNativeFastCheckoutBridge = nativeBridge;
         mFastCheckoutComponent = new FastCheckoutCoordinator();
-        mFastCheckoutComponent.initialize(
-                windowAndroid.getContext().get(), bottomSheetController, this);
+        Context context = assumeNonNull(windowAndroid.getContext().get());
+        mFastCheckoutComponent.initialize(context, bottomSheetController, this);
     }
 
     @CalledByNative
@@ -41,30 +53,11 @@ class FastCheckoutBridge implements FastCheckoutComponent.Delegate {
 
     @CalledByNative
     private void showBottomSheet(
-            FastCheckoutAutofillProfile[] profiles, FastCheckoutCreditCard[] creditCards) {
-        mFastCheckoutComponent.showOptions(profiles, creditCards);
-    }
-
-    @CalledByNative
-    private static void setAutofillProfile(FastCheckoutAutofillProfile[] profiles, int index,
-            FastCheckoutAutofillProfile profile) {
-        profiles[index] = profile;
-    }
-
-    @CalledByNative
-    private static void setCreditCard(
-            FastCheckoutCreditCard[] creditCards, int index, FastCheckoutCreditCard creditCard) {
-        creditCards[index] = creditCard;
-    }
-
-    @CalledByNative
-    private static FastCheckoutAutofillProfile[] createAutofillProfilesArray(int size) {
-        return new FastCheckoutAutofillProfile[size];
-    }
-
-    @CalledByNative
-    private static FastCheckoutCreditCard[] createCreditCardsArray(int size) {
-        return new FastCheckoutCreditCard[size];
+            @JniType("std::vector") Object[] profiles,
+            @JniType("std::vector") Object[] creditCards) {
+        mFastCheckoutComponent.showOptions(
+                (List<FastCheckoutAutofillProfile>) (List<?>) Arrays.asList(profiles),
+                (List<FastCheckoutCreditCard>) (List<?>) Arrays.asList(creditCards));
     }
 
     @CalledByNative
@@ -84,8 +77,8 @@ class FastCheckoutBridge implements FastCheckoutComponent.Delegate {
     public void onOptionsSelected(
             FastCheckoutAutofillProfile profile, FastCheckoutCreditCard creditCard) {
         if (mNativeFastCheckoutBridge != 0) {
-            FastCheckoutBridgeJni.get().onOptionsSelected(
-                    mNativeFastCheckoutBridge, profile, creditCard);
+            FastCheckoutBridgeJni.get()
+                    .onOptionsSelected(mNativeFastCheckoutBridge, profile, creditCard);
         }
     }
 
@@ -105,10 +98,15 @@ class FastCheckoutBridge implements FastCheckoutComponent.Delegate {
 
     @NativeMethods
     interface Natives {
-        void onOptionsSelected(long nativeFastCheckoutViewImpl, FastCheckoutAutofillProfile profile,
+        void onOptionsSelected(
+                long nativeFastCheckoutViewImpl,
+                FastCheckoutAutofillProfile profile,
                 FastCheckoutCreditCard creditCard);
+
         void onDismiss(long nativeFastCheckoutViewImpl);
+
         void openAutofillProfileSettings(long nativeFastCheckoutViewImpl);
+
         void openCreditCardSettings(long nativeFastCheckoutViewImpl);
     }
 }

@@ -19,14 +19,31 @@
 #include "content/public/browser/speech_recognition_manager.h"
 #include "content/public/browser/speech_recognition_session_context.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/blink/public/mojom/speech/speech_recognition_error.mojom.h"
-#include "third_party/blink/public/mojom/speech/speech_recognition_result.mojom.h"
+#include "media/mojo/mojom/speech_recognition_error.mojom.h"
+#include "media/mojo/mojom/speech_recognition_result.mojom.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/extension_service.h"
 #include "extensions/browser/view_type_utils.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 #endif
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/services/speech/buildflags/buildflags.h"
+#if BUILDFLAG(ENABLE_SPEECH_SERVICE)
+#include "chrome/browser/browser_process.h"
+#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/speech/speech_recognition_service.h"
+#include "components/soda/soda_installer.h"
+
+#if BUILDFLAG(ENABLE_BROWSER_SPEECH_SERVICE)
+#include "chrome/browser/speech/speech_recognition_service_factory.h"
+#elif BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/speech/cros_speech_recognition_service_factory.h"
+#endif  // BUILDFLAG(ENABLE_BROWSER_SPEECH_SERVICE)
+
+#endif  // BUILDFLAG(ENABLE_SPEECH_SERVICE)
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 using content::BrowserThread;
 using content::SpeechRecognitionManager;
@@ -38,19 +55,14 @@ ChromeSpeechRecognitionManagerDelegate
 ::ChromeSpeechRecognitionManagerDelegate() {
 }
 
-ChromeSpeechRecognitionManagerDelegate
-::~ChromeSpeechRecognitionManagerDelegate() {
-}
+ChromeSpeechRecognitionManagerDelegate ::
+    ~ChromeSpeechRecognitionManagerDelegate() = default;
 
 void ChromeSpeechRecognitionManagerDelegate::OnRecognitionStart(
     int session_id) {
 }
 
 void ChromeSpeechRecognitionManagerDelegate::OnAudioStart(int session_id) {
-}
-
-void ChromeSpeechRecognitionManagerDelegate::OnEnvironmentEstimationComplete(
-    int session_id) {
 }
 
 void ChromeSpeechRecognitionManagerDelegate::OnSoundStart(int session_id) {
@@ -64,11 +76,11 @@ void ChromeSpeechRecognitionManagerDelegate::OnAudioEnd(int session_id) {
 
 void ChromeSpeechRecognitionManagerDelegate::OnRecognitionResults(
     int session_id,
-    const std::vector<blink::mojom::SpeechRecognitionResultPtr>& result) {}
+    const std::vector<media::mojom::WebSpeechRecognitionResultPtr>& result) {}
 
 void ChromeSpeechRecognitionManagerDelegate::OnRecognitionError(
     int session_id,
-    const blink::mojom::SpeechRecognitionError& error) {}
+    const media::mojom::SpeechRecognitionError& error) {}
 
 void ChromeSpeechRecognitionManagerDelegate::OnAudioLevelsChange(
     int session_id, float volume, float noise_volume) {
@@ -110,16 +122,42 @@ ChromeSpeechRecognitionManagerDelegate::GetEventListener() {
   return this;
 }
 
-bool ChromeSpeechRecognitionManagerDelegate::FilterProfanities(
-    int render_process_id) {
-  content::RenderProcessHost* rph =
-      content::RenderProcessHost::FromID(render_process_id);
-  if (!rph)  // Guard against race conditions on RPH lifetime.
-    return true;
-
-  return Profile::FromBrowserContext(rph->GetBrowserContext())->GetPrefs()->
-      GetBoolean(prefs::kSpeechRecognitionFilterProfanities);
+#if !BUILDFLAG(IS_ANDROID)
+void ChromeSpeechRecognitionManagerDelegate::BindSpeechRecognitionContext(
+    mojo::PendingReceiver<media::mojom::SpeechRecognitionContext>
+        recognition_receiver) {
+#if BUILDFLAG(ENABLE_SPEECH_SERVICE)
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  content::GetUIThreadTaskRunner({})->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](mojo::PendingReceiver<media::mojom::SpeechRecognitionContext>
+                 receiver) {
+#if BUILDFLAG(ENABLE_BROWSER_SPEECH_SERVICE)
+            auto* profile = ProfileManager::GetLastUsedProfileIfLoaded();
+            auto* factory =
+                SpeechRecognitionServiceFactory::GetForProfile(profile);
+#elif BUILDFLAG(IS_CHROMEOS)
+            auto* profile = ProfileManager::GetPrimaryUserProfile();
+            auto* factory =
+                CrosSpeechRecognitionServiceFactory::GetForProfile(profile);
+#else
+#error "No speech recognition service factory on this platform."
+#endif  // BUILDFLAG(ENABLE_BROWSER_SPEECH_SERVICE)
+            if (factory) {
+              factory->BindSpeechRecognitionContext(std::move(receiver));
+            }
+            // Reset the SODA uninstall timer when used by the Web Speech API.
+            if (profile) {
+              PrefService* pref_service = profile->GetPrefs();
+              speech::SodaInstaller::GetInstance()->SetUninstallTimer(
+                  pref_service, g_browser_process->local_state());
+            }
+          },
+          std::move(recognition_receiver)));
+#endif  // BUILDFLAG(ENABLE_SPEECH_SERVICE)
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // static.
 void ChromeSpeechRecognitionManagerDelegate::CheckRenderFrameType(
@@ -158,16 +196,16 @@ void ChromeSpeechRecognitionManagerDelegate::CheckRenderFrameType(
   }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-  WebContents* web_contents =
-      WebContents::FromRenderFrameHost(render_frame_host);
-  extensions::mojom::ViewType view_type = extensions::GetViewType(web_contents);
+  extensions::mojom::ViewType view_type =
+      extensions::GetViewType(render_frame_host);
 
   if (view_type == extensions::mojom::ViewType::kTabContents ||
       view_type == extensions::mojom::ViewType::kAppWindow ||
       view_type == extensions::mojom::ViewType::kComponent ||
       view_type == extensions::mojom::ViewType::kExtensionPopup ||
       view_type == extensions::mojom::ViewType::kExtensionBackgroundPage ||
-      view_type == extensions::mojom::ViewType::kExtensionSidePanel) {
+      view_type == extensions::mojom::ViewType::kExtensionSidePanel ||
+      view_type == extensions::mojom::ViewType::kDeveloperTools) {
     // If it is a tab, we can check for permission. For apps, this means
     // manifest would be checked for permission.
     allowed = true;

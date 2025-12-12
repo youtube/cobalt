@@ -5,6 +5,7 @@
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/installer/management_service/rotate_util.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -23,7 +24,6 @@
 #include "components/version_info/channel.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 using enterprise_connectors::test::MockKeyNetworkDelegate;
@@ -88,8 +88,9 @@ class RotateUtilTest : public testing::Test {
     return command_line;
   }
 
-  raw_ptr<MockKeyNetworkDelegate> mock_network_delegate_;
-  raw_ptr<MockKeyPersistenceDelegate> mock_persistence_delegate_;
+  raw_ptr<MockKeyNetworkDelegate, DanglingUntriaged> mock_network_delegate_;
+  raw_ptr<MockKeyPersistenceDelegate, DanglingUntriaged>
+      mock_persistence_delegate_;
   std::unique_ptr<KeyRotationManager> key_rotation_manager_;
   test::ScopedKeyPersistenceDelegateFactory scoped_factory_;
   base::test::TaskEnvironment task_environment_;

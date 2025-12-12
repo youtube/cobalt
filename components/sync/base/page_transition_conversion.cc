@@ -67,7 +67,6 @@ sync_pb::SyncEnums_PageTransition ToSyncPageTransition(
       break;
   }
   NOTREACHED();
-  return sync_pb::SyncEnums_PageTransition_LINK;
 }
 
 ui::PageTransition FromSyncPageTransition(

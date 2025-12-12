@@ -11,7 +11,7 @@
 #include "content/public/browser/device_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 #include "url/origin.h"
 
 namespace permissions {
@@ -22,24 +22,19 @@ GeolocationPermissionContext::GeolocationPermissionContext(
     : PermissionContextBase(
           browser_context,
           ContentSettingsType::GEOLOCATION,
-          blink::mojom::PermissionsPolicyFeature::kGeolocation),
+          network::mojom::PermissionsPolicyFeature::kGeolocation),
       delegate_(std::move(delegate)) {}
 
 GeolocationPermissionContext::~GeolocationPermissionContext() = default;
 
 void GeolocationPermissionContext::DecidePermission(
-    const PermissionRequestID& id,
-    const GURL& requesting_origin,
-    const GURL& embedding_origin,
-    bool user_gesture,
+    std::unique_ptr<permissions::PermissionRequestData> request_data,
     BrowserPermissionCallback callback) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  if (!delegate_->DecidePermission(id, requesting_origin, user_gesture,
-                                   &callback, this)) {
+  if (!delegate_->DecidePermission(*request_data, &callback, this)) {
     DCHECK(callback);
-    PermissionContextBase::DecidePermission(id, requesting_origin,
-                                            embedding_origin, user_gesture,
+    PermissionContextBase::DecidePermission(std::move(request_data),
                                             std::move(callback));
   }
 }

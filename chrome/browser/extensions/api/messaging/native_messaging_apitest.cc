@@ -10,11 +10,13 @@
 #include "base/strings/string_util.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
-#include "chrome/browser/background/background_mode_manager.h"
+#include "chrome/browser/background/extensions/background_mode_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/extensions/api/messaging/native_messaging_launch_from_native.h"
 #include "chrome/browser/extensions/api/messaging/native_messaging_test_util.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/extensions/window_controller.h"
+#include "chrome/browser/extensions/window_controller_list.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
@@ -25,13 +27,22 @@
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/process_manager.h"
+#include "extensions/common/extension_features.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/test/extension_background_page_waiter.h"
 #include "extensions/test/result_catcher.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
+#include "chrome/common/pref_names.h"
+#include "chrome/test/base/testing_profile.h"
+#endif
 
 namespace extensions {
 namespace {
 
-using ContextType = ExtensionApiTest::ContextType;
+using ContextType = extensions::browser_test_util::ContextType;
 
 class NativeMessagingApiTestBase : public ExtensionApiTest {
  public:
@@ -44,6 +55,14 @@ class NativeMessagingApiTestBase : public ExtensionApiTest {
       delete;
 
  protected:
+  size_t GetTotalTabCount() const {
+    size_t tabs = 0;
+    for (WindowController* window : *WindowControllerList::GetInstance()) {
+      tabs += window->GetTabCount();
+    }
+    return tabs;
+  }
+
   extensions::ScopedTestNativeMessagingHost test_host_;
 };
 
@@ -60,6 +79,59 @@ IN_PROC_BROWSER_TEST_F(NativeMessagingApiTestBase, UserLevelSendNativeMessage) {
   ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestHost(kUserLevel));
   ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message"));
 }
+
+#if BUILDFLAG(IS_WIN)
+// On Windows, a new codepath is used to directly launch .EXE-based Native
+// Hosts. This codepath allows launching of Native Hosts even when cmd.exe is
+// disabled or misconfigured.
+class NativeMessagingLaunchExeTest : public NativeMessagingApiTestBase,
+                                     public testing::WithParamInterface<bool> {
+ public:
+  NativeMessagingLaunchExeTest() {
+    feature_list_.InitWithFeatureState(
+        extensions_features::kLaunchWindowsNativeHostsDirectly,
+        IsDirectLaunchEnabled());
+  }
+
+  bool IsDirectLaunchEnabled() const { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(NativeMessagingLaunchExe,
+                         NativeMessagingLaunchExeTest,
+                         testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(NativeMessagingLaunchExeTest,
+                       UserLevelSendNativeMessageWinExe) {
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_host.exe", /*user_level=*/true));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+// The Host's filename deliberately contains the character '&' which causes the
+// Host to fail to launch if cmd.exe is used as an intermediary between the
+// extension and the host executable, unless extra quotes are used.
+// crbug.com/335558
+IN_PROC_BROWSER_TEST_P(NativeMessagingLaunchExeTest,
+                       SendNativeMessageWinExeAmpersand) {
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_&_host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+// Make sure that a filename with a space is supported.
+IN_PROC_BROWSER_TEST_P(NativeMessagingLaunchExeTest,
+                       SendNativeMessageWinExeSpace) {
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_ _host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+#endif
 
 class NativeMessagingApiTest : public NativeMessagingApiTestBase,
                                public testing::WithParamInterface<ContextType> {
@@ -115,7 +187,7 @@ IN_PROC_BROWSER_TEST_P(NativeMessagingApiTest,
 
 base::CommandLine CreateNativeMessagingConnectCommandLine(
     const std::string& connect_id,
-    const std::string& extension_id =
+    const ExtensionId& extension_id =
         ScopedTestNativeMessagingHost::kExtensionId) {
   base::CommandLine command_line(*base::CommandLine::ForCurrentProcess());
   command_line.AppendSwitchASCII(switches::kNativeMessagingConnectExtension,
@@ -140,13 +212,7 @@ class NativeMessagingLaunchApiTest : public NativeMessagingApiTestBase {
   base::test::ScopedFeatureList feature_list_;
 };
 
-// Disabled on Windows due to timeouts; see https://crbug.com/984897.
-#if BUILDFLAG(IS_WIN)
-#define MAYBE_Success DISABLED_Success
-#else
-#define MAYBE_Success Success
-#endif
-IN_PROC_BROWSER_TEST_F(NativeMessagingLaunchApiTest, MAYBE_Success) {
+IN_PROC_BROWSER_TEST_F(NativeMessagingLaunchApiTest, Success) {
   ProcessManager::SetEventPageIdleTimeForTesting(1);
   ProcessManager::SetEventPageSuspendingTimeForTesting(1);
   ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestHost(false));
@@ -171,11 +237,7 @@ IN_PROC_BROWSER_TEST_F(NativeMessagingLaunchApiTest, MAYBE_Success) {
   if (!catcher.GetNextResult()) {
     FAIL() << catcher.message();
   }
-  size_t tabs = 0;
-  for (auto* browser : *BrowserList::GetInstance()) {
-    tabs += browser->tab_strip_model()->count();
-  }
-  EXPECT_EQ(1u, tabs);
+  EXPECT_EQ(1u, GetTotalTabCount());
 }
 
 // Test that a natively-initiated connection from a host not supporting
@@ -208,11 +270,7 @@ IN_PROC_BROWSER_TEST_F(NativeMessagingLaunchApiTest, UnsupportedByNativeHost) {
   if (!catcher.GetNextResult()) {
     FAIL() << catcher.message();
   }
-  size_t tabs = 0;
-  for (auto* browser : *BrowserList::GetInstance()) {
-    tabs += browser->tab_strip_model()->count();
-  }
-  EXPECT_EQ(1u, tabs);
+  EXPECT_EQ(1u, GetTotalTabCount());
 }
 
 class TestKeepAliveStateObserver : public KeepAliveStateObserver {
@@ -425,16 +483,70 @@ IN_PROC_BROWSER_TEST_F(NativeMessagingLaunchBackgroundModeApiTest,
   if (!catcher_->GetNextResult()) {
     FAIL() << catcher_->message();
   }
-  size_t tabs = 0;
-  for (auto* browser : *BrowserList::GetInstance()) {
-    tabs += browser->tab_strip_model()->count();
-  }
-  EXPECT_EQ(0u, tabs);
+  EXPECT_EQ(0u, GetTotalTabCount());
 
   ASSERT_NO_FATAL_FAILURE(TestKeepAliveStateObserver().WaitForNoKeepAlive());
 }
 
 #endif  // !BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_WIN)
+class NativeHostExecutablesLaunchDirectlyPolicyTest
+    : public extensions::NativeMessagingApiTestBase,
+      public testing::WithParamInterface<bool> {
+ public:
+  NativeHostExecutablesLaunchDirectlyPolicyTest() {
+    feature_list_.InitWithFeatureState(
+        extensions_features::kLaunchWindowsNativeHostsDirectly,
+        IsDirectLaunchEnabled());
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    profile_ = std::make_unique<TestingProfile>();
+  }
+
+  void TearDownOnMainThread() override {
+    profile_.reset();
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+
+  bool IsDirectLaunchEnabled() const { return GetParam(); }
+
+ protected:
+  extensions::ScopedTestNativeMessagingHost test_host_;
+  std::unique_ptr<TestingProfile> profile_;
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NativeHostExecutablesLaunchDirectlyPolicyTest,
+                       PolicyDisabledTest) {
+  PrefService* prefs = profile_->GetPrefs();
+  prefs->SetBoolean(prefs::kNativeHostsExecutablesLaunchDirectly, true);
+
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_&_host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+IN_PROC_BROWSER_TEST_P(NativeHostExecutablesLaunchDirectlyPolicyTest,
+                       PolicyEnabledTest) {
+  PrefService* prefs = profile_->GetPrefs();
+  prefs->SetBoolean(prefs::kNativeHostsExecutablesLaunchDirectly, false);
+
+  ASSERT_NO_FATAL_FAILURE(test_host_.RegisterTestExeHost(
+      "native_messaging_test_echo_&_host.exe", /*user_level=*/false));
+
+  ASSERT_TRUE(RunExtensionTest("native_messaging_send_native_message_exe"));
+}
+
+INSTANTIATE_TEST_SUITE_P(NativeHostExecutablesLaunchDirectlyPolicyTestP,
+                         NativeHostExecutablesLaunchDirectlyPolicyTest,
+                         testing::Bool());
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace
 }  // namespace extensions

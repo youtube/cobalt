@@ -4,7 +4,6 @@
 
 #include "third_party/blink/renderer/core/css/css_paint_value.h"
 
-#include "base/metrics/histogram_macros.h"
 #include "third_party/blink/renderer/core/css/css_custom_ident_value.h"
 #include "third_party/blink/renderer/core/css/css_paint_image_generator.h"
 #include "third_party/blink/renderer/core/css/css_syntax_definition.h"
@@ -40,9 +39,9 @@ CSSPaintValue::CSSPaintValue(CSSCustomIdentValue* name)
 
 CSSPaintValue::CSSPaintValue(
     CSSCustomIdentValue* name,
-    Vector<scoped_refptr<CSSVariableData>>& variable_data)
+    HeapVector<Member<CSSVariableData>>&& variable_data)
     : CSSPaintValue(name) {
-  argument_variable_data_.swap(variable_data);
+  argument_variable_data_ = variable_data;
 }
 
 CSSPaintValue::~CSSPaintValue() = default;
@@ -53,7 +52,7 @@ String CSSPaintValue::CustomCSSText() const {
   result.Append(name_->CustomCSSText());
   for (const auto& variable_data : argument_variable_data_) {
     result.Append(", ");
-    result.Append(variable_data.get()->Serialize());
+    result.Append(variable_data.Get()->Serialize());
   }
   result.Append(')');
   return result.ReleaseString();
@@ -104,7 +103,7 @@ CSSPaintImageGenerator& CSSPaintValue::EnsureGenerator(
 
 scoped_refptr<Image> CSSPaintValue::GetImage(
     const ImageResourceObserver& client,
-    const Document& document,
+    const Node& node,
     const ComputedStyle& style,
     const gfx::SizeF& target_size) {
   // https://crbug.com/835589: early exit when paint target is associated with
@@ -113,6 +112,7 @@ scoped_refptr<Image> CSSPaintValue::GetImage(
     return nullptr;
   }
 
+  const Document& document = node.GetDocument();
   CSSPaintImageGenerator& generator = EnsureGenerator(document);
 
   // If the generator isn't ready yet, we have nothing to paint. Our
@@ -150,10 +150,6 @@ scoped_refptr<Image> CSSPaintValue::GetImage(
     auto style_data = PaintWorkletStylePropertyMap::BuildCrossThreadData(
         document, layout_object.UniqueId(), style, native_properties,
         custom_properties, input_property_keys);
-    if (off_thread_paint_state_ == OffThreadPaintState::kUnknown) {
-      UMA_HISTOGRAM_BOOLEAN("Blink.CSSPaintValue.PaintOffThread",
-                            style_data.has_value());
-    }
     off_thread_paint_state_ = style_data.has_value()
                                   ? OffThreadPaintState::kOffThread
                                   : OffThreadPaintState::kMainThread;
@@ -171,7 +167,7 @@ scoped_refptr<Image> CSSPaintValue::GetImage(
     }
   }
 
-  return generator.Paint(client, target_size, parsed_input_arguments_);
+  return generator.Paint(client, target_size, parsed_input_arguments_.Get());
 }
 
 void CSSPaintValue::BuildInputArgumentValues(
@@ -210,7 +206,7 @@ bool CSSPaintValue::ParseInputArguments(const Document& document) {
     return false;
   }
 
-  parsed_input_arguments_ = MakeGarbageCollected<CSSStyleValueVector>();
+  parsed_input_arguments_ = MakeGarbageCollected<GCedCSSStyleValueVector>();
 
   for (wtf_size_t i = 0; i < argument_variable_data_.size(); ++i) {
     // If we are parsing a paint() function, we must be a secure context.
@@ -260,6 +256,7 @@ void CSSPaintValue::TraceAfterDispatch(blink::Visitor* visitor) const {
   visitor->Trace(generators_);
   visitor->Trace(paint_image_generator_observer_);
   visitor->Trace(parsed_input_arguments_);
+  visitor->Trace(argument_variable_data_);
   CSSImageGeneratorValue::TraceAfterDispatch(visitor);
 }
 

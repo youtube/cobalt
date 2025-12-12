@@ -7,7 +7,6 @@
 
 #include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
-#include "ui/gfx/geometry/size.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/layout/box_layout_view.h"
 #include "ui/views/view.h"
@@ -24,8 +23,9 @@ class Label;
 // text that will elide to its parent's width. Used by
 // MediaGalleriesDialogViews.
 class MediaGalleryCheckboxView : public views::BoxLayoutView {
+  METADATA_HEADER(MediaGalleryCheckboxView, views::BoxLayoutView)
+
  public:
-  METADATA_HEADER(MediaGalleryCheckboxView);
   MediaGalleryCheckboxView(const MediaGalleryPrefInfo& pref_info,
                            int trailing_vertical_space,
                            views::ContextMenuController* menu_controller);
@@ -37,7 +37,7 @@ class MediaGalleryCheckboxView : public views::BoxLayoutView {
   views::Label* secondary_text() { return secondary_text_; }
 
   // views::View:
-  void Layout() override;
+  void Layout(PassKey) override;
 
  private:
   // Owned by the parent class (views::View).

@@ -32,27 +32,14 @@ bool IsSynchronousIframeAttributionDataExpected(
   // ... where the parent is hosted in the same process ...
   if (frame->GetProcessNode() != parent->GetProcessNode())
     return false;
-  // ... and where they are both in the same site instance (implying they are
-  // both in the same frame-tree and know directly of each other's LocalFrame
-  // rather then communicating via a RemoteFrame and a RenderFrameProxy).
-  return frame->GetSiteInstanceId() == parent->GetSiteInstanceId();
+  // ... and where they are both in the same SiteInstanceGroup (implying they
+  // are both in the same frame-tree and know directly of each other's
+  // LocalFrame rather then communicating via a RemoteFrame and a
+  // RenderFrameProxy).
+  return frame->GetSiteInstanceGroupId() == parent->GetSiteInstanceGroupId();
 }
 
 }  // namespace
-
-blink::ExecutionContextToken ToExecutionContextToken(
-    const blink::WorkerToken& token) {
-  if (token.Is<blink::DedicatedWorkerToken>()) {
-    return blink::ExecutionContextToken(
-        token.GetAs<blink::DedicatedWorkerToken>());
-  }
-  if (token.Is<blink::ServiceWorkerToken>()) {
-    return blink::ExecutionContextToken(
-        token.GetAs<blink::ServiceWorkerToken>());
-  }
-  // This will DCHECK for us if the token isn't a SharedWorkerToken.
-  return blink::ExecutionContextToken(token.GetAs<blink::SharedWorkerToken>());
-}
 
 bool HasCrossProcessParent(const FrameNode* frame_node) {
   DCHECK(frame_node);
@@ -171,7 +158,7 @@ V8ContextDescriptionStatus ValidateV8ContextDescription(
   return V8ContextDescriptionStatus::kValid;
 }
 
-absl::optional<bool> ExpectIframeAttributionDataForV8ContextDescription(
+std::optional<bool> ExpectIframeAttributionDataForV8ContextDescription(
     const mojom::V8ContextDescription& description,
     Graph* graph) {
   switch (description.world_type) {
@@ -185,7 +172,7 @@ absl::optional<bool> ExpectIframeAttributionDataForV8ContextDescription(
         return IsSynchronousIframeAttributionDataExpected(ec);
       }
       // Unable to be determined.
-      return absl::nullopt;
+      return std::nullopt;
     }
 
     case mojom::V8ContextWorldType::kWorkerOrWorklet:

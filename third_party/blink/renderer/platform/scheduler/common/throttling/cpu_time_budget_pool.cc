@@ -5,9 +5,9 @@
 #include "third_party/blink/renderer/platform/scheduler/common/throttling/cpu_time_budget_pool.h"
 
 #include <cstdint>
+#include <optional>
 
 #include "base/check_op.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/platform/scheduler/common/throttling/task_queue_throttler.h"
 
 namespace blink {
@@ -20,10 +20,11 @@ CPUTimeBudgetPool::CPUTimeBudgetPool(
     TraceableVariableController* tracing_controller,
     base::TimeTicks now)
     : BudgetPool(name),
-      current_budget_level_(base::TimeDelta(),
-                            "RendererScheduler.BackgroundBudgetMs",
-                            tracing_controller,
-                            TimeDeltaToMilliseconds),
+      current_budget_level_(
+          base::TimeDelta(),
+          MakeCounterTrack("RendererScheduler.BackgroundBudgetMs", this),
+          tracing_controller,
+          [](const base::TimeDelta& delta) { return delta.InMillisecondsF(); }),
       last_checkpoint_(now),
       cpu_percentage_(1) {}
 
@@ -35,7 +36,7 @@ QueueBlockType CPUTimeBudgetPool::GetBlockType() const {
 
 void CPUTimeBudgetPool::SetMaxBudgetLevel(
     base::TimeTicks now,
-    absl::optional<base::TimeDelta> max_budget_level) {
+    std::optional<base::TimeDelta> max_budget_level) {
   Advance(now);
   max_budget_level_ = max_budget_level;
   EnforceBudgetLevelRestrictions();
@@ -43,7 +44,7 @@ void CPUTimeBudgetPool::SetMaxBudgetLevel(
 
 void CPUTimeBudgetPool::SetMaxThrottlingDelay(
     base::TimeTicks now,
-    absl::optional<base::TimeDelta> max_throttling_delay) {
+    std::optional<base::TimeDelta> max_throttling_delay) {
   Advance(now);
   max_throttling_delay_ = max_throttling_delay;
   EnforceBudgetLevelRestrictions();
@@ -71,8 +72,9 @@ void CPUTimeBudgetPool::SetReportingCallback(
 bool CPUTimeBudgetPool::CanRunTasksAt(base::TimeTicks moment) const {
   if (!is_enabled_)
     return true;
-  if (current_budget_level_->InMicroseconds() >= 0)
+  if (current_budget_level_->InMicroseconds() >= 0) {
     return true;
+  }
   base::TimeDelta time_to_recover_budget =
       -current_budget_level_ / cpu_percentage_;
   if (moment - last_checkpoint_ >= time_to_recover_budget) {
@@ -109,13 +111,14 @@ void CPUTimeBudgetPool::RecordTaskRunTime(base::TimeTicks start_time,
     EnforceBudgetLevelRestrictions();
 
     if (!reporting_callback_.is_null() && old_budget_level.InSecondsF() > 0 &&
-        current_budget_level_->InSecondsF() < 0) {
+        current_budget_level_->InMicroseconds() < 0) {
       reporting_callback_.Run(-current_budget_level_ / cpu_percentage_);
     }
   }
 
-  if (current_budget_level_->InSecondsF() < 0)
+  if (current_budget_level_->InMicroseconds() < 0) {
     UpdateStateForAllThrottlers(end_time);
+  }
 }
 
 void CPUTimeBudgetPool::OnWakeUp(base::TimeTicks now) {}

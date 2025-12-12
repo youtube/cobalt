@@ -4,15 +4,15 @@
 
 package org.chromium.chrome.browser.ui.fast_checkout.detail_screen;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.fast_checkout.data.FastCheckoutCreditCard;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModel.ReadableObjectPropertyKey;
 import org.chromium.ui.modelutil.PropertyModel.WritableBooleanPropertyKey;
 
-/**
- * Model for an {@link FastCheckoutCreditCard} entry in the credit card screen sheet.
- */
+/** Model for an {@link FastCheckoutCreditCard} entry in the credit card screen sheet. */
+@NullMarked
 public class CreditCardItemProperties {
     /** The credit card represented by this entry. */
     public static final ReadableObjectPropertyKey<FastCheckoutCreditCard> CREDIT_CARD =
@@ -25,9 +25,7 @@ public class CreditCardItemProperties {
     public static final WritableBooleanPropertyKey IS_SELECTED =
             new WritableBooleanPropertyKey("is_selected");
 
-    /**
-     * The function to run when this credit card is selected by the user.
-     */
+    /** The function to run when this credit card is selected by the user. */
     public static final ReadableObjectPropertyKey<Runnable> ON_CLICK_LISTENER =
             new ReadableObjectPropertyKey<>("on_click_listener");
 

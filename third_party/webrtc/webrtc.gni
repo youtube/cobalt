@@ -39,6 +39,10 @@ if (is_fuchsia) {
   import("//build/config/fuchsia/config.gni")
 }
 
+if (build_with_chromium) {
+  import("//media/media_options.gni")
+}
+
 # This declare_args is separated from the next one because args declared
 # in this one, can be read from the next one (args defined in the same
 # declare_args cannot be referenced in that scope).
@@ -95,9 +99,6 @@ declare_args() {
   # TLS-TURN server. In return disabling this saves around 100kb in the binary.
   rtc_builtin_ssl_root_certificates = true
 
-  # Include the iLBC audio codec?
-  rtc_include_ilbc = true
-
   # Disable this to avoid building the Opus audio codec.
   rtc_include_opus = true
 
@@ -126,9 +127,6 @@ declare_args() {
 
   # Selects whether the audio processing module should be excluded.
   rtc_exclude_audio_processing_module = false
-
-  # Set this to true to enable BWE test logging.
-  rtc_enable_bwe_test_logging = false
 
   # Set this to false to skip building examples.
   rtc_build_examples = true
@@ -172,18 +170,34 @@ declare_args() {
   rtc_build_with_neon =
       (current_cpu == "arm" && arm_use_neon) || current_cpu == "arm64"
 
-  # Enable this to build OpenH264 encoder/FFmpeg decoder. This is supported on
-  # all platforms except Android and iOS. Because FFmpeg can be built
-  # with/without H.264 support, `ffmpeg_branding` has to separately be set to a
-  # value that includes H.264, for example "Chrome". If FFmpeg is built without
-  # H.264, compilation succeeds but `H264DecoderImpl` fails to initialize.
+  # Enable this to build OpenH264 encoder/FFmpeg decoder. When building WebRTC
+  # as part of Chromium, this is delegated to `media_use_openh264`. When
+  # building WebRTC as a standalone library, this is supported on all platforms
+  # except Android and iOS. Because FFmpeg can be built with/without H.264
+  # support, `ffmpeg_branding` has to separately be set to a value that
+  # includes H.264, for example "Chrome". If FFmpeg is built without H.264,
+  # compilation succeeds but `H264DecoderImpl` fails to initialize.
   # CHECK THE OPENH264, FFMPEG AND H.264 LICENSES/PATENTS BEFORE BUILDING.
   # http://www.openh264.org, https://www.ffmpeg.org/
   #
   # Enabling H264 when building with MSVC is currently not supported, see
   # bugs.webrtc.org/9213#c13 for more info.
-  rtc_use_h264 =
-      proprietary_codecs && !is_android && !is_ios && !(is_win && !is_clang)
+  if (build_with_chromium) {
+    rtc_use_h264 = media_use_openh264
+  } else {
+    rtc_use_h264 =
+        proprietary_codecs && !is_android && !is_ios && !(is_win && !is_clang)
+  }
+
+  # Use system OpenH264
+  rtc_system_openh264 = false
+
+  # Enable to use H265
+  if (build_with_chromium) {
+    rtc_use_h265 = enable_hevc_parser_and_hw_decoder
+  } else {
+    rtc_use_h265 = proprietary_codecs
+  }
 
   # Enable this flag to make webrtc::Mutex be implemented by absl::Mutex.
   rtc_use_absl_mutex = false
@@ -204,9 +218,8 @@ declare_args() {
     rtc_apprtcmobile_broadcast_extension = false
   }
 
-  # Determines whether OpenGL is available on iOS/macOS.
-  rtc_ios_macos_use_opengl_rendering =
-      !(is_ios && target_environment == "catalyst")
+  # Determines whether OpenGL is available on iOS.
+  rtc_ios_use_opengl_rendering = is_ios && target_environment != "catalyst"
 
   # When set to false, builtin audio encoder/decoder factories and all the
   # audio codecs they depend on will not be included in libwebrtc.{a|lib}
@@ -240,6 +253,28 @@ declare_args() {
   #  "warn": RTC_LOGs a message with LS_WARNING severity if the field trial
   #          hasn't been registered.
   rtc_strict_field_trials = ""
+
+  # If different from "", symbols exported with RTC_OBJC_EXPORT will be prefixed
+  # with this string.
+  # See the definition of RTC_OBJC_TYPE_PREFIX in the code.
+  rtc_objc_prefix = ""
+
+  # Embedders can define dependencies needed by WebRTC. Dependencies can be
+  # configs or targets. This can be defined in their `.gn` file.
+  #
+  # In practise, this is use by Chromium: Targets from
+  # `//third_party/webrtc_overrides` are depending on Chrome's `//base`, but
+  # WebRTC does not declare its public dependencies. See webrtc:8603. Instead
+  # WebRTC is using a global common dependencies.
+  rtc_common_public_deps = []  # no-presubmit-check TODO(webrtc:8603)
+
+  # When true, include the Perfetto library.
+  rtc_use_perfetto = false
+
+  # When true allows exports from deprecated namespaces.
+  # This will be set to false on Jun 23 2025. See bugs.webrtc.org/42232595
+  # for details.
+  rtc_allow_deprecated_namespaces = true
 }
 
 if (!build_with_mozilla) {
@@ -263,16 +298,6 @@ declare_args() {
   rtc_libvpx_build_vp9 = !build_with_mozilla
   rtc_build_opus = !build_with_mozilla
   rtc_build_ssl = !build_with_mozilla
-
-  # Enable libevent task queues on platforms that support it.
-  if (is_win || is_mac || is_ios || is_nacl || is_fuchsia ||
-      target_cpu == "wasm") {
-    rtc_enable_libevent = false
-    rtc_build_libevent = false
-  } else {
-    rtc_enable_libevent = true
-    rtc_build_libevent = !build_with_mozilla
-  }
 
   # Excluded in Chromium since its prerequisites don't require Pulse Audio.
   rtc_include_pulse_audio = !build_with_chromium
@@ -310,9 +335,8 @@ declare_args() {
   # Set this to true to disable webrtc metrics.
   rtc_disable_metrics = false
 
-  # Set this to true to exclude the transient suppressor in the audio processing
-  # module from the build.
-  rtc_exclude_transient_suppressor = false
+  # Enables an experimental rust version of base64 for building and testing.
+  rtc_rusty_base64 = true
 }
 
 declare_args() {
@@ -352,7 +376,15 @@ webrtc_root = get_path_info(".", "abspath")
 rtc_common_configs = [ webrtc_root + ":common_config" ]
 
 if (is_mac || is_ios) {
-  rtc_common_configs += [ "//build/config/compiler:enable_arc" ]
+  if (filter_include(default_compiler_configs,
+                     [ "//build/config/compiler:enable_arc" ]) == []) {
+    rtc_common_configs += [ "//build/config/compiler:enable_arc" ]
+  }
+}
+
+if (build_with_chromium) {
+  rtc_use_perfetto = true
+  rtc_allow_deprecated_namespaces = false
 }
 
 # Global public configuration that should be applied to all WebRTC targets. You
@@ -373,34 +405,37 @@ rtc_library_impl_config = [ webrtc_root + ":library_impl_config" ]
 
 set_defaults("rtc_test") {
   configs = rtc_add_configs
+  public_deps = rtc_common_public_deps  # no-presubmit-check TODO(webrtc:8603)
   suppressed_configs = []
 }
 
 set_defaults("rtc_library") {
   configs = rtc_add_configs
+  public_deps = rtc_common_public_deps  # no-presubmit-check TODO(webrtc:8603)
   suppressed_configs = []
-  absl_deps = []
 }
 
 set_defaults("rtc_source_set") {
   configs = rtc_add_configs
+  public_deps = rtc_common_public_deps  # no-presubmit-check TODO(webrtc:8603)
   suppressed_configs = []
-  absl_deps = []
 }
 
 set_defaults("rtc_static_library") {
   configs = rtc_add_configs
+  public_deps = rtc_common_public_deps  # no-presubmit-check TODO(webrtc:8603)
   suppressed_configs = []
-  absl_deps = []
 }
 
 set_defaults("rtc_executable") {
   configs = rtc_add_configs
+  public_deps = rtc_common_public_deps  # no-presubmit-check TODO(webrtc:8603)
   suppressed_configs = []
 }
 
 set_defaults("rtc_shared_library") {
   configs = rtc_add_configs
+  public_deps = rtc_common_public_deps  # no-presubmit-check TODO(webrtc:8603)
   suppressed_configs = []
 }
 
@@ -445,14 +480,13 @@ all_poison_types = [
   # Encoders and decoders for specific audio codecs such as Opus and iSAC.
   "audio_codecs",
 
-  # Default task queue implementation.
-  "default_task_queue",
-
   # Default echo detector implementation.
   "default_echo_detector",
 
-  # JSON parsing should not be needed in the "slim and modular" WebRTC.
-  "rtc_json",
+  # Implementations of the utilities exposed through `Environment`.
+  # Most webrtc classes must use propagated `Environment`. Only few top-level
+  # classes are allowed to create `Environment` from individual utilities.
+  "environment_construction",
 
   # Software video codecs (VP8 and VP9 through libvpx).
   "software_video_codecs",
@@ -501,13 +535,18 @@ template("rtc_test") {
       public_configs += invoker.public_configs
     }
     if (!build_with_chromium && is_android) {
+      use_default_launcher = false
       android_manifest = webrtc_root + "test/android/AndroidManifest.xml"
       use_raw_android_executable = false
       min_sdk_version = 21
-      target_sdk_version = 23
+      target_sdk_version = 24
       deps += [
         "//build/android/gtest_apk:native_test_instrumentation_test_runner_java",
+        webrtc_root + "sdk/android:native_test_jni_onload",
+        webrtc_root + "sdk/android:base_java",
         webrtc_root + "test:native_test_java",
+        webrtc_root + "test:native_test_support",
+        "//third_party/jni_zero:jni_zero_java",
       ]
     }
 
@@ -518,17 +557,20 @@ template("rtc_test") {
       }
     }
 
-    # If absl_deps is [], no action is needed. If not [], then it needs to be
-    # converted to //third_party/abseil-cpp:absl when build_with_chromium=true
-    # otherwise it just needs to be added to deps.
-    if (defined(absl_deps) && absl_deps != []) {
-      if (!defined(deps)) {
+    assert(
+        !defined(absl_deps),
+        "`absl_deps` has been deprecated, add your Abseil dependencies to the `deps` variable.")
+
+    # Abseil dependencies need to be converted to //third_party/abseil-cpp:absl when build_with_chromium=true
+    if (build_with_chromium && defined(deps)) {
+      absl_dependencies =
+          filter_labels_include(deps, [ "//third_party/abseil-cpp/*" ])
+      if (absl_dependencies != []) {
+        filtered_deps =
+            filter_labels_exclude(deps, [ "//third_party/abseil-cpp/*" ])
         deps = []
-      }
-      if (build_with_chromium) {
+        deps = filtered_deps
         deps += [ "//third_party/abseil-cpp:absl" ]
-      } else {
-        deps += absl_deps
       }
     }
 
@@ -557,6 +599,12 @@ template("rtc_source_set") {
     forward_variables_from(invoker, [ "visibility" ])
     if (!defined(visibility)) {
       visibility = webrtc_default_visibility
+    }
+
+    if (defined(invoker.sources)) {
+      nonheader_sources = filter_include(invoker.sources, [ "*.cc" ])
+      assert(nonheader_sources == [],
+             "rtc_source_set shall not contain cc files")
     }
 
     # What's your poison?
@@ -632,17 +680,20 @@ template("rtc_source_set") {
       public_configs += invoker.public_configs
     }
 
-    # If absl_deps is [], no action is needed. If not [], then it needs to be
-    # converted to //third_party/abseil-cpp:absl when build_with_chromium=true
-    # otherwise it just needs to be added to deps.
-    if (absl_deps != []) {
-      if (!defined(deps)) {
+    assert(
+        !defined(absl_deps),
+        "`absl_deps` has been deprecated, add your Abseil dependencies to the `deps` variable.")
+
+    # Abseil dependencies need to be converted to //third_party/abseil-cpp:absl when build_with_chromium=true
+    if (build_with_chromium && defined(deps)) {
+      absl_dependencies =
+          filter_labels_include(deps, [ "//third_party/abseil-cpp/*" ])
+      if (absl_dependencies != []) {
+        filtered_deps =
+            filter_labels_exclude(deps, [ "//third_party/abseil-cpp/*" ])
         deps = []
-      }
-      if (build_with_chromium) {
+        deps = filtered_deps
         deps += [ "//third_party/abseil-cpp:absl" ]
-      } else {
-        deps += absl_deps
       }
     }
   }
@@ -721,17 +772,20 @@ template("rtc_static_library") {
       public_configs += invoker.public_configs
     }
 
-    # If absl_deps is [], no action is needed. If not [], then it needs to be
-    # converted to //third_party/abseil-cpp:absl when build_with_chromium=true
-    # otherwise it just needs to be added to deps.
-    if (absl_deps != []) {
-      if (!defined(deps)) {
+    assert(
+        !defined(absl_deps),
+        "`absl_deps` has been deprecated, add your Abseil dependencies to the `deps` variable.")
+
+    # Abseil dependencies need to be converted to //third_party/abseil-cpp:absl when build_with_chromium=true
+    if (build_with_chromium && defined(deps)) {
+      absl_dependencies =
+          filter_labels_include(deps, [ "//third_party/abseil-cpp/*" ])
+      if (absl_dependencies != []) {
+        filtered_deps =
+            filter_labels_exclude(deps, [ "//third_party/abseil-cpp/*" ])
         deps = []
-      }
-      if (build_with_chromium) {
+        deps = filtered_deps
         deps += [ "//third_party/abseil-cpp:absl" ]
-      } else {
-        deps += absl_deps
       }
     }
   }
@@ -860,17 +914,20 @@ template("rtc_library") {
       public_configs += invoker.public_configs
     }
 
-    # If absl_deps is [], no action is needed. If not [], then it needs to be
-    # converted to //third_party/abseil-cpp:absl when build_with_chromium=true
-    # otherwise it just needs to be added to deps.
-    if (absl_deps != []) {
-      if (!defined(deps)) {
+    assert(
+        !defined(absl_deps),
+        "`absl_deps` has been deprecated, add your Abseil dependencies to the `deps` variable.")
+
+    # Abseil dependencies need to be converted to //third_party/abseil-cpp:absl when build_with_chromium=true
+    if (build_with_chromium && defined(deps)) {
+      absl_dependencies =
+          filter_labels_include(deps, [ "//third_party/abseil-cpp/*" ])
+      if (absl_dependencies != []) {
+        filtered_deps =
+            filter_labels_exclude(deps, [ "//third_party/abseil-cpp/*" ])
         deps = []
-      }
-      if (build_with_chromium) {
+        deps = filtered_deps
         deps += [ "//third_party/abseil-cpp:absl" ]
-      } else {
-        deps += absl_deps
       }
     }
   }
@@ -912,6 +969,24 @@ template("rtc_executable") {
         # Give executables the default manifest on Windows (a no-op elsewhere).
         "//build/win:default_exe_manifest",
       ]
+    }
+
+    # Convert abseil dependencies to //third_party/abseil-cpp:absl_full when
+    # build_with_chromium=true so that webrtc targets won't need exceptions to
+    # depend on individual absl targets.
+    # Note that //third_party/abseil-cpp:absl_full build target includes flags,
+    # but //third_party/abseil-cpp:absl target - doesn't. That allows webrtc
+    # executables, but not libraries to use absl flags.
+    if (build_with_chromium && defined(deps)) {
+      absl_dependencies =
+          filter_labels_include(deps, [ "//third_party/abseil-cpp/*" ])
+      if (absl_dependencies != []) {
+        filtered_deps =
+            filter_labels_exclude(deps, [ "//third_party/abseil-cpp/*" ])
+        deps = []
+        deps = filtered_deps
+        deps += [ "//third_party/abseil-cpp:absl_full" ]
+      }
     }
   }
 }
@@ -993,6 +1068,7 @@ if (is_mac || is_ios) {
     umbrella_header_path =
         "$target_gen_dir/$output_name.framework/WebRTC/$output_name.h"
     modulemap_path = "$target_gen_dir/Modules/module.modulemap"
+    privacy_manifest_path = "$target_gen_dir/$target_name/PrivacyInfo.xcprivacy"
 
     action_foreach("create_bracket_include_headers_$target_name") {
       script = "//tools_webrtc/apple/copy_framework_header.py"
@@ -1033,6 +1109,7 @@ if (is_mac || is_ios) {
         deps += [
           ":copy_framework_headers_$this_target_name",
           ":copy_modulemap_$this_target_name",
+          ":copy_privacy_manifest_$this_target_name",
           ":copy_umbrella_header_$this_target_name",
           ":create_bracket_include_headers_$this_target_name",
           ":modulemap_$this_target_name",
@@ -1055,6 +1132,7 @@ if (is_mac || is_ios) {
                 ":create_bracket_include_headers_$this_target_name")
 
         deps += [
+          ":copy_privacy_manifest_$this_target_name",
           ":copy_umbrella_header_$this_target_name",
           ":create_bracket_include_headers_$this_target_name",
         ]
@@ -1064,8 +1142,13 @@ if (is_mac || is_ios) {
     if (is_mac || target_environment == "catalyst") {
       # Catalyst frameworks use the same layout as regular Mac frameworks.
       headers_dir = "Versions/A/Headers"
+
+      # The path to the privacy manifest file differs between Mac and iOS.
+      # https://developer.apple.com/documentation/bundleresources/privacy_manifest_files/adding_a_privacy_manifest_to_your_app_or_third-party_sdk
+      privacy_manifest_out_path = "Versions/A/Resources/PrivacyInfo.xcprivacy"
     } else {
       headers_dir = "Headers"
+      privacy_manifest_out_path = "PrivacyInfo.xcprivacy"
     }
 
     bundle_data("copy_framework_headers_$this_target_name") {
@@ -1115,6 +1198,25 @@ if (is_mac || is_ios) {
 
       deps = [ ":umbrella_header_$target_name" ]
     }
+
+    action("create_privacy_manifest_$target_name") {
+      script = "//tools_webrtc/apple/generate_privacy_manifest.py"
+
+      args = [
+        "--output",
+        rebase_path(privacy_manifest_path),
+      ]
+
+      outputs = [ privacy_manifest_path ]
+    }
+
+    copy("copy_privacy_manifest_$target_name") {
+      sources = [ privacy_manifest_path ]
+      outputs =
+          [ "$root_out_dir/$output_name.framework/$privacy_manifest_out_path" ]
+
+      deps = [ ":create_privacy_manifest_$target_name" ]
+    }
   }
 }
 
@@ -1130,21 +1232,11 @@ if (is_android) {
                                "visibility",
                              ])
 
-      errorprone_args = []
-
-      # Treat warnings as errors.
-      errorprone_args += [ "-Werror" ]
-
       # Add any arguments defined by the invoker.
       if (defined(invoker.errorprone_args)) {
-        errorprone_args += invoker.errorprone_args
+        errorprone_args = invoker.errorprone_args
       }
 
-      if (!defined(deps)) {
-        deps = []
-      }
-
-      no_build_hooks = true
       not_needed([ "android_manifest" ])
     }
   }
@@ -1159,16 +1251,6 @@ if (is_android) {
                                "suppressed_configs",
                                "visibility",
                              ])
-
-      # Treat warnings as errors.
-      errorprone_args = []
-      errorprone_args += [ "-Werror" ]
-
-      if (!defined(deps)) {
-        deps = []
-      }
-
-      no_build_hooks = true
     }
   }
 
@@ -1182,16 +1264,7 @@ if (is_android) {
                                "suppressed_configs",
                                "visibility",
                              ])
-
-      # Treat warnings as errors.
-      errorprone_args = []
-      errorprone_args += [ "-Werror" ]
-
-      if (!defined(deps)) {
-        deps = []
-      }
-
-      no_build_hooks = true
+      deps += [ "//third_party/jni_zero:jni_zero_java" ]
     }
   }
 }

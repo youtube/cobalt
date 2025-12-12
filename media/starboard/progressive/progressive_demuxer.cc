@@ -16,6 +16,8 @@
 
 #include <inttypes.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -29,7 +31,6 @@
 #include "media/base/data_source.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/starboard_utils.h"
-#include "starboard/types.h"
 
 namespace media {
 
@@ -63,7 +64,7 @@ void ProgressiveDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
       LOG(INFO) << "media_stack ProgressiveDemuxerStream::Read() EOS sent.";
     } else {
       // Do not pop EOS buffers, so that subsequent read requests also get EOS
-      total_buffer_size_ -= buffer->data_size();
+      total_buffer_size_ -= buffer->size();
       --total_buffer_count_;
       buffer_queue_.pop_front();
     }
@@ -129,7 +130,7 @@ void ProgressiveDemuxerStream::EnqueueBuffer(
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
     if (!buffer->end_of_stream()) {
-      total_buffer_size_ += buffer->data_size();
+      total_buffer_size_ += buffer->size();
       ++total_buffer_count_;
     }
   }

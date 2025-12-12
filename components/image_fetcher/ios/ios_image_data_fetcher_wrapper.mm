@@ -13,10 +13,6 @@
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "url/url_constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 #pragma mark - IOSImageDataFetcherWrapper
 
 namespace image_fetcher {
@@ -25,7 +21,7 @@ IOSImageDataFetcherWrapper::IOSImageDataFetcherWrapper(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
     : image_data_fetcher_(url_loader_factory) {}
 
-IOSImageDataFetcherWrapper::~IOSImageDataFetcherWrapper() {}
+IOSImageDataFetcherWrapper::~IOSImageDataFetcherWrapper() = default;
 
 void IOSImageDataFetcherWrapper::FetchImageDataWebpDecoded(
     const GURL& image_url,

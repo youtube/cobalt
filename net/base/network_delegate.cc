@@ -4,10 +4,11 @@
 
 #include "net/base/network_delegate.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
+#include "base/threading/thread_checker.h"
 #include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
 #include "net/base/trace_constants.h"
@@ -15,6 +16,7 @@
 #include "net/cookies/cookie_setting_override.h"
 #include "net/cookies/cookie_util.h"
 #include "net/proxy_resolution/proxy_info.h"
+#include "net/url_request/redirect_info.h"
 #include "net/url_request/url_request.h"
 
 namespace net {
@@ -53,7 +55,7 @@ int NetworkDelegate::NotifyHeadersReceived(
     const HttpResponseHeaders* original_response_headers,
     scoped_refptr<HttpResponseHeaders>* override_response_headers,
     const IPEndPoint& endpoint,
-    absl::optional<GURL>* preserve_fragment_on_redirect_url) {
+    std::optional<GURL>* preserve_fragment_on_redirect_url) {
   TRACE_EVENT0(NetTracingCategory(), "NetworkDelegate::NotifyHeadersReceived");
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(original_response_headers);
@@ -77,6 +79,12 @@ void NetworkDelegate::NotifyBeforeRedirect(URLRequest* request,
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(request);
   OnBeforeRedirect(request, new_location);
+}
+
+void NetworkDelegate::NotifyBeforeRetry(URLRequest* request) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  CHECK(request);
+  OnBeforeRetry(request);
 }
 
 void NetworkDelegate::NotifyCompleted(URLRequest* request,
@@ -116,12 +124,24 @@ bool NetworkDelegate::AnnotateAndMoveUserBlockedCookies(
   return allowed;
 }
 
-bool NetworkDelegate::CanSetCookie(const URLRequest& request,
-                                   const CanonicalCookie& cookie,
-                                   CookieOptions* options) {
+bool NetworkDelegate::CanSetCookie(
+    const URLRequest& request,
+    const CanonicalCookie& cookie,
+    CookieOptions* options,
+    const net::FirstPartySetMetadata& first_party_set_metadata,
+    CookieInclusionStatus* inclusion_status) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(!(request.load_flags() & LOAD_DO_NOT_SAVE_COOKIES));
-  return OnCanSetCookie(request, cookie, options);
+  return OnCanSetCookie(request, cookie, options, first_party_set_metadata,
+                        inclusion_status);
+}
+
+std::optional<cookie_util::StorageAccessStatus>
+NetworkDelegate::GetStorageAccessStatus(
+    const URLRequest& request,
+    base::optional_ref<const RedirectInfo> redirect_info) const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  return OnGetStorageAccessStatus(request, redirect_info);
 }
 
 NetworkDelegate::PrivacySetting NetworkDelegate::ForcePrivacyMode(
@@ -164,16 +184,6 @@ bool NetworkDelegate::CanUseReportingClient(const url::Origin& origin,
   return OnCanUseReportingClient(origin, endpoint);
 }
 
-absl::optional<FirstPartySetsCacheFilter::MatchInfo>
-NetworkDelegate::GetFirstPartySetsCacheFilterMatchInfoMaybeAsync(
-    const SchemefulSite& request_site,
-    base::OnceCallback<void(FirstPartySetsCacheFilter::MatchInfo)> callback)
-    const {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return OnGetFirstPartySetsCacheFilterMatchInfoMaybeAsync(request_site,
-                                                           std::move(callback));
-}
-
 // static
 void NetworkDelegate::ExcludeAllCookies(
     net::CookieInclusionStatus::ExclusionReason reason,
@@ -191,16 +201,38 @@ void NetworkDelegate::ExcludeAllCookies(
 }
 
 // static
+void NetworkDelegate::ExcludeAllCookiesExceptPartitioned(
+    net::CookieInclusionStatus::ExclusionReason reason,
+    net::CookieAccessResultList& maybe_included_cookies,
+    net::CookieAccessResultList& excluded_cookies) {
+  // If cookies are not universally disabled, we will preserve partitioned
+  // cookies
+  const auto to_be_moved = std::ranges::stable_partition(
+      maybe_included_cookies, [](const net::CookieWithAccessResult& cookie) {
+        return cookie.cookie.IsPartitioned();
+      });
+  excluded_cookies.insert(excluded_cookies.end(),
+                          std::make_move_iterator(to_be_moved.begin()),
+                          std::make_move_iterator(to_be_moved.end()));
+  maybe_included_cookies.erase(to_be_moved.begin(), to_be_moved.end());
+
+  // Add the ExclusionReason for all excluded cookies.
+  for (net::CookieWithAccessResult& cookie : excluded_cookies) {
+    cookie.access_result.status.AddExclusionReason(reason);
+  }
+}
+
+// static
 void NetworkDelegate::MoveExcludedCookies(
     net::CookieAccessResultList& maybe_included_cookies,
     net::CookieAccessResultList& excluded_cookies) {
-  const auto to_be_moved = base::ranges::stable_partition(
+  const auto to_be_moved = std::ranges::stable_partition(
       maybe_included_cookies, [](const CookieWithAccessResult& cookie) {
         return cookie.access_result.status.IsInclude();
       });
-  excluded_cookies.insert(
-      excluded_cookies.end(), std::make_move_iterator(to_be_moved),
-      std::make_move_iterator(maybe_included_cookies.end()));
-  maybe_included_cookies.erase(to_be_moved, maybe_included_cookies.end());
+  excluded_cookies.insert(excluded_cookies.end(),
+                          std::make_move_iterator(to_be_moved.begin()),
+                          std::make_move_iterator(to_be_moved.end()));
+  maybe_included_cookies.erase(to_be_moved.begin(), to_be_moved.end());
 }
 }  // namespace net

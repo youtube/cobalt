@@ -135,7 +135,7 @@ PersistentPageConsistencyCheckTask::CheckResult&
 PersistentPageConsistencyCheckTask::CheckResult::operator=(
     const CheckResult& other) = default;
 
-PersistentPageConsistencyCheckTask::CheckResult::~CheckResult() {}
+PersistentPageConsistencyCheckTask::CheckResult::~CheckResult() = default;
 
 PersistentPageConsistencyCheckTask::PersistentPageConsistencyCheckTask(
     OfflinePageMetadataStore* store,
@@ -166,8 +166,6 @@ void PersistentPageConsistencyCheckTask::Run() {
 
 void PersistentPageConsistencyCheckTask::OnPersistentPageConsistencyCheckDone(
     CheckResult check_result) {
-  UMA_HISTOGRAM_ENUMERATION("OfflinePages.ConsistencyCheck.Persistent.Result",
-                            check_result.result);
   // If sync operation failed, invoke the callback with an empty list of
   // download ids.
   if (check_result.result != SyncOperationResult::SUCCESS) {

@@ -11,6 +11,7 @@ import androidx.annotation.IntDef;
 
 import org.chromium.base.ObserverList;
 import org.chromium.base.supplier.Supplier;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.filter.Filters.FilterType;
 import org.chromium.chrome.browser.download.internal.R;
 import org.chromium.components.browser_ui.widget.chips.ChipsCoordinator;
@@ -21,6 +22,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /** A Coordinator responsible for showing the tab filter selection UI for downloads home. */
+@NullMarked
 public class FilterCoordinator {
     @IntDef({TabType.FILES, TabType.PREFETCH})
     @Retention(RetentionPolicy.SOURCE)
@@ -51,7 +53,9 @@ public class FilterCoordinator {
      * @param exploreOfflineTabVisibilitySupplier A supplier that indicates whether or not explore
      *         offline tab is shown.
      */
-    public FilterCoordinator(Context context, OfflineItemFilterSource chipFilterSource,
+    public FilterCoordinator(
+            Context context,
+            OfflineItemFilterSource chipFilterSource,
             Supplier<Boolean> exploreOfflineTabVisibilitySupplier) {
         mChipsProvider =
                 new FilterChipsProvider(context, type -> handleChipSelected(), chipFilterSource);
@@ -71,8 +75,7 @@ public class FilterCoordinator {
     }
 
     /** Tears down this coordinator. */
-    public void destroy() {
-    }
+    public void destroy() {}
 
     /** @return The {@link View} representing this widget. */
     public View getView() {
@@ -94,8 +97,7 @@ public class FilterCoordinator {
      * components might need to update the UI state.
      */
     public void setSelectedFilter(@FilterType int filter) {
-        @TabType
-        int tabSelected;
+        @TabType int tabSelected;
         if (filter == Filters.FilterType.PREFETCHED && mExploreOfflineTabVisibilitySupplier.get()) {
             tabSelected = TabType.PREFETCH;
         } else {
@@ -128,8 +130,7 @@ public class FilterCoordinator {
     private void handleTabSelected(@TabType int selectedTab) {
         selectTab(selectedTab);
 
-        @FilterType
-        int filterType;
+        @FilterType int filterType;
         if (selectedTab == TabType.FILES) {
             filterType = mChipsProvider.getSelectedFilter();
         } else {

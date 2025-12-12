@@ -10,7 +10,7 @@
 #include "ash/wm/window_util.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/client/transient_window_client.h"
-#include "ui/aura/window.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -42,10 +42,7 @@ gfx::Rect GetClientAreaBoundsInScreen(aura::Window* window) {
 
 }  // namespace
 
-WindowPreviewView::WindowPreviewView(aura::Window* window,
-                                     bool trilinear_filtering_on_init)
-    : window_(window),
-      trilinear_filtering_on_init_(trilinear_filtering_on_init) {
+WindowPreviewView::WindowPreviewView(aura::Window* window) : window_(window) {
   DCHECK(window);
   aura::client::GetTransientWindowClient()->AddObserver(this);
 
@@ -54,8 +51,9 @@ WindowPreviewView::WindowPreviewView(aura::Window* window,
 }
 
 WindowPreviewView::~WindowPreviewView() {
-  for (auto* window : unparented_transient_children_)
+  for (aura::Window* window : unparented_transient_children_) {
     window->RemoveObserver(this);
+  }
   for (auto entry : mirror_views_)
     entry.first->RemoveObserver(this);
   aura::client::GetTransientWindowClient()->RemoveObserver(this);
@@ -66,7 +64,8 @@ void WindowPreviewView::RecreatePreviews() {
     entry.second->RecreateMirrorLayers();
 }
 
-gfx::Size WindowPreviewView::CalculatePreferredSize() const {
+gfx::Size WindowPreviewView::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   // The preferred size of this view is the union of all the windows it is made
   // up of with, scaled to match the ratio of the main window to its mirror
   // view's preferred size.
@@ -77,7 +76,7 @@ gfx::Size WindowPreviewView::CalculatePreferredSize() const {
   gfx::SizeF window_size(1.f, 1.f);
   auto it = mirror_views_.find(root);
   if (it != mirror_views_.end()) {
-    window_size = gfx::SizeF(it->second->CalculatePreferredSize());
+    window_size = gfx::SizeF(it->second->CalculatePreferredSize({}));
     if (window_size.IsEmpty())
       return gfx::Size();  // Avoids divide by zero below.
   }
@@ -87,7 +86,7 @@ gfx::Size WindowPreviewView::CalculatePreferredSize() const {
       gfx::ScaleSize(union_rect.size(), scale.x(), scale.y()));
 }
 
-void WindowPreviewView::Layout() {
+void WindowPreviewView::Layout(PassKey) {
   const gfx::RectF union_rect = GetUnionRect();
   if (union_rect.IsEmpty())
     return;  // Avoids divide by zero below.
@@ -159,12 +158,11 @@ void WindowPreviewView::AddWindow(aura::Window* window) {
   if (!window->HasObserver(this))
     window->AddObserver(this);
 
-  auto* mirror_view =
-      window_util::IsArcPipWindow(window)
-          ? new WindowMirrorViewPip(window, trilinear_filtering_on_init_)
-          : new WindowMirrorView(window, trilinear_filtering_on_init_);
-  mirror_views_[window] = mirror_view;
-  AddChildView(mirror_view);
+  auto mirror_view = window_util::IsArcPipWindow(window)
+                         ? std::make_unique<WindowMirrorViewPip>(window)
+                         : std::make_unique<WindowMirrorView>(window);
+  mirror_views_[window] = mirror_view.get();
+  AddChildView(std::move(mirror_view));
 }
 
 void WindowPreviewView::RemoveWindow(aura::Window* window) {
@@ -180,12 +178,11 @@ void WindowPreviewView::RemoveWindow(aura::Window* window) {
   if (it == mirror_views_.end())
     return;
 
-  auto* view = it->second;
-  RemoveChildView(view);
+  auto* view = it->second.get();
+  RemoveChildViewT(view);
   it->first->RemoveObserver(this);
 
   mirror_views_.erase(it);
-  delete view;
 }
 
 gfx::RectF WindowPreviewView::GetUnionRect() const {
@@ -194,5 +191,8 @@ gfx::RectF WindowPreviewView::GetUnionRect() const {
     bounds.Union(GetClientAreaBoundsInScreen(entry.first));
   return gfx::RectF(bounds);
 }
+
+BEGIN_METADATA(WindowPreviewView)
+END_METADATA
 
 }  // namespace ash

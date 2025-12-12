@@ -5,7 +5,18 @@
 #ifndef CHROME_BROWSER_UI_WEBUI_DOWNLOAD_INTERNALS_DOWNLOAD_INTERNALS_UI_H_
 #define CHROME_BROWSER_UI_WEBUI_DOWNLOAD_INTERNALS_DOWNLOAD_INTERNALS_UI_H_
 
+#include "chrome/common/webui_url_constants.h"
+#include "content/public/browser/internal_webui_config.h"
 #include "content/public/browser/web_ui_controller.h"
+
+class DownloadInternalsUI;
+
+class DownloadInternalsUIConfig
+    : public content::DefaultInternalWebUIConfig<DownloadInternalsUI> {
+ public:
+  DownloadInternalsUIConfig()
+      : DefaultInternalWebUIConfig(chrome::kChromeUIDownloadInternalsHost) {}
+};
 
 // The WebUI for chrome://download-internals.
 class DownloadInternalsUI : public content::WebUIController {

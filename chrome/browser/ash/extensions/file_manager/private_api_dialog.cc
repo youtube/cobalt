@@ -6,9 +6,6 @@
 
 #include <stddef.h>
 
-#include "ash/components/arc/mojom/intent_helper.mojom.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
@@ -18,14 +15,18 @@
 #include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/extensions/file_manager/private_api_util.h"
 #include "chrome/browser/ash/extensions/file_manager/select_file_dialog_extension_user_data.h"
-#include "chrome/browser/ash/file_manager/file_tasks.h"
 #include "chrome/browser/ash/file_manager/file_tasks_notifier.h"
+#include "chrome/browser/ash/file_manager/file_tasks_notifier_factory.h"
 #include "chrome/browser/ash/file_manager/fileapi_util.h"
 #include "chrome/browser/ash/file_manager/filesystem_api_util.h"
+#include "chrome/browser/ash/file_manager/office_file_tasks.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/views/select_file_dialog_extension.h"
+#include "chrome/browser/ui/views/select_file_dialog_extension/select_file_dialog_extension.h"
 #include "chrome/common/extensions/api/file_manager_private.h"
-#include "components/arc/intent_helper/arc_intent_helper_bridge.h"
+#include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_bridge.h"
+#include "chromeos/ash/experiences/arc/mojom/intent_helper.mojom.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
 #include "content/public/browser/browser_thread.h"
 #include "net/base/mime_util.h"
 #include "storage/browser/file_system/file_system_context.h"
@@ -56,12 +57,14 @@ FileManagerPrivateCancelDialogFunction::Run() {
 
 ExtensionFunction::ResponseAction FileManagerPrivateSelectFileFunction::Run() {
   using extensions::api::file_manager_private::SelectFile::Params;
-  const absl::optional<Params> params = Params::Create(args());
+  const std::optional<Params> params = Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   Profile* profile = Profile::FromBrowserContext(browser_context());
   base::FilePath local_path = file_manager::util::GetLocalPathFromURL(
-      render_frame_host(), profile, GURL(params->selected_path));
+      file_manager::util::GetFileSystemContextForRenderFrameHost(
+          profile, render_frame_host()),
+      GURL(params->selected_path));
   if (local_path.empty()) {
     return RespondNow(Error("Path not supported"));
   }
@@ -115,7 +118,7 @@ void FileManagerPrivateSelectFileFunction::GetSelectedFileInfoResponse(
   SelectFileDialogExtension::OnFileSelected(GetFileDialogRoutingID(this),
                                             files[0], index);
   if (auto* notifier =
-          file_manager::file_tasks::FileTasksNotifier::GetForProfile(
+          file_manager::file_tasks::FileTasksNotifierFactory::GetForProfile(
               Profile::FromBrowserContext(browser_context()))) {
     notifier->NotifyFileDialogSelection({files[0]}, for_open);
   }
@@ -129,7 +132,7 @@ FileManagerPrivateSelectFilesFunction::
 
 ExtensionFunction::ResponseAction FileManagerPrivateSelectFilesFunction::Run() {
   using extensions::api::file_manager_private::SelectFiles::Params;
-  const absl::optional<Params> params = Params::Create(args());
+  const std::optional<Params> params = Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   should_return_local_path_ = params->should_return_local_path;
@@ -140,7 +143,9 @@ ExtensionFunction::ResponseAction FileManagerPrivateSelectFilesFunction::Run() {
   auto* drive_service = drive::util::GetIntegrationServiceByProfile(profile);
   for (const auto& selected_path : params->selected_paths) {
     base::FilePath local_path = file_manager::util::GetLocalPathFromURL(
-        render_frame_host(), profile, GURL(selected_path));
+        file_manager::util::GetFileSystemContextForRenderFrameHost(
+            profile, render_frame_host()),
+        GURL(selected_path));
     if (local_path.empty()) {
       continue;
     }
@@ -206,7 +211,7 @@ void FileManagerPrivateSelectFilesFunction::GetSelectedFileInfoResponse(
   SelectFileDialogExtension::OnMultiFilesSelected(GetFileDialogRoutingID(this),
                                                   files);
   if (auto* notifier =
-          file_manager::file_tasks::FileTasksNotifier::GetForProfile(
+          file_manager::file_tasks::FileTasksNotifierFactory::GetForProfile(
               Profile::FromBrowserContext(browser_context()))) {
     notifier->NotifyFileDialogSelection(files, for_open);
   }
@@ -216,7 +221,7 @@ void FileManagerPrivateSelectFilesFunction::GetSelectedFileInfoResponse(
 ExtensionFunction::ResponseAction
 FileManagerPrivateGetAndroidPickerAppsFunction::Run() {
   using extensions::api::file_manager_private::GetAndroidPickerApps::Params;
-  const absl::optional<Params> params = Params::Create(args());
+  const std::optional<Params> params = Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   auto* intent_helper = ARC_GET_INSTANCE_FOR_METHOD(
@@ -310,7 +315,7 @@ void FileManagerPrivateGetAndroidPickerAppsFunction::OnIconsLoaded(
 ExtensionFunction::ResponseAction
 FileManagerPrivateSelectAndroidPickerAppFunction::Run() {
   using extensions::api::file_manager_private::SelectAndroidPickerApp::Params;
-  const absl::optional<Params> params = Params::Create(args());
+  const std::optional<Params> params = Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
 
   // Though the user didn't select an actual file, we generate a virtual file

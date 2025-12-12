@@ -15,6 +15,11 @@
 #include "components/user_prefs/user_prefs.h"
 #include "testing/platform_test.h"
 
+#if BUILDFLAG(USE_BLINK)
+#include "components/enterprise/connectors/core/common.h"
+#include "components/enterprise/connectors/core/connectors_prefs.h"
+#endif  // BUILDFLAG(USE_BLINK)
+
 namespace safe_browsing {
 
 // Used in tests of CanPerformFullURLLookupWithToken().
@@ -32,6 +37,9 @@ class RealTimePolicyEngineTest : public PlatformTest {
 
   void SetUp() override {
     RegisterProfilePrefs(pref_service_.registry());
+#if BUILDFLAG(USE_BLINK)
+    enterprise_connectors::RegisterProfilePrefs(pref_service_.registry());
+#endif  // BUILDFLAG(USE_BLINK)
     unified_consent::UnifiedConsentService::RegisterPrefs(
         pref_service_.registry());
   }
@@ -54,10 +62,16 @@ class RealTimePolicyEngineTest : public PlatformTest {
         /*variations_service=*/nullptr);
   }
 
+  bool HasPrefPermissionsToPerformFullURLLookup() {
+    return RealTimePolicyEngine::HasPrefPermissionsToPerformFullURLLookup(
+        &pref_service_);
+  }
+
   bool CanPerformEnterpriseFullURLLookup(bool has_valid_dm_token,
-                                         bool is_off_the_record) {
+                                         bool is_off_the_record,
+                                         bool is_guest_mode) {
     return RealTimePolicyEngine::CanPerformEnterpriseFullURLLookup(
-        &pref_service_, has_valid_dm_token, is_off_the_record);
+        &pref_service_, has_valid_dm_token, is_off_the_record, is_guest_mode);
   }
 
   bool IsInExcludedCountry(const std::string& country_code) {
@@ -107,6 +121,35 @@ TEST_F(RealTimePolicyEngineTest,
       base::BindOnce(&AreTokenFetchesEnabledInClient,
                      /*expected_ep_enabled_value=*/true,
                      /*return_value=*/true)));
+}
+
+TEST_F(RealTimePolicyEngineTest,
+       TestHasPrefPermissionsToPerformFullURLLookup_MbbDisabled) {
+  pref_service_.SetUserPref(
+      unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled,
+      std::make_unique<base::Value>(false));
+  EXPECT_FALSE(HasPrefPermissionsToPerformFullURLLookup());
+}
+
+TEST_F(RealTimePolicyEngineTest,
+       TestHasPrefPermissionsToPerformFullURLLookup_MbbEnabled) {
+  pref_service_.SetUserPref(
+      unified_consent::prefs::kUrlKeyedAnonymizedDataCollectionEnabled,
+      std::make_unique<base::Value>(true));
+  EXPECT_TRUE(HasPrefPermissionsToPerformFullURLLookup());
+}
+
+TEST_F(RealTimePolicyEngineTest,
+       TestHasPrefPermissionsToPerformFullURLLookup_EnhancedProtection) {
+  pref_service_.SetBoolean(prefs::kSafeBrowsingEnhanced, true);
+  EXPECT_TRUE(HasPrefPermissionsToPerformFullURLLookup());
+}
+
+TEST_F(
+    RealTimePolicyEngineTest,
+    TestHasPrefPermissionsToPerformFullURLLookup_DisabledEnhancedProtection) {
+  pref_service_.SetBoolean(prefs::kSafeBrowsingEnhanced, false);
+  EXPECT_FALSE(HasPrefPermissionsToPerformFullURLLookup());
 }
 
 TEST_F(
@@ -162,80 +205,51 @@ TEST_F(
                      /*return_value=*/true)));
 }
 
-TEST_F(RealTimePolicyEngineTest, TestCanPerformEnterpriseFullURLLookup) {
-  // Is off the record profile.
-  {
-    EXPECT_FALSE(CanPerformEnterpriseFullURLLookup(/*has_valid_dm_token=*/true,
-                                                   /*is_off_the_record=*/true));
+TEST_F(RealTimePolicyEngineTest, TestCanPerformEnterpriseFullURLLookup){
+    // Is off the record non-guest profile.
+    {EXPECT_FALSE(CanPerformEnterpriseFullURLLookup(/*has_valid_dm_token=*/true,
+                                                    /*is_off_the_record=*/true,
+                                                    /*is_guest_mode=*/false));
   }
   // No valid DM token.
   {
     EXPECT_FALSE(CanPerformEnterpriseFullURLLookup(
-        /*has_valid_dm_token=*/false, /*is_off_the_record=*/false));
+        /*has_valid_dm_token=*/false, /*is_off_the_record=*/false,
+        /*is_guest_mode=*/false));
   }
+
+#if BUILDFLAG(USE_BLINK)
   // Policy disabled.
   {
     pref_service_.SetUserPref(
-        prefs::kSafeBrowsingEnterpriseRealTimeUrlCheckMode,
-        std::make_unique<base::Value>(REAL_TIME_CHECK_DISABLED));
+        enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+        std::make_unique<base::Value>(
+            enterprise_connectors::REAL_TIME_CHECK_DISABLED));
     EXPECT_FALSE(CanPerformEnterpriseFullURLLookup(
-        /*has_valid_dm_token=*/true, /*is_off_the_record=*/false));
+        /*has_valid_dm_token=*/true, /*is_off_the_record=*/false,
+        /*is_guest_mode=*/false));
   }
   // Policy enabled.
   {
     pref_service_.SetUserPref(
-        prefs::kSafeBrowsingEnterpriseRealTimeUrlCheckMode,
-        std::make_unique<base::Value>(REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED));
+        enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+        std::make_unique<base::Value>(
+            enterprise_connectors::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED));
     EXPECT_TRUE(CanPerformEnterpriseFullURLLookup(
-        /*has_valid_dm_token=*/true, /*is_off_the_record=*/false));
+        /*has_valid_dm_token=*/true, /*is_off_the_record=*/false,
+        /*is_guest_mode=*/false));
   }
-}
-
-TEST_F(
-    RealTimePolicyEngineTest,
-    TestCanPerformFullURLLookup_EnabledMainFrameOnlyForSubresourceDisabledUser) {
-  for (int i = 0;
-       i <= static_cast<int>(network::mojom::RequestDestination::kMaxValue);
-       i++) {
-    network::mojom::RequestDestination request_destination =
-        static_cast<network::mojom::RequestDestination>(i);
-    bool enabled =
-        RealTimePolicyEngine::CanPerformFullURLLookupForRequestDestination(
-            request_destination, /*can_rt_check_subresource_url=*/false);
-    switch (request_destination) {
-      case network::mojom::RequestDestination::kDocument:
-        EXPECT_TRUE(enabled);
-        break;
-      default:
-        EXPECT_FALSE(enabled);
-        break;
-    }
+  // Policy enabled in guest mode.
+  {
+    pref_service_.SetUserPref(
+        enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+        std::make_unique<base::Value>(
+            enterprise_connectors::REAL_TIME_CHECK_FOR_MAINFRAME_ENABLED));
+    EXPECT_TRUE(CanPerformEnterpriseFullURLLookup(
+        /*has_valid_dm_token=*/true, /*is_off_the_record=*/true,
+        /*is_guest_mode=*/true));
   }
-}
-
-TEST_F(
-    RealTimePolicyEngineTest,
-    TestCanPerformFullURLLookup_EnabledNonMainFrameForSubresourceEnabledUser) {
-  for (int i = 0;
-       i <= static_cast<int>(network::mojom::RequestDestination::kMaxValue);
-       i++) {
-    network::mojom::RequestDestination request_destination =
-        static_cast<network::mojom::RequestDestination>(i);
-    bool enabled =
-        RealTimePolicyEngine::CanPerformFullURLLookupForRequestDestination(
-            request_destination, /*can_rt_check_subresource_url=*/true);
-    switch (request_destination) {
-      case network::mojom::RequestDestination::kDocument:
-      case network::mojom::RequestDestination::kIframe:
-      case network::mojom::RequestDestination::kFrame:
-      case network::mojom::RequestDestination::kFencedframe:
-        EXPECT_TRUE(enabled);
-        break;
-      default:
-        EXPECT_FALSE(enabled);
-        break;
-    }
-  }
+#endif  // BUILDFLAG(USE_BLINK)
 }
 
 TEST_F(RealTimePolicyEngineTest, TestIsInExcludedCountry) {

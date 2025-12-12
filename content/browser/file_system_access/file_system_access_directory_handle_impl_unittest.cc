@@ -5,6 +5,7 @@
 #include "content/browser/file_system_access/file_system_access_directory_handle_impl.h"
 
 #include <iterator>
+#include <optional>
 #include <string>
 #include <tuple>
 
@@ -12,6 +13,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/gmock_callback_support.h"
@@ -20,17 +22,18 @@
 #include "build/build_config.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "content/browser/file_system_access/features.h"
-#include "content/browser/file_system_access/file_system_access_write_lock_manager.h"
+#include "content/browser/file_system_access/file_system_access_lock_manager.h"
 #include "content/browser/file_system_access/fixed_file_system_access_permission_grant.h"
 #include "content/browser/file_system_access/mock_file_system_access_permission_context.h"
+#include "content/public/browser/file_system_access_permission_context.h"
 #include "content/public/test/browser_task_environment.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "storage/browser/test/test_file_system_context.h"
+#include "storage/common/file_system/file_system_types.h"
 #include "storage/common/file_system/file_system_util.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "url/gurl.h"
 
@@ -42,7 +45,7 @@ using HandleType = FileSystemAccessPermissionContext::HandleType;
 using SensitiveEntryResult =
     FileSystemAccessPermissionContext::SensitiveEntryResult;
 using UserAction = FileSystemAccessPermissionContext::UserAction;
-using WriteLockType = FileSystemAccessWriteLockManager::WriteLockType;
+using LockType = FileSystemAccessLockManager::LockType;
 
 class FileSystemAccessDirectoryHandleImplTest : public testing::Test {
  public:
@@ -63,22 +66,18 @@ class FileSystemAccessDirectoryHandleImplTest : public testing::Test {
         file_system_context_, chrome_blob_context_, &permission_context_,
         /*off_the_record=*/false);
 
-    auto url = manager_->CreateFileSystemURLFromPath(
-        FileSystemAccessEntryFactory::PathType::kLocal, dir_.GetPath());
+    auto url = manager_->CreateFileSystemURLFromPath(PathInfo(dir_.GetPath()));
     handle_ = std::make_unique<FileSystemAccessDirectoryHandleImpl>(
-        manager_.get(),
-        FileSystemAccessManagerImpl::BindingContext(
-            test_src_storage_key_, test_src_url_, /*worker_process_id=*/1),
-        url,
+        manager_.get(), kBindingContext, url,
         FileSystemAccessManagerImpl::SharedHandleState(allow_grant_,
                                                        allow_grant_));
     denied_handle_ = std::make_unique<FileSystemAccessDirectoryHandleImpl>(
-        manager_.get(),
-        FileSystemAccessManagerImpl::BindingContext(
-            test_src_storage_key_, test_src_url_, /*worker_process_id=*/1),
-        url,
+        manager_.get(), kBindingContext, url,
         FileSystemAccessManagerImpl::SharedHandleState(deny_grant_,
                                                        deny_grant_));
+
+    EXPECT_CALL(permission_context_, IsFileTypeDangerous_(_, _))
+        .WillRepeatedly(testing::Return(false));
   }
 
   void TearDown() override {
@@ -90,28 +89,37 @@ class FileSystemAccessDirectoryHandleImplTest : public testing::Test {
       const base::FilePath& path,
       bool read,
       bool write,
-      const absl::optional<storage::BucketLocator> url_bucket_override =
-          absl::nullopt) {
-    auto url = manager_->CreateFileSystemURLFromPath(
-        FileSystemAccessEntryFactory::PathType::kLocal, path);
+      const std::optional<storage::BucketLocator> url_bucket_override =
+          std::nullopt) {
+    auto url = manager_->CreateFileSystemURLFromPath(PathInfo(path));
     if (url_bucket_override.has_value()) {
       url.SetBucket(url_bucket_override.value());
     }
     auto handle = std::make_unique<FileSystemAccessDirectoryHandleImpl>(
-        manager_.get(),
-        FileSystemAccessManagerImpl::BindingContext(
-            test_src_storage_key_, test_src_url_, /*worker_process_id=*/1),
-        url,
+        manager_.get(), kBindingContext, url,
         FileSystemAccessManagerImpl::SharedHandleState(
             /*read_grant=*/read ? allow_grant_ : deny_grant_,
             /*write_grant=*/write ? allow_grant_ : deny_grant_));
     return handle;
   }
 
+  scoped_refptr<FileSystemAccessLockManager::LockHandle> TakeLockSync(
+      const FileSystemAccessManagerImpl::BindingContext binding_context,
+      const storage::FileSystemURL& url,
+      FileSystemAccessLockManager::LockType lock_type) {
+    base::test::TestFuture<
+        scoped_refptr<FileSystemAccessLockManager::LockHandle>>
+        future;
+    manager_->TakeLock(binding_context, url, lock_type, future.GetCallback());
+    return future.Take();
+  }
+
  protected:
   const GURL test_src_url_ = GURL("http://example.com/foo");
   const blink::StorageKey test_src_storage_key_ =
       blink::StorageKey::CreateFromStringForTesting("http://example.com/foo");
+  const FileSystemAccessManagerImpl::BindingContext kBindingContext = {
+      test_src_storage_key_, test_src_url_, /*worker_process_id=*/1};
 
   BrowserTaskEnvironment task_environment_;
 
@@ -125,61 +133,14 @@ class FileSystemAccessDirectoryHandleImplTest : public testing::Test {
   scoped_refptr<FixedFileSystemAccessPermissionGrant> allow_grant_ =
       base::MakeRefCounted<FixedFileSystemAccessPermissionGrant>(
           FixedFileSystemAccessPermissionGrant::PermissionStatus::GRANTED,
-          base::FilePath());
+          PathInfo());
   scoped_refptr<FixedFileSystemAccessPermissionGrant> deny_grant_ =
       base::MakeRefCounted<FixedFileSystemAccessPermissionGrant>(
           FixedFileSystemAccessPermissionGrant::PermissionStatus::DENIED,
-          base::FilePath());
+          PathInfo());
   std::unique_ptr<FileSystemAccessDirectoryHandleImpl> handle_;
   std::unique_ptr<FileSystemAccessDirectoryHandleImpl> denied_handle_;
 };
-
-TEST_F(FileSystemAccessDirectoryHandleImplTest, IsSafePathComponent) {
-  constexpr const char* kSafePathComponents[] = {
-      "a", "a.txt", "a b.txt", "My Computer", ".a", "lnk.zip", "lnk", "a.local",
-  };
-
-  constexpr const char* kUnsafePathComponents[] = {
-      "",
-      ".",
-      "..",
-      "...",
-      "con",
-      "con.zip",
-      "NUL",
-      "NUL.zip",
-      "a.",
-      "a\"a",
-      "a<a",
-      "a>a",
-      "a?a",
-      "a/",
-      "a\\",
-      "a ",
-      "a . .",
-      " Computer",
-      "My Computer.{a}",
-      "My Computer.{20D04FE0-3AEA-1069-A2D8-08002B30309D}",
-      "a\\a",
-      "a.lnk",
-      "a.url",
-      "a/a",
-      "C:\\",
-      "C:/",
-      "C:",
-  };
-
-  for (const char* component : kSafePathComponents) {
-    EXPECT_TRUE(
-        FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(component))
-        << component;
-  }
-  for (const char* component : kUnsafePathComponents) {
-    EXPECT_FALSE(
-        FileSystemAccessDirectoryHandleImpl::IsSafePathComponent(component))
-        << component;
-  }
-}
 
 namespace {
 class TestFileSystemAccessDirectoryEntriesListener
@@ -208,8 +169,9 @@ class TestFileSystemAccessDirectoryEntriesListener
   }
 
  private:
-  raw_ptr<std::vector<blink::mojom::FileSystemAccessEntryPtr>> entries_;
-  raw_ptr<blink::mojom::FileSystemAccessErrorPtr> final_result_;
+  raw_ptr<std::vector<blink::mojom::FileSystemAccessEntryPtr>> entries_ =
+      nullptr;
+  raw_ptr<blink::mojom::FileSystemAccessErrorPtr> final_result_ = nullptr;
   base::OnceClosure done_;
 };
 }  // namespace
@@ -237,6 +199,15 @@ TEST_F(FileSystemAccessDirectoryHandleImplTest, GetEntries) {
     std::ignore = success;
 #endif
   }
+  if (base::FeatureList::IsEnabled(
+          features::kFileSystemAccessDirectoryIterationBlocklistCheck)) {
+    EXPECT_CALL(
+        permission_context_,
+        ConfirmSensitiveEntryAccess_(_, _, HandleType::kFile, UserAction::kNone,
+                                     kBindingContext.frame_id, _))
+        .WillRepeatedly(base::test::RunOnceCallbackRepeatedly<5>(
+            SensitiveEntryResult::kAllowed));
+  }
 
   std::vector<blink::mojom::FileSystemAccessEntryPtr> entries;
   blink::mojom::FileSystemAccessErrorPtr result;
@@ -258,31 +229,28 @@ TEST_F(FileSystemAccessDirectoryHandleImplTest, GetEntries) {
   EXPECT_THAT(names, testing::UnorderedElementsAreArray(kSafeNames));
 }
 
-#if BUILDFLAG(IS_POSIX)
-TEST_F(FileSystemAccessDirectoryHandleImplTest, GetFile_Symlink) {
+TEST_F(FileSystemAccessDirectoryHandleImplTest,
+       GetFile_SensitiveEntryAccessCheck) {
   if (!base::FeatureList::IsEnabled(
-          features::kFileSystemAccessDirectoryIterationSymbolicLinkCheck)) {
+          features::kFileSystemAccessDirectoryIterationBlocklistCheck)) {
     return;
   }
 
-  base::FilePath symlink_path(dir_.GetPath().AppendASCII("symlink"));
-  base::FilePath target_path(dir_.GetPath().AppendASCII("target"));
-  ASSERT_TRUE(base::CreateSymbolicLink(target_path, symlink_path));
-
+  PathInfo child_path(dir_.GetPath().AppendASCII("blocked_path"));
   EXPECT_CALL(permission_context_,
-              ConfirmSensitiveEntryAccess_(_, _, target_path, HandleType::kFile,
-                                           UserAction::kNone, _, _))
-      .WillOnce(base::test::RunOnceCallback<6>(SensitiveEntryResult::kAbort));
+              ConfirmSensitiveEntryAccess_(_, child_path, HandleType::kFile,
+                                           UserAction::kNone,
+                                           kBindingContext.frame_id, _))
+      .WillOnce(base::test::RunOnceCallback<5>(SensitiveEntryResult::kAbort));
 
   base::test::TestFuture<
       blink::mojom::FileSystemAccessErrorPtr,
       mojo::PendingRemote<blink::mojom::FileSystemAccessFileHandle>>
       future;
-  handle_->GetFile("symlink", /*create=*/false, future.GetCallback());
+  handle_->GetFile("blocked_path", /*create=*/false, future.GetCallback());
   EXPECT_EQ(future.Get<0>()->status,
             blink::mojom::FileSystemAccessStatus::kSecurityError);
 }
-#endif
 
 TEST_F(FileSystemAccessDirectoryHandleImplTest, GetFile_NoReadAccess) {
   ASSERT_TRUE(base::WriteFile(dir_.GetPath().AppendASCII("filename"), "data"));
@@ -311,8 +279,69 @@ TEST_F(FileSystemAccessDirectoryHandleImplTest, GetDirectory_NoReadAccess) {
   EXPECT_FALSE(future.Get<1>().is_valid());
 }
 
+TEST_F(FileSystemAccessDirectoryHandleImplTest,
+       GetEntries_SensitiveEntryAccessCheck) {
+  if (!base::FeatureList::IsEnabled(
+          features::kFileSystemAccessDirectoryIterationBlocklistCheck)) {
+    return;
+  }
+
+  ASSERT_TRUE(
+      base::WriteFile(dir_.GetPath().AppendASCII("allowed_file_path"), "data"));
+  ASSERT_TRUE(
+      base::WriteFile(dir_.GetPath().AppendASCII("blocked_file_path"), "data"));
+  ASSERT_TRUE(base::CreateDirectory(dir_.GetPath().AppendASCII("subdir")));
+
+  PathInfo allowed_file_path(dir_.GetPath().AppendASCII("allowed_file_path"));
+  EXPECT_CALL(permission_context_,
+              ConfirmSensitiveEntryAccess_(_, allowed_file_path,
+                                           HandleType::kFile, UserAction::kNone,
+                                           kBindingContext.frame_id, _))
+      .WillOnce(base::test::RunOnceCallback<5>(SensitiveEntryResult::kAllowed));
+
+  PathInfo blocked_file_path(dir_.GetPath().AppendASCII("blocked_file_path"));
+  EXPECT_CALL(permission_context_,
+              ConfirmSensitiveEntryAccess_(_, blocked_file_path,
+                                           HandleType::kFile, UserAction::kNone,
+                                           kBindingContext.frame_id, _))
+      .WillOnce(base::test::RunOnceCallback<5>(SensitiveEntryResult::kAbort));
+
+  // Sensitive entry access is not expected to perform on directories.
+  EXPECT_CALL(permission_context_, ConfirmSensitiveEntryAccess_(
+                                       _, _, HandleType::kDirectory, _, _, _))
+      .Times(0);
+
+  std::vector<blink::mojom::FileSystemAccessEntryPtr> entries;
+  blink::mojom::FileSystemAccessErrorPtr result;
+  base::RunLoop loop;
+  mojo::PendingRemote<blink::mojom::FileSystemAccessDirectoryEntriesListener>
+      listener;
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<TestFileSystemAccessDirectoryEntriesListener>(
+          &entries, &result, loop.QuitClosure()),
+      listener.InitWithNewPipeAndPassReceiver());
+  handle_->GetEntries(std::move(listener));
+  loop.Run();
+
+  EXPECT_EQ(result->status, blink::mojom::FileSystemAccessStatus::kOk);
+  std::vector<std::string> names;
+  for (const auto& entry : entries) {
+    names.push_back(entry->name);
+  }
+  EXPECT_THAT(names, testing::UnorderedElementsAreArray(
+                         {"allowed_file_path", "subdir"}));
+}
+
 TEST_F(FileSystemAccessDirectoryHandleImplTest, GetEntries_NoReadAccess) {
   ASSERT_TRUE(base::WriteFile(dir_.GetPath().AppendASCII("filename"), "data"));
+  if (base::FeatureList::IsEnabled(
+          features::kFileSystemAccessDirectoryIterationBlocklistCheck)) {
+    EXPECT_CALL(
+        permission_context_,
+        ConfirmSensitiveEntryAccess_(_, _, HandleType::kFile, UserAction::kNone,
+                                     kBindingContext.frame_id, _))
+        .Times(0);
+  }
 
   std::vector<blink::mojom::FileSystemAccessEntryPtr> entries;
   blink::mojom::FileSystemAccessErrorPtr result;
@@ -367,6 +396,9 @@ TEST_F(FileSystemAccessDirectoryHandleImplTest, RemoveEntry) {
 
   auto handle = GetHandleWithPermissions(dir, /*read=*/true, /*write=*/true);
 
+  LockType exclusive_lock_type = manager_->GetExclusiveLockType();
+  LockType wfs_siloed_lock_type = manager_->GetWFSSiloedLockType();
+
   // Calling removeEntry() on an unlocked file should succeed.
   {
     base::CreateTemporaryFileInDir(dir, &file);
@@ -379,21 +411,20 @@ TEST_F(FileSystemAccessDirectoryHandleImplTest, RemoveEntry) {
                         /*recurse=*/false, future.GetCallback());
     EXPECT_EQ(future.Get()->status, blink::mojom::FileSystemAccessStatus::kOk);
     EXPECT_FALSE(base::PathExists(file));
-    // The write lock acquired during the operation should be released by
-    // the time the callback runs.
-    EXPECT_TRUE(manager_->TakeWriteLock(file_url, WriteLockType::kExclusive));
+    // The lock acquired during the operation should be released by the time the
+    // callback runs.
+    EXPECT_TRUE(TakeLockSync(kBindingContext, file_url, exclusive_lock_type));
   }
 
-  // Acquire an exclusive lock on a file before removing to similate when the
+  // Acquire an exclusive lock on a file before removing to simulate when the
   // file has an open access handle. This should fail.
   {
     base::CreateTemporaryFileInDir(dir, &file);
     auto base_name = storage::FilePathToString(file.BaseName());
     EXPECT_EQ(handle->GetChildURL(base_name, &file_url)->file_error,
               base::File::Error::FILE_OK);
-    auto write_lock =
-        manager_->TakeWriteLock(file_url, WriteLockType::kExclusive);
-    EXPECT_TRUE(write_lock);
+    auto lock = TakeLockSync(kBindingContext, file_url, exclusive_lock_type);
+    EXPECT_TRUE(lock);
 
     base::test::TestFuture<blink::mojom::FileSystemAccessErrorPtr> future;
     handle->RemoveEntry(base_name,
@@ -404,16 +435,16 @@ TEST_F(FileSystemAccessDirectoryHandleImplTest, RemoveEntry) {
     EXPECT_TRUE(base::PathExists(file));
   }
 
-  // Acquire a shared lock on a file before removing to simulate when the file
-  // has an open writable. This should also fail.
+  // Acquire a wfs siloed lock on a file before removing to simulate when the
+  // file has an open writable. This should also fail.
   {
     base::CreateTemporaryFileInDir(dir, &file);
     auto base_name = storage::FilePathToString(file.BaseName());
     EXPECT_EQ(handle->GetChildURL(base_name, &file_url)->file_error,
               base::File::Error::FILE_OK);
-    auto write_lock = manager_->TakeWriteLock(file_url, WriteLockType::kShared);
-    ASSERT_TRUE(write_lock);
-    EXPECT_TRUE(write_lock->type() == WriteLockType::kShared);
+    auto lock = TakeLockSync(kBindingContext, file_url, wfs_siloed_lock_type);
+    ASSERT_TRUE(lock);
+    EXPECT_TRUE(lock->type() == wfs_siloed_lock_type);
 
     base::test::TestFuture<blink::mojom::FileSystemAccessErrorPtr> future;
     handle->RemoveEntry(base_name,
@@ -442,7 +473,7 @@ TEST_F(FileSystemAccessDirectoryHandleImplTest, GetChildURL_CustomBucket) {
   const auto custom_bucket = storage::BucketLocator(
       storage::BucketId(1),
       blink::StorageKey::CreateFromStringForTesting("http://example/"),
-      blink::mojom::StorageType::kTemporary, /*is_default=*/false);
+      /*is_default=*/false);
   auto custom_handle =
       GetHandleWithPermissions(dir, /*read=*/true, /*write=*/true,
                                /*url_bucket_override=*/custom_bucket);

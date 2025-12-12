@@ -2,61 +2,82 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <optional>
+
 #include "base/allocator/partition_alloc_support.h"
 #include "base/command_line.h"
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump_type.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/notreached.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
+#include "base/threading/hang_watcher.h"
 #include "base/threading/platform_thread.h"
+#include "base/time/time.h"
 #include "base/timer/hi_res_timer_manager.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "components/services/screen_ai/buildflags/buildflags.h"
+#include "components/services/on_device_translation/buildflags/buildflags.h"
 #include "content/child/child_process.h"
 #include "content/common/content_switches_internal.h"
+#include "content/common/features.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/main_function_params.h"
 #include "content/public/utility/content_utility_client.h"
 #include "content/utility/utility_thread_impl.h"
+#include "media/gpu/buildflags.h"
 #include "printing/buildflags/buildflags.h"
 #include "sandbox/policy/mojom/sandbox.mojom.h"
 #include "sandbox/policy/sandbox.h"
 #include "sandbox/policy/sandbox_type.h"
+#include "services/on_device_model/on_device_model_service.h"
 #include "services/tracing/public/cpp/trace_startup.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/icu/source/common/unicode/unistr.h"
-#include "third_party/icu/source/i18n/unicode/timezone.h"
+#include "services/video_effects/public/cpp/buildflags.h"
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "base/file_descriptor_store.h"
 #include "base/files/file_util.h"
 #include "base/pickle.h"
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "content/child/sandboxed_process_thread_type_handler.h"
+#endif
+#include "content/common/gpu_pre_sandbox_hook_linux.h"
 #include "content/public/common/content_descriptor_keys.h"
 #include "content/utility/speech/speech_recognition_sandbox_hook_linux.h"
-#include "gpu/config/gpu_info_collector.h"
-#include "media/gpu/sandbox/hardware_video_encoding_sandbox_hook_linux.h"
 #include "sandbox/policy/linux/sandbox_linux.h"
 #include "services/audio/audio_sandbox_hook_linux.h"
 #include "services/network/network_sandbox_hook_linux.h"
-// gn check is not smart enough to realize that this include only applies to
-// Linux/ChromeOS and the BUILD.gn dependencies correctly account for that.
+#include "services/screen_ai/buildflags/buildflags.h"
+
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+#include "gpu/config/gpu_info_collector.h"
+#include "media/gpu/sandbox/hardware_video_decoding_sandbox_hook_linux.h"
+#include "media/gpu/sandbox/hardware_video_encoding_sandbox_hook_linux.h"
+// gn check is not smart enough to realize that this include is guarded behind
+// some BUILDFLAG()s and the BUILD.gn dependencies correctly account for that.
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "printing/sandbox/print_backend_sandbox_hook_linux.h"
 #endif
+
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+#include "services/screen_ai/public/cpp/utilities.h"  // nogncheck
+#include "services/screen_ai/sandbox/screen_ai_sandbox_hook_linux.h"  // nogncheck
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
-#include "media/gpu/sandbox/hardware_video_decoding_sandbox_hook_linux.h"
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS) && BUILDFLAG(IS_LINUX)
+#include "services/video_effects/video_effects_sandbox_hook_linux.h"  // nogncheck
+#endif  // BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/assistant/buildflags.h"
 #include "chromeos/ash/services/ime/ime_sandbox_hook.h"
 #include "chromeos/services/tts/tts_sandbox_hook.h"
@@ -64,25 +85,32 @@
 #if BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
 #include "chromeos/ash/services/libassistant/libassistant_sandbox_hook.h"  // nogncheck
 #endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
-#if (BUILDFLAG(ENABLE_SCREEN_AI_SERVICE) && \
-     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)))
-#include "components/services/screen_ai/sandbox/screen_ai_sandbox_hook_linux.h"  // nogncheck
-#endif
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_MAC)
-#include "base/message_loop/message_pump_mac.h"
+#include "base/message_loop/message_pump_apple.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
+#include "base/debug/crash_logging.h"
+#include "base/native_library.h"
 #include "base/rand_util.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/win/scoped_com_initializer.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
+#include "content/utility/sandbox_delegate_data.mojom.h"
+#include "sandbox/policy/win/sandbox_warmup.h"
 #include "sandbox/win/src/sandbox.h"
+#endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(IS_WIN)
 sandbox::TargetServices* g_utility_target_services = nullptr;
-#endif
+#endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION) && BUILDFLAG(IS_LINUX)
+#include "components/services/on_device_translation/sandbox_hook.h"
+#endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION) && BUILDFLAG(IS_LINUX)
 
 namespace content {
 
@@ -100,7 +128,8 @@ std::vector<std::string> GetNetworkContextsParentDirectories() {
     LOG(FATAL) << "Failed to read network context parents dirs from pipe.";
   }
 
-  base::Pickle dirs_pickle(dirs_str.data(), dirs_str.length());
+  base::Pickle dirs_pickle =
+      base::Pickle::WithUnownedBuffer(base::as_byte_span(dirs_str));
   base::PickleIterator dirs_pickle_iter(dirs_pickle);
 
   std::vector<std::string> dirs;
@@ -115,10 +144,9 @@ std::vector<std::string> GetNetworkContextsParentDirectories() {
 }
 
 bool ShouldUseAmdGpuPolicy(sandbox::mojom::Sandbox sandbox_type) {
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   const bool obtain_gpu_info =
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
       sandbox_type == sandbox::mojom::Sandbox::kHardwareVideoDecoding ||
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
       sandbox_type == sandbox::mojom::Sandbox::kHardwareVideoEncoding;
 
   if (obtain_gpu_info) {
@@ -128,12 +156,44 @@ bool ShouldUseAmdGpuPolicy(sandbox::mojom::Sandbox sandbox_type) {
     gpu::CollectBasicGraphicsInfo(&gpu_info);
     return angle::IsAMD(gpu_info.active_gpu().vendor_id);
   }
-
+#endif
   return false;
 }
 #endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
 
-void SetUtilityThreadName(const std::string utility_sub_type) {
+#if BUILDFLAG(IS_WIN)
+// Handle pre-lockdown sandbox hooks
+bool PreLockdownSandboxHook(base::span<const uint8_t> delegate_blob) {
+  // TODO(crbug.com/40265190) Migrate other settable things to delegate_data.
+  CHECK(!delegate_blob.empty());
+  content::mojom::sandbox::UtilityConfigPtr sandbox_config;
+  if (!content::mojom::sandbox::UtilityConfig::Deserialize(
+          delegate_blob.data(), delegate_blob.size(), &sandbox_config)) {
+    NOTREACHED();
+  }
+  if (!sandbox_config->preload_libraries.empty()) {
+    for (const auto& library_path : sandbox_config->preload_libraries) {
+      CHECK(library_path.IsAbsolute());
+      base::NativeLibraryLoadError lib_error;
+      HMODULE h_mod = base::LoadNativeLibrary(library_path, &lib_error);
+      // We deliberately "leak" `h_mod` so that the module stays loaded.
+      if (!h_mod) {
+        // The browser should not request libraries that do not exist, so crash
+        // on failure. Record info to distinguish crash signatures.
+        base::debug::Alias(&lib_error);
+        std::string dll_name_str = base::WideToUTF8(library_path.value());
+        DEBUG_ALIAS_FOR_CSTR(dll_name, dll_name_str.c_str(), 256);
+        SCOPED_CRASH_KEY_STRING256("PreSandboxHook", "ModuleName", dll_name);
+
+        NOTREACHED();
+      }
+    }
+  }
+  return true;
+}
+#endif  // BUILDFLAG(IS_WIN)
+
+void SetUtilityThreadName(const std::string& utility_sub_type) {
   // Typical utility sub-types are audio.mojom.AudioService or
   // proxy_resolver.mojom.ProxyResolverFactory. Using the full sub-type as part
   // of the thread name is too verbose so we take the text in front of the first
@@ -141,8 +201,8 @@ void SetUtilityThreadName(const std::string utility_sub_type) {
   // audio.CrUtilityMain and proxy_resolver.CrUtilityMain. If there is no period
   // then the entire utility_sub_type string will be put in front.
   auto first_period = utility_sub_type.find('.');
-  base::PlatformThread::SetName(
-      (utility_sub_type.substr(0, first_period) + ".CrUtilityMain").c_str());
+  base::PlatformThread::SetName(utility_sub_type.substr(0, first_period) +
+                                ".CrUtilityMain");
 }
 
 }  // namespace
@@ -177,13 +237,6 @@ int UtilityMain(MainFunctionParams parameters) {
     message_pump_type = base::MessagePumpType::IO;
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
-  if (parameters.command_line->HasSwitch(switches::kTimeZoneForTesting)) {
-    std::string time_zone = parameters.command_line->GetSwitchValueASCII(
-        switches::kTimeZoneForTesting);
-    icu::TimeZone::adoptDefault(
-        icu::TimeZone::createTimeZone(icu::UnicodeString(time_zone.c_str())));
-  }
-
   // The main task executor of the utility process.
   base::SingleThreadTaskExecutor main_thread_task_executor(message_pump_type);
   const std::string utility_sub_type =
@@ -198,48 +251,87 @@ int UtilityMain(MainFunctionParams parameters) {
     }
   }
 
+  if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
+    CHECK(on_device_model::OnDeviceModelService::PreSandboxInit());
+  }
+
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
+  // Thread type delegate of the process should be registered before first
+  // thread type change in ChildProcess constructor. It also needs to be
+  // registered before the process has multiple threads, which may race with
+  // application of the sandbox.
+  SandboxedProcessThreadTypeHandler::Create();
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD) || BUILDFLAG(IS_CHROMEOS)
   // Initializes the sandbox before any threads are created.
   // TODO(jorgelo): move this after GTK initialization when we enable a strict
   // Seccomp-BPF policy.
   auto sandbox_type =
       sandbox::policy::SandboxTypeFromCommandLine(*parameters.command_line);
+  sandbox::policy::SandboxLinux::Options sandbox_options;
   sandbox::policy::SandboxLinux::PreSandboxHook pre_sandbox_hook;
   switch (sandbox_type) {
     case sandbox::mojom::Sandbox::kNetwork:
       pre_sandbox_hook = base::BindOnce(&network::NetworkPreSandboxHook,
                                         GetNetworkContextsParentDirectories());
       break;
-#if BUILDFLAG(ENABLE_OOP_PRINTING)
     case sandbox::mojom::Sandbox::kPrintBackend:
+#if BUILDFLAG(ENABLE_OOP_PRINTING)
       pre_sandbox_hook = base::BindOnce(&printing::PrintBackendPreSandboxHook);
       break;
+#else
+      NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_OOP_PRINTING)
 #if !BUILDFLAG(IS_STARBOARD)
     case sandbox::mojom::Sandbox::kAudio:
       pre_sandbox_hook = base::BindOnce(&audio::AudioPreSandboxHook);
       break;
+    case sandbox::mojom::Sandbox::kOnDeviceModelExecution:
+      on_device_model::OnDeviceModelService::AddSandboxLinuxOptions(
+          sandbox_options);
+      pre_sandbox_hook = base::BindOnce(&GpuPreSandboxHook);
+      break;
     case sandbox::mojom::Sandbox::kSpeechRecognition:
       pre_sandbox_hook =
           base::BindOnce(&speech::SpeechRecognitionPreSandboxHook);
       break;
-#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
-    case sandbox::mojom::Sandbox::kScreenAI:
-      pre_sandbox_hook = base::BindOnce(&screen_ai::ScreenAIPreSandboxHook);
+#if BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION) && BUILDFLAG(IS_LINUX)
+    case sandbox::mojom::Sandbox::kOnDeviceTranslation:
+      pre_sandbox_hook = base::BindOnce(
+          &on_device_translation::OnDeviceTranslationSandboxHook);
       break;
+#endif  // BUILDFLAG(ENABLE_ON_DEVICE_TRANSLATION) && BUILDFLAG(IS_LINUX)
+    case sandbox::mojom::Sandbox::kScreenAI:
+#if BUILDFLAG(ENABLE_SCREEN_AI_SERVICE)
+      pre_sandbox_hook =
+          base::BindOnce(&screen_ai::ScreenAIPreSandboxHook,
+                         parameters.command_line->GetSwitchValuePath(
+                             screen_ai::GetBinaryPathSwitch()));
+      break;
+#else
+      NOTREACHED();
 #endif
-#endif // !BUILDFLAG(IS_STARBOARD)
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_LINUX)
+    case sandbox::mojom::Sandbox::kVideoEffects:
+#if BUILDFLAG(ENABLE_VIDEO_EFFECTS)
+      pre_sandbox_hook =
+          base::BindOnce(&video_effects::VideoEffectsPreSandboxHook);
+#endif
+      break;
+#endif  // BUILDFLAG(IS_LINUX)
+#endif  // !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
       break;
-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS_ASH)
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoEncodingPreSandboxHook);
       break;
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#endif
+#if BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kIme:
       pre_sandbox_hook = base::BindOnce(&ash::ime::ImePreSandboxHook);
       break;
@@ -252,20 +344,48 @@ int UtilityMain(MainFunctionParams parameters) {
           base::BindOnce(&ash::libassistant::LibassistantPreSandboxHook);
       break;
 #endif  // BUILDFLAG(ENABLE_CROS_LIBASSISTANT)
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
     default:
       break;
   }
   if (!sandbox::policy::IsUnsandboxedSandboxType(sandbox_type) &&
       (parameters.zygote_child || !pre_sandbox_hook.is_null())) {
-    sandbox::policy::SandboxLinux::Options sandbox_options;
     sandbox_options.use_amd_specific_policies =
         ShouldUseAmdGpuPolicy(sandbox_type);
     sandbox::policy::Sandbox::Initialize(
         sandbox_type, std::move(pre_sandbox_hook), sandbox_options);
   }
+
+  // Start the HangWatcher now that the sandbox is engaged, if it hasn't
+  // already been started.
+  if (base::HangWatcher::IsEnabled() &&
+      !base::HangWatcher::GetInstance()->IsStarted()) {
+    DCHECK(parameters.hang_watcher_not_started_time.has_value());
+    base::TimeDelta uncovered_hang_watcher_time =
+        base::TimeTicks::Now() -
+        parameters.hang_watcher_not_started_time.value();
+    base::UmaHistogramTimes("HangWatcher.UtilityProcess.UncoveredStartupTime",
+                            uncovered_hang_watcher_time);
+    base::HangWatcher::GetInstance()->Start();
+  }
+
 #elif BUILDFLAG(IS_WIN)
+  std::optional<base::win::ScopedCOMInitializer> scoped_com_initializer;
+  if (message_pump_type == base::MessagePumpType::UI) {
+    scoped_com_initializer.emplace();
+    CHECK(scoped_com_initializer->Succeeded());
+  }
+
   g_utility_target_services = parameters.sandbox_info->target_services;
+
+  // Call hooks with data provided by UtilitySandboxedProcessLauncherDelegate.
+  // Must happen before IO thread to preempt any mojo services starting.
+  if (g_utility_target_services) {
+    auto delegate_data = g_utility_target_services->GetDelegateData();
+    if (delegate_data.has_value() && !delegate_data->empty()) {
+      PreLockdownSandboxHook(delegate_data.value());
+    }
+  }
 #endif
 
   ChildProcess utility_process(base::ThreadType::kDefault);
@@ -294,8 +414,8 @@ int UtilityMain(MainFunctionParams parameters) {
   // TODO(leonhsl): Once http://crbug.com/646833 got resolved, re-enable
   // base::HighResolutionTimerManager here for future possible usage of high
   // resolution timer in service utility process.
-  absl::optional<base::HighResolutionTimerManager> hi_res_timer_manager;
-  if (base::PowerMonitor::IsInitialized()) {
+  std::optional<base::HighResolutionTimerManager> hi_res_timer_manager;
+  if (base::PowerMonitor::GetInstance()->IsInitialized()) {
     hi_res_timer_manager.emplace();
   }
 
@@ -327,23 +447,13 @@ int UtilityMain(MainFunctionParams parameters) {
     base::win::EnableHighDPISupport();
   }
 
-  // The FileUtilService supports archive inspection, which uses unrar for
-  // inspecting rar archives. Unrar depends on user32.dll for handling
-  // upper/lowercase.
-  if (sandbox_type == sandbox::mojom::Sandbox::kFileUtil) {
-    base::win::PinUser32();
-  }
-
   if (!sandbox::policy::IsUnsandboxedSandboxType(sandbox_type) &&
       sandbox_type != sandbox::mojom::Sandbox::kCdm &&
-      sandbox_type != sandbox::mojom::Sandbox::kMediaFoundationCdm &&
-      sandbox_type != sandbox::mojom::Sandbox::kWindowsSystemProxyResolver) {
+      sandbox_type != sandbox::mojom::Sandbox::kMediaFoundationCdm) {
     if (!g_utility_target_services)
       return false;
-    char buffer;
-    // Ensure RtlGenRandom is warm before the token is lowered; otherwise,
-    // base::RandBytes() will CHECK fail when v8 is initialized.
-    base::RandBytes(&buffer, sizeof(buffer));
+
+    sandbox::policy::WarmupRandomnessInfrastructure();
 
     g_utility_target_services->LowerToken();
   }
@@ -353,6 +463,10 @@ int UtilityMain(MainFunctionParams parameters) {
       switches::kUtilityProcess);
 
   run_loop.Run();
+
+  if (utility_sub_type == on_device_model::mojom::OnDeviceModelService::Name_) {
+    CHECK(on_device_model::OnDeviceModelService::Shutdown());
+  }
 
 #if defined(LEAK_SANITIZER)
   // Invoke LeakSanitizer before shutting down the utility thread, to avoid

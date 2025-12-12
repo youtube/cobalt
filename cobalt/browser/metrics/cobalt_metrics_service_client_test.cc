@@ -18,7 +18,6 @@
 #include <string>
 #include <utility>
 
-#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
@@ -30,7 +29,7 @@
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
-#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -72,6 +71,7 @@ class MockCobaltMetricsLogUploader : public CobaltMetricsLogUploader {
   MOCK_METHOD(void,
               UploadLog,
               (const std::string& compressed_log_data,
+               const metrics::LogMetadata& log_metadata,
                const std::string& log_hash,
                const std::string& log_signature,
                const metrics::ReportingInfo& reporting_info),
@@ -176,6 +176,8 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
     return idle_refresh_timer_;
   }
 
+  void ClearMockUploaderPtr() { mock_log_uploader_ = nullptr; }
+
  private:
   raw_ptr<StrictMock<MockMetricsService>> mock_metrics_service_ = nullptr;
   raw_ptr<StrictMock<MockCobaltMetricsLogUploader>> mock_log_uploader_ =
@@ -234,8 +236,8 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<base::ScopedPathOverride> path_override_;
   std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
-  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
   std::unique_ptr<TestCobaltMetricsServiceClient> client_;
+  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
 };
 
 TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
@@ -356,7 +358,7 @@ TEST_F(CobaltMetricsServiceClientTest,
   const int kExpectedNetError = 0;
   const bool kExpectedHttps = true;
   const bool kExpectedForceDiscard = false;
-  constexpr base::StringPiece kExpectedGuid = "test-guid-123";
+  constexpr std::string_view kExpectedGuid = "test-guid-123";
 
   EXPECT_CALL(on_upload_complete_mock,
               Run(kExpectedStatusCode, kExpectedNetError, kExpectedHttps,
@@ -366,6 +368,7 @@ TEST_F(CobaltMetricsServiceClientTest,
   // setOnUploadComplete.
   captured_callback.Run(kExpectedStatusCode, kExpectedNetError, kExpectedHttps,
                         kExpectedForceDiscard, kExpectedGuid);
+  client_->ClearMockUploaderPtr();
 }
 
 TEST_F(CobaltMetricsServiceClientTest,

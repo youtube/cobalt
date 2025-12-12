@@ -8,52 +8,33 @@
 #include "ash/system/tray/tray_constants.h"
 #include "ash/system/tray/tray_event_filter.h"
 #include "ash/system/tray/tray_utils.h"
+#include "ash/system/unified/glanceable_tray_bubble_view.h"
+#include "ui/views/view.h"
+#include "ui/views/view_utils.h"
 
 namespace ash {
 
-GlanceableTrayBubble::GlanceableTrayBubble(DateTray* tray) : tray_(tray) {
-  TrayBubbleView::InitParams init_params;
-  init_params.shelf_alignment = tray_->shelf()->alignment();
+GlanceableTrayBubble::GlanceableTrayBubble(DateTray* tray, bool from_keyboard)
+    : tray_(tray) {
+  TrayBubbleView::InitParams init_params =
+      CreateInitParamsForTrayBubble(tray, /*anchor_to_shelf_corner=*/true);
   // TODO(b:277268122): Update with glanceable spec.
-  init_params.preferred_width = kRevampedTrayMenuWidth;
-  init_params.delegate = tray->GetWeakPtr();
-  init_params.parent_window = tray->GetBubbleWindowContainer();
-  init_params.anchor_view = nullptr;
-  init_params.anchor_mode = TrayBubbleView::AnchorMode::kRect;
-  init_params.anchor_rect = tray_->shelf()->GetSystemTrayAnchorRect();
-  // TODO(b:277268122): Update with glanceable spec.
-  init_params.insets = GetTrayBubbleInsets();
-  init_params.close_on_deactivate = false;
-  init_params.reroute_event_handler = true;
-  init_params.translucent = true;
+  init_params.preferred_width = kWideTrayMenuWidth;
+  init_params.transparent = true;
+  init_params.has_shadow = false;
+  init_params.translucent = false;
 
-  bubble_view_ = new TrayBubbleView(init_params);
-
-  bubble_widget_ = views::BubbleDialogDelegateView::CreateBubble(bubble_view_);
-  bubble_widget_->AddObserver(this);
-  TrayBackgroundView::InitializeBubbleAnimations(bubble_widget_);
-  bubble_view_->InitializeAndShowBubble();
-
-  tray->tray_event_filter()->AddBubble(this);
-  UpdateBubble();
+  auto bubble_view =
+      std::make_unique<GlanceableTrayBubbleView>(init_params, tray_->shelf());
+  if (from_keyboard) {
+    bubble_view->SetCanActivate(true);
+  }
+  bubble_wrapper_ = std::make_unique<TrayBubbleWrapper>(tray);
+  bubble_wrapper_->ShowBubble(std::move(bubble_view));
 }
 
 GlanceableTrayBubble::~GlanceableTrayBubble() {
-  tray_->tray_event_filter()->RemoveBubble(this);
-
-  if (bubble_widget_) {
-    bubble_widget_->RemoveObserver(this);
-    bubble_widget_->Close();
-  }
-}
-
-void GlanceableTrayBubble::OnWidgetDestroying(views::Widget* widget) {
-  CHECK_EQ(bubble_widget_, widget);
-  bubble_widget_->RemoveObserver(this);
-  bubble_widget_ = nullptr;
-
-  // `tray_->CloseBubble()` will delete `this`.
-  tray_->CloseBubble();
+  bubble_wrapper_->bubble_view()->ResetDelegate();
 }
 
 TrayBackgroundView* GlanceableTrayBubble::GetTray() const {
@@ -61,28 +42,31 @@ TrayBackgroundView* GlanceableTrayBubble::GetTray() const {
 }
 
 TrayBubbleView* GlanceableTrayBubble::GetBubbleView() const {
-  return bubble_view_;
+  return bubble_wrapper_->bubble_view();
 }
 
 views::Widget* GlanceableTrayBubble::GetBubbleWidget() const {
-  return bubble_widget_;
+  return bubble_wrapper_->GetBubbleWidget();
 }
 
-void GlanceableTrayBubble::UpdateBubble() {
-  // TODO(b:277268122): set real contents for glanceables view.
-  if (!title_label_) {
-    title_label_ = bubble_view_->AddChildView(std::make_unique<views::Label>());
-    title_label_->SetText(u"Temp Title Label for Glanceables");
-  }
+views::View* GlanceableTrayBubble::GetTasksView() {
+  return GetGlanceableTrayBubbleView()->GetTasksView();
+}
 
-  int max_height = CalculateMaxTrayBubbleHeight();
-  bubble_view_->SetMaxHeight(max_height);
-  bubble_view_->ChangeAnchorAlignment(tray_->shelf()->alignment());
-  bubble_view_->ChangeAnchorRect(tray_->shelf()->GetSystemTrayAnchorRect());
+views::View* GlanceableTrayBubble::GetClassroomStudentView() {
+  return GetGlanceableTrayBubbleView()->GetClassroomStudentView();
+}
+
+CalendarView* GlanceableTrayBubble::GetCalendarView() {
+  return GetGlanceableTrayBubbleView()->GetCalendarView();
 }
 
 bool GlanceableTrayBubble::IsBubbleActive() const {
-  return bubble_widget_->IsActive();
+  return GetBubbleWidget()->IsActive();
+}
+
+GlanceableTrayBubbleView* GlanceableTrayBubble::GetGlanceableTrayBubbleView() {
+  return views::AsViewClass<GlanceableTrayBubbleView>(GetBubbleView());
 }
 
 }  // namespace ash

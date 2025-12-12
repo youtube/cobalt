@@ -5,6 +5,8 @@
 #ifndef REMOTING_BASE_PROTOBUF_HTTP_STREAM_REQUEST_H_
 #define REMOTING_BASE_PROTOBUF_HTTP_STREAM_REQUEST_H_
 
+#include <string_view>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
@@ -20,8 +22,8 @@ class MessageLite;
 
 namespace remoting {
 
+class HttpStatus;
 class ProtobufHttpClient;
-class ProtobufHttpStatus;
 class ProtobufHttpStreamParser;
 
 // A server streaming request.
@@ -33,7 +35,7 @@ class ProtobufHttpStreamRequest final
   using MessageCallback =
       base::RepeatingCallback<void(std::unique_ptr<MessageType> message)>;
   using StreamClosedCallback =
-      base::OnceCallback<void(const ProtobufHttpStatus& status)>;
+      base::OnceCallback<void(const HttpStatus& status)>;
 
   static constexpr base::TimeDelta kStreamReadyTimeoutDuration =
       base::Seconds(30);
@@ -67,16 +69,16 @@ class ProtobufHttpStreamRequest final
 
   // ProtobufHttpStreamParser callbacks.
   void OnMessage(const std::string& message);
-  void OnStreamClosed(const ProtobufHttpStatus& status);
+  void OnStreamClosed(const HttpStatus& status);
 
   // ProtobufHttpRequestBase implementations.
-  void OnAuthFailed(const ProtobufHttpStatus& status) override;
+  void OnAuthFailed(const HttpStatus& status) override;
   void StartRequestInternal(
       network::mojom::URLLoaderFactory* loader_factory) override;
   base::TimeDelta GetRequestTimeoutDuration() const override;
 
   // network::SimpleURLLoaderStreamConsumer implementations.
-  void OnDataReceived(base::StringPiece string_piece,
+  void OnDataReceived(std::string_view string_view,
                       base::OnceClosure resume) override;
   void OnComplete(bool success) override;
   void OnRetry(base::OnceClosure start_retry) override;

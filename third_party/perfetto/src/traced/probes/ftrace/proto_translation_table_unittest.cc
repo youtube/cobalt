@@ -16,13 +16,14 @@
 
 #include "src/traced/probes/ftrace/proto_translation_table.h"
 
-#include "src/base/test/gtest_test_suite.h"
 #include "src/base/test/utils.h"
 #include "src/traced/probes/ftrace/compact_sched.h"
 #include "src/traced/probes/ftrace/event_info.h"
+#include "src/traced/probes/ftrace/event_info_constants.h"
 #include "src/traced/probes/ftrace/ftrace_procfs.h"
 #include "test/gtest_and_gmock.h"
 
+#include "protos/perfetto/common/descriptor.gen.h"
 #include "protos/perfetto/trace/ftrace/ftrace_event.pbzero.h"
 #include "protos/perfetto/trace/ftrace/generic.pbzero.h"
 
@@ -30,9 +31,12 @@ using testing::_;
 using testing::AllOf;
 using testing::AnyNumber;
 using testing::Contains;
+using testing::ElementsAre;
 using testing::Eq;
 using testing::IsNull;
+using testing::NiceMock;
 using testing::Pointee;
+using testing::Property;
 using testing::Return;
 using testing::StrEq;
 using testing::TestWithParam;
@@ -42,6 +46,25 @@ using testing::ValuesIn;
 namespace perfetto {
 namespace {
 using protozero::proto_utils::ProtoSchemaType;
+
+MATCHER_P(FtraceFieldMatcher, expected_struct, "") {
+  return ExplainMatchResult(
+      AllOf(testing::Field("ftrace_name", &Field::ftrace_name,
+                           StrEq(expected_struct.ftrace_name)),
+            testing::Field("ftrace_type", &Field::ftrace_type,
+                           expected_struct.ftrace_type),
+            testing::Field("ftrace_offset", &Field::ftrace_offset,
+                           expected_struct.ftrace_offset),
+            testing::Field("ftrace_size", &Field::ftrace_size,
+                           expected_struct.ftrace_size),
+            testing::Field("proto_field_id", &Field::proto_field_id,
+                           expected_struct.proto_field_id),
+            testing::Field("proto_field_type", &Field::proto_field_type,
+                           expected_struct.proto_field_type),
+            testing::Field("strategy", &Field::strategy,
+                           expected_struct.strategy)),
+      arg, result_listener);
+}
 
 class MockFtraceProcfs : public FtraceProcfs {
  public:
@@ -238,7 +261,6 @@ print fmt: "some format")"));
   auto table = ProtoTranslationTable::Create(&ftrace, std::move(events),
                                              std::move(common_fields));
   PERFETTO_CHECK(table);
-  EXPECT_EQ(table->largest_id(), 42ul);
   EXPECT_EQ(table->EventToFtraceId(GroupAndName("group", "foo")), 42ul);
   EXPECT_EQ(table->EventToFtraceId(GroupAndName("group", "bar")), 0ul);
   EXPECT_FALSE(table->GetEventById(43ul));
@@ -417,7 +439,6 @@ TEST(TranslationTableTest, Getters) {
       ProtoTranslationTable::DefaultPageHeaderSpecForTesting(),
       InvalidCompactSchedEventFormatForTesting(), PrintkMap());
 
-  EXPECT_EQ(table.largest_id(), 100ul);
   EXPECT_EQ(table.EventToFtraceId(GroupAndName("group_one", "foo")), 1ul);
   EXPECT_EQ(table.EventToFtraceId(GroupAndName("group_two", "baz")), 100ul);
   EXPECT_EQ(table.EventToFtraceId(GroupAndName("group_one", "no_such_event")),
@@ -437,7 +458,7 @@ TEST(TranslationTableTest, Getters) {
   EXPECT_THAT(table.GetEventsByGroup("group_three"), IsNull());
 }
 
-TEST(TranslationTableTest, Generic) {
+TEST(TranslationTableTest, GenericEvent) {
   MockFtraceProcfs ftrace;
   std::vector<Field> common_fields;
   std::vector<Event> events;
@@ -469,61 +490,97 @@ print fmt: "some format")"));
   auto table = ProtoTranslationTable::Create(&ftrace, std::move(events),
                                              std::move(common_fields));
   PERFETTO_CHECK(table);
-  EXPECT_EQ(table->largest_id(), 0ul);
   GroupAndName group_and_name("group", "foo");
-  const Event* e = table->GetOrCreateEvent(group_and_name);
-  EXPECT_EQ(table->largest_id(), 42ul);
+  const Event* e = table->CreateGenericEvent(group_and_name);
   EXPECT_EQ(table->EventToFtraceId(group_and_name), 42ul);
 
   // Check getters
-  EXPECT_EQ(static_cast<int>(table->GetEventById(42)->proto_field_id),
-            protos::pbzero::FtraceEvent::kGenericFieldNumber);
-  EXPECT_EQ(static_cast<int>(table->GetEvent(group_and_name)->proto_field_id),
-            protos::pbzero::FtraceEvent::kGenericFieldNumber);
+  EXPECT_TRUE(
+      table->IsGenericEventProtoId(table->GetEventById(42)->proto_field_id));
+  EXPECT_TRUE(table->IsGenericEventProtoId(
+      table->GetEvent(group_and_name)->proto_field_id));
   EXPECT_EQ(table->GetEventsByGroup("group")->front()->name,
             group_and_name.name());
 
-  EXPECT_EQ(e->fields.size(), 4ul);
-  const std::vector<Field>& fields = e->fields;
-  // Check string field
-  const auto& str_field = fields[0];
-  EXPECT_STREQ(str_field.ftrace_name, "field_a");
-  EXPECT_EQ(static_cast<int>(str_field.proto_field_id),
-            protos::pbzero::GenericFtraceEvent::Field::kStrValueFieldNumber);
-  EXPECT_EQ(str_field.proto_field_type, ProtoSchemaType::kString);
-  EXPECT_EQ(str_field.ftrace_type, kFtraceFixedCString);
-  EXPECT_EQ(str_field.ftrace_size, 16);
-  EXPECT_EQ(str_field.ftrace_offset, 8);
+  //
+  // Assert expected field descriptions.
+  //
 
-  // Check bool field
-  const auto& bool_field = fields[1];
-  EXPECT_STREQ(bool_field.ftrace_name, "field_b");
-  EXPECT_EQ(static_cast<int>(bool_field.proto_field_id),
-            protos::pbzero::GenericFtraceEvent::Field::kUintValueFieldNumber);
-  EXPECT_EQ(bool_field.proto_field_type, ProtoSchemaType::kUint64);
-  EXPECT_EQ(bool_field.ftrace_type, kFtraceBool);
-  EXPECT_EQ(bool_field.ftrace_size, 1);
-  EXPECT_EQ(bool_field.ftrace_offset, 24);
+  // field:char field_a[16]; offset:8; size:16; signed:0;
+  Field f1{};
+  f1.ftrace_name = "field_a";
+  f1.ftrace_type = kFtraceFixedCString;
+  f1.ftrace_offset = 8;
+  f1.ftrace_size = 16;
+  f1.proto_field_id = 1;  // 1st field
+  f1.proto_field_type = ProtoSchemaType::kString;
+  f1.strategy = kFixedCStringToString;
 
-  // Check int field
-  const auto& int_field = fields[2];
-  EXPECT_STREQ(int_field.ftrace_name, "field_c");
-  EXPECT_EQ(static_cast<int>(int_field.proto_field_id),
-            protos::pbzero::GenericFtraceEvent::Field::kIntValueFieldNumber);
-  EXPECT_EQ(int_field.proto_field_type, ProtoSchemaType::kInt64);
-  EXPECT_EQ(int_field.ftrace_type, kFtraceInt32);
-  EXPECT_EQ(int_field.ftrace_size, 4);
-  EXPECT_EQ(int_field.ftrace_offset, 25);
+  // field:bool field_b; offset:24; size:1; signed:0;
+  Field f2{};
+  f2.ftrace_name = "field_b";
+  f2.ftrace_type = FtraceFieldType::kFtraceBool;
+  f2.ftrace_offset = 24;
+  f2.ftrace_size = 1;
+  f2.proto_field_id = 2;  // 2nd field
+  f2.proto_field_type = ProtoSchemaType::kUint64;
+  f2.strategy = kBoolToUint64;
 
-  // Check uint field
-  const auto& uint_field = fields[3];
-  EXPECT_STREQ(uint_field.ftrace_name, "field_d");
-  EXPECT_EQ(static_cast<int>(uint_field.proto_field_id),
-            protos::pbzero::GenericFtraceEvent::Field::kUintValueFieldNumber);
-  EXPECT_EQ(uint_field.proto_field_type, ProtoSchemaType::kUint64);
-  EXPECT_EQ(uint_field.ftrace_type, kFtraceUint32);
-  EXPECT_EQ(uint_field.ftrace_size, 4);
-  EXPECT_EQ(uint_field.ftrace_offset, 33);
+  // field:int field_c; offset:25; size:4; signed:1;
+  Field f3{};
+  f3.ftrace_name = "field_c";
+  f3.ftrace_type = FtraceFieldType::kFtraceInt32;
+  f3.ftrace_offset = 25;
+  f3.ftrace_size = 4;
+  f3.proto_field_id = 3;  // 3rd field
+  f3.proto_field_type = ProtoSchemaType::kInt64;
+  f3.strategy = kInt32ToInt64;
+
+  // field:u32 field_d; offset:33; size:4; signed:0;
+  Field f4{};
+  f4.ftrace_name = "field_d";
+  f4.ftrace_type = FtraceFieldType::kFtraceUint32;
+  f4.ftrace_offset = 33;
+  f4.ftrace_size = 4;
+  f4.proto_field_id = 4;  // 4th field
+  f4.proto_field_type = ProtoSchemaType::kUint64;
+  f4.strategy = kUint32ToUint64;
+
+  EXPECT_THAT(e->fields,
+              ElementsAre(FtraceFieldMatcher(f1), FtraceFieldMatcher(f2),
+                          FtraceFieldMatcher(f3), FtraceFieldMatcher(f4)));
+
+  //
+  // Verify the generated protobuf descriptors.
+  //
+
+  uint32_t pb_id = table->GetEventById(42)->proto_field_id;
+  auto* descriptors = table->generic_evt_pb_descriptors();
+  ASSERT_TRUE(descriptors->Find(pb_id));
+
+  std::vector<uint8_t> serialised_descriptor = *descriptors->Find(pb_id);
+  protos::gen::DescriptorProto descriptor;
+  descriptor.ParseFromArray(serialised_descriptor.data(),
+                            serialised_descriptor.size());
+
+  EXPECT_STREQ(descriptor.name().c_str(), "foo");
+  const auto& fields = descriptor.field();
+  EXPECT_EQ(fields.size(), 4u);
+
+  using FDP = protos::gen::FieldDescriptorProto;
+  EXPECT_THAT(fields,
+              ElementsAre(AllOf(Property(&FDP::name, StrEq("field_a")),
+                                Property(&FDP::number, Eq(1)),
+                                Property(&FDP::type, Eq(FDP::TYPE_STRING))),
+                          AllOf(Property(&FDP::name, StrEq("field_b")),
+                                Property(&FDP::number, Eq(2)),
+                                Property(&FDP::type, Eq(FDP::TYPE_UINT64))),
+                          AllOf(Property(&FDP::name, StrEq("field_c")),
+                                Property(&FDP::number, Eq(3)),
+                                Property(&FDP::type, Eq(FDP::TYPE_INT64))),
+                          AllOf(Property(&FDP::name, StrEq("field_d")),
+                                Property(&FDP::number, Eq(4)),
+                                Property(&FDP::type, Eq(FDP::TYPE_UINT64)))));
 }
 
 TEST(EventFilterTest, EnableEventsFrom) {
@@ -599,6 +656,70 @@ TEST(TranslationTableTest, FuncgraphEvents) {
                   testing::Field(&Field::ftrace_type, kFtraceSymAddr64),
                   testing::Field(&Field::strategy, kFtraceSymAddr64ToUint64))));
   }
+}
+
+TEST(TranslationTableTest, CreateRemoveKprobeEvent) {
+  NiceMock<MockFtraceProcfs> ftrace;
+  ON_CALL(ftrace, ReadEventFormat(_, _)).WillByDefault(Return(""));
+  ON_CALL(ftrace, ReadPageHeaderFormat())
+      .WillByDefault(Return(
+          R"(	field: u64 timestamp;	offset:0;	size:8;	signed:0;
+	field: local_t commit;	offset:8;	size:4;	signed:1;
+	field: int overwrite;	offset:8;	size:1;	signed:1;
+	field: char data;	offset:16;	size:4080;	signed:0;)"));
+  auto table = ProtoTranslationTable::Create(&ftrace, GetStaticEventInfo(),
+                                             GetStaticCommonFieldsInfo());
+  PERFETTO_CHECK(table);
+
+  EXPECT_CALL(ftrace,
+              ReadEventFormat("perfetto_kprobe", "fuse_file_write_iter"))
+      .WillOnce(Return(R"format(name: fuse_file_write_iter
+ID: 1535
+format:
+        field:unsigned short common_type;       offset:0;       size:2; signed:0;
+        field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+        field:unsigned char common_preempt_count;       offset:3;       size:1; signed:0;
+        field:int common_pid;   offset:4;       size:4; signed:1;
+
+        field:unsigned long __probe_ip; offset:8;       size:8; signed:0;
+
+print fmt: "(%lx)", REC->__probe_ip
+)format"));
+  const Event* event =
+      table->CreateKprobeEvent({"perfetto_kprobe", "fuse_file_write_iter"});
+  ASSERT_NE(event, nullptr);
+  EXPECT_EQ(event->ftrace_event_id, 1535u);
+  EXPECT_EQ(table->GetEventByName("fuse_file_write_iter"), event);
+  EXPECT_THAT(table->GetEventsByGroup("perfetto_kprobe"),
+              Pointee(ElementsAre(event)));
+  EXPECT_EQ(table->GetEventById(1535), event);
+
+  table->RemoveEvent({"perfetto_kprobe", "fuse_file_write_iter"});
+  EXPECT_EQ(table->GetEventByName("fuse_file_write_iter"), nullptr);
+  EXPECT_EQ(table->GetEventsByGroup("perfetto_kprobe"), nullptr);
+  EXPECT_EQ(table->GetEventById(1535), nullptr);
+
+  EXPECT_CALL(ftrace,
+              ReadEventFormat("perfetto_kprobe", "fuse_file_write_iter"))
+      .WillOnce(Return(R"format(name: fuse_file_write_iter
+ID: 1536
+format:
+        field:unsigned short common_type;       offset:0;       size:2; signed:0;
+        field:unsigned char common_flags;       offset:2;       size:1; signed:0;
+        field:unsigned char common_preempt_count;       offset:3;       size:1; signed:0;
+        field:int common_pid;   offset:4;       size:4; signed:1;
+
+        field:unsigned long __probe_ip; offset:8;       size:8; signed:0;
+
+print fmt: "(%lx)", REC->__probe_ip
+)format"));
+  event = table->CreateKprobeEvent({"perfetto_kprobe", "fuse_file_write_iter"});
+  ASSERT_NE(event, nullptr);
+  EXPECT_EQ(event->ftrace_event_id, 1536u);
+  EXPECT_EQ(table->GetEventByName("fuse_file_write_iter"), event);
+  EXPECT_THAT(table->GetEventsByGroup("perfetto_kprobe"),
+              Pointee(ElementsAre(event)));
+  EXPECT_EQ(table->GetEventById(1536), event);
 }
 
 }  // namespace

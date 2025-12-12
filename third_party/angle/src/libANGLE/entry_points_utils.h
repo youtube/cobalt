@@ -102,15 +102,6 @@ inline int CID(const Context *context)
 {
     return context == nullptr ? 0 : static_cast<int>(context->id().value);
 }
-
-bool GeneratePixelLocalStorageActiveError(const Context *context, angle::EntryPoint entryPoint);
-
-ANGLE_INLINE bool ValidatePixelLocalStorageInactive(const Context *context,
-                                                    angle::EntryPoint entryPoint)
-{
-    return context->getState().getPixelLocalStorageActivePlanes() == 0 ||
-           GeneratePixelLocalStorageActiveError(context, entryPoint);
-}
 }  // namespace gl
 
 namespace egl
@@ -136,5 +127,15 @@ inline int CID(EGLDisplay display, EGLContext context)
 #    define ANGLE_CAPTURE_EGL(...)
 #endif  // ANGLE_CAPTURE_ENABLED
 }  // namespace egl
+
+namespace cl
+{
+#if ANGLE_CAPTURE_ENABLED
+#    define ANGLE_CAPTURE_CL(Func, ...) \
+        angle::CaptureCLCallToFrameCapture(Capture##Func, __VA_ARGS__)
+#else
+#    define ANGLE_CAPTURE_CL(...)
+#endif  // ANGLE_CAPTURE_ENABLED
+}  // namespace cl
 
 #endif  // LIBANGLE_ENTRY_POINT_UTILS_H_

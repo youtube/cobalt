@@ -3,10 +3,13 @@
 // found in the LICENSE file.
 #include "net/android/dummy_spnego_authenticator.h"
 
+#include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/base64.h"
-#include "net/net_test_jni_headers/DummySpnegoAuthenticator_jni.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "net/android/dummy_spnego_authenticator_jni/DummySpnegoAuthenticator_jni.h"
 
 using base::android::JavaParamRef;
 

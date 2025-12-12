@@ -17,6 +17,7 @@
 #include "chromeos/printing/ppd_metadata_manager.h"
 #include "chromeos/printing/ppd_provider.h"
 #include "chromeos/printing/printer_config_cache.h"
+#include "chromeos/printing/remote_ppd_fetcher.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/browser_thread.h"
 #include "google_apis/google_api_keys.h"
@@ -64,12 +65,16 @@ scoped_refptr<chromeos::PpdProvider> CreatePpdProvider(Profile* profile) {
       base::DefaultClock::GetInstance(),
       base::BindRepeating(&GetURLLoaderFactory), use_localhost_as_root);
   auto metadata_manager = chromeos::PpdMetadataManager::Create(
-      g_browser_process->GetApplicationLocale(), channel,
-      base::DefaultClock::GetInstance(), std::move(manager_config_cache));
+      channel, base::DefaultClock::GetInstance(),
+      std::move(manager_config_cache));
+
+  auto remote_ppd_fetcher = chromeos::RemotePpdFetcher::Create(
+      base::BindRepeating(&GetURLLoaderFactory));
 
   return chromeos::PpdProvider::Create(
       version_info::GetVersion(), chromeos::PpdCache::Create(ppd_cache_path),
-      std::move(metadata_manager), std::move(provider_config_cache));
+      std::move(metadata_manager), std::move(provider_config_cache),
+      std::move(remote_ppd_fetcher));
 }
 
 }  // namespace ash

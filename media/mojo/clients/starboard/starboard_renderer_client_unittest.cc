@@ -51,8 +51,7 @@ class FakeMojomRenderer : public mojom::Renderer {
 
   void Initialize(
       mojo::PendingAssociatedRemote<mojom::RendererClient>,
-      absl::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>,
-      mojom::MediaUrlParamsPtr,
+      std::optional<std::vector<mojo::PendingRemote<mojom::DemuxerStream>>>,
       InitializeCallback cb) override {
     std::move(cb).Run(true);
   }
@@ -63,6 +62,7 @@ class FakeMojomRenderer : public mojom::Renderer {
   MOCK_METHOD2(SetCdm,
                void(const absl::optional<base::UnguessableToken>&,
                     SetCdmCallback));
+  void SetLatencyHint(std::optional<::base::TimeDelta> latency_hint) override {}
 };
 
 class FakeStarboardRendererExtension
@@ -165,7 +165,6 @@ class StarboardRendererClientTest : public ::testing::Test {
   }
 
   base::test::SingleThreadTaskEnvironment task_environment_;
-  std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
   MockMediaLog media_log_;
   MockVideoRendererSink mock_video_renderer_sink_;
   std::unique_ptr<NiceMock<MockGpuVideoAcceleratorFactories>>
@@ -173,6 +172,7 @@ class StarboardRendererClientTest : public ::testing::Test {
   NiceMock<MockRendererClientStarboard> renderer_client_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   std::unique_ptr<FakeMediaResource> media_resource_;
+  std::unique_ptr<StarboardRendererClient> starboard_renderer_client_;
 };
 
 TEST_F(StarboardRendererClientTest, CreateAndDestroy) {

@@ -4,15 +4,14 @@
 
 #include "components/history/core/browser/features.h"
 
-#include "build/build_config.h"
 #include "components/history/core/browser/top_sites_impl.h"
 #include "components/sync/base/features.h"
 
 namespace history {
 namespace {
+constexpr auto is_android = !!BUILDFLAG(IS_ANDROID);
 constexpr auto kOrganicRepeatableQueriesDefaultValue =
-    BUILDFLAG(IS_ANDROID) ? base::FEATURE_ENABLED_BY_DEFAULT
-                          : base::FEATURE_DISABLED_BY_DEFAULT;
+    base::FEATURE_DISABLED_BY_DEFAULT;
 
 // Specifies the scaling behavior, i.e. whether the relevance scales of the
 // top sites and repeatable queries should be first aligned.
@@ -59,7 +58,7 @@ const base::FeatureParam<bool> kPrivilegeRepeatableQueries(
 const base::FeatureParam<bool> kRepeatableQueriesIgnoreDuplicateVisits(
     &kOrganicRepeatableQueries,
     "RepeatableQueriesIgnoreDuplicateVisits",
-    false);
+    is_android);
 
 // The maximum number of days since the last visit (in days) in order for a
 // search query to considered as a repeatable query.
@@ -73,22 +72,21 @@ const base::FeatureParam<int> kRepeatableQueriesMaxAgeDays(
 const base::FeatureParam<int> kRepeatableQueriesMinVisitCount(
     &kOrganicRepeatableQueries,
     "RepeatableQueriesMinVisitCount",
-    1);
+    is_android ? 6 : 1);
 
-BASE_FEATURE(kSyncSegmentsData,
-             "SyncSegmentsData",
+BASE_FEATURE(kPopulateVisitedLinkDatabase,
+             "PopulateVisitedLinkDatabase",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, uses new scoring function for Most Visited Tiles computation.
+BASE_FEATURE(kMostVisitedTilesNewScoring,
+             "MostVisitedTilesNewScoring",
+             is_android ? base::FEATURE_ENABLED_BY_DEFAULT
+                        : base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, heuristically remove possible visual duplicates from top sites.
+BASE_FEATURE(kMostVisitedTilesVisualDeduplication,
+             "MostVisitedTilesVisualDeduplication",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// The maximum number of New Tab Page displays to show with synced segments
-// data.
-const base::FeatureParam<int> kMaxNumNewTabPageDisplays(
-    &kSyncSegmentsData,
-    "MaxNumNumNewTabPageDisplays",
-    5);
-
-bool IsSyncSegmentsDataEnabled() {
-  return base::FeatureList::IsEnabled(syncer::kSyncEnableHistoryDataType) &&
-         base::FeatureList::IsEnabled(kSyncSegmentsData);
-}
 
 }  // namespace history

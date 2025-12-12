@@ -36,37 +36,46 @@ public abstract class UploadDataProvider implements Closeable {
      * one or the other must still be called before resources can be safely freed. Throwing an
      * exception will also result in resources being freed and the request being errored out.
      *
-     * @param uploadDataSink The object to notify when the read has completed, successfully or
-     * otherwise.
+     * <p>Note: For non-chunked uploads, {@link UploadDataSink#onReadSucceeded} should be called
+     * only when the read has succeeded and at least one byte has been read into {@code byteBuffer}.
+     * For chunked uploads (The size of the data is unknown), then it is allowed to call {@link
+     * UploadDataSink#onReadSucceeded} for the last chunk with an empty byte buffer.
+     *
+     * @param uploadDataSink The object to notify when the read has completed.
      * @param byteBuffer The buffer to copy the read bytes into. Do not change byteBuffer's limit.
      * @throws IOException if any IOException occurred during the process. {@link
-     * UrlRequest.Callback#onFailed} will be called with the thrown exception set as the cause of
-     * the
-     * {@link CallbackException}.
+     *     UrlRequest.Callback#onFailed} will be called with the thrown exception set as the cause
+     *     of the {@link CallbackException}.
      */
     public abstract void read(UploadDataSink uploadDataSink, ByteBuffer byteBuffer)
             throws IOException;
 
     /**
-     * Rewinds upload data. Each call must be followed be a single call, either synchronous or
-     * asynchronous, to {@code uploadDataSink}: {@link UploadDataSink#onRewindSucceeded} on success
-     * or
-     * {@link UploadDataSink#onRewindError} on failure. Neither read nor rewind will be called until
-     * one of those methods or the other is called. Even if the associated {@link UrlRequest} is
-     * canceled, one or the other must still be called before resources can be safely freed.
-     * Throwing an exception will also result in resources being freed and the request being errored
-     * out.
+     * Rewinds upload data to the beginning. Invoked when Cronet requires the upload data
+     * provider to be in an equivalent state to as if {@link #read} was never called yet.
      *
-     * <p>If rewinding is not supported, this should call
-     * {@link UploadDataSink#onRewindError}. Note that rewinding is required to follow redirects
-     * that preserve the upload body, and for retrying when the server times out stale sockets.
+     * <p>To signal that the operation has finished, implementations of this function must call
+     * {@link UploadDataSink#onRewindSucceeded} to indicate success, or
+     * {@link UploadDataSink#onRewindError} on failure. Even if the associated {@link UrlRequest} is
+     * canceled, one or the other must still be called before resources can be safely freed.
+     * Throwing an exception from the method is equivalent to calling {@code onRewindError}.
+     * If rewinding is not supported (for instance, if reading from a one-off stream), this
+     * should call {@link UploadDataSink#onRewindError} immediately.
+     *
+     * <p>The implementer can safely assume that neither {@link #read} nor a concurrent
+     * {@link #rewind} call will be issued until they notify the sink that rewinding has finished,
+     * as described in the previous paragraph.
+     *
+     * <p>This method is used internally by Cronet if the body needs to be uploaded multiple times. This
+     * can occur in many different situations, for instance when following redirects, or when retrying
+     * requests after a timeout or a network disconnect. Note that while implementing rewinding is
+     * generally optional, requests which end up requiring it will fail unless rewinding is implemented.
      *
      * @param uploadDataSink The object to notify when the rewind operation has completed,
      * successfully or otherwise.
      * @throws IOException if any IOException occurred during the process. {@link
      * UrlRequest.Callback#onFailed} will be called with the thrown exception set as the cause of
-     * the
-     * {@link CallbackException}.
+     * the {@link CallbackException}.
      */
     public abstract void rewind(UploadDataSink uploadDataSink) throws IOException;
 

@@ -8,8 +8,11 @@
 #include "ui/aura/aura_export.h"
 #include "ui/aura/window.h"
 
-namespace gfx {
+namespace display {
 class Display;
+}  // namespace display
+
+namespace gfx {
 class Rect;
 }
 
@@ -25,7 +28,7 @@ class AURA_EXPORT ScreenPositionClient {
 
   // Converts the |screen_point| from a given |window|'s coordinate space
   // into screen coordinate space.
-  // TODO(crbug.com/773331): remove int version of point conversion when
+  // TODO(crbug.com/40544043): remove int version of point conversion when
   // current usage are changed to use float version.
   virtual void ConvertPointToScreen(const Window* window,
                                     gfx::PointF* point) = 0;
@@ -40,8 +43,10 @@ class AURA_EXPORT ScreenPositionClient {
   // See the comments for ash::GetRootWindowRelativeToWindow for details.
   virtual void ConvertHostPointToScreen(Window* root_window,
                                         gfx::Point* point) = 0;
-  // Sets the bounds of the window. The implementation is responsible
-  // for finding out and translating the right coordinates for the |window|.
+  // Sets the bounds of the window. The implementation is responsible for
+  // finding out and translating the right coordinates for the |window|.
+  // `display` may be invalid on Windows platform and the implementation needs
+  // to be tolerant for it.
   virtual void SetBounds(Window* window,
                          const gfx::Rect& bounds,
                          const display::Display& display) = 0;

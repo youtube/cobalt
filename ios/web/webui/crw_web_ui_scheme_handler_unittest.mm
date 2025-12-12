@@ -11,14 +11,10 @@
 #import "ios/web/public/webui/web_ui_ios_controller.h"
 #import "ios/web/public/webui/web_ui_ios_controller_factory.h"
 #import "ios/web/test/test_url_constants.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #import "services/network/test/test_url_loader_factory.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 namespace {
 const char kOfflineHost[] = "offline";
@@ -64,8 +60,9 @@ const char kChromeScheme[] = "chrome";
 #pragma mark - test utils
 
 - (BOOL)responseHasMimetype:(NSString*)mimeType {
-  if (![self.response isKindOfClass:NSHTTPURLResponse.class])
+  if (![self.response isKindOfClass:NSHTTPURLResponse.class]) {
     return NO;
+  }
   NSHTTPURLResponse* httpResponse =
       static_cast<NSHTTPURLResponse*>(self.response);
   return
@@ -78,10 +75,12 @@ namespace web {
 namespace {
 class FakeWebUIIOSControllerFactory : public WebUIIOSControllerFactory {
   NSInteger GetErrorCodeForWebUIURL(const GURL& url) const override {
-    if (!url.SchemeIs(kTestWebUIScheme) && !url.SchemeIs(kChromeScheme))
+    if (!url.SchemeIs(kTestWebUIScheme) && !url.SchemeIs(kChromeScheme)) {
       return NSURLErrorUnsupportedURL;
-    if (url.host() == kOfflineHost)
+    }
+    if (url.host() == kOfflineHost) {
       return NSURLErrorNotConnectedToInternet;
+    }
     return 0;
   }
 

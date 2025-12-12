@@ -23,6 +23,7 @@
 #include "ui/gl/gl_gl_api_implementation.h"
 #include "ui/gl/gl_utils.h"
 #include "ui/gl/init/gl_display_initializer.h"
+#include "ui/gl/startup_trace.h"
 #include "ui/gl/vsync_provider_win.h"
 
 namespace gl {
@@ -34,6 +35,7 @@ const wchar_t kD3DCompiler[] = L"D3DCompiler_47.dll";
 
 bool LoadD3DXLibrary(const base::FilePath& module_path,
                      const base::FilePath::StringType& name) {
+  GPU_STARTUP_TRACE_EVENT(__func__);
   base::NativeLibrary library =
       base::LoadNativeLibrary(module_path.Append(name), nullptr);
   if (!library) {
@@ -46,11 +48,7 @@ bool LoadD3DXLibrary(const base::FilePath& module_path,
   return true;
 }
 
-bool InitializeStaticEGLInternalFromLibrary(GLImplementation implementation) {
-#if BUILDFLAG(USE_STATIC_ANGLE)
-  NOTREACHED();
-#endif
-
+bool LoadD3DCompiler() {
   base::FilePath module_path;
   if (!base::PathService::Get(base::DIR_MODULE, &module_path))
     return false;
@@ -58,15 +56,25 @@ bool InitializeStaticEGLInternalFromLibrary(GLImplementation implementation) {
   // Attempt to load the D3DX shader compiler using an absolute path. This is to
   // ensure that we load the versions of these DLLs that we ship. If that fails,
   // load the OS version.
-  LoadD3DXLibrary(module_path, kD3DCompiler);
+  return LoadD3DXLibrary(module_path, kD3DCompiler);
+}
 
-  base::FilePath gles_path = module_path;
+#if !BUILDFLAG(USE_STATIC_ANGLE)
+bool InitializeStaticEGLInternalFromLibrary() {
+  base::FilePath gles_path;
+  if (!base::PathService::Get(base::DIR_MODULE, &gles_path)) {
+    return false;
+  }
 
   // Load libglesv2.dll before libegl.dll because the latter is dependent on
   // the former and if there is another version of libglesv2.dll in the dll
   // search path, it will get loaded instead.
-  base::NativeLibrary gles_library =
-      base::LoadNativeLibrary(gles_path.Append(L"libglesv2.dll"), nullptr);
+  base::NativeLibrary gles_library;
+  {
+    GPU_STARTUP_TRACE_EVENT("Load gles_library");
+    gles_library =
+        base::LoadNativeLibrary(gles_path.Append(L"libglesv2.dll"), nullptr);
+  }
   if (!gles_library) {
     DVLOG(1) << "libglesv2.dll not found";
     return false;
@@ -74,8 +82,12 @@ bool InitializeStaticEGLInternalFromLibrary(GLImplementation implementation) {
 
   // When using EGL, first try eglGetProcAddress and then Windows
   // GetProcAddress on both the EGL and GLES2 DLLs.
-  base::NativeLibrary egl_library =
-      base::LoadNativeLibrary(gles_path.Append(L"libegl.dll"), nullptr);
+  base::NativeLibrary egl_library;
+  {
+    GPU_STARTUP_TRACE_EVENT("Load egl_library");
+    egl_library =
+        base::LoadNativeLibrary(gles_path.Append(L"libegl.dll"), nullptr);
+  }
   if (!egl_library) {
     DVLOG(1) << "libegl.dll not found.";
     base::UnloadNativeLibrary(gles_library);
@@ -99,18 +111,21 @@ bool InitializeStaticEGLInternalFromLibrary(GLImplementation implementation) {
 
   return true;
 }
+#endif  // !BUILFDLAG(USE_STATIC_ANGLE)
 
 bool InitializeStaticEGLInternal(GLImplementationParts implementation) {
+  DCHECK(implementation.gl == kGLImplementationEGLANGLE);
+
+  if (!LoadD3DCompiler()) {
+    return false;
+  }
+
 #if BUILDFLAG(USE_STATIC_ANGLE)
-  if (implementation.gl == kGLImplementationEGLANGLE) {
-    // Use ANGLE if it is requested and it is statically linked
-    if (!InitializeStaticANGLEEGL())
-      return false;
-  } else if (!InitializeStaticEGLInternalFromLibrary(implementation.gl)) {
+  if (!InitializeStaticANGLEEGL()) {
     return false;
   }
 #else
-  if (!InitializeStaticEGLInternalFromLibrary(implementation.gl)) {
+  if (!InitializeStaticEGLInternalFromLibrary()) {
     return false;
   }
 #endif  // !BUILDFLAG(USE_STATIC_ANGLE)
@@ -129,13 +144,13 @@ GLDisplay* InitializeGLOneOffPlatform(gl::GpuPreference gpu_preference) {
 
   GLDisplayEGL* display = GetDisplayEGL(gpu_preference);
   switch (GetGLImplementation()) {
-    case kGLImplementationEGLANGLE:
+    case kGLImplementationEGLANGLE: {
       if (!InitializeDisplay(display, EGLDisplayPlatform(GetDC(nullptr)))) {
         LOG(ERROR) << "GLDisplayEGL::Initialize failed.";
         return nullptr;
       }
-      InitializeDirectComposition(display);
       break;
+    }
     case kGLImplementationMockGL:
     case kGLImplementationStubGL:
       break;
@@ -168,8 +183,6 @@ bool InitializeStaticGLBindings(GLImplementationParts implementation) {
     default:
       NOTREACHED();
   }
-
-  return false;
 }
 
 void ShutdownGLPlatform(GLDisplay* display) {

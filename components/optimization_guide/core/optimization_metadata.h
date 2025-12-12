@@ -5,10 +5,11 @@
 #ifndef COMPONENTS_OPTIMIZATION_GUIDE_CORE_OPTIMIZATION_METADATA_H_
 #define COMPONENTS_OPTIMIZATION_GUIDE_CORE_OPTIMIZATION_METADATA_H_
 
+#include <optional>
+
 #include "base/logging.h"
 #include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/hints.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace optimization_guide {
 
@@ -22,16 +23,14 @@ class OptimizationMetadata {
 
   // Validates that the metadata stored in |any_metadata_| is of the same type
   // and is parseable as |T|. Will return metadata if all checks pass.
-  template <
-      class T,
-      class = typename std::enable_if<
-          std::is_convertible<T*, google::protobuf::MessageLite*>{}>::type>
-  absl::optional<T> ParsedMetadata() const {
+  template <class T>
+    requires(std::is_convertible_v<T*, google::protobuf::MessageLite*>)
+  std::optional<T> ParsedMetadata() const {
     if (!any_metadata_)
-      return absl::nullopt;
+      return std::nullopt;
     return ParsedAnyMetadata<T>(*any_metadata_);
   }
-  const absl::optional<proto::Any>& any_metadata() const {
+  const std::optional<proto::Any>& any_metadata() const {
     return any_metadata_;
   }
   void set_any_metadata(const proto::Any& any_metadata) {
@@ -41,7 +40,7 @@ class OptimizationMetadata {
   // used for testing purposes.
   void SetAnyMetadataForTesting(const google::protobuf::MessageLite& metadata);
 
-  const absl::optional<proto::LoadingPredictorMetadata>&
+  const std::optional<proto::LoadingPredictorMetadata>&
   loading_predictor_metadata() const {
     return loading_predictor_metadata_;
   }
@@ -60,10 +59,10 @@ class OptimizationMetadata {
   //
   // Optimization types that are not specifically specified below will have
   // metadata populated with this field.
-  absl::optional<proto::Any> any_metadata_;
+  std::optional<proto::Any> any_metadata_;
 
   // Only applicable for the LOADING_PREDICTOR optimization type.
-  absl::optional<proto::LoadingPredictorMetadata> loading_predictor_metadata_;
+  std::optional<proto::LoadingPredictorMetadata> loading_predictor_metadata_;
 };
 
 }  // namespace optimization_guide

@@ -26,7 +26,6 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
@@ -55,7 +54,7 @@ struct Operation {
   int alignment = 0;  // Only used when `operation_type` is `kAllocate`.
 };
 
-int StringToInt(base::StringPiece input) {
+int StringToInt(std::string_view input) {
   int result;
 
   CHECK(base::StringToInt(input, &result));
@@ -73,15 +72,16 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
 
     base::FilePath file_path = GetTestDataFilePath(name);
 
-    int64_t file_size = 0;
-    CHECK(base::GetFileSize(file_path, &file_size))
+    std::optional<int64_t> file_size = base::GetFileSize(file_path);
+    CHECK(file_size.has_value())
         << "Failed to get file size for '" << name << "'";
-    CHECK_GE(file_size, 0);
+    CHECK_GE(file_size.value(), 0);
 
     std::string buffer;
 
-    buffer.resize(static_cast<size_t>(file_size));
-    CHECK_EQ(file_size, base::ReadFile(file_path, buffer.data(), file_size))
+    buffer.resize(static_cast<size_t>(file_size.value()));
+    CHECK_EQ(file_size.value(),
+             base::ReadFile(file_path, buffer.data(), file_size.value()))
         << "Failed to read '" << name << "'";
 
     auto allocations = base::SplitStringUsingSubstr(

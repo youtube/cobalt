@@ -93,32 +93,28 @@ class ListModel {
     NotifyItemMoved(index, target_index);
   }
 
-  void AddObserver(ListModelObserver* observer) {
+  void AddObserver(ListModelObserver* observer) const {
     observers_.AddObserver(observer);
   }
 
-  void RemoveObserver(ListModelObserver* observer) {
+  void RemoveObserver(ListModelObserver* observer) const {
     observers_.RemoveObserver(observer);
   }
 
   void NotifyItemsAdded(size_t start, size_t count) {
-    for (ListModelObserver& observer : observers_)
-      observer.ListItemsAdded(start, count);
+    observers_.Notify(&ListModelObserver::ListItemsAdded, start, count);
   }
 
   void NotifyItemsRemoved(size_t start, size_t count) {
-    for (ListModelObserver& observer : observers_)
-      observer.ListItemsRemoved(start, count);
+    observers_.Notify(&ListModelObserver::ListItemsRemoved, start, count);
   }
 
   void NotifyItemMoved(size_t index, size_t target_index) {
-    for (ListModelObserver& observer : observers_)
-      observer.ListItemMoved(index, target_index);
+    observers_.Notify(&ListModelObserver::ListItemMoved, index, target_index);
   }
 
   void NotifyItemsChanged(size_t start, size_t count) {
-    for (ListModelObserver& observer : observers_)
-      observer.ListItemsChanged(start, count);
+    observers_.Notify(&ListModelObserver::ListItemsChanged, start, count);
   }
 
   size_t item_count() const { return items_.size(); }
@@ -140,7 +136,10 @@ class ListModel {
 
  private:
   ItemList items_;
-  base::ObserverList<ListModelObserver>::Unchecked observers_;
+
+  // Mutable to allow adding/removing `ListModelObserver`'s through a const
+  // ListModel in order to preserve underlying data const-ness.
+  mutable base::ObserverList<ListModelObserver>::Unchecked observers_;
 };
 
 }  // namespace ui

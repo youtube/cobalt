@@ -4,50 +4,59 @@
 
 package org.chromium.ui.base;
 
-import androidx.annotation.VisibleForTesting;
-
 import org.chromium.base.Callback;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.ObservableSupplier;
 import org.chromium.base.supplier.ObservableSupplierImpl;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.ui.InsetObserver;
 import org.chromium.ui.mojom.VirtualKeyboardMode;
 
 /**
  * A class responsible for managing multiple users of UI insets over the application viewport.
  *
- * UI insets are complicated. The application viewport is provided by CompositorViewHolder but the
- * browser provides various UI controls which overlay the viewport. How these UI controls interact
- * with the underlying WebContents varies between controls and can depend on web-APIs.
+ * <p>UI insets are complicated. The application viewport is provided by CompositorViewHolder but
+ * the browser provides various UI controls which overlay the viewport. How these UI controls
+ * interact with the underlying WebContents varies between controls and can depend on web-APIs.
  *
- * For example, browser controls cause the WebContents to resize so that the web page reflows in
+ * <p>For example, browser controls cause the WebContents to resize so that the web page reflows in
  * response to showing/hiding (although the timing of when this happens is non-straightforward). On
  * the other hand, the virtual keyboard should resize only the page's visualViewport, without
  * affecting layout. Chrome provides "keyboard accessories" that appear to the user to be part of
  * the keyboard but are actually separate UI components. To make matters even more complicated, the
  * page can change how the virtual keyboard affects the page (to affect page layout).
  *
- * This class aims to centralize and encapsulate all these complex interactions so clients don't
+ * <p>This class aims to centralize and encapsulate all these complex interactions so clients don't
  * have to worry about the details. This class currently handles only the keyboard and keyboard
  * accessory but there are plans to move browser controls into here as well
  * (https://crbug.com/1211066).
  *
- * Features needing to know if anything is obscuring part of the screen listen to this class via
+ * <p>Features needing to know if anything is obscuring part of the screen listen to this class via
  * {@link #addObserver(Callback)} which observes changes to a {@link ViewportInsets} object which
  * has various inset types clients can use. See that class for more detials about the inset types.
  *
+ * <pre>
  * In general:
  *  - Features that want to modify the inset should pass around the {@link
  *    ApplicationViewportInsetSupplier} object.
  *  - Features only interested in what the current inset is should pass around an {@link
  *    ObservableSupplier<ViewportInsets>} object.
+ * </pre>
  */
-public class ApplicationViewportInsetSupplier
-        extends ObservableSupplierImpl<ViewportInsets> implements Destroyable {
+@NullMarked
+public class ApplicationViewportInsetSupplier extends ObservableSupplierImpl<ViewportInsets>
+        implements Destroyable {
     /** Keyboard related suppliers */
-    private ObservableSupplier<Integer> mKeyboardInsetSupplier;
-    private ObservableSupplier<Integer> mKeyboardAccessoryInsetSupplier;
+    private @Nullable ObservableSupplier<Integer> mKeyboardInsetSupplier;
 
-    /** The observer that gets attached to all keyboard inset suppliers. */
+    private @Nullable ObservableSupplier<Integer> mKeyboardAccessoryInsetSupplier;
+
+    private @Nullable ObservableSupplier<Integer> mBottomSheetInsetSupplier;
+
+    private @Nullable InsetObserver mInsetObserver;
+
+    /** The observer that gets attached to all inset suppliers. */
     private final Callback<Integer> mInsetSupplierObserver = (unused) -> computeInsets();
 
     /**
@@ -67,7 +76,6 @@ public class ApplicationViewportInsetSupplier
         super.set(new ViewportInsets());
     }
 
-    @VisibleForTesting
     public static ApplicationViewportInsetSupplier createForTests() {
         return new ApplicationViewportInsetSupplier();
     }
@@ -94,8 +102,6 @@ public class ApplicationViewportInsetSupplier
     public void setVirtualKeyboardMode(@VirtualKeyboardMode.EnumType int mode) {
         if (mVirtualKeyboardMode == mode) return;
 
-        @VirtualKeyboardMode.EnumType
-        int oldMode = mVirtualKeyboardMode;
         mVirtualKeyboardMode = mode;
 
         computeInsets();
@@ -106,7 +112,7 @@ public class ApplicationViewportInsetSupplier
      *
      * Pass null to unset the current supplier.
      */
-    public void setKeyboardInsetSupplier(ObservableSupplier<Integer> insetSupplier) {
+    public void setKeyboardInsetSupplier(@Nullable ObservableSupplier<Integer> insetSupplier) {
         boolean didRemove = false;
 
         if (mKeyboardInsetSupplier != null) {
@@ -126,11 +132,25 @@ public class ApplicationViewportInsetSupplier
     }
 
     /**
+     * Sets the {@link InsetObserver} for observing the keyboard.
+     *
+     * <p>Pass null to unset the current InsetObserver.
+     */
+    public void setInsetObserver(@Nullable InsetObserver insetObserver) {
+        mInsetObserver = insetObserver;
+    }
+
+    private boolean isKeyboardInOverlayMode() {
+        return mInsetObserver != null && mInsetObserver.isKeyboardInOverlayMode();
+    }
+
+    /**
      * Sets the inset supplier for the keyboard accessory.
      *
-     * Pass null to unset the current supplier.
+     * <p>Pass null to unset the current supplier.
      */
-    public void setKeyboardAccessoryInsetSupplier(ObservableSupplier<Integer> insetSupplier) {
+    public void setKeyboardAccessoryInsetSupplier(
+            @Nullable ObservableSupplier<Integer> insetSupplier) {
         boolean didRemove = false;
         if (mKeyboardAccessoryInsetSupplier != null) {
             mKeyboardAccessoryInsetSupplier.removeObserver(mInsetSupplierObserver);
@@ -148,14 +168,33 @@ public class ApplicationViewportInsetSupplier
         }
     }
 
+    public void setBottomSheetInsetSupplier(ObservableSupplier<Integer> insetSupplier) {
+        boolean didRemove = false;
+        if (mBottomSheetInsetSupplier != null) {
+            mBottomSheetInsetSupplier.removeObserver(mInsetSupplierObserver);
+            didRemove = true;
+        }
+
+        mBottomSheetInsetSupplier = insetSupplier;
+
+        if (mBottomSheetInsetSupplier != null) {
+            mBottomSheetInsetSupplier.addObserver(mInsetSupplierObserver);
+        } else if (didRemove) {
+            // If a supplier was removed, removeObserver will not have notified observers (unlike
+            // addObserver) so make sure insets get recomputed in this case.
+            computeInsets();
+        }
+    }
+
     /** Compute the new total inset based on all registered suppliers. */
     private void computeInsets() {
         ViewportInsets newValues = new ViewportInsets();
 
-        int keyboardInset = intFromSupplier(mKeyboardInsetSupplier);
+        int keyboardInset = isKeyboardInOverlayMode() ? 0 : intFromSupplier(mKeyboardInsetSupplier);
         int accessoryInset = intFromSupplier(mKeyboardAccessoryInsetSupplier);
         int totalKeyboardInset = keyboardInset + accessoryInset;
 
+        int bottomSheetInset = intFromSupplier(mBottomSheetInsetSupplier);
         newValues.viewVisibleHeightInset = accessoryInset;
         newValues.visualViewportBottomInset =
                 mVirtualKeyboardMode == VirtualKeyboardMode.RESIZES_VISUAL ? totalKeyboardInset : 0;
@@ -166,7 +205,7 @@ public class ApplicationViewportInsetSupplier
         // keyboard height to keep the WebContents from being resized.
         boolean vkModeOutsetsWebContentsHeight =
                 mVirtualKeyboardMode == VirtualKeyboardMode.OVERLAYS_CONTENT
-                || mVirtualKeyboardMode == VirtualKeyboardMode.RESIZES_VISUAL;
+                        || mVirtualKeyboardMode == VirtualKeyboardMode.RESIZES_VISUAL;
         int webContentsInset = 0;
         if (vkModeOutsetsWebContentsHeight) {
             // Avoid insetting by the accessory and outset by the keyboard to counter the View
@@ -177,14 +216,20 @@ public class ApplicationViewportInsetSupplier
             // accounted for in the View height so just add the accessory.
             webContentsInset = accessoryInset;
         }
+        webContentsInset += bottomSheetInset;
 
         newValues.webContentsHeightInset = webContentsInset;
 
         super.set(newValues);
     }
 
-    private int intFromSupplier(ObservableSupplier<Integer> supplier) {
+    private int intFromSupplier(@Nullable ObservableSupplier<Integer> supplier) {
         if (supplier == null || supplier.get() == null) return 0;
         return supplier.get();
+    }
+
+    public boolean insetsAffectWebContentsSize() {
+        return mVirtualKeyboardMode == VirtualKeyboardMode.RESIZES_CONTENT
+                || mBottomSheetInsetSupplier != null;
     }
 }

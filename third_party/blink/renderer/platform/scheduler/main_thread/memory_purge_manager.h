@@ -5,12 +5,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_MAIN_THREAD_MEMORY_PURGE_MANAGER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_SCHEDULER_MAIN_THREAD_MEMORY_PURGE_MANAGER_H_
 
+#include "base/memory/post_delayed_memory_reduction_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "third_party/blink/public/common/page/launching_process_state.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
-#include "third_party/blink/renderer/platform/scheduler/public/page_lifecycle_state.h"
 
 namespace blink {
 
@@ -24,15 +24,17 @@ class PLATFORM_EXPORT MemoryPurgeManager {
   ~MemoryPurgeManager();
 
   // Called when a page is created or destroyed, to maintain the total count of
-  // pages owned by a renderer.
-  void OnPageCreated(PageLifecycleState state);
-  void OnPageDestroyed(PageLifecycleState state);
+  // pages owned by a renderer. MemoryPurgeManager assumes that a page is *not*
+  // frozen on creation.
+  void OnPageCreated();
+  void OnPageDestroyed(bool frozen);
 
   // Called when a page is frozen. If all pages are frozen or
   // |kFreezePurgeMemoryAllPagesFrozen| is disabled, and the renderer is
   // backgrounded, ensures that a delayed memory purge is scheduled. If the
   // timer is already running, uses the smallest requested delay.
-  void OnPageFrozen();
+  void OnPageFrozen(base::MemoryReductionTaskContext called_from =
+                        base::MemoryReductionTaskContext::kDelayExpired);
 
   // Called when a page is resumed (unfrozen). Has the effect of unsuppressing
   // memory pressure notifications.
@@ -55,6 +57,16 @@ class PLATFORM_EXPORT MemoryPurgeManager {
     purge_disabled_for_testing_ = disabled;
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  // Sets a callback called with |false| when transitioning from "all pages
+  // frozen" to "not all pages frozen" or |true| when transitioning from "not
+  // all pages frozen" to "all pages frozen".
+  //
+  // Currently only used on Android.
+  void SetOnAllPagesFrozenCallback(
+      base::RepeatingCallback<void(bool)> callback);
+#endif
+
   // Disabled on Android, as it is not useful there. This is because we freeze
   // tabs, and trigger a critical memory pressure notification at that point.
   // This has been confirmed to not be necessary on Android in a field trial.
@@ -68,22 +80,18 @@ class PLATFORM_EXPORT MemoryPurgeManager {
 #endif
       ;
 
-  // The time of first purging after a renderer is backgrounded. The value was
-  // initially set to 30 minutes, but it was reduced to 1 minute because this
-  // reduced the memory usage of a renderer 15 minutes after it was
-  // backgrounded.
-  //
-  // Experiment results:
-  // https://docs.google.com/document/d/1E88EYNlZE1DhmlgmjUnGnCAASm8-tWCAWXy8p53vmwc/edit?usp=sharing
-  static constexpr base::TimeDelta kMinTimeToPurgeAfterBackgrounded =
-      base::Minutes(1);
-  static constexpr base::TimeDelta kMaxTimeToPurgeAfterBackgrounded =
+  // Default maximum time to purge after the renderer is backgrounded. Can be
+  // modified by field trials. Exposed for testing.
+  static constexpr base::TimeDelta kDefaultMaxTimeToPurgeAfterBackgrounded =
       base::Minutes(4);
 
   // Only one second, not to delay, but to make sure that it runs after the
   // non-delayed tasks.
   static constexpr base::TimeDelta kFreezePurgeDelay =
       base::TimeDelta(base::Seconds(1));
+
+  // Recorded a metric with whether or not all pages are currently frozen.
+  void RecordAreAllPagesFrozenMetric(std::string_view name);
 
  private:
   // Starts |purge_timer_| to trigger a delayed memory purge. If the timer is
@@ -106,6 +114,11 @@ class PLATFORM_EXPORT MemoryPurgeManager {
   // - All pages are frozen or kFreezePurgeMemoryAllPagesFrozen is disabled.
   bool CanPurge() const;
 
+  // If we transitioned between "all pages frozen" and "not all pages frozen",
+  // run the callback. |were_all_frozen| indicates whether all pages were
+  // previously frozen, before the potential state transition.
+  void MaybeRunAllPagesFrozenCallback(bool were_all_frozen);
+
   // Returns true if |total_page_count_| == |frozen_page_count_|
   bool AreAllPagesFrozen() const;
 
@@ -124,7 +137,15 @@ class PLATFORM_EXPORT MemoryPurgeManager {
   int total_page_count_ = 0;
   int frozen_page_count_ = 0;
 
+  // Whether a memory purge was performed with at least one page frozen since
+  // the renderer was backgrounded. Reset when the renderer is foregrounded.
+  bool did_purge_with_page_frozen_since_backgrounded_ = false;
+
   base::OneShotTimer purge_timer_;
+
+#if BUILDFLAG(IS_ANDROID)
+  base::RepeatingCallback<void(bool)> all_pages_frozen_callback_;
+#endif
 };
 
 }  // namespace blink

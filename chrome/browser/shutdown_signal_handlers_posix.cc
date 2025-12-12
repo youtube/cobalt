@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/shutdown_signal_handlers_posix.h"
 
 #include <limits.h>
@@ -103,21 +108,7 @@ ShutdownDetector::ShutdownDetector(
   CHECK(task_runner_);
 }
 
-ShutdownDetector::~ShutdownDetector() {}
-
-// These functions are used to help us diagnose crash dumps that happen
-// during the shutdown process.
-NOINLINE void ShutdownFDReadError() {
-  // Ensure function isn't optimized away.
-  asm("");
-  sleep(UINT_MAX);
-}
-
-NOINLINE void ShutdownFDClosedError() {
-  // Ensure function isn't optimized away.
-  asm("");
-  sleep(UINT_MAX);
-}
+ShutdownDetector::~ShutdownDetector() = default;
 
 NOINLINE void ExitPosted() {
   // Ensure function isn't optimized away.
@@ -137,12 +128,8 @@ void ShutdownDetector::ThreadMain() {
                             sizeof(signal) - bytes_read));
     if (ret < 0) {
       NOTREACHED() << "Unexpected error: " << strerror(errno);
-      ShutdownFDReadError();
-      break;
     } else if (ret == 0) {
       NOTREACHED() << "Unexpected closure of shutdown pipe.";
-      ShutdownFDClosedError();
-      break;
     }
     bytes_read += ret;
   } while (bytes_read < sizeof(signal));

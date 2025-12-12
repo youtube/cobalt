@@ -3,13 +3,19 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/feed/android/feed_reliability_logging_bridge.h"
+
 #include "base/android/jni_android.h"
+#include "base/android/jni_string.h"
 #include "base/time/time.h"
-#include "chrome/browser/feed/android/jni_headers/FeedReliabilityLoggingBridge_jni.h"
 #include "components/feed/core/v2/public/types.h"
 #include "net/base/net_errors.h"
 #include "net/http/http_status_code.h"
 #include "third_party/abseil-cpp/absl/status/status.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/feed/android/jni_headers/FeedReliabilityLoggingBridge_jni.h"
+
+using base::android::ScopedJavaLocalRef;
 
 namespace feed {
 namespace android {
@@ -80,6 +86,18 @@ absl::StatusCode HttpStatusToCanonicalStatus(int http_status) {
     return absl::StatusCode::kInternal;
   }
   return absl::StatusCode::kUnknown;
+}
+
+int CombinedNetworkStatusCodeToCanonicalStatus(
+    int combined_network_status_code) {
+  absl::StatusCode canonical_code;
+  if (combined_network_status_code >= 0) {
+    canonical_code = HttpStatusToCanonicalStatus(combined_network_status_code);
+  } else {
+    canonical_code = NetErrorToCanonicalStatus(
+        static_cast<net::Error>(combined_network_status_code));
+  }
+  return static_cast<int>(canonical_code);
 }
 
 }  // namespace
@@ -172,16 +190,10 @@ void FeedReliabilityLoggingBridge::LogRequestFinished(
     NetworkRequestId id,
     base::TimeTicks timestamp,
     int combined_network_status_code) {
-  absl::StatusCode canonical_code;
-  if (combined_network_status_code >= 0) {
-    canonical_code = HttpStatusToCanonicalStatus(combined_network_status_code);
-  } else {
-    canonical_code = NetErrorToCanonicalStatus(
-        static_cast<net::Error>(combined_network_status_code));
-  }
   Java_FeedReliabilityLoggingBridge_logRequestFinished(
       base::android::AttachCurrentThread(), java_ref_, id.GetUnsafeValue(),
-      ConvertTimestamp(timestamp), static_cast<int>(canonical_code));
+      ConvertTimestamp(timestamp),
+      CombinedNetworkStatusCodeToCanonicalStatus(combined_network_status_code));
 }
 
 void FeedReliabilityLoggingBridge::LogLoadingIndicatorShown(
@@ -203,6 +215,48 @@ void FeedReliabilityLoggingBridge::LogLaunchFinishedAfterStreamUpdate(
     feedwire::DiscoverLaunchResult result) {
   Java_FeedReliabilityLoggingBridge_logLaunchFinishedAfterStreamUpdate(
       base::android::AttachCurrentThread(), java_ref_, result);
+}
+
+void FeedReliabilityLoggingBridge::LogLoadMoreStarted() {
+  Java_FeedReliabilityLoggingBridge_logLoadMoreStarted(
+      base::android::AttachCurrentThread(), java_ref_);
+}
+
+void FeedReliabilityLoggingBridge::LogLoadMoreActionUploadRequestStarted() {
+  Java_FeedReliabilityLoggingBridge_logLoadMoreActionUploadRequestStarted(
+      base::android::AttachCurrentThread(), java_ref_);
+}
+
+void FeedReliabilityLoggingBridge::LogLoadMoreRequestSent() {
+  Java_FeedReliabilityLoggingBridge_logLoadMoreRequestSent(
+      base::android::AttachCurrentThread(), java_ref_);
+}
+
+void FeedReliabilityLoggingBridge::LogLoadMoreResponseReceived(
+    int64_t server_receive_timestamp_ns,
+    int64_t server_send_timestamp_ns) {
+  Java_FeedReliabilityLoggingBridge_logLoadMoreResponseReceived(
+      base::android::AttachCurrentThread(), java_ref_,
+      server_receive_timestamp_ns, server_send_timestamp_ns);
+}
+
+void FeedReliabilityLoggingBridge::LogLoadMoreRequestFinished(
+    int combined_network_status_code) {
+  Java_FeedReliabilityLoggingBridge_logLoadMoreRequestFinished(
+      base::android::AttachCurrentThread(), java_ref_,
+      CombinedNetworkStatusCodeToCanonicalStatus(combined_network_status_code));
+}
+
+void FeedReliabilityLoggingBridge::LogLoadMoreEnded(bool success) {
+  Java_FeedReliabilityLoggingBridge_logLoadMoreEnded(
+      base::android::AttachCurrentThread(), java_ref_, success);
+}
+
+void FeedReliabilityLoggingBridge::ReportExperiments(
+    const std::vector<int32_t>& experiment_ids) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_FeedReliabilityLoggingBridge_reportExperiments(env, java_ref_,
+                                                      experiment_ids);
 }
 
 void FeedReliabilityLoggingBridge::Destroy(JNIEnv* env) {

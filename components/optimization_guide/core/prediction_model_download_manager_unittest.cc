@@ -4,6 +4,8 @@
 
 #include "components/optimization_guide/core/prediction_model_download_manager.h"
 
+#include <optional>
+
 #include "base/command_line.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
@@ -25,7 +27,6 @@
 #include "components/optimization_guide/core/prediction_model_download_observer.h"
 #include "components/services/unzip/in_process_unzipper.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/zlib/google/zip.h"
 
 #if !BUILDFLAG(IS_IOS)
@@ -53,16 +54,17 @@ class TestPredictionModelDownloadObserver
   void OnModelDownloadFailed(
       proto::OptimizationTarget optimization_target) override {}
 
-  absl::optional<proto::PredictionModel> last_ready_model() const {
+  std::optional<proto::PredictionModel> last_ready_model() const {
     return last_ready_model_;
   }
 
  private:
-  absl::optional<proto::PredictionModel> last_ready_model_;
+  std::optional<proto::PredictionModel> last_ready_model_;
 };
 
 enum class PredictionModelDownloadFileStatus {
   kVerifiedCrxWithGoodModelFiles,
+  kVerifiedCrxWithAdditionalFiles,
   kVerifiedCrxWithNoFiles,
   kVerifiedCrxWithInvalidPublisher,
   kVerifiedCrxWithBadModelInfoFile,
@@ -149,7 +151,7 @@ class PredictionModelDownloadManagerTest : public testing::Test {
   base::FilePath GetFilePathForDownloadFileStatus(
       PredictionModelDownloadFileStatus file_status) {
     base::FilePath path;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &path);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path);
     switch (file_status) {
       case PredictionModelDownloadFileStatus::kUnverifiedFile:
         return temp_download_dir_.GetPath().AppendASCII("unverified.crx3");
@@ -168,6 +170,9 @@ class PredictionModelDownloadManagerTest : public testing::Test {
         return temp_download_dir_.GetPath().AppendASCII("nomodel.crx3");
       case PredictionModelDownloadFileStatus::kVerifiedCrxWithGoodModelFiles:
         return temp_download_dir_.GetPath().AppendASCII("good.crx3");
+      case PredictionModelDownloadFileStatus::kVerifiedCrxWithAdditionalFiles:
+        return temp_download_dir_.GetPath().AppendASCII(
+            "good_with_additional.crx3");
     }
   }
 
@@ -185,8 +190,9 @@ class PredictionModelDownloadManagerTest : public testing::Test {
       RunUntilIdle();
 
       bool path_exists = base::PathExists(path);
-      if (!path_exists)
+      if (!path_exists) {
         return true;
+      }
 
       // Retry if the last file error is access denied since it's likely that
       // the file is in the process of being deleted.
@@ -196,7 +202,7 @@ class PredictionModelDownloadManagerTest : public testing::Test {
  private:
   void WriteFileForStatus(PredictionModelDownloadFileStatus status) {
     base::FilePath source_root_dir;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root_dir);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root_dir);
     if (status == PredictionModelDownloadFileStatus::
                       kVerifiedCrxWithInvalidPublisher ||
         status == PredictionModelDownloadFileStatus::kUnverifiedFile) {
@@ -232,25 +238,34 @@ class PredictionModelDownloadManagerTest : public testing::Test {
     if (status ==
         PredictionModelDownloadFileStatus::kVerifiedCrxWithBadModelInfoFile) {
       base::WriteFile(zip_dir.AppendASCII("model-info.pb"), "boo");
-    } else {
-      proto::ModelInfo model_info;
-      model_info.set_optimization_target(
-          proto::OptimizationTarget::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD);
-      model_info.set_version(123);
-      if (status ==
-          PredictionModelDownloadFileStatus::kVerifiedCrxWithInvalidModelInfo) {
-        model_info.clear_version();
-      }
-
-      std::string serialized_model_info;
-      ASSERT_TRUE(model_info.SerializeToString(&serialized_model_info));
-      ASSERT_TRUE(base::WriteFile(zip_dir.AppendASCII("model-info.pb"),
-                                  serialized_model_info));
-      if (status ==
-          PredictionModelDownloadFileStatus::kVerifiedCrxWithGoodModelFiles) {
-        base::WriteFile(zip_dir.AppendASCII("model.tflite"), "model");
-      }
+      ASSERT_TRUE(
+          zip::Zip(zip_dir, GetFilePathForDownloadFileStatus(status), true));
+      return;
     }
+    proto::ModelInfo model_info;
+    model_info.set_optimization_target(
+        proto::OptimizationTarget::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD);
+    model_info.set_version(123);
+    if (status ==
+        PredictionModelDownloadFileStatus::kVerifiedCrxWithInvalidModelInfo) {
+      model_info.clear_version();
+    }
+
+    if (status ==
+            PredictionModelDownloadFileStatus::kVerifiedCrxWithGoodModelFiles ||
+        status == PredictionModelDownloadFileStatus::
+                      kVerifiedCrxWithAdditionalFiles) {
+      base::WriteFile(zip_dir.AppendASCII("model.tflite"), "model");
+    }
+    if (status ==
+        PredictionModelDownloadFileStatus::kVerifiedCrxWithAdditionalFiles) {
+      model_info.add_additional_files()->set_file_path("additional.txt");
+      base::WriteFile(zip_dir.AppendASCII("additional.txt"), "additional");
+    }
+    std::string serialized_model_info;
+    ASSERT_TRUE(model_info.SerializeToString(&serialized_model_info));
+    ASSERT_TRUE(base::WriteFile(zip_dir.AppendASCII("model-info.pb"),
+                                serialized_model_info));
     ASSERT_TRUE(
         zip::Zip(zip_dir, GetFilePathForDownloadFileStatus(status), true));
   }
@@ -647,6 +662,57 @@ TEST_F(
   EXPECT_TRUE(HasPathBeenDeleted(GetFilePathForDownloadFileStatus(
       PredictionModelDownloadFileStatus::kVerifiedCrxWithGoodModelFiles)));
 
+  histogram_tester.ExpectUniqueSample(
+      "OptimizationGuide.PredictionModelDownloadManager."
+      "DownloadStatus",
+      PredictionModelDownloadStatus::kSuccess, 1);
+}
+
+TEST_F(PredictionModelDownloadManagerTest,
+       VerifiedCrxWithAdditionalModelFiles) {
+  base::HistogramTester histogram_tester;
+
+  TestPredictionModelDownloadObserver observer;
+  download_manager()->AddObserver(&observer);
+  TurnOffDownloadVerification();
+
+  SetDownloadSucceeded(
+      "modelfile",
+      PredictionModelDownloadFileStatus::kVerifiedCrxWithAdditionalFiles);
+  RunUntilIdle();
+
+  ASSERT_TRUE(observer.last_ready_model().has_value());
+  auto model = *observer.last_ready_model();
+  EXPECT_EQ(model.model_info().optimization_target(),
+            proto::OptimizationTarget::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD);
+  EXPECT_EQ(model.model_info().version(), 123);
+
+  // Model file and additional file should be absolute paths.
+  auto model_path = *StringToFilePath(model.model().download_url());
+  EXPECT_EQ(model_path.DirName().DirName(), models_dir());
+  EXPECT_EQ(model_path.BaseName().value(), FILE_PATH_LITERAL("model.tflite"));
+  EXPECT_TRUE(model_path.IsAbsolute());
+  std::string file_contents;
+  EXPECT_TRUE(base::ReadFileToString(model_path, &file_contents));
+  EXPECT_EQ("model", file_contents);
+
+  EXPECT_EQ(1, model.model_info().additional_files_size());
+  auto additional_filepath =
+      *StringToFilePath(model.model_info().additional_files(0).file_path());
+  EXPECT_EQ(additional_filepath.BaseName().value(),
+            FILE_PATH_LITERAL("additional.txt"));
+  EXPECT_TRUE(base::ReadFileToString(additional_filepath, &file_contents));
+  EXPECT_EQ("additional", file_contents);
+
+  // The saved model info file should have relative paths.
+  auto model_info = *ParseModelInfoFromFile(
+      model_path.DirName().Append(GetBaseFileNameForModelInfo()));
+  EXPECT_EQ(1, model_info.additional_files_size());
+  EXPECT_EQ("additional.txt", model_info.additional_files(0).file_path());
+
+  // Downloaded file should still be deleted.
+  EXPECT_TRUE(HasPathBeenDeleted(GetFilePathForDownloadFileStatus(
+      PredictionModelDownloadFileStatus::kVerifiedCrxWithAdditionalFiles)));
   histogram_tester.ExpectUniqueSample(
       "OptimizationGuide.PredictionModelDownloadManager."
       "DownloadStatus",

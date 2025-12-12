@@ -35,13 +35,13 @@ using extensions::Extension;
 
 class ExtensionInstallUIBrowserTest : public extensions::ExtensionBrowserTest {
  public:
-  ExtensionInstallUIBrowserTest() {}
+  ExtensionInstallUIBrowserTest() = default;
 
   ExtensionInstallUIBrowserTest(const ExtensionInstallUIBrowserTest&) = delete;
   ExtensionInstallUIBrowserTest& operator=(
       const ExtensionInstallUIBrowserTest&) = delete;
 
-  ~ExtensionInstallUIBrowserTest() override {}
+  ~ExtensionInstallUIBrowserTest() override = default;
 
   // Checks that a theme info bar is currently visible and issues an undo to
   // revert to the previous theme.
@@ -51,13 +51,13 @@ class ExtensionInstallUIBrowserTest : public extensions::ExtensionBrowserTest {
     ASSERT_TRUE(web_contents);
     infobars::ContentInfoBarManager* infobar_manager =
         infobars::ContentInfoBarManager::FromWebContents(web_contents);
-    ASSERT_EQ(1U, infobar_manager->infobar_count());
+    ASSERT_EQ(1U, infobar_manager->infobars().size());
     ConfirmInfoBarDelegate* delegate =
-        infobar_manager->infobar_at(0)->delegate()->AsConfirmInfoBarDelegate();
+        infobar_manager->infobars()[0]->delegate()->AsConfirmInfoBarDelegate();
     ASSERT_TRUE(delegate);
     delegate->Cancel();
     WaitForThemeChange();
-    ASSERT_EQ(0U, infobar_manager->infobar_count());
+    ASSERT_EQ(0U, infobar_manager->infobars().size());
   }
 
   // Install the given theme from the data dir and verify expected name.
@@ -70,7 +70,7 @@ class ExtensionInstallUIBrowserTest : public extensions::ExtensionBrowserTest {
     size_t num_before = extensions::ExtensionRegistry::Get(profile())
                             ->enabled_extensions()
                             .size();
-    ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_path, 1, browser()));
+    ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_path, 1));
     WaitForThemeChange();
     size_t num_after = extensions::ExtensionRegistry::Get(profile())
                            ->enabled_extensions()
@@ -100,7 +100,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallUIBrowserTest,
                        DISABLED_TestThemeInstallUndoResetsToDefault) {
   // Install theme once and undo to verify we go back to default theme.
   base::FilePath theme_crx = PackExtension(test_data_dir_.AppendASCII("theme"));
-  ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_crx, 1, browser()));
+  ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_crx, 1));
   WaitForThemeChange();
   const Extension* theme = GetTheme();
   ASSERT_TRUE(theme);
@@ -109,12 +109,12 @@ IN_PROC_BROWSER_TEST_F(ExtensionInstallUIBrowserTest,
   ASSERT_EQ(nullptr, GetTheme());
 
   // Set the same theme twice and undo to verify we go back to default theme.
-  ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_crx, 0, browser()));
+  ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_crx, 0));
   WaitForThemeChange();
   theme = GetTheme();
   ASSERT_TRUE(theme);
   ASSERT_EQ(theme_id, theme->id());
-  ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_crx, 0, browser()));
+  ASSERT_TRUE(InstallExtensionWithUIAutoConfirm(theme_crx, 0));
   WaitForThemeChange();
   theme = GetTheme();
   ASSERT_TRUE(theme);

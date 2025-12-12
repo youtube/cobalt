@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/icons.html.js';
+import 'chrome://resources/ash/common/cr_elements/icons.html.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import 'chrome://resources/polymer/v3_0/paper-progress/paper-progress.js';
 import './diagnostics_shared.css.js';
-import './strings.m.js';
+import '/strings.m.js';
 
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 import {getTemplate} from './percent_bar_chart.html.js';
@@ -20,8 +20,8 @@ import {getTemplate} from './percent_bar_chart.html.js';
  */
 
 export class PercentBarChartElement extends PolymerElement {
-  static get is(): string {
-    return 'percent-bar-chart';
+  static get is(): 'percent-bar-chart' {
+    return 'percent-bar-chart' as const;
   }
 
   static get template(): HTMLTemplateElement {
@@ -63,7 +63,7 @@ export class PercentBarChartElement extends PolymerElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'percent-bar-chart': PercentBarChartElement;
+    [PercentBarChartElement.is]: PercentBarChartElement;
   }
 }
 

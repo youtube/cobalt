@@ -18,9 +18,14 @@ namespace blink {
 struct CORE_EXPORT ComputedGridTrackList {
   ComputedGridTrackList() = default;
 
+  static ComputedGridTrackList DefaultMasonryTrackList() {
+    ComputedGridTrackList default_track_list;
+    default_track_list.track_list.AddRepeater({GridTrackSize(Length::Auto())});
+    return default_track_list;
+  }
+
   bool operator==(const ComputedGridTrackList& other) const {
-    return track_sizes == other.track_sizes &&
-           auto_repeat_track_sizes == other.auto_repeat_track_sizes &&
+    return track_list == other.track_list &&
            named_grid_lines == other.named_grid_lines &&
            auto_repeat_named_grid_lines == other.auto_repeat_named_grid_lines &&
            ordered_named_grid_lines == other.ordered_named_grid_lines &&
@@ -39,10 +44,7 @@ struct CORE_EXPORT ComputedGridTrackList {
     return axis_type == GridAxisType::kSubgriddedAxis;
   }
 
-  const NGGridTrackList& TrackList() const { return track_sizes.NGTrackList(); }
-
-  GridTrackList track_sizes;
-  Vector<GridTrackSize, 1> auto_repeat_track_sizes;
+  NGGridTrackList track_list;
 
   NamedGridLinesMap named_grid_lines;
   NamedGridLinesMap auto_repeat_named_grid_lines;

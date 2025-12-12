@@ -4,8 +4,9 @@
 
 #include "components/safe_browsing/core/browser/password_protection/password_reuse_detection_manager.h"
 
-#include "base/run_loop.h"
-#include "base/strings/utf_string_conversions.h"
+#include <array>
+#include <optional>
+
 #include "base/test/simple_test_clock.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
@@ -78,11 +79,11 @@ class PasswordReuseDetectionManagerTest : public ::testing::Test {
 // Verify that CheckReuse is called on each key pressed event with an argument
 // equal to the last 30 keystrokes typed after the last main frame navigation.
 TEST_F(PasswordReuseDetectionManagerTest, CheckReuseCalled) {
-  const GURL gurls[] = {GURL("https://www.example.com"),
-                        GURL("https://www.otherexample.com")};
-  const std::u16string input[] = {
-      u"1234567890abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ",
-      u"?<>:'{}ABCDEF"};
+  const auto gurls = std::to_array(
+      {GURL("https://www.example.com"), GURL("https://www.otherexample.com")});
+  const std::array<std::u16string, 2> input{
+      {u"1234567890abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ",
+       u"?<>:'{}ABCDEF"}};
 
   EXPECT_CALL(client_, GetPasswordReuseManager())
       .WillRepeatedly(testing::Return(&reuse_manager_));
@@ -155,8 +156,11 @@ TEST_F(PasswordReuseDetectionManagerTest, NoReuseCheckingAfterReuseFound) {
   PasswordReuseDetectionManager manager(&client_);
 
   // Simulate that reuse found.
-  manager.OnReuseCheckDone(true, 0ul, absl::nullopt, {{"https://example.com"}},
-                           0, std::string(), 0);
+  manager.OnReuseCheckDone(
+      true, 0ul, std::nullopt,
+      {password_manager::MatchingReusedCredential(
+          "https://example.com", GURL("https://example.com"), u"username")},
+      0, std::string(), 0);
 
   // Expect no checking of reuse.
   EXPECT_CALL(reuse_manager_, CheckReuse).Times(0);
@@ -191,9 +195,9 @@ TEST_F(PasswordReuseDetectionManagerTest, DidNavigateMainFrame) {
 
 // Verify that CheckReuse is called on a paste event.
 TEST_F(PasswordReuseDetectionManagerTest, CheckReuseCalledOnPaste) {
-  const GURL gurls[] = {GURL("https://www.example.com"),
-                        GURL("https://www.example.test")};
-  const std::u16string input[] = {
+  const std::array<GURL, 2> gurls = {GURL("https://www.example.com"),
+                                     GURL("https://www.example.test")};
+  const std::array<std::u16string, 2> input = {
       u"1234567890abcdefghijklmnopqrstuvxyzABCDEFGHIJKLMNOPQRSTUVXYZ",
       u"?<>:'{}ABCDEF"};
 
@@ -236,17 +240,17 @@ TEST_F(PasswordReuseDetectionManagerTest,
   manager.OnPaste(kInput);
   testing::Mock::VerifyAndClearExpectations(&reuse_manager_);
 
-  std::vector<password_manager::MatchingReusedCredential> reused_credentials = {
-      {.signon_realm = "www.example2.com",
-       .username = u"username1",
-       .in_store = password_manager::PasswordForm::Store::kProfileStore}};
+  std::vector<password_manager::MatchingReusedCredential> reused_credentials;
+  reused_credentials.emplace_back(
+      "www.example2.com", GURL("www.example2.com"), u"username1",
+      password_manager::PasswordForm::Store::kProfileStore);
 
   // CheckProtectedPasswordEntry should get called once, and the reused
   // credentials get used reported once in this call.
   EXPECT_CALL(client_,
               CheckProtectedPasswordEntry(_, _, reused_credentials, _, _, _));
   manager.OnReuseCheckDone(/*is_reuse_found=*/true, /*password_length=*/10,
-                           /*reused_protected_password_hash=*/absl::nullopt,
+                           /*reused_protected_password_hash=*/std::nullopt,
                            reused_credentials, /*saved_passwords=*/1,
                            /*domain=*/std::string(),
                            /*reused_password_hash=*/0);

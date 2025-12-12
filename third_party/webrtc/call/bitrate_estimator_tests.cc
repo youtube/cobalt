@@ -11,12 +11,21 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
+#include <vector>
 
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "api/rtp_parameters.h"
 #include "api/test/create_frame_generator.h"
+#include "api/test/simulated_network.h"
+#include "api/test/video/function_video_decoder_factory.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "call/call.h"
-#include "call/simulated_network.h"
+#include "call/video_receive_stream.h"
+#include "call/video_send_stream.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/event.h"
 #include "rtc_base/logging.h"
@@ -26,10 +35,10 @@
 #include "test/call_test.h"
 #include "test/encoder_settings.h"
 #include "test/fake_decoder.h"
-#include "test/fake_encoder.h"
 #include "test/frame_generator_capturer.h"
 #include "test/gtest.h"
 #include "test/video_test_constants.h"
+#include "video/config/video_encoder_config.h"
 
 namespace webrtc {
 namespace {
@@ -37,9 +46,9 @@ namespace {
 // writing tests that don't depend on the logging system.
 class LogObserver {
  public:
-  LogObserver() { rtc::LogMessage::AddLogToStream(&callback_, rtc::LS_INFO); }
+  LogObserver() { LogMessage::AddLogToStream(&callback_, LS_INFO); }
 
-  ~LogObserver() { rtc::LogMessage::RemoveLogToStream(&callback_); }
+  ~LogObserver() { LogMessage::RemoveLogToStream(&callback_); }
 
   void PushExpectedLogLine(absl::string_view expected_log_line) {
     callback_.PushExpectedLogLine(expected_log_line);
@@ -48,7 +57,7 @@ class LogObserver {
   bool Wait() { return callback_.Wait(); }
 
  private:
-  class Callback : public rtc::LogSink {
+  class Callback : public LogSink {
    public:
     void OnLogMessage(const std::string& message) override {
       OnLogMessage(absl::string_view(message));
@@ -59,8 +68,8 @@ class LogObserver {
       // Ignore log lines that are due to missing AST extensions, these are
       // logged when we switch back from AST to TOF until the wrapping bitrate
       // estimator gives up on using AST.
-      if (message.find("BitrateEstimator") != absl::string_view::npos &&
-          message.find("packet is missing") == absl::string_view::npos) {
+      if (absl::StrContains(message, "BitrateEstimator") &&
+          !absl::StrContains(message, "packet is missing")) {
         received_log_lines_.push_back(std::string(message));
       }
 
@@ -95,7 +104,7 @@ class LogObserver {
     Mutex mutex_;
     Strings received_log_lines_ RTC_GUARDED_BY(mutex_);
     Strings expected_log_lines_ RTC_GUARDED_BY(mutex_);
-    rtc::Event done_;
+    Event done_;
   };
 
   Callback callback_;
@@ -178,14 +187,15 @@ class BitrateEstimatorTest : public test::CallTest {
       RTC_DCHECK_EQ(1, test_->GetVideoEncoderConfig()->number_of_streams);
       frame_generator_capturer_ =
           std::make_unique<test::FrameGeneratorCapturer>(
-              test->clock_,
+              &test->env().clock(),
               test::CreateSquareFrameGenerator(
                   test::VideoTestConstants::kDefaultWidth,
-                  test::VideoTestConstants::kDefaultHeight, absl::nullopt,
-                  absl::nullopt),
+                  test::VideoTestConstants::kDefaultHeight, std::nullopt,
+                  std::nullopt),
               test::VideoTestConstants::kDefaultFramerate,
-              *test->task_queue_factory_);
+              test->env().task_queue_factory());
       frame_generator_capturer_->Init();
+      frame_generator_capturer_->Start();
       send_stream_->SetSource(frame_generator_capturer_.get(),
                               DegradationPreference::MAINTAIN_FRAMERATE);
       send_stream_->Start();

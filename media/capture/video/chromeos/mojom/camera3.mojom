@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Next min version: 6
+// Next min version: 9
 
 module cros.mojom;
 
+import "media/capture/video/chromeos/mojom/camera_features.mojom";
 import "media/capture/video/chromeos/mojom/camera_metadata.mojom";
 
 // These usages flags are defined in gralloc.h. They determine the nature of
@@ -87,6 +88,7 @@ struct Camera3Stream {
   [MinVersion=1] CropRotateScaleInfo? crop_rotate_scale_info;
   // Required for camera HAL device API versions >= 3.5.
   [MinVersion=4] string? physical_camera_id;
+  [MinVersion=6] array<Camera3StreamEffect>? effects;
 };
 
 struct Camera3StreamConfiguration {
@@ -113,9 +115,13 @@ struct CameraBufferHandle {
   array<uint32> strides;
   array<uint32> offsets;
   [MinVersion=3] array<uint32>? sizes;
-  [MinVersion=5] bool has_modifier;
-  [MinVersion=5] uint64 modifier;
+  [MinVersion=7] bool has_modifier;
+  [MinVersion=7] uint64 modifier;
 };
+
+// When this is used for |buffer_id| in Camera3StreamBuffer, this indicates that
+// Camera3StreamBuffer does not contain a buffer.
+const uint64 NO_BUFFER_BUFFER_ID = 0xFFFFFFFFFFFFFFFF;
 
 struct Camera3StreamBuffer {
   uint64 stream_id;
@@ -243,7 +249,7 @@ interface Camera3CallbackOps {
   [MinVersion=5]
   RequestStreamBuffers@2(array<Camera3BufferRequest> buffer_reqs) =>
       (Camera3BufferRequestStatus result,
-       array<Camera3StreamBufferRet>? returned_buf_reqs);
+       array<Camera3StreamBufferRet> returned_buf_reqs);
 
   // ReturnStreamBuffers() is called by the camera HAL to return output buffers
   // to the client.
@@ -305,7 +311,7 @@ interface Camera3CallbackOps {
 //
 //    7. Close() closes the camera device.
 //
-// Next method ID: 10
+// Next method ID: 12
 interface Camera3DeviceOps {
   // Initialize() is called once after the camera device is opened to register
   // the Camera3CallbackOps handle.
@@ -375,4 +381,15 @@ interface Camera3DeviceOps {
   // ProcessCaptureResult() or ReturnStreamBuffers().
   [MinVersion=5]
   SignalStreamFlush@9(array<uint64> stream_ids);
+
+  // Notify the camera HAL a new |buffer| is created in the video capture buffer
+  // pool. Returns 0 if the new buffer is successfully registered in camera HAL,
+  // or a POSIX errnum, e.g. -EINVAL, otherwise.
+  [MinVersion=8]
+  OnNewBuffer@10(CameraBufferHandle buffer) => (int32 result);
+
+  // Notify the camera HAL a buffer is retired from the video capture buffer
+  // pool.
+  [MinVersion=8]
+  OnBufferRetired@11(uint64 buffer_id);
 };

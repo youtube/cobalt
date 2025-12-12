@@ -94,6 +94,10 @@ source_set("unit_tests") {
     "//third_party/boringssl",
     "//third_party/re2",
   ]
+
+  if (is_ios) {
+    deps += [ "//components/test:webcrypto_test_bundle_data" ]
+  }
 }
 
 # Shared functionality for writing WebCrypto fuzzers at this layer (several
@@ -162,5 +166,26 @@ fuzzer_test("webcrypto_rsa_import_key_spki_fuzzer") {
     ":fuzzer_support",
     ":webcrypto",
     "//third_party/blink/public:blink_headers",
+  ]
+}
+
+test("webcrypto_testing_fuzzer") {
+  fuzztests = [
+    "WebCryptoFuzzer.ImportKeyFuzzer",
+    "WebCryptoFuzzer.EncryptFuzzer",
+    "WebCryptoFuzzer.DecryptFuzzer",
+    "WebCryptoFuzzer.DigestFuzzer",
+    "WebCryptoFuzzer.SignFuzzer",
+    "WebCryptoFuzzer.VerifyFuzzer",
+    "WebCryptoFuzzer.DeriveBitsFuzzer",
+  ]
+  sources = [ "webcrypto_fuzzer.cc" ]
+  deps = [
+    ":webcrypto",
+    "//base",
+    "//crypto",
+    "//mojo/core/embedder",
+    "//third_party/blink/public:blink",
+    "//third_party/fuzztest:fuzztest_gtest_main",
   ]
 }

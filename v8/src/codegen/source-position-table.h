@@ -16,23 +16,26 @@
 namespace v8 {
 namespace internal {
 
-class ByteArray;
-template <typename T>
-class Handle;
-class Isolate;
+class TrustedByteArray;
 class Zone;
 
 struct PositionTableEntry {
   PositionTableEntry()
       : source_position(0),
         code_offset(kFunctionEntryBytecodeOffset),
-        is_statement(false) {}
-  PositionTableEntry(int offset, int64_t source, bool statement)
-      : source_position(source), code_offset(offset), is_statement(statement) {}
+        is_statement(false),
+        is_breakable(true) {}
+  PositionTableEntry(int offset, int64_t source, bool statement,
+                     bool breakable = true)
+      : source_position(source),
+        code_offset(offset),
+        is_statement(statement),
+        is_breakable(breakable) {}
 
   int64_t source_position;
   int code_offset;
   bool is_statement;
+  bool is_breakable;
 };
 
 class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
@@ -52,12 +55,12 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
       Zone* zone, RecordingMode mode = RECORD_SOURCE_POSITIONS);
 
   void AddPosition(size_t code_offset, SourcePosition source_position,
-                   bool is_statement);
+                   bool is_statement, bool is_breakable = true);
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
-  base::OwnedVector<byte> ToSourcePositionTableVector();
+  Handle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
+  base::OwnedVector<uint8_t> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }
   inline bool Lazy() const { return mode_ == LAZY_SOURCE_POSITIONS; }
@@ -66,7 +69,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   void AddEntry(const PositionTableEntry& entry);
 
   RecordingMode mode_;
-  ZoneVector<byte> bytes_;
+  ZoneVector<uint8_t> bytes_;
 #ifdef ENABLE_SLOW_DCHECKS
   ZoneVector<PositionTableEntry> raw_entries_;
 #endif
@@ -100,7 +103,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // Handlified iterator allows allocation, but it needs a handle (and thus
   // a handle scope). This is the preferred version.
   explicit SourcePositionTableIterator(
-      Handle<ByteArray> byte_array,
+      Handle<TrustedByteArray> byte_array,
       IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
@@ -108,13 +111,14 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // allocation during its lifetime. This is useful if there is no handle
   // scope around.
   explicit SourcePositionTableIterator(
-      ByteArray byte_array, IterationFilter iteration_filter = kJavaScriptOnly,
+      Tagged<TrustedByteArray> byte_array,
+      IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
   // Handle-safe iterator based on an a vector located outside the garbage
   // collected heap, allows allocation during its lifetime.
   explicit SourcePositionTableIterator(
-      base::Vector<const byte> bytes,
+      base::Vector<const uint8_t> bytes,
       IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
@@ -131,6 +135,10 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   bool is_statement() const {
     DCHECK(!done());
     return current_.is_statement;
+  }
+  bool is_breakable() const {
+    DCHECK(!done());
+    return current_.is_breakable;
   }
   bool done() const { return index_ == kDone; }
 
@@ -152,8 +160,8 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
 
   static const int kDone = -1;
 
-  base::Vector<const byte> raw_table_;
-  Handle<ByteArray> table_;
+  base::Vector<const uint8_t> raw_table_;
+  Handle<TrustedByteArray> table_;
   int index_ = 0;
   PositionTableEntry current_;
   IterationFilter iteration_filter_;

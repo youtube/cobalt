@@ -6,11 +6,9 @@
 
 #include "base/base64url.h"
 #include "chromeos/ash/services/device_sync/value_string_encoding.h"
-#include "crypto/sha2.h"
+#include "crypto/hash.h"
 
-namespace ash {
-
-namespace device_sync {
+namespace ash::device_sync {
 
 namespace {
 
@@ -23,9 +21,9 @@ const char kPublicKeyDictKey[] = "public_key";
 const char kPrivateKeyDictKey[] = "private_key";
 
 // Returns the base64url-encoded SHA256 hash of the input string.
-std::string CreateHandle(const std::string& string_to_hash) {
+std::string CreateHandle(std::string_view str) {
   std::string handle;
-  base::Base64UrlEncode(crypto::SHA256HashString(string_to_hash),
+  base::Base64UrlEncode(crypto::hash::Sha256(base::as_byte_span(str)),
                         base::Base64UrlEncodePolicy::INCLUDE_PADDING, &handle);
   return handle;
 }
@@ -43,39 +41,43 @@ bool IsAsymmetricKeyType(cryptauthv2::KeyType type) {
 }  // namespace
 
 // static
-absl::optional<CryptAuthKey> CryptAuthKey::FromDictionary(
+std::optional<CryptAuthKey> CryptAuthKey::FromDictionary(
     const base::Value::Dict& dict) {
-  absl::optional<int> opt_status = dict.FindInt(kStatusDictKey);
-  if (!opt_status)
-    return absl::nullopt;
+  std::optional<int> opt_status = dict.FindInt(kStatusDictKey);
+  if (!opt_status) {
+    return std::nullopt;
+  }
   CryptAuthKey::Status status = static_cast<CryptAuthKey::Status>(*opt_status);
 
-  absl::optional<int> opt_type = dict.FindInt(kTypeDictKey);
-  if (!opt_type || !cryptauthv2::KeyType_IsValid(*opt_type))
-    return absl::nullopt;
+  std::optional<int> opt_type = dict.FindInt(kTypeDictKey);
+  if (!opt_type || !cryptauthv2::KeyType_IsValid(*opt_type)) {
+    return std::nullopt;
+  }
   cryptauthv2::KeyType type = static_cast<cryptauthv2::KeyType>(*opt_type);
 
   const std::string* handle = dict.FindString(kHandleDictKey);
-  if (!handle || handle->empty())
-    return absl::nullopt;
+  if (!handle || handle->empty()) {
+    return std::nullopt;
+  }
 
   if (IsSymmetricKeyType(type)) {
-    absl::optional<std::string> symmetric_key =
+    std::optional<std::string> symmetric_key =
         util::DecodeFromValueString(dict.Find(kSymmetricKeyDictKey));
-    if (!symmetric_key || symmetric_key->empty())
-      return absl::nullopt;
+    if (!symmetric_key || symmetric_key->empty()) {
+      return std::nullopt;
+    }
 
     return CryptAuthKey(*symmetric_key, status, type, *handle);
   }
 
   DCHECK(IsAsymmetricKeyType(type));
 
-  absl::optional<std::string> public_key =
+  std::optional<std::string> public_key =
       util::DecodeFromValueString(dict.Find(kPublicKeyDictKey));
-  absl::optional<std::string> private_key =
+  std::optional<std::string> private_key =
       util::DecodeFromValueString(dict.Find(kPrivateKeyDictKey));
   if (!public_key || !private_key || public_key->empty()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return CryptAuthKey(*public_key, *private_key, status, type, *handle);
@@ -84,7 +86,7 @@ absl::optional<CryptAuthKey> CryptAuthKey::FromDictionary(
 CryptAuthKey::CryptAuthKey(const std::string& symmetric_key,
                            Status status,
                            cryptauthv2::KeyType type,
-                           const absl::optional<std::string>& handle)
+                           const std::optional<std::string>& handle)
     : symmetric_key_(symmetric_key),
       status_(status),
       type_(type),
@@ -98,7 +100,7 @@ CryptAuthKey::CryptAuthKey(const std::string& public_key,
                            const std::string& private_key,
                            Status status,
                            cryptauthv2::KeyType type,
-                           const absl::optional<std::string>& handle)
+                           const std::optional<std::string>& handle)
     : public_key_(public_key),
       private_key_(private_key),
       status_(status),
@@ -124,26 +126,22 @@ bool CryptAuthKey::IsAsymmetricKey() const {
 base::Value::Dict CryptAuthKey::AsSymmetricKeyDictionary() const {
   DCHECK(IsSymmetricKey());
 
-  base::Value::Dict dict;
-  dict.Set(kHandleDictKey, handle_);
-  dict.Set(kStatusDictKey, status_);
-  dict.Set(kTypeDictKey, type_);
-  dict.Set(kSymmetricKeyDictKey, util::EncodeAsValueString(symmetric_key_));
-
-  return dict;
+  return base::Value::Dict()
+      .Set(kHandleDictKey, handle_)
+      .Set(kStatusDictKey, status_)
+      .Set(kTypeDictKey, type_)
+      .Set(kSymmetricKeyDictKey, util::EncodeAsValueString(symmetric_key_));
 }
 
 base::Value::Dict CryptAuthKey::AsAsymmetricKeyDictionary() const {
   DCHECK(IsAsymmetricKey());
 
-  base::Value::Dict dict;
-  dict.Set(kHandleDictKey, handle_);
-  dict.Set(kStatusDictKey, status_);
-  dict.Set(kTypeDictKey, type_);
-  dict.Set(kPublicKeyDictKey, util::EncodeAsValueString(public_key_));
-  dict.Set(kPrivateKeyDictKey, util::EncodeAsValueString(private_key_));
-
-  return dict;
+  return base::Value::Dict()
+      .Set(kHandleDictKey, handle_)
+      .Set(kStatusDictKey, status_)
+      .Set(kTypeDictKey, type_)
+      .Set(kPublicKeyDictKey, util::EncodeAsValueString(public_key_))
+      .Set(kPrivateKeyDictKey, util::EncodeAsValueString(private_key_));
 }
 
 bool CryptAuthKey::operator==(const CryptAuthKey& other) const {
@@ -156,6 +154,4 @@ bool CryptAuthKey::operator!=(const CryptAuthKey& other) const {
   return !(*this == other);
 }
 
-}  // namespace device_sync
-
-}  // namespace ash
+}  // namespace ash::device_sync

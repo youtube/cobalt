@@ -4,54 +4,72 @@
 
 package org.chromium.chrome.browser.quick_delete;
 
-import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.assertion.ViewAssertions.matches;
-import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
-import static androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility;
-import static androidx.test.espresso.matcher.ViewMatchers.withId;
-import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
-import static org.chromium.ui.test.util.ViewUtils.onViewWaiting;
+import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 
-import android.view.View;
+import android.widget.Spinner;
 
-import androidx.test.espresso.matcher.ViewMatchers;
 import androidx.test.filters.MediumTest;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
+import org.chromium.base.ThreadUtils;
+import org.chromium.base.test.transit.PublicTransitConfig;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Feature;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.base.test.util.Restriction;
+import org.chromium.chrome.browser.ChromeTabbedActivity;
+import org.chromium.chrome.browser.browsing_data.BrowsingDataBridge;
+import org.chromium.chrome.browser.browsing_data.BrowsingDataType;
+import org.chromium.chrome.browser.browsing_data.TimePeriod;
+import org.chromium.chrome.browser.browsing_data.TimePeriodUtils;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.ui.appmenu.AppMenuTestSupport;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
+import org.chromium.chrome.browser.profiles.ProfileManager;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
+import org.chromium.chrome.browser.tabmodel.TabClosureParams;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.hub.RegularTabSwitcherStation;
+import org.chromium.chrome.test.transit.hub.TabGroupDialogFacility;
+import org.chromium.chrome.test.transit.page.WebPageStation;
+import org.chromium.chrome.test.transit.quick_delete.QuickDeleteDialogFacility;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
-import org.chromium.chrome.test.util.browser.Features.EnableFeatures;
 import org.chromium.chrome.test.util.browser.signin.SigninTestRule;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.modaldialog.ModalDialogProperties;
+import org.chromium.components.signin.test.util.TestAccounts;
+import org.chromium.components.sync.DataType;
+import org.chromium.components.sync.SyncService;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
-/**
- * Tests for quick delete dialog view.
- */
+/** Tests for quick delete dialog view. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@EnableFeatures({ChromeFeatureList.QUICK_DELETE_FOR_ANDROID})
 @Batch(Batch.PER_CLASS)
 public class QuickDeleteDialogDelegateTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public AutoResetCtaTransitTestRule mCtaTestRule =
+            ChromeTransitTestRules.autoResetCtaActivityRule();
 
-    @Rule
-    public final SigninTestRule mSigninTestRule = new SigninTestRule();
+    @Rule public final SigninTestRule mSigninTestRule = new SigninTestRule();
+
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Rule
     public ChromeRenderTestRule mRenderTestRule =
@@ -59,61 +77,174 @@ public class QuickDeleteDialogDelegateTest {
                     .setBugComponent(ChromeRenderTestRule.Component.PRIVACY)
                     .build();
 
+    @Mock private SyncService mMockSyncService;
+
+    private ChromeTabbedActivity mActivity;
+    private WebPageStation mPage;
+
     @Before
     public void setUp() {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        SyncServiceFactory.setInstanceForTesting(mMockSyncService);
+        setSyncable(false);
+
+        mPage = mCtaTestRule.startOnBlankPage();
+        mActivity = mCtaTestRule.getActivity();
+    }
+
+    @After
+    public void tearDown() throws TimeoutException {
+        CallbackHelper callbackHelper = new CallbackHelper();
+
+        // Clear history.
+        runOnUiThreadBlocking(
+                () -> {
+                    BrowsingDataBridge.getForProfile(ProfileManager.getLastUsedRegularProfile())
+                            .clearBrowsingData(
+                                    callbackHelper::notifyCalled,
+                                    new int[] {BrowsingDataType.HISTORY},
+                                    TimePeriod.ALL_TIME);
+                });
+
+        callbackHelper.waitForOnly();
+    }
+
+    private void setSyncable(boolean syncable) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    when(mMockSyncService.getActiveDataTypes())
+                            .thenReturn(
+                                    syncable
+                                            ? Set.of(DataType.HISTORY_DELETE_DIRECTIVES)
+                                            : new HashSet<>());
+                });
+    }
+
+    private int getNumberOfTabsInCurrentTabModel() {
+        return mActivity.getCurrentTabModel().getCount();
     }
 
     @Test
     @MediumTest
+    @Restriction(Restriction.RESTRICTION_TYPE_INTERNET)
     @Feature({"RenderTest"})
-    public void testQuickDeleteDialogView() throws IOException {
-        openQuickDeleteDialog();
+    public void testQuickDeleteDialogView_WithSignInAndSync() throws IOException {
+        mSigninTestRule.addAccountThenSignin(TestAccounts.ACCOUNT1);
+        setSyncable(true);
 
-        onView(withText(R.string.quick_delete_dialog_title)).check(matches(isDisplayed()));
-        onView(withText(R.string.quick_delete_dialog_description)).check(matches(isDisplayed()));
-        onView(withText(R.string.clear_history_title)).check(matches(isDisplayed()));
-        onView(withText(R.string.clear_cookies_and_site_data_title)).check(matches(isDisplayed()));
-        onView(withText(R.string.clear_cache_title)).check(matches(isDisplayed()));
+        mPage = mPage.loadWebPageProgrammatically("https://www.example.com/");
+        mPage = mPage.openFakeLinkToWebPage("https://www.google.com/");
+        assertEquals(2, getNumberOfTabsInCurrentTabModel());
 
-        // TODO(crbug.com/1412087): Get the full dialog for render test instead of just the custom
-        // view.
-        View dialogView = mActivityTestRule.getActivity()
-                                  .getModalDialogManager()
-                                  .getCurrentDialogForTest()
-                                  .get(ModalDialogProperties.CUSTOM_VIEW);
-        mRenderTestRule.render(dialogView, "quick_delete_dialog");
+        QuickDeleteDialogFacility dialog = mPage.openRegularTabAppMenu().clearBrowsingData();
+
+        assertEquals("google.com + 1 site", dialog.historyInfoElement.get().getText().toString());
+        dialog.expectMoreOnSyncedDevices(/* shown= */ true);
+        assertTrue(dialog.tabsInfoElement.get().isEnabled());
+        assertEquals("2 tabs on this device", dialog.tabsInfoElement.get().getText());
+        dialog.expectSearchHistoryDisambiguation(/* shown= */ true);
+
+        mRenderTestRule.render(
+                dialog.customViewElement.get(), "quick_delete_dialog-signed-in-and-sync");
+
+        dialog.clickCancel();
     }
 
     @Test
     @MediumTest
+    @Restriction(Restriction.RESTRICTION_TYPE_INTERNET)
     @Feature({"RenderTest"})
-    public void testSearchHistoryDisambiguationTextShown_WhenUserIsSignedIn() throws IOException {
+    public void testQuickDeleteDialogView_WithSignInOnly() throws IOException {
         mSigninTestRule.addTestAccountThenSignin();
-        openQuickDeleteDialog();
+        setSyncable(false);
 
-        onView(withId(R.id.search_history_disambiguation)).check(matches(isDisplayed()));
+        mPage = mPage.loadWebPageProgrammatically("https://www.google.com/");
+        assertEquals(1, getNumberOfTabsInCurrentTabModel());
 
-        View dialogView = mActivityTestRule.getActivity()
-                                  .getModalDialogManager()
-                                  .getCurrentDialogForTest()
-                                  .get(ModalDialogProperties.CUSTOM_VIEW);
+        QuickDeleteDialogFacility dialog = mPage.openRegularTabAppMenu().clearBrowsingData();
 
-        mRenderTestRule.render(dialogView, "quick_delete_dialog-signed-in");
+        assertEquals("google.com", dialog.historyInfoElement.get().getText().toString());
+        dialog.expectMoreOnSyncedDevices(/* shown= */ false);
+        assertTrue(dialog.tabsInfoElement.get().isEnabled());
+        assertEquals("1 tab on this device", dialog.tabsInfoElement.get().getText());
+        dialog.expectSearchHistoryDisambiguation(/* shown= */ true);
+
+        mRenderTestRule.render(dialog.customViewElement.get(), "quick_delete_dialog-signed-in");
+
+        dialog.clickCancel();
     }
 
-    private void openQuickDeleteDialog() {
-        // Open 3 dot menu.
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            AppMenuTestSupport.showAppMenu(mActivityTestRule.getAppMenuCoordinator(), null, false);
-        });
-        onViewWaiting(withId(R.id.app_menu_list))
-                .check(matches(withEffectiveVisibility(ViewMatchers.Visibility.VISIBLE)));
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void testQuickDeleteDialogView_WithoutTabsOrHistory() throws IOException {
+        // Close all tabs, which goes to the tab switcher.
+        RegularTabSwitcherStation tabSwitcher =
+                mPage.travelToSync(
+                        new RegularTabSwitcherStation(
+                                /* regularTabsExist= */ false, /* incognitoTabsExist= */ false),
+                        this::closeAllTabsProgrammatically);
+        assertEquals(0, getNumberOfTabsInCurrentTabModel());
 
-        // Click on quick delete menu item.
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            AppMenuTestSupport.callOnItemClick(
-                    mActivityTestRule.getAppMenuCoordinator(), R.id.quick_delete_menu_id);
-        });
+        QuickDeleteDialogFacility dialog = tabSwitcher.openAppMenu().clearBrowsingData();
+
+        assertEquals(
+                "No sites from the last 15 minutes",
+                dialog.historyInfoElement.get().getText().toString());
+        dialog.expectMoreOnSyncedDevices(/* shown= */ false);
+        assertTrue(dialog.tabsInfoElement.get().isEnabled());
+        assertEquals("No tabs from the last 15 minutes", dialog.tabsInfoElement.get().getText());
+        dialog.expectSearchHistoryDisambiguation(/* shown= */ false);
+
+        mRenderTestRule.render(
+                dialog.customViewElement.get(), "quick_delete_dialog-no-tabs-or-history");
+
+        // Return to a page for InitialStateRule to reset state.
+        dialog.clickCancel();
+        tabSwitcher.openNewTab();
+    }
+
+    private void closeAllTabsProgrammatically() {
+        runOnUiThreadBlocking(
+                () ->
+                        mActivity
+                                .getCurrentTabModel()
+                                .getTabRemover()
+                                .closeTabs(
+                                        TabClosureParams.closeAllTabs().build(),
+                                        /* allowDialog= */ false));
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    public void testQuickDeleteDialogView_MultiInstance() throws IOException {
+        MultiWindowUtils.setInstanceCountForTesting(3);
+        QuickDeleteDialogFacility dialog = mPage.openRegularTabAppMenu().clearBrowsingData();
+
+        mRenderTestRule.render(dialog.customViewElement.get(), "quick_delete_dialog-tabs-disabled");
+
+        dialog.clickCancel();
+    }
+
+    @Test
+    @MediumTest
+    public void testQuickDeleteDialogSpinnerViewContents() {
+        QuickDeleteDialogFacility dialog = mPage.openRegularTabAppMenu().clearBrowsingData();
+        Spinner spinnerView = dialog.spinnerElement.get();
+        assertEquals(6, spinnerView.getAdapter().getCount());
+        assertEquals(
+                TimePeriod.LAST_15_MINUTES,
+                ((TimePeriodUtils.TimePeriodSpinnerOption) spinnerView.getSelectedItem())
+                        .getTimePeriod());
+        assertEquals("Last 15 minutes", spinnerView.getItemAtPosition(0).toString());
+        assertEquals("Last hour", spinnerView.getItemAtPosition(1).toString());
+        assertEquals("Last 24 hours", spinnerView.getItemAtPosition(2).toString());
+        assertEquals("Last 7 days", spinnerView.getItemAtPosition(3).toString());
+        assertEquals("Last 4 weeks", spinnerView.getItemAtPosition(4).toString());
+        assertEquals("All time", spinnerView.getItemAtPosition(5).toString());
+
+        dialog.clickCancel();
+        PublicTransitConfig.setOnExceptionCallback(
+                TabGroupDialogFacility.TABS_LIST::printFromRoot, false);
     }
 }

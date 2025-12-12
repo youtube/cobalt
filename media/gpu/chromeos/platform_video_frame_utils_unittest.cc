@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -17,14 +18,13 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
+#include "gpu/command_buffer/client/test_shared_image_interface.h"
 #include "media/base/color_plane_layout.h"
 #include "media/base/format_utils.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_frame_layout.h"
 #include "media/base/video_types.h"
-#include "media/video/fake_gpu_memory_buffer.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/buffer_types.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -41,7 +41,7 @@ scoped_refptr<VideoFrame> CreateMockDmaBufVideoFrame(
     const gfx::Size& coded_size,
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size) {
-  const absl::optional<VideoFrameLayout> layout =
+  const std::optional<VideoFrameLayout> layout =
       VideoFrameLayout::Create(pixel_format, coded_size);
   if (!layout) {
     LOG(ERROR) << "Failed to create video frame layout";
@@ -67,11 +67,40 @@ scoped_refptr<VideoFrame> CreateMockDmaBufVideoFrame(
 }
 }  // namespace
 
+TEST(PlatformVideoFrameUtilsTest, UniqueTrackingTokenHelperTests) {
+  UniqueTrackingTokenHelper helper;
+
+  VideoFrameMetadata metadata;
+  CHECK(!metadata.tracking_token.has_value());
+
+  // Tests that SetUniqueTrackingToken will set |tracking_token| when passed a
+  // VideoFrameMetadata without |tracking_token| set.
+  helper.SetUniqueTrackingToken(metadata);
+  ASSERT_TRUE(metadata.tracking_token.has_value());
+  ASSERT_FALSE(metadata.tracking_token->is_empty());
+
+  // Tests that SetUniqueTrackingToken will set |tracking_token| when passed a
+  // VideoFrameMetadata an empty, but set |tracking_token|. The constructor
+  // add an empty base::UnguessableToken to avoid users being able to register
+  // empty tokens.
+  metadata.tracking_token = base::UnguessableToken();
+  CHECK(metadata.tracking_token->is_empty());
+  helper.SetUniqueTrackingToken(metadata);
+  EXPECT_FALSE(metadata.tracking_token->is_empty());
+
+  // Check that inserting an already inserted token results in a new token
+  // getting generated.
+  base::UnguessableToken token = *metadata.tracking_token;
+  helper.SetUniqueTrackingToken(metadata);
+  ASSERT_TRUE(metadata.tracking_token.has_value());
+  EXPECT_NE(*metadata.tracking_token, token);
+}
+
 TEST(PlatformVideoFrameUtilsTest, CreateNativePixmapDmaBuf) {
   constexpr VideoPixelFormat kPixelFormat = PIXEL_FORMAT_NV12;
   constexpr gfx::Size kCodedSize(320, 240);
 
-  const absl::optional<gfx::BufferFormat> gfx_format =
+  const std::optional<gfx::BufferFormat> gfx_format =
       VideoPixelFormatToGfxBufferFormat(kPixelFormat);
   ASSERT_TRUE(gfx_format) << "Invalid pixel format: " << kPixelFormat;
 
@@ -93,7 +122,7 @@ TEST(PlatformVideoFrameUtilsTest, CreateNativePixmapDmaBuf) {
   for (size_t i = 0; i < num_planes; i++) {
     const ColorPlaneLayout& plane = video_frame->layout().planes()[i];
     // The original and duplicated FDs should be different.
-    EXPECT_NE(native_pixmap->GetDmaBufFd(i), video_frame->DmabufFds()[i].get());
+    EXPECT_NE(native_pixmap->GetDmaBufFd(i), video_frame->GetDmabufFd(i));
     EXPECT_EQ(native_pixmap->GetDmaBufPitch(i),
               base::checked_cast<uint32_t>(plane.stride));
     EXPECT_EQ(native_pixmap->GetDmaBufOffset(i), plane.offset);
@@ -103,11 +132,12 @@ TEST(PlatformVideoFrameUtilsTest, CreateNativePixmapDmaBuf) {
 
 // TODO(b/230370976): remove this #if/#endif guard. To do so, we need to be able
 // to mock/fake the allocator used by CreatePlatformVideoFrame() and
-// CreateGpuMemoryBufferVideoFrame() so that those functions return a
+// CreateMappableVideoFrame() so that those functions return a
 // non-nullptr frame on platforms where allocating NV12 buffers is not
 // supported.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 TEST(PlatformVideoFrameUtilsTest, CreateVideoFrame) {
+  auto test_sii = base::MakeRefCounted<gpu::TestSharedImageInterface>();
   constexpr VideoPixelFormat kPixelFormat = PIXEL_FORMAT_NV12;
   constexpr gfx::Size kCodedSize(320, 240);
   constexpr gfx::Rect kVisibleRect(kCodedSize);
@@ -129,13 +159,12 @@ TEST(PlatformVideoFrameUtilsTest, CreateVideoFrame) {
                                      kNaturalSize, kTimeStamp, kBufferUsage);
         break;
       case VideoFrame::STORAGE_GPU_MEMORY_BUFFER:
-        frame = CreateGpuMemoryBufferVideoFrame(kPixelFormat, kCodedSize,
-                                                kVisibleRect, kNaturalSize,
-                                                kTimeStamp, kBufferUsage);
+        frame = CreateMappableVideoFrame(kPixelFormat, kCodedSize, kVisibleRect,
+                                         kNaturalSize, kTimeStamp, kBufferUsage,
+                                         test_sii.get());
         break;
       default:
         NOTREACHED();
-        break;
     };
 
     ASSERT_TRUE(frame);
@@ -148,16 +177,15 @@ TEST(PlatformVideoFrameUtilsTest, CreateVideoFrame) {
 
     switch (storage_type) {
       case VideoFrame::STORAGE_DMABUFS:
-        EXPECT_FALSE(frame->DmabufFds().empty());
+        EXPECT_FALSE(frame->NumDmabufFds() == 0);
         break;
       case VideoFrame::STORAGE_GPU_MEMORY_BUFFER:
-        EXPECT_TRUE(frame->GetGpuMemoryBuffer());
+        EXPECT_FALSE(frame->GetGpuMemoryBufferHandle().is_null());
         break;
       default:
         NOTREACHED();
-        break;
     };
   }
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }  // namespace media

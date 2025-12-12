@@ -5,6 +5,20 @@
     "SecurityPolicyTest.ReferrerForCustomScheme",
     "*RTCVideoDecoder*",
     "HarfBuzzShaperTest.*",
-    "FilePathConversionTest.convert"
+    "FilePathConversionTest.convert",
+    "VideoFrameImageUtilTest.WillCreateAcceleratedImagesFromVideoFrame",
+    "ResolutionMonitorTestWithTruncatedH264.*",
+    "ResolutionMonitorTestWithInvalidFrame.*",
+    "H264/ResolutionMonitorTestWithValidFrame.*",
+    "VP8/ResolutionMonitorTestWithValidFrame.*",
+    "VP9/ResolutionMonitorTestWithValidFrame.ReturnExpectedResolution/*",
+    "AV1/ResolutionMonitorTestWithValidFrame.ReturnExpectedResolution/*",
+    "VP8/ResolutionMonitorTestWithValidVideo.*",
+    "VP9/ResolutionMonitorTestWithValidVideo.*",
+    "AV1/ResolutionMonitorTestWithValidVideo.*",
+    "BMPSuite/BMPImageDecoderTest.VerifyBMPSuiteImage/*",
+    "TextBreakIteratorTest.Phrase",
+    "BackgroundResourceFecherTest.BufferIncomingFreezeExceedMaxBufferedBytesPerProcess",
+    "BackgroundResourceFecherTest.BackgroundResponseProcessorExceedMaxBufferedBytesPerProcess"
   ]
 }

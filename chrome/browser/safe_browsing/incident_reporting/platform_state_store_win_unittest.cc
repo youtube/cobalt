@@ -4,6 +4,8 @@
 
 #include "chrome/browser/safe_browsing/incident_reporting/platform_state_store.h"
 
+#include <windows.h>
+
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
@@ -11,7 +13,6 @@
 #include "base/test/test_reg_util_win.h"
 #include "base/win/registry.h"
 #include "build/branding_buildflags.h"
-#include "chrome/browser/chrome_for_testing/buildflags.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -21,8 +22,6 @@
 #include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
-
-#include <windows.h>
 
 namespace safe_browsing {
 namespace platform_state_store {
@@ -64,7 +63,7 @@ class PlatformStateStoreWinTest : public ::testing::Test {
     profile_ = profile_manager_.CreateTestingProfile(
         kProfileName_, std::move(prefs), base::UTF8ToUTF16(kProfileName_), 0,
         TestingProfile::TestingFactories(), /*is_supervised_profile=*/false,
-        absl::optional<bool>(new_profile));
+        std::optional<bool>(new_profile));
     if (new_profile)
       ASSERT_TRUE(profile_->IsNewProfile());
     else
@@ -105,7 +104,7 @@ class PlatformStateStoreWinTest : public ::testing::Test {
 
   static const char kProfileName_[];
   static const wchar_t kStoreKeyName_[];
-  raw_ptr<TestingProfile> profile_;
+  raw_ptr<TestingProfile, DanglingUntriaged> profile_;
 
  private:
   content::BrowserTaskEnvironment task_environment_;

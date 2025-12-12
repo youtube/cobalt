@@ -11,13 +11,15 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_hash.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_impl.h"
 #include "third_party/blink/renderer/platform/wtf/threading.h"
-#include "third_party/blink/renderer/platform/wtf/threading_primitives.h"
 #include "third_party/blink/renderer/platform/wtf/wtf_export.h"
 
 namespace WTF {
 
 // The underlying storage that keeps the map of unique AtomicStrings. This is
-// not thread safe and each Threading has one.
+// thread safe and there is a single table for all threads. Adding and removing
+// strings acquires locks and can cause blockage on other threads. `StringImpl`
+// has an atomic bit for caching to avoid most lookups for conversion to an
+// AtomicString.
 class WTF_EXPORT AtomicStringTable final {
   USING_FAST_MALLOC(AtomicStringTable);
 
@@ -43,12 +45,13 @@ class WTF_EXPORT AtomicStringTable final {
   scoped_refptr<StringImpl> Add(const UChar* chars,
                                 unsigned length,
                                 AtomicStringUCharEncoding encoding);
+  scoped_refptr<StringImpl> Add(const StringView& string_view);
 
   // Adding UTF8.
   // Returns null if the characters contain invalid utf8 sequences.
-  // Pass null for the charactersEnd to automatically detect the length.
-  scoped_refptr<StringImpl> AddUTF8(const char* characters_start,
-                                    const char* characters_end);
+  // Pass null as `characters_end` to automatically detect the length.
+  scoped_refptr<StringImpl> AddUTF8(const uint8_t* characters_start,
+                                    const uint8_t* characters_end);
 
   // Returned as part of the WeakFind*() APIs below. Represents the result of
   // the non-creating lookup within the AtomicStringTable. See the WeakFind*()
@@ -89,11 +92,13 @@ class WTF_EXPORT AtomicStringTable final {
 
   WeakResult WeakFindForTesting(const StringView& string) {
     // Mirror the empty logic in Add().
-    if (UNLIKELY(!string.length()))
+    if (!string.length()) [[unlikely]] {
       return WeakResult(StringImpl::empty_);
+    }
 
-    if (LIKELY(string.IsAtomic()))
+    if (string.IsAtomic()) [[likely]] {
       return WeakResult(string.SharedImpl());
+    }
 
     return WeakFindSlowForTesting(string);
   }

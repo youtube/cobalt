@@ -31,15 +31,16 @@ class WindowPreviewViewTestApi {
 
   gfx::RectF GetUnionRect() const;
 
-  const base::flat_map<aura::Window*, WindowMirrorView*>& GetMirrorViews()
-      const;
+  const base::flat_map<aura::Window*,
+                       raw_ptr<WindowMirrorView, CtnExperimental>>&
+  GetMirrorViews() const;
 
   // Gets the mirror view in |mirror_views_| associated with |widget|. Returns
   // null if |widget|'s window does not exist in |mirror_views_|.
   WindowMirrorView* GetMirrorViewForWidget(views::Widget* widget);
 
  private:
-  raw_ptr<WindowPreviewView, ExperimentalAsh> preview_view_;
+  raw_ptr<WindowPreviewView, DanglingUntriaged> preview_view_;
 };
 
 }  // namespace ash

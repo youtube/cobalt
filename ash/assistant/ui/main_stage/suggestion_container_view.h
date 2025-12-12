@@ -34,10 +34,10 @@ class COMPONENT_EXPORT(ASSISTANT_UI) SuggestionContainerView
     : public AnimatedContainerView,
       public AssistantSuggestionsModelObserver,
       public AssistantUiModelObserver {
+  METADATA_HEADER(SuggestionContainerView, AnimatedContainerView)
+
  public:
   using AssistantSuggestion = assistant::AssistantSuggestion;
-
-  METADATA_HEADER(SuggestionContainerView);
 
   explicit SuggestionContainerView(AssistantViewDelegate* delegate);
   SuggestionContainerView(const SuggestionContainerView&) = delete;
@@ -45,8 +45,8 @@ class COMPONENT_EXPORT(ASSISTANT_UI) SuggestionContainerView
   ~SuggestionContainerView() override;
 
   // AnimatedContainerView:
-  gfx::Size CalculatePreferredSize() const override;
-  int GetHeightForWidth(int width) const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void OnContentsPreferredSizeChanged(views::View* content_view) override;
   void OnAssistantControllerDestroying() override;
   void OnCommittedQueryChanged(const AssistantQuery& query) override;
@@ -59,8 +59,8 @@ class COMPONENT_EXPORT(ASSISTANT_UI) SuggestionContainerView
   void OnUiVisibilityChanged(
       AssistantVisibility new_visibility,
       AssistantVisibility old_visibility,
-      absl::optional<AssistantEntryPoint> entry_point,
-      absl::optional<AssistantExitPoint> exit_point) override;
+      std::optional<AssistantEntryPoint> entry_point,
+      std::optional<AssistantExitPoint> exit_point) override;
 
   void InitializeUIForBubbleView();
 
@@ -80,14 +80,13 @@ class COMPONENT_EXPORT(ASSISTANT_UI) SuggestionContainerView
 
   void OnButtonPressed(SuggestionChipView* chip_view);
 
-  raw_ptr<views::BoxLayout, ExperimentalAsh>
-      layout_manager_;  // Owned by view hierarchy.
+  raw_ptr<views::BoxLayout> layout_manager_;  // Owned by view hierarchy.
 
   // Whether or not we have committed a query during this Assistant session.
   bool has_committed_query_ = false;
 
   // The suggestion chip that was pressed by the user. May be |nullptr|.
-  raw_ptr<const SuggestionChipView, ExperimentalAsh> selected_chip_ = nullptr;
+  raw_ptr<const SuggestionChipView> selected_chip_ = nullptr;
 };
 
 }  // namespace ash

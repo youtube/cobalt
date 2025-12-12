@@ -4,6 +4,7 @@
 
 #include "services/network/test/test_url_loader_factory.h"
 
+#include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "mojo/public/cpp/system/data_pipe_utils.h"
 #include "net/traffic_annotation/network_traffic_annotation_test_helper.h"
@@ -263,14 +264,27 @@ TEST_F(TestURLLoaderFactoryTest, SimulateResponse) {
   EXPECT_EQ(net::HTTP_NOT_FOUND,
             client()->response_head()->headers->response_code());
   // Our header should be set.
-  std::string value;
-  EXPECT_TRUE(
-      client()->response_head()->headers->GetNormalizedHeader("Foo", &value));
-  EXPECT_EQ("Bar", value);
+  EXPECT_EQ(client()->response_head()->headers->GetNormalizedHeader("Foo"),
+            "Bar");
   std::string response;
   EXPECT_TRUE(
       mojo::BlockingCopyToString(client()->response_body_release(), &response));
   EXPECT_EQ("hello", response);
+}
+
+TEST_F(TestURLLoaderFactoryTest, SimulateResponseWait) {
+  std::string url = "http://foo/";
+  network::URLLoaderCompletionStatus ok_status(net::OK);
+  mojom::URLResponseHeadPtr response_head =
+      CreateURLResponseHead(net::HTTP_NOT_FOUND);
+  response_head->headers->SetHeader("Foo", "Bar");
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindLambdaForTesting([&]() { StartRequest(url); }));
+
+  EXPECT_TRUE(factory()->SimulateResponseForPendingRequest(
+      GURL(url), ok_status, response_head.Clone(), /*content=*/"",
+      TestURLLoaderFactory::ResponseMatchFlags::kWaitForRequest));
 }
 
 TEST_F(TestURLLoaderFactoryTest, SimulateResponseMultipleRequests) {

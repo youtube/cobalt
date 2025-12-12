@@ -48,13 +48,11 @@ ForwardCodePointStateMachine::FeedFollowingCodeUnit(UChar code_unit) {
       return TextSegmentationMachineState::kInvalid;
   }
   NOTREACHED();
-  return TextSegmentationMachineState::kInvalid;
 }
 
 TextSegmentationMachineState
 ForwardCodePointStateMachine::FeedPrecedingCodeUnit(UChar code_unit) {
   NOTREACHED();
-  return TextSegmentationMachineState::kInvalid;
 }
 
 bool ForwardCodePointStateMachine::AtCodePointBoundary() {

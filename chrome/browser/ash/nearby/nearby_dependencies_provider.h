@@ -7,6 +7,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chromeos/ash/services/nearby/public/mojom/sharing.mojom.h"
+#include "chromeos/ash/services/wifi_direct/wifi_direct_manager.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -26,6 +27,10 @@ namespace ash::nearby {
 
 class BluetoothAdapterManager;
 
+namespace presence {
+class CredentialStorageInitializer;
+}  // namespace presence
+
 // Provides dependencies required to initialize NearbyPresence and
 // NearbyConnections. Implemented as a KeyedService because WebRTC
 // dependencies are linked to the user's identity.
@@ -36,7 +41,7 @@ class NearbyDependenciesProvider : public KeyedService {
   ~NearbyDependenciesProvider() override;
 
   // Note: Returns null during session shutdown.
-  virtual sharing::mojom::NearbyDependenciesPtr GetDependencies();
+  virtual ::sharing::mojom::NearbyDependenciesPtr GetDependencies();
 
   virtual void PrepareForShutdown();
 
@@ -54,18 +59,27 @@ class NearbyDependenciesProvider : public KeyedService {
   mojo::PendingRemote<::bluetooth::mojom::Adapter>
   GetBluetoothAdapterPendingRemote();
 
-  sharing::mojom::WebRtcDependenciesPtr GetWebRtcDependencies();
+  mojo::PendingRemote<presence::mojom::NearbyPresenceCredentialStorage>
+  GetNearbyPresenceCredentialStoragePendingRemote();
 
-  sharing::mojom::WifiLanDependenciesPtr GetWifiLanDependencies();
+  ::sharing::mojom::WebRtcDependenciesPtr GetWebRtcDependencies();
+
+  ::sharing::mojom::WifiLanDependenciesPtr GetWifiLanDependencies();
+
+  sharing::mojom::WifiDirectDependenciesPtr GetWifiDirectDependencies();
 
   network::mojom::NetworkContext* GetNetworkContext();
 
+  std::unique_ptr<wifi_direct::WifiDirectManager> wifi_direct_manager_;
   std::unique_ptr<BluetoothAdapterManager> bluetooth_manager_;
+
+  std::unique_ptr<presence::CredentialStorageInitializer>
+      presence_credential_storage_initializer_;
 
   bool shut_down_ = false;
 
-  raw_ptr<Profile, ExperimentalAsh> profile_ = nullptr;
-  raw_ptr<signin::IdentityManager, ExperimentalAsh> identity_manager_ = nullptr;
+  raw_ptr<Profile> profile_ = nullptr;
+  raw_ptr<signin::IdentityManager> identity_manager_ = nullptr;
 };
 
 }  // namespace ash::nearby

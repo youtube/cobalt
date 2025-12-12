@@ -4,8 +4,11 @@
 
 #include "quiche/quic/core/quic_network_blackhole_detector.h"
 
+#include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/mock_quic_connection_alarms.h"
+#include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -13,8 +16,8 @@ namespace test {
 
 class QuicNetworkBlackholeDetectorPeer {
  public:
-  static QuicAlarm* GetAlarm(QuicNetworkBlackholeDetector* detector) {
-    return detector->alarm_.get();
+  static QuicAlarmProxy GetAlarm(QuicNetworkBlackholeDetector* detector) {
+    return detector->alarm_;
   }
 };
 
@@ -33,9 +36,9 @@ const size_t kBlackholeDelayInSeconds = 10;
 class QuicNetworkBlackholeDetectorTest : public QuicTest {
  public:
   QuicNetworkBlackholeDetectorTest()
-      : detector_(&delegate_, &arena_, &alarm_factory_, /*context=*/nullptr),
-        alarm_(static_cast<MockAlarmFactory::TestAlarm*>(
-            QuicNetworkBlackholeDetectorPeer::GetAlarm(&detector_))),
+      : alarms_(&connection_alarms_delegate_, arena_, alarm_factory_),
+        alarm_(&alarms_, QuicAlarmSlot::kNetworkBlackholeDetector),
+        detector_(&delegate_, alarm_),
         path_degrading_delay_(
             QuicTime::Delta::FromSeconds(kPathDegradingDelayInSeconds)),
         path_mtu_reduction_delay_(
@@ -43,6 +46,8 @@ class QuicNetworkBlackholeDetectorTest : public QuicTest {
         blackhole_delay_(
             QuicTime::Delta::FromSeconds(kBlackholeDelayInSeconds)) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
+    ON_CALL(connection_alarms_delegate_, OnNetworkBlackholeDetectorAlarm())
+        .WillByDefault([&] { detector_.OnAlarm(); });
   }
 
  protected:
@@ -53,12 +58,14 @@ class QuicNetworkBlackholeDetectorTest : public QuicTest {
   }
 
   testing::StrictMock<MockDelegate> delegate_;
+  MockConnectionAlarmsDelegate connection_alarms_delegate_;
   QuicConnectionArena arena_;
   MockAlarmFactory alarm_factory_;
+  QuicAlarmMultiplexer alarms_;
+  QuicTestAlarmProxy alarm_;
 
   QuicNetworkBlackholeDetector detector_;
 
-  MockAlarmFactory::TestAlarm* alarm_;
   MockClock clock_;
   const QuicTime::Delta path_degrading_delay_;
   const QuicTime::Delta path_mtu_reduction_delay_;

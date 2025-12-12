@@ -22,13 +22,15 @@ class CC_EXPORT SnapSelectionStrategy {
  public:
   SnapSelectionStrategy() = default;
   virtual ~SnapSelectionStrategy() = default;
+  // Strategy for scrolling to a particular position in a non-directional
+  // manner.
   static std::unique_ptr<SnapSelectionStrategy> CreateForEndPosition(
       const gfx::PointF& current_position,
       bool scrolled_x,
-      bool scrolled_y,
-      SnapTargetsPrioritization prioritization =
-          SnapTargetsPrioritization::kIgnore);
+      bool scrolled_y);
 
+  // Strategy for scrolling in a direction by some small amount,
+  // giving preference to stop at snap areas.
   // |use_fractional_offsets| should be true when the current position is
   // provided in fractional pixels.
   static std::unique_ptr<SnapSelectionStrategy> CreateForDirection(
@@ -36,10 +38,30 @@ class CC_EXPORT SnapSelectionStrategy {
       gfx::Vector2dF step,
       bool use_fractional_offsets,
       SnapStopAlwaysFilter filter = SnapStopAlwaysFilter::kIgnore);
-  static std::unique_ptr<SnapSelectionStrategy> CreateForEndAndDirection(
+
+  // Strategy for scrolling by some large offset in a particular direction.
+  // Unlike CreateForDirection, prefers scrolling by the given displacement
+  // over snapping to nearby points.
+  // |use_fractional_offsets| should be true when the current position is
+  // provided in fractional pixels.
+  static std::unique_ptr<SnapSelectionStrategy> CreateForDisplacement(
       gfx::PointF current_position,
       gfx::Vector2dF displacement,
-      bool use_fractional_offsets);
+      bool use_fractional_offsets,
+      SnapStopAlwaysFilter filter = SnapStopAlwaysFilter::kIgnore);
+
+  // Similar to the previous strategy, this prefers scrolling by the given
+  // displacement. However, it additionally prefers snap points that scroll
+  // within the given range.
+  // |use_fractional_offsets| should be true when the current position is
+  // provided in fractional pixels.
+  static std::unique_ptr<SnapSelectionStrategy> CreateForPreferredDisplacement(
+      gfx::PointF current_position,
+      gfx::Vector2dF displacement,
+      gfx::Vector2dF min_displacement,
+      gfx::Vector2dF max_displacement,
+      bool use_fractional_offsets,
+      SnapStopAlwaysFilter filter = SnapStopAlwaysFilter::kIgnore);
 
   // Creates a selection strategy that attempts to snap to previously snapped
   // targets if possible, but defaults to finding the closest snap point if
@@ -63,6 +85,10 @@ class CC_EXPORT SnapSelectionStrategy {
   // Returns the current scroll position of the snap container.
   const gfx::PointF& current_position() const { return current_position_; }
 
+  // Returns true if the given snap offset matches the strategy's preference.
+  virtual bool IsPreferredSnapPosition(SearchAxis axis,
+                                       float position) const = 0;
+
   // Returns true if the selection strategy considers the given snap offset
   // valid for the current axis.
   virtual bool IsValidSnapPosition(SearchAxis axis, float position) const = 0;
@@ -80,13 +106,15 @@ class CC_EXPORT SnapSelectionStrategy {
   // -closest: snap search result representing closest match.
   // -covering: snap search result representing the original target if it makes
   //            a snaparea covering the snapport.
-  virtual const absl::optional<SnapSearchResult>& PickBestResult(
-      const absl::optional<SnapSearchResult>& closest,
-      const absl::optional<SnapSearchResult>& covering) const = 0;
+  virtual const std::optional<SnapSearchResult>& PickBestResult(
+      const std::optional<SnapSearchResult>& closest,
+      const std::optional<SnapSearchResult>& covering) const = 0;
 
   // Returns true when the current scroll offset is provided in fractional
   // pixels.
   virtual bool UsingFractionalOffsets() const;
+
+  virtual std::unique_ptr<SnapSelectionStrategy> Clone() const = 0;
 
  protected:
   explicit SnapSelectionStrategy(const gfx::PointF& current_position)
@@ -109,11 +137,13 @@ class EndPositionStrategy : public SnapSelectionStrategy {
   EndPositionStrategy(const gfx::PointF& current_position,
                       bool scrolled_x,
                       bool scrolled_y,
-                      SnapTargetsPrioritization snap_targets_prioritization)
+                      SnapTargetsPrioritization snap_targets_prioritization =
+                          SnapTargetsPrioritization::kIgnore)
       : SnapSelectionStrategy(current_position),
         scrolled_x_(scrolled_x),
         scrolled_y_(scrolled_y),
         snap_targets_prioritization_(snap_targets_prioritization) {}
+  EndPositionStrategy(const EndPositionStrategy& other) = default;
   ~EndPositionStrategy() override = default;
 
   bool ShouldSnapOnX() const override;
@@ -122,13 +152,15 @@ class EndPositionStrategy : public SnapSelectionStrategy {
   gfx::PointF intended_position() const override;
   gfx::PointF base_position() const override;
 
+  bool IsPreferredSnapPosition(SearchAxis axis, float position) const override;
   bool IsValidSnapPosition(SearchAxis axis, float position) const override;
   bool HasIntendedDirection() const override;
   bool ShouldPrioritizeSnapTargets() const override;
 
-  const absl::optional<SnapSearchResult>& PickBestResult(
-      const absl::optional<SnapSearchResult>& closest,
-      const absl::optional<SnapSearchResult>& covering) const override;
+  const std::optional<SnapSearchResult>& PickBestResult(
+      const std::optional<SnapSearchResult>& closest,
+      const std::optional<SnapSearchResult>& covering) const override;
+  std::unique_ptr<SnapSelectionStrategy> Clone() const override;
 
  private:
   // Whether the x axis and y axis have been scrolled in this scroll gesture.
@@ -140,23 +172,44 @@ class EndPositionStrategy : public SnapSelectionStrategy {
 // Examples for intended direction scrolls include
 // - pressing an arrow key on the keyboard
 // - a swiping gesture interpreted as a fixed (rather than inertial) scroll
-// For this type of scrolls, we want to
-// * Minimize the distance between the snap position and the starting position,
+// - a “fling” gesture, interpreted with momentum
+// - programmatically scrolling via APIs such as scrollBy()
+// - paging operations such as the PgUp/PgDn keys (or equivalent operations on
+//   the scrollbar)
+// For this type of scroll, we want to
+// * Minimize the distance between the snap position and
+//   the starting position if we only prefer the direction
 //   so that we stop at the first snap position in that direction.
+// * When the step distance is preferred, prefer skipping snap positions
+//   to scroll closer to the step distance.
 // * Return the default intended position (using the default step) if that makes
 //   a snap area covers the snapport.
 class DirectionStrategy : public SnapSelectionStrategy {
  public:
+  enum class StepPreference {
+    // Prefer only the direction, but otherwise choose a closer snap position.
+    kDirection,
+    // Prefer snap areas close to the specified step distance.
+    kDistance
+  };
+
   // |use_fractional_offsets| should be true when the current position is
   // provided in fractional pixels.
   DirectionStrategy(const gfx::PointF& current_position,
                     const gfx::Vector2dF& step,
+                    StepPreference preferred_step,
+                    const gfx::Vector2dF preferred_min_displacement,
+                    const gfx::Vector2dF preferred_max_displacement,
                     SnapStopAlwaysFilter filter,
                     bool use_fractional_offsets)
       : SnapSelectionStrategy(current_position),
         step_(step),
+        preferred_step_(preferred_step),
+        preferred_min_displacement_(preferred_min_displacement),
+        preferred_max_displacement_(preferred_max_displacement),
         snap_stop_always_filter_(filter),
         use_fractional_offsets_(use_fractional_offsets) {}
+  DirectionStrategy(const DirectionStrategy& other) = default;
   ~DirectionStrategy() override = default;
 
   bool ShouldSnapOnX() const override;
@@ -165,61 +218,34 @@ class DirectionStrategy : public SnapSelectionStrategy {
   gfx::PointF intended_position() const override;
   gfx::PointF base_position() const override;
 
+  bool IsPreferredSnapPosition(SearchAxis axis, float position) const override;
   bool IsValidSnapPosition(SearchAxis axis, float position) const override;
   bool IsValidSnapArea(SearchAxis axis,
                        const SnapAreaData& area) const override;
 
-  const absl::optional<SnapSearchResult>& PickBestResult(
-      const absl::optional<SnapSearchResult>& closest,
-      const absl::optional<SnapSearchResult>& covering) const override;
+  bool ShouldRespectSnapStop() const override;
+
+  const std::optional<SnapSearchResult>& PickBestResult(
+      const std::optional<SnapSearchResult>& closest,
+      const std::optional<SnapSearchResult>& covering) const override;
 
   bool UsingFractionalOffsets() const override;
+
+  std::unique_ptr<SnapSelectionStrategy> Clone() const override;
 
  private:
   // The default step for this DirectionStrategy.
   const gfx::Vector2dF step_;
+  // How strictly to prefer the step's magnitude.
+  const StepPreference preferred_step_;
+
+  // Some operations, e.g. scrolling by a page, prefer snap areas that
+  // scroll no more than a certain amount and at least a certain amount.
+  // 0 represents unrestricted displacement.
+  const gfx::Vector2dF preferred_min_displacement_;
+  const gfx::Vector2dF preferred_max_displacement_;
+
   SnapStopAlwaysFilter snap_stop_always_filter_;
-  bool use_fractional_offsets_;
-};
-
-// Examples for intended direction and end position scrolls include
-// - a “fling” gesture, interpreted with momentum
-// - programmatically scrolling via APIs such as scrollBy()
-// - paging operations such as the PgUp/PgDn keys (or equivalent operations on
-//   the scrollbar)
-// For this type of scrolls, we want to
-// * Minimize the distance between the snap position and the end position.
-// * Return the end position if that makes a snap area covers the snapport.
-class EndAndDirectionStrategy : public SnapSelectionStrategy {
- public:
-  // |use_fractional_offsets| should be true when the current position is
-  // provided in fractional pixels.
-  EndAndDirectionStrategy(const gfx::PointF& current_position,
-                          const gfx::Vector2dF& displacement,
-                          bool use_fractional_offsets)
-      : SnapSelectionStrategy(current_position),
-        displacement_(displacement),
-        use_fractional_offsets_(use_fractional_offsets) {}
-  ~EndAndDirectionStrategy() override = default;
-
-  bool ShouldSnapOnX() const override;
-  bool ShouldSnapOnY() const override;
-
-  gfx::PointF intended_position() const override;
-  gfx::PointF base_position() const override;
-
-  bool IsValidSnapPosition(SearchAxis axis, float position) const override;
-
-  bool ShouldRespectSnapStop() const override;
-
-  const absl::optional<SnapSearchResult>& PickBestResult(
-      const absl::optional<SnapSearchResult>& closest,
-      const absl::optional<SnapSearchResult>& covering) const override;
-
-  bool UsingFractionalOffsets() const override;
-
- private:
-  const gfx::Vector2dF displacement_;
   bool use_fractional_offsets_;
 };
 

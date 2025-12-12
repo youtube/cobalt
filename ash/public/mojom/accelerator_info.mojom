@@ -67,6 +67,7 @@ enum AcceleratorLayoutStyle {
 };
 
 // Enum of top-level accelerator categories. Used in the UI for categorization.
+// Must be kept in sync with enums.xml: `ShortcutCustomizationMainCategory`.
 enum AcceleratorCategory {
   kGeneral,
   kDevice,
@@ -97,6 +98,7 @@ enum AcceleratorSubcategory {
   kWindows,
   kDesks,
   kChromeVox,
+  kMouseKeys,
   kVisibility,
   kAccessibilityNavigation,
 };
@@ -128,6 +130,9 @@ struct StandardAcceleratorProperties {
   ui.mojom.Accelerator accelerator;
   // The user viewable string of the primary activation key for the accelerator.
   mojo_base.mojom.String16 key_display;
+  // Optional field - if the accelerator is an alias of another accelerator this
+  // field represents the original accelerator.
+  ui.mojom.Accelerator? original_accelerator;
 };
 
 // Contains properties specific to an accelerator type.
@@ -141,9 +146,12 @@ union LayoutStyleProperties {
 struct AcceleratorInfo {
   AcceleratorType type;
   AcceleratorState state;
+  // True if the accelerator action can not be customized by the user.
+  // False if the accelerator action can be customized by the user.
+  bool locked;
   // True if the accelerator can not be customized by the user.
   // False if the accelerator can be customized by the user.
-  bool locked;
+  bool accelerator_locked;
   LayoutStyleProperties layout_properties;
 };
 

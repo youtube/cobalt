@@ -4,6 +4,8 @@
 
 package org.chromium.android_webview.test.services;
 
+import static org.chromium.android_webview.test.OnlyRunIn.ProcessMode.EITHER_PROCESS;
+
 import android.content.Context;
 import android.content.Intent;
 
@@ -19,6 +21,7 @@ import org.chromium.android_webview.common.services.IMetricsUploadService;
 import org.chromium.android_webview.services.MetricsUploadService;
 import org.chromium.android_webview.test.AwJUnit4ClassRunner;
 import org.chromium.android_webview.test.MetricsTestPlatformServiceBridge;
+import org.chromium.android_webview.test.OnlyRunIn;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.components.metrics.ChromeUserMetricsExtensionProtos.ChromeUserMetricsExtension;
@@ -30,6 +33,7 @@ import java.net.HttpURLConnection;
  * services are properly killed between tests.
  */
 @RunWith(AwJUnit4ClassRunner.class)
+@OnlyRunIn(EITHER_PROCESS) // These tests don't use the renderer process
 @Batch(Batch.PER_CLASS)
 @MediumTest
 public class MetricsUploadServiceTest {
@@ -95,10 +99,10 @@ public class MetricsUploadServiceTest {
         Intent intent =
                 new Intent(ContextUtils.getApplicationContext(), MetricsUploadService.class);
         try (ServiceConnectionHelper helper =
-                        new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
+                new ServiceConnectionHelper(intent, Context.BIND_AUTO_CREATE)) {
             IMetricsUploadService service =
                     IMetricsUploadService.Stub.asInterface(helper.getBinder());
-            int returnedStatus = service.uploadMetricsLog(mMetricsLog.toByteArray(), false);
+            int returnedStatus = service.uploadMetricsLog(mMetricsLog.toByteArray());
 
             Assert.assertEquals(expectedHttpStatusCode, returnedStatus);
         }

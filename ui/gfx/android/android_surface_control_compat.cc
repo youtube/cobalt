@@ -2,29 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/354829279): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/gfx/android/android_surface_control_compat.h"
 
 #include <android/data_space.h>
 #include <android/hdr_metadata.h>
 #include <dlfcn.h>
 
+#include "base/android/android_info.h"
 #include "base/android/build_info.h"
 #include "base/atomic_sequence_num.h"
-#include "base/containers/flat_set.h"
 #include "base/debug/crash_logging.h"
-#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
-#include "base/hash/md5_constexpr.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
-#include "base/no_destructor.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/synchronization/lock.h"
 #include "base/system/sys_info.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "skia/ext/skcolorspace_trfn.h"
 #include "ui/gfx/color_space.h"
 
 extern "C" {
@@ -98,7 +100,7 @@ using pASurfaceTransaction_setDamageRegion =
 using pASurfaceTransaction_setBufferDataSpace =
     void (*)(ASurfaceTransaction* transaction,
              ASurfaceControl* surface,
-             uint64_t data_space);
+             ADataSpace data_space);
 using pASurfaceTransaction_setHdrMetadata_cta861_3 =
     void (*)(ASurfaceTransaction* transaction,
              ASurfaceControl* surface,
@@ -340,115 +342,119 @@ int32_t OverlayTransformToWindowTransform(gfx::OverlayTransform transform) {
       return ANATIVEWINDOW_TRANSFORM_MIRROR_HORIZONTAL;
     case gfx::OVERLAY_TRANSFORM_FLIP_VERTICAL:
       return ANATIVEWINDOW_TRANSFORM_MIRROR_VERTICAL;
-    case gfx::OVERLAY_TRANSFORM_ROTATE_90:
+    case gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_90:
       return ANATIVEWINDOW_TRANSFORM_ROTATE_270;
-    case gfx::OVERLAY_TRANSFORM_ROTATE_180:
+    case gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_180:
       return ANATIVEWINDOW_TRANSFORM_ROTATE_180;
-    case gfx::OVERLAY_TRANSFORM_ROTATE_270:
+    case gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_270:
       return ANATIVEWINDOW_TRANSFORM_ROTATE_90;
+    case gfx::OVERLAY_TRANSFORM_FLIP_VERTICAL_CLOCKWISE_90:
+      return ANATIVEWINDOW_TRANSFORM_MIRROR_VERTICAL |
+             ANATIVEWINDOW_TRANSFORM_ROTATE_90;
+    case gfx::OVERLAY_TRANSFORM_FLIP_VERTICAL_CLOCKWISE_270:
+      return ANATIVEWINDOW_TRANSFORM_MIRROR_HORIZONTAL |
+             ANATIVEWINDOW_TRANSFORM_ROTATE_90;
   };
   NOTREACHED();
-  return ANATIVEWINDOW_TRANSFORM_IDENTITY;
 }
 
-// Remove this and use ADataSpace when SDK will roll. Note, this doesn't define
-// any new data spaces, just defines a primary(standard)/transfer/range
-// separately.
-enum DataSpace : uint64_t {
-  // Primaries
-  STANDARD_BT709 = 1 << 16,
-  STANDARD_BT601_625 = 2 << 16,
-  STANDARD_BT601_525 = 4 << 16,
-  STANDARD_BT2020 = 6 << 16,
-  // Transfer functions
-  TRANSFER_LINEAR = 1 << 22,
-  TRANSFER_SRGB = 2 << 22,
-  TRANSFER_SMPTE_170M = 3 << 22,
-  TRANSFER_ST2084 = 7 << 22,
-  TRANSFER_HLG = 8 << 22,
-  // Ranges;
-  RANGE_FULL = 1 << 27,
-  RANGE_LIMITED = 2 << 27,
-  RANGE_EXTENDED = 3 << 27,
-  RANGE_MASK = 7 << 27,
+inline ADataSpace operator|(ADataSpace a, ADataSpace b) {
+  return static_cast<ADataSpace>(static_cast<int32_t>(a) |
+                                 static_cast<int32_t>(b));
+}
 
-  ADATASPACE_DCI_P3 = 155844608
-};
+inline ADataSpace& operator|=(ADataSpace& a, ADataSpace b) {
+  return a = static_cast<ADataSpace>(static_cast<int32_t>(a) |
+                                     static_cast<int32_t>(b));
+}
 
-absl::optional<uint64_t> GetDataSpaceStandard(
-    const gfx::ColorSpace& color_space) {
+bool SetDataSpaceStandard(const gfx::ColorSpace& color_space,
+                          ADataSpace& dataspace) {
   switch (color_space.GetPrimaryID()) {
     case gfx::ColorSpace::PrimaryID::BT709:
-      return DataSpace::STANDARD_BT709;
+      dataspace |= ADATASPACE_STANDARD_BT709;
+      return true;
     case gfx::ColorSpace::PrimaryID::BT470BG:
-      return DataSpace::STANDARD_BT601_625;
+      dataspace |= ADATASPACE_STANDARD_BT601_625;
+      return true;
     case gfx::ColorSpace::PrimaryID::SMPTE170M:
-      return DataSpace::STANDARD_BT601_525;
+      dataspace |= ADATASPACE_STANDARD_BT601_525;
+      return true;
     case gfx::ColorSpace::PrimaryID::BT2020:
-      return DataSpace::STANDARD_BT2020;
+      dataspace |= ADATASPACE_STANDARD_BT2020;
+      return true;
+    case gfx::ColorSpace::PrimaryID::P3:
+      dataspace |= ADATASPACE_STANDARD_DCI_P3;
+      return true;
     default:
-      return absl::nullopt;
+      return false;
   }
 }
 
-absl::optional<uint64_t> GetDataSpaceTransfer(
-    const gfx::ColorSpace& color_space) {
+bool SetDataSpaceTransfer(const gfx::ColorSpace& color_space,
+                          ADataSpace& dataspace,
+                          float& extended_range_brightness_ratio) {
+  extended_range_brightness_ratio = 1.f;
   switch (color_space.GetTransferID()) {
     case gfx::ColorSpace::TransferID::SMPTE170M:
-      return DataSpace::TRANSFER_SMPTE_170M;
+      dataspace |= ADATASPACE_TRANSFER_SMPTE_170M;
+      return true;
     case gfx::ColorSpace::TransferID::LINEAR_HDR:
-      return DataSpace::TRANSFER_LINEAR;
+      dataspace |= ADATASPACE_TRANSFER_LINEAR;
+      return true;
     case gfx::ColorSpace::TransferID::PQ:
-      return DataSpace::TRANSFER_ST2084;
+      dataspace |= ADATASPACE_TRANSFER_ST2084;
+      return true;
     case gfx::ColorSpace::TransferID::HLG:
-      return DataSpace::TRANSFER_HLG;
-    // We use SRGB for BT709. See |ColorSpace::GetTransferFunction()| for
-    // details.
+      dataspace |= ADATASPACE_TRANSFER_HLG;
+      return true;
+    case gfx::ColorSpace::TransferID::SRGB:
+      dataspace |= ADATASPACE_TRANSFER_SRGB;
+      return true;
     case gfx::ColorSpace::TransferID::BT709:
-      return DataSpace::TRANSFER_SRGB;
-    default:
-      return absl::nullopt;
+      // We use SRGB for BT709. See |ColorSpace::GetTransferFunction()| for
+      // details.
+      dataspace |= ADATASPACE_TRANSFER_SRGB;
+      return true;
+    default: {
+      skcms_TransferFunction trfn;
+      // Detect scaled versions of sRGB and linear for HDR content.
+      if (color_space.GetTransferFunction(&trfn)) {
+        if (skia::IsScaledTransferFunction(SkNamedTransferFn::kSRGB, trfn,
+                                           &extended_range_brightness_ratio)) {
+          dataspace |= ADATASPACE_TRANSFER_SRGB;
+          return true;
+        }
+        if (skia::IsScaledTransferFunction(SkNamedTransferFn::kLinear, trfn,
+                                           &extended_range_brightness_ratio)) {
+          dataspace |= ADATASPACE_TRANSFER_LINEAR;
+          return true;
+        }
+      }
+      return false;
+    }
   }
 }
 
-absl::optional<uint64_t> GetDataSpaceRange(const gfx::ColorSpace& color_space) {
+bool SetDataSpaceRange(const gfx::ColorSpace& color_space,
+                       float extended_range_brightness_ratio,
+                       float desired_brightness_ratio,
+                       ADataSpace& dataspace) {
   switch (color_space.GetRangeID()) {
     case gfx::ColorSpace::RangeID::FULL:
-      return DataSpace::RANGE_FULL;
+      if (extended_range_brightness_ratio > 1.f ||
+          desired_brightness_ratio > 1.f) {
+        dataspace |= ADATASPACE_RANGE_EXTENDED;
+      } else {
+        dataspace |= ADATASPACE_RANGE_FULL;
+      }
+      return true;
     case gfx::ColorSpace::RangeID::LIMITED:
-      return DataSpace::RANGE_LIMITED;
+      dataspace |= ADATASPACE_RANGE_LIMITED;
+      return true;
     default:
-      return absl::nullopt;
+      return false;
   };
-}
-
-uint64_t ColorSpaceToADataSpace(const gfx::ColorSpace& color_space) {
-  if (!color_space.IsValid() || color_space == gfx::ColorSpace::CreateSRGB())
-    return ADATASPACE_SRGB;
-
-  if (color_space == gfx::ColorSpace::CreateSRGBLinear())
-    return ADATASPACE_SCRGB_LINEAR;
-
-  if (color_space == gfx::ColorSpace::CreateDisplayP3D65())
-    return ADATASPACE_DISPLAY_P3;
-
-  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
-      base::android::SDK_VERSION_S) {
-    if (color_space == gfx::ColorSpace::CreateExtendedSRGB()) {
-      return DataSpace::STANDARD_BT709 | DataSpace::TRANSFER_SRGB |
-             DataSpace::RANGE_EXTENDED;
-    }
-
-    auto standard = GetDataSpaceStandard(color_space);
-    auto transfer = GetDataSpaceTransfer(color_space);
-    auto range = GetDataSpaceRange(color_space);
-
-    // Data space is set of the flags, so check if all components are valid.
-    if (standard && transfer && range)
-      return standard.value() | transfer.value() | range.value();
-  }
-
-  return ADATASPACE_UNKNOWN;
 }
 
 SurfaceControl::TransactionStats ToTransactionStats(
@@ -497,19 +503,12 @@ struct TransactionAckCtx {
 };
 
 uint64_t GetTraceIdForTransaction(int transaction_id) {
-  constexpr uint64_t kMask =
-      base::MD5Hash64Constexpr("SurfaceControl::Transaction");
+  // Xor with a mask to reduce likelihood of flow id collision with non-surface
+  // tasks. First 64-bits of SHA256 hash of "SurfaceControl::Transaction",
+  // interpreted as a big-endian integer. Python snippet:
+  // hashlib.sha256(b'SurfaceControl::Transaction').hexdigest()[:16]
+  constexpr uint64_t kMask = 0x11119f59bb2a2b31;
   return kMask ^ transaction_id;
-}
-
-base::Lock& GetGlobalLock() {
-  static base::NoDestructor<base::Lock> lock;
-  return *lock;
-}
-
-base::flat_set<int>& GetGlobalPendingCompleteCallbackIds() {
-  static base::NoDestructor<base::flat_set<int>> set;
-  return *set;
 }
 
 // Note that the framework API states that this callback can be dispatched on
@@ -523,17 +522,6 @@ void OnTransactionCompletedOnAnyThread(void* context,
   TRACE_EVENT_WITH_FLOW0(
       "toplevel.flow", "gfx::SurfaceControlTransaction completed",
       GetTraceIdForTransaction(ack_ctx->id), TRACE_EVENT_FLAG_FLOW_IN);
-
-  bool dump = false;
-  {
-    base::AutoLock lock(GetGlobalLock());
-    size_t num_removed =
-        GetGlobalPendingCompleteCallbackIds().erase(ack_ctx->id);
-    dump = !num_removed;
-  }
-  if (dump) {
-    base::debug::DumpWithoutCrashing(base::Location::Current(), base::Days(1));
-  }
 
   std::move(ack_ctx->callback).Run(std::move(transaction_stats));
   delete ack_ctx;
@@ -570,7 +558,68 @@ bool SurfaceControl::IsSupported() {
 }
 
 bool SurfaceControl::SupportsColorSpace(const gfx::ColorSpace& color_space) {
-  return ColorSpaceToADataSpace(color_space) != ADATASPACE_UNKNOWN;
+  float desired_brightness_ratio = 1.f;
+  ADataSpace dataspace = ADATASPACE_UNKNOWN;
+  float extended_range_brightness_ratio = 1.f;
+  return ColorSpaceToADataSpace(color_space, desired_brightness_ratio,
+                                dataspace, extended_range_brightness_ratio);
+}
+
+bool SurfaceControl::ColorSpaceToADataSpace(
+    const gfx::ColorSpace& color_space,
+    float desired_brightness_ratio,
+    ADataSpace& out_dataspace,
+    float& out_extended_range_brightness_ratio) {
+  out_dataspace = ADATASPACE_UNKNOWN;
+  out_extended_range_brightness_ratio = 1.f;
+
+  if (!color_space.IsValid()) {
+    out_dataspace = ADATASPACE_SRGB;
+    return true;
+  }
+
+  if (base::android::BuildInfo::GetInstance()->sdk_int() >=
+      base::android::SDK_VERSION_S) {
+    if (color_space == gfx::ColorSpace::CreateExtendedSRGB()) {
+      out_dataspace = ADATASPACE_STANDARD_BT709 | ADATASPACE_TRANSFER_SRGB |
+                      ADATASPACE_RANGE_EXTENDED;
+      return true;
+    }
+
+    ADataSpace dataspace = ADATASPACE_UNKNOWN;
+    float extended_range_brightness_ratio = 1.f;
+    if (!SetDataSpaceStandard(color_space, dataspace)) {
+      return false;
+    }
+    if (!SetDataSpaceTransfer(color_space, dataspace,
+                              extended_range_brightness_ratio)) {
+      return false;
+    }
+    if (!SetDataSpaceRange(color_space, extended_range_brightness_ratio,
+                           desired_brightness_ratio, dataspace)) {
+      return false;
+    }
+    out_dataspace = dataspace;
+    out_extended_range_brightness_ratio = extended_range_brightness_ratio;
+    return true;
+  }
+
+  if (!color_space.IsValid() || color_space == gfx::ColorSpace::CreateSRGB()) {
+    out_dataspace = ADATASPACE_SRGB;
+    return true;
+  }
+
+  if (color_space == gfx::ColorSpace::CreateSRGBLinear()) {
+    out_dataspace = ADATASPACE_SCRGB_LINEAR;
+    return true;
+  }
+
+  if (color_space == gfx::ColorSpace::CreateDisplayP3D65()) {
+    out_dataspace = ADATASPACE_DISPLAY_P3;
+    return true;
+  }
+
+  return false;
 }
 
 uint64_t SurfaceControl::RequiredUsage() {
@@ -594,6 +643,12 @@ bool SurfaceControl::SupportsOnCommit() {
   return IsSupported() &&
          SurfaceControlMethods::Get().ASurfaceTransaction_setOnCommitFn !=
              nullptr;
+}
+
+bool SurfaceControl::SupportsFrameRateCompatAtLeast() {
+  return SupportsSetFrameRate() &&
+         base::android::android_info::sdk_int() >=
+             base::android::android_info::SDK_VERSION_BAKLAVA;
 }
 
 bool SurfaceControl::SupportsSetFrameTimeline() {
@@ -749,7 +804,7 @@ void SurfaceControl::Transaction::SetBuffer(const Surface& surface,
       fence_fd.is_valid() ? fence_fd.release() : -1);
   // In T OS, setBuffer call setOnComplete internally, so Apply() is required to
   // decrease ref count of SurfaceControl.
-  // TODO(crbug.com/1395271): remove this if AOSP fix the issue
+  // TODO(crbug.com/40249006): remove this if AOSP fix the issue
   if (base::android::BuildInfo::GetInstance()->sdk_int() >=
       base::android::SDK_VERSION_T) {
     need_to_apply_ = true;
@@ -811,11 +866,18 @@ void SurfaceControl::Transaction::SetDamageRect(const Surface& surface,
 void SurfaceControl::Transaction::SetColorSpace(
     const Surface& surface,
     const gfx::ColorSpace& color_space,
-    const absl::optional<HDRMetadata>& metadata) {
-  // Metadata shouldn't exist for SDR color spaces.
-  DCHECK(!metadata || color_space.IsHDR());
-
-  auto data_space = ColorSpaceToADataSpace(color_space);
+    const std::optional<HDRMetadata>& metadata) {
+  // Populate the data space and brightness ratios.
+  ADataSpace data_space = ADATASPACE_UNKNOWN;
+  float extended_range_brightness_ratio = 1.f;
+  float desired_brightness_ratio = 1.f;
+  if (metadata && metadata->extended_range &&
+      SurfaceControlMethods::Get()
+          .ASurfaceTransaction_setExtendedRangeBrightnessFn) {
+    desired_brightness_ratio = metadata->extended_range->desired_headroom;
+  }
+  ColorSpaceToADataSpace(color_space, desired_brightness_ratio, data_space,
+                         extended_range_brightness_ratio);
 
   // Log the data space in crash keys for debugging crbug.com/997592.
   static auto* kCrashKey = base::debug::AllocateCrashKeyString(
@@ -828,29 +890,34 @@ void SurfaceControl::Transaction::SetColorSpace(
       transaction_, surface.surface(), data_space);
 
   const bool extended_range =
-      (data_space & DataSpace::RANGE_MASK) == DataSpace::RANGE_EXTENDED;
+      (data_space & ADATASPACE_RANGE_MASK) == ADATASPACE_RANGE_EXTENDED;
 
   // Set the HDR metadata for not extended SRGB case.
   if (metadata && !extended_range) {
-    AHdrMetadata_cta861_3 cta861_3 = {
-        .maxContentLightLevel =
-            static_cast<float>(metadata->max_content_light_level),
-        .maxFrameAverageLightLevel =
-            static_cast<float>(metadata->max_frame_average_light_level)};
+    if (const auto& gfx_cta_861_3 = metadata->cta_861_3) {
+      AHdrMetadata_cta861_3 cta861_3 = {
+          .maxContentLightLevel =
+              static_cast<float>(gfx_cta_861_3->max_content_light_level),
+          .maxFrameAverageLightLevel =
+              static_cast<float>(gfx_cta_861_3->max_frame_average_light_level)};
+      SurfaceControlMethods::Get()
+          .ASurfaceTransaction_setHdrMetadata_cta861_3Fn(
+              transaction_, surface.surface(), &cta861_3);
+    }
 
-    const auto& primaries = metadata->color_volume_metadata.primaries;
-    AHdrMetadata_smpte2086 smpte2086 = {
-        .displayPrimaryRed = {.x = primaries.fRX, .y = primaries.fRY},
-        .displayPrimaryGreen = {.x = primaries.fGX, .y = primaries.fGY},
-        .displayPrimaryBlue = {.x = primaries.fBX, .y = primaries.fBY},
-        .whitePoint = {.x = primaries.fWX, .y = primaries.fWY},
-        .maxLuminance = metadata->color_volume_metadata.luminance_max,
-        .minLuminance = metadata->color_volume_metadata.luminance_min};
-
-    SurfaceControlMethods::Get().ASurfaceTransaction_setHdrMetadata_cta861_3Fn(
-        transaction_, surface.surface(), &cta861_3);
-    SurfaceControlMethods::Get().ASurfaceTransaction_setHdrMetadata_smpte2086Fn(
-        transaction_, surface.surface(), &smpte2086);
+    if (const auto& gfx_smpte_st_2086 = metadata->smpte_st_2086) {
+      const auto& primaries = gfx_smpte_st_2086->primaries;
+      AHdrMetadata_smpte2086 smpte2086 = {
+          .displayPrimaryRed = {.x = primaries.fRX, .y = primaries.fRY},
+          .displayPrimaryGreen = {.x = primaries.fGX, .y = primaries.fGY},
+          .displayPrimaryBlue = {.x = primaries.fBX, .y = primaries.fBY},
+          .whitePoint = {.x = primaries.fWX, .y = primaries.fWY},
+          .maxLuminance = gfx_smpte_st_2086->luminance_max,
+          .minLuminance = gfx_smpte_st_2086->luminance_min};
+      SurfaceControlMethods::Get()
+          .ASurfaceTransaction_setHdrMetadata_smpte2086Fn(
+              transaction_, surface.surface(), &smpte2086);
+    }
   } else {
     SurfaceControlMethods::Get().ASurfaceTransaction_setHdrMetadata_cta861_3Fn(
         transaction_, surface.surface(), nullptr);
@@ -860,15 +927,12 @@ void SurfaceControl::Transaction::SetColorSpace(
 
   // Set brightness points for extended range.
   if (extended_range) {
-    CHECK(metadata);
-    CHECK(metadata->extended_range_brightness);
     CHECK(SurfaceControlMethods::Get()
               .ASurfaceTransaction_setExtendedRangeBrightnessFn);
     SurfaceControlMethods::Get()
         .ASurfaceTransaction_setExtendedRangeBrightnessFn(
-            transaction_, surface.surface(),
-            metadata->extended_range_brightness->current_buffer_ratio,
-            metadata->extended_range_brightness->desired_ratio);
+            transaction_, surface.surface(), extended_range_brightness_ratio,
+            desired_brightness_ratio);
   } else {
     // If extended range brightness is supported, we need reset it to default
     // values.
@@ -881,15 +945,28 @@ void SurfaceControl::Transaction::SetColorSpace(
   }
 }
 
-void SurfaceControl::Transaction::SetFrameRate(const Surface& surface,
-                                               float frame_rate) {
+void SurfaceControl::Transaction::SetFrameRate(
+    const Surface& surface,
+    SurfaceControlFrameRate frame_rate) {
   DCHECK(SupportsSetFrameRate());
+  int8_t compatibility = ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_FIXED_SOURCE;
+  switch (frame_rate.compatibility) {
+    case gfx::SurfaceControlFrameRateCompatibility::kFixedSource:
+      compatibility = ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_FIXED_SOURCE;
+      break;
+    case gfx::SurfaceControlFrameRateCompatibility::kAtLeast:
+      if (SupportsFrameRateCompatAtLeast()) {
+        // Temporary hard code value until Android B NDK is available.
+        constexpr int8_t ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_AT_LEAST = 2u;
+        compatibility = ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_AT_LEAST;
+      } else {
+        compatibility = ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_FIXED_SOURCE;
+      }
+      break;
+  }
 
-  // We always used fixed source here since a non-default value is only used for
-  // videos which have a fixed playback rate.
   SurfaceControlMethods::Get().ASurfaceTransaction_setFrameRateFn(
-      transaction_, surface.surface(), frame_rate,
-      ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+      transaction_, surface.surface(), frame_rate.frame_rate, compatibility);
 }
 
 void SurfaceControl::Transaction::SetParent(const Surface& surface,
@@ -950,16 +1027,6 @@ void SurfaceControl::Transaction::PrepareCallbacks() {
     ack_ctx->callback = std::move(on_complete_cb_);
     ack_ctx->id = id_;
 
-    bool dump = false;
-    {
-      base::AutoLock lock(GetGlobalLock());
-      auto result = GetGlobalPendingCompleteCallbackIds().insert(id_);
-      dump = !result.second;
-    }
-    if (dump) {
-      base::debug::DumpWithoutCrashing(base::Location::Current(),
-                                       base::Days(1));
-    }
     SurfaceControlMethods::Get().ASurfaceTransaction_setOnCompleteFn(
         transaction_, ack_ctx, &OnTransactionCompletedOnAnyThread);
     need_to_apply_ = true;

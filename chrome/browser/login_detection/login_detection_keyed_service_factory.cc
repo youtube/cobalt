@@ -7,9 +7,6 @@
 #include "base/no_destructor.h"
 #include "chrome/browser/login_detection/login_detection_keyed_service.h"
 #include "chrome/browser/login_detection/login_detection_util.h"
-#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
-#include "chrome/browser/password_manager/account_password_store_factory.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "content/public/browser/browser_context.h"
 
@@ -23,8 +20,12 @@ ProfileSelections BuildLoginDetectionProfileSelection() {
 
   return ProfileSelections::Builder()
       .WithRegular(ProfileSelection::kOriginalOnly)
-      // TODO(crbug.com/1418376): Check if this service is needed in Guest mode.
+      // TODO(crbug.com/40257657): Check if this service is needed in Guest
+      // mode.
       .WithGuest(ProfileSelection::kOriginalOnly)
+      // TODO(crbug.com/41488885): Check if this service is needed for
+      // Ash Internals.
+      .WithAshInternals(ProfileSelection::kOriginalOnly)
       .Build();
 }
 
@@ -46,18 +47,16 @@ LoginDetectionKeyedServiceFactory::GetInstance() {
 
 LoginDetectionKeyedServiceFactory::LoginDetectionKeyedServiceFactory()
     : ProfileKeyedServiceFactory("LoginDetectionKeyedService",
-                                 BuildLoginDetectionProfileSelection()) {
-  DependsOn(AccountPasswordStoreFactory::GetInstance());
-  DependsOn(PasswordStoreFactory::GetInstance());
-  DependsOn(OptimizationGuideKeyedServiceFactory::GetInstance());
-}
+                                 BuildLoginDetectionProfileSelection()) {}
 
 LoginDetectionKeyedServiceFactory::~LoginDetectionKeyedServiceFactory() =
     default;
 
-KeyedService* LoginDetectionKeyedServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+LoginDetectionKeyedServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new LoginDetectionKeyedService(Profile::FromBrowserContext(context));
+  return std::make_unique<LoginDetectionKeyedService>(
+      Profile::FromBrowserContext(context));
 }
 
 bool LoginDetectionKeyedServiceFactory::ServiceIsCreatedWithBrowserContext()

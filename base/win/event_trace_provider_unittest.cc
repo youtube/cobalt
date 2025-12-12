@@ -4,10 +4,12 @@
 //
 // Unit tests for event trace provider.
 #include "base/win/event_trace_provider.h"
-#include <new>
-#include "testing/gtest/include/gtest/gtest.h"
 
-#include <initguid.h>  // NOLINT - has to be last
+#include <initguid.h>
+
+#include <new>
+
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
@@ -33,7 +35,7 @@ TEST(EtwTraceProviderTest, ToleratesPreCreateInvocations) {
   // it be possible to use static provider instances without regard to
   // whether they've been constructed or destructed.
   // The interface of the class is designed to tolerate this usage.
-  char buf[sizeof(EtwTraceProvider)] = {0};
+  char buf[sizeof(EtwTraceProvider)] = {};
   EtwTraceProvider& provider = reinterpret_cast<EtwTraceProvider&>(buf);
 
   EXPECT_EQ(0u, provider.registration_handle());

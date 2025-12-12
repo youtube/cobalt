@@ -10,6 +10,7 @@
 
 #include "base/atomicops.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
@@ -26,7 +27,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/url_constants.h"
-#include "content/public/common/user_agent.h"
+#include "content/shell/browser/protocol/shell_devtools_session.h"
 #include "content/shell/browser/shell.h"
 #include "content/shell/common/shell_content_client.h"
 #include "content/shell/common/shell_switches.h"
@@ -196,22 +197,35 @@ BrowserContext* ShellDevToolsManagerDelegate::GetDefaultBrowserContext() {
 void ShellDevToolsManagerDelegate::ClientAttached(
     content::DevToolsAgentHostClientChannel* channel) {
   // Make sure we don't receive notifications twice for the same client.
-  CHECK(clients_.find(channel->GetClient()) == clients_.end());
-  clients_.insert(channel->GetClient());
+  CHECK(!base::Contains(sessions_, channel));
+  sessions_.emplace(
+      channel,
+      std::make_unique<shell::protocol::ShellDevToolsSession>(
+          base::raw_ref<BrowserContext>::from_ptr(browser_context_), channel));
 }
 
 void ShellDevToolsManagerDelegate::ClientDetached(
     content::DevToolsAgentHostClientChannel* channel) {
-  clients_.erase(channel->GetClient());
+  sessions_.erase(channel);
+}
+
+void ShellDevToolsManagerDelegate::HandleCommand(
+    content::DevToolsAgentHostClientChannel* channel,
+    base::span<const uint8_t> message,
+    NotHandledCallback callback) {
+  auto& session = sessions_.at(channel);
+  session->HandleCommand(message, std::move(callback));
 }
 
 scoped_refptr<DevToolsAgentHost> ShellDevToolsManagerDelegate::CreateNewTarget(
     const GURL& url,
-    bool for_tab) {
+    content::DevToolsManagerDelegate::TargetType target_type,
+    bool new_window) {
   Shell* shell = Shell::CreateNewWindow(browser_context_, url, nullptr,
                                         Shell::GetShellDefaultSize());
-  return for_tab ? DevToolsAgentHost::GetOrCreateForTab(shell->web_contents())
-                 : DevToolsAgentHost::GetOrCreateFor(shell->web_contents());
+  return target_type == content::DevToolsManagerDelegate::kTab
+             ? DevToolsAgentHost::GetOrCreateForTab(shell->web_contents())
+             : DevToolsAgentHost::GetOrCreateFor(shell->web_contents());
 }
 
 std::string ShellDevToolsManagerDelegate::GetDiscoveryPageHTML() {

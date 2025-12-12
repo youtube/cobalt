@@ -137,7 +137,7 @@ void RecordParentCodeValidationResult(ParentCodeValidationResult result,
   // Record the action to the aggregated histogram.
   const std::string all_results_histogram =
       ParentAccessControllerImpl::GetUMAParentCodeValidationResultHistorgam(
-          absl::nullopt);
+          std::nullopt);
   RecordParentCodeValidationResultToHistogram(result, all_results_histogram);
 }
 
@@ -152,7 +152,7 @@ constexpr char ParentAccessControllerImpl::kUMAParentAccessCodeUsage[];
 // static
 std::string
 ParentAccessControllerImpl::GetUMAParentCodeValidationResultHistorgam(
-    absl::optional<SupervisedAction> action) {
+    std::optional<SupervisedAction> action) {
   const std::string separator = ".";
   if (!action) {
     return base::JoinString({kUMAParentAccessCodeValidationResultBase,
@@ -263,7 +263,7 @@ void ParentAccessControllerImpl::OnBack() {
 
 void ParentAccessControllerImpl::OnHelp() {
   RecordParentAccessAction(ParentAccessControllerImpl::UMAAction::kGetHelp);
-  // TODO(https://crbug.com/999387): Remove this when handling touch
+  // TODO(crbug.com/40642787): Remove this when handling touch
   // cancellation is fixed for system modal windows.
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce([]() {

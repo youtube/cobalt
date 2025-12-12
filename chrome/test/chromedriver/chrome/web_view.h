@@ -17,16 +17,21 @@ class FilePath;
 class TimeDelta;
 }  // namespace base
 
+class FedCmTracker;
 class FrameTracker;
-struct Geoposition;
-class JavaScriptDialogManager;
-struct KeyEvent;
 class MobileEmulationOverrideManager;
-struct MouseEvent;
-struct NetworkConditions;
 class Status;
 class Timeout;
+struct Geoposition;
+struct KeyEvent;
+struct MouseEvent;
+struct NetworkConditions;
 struct TouchEvent;
+class PageTracker;
+
+struct CallFunctionOptions {
+  bool include_shadow_root = false;
+};
 
 class WebView {
  public:
@@ -36,9 +41,13 @@ class WebView {
   virtual ~WebView() = default;
 
   virtual bool IsServiceWorker() const = 0;
+  virtual bool IsTab() const = 0;
 
   // Return the id for this WebView.
   virtual std::string GetId() = 0;
+
+  // Return the id for the session used by the WebView
+  virtual std::string GetSessionId() = 0;
 
   // Return true if the web view was crashed.
   virtual bool WasCrashed() = 0;
@@ -69,10 +78,18 @@ class WebView {
   // Resume the current page.
   virtual Status Resume(const Timeout* timeout) = 0;
 
-  virtual Status StartBidiServer(std::string bidi_mapper_string) = 0;
+  virtual Status StartBidiServer(std::string bidi_mapper_string,
+                                 bool enable_unsafe_extension_debugging) = 0;
 
   // Send the BiDi command to the BiDiMapper
   virtual Status PostBidiCommand(base::Value::Dict command) = 0;
+
+  // Send the BiDi command to the BiDiMapper and receive the response
+  // Precondition: commdand.Find("id") != nullptr
+  // Precondition: commdand.FindString("goog:channel") != nullptr
+  virtual Status SendBidiCommand(base::Value::Dict command,
+                                 const Timeout& timeout,
+                                 base::Value::Dict& response) = 0;
 
   // Send a command to the DevTools debugger
   virtual Status SendCommand(const std::string& cmd,
@@ -116,17 +133,6 @@ class WebView {
                               const std::string& function,
                               const base::Value::List& args,
                               std::unique_ptr<base::Value>* result) = 0;
-
-  // Calls a JavaScript function in a specified frame with the given args and
-  // two callbacks. The first may be invoked with a value to return to the user.
-  // The second may be used to report an error. This function waits until
-  // one of the callbacks is invoked or the timeout occurs.
-  // |result| will never be NULL on success.
-  virtual Status CallAsyncFunction(const std::string& frame,
-                                   const std::string& function,
-                                   const base::Value::List& args,
-                                   const base::TimeDelta& timeout,
-                                   std::unique_ptr<base::Value>* result) = 0;
 
   // Same as |CallAsyncFunction|, except no additional error callback is passed
   // to the function. Also, |kJavaScriptError| or |kScriptTimeout| is used
@@ -211,10 +217,14 @@ class WebView {
 
   // Returns whether the current frame is pending navigation.
   virtual Status IsPendingNavigation(const Timeout* timeout,
-                                     bool* is_pending) const = 0;
+                                     bool* is_pending) = 0;
 
-  // Returns the JavaScriptDialogManager. Never null.
-  virtual JavaScriptDialogManager* GetJavaScriptDialogManager() = 0;
+  // Waits until the tab acquires an active page.
+  virtual Status WaitForPendingActivePage(const Timeout& timeout) = 0;
+
+  // Returns whether the current tab is pending acquisition of an active page.
+  virtual Status IsNotPendingActivePage(const Timeout* timeout,
+                                        bool* is_not_pending) const = 0;
 
   // Returns the MobileEmulationOverrideManager.
   virtual MobileEmulationOverrideManager* GetMobileEmulationOverrideManager()
@@ -272,6 +282,13 @@ class WebView {
   virtual bool IsNonBlocking() const = 0;
 
   virtual FrameTracker* GetFrameTracker() const = 0;
+  virtual PageTracker* GetPageTracker() const = 0;
+  virtual std::string GetTabId() = 0;
+
+  virtual Status GetActivePage(WebView** web_view) = 0;
+
+  // On success, sets *tracker to the FedCmTracker.
+  virtual Status GetFedCmTracker(FedCmTracker** out_tracker) = 0;
 
   virtual std::unique_ptr<base::Value> GetCastSinks() = 0;
 
@@ -282,6 +299,35 @@ class WebView {
   virtual Status GetBackendNodeIdByElement(const std::string& frame,
                                            const base::Value& element,
                                            int* backend_node_id) = 0;
+
+  virtual bool IsDetached() const = 0;
+
+  // Calls a JavaScript function in a specified frame with the given args and
+  // returns the result. |frame| is a frame ID or an empty string for the main
+  // frame. |args| may contain IDs that refer to previously returned elements.
+  // These will be translated back to their referred objects before invoking the
+  // function. |timeout| is the time to wait before exiting the function
+  // abruptly with Timeout error. |options| allow tweaking the internal behavior
+  // like the way how the result is serialized.
+  // |result| will never be NULL on success.
+  virtual Status CallFunctionWithTimeout(
+      const std::string& frame,
+      const std::string& function,
+      const base::Value::List& args,
+      const base::TimeDelta& timeout,
+      const CallFunctionOptions& options,
+      std::unique_ptr<base::Value>* result) = 0;
+
+  virtual bool IsDialogOpen() const = 0;
+
+  virtual Status GetDialogMessage(std::string& message) const = 0;
+
+  virtual Status GetTypeOfDialog(std::string& type) const = 0;
+
+  virtual Status HandleDialog(bool accept,
+                              const std::optional<std::string>& text) = 0;
+
+  virtual WebView* FindContainerForFrame(const std::string& frame_id) = 0;
 };
 
 #endif  // CHROME_TEST_CHROMEDRIVER_CHROME_WEB_VIEW_H_

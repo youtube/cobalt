@@ -5,6 +5,7 @@
 #include "ui/gfx/image/image_skia_operations.h"
 
 #include <stddef.h>
+
 #include <memory>
 
 #include "base/command_line.h"
@@ -13,7 +14,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "skia/ext/image_operations.h"
 #include "third_party/skia/include/core/SkClipOp.h"
-#include "third_party/skia/include/core/SkDrawLooper.h"
+#include "third_party/skia/include/core/SkPath.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
@@ -572,11 +573,11 @@ class ImageWithCircleBackgroundSource : public gfx::CanvasImageSource {
 // Image source to create an image with a rounded rect background.
 class ImageWithRoundRectBackgroundSource : public gfx::CanvasImageSource {
  public:
-  ImageWithRoundRectBackgroundSource(float size,
+  ImageWithRoundRectBackgroundSource(const SizeF& size,
                                      int radius,
                                      SkColor color,
                                      const gfx::ImageSkia& image)
-      : gfx::CanvasImageSource(gfx::Size(size, size)),
+      : gfx::CanvasImageSource(ToFlooredSize(size)),
         size_(size),
         radius_(radius),
         color_(color),
@@ -595,15 +596,15 @@ class ImageWithRoundRectBackgroundSource : public gfx::CanvasImageSource {
     flags.setAntiAlias(true);
     flags.setStyle(cc::PaintFlags::kFill_Style);
     flags.setColor(color_);
-    canvas->DrawRoundRect(RectF{size_, size_}, radius_, flags);
+    canvas->DrawRoundRect(RectF{size_}, radius_, flags);
     // Center the image.
-    const int x = (size_ - image_.width()) / 2;
-    const int y = (size_ - image_.height()) / 2;
+    const int x = (size_.width() - image_.width()) / 2;
+    const int y = (size_.height() - image_.height()) / 2;
     canvas->DrawImageInt(image_, x, y);
   }
 
  private:
-  const float size_;
+  const SizeF size_;
   const int radius_;
   const SkColor color_;
   const gfx::ImageSkia image_;
@@ -812,12 +813,12 @@ ImageSkia ImageSkiaOperations::CreateImageWithCircleBackground(
 }
 
 ImageSkia ImageSkiaOperations::CreateImageWithRoundRectBackground(
-    float size,
+    const SizeF& size,
     int radius,
     SkColor color,
     const ImageSkia& image) {
-  DCHECK_GE(size, image.width());
-  DCHECK_GE(size, image.height());
+  DCHECK_GE(size.width(), image.width());
+  DCHECK_GE(size.height(), image.height());
   return gfx::CanvasImageSource::MakeImageSkia<
       ImageWithRoundRectBackgroundSource>(size, radius, color, image);
 }

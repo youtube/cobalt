@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "storage/browser/blob/blob_memory_controller.h"
 
 #include <algorithm>
@@ -9,13 +14,13 @@
 #include <numeric>
 
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/containers/small_map.h"
 #include "base/feature_list.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
-#include "base/guid.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
@@ -30,7 +35,6 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "storage/browser/blob/blob_data_builder.h"
 #include "storage/browser/blob/blob_data_item.h"
 #include "storage/browser/blob/shareable_blob_data_item.h"
@@ -75,7 +79,7 @@ File::Error CreateBlobDirectory(const FilePath& blob_storage_dir) {
 BlobStorageLimits CalculateBlobStorageLimitsImpl(
     const FilePath& storage_dir,
     bool disk_enabled,
-    absl::optional<uint64_t> optional_memory_size_for_testing) {
+    std::optional<uint64_t> optional_memory_size_for_testing) {
   int64_t disk_size = 0ull;
   uint64_t memory_size = optional_memory_size_for_testing
                              ? optional_memory_size_for_testing.value()
@@ -87,7 +91,7 @@ BlobStorageLimits CalculateBlobStorageLimitsImpl(
 
   // Don't do specialty configuration for error size (-1).
   if (memory_size > 0) {
-#if !BUILDFLAG(IS_CHROMEOS_ASH) && !BUILDFLAG(IS_ANDROID) && \
+#if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID) && \
     defined(ARCH_CPU_64_BITS)
     constexpr size_t kTwoGigabytes = 2ull * 1024 * 1024 * 1024;
     limits.max_blob_in_memory_space = kTwoGigabytes;
@@ -105,7 +109,7 @@ BlobStorageLimits CalculateBlobStorageLimitsImpl(
 
   // Don't do specialty configuration for error size (-1). Allow no disk.
   if (disk_size >= 0) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     limits.desired_max_disk_space = static_cast<uint64_t>(disk_size / 2ll);
 #elif BUILDFLAG(IS_ANDROID)
     limits.desired_max_disk_space = static_cast<uint64_t>(3ll * disk_size / 50);
@@ -400,8 +404,8 @@ class BlobMemoryController::FileQuotaAllocationTask
 // check when we have a custom file transportation trigger.
 #if DCHECK_IS_ON()
     base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    if (LIKELY(
-            !command_line->HasSwitch(kBlobFileTransportByFileTriggerSwitch))) {
+    if (!command_line->HasSwitch(kBlobFileTransportByFileTriggerSwitch))
+        [[likely]] {
       DCHECK_LE(total_size, controller_->GetAvailableFileSpaceForBlobs());
     }
 #endif
@@ -598,9 +602,9 @@ BlobMemoryController::Strategy BlobMemoryController::DetermineStrategy(
     return Strategy::NONE_NEEDED;
   }
 
-  if (UNLIKELY(limits_.override_file_transport_min_size > 0) &&
-      file_paging_enabled_ &&
-      total_transportation_bytes >= limits_.override_file_transport_min_size) {
+  if (limits_.override_file_transport_min_size > 0 && file_paging_enabled_ &&
+      total_transportation_bytes >= limits_.override_file_transport_min_size)
+      [[unlikely]] {
     return Strategy::FILE;
   }
 
@@ -731,8 +735,7 @@ void BlobMemoryController::NotifyMemoryItemsUsed(
       continue;
     }
     // We don't want to re-add the item if we're currently paging it to disk.
-    if (items_paging_to_file_.find(item->item_id()) !=
-        items_paging_to_file_.end()) {
+    if (base::Contains(items_paging_to_file_, item->item_id())) {
       return;
     }
     auto iterator = populated_memory_items_.Get(item->item_id());

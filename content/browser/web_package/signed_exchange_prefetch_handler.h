@@ -10,6 +10,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/unguessable_token.h"
+#include "content/public/browser/frame_tree_node_id.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -46,7 +47,7 @@ class SignedExchangePrefetchHandler final
   // |forwarding_client| is a pointer to the downstream client (typically who
   // creates this handler).
   SignedExchangePrefetchHandler(
-      int frame_tree_node_id,
+      FrameTreeNodeId frame_tree_node_id,
       const network::ResourceRequest& resource_request,
       network::mojom::URLResponseHeadPtr response,
       mojo::ScopedDataPipeConsumerHandle response_body,
@@ -86,7 +87,7 @@ class SignedExchangePrefetchHandler final
   void OnReceiveResponse(
       network::mojom::URLResponseHeadPtr head,
       mojo::ScopedDataPipeConsumerHandle body,
-      absl::optional<mojo_base::BigBuffer> cached_metadata) override;
+      std::optional<mojo_base::BigBuffer> cached_metadata) override;
   void OnReceiveRedirect(const net::RedirectInfo& redirect_info,
                          network::mojom::URLResponseHeadPtr head) override;
   void OnUploadProgress(int64_t current_position,

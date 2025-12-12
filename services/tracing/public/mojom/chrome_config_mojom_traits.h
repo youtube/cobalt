@@ -43,7 +43,6 @@ class StructTraits<tracing::mojom::ChromeConfigDataView,
         return tracing::mojom::TracingClientPriority::kUnknown;
       default:
         NOTREACHED();
-        return tracing::mojom::TracingClientPriority::kUnknown;
     }
   }
 

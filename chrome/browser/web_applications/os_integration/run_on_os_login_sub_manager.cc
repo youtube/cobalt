@@ -6,6 +6,7 @@
 #include "chrome/browser/web_applications/os_integration/run_on_os_login_sub_manager.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/feature_list.h"
@@ -16,19 +17,19 @@
 #include "build/buildflag.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/web_applications/os_integration/os_integration_sub_manager.h"
+#include "chrome/browser/web_applications/os_integration/os_integration_test_override.h"
 #include "chrome/browser/web_applications/os_integration/web_app_run_on_os_login.h"
 #include "chrome/browser/web_applications/os_integration/web_app_shortcut.h"
+#include "chrome/browser/web_applications/proto/web_app_install_state.pb.h"
 #include "chrome/browser/web_applications/proto/web_app_os_integration_state.pb.h"
 #include "chrome/browser/web_applications/web_app_icon_manager.h"
-#include "chrome/browser/web_applications/web_app_id.h"
+#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
-#include "chrome/browser/web_applications/web_app_registry_update.h"
-#include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using content::BrowserThread;
 
@@ -36,15 +37,15 @@ namespace web_app {
 
 namespace {
 
-proto::RunOnOsLoginMode ConvertWebAppRunOnOsLoginModeToProto(
+proto::os_state::RunOnOsLogin::Mode ConvertWebAppRunOnOsLoginModeToProto(
     RunOnOsLoginMode mode) {
   switch (mode) {
     case RunOnOsLoginMode::kMinimized:
-      return proto::RunOnOsLoginMode::MINIMIZED;
+      return proto::os_state::RunOnOsLogin::MODE_MINIMIZED;
     case RunOnOsLoginMode::kWindowed:
-      return proto::RunOnOsLoginMode::WINDOWED;
+      return proto::os_state::RunOnOsLogin::MODE_WINDOWED;
     case RunOnOsLoginMode::kNotRun:
-      return proto::RunOnOsLoginMode::NOT_RUN;
+      return proto::os_state::RunOnOsLogin::MODE_NOT_RUN;
   }
 }
 
@@ -61,43 +62,40 @@ bool DoesRunOnOsLoginRequireExecution() {
 }
 
 bool ShouldTriggerRunOnOsLoginRegistration(
-    const proto::WebAppOsIntegrationState& state) {
+    const proto::os_state::WebAppOsIntegration& state) {
   if (!state.has_run_on_os_login()) {
     return false;
   }
   DCHECK(state.run_on_os_login().has_run_on_os_login_mode());
   return (state.run_on_os_login().run_on_os_login_mode() ==
-          proto::RunOnOsLoginMode::WINDOWED);
+          proto::os_state::RunOnOsLogin::MODE_WINDOWED);
 }
 
 }  // namespace
 
 RunOnOsLoginSubManager::RunOnOsLoginSubManager(Profile& profile,
-                                               WebAppRegistrar& registrar,
-                                               WebAppSyncBridge& sync_bridge,
-                                               WebAppIconManager& icon_manager)
-    : profile_(profile),
-      registrar_(registrar),
-      sync_bridge_(sync_bridge),
-      icon_manager_(icon_manager) {}
+                                               WebAppProvider& provider)
+    : profile_(profile), provider_(provider) {}
 
 RunOnOsLoginSubManager::~RunOnOsLoginSubManager() = default;
 
 void RunOnOsLoginSubManager::Configure(
-    const AppId& app_id,
-    proto::WebAppOsIntegrationState& desired_state,
+    const webapps::AppId& app_id,
+    proto::os_state::WebAppOsIntegration& desired_state,
     base::OnceClosure configure_done) {
   DCHECK(!desired_state.has_run_on_os_login());
 
-  if (!registrar_->IsLocallyInstalled(app_id)) {
+  if (provider_->registrar_unsafe().GetInstallState(app_id) !=
+      proto::INSTALLED_WITH_OS_INTEGRATION) {
     std::move(configure_done).Run();
     return;
   }
 
-  proto::RunOnOsLogin* run_on_os_login =
+  proto::os_state::RunOnOsLogin* run_on_os_login =
       desired_state.mutable_run_on_os_login();
 
-  const auto login_mode = registrar_->GetAppRunOnOsLoginMode(app_id);
+  const auto login_mode =
+      provider_->registrar_unsafe().GetAppRunOnOsLoginMode(app_id);
   run_on_os_login->set_run_on_os_login_mode(
       ConvertWebAppRunOnOsLoginModeToProto(login_mode.value));
 
@@ -105,10 +103,10 @@ void RunOnOsLoginSubManager::Configure(
 }
 
 void RunOnOsLoginSubManager::Execute(
-    const AppId& app_id,
-    const absl::optional<SynchronizeOsOptions>& synchronize_options,
-    const proto::WebAppOsIntegrationState& desired_state,
-    const proto::WebAppOsIntegrationState& current_state,
+    const webapps::AppId& app_id,
+    const std::optional<SynchronizeOsOptions>& synchronize_options,
+    const proto::os_state::WebAppOsIntegration& desired_state,
+    const proto::os_state::WebAppOsIntegration& current_state,
     base::OnceClosure execute_done) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (!DoesRunOnOsLoginRequireExecution()) {
@@ -130,6 +128,8 @@ void RunOnOsLoginSubManager::Execute(
     return;
   }
 
+  CHECK_OS_INTEGRATION_ALLOWED();
+
   StartUnregistration(
       app_id, current_state, desired_state,
       base::BindOnce(&RunOnOsLoginSubManager::CreateShortcutInfoWithFavicons,
@@ -137,28 +137,36 @@ void RunOnOsLoginSubManager::Execute(
                      std::move(execute_done)));
 }
 
-// TODO(b/279068663): Implement if needed.
-void RunOnOsLoginSubManager::ForceUnregister(const AppId& app_id,
+void RunOnOsLoginSubManager::ForceUnregister(const webapps::AppId& app_id,
                                              base::OnceClosure callback) {
-  std::move(callback).Run();
+  if (!DoesRunOnOsLoginRequireExecution()) {
+    std::move(callback).Run();
+    return;
+  }
+
+  ResultCallback unregistation_callback =
+      base::BindOnce([](Result result) {
+        base::UmaHistogramBoolean("WebApp.RunOnOsLogin.Unregistration.Result",
+                                  (result == Result::kOk));
+      }).Then(std::move(callback));
+
+  internals::GetShortcutIOTaskRunner()->PostTaskAndReplyWithResult(
+      FROM_HERE,
+      base::BindOnce(
+          &internals::UnregisterRunOnOsLogin, app_id, profile_->GetPath(),
+          base::UTF8ToUTF16(
+              provider_->registrar_unsafe().GetAppShortName(app_id))),
+      std::move(unregistation_callback));
 }
 
 void RunOnOsLoginSubManager::StartUnregistration(
-    const AppId& app_id,
-    const proto::WebAppOsIntegrationState& current_state,
-    const proto::WebAppOsIntegrationState& desired_state,
+    const webapps::AppId& app_id,
+    const proto::os_state::WebAppOsIntegration& current_state,
+    const proto::os_state::WebAppOsIntegration& desired_state,
     base::OnceClosure registration_callback) {
   if (!current_state.has_run_on_os_login()) {
     std::move(registration_callback).Run();
     return;
-  }
-
-  // TODO(crbug.com/1401125): Remove once sub managers have been implemented and
-  //  OsIntegrationManager::Synchronize() is running fine.
-  if (!desired_state.has_run_on_os_login()) {
-    ScopedRegistryUpdate update(&sync_bridge_.get());
-    update->UpdateApp(app_id)->SetRunOnOsLoginOsIntegrationState(
-        RunOnOsLoginMode::kNotRun);
   }
 
   ResultCallback continue_to_registration =
@@ -169,27 +177,29 @@ void RunOnOsLoginSubManager::StartUnregistration(
 
   internals::GetShortcutIOTaskRunner()->PostTaskAndReplyWithResult(
       FROM_HERE,
-      base::BindOnce(&internals::UnregisterRunOnOsLogin, app_id,
-                     profile_->GetPath(),
-                     base::UTF8ToUTF16(registrar_->GetAppShortName(app_id))),
+      base::BindOnce(
+          &internals::UnregisterRunOnOsLogin, app_id, profile_->GetPath(),
+          base::UTF8ToUTF16(
+              provider_->registrar_unsafe().GetAppShortName(app_id))),
       std::move(continue_to_registration));
 }
 
 void RunOnOsLoginSubManager::CreateShortcutInfoWithFavicons(
-    const AppId& app_id,
-    const proto::WebAppOsIntegrationState& desired_state,
+    const webapps::AppId& app_id,
+    const proto::os_state::WebAppOsIntegration& desired_state,
     base::OnceClosure execute_done) {
   if (!ShouldTriggerRunOnOsLoginRegistration(desired_state)) {
     std::move(execute_done).Run();
     return;
   }
 
-  const WebApp* web_app = registrar_->GetAppById(app_id);
+  const WebApp* web_app = provider_->registrar_unsafe().GetAppById(app_id);
   DCHECK(web_app);
   PopulateFaviconForShortcutInfo(
-      web_app, *icon_manager_,
+      web_app, provider_->icon_manager(),
       BuildShortcutInfoWithoutFavicon(
-          app_id, registrar_->GetAppStartUrl(app_id), profile_->GetPath(),
+          app_id, provider_->registrar_unsafe().GetAppStartUrl(app_id),
+          profile_->GetPath(),
           profile_->GetPrefs()->GetString(prefs::kProfileName), desired_state),
       base::BindOnce(
           &RunOnOsLoginSubManager::OnShortcutInfoCreatedStartRegistration,
@@ -198,18 +208,11 @@ void RunOnOsLoginSubManager::CreateShortcutInfoWithFavicons(
 }
 
 void RunOnOsLoginSubManager::OnShortcutInfoCreatedStartRegistration(
-    const AppId& app_id,
-    const proto::WebAppOsIntegrationState& desired_state,
+    const webapps::AppId& app_id,
+    const proto::os_state::WebAppOsIntegration& desired_state,
     base::OnceClosure execute_done,
     std::unique_ptr<ShortcutInfo> shortcut_info) {
   DCHECK(ShouldTriggerRunOnOsLoginRegistration(desired_state));
-  // TODO(crbug.com/1401125): Remove once sub managers have been implemented and
-  //  OsIntegrationManager::Synchronize() is running fine.
-  {
-    ScopedRegistryUpdate update(&sync_bridge_.get());
-    update->UpdateApp(app_id)->SetRunOnOsLoginOsIntegrationState(
-        RunOnOsLoginMode::kWindowed);
-  }
 
   ResultCallback record_metric_and_complete =
       base::BindOnce([](Result result) {
@@ -217,7 +220,7 @@ void RunOnOsLoginSubManager::OnShortcutInfoCreatedStartRegistration(
                                   (result == Result::kOk));
       }).Then(std::move(execute_done));
 
-  ScheduleRegisterRunOnOsLogin(&sync_bridge_.get(), std::move(shortcut_info),
+  ScheduleRegisterRunOnOsLogin(std::move(shortcut_info),
                                std::move(record_metric_and_complete));
 }
 

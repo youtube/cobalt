@@ -34,17 +34,15 @@ class MEDIA_GPU_EXPORT GLImageProcessorBackend : public ImageProcessorBackend {
       const PortConfig& input_config,
       const PortConfig& output_config,
       OutputMode output_mode,
-      VideoRotation relative_rotation,
       ErrorCB error_cb);
 
   // ImageProcessorBackend implementation.
-  void Process(scoped_refptr<VideoFrame> input_frame,
-               scoped_refptr<VideoFrame> output_frame,
-               FrameReadyCB cb) override;
+  void ProcessFrame(scoped_refptr<FrameResource> input_frame,
+                    scoped_refptr<FrameResource> output_frame,
+                    FrameResourceReadyCB cb) override;
 
   static bool IsSupported(const PortConfig& input_config,
-                          const PortConfig& output_config,
-                          VideoRotation relative_rotation);
+                          const PortConfig& output_config);
   std::string type() const override;
 
  private:
@@ -54,7 +52,6 @@ class MEDIA_GPU_EXPORT GLImageProcessorBackend : public ImageProcessorBackend {
   GLImageProcessorBackend(const PortConfig& input_config,
                           const PortConfig& output_config,
                           OutputMode output_mode,
-                          VideoRotation relative_rotation,
                           ErrorCB error_cb);
   ~GLImageProcessorBackend() override;
 
@@ -64,6 +61,9 @@ class MEDIA_GPU_EXPORT GLImageProcessorBackend : public ImageProcessorBackend {
   scoped_refptr<gl::GLSurface> gl_surface_;
   scoped_refptr<gl::GLContext> gl_context_;
 
+  bool got_unrecoverable_gl_error_ = false;
+  GLuint vbo_id_ = 0u;
+  GLuint vao_id_ = 0u;
   GLuint src_texture_id_ = 0u;
   GLuint dst_texture_id_ = 0u;
   GLuint fb_id_ = 0u;

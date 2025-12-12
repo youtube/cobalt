@@ -96,8 +96,8 @@ float ComputeGainChangeThisFrameDb(float target_gain_db,
   if (!gain_increase_allowed) {
     target_gain_difference_db = std::min(target_gain_difference_db, 0.0f);
   }
-  return rtc::SafeClamp(target_gain_difference_db, -max_gain_decrease_db,
-                        max_gain_increase_db);
+  return SafeClamp(target_gain_difference_db, -max_gain_decrease_db,
+                   max_gain_increase_db);
 }
 
 }  // namespace
@@ -124,7 +124,7 @@ AdaptiveDigitalGainController::AdaptiveDigitalGainController(
 }
 
 void AdaptiveDigitalGainController::Process(const FrameInfo& info,
-                                            AudioFrameView<float> frame) {
+                                            DeinterleavedView<float> frame) {
   RTC_DCHECK_GE(info.speech_level_dbfs, -150.0f);
   RTC_DCHECK_GE(frame.num_channels(), 1);
   RTC_DCHECK(

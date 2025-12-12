@@ -19,24 +19,20 @@ void StubSpeculationHost::Bind(
       &StubSpeculationHost::OnConnectionLost, WTF::Unretained(this)));
 }
 
-void StubSpeculationHost::UpdateSpeculationCandidates(
-    const base::UnguessableToken& devtools_navigation_token,
-    Candidates candidates) {
-  devtools_navigation_token_ = devtools_navigation_token;
-  candidates_ = std::move(candidates);
-  if (candidates_updated_callback_)
-    candidates_updated_callback_.Run(candidates_);
-  if (done_closure_)
-    std::move(done_closure_).Run();
-}
-
 void StubSpeculationHost::OnConnectionLost() {
   if (done_closure_)
     std::move(done_closure_).Run();
 }
 
-void StubSpeculationHost::EnableNoVarySearchSupport() {
-  sent_no_vary_search_support_to_browser_ = true;
+void StubSpeculationHost::UpdateSpeculationCandidates(Candidates candidates) {
+  candidates_ = std::move(candidates);
+  if (candidates_updated_callback_) {
+    candidates_updated_callback_.Run(candidates_);
+  }
+  if (done_closure_)
+    std::move(done_closure_).Run();
 }
+
+void StubSpeculationHost::InitiatePreview(const KURL& url) {}
 
 }  // namespace blink

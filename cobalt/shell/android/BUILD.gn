@@ -15,6 +15,7 @@
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//third_party/icu/config.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 cobalt_shell_test_manifest =
     "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
@@ -70,28 +71,28 @@ android_library("cobalt_shell_java") {
     ":cobalt_shell_java_resources",
     ":cobalt_shell_test_manifest",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
+    "//components/embedder_support/android:view_java",
     "//components/viz/service:service_java",
     "//content/public/android:content_java",
     "//media/base/android:media_java",
     "//media/capture/video/android:capture_java",
     "//mojo/public/java:system_java",
     "//net/android:net_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
     "//ui/base/cursor/mojom:cursor_type_java",
     "//url:gurl_java",
   ]
+  srcjar_deps = [ ":cobalt_shell_jni_headers" ]
   sources = [
     "java/src/dev/cobalt/shell/ContentViewRenderView.java",
     "java/src/dev/cobalt/shell/Shell.java",
     "java/src/dev/cobalt/shell/ShellManager.java",
     "java/src/dev/cobalt/shell/ShellViewAndroidDelegate.java",
   ]
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 jinja_template("cobalt_shell_test_manifest") {
@@ -185,7 +186,7 @@ cobalt_shell_apk_tmpl("cobalt_shell_test_apk") {
     "//base:base_java_test_support",
     "//base:base_javatests",
     "//content/public/android:content_javatests",
-    "//net/android:net_javatests",
+    "//net/android:net_tests_java",
   ]
   data_deps = [ "//testing/buildbot/filters:content_shell_test_apk_filters" ]
 
@@ -218,17 +219,4 @@ android_library("cobalt_shell_test_java") {
     "javatests/src/org/chromium/content_shell_apk/ContentShellShellManagementTest.java",
     "javatests/src/org/chromium/content_shell_apk/ContentShellUrlTest.java",
   ]
-}
-
-android_library("cobalt_shell_browsertests_java") {
-  testonly = true
-  deps = [
-    ":cobalt_shell_java",
-    "//base:base_java",
-    "//content/public/android:content_java",
-    "//testing/android/native_test:native_test_java",
-    "//third_party/androidx:androidx_core_core_java",
-    "//ui/android:ui_java",
-  ]
-  sources = [ "browsertests/src/org/chromium/content_shell/browsertests/ContentShellBrowserTestActivity.java" ]
 }

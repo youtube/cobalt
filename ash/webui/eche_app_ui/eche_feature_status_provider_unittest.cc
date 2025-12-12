@@ -83,17 +83,16 @@ class EcheFeatureStatusProviderTest : public testing::Test {
     eche_connection_status_handler_ =
         std::make_unique<EcheConnectionStatusHandler>();
     provider_ = std::make_unique<EcheFeatureStatusProvider>(
-        &fake_phone_hub_manager, &fake_device_sync_client_,
-        &fake_multidevice_setup_client_, &fake_connection_manager_,
-        eche_connection_status_handler_.get());
+        &fake_phone_hub_manager, &fake_multidevice_setup_client_,
+        &fake_connection_manager_, eche_connection_status_handler_.get());
     provider_->AddObserver(&fake_observer_);
   }
 
   void SetDeviceSyncClientReady() { fake_device_sync_client_.NotifyReady(); }
 
   void SetSyncedDevices(
-      const absl::optional<multidevice::RemoteDeviceRef>& local_device,
-      const std::vector<absl::optional<multidevice::RemoteDeviceRef>>
+      const std::optional<multidevice::RemoteDeviceRef>& local_device,
+      const std::vector<std::optional<multidevice::RemoteDeviceRef>>
           phone_devices) {
     fake_device_sync_client_.set_local_device_metadata(local_device);
 
@@ -128,14 +127,14 @@ class EcheFeatureStatusProviderTest : public testing::Test {
 
   void SetHostStatusWithDevice(
       HostStatus host_status,
-      const absl::optional<multidevice::RemoteDeviceRef>& host_device) {
+      const std::optional<multidevice::RemoteDeviceRef>& host_device) {
     fake_multidevice_setup_client_.SetHostStatusWithDevice(
         std::make_pair(host_status, host_device));
   }
 
   void SetHostStatus(HostStatus host_status) {
     fake_multidevice_setup_client_.SetHostStatusWithDevice(
-        std::make_pair(host_status, absl::nullopt /* host_device */));
+        std::make_pair(host_status, std::nullopt /* host_device */));
   }
 
   void SetConnectionStatus(secure_channel::ConnectionManager::Status status) {
@@ -178,16 +177,16 @@ TEST_F(EcheFeatureStatusProviderTest, IneligibleForFeature) {
   EXPECT_EQ(FeatureStatus::kIneligible, GetStatus());
 
   SetDeviceSyncClientReady();
-  SetSyncedDevices(/*local_device=*/absl::nullopt,
-                   /*phone_devices=*/{absl::nullopt});
+  SetSyncedDevices(/*local_device=*/std::nullopt,
+                   /*phone_devices=*/{std::nullopt});
   EXPECT_EQ(FeatureStatus::kIneligible, GetStatus());
 
   SetSyncedDevices(CreateLocalDevice(/*supports_eche_client=*/false),
-                   /*phone_devices=*/{absl::nullopt});
+                   /*phone_devices=*/{std::nullopt});
   EXPECT_EQ(FeatureStatus::kIneligible, GetStatus());
 
   SetSyncedDevices(CreateLocalDevice(/*supports_eche_client=*/true),
-                   /*phone_devices=*/{absl::nullopt});
+                   /*phone_devices=*/{std::nullopt});
   EXPECT_EQ(FeatureStatus::kIneligible, GetStatus());
 
   SetSyncedDevices(CreateLocalDevice(/*supports_eche_client=*/true),
@@ -228,10 +227,10 @@ TEST_F(EcheFeatureStatusProviderTest, Disabled) {
   EXPECT_EQ(FeatureStatus::kDisabled, GetStatus());
 
   SetMultiDeviceState(HostStatus::kHostVerified,
-                      FeatureState::kUnavailableSuiteDisabled,
+                      FeatureState::kNotSupportedByChromebook,
                       /*eche_host_supported=*/true,
                       /*eche_host_enabled=*/true);
-  EXPECT_EQ(FeatureStatus::kDisabled, GetStatus());
+  EXPECT_EQ(FeatureStatus::kIneligible, GetStatus());
 
   SetMultiDeviceState(HostStatus::kHostVerified,
                       FeatureState::kUnavailableTopLevelFeatureDisabled,

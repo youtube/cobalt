@@ -4,21 +4,21 @@
 
 #include "chromeos/dbus/missive/missive_client_test_observer.h"
 
+#include <optional>
 #include <tuple>
 
 #include "base/check.h"
 #include "base/functional/bind.h"
-#include "base/test/repeating_test_future.h"
+#include "base/test/test_future.h"
 #include "chromeos/dbus/missive/missive_client.h"
 #include "components/reporting/proto/synced/record.pb.h"
 #include "components/reporting/proto/synced/record_constants.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos {
 namespace {
 
 // Absent destination means any destination is okay.
-bool RecordHasDestination(absl::optional<::reporting::Destination> destination,
+bool RecordHasDestination(std::optional<::reporting::Destination> destination,
                           const ::reporting::Record& record) {
   return !destination.has_value() ||
          record.destination() == destination.value();
@@ -26,7 +26,7 @@ bool RecordHasDestination(absl::optional<::reporting::Destination> destination,
 }  // namespace
 
 MissiveClientTestObserver::MissiveClientTestObserver(
-    absl::optional<::reporting::Destination> destination)
+    std::optional<::reporting::Destination> destination)
     : MissiveClientTestObserver(
           base::BindRepeating(&RecordHasDestination, destination)) {}
 
@@ -50,16 +50,16 @@ void MissiveClientTestObserver::OnRecordEnqueued(
     return;
   }
 
-  enqueued_records_.AddValue(priority, record);
+  enqueued_record_.SetValue(priority, record);
 }
 
 std::tuple<::reporting::Priority, ::reporting::Record>
 MissiveClientTestObserver::GetNextEnqueuedRecord() {
-  return enqueued_records_.Take();
+  return enqueued_record_.Take();
 }
 
-bool MissiveClientTestObserver::HasNewEnqueuedRecords() {
-  return !enqueued_records_.IsEmpty();
+bool MissiveClientTestObserver::HasNewEnqueuedRecord() {
+  return enqueued_record_.IsReady();
 }
 
 }  // namespace chromeos

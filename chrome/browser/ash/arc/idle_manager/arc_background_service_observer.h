@@ -8,11 +8,11 @@
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ash/arc/vmm/arc_system_state_bridge.h"
-#include "chrome/browser/ash/throttle_observer.h"
+#include "chromeos/ash/components/throttle/throttle_observer.h"
 
 namespace arc {
 
-constexpr char kArcBackgroundServiceObserverName[] =
+inline constexpr char kArcBackgroundServiceObserverName[] =
     "ArcBackgroundServiceObserver";
 
 // This class observes ARC app background services state and sets the state to
@@ -40,7 +40,7 @@ class ArcBackgroundServiceObserver : public ash::ThrottleObserver,
       const mojom::SystemAppRunningState& state) override;
 
  private:
-  raw_ptr<content::BrowserContext, ExperimentalAsh> context_ = nullptr;
+  raw_ptr<content::BrowserContext> context_ = nullptr;
 
   base::ScopedObservation<ArcSystemStateBridge, ArcSystemStateBridge::Observer>
       observation_{this};

@@ -243,7 +243,6 @@ void SensorProxyImpl::RemoveActiveFrequency(double frequency) {
   if (it == active_frequencies_.end() || *it != frequency) {
     NOTREACHED() << "Attempted to remove active frequency which is not present "
                     "in the list";
-    return;
   }
 
   active_frequencies_.erase(it);

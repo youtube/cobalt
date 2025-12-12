@@ -13,8 +13,8 @@
 
 class TestOmniboxEditModel : public OmniboxEditModel {
  public:
-  TestOmniboxEditModel(OmniboxView* view,
-                       OmniboxEditModelDelegate* edit_model_delegate,
+  TestOmniboxEditModel(OmniboxController* omnibox_controller,
+                       OmniboxView* view,
                        PrefService* pref_service);
   ~TestOmniboxEditModel() override;
   TestOmniboxEditModel(const TestOmniboxEditModel&) = delete;
@@ -31,8 +31,8 @@ class TestOmniboxEditModel : public OmniboxEditModel {
   void OnPopupDataChanged(const std::u16string& temporary_text,
                           bool is_temporary_text,
                           const std::u16string& inline_autocompletion,
-                          const std::u16string& prefix_autocompletion,
                           const std::u16string& keyword,
+                          const std::u16string& keyword_placeholder,
                           bool is_keyword_hint,
                           const std::u16string& additional_text,
                           const AutocompleteMatch& match) override;
@@ -43,7 +43,8 @@ class TestOmniboxEditModel : public OmniboxEditModel {
   bool is_temporary_text() const { return is_temporary_text_; }
 
  protected:
-  PrefService* GetPrefService() const override;
+  PrefService* GetPrefService() override;
+  const PrefService* GetPrefService() const override;
 
  private:
   bool popup_is_open_;

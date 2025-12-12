@@ -26,9 +26,15 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/modules/webaudio/periodic_wave.h"
 
 #include <algorithm>
+#include <array>
 #include <memory>
 
 #include "build/build_config.h"
@@ -40,6 +46,7 @@
 #include "third_party/blink/renderer/platform/bindings/exception_messages.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/platform/wtf/math_extras.h"
 
 #if defined(ARCH_CPU_X86_FAMILY)
 #include <xmmintrin.h>
@@ -176,7 +183,7 @@ PeriodicWaveImpl::PeriodicWaveImpl(float sample_rate)
 }
 
 PeriodicWaveImpl::~PeriodicWaveImpl() {
-  AdjustV8ExternalMemory(-static_cast<int64_t>(v8_external_memory_));
+  external_memory_accounter_.Clear(v8::Isolate::GetCurrent());
 }
 
 unsigned PeriodicWaveImpl::PeriodicWaveSize() const {
@@ -265,15 +272,17 @@ void PeriodicWaveImpl::WaveDataForFundamentalFrequency(
 
   const float* ratio = reinterpret_cast<float*>(&v_ratio);
 
-  float cents_above_lowest_frequency[4] __attribute__((aligned(16)));
+  std::array<float, 4> cents_above_lowest_frequency
+      __attribute__((aligned(16)));
 
   for (int k = 0; k < 4; ++k) {
     cents_above_lowest_frequency[k] = log2f(ratio[k]) * 1200;
   }
 
-  __m128 v_pitch_range = _mm_add_ps(
-      _mm_set1_ps(1.0), _mm_div_ps(_mm_load_ps(cents_above_lowest_frequency),
-                                   _mm_set1_ps((cents_per_range_))));
+  __m128 v_pitch_range =
+      _mm_add_ps(_mm_set1_ps(1.0),
+                 _mm_div_ps(_mm_load_ps(cents_above_lowest_frequency.data()),
+                            _mm_set1_ps((cents_per_range_))));
   v_pitch_range = _mm_max_ps(v_pitch_range, _mm_set1_ps(0.0));
   v_pitch_range = _mm_min_ps(v_pitch_range, _mm_set1_ps(NumberOfRanges() - 1));
 
@@ -393,13 +402,6 @@ unsigned PeriodicWaveImpl::NumberOfPartialsForRange(
   return number_of_partials;
 }
 
-// Tell V8 about the memory we're using so it can properly schedule garbage
-// collects.
-void PeriodicWaveImpl::AdjustV8ExternalMemory(int64_t delta) {
-  v8::Isolate::GetCurrent()->AdjustAmountOfExternalAllocatedMemory(delta);
-  v8_external_memory_ += delta;
-}
-
 // Convert into time-domain wave buffers.  One table is created for each range
 // for non-aliasing playback at different playback rates.  Thus, higher ranges
 // have more high-frequency partials culled out.
@@ -407,8 +409,7 @@ void PeriodicWaveImpl::CreateBandLimitedTables(const float* real_data,
                                                const float* imag_data,
                                                unsigned number_of_components,
                                                bool disable_normalization) {
-  // TODO(rtoy): Figure out why this needs to be 0.5 when normalization is
-  // disabled.
+  // The default scale factor for when normalization is disabled.
   float normalization_scale = 0.5;
 
   unsigned fft_size = PeriodicWaveSize();
@@ -433,9 +434,11 @@ void PeriodicWaveImpl::CreateBandLimitedTables(const float* real_data,
     // arrays.  Need to scale the data by fftSize to remove the scaling that the
     // inverse IFFT would do.
     float scale = fft_size;
-    vector_math::Vsmul(real_data, 1, &scale, real.Data(), 1, number_of_components);
+    vector_math::Vsmul(
+        real_data, 1, &scale, real.Data(), 1, number_of_components);
     scale = -scale;
-    vector_math::Vsmul(imag_data, 1, &scale, imag.Data(), 1, number_of_components);
+    vector_math::Vsmul(
+        imag_data, 1, &scale, imag.Data(), 1, number_of_components);
 
     // Find the starting bin where we should start culling.  We need to clear
     // out the highest frequencies to band-limit the waveform.
@@ -458,7 +461,8 @@ void PeriodicWaveImpl::CreateBandLimitedTables(const float* real_data,
     unsigned wave_size = PeriodicWaveSize();
     std::unique_ptr<AudioFloatArray> table =
         std::make_unique<AudioFloatArray>(wave_size);
-    AdjustV8ExternalMemory(wave_size * sizeof(float));
+    external_memory_accounter_.Increase(v8::Isolate::GetCurrent(),
+                                        wave_size * sizeof(float));
     band_limited_tables_.push_back(std::move(table));
 
     // Apply an inverse FFT to generate the time-domain table data.
@@ -553,8 +557,6 @@ void PeriodicWaveImpl::GenerateBasicWaveform(int shape) {
         break;
       default:
         NOTREACHED();
-        b = 0;
-        break;
     }
 
     real_p[n] = 0;

@@ -17,7 +17,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
-#include "chrome/common/importer/importer_data_types.h"
+#include "components/user_data_importer/common/importer_data_types.h"
 #include "crypto/crypto_buildflags.h"
 #include "sql/database.h"
 #include "sql/statement.h"
@@ -81,7 +81,7 @@ struct FirefoxRawPasswordInfo {
 
 namespace {
 
-importer::ImportedPasswordForm CreateBlockedPasswordForm(
+user_data_importer::ImportedPasswordForm CreateBlockedPasswordForm(
     const std::string& blocked_host) {
   GURL::Replacements rep;
   rep.ClearQuery();
@@ -89,7 +89,7 @@ importer::ImportedPasswordForm CreateBlockedPasswordForm(
   rep.ClearUsername();
   rep.ClearPassword();
 
-  importer::ImportedPasswordForm form;
+  user_data_importer::ImportedPasswordForm form;
   form.url = GURL(blocked_host).ReplaceComponents(rep);
   form.signon_realm = form.url.DeprecatedGetOriginAsURL().spec();
   form.blocked_by_user = true;
@@ -148,56 +148,68 @@ std::u16string NSSDecryptor::Decrypt(const std::string& crypt) const {
 
 bool NSSDecryptor::ReadAndParseLogins(
     const base::FilePath& json_file,
-    std::vector<importer::ImportedPasswordForm>* forms) {
+    std::vector<user_data_importer::ImportedPasswordForm>* forms) {
   std::string json_content;
   base::ReadFileToString(json_file, &json_content);
-  absl::optional<base::Value> parsed_json =
-      base::JSONReader::Read(json_content);
-  if (!parsed_json || !parsed_json->is_dict())
+  std::optional<base::Value> parsed_json = base::JSONReader::Read(json_content);
+  if (!parsed_json) {
     return false;
+  }
 
-  const base::Value* disabled_hosts =
-      parsed_json->FindListKey("disabledHosts");
+  const base::Value::Dict* parsed_json_dict = parsed_json->GetIfDict();
+  if (!parsed_json_dict) {
+    return false;
+  }
+
+  const base::Value::List* disabled_hosts =
+      parsed_json_dict->FindList("disabledHosts");
   if (disabled_hosts) {
-    for (const auto& value : disabled_hosts->GetList()) {
+    for (const auto& value : *disabled_hosts) {
       if (!value.is_string())
         continue;
       forms->push_back(CreateBlockedPasswordForm(value.GetString()));
     }
   }
 
-  const base::Value* password_list = parsed_json->FindListKey("logins");
+  const base::Value::List* password_list = parsed_json_dict->FindList("logins");
   if (password_list) {
-    for (const auto& value : password_list->GetList()) {
-      if (!value.is_dict())
+    for (const auto& value : *password_list) {
+      auto* dict = value.GetIfDict();
+      if (!dict) {
         continue;
+      }
 
       FirefoxRawPasswordInfo raw_password_info;
 
-      if (const std::string* hostname = value.FindStringKey("hostname"))
+      if (const std::string* hostname = dict->FindString("hostname")) {
         raw_password_info.host = *hostname;
+      }
 
-      if (const std::string* username = value.FindStringKey("usernameField"))
+      if (const std::string* username = dict->FindString("usernameField")) {
         raw_password_info.username_element = base::UTF8ToUTF16(*username);
+      }
 
-      if (const std::string* password = value.FindStringKey("passwordField"))
+      if (const std::string* password = dict->FindString("passwordField")) {
         raw_password_info.password_element = base::UTF8ToUTF16(*password);
+      }
 
-      if (const std::string* username =
-              value.FindStringKey("encryptedUsername"))
+      if (const std::string* username = dict->FindString("encryptedUsername")) {
         raw_password_info.encrypted_username = *username;
+      }
 
-      if (const std::string* password =
-              value.FindStringKey("encryptedPassword"))
+      if (const std::string* password = dict->FindString("encryptedPassword")) {
         raw_password_info.encrypted_password = *password;
+      }
 
-      if (const std::string* submit_url = value.FindStringKey("formSubmitURL"))
+      if (const std::string* submit_url = dict->FindString("formSubmitURL")) {
         raw_password_info.form_action = *submit_url;
+      }
 
-      if (const std::string* realm = value.FindStringKey("httpRealm"))
+      if (const std::string* realm = dict->FindString("httpRealm")) {
         raw_password_info.realm = *realm;
+      }
 
-      importer::ImportedPasswordForm form;
+      user_data_importer::ImportedPasswordForm form;
       if (CreatePasswordFormFromRawInfo(raw_password_info, &form))
         forms->push_back(form);
     }
@@ -208,7 +220,7 @@ bool NSSDecryptor::ReadAndParseLogins(
 
 bool NSSDecryptor::CreatePasswordFormFromRawInfo(
     const FirefoxRawPasswordInfo& raw_password_info,
-    importer::ImportedPasswordForm* form) {
+    user_data_importer::ImportedPasswordForm* form) {
   GURL::Replacements rep;
   rep.ClearQuery();
   rep.ClearRef();
@@ -234,7 +246,7 @@ bool NSSDecryptor::CreatePasswordFormFromRawInfo(
     // Non-empty realm indicates that it's not html form authentication entry.
     // Extracted data doesn't allow us to distinguish basic_auth entry from
     // digest_auth entry, so let's assume basic_auth.
-    form->scheme = importer::ImportedPasswordForm::Scheme::kBasic;
+    form->scheme = user_data_importer::ImportedPasswordForm::Scheme::kBasic;
   }
   form->username_element = raw_password_info.username_element;
   form->username_value = Decrypt(raw_password_info.encrypted_username);

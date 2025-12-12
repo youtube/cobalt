@@ -4,9 +4,10 @@
 
 package org.chromium.chrome.browser.keyboard_accessory;
 
-/**
- * Use {@link #createComponent()} to instantiate a {@link ManualFillingComponent}.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Use {@link #createComponent()} to instantiate a {@link ManualFillingComponent}. */
+@NullMarked
 public class ManualFillingComponentFactory {
     private ManualFillingComponentFactory() {}
 

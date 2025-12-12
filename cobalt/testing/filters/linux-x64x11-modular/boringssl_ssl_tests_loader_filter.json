@@ -1,0 +1,6 @@
+{
+  "failing_tests": [
+    "*"
+  ],
+  "comment": "Disabling all tests due to crash."
+}

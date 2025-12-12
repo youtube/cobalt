@@ -5,10 +5,24 @@
 #ifndef EXTENSIONS_BROWSER_GUEST_VIEW_WEB_VIEW_WEB_VIEW_PERMISSION_HELPER_DELEGATE_H_
 #define EXTENSIONS_BROWSER_GUEST_VIEW_WEB_VIEW_WEB_VIEW_PERMISSION_HELPER_DELEGATE_H_
 
+#include <string>
+
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "content/public/browser/web_contents.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "extensions/browser/guest_view/web_view/web_view_permission_helper.h"
-#include "third_party/blink/public/common/mediastream/media_stream_request.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
+
+namespace content {
+struct MediaStreamRequest;
+class WebContents;
+}  // namespace content
+
+namespace url {
+class Origin;
+}  // namespace url
+
+class GURL;
 
 namespace extensions {
 
@@ -30,6 +44,16 @@ class WebViewPermissionHelperDelegate {
                            const std::string& request_method,
                            base::OnceCallback<void(bool)> callback) {}
 
+  virtual void RequestMediaAccessPermissionForControlledFrame(
+      content::WebContents* source,
+      const content::MediaStreamRequest& request,
+      content::MediaResponseCallback callback) {}
+
+  virtual bool CheckMediaAccessPermissionForControlledFrame(
+      content::RenderFrameHost* render_frame_host,
+      const url::Origin& security_origin,
+      blink::mojom::MediaStreamType type);
+
   virtual void RequestPointerLockPermission(
       bool user_gesture,
       bool last_unlocked_by_target,
@@ -37,14 +61,21 @@ class WebViewPermissionHelperDelegate {
 
   // Requests Geolocation Permission from the embedder.
   virtual void RequestGeolocationPermission(
-      const GURL& requesting_frame,
+      const GURL& requesting_frame_url,
       bool user_gesture,
       base::OnceCallback<void(bool)> callback) {}
+
+  virtual void RequestHidPermission(const GURL& requesting_frame_url,
+                                    base::OnceCallback<void(bool)> callback) {}
 
   virtual void RequestFileSystemPermission(
       const GURL& url,
       bool allowed_by_default,
       base::OnceCallback<void(bool)> callback) {}
+
+  virtual void RequestFullscreenPermission(
+      const url::Origin& requesting_origin,
+      WebViewPermissionHelper::PermissionResponseCallback callback) {}
 
   // Called when file system access is requested by the guest content using the
   // asynchronous HTML5 file system API. The request is plumbed through the
@@ -54,14 +85,23 @@ class WebViewPermissionHelperDelegate {
   // - Determined by the guest's content settings if the embedder does not
   // perform an explicit action.
   // If access was blocked due to the page's content settings,
-  // |blocked_by_policy| should be true, and this function should invoke
+  // `blocked_by_policy` should be true, and this function should invoke
   // OnContentBlocked.
-  virtual void FileSystemAccessedAsync(
-      int render_process_id,
-      int render_frame_id,
-      int request_id,
-      const GURL& url,
-      bool blocked_by_policy) {}
+  virtual void FileSystemAccessedAsync(int render_process_id,
+                                       int render_frame_id,
+                                       int request_id,
+                                       const GURL& url,
+                                       bool blocked_by_policy) {}
+
+  // Whether media requests approved by the webview embedder are forwarded as
+  // the embedder. When false, media requests retain the embedded origin.
+  virtual bool ForwardEmbeddedMediaPermissionChecksAsEmbedder(
+      const url::Origin& embedder_origin);
+
+  // Allows the delegate to override the results of permission requests; useful
+  // when custom handling is needed for specific webviews.
+  virtual std::optional<content::PermissionResult> OverridePermissionResult(
+      ContentSettingsType type);
 
   WebViewPermissionHelper* web_view_permission_helper() const {
     return web_view_permission_helper_;

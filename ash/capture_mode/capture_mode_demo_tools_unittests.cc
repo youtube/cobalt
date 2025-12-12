@@ -7,6 +7,8 @@
 
 #include "ash/accelerators/keyboard_code_util.h"
 #include "ash/accessibility/magnifier/docked_magnifier_controller.h"
+#include "ash/annotator/annotations_overlay_controller.h"
+#include "ash/annotator/annotator_controller.h"
 #include "ash/capture_mode/capture_mode_bar_view.h"
 #include "ash/capture_mode/capture_mode_constants.h"
 #include "ash/capture_mode/capture_mode_controller.h"
@@ -23,11 +25,9 @@
 #include "ash/capture_mode/capture_mode_util.h"
 #include "ash/capture_mode/key_combo_view.h"
 #include "ash/capture_mode/pointer_highlight_layer.h"
-#include "ash/capture_mode/recording_overlay_controller.h"
 #include "ash/capture_mode/video_recording_watcher.h"
 #include "ash/constants/ash_features.h"
 #include "ash/display/window_tree_host_manager.h"
-#include "ash/projector/projector_controller_impl.h"
 #include "ash/public/cpp/capture_mode/capture_mode_test_api.h"
 #include "ash/public/cpp/shelf_model.h"
 #include "ash/resources/vector_icons/vector_icons.h"
@@ -39,10 +39,12 @@
 #include "ash/shell.h"
 #include "ash/style/icon_button.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/test/ash_test_util.h"
 #include "ash/wm/splitview/split_view_controller.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/timer/timer.h"
+#include "chromeos/ui/base/window_state_type.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/ime/fake_text_input_client.h"
 #include "ui/base/ime/text_input_type.h"
@@ -55,7 +57,6 @@
 #include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d.h"
-#include "ui/views/controls/button/toggle_button.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/wm/core/coordinate_conversion.h"
 
@@ -82,9 +83,7 @@ constexpr ui::KeyboardCode kIconKeyCodes[] = {ui::VKEY_BROWSER_BACK,
 
 class CaptureModeDemoToolsTest : public AshTestBase {
  public:
-  CaptureModeDemoToolsTest() {
-    scoped_feature_list_.InitAndEnableFeature(features::kCaptureModeDemoTools);
-  }
+  CaptureModeDemoToolsTest() = default;
   CaptureModeDemoToolsTest(const CaptureModeDemoToolsTest&) = delete;
   CaptureModeDemoToolsTest& operator=(const CaptureModeDemoToolsTest&) = delete;
   ~CaptureModeDemoToolsTest() override = default;
@@ -240,7 +239,6 @@ class CaptureModeDemoToolsTest : public AshTestBase {
   }
 
  private:
-  base::test::ScopedFeatureList scoped_feature_list_;
   std::unique_ptr<aura::Window> window_;
   std::unique_ptr<ui::FakeTextInputClient> fake_text_input_client_;
 };
@@ -253,9 +251,9 @@ TEST_F(CaptureModeDemoToolsTest, ConsiderKeyEvent) {
   auto* event_generator = GetEventGenerator();
   ClickOnView(GetSettingsButton(), event_generator);
   EXPECT_TRUE(GetCaptureModeSettingsWidget());
-  views::ToggleButton* toggle_button = CaptureModeSettingsTestApi()
-                                           .GetDemoToolsMenuToggleButton()
-                                           ->toggle_button();
+  Switch* toggle_button = CaptureModeSettingsTestApi()
+                              .GetDemoToolsMenuToggleButton()
+                              ->toggle_button();
 
   // The toggle button will be disabled by default, toggle the toggle button to
   // enable the demo tools feature.
@@ -308,9 +306,9 @@ TEST_F(CaptureModeDemoToolsTest, EntryPointTest) {
   auto* event_generator = GetEventGenerator();
   ClickOnView(GetSettingsButton(), event_generator);
   EXPECT_TRUE(GetCaptureModeSettingsWidget());
-  views::ToggleButton* toggle_button = CaptureModeSettingsTestApi()
-                                           .GetDemoToolsMenuToggleButton()
-                                           ->toggle_button();
+  Switch* toggle_button = CaptureModeSettingsTestApi()
+                              .GetDemoToolsMenuToggleButton()
+                              ->toggle_button();
 
   // The toggle button will be disabled by default.
   EXPECT_FALSE(toggle_button->GetIsOn());
@@ -378,13 +376,17 @@ TEST_F(CaptureModeDemoToolsTest, EntryPointFocusCyclerTest) {
   EXPECT_EQ(FocusGroup::kPendingSettings,
             session_test_api.GetCurrentFocusGroup());
 
-  // Tab 4 times to reach the demo tools toggle button.
-  SendKey(ui::VKEY_TAB, event_generator, ui::EF_NONE, /*count=*/4);
-  EXPECT_EQ(FocusGroup::kSettingsMenu, session_test_api.GetCurrentFocusGroup());
+  // Tab once to enter focus into the settings menu.
+  SendKey(ui::VKEY_TAB, event_generator, ui::EF_NONE);
+  ASSERT_EQ(FocusGroup::kSettingsMenu, session_test_api.GetCurrentFocusGroup());
 
-  views::ToggleButton* toggle_button = CaptureModeSettingsTestApi()
-                                           .GetDemoToolsMenuToggleButton()
-                                           ->toggle_button();
+  // Tab until focus reaches the demo tools toggle button.
+  Switch* toggle_button = CaptureModeSettingsTestApi()
+                              .GetDemoToolsMenuToggleButton()
+                              ->toggle_button();
+  while (session_test_api.GetCurrentFocusedView()->GetView() != toggle_button) {
+    SendKey(ui::VKEY_TAB, event_generator, ui::EF_NONE);
+  }
 
   // The demo tools toggle button will be disabled by default.
   EXPECT_FALSE(toggle_button->GetIsOn());
@@ -820,9 +822,11 @@ TEST_F(CaptureModeDemoToolsTest, CaptureBoundsChangeTest) {
 
   // Snap the `window` which will result in window bounds change and the key
   // combo widget will still be centered horizontally.
-  split_view_controller->SnapWindow(
-      window.get(), SplitViewController::SnapPosition::kPrimary);
-  EXPECT_EQ(split_view_controller->primary_window(), window.get());
+  const WindowSnapWMEvent event(WM_EVENT_SNAP_PRIMARY);
+  WindowState* window_state = WindowState::Get(window.get());
+  window_state->OnWMEvent(&event);
+  EXPECT_EQ(chromeos::WindowStateType::kPrimarySnapped,
+            window_state->GetStateType());
   VerifyKeyComboWidgetPosition();
 }
 
@@ -897,7 +901,7 @@ TEST_F(CaptureModeDemoToolsTest, DragAndDropIconOnShelfTest) {
   ASSERT_TRUE(button->FireDragTimerForTest());
   button->FireRippleActivationTimerForTest();
 
-  ui::GestureEventDetails event_details(ui::ET_GESTURE_LONG_PRESS);
+  ui::GestureEventDetails event_details(ui::EventType::kGestureLongPress);
   ui::GestureEvent long_press(button_center_point.x(), button_center_point.y(),
                               0, ui::EventTimeForNow(), event_details);
   event_generator->Dispatch(&long_press);
@@ -1053,8 +1057,7 @@ TEST_F(CaptureModeDemoToolsTest, OnScreenKeyboardKeyEventTest) {
 TEST_F(CaptureModeDemoToolsTest,
        DemoToolsEnabledOnRecordingStartHistogramTest) {
   base::HistogramTester histogram_tester;
-  constexpr char kHistogramNameBase[] =
-      "Ash.CaptureModeController.DemoToolsEnabledOnRecordingStart";
+  constexpr char kHistogramNameBase[] = "DemoToolsEnabledOnRecordingStart";
 
   struct {
     bool enable_tablet_mode;
@@ -1074,7 +1077,9 @@ TEST_F(CaptureModeDemoToolsTest,
       EXPECT_FALSE(Shell::Get()->IsInTabletMode());
     }
 
-    const auto histogram_name = GetCaptureModeHistogramName(kHistogramNameBase);
+    const auto histogram_name =
+        BuildHistogramName(kHistogramNameBase, /*behavior=*/nullptr,
+                           /*append_ui_mode_suffix=*/true);
     histogram_tester.ExpectBucketCount(histogram_name,
                                        test_case.enable_demo_tools, 0);
     auto* controller = StartCaptureSession(CaptureModeSource::kFullscreen,
@@ -1342,8 +1347,6 @@ TEST_F(ProjectorCaptureModeDemoToolsTest, EnableDemoToolsByDefault) {
   capture_mode_controller->Stop();
   StartProjectorModeSession();
   EXPECT_TRUE(capture_mode_controller->IsActive());
-  EXPECT_TRUE(
-      capture_mode_controller->capture_mode_session()->is_in_projector_mode());
   EXPECT_TRUE(capture_mode_controller->enable_demo_tools());
 
   capture_mode_controller->Stop();
@@ -1362,8 +1365,6 @@ TEST_F(ProjectorCaptureModeDemoToolsTest,
   capture_mode_controller->SetSource(CaptureModeSource::kFullscreen);
   StartProjectorModeSession();
   EXPECT_TRUE(capture_mode_controller->enable_demo_tools());
-  EXPECT_TRUE(
-      capture_mode_controller->capture_mode_session()->is_in_projector_mode());
   StartVideoRecordingImmediately();
   EXPECT_TRUE(capture_mode_controller->is_recording_in_progress());
   auto* demo_tools_controller = GetCaptureModeDemoToolsController();
@@ -1402,18 +1403,18 @@ TEST_F(ProjectorCaptureModeDemoToolsTest,
   };
 
   CaptureModeTestApi test_api;
-  RecordingOverlayController* recording_overlay_controller =
-      test_api.GetRecordingOverlayController();
+  AnnotationsOverlayController* annotations_overlay_controller =
+      test_api.GetAnnotationsOverlayController();
 
-  auto* projector_controller = ProjectorControllerImpl::Get();
-  projector_controller->EnableAnnotatorTool();
-  EXPECT_TRUE(recording_overlay_controller->is_enabled());
+  auto* annotator_controller = Shell::Get()->annotator_controller();
+  annotator_controller->EnableAnnotatorTool();
+  EXPECT_TRUE(annotations_overlay_controller->is_enabled());
   mouse_highlight_test(/*annotating=*/true);
   touch_highlight_test(/*annotating=*/true);
 
-  projector_controller->ResetTools();
+  annotator_controller->ResetTools();
   EXPECT_TRUE(capture_mode_controller->is_recording_in_progress());
-  EXPECT_FALSE(recording_overlay_controller->is_enabled());
+  EXPECT_FALSE(annotations_overlay_controller->is_enabled());
   mouse_highlight_test(/*annotating=*/false);
   touch_highlight_test(/*annotating=*/false);
 }
@@ -1424,8 +1425,7 @@ TEST_F(ProjectorCaptureModeDemoToolsTest,
 TEST_F(ProjectorCaptureModeDemoToolsTest,
        ProjectorDemoToolsEnabledOnRecordingStartHistogramTest) {
   base::HistogramTester histogram_tester;
-  constexpr char kHistogramNameBase[] =
-      "Ash.CaptureModeController.Projector.DemoToolsEnabledOnRecordingStart";
+  constexpr char kHistogramNameBase[] = "DemoToolsEnabledOnRecordingStart";
 
   struct {
     bool enable_tablet_mode;
@@ -1445,7 +1445,10 @@ TEST_F(ProjectorCaptureModeDemoToolsTest,
       EXPECT_FALSE(Shell::Get()->IsInTabletMode());
     }
 
-    const auto histogram_name = GetCaptureModeHistogramName(kHistogramNameBase);
+    const std::string histogram_name = BuildHistogramName(
+        kHistogramNameBase,
+        CaptureModeTestApi().GetBehavior(BehaviorType::kProjector),
+        /*append_ui_mode_suffix=*/true);
     histogram_tester.ExpectBucketCount(histogram_name,
                                        test_case.enable_demo_tools, 0);
     auto* controller = CaptureModeController::Get();
@@ -1458,7 +1461,6 @@ TEST_F(ProjectorCaptureModeDemoToolsTest,
     EXPECT_TRUE(controller->enable_demo_tools());
     controller->EnableDemoTools(test_case.enable_demo_tools);
     EXPECT_TRUE(controller->IsActive());
-    EXPECT_TRUE(controller->capture_mode_session()->is_in_projector_mode());
 
     StartVideoRecordingImmediately();
     EXPECT_TRUE(controller->is_recording_in_progress());

@@ -6,17 +6,17 @@
 
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "base/test/test_support_jni_headers/UrlUtils_jni.h"
 
 namespace base {
 namespace android {
 
 FilePath GetIsolatedTestRoot() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> jtest_data_dir =
-      Java_UrlUtils_getIsolatedTestRoot(env);
-  base::FilePath test_data_dir(
-      base::android::ConvertJavaStringToUTF8(env, jtest_data_dir));
+  JNIEnv* env = jni_zero::AttachCurrentThread();
+  std::string jtest_data_dir = Java_UrlUtils_getIsolatedTestRoot(env);
+  base::FilePath test_data_dir(jtest_data_dir);
   return test_data_dir;
 }
 

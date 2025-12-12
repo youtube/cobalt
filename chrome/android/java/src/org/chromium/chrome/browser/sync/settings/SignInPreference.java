@@ -5,65 +5,96 @@
 package org.chromium.chrome.browser.sync.settings;
 
 import android.content.Context;
+import android.content.Intent;
 import android.util.AttributeSet;
+import android.view.View;
+import android.widget.ImageView;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceViewHolder;
 
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.chrome.R;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.signin.SyncConsentActivityLauncherImpl;
+import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
 import org.chromium.chrome.browser.signin.services.DisplayableProfileData;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
+import org.chromium.chrome.browser.signin.services.SigninManager;
 import org.chromium.chrome.browser.signin.services.SigninManager.SignInStateObserver;
-import org.chromium.chrome.browser.sync.SyncService;
-import org.chromium.chrome.browser.sync.SyncService.SyncStateChangedListener;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
+import org.chromium.chrome.browser.sync.settings.SyncSettingsUtils.SyncError;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode;
+import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode;
+import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
+import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.components.browser_ui.settings.ManagedPreferencesUtils;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.signin.AccountManagerFacade;
-import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.AccountsChangeObserver;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
+import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
+import org.chromium.components.sync.SyncService;
 import org.chromium.components.user_prefs.UserPrefs;
 import org.chromium.ui.base.ViewUtils;
 
 /**
- * A preference that displays "Sign in to Chrome" when the user is not sign in, and displays
- * the user's name, email, profile image and sync error icon if necessary when the user is signed
- * in.
+ * A preference that displays "Sign in to Chrome" when the user is not sign in, and displays the
+ * user's name, email, profile image and sync error icon if necessary when the user is signed in.
  */
-public class SignInPreference
-        extends Preference implements SignInStateObserver, ProfileDataCache.Observer,
-                                      SyncStateChangedListener, AccountsChangeObserver {
-    private final PrefService mPrefService;
+public class SignInPreference extends Preference
+        implements SignInStateObserver,
+                ProfileDataCache.Observer,
+                SyncService.SyncStateChangedListener,
+                AccountsChangeObserver {
     private boolean mWasGenericSigninPromoDisplayed;
     private boolean mViewEnabled;
     private boolean mIsShowingSigninPromo;
-    private final ProfileDataCache mProfileDataCache;
-    private final AccountManagerFacade mAccountManagerFacade;
+    private boolean mShowAlertIcon;
+
+    private Profile mProfile;
+    private PrefService mPrefService;
+    private ProfileDataCache mProfileDataCache;
+    private AccountManagerFacade mAccountManagerFacade;
+    private SyncService mSyncService;
+    private SigninManager mSigninManager;
+    private IdentityManager mIdentityManager;
 
     public ProfileDataCache getProfileDataCache() {
         return mProfileDataCache;
     }
 
-    /**
-     * Constructor for inflating from XML.
-     */
+    /** Constructor for inflating from XML. */
     public SignInPreference(Context context, AttributeSet attrs) {
         super(context, attrs);
         setLayoutResource(R.layout.account_management_account_row);
-
-        mPrefService = UserPrefs.get(Profile.getLastUsedRegularProfile());
-        mProfileDataCache = ProfileDataCache.createWithDefaultImageSizeAndNoBadge(context);
-        mAccountManagerFacade = AccountManagerFacadeProvider.getInstance();
+        setViewId(R.id.account_management_account_row);
         mIsShowingSigninPromo = false;
+    }
+
+    /**
+     * Initialize the dependencies for the SignInPreference.
+     *
+     * <p>Must be called before the preference is attached, which is called from the containing
+     * settings screen's onViewCreated method.
+     */
+    public void initialize(
+            Profile profile,
+            ProfileDataCache profileDataCache,
+            AccountManagerFacade accountManagerFacade) {
+        mProfile = profile;
+        mProfileDataCache = profileDataCache;
+        mAccountManagerFacade = accountManagerFacade;
+        mPrefService = UserPrefs.get(mProfile);
+        mSyncService = SyncServiceFactory.getForProfile(mProfile);
+        mSigninManager = IdentityServicesProvider.get().getSigninManager(mProfile);
+        mIdentityManager = IdentityServicesProvider.get().getIdentityManager(mProfile);
     }
 
     @Override
@@ -71,13 +102,10 @@ public class SignInPreference
         super.onAttached();
 
         mAccountManagerFacade.addObserver(this);
-        IdentityServicesProvider.get()
-                .getSigninManager(Profile.getLastUsedRegularProfile())
-                .addSignInStateObserver(this);
+        mSigninManager.addSignInStateObserver(this);
         mProfileDataCache.addObserver(this);
-        SyncService syncService = SyncService.get();
-        if (syncService != null) {
-            syncService.addSyncStateChangedListener(this);
+        if (mSyncService != null) {
+            mSyncService.addSyncStateChangedListener(this);
         }
 
         update();
@@ -88,13 +116,10 @@ public class SignInPreference
         super.onDetached();
 
         mAccountManagerFacade.removeObserver(this);
-        IdentityServicesProvider.get()
-                .getSigninManager(Profile.getLastUsedRegularProfile())
-                .removeSignInStateObserver(this);
+        mSigninManager.removeSignInStateObserver(this);
         mProfileDataCache.removeObserver(this);
-        SyncService syncService = SyncService.get();
-        if (syncService != null) {
-            syncService.removeSyncStateChangedListener(this);
+        if (mSyncService != null) {
+            mSyncService.removeSyncStateChangedListener(this);
         }
     }
 
@@ -110,25 +135,19 @@ public class SignInPreference
     /** Updates the title, summary, and image based on the current sign-in state. */
     private void update() {
         setVisible(!mIsShowingSigninPromo);
-        if (IdentityServicesProvider.get()
-                        .getSigninManager(Profile.getLastUsedRegularProfile())
-                        .isSigninDisabledByPolicy()) {
-            // TODO(https://crbug.com/1133739): Clean up after revising isSigninDisabledByPolicy.
+        if (!mPrefService.getBoolean(Pref.SIGNIN_ALLOWED)) {
             if (mPrefService.isManagedPreference(Pref.SIGNIN_ALLOWED)) {
                 setupSigninDisabledByPolicy();
             } else {
                 setupSigninDisallowed();
                 assert !mIsShowingSigninPromo
-                    : "Signin Promo should not be shown when signin is not allowed";
+                        : "Signin Promo should not be shown when signin is not allowed";
                 setVisible(false);
             }
             return;
         }
 
-        CoreAccountInfo accountInfo =
-                IdentityServicesProvider.get()
-                        .getIdentityManager(Profile.getLastUsedRegularProfile())
-                        .getPrimaryAccountInfo(ConsentLevel.SIGNIN);
+        CoreAccountInfo accountInfo = mIdentityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
         if (accountInfo != null) {
             setupSignedIn(accountInfo.getEmail());
             return;
@@ -138,15 +157,16 @@ public class SignInPreference
     }
 
     private void setupSigninDisabledByPolicy() {
-        setTitle(R.string.sync_promo_turn_on_sync);
-        setSummary(R.string.sign_in_to_chrome_disabled_summary);
         setFragment(null);
-        setIcon(ManagedPreferencesUtils.getManagedByEnterpriseIconId());
-        setViewEnabled(false);
-        setOnPreferenceClickListener(pref -> {
-            ManagedPreferencesUtils.showManagedByAdministratorToast(getContext());
-            return true;
-        });
+        setTitle(R.string.signin_settings_title);
+        setSummary(R.string.settings_signin_disabled_by_administrator);
+        setIcon(R.drawable.ic_business_small_with_bg);
+        setViewEnabledAndShowAlertIcon(/* enabled= */ false, /* alertIconVisible= */ false);
+        setOnPreferenceClickListener(
+                pref -> {
+                    ManagedPreferencesUtils.showManagedByAdministratorToast(getContext());
+                    return true;
+                });
         mWasGenericSigninPromoDisplayed = false;
     }
 
@@ -155,15 +175,39 @@ public class SignInPreference
     }
 
     private void setupGenericPromo() {
-        setTitle(R.string.sync_promo_turn_on_sync);
-        setSummary(R.string.signin_pref_summary);
+        setTitle(R.string.signin_settings_title);
+        setSummary(R.string.signin_settings_subtitle);
 
         setFragment(null);
-        setIcon(AppCompatResources.getDrawable(getContext(), R.drawable.logo_avatar_anonymous));
-        setViewEnabled(true);
-        setOnPreferenceClickListener(pref
-                -> SyncConsentActivityLauncherImpl.get().launchActivityIfAllowed(
-                        getContext(), SigninAccessPoint.SETTINGS_SYNC_OFF_ROW));
+        setIcon(AppCompatResources.getDrawable(getContext(), R.drawable.account_circle_with_bg));
+        setViewEnabledAndShowAlertIcon(/* enabled= */ true, /* alertIconVisible= */ false);
+        OnPreferenceClickListener clickListener =
+                pref -> {
+                    AccountPickerBottomSheetStrings bottomSheetStrings =
+                            new AccountPickerBottomSheetStrings.Builder(
+                                            R.string.signin_account_picker_bottom_sheet_title)
+                                    .build();
+                    BottomSheetSigninAndHistorySyncConfig config =
+                            new BottomSheetSigninAndHistorySyncConfig.Builder(
+                                            bottomSheetStrings,
+                                            NoAccountSigninMode.BOTTOM_SHEET,
+                                            WithAccountSigninMode.DEFAULT_ACCOUNT_BOTTOM_SHEET,
+                                            HistorySyncConfig.OptInMode.OPTIONAL)
+                                    .build();
+                    @Nullable
+                    Intent intent =
+                            SigninAndHistorySyncActivityLauncherImpl.get()
+                                    .createBottomSheetSigninIntentOrShowError(
+                                            getContext(),
+                                            mProfile,
+                                            config,
+                                            SigninAccessPoint.SETTINGS);
+                    if (intent != null) {
+                        getContext().startActivity(intent);
+                    }
+                    return true;
+                };
+        setOnPreferenceClickListener(clickListener);
 
         if (!mWasGenericSigninPromoDisplayed) {
             RecordUserAction.record("Signin_Impression_FromSettings");
@@ -174,27 +218,37 @@ public class SignInPreference
 
     private void setupSignedIn(String accountName) {
         DisplayableProfileData profileData = mProfileDataCache.getProfileDataOrDefault(accountName);
-        final boolean canShowEmailAddress = profileData.hasDisplayableEmailAddress()
-                || !ChromeFeatureList.isEnabled(
-                        ChromeFeatureList.HIDE_NON_DISPLAYABLE_ACCOUNT_EMAIL);
+        final boolean canShowEmailAddress = profileData.hasDisplayableEmailAddress();
         setSummary(canShowEmailAddress ? accountName : "");
-        setTitle(SyncSettingsUtils.getDisplayableFullNameOrEmailWithPreference(
-                profileData, getContext(), SyncSettingsUtils.TitlePreference.FULL_NAME));
-        setFragment(AccountManagementFragment.class.getName());
+        setTitle(
+                SyncSettingsUtils.getDisplayableFullNameOrEmailWithPreference(
+                        profileData, getContext(), SyncSettingsUtils.TitlePreference.FULL_NAME));
+        if (!mSyncService.hasSyncConsent()) {
+            setFragment(ManageSyncSettings.class.getName());
+        } else {
+            setFragment(AccountManagementFragment.class.getName());
+        }
         setIcon(profileData.getImage());
-        setViewEnabled(true);
+        setViewEnabledAndShowAlertIcon(
+                /* enabled= */ true,
+                /* alertIconVisible= */ SyncSettingsUtils.getIdentityError(mProfile)
+                        != SyncError.NO_ERROR);
         setOnPreferenceClickListener(null);
 
         mWasGenericSigninPromoDisplayed = false;
     }
 
     // This just changes visual representation. Actual enabled flag in preference stays
-    // always true to receive clicks (necessary to show "Managed by administrator" toast).
-    private void setViewEnabled(boolean enabled) {
-        if (mViewEnabled == enabled) {
+    // always true to receive clicks (necessary to show "Managed by administrator" toast). This also
+    // sets the visibility of the alert icon.
+    private void setViewEnabledAndShowAlertIcon(boolean enabled, boolean alertIconVisible) {
+        assert enabled || !alertIconVisible
+                : "Alert icon should not be made visible if the view is disabled.";
+        if (mViewEnabled == enabled && mShowAlertIcon == alertIconVisible) {
             return;
         }
         mViewEnabled = enabled;
+        mShowAlertIcon = alertIconVisible;
         notifyChanged();
     }
 
@@ -202,6 +256,9 @@ public class SignInPreference
     public void onBindViewHolder(PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
         ViewUtils.setEnabledRecursive(holder.itemView, mViewEnabled);
+
+        ImageView alertIcon = (ImageView) holder.findViewById(R.id.alert_icon);
+        alertIcon.setVisibility(mShowAlertIcon ? View.VISIBLE : View.GONE);
     }
 
     // SyncService.SyncStateChangedListener implementation.
@@ -224,7 +281,7 @@ public class SignInPreference
 
     // AccountsChangeObserver implementation.
     @Override
-    public void onAccountsChanged() {
+    public void onCoreAccountInfosChanged() {
         update();
     }
 }

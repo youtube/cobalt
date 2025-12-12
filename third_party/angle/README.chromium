@@ -1,8 +1,11 @@
 Name: ANGLE
 URL: http://angleproject.org
-Version: unknown
-License: BSD
+Version: N/A
+Revision: DEPS
+License: BSD-3-Clause
 License File: LICENSE
+Security Critical: yes
+Shipped: yes
 
 Description:
 The goal of ANGLE is to allow users of multiple operating systems

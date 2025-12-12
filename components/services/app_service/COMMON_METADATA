@@ -1,4 +1,4 @@
-monorail: {
-  component: "Platform>Apps>Foundation>AppService"
+team_email: "cros-web-apps-team@google.com"
+buganizer: {
+  component_id: 1389907
 }
-team_email: "chromeos-apps-foundation-team@google.com"

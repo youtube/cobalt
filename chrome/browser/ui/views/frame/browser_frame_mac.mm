@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-
 #import "chrome/browser/ui/views/frame/browser_frame_mac.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/apps/app_shim/app_shim_host_mac.h"
 #include "chrome/browser/apps/app_shim/app_shim_manager_mac.h"
@@ -14,9 +13,11 @@
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #import "chrome/browser/ui/cocoa/browser_window_command_handler.h"
 #import "chrome/browser/ui/cocoa/chrome_command_dispatcher_delegate.h"
 #import "chrome/browser/ui/cocoa/touchbar/browser_window_touch_bar_controller.h"
+#include "chrome/browser/ui/lens/lens_overlay_entry_point_controller.h"
 #include "chrome/browser/ui/views/frame/browser_frame.h"
 #include "chrome/browser/ui/views/frame/browser_non_client_frame_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -27,6 +28,8 @@
 #include "components/bookmarks/common/bookmark_pref_names.h"
 #include "components/dom_distiller/content/browser/distillable_page_utils.h"
 #include "components/dom_distiller/core/url_utils.h"
+#include "components/input/native_web_keyboard_event.h"
+#include "components/lens/lens_features.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
 #import "components/remote_cocoa/app_shim/native_widget_mac_nswindow.h"
 #import "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
@@ -35,18 +38,19 @@
 #include "components/remote_cocoa/common/native_widget_ns_window.mojom.h"
 #include "components/remote_cocoa/common/native_widget_ns_window_host.mojom.h"
 #include "components/web_modal/web_contents_modal_dialog_host.h"
-#include "content/public/browser/native_web_keyboard_event.h"
 #include "ui/accessibility/platform/ax_platform_node.h"
 #import "ui/base/cocoa/window_size_constants.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #import "ui/views/cocoa/native_widget_mac_ns_window_host.h"
 
 namespace {
 
 AppShimHost* GetHostForBrowser(Browser* browser) {
   auto* const shim_manager = apps::AppShimManager::Get();
-  if (!shim_manager)
+  if (!shim_manager) {
     return nullptr;
+  }
   return shim_manager->GetHostForRemoteCocoaBrowser(browser);
 }
 
@@ -55,21 +59,21 @@ bool UsesRemoteCocoaApplicationHost(Browser* browser) {
   return shim_manager && shim_manager->BrowserUsesRemoteCocoa(browser);
 }
 
-bool ShouldHandleKeyboardEvent(const content::NativeWebKeyboardEvent& event) {
-  // |event.skip_in_browser| is true when it shouldn't be handled by the browser
-  // if it was ignored by the renderer. See http://crbug.com/25000.
-  if (event.skip_in_browser)
+bool ShouldHandleKeyboardEvent(const input::NativeWebKeyboardEvent& event) {
+  // |event.skip_if_unhandled| is true when it shouldn't be handled by the
+  // browser if it was ignored by the renderer. See http://crbug.com/25000.
+  if (event.skip_if_unhandled) {
     return false;
+  }
 
   // Ignore synthesized keyboard events. See http://crbug.com/23221.
-  if (event.GetType() == content::NativeWebKeyboardEvent::Type::kChar)
+  if (event.GetType() == input::NativeWebKeyboardEvent::Type::kChar) {
     return false;
+  }
 
-  // If the event was not synthesized it should have an os_event.
-  DCHECK(event.os_event);
-
-  // Do not fire shortcuts on key up.
-  return [event.os_event type] == NSEventTypeKeyDown;
+  // Do not fire shortcuts on key up, and only forward shortcuts if we have an
+  // underlying os event.
+  return event.os_event && event.os_event.Get().type == NSEventTypeKeyDown;
 }
 
 }  // namespace
@@ -77,17 +81,17 @@ bool ShouldHandleKeyboardEvent(const content::NativeWebKeyboardEvent& event) {
 // Bridge Obj-C class for WindowTouchBarDelegate and
 // BrowserWindowTouchBarController.
 @interface BrowserWindowTouchBarViewsDelegate
-    : NSObject<WindowTouchBarDelegate> {
-  raw_ptr<Browser> _browser;  // Weak.
-  NSWindow* _window;  // Weak.
-  base::scoped_nsobject<BrowserWindowTouchBarController> _touchBarController;
-}
+    : NSObject <WindowTouchBarDelegate>
 
 - (BrowserWindowTouchBarController*)touchBarController;
 
 @end
 
-@implementation BrowserWindowTouchBarViewsDelegate
+@implementation BrowserWindowTouchBarViewsDelegate {
+  raw_ptr<Browser> _browser;
+  NSWindow* __weak _window;
+  BrowserWindowTouchBarController* __strong _touchBarController;
+}
 
 - (instancetype)initWithBrowser:(Browser*)browser window:(NSWindow*)window {
   if ((self = [super init])) {
@@ -99,14 +103,14 @@ bool ShouldHandleKeyboardEvent(const content::NativeWebKeyboardEvent& event) {
 }
 
 - (BrowserWindowTouchBarController*)touchBarController {
-  return _touchBarController.get();
+  return _touchBarController;
 }
 
 - (NSTouchBar*)makeTouchBar {
   if (!_touchBarController) {
-    _touchBarController.reset([[BrowserWindowTouchBarController alloc]
-        initWithBrowser:_browser
-                 window:_window]);
+    _touchBarController =
+        [[BrowserWindowTouchBarController alloc] initWithBrowser:_browser
+                                                          window:_window];
   }
   return [_touchBarController makeTouchBar];
 }
@@ -155,7 +159,7 @@ void BrowserFrameMac::GetWindowFrameTitlebarHeight(
     *titlebar_height =
         browser_view_->GetTabStripHeight() +
         browser_view_->frame()->GetFrameView()->GetTopInset(true);
-    if (!browser_view_->GetTabStripVisible()) {
+    if (!browser_view_->ShouldDrawTabStrip()) {
       *titlebar_height +=
           browser_view_->GetWebAppFrameToolbarPreferredSize().height() +
           kWebAppMenuMargin * 2;
@@ -216,22 +220,6 @@ void BrowserFrameMac::ValidateUserInterfaceItem(
           !media_router::MediaRouterEnabled(browser->profile());
       break;
     }
-    case IDC_DISTILL_PAGE: {
-      // Enable the reader mode option if the page is a distilled page
-      // or if the page is distillable.
-      content::WebContents* web_contents =
-          browser->tab_strip_model()->GetActiveWebContents();
-      absl::optional<dom_distiller::DistillabilityResult> distillability =
-          dom_distiller::GetLatestResult(web_contents);
-      bool distillable =
-          distillability && distillability.value().is_distillable;
-      bool is_distilled = dom_distiller::url_utils::IsDistilledPage(
-          web_contents->GetLastCommittedURL());
-      result->new_title.emplace(l10n_util::GetStringUTF16(
-          is_distilled ? IDS_EXIT_DISTILLED_PAGE : IDS_DISTILL_PAGE));
-      result->enable = distillable || is_distilled;
-      break;
-    }
     default:
       break;
   }
@@ -274,6 +262,17 @@ void BrowserFrameMac::ValidateUserInterfaceItem(
                ->IsManaged();
       break;
     }
+    case IDC_SHOW_GOOGLE_LENS_SHORTCUT: {
+      PrefService* prefs = browser->profile()->GetPrefs();
+      result->new_toggle_state =
+          prefs->GetBoolean(omnibox::kShowGoogleLensShortcut);
+      // Disable this menu option if the LensOverlay feature is not enabled.
+      result->enable = lens::features::IsOmniboxEntryPointEnabled() &&
+                       browser->GetFeatures()
+                           .lens_overlay_entry_point_controller()
+                           ->IsEnabled();
+      break;
+    }
     case IDC_TOGGLE_JAVASCRIPT_APPLE_EVENTS: {
       PrefService* prefs = browser->profile()->GetPrefs();
       result->new_toggle_state =
@@ -285,7 +284,7 @@ void BrowserFrameMac::ValidateUserInterfaceItem(
       // Menu items may be validated during browser startup, before the
       // TabStripModel has been populated. Short-circuit to false in that case.
       result->new_toggle_state =
-          !model->empty() &&
+          !model->empty() && model->active_index() != TabStripModel::kNoTab &&
           !model->WillContextMenuMuteSites(model->active_index());
       break;
     }
@@ -315,7 +314,8 @@ bool BrowserFrameMac::WillExecuteCommand(
     // The specification for this private extensions API is incredibly vague.
     // For now, we avoid triggering chrome commands prior to giving the
     // firstResponder a chance to handle the event.
-    if (extensions::GlobalShortcutListener::GetInstance()
+    if (ui::GlobalAcceleratorListener::GetInstance() &&
+        ui::GlobalAcceleratorListener::GetInstance()
             ->IsShortcutHandlingSuspended()) {
       return false;
     }
@@ -326,7 +326,7 @@ bool BrowserFrameMac::WillExecuteCommand(
     // https://crbug.com/836947.
     // The function IsReservedCommandOrKey does not examine its event argument
     // on macOS.
-    content::NativeWebKeyboardEvent dummy_event(
+    input::NativeWebKeyboardEvent dummy_event(
         blink::WebInputEvent::Type::kKeyDown, 0, base::TimeTicks());
     if (!browser->command_controller()->IsReservedCommandOrKey(command,
                                                                dummy_event)) {
@@ -342,8 +342,9 @@ bool BrowserFrameMac::ExecuteCommand(
     WindowOpenDisposition window_open_disposition,
     bool is_before_first_responder) {
   if (!WillExecuteCommand(command, window_open_disposition,
-                          is_before_first_responder))
+                          is_before_first_responder)) {
     return false;
+  }
 
   Browser* browser = browser_view_->browser();
 
@@ -359,8 +360,15 @@ void BrowserFrameMac::PopulateCreateWindowParams(
                        NSWindowStyleMaskMiniaturizable |
                        NSWindowStyleMaskResizable;
 
-  base::scoped_nsobject<NativeWidgetMacNSWindow> ns_window;
-  if (browser_view_->GetIsNormalType() || browser_view_->GetIsWebAppType()) {
+  if (browser_view_->GetIsPictureInPictureType()) {
+    // Picture in Picture windows, even if they are part of a web app, draw
+    // their own title bar and decorations.  Note that `GetIsWebAppType()` might
+    // also be true here, so it's important that this check is first.
+    params->window_class = remote_cocoa::mojom::WindowClass::kFrameless;
+    params->style_mask = NSWindowStyleMaskFullSizeContentView |
+                         NSWindowStyleMaskTitled | NSWindowStyleMaskResizable;
+  } else if (browser_view_->GetIsNormalType() ||
+             browser_view_->GetIsWebAppType()) {
     params->window_class = remote_cocoa::mojom::WindowClass::kBrowser;
     params->style_mask |= NSWindowStyleMaskFullSizeContentView;
 
@@ -368,11 +376,9 @@ void BrowserFrameMac::PopulateCreateWindowParams(
     params->titlebar_appears_transparent = true;
 
     // Hosted apps draw their own window title.
-    if (browser_view_->GetIsWebAppType())
+    if (browser_view_->GetIsWebAppType()) {
       params->window_title_hidden = true;
-  } else if (browser_view_->GetIsPictureInPictureType()) {
-    params->window_class = remote_cocoa::mojom::WindowClass::kFrameless;
-    params->style_mask = NSWindowStyleMaskFullSizeContentView;
+    }
   } else {
     params->window_class = remote_cocoa::mojom::WindowClass::kDefault;
   }
@@ -382,26 +388,26 @@ void BrowserFrameMac::PopulateCreateWindowParams(
 NativeWidgetMacNSWindow* BrowserFrameMac::CreateNSWindow(
     const remote_cocoa::mojom::CreateWindowParams* params) {
   NativeWidgetMacNSWindow* ns_window = NativeWidgetMac::CreateNSWindow(params);
-  touch_bar_delegate_.reset([[BrowserWindowTouchBarViewsDelegate alloc]
+  touch_bar_delegate_ = [[BrowserWindowTouchBarViewsDelegate alloc]
       initWithBrowser:browser_view_->browser()
-               window:ns_window]);
-  [ns_window setWindowTouchBarDelegate:touch_bar_delegate_.get()];
+               window:ns_window];
+  [ns_window setWindowTouchBarDelegate:touch_bar_delegate_];
 
   return ns_window;
 }
 
 remote_cocoa::ApplicationHost*
 BrowserFrameMac::GetRemoteCocoaApplicationHost() {
-  if (auto* host = GetHostForBrowser(browser_view_->browser()))
+  if (auto* host = GetHostForBrowser(browser_view_->browser())) {
     return host->GetRemoteCocoaApplicationHost();
+  }
   return nullptr;
 }
 
 void BrowserFrameMac::OnWindowInitialized() {
   if (auto* bridge = GetInProcessNSWindowBridge()) {
-    bridge->SetCommandDispatcher(
-        [[[ChromeCommandDispatcherDelegate alloc] init] autorelease],
-        [[[BrowserWindowCommandHandler alloc] init] autorelease]);
+    bridge->SetCommandDispatcher([[ChromeCommandDispatcherDelegate alloc] init],
+                                 [[BrowserWindowCommandHandler alloc] init]);
   } else {
     if (auto* host = GetHostForBrowser(browser_view_->browser())) {
       host->GetAppShim()->CreateCommandDispatcherForWidget(
@@ -414,7 +420,7 @@ void BrowserFrameMac::OnWindowDestroying(gfx::NativeWindow native_window) {
   // Clear delegates set in CreateNSWindow() to prevent objects with a reference
   // to |window| attempting to validate commands by looking for a Browser*.
   NativeWidgetMacNSWindow* ns_window =
-      base::mac::ObjCCastStrict<NativeWidgetMacNSWindow>(
+      base::apple::ObjCCastStrict<NativeWidgetMacNSWindow>(
           native_window.GetNativeNSWindow());
   [ns_window setWindowTouchBarDelegate:nil];
 }
@@ -433,15 +439,16 @@ void BrowserFrameMac::EnabledStateChangedForCommand(int id, bool enabled) {
       GetNSWindowHost()->CanGoForward(enabled);
       break;
     default:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // BrowserFrameMac, NativeBrowserFrame implementation:
 
-views::Widget::InitParams BrowserFrameMac::GetWidgetParams() {
-  views::Widget::InitParams params;
+views::Widget::InitParams BrowserFrameMac::GetWidgetParams(
+    views::Widget::InitParams::Ownership ownership) {
+  views::Widget::InitParams params(ownership);
   params.native_widget = this;
   return params;
 }
@@ -460,35 +467,39 @@ bool BrowserFrameMac::ShouldSaveWindowPlacement() const {
 
 void BrowserFrameMac::GetWindowPlacement(
     gfx::Rect* bounds,
-    ui::WindowShowState* show_state) const {
+    ui::mojom::WindowShowState* show_state) const {
   return NativeWidgetMac::GetWindowPlacement(bounds, show_state);
 }
 
 content::KeyboardEventProcessingResult BrowserFrameMac::PreHandleKeyboardEvent(
-    const content::NativeWebKeyboardEvent& event) {
+    const input::NativeWebKeyboardEvent& event) {
   // On macOS, all keyEquivalents that use modifier keys are handled by
   // -[CommandDispatcher performKeyEquivalent:]. If this logic is being hit,
   // it means that the event was not handled, so we must return either
   // NOT_HANDLED or NOT_HANDLED_IS_SHORTCUT.
-  if (EventUsesPerformKeyEquivalent(event.os_event)) {
-    int command_id = CommandForKeyEvent(event.os_event).chrome_command;
-    if (command_id == -1)
-      command_id = DelayedWebContentsCommandForKeyEvent(event.os_event);
-    if (command_id != -1)
+  NSEvent* ns_event = event.os_event.Get();
+  if (EventUsesPerformKeyEquivalent(ns_event)) {
+    int command_id = CommandForKeyEvent(ns_event).chrome_command;
+    if (command_id == -1) {
+      command_id = DelayedWebContentsCommandForKeyEvent(ns_event);
+    }
+    if (command_id != -1) {
       return content::KeyboardEventProcessingResult::NOT_HANDLED_IS_SHORTCUT;
+    }
   }
 
   return content::KeyboardEventProcessingResult::NOT_HANDLED;
 }
 
 bool BrowserFrameMac::HandleKeyboardEvent(
-    const content::NativeWebKeyboardEvent& event) {
-  if (!ShouldHandleKeyboardEvent(event))
+    const input::NativeWebKeyboardEvent& event) {
+  if (!ShouldHandleKeyboardEvent(event)) {
     return false;
+  }
 
   // Redispatch the event. If it's a keyEquivalent:, this gives
   // CommandDispatcher the opportunity to finish passing the event to consumers.
-  return GetNSWindowHost()->RedispatchKeyEvent(event.os_event);
+  return GetNSWindowHost()->RedispatchKeyEvent(event.os_event.Get());
 }
 
 bool BrowserFrameMac::ShouldRestorePreviousBrowserWidgetState() const {

@@ -33,6 +33,8 @@
 
 #include "base/values.h"
 #include "third_party/blink/public/mojom/devtools/devtools_frontend.mojom-blink.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/widget_creation_observer.h"
 #include "third_party/blink/renderer/core/inspector/inspector_frontend_client.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_associated_receiver.h"
@@ -51,7 +53,8 @@ class DevToolsFrontendImpl final
     : public GarbageCollected<DevToolsFrontendImpl>,
       public Supplement<LocalFrame>,
       public mojom::blink::DevToolsFrontend,
-      public InspectorFrontendClient {
+      public InspectorFrontendClient,
+      public WidgetCreationObserver {
  public:
   static const char kSupplementName[];
 
@@ -70,6 +73,9 @@ class DevToolsFrontendImpl final
   ~DevToolsFrontendImpl() override;
   void DidClearWindowObject();
   void Trace(Visitor*) const override;
+
+  // WidgetCreationObserver implementation.
+  void OnLocalRootWidgetCreated() override;
 
  private:
   void DestroyOnHostGone();

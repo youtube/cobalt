@@ -7,6 +7,7 @@
 
 #include <string>
 
+#include "base/memory/raw_ptr.h"
 #include "base/sequence_checker.h"
 #include "chromeos/ash/components/dbus/update_engine/update_engine_client.h"
 
@@ -30,7 +31,7 @@ class InstalledVersionUpdater : public ash::UpdateEngineClient::Observer {
   void OnChannel(bool is_current_channel, const std::string& channel_name);
 
   SEQUENCE_CHECKER(sequence_checker_);
-  BuildState* const build_state_;
+  const raw_ptr<BuildState> build_state_;
 };
 
 #endif  // CHROME_BROWSER_UPGRADE_DETECTOR_INSTALLED_VERSION_UPDATER_CHROMEOS_H_

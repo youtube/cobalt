@@ -10,10 +10,14 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_RTP_PACKET_H_
 #define MODULES_RTP_RTCP_SOURCE_RTP_PACKET_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "modules/rtp_rtcp/include/rtp_header_extension_map.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
@@ -48,10 +52,10 @@ class RtpPacket {
   // read or allocate extensions in methods GetExtension, AllocateExtension,
   // etc.)
   bool Parse(const uint8_t* buffer, size_t size);
-  bool Parse(rtc::ArrayView<const uint8_t> packet);
+  bool Parse(ArrayView<const uint8_t> packet);
 
   // Parse and move given buffer into Packet.
-  bool Parse(rtc::CopyOnWriteBuffer packet);
+  bool Parse(CopyOnWriteBuffer packet);
 
   // Maps extensions id to their types.
   void IdentifyExtensions(ExtensionManager extensions);
@@ -73,15 +77,15 @@ class RtpPacket {
   size_t payload_size() const { return payload_size_; }
   bool has_padding() const { return buffer_[0] & 0x20; }
   size_t padding_size() const { return padding_size_; }
-  rtc::ArrayView<const uint8_t> payload() const {
-    return rtc::MakeArrayView(data() + payload_offset_, payload_size_);
+  ArrayView<const uint8_t> payload() const {
+    return MakeArrayView(data() + payload_offset_, payload_size_);
   }
-  rtc::CopyOnWriteBuffer PayloadBuffer() const {
+  CopyOnWriteBuffer PayloadBuffer() const {
     return buffer_.Slice(payload_offset_, payload_size_);
   }
 
   // Buffer.
-  rtc::CopyOnWriteBuffer Buffer() const { return buffer_; }
+  CopyOnWriteBuffer Buffer() const { return buffer_; }
   size_t capacity() const { return buffer_.capacity(); }
   size_t size() const {
     return payload_offset_ + payload_size_ + padding_size_;
@@ -114,7 +118,7 @@ class RtpPacket {
   // Writes csrc list. Assumes:
   // a) There is enough room left in buffer.
   // b) Extension headers, payload or padding data has not already been added.
-  void SetCsrcs(rtc::ArrayView<const uint32_t> csrcs);
+  void SetCsrcs(ArrayView<const uint32_t> csrcs);
 
   // Header extensions.
   template <typename Extension>
@@ -127,34 +131,37 @@ class RtpPacket {
   bool IsRegistered() const;
 
   template <typename Extension, typename FirstValue, typename... Values>
-  bool GetExtension(FirstValue, Values...) const;
+  bool GetExtension(FirstValue&&, Values&&...) const;
 
   template <typename Extension>
-  absl::optional<typename Extension::value_type> GetExtension() const;
+  std::optional<typename Extension::value_type> GetExtension() const;
 
   // Returns view of the raw extension or empty view on failure.
   template <typename Extension>
-  rtc::ArrayView<const uint8_t> GetRawExtension() const;
+  ArrayView<const uint8_t> GetRawExtension() const;
 
   template <typename Extension, typename... Values>
   bool SetExtension(const Values&...);
 
   template <typename Extension>
-  bool SetRawExtension(rtc::ArrayView<const uint8_t> data);
+  bool SetRawExtension(ArrayView<const uint8_t> data);
 
   template <typename Extension>
   bool ReserveExtension();
 
   // Find or allocate an extension `type`. Returns view of size `length`
   // to write raw extension to or an empty view on failure.
-  rtc::ArrayView<uint8_t> AllocateExtension(ExtensionType type, size_t length);
+  ArrayView<uint8_t> AllocateExtension(ExtensionType type, size_t length);
 
   // Find an extension `type`.
   // Returns view of the raw extension or empty view on failure.
-  rtc::ArrayView<const uint8_t> FindExtension(ExtensionType type) const;
+  ArrayView<const uint8_t> FindExtension(ExtensionType type) const;
 
-  // Reserve size_bytes for payload. Returns nullptr on failure.
+  // Returns pointer to the payload of size at least `size_bytes`.
+  // Keeps original payload, if any. If `size_bytes` is larger than current
+  // `payload_size()`, remaining bytes are uninitialized.
   uint8_t* SetPayloadSize(size_t size_bytes);
+
   // Same as SetPayloadSize but doesn't guarantee to keep current payload.
   uint8_t* AllocatePayload(size_t size_bytes);
 
@@ -187,7 +194,7 @@ class RtpPacket {
 
   // Allocates and returns place to store rtp header extension.
   // Returns empty arrayview on failure.
-  rtc::ArrayView<uint8_t> AllocateRawExtension(int id, size_t length);
+  ArrayView<uint8_t> AllocateRawExtension(int id, size_t length);
 
   // Promotes existing one-byte header extensions to two-byte header extensions
   // by rewriting the data and updates the corresponding extension offsets.
@@ -214,7 +221,7 @@ class RtpPacket {
   ExtensionManager extensions_;
   std::vector<ExtensionInfo> extension_entries_;
   size_t extensions_size_ = 0;  // Unaligned.
-  rtc::CopyOnWriteBuffer buffer_;
+  CopyOnWriteBuffer buffer_;
 };
 
 template <typename Extension>
@@ -228,24 +235,25 @@ bool RtpPacket::IsRegistered() const {
 }
 
 template <typename Extension, typename FirstValue, typename... Values>
-bool RtpPacket::GetExtension(FirstValue first, Values... values) const {
+bool RtpPacket::GetExtension(FirstValue&& first, Values&&... values) const {
   auto raw = FindExtension(Extension::kId);
   if (raw.empty())
     return false;
-  return Extension::Parse(raw, first, values...);
+  return Extension::Parse(raw, std::forward<FirstValue>(first),
+                          std::forward<Values>(values)...);
 }
 
 template <typename Extension>
-absl::optional<typename Extension::value_type> RtpPacket::GetExtension() const {
-  absl::optional<typename Extension::value_type> result;
+std::optional<typename Extension::value_type> RtpPacket::GetExtension() const {
+  std::optional<typename Extension::value_type> result;
   auto raw = FindExtension(Extension::kId);
   if (raw.empty() || !Extension::Parse(raw, &result.emplace()))
-    result = absl::nullopt;
+    result = std::nullopt;
   return result;
 }
 
 template <typename Extension>
-rtc::ArrayView<const uint8_t> RtpPacket::GetRawExtension() const {
+ArrayView<const uint8_t> RtpPacket::GetRawExtension() const {
   return FindExtension(Extension::kId);
 }
 
@@ -259,9 +267,8 @@ bool RtpPacket::SetExtension(const Values&... values) {
 }
 
 template <typename Extension>
-bool RtpPacket::SetRawExtension(rtc::ArrayView<const uint8_t> data) {
-  rtc::ArrayView<uint8_t> buffer =
-      AllocateExtension(Extension::kId, data.size());
+bool RtpPacket::SetRawExtension(ArrayView<const uint8_t> data) {
+  ArrayView<uint8_t> buffer = AllocateExtension(Extension::kId, data.size());
   if (buffer.empty()) {
     return false;
   }

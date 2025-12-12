@@ -97,8 +97,6 @@ class WPTServe(server_base.ServerBase):
             finder.path_from_wpt_tests(),
         ]
 
-        # Some users (e.g. run_webdriver_tests.py) do not need WebSocket
-        # handlers, so we only add the flag if the directory exists.
         path_to_ws_handlers = finder.path_from_wpt_tests(
             'websockets', 'handlers')
         if self._port_obj.host.filesystem.exists(path_to_ws_handlers):
@@ -122,18 +120,21 @@ class WPTServe(server_base.ServerBase):
         self._output_log_path = self._filesystem.join(output_dir,
                                                       'wptserve_stdout.txt')
 
-        expiration_date = datetime.date(2025, 1, 4)
+        expiration_date = datetime.date(2033, 2, 22)
         if datetime.date.today() > expiration_date - datetime.timedelta(30):
             _log.error(
                 'Pre-generated keys and certificates are going to be expired at %s.'
-                ' Please re-generate them by following steps in %s/README.chromium.',
+                ' Please re-generate them by following steps in %s/README.md.',
                 expiration_date.strftime('%b %d %Y'), self.path_to_wpt_support)
 
     def _prepare_config(self):
         fs = self._filesystem
         finder = PathFinder(fs)
-        template_path = finder.path_from_wpt_tests('config.json')
+        template_path = finder.path_from_wpt_tests('.config.json')
         config = json.loads(fs.read_text_file(template_path))
+        for alias in config['aliases']:
+            if alias['url-path'] == "/resources/testdriver-vendor.js":
+                alias['local-dir'] = "resources"
         config['aliases'].append({
             'url-path':
             '/gen/',

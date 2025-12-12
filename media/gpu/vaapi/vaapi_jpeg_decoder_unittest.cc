@@ -13,8 +13,6 @@
 
 // This has to be included first.
 // See http://code.google.com/p/googletest/issues/detail?id=371
-#include "testing/gtest/include/gtest/gtest.h"
-
 #include "base/containers/span.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
@@ -25,13 +23,13 @@
 #include "media/base/video_types.h"
 #include "media/gpu/test/local_gpu_memory_buffer_manager.h"
 #include "media/gpu/vaapi/test_utils.h"
-#include "media/gpu/vaapi/va_surface.h"
 #include "media/gpu/vaapi/vaapi_image_decoder.h"
 #include "media/gpu/vaapi/vaapi_image_decoder_test_common.h"
 #include "media/gpu/vaapi/vaapi_jpeg_decoder.h"
 #include "media/gpu/vaapi/vaapi_utils.h"
 #include "media/gpu/vaapi/vaapi_wrapper.h"
 #include "media/parsers/jpeg_parser.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/libyuv/include/libyuv.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -95,8 +93,7 @@ DecodedImagePtr GetSwDecode(base::span<const uint8_t> encoded_image,
                             std::vector<uint8_t>* dest_v) {
   DCHECK(dest_y && dest_u && dest_v);
   JpegParseResult parse_result;
-  const bool result = ParseJpegPicture(encoded_image.data(),
-                                       encoded_image.size(), &parse_result);
+  const bool result = ParseJpegPicture(encoded_image, &parse_result);
   if (!result)
     return nullptr;
 
@@ -175,12 +172,11 @@ std::vector<unsigned char> GenerateJpegImage(
   // size), it will be decoded incorrectly in AMD Stoney Ridge (see
   // b/127874877). When that's resolved, change the quality here to 100 so that
   // the generated JPEG is large.
-  std::vector<unsigned char> jpeg_data;
-  if (gfx::JPEGCodec::Encode(
-          SkPixmap(image_info, rgba_data.data(), stride) /* input */,
-          95 /* quality */, subsampling /* downsample */,
-          &jpeg_data /* output */)) {
-    return jpeg_data;
+  std::optional<std::vector<uint8_t>> jpeg_data = gfx::JPEGCodec::Encode(
+      /*input=*/SkPixmap(image_info, rgba_data.data(), stride),
+      /*quality=*/95, /*downsample=*/subsampling);
+  if (jpeg_data) {
+    return jpeg_data.value();
   }
   return {};
 }
@@ -319,7 +315,7 @@ TEST_P(VaapiJpegDecoderTest, DecodeSucceeds) {
   std::string jpeg_data;
   ASSERT_TRUE(base::ReadFileToString(input_file, &jpeg_data))
       << "failed to read input data from " << input_file.value();
-  const auto encoded_image = base::as_bytes(base::make_span(jpeg_data));
+  const auto encoded_image = base::as_byte_span(jpeg_data);
 
   // Skip the image if the VAAPI driver doesn't claim to support its chroma
   // subsampling format. However, we expect at least 4:2:0 and 4:2:2 support.
@@ -328,8 +324,7 @@ TEST_P(VaapiJpegDecoderTest, DecodeSucceeds) {
   ASSERT_TRUE(supported_internal_formats.yuv420);
   ASSERT_TRUE(supported_internal_formats.yuv422);
   JpegParseResult parse_result;
-  ASSERT_TRUE(ParseJpegPicture(encoded_image.data(), encoded_image.size(),
-                               &parse_result));
+  ASSERT_TRUE(ParseJpegPicture(encoded_image, &parse_result));
   const unsigned int rt_format =
       VaSurfaceFormatForJpeg(parse_result.frame_header);
   ASSERT_NE(kInvalidVaRtFormat, rt_format);
@@ -436,7 +431,7 @@ TEST_F(VaapiJpegDecoderTest, DecodeSucceedsForSupportedSizes) {
                                              {max_width, max_height}};
   for (const auto& test_size : test_sizes) {
     const std::vector<unsigned char> jpeg_data = GenerateJpegImage(test_size);
-    auto jpeg_data_span = base::as_bytes(base::make_span(jpeg_data));
+    auto jpeg_data_span = base::as_byte_span(jpeg_data);
     ASSERT_FALSE(jpeg_data.empty());
     std::unique_ptr<ScopedVAImage> scoped_image = Decode(jpeg_data_span);
     ASSERT_TRUE(scoped_image)
@@ -471,7 +466,7 @@ class VaapiJpegDecoderWithDmaBufsTest : public VaapiJpegDecoderTest {
 TEST_P(VaapiJpegDecoderWithDmaBufsTest, DecodeSucceeds) {
   ASSERT_NE(VAImplementation::kInvalid, VaapiWrapper::GetImplementationType());
   if (VaapiWrapper::GetImplementationType() == VAImplementation::kMesaGallium) {
-    // TODO(crbug.com/974438): until we support surfaces with multiple buffer
+    // TODO(crbug.com/40632250): until we support surfaces with multiple buffer
     // objects, the AMD driver fails this test.
     GTEST_SKIP();
   }
@@ -480,7 +475,7 @@ TEST_P(VaapiJpegDecoderWithDmaBufsTest, DecodeSucceeds) {
   std::string jpeg_data;
   ASSERT_TRUE(base::ReadFileToString(input_file, &jpeg_data))
       << "failed to read input data from " << input_file.value();
-  const auto encoded_image = base::as_bytes(base::make_span(jpeg_data));
+  const auto encoded_image = base::as_byte_span(jpeg_data);
 
   // Decode into a VAAPI-allocated surface.
   const VaapiImageDecodeStatus decode_status = Decoder()->Decode(encoded_image);
@@ -492,8 +487,7 @@ TEST_P(VaapiJpegDecoderWithDmaBufsTest, DecodeSucceeds) {
   // The size stored in the ScopedVASurface should be the visible size of the
   // JPEG.
   JpegParseResult parse_result;
-  ASSERT_TRUE(ParseJpegPicture(encoded_image.data(), encoded_image.size(),
-                               &parse_result));
+  ASSERT_TRUE(ParseJpegPicture(encoded_image, &parse_result));
   EXPECT_EQ(gfx::Size(parse_result.frame_header.visible_width,
                       parse_result.frame_header.visible_height),
             va_surface_visible_size);
@@ -549,33 +543,11 @@ TEST_P(VaapiJpegDecoderWithDmaBufsTest, DecodeSucceeds) {
   if (exported_pixmap->pixmap->GetBufferFormat() == gfx::BufferFormat::YVU_420)
     std::swap(handle.planes[1], handle.planes[2]);
 
-  LocalGpuMemoryBufferManager gpu_memory_buffer_manager;
-  std::unique_ptr<gfx::GpuMemoryBuffer> gpu_memory_buffer =
-      gpu_memory_buffer_manager.ImportDmaBuf(
+  std::unique_ptr<vaapi_test_utils::DecodedImage> decoded_image =
+      vaapi_test_utils::NativePixmapToDecodedImage(
           handle, exported_pixmap->pixmap->GetBufferSize(),
           exported_pixmap->pixmap->GetBufferFormat());
-  ASSERT_TRUE(gpu_memory_buffer);
-  ASSERT_TRUE(gpu_memory_buffer->Map());
-  vaapi_test_utils::DecodedImage decoded_image{};
-  const gfx::BufferFormat format = gpu_memory_buffer->GetFormat();
-  if (format == gfx::BufferFormat::YVU_420) {
-    decoded_image.fourcc = VA_FOURCC_I420;
-    decoded_image.number_of_planes = 3u;
-  } else if (format == gfx::BufferFormat::YUV_420_BIPLANAR) {
-    decoded_image.fourcc = VA_FOURCC_NV12;
-    decoded_image.number_of_planes = 2u;
-  } else {
-    ASSERT_TRUE(false) << "Unsupported format "
-                       << gfx::BufferFormatToString(format);
-  }
-  decoded_image.size = gpu_memory_buffer->GetSize();
-  for (size_t plane = 0u;
-       plane < base::strict_cast<size_t>(decoded_image.number_of_planes);
-       plane++) {
-    decoded_image.planes[plane].data =
-        static_cast<uint8_t*>(gpu_memory_buffer->memory(plane));
-    decoded_image.planes[plane].stride = gpu_memory_buffer->stride(plane);
-  }
+  ASSERT_TRUE(decoded_image);
 
   // Decode the image using libyuv. Using |temp_*| for resource management.
   std::vector<uint8_t> temp_y;
@@ -585,9 +557,8 @@ TEST_P(VaapiJpegDecoderWithDmaBufsTest, DecodeSucceeds) {
       GetSwDecode(encoded_image, &temp_y, &temp_u, &temp_v);
   ASSERT_TRUE(sw_decoded_jpeg);
 
-  EXPECT_TRUE(vaapi_test_utils::CompareImages(*sw_decoded_jpeg, decoded_image,
+  EXPECT_TRUE(vaapi_test_utils::CompareImages(*sw_decoded_jpeg, *decoded_image,
                                               kMinSsim));
-  gpu_memory_buffer->Unmap();
 }
 
 // Make sure that JPEGs whose size is below the supported size range are
@@ -633,7 +604,7 @@ TEST_F(VaapiJpegDecoderTest, DecodeFailsForBelowMinSize) {
     const std::vector<unsigned char> jpeg_data = GenerateJpegImage(test_size);
     ASSERT_FALSE(jpeg_data.empty());
     VaapiImageDecodeStatus status = VaapiImageDecodeStatus::kSuccess;
-    ASSERT_FALSE(Decode(base::as_bytes(base::make_span(jpeg_data)), &status))
+    ASSERT_FALSE(Decode(base::as_byte_span(jpeg_data), &status))
         << "Decode unexpectedly succeeded for size = " << test_size.ToString();
     EXPECT_EQ(VaapiImageDecodeStatus::kUnsupportedImage, status);
     EXPECT_FALSE(Decoder()->GetScopedVASurface());
@@ -679,7 +650,7 @@ TEST_F(VaapiJpegDecoderTest, DecodeFailsForAboveMaxSize) {
     const std::vector<unsigned char> jpeg_data = GenerateJpegImage(test_size);
     ASSERT_FALSE(jpeg_data.empty());
     VaapiImageDecodeStatus status = VaapiImageDecodeStatus::kSuccess;
-    ASSERT_FALSE(Decode(base::as_bytes(base::make_span(jpeg_data)), &status))
+    ASSERT_FALSE(Decode(base::as_byte_span(jpeg_data), &status))
         << "Decode unexpectedly succeeded for size = " << test_size.ToString();
     EXPECT_EQ(VaapiImageDecodeStatus::kUnsupportedImage, status);
     EXPECT_FALSE(Decoder()->GetScopedVASurface());
@@ -693,7 +664,7 @@ TEST_F(VaapiJpegDecoderTest, DecodeFails) {
   ASSERT_TRUE(base::ReadFileToString(input_file, &jpeg_data))
       << "failed to read input data from " << input_file.value();
   VaapiImageDecodeStatus status = VaapiImageDecodeStatus::kSuccess;
-  ASSERT_FALSE(Decode(base::as_bytes(base::make_span(jpeg_data)), &status));
+  ASSERT_FALSE(Decode(base::as_byte_span(jpeg_data), &status));
   EXPECT_EQ(VaapiImageDecodeStatus::kUnsupportedSubsampling, status);
   EXPECT_FALSE(Decoder()->GetScopedVASurface());
 }

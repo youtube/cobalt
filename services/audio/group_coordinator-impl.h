@@ -5,10 +5,11 @@
 #ifndef SERVICES_AUDIO_GROUP_COORDINATOR_IMPL_H_
 #define SERVICES_AUDIO_GROUP_COORDINATOR_IMPL_H_
 
+#include <algorithm>
+
 #include "base/compiler_specific.h"
 #include "base/containers/contains.h"
 #include "base/no_destructor.h"
-#include "base/ranges/algorithm.h"
 
 #if DCHECK_IS_ON()
 #define DCHECK_INCREMENT_MUTATION_COUNT() ++mutation_count_
@@ -64,8 +65,8 @@ void GroupCoordinator<Member>::UnregisterMember(
 
   const auto group_it = FindGroup(group_id);
   std::vector<Member*>& members = group_it->second.members;
-  const auto member_it = base::ranges::find(members, member);
-  DCHECK(member_it != members.end());
+  const auto member_it = std::ranges::find(members, member);
+  CHECK(member_it != members.end());
   members.erase(member_it);
   DCHECK_INCREMENT_MUTATION_COUNT();
   DCHECK_REMEMBER_CURRENT_MUTATION_COUNT();
@@ -100,8 +101,8 @@ void GroupCoordinator<Member>::RemoveObserver(
 
   const auto group_it = FindGroup(group_id);
   std::vector<Observer*>& observers = group_it->second.observers;
-  const auto it = base::ranges::find(observers, observer);
-  DCHECK(it != observers.end());
+  const auto it = std::ranges::find(observers, observer);
+  CHECK(it != observers.end());
   observers.erase(it);
   DCHECK_INCREMENT_MUTATION_COUNT();
 

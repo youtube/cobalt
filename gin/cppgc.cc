@@ -5,6 +5,9 @@
 #include "gin/public/cppgc.h"
 
 #include "base/check_op.h"
+#include "base/feature_list.h"
+#include "build/build_config.h"
+#include "gin/gin_features.h"
 #include "gin/public/v8_platform.h"
 #include "v8/include/cppgc/platform.h"
 
@@ -17,11 +20,24 @@ int g_init_count = 0;
 }  // namespace
 
 void InitializeCppgcFromV8Platform() {
-  DCHECK_GE(g_init_count, 0);
-  if (g_init_count++ > 0)
-    return;
+#if BUILDFLAG(IS_ANDROID)
+  // Keep the cage size at 4GB on Android, since some vendors can configure the
+  // kernel to have address space limited to 2^39 or 2^36 bits, which is more
+  // prone to address space exhaustion.
+  static constexpr size_t kCageSize =
+      static_cast<size_t>(4) * 1024 * 1024 * 1024;
+#else
+  static constexpr size_t kCageSize =
+      static_cast<size_t>(16) * 1024 * 1024 * 1024;
+#endif
 
-  cppgc::InitializeProcess(gin::V8Platform::Get()->GetPageAllocator());
+  DCHECK_GE(g_init_count, 0);
+  if (g_init_count++ > 0) {
+    return;
+  }
+
+  cppgc::InitializeProcess(gin::V8Platform::Get()->GetPageAllocator(),
+                           kCageSize);
 }
 
 void MaybeShutdownCppgc() {

@@ -85,9 +85,16 @@ const char kVariationsSafeCompressedSeed[] = "variations_safe_compressed_seed";
 
 // The serialized base::Time used for safe seed expiry checks. This is usually
 // the time at which the last known "safe" seed was received; however, it could
-// be a build timestamp if the received date is unknown. An empty
-// (default-constructed) base::Time if there is no known "safe" seed. This is a
-// server-provided timestamp.
+// be one of the following:
+// (A) A build timestamp if the received date is unknown.
+// (B) A client-provided timestamp set during the FRE on select platforms in
+//     ChromeFeatureListCreator::SetupInitialPrefs() when the client fetches a
+//     seed from a Variations server and the regular seed is promoted to the
+//     safe seed.
+// (C) An empty (default-constructed) base::Time if there is no known "safe"
+//     seed.
+//
+// This is a server-provided timestamp unless it stores (B).
 const char kVariationsSafeSeedDate[] = "variations_safe_seed_date";
 
 // The serialized base::Time from the fetch corresponding to the safe seed, i.e.
@@ -105,6 +112,14 @@ const char kVariationsSafeSeedLocale[] = "variations_safe_seed_locale";
 
 // The milestone with which the "safe" seed was fetched.
 const char kVariationsSafeSeedMilestone[] = "variations_safe_seed_milestone";
+
+// The seed that is used to randomize the limited entropy synthetic trial.
+// Previously this was called "variations_limited_entropy_synthetic_trial_seed".
+// It was renamed to fix an imbalance in the `LimitedEntropySyntheticTrial`.
+// TODO(crbug.com/40948861): Remove both this and the old pref value after the
+// synthetic trial wraps up.
+const char kVariationsLimitedEntropySyntheticTrialSeed[] =
+    "variations_limited_entropy_synthetic_trial_seed_v2";
 
 // A saved copy of |kVariationsPermanentConsistencyCountry|. The saved value is
 // the most recent value that was successfully used by the VariationsService for
@@ -124,10 +139,27 @@ const char kVariationsSafeSeedSignature[] = "variations_safe_seed_signature";
 
 // The serialized base::Time from the last seed received. This is a
 // server-provided timestamp.
+//
+// On select platforms, this is set to a client-provided timestamp until a seed
+// is fetched from a Variations server and the pref is updated with a
+// server-provided timestamp. See ChromeFeatureListCreator::SetupInitialPrefs().
 const char kVariationsSeedDate[] = "variations_seed_date";
 
 // Digital signature of the binary variations seed data, base64-encoded.
 const char kVariationsSeedSignature[] = "variations_seed_signature";
+
+// Stores the list of field trials forced by field-trial-internals.
+const char kVariationsForcedFieldTrials[] = "variations_forced_field_trials";
+
+// The expiration time for all forced field trials.
+// See components/variations/field_trial_internals_utils.h for more detail.
+const char kVariationsForcedTrialExpiration[] =
+    "variations_forced_trial_expiration";
+
+// Number of Chrome starts which have occurred after forcing field trials.
+// Forced trials are automatically stopped after a few Chrome starts,
+// See components/variations/field_trial_internals_utils.h for more detail.
+const char kVariationsForcedTrialStarts[] = "variations_forced_trial_starts";
 
 }  // namespace prefs
 }  // namespace variations

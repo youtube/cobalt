@@ -8,7 +8,7 @@
 #include <stddef.h>
 
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "content/common/content_export.h"
 
@@ -16,11 +16,10 @@
 #include <windows.h>
 #endif
 
-namespace base {
-namespace mac {
-class ScopedNSAutoreleasePool;
-}
-}
+#if BUILDFLAG(IS_MAC)
+#include "base/apple/scoped_nsautorelease_pool.h"
+#include "base/memory/stack_allocated.h"
+#endif
 
 namespace sandbox {
 struct SandboxInterfaceInfo;
@@ -42,23 +41,17 @@ struct CONTENT_EXPORT ContentMainParams {
   ContentMainParams(ContentMainParams&&);
   ContentMainParams& operator=(ContentMainParams&&);
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION ContentMainDelegate* delegate;
+  raw_ptr<ContentMainDelegate> delegate;
 
 #if BUILDFLAG(IS_WIN)
   HINSTANCE instance = nullptr;
 
   // |sandbox_info| should be initialized using InitializeSandboxInfo from
   // content_main_win.h
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION sandbox::SandboxInterfaceInfo* sandbox_info = nullptr;
+  raw_ptr<sandbox::SandboxInterfaceInfo> sandbox_info = nullptr;
 #elif !BUILDFLAG(IS_ANDROID)
   int argc = 0;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION const char** argv = nullptr;
+  raw_ptr<const char*> argv = nullptr;
 #endif
 
   // Used by BrowserTestBase. If set, BrowserMainLoop runs this task instead of
@@ -75,7 +68,8 @@ struct CONTENT_EXPORT ContentMainParams {
 
 #if BUILDFLAG(IS_MAC)
   // The outermost autorelease pool to pass to main entry points.
-  base::mac::ScopedNSAutoreleasePool* autorelease_pool = nullptr;
+  STACK_ALLOCATED_IGNORE("https://crbug.com/1424190")
+  base::apple::ScopedNSAutoreleasePool* autorelease_pool = nullptr;
 #endif
 
   // Returns a copy of this ContentMainParams without the move-only data

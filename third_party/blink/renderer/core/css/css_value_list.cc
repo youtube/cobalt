@@ -41,6 +41,17 @@ CSSValueList::CSSValueList(ValueListSeparator list_separator)
   value_list_separator_ = list_separator;
 }
 
+CSSValueList::CSSValueList(ValueListSeparator list_separator,
+                           HeapVector<Member<const CSSValue>, 4> values)
+    : CSSValueList(kValueListClass, list_separator, std::move(values)) {}
+
+CSSValueList::CSSValueList(ClassType class_type,
+                           ValueListSeparator list_separator,
+                           HeapVector<Member<const CSSValue>, 4> values)
+    : CSSValue(class_type), values_(std::move(values)) {
+  value_list_separator_ = list_separator;
+}
+
 void CSSValueList::Append(const CSSValue& value) {
   values_.push_back(value);
   // Note: this will be changed if we need to support tree scoped names and
@@ -167,6 +178,14 @@ String CSSValueList::CustomCSSText() const {
 bool CSSValueList::Equals(const CSSValueList& other) const {
   return value_list_separator_ == other.value_list_separator_ &&
          CompareCSSValueVector(values_, other.values_);
+}
+
+unsigned CSSValueList::CustomHash() const {
+  unsigned hash = value_list_separator_;
+  for (const CSSValue* value : values_) {
+    WTF::AddIntToHash(hash, value->Hash());
+  }
+  return hash;
 }
 
 bool CSSValueList::HasFailedOrCanceledSubresources() const {

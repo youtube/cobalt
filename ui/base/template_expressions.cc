@@ -2,18 +2,24 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/base/template_expressions.h"
 
 #include <stddef.h>
 
+#include <optional>
 #include <ostream>
+#include <string_view>
 
 #include "base/check_op.h"
+#include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/strings/escape.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if DCHECK_IS_ON()
 #include "third_party/re2/src/re2/re2.h"  // nogncheck
@@ -31,26 +37,26 @@ const size_t kHtmlTemplateStartSize = std::size(kHtmlTemplateStart) - 1;
 enum HtmlTemplateType { INVALID = 0, NONE = 1, VALID = 2 };
 
 struct HtmlTemplate {
-  base::StringPiece::size_type start;
-  base::StringPiece::size_type length;
+  std::string_view::size_type start;
+  std::string_view::size_type length;
   HtmlTemplateType type;
 };
 
-HtmlTemplate FindHtmlTemplate(const base::StringPiece& source) {
+HtmlTemplate FindHtmlTemplate(std::string_view source) {
   HtmlTemplate out;
-  base::StringPiece::size_type found = source.find(kHtmlTemplateStart);
+  std::string_view::size_type found = source.find(kHtmlTemplateStart);
 
   // No template found, return early.
-  if (found == base::StringPiece::npos) {
+  if (found == std::string_view::npos) {
     out.type = NONE;
     return out;
   }
 
   out.start = found + kHtmlTemplateStartSize;
-  base::StringPiece::size_type found_end =
+  std::string_view::size_type found_end =
       source.find(kHtmlTemplateEnd, out.start);
   // Template is not terminated.
-  if (found_end == base::StringPiece::npos) {
+  if (found_end == std::string_view::npos) {
     out.type = INVALID;
     return out;
   }
@@ -58,7 +64,7 @@ HtmlTemplate FindHtmlTemplate(const base::StringPiece& source) {
   out.length = found_end - out.start;
   // Check for a nested template
   if (source.substr(out.start, out.length).find(kHtmlTemplateStart) !=
-      base::StringPiece::npos) {
+      std::string_view::npos) {
     out.type = INVALID;
     return out;
   }
@@ -94,7 +100,7 @@ std::string PolymerParameterEscape(const std::string& in_string,
 }
 
 bool EscapeForJS(const std::string& in_string,
-                 absl::optional<char> in_previous,
+                 std::optional<char> in_previous,
                  std::string* out_string) {
   out_string->reserve(in_string.size() * 2);
   bool last_was_dollar = in_previous && in_previous.value() == '$';
@@ -121,17 +127,18 @@ bool EscapeForJS(const std::string& in_string,
 // Checks whether the replacement has an unsubstituted placeholder, e.g. "$1".
 bool HasUnexpectedPlaceholder(const std::string& key,
                               const std::string& replacement) {
-  // TODO(crbug.com/988031): Fix display aria labels.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+  // TODO(crbug.com/41472975): Fix display aria labels.
+#if BUILDFLAG(IS_CHROMEOS)
   if (key == "displayResolutionText")
     return false;
 #endif
-  return re2::RE2::PartialMatch(replacement, re2::RE2(R"(\$\d)"));
+  static const base::NoDestructor<re2::RE2> placeholder_regex(R"(\$\d)");
+  return re2::RE2::PartialMatch(replacement, *placeholder_regex.get());
 }
 #endif  // DCHECK_IS_ON()
 
 bool ReplaceTemplateExpressionsInternal(
-    base::StringPiece source,
+    std::string_view source,
     const ui::TemplateReplacements& replacements,
     bool is_javascript,
     std::string* formatted,
@@ -145,7 +152,8 @@ bool ReplaceTemplateExpressionsInternal(
     size_t next_pos = source.find(kLeader, current_pos);
 
     if (next_pos == std::string::npos) {
-      formatted->append(source.begin() + current_pos, source.end());
+      formatted->append(source.data() + current_pos,
+                        source.size() - current_pos);
       break;
     }
 
@@ -170,9 +178,9 @@ bool ReplaceTemplateExpressionsInternal(
     std::string replacement = value->second;
     if (is_javascript) {
       // Run JS escaping first.
-      absl::optional<char> last = formatted->empty()
-                                      ? absl::nullopt
-                                      : absl::make_optional(formatted->back());
+      std::optional<char> last = formatted->empty()
+                                     ? std::nullopt
+                                     : std::make_optional(formatted->back());
       std::string escaped_replacement;
       if (!EscapeForJS(replacement, last, &escaped_replacement))
         return false;
@@ -188,7 +196,7 @@ bool ReplaceTemplateExpressionsInternal(
       // Escape quotes and backslash for '$i18nPolymer{}' use (i.e. quoted).
       replacement = PolymerParameterEscape(replacement, is_javascript);
     } else {
-      CHECK(false) << "Unknown context " << context;
+      NOTREACHED() << "Unknown context " << context;
     }
 
 #if DCHECK_IS_ON()
@@ -221,11 +229,11 @@ void TemplateReplacementsFromDictionaryValue(
   }
 }
 
-bool ReplaceTemplateExpressionsInJS(base::StringPiece source,
+bool ReplaceTemplateExpressionsInJS(std::string_view source,
                                     const TemplateReplacements& replacements,
                                     std::string* formatted) {
   CHECK(formatted->empty());
-  base::StringPiece remaining = source;
+  std::string_view remaining = source;
   while (true) {
     // Replacement is only done in JS for the contents of HTML _template
     // strings.
@@ -246,7 +254,7 @@ bool ReplaceTemplateExpressionsInJS(base::StringPiece source,
     formatted->append(std::string(remaining.substr(0, current_template.start)));
 
     // Retrieve the HTML portion of the source.
-    base::StringPiece html_template =
+    std::string_view html_template =
         remaining.substr(current_template.start, current_template.length);
 
     // Perform replacements with JS escaping.
@@ -265,7 +273,7 @@ bool ReplaceTemplateExpressionsInJS(base::StringPiece source,
   }
 }
 
-std::string ReplaceTemplateExpressions(base::StringPiece source,
+std::string ReplaceTemplateExpressions(std::string_view source,
                                        const TemplateReplacements& replacements,
                                        bool skip_unexpected_placeholder_check) {
   std::string formatted;

@@ -5,6 +5,7 @@
 #include "components/viz/service/display/overlay_strategy_underlay_cast.h"
 
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/containers/adapters.h"
@@ -39,14 +40,14 @@ OverlayStrategyUnderlayCast::OverlayStrategyUnderlayCast(
     OverlayProcessorUsingStrategy* capability_checker)
     : OverlayStrategyUnderlay(capability_checker) {}
 
-OverlayStrategyUnderlayCast::~OverlayStrategyUnderlayCast() {}
+OverlayStrategyUnderlayCast::~OverlayStrategyUnderlayCast() = default;
 
 void OverlayStrategyUnderlayCast::Propose(
     const SkM44& output_color_matrix,
     const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
     const PrimaryPlane* primary_plane,
@@ -55,11 +56,15 @@ void OverlayStrategyUnderlayCast::Propose(
   auto* render_pass = render_pass_list->back().get();
   QuadList& quad_list = render_pass->quad_list;
   OverlayCandidate candidate;
+  candidate.overlay_type = gfx::OverlayType::kUnderlay;
   auto overlay_iter = quad_list.end();
+
+  OverlayCandidateFactory::OverlayContext context;
+  context.supports_mask_filter = true;
   OverlayCandidateFactory candidate_factory = OverlayCandidateFactory(
       render_pass, resource_provider, surface_damage_rect_list,
       &output_color_matrix, GetPrimaryPlaneDisplayRect(primary_plane),
-      &render_pass_filters);
+      &render_pass_filters, context);
 
   // Original code did reverse iteration.
   // Here we do forward but find the last one. which should be the same thing.
@@ -83,7 +88,7 @@ void OverlayStrategyUnderlayCast::Propose(
   }
 
   if (overlay_iter != quad_list.end()) {
-    candidates->push_back({overlay_iter, candidate, this});
+    candidates->emplace_back(overlay_iter, candidate, this);
   }
 }
 
@@ -92,7 +97,7 @@ bool OverlayStrategyUnderlayCast::Attempt(
     const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
     const PrimaryPlane* primary_plane,
@@ -105,10 +110,14 @@ bool OverlayStrategyUnderlayCast::Attempt(
   QuadList& quad_list = render_pass->quad_list;
   bool found_underlay = false;
   gfx::Rect content_rect;
+
+  OverlayCandidateFactory::OverlayContext context;
+  context.supports_mask_filter = true;
+
   OverlayCandidateFactory candidate_factory = OverlayCandidateFactory(
       render_pass, resource_provider, surface_damage_rect_list,
       &output_color_matrix, GetPrimaryPlaneDisplayRect(primary_plane),
-      &render_pass_filters);
+      &render_pass_filters, context);
 
   for (const auto* quad : base::Reversed(quad_list)) {
     if (OverlayCandidate::IsInvisibleQuad(quad))
@@ -181,7 +190,7 @@ void OverlayStrategyUnderlayCast::CommitCandidate(
   DCHECK(GetVideoGeometrySetter());
   GetVideoGeometrySetter()->SetVideoGeometry(
       proposed_candidate.candidate.display_rect,
-      absl::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
+      std::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
       VideoHoleDrawQuad::MaterialCast(*proposed_candidate.quad_iter)
           ->overlay_plane_id);
 

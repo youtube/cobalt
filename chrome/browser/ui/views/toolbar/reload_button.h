@@ -11,7 +11,8 @@
 #include "chrome/browser/ui/views/chrome_views_export.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "ui/base/metadata/metadata_header_macros.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/metadata/view_factory.h"
 
 class CommandUpdater;
@@ -28,9 +29,9 @@ class CommandUpdater;
 
 class ReloadButton : public ToolbarButton,
                      public ui::SimpleMenuModel::Delegate {
- public:
-  METADATA_HEADER(ReloadButton);
+  METADATA_HEADER(ReloadButton, ToolbarButton)
 
+ public:
   enum class Mode { kReload = 0, kStop };
 
   explicit ReloadButton(CommandUpdater* command_updater);
@@ -43,16 +44,20 @@ class ReloadButton : public ToolbarButton,
   void ChangeMode(Mode mode, bool force);
   Mode visible_mode() const { return visible_mode_; }
 
+  void SetVectorIconsForMode(Mode mode,
+                             const gfx::VectorIcon& icon,
+                             const gfx::VectorIcon& touch_icon);
+
   // Gets/Sets whether reload drop-down menu is enabled.
   bool GetMenuEnabled() const;
   void SetMenuEnabled(bool enable);
 
   // ToolbarButton:
   void OnMouseExited(const ui::MouseEvent& event) override;
-  std::u16string GetTooltipText(const gfx::Point& p) const override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
   bool ShouldShowMenu() override;
-  void ShowDropDownMenu(ui::MenuSourceType source_type) override;
+  void ShowDropDownMenu(ui::mojom::MenuSourceType source_type) override;
+
+  void UpdateCachedTooltipText();
 
   // ui::SimpleMenuModel::Delegate:
   bool IsCommandIdChecked(int command_id) const override;
@@ -64,6 +69,8 @@ class ReloadButton : public ToolbarButton,
 
  private:
   friend class ReloadButtonTest;
+  FRIEND_TEST_ALL_PREFIXES(ReloadButtonTest, TooltipText);
+  FRIEND_TEST_ALL_PREFIXES(ReloadButtonTest, TooltipTextAccessibility);
 
   std::unique_ptr<ui::SimpleMenuModel> CreateMenuModel();
 
@@ -75,6 +82,7 @@ class ReloadButton : public ToolbarButton,
 
   void OnDoubleClickTimer();
   void OnStopToReloadTimer();
+  void UpdateAccessibleHasPopup();
 
   base::OneShotTimer double_click_timer_;
 
@@ -83,6 +91,12 @@ class ReloadButton : public ToolbarButton,
 
   // This may be NULL when testing.
   raw_ptr<CommandUpdater, DanglingUntriaged> command_updater_;
+
+  // Vector icons to use for both modes.
+  base::raw_ref<const gfx::VectorIcon> reload_icon_;
+  base::raw_ref<const gfx::VectorIcon> reload_touch_icon_;
+  base::raw_ref<const gfx::VectorIcon> stop_icon_;
+  base::raw_ref<const gfx::VectorIcon> stop_touch_icon_;
 
   // The mode we should be in assuming no timers are running.
   Mode intended_mode_ = Mode::kReload;

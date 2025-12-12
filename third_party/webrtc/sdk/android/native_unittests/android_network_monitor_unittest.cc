@@ -13,7 +13,7 @@
 #include "rtc_base/ip_address.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/thread.h"
-#include "sdk/android/native_unittests/application_context_provider.h"
+#include "sdk/android/native_api/jni/application_context_provider.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 #include "test/gtest.h"
 #include "test/scoped_key_value_config.h"
@@ -32,7 +32,7 @@ static const char kTestIfName2[] = "testnet0";
 jni::NetworkInformation CreateNetworkInformation(
     const std::string& interface_name,
     jni::NetworkHandle network_handle,
-    const rtc::IPAddress& ip_address) {
+    const webrtc::IPAddress& ip_address) {
   jni::NetworkInformation net_info;
   net_info.interface_name = interface_name;
   net_info.handle = network_handle;
@@ -41,9 +41,9 @@ jni::NetworkInformation CreateNetworkInformation(
   return net_info;
 }
 
-rtc::IPAddress GetIpAddressFromIpv6String(const std::string& str) {
-  rtc::IPAddress ipv6;
-  RTC_CHECK(rtc::IPFromString(str, &ipv6));
+webrtc::IPAddress GetIpAddressFromIpv6String(const std::string& str) {
+  webrtc::IPAddress ipv6;
+  RTC_CHECK(webrtc::IPFromString(str, &ipv6));
   return ipv6;
 }
 
@@ -51,7 +51,7 @@ class AndroidNetworkMonitorTest : public ::testing::Test {
  public:
   AndroidNetworkMonitorTest() {
     JNIEnv* env = AttachCurrentThreadIfNeeded();
-    ScopedJavaLocalRef<jobject> context = test::GetAppContextForTest(env);
+    ScopedJavaLocalRef<jobject> context = GetAppContext(env);
     network_monitor_ = std::make_unique<jni::AndroidNetworkMonitor>(
         env, context, field_trials_);
   }
@@ -72,13 +72,13 @@ class AndroidNetworkMonitorTest : public ::testing::Test {
 
  protected:
   test::ScopedKeyValueConfig field_trials_;
-  rtc::AutoThread main_thread_;
+  webrtc::AutoThread main_thread_;
   std::unique_ptr<jni::AndroidNetworkMonitor> network_monitor_;
 };
 
 TEST_F(AndroidNetworkMonitorTest, TestFindNetworkHandleUsingIpv4Address) {
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   std::vector<jni::NetworkInformation> net_infos(1, net_info);
@@ -93,8 +93,10 @@ TEST_F(AndroidNetworkMonitorTest, TestFindNetworkHandleUsingIpv4Address) {
 
 TEST_F(AndroidNetworkMonitorTest, TestFindNetworkHandleUsingFullIpv6Address) {
   jni::NetworkHandle ipv6_handle = 200;
-  rtc::IPAddress ipv6_address1 = GetIpAddressFromIpv6String(kTestIpv6Address1);
-  rtc::IPAddress ipv6_address2 = GetIpAddressFromIpv6String(kTestIpv6Address2);
+  webrtc::IPAddress ipv6_address1 =
+      GetIpAddressFromIpv6String(kTestIpv6Address1);
+  webrtc::IPAddress ipv6_address2 =
+      GetIpAddressFromIpv6String(kTestIpv6Address2);
   // Set up an IPv6 network.
   jni::NetworkInformation net_info =
       CreateNetworkInformation(kTestIfName1, ipv6_handle, ipv6_address1);
@@ -119,8 +121,10 @@ TEST_F(AndroidNetworkMonitorTest,
   // Start() updates the states introduced by the field trial.
   network_monitor_->Start();
   jni::NetworkHandle ipv6_handle = 200;
-  rtc::IPAddress ipv6_address1 = GetIpAddressFromIpv6String(kTestIpv6Address1);
-  rtc::IPAddress ipv6_address2 = GetIpAddressFromIpv6String(kTestIpv6Address2);
+  webrtc::IPAddress ipv6_address1 =
+      GetIpAddressFromIpv6String(kTestIpv6Address1);
+  webrtc::IPAddress ipv6_address2 =
+      GetIpAddressFromIpv6String(kTestIpv6Address2);
   // Set up an IPv6 network.
   jni::NetworkInformation net_info =
       CreateNetworkInformation(kTestIfName1, ipv6_handle, ipv6_address1);
@@ -142,7 +146,8 @@ TEST_F(AndroidNetworkMonitorTest, TestFindNetworkHandleUsingIfName) {
   // Start() updates the states introduced by the field trial.
   network_monitor_->Start();
   jni::NetworkHandle ipv6_handle = 200;
-  rtc::IPAddress ipv6_address1 = GetIpAddressFromIpv6String(kTestIpv6Address1);
+  webrtc::IPAddress ipv6_address1 =
+      GetIpAddressFromIpv6String(kTestIpv6Address1);
 
   // Set up an IPv6 network.
   jni::NetworkInformation net_info =
@@ -150,7 +155,7 @@ TEST_F(AndroidNetworkMonitorTest, TestFindNetworkHandleUsingIfName) {
   std::vector<jni::NetworkInformation> net_infos(1, net_info);
   network_monitor_->OnNetworkConnected_n(net_info);
 
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
 
   // Search using ip address only...
   auto network_handle1 =
@@ -169,14 +174,14 @@ TEST_F(AndroidNetworkMonitorTest, TestUnderlyingVpnType) {
   ScopedKeyValueConfig field_trials(field_trials_,
                                     "WebRTC-BindUsingInterfaceName/Enabled/");
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   net_info.type = jni::NETWORK_VPN;
   net_info.underlying_type_for_vpn = jni::NETWORK_WIFI;
   network_monitor_->OnNetworkConnected_n(net_info);
 
-  EXPECT_EQ(rtc::ADAPTER_TYPE_WIFI,
+  EXPECT_EQ(webrtc::ADAPTER_TYPE_WIFI,
             network_monitor_->GetInterfaceInfo(kTestIfName1V4)
                 .underlying_type_for_vpn);
 }
@@ -186,7 +191,7 @@ TEST_F(AndroidNetworkMonitorTest, Disconnect) {
   network_monitor_->Start();
 
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   net_info.type = jni::NETWORK_WIFI;
@@ -198,7 +203,7 @@ TEST_F(AndroidNetworkMonitorTest, Disconnect) {
           ->FindNetworkHandleFromAddressOrName(ipv4_address, kTestIfName1V4)
           .has_value());
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_WIFI);
+            webrtc::ADAPTER_TYPE_WIFI);
 
   // Check that values are reset on disconnect().
   Disconnect(ipv4_handle);
@@ -208,7 +213,7 @@ TEST_F(AndroidNetworkMonitorTest, Disconnect) {
           ->FindNetworkHandleFromAddressOrName(ipv4_address, kTestIfName1V4)
           .has_value());
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_UNKNOWN);
+            webrtc::ADAPTER_TYPE_UNKNOWN);
 }
 
 // Verify that Stop() resets all caches.
@@ -216,7 +221,7 @@ TEST_F(AndroidNetworkMonitorTest, Reset) {
   network_monitor_->Start();
 
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   net_info.type = jni::NETWORK_WIFI;
@@ -228,7 +233,7 @@ TEST_F(AndroidNetworkMonitorTest, Reset) {
           ->FindNetworkHandleFromAddressOrName(ipv4_address, kTestIfName1V4)
           .has_value());
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_WIFI);
+            webrtc::ADAPTER_TYPE_WIFI);
 
   // Check that values are reset on Stop().
   network_monitor_->Stop();
@@ -238,20 +243,21 @@ TEST_F(AndroidNetworkMonitorTest, Reset) {
           ->FindNetworkHandleFromAddressOrName(ipv4_address, kTestIfName1V4)
           .has_value());
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_UNKNOWN);
+            webrtc::ADAPTER_TYPE_UNKNOWN);
 }
 
 TEST_F(AndroidNetworkMonitorTest, DuplicateIfname) {
   network_monitor_->Start();
 
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info1 =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   net_info1.type = jni::NETWORK_WIFI;
 
   jni::NetworkHandle ipv6_handle = 101;
-  rtc::IPAddress ipv6_address = GetIpAddressFromIpv6String(kTestIpv6Address1);
+  webrtc::IPAddress ipv6_address =
+      GetIpAddressFromIpv6String(kTestIpv6Address1);
   jni::NetworkInformation net_info2 =
       CreateNetworkInformation(kTestIfName1, ipv6_handle, ipv6_address);
   net_info2.type = jni::NETWORK_UNKNOWN_CELLULAR;
@@ -262,7 +268,7 @@ TEST_F(AndroidNetworkMonitorTest, DuplicateIfname) {
   // The last added.
   EXPECT_TRUE(network_monitor_->GetInterfaceInfo(kTestIfName1).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_CELLULAR);
+            webrtc::ADAPTER_TYPE_CELLULAR);
 
   // But both IP addresses are still searchable.
   EXPECT_EQ(
@@ -277,13 +283,14 @@ TEST_F(AndroidNetworkMonitorTest, DuplicateIfnameDisconnectOwner) {
   network_monitor_->Start();
 
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info1 =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   net_info1.type = jni::NETWORK_WIFI;
 
   jni::NetworkHandle ipv6_handle = 101;
-  rtc::IPAddress ipv6_address = GetIpAddressFromIpv6String(kTestIpv6Address1);
+  webrtc::IPAddress ipv6_address =
+      GetIpAddressFromIpv6String(kTestIpv6Address1);
   jni::NetworkInformation net_info2 =
       CreateNetworkInformation(kTestIfName1, ipv6_handle, ipv6_address);
   net_info2.type = jni::NETWORK_UNKNOWN_CELLULAR;
@@ -294,27 +301,28 @@ TEST_F(AndroidNetworkMonitorTest, DuplicateIfnameDisconnectOwner) {
   // The last added.
   EXPECT_TRUE(network_monitor_->GetInterfaceInfo(kTestIfName1).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_CELLULAR);
+            webrtc::ADAPTER_TYPE_CELLULAR);
 
   Disconnect(ipv6_handle);
 
   // We should now find ipv4_handle.
   EXPECT_TRUE(network_monitor_->GetInterfaceInfo(kTestIfName1).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_WIFI);
+            webrtc::ADAPTER_TYPE_WIFI);
 }
 
 TEST_F(AndroidNetworkMonitorTest, DuplicateIfnameDisconnectNonOwner) {
   network_monitor_->Start();
 
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info1 =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   net_info1.type = jni::NETWORK_WIFI;
 
   jni::NetworkHandle ipv6_handle = 101;
-  rtc::IPAddress ipv6_address = GetIpAddressFromIpv6String(kTestIpv6Address1);
+  webrtc::IPAddress ipv6_address =
+      GetIpAddressFromIpv6String(kTestIpv6Address1);
   jni::NetworkInformation net_info2 =
       CreateNetworkInformation(kTestIfName1, ipv6_handle, ipv6_address);
   net_info2.type = jni::NETWORK_UNKNOWN_CELLULAR;
@@ -325,26 +333,27 @@ TEST_F(AndroidNetworkMonitorTest, DuplicateIfnameDisconnectNonOwner) {
   // The last added.
   EXPECT_TRUE(network_monitor_->GetInterfaceInfo(kTestIfName1).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1).adapter_type,
-            rtc::ADAPTER_TYPE_CELLULAR);
+            webrtc::ADAPTER_TYPE_CELLULAR);
 
   Disconnect(ipv4_handle);
 
   // We should still find ipv6 network.
   EXPECT_TRUE(network_monitor_->GetInterfaceInfo(kTestIfName1).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1V4).adapter_type,
-            rtc::ADAPTER_TYPE_CELLULAR);
+            webrtc::ADAPTER_TYPE_CELLULAR);
 }
 
 TEST_F(AndroidNetworkMonitorTest, ReconnectWithoutDisconnect) {
   network_monitor_->Start();
 
   jni::NetworkHandle ipv4_handle = 100;
-  rtc::IPAddress ipv4_address(kTestIpv4Address);
+  webrtc::IPAddress ipv4_address(kTestIpv4Address);
   jni::NetworkInformation net_info1 =
       CreateNetworkInformation(kTestIfName1, ipv4_handle, ipv4_address);
   net_info1.type = jni::NETWORK_WIFI;
 
-  rtc::IPAddress ipv6_address = GetIpAddressFromIpv6String(kTestIpv6Address1);
+  webrtc::IPAddress ipv6_address =
+      GetIpAddressFromIpv6String(kTestIpv6Address1);
   jni::NetworkInformation net_info2 =
       CreateNetworkInformation(kTestIfName2, ipv4_handle, ipv6_address);
   net_info2.type = jni::NETWORK_UNKNOWN_CELLULAR;
@@ -355,21 +364,21 @@ TEST_F(AndroidNetworkMonitorTest, ReconnectWithoutDisconnect) {
   // Only last one should still be there!
   EXPECT_TRUE(network_monitor_->GetInterfaceInfo(kTestIfName2).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName2).adapter_type,
-            rtc::ADAPTER_TYPE_CELLULAR);
+            webrtc::ADAPTER_TYPE_CELLULAR);
 
   EXPECT_FALSE(network_monitor_->GetInterfaceInfo(kTestIfName1).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1).adapter_type,
-            rtc::ADAPTER_TYPE_UNKNOWN);
+            webrtc::ADAPTER_TYPE_UNKNOWN);
 
   Disconnect(ipv4_handle);
 
   // Should be empty!
   EXPECT_FALSE(network_monitor_->GetInterfaceInfo(kTestIfName2).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName2).adapter_type,
-            rtc::ADAPTER_TYPE_UNKNOWN);
+            webrtc::ADAPTER_TYPE_UNKNOWN);
   EXPECT_FALSE(network_monitor_->GetInterfaceInfo(kTestIfName1).available);
   EXPECT_EQ(network_monitor_->GetInterfaceInfo(kTestIfName1).adapter_type,
-            rtc::ADAPTER_TYPE_UNKNOWN);
+            webrtc::ADAPTER_TYPE_UNKNOWN);
 }
 
 }  // namespace test

@@ -70,8 +70,11 @@ std::string SerializeOptions(const std::vector<ProtoFile::Option>& options) {
 
   std::string output;
   output += " [";
-  for (const auto& option : options) {
-    output += option.key + " = " + option.value;
+  size_t n = options.size();
+  for (size_t i = 0; i < n; i++) {
+    output += options[i].key + " = " + options[i].value;
+    if (i != n - 1)
+      output += ", ";
   }
   output += "]";
   return output;
@@ -117,12 +120,11 @@ std::string SerializeField(size_t indent,
   std::string output;
   output += SerializeLeadingComments(prefix, field);
 
-  std::string label;
-  if (write_label) {
-    label = field.label + " ";
-  }
-  output += prefix + label + field.type + " " + field.name + " = " +
-            std::to_string(field.number);
+  output += prefix;
+  if (write_label && field.is_repeated)
+    output += "repeated ";
+  output +=
+      field.type + " " + field.name + " = " + std::to_string(field.number);
 
   output += SerializeOptions(field.options);
   output += ";\n";

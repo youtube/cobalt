@@ -14,7 +14,10 @@
 #include "base/memory/weak_ptr.h"
 #include "base/process/process.h"
 #include "base/threading/thread_checker.h"
+#include "chrome/browser/web_applications/os_integration/mac/app_shim_launch.h"
 #include "chrome/common/mac/app_shim.mojom.h"
+#include "components/metrics/histogram_child_process.h"
+#include "content/public/browser/scoped_accessibility_mode.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -33,7 +36,8 @@ class AppShimHostBootstrap;
 // This is the counterpart to AppShimController in
 // chrome/app/chrome_main_app_mode_mac.mm. The AppShimHost is owned by the
 // AppShimManager, which implements its client interface.
-class AppShimHost : public chrome::mojom::AppShimHost {
+class AppShimHost : public chrome::mojom::AppShimHost,
+                    public metrics::HistogramChildProcess {
  public:
   // The interface through which the AppShimHost interacts with
   // AppShimManager.
@@ -42,7 +46,8 @@ class AppShimHost : public chrome::mojom::AppShimHost {
     // Request that the handler launch the app shim process.
     virtual void OnShimLaunchRequested(
         AppShimHost* host,
-        bool recreate_shims,
+        web_app::LaunchShimUpdateBehavior update_behavior,
+        web_app::ShimLaunchMode launch_mode,
         apps::ShimLaunchedCallback launched_callback,
         apps::ShimTerminatedCallback terminated_callback) = 0;
 
@@ -67,6 +72,9 @@ class AppShimHost : public chrome::mojom::AppShimHost {
     virtual void OnShimSelectedProfile(AppShimHost* host,
                                        const base::FilePath& profile_path) = 0;
 
+    //
+    virtual void OnShimOpenedAppSettings(AppShimHost* host) = 0;
+
     // Invoked by the shim host when the shim opens a url, e.g, clicking a link
     // in mail.
     virtual void OnShimOpenedUrls(AppShimHost* host,
@@ -80,6 +88,12 @@ class AppShimHost : public chrome::mojom::AppShimHost {
     // Invoked by the shim host when the app is about to terminate (for example
     // because the user quit it).
     virtual void OnShimWillTerminate(AppShimHost* host) = 0;
+
+    // Invoked by the shim host when a change to the system level notification
+    // permission status has been detected.
+    virtual void OnNotificationPermissionStatusChanged(
+        AppShimHost* host,
+        mac_notifications::mojom::PermissionStatus status) = 0;
   };
 
   AppShimHost(Client* client,
@@ -99,7 +113,8 @@ class AppShimHost : public chrome::mojom::AppShimHost {
 
   // Invoked to request that the shim be launched (if it has not been launched
   // already).
-  void LaunchShim();
+  void LaunchShim(
+      web_app::ShimLaunchMode launch_mode = web_app::ShimLaunchMode::kNormal);
 
   // Invoked when the app shim has launched and connected to the browser.
   virtual void OnBootstrapConnected(
@@ -125,24 +140,38 @@ class AppShimHost : public chrome::mojom::AppShimHost {
   void ChannelError(uint32_t custom_reason, const std::string& description);
 
   // Helper function to launch the app shim process.
-  void LaunchShimInternal(bool recreate_shims);
+  void LaunchShimInternal(web_app::LaunchShimUpdateBehavior update_behavior,
+                          web_app::ShimLaunchMode launch_mode);
 
   // Called when LaunchShim has launched (or failed to launch) a process.
-  void OnShimProcessLaunched(bool recreate_shims_requested,
+  void OnShimProcessLaunched(web_app::LaunchShimUpdateBehavior update_behavior,
+                             web_app::ShimLaunchMode launch_mode,
                              base::Process shim_process);
 
   // Called when a shim process returned via OnShimLaunchCompleted has
   // terminated.
-  void OnShimProcessTerminated(bool recreate_shims_requested);
+  void OnShimProcessTerminated(
+      web_app::LaunchShimUpdateBehavior update_behavior,
+      web_app::ShimLaunchMode launch_mode);
 
   // chrome::mojom::AppShimHost.
   void FocusApp() override;
   void ReopenApp() override;
   void FilesOpened(const std::vector<base::FilePath>& files) override;
   void ProfileSelectedFromMenu(const base::FilePath& profile_path) override;
+  void OpenAppSettings() override;
   void UrlsOpened(const std::vector<GURL>& urls) override;
   void OpenAppWithOverrideUrl(const GURL& override_url) override;
+  void EnableAccessibilitySupport(
+      chrome::mojom::AppShimScreenReaderSupportMode mode) override;
   void ApplicationWillTerminate() override;
+  void NotificationPermissionStatusChanged(
+      mac_notifications::mojom::PermissionStatus status) override;
+
+  // content::HistogramChildProcess:
+  void BindChildHistogramFetcherFactory(
+      mojo::PendingReceiver<metrics::mojom::ChildHistogramFetcherFactory>
+          factory) override;
 
   // Weak, owns |this|.
   const raw_ptr<Client> client_;
@@ -165,8 +194,21 @@ class AppShimHost : public chrome::mojom::AppShimHost {
   base::FilePath profile_path_;
   const bool uses_remote_views_;
 
+  // Not a system-level PID, rather an ID assigned by content::ChildProcessHost
+  // used to identify this process when registering with
+  // metrics::SubprocessMetricsProvider.
+  const int child_process_host_id_;
+
+  // This holds the histogram allocator to be used for this app shim before it
+  // gets passed to the remote host when it finished launching.
+  std::unique_ptr<base::PersistentMemoryAllocator> histogram_allocator_;
+
   // This class is only ever to be used on the UI thread.
   THREAD_CHECKER(thread_checker_);
+
+  // Will be created if accessibility APIs are needed, e.g. if the VoiceOver
+  // screen reader is enabled.
+  std::unique_ptr<content::ScopedAccessibilityMode> process_accessibility_mode_;
 
   // This weak factory is used for launch callbacks only.
   base::WeakPtrFactory<AppShimHost> launch_weak_factory_;

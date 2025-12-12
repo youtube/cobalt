@@ -6,15 +6,13 @@ package org.chromium.components.messages;
 
 import android.animation.Animator;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
-/**
- * Handler to prepare and trigger swiping animation of {@link MessageStateHandler}.
- */
+/** Handler to prepare and trigger swiping animation of {@link MessageStateHandler}. */
+@NullMarked
 public interface SwipeAnimationHandler {
-    /**
-     * Should be called when swipe is started.
-     */
+    /** Should be called when swipe is started. */
     void onSwipeStart();
 
     /**
@@ -24,8 +22,6 @@ public interface SwipeAnimationHandler {
      */
     void onSwipeEnd(@Nullable Animator animator);
 
-    /**
-     * @return Whether the message view should consume the swipe gesture.
-     */
+    /** @return Whether the message view should consume the swipe gesture. */
     boolean isSwipeEnabled();
 }

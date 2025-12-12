@@ -20,8 +20,9 @@ enum OverrideState {
 
 dictionary ExperimentConfiguration {
   record<DOMString, boolean> features;
-  record<DOMString, (DOMString or long or boolean)> featureParams;
-  sequence<unsigned long> experimentIds;
+  record<DOMString, (DOMString or long or double or boolean)> featureParams;
+  DOMString activeExperimentConfigData;
+  DOMString latestExperimentConfigHashData;
 };
 
 [
@@ -30,20 +31,36 @@ dictionary ExperimentConfiguration {
 ]
 interface H5vccExperiments {
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setExperimentState(ExperimentConfiguration experiment_configuration);
+  Promise<undefined> setExperimentState(ExperimentConfiguration experiment_configuration);
 
   // Instructs Cobalt to delete its current cached experiment configuration.
   // Returns a promise that resolves/rejects in the event of success/failure.
   [CallWith=ScriptState, RaisesException]
-  Promise<void> resetExperimentState();
-
-  // Returns a list of Cobalt's currently active client experiment IDs for use
-  // by the client to log.
-  readonly attribute FrozenArray<unsigned long> activeExperimentIds;
+  Promise<undefined> resetExperimentState();
 
   // The following APIs fetch Cobalt's current value for the given feature name
   // or feature param.
-  OverrideState getFeature(DOMString feature_name);
+  [CallWith=ScriptState, RaisesException]
+  Promise<OverrideState> getFeature(DOMString feature_name);
 
   DOMString getFeatureParam(DOMString feature_param_name);
+
+  // Returns Finch opaque blob associated with the active Finch config. For use
+  // by the server that generates Finch experiment state.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getActiveExperimentConfigData();
+
+  // by the server that generates Finch experiment state.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getLatestExperimentConfigHashData();
+
+  // Separate setter for the case when the server returns a new opaque hash data
+  // but the Finch experiment state is unchanged. Used for server-side
+  // processing.
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> setLatestExperimentConfigHashData(DOMString hashData);
+
+  // Sets Finch parameters.
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> setFinchParameters(record<DOMString, (DOMString or long or double or boolean)> settings);
 };

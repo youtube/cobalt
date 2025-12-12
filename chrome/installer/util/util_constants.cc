@@ -76,13 +76,14 @@ const char kForceConfigureUserSettings[] = "force-configure-user-settings";
 // confirmation from user.
 const char kForceUninstall[] = "force-uninstall";
 
-// See description for kPatch.
-const char kInputFile[] = "input-file";
-
-// Specify the path to the compressed Chrome archive for install. If not
-// specified, chrome.packed.7z or chrome.7z in the same directory as setup.exe
+// Specify the path to the Chrome archive for install. If not specified,
+// chrome.packed.7z or chrome.7z in the same directory as setup.exe
 // is used.
 const char kInstallArchive[] = "install-archive";
+
+// Use the given uncompressed chrome.7z archive as the source of files to
+// install.
+const char kUncompressedArchive[] = "uncompressed-archive";
 
 // Specify the file path of Chrome initial preference file.
 const char kInstallerData[] = "installerdata";
@@ -113,14 +114,6 @@ const char kNonce[] = "nonce";
 
 // Notify the installer that the OS has been upgraded.
 const char kOnOsUpgrade[] = "on-os-upgrade";
-
-// Applies a binary patch to a file. The input, patch, and the output file are
-// specified as command line arguments following the --patch switch.
-// Ex: --patch=courgette --input_file='input' --patch_file='patch'
-//        --output_file='output'
-const char kOutputFile[] = "output-file";
-const char kPatch[] = "patch";
-const char kPatchFile[] = "patch-file";
 
 // Provide the previous version that patch is for.
 const char kPreviousVersion[] = "previous-version";
@@ -192,15 +185,6 @@ const char kVerboseLogging[] = "verbose-logging";
 
 }  // namespace switches
 
-namespace env_vars {
-
-// The presence of this environment variable with a value of 1 implies that
-// setup.exe should run as a system installation regardless of what is on the
-// command line.
-const char kGoogleUpdateIsMachineEnvVar[] = "GoogleUpdateIsMachine";
-
-}  // namespace env_vars
-
 // The Active Setup executable will be an identical copy of setup.exe; this is
 // necessary because Windows' installer detection heuristics (which include
 // things like process name being "setup.exe") will otherwise force elevation
@@ -229,7 +213,6 @@ const wchar_t kInstallBinaryDir[] = L"Application";
 const wchar_t kInstallerDir[] = L"Installer";
 const wchar_t kInstallTempDir[] = L"Temp";
 const wchar_t kLnkExt[] = L".lnk";
-const wchar_t kNaClExe[] = L"nacl64.exe";
 const wchar_t kNotificationHelperExe[] = L"notification_helper.exe";
 const wchar_t kWerDll[] = L"chrome_wer.dll";
 

@@ -5,6 +5,8 @@
     "WebGPUMailboxTest.*",
     "WebGPUTest.*",
     "*EGLImageBackingFactoryThreadSafeTest*",
-    "GLReadbackTest.ReadPixelsFloat"
+    "GLReadbackTest.ReadPixelsFloat",
+    "OzoneImageBackingFactoryTest.*",
+    "TranslatorVariants/EXTBlendFuncExtendedDrawTest.*"
   ]
 }

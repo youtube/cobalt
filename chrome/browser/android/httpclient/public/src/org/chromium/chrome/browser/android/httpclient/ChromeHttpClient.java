@@ -4,10 +4,17 @@
 
 package org.chromium.chrome.browser.android.httpclient;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.util.Map;
 
 /** A simple HttpClient interface. */
+@NullMarked
 public interface ChromeHttpClient {
-    void send(String url, String requestType, byte[] body, Map<String, String> headers,
+    void send(
+            String url,
+            String requestType,
+            byte[] body,
+            Map<String, String> headers,
             HttpResponseCallback responseCallback);
 }

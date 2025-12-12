@@ -19,11 +19,15 @@ import android.os.Messenger;
 import android.os.RemoteException;
 import android.util.Log;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /**
  * A simple transparent activity for requesting the notification permission. On either approve or
  * disapprove, this will send the result via the {@link Messenger} provided with the intent, and
  * then finish.
  */
+@NullMarked
 public class NotificationPermissionRequestActivity extends Activity {
     private static final String TAG = "PermissionRequestActivity";
 
@@ -50,8 +54,10 @@ public class NotificationPermissionRequestActivity extends Activity {
      */
     public static PendingIntent createPermissionRequestPendingIntent(
             Context context, String channelName, String channelId) {
-        Intent intent = new Intent(
-                context.getApplicationContext(), NotificationPermissionRequestActivity.class);
+        Intent intent =
+                new Intent(
+                        context.getApplicationContext(),
+                        NotificationPermissionRequestActivity.class);
         intent.putExtra(EXTRA_NOTIFICATION_CHANNEL_NAME, channelName);
         intent.putExtra(EXTRA_NOTIFICATION_CHANNEL_ID, channelId);
         // Starting with Build.VERSION_CODES.S it is required to explicitly specify the mutability
@@ -61,7 +67,8 @@ public class NotificationPermissionRequestActivity extends Activity {
     }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    @SuppressWarnings("NullAway") // Things not initialized due to early returns.
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
@@ -70,21 +77,25 @@ public class NotificationPermissionRequestActivity extends Activity {
             return;
         }
 
-        mChannelName = getIntent().getStringExtra(EXTRA_NOTIFICATION_CHANNEL_NAME);
-        mChannelId = getIntent().getStringExtra(EXTRA_NOTIFICATION_CHANNEL_ID);
-        mMessenger = getIntent().getParcelableExtra(EXTRA_MESSENGER);
-        if (mChannelName == null || mChannelId == null || mMessenger == null) {
+        String channelName = getIntent().getStringExtra(EXTRA_NOTIFICATION_CHANNEL_NAME);
+        String channelId = getIntent().getStringExtra(EXTRA_NOTIFICATION_CHANNEL_ID);
+        Messenger messenger = getIntent().getParcelableExtra(EXTRA_MESSENGER);
+        if (channelName == null || channelId == null || messenger == null) {
             Log.w(TAG, "Finishing because not all required extras were provided.");
             finish();
             return;
         }
+        mChannelName = channelName;
+        mChannelId = channelId;
+        mMessenger = messenger;
 
         // When running on T or greater, with the app targeting less than T, creating a channel for
         // the first time will trigger the permission dialog.
         if (getApplicationContext().getApplicationInfo().targetSdkVersion
                 < Build.VERSION_CODES.TIRAMISU) {
-            NotificationChannel channel = new NotificationChannel(
-                    mChannelId, mChannelName, NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel channel =
+                    new NotificationChannel(
+                            mChannelId, mChannelName, NotificationManager.IMPORTANCE_DEFAULT);
             getNotificationManager().createNotificationChannel(channel);
         }
 
@@ -115,13 +126,10 @@ public class NotificationPermissionRequestActivity extends Activity {
         finish();
     }
 
-    /**
-     * Sends a message to the messenger containing the permission status.
-     */
+    /** Sends a message to the messenger containing the permission status. */
     private static void sendPermissionMessage(Messenger messenger, boolean enabled) {
         Bundle data = new Bundle();
-        @PermissionStatus
-        int status = enabled ? PermissionStatus.ALLOW : PermissionStatus.BLOCK;
+        @PermissionStatus int status = enabled ? PermissionStatus.ALLOW : PermissionStatus.BLOCK;
         data.putInt(KEY_PERMISSION_STATUS, status);
         Message message = Message.obtain();
         message.setData(data);

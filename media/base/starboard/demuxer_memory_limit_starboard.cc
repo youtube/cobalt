@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/base/demuxer_memory_limit.h"
-
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "media/base/decoder_buffer.h"
+#include "media/base/demuxer_memory_limit.h"
 #include "media/base/video_codecs.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -59,7 +58,7 @@ size_t GetDemuxerStreamAudioMemoryLimit(
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
-    Demuxer::DemuxerTypes /*demuxer_type*/,
+    DemuxerType /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
   if (!video_config) {
     return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
@@ -75,7 +74,7 @@ size_t GetDemuxerStreamVideoMemoryLimit(
       codec, width, height, bits_per_pixel);
 }
 
-size_t GetDemuxerMemoryLimit(Demuxer::DemuxerTypes demuxer_type) {
+size_t GetDemuxerMemoryLimit(DemuxerType demuxer_type) {
   return GetDemuxerStreamAudioMemoryLimit(nullptr) +
          GetDemuxerStreamVideoMemoryLimit(demuxer_type, nullptr);
 }

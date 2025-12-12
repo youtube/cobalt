@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "third_party/blink/renderer/core/page/plugin_data.h"
 
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -9,6 +14,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/plugins/plugin_registry.mojom-blink.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/testing_platform_support.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -26,6 +32,7 @@ class MockPluginRegistry : public mojom::blink::PluginRegistry {
 };
 
 TEST(PluginDataTest, UpdatePluginList) {
+  test::TaskEnvironment task_environment;
   ScopedTestingPlatformSupport<TestingPlatformSupport> support;
 
   MockPluginRegistry mock_plugin_registry;

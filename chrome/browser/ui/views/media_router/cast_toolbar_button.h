@@ -6,8 +6,8 @@
 #define CHROME_BROWSER_UI_VIEWS_MEDIA_ROUTER_CAST_TOOLBAR_BUTTON_H_
 
 #include "base/memory/raw_ptr.h"
-#include "chrome/browser/ui/toolbar/media_router_action_controller.h"
-#include "chrome/browser/ui/toolbar/media_router_contextual_menu.h"
+#include "chrome/browser/ui/toolbar/cast/cast_contextual_menu.h"
+#include "chrome/browser/ui/toolbar/cast/cast_toolbar_button_controller.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_button.h"
 #include "components/media_router/browser/issues_observer.h"
 #include "components/media_router/browser/mirroring_media_controller_host.h"
@@ -28,23 +28,23 @@ class LoggerImpl;
 // - There is an active local cast session.
 // - There is an outstanding issue.
 class CastToolbarButton : public ToolbarButton,
-                          public MediaRouterActionController::Observer,
+                          public CastToolbarButtonController::Observer,
                           public IssuesObserver,
                           public MediaRoutesObserver,
                           public MirroringMediaControllerHost::Observer {
- public:
-  METADATA_HEADER(CastToolbarButton);
+  METADATA_HEADER(CastToolbarButton, ToolbarButton)
 
+ public:
   static std::unique_ptr<CastToolbarButton> Create(Browser* browser);
 
   CastToolbarButton(Browser* browser,
                     MediaRouter* media_router,
-                    std::unique_ptr<MediaRouterContextualMenu> context_menu);
+                    std::unique_ptr<CastContextualMenu> context_menu);
   CastToolbarButton(const CastToolbarButton&) = delete;
   CastToolbarButton& operator=(const CastToolbarButton&) = delete;
   ~CastToolbarButton() override;
 
-  // MediaRouterActionController::Observer:
+  // CastToolbarButtonController::Observer:
   void ShowIcon() override;
   void HideIcon() override;
   void ActivateIcon() override;
@@ -68,15 +68,10 @@ class CastToolbarButton : public ToolbarButton,
   void OnThemeChanged() override;
   void UpdateIcon() override;
 
-  MediaRouterContextualMenu* context_menu_for_test() {
-    return context_menu_.get();
-  }
+  CastContextualMenu* context_menu_for_test() { return context_menu_.get(); }
 
  private:
-  MediaRouterActionController* GetActionController() const;
-
-  // Updates insets per touch ui mode.
-  void UpdateLayoutInsetDelta();
+  CastToolbarButtonController* GetActionController() const;
 
   void ButtonPressed();
 
@@ -88,9 +83,9 @@ class CastToolbarButton : public ToolbarButton,
   const raw_ptr<Profile> profile_;
 
   // This value is set only when there is an outstanding issue.
-  std::unique_ptr<media_router::IssueInfo> current_issue_;
+  std::optional<media_router::IssueInfo::Severity> issue_severity_;
 
-  std::unique_ptr<MediaRouterContextualMenu> context_menu_;
+  std::unique_ptr<CastContextualMenu> context_menu_;
 
   bool has_local_route_ = false;
 

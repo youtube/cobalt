@@ -12,13 +12,13 @@
 
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
-#include "ash/wm/tablet_mode/tablet_mode_controller.h"
+#include "ash/wm/splitview/split_view_controller.h"
+#include "ash/wm/tablet_mode/tablet_mode_controller_test_api.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/wm_event.h"
+#include "base/bit_cast.h"
 #include "base/functional/bind.h"
 #include "base/posix/unix_domain_socket.h"
-#include "base/test/scoped_feature_list.h"
-#include "chromeos/ui/wm/features.h"
 #include "components/exo/display.h"
 #include "components/exo/shell_surface.h"
 #include "components/exo/test/exo_test_base.h"
@@ -27,6 +27,7 @@
 #include "ui/aura/window_delegate.h"
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
+#include "ui/display/test/display_manager_test_api.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/widget/widget.h"
@@ -65,11 +66,6 @@ class WaylandRemoteShellTest : public test::ExoTestBase {
 
   // test::ExoTestBase:
   void SetUp() override {
-    // We need to enable the flag before `test::ExoTestBase::SetUp()` to make
-    // FloatController instantiated in Shell.
-    scoped_feature_list_.InitAndEnableFeature(
-        chromeos::wm::features::kWindowLayoutMenu);
-
     test::ExoTestBase::SetUp();
 
     ResetEventRecords();
@@ -103,10 +99,6 @@ class WaylandRemoteShellTest : public test::ExoTestBase {
     wl_remote_surface_resource_.reset();
 
     test::ExoTestBase::TearDown();
-  }
-
-  void EnableTabletMode(bool enable) {
-    ash::Shell::Get()->tablet_mode_controller()->SetEnabledForTest(enable);
   }
 
   std::unique_ptr<ClientControlledShellSurface::Delegate> CreateDelegate() {
@@ -229,7 +221,6 @@ class WaylandRemoteShellTest : public test::ExoTestBase {
       /*set_use_default_scale_cancellation_since_version=*/0,
       /*has_bounds_change_reason_float=*/true,
   };
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 std::vector<RemoteShellEventType>
     WaylandRemoteShellTest::remote_shell_event_sequence_;
@@ -248,7 +239,7 @@ TEST_F(WaylandRemoteShellTest, TabletTransition) {
   auto* const window = widget->GetNativeWindow();
 
   // Snap window.
-  ash::WMEvent event(ash::WM_EVENT_SNAP_PRIMARY);
+  ash::WindowSnapWMEvent event(ash::WM_EVENT_SNAP_PRIMARY);
   ash::WindowState::Get(window)->OnWMEvent(&event);
   shell_surface->SetSnapPrimary(chromeos::kDefaultSnapRatio);
   shell_surface->SetGeometry(gfx::Rect(0, 0, 400, 520));
@@ -256,7 +247,7 @@ TEST_F(WaylandRemoteShellTest, TabletTransition) {
 
   // Enable tablet mode.
   ResetEventRecords();
-  EnableTabletMode(true);
+  ash::TabletModeControllerTestApi().EnterTabletMode();
   task_environment()->FastForwardBy(base::Seconds(1));
   task_environment()->RunUntilIdle();
 
@@ -404,6 +395,54 @@ TEST_F(WaylandRemoteShellTest, DisplayRotation) {
             bounds_change.reason);
 }
 
+// Test that bounds changes are properly handled when the display is rotated in
+// tablet mode.
+TEST_F(WaylandRemoteShellTest, DisplayRotationInTabletMode) {
+  UpdateDisplay("800x600");
+  display::test::DisplayManagerTestApi(ash::Shell::Get()->display_manager())
+      .SetFirstDisplayAsInternalDisplay();
+  // Enable tablet mode.
+  ash::TabletModeControllerTestApi().EnterTabletMode();
+  task_environment()->RunUntilIdle();
+
+  auto shell_surface = exo::test::ShellSurfaceBuilder({256, 256})
+                           .SetDelegate(CreateDelegate())
+                           .BuildClientControlledShellSurface();
+  auto* surface = shell_surface->root_surface();
+  auto* const widget = shell_surface->GetWidget();
+  auto* const window = widget->GetNativeWindow();
+  const display::Display& display =
+      display::Screen::GetScreen()->GetDisplayNearestWindow(window);
+
+  // Snap window.
+  ash::WindowSnapWMEvent event(ash::WM_EVENT_SNAP_SECONDARY);
+  ash::WindowState::Get(window)->OnWMEvent(&event);
+  shell_surface->SetSnapSecondary(chromeos::kDefaultSnapRatio);
+  shell_surface->SetGeometry(gfx::Rect(400, 0, 400, 520));
+  surface->Commit();
+
+  // Rotate the display.
+  ResetEventRecords();
+  ash::Shell::Get()->display_manager()->SetDisplayRotation(
+      display.id(), display::Display::ROTATE_90,
+      display::Display::RotationSource::ACCELEROMETER);
+  // Any bounds change due to display rotation is deferred until the next event
+  // loop.
+  EXPECT_TRUE(remote_shell_event_sequence().empty());
+  // When the bounds set by the client requires the "adjustment" on the new
+  // display configuration, do not adjust it.
+  shell_surface->SetBounds(display.id(), gfx::Rect(600, 0, 400, 520));
+  surface->Commit();
+  task_environment()->RunUntilIdle();
+  EXPECT_EQ(1UL, remote_shell_requested_bounds_changes().size());
+  EXPECT_EQ(
+      ash::SplitViewController::Get(window->GetRootWindow())
+          ->GetSnappedWindowBoundsInScreen(ash::SnapPosition::kSecondary,
+                                           window, chromeos::kDefaultSnapRatio,
+                                           /*account_for_divider_width=*/true),
+      remote_shell_requested_bounds_changes()[0].bounds_in_display);
+}
+
 // Removing secandary display and re-reconnect it restores the bounds of
 // windows on secandary display. This test verifies bounds change events
 // and workspace info events are triggered with proper values and in
@@ -428,6 +467,7 @@ TEST_F(WaylandRemoteShellTest, DisplayRemovalAddition) {
   // Move the window to the secandary display.
   const int initial_x = 100;
   const int initial_y = 100;
+  shell_surface->SetScaleFactor(2.f);
   shell_surface->SetBounds(secondary_display_id,
                            gfx::Rect(initial_x, initial_y, kDefaultWindowLength,
                                      kDefaultWindowLength));
@@ -483,6 +523,10 @@ TEST_F(WaylandRemoteShellTest, DisplayRemovalAddition) {
 
 // Test that the desktop focus state event is called with the proper value in
 // response to window focus change.
+// Note that some clients such as ARC T+ rely on the behavior that the desktop
+// focus change event is invoked immediately once focus switches in ash, which
+// means, for example, we must not call `RunLoop::RunUntilIdle()` to wait for
+// the event in this test.
 TEST_F(WaylandRemoteShellTest, DesktopFocusState) {
   auto client_controlled_shell_surface =
       exo::test::ShellSurfaceBuilder(
@@ -522,14 +566,15 @@ TEST_F(WaylandRemoteShellTest, FloatSurface) {
   SetImplementation(wl_remote_surface(), /*implementation=*/nullptr,
                     std::move(shell_surface));
 
-  // Emitting float event
-  const ash::WMEvent float_event(ash::WM_EVENT_FLOAT);
+  // Emitting float event.
+  const ash::WindowFloatWMEvent float_event(
+      chromeos::FloatStartLocation::kBottomRight);
   window_state->OnWMEvent(&float_event);
   ASSERT_EQ(1UL, remote_shell_requested_bounds_changes().size());
   ASSERT_EQ(remote_shell_requested_bounds_changes()[0].reason,
             ZCR_REMOTE_SURFACE_V2_BOUNDS_CHANGE_REASON_FLOAT);
 
-  // Set float state from clients
+  // Set float state from clients.
   zcr_remote_shell::remote_surface_set_float(wl_client(), wl_remote_surface());
   surface->Commit();
   EXPECT_TRUE(window_state->IsFloated());
@@ -576,6 +621,11 @@ TEST_F(WaylandRemoteShellTest, MoveAcrossDisplaysWithDifferentScaleFactors) {
         gfx::ScaleToRoundedSize(min_size_in_dp, device_scale_factor);
     const auto max_size_in_px =
         gfx::ScaleToRoundedSize(max_size_in_dp, device_scale_factor);
+
+    const uint scale_factor_value =
+        base::bit_cast<const uint>(device_scale_factor);
+    zcr_remote_shell::remote_surface_set_scale_factor(
+        wl_client(), wl_remote_surface(), scale_factor_value);
 
     // Set bounds, min size, max size, and then commit.
     shell_surface_ptr->SetBounds(display_id, bounds_in_px);

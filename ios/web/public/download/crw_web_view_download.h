@@ -6,13 +6,15 @@
 #define IOS_WEB_PUBLIC_DOWNLOAD_CRW_WEB_VIEW_DOWNLOAD_H_
 
 #import <Foundation/Foundation.h>
+
 #import "base/ios/block_types.h"
 
 // Provides API for managing a web view download.
 @protocol CRWWebViewDownload <NSObject>
 
 // Cancels the download with a completion block.
-- (void)cancelDownload:(ProceduralBlock)completion API_AVAILABLE(ios(14.5));
+// Local downloads (from file:// URL) cannot be cancelled.
+- (void)cancelDownload:(ProceduralBlock)completion;
 
 @end
 

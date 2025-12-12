@@ -1,13 +1,13 @@
-/* Copyright 2022 The Chromium Authors. All rights reserved.
+/* Copyright 2022 The Chromium Authors
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file. */
 
 /* #css_wrapper_metadata_start
  * #type=style
  * #import=chrome://resources/ash/common/navigation_shared_vars.css.js
- * #import=chrome://resources/cr_elements/chromeos/cros_color_overrides.css.js
- * #import=chrome://resources/cr_elements/cr_shared_style.css.js
- * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #import=chrome://resources/ash/common/cr_elements/cros_color_overrides.css.js
+ * #import=chrome://resources/ash/common/cr_elements/cr_shared_style.css.js
+ * #import=chrome://resources/ash/common/cr_elements/cr_shared_vars.css.js
  * #include=cr-shared-style cros-color-overrides
  * #css_wrapper_metadata_end */
 
@@ -43,11 +43,26 @@
         0 1px 2px var(--cros-shadow-color-key),
         0 2px 6px var(--cros-shadow-color-ambient);
     --diagnostics-card-bg-color: var(--cros-sys-app_base);
-    --diagnostics-chip-bg-color: var(--cros-sys-app_base);
+    --diagnostics-chip-bg-color: var(--cros-sys-surface_variant);
+  }
+
+  :host-context(body.jelly-enabled) .diagnostics-chip {
+    color: var(--cros-sys-on_surface_variant);
   }
 
   :host-context(body.jelly-enabled) .grey-container {
     background-color: var(--cros-sys-app_base_shaded);
+  }
+
+  :host-context(body.jelly-enabled) cr-button {
+    font: var(--cros-button-2-font);
+  }
+
+  :host-context(body.jelly-enabled) cr-button.action-button {
+    font: var(--cros-button-1-font);
+  }
+  :host-context(body.jelly-enabled) cr-dialog::part(dialog) {
+    border-radius: 20px;
   }
 
   hr {
@@ -130,6 +145,10 @@
     width: var(--container-max-width-nav);
   }
 
+  :host-context(body.jelly-enabled) .diagnostics-chip {
+    font: var(--cros-body-2-font);
+  }
+
   .diagnostics-chip {
     background-color: var(--diagnostics-chip-bg-color);
     border-radius: 16px;
@@ -182,6 +201,10 @@
     margin-bottom: 16px;
     margin-top: 12px;
     padding-inline: 20px;
+  }
+
+  :host-context(body.jelly-enabled) .diagnostics-caution-banner-font {
+    font: var(--cros-body-1-font);
   }
 
   .diagnostics-caution-banner-font {

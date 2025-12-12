@@ -9,13 +9,14 @@
 #include "third_party/blink/renderer/core/display_lock/display_lock_document_state.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/range.h"
-#include "third_party/blink/renderer/core/dom/scripted_idle_task_controller.h"
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/editing/finder/find_buffer.h"
 #include "third_party/blink/renderer/core/editing/finder/find_options.h"
+#include "third_party/blink/renderer/core/editing/finder/find_results.h"
 #include "third_party/blink/renderer/core/editing/finder/text_finder.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
+#include "third_party/blink/renderer/core/scheduler/scripted_idle_task_controller.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
 
@@ -37,7 +38,7 @@ class FindTaskController::FindTask final : public GarbageCollected<FindTask> {
   FindTask(FindTaskController* controller,
            Document* document,
            int identifier,
-           const WebString& search_text,
+           const String& search_text,
            const mojom::blink::FindOptions& options)
       : document_(document),
         controller_(controller),
@@ -108,10 +109,10 @@ class FindTaskController::FindTask final : public GarbageCollected<FindTask> {
     bool full_range_searched = true;
     PositionInFlatTree next_task_start_position;
 
-    blink::FindOptions find_options =
-        (options_->forward ? 0 : kBackwards) |
-        (options_->match_case ? 0 : kCaseInsensitive) |
-        (options_->new_session ? kStartInSelection : 0);
+    auto find_options = FindOptions()
+                            .SetBackwards(!options_->forward)
+                            .SetCaseInsensitive(!options_->match_case)
+                            .SetStartingInSelection(options_->new_session);
     const auto start_time = base::TimeTicks::Now();
 
     auto time_allotment_expired = [start_time]() {
@@ -123,11 +124,12 @@ class FindTaskController::FindTask final : public GarbageCollected<FindTask> {
 
     while (search_start < search_end) {
       // Find in the whole block.
-      FindBuffer buffer(EphemeralRangeInFlatTree(search_start, search_end));
-      FindBuffer::Results match_results =
+      FindBuffer buffer(EphemeralRangeInFlatTree(search_start, search_end),
+                        RubySupport::kEnabledIfNecessary);
+      FindResults match_results =
           buffer.FindMatches(search_text_, find_options);
       bool yielded_while_iterating_results = false;
-      for (FindBuffer::BufferMatchResult match : match_results) {
+      for (MatchResultICU match : match_results) {
         const EphemeralRangeInFlatTree ephemeral_match_range =
             buffer.RangeFromBufferIndex(match.start,
                                         match.start + match.length);
@@ -196,7 +198,7 @@ class FindTaskController::FindTask final : public GarbageCollected<FindTask> {
   Member<Document> document_;
   Member<FindTaskController> controller_;
   const int identifier_;
-  const WebString search_text_;
+  const String search_text_;
   mojom::blink::FindOptionsPtr options_;
 };
 
@@ -213,14 +215,11 @@ int FindTaskController::GetMatchYieldCheckInterval() const {
 
 void FindTaskController::StartRequest(
     int identifier,
-    const WebString& search_text,
+    const String& search_text,
     const mojom::blink::FindOptions& options) {
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0(
       "blink", "FindInPageRequest",
       TRACE_ID_WITH_SCOPE("FindInPageRequest", identifier));
-  current_request_start_time_ = base::TimeTicks::Now();
-  total_task_duration_for_current_request_ = base::TimeDelta();
-  task_count_for_current_request_ = 0;
   DCHECK(!finding_in_progress_);
   DCHECK_EQ(current_find_identifier_, kInvalidFindIdentifier);
   // This is a brand new search, so we need to reset everything.
@@ -235,7 +234,6 @@ void FindTaskController::CancelPendingRequest() {
   if (find_task_)
     find_task_.Clear();
   if (finding_in_progress_) {
-    RecordRequestMetrics(RequestEndState::ABORTED);
     last_find_request_completed_with_no_matches_ = false;
   }
   finding_in_progress_ = false;
@@ -245,18 +243,17 @@ void FindTaskController::CancelPendingRequest() {
 
 void FindTaskController::RequestFindTask(
     int identifier,
-    const WebString& search_text,
+    const String& search_text,
     const mojom::blink::FindOptions& options) {
   DCHECK_EQ(find_task_, nullptr);
   DCHECK_EQ(identifier, current_find_identifier_);
-  task_count_for_current_request_++;
   find_task_ = MakeGarbageCollected<FindTask>(
       this, GetLocalFrame()->GetDocument(), identifier, search_text, options);
 }
 
 void FindTaskController::DidFinishTask(
     int identifier,
-    const WebString& search_text,
+    const String& search_text,
     const mojom::blink::FindOptions& options,
     bool finished_whole_request,
     PositionInFlatTree next_starting_position,
@@ -265,8 +262,6 @@ void FindTaskController::DidFinishTask(
     base::TimeTicks task_start_time) {
   if (current_find_identifier_ != identifier)
     return;
-  total_task_duration_for_current_request_ +=
-      base::TimeTicks::Now() - task_start_time;
   if (find_task_)
     find_task_.Clear();
   // Remember what we search for last time, so we can skip searching if more
@@ -295,39 +290,10 @@ void FindTaskController::DidFinishTask(
 
   text_finder_->FinishCurrentScopingEffort(identifier);
 
-  RecordRequestMetrics(RequestEndState::ABORTED);
   last_find_request_completed_with_no_matches_ =
       !aborted && !current_match_count_;
   finding_in_progress_ = false;
   current_find_identifier_ = kInvalidFindIdentifier;
-}
-
-void FindTaskController::RecordRequestMetrics(
-    RequestEndState request_end_state) {
-  bool aborted = (request_end_state == RequestEndState::ABORTED);
-  TRACE_EVENT_NESTABLE_ASYNC_END1(
-      "blink", "FindInPageRequest",
-      TRACE_ID_WITH_SCOPE("FindInPageRequest", current_find_identifier_),
-      "aborted", aborted);
-  if (aborted) {
-    UMA_HISTOGRAM_MEDIUM_TIMES("WebCore.FindInPage.TotalTaskDuration.Aborted",
-                               total_task_duration_for_current_request_);
-    UMA_HISTOGRAM_MEDIUM_TIMES(
-        "WebCore.FindInPage.RequestDuration.Aborted",
-        base::TimeTicks::Now() - current_request_start_time_);
-    UMA_HISTOGRAM_COUNTS_1000(
-        "WebCore.FindInPage.NumberOfTasksPerRequest.Aborted",
-        task_count_for_current_request_);
-  } else {
-    UMA_HISTOGRAM_MEDIUM_TIMES("WebCore.FindInPage.TotalTaskDuration.Finished",
-                               total_task_duration_for_current_request_);
-    UMA_HISTOGRAM_MEDIUM_TIMES(
-        "WebCore.FindInPage.RequestDuration.Finished",
-        base::TimeTicks::Now() - current_request_start_time_);
-    UMA_HISTOGRAM_COUNTS_1000(
-        "WebCore.FindInPage.NumberOfTasksPerRequest.Finished",
-        task_count_for_current_request_);
-  }
 }
 
 LocalFrame* FindTaskController::GetLocalFrame() const {

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {BookmarksFolderNodeElement, FolderOpenState, NodeMap, normalizeNodes} from 'chrome://bookmarks/bookmarks.js';
+import type {BookmarksFolderNodeElement, FolderOpenState, NodeMap} from 'chrome://bookmarks/bookmarks.js';
+import {normalizeNodes, ROOT_NODE_ID} from 'chrome://bookmarks/bookmarks.js';
 import {isMac} from 'chrome://resources/js/platform.js';
 import {assertEquals} from 'chrome://webui-test/chai_assert.js';
 
@@ -23,7 +24,7 @@ export function replaceBody(element: Element) {
  */
 export function testTree(...nodes: chrome.bookmarks.BookmarkTreeNode[]):
     NodeMap {
-  return normalizeNodes(createFolder('0', nodes));
+  return normalizeNodes(createFolder(ROOT_NODE_ID, nodes));
 }
 
 /**
@@ -38,6 +39,7 @@ export function createFolder(
         id: id,
         children: children,
         title: '',
+        syncing: config?.syncing ?? true,
       },
       config || {});
 
@@ -74,6 +76,7 @@ export function createItem(
         id: id,
         title: '',
         url: 'http://www.google.com/',
+        syncing: config?.syncing ?? true,
       },
       config || {});
 }
@@ -135,7 +138,7 @@ export function findFolderNode(
       return node;
     }
 
-    node.shadowRoot!.querySelectorAll('bookmarks-folder-node').forEach((x) => {
+    node.shadowRoot.querySelectorAll('bookmarks-folder-node').forEach((x) => {
       nodes.unshift(x);
     });
   }

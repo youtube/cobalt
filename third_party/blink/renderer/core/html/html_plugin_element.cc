@@ -22,15 +22,17 @@
 
 #include "third_party/blink/renderer/core/html/html_plugin_element.h"
 
+#include <algorithm>
+
 #include "base/feature_list.h"
-#include "base/ranges/algorithm.h"
+#include "services/network/public/cpp/permissions_policy/permissions_policy_declaration.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/loader/request_context_frame_type.mojom-blink.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom-blink.h"
 #include "third_party/blink/public/mojom/permissions_policy/policy_value.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/web_url_request.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
@@ -38,6 +40,7 @@
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
+#include "third_party/blink/renderer/core/execution_context/agent.h"
 #include "third_party/blink/renderer/core/exported/web_plugin_container_impl.h"
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -64,13 +67,14 @@
 #include "third_party/blink/renderer/platform/network/mime/mime_type_registry.h"
 #include "third_party/blink/renderer/platform/scheduler/public/frame_scheduler.h"
 #include "third_party/blink/renderer/platform/scheduler/public/scheduling_policy.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
 namespace {
 
 String GetMIMETypeFromURL(const KURL& url) {
-  String filename = url.LastPathComponent();
+  String filename = url.LastPathComponent().ToString();
   int extension_pos = filename.ReverseFind('.');
   if (extension_pos >= 0) {
     String extension = filename.Substring(extension_pos + 1);
@@ -108,13 +112,13 @@ void PluginParameters::AppendNameWithValue(const String& name,
 }
 
 void PluginParameters::MapDataParamToSrc() {
-  if (base::ranges::any_of(names_, [](auto name) {
+  if (std::ranges::any_of(names_, [](auto name) {
         return EqualIgnoringASCIICase(name, "src");
       })) {
     return;
   }
 
-  auto* data = base::ranges::find_if(
+  auto data = std::ranges::find_if(
       names_, [](auto name) { return EqualIgnoringASCIICase(name, "data"); });
 
   if (data != names_.end()) {
@@ -171,8 +175,11 @@ void HTMLPlugInElement::SetFocused(bool focused,
 }
 
 bool HTMLPlugInElement::CanProcessDrag() const {
-  return PluginEmbeddedContentView() &&
-         PluginEmbeddedContentView()->CanProcessDrag();
+  // Be careful to call PluginEmbeddedContentView only once, because calling
+  // it can change things such that another call will return a different
+  // result.
+  WebPluginContainerImpl* plugin = PluginEmbeddedContentView();
+  return plugin && plugin->CanProcessDrag();
 }
 
 bool HTMLPlugInElement::CanStartSelection() const {
@@ -246,10 +253,8 @@ void HTMLPlugInElement::AttachLayoutTree(AttachContext& context) {
     GetDocument().IncrementLoadEventDelayCount();
     GetDocument().LoadPluginsSoon();
   }
-  if (image_loader_ && layout_object->IsLayoutImage()) {
-    LayoutImageResource* image_resource =
-        To<LayoutImage>(layout_object)->ImageResource();
-    image_resource->SetImageResource(image_loader_->GetContent());
+  if (image_loader_ && IsA<LayoutImage>(*layout_object)) {
+    image_loader_->OnAttachLayoutTree();
   }
   if (layout_object->AffectsWhitespaceSiblings())
     context.previous_in_flow = layout_object;
@@ -257,9 +262,9 @@ void HTMLPlugInElement::AttachLayoutTree(AttachContext& context) {
   dispose_view_ = false;
 }
 
-void HTMLPlugInElement::IntrinsicSizingInfoChanged() {
+void HTMLPlugInElement::NaturalSizingInfoChanged() {
   if (auto* embedded_object = GetLayoutEmbeddedObject())
-    embedded_object->IntrinsicSizeChanged();
+    embedded_object->NaturalSizeChanged();
 }
 
 void HTMLPlugInElement::UpdatePlugin() {
@@ -290,17 +295,9 @@ bool HTMLPlugInElement::ShouldAccelerate() const {
   return plugin && plugin->CcLayer();
 }
 
-ParsedPermissionsPolicy HTMLPlugInElement::ConstructContainerPolicy() const {
-  // Plugin elements (<object> and <embed>) are not allowed to enable the
-  // fullscreen feature. Add an empty allowlist for the fullscreen feature so
-  // that the nested browsing context is unable to use the API, regardless of
-  // origin.
-  // https://fullscreen.spec.whatwg.org/#model
-  ParsedPermissionsPolicy container_policy;
-  ParsedPermissionsPolicyDeclaration allowlist(
-      mojom::blink::PermissionsPolicyFeature::kFullscreen);
-  container_policy.push_back(allowlist);
-  return container_policy;
+network::ParsedPermissionsPolicy HTMLPlugInElement::ConstructContainerPolicy()
+    const {
+  return GetLegacyFramePolicies();
 }
 
 void HTMLPlugInElement::DetachLayoutTree(bool performing_reattach) {
@@ -384,10 +381,13 @@ v8::Local<v8::Object> HTMLPlugInElement::PluginWrapper() {
   // If the host dynamically turns off JavaScript (or Java) we will still
   // return the cached allocated Bindings::Instance. Not supporting this
   // edge-case is OK.
-  v8::Isolate* isolate = V8PerIsolateData::MainThreadIsolate();
+  v8::Isolate* isolate = GetDocument().GetAgent().isolate();
   if (plugin_wrapper_.IsEmpty()) {
     WebPluginContainerImpl* plugin;
 
+    // Be careful to call PluginEmbeddedContentView only once, because calling
+    // it can change things such that another call will return a different
+    // result.
     if (persisted_plugin_)
       plugin = persisted_plugin_;
     else
@@ -411,6 +411,98 @@ v8::Local<v8::Object> HTMLPlugInElement::PluginWrapper() {
     }
   }
   return plugin_wrapper_.Get(isolate);
+}
+
+ScriptValue HTMLPlugInElement::AnonymousNamedGetter(const AtomicString& name) {
+  if (!GetExecutionContext()) {
+    // PluginWrapper() is guaranteed nullptr if there's no ExecutionContext.
+    return ScriptValue();
+  }
+
+  v8::Isolate* isolate = GetExecutionContext()->GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  ScriptState* script_state = ScriptState::From(isolate, context);
+  if (!script_state->World().IsMainWorld()) {
+    if (script_state->World().IsIsolatedWorld()) {
+      UseCounter::Count(GetExecutionContext(),
+                        WebFeature::kPluginInstanceAccessFromIsolatedWorld);
+    }
+    // The plugin system cannot deal with multiple worlds, so block any
+    // non-main world access.
+    return ScriptValue();
+  }
+  UseCounter::Count(GetExecutionContext(),
+                    WebFeature::kPluginInstanceAccessFromMainWorld);
+
+  v8::Local<v8::Object> instance = PluginWrapper();
+  if (instance.IsEmpty()) {
+    return ScriptValue();
+  }
+
+  v8::Local<v8::String> v8_name =
+      V8AtomicString(script_state->GetIsolate(), name);
+  bool has_own_property;
+  v8::Local<v8::Value> value;
+  if (!instance->HasOwnProperty(context, v8_name).To(&has_own_property) ||
+      !has_own_property || !instance->Get(context, v8_name).ToLocal(&value)) {
+    return ScriptValue();
+  }
+
+  UseCounter::Count(GetExecutionContext(),
+                    WebFeature::kPluginInstanceAccessSuccessful);
+  return ScriptValue(script_state->GetIsolate(), value);
+}
+
+NamedPropertySetterResult HTMLPlugInElement::AnonymousNamedSetter(
+    const AtomicString& name,
+    const ScriptValue& value) {
+  if (!GetExecutionContext()) {
+    // PluginWrapper() is guaranteed nullptr if there's no ExecutionContext.
+    return NamedPropertySetterResult::kDidNotIntercept;
+  }
+
+  v8::Isolate* isolate = GetExecutionContext()->GetIsolate();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  ScriptState* script_state = ScriptState::From(isolate, context);
+  if (!script_state->World().IsMainWorld()) {
+    // The plugin system cannot deal with multiple worlds, so block any
+    // non-main world access.
+    return NamedPropertySetterResult::kDidNotIntercept;
+  }
+
+  v8::Local<v8::Object> instance = PluginWrapper();
+  if (instance.IsEmpty()) {
+    return NamedPropertySetterResult::kDidNotIntercept;
+  }
+
+  // Don't intercept any of the properties of the HTMLPluginElement.
+  v8::Local<v8::String> v8_name =
+      V8AtomicString(script_state->GetIsolate(), name);
+  v8::Local<v8::Object> this_wrapper =
+      ToV8Traits<HTMLPlugInElement>::ToV8(script_state, this).As<v8::Object>();
+  bool instance_has_property;
+  bool holder_has_property;
+  if (!instance->HasOwnProperty(context, v8_name).To(&instance_has_property) ||
+      !this_wrapper->Has(context, v8_name).To(&holder_has_property) ||
+      (!instance_has_property && holder_has_property)) {
+    return NamedPropertySetterResult::kDidNotIntercept;
+  }
+
+  // FIXME: The gTalk pepper plugin is the only plugin to make use of
+  // SetProperty and that is being deprecated. This can be removed as soon as
+  // it goes away.
+  // Call SetProperty on a pepper plugin's scriptable object. Note that we
+  // never set the return value here which would indicate that the plugin has
+  // intercepted the SetProperty call, which means that the property on the
+  // DOM element will also be set. For plugin's that don't intercept the call
+  // (all except gTalk) this makes no difference at all. For gTalk the fact
+  // that the property on the DOM element also gets set is inconsequential.
+  bool created;
+  if (!instance->CreateDataProperty(context, v8_name, value.V8Value())
+           .To(&created)) {
+    return NamedPropertySetterResult::kDidNotIntercept;
+  }
+  return NamedPropertySetterResult::kIntercepted;
 }
 
 WebPluginContainerImpl* HTMLPlugInElement::PluginEmbeddedContentView() const {
@@ -439,7 +531,7 @@ bool HTMLPlugInElement::IsPresentationAttribute(
 void HTMLPlugInElement::CollectStyleForPresentationAttribute(
     const QualifiedName& name,
     const AtomicString& value,
-    MutableCSSPropertyValueSet* style) {
+    HeapVector<CSSPropertyValue, 8>& style) {
   if (name == html_names::kWidthAttr) {
     AddHTMLLengthToStyle(style, CSSPropertyID::kWidth, value);
   } else if (name == html_names::kHeightAttr) {
@@ -496,9 +588,11 @@ LayoutEmbeddedContent* HTMLPlugInElement::LayoutEmbeddedContentForJSBindings()
   return ExistingLayoutEmbeddedContent();
 }
 
-bool HTMLPlugInElement::IsKeyboardFocusable() const {
-  if (HTMLFrameOwnerElement::IsKeyboardFocusable())
+bool HTMLPlugInElement::IsKeyboardFocusableSlow(
+    UpdateBehavior update_behavior) const {
+  if (HTMLFrameOwnerElement::IsKeyboardFocusableSlow(update_behavior)) {
     return true;
+  }
 
   WebPluginContainerImpl* embedded_content_view = nullptr;
   if (LayoutEmbeddedContent* layout_embedded_content =
@@ -508,7 +602,7 @@ bool HTMLPlugInElement::IsKeyboardFocusable() const {
 
   return GetDocument().IsActive() && embedded_content_view &&
          embedded_content_view->SupportsKeyboardFocus() &&
-         IsBaseElementFocusable();
+         IsFocusable(update_behavior);
 }
 
 bool HTMLPlugInElement::HasCustomFocusLogic() const {
@@ -520,10 +614,11 @@ bool HTMLPlugInElement::IsPluginElement() const {
 }
 
 bool HTMLPlugInElement::IsErrorplaceholder() {
-  if (PluginEmbeddedContentView() &&
-      PluginEmbeddedContentView()->IsErrorplaceholder())
-    return true;
-  return false;
+  // Be careful to call PluginEmbeddedContentView only once, because calling
+  // it can change things such that another call will return a different
+  // result.
+  WebPluginContainerImpl* plugin = PluginEmbeddedContentView();
+  return plugin && plugin->IsErrorplaceholder();
 }
 
 void HTMLPlugInElement::DisconnectContentFrame() {
@@ -531,13 +626,17 @@ void HTMLPlugInElement::DisconnectContentFrame() {
   SetPersistedPlugin(nullptr);
 }
 
-bool HTMLPlugInElement::IsFocusableStyle() const {
-  if (HTMLFrameOwnerElement::SupportsFocus() &&
-      HTMLFrameOwnerElement::IsFocusableStyle())
+bool HTMLPlugInElement::IsFocusableStyle(UpdateBehavior update_behavior) const {
+  if (HTMLFrameOwnerElement::SupportsFocus(update_behavior) !=
+          FocusableState::kNotFocusable &&
+      HTMLFrameOwnerElement::IsFocusableStyle(update_behavior)) {
     return true;
+  }
 
-  if (UseFallbackContent() || !HTMLFrameOwnerElement::IsFocusableStyle())
+  if (UseFallbackContent() ||
+      !HTMLFrameOwnerElement::IsFocusableStyle(update_behavior)) {
     return false;
+  }
   return plugin_is_available_;
 }
 
@@ -728,6 +827,12 @@ bool HTMLPlugInElement::AllowedToLoadObject(const KURL& url,
   if (url.IsEmpty() && mime_type.empty())
     return false;
 
+  // If present, `url` must contain a valid non-empty URL potentially surrounded
+  // by spaces.
+  if (!url.IsEmpty() && !url.IsValid()) {
+    return false;
+  }
+
   LocalFrame* frame = GetDocument().GetFrame();
   Settings* settings = frame->GetSettings();
   if (!settings)
@@ -752,7 +857,7 @@ bool HTMLPlugInElement::AllowedToLoadObject(const KURL& url,
              frame, mojom::blink::RequestContextType::OBJECT,
              network::mojom::blink::IPAddressSpace::kUnknown, url,
              ResourceRequest::RedirectStatus::kNoRedirect, url,
-             /* devtools_id= */ absl::nullopt, ReportingDisposition::kReport,
+             /* devtools_id= */ String(), ReportingDisposition::kReport,
              GetDocument().Loader()->GetContentSecurityNotifier());
 }
 
@@ -763,10 +868,9 @@ bool HTMLPlugInElement::AllowedToLoadPlugin(const KURL& url) {
         MakeGarbageCollected<ConsoleMessage>(
             mojom::blink::ConsoleMessageSource::kSecurity,
             mojom::blink::ConsoleMessageLevel::kError,
-            "Failed to load '" + url.ElidedString() +
-                "' as a plugin, because the "
-                "frame into which the plugin "
-                "is loading is sandboxed."));
+            WTF::StrCat({"Failed to load '", url.ElidedString(),
+                         "' as a plugin, because the frame into which the "
+                         "plugin is loading is sandboxed."})));
     return false;
   }
   return true;
@@ -825,16 +929,17 @@ void HTMLPlugInElement::UpdateServiceTypeIfEmpty() {
   }
 }
 
-scoped_refptr<const ComputedStyle>
-HTMLPlugInElement::CustomStyleForLayoutObject(
+const ComputedStyle* HTMLPlugInElement::CustomStyleForLayoutObject(
     const StyleRecalcContext& style_recalc_context) {
-  scoped_refptr<const ComputedStyle> style =
+  const ComputedStyle* style =
       OriginalStyleForLayoutObject(style_recalc_context);
   if (IsImageType() && !GetLayoutObject() && style &&
       LayoutObjectIsNeeded(*style)) {
-    if (!image_loader_)
+    if (!image_loader_) {
       image_loader_ = MakeGarbageCollected<HTMLImageLoader>(this);
-    image_loader_->UpdateFromElement();
+    }
+    image_loader_->UpdateFromElement(ImageLoader::kUpdateNormal,
+                                     /* force_blocking */ true);
   }
   return style;
 }

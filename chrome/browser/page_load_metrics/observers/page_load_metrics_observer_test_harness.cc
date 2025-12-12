@@ -15,7 +15,8 @@
 
 namespace page_load_metrics {
 
-PageLoadMetricsObserverTestHarness::~PageLoadMetricsObserverTestHarness() {}
+PageLoadMetricsObserverTestHarness::~PageLoadMetricsObserverTestHarness() =
+    default;
 
 void PageLoadMetricsObserverTestHarness::SetUp() {
   ChromeRenderViewHostTestHarness::SetUp();
@@ -28,8 +29,13 @@ void PageLoadMetricsObserverTestHarness::SetUp() {
       web_contents(), this,
       base::BindRepeating(
           &PageLoadMetricsObserverTestHarness::RegisterObservers,
-          base::Unretained(this)));
+          base::Unretained(this)),
+      IsNonTabWebUI());
   web_contents()->WasShown();
+}
+
+bool PageLoadMetricsObserverTestHarness::IsNonTabWebUI() const {
+  return false;
 }
 
 void PageLoadMetricsObserverTestHarness::InitializeFeatureList() {

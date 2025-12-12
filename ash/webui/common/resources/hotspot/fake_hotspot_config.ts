@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
 import {FakeMethodResolver} from '../fake_method_resolver.js';
 
-import {CrosHotspotConfigInterface, CrosHotspotConfigObserverRemote, HotspotAllowStatus, HotspotConfig, HotspotControlResult, HotspotEnabledStateObserverRemote, HotspotInfo, HotspotState, SetHotspotConfigResult} from './cros_hotspot_config.mojom-webui.js';
+import type {CrosHotspotConfigInterface, CrosHotspotConfigObserverRemote, HotspotAllowStatus, HotspotConfig, HotspotEnabledStateObserverRemote, HotspotInfo} from './cros_hotspot_config.mojom-webui.js';
+import {HotspotControlResult, HotspotState, SetHotspotConfigResult} from './cros_hotspot_config.mojom-webui.js';
 
 /**
  * @fileoverview
@@ -64,9 +65,9 @@ export class FakeHotspotConfig implements CrosHotspotConfigInterface {
   }
 
   // Update the hotspot config and notify observers.
-  setFakeHotspotConfig(config: HotspotConfig): void {
+  setFakeHotspotConfig(config: HotspotConfig|undefined): void {
     assert(this.hotspotInfo_);
-    this.hotspotInfo_.config = config;
+    this.hotspotInfo_.config = config !== undefined ? config : null;
     this.hotspotInfo_ = {...this.hotspotInfo_};
     this.notifyHotspotInfoUpdated_();
   }

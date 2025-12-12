@@ -5,20 +5,20 @@
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_almanac_connector.h"
 
 #include "base/functional/callback.h"
-#include "base/strings/strcat.h"
-#include "base/values.h"
 #include "chrome/browser/apps/almanac_api_client/almanac_api_util.h"
 #include "chrome/browser/apps/almanac_api_client/device_info_manager.h"
-#include "chrome/browser/apps/app_service/package_id.h"
+#include "chrome/browser/apps/almanac_api_client/device_info_manager_factory.h"
 #include "chrome/browser/apps/app_service/promise_apps/promise_app_wrapper.h"
 #include "chrome/browser/apps/app_service/promise_apps/proto/promise_app.pb.h"
 #include "chrome/browser/profiles/profile.h"
+#include "components/services/app_service/public/cpp/package_id.h"
 #include "google_apis/google_api_keys.h"
 #include "net/base/net_errors.h"
-#include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+
+namespace apps {
 
 namespace {
 
@@ -63,21 +63,35 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
           "cannot be disabled by policy."
       }
     )");
+
+std::optional<PromiseAppWrapper> ConvertPromiseAppResponseProto(
+    base::expected<proto::PromiseAppResponse, QueryError> query_response) {
+  if (query_response.has_value()) {
+    return PromiseAppWrapper(std::move(query_response).value());
+  }
+  return std::nullopt;
+}
+
 }  // namespace
 
-namespace apps {
-
 PromiseAppAlmanacConnector::PromiseAppAlmanacConnector(Profile* profile)
-    : url_loader_factory_(profile->GetURLLoaderFactory()),
-      device_info_manager_(std::make_unique<DeviceInfoManager>(profile)) {}
+    : profile_(profile) {}
 
 PromiseAppAlmanacConnector::~PromiseAppAlmanacConnector() = default;
 
 void PromiseAppAlmanacConnector::GetPromiseAppInfo(
     const PackageId& package_id,
     GetPromiseAppCallback callback) {
+  // Ensure that the build uses the Google-internal file containing the
+  // official API keys, which are required to make queries to the Almanac.
+  if (!google_apis::IsGoogleChromeAPIKeyUsed() &&
+      !skip_api_key_check_for_testing_) {
+    return;
+  }
   if (locale_.empty()) {
-    device_info_manager_->GetDeviceInfo(base::BindOnce(
+    DeviceInfoManager* device_info_manager =
+        DeviceInfoManagerFactory::GetForProfile(profile_);
+    device_info_manager->GetDeviceInfo(base::BindOnce(
         &PromiseAppAlmanacConnector::SetLocale, weak_ptr_factory_.GetWeakPtr(),
         package_id, std::move(callback)));
   } else {
@@ -87,36 +101,24 @@ void PromiseAppAlmanacConnector::GetPromiseAppInfo(
 
 // static
 GURL PromiseAppAlmanacConnector::GetServerUrl() {
-  return GURL(base::StrCat({GetAlmanacApiUrl(), kPromiseAppAlmanacEndpoint}));
+  return GetAlmanacEndpointUrl(kPromiseAppAlmanacEndpoint);
+}
+
+void PromiseAppAlmanacConnector::SetSkipApiKeyCheckForTesting(
+    bool skip_api_key_check) {
+  skip_api_key_check_for_testing_ = skip_api_key_check;
 }
 
 void PromiseAppAlmanacConnector::GetPromiseAppInfoImpl(
     const PackageId& package_id,
     GetPromiseAppCallback callback) {
-  auto resource_request = std::make_unique<network::ResourceRequest>();
-  resource_request->url = GetServerUrl();
-  DCHECK(resource_request->url.is_valid());
-
-  // A POST request is sent with an override to GET due to server requirements.
-  resource_request->method = "POST";
-  resource_request->headers.SetHeader("X-HTTP-Method-Override", "GET");
-  resource_request->headers.SetHeader("X-Goog-Api-Key",
-                                      google_apis::GetAPIKey());
-  resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
-
-  std::unique_ptr<network::SimpleURLLoader> loader =
-      network::SimpleURLLoader::Create(std::move(resource_request),
-                                       kTrafficAnnotation);
-  auto* loader_ptr = loader.get();
-  loader_ptr->AttachStringForUpload(BuildGetPromiseAppRequestBody(package_id),
-                                    "application/x-protobuf");
-
-  loader_ptr->DownloadToString(
-      url_loader_factory_.get(),
-      base::BindOnce(&PromiseAppAlmanacConnector::OnGetPromiseAppResponse,
-                     weak_ptr_factory_.GetWeakPtr(), package_id,
-                     std::move(loader), std::move(callback)),
-      kMaxResponseSizeInBytes);
+  QueryAlmanacApi<proto::PromiseAppResponse>(
+      profile_->GetURLLoaderFactory(), kTrafficAnnotation,
+      BuildGetPromiseAppRequestBody(package_id), kPromiseAppAlmanacEndpoint,
+      kMaxResponseSizeInBytes,
+      /*error_histogram_name=*/std::nullopt,
+      base::BindOnce(&ConvertPromiseAppResponseProto)
+          .Then(std::move(callback)));
 }
 
 void PromiseAppAlmanacConnector::SetLocale(const PackageId& package_id,
@@ -132,35 +134,6 @@ std::string PromiseAppAlmanacConnector::BuildGetPromiseAppRequestBody(
   request_proto.set_language(locale_);
   request_proto.set_package_id(package_id.ToString());
   return request_proto.SerializeAsString();
-}
-
-void PromiseAppAlmanacConnector::OnGetPromiseAppResponse(
-    const PackageId& package_id,
-    std::unique_ptr<network::SimpleURLLoader> loader,
-    GetPromiseAppCallback callback,
-    std::unique_ptr<std::string> response_body) {
-  int response_code = 0;
-  if (loader->ResponseInfo()) {
-    response_code = loader->ResponseInfo()->headers->response_code();
-  }
-  const int net_error = loader->NetError();
-
-  // HTTP error codes in the 500-599 range represent server errors.
-  if (net_error != net::OK || (response_code >= 500 && response_code < 600)) {
-    LOG(ERROR) << "Server error. "
-               << "Response code: " << response_code
-               << ". Net error: " << net::ErrorToString(net_error);
-    std::move(callback).Run(absl::nullopt);
-    return;
-  }
-
-  proto::PromiseAppResponse response;
-  if (!response.ParseFromString(*response_body)) {
-    LOG(ERROR) << "Parsing failed";
-    std::move(callback).Run(absl::nullopt);
-    return;
-  }
-  std::move(callback).Run(PromiseAppWrapper(response));
 }
 
 }  // namespace apps

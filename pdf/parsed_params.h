@@ -5,10 +5,10 @@
 #ifndef PDF_PARSED_PARAMS_H_
 #define PDF_PARSED_PARAMS_H_
 
+#include <optional>
 #include <string>
 
 #include "pdf/pdfium/pdfium_form_filler.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkColor.h"
 
 namespace blink {
@@ -21,8 +21,8 @@ struct ParsedParams {
   ParsedParams();
   ParsedParams(const ParsedParams& other);
   ParsedParams& operator=(const ParsedParams& other);
-  ParsedParams(ParsedParams&& other);
-  ParsedParams& operator=(ParsedParams&& other);
+  ParsedParams(ParsedParams&& other) noexcept;
+  ParsedParams& operator=(ParsedParams&& other) noexcept;
   ~ParsedParams();
 
   // The plugin source URL. Must not be empty.
@@ -46,11 +46,15 @@ struct ParsedParams {
 
   // Whether the PDF was edited previously in annotation mode.
   bool has_edits = false;
+
+  // Whether the PDF viewer uses Skia renderer. When set to false, the PDF
+  // viewer uses AGG renderer.
+  bool use_skia = false;
 };
 
 // Creates an `ParsedParams` by parsing a `blink::WebPluginParams`. If
-// `blink::WebPluginParams` is invalid, returns absl::nullopt.
-absl::optional<ParsedParams> ParseWebPluginParams(
+// `blink::WebPluginParams` is invalid, returns std::nullopt.
+std::optional<ParsedParams> ParseWebPluginParams(
     const blink::WebPluginParams& params);
 
 }  // namespace chrome_pdf

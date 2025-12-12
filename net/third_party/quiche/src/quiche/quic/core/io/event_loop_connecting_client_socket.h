@@ -5,12 +5,12 @@
 #ifndef QUICHE_QUIC_CORE_IO_EVENT_LOOP_CONNECTING_CLIENT_SOCKET_H_
 #define QUICHE_QUIC_CORE_IO_EVENT_LOOP_CONNECTING_CLIENT_SOCKET_H_
 
+#include <optional>
 #include <string>
+#include <variant>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
-#include "absl/types/variant.h"
 #include "quiche/quic/core/connecting_client_socket.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
@@ -23,9 +23,8 @@ namespace quic {
 
 // A connection-based client socket implemented using an underlying
 // QuicEventLoop.
-class QUICHE_EXPORT EventLoopConnectingClientSocket
-    : public ConnectingClientSocket,
-      public QuicSocketEventListener {
+class EventLoopConnectingClientSocket : public ConnectingClientSocket,
+                                        public QuicSocketEventListener {
  public:
   // Will use platform default buffer size if `receive_buffer_size` or
   // `send_buffer_size` is zero. `async_visitor` may be null if no async
@@ -91,11 +90,10 @@ class QUICHE_EXPORT EventLoopConnectingClientSocket
   ConnectStatus connect_status_ = ConnectStatus::kNotConnected;
 
   // Only set while receive in progress or pending, otherwise nullopt.
-  absl::optional<QuicByteCount> receive_max_size_;
+  std::optional<QuicByteCount> receive_max_size_;
 
   // Only contains data while send in progress or pending, otherwise monostate.
-  absl::variant<absl::monostate, std::string, quiche::QuicheMemSlice>
-      send_data_;
+  std::variant<std::monostate, std::string, quiche::QuicheMemSlice> send_data_;
   // Points to the unsent portion of `send_data_` while send in progress or
   // pending, otherwise empty.
   absl::string_view send_remaining_;

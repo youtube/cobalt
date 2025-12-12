@@ -34,8 +34,11 @@ class MockSiteCache : public testing::NoopSiteDataStore {
 
   ~MockSiteCache() override = default;
 
-  MOCK_METHOD1(RemoveSiteDataFromStore, void(const std::vector<url::Origin>&));
-  MOCK_METHOD0(ClearStore, void());
+  MOCK_METHOD(void,
+              RemoveSiteDataFromStore,
+              (const std::vector<url::Origin>&),
+              (override));
+  MOCK_METHOD(void, ClearStore, (), (override));
 };
 
 }  // namespace
@@ -74,7 +77,8 @@ class SiteDataCacheImplTest : public ::testing::Test {
     EXPECT_TRUE(writer_);
 
     ASSERT_FALSE(data_);
-    data_ = data_cache_->origin_data_map_for_testing().find(origin_)->second;
+    data_ =
+        data_cache_->origin_data_map_for_testing().find(origin_)->second.get();
     EXPECT_TRUE(data_);
 
     EXPECT_EQ(performance_manager::SiteFeatureUsage::kSiteFeatureUsageUnknown,
@@ -95,7 +99,8 @@ class SiteDataCacheImplTest : public ::testing::Test {
     EXPECT_TRUE(writer2_);
 
     ASSERT_FALSE(data2_);
-    data2_ = data_cache_->origin_data_map_for_testing().find(origin2_)->second;
+    data2_ =
+        data_cache_->origin_data_map_for_testing().find(origin2_)->second.get();
     EXPECT_TRUE(data2_);
 
     EXPECT_EQ(performance_manager::SiteFeatureUsage::kSiteFeatureUsageUnknown,
@@ -113,7 +118,8 @@ class SiteDataCacheImplTest : public ::testing::Test {
   content::TestBrowserContext browser_context_;
 
   // Owned by |data_cache_|.
-  raw_ptr<::testing::StrictMock<MockSiteCache>> mock_db_ = nullptr;
+  raw_ptr<::testing::StrictMock<MockSiteCache>, DanglingUntriaged> mock_db_ =
+      nullptr;
   std::unique_ptr<SiteDataCacheFactory> data_cache_factory_;
   std::unique_ptr<SiteDataCacheImpl> data_cache_;
 
@@ -221,9 +227,10 @@ TEST_F(SiteDataCacheImplTest, ClearAllSiteData) {
 
 TEST_F(SiteDataCacheImplTest, InspectorWorks) {
   // Make sure the inspector interface was registered at construction.
+  auto* factory = SiteDataCacheFactory::GetInstance();
+  ASSERT_TRUE(factory);
   SiteDataCacheInspector* inspector =
-      SiteDataCacheFactory::GetInstance()->GetInspectorForBrowserContext(
-          browser_context_.UniqueId());
+      factory->GetInspectorForBrowserContext(browser_context_.UniqueId());
   EXPECT_NE(nullptr, inspector);
   EXPECT_EQ(data_cache_.get(), inspector);
 
@@ -256,12 +263,11 @@ TEST_F(SiteDataCacheImplTest, InspectorWorks) {
   // Make sure the interface is unregistered from the browser context on
   // destruction.
   data_cache_.reset();
-  EXPECT_EQ(nullptr,
-            SiteDataCacheFactory::GetInstance()->GetInspectorForBrowserContext(
-                browser_context_.UniqueId()));
+  EXPECT_EQ(nullptr, factory->GetInspectorForBrowserContext(
+                         browser_context_.UniqueId()));
 }
 
-// TODO(https://crbug.com/1231933): Turn this into a death test to verify that
+// TODO(crbug.com/40056631): Turn this into a death test to verify that
 //     the data cache asserts that no readers outlive the cache.
 TEST_F(SiteDataCacheImplTest, NoUAFWhenReaderHeldAfterTeardown) {
   {

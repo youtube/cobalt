@@ -28,10 +28,11 @@
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
-#include "cobalt/app/cobalt_switch_defaults_starboard.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_paths.h"
+#include "cobalt/shell/common/shell_paths.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "starboard/event.h"
@@ -163,14 +164,34 @@ void SbEventHandle(const SbEvent* event) {
       g_exit_manager = nullptr;
       break;
     }
-    case kSbEventTypeBlur:
-    case kSbEventTypeFocus:
+    case kSbEventTypeBlur: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->DispatchBlur();
+      }
       CHECK(g_platform_event_source);
       g_platform_event_source->HandleFocusEvent(event);
       break;
+    }
+    case kSbEventTypeFocus: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->DispatchFocus();
+      }
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleFocusEvent(event);
+      break;
+    }
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
-    case kSbEventTypeFreeze:
+      break;
+    case kSbEventTypeFreeze: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->FlushCookiesAndLocalStorage();
+      }
+      break;
+    }
     case kSbEventTypeUnfreeze:
       break;
     case kSbEventTypeInput:

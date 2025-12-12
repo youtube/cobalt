@@ -26,7 +26,6 @@
 #include "src/traced/probes/ftrace/ftrace_controller.h"
 
 #include "protos/perfetto/common/ftrace_descriptor.pbzero.h"
-#include "protos/perfetto/trace/ftrace/ftrace_event_bundle.pbzero.h"
 #include "protos/perfetto/trace/ftrace/ftrace_stats.pbzero.h"
 #include "protos/perfetto/trace/trace_packet.pbzero.h"
 
@@ -83,10 +82,10 @@ const ProbesDataSource::Descriptor FtraceDataSource::descriptor = {
 FtraceDataSource::FtraceDataSource(
     base::WeakPtr<FtraceController> controller_weak,
     TracingSessionID session_id,
-    const FtraceConfig& config,
+    FtraceConfig config,
     std::unique_ptr<TraceWriter> writer)
     : ProbesDataSource(session_id, &descriptor),
-      config_(config),
+      config_(std::move(config)),
       writer_(std::move(writer)),
       controller_weak_(std::move(controller_weak)) {}
 
@@ -104,27 +103,25 @@ void FtraceDataSource::Initialize(
 }
 
 void FtraceDataSource::Start() {
-  FtraceController* ftrace = controller_weak_.get();
-  if (!ftrace)
+  if (!controller_weak_)
     return;
-  PERFETTO_CHECK(config_id_);  // Must be initialized at this point.
-  if (!ftrace->StartDataSource(this))
-    return;
-  DumpFtraceStats(&stats_before_);
-  setup_errors_ = FtraceSetupErrors();  // Dump only on START_OF_TRACE.
 
+  PERFETTO_CHECK(config_id_);
+  if (!controller_weak_->StartDataSource(this))
+    return;
+
+  // Note: recording is already active by this point, so the buffer stats are
+  // likely already non-zero even if this is the only ftrace data source.
+  controller_weak_->DumpFtraceStats(this, &stats_before_);
+
+  // If serialising pre-existing ftrace data, emit a special packet so that
+  // trace_processor doesn't filter out data before start-of-trace.
   if (config_.preserve_ftrace_buffer()) {
     auto stats_packet = writer_->NewTracePacket();
     auto* stats = stats_packet->set_ftrace_stats();
     stats->set_phase(protos::pbzero::FtraceStats::Phase::START_OF_TRACE);
     stats->set_preserve_ftrace_buffer(true);
   }
-}
-
-void FtraceDataSource::DumpFtraceStats(FtraceStats* stats) {
-  if (controller_weak_)
-    controller_weak_->DumpFtraceStats(this, stats);
-  stats->setup_errors = std::move(setup_errors_);
 }
 
 void FtraceDataSource::Flush(FlushRequestID flush_request_id,
@@ -161,6 +158,9 @@ void FtraceDataSource::OnFtraceFlushComplete(FlushRequestID flush_request_id) {
 }
 
 void FtraceDataSource::WriteStats() {
+  if (!controller_weak_) {
+    return;
+  }
   {
     auto before_packet = writer_->NewTracePacket();
     auto out = before_packet->set_ftrace_stats();
@@ -169,11 +169,14 @@ void FtraceDataSource::WriteStats() {
   }
   {
     FtraceStats stats_after{};
-    DumpFtraceStats(&stats_after);
+    controller_weak_->DumpFtraceStats(this, &stats_after);
     auto after_packet = writer_->NewTracePacket();
     auto out = after_packet->set_ftrace_stats();
     out->set_phase(protos::pbzero::FtraceStats::Phase::END_OF_TRACE);
     stats_after.Write(out);
+    for (auto error : parse_errors_) {
+      out->add_ftrace_parse_errors(error);
+    }
   }
 }
 

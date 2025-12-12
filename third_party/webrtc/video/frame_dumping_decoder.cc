@@ -10,11 +10,15 @@
 
 #include "video/frame_dumping_decoder.h"
 
+#include <cstdint>
 #include <memory>
 #include <utility>
 
-#include "modules/video_coding/include/video_codec_interface.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_codec_type.h"
+#include "api/video_codecs/video_decoder.h"
 #include "modules/video_coding/utility/ivf_file_writer.h"
+#include "rtc_base/system/file_wrapper.h"
 
 namespace webrtc {
 namespace {
@@ -26,7 +30,6 @@ class FrameDumpingDecoder : public VideoDecoder {
 
   bool Configure(const Settings& settings) override;
   int32_t Decode(const EncodedImage& input_image,
-                 bool missing_frames,
                  int64_t render_time_ms) override;
   int32_t RegisterDecodeCompleteCallback(
       DecodedImageCallback* callback) override;
@@ -54,9 +57,8 @@ bool FrameDumpingDecoder::Configure(const Settings& settings) {
 }
 
 int32_t FrameDumpingDecoder::Decode(const EncodedImage& input_image,
-                                    bool missing_frames,
                                     int64_t render_time_ms) {
-  int32_t ret = decoder_->Decode(input_image, missing_frames, render_time_ms);
+  int32_t ret = decoder_->Decode(input_image, render_time_ms);
   writer_->WriteFrame(input_image, codec_type_);
 
   return ret;

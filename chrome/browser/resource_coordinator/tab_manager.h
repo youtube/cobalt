@@ -17,17 +17,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_observer.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_source_observer.h"
 #include "chrome/browser/resource_coordinator/lifecycle_unit_state.mojom-forward.h"
-#include "chrome/browser/resource_coordinator/tab_lifecycle_observer.h"
 #include "chrome/browser/resource_coordinator/tab_manager_features.h"
-#include "chrome/browser/resource_coordinator/usage_clock.h"
 #include "chrome/browser/sessions/session_restore_observer.h"
 #include "content/public/browser/navigation_throttle.h"
-#include "ui/gfx/native_widget_types.h"
 
 class GURL;
 
@@ -36,10 +32,6 @@ class WebContents;
 }  // namespace content
 
 namespace resource_coordinator {
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-class TabManagerDelegate;
-#endif
 
 // TabManager is responsible for triggering tab lifecycle state transitions.
 //
@@ -75,32 +67,11 @@ class TabManager : public LifecycleUnitObserver,
   // vector after a LifecycleUnit has been destroyed.
   LifecycleUnitVector GetSortedLifecycleUnits();
 
-  // Discards a tab to free the memory occupied by its renderer. The tab still
-  // exists in the tab-strip; clicking on it will reload it. If the |reason| is
-  // urgent, an aggressive fast-kill will be attempted if the sudden termination
-  // disablers are allowed to be ignored (e.g. On ChromeOS, we can ignore an
-  // unload handler and fast-kill the tab regardless).
-  void DiscardTab(
-      LifecycleUnitDiscardReason reason,
-      TabDiscardDoneCB tab_discard_done = TabDiscardDoneCB(base::DoNothing()));
-
   // Method used by the extensions API to discard tabs. If |contents| is null,
   // discards the least important tab using DiscardTab(). Otherwise discards
   // the given contents. Returns the new web_contents or null if no tab
   // was discarded.
   content::WebContents* DiscardTabByExtension(content::WebContents* contents);
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Discards a tab in response to memory pressure.
-  void DiscardTabFromMemoryPressure();
-#endif
-
-  // TODO(fdoray): Remove these methods. TabManager shouldn't know about tabs.
-  // https://crbug.com/775644
-  void AddObserver(TabLifecycleObserver* observer);
-  void RemoveObserver(TabLifecycleObserver* observer);
-
-  UsageClock* usage_clock() { return &usage_clock_; }
 
  private:
   friend class TabManagerStatsCollectorTest;
@@ -136,23 +107,6 @@ class TabManager : public LifecycleUnitObserver,
   // can be easily reloaded and hence makes a good choice to discard.
   static bool IsInternalPage(const GURL& url);
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Called by the memory pressure listener when the memory pressure rises.
-  void OnMemoryPressure(
-      base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level);
-
-  // Called when we finished handling the memory pressure by discarding tabs.
-  void OnTabDiscardDone();
-
-  // Register to start listening to memory pressure. Called on startup or end
-  // of tab discards.
-  void RegisterMemoryPressureListener();
-
-  // Unregister to stop listening to memory pressure. Called on shutdown or
-  // beginning of tab discards.
-  void UnregisterMemoryPressureListener();
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
-
   // Discards the less important LifecycleUnit that supports discarding under
   // |reason|.
   content::WebContents* DiscardTabImpl(
@@ -161,7 +115,6 @@ class TabManager : public LifecycleUnitObserver,
 
   void OnSessionRestoreStartedLoadingTabs();
   void OnSessionRestoreFinishedLoadingTabs();
-  void OnWillRestoreTab(content::WebContents* contents);
 
   // Returns the number of tabs that are not pending load or discarded.
   int GetNumAliveTabs() const;
@@ -177,16 +130,6 @@ class TabManager : public LifecycleUnitObserver,
 
   // A listener to global memory pressure events.
   std::unique_ptr<base::MemoryPressureListener> memory_pressure_listener_;
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  std::unique_ptr<TabManagerDelegate> delegate_;
-#endif
-
-  class TabManagerSessionRestoreObserver;
-  std::unique_ptr<TabManagerSessionRestoreObserver> session_restore_observer_;
-
-  // A clock that advances when Chrome is in use.
-  UsageClock usage_clock_;
 
   // Weak pointer factory used for posting delayed tasks.
   base::WeakPtrFactory<TabManager> weak_ptr_factory_{this};

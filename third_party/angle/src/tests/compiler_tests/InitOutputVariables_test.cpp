@@ -191,7 +191,6 @@ class InitOutputVariablesWebGL2Test : public ShaderCompileTreeTest
   public:
     void SetUp() override
     {
-        mCompileOptions.variables           = true;
         mCompileOptions.initOutputVariables = true;
         if (getShaderType() == GL_VERTEX_SHADER)
         {
@@ -224,11 +223,7 @@ class InitOutputVariablesWebGL2FragmentShaderTest : public InitOutputVariablesWe
 class InitOutputVariablesWebGL1FragmentShaderTest : public ShaderCompileTreeTest
 {
   public:
-    InitOutputVariablesWebGL1FragmentShaderTest()
-    {
-        mCompileOptions.variables           = true;
-        mCompileOptions.initOutputVariables = true;
-    }
+    InitOutputVariablesWebGL1FragmentShaderTest() { mCompileOptions.initOutputVariables = true; }
 
   protected:
     ::GLenum getShaderType() const override { return GL_FRAGMENT_SHADER; }
@@ -245,7 +240,6 @@ class InitOutputVariablesVertexShaderClipDistanceTest : public ShaderCompileTree
   public:
     InitOutputVariablesVertexShaderClipDistanceTest()
     {
-        mCompileOptions.variables           = true;
         mCompileOptions.initOutputVariables = true;
         mCompileOptions.validateAST         = true;
     }
@@ -272,6 +266,10 @@ TEST_F(InitOutputVariablesWebGL2VertexShaderTest, OutputAllQualifiers)
         "centroid out float out3;\n"
         "smooth out float out4;\n"
         "void main() {\n"
+        "  out1.x += 0.0001;\n"
+        "  out2 += 1;\n"
+        "  out3 += 0.0001;\n"
+        "  out4 += 0.0001;\n"
         "}\n";
     compileAssumeSuccess(shaderString);
     VerifyOutputVariableInitializers verifier(mASTRoot);
@@ -292,6 +290,7 @@ TEST_F(InitOutputVariablesWebGL2VertexShaderTest, OutputArray)
         "precision mediump float;\n"
         "out float out1[2];\n"
         "void main() {\n"
+        "  out1[0] += 0.0001;\n"
         "}\n";
     compileAssumeSuccess(shaderString);
     VerifyOutputVariableInitializers verifier(mASTRoot);
@@ -313,6 +312,7 @@ TEST_F(InitOutputVariablesWebGL2VertexShaderTest, OutputStruct)
         "};\n"
         "out MyS out1;\n"
         "void main() {\n"
+        "  out1.a += 0.0001;\n"
         "}\n";
     compileAssumeSuccess(shaderString);
     VerifyOutputVariableInitializers verifier(mASTRoot);
@@ -336,6 +336,7 @@ TEST_F(InitOutputVariablesWebGL2VertexShaderTest, OutputFromESSL1Shader)
         "precision mediump float;\n"
         "varying vec4 out1;\n"
         "void main() {\n"
+        "  out1.x += 0.0001;\n"
         "}\n";
     compileAssumeSuccess(shaderString);
     VerifyOutputVariableInitializers verifier(mASTRoot);
@@ -354,6 +355,7 @@ TEST_F(InitOutputVariablesWebGL2FragmentShaderTest, Output)
         "precision mediump float;\n"
         "out vec4 out1;\n"
         "void main() {\n"
+        "  out1.x += 0.0001;\n"
         "}\n";
     compileAssumeSuccess(shaderString);
     VerifyOutputVariableInitializers verifier(mASTRoot);

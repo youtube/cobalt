@@ -29,9 +29,13 @@ class COMPONENT_EXPORT(UI_BASE_IDLE) IdlePollingService {
  public:
   static IdlePollingService* GetInstance();
 
+  static constexpr base::TimeDelta kPollInterval = base::Seconds(15);
+
   struct State {
     bool locked;
     base::TimeDelta idle_time;
+
+    bool operator==(const State& other) const = default;
   };
 
   class Observer : public base::CheckedObserver {
@@ -48,6 +52,7 @@ class COMPONENT_EXPORT(UI_BASE_IDLE) IdlePollingService {
   const State& GetIdleState();
 
   void SetProviderForTest(std::unique_ptr<IdleTimeProvider> provider);
+  void SetPollIntervalForTest(base::TimeDelta interval);
   bool IsPollingForTest();
   void SetTaskRunnerForTest(
       scoped_refptr<base::SequencedTaskRunner> task_runner);
@@ -58,8 +63,10 @@ class COMPONENT_EXPORT(UI_BASE_IDLE) IdlePollingService {
   IdlePollingService();
   ~IdlePollingService();
 
+  State CreateCurrentIdleState() const;
   void PollIdleState();
 
+  base::TimeDelta poll_interval_;
   base::RepeatingTimer timer_;
   std::unique_ptr<IdleTimeProvider> provider_;
   State last_state_;

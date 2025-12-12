@@ -13,7 +13,7 @@ class Profile;
 
 namespace base {
 template <typename T>
-struct DefaultSingletonTraits;
+class NoDestructor;
 }  // namespace base
 
 namespace syncer {
@@ -37,13 +37,13 @@ class DeviceInfoSyncServiceFactory : public ProfileKeyedServiceFactory {
       std::vector<const syncer::DeviceInfoTracker*>* trackers);
 
  private:
-  friend struct base::DefaultSingletonTraits<DeviceInfoSyncServiceFactory>;
+  friend base::NoDestructor<DeviceInfoSyncServiceFactory>;
 
   DeviceInfoSyncServiceFactory();
   ~DeviceInfoSyncServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

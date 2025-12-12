@@ -2,14 +2,14 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//ios/web/public/js_messaging/optimize_js.gni")
+import("//ios/web/public/js_messaging/optimize_ts.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/grit/repack.gni")
 
 mojom("mojo_bindings") {
   testonly = true
-  sources = [ "mojo_test.mojom" ]
+  sources = [ "mojo_test.test-mojom" ]
 }
 
 repack("packed_resources") {
@@ -17,12 +17,12 @@ repack("packed_resources") {
   sources = [
     "$root_gen_dir/ios/web/ios_web_resources.pak",
     "$root_gen_dir/ios/web/test/test_resources.pak",
-    "$root_gen_dir/ui/resources/webui_resources.pak",
+    "$root_gen_dir/ui/webui/resources/webui_resources.pak",
   ]
   deps = [
     ":resources",
     "//ios/web:resources",
-    "//ui/resources",
+    "//ui/webui/resources",
   ]
   output = "$target_gen_dir/resources.pak"
   copy_data_to_bundle = true
@@ -31,7 +31,7 @@ repack("packed_resources") {
 grit("resources") {
   source = "test_resources.grd"
 
-  inputs = [ "${root_gen_dir}/ios/web/test/mojo_test.mojom.js" ]
+  inputs = [ "${root_gen_dir}/ios/web/test/mojo_test.test-mojom.js" ]
   deps = [ ":mojo_bindings_js" ]
   outputs = [
     "grit/test_resources.h",
@@ -40,7 +40,6 @@ grit("resources") {
 }
 
 source_set("test_support") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   # This public_dep is a workaround because there is a circular dependency
@@ -55,7 +54,6 @@ source_set("test_support") {
     "//base/test:test_support",
     "//components/crash/core/common",
     "//ios/testing:verify_custom_webkit",
-    "//ios/web",
     "//ios/web:threads",
     "//ios/web/common:uikit",
     "//ios/web/common:web_view_creation_util",
@@ -68,6 +66,7 @@ source_set("test_support") {
     "//ios/web/test/fakes",
     "//ios/web/web_state:web_state_impl_header",
     "//ios/web/web_state/ui:web_controller_header",
+    "//ios/web/web_state/ui:wk_web_view_configuration_provider_header",
     "//net",
     "//third_party/ocmock",
     "//ui/base",
@@ -89,7 +88,6 @@ source_set("test_support") {
 }
 
 source_set("js_test_util_internal") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   deps = [ "//base/test:test_support" ]
@@ -108,18 +106,21 @@ source_set("test_constants") {
   ]
 }
 
-optimize_js("java_script_feature_test_inject_once_js") {
+optimize_ts("java_script_feature_test_inject_once_js") {
   testonly = true
 
-  primary_script = "resources/java_script_feature_test_inject_once.js"
-  sources = [ "resources/java_script_feature_test_inject_once.js" ]
+  sources = [ "resources/java_script_feature_test_inject_once.ts" ]
 
-  deps = [ "//ios/web/public/js_messaging:util_scripts" ]
+  deps = [
+    "//ios/web/public/js_messaging:gcrweb",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
 }
 
-optimize_js("java_script_feature_test_reinject_js") {
+optimize_ts("java_script_feature_test_reinject_js") {
   testonly = true
 
-  primary_script = "resources/java_script_feature_test_reinject.js"
-  sources = [ "resources/java_script_feature_test_reinject.js" ]
+  sources = [ "resources/java_script_feature_test_reinject.ts" ]
+
+  deps = [ "//ios/web/public/js_messaging:gcrweb" ]
 }

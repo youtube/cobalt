@@ -28,8 +28,8 @@ SimpleFwdCharIterator::SimpleFwdCharIterator(const UnicodeString& s) {
 
     fHashCode = kInvalidHashCode;
     fLen = s.length();
-    fStart = new UChar[fLen];
-    if(fStart == NULL) {
+    fStart = new char16_t[fLen];
+    if(fStart == nullptr) {
         fBogus = true;
     } else {
         fEnd = fStart+fLen;
@@ -41,15 +41,15 @@ SimpleFwdCharIterator::SimpleFwdCharIterator(const UnicodeString& s) {
 }
 #endif
 
-SimpleFwdCharIterator::SimpleFwdCharIterator(UChar *s, int32_t len, UBool adopt) {
+SimpleFwdCharIterator::SimpleFwdCharIterator(char16_t *s, int32_t len, UBool adopt) {
 
     fHashCode = kInvalidHashCode;
 
     fLen = len==-1 ? u_strlen(s) : len;
 
     if(adopt == false) {
-        fStart = new UChar[fLen];
-        if(fStart == NULL) {
+        fStart = new char16_t[fLen];
+        if(fStart == nullptr) {
             fBogus = true;
         } else {
             uprv_memcpy(fStart, s, fLen);
@@ -91,7 +91,7 @@ bool SimpleFwdCharIterator::operator==(const ForwardCharacterIterator& that) con
 }
 #endif
 
-int32_t SimpleFwdCharIterator::hashCode(void) const {
+int32_t SimpleFwdCharIterator::hashCode() const {
     if (fHashCode == kInvalidHashCode)
     {
         UHashTok key;
@@ -101,11 +101,11 @@ int32_t SimpleFwdCharIterator::hashCode(void) const {
     return fHashCode;
 }
         
-UClassID SimpleFwdCharIterator::getDynamicClassID(void) const {
-    return NULL;
+UClassID SimpleFwdCharIterator::getDynamicClassID() const {
+    return nullptr;
 }
 
-UChar SimpleFwdCharIterator::nextPostInc(void) {
+char16_t SimpleFwdCharIterator::nextPostInc() {
     if(fCurrent == fEnd) {
         return ForwardCharacterIterator::DONE;
     } else {
@@ -113,7 +113,7 @@ UChar SimpleFwdCharIterator::nextPostInc(void) {
     }
 }
         
-UChar32 SimpleFwdCharIterator::next32PostInc(void) {
+UChar32 SimpleFwdCharIterator::next32PostInc() {
     return ForwardCharacterIterator::DONE;
 }
         

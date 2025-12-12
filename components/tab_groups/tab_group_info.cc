@@ -4,6 +4,9 @@
 
 #include "components/tab_groups/tab_group_info.h"
 
+#include <ostream>
+
+#include "base/notreached.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/tab_groups/tab_group_color.h"
 
@@ -29,6 +32,8 @@ std::string TabGroupColorToString(TabGroupColorId color) {
       return kTabGroupColorCyan;
     case TabGroupColorId::kOrange:
       return kTabGroupColorOrange;
+    case TabGroupColorId::kNumEntries:
+      NOTREACHED() << "kNumEntries is not a supported color enum.";
   }
 }
 

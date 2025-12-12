@@ -13,7 +13,7 @@
 #include "base/files/file_path.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/enterprise/connectors/common.h"
@@ -23,11 +23,8 @@
 #include "components/download/public/common/download_item.h"
 #include "components/safe_browsing/core/browser/download_check_result.h"
 #include "content/public/browser/browser_thread.h"
-#include "url/gurl.h"
 
-namespace profile {
 class Profile;
-}
 
 namespace safe_browsing {
 
@@ -39,7 +36,8 @@ class CheckClientDownloadRequest : public CheckClientDownloadRequestBase,
       CheckDownloadRepeatingCallback callback,
       DownloadProtectionService* service,
       scoped_refptr<SafeBrowsingDatabaseManager> database_manager,
-      scoped_refptr<BinaryFeatureExtractor> binary_feature_extractor);
+      scoped_refptr<BinaryFeatureExtractor> binary_feature_extractor,
+      base::optional_ref<const std::string> password = std::nullopt);
 
   CheckClientDownloadRequest(const CheckClientDownloadRequest&) = delete;
   CheckClientDownloadRequest& operator=(const CheckClientDownloadRequest&) =
@@ -51,13 +49,22 @@ class CheckClientDownloadRequest : public CheckClientDownloadRequestBase,
   void OnDownloadDestroyed(download::DownloadItem* download) override;
   void OnDownloadUpdated(download::DownloadItem* download) override;
 
-  static bool IsSupportedDownload(const download::DownloadItem& item,
-                                  const base::FilePath& target_path,
-                                  DownloadCheckResultReason* reason);
+  // Returns enum value indicating whether `item` is eligible for
+  // CheckClientDownloadRequest. If return value is not kMayCheckDownload, then
+  // `reason` will be populated with the reason why.
+  // Note: Behavior is platform-specific.
+  // TODO(chlily): Rename this method since it does not return a bool.
+  static MayCheckDownloadResult IsSupportedDownload(
+      const download::DownloadItem& item,
+      const base::FilePath& file_name,
+      DownloadCheckResultReason* reason);
+
+  download::DownloadItem* item() const override;
 
  private:
   // CheckClientDownloadRequestBase overrides:
-  bool IsSupportedDownload(DownloadCheckResultReason* reason) override;
+  MayCheckDownloadResult IsSupportedDownload(
+      DownloadCheckResultReason* reason) override;
   content::BrowserContext* GetBrowserContext() const override;
   bool IsCancelled() override;
   base::WeakPtr<CheckClientDownloadRequestBase> GetWeakPtr() override;
@@ -67,16 +74,25 @@ class CheckClientDownloadRequest : public CheckClientDownloadRequestBase,
       const std::string& token,
       const ClientDownloadResponse::Verdict& verdict,
       const ClientDownloadResponse::TailoredVerdict& tailored_verdict) override;
-  void MaybeStorePingsForDownload(DownloadCheckResult result,
-                                  bool upload_requested,
-                                  const std::string& request_data,
-                                  const std::string& response_body) override;
+#if !BUILDFLAG(IS_ANDROID)
+  void MaybeBeginFeedbackForDownload(DownloadCheckResult result,
+                                     bool upload_requested,
+                                     const std::string& request_data,
+                                     const std::string& response_body) override;
+#endif
+  bool ShouldImmediatelyDeepScan(bool server_requests_prompt) const override;
+  bool ShouldPromptForDeepScanning(bool server_requests_prompt) const override;
+  bool ShouldPromptForLocalDecryption(
+      bool server_requests_prompt) const override;
+  bool ShouldPromptForIncorrectPassword() const override;
+  bool ShouldShowScanFailure() const override;
+  void LogDeepScanningPrompt(bool did_prompt) const override;
 
   // Uploads the binary for deep scanning if the reason and policies indicate
   // it should be. ShouldUploadBinary will returns the settings to apply for
-  // deep scanning if it should occur, or absl::nullopt if no scan should be
+  // deep scanning if it should occur, or std::nullopt if no scan should be
   // done.
-  absl::optional<enterprise_connectors::AnalysisSettings> ShouldUploadBinary(
+  std::optional<enterprise_connectors::AnalysisSettings> ShouldUploadBinary(
       DownloadCheckResultReason reason) override;
   void UploadBinary(DownloadCheckResult result,
                     DownloadCheckResultReason reason,
@@ -86,9 +102,6 @@ class CheckClientDownloadRequest : public CheckClientDownloadRequestBase,
   void NotifyRequestFinished(DownloadCheckResult result,
                              DownloadCheckResultReason reason) override;
 
-  // Called when finishing the download, to decide whether to prompt the user
-  // for deep scanning or not.
-  bool ShouldPromptForDeepScanning(bool server_requests_prompt) const override;
 
   bool IsAllowlistedByPolicy() const override;
 
@@ -97,6 +110,7 @@ class CheckClientDownloadRequest : public CheckClientDownloadRequestBase,
   // The DownloadItem we are checking. Will be NULL if the request has been
   // canceled. Must be accessed only on UI thread.
   raw_ptr<download::DownloadItem> item_;
+  std::optional<std::string> password_;
   CheckDownloadRepeatingCallback callback_;
 
   // Upload start time used for UMA duration histograms.

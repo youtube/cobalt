@@ -4,7 +4,6 @@
 
 #include "third_party/blink/renderer/core/fileapi/public_url_manager.h"
 
-#include "base/test/scoped_feature_list.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
@@ -18,7 +17,7 @@
 #include "third_party/blink/renderer/platform/blob/testing/fake_blob.h"
 #include "third_party/blink/renderer/platform/blob/testing/fake_blob_url_store.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 
 namespace blink {
@@ -63,26 +62,13 @@ class FakeURLRegistry : public URLRegistry {
   Vector<Registration> registrations;
 };
 
-enum class PublicURLManagerTestCase {
-  kSupportPartitionedBlobUrlDisabled,
-  kSupportPartitionedBlobUrlEnabled,
-};
-
 }  // namespace
 
-class PublicURLManagerTestP
-    : public testing::Test,
-      public testing::WithParamInterface<PublicURLManagerTestCase> {
+class PublicURLManagerTest : public testing::Test {
  public:
-  PublicURLManagerTestP() : url_store_receiver_(&url_store_) {}
+  PublicURLManagerTest() : url_store_receiver_(&url_store_) {}
 
   void SetUp() override {
-    test_case_ = GetParam();
-    scoped_feature_list_.InitWithFeatureState(
-        net::features::kSupportPartitionedBlobUrl,
-        test_case_ ==
-            PublicURLManagerTestCase::kSupportPartitionedBlobUrlEnabled);
-
     page_holder_ = std::make_unique<DummyPageHolder>();
     // By default this creates a unique origin, which is exactly what this test
     // wants.
@@ -125,8 +111,7 @@ class PublicURLManagerTestP
   }
 
  protected:
-  PublicURLManagerTestCase test_case_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  test::TaskEnvironment task_environment_;
 
   std::unique_ptr<DummyPageHolder> page_holder_;
 
@@ -134,7 +119,7 @@ class PublicURLManagerTestP
   mojo::AssociatedReceiver<BlobURLStore> url_store_receiver_;
 };
 
-TEST_P(PublicURLManagerTestP, RegisterNonMojoBlob) {
+TEST_F(PublicURLManagerTest, RegisterNonMojoBlob) {
   FakeURLRegistry registry;
   TestURLRegistrable registrable(&registry);
   String url = url_manager().RegisterURL(&registrable);
@@ -158,7 +143,7 @@ TEST_P(PublicURLManagerTestP, RegisterNonMojoBlob) {
   EXPECT_EQ(url, url_store_.revocations[0]);
 }
 
-TEST_P(PublicURLManagerTestP, RegisterMojoBlob) {
+TEST_F(PublicURLManagerTest, RegisterMojoBlob) {
   FakeURLRegistry registry;
   TestURLRegistrable registrable(&registry, CreateMojoBlob("id"));
   String url = url_manager().RegisterURL(&registrable);
@@ -180,7 +165,7 @@ TEST_P(PublicURLManagerTestP, RegisterMojoBlob) {
   EXPECT_EQ(url, url_store_.revocations[0]);
 }
 
-TEST_P(PublicURLManagerTestP, RevokeValidNonRegisteredURL) {
+TEST_F(PublicURLManagerTest, RevokeValidNonRegisteredURL) {
   SetURL(KURL("http://example.com/foo/bar"));
   SetUpSecurityContextForTesting();
 
@@ -191,7 +176,7 @@ TEST_P(PublicURLManagerTestP, RevokeValidNonRegisteredURL) {
   EXPECT_EQ(url, url_store_.revocations[0]);
 }
 
-TEST_P(PublicURLManagerTestP, RevokeInvalidURL) {
+TEST_F(PublicURLManagerTest, RevokeInvalidURL) {
   SetURL(KURL("http://example.com/foo/bar"));
   SetUpSecurityContextForTesting();
 
@@ -205,12 +190,5 @@ TEST_P(PublicURLManagerTestP, RevokeInvalidURL) {
   // Both should have been silently ignored.
   EXPECT_TRUE(url_store_.revocations.empty());
 }
-
-INSTANTIATE_TEST_SUITE_P(
-    PublicURLManagerTest,
-    PublicURLManagerTestP,
-    ::testing::Values(
-        PublicURLManagerTestCase::kSupportPartitionedBlobUrlDisabled,
-        PublicURLManagerTestCase::kSupportPartitionedBlobUrlEnabled));
 
 }  // namespace blink

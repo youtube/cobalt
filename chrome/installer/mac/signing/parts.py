@@ -8,8 +8,8 @@ bundle that need to be signed, as well as providing utilities to sign them.
 
 import os.path
 
-from . import commands, signing
-from .model import CodeSignOptions, CodeSignedProduct, VerifyOptions
+from signing import commands, signing
+from signing.model import CodeSignOptions, CodeSignedProduct, VerifyOptions
 
 _PROVISIONPROFILE_EXT = '.provisionprofile'
 _PROVISIONPROFILE_DEST = 'embedded.provisionprofile'
@@ -114,6 +114,14 @@ def get_parts(config):
                 '{.framework_dir}/Helpers/app_mode_loader'.format(config),
                 'app_mode_loader',
                 options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
+                verify_options=verify_options),
+        'web-app-shortcut-copier':
+            CodeSignedProduct(
+                '{.framework_dir}/Helpers/web_app_shortcut_copier'.format(
+                    config),
+                '{}.web_app_shortcut_copier'.format(uncustomized_bundle_id),
+                options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
+                sign_with_identifier=True,
                 verify_options=verify_options),
     }
 
@@ -229,6 +237,9 @@ def sign_chrome(paths, config, sign_framework=False):
 
     # Display the code signature.
     signing.validate_app(paths, config, parts['app'])
+
+    # Validate the app's architecture geometry, if configured.
+    signing.validate_app_geometry(paths, config, parts['app'])
 
 
 def _sanity_check_version_keys(paths, parts):

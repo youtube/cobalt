@@ -36,26 +36,9 @@ void TestPageSpecificContentSettingsDelegate::
     SetDefaultRendererContentSettingRules(content::RenderFrameHost* rfh,
                                           RendererContentSettingRules* rules) {}
 
-std::vector<storage::FileSystemType>
-TestPageSpecificContentSettingsDelegate::GetAdditionalFileSystemTypes() {
-  return {};
-}
-
-browsing_data::CookieHelper::IsDeletionDisabledCallback
-TestPageSpecificContentSettingsDelegate::GetIsDeletionDisabledCallback() {
-  return base::NullCallback();
-}
-
-bool TestPageSpecificContentSettingsDelegate::IsMicrophoneCameraStateChanged(
-    PageSpecificContentSettings::MicrophoneCameraState microphone_camera_state,
-    const std::string& media_stream_selected_audio_device,
-    const std::string& media_stream_selected_video_device) {
-  return false;
-}
-
 PageSpecificContentSettings::MicrophoneCameraState
 TestPageSpecificContentSettingsDelegate::GetMicrophoneCameraState() {
-  return PageSpecificContentSettings::MICROPHONE_CAMERA_NOT_ACCESSED;
+  return {};
 }
 
 content::WebContents* TestPageSpecificContentSettingsDelegate::
@@ -70,17 +53,14 @@ void TestPageSpecificContentSettingsDelegate::OnContentAllowed(
 void TestPageSpecificContentSettingsDelegate::OnContentBlocked(
     ContentSettingsType type) {}
 
-void TestPageSpecificContentSettingsDelegate::OnStorageAccessAllowed(
-    content_settings::mojom::ContentSettingsManager::StorageType storage_type,
-    const url::Origin& origin,
-    content::Page& page) {}
+bool TestPageSpecificContentSettingsDelegate::IsBlockedOnSystemLevel(
+    ContentSettingsType type) {
+  return false;
+}
 
-void TestPageSpecificContentSettingsDelegate::OnCookieAccessAllowed(
-    const net::CookieList& accessed_cookies,
-    content::Page& page) {}
-
-void TestPageSpecificContentSettingsDelegate::OnServiceWorkerAccessAllowed(
-    const url::Origin& origin,
-    content::Page& page) {}
+bool TestPageSpecificContentSettingsDelegate::IsFrameAllowlistedForJavaScript(
+    content::RenderFrameHost* render_frame_host) {
+  return false;
+}
 
 }  // namespace content_settings

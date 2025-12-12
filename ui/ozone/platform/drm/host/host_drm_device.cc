@@ -14,6 +14,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/task_runner.h"
 #include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "ui/display/types/display_configuration_params.h"
 #include "ui/display/types/display_snapshot.h"
 #include "ui/ozone/platform/drm/common/display_types.h"
 #include "ui/ozone/platform/drm/common/drm_util.h"
@@ -27,8 +28,7 @@ HostDrmDevice::HostDrmDevice(DrmCursor* cursor) : cursor_(cursor) {}
 
 HostDrmDevice::~HostDrmDevice() {
   DCHECK_CALLED_ON_VALID_THREAD(on_ui_thread_);
-  for (GpuThreadObserver& observer : gpu_thread_observers_)
-    observer.OnGpuThreadRetired();
+  gpu_thread_observers_.Notify(&GpuThreadObserver::OnGpuThreadRetired);
 }
 
 void HostDrmDevice::OnDrmServiceStarted() {
@@ -37,8 +37,7 @@ void HostDrmDevice::OnDrmServiceStarted() {
 
   connected_ = true;
 
-  for (GpuThreadObserver& observer : gpu_thread_observers_)
-    observer.OnGpuThreadReady();
+  gpu_thread_observers_.Notify(&GpuThreadObserver::OnGpuThreadReady);
 
   DCHECK(cursor_proxy_)
       << "We should have already created a cursor proxy previously";
@@ -129,24 +128,26 @@ bool HostDrmDevice::GpuRefreshNativeDisplays() {
 void HostDrmDevice::GpuConfigureNativeDisplays(
     const std::vector<display::DisplayConfigurationParams>& config_requests,
     display::ConfigureCallback callback,
-    uint32_t modeset_flag) {
+    display::ModesetFlags modeset_flags) {
   DCHECK_CALLED_ON_VALID_THREAD(on_ui_thread_);
   if (IsConnected()) {
-    drm_device_->ConfigureNativeDisplays(config_requests, modeset_flag,
+    drm_device_->ConfigureNativeDisplays(config_requests, modeset_flags,
                                          std::move(callback));
   } else {
     // Post this task to protect the callstack from accumulating too many
     // recursive calls to ConfigureDisplaysTask::Run() in cases in which the GPU
     // process crashes repeatedly.
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(callback), false));
+        FROM_HERE, base::BindOnce(std::move(callback), config_requests, false));
   }
 }
 
 bool HostDrmDevice::GpuTakeDisplayControl() {
   DCHECK_CALLED_ON_VALID_THREAD(on_ui_thread_);
-  if (!IsConnected())
+  if (!IsConnected()) {
+    LOG(WARNING) << __func__ << " GPU service not connected.";
     return false;
+  }
   auto callback =
       base::BindOnce(&HostDrmDevice::GpuTakeDisplayControlCallback, this);
 
@@ -157,8 +158,10 @@ bool HostDrmDevice::GpuTakeDisplayControl() {
 
 bool HostDrmDevice::GpuRelinquishDisplayControl() {
   DCHECK_CALLED_ON_VALID_THREAD(on_ui_thread_);
-  if (!IsConnected())
+  if (!IsConnected()) {
+    LOG(WARNING) << __func__ << " GPU service not connected.";
     return false;
+  }
   auto callback =
       base::BindOnce(&HostDrmDevice::GpuRelinquishDisplayControlCallback, this);
 
@@ -243,26 +246,31 @@ bool HostDrmDevice::GpuSetHDCPState(
   return true;
 }
 
-bool HostDrmDevice::GpuSetColorMatrix(int64_t display_id,
-                                      const std::vector<float>& color_matrix) {
-  DCHECK_CALLED_ON_VALID_THREAD(on_ui_thread_);
-  if (!IsConnected())
-    return false;
-
-  drm_device_->SetColorMatrix(display_id, color_matrix);
-  return true;
+void HostDrmDevice::GpuSetColorTemperatureAdjustment(
+    int64_t display_id,
+    const display::ColorTemperatureAdjustment& cta) {
+  if (!IsConnected()) {
+    return;
+  }
+  drm_device_->SetColorTemperatureAdjustment(display_id, cta);
 }
 
-bool HostDrmDevice::GpuSetGammaCorrection(
+void HostDrmDevice::GpuSetColorCalibration(
     int64_t display_id,
-    const std::vector<display::GammaRampRGBEntry>& degamma_lut,
-    const std::vector<display::GammaRampRGBEntry>& gamma_lut) {
-  DCHECK_CALLED_ON_VALID_THREAD(on_ui_thread_);
-  if (!IsConnected())
-    return false;
+    const display::ColorCalibration& calibration) {
+  if (!IsConnected()) {
+    return;
+  }
+  drm_device_->SetColorCalibration(display_id, calibration);
+}
 
-  drm_device_->SetGammaCorrection(display_id, degamma_lut, gamma_lut);
-  return true;
+void HostDrmDevice::GpuSetGammaAdjustment(
+    int64_t display_id,
+    const display::GammaAdjustment& adjustment) {
+  if (!IsConnected()) {
+    return;
+  }
+  drm_device_->SetGammaAdjustment(display_id, adjustment);
 }
 
 void HostDrmDevice::GpuSetPrivacyScreen(
@@ -277,6 +285,17 @@ void HostDrmDevice::GpuSetPrivacyScreen(
     // with a failed state.
     std::move(callback).Run(/*success=*/false);
   }
+}
+
+void HostDrmDevice::GpuGetSeamlessRefreshRates(
+    int64_t display_id,
+    display::GetSeamlessRefreshRatesCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(on_ui_thread_);
+  if (!IsConnected()) {
+    std::move(callback).Run(std::nullopt);
+    return;
+  }
+  drm_device_->GetSeamlessRefreshRates(display_id, std::move(callback));
 }
 
 void HostDrmDevice::GpuRefreshNativeDisplaysCallback(
@@ -333,8 +352,7 @@ void HostDrmDevice::OnGpuServiceLaunched(
     OnGpuServiceLost();
 
   drm_device_.Bind(std::move(drm_device));
-  for (GpuThreadObserver& observer : gpu_thread_observers_)
-    observer.OnGpuProcessLaunched();
+  gpu_thread_observers_.Notify(&GpuThreadObserver::OnGpuProcessLaunched);
 
   // Create two DeviceCursor connections: one for the UI thread and one for the
   // IO thread.
@@ -358,8 +376,7 @@ void HostDrmDevice::OnGpuServiceLost() {
   connected_ = false;
   drm_device_.reset();
   // TODO(rjkroege): OnGpuThreadRetired is not currently used.
-  for (GpuThreadObserver& observer : gpu_thread_observers_)
-    observer.OnGpuThreadRetired();
+  gpu_thread_observers_.Notify(&GpuThreadObserver::OnGpuThreadRetired);
 }
 
 }  // namespace ui

@@ -14,8 +14,9 @@ CSSAnimation::CSSAnimation(ExecutionContext* execution_context,
                            AnimationTimeline* timeline,
                            AnimationEffect* content,
                            wtf_size_t animation_index,
-                           const String& animation_name)
-    : Animation(execution_context, timeline, content),
+                           const String& animation_name,
+                           AnimationTrigger* trigger)
+    : Animation(execution_context, timeline, content, trigger),
       animation_index_(animation_index),
       animation_name_(animation_name) {
   // The owning_element does not always equal to the target element of an
@@ -24,7 +25,13 @@ CSSAnimation::CSSAnimation(ExecutionContext* execution_context,
   owning_element_ = To<KeyframeEffect>(effect())->EffectTarget();
 }
 
-String CSSAnimation::playState() const {
+bool CSSAnimation::IsEventDispatchAllowed() const {
+  // If there is no owning element, CSS animation events are not dispatched:
+  // https://drafts.csswg.org/css-animations-2/#event-dispatch
+  return OwningElement() && Animation::IsEventDispatchAllowed();
+}
+
+V8AnimationPlayState CSSAnimation::playState() const {
   FlushStyles();
   return Animation::playState();
 }
@@ -70,15 +77,15 @@ void CSSAnimation::setRangeEnd(const RangeBoundary* range_end,
   ignore_css_range_end_ = true;
 }
 
-void CSSAnimation::SetRange(const absl::optional<TimelineOffset>& range_start,
-                            const absl::optional<TimelineOffset>& range_end) {
+void CSSAnimation::SetRange(const std::optional<TimelineOffset>& range_start,
+                            const std::optional<TimelineOffset>& range_end) {
   if (GetIgnoreCSSRangeStart() && GetIgnoreCSSRangeEnd()) {
     return;
   }
 
-  const absl::optional<TimelineOffset>& adjusted_range_start =
+  const std::optional<TimelineOffset>& adjusted_range_start =
       GetIgnoreCSSRangeStart() ? GetRangeStartInternal() : range_start;
-  const absl::optional<TimelineOffset>& adjusted_range_end =
+  const std::optional<TimelineOffset>& adjusted_range_end =
       GetIgnoreCSSRangeEnd() ? GetRangeEndInternal() : range_end;
 
   Animation::SetRange(adjusted_range_start, adjusted_range_end);
@@ -103,26 +110,6 @@ void CSSAnimation::FlushStyles() const {
   if (GetDocument()) {
     GetDocument()->UpdateStyleAndLayoutTree();
   }
-
-  // Force resolution of source and offsets.
-  if (auto* scroll_timeline = DynamicTo<ScrollTimeline>(timeline())) {
-    // A full layout update is required to ensure correctness.
-    // UpdateStyleAndLayoutTree does not perform a full update of the layout.
-    // The size of the scroll-container and subject size affect timeline-offsets
-    // in keyframes. Any change to the scroll-container size or insets also
-    // affects the intrinsic iteration duration, and should be reflected in a
-    // call to getComputedTiming for the animation's effect. Though currentTime
-    // for the timeline is fixed until the next frame, calls to
-    // getCurrentTime(range) should likely reflect the affect of any layout
-    // changes.
-    GetDocument()->UpdateStyleAndLayout(DocumentUpdateReason::kJavaScript);
-    if (effect()) {
-      // Any change to the scroll bounds or target size can affect the
-      // intrinsic iteration duration.
-      effect()->InvalidateNormalizedTiming();
-    }
-    scroll_timeline->FlushStyleUpdate();
-  }
 }
 
 CSSAnimation::PlayStateTransitionScope::PlayStateTransitionScope(
@@ -135,6 +122,34 @@ CSSAnimation::PlayStateTransitionScope::~PlayStateTransitionScope() {
   bool is_paused = animation_.Paused();
   if (was_paused_ != is_paused)
     animation_.ignore_css_play_state_ = true;
+}
+
+void CSSAnimation::setTrigger(AnimationTrigger* trigger) {
+  Animation::setTrigger(trigger);
+  ignore_css_trigger_ = true;
+}
+
+CSSAnimation::ScopedResetIgnoreCSSProperties::ScopedResetIgnoreCSSProperties(
+    CSSAnimation* animation) {
+  if (animation) {
+    ignore_css_play_state_ = animation->GetIgnoreCSSPlayState();
+    ignore_css_timeline_ = animation->GetIgnoreCSSTimeline();
+    ignore_css_range_start_ = animation->GetIgnoreCSSRangeStart();
+    ignore_css_range_end_ = animation->GetIgnoreCSSRangeEnd();
+    ignore_css_trigger_ = animation->GetIgnoreCSSTrigger();
+    animation_ = animation;
+  }
+}
+
+CSSAnimation::ScopedResetIgnoreCSSProperties::
+    ~ScopedResetIgnoreCSSProperties() {
+  if (animation_) {
+    animation_->SetIgnoreCSSPlayState(ignore_css_play_state_);
+    animation_->SetIgnoreCSSTimeline(ignore_css_timeline_);
+    animation_->SetIgnoreCSSRangeStart(ignore_css_range_start_);
+    animation_->SetIgnoreCSSRangeEnd(ignore_css_range_end_);
+    animation_->SetIgnoreCSSTrigger(ignore_css_trigger_);
+  }
 }
 
 }  // namespace blink

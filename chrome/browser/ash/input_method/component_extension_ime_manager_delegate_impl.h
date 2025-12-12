@@ -5,18 +5,21 @@
 #ifndef CHROME_BROWSER_ASH_INPUT_METHOD_COMPONENT_EXTENSION_IME_MANAGER_DELEGATE_IMPL_H_
 #define CHROME_BROWSER_ASH_INPUT_METHOD_COMPONENT_EXTENSION_IME_MANAGER_DELEGATE_IMPL_H_
 
+#include <optional>
 #include <set>
+#include <string_view>
 #include <vector>
 
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread_checker.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/ime/ash/component_extension_ime_manager.h"
 #include "ui/base/ime/ash/component_extension_ime_manager_delegate.h"
 
-class Profile;
+namespace content {
+class BrowserContext;
+}
 
 namespace ash {
 namespace input_method {
@@ -36,7 +39,7 @@ class ComponentExtensionIMEManagerDelegateImpl
 
   // ComponentExtensionIMEManagerDelegate overrides:
   std::vector<ComponentExtensionIME> ListIME() override;
-  void Load(Profile* profile,
+  void Load(content::BrowserContext* context,
             const std::string& extension_id,
             const std::string& manifest,
             const base::FilePath& file_path) override;
@@ -51,8 +54,8 @@ class ComponentExtensionIMEManagerDelegateImpl
       std::vector<ComponentExtensionIME>* out_imes);
 
   // Parses manifest string into dictionary value.
-  static absl::optional<base::Value::Dict> ParseManifest(
-      const base::StringPiece& manifest_string);
+  static std::optional<base::Value::Dict> ParseManifest(
+      std::string_view manifest_string);
 
   // Reads extension information: description, option page. This function
   // returns true on success, otherwise returns false.

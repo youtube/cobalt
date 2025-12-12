@@ -23,10 +23,10 @@ class Origin;
 
 namespace extensions {
 
-class ContentScriptTracker;
+class ScriptInjectionTracker;
 
 // This class manages URLLoaderFactory objects that handle network requests that
-// require extension-specific permissions (related to relaxed CORB and CORS).
+// require extension-specific permissions (related to relaxed ORB and CORS).
 //
 // See also https://crbug.com/846346 for motivation for having separate
 // URLLoaderFactory objects for content scripts.
@@ -42,7 +42,7 @@ class URLLoaderFactoryManager {
   // declarations in the extension manifest approach:
   // https://developer.chrome.com/docs/extensions/mv2/content_scripts/#declaratively
   static void WillInjectContentScriptsWhenNavigationCommits(
-      base::PassKey<ContentScriptTracker> pass_key,
+      base::PassKey<ScriptInjectionTracker> pass_key,
       content::NavigationHandle* navigation,
       const std::vector<const Extension*>& extensions);
 
@@ -55,28 +55,28 @@ class URLLoaderFactoryManager {
   // and
   // https://developer.chrome.com/docs/extensions/reference/declarativeContent/#type-RequestContentScript
   static void WillProgrammaticallyInjectContentScript(
-      base::PassKey<ContentScriptTracker> pass_key,
+      base::PassKey<ScriptInjectionTracker> pass_key,
       content::RenderFrameHost* frame,
       const Extension& extension);
 
   // Creates a URLLoaderFactory that should be used for requests initiated from
-  // |process| by |origin|.
+  // `process` by `origin`.
   //
   // The behavior of this method depends on the intended consumer of the
   // URLLoaderFactory:
-  // - "web": No changes are made to |factory_params| - an extensions-agnostic,
+  // - "web": No changes are made to `factory_params` - an extensions-agnostic,
   //   default URLLoaderFactory should be used
-  // - "extension": Extension-specific permissions are set in |factory_params|
+  // - "extension": Extension-specific permissions are set in `factory_params`
   //   if the factory will be used by an extension frame (e.g. from an extension
   //   background page).
   // - "content script": For most extensions no changes are made to
-  //   |factory_params|, but platform apps might need to set app-specific
+  //   `factory_params`, but platform apps might need to set app-specific
   //   security properties in the URLLoaderFactory used by content scripts.
-  // The method recognizes the intended consumer based on |origin| ("web" vs
-  // other cases) and |is_for_isolated_world| ("extension" vs "content script").
+  // The method recognizes the intended consumer based on `origin` ("web" vs
+  // other cases) and `is_for_isolated_world` ("extension" vs "content script").
   //
   // The following examples might help understand the difference between
-  // |origin| and other properties of a factory and/or network request:
+  // `origin` and other properties of a factory and/or network request:
   //
   //                                 |   web     |  extension  | content script
   // --------------------------------|-----------|-------------|---------------
@@ -90,12 +90,13 @@ class URLLoaderFactoryManager {
   // URLLoaderFactoryParams:         |           |             |
   // - request_initiator_origin_lock |    web    |  extension  |     web
   // - overridden properties?        |    no     |     yes     |  if needed
-  //    - is_corb_enabled            | secure-   |  ext-based  | ext-based for
+  //    - is_orb_enabled             | secure-   |  ext-based  | ext-based for
   //    - ..._access_patterns        |  -default |             | platform apps
   static void OverrideURLLoaderFactoryParams(
       content::BrowserContext* browser_context,
       const url::Origin& origin,
       bool is_for_isolated_world,
+      bool is_for_service_worker,
       network::mojom::URLLoaderFactoryParams* factory_params);
 };
 

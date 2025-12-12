@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <memory>
+#include "base/memory/raw_ptr.h"
 #include "third_party/blink/renderer/modules/websockets/web_pepper_socket_impl.h"
 #include "third_party/blink/renderer/modules/websockets/websocket_channel_client.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -39,7 +40,7 @@ class WebPepperSocketChannelClientProxy final
     std::unique_ptr<Vector<char>> data_to_pass =
         std::make_unique<Vector<char>>();
     for (const auto& span : data) {
-      data_to_pass->Append(span.data(), static_cast<wtf_size_t>(span.size()));
+      data_to_pass->AppendSpan(span);
     }
     impl_->DidReceiveBinaryMessage(std::move(data_to_pass));
   }
@@ -63,7 +64,7 @@ class WebPepperSocketChannelClientProxy final
   }
 
  private:
-  WebPepperSocketImpl* impl_;
+  raw_ptr<WebPepperSocketImpl, DanglingUntriaged> impl_;
 };
 
 }  // namespace blink

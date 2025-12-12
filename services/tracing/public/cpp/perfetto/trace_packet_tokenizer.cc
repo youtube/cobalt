@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/tracing/public/cpp/perfetto/trace_packet_tokenizer.h"
 
 #include "base/check.h"
@@ -38,13 +43,13 @@ std::vector<perfetto::TracePacket> TracePacketTokenizer::Parse(
     // variable sized packet length field.
     if (!next_packet_.parsed_size) {
       // Parse the field tag.
-      auto prev_header_size = next_packet_.header->size();
+      auto prev_header_size = next_packet_.header.size();
       size_t bytes_to_copy = kMaxHeaderSize - prev_header_size;
-      next_packet_.header->insert(
-          next_packet_.header->end(), packet_ptr,
+      next_packet_.header.insert(
+          next_packet_.header.end(), packet_ptr,
           std::min(packet_ptr + bytes_to_copy, data_end));
-      DCHECK(next_packet_.header->size() <= kMaxHeaderSize);
-      if (next_packet_.header->size() < kMinHeaderSize) {
+      DCHECK(next_packet_.header.size() <= kMaxHeaderSize);
+      if (next_packet_.header.size() < kMinHeaderSize) {
         // Not enough data -- try again later.
         return packets;
       }
@@ -53,7 +58,7 @@ std::vector<perfetto::TracePacket> TracePacketTokenizer::Parse(
       // Parse the size field.
       const auto* size_begin = &next_packet_.header[1];
       const auto* size_end = protozero::proto_utils::ParseVarInt(
-          size_begin, &*next_packet_.header->end(), &next_packet_.parsed_size);
+          size_begin, &*next_packet_.header.end(), &next_packet_.parsed_size);
       size_t size_field_size = size_end - size_begin;
       if (!size_field_size) {
         // Size field overflows to next chunk. Try again later.
@@ -67,22 +72,22 @@ std::vector<perfetto::TracePacket> TracePacketTokenizer::Parse(
     // packet. Let's see if the packet fits completely into this chunk.
     DCHECK(next_packet_.parsed_size);
     size_t remaining_size =
-        next_packet_.parsed_size - next_packet_.partial_data->size();
+        next_packet_.parsed_size - next_packet_.partial_data.size();
     if (packet_ptr + remaining_size > data_end) {
       // Save remaining bytes into overflow buffer and try again later.
-      next_packet_.partial_data->insert(next_packet_.partial_data->end(),
-                                        packet_ptr, data_end);
+      next_packet_.partial_data.insert(next_packet_.partial_data.end(),
+                                       packet_ptr, data_end);
       return packets;
     }
 
     // The packet is now complete. It can have a slice overflowing from the
     // previous chunk(s) as well a a slice in the current chunk.
     packets.emplace_back();
-    if (!next_packet_.partial_data->empty()) {
-      DCHECK(assembled_packet_.partial_data->empty());
+    if (!next_packet_.partial_data.empty()) {
+      DCHECK(assembled_packet_.partial_data.empty());
       assembled_packet_ = std::move(next_packet_);
       packets.back().AddSlice(&assembled_packet_.partial_data[0],
-                              assembled_packet_.partial_data->size());
+                              assembled_packet_.partial_data.size());
     }
     CHECK_LE(packet_ptr + remaining_size, data_end);
     packets.back().AddSlice(packet_ptr, remaining_size);

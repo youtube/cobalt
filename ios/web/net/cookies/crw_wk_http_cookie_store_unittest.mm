@@ -6,30 +6,25 @@
 
 #import <WebKit/WebKit.h>
 
+#import "base/functional/callback_helpers.h"
 #import "base/run_loop.h"
-#import "base/test/ios/wait_util.h"
 #import "ios/net/cookies/cookie_store_ios_test_util.h"
 #import "ios/web/public/test/web_task_environment.h"
-#import "ios/web/public/test/web_test.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 #import "third_party/ocmock/gtest_support.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
-using base::test::ios::WaitUntilConditionOrTimeout;
-using base::test::ios::kWaitForCookiesTimeout;
-
+// TODO(crbug.com/352534785): Remove the dependency of OCMock.
 class CRWWKHTTPCookieStoreTest : public PlatformTest {
  public:
   CRWWKHTTPCookieStoreTest()
       : crw_cookie_store_([[CRWWKHTTPCookieStore alloc] init]) {
-    mock_http_cookie_store_ = OCMPartialMock(CreateDataStore().httpCookieStore);
-    crw_cookie_store_.HTTPCookieStore = mock_http_cookie_store_;
+    wk_website_data_store_ = CreateDataStore();
+    mock_http_cookie_store_ =
+        OCMPartialMock(wk_website_data_store_.httpCookieStore);
+    crw_cookie_store_.websiteDataStore = wk_website_data_store_;
     NSURL* test_cookie_url = [NSURL URLWithString:@"http://foo.google.com/bar"];
     test_cookie_1_ = [NSHTTPCookie cookieWithProperties:@{
       NSHTTPCookiePath : test_cookie_url.path,
@@ -61,47 +56,43 @@ class CRWWKHTTPCookieStoreTest : public PlatformTest {
 
   // Adds `cookie` to the CRWWKHTTPCookieStore.
   [[nodiscard]] bool SetCookie(NSHTTPCookie* cookie) {
-    __block bool cookie_set = false;
+    base::RunLoop run_loop;
     [crw_cookie_store_ setCookie:cookie
-               completionHandler:^{
-                 cookie_set = true;
-               }];
-    return WaitUntilConditionOrTimeout(kWaitForCookiesTimeout, ^bool {
-      return cookie_set;
-    });
+               completionHandler:base::CallbackToBlock(run_loop.QuitClosure())];
+    run_loop.Run();
+    return true;
   }
 
   // Deletes `cookie` from the CRWWKHTTPCookieStore.
   [[nodiscard]] bool DeleteCookie(NSHTTPCookie* cookie) {
-    __block bool cookie_deleted = false;
-    [crw_cookie_store_ deleteCookie:cookie
-                  completionHandler:^{
-                    cookie_deleted = true;
-                  }];
-    return WaitUntilConditionOrTimeout(kWaitForCookiesTimeout, ^bool {
-      return cookie_deleted;
-    });
+    base::RunLoop run_loop;
+    [crw_cookie_store_
+             deleteCookie:cookie
+        completionHandler:base::CallbackToBlock(run_loop.QuitClosure())];
+    run_loop.Run();
+    return true;
   }
 
   // Gets all cookies from CRWWKHTTPCookieStore and ensures that getAllCookies
   // callback was called.
   [[nodiscard]] NSArray<NSHTTPCookie*>* GetCookies() {
-    __block NSArray<NSHTTPCookie*>* result_cookies = nil;
-    __block bool callback_called = false;
-    [crw_cookie_store_ getAllCookies:^(NSArray<NSHTTPCookie*>* cookies) {
-      callback_called = true;
-      result_cookies = cookies;
-    }];
-    bool success = WaitUntilConditionOrTimeout(kWaitForCookiesTimeout, ^bool {
-      return callback_called;
-    });
-    EXPECT_TRUE(success);
-    return result_cookies;
+    base::RunLoop run_loop;
+    __block NSArray<NSHTTPCookie*>* cookies = nil;
+    [crw_cookie_store_ getAllCookies:base::CallbackToBlock(base::BindOnce(
+                                         ^(base::OnceClosure quit_closure,
+                                           NSArray<NSHTTPCookie*>* result) {
+                                           cookies = result;
+                                           std::move(quit_closure).Run();
+                                         },
+                                         run_loop.QuitClosure()))];
+    run_loop.Run();
+    return cookies;
   }
 
  protected:
   web::WebTaskEnvironment task_environment_;
   CRWWKHTTPCookieStore* crw_cookie_store_;
+  WKWebsiteDataStore* wk_website_data_store_ = nil;
   id mock_http_cookie_store_ = nil;
   NSHTTPCookie* test_cookie_1_ = nil;
   NSHTTPCookie* test_cookie_2_ = nil;
@@ -191,9 +182,10 @@ TEST_F(CRWWKHTTPCookieStoreTest, ChangeCookieStore) {
   EXPECT_OCMOCK_VERIFY(mock_http_cookie_store_);
 
   // Change the internal cookie store.
-  [mock_http_cookie_store_ stopMocking];
-  mock_http_cookie_store_ = OCMPartialMock(CreateDataStore().httpCookieStore);
-  crw_cookie_store_.HTTPCookieStore = mock_http_cookie_store_;
+  wk_website_data_store_ = CreateDataStore();
+  mock_http_cookie_store_ =
+      OCMPartialMock(wk_website_data_store_.httpCookieStore);
+  crw_cookie_store_.websiteDataStore = wk_website_data_store_;
 
   // Verify that internal getAllCookies is called.
   OCMExpect([mock_http_cookie_store_ getAllCookies:[OCMArg any]])
@@ -215,8 +207,7 @@ TEST_F(CRWWKHTTPCookieStoreTest, ChangeCookieStore) {
 // Tests that if the internal cookie store is nil, getAllCookie will still run
 // its callback.
 TEST_F(CRWWKHTTPCookieStoreTest, NilCookieStore) {
-  [mock_http_cookie_store_ stopMocking];
-  crw_cookie_store_.HTTPCookieStore = nil;
+  crw_cookie_store_.websiteDataStore = nil;
   // GetCookies should return empty array when there is no cookie store.
   NSArray<NSHTTPCookie*>* result = GetCookies();
   EXPECT_EQ(0U, result.count);

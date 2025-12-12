@@ -4,6 +4,8 @@
 
 #include "third_party/blink/renderer/modules/webaudio/media_stream_audio_source_handler.h"
 
+#include <inttypes.h>
+
 #include "base/synchronization/lock.h"
 #include "third_party/blink/public/platform/modules/webrtc/webrtc_logging.h"
 #include "third_party/blink/renderer/modules/webaudio/audio_node_output.h"
@@ -23,11 +25,11 @@ constexpr unsigned kDefaultNumberOfOutputChannels = 2;
 MediaStreamAudioSourceHandler::MediaStreamAudioSourceHandler(
     AudioNode& node,
     std::unique_ptr<AudioSourceProvider> audio_source_provider)
-    : AudioHandler(kNodeTypeMediaStreamAudioSource,
+    : AudioHandler(NodeType::kNodeTypeMediaStreamAudioSource,
                    node,
                    node.context()->sampleRate()),
       audio_source_provider_(std::move(audio_source_provider)) {
-  SendLogMessage(String::Format("%s", __func__));
+  SendLogMessage(__func__, "");
   AddOutput(kDefaultNumberOfOutputChannels);
 
   Initialize();
@@ -49,8 +51,9 @@ void MediaStreamAudioSourceHandler::SetFormat(uint32_t number_of_channels,
                                               float source_sample_rate) {
   DCHECK(IsMainThread());
   SendLogMessage(
-      String::Format("%s({number_of_channels=%u}, {source_sample_rate=%0.f})",
-                     __func__, number_of_channels, source_sample_rate));
+      __func__,
+      String::Format("({number_of_channels=%u}, {source_sample_rate=%0.f})",
+                     number_of_channels, source_sample_rate));
 
   {
     base::AutoLock locker(process_lock_);
@@ -67,30 +70,33 @@ void MediaStreamAudioSourceHandler::SetFormat(uint32_t number_of_channels,
     if (number_of_channels == 0 ||
         number_of_channels > BaseAudioContext::MaxNumberOfChannels()) {
       source_number_of_channels_ = 0;
-      SendLogMessage(String::Format(
-          "%s => (ERROR: invalid channel count requested)", __func__));
+      SendLogMessage(
+          __func__,
+          String::Format("=> (ERROR: invalid channel count requested)"));
       return;
     }
 
     // Checks for invalid sample rate.
     if (source_sample_rate != Context()->sampleRate()) {
       source_number_of_channels_ = 0;
-      SendLogMessage(String::Format(
-          "%s => (ERROR: invalid sample rate requested)", __func__));
+      SendLogMessage(
+          __func__,
+          String::Format("=> (ERROR: invalid sample rate requested)"));
       return;
     }
 
     source_number_of_channels_ = number_of_channels;
   }
 
-  BaseAudioContext::GraphAutoLocker graph_locker(Context());
+  DeferredTaskHandler::GraphAutoLocker graph_locker(Context());
   Output(0).SetNumberOfChannels(number_of_channels);
 }
 
 void MediaStreamAudioSourceHandler::Process(uint32_t number_of_frames) {
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("webaudio.audionode"),
                "MediaStreamAudioSourceHandler::Process", "this",
-               static_cast<void*>(this), "number_of_frames", number_of_frames);
+               reinterpret_cast<void*>(this), "number_of_frames",
+               number_of_frames);
 
   AudioBus* output_bus = Output(0).Bus();
 
@@ -103,12 +109,12 @@ void MediaStreamAudioSourceHandler::Process(uint32_t number_of_frames) {
     audio_source_provider_.get()->ProvideInput(
         output_bus, base::checked_cast<int>(number_of_frames));
     if (!is_processing_) {
-      SendLogMessage(String::Format("%s({number_of_frames=%u})", __func__,
-                                    number_of_frames));
-      SendLogMessage(String::Format(
-          "%s => (audio source is now alive and audio frames are "
-          "sent to the output)",
-          __func__));
+      SendLogMessage(__func__, String::Format("({number_of_frames=%u})",
+                                              number_of_frames));
+      SendLogMessage(
+          __func__,
+          String::Format("=> (audio source is now alive and audio frames are "
+                         "sent to the output)"));
       is_processing_ = true;
     }
   } else {
@@ -120,9 +126,11 @@ void MediaStreamAudioSourceHandler::Process(uint32_t number_of_frames) {
   }
 }
 
-void MediaStreamAudioSourceHandler::SendLogMessage(const String& message) {
-  WebRtcLogMessage(String::Format("[WA]MSASH::%s [this=0x%" PRIXPTR "]",
-                                  message.Utf8().c_str(),
+void MediaStreamAudioSourceHandler::SendLogMessage(
+    const char* const function_name,
+    const String& message) {
+  WebRtcLogMessage(String::Format("[WA]MSASH::%s %s [this=0x%" PRIXPTR "]",
+                                  function_name, message.Utf8().c_str(),
                                   reinterpret_cast<uintptr_t>(this))
                        .Utf8());
 }

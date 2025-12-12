@@ -8,16 +8,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
+#include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
 #include "base/i18n/rtl.h"
 #include "base/memory/weak_ptr.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/ime/composition_text.h"
 #include "ui/base/ime/grammar_fragment.h"
 #include "ui/base/ime/ime_key_event_dispatcher.h"
@@ -28,6 +29,7 @@
 #include "url/gurl.h"
 
 namespace gfx {
+class Point;
 class Rect;
 }
 
@@ -36,11 +38,31 @@ namespace ui {
 class KeyEvent;
 enum class TextEditCommand;
 
+#if BUILDFLAG(IS_WIN)
+// Mirrors `dwFlags` for ITextStoreACP::GetACPFromPoint:
+// https://learn.microsoft.com/en-us/windows/win32/api/textstor/nf-textstor-itextstoreacp-getacpfrompoint
+enum class IndexFromPointFlags : uint8_t {
+  kNone = 0,
+  // Mirror of: GXFPF_ROUND_NEAREST
+  // Overrides the default behavior of `GetACPFromPoint` if and only if a
+  // character bounds contains `point`. Finds the index of the character which
+  // has the closest origin to `point`.
+  kNearestToContainedPoint = 0x01,
+  // Mirror of: GXFPF_NEAREST
+  // Overrides the default behavior of `GetACPFromPoint` if and only if no
+  // character bounds contain `point`. Finds the index of the character which
+  // has the closest origin to `point`.
+  kNearestToUncontainedPoint = 0x02,
+  // Alias for having both flags set. Always overrides the default behavior.
+  // Finds the index of the character which has the closest origin to `point`.
+  kNearestToPoint = kNearestToContainedPoint | kNearestToUncontainedPoint,
+};
+#endif  // BUILDFLAG(IS_WIN)
+
 // An interface implemented by a View that needs text input support.
 // All strings related to IME operations should be UTF-16 encoded and all
 // indices/ranges relative to those strings should be UTF-16 code units.
-class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
-    : public base::SupportsWeakPtr<TextInputClient> {
+class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient {
  public:
   // The reason the control was focused, used by the virtual keyboard to detect
   // pen input.
@@ -67,6 +89,9 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
 #endif
 
   virtual ~TextInputClient();
+
+  // This should be implemented by the most concrete class.
+  virtual base::WeakPtr<TextInputClient> AsWeakPtr() = 0;
 
   // Input method result -------------------------------------------------------
 
@@ -150,6 +175,53 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
   // there is not any selection or this function is not implemented.
   virtual gfx::Rect GetSelectionBoundingBox() const = 0;
 
+#if BUILDFLAG(IS_WIN)
+  // For StylusHandwritingWin gesture support, this method mirrors the
+  // expectations of ITextStoreACP::GetTextExt. Returns the smallest
+  // axis-aligned bounding box which contains all of the axis-aligned character
+  // bounding boxes specified by the character offset `range` [start, end).
+  // The result is in DIP screen coordinates.
+  //
+  // For renderer content, "ProximateCharacterBounds" uses a cached subset of
+  // the actual character bounding boxes, so requests for valid character
+  // indices may fall outside of the cached rage. If `range` extends outside the
+  // cached range, regardless of whether the character offset is valid for the
+  // actual text, std::nullopt is returned.
+  //
+  // For views content, it's possible to retrieve accurate results for
+  // "ProximateCharacterBounds" since the data is readily available. The caching
+  // mechanism is to mitigate performance costs (CPU and memory) when processing
+  // very large documents.
+  virtual std::optional<gfx::Rect> GetProximateCharacterBounds(
+      const gfx::Range& range) const = 0;
+
+  // For StylusHandwritingWin gesture support, this method mirrors the
+  // expectations of ITextStoreACP::GetACPFromPoint. Depending on which `flags`
+  // are provided, returns an appropriate character offset relative to
+  // `screen_point_in_dips`. See comments around IndexFromPointFlags and its
+  // values for details.
+  //
+  // For renderer content, "ProximateCharacterBounds" uses a cached subset of
+  // the actual character bounding boxes, so requests for `screen_point_in_dips`
+  // contained by a character bounding box may not be considered "hit" by this
+  // method if that character falls outside the cached range, or what's
+  // considered "nearest" may be technically incorrect based on this fact. If
+  // no `flags` are provided and `screen_point_in_dips` isn't contained by any
+  // cached character bounds, regardless of whether `screen_point_in_dips` is
+  // technically valid for the content, std::nullopt is returned. If either or
+  // both `flags` are provided, this is guaranteed to return *some* character
+  // offset, even if it's not the most appropriate offset based on the actual
+  // content.
+  //
+  // For views content, it's possible to retrieve accurate results for
+  // "ProximateCharacterBounds" since the data is readily available. The caching
+  // mechanism is to mitigate performance costs (CPU and memory) when processing
+  // very large documents.
+  virtual std::optional<size_t> GetProximateCharacterIndexFromPoint(
+      const gfx::Point& screen_point_in_dips,
+      IndexFromPointFlags flags) const = 0;
+#endif  // BUILDFLAG(IS_WIN)
+
   // Retrieves the composition character boundary rectangle in the universal
   // screen coordinates in DIP (Density Independent Pixel).
   // The |index| is zero-based index of character position in composition text.
@@ -225,6 +297,22 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
   // of IPC between browser and renderer.
   virtual void ExtendSelectionAndDelete(size_t before, size_t after) = 0;
 
+#if BUILDFLAG(IS_CHROMEOS)
+  // Deletes any active composition, and the current selection plus the
+  // specified number of char16 values before and after the selection, and
+  // replaces it with |replacement_string|.
+  // Places the cursor at the end of |replacement_string|.
+  //
+  // Clients should try to implement this with an atomic operation to ensure
+  // that input method features like autocorrection works well. However, it's
+  // also okay for clients to fall back to ExtendSelectionAndDelete followed by
+  // InsertText for a degraded experience.
+  virtual void ExtendSelectionAndReplace(
+      size_t length_before_selection,
+      size_t length_after_selection,
+      std::u16string_view replacement_string);
+#endif
+
   // Ensure the caret is not in |rect|.  |rect| is in screen coordinates in
   // DIP (Density Independent Pixel) and may extend beyond the bounds of this
   // TextInputClient.
@@ -279,7 +367,7 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
 
   // Returns the grammar fragment which contains the current cursor. If
   // non-existent, returns nullopt.
-  virtual absl::optional<GrammarFragment> GetGrammarFragmentAtCursor() const;
+  virtual std::optional<GrammarFragment> GetGrammarFragmentAtCursor() const;
 
   // Clears all the grammar fragments in |range|, returns whether the operation
   // is successful. Should return true if the there is no fragment in the range.
@@ -290,6 +378,10 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
   // is successful.
   virtual bool AddGrammarFragments(
       const std::vector<GrammarFragment>& fragments);
+
+  // Does the current text client support always confirming a composition, even
+  // if there isn't a composition currently set?
+  virtual bool SupportsAlwaysConfirmComposition();
 #endif
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
@@ -300,8 +392,8 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
   // input control to TSF on Windows and to the Virtual Keyboard extension on
   // ChromeOS.
   virtual void GetActiveTextInputControlLayoutBounds(
-      absl::optional<gfx::Rect>* control_bounds,
-      absl::optional<gfx::Rect>* selection_bounds) = 0;
+      std::optional<gfx::Rect>* control_bounds,
+      std::optional<gfx::Rect>* selection_bounds) = 0;
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -315,13 +407,18 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
       const gfx::Range& range,
       const std::u16string& active_composition_text,
       bool is_composition_committed) = 0;
+#endif
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
   struct EditingContext {
     // Contains the active web content's URL.
     GURL page_url;
   };
 
   virtual ui::TextInputClient::EditingContext GetTextEditingContext();
+
+  // Notifies TSF when a frame with a committed Url receives focus.
+  virtual void NotifyOnFrameFocusChanged() {}
 #endif
 
   // Called before ui::InputMethod dispatches a not-consumed event to PostIME
@@ -330,6 +427,34 @@ class COMPONENT_EXPORT(UI_BASE_IME) TextInputClient
   virtual void OnDispatchingKeyEventPostIME(ui::KeyEvent* event) {}
 };
 
+#if BUILDFLAG(IS_WIN)
+COMPONENT_EXPORT(UI_BASE_IME)
+extern std::ostream& operator<<(std::ostream& os, IndexFromPointFlags flags);
+#endif  // BUILDFLAG(IS_WIN)
+
 }  // namespace ui
+
+#if BUILDFLAG(IS_WIN)
+inline constexpr ui::IndexFromPointFlags operator&(ui::IndexFromPointFlags a,
+                                                   ui::IndexFromPointFlags b) {
+  using T = std::underlying_type_t<ui::IndexFromPointFlags>;
+  return static_cast<ui::IndexFromPointFlags>(static_cast<T>(a) &
+                                              static_cast<T>(b));
+}
+
+inline constexpr ui::IndexFromPointFlags operator|(ui::IndexFromPointFlags a,
+                                                   ui::IndexFromPointFlags b) {
+  using T = std::underlying_type_t<ui::IndexFromPointFlags>;
+  return static_cast<ui::IndexFromPointFlags>(static_cast<T>(a) |
+                                              static_cast<T>(b));
+}
+
+inline constexpr ui::IndexFromPointFlags& operator|=(
+    ui::IndexFromPointFlags& a,
+    ui::IndexFromPointFlags b) {
+  a = a | b;
+  return a;
+}
+#endif  // BUILDFLAG(IS_WIN)
 
 #endif  // UI_BASE_IME_TEXT_INPUT_CLIENT_H_

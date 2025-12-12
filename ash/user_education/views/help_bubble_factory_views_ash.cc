@@ -5,20 +5,23 @@
 #include "ash/user_education/views/help_bubble_factory_views_ash.h"
 
 #include <memory>
+#include <optional>
 
 #include "ash/user_education/user_education_class_properties.h"
+#include "ash/user_education/user_education_util.h"
 #include "ash/user_education/views/help_bubble_view_ash.h"
 #include "base/callback_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
-#include "components/user_education/common/help_bubble.h"
-#include "components/user_education/common/help_bubble_params.h"
+#include "components/user_education/common/help_bubble/help_bubble.h"
+#include "components/user_education/common/help_bubble/help_bubble_params.h"
 #include "components/user_education/common/user_education_class_properties.h"
+#include "components/user_education/common/user_education_events.h"
 #include "components/user_education/views/help_bubble_delegate.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/accessible_pane_view.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/interaction/element_tracker_views.h"
@@ -76,7 +79,7 @@ bool HelpBubbleViewsAsh::ToggleFocusForAccessibility() {
   }
 
   bool set_focus = false;
-  if (anchor->IsAccessibilityFocusable()) {
+  if (anchor->GetViewAccessibility().IsAccessibilityFocusable()) {
 #if BUILDFLAG(IS_MAC)
     // Mac does not automatically pass activation on focus, so we have to do it
     // manually.
@@ -111,7 +114,8 @@ bool HelpBubbleViewsAsh::ToggleFocusForAccessibility() {
 
 void HelpBubbleViewsAsh::OnAnchorBoundsChanged() {
   if (help_bubble_view_) {
-    help_bubble_view_->OnAnchorBoundsChanged();
+    static_cast<views::BubbleDialogDelegateView*>(help_bubble_view_)
+        ->OnAnchorBoundsChanged();
   }
 }
 
@@ -187,7 +191,6 @@ void HelpBubbleViewsAsh::OnElementHidden(ui::TrackedElement* element) {
 
 void HelpBubbleViewsAsh::OnElementBoundsChanged(ui::TrackedElement* element) {
   if (help_bubble_view_ && element == anchor_element_) {
-    help_bubble_view_->SetForceAnchorRect(element->GetScreenBounds());
     OnAnchorBoundsChanged();
   }
 }
@@ -222,14 +225,21 @@ HelpBubbleFactoryViewsAsh::CreateBubbleImpl(
     const internal::HelpBubbleAnchorParams& anchor,
     user_education::HelpBubbleParams params) {
   anchor.view->SetProperty(user_education::kHasInProductHelpPromoKey, true);
+
+  // NOTE: `HelpBubbleViewAsh` instances are owned by their widgets.
+  const HelpBubbleId help_bubble_id =
+      user_education_util::GetHelpBubbleId(params.extended_properties);
   auto result = base::WrapUnique(new HelpBubbleViewsAsh(
-      new HelpBubbleViewAsh(anchor, std::move(params)), element));
+      new HelpBubbleViewAsh(help_bubble_id, anchor, std::move(params)),
+      element));
+
   for (const auto& accelerator :
        delegate_->GetPaneNavigationAccelerators(element)) {
     result->bubble_view()->GetFocusManager()->RegisterAccelerator(
         accelerator, ui::AcceleratorManager::HandlerPriority::kNormalPriority,
         result.get());
   }
+
   return result;
 }
 

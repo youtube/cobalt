@@ -7,7 +7,7 @@
 
 #include <memory>
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/gfx/font_list.h"
 #include "ui/views/controls/table/table_view.h"
@@ -17,17 +17,11 @@
 namespace views {
 
 // Views used to render the header for the table.
-class VIEWS_EXPORT TableHeader : public views::View {
+class VIEWS_EXPORT TableHeader : public View {
+  METADATA_HEADER(TableHeader, View)
+
  public:
-  METADATA_HEADER(TableHeader);
-
-  // Amount the text is padded on the left/right side.
-  static const int kHorizontalPadding;
-
-  // Amount of space reserved for the indicator and padding.
-  static const int kSortIndicatorWidth;
-
-  explicit TableHeader(TableView* table);
+  explicit TableHeader(base::WeakPtr<TableView> table);
   TableHeader(const TableHeader&) = delete;
   TableHeader& operator=(const TableHeader&) = delete;
   ~TableHeader() override;
@@ -37,13 +31,28 @@ class VIEWS_EXPORT TableHeader : public views::View {
   void ResizeColumnViaKeyboard(size_t index,
                                TableView::AdvanceDirection direction);
 
+  void InstallFocusRing();
+
   // Call to update TableHeader objects that rely on the focus state of its
   // corresponding virtual accessibility views.
   void UpdateFocusState();
 
+  // TableHeader customization getters.
+  int GetCellVerticalPadding() const;
+  int GetCellHorizontalPadding() const;
+  int GetResizeBarVerticalPadding() const;
+  int GetSeparatorHorizontalPadding() const;
+  ui::ColorId GetSeparatorHorizontalColorId() const;
+  ui::ColorId GetSeparatorVerticalColorId() const;
+  ui::ColorId GetBackgroundColorId() const;
+  int GetSortIndicatorWidth() const;
+  gfx::Font::Weight GetFontWeight() const;
+  float GetFocusRingUpperRadius() const;
+
   // views::View overrides.
   void OnPaint(gfx::Canvas* canvas) override;
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const SizeBounds& /*available_size*/) const override;
   bool GetNeedsNotificationWhenVisibleBoundsChange() const override;
   void OnVisibleBoundsChanged() override;
   void AddedToWidget() override;
@@ -81,6 +90,9 @@ class VIEWS_EXPORT TableHeader : public views::View {
   // Returns true if one of the TableHeader's cells has a focus indicator.
   bool HasFocusIndicator() const;
 
+  // Calculates the default radius, accounting for the focus ring thickness.
+  float GetDefaultFocusRingRadius() const;
+
   // If not already resizing and |event| is over a resizable column starts
   // resizing.
   bool StartResize(const ui::LocatedEvent& event);
@@ -94,13 +106,17 @@ class VIEWS_EXPORT TableHeader : public views::View {
 
   // Returns the column to resize given the specified x-coordinate, or nullopt
   // if |x| is not in the resize range of any columns.
-  absl::optional<size_t> GetResizeColumn(int x) const;
+  std::optional<size_t> GetResizeColumn(int x) const;
 
   bool is_resizing() const { return resize_details_.get() != nullptr; }
 
-  const gfx::FontList font_list_;
+  // The table body that this `TableHeader` belongs to. The table body has
+  // nearly the same lifetime as the header, but during destruction of the
+  // `ScrollView` that contains both the body and the header, the body may be
+  // destroyed first.
+  const base::WeakPtr<TableView> table_;
 
-  raw_ptr<TableView, DanglingUntriaged> table_;
+  const gfx::FontList font_list_;
 
   // If non-null a resize is in progress.
   std::unique_ptr<ColumnResizeDetails> resize_details_;

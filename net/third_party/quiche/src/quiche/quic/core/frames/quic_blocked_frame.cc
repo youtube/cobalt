@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
 
+#include <ostream>
+
 #include "quiche/quic/core/quic_types.h"
 
 namespace quic {
@@ -24,6 +26,15 @@ std::ostream& operator<<(std::ostream& os,
      << ", stream_id: " << blocked_frame.stream_id
      << ", offset: " << blocked_frame.offset << " }\n";
   return os;
+}
+
+bool QuicBlockedFrame::operator==(const QuicBlockedFrame& rhs) const {
+  return control_frame_id == rhs.control_frame_id &&
+         stream_id == rhs.stream_id && offset == rhs.offset;
+}
+
+bool QuicBlockedFrame::operator!=(const QuicBlockedFrame& rhs) const {
+  return !(*this == rhs);
 }
 
 }  // namespace quic

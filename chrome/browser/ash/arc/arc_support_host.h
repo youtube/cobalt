@@ -27,11 +27,10 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
                        public display::DisplayObserver {
  public:
   enum class UIPage {
-    NO_PAGE,                // Hide everything.
-    TERMS,                  // Terms content page.
-    ARC_LOADING,            // ARC loading progress page.
-    ACTIVE_DIRECTORY_AUTH,  // Active Directory user SAML authentication.
-    ERROR,                  // ARC start error page.
+    NO_PAGE,      // Hide everything.
+    TERMS,        // Terms content page.
+    ARC_LOADING,  // ARC loading progress page.
+    ERROR,        // ARC start error page.
   };
 
   // Error types whose corresponding message ARC support has.
@@ -63,39 +62,19 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
   // A struct to represent the error to display on the screen.
   struct ErrorInfo {
     explicit ErrorInfo(Error error);
-    ErrorInfo(Error error, const absl::optional<int>& arg);
+    ErrorInfo(Error error, const std::optional<int>& arg);
     ErrorInfo(const ErrorInfo&);
     ErrorInfo& operator=(const ErrorInfo&);
 
     // The error message to show.
     Error error;
 
-    // Some messages show an error code with the error string
-    // e.g. Something went wrong. Error code: 7
-    // The value of error code for such errors can be passsed
-    // using this arg.
-    // For SIGN_IN_UNKNOWN_ERROR the arg should be specific provisioning result
-    // code. For SIGN_IN_CLOUD_PROVISION_FLOW_* errors the arg should be error
-    // code received from ARC.
-    absl::optional<int> arg;
-  };
-
-  // Delegate to handle authentication related events. Currently used for Active
-  // Directory.
-  class AuthDelegate {
-   public:
-    // Called when authentication succeeded.
-    virtual void OnAuthSucceeded() = 0;
-
-    // Called when authentication failed. |error_msg| contains error details.
-    virtual void OnAuthFailed(const std::string& error_msg) = 0;
-
-    // Called when "RETRY" button on the error page is clicked during
-    // authentication.
-    virtual void OnAuthRetryClicked() = 0;
-
-   protected:
-    virtual ~AuthDelegate() = default;
+    // Some messages show an error code with the error string (e.g. Something
+    // went wrong. Error code: 7). The value of error code for such errors can
+    // be passed using this arg. For SIGN_IN_UNKNOWN_ERROR the arg should be
+    // specific provisioning result code. For SIGN_IN_CLOUD_PROVISION_FLOW_*
+    // errors the arg should be error code received from ARC.
+    std::optional<int> arg;
   };
 
   // Delegate to handle manual authentication related events.
@@ -113,6 +92,9 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
     // service negotiation.
     virtual void OnTermsRetryClicked() = 0;
 
+    // Called when terms of service page is loaded or fails to load.
+    virtual void OnTermsLoadResult(bool success) = 0;
+
    protected:
     virtual ~TermsOfServiceDelegate() = default;
   };
@@ -127,8 +109,9 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
     virtual void OnWindowClosed() = 0;
 
     // Called when "RETRY" button on the error page is clicked, except when
-    // terms of service negotiation or manual authentication is onging. In those
-    // cases, the more specific retry function in the other delegates is called.
+    // terms of service negotiation or manual authentication is ongoing. In
+    // those cases, the more specific retry function in the other delegates is
+    // called.
     virtual void OnRetryClicked() = 0;
 
     // Called when send feedback button on error page is clicked.
@@ -136,6 +119,9 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
 
     // Called when network tests link on error page is clicked.
     virtual void OnRunNetworkTestsClicked() = 0;
+
+    // Called when error page is shown.
+    virtual void OnErrorPageShown(bool network_tests_shown) = 0;
 
    protected:
     virtual ~ErrorDelegate() = default;
@@ -151,7 +137,6 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
 
   ~ArcSupportHost() override;
 
-  void SetAuthDelegate(AuthDelegate* delegate);
   void SetTermsOfServiceDelegate(TermsOfServiceDelegate* delegate);
   void SetErrorDelegate(ErrorDelegate* delegate);
 
@@ -161,8 +146,6 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
   // Returns the outermost native view. This will be used as the parent for
   // dialog boxes.
   gfx::NativeWindow GetNativeWindow() const;
-
-  bool HasAuthDelegate() const { return auth_delegate_ != nullptr; }
 
   // Called when the communication to arc_support Chrome App is ready.
   void SetMessageHost(arc::ArcSupportMessageHost* message_host);
@@ -186,14 +169,6 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
 
   // Requests to show the "ARC is loading" page.
   void ShowArcLoading();
-
-  // Requests to show the "Active Directory SAML auth" page. |federation_url| is
-  // the Active Directory Federation Services URL (aka the SAML redirect URL)
-  // that handles user authentication. |device_management_url_prefix| is the
-  // device management (DM) server URL prefix that is used to detect whether the
-  // SAML flow finished. The DM server is the SAML service provider.
-  void ShowActiveDirectoryAuth(const GURL& federation_url,
-                               const std::string& device_management_url_prefix);
 
   // Requests to show the error page
   void ShowError(ErrorInfo error_info,
@@ -251,14 +226,14 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
 
   void DisconnectMessageHost();
 
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  const raw_ptr<Profile> profile_;
   RequestOpenAppCallback request_open_app_callback_;
 
-  raw_ptr<AuthDelegate, ExperimentalAsh> auth_delegate_ = nullptr;  // not owned
-  raw_ptr<TermsOfServiceDelegate, ExperimentalAsh> tos_delegate_ =
-      nullptr;  // not owned
-  raw_ptr<ErrorDelegate, ExperimentalAsh> error_delegate_ =
-      nullptr;  // not owned
+  // Not owned.
+  raw_ptr<TermsOfServiceDelegate> tos_delegate_ = nullptr;
+
+  // Not owned.
+  raw_ptr<ErrorDelegate> error_delegate_ = nullptr;
 
   // True, if ARC support app is requested to start, but the connection is not
   // yet established. Reset to false, when the app is started and the
@@ -266,9 +241,9 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
   bool app_start_pending_ = false;
 
   // The instance is created and managed by Chrome.
-  raw_ptr<arc::ArcSupportMessageHost, ExperimentalAsh> message_host_ = nullptr;
+  raw_ptr<arc::ArcSupportMessageHost> message_host_ = nullptr;
 
-  absl::optional<display::ScopedOptionalDisplayObserver> display_observer_;
+  std::optional<display::ScopedOptionalDisplayObserver> display_observer_;
 
   // The lifetime of the message_host_ is out of control from ARC.
   // Fields below are UI parameter cache in case the value is set before
@@ -276,7 +251,7 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
   UIPage ui_page_ = UIPage::NO_PAGE;
 
   // These have valid values iff ui_page_ == ERROR.
-  absl::optional<ErrorInfo> error_info_;
+  std::optional<ErrorInfo> error_info_;
   bool should_show_send_feedback_;
   bool should_show_run_network_tests_;
 
@@ -285,12 +260,6 @@ class ArcSupportHost : public arc::ArcSupportMessageHost::Observer,
   PreferenceCheckboxData metrics_checkbox_;
   PreferenceCheckboxData backup_and_restore_checkbox_;
   PreferenceCheckboxData location_services_checkbox_;
-
-  // Federation Services URL for Active Directory user SAML authentication.
-  GURL active_directory_auth_federation_url_;
-  // Prefix of the device management (DM) server URL used to detect whether the
-  // SAML flow finished. The DM server is the SAML service provider.
-  std::string active_directory_auth_device_management_url_prefix_;
 };
 
 #endif  // CHROME_BROWSER_ASH_ARC_ARC_SUPPORT_HOST_H_

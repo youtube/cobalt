@@ -22,7 +22,7 @@ DataChannelInit JavaToNativeDataChannelInit(JNIEnv* env,
 
 ScopedJavaLocalRef<jobject> WrapNativeDataChannel(
     JNIEnv* env,
-    rtc::scoped_refptr<DataChannelInterface> channel);
+    scoped_refptr<DataChannelInterface> channel);
 
 }  // namespace jni
 }  // namespace webrtc

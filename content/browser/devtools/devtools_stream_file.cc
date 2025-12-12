@@ -5,6 +5,8 @@
 #include "content/browser/devtools/devtools_stream_file.h"
 
 #include "base/base64.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/strings/string_util.h"
@@ -19,7 +21,7 @@ namespace content {
 
 scoped_refptr<base::SequencedTaskRunner> impl_task_runner() {
   constexpr base::TaskTraits kBlockingTraits = {
-      base::MayBlock(), base::TaskPriority::BEST_EFFORT};
+      base::MayBlock(), base::TaskPriority::USER_VISIBLE};
   static base::LazyThreadPoolSequencedTaskRunner s_sequenced_task_unner =
       LAZY_THREAD_POOL_SEQUENCED_TASK_RUNNER_INITIALIZER(kBlockingTraits);
   return s_sequenced_task_unner.Get();
@@ -35,9 +37,7 @@ DevToolsStreamFile::DevToolsStreamFile(DevToolsIOContext* context, bool binary)
     : DevToolsIOContext::Stream(impl_task_runner()),
       handle_(Register(context)),
       binary_(binary),
-      task_runner_(impl_task_runner()),
-      had_errors_(false),
-      last_read_pos_(0) {}
+      task_runner_(impl_task_runner()) {}
 
 DevToolsStreamFile::~DevToolsStreamFile() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -86,61 +86,81 @@ void DevToolsStreamFile::Append(std::unique_ptr<std::string> data) {
 void DevToolsStreamFile::ReadOnFileSequence(off_t position,
                                             size_t max_size,
                                             ReadCallback callback) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  Status status = StatusFailure;
-  std::unique_ptr<std::string> data;
-  bool base64_encoded = false;
-
-  if (file_.IsValid()) {
-    std::string buffer;
-    buffer.resize(max_size);
-    if (position < 0)
-      position = last_read_pos_;
-    int size_got = file_.ReadNoBestEffort(position, &*buffer.begin(), max_size);
-    if (size_got < 0) {
-      LOG(ERROR) << "Failed to read temporary file";
+  auto data = std::make_unique<std::string>();
+  Status status;
+  if (!file_.IsValid()) {
+    status = StatusFailure;
+  } else {
+    status = InnerReadOnFileSequence(position, max_size, *data);
+    if (status == StatusFailure) {
       had_errors_ = true;
       file_.Close();
-    } else {
-      // Provided client has requested sufficient large block, make their
-      // life easier by not truncating in the middle of a UTF-8 character.
-      if (size_got > 6 && !CBU8_IS_SINGLE(buffer[size_got - 1])) {
-        std::string truncated;
-        base::TruncateUTF8ToByteSize(buffer, size_got, &truncated);
-        // If the above failed, we're dealing with binary files, so
-        // don't mess with them.
-        if (truncated.size()) {
-          buffer = std::move(truncated);
-          size_got = buffer.size();
-        }
-      }
-      buffer.resize(size_got);
-      status = size_got ? StatusSuccess : StatusEOF;
-      last_read_pos_ = position + size_got;
-      if (binary_) {
-        data = std::make_unique<std::string>();
-        base::Base64Encode(buffer, data.get());
-        base64_encoded = true;
-      } else {
-        data = std::make_unique<std::string>(std::move(buffer));
-      }
     }
   }
   GetUIThreadTaskRunner({})->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), std::move(data),
-                                base64_encoded, status));
+      FROM_HERE,
+      base::BindOnce(std::move(callback), std::move(data), binary_, status));
+}
+
+DevToolsIOContext::Stream::Status DevToolsStreamFile::InnerReadOnFileSequence(
+    off_t position,
+    size_t max_size,
+    std::string& buffer) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(file_.IsValid());
+
+  if (position < 0) {
+    position = last_read_pos_;
+  }
+
+  if (position >= last_written_pos_) {
+    return StatusEOF;
+  }
+
+  max_size =
+      std::min(max_size, static_cast<size_t>(last_written_pos_ - position));
+  buffer.resize(max_size);
+
+  std::optional<size_t> size_got =
+      file_.ReadNoBestEffort(position, base::as_writable_byte_span(buffer));
+
+  if (!size_got.has_value()) {
+    LOG(ERROR) << "Failed to read temporary file";
+    return StatusFailure;
+  }
+
+  // Provided client has requested sufficient large block, make their
+  // life easier by not truncating in the middle of a UTF-8 character.
+  if (size_got.value() > 6 && !CBU8_IS_SINGLE(buffer[size_got.value() - 1])) {
+    std::string truncated;
+    base::TruncateUTF8ToByteSize(buffer, size_got.value(), &truncated);
+    // If the above failed, we're dealing with binary files, so
+    // don't mess with them.
+    if (truncated.size()) {
+      buffer = std::move(truncated);
+      size_got = buffer.size();
+    }
+  }
+  buffer.resize(size_got.value());
+  last_read_pos_ = position + size_got.value();
+  if (binary_) {
+    buffer = base::Base64Encode(buffer);
+  }
+  return size_got ? StatusSuccess : StatusEOF;
 }
 
 void DevToolsStreamFile::AppendOnFileSequence(
     std::unique_ptr<std::string> data) {
-  if (!InitOnFileSequenceIfNeeded())
+  if (!InitOnFileSequenceIfNeeded()) {
     return;
-  int size_written = file_.WriteAtCurrentPos(&*data->begin(), data->length());
-  if (size_written != static_cast<int>(data->length())) {
+  }
+  if (!file_.WriteAtCurrentPosAndCheck(base::as_byte_span(*data))) {
     LOG(ERROR) << "Failed to write temporary file";
     had_errors_ = true;
     file_.Close();
+    return;
   }
+  last_written_pos_ += data->size();
 }
 
 }  // namespace content

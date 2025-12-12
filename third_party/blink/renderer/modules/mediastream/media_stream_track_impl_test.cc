@@ -6,12 +6,14 @@
 
 #include <tuple>
 
+#include "base/feature_list.h"
+#include "base/memory/weak_ptr.h"
 #include "base/run_loop.h"
 #include "base/test/gmock_callback_support.h"
-#include "base/test/scoped_feature_list.h"
 #include "media/base/video_frame.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/mediastream/media_devices.mojom-blink.h"
+#include "third_party/blink/public/platform/modules/mediastream/web_media_stream.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
 #include "third_party/blink/public/web/modules/mediastream/media_stream_video_source.h"
 #include "third_party/blink/public/web/web_heap.h"
@@ -19,24 +21,37 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_tester.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_constrain_long_range.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_media_stream_track_state.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_track_constraints.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_constrainlongrange_long.h"
+#include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
+#include "third_party/blink/renderer/core/html/media/html_media_element.h"
+#include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/streams/readable_stream.h"
 #include "third_party/blink/renderer/core/streams/readable_stream_default_reader.h"
 #include "third_party/blink/renderer/modules/mediastream/apply_constraints_processor.h"
-#include "third_party/blink/renderer/modules/mediastream/local_media_stream_audio_source.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints.h"
 #include "third_party/blink/renderer/modules/mediastream/media_constraints_impl.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_constraints_util_video_content.h"
+#include "third_party/blink/renderer/modules/mediastream/media_stream_track.h"
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_sink.h"
 #include "third_party/blink/renderer/modules/mediastream/mock_media_stream_video_source.h"
+#include "third_party/blink/renderer/modules/mediastream/speech_recognition_media_stream_audio_sink.h"
+#include "third_party/blink/renderer/modules/peerconnection/mock_peer_connection_dependency_factory.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_source.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_audio_track.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component_impl.h"
+#include "third_party/blink/renderer/platform/mediastream/media_stream_descriptor.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_source.h"
 #include "third_party/blink/renderer/platform/testing/io_task_runner_testing_platform_support.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
+#include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
+#include "third_party/blink/renderer/platform/webrtc/peer_connection_remote_audio_source.h"
+#include "third_party/webrtc/api/media_stream_interface.h"
+#include "third_party/webrtc/rtc_base/ref_counted_object.h"
 
 using testing::_;
 
@@ -68,17 +83,21 @@ std::unique_ptr<MockMediaStreamVideoSource> MakeMockMediaStreamVideoSource() {
       true));
 }
 
-std::unique_ptr<blink::LocalMediaStreamAudioSource>
-MakeLocalMediaStreamAudioSource() {
-  blink::MediaStreamDevice device;
-  device.type = blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE;
-  return std::make_unique<blink::LocalMediaStreamAudioSource>(
-      /*blink::WebLocalFrame=*/nullptr, device,
-      /*requested_buffer_size=*/nullptr,
-      /*disable_local_echo=*/false,
-      blink::WebPlatformMediaStreamSource::ConstraintsRepeatingCallback(),
-      blink::scheduler::GetSingleThreadTaskRunnerForTesting());
-}
+class MockEventListener : public NativeEventListener {
+ public:
+  MOCK_METHOD(void, Invoke, (ExecutionContext*, Event*));
+};
+
+class MockWebMediaStreamObserver : public WebMediaStreamObserver {
+ public:
+  MOCK_METHOD(void, EnabledStateChangedForWebRtcAudio, (bool));
+  base::WeakPtr<WebMediaStreamObserver> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
+ private:
+  base::WeakPtrFactory<MockWebMediaStreamObserver> weak_ptr_factory_{this};
+};
 
 MediaStreamComponent* MakeMockVideoComponent() {
   std::unique_ptr<MockMediaStreamVideoSource> platform_source =
@@ -97,7 +116,10 @@ MediaStreamComponent* MakeMockVideoComponent() {
 MediaStreamComponent* MakeMockAudioComponent() {
   MediaStreamSource* source = MakeGarbageCollected<MediaStreamSource>(
       "id", MediaStreamSource::StreamType::kTypeAudio, "name",
-      /*remote=*/false, MakeLocalMediaStreamAudioSource());
+      /*remote=*/false,
+      std::make_unique<MediaStreamAudioSource>(
+          scheduler::GetSingleThreadTaskRunnerForTesting(),
+          true /* is_local_source */));
   auto platform_track =
       std::make_unique<MediaStreamAudioTrack>(true /* is_local_track */);
   return MakeGarbageCollected<MediaStreamComponentImpl>(
@@ -135,11 +157,11 @@ MakeMockDisplayVideoCaptureComponent() {
 }
 
 MediaTrackConstraints* MakeMediaTrackConstraints(
-    absl::optional<int> exact_width,
-    absl::optional<int> exact_height,
-    absl::optional<float> min_frame_rate,
-    absl::optional<float> max_frame_rate,
-    absl::optional<float> aspect_ratio = absl::nullopt) {
+    std::optional<int> exact_width,
+    std::optional<int> exact_height,
+    std::optional<float> min_frame_rate,
+    std::optional<float> max_frame_rate,
+    std::optional<float> aspect_ratio = std::nullopt) {
   MediaConstraints constraints;
   MediaTrackConstraintSetPlatform basic;
   if (exact_width) {
@@ -170,6 +192,7 @@ class MediaStreamTrackImplTest : public testing::Test {
     WebHeap::CollectAllGarbageForTesting();
   }
 
+  test::TaskEnvironment task_environment_;
   ScopedTestingPlatformSupport<IOTaskRunnerTestingPlatformSupport> platform_;
 };
 
@@ -246,6 +269,168 @@ TEST_F(MediaStreamTrackImplTest, MutedStateUpdates) {
   source->SetReadyState(MediaStreamSource::kReadyStateLive);
   EXPECT_EQ(track->muted(), false);
 }
+
+class HtmlMediaElementForWebRtcAudioTest : public testing::Test {
+ public:
+  HtmlMediaElementForWebRtcAudioTest() { web_view_helper_.Initialize(); }
+
+  ~HtmlMediaElementForWebRtcAudioTest() override {
+    WebHeap::CollectAllGarbageForTesting();
+  }
+
+ protected:
+  MediaStreamComponent* MakeMockWebRtcAudioComponent() {
+    auto* source = MakeGarbageCollected<MediaStreamSource>(
+        "id", MediaStreamSource::StreamType::kTypeAudio, "name",
+        /*remote=*/true,
+        std::make_unique<MediaStreamAudioSource>(
+            scheduler::GetSingleThreadTaskRunnerForTesting(),
+            false /* is_local_source */));
+
+    scoped_refptr<webrtc::AudioTrackInterface> remote_track(
+        blink::MockWebRtcAudioTrack::Create("track_id").get());
+    auto webrtc_audio_track =
+        std::make_unique<PeerConnectionRemoteAudioTrack>(remote_track);
+
+    return MakeGarbageCollected<MediaStreamComponentImpl>(
+        source, std::move(webrtc_audio_track));
+  }
+
+  MediaStreamComponent* MakeMockAudioComponent() {
+    MediaStreamSource* source = MakeGarbageCollected<MediaStreamSource>(
+        "id", MediaStreamSource::StreamType::kTypeAudio, "name",
+        /*remote=*/false,
+        std::make_unique<MediaStreamAudioSource>(
+            scheduler::GetSingleThreadTaskRunnerForTesting(),
+            true /* is_local_source */));
+    auto platform_track =
+        std::make_unique<MediaStreamAudioTrack>(true /* is_local_track */);
+    return MakeGarbageCollected<MediaStreamComponentImpl>(
+        source, std::move(platform_track));
+  }
+
+  Document* GetDocument() {
+    return web_view_helper_.LocalMainFrame()->GetFrame()->GetDocument();
+  }
+
+  void SetupHtmlVideoElement() {
+    video_ = MakeGarbageCollected<HTMLVideoElement>(*GetDocument());
+    GetDocument()->body()->AppendChild(video_);
+  }
+  HTMLMediaElement* Video() const { return video_.Get(); }
+
+  test::TaskEnvironment task_environment_;
+  ScopedTestingPlatformSupport<IOTaskRunnerTestingPlatformSupport> platform_;
+  frame_test_helpers::WebViewHelper web_view_helper_;
+  WeakPersistent<HTMLMediaElement> video_;
+};
+
+TEST_F(HtmlMediaElementForWebRtcAudioTest,
+       MuteWebRtcAudioTrackPropagatesToMediaStream) {
+  V8TestingScope v8_scope;
+
+  // pc.ontrack = function(event) {
+  //    let track = event.track;
+  // }
+  MediaStreamComponent* component = MakeMockWebRtcAudioComponent();
+  MediaStreamTrack* track = MakeGarbageCollected<MediaStreamTrackImpl>(
+      v8_scope.GetExecutionContext(), component);
+
+  MockWebMediaStreamObserver observer;
+  if (base::FeatureList::IsEnabled(kPropagateEnabledEventForWebRtcAudioTrack)) {
+    EXPECT_CALL(observer, EnabledStateChangedForWebRtcAudio(false)).Times(1);
+  } else {
+    EXPECT_CALL(observer, EnabledStateChangedForWebRtcAudio(_)).Times(0);
+  }
+
+  // let media_stream = new MediaStream();
+  // media_stream.addTrack(track);
+  MediaStreamTrackVector audio_tracks = {track};
+  auto* media_stream =
+      MediaStream::Create(v8_scope.GetExecutionContext(), audio_tracks);
+  auto* descriptor = media_stream->Descriptor();
+  descriptor->SetActive(true);
+  descriptor->AddObserver(observer.AsWeakPtr());
+
+  // let video = document.createElement('video');
+  // video.srcObject = media_stream;
+  SetupHtmlVideoElement();
+  Video()->SetSrcObjectVariant(descriptor);
+  test::RunPendingTasks();
+
+  // track.enabled = false;
+  track->setEnabled(false);
+}
+
+TEST_F(HtmlMediaElementForWebRtcAudioTest,
+       MuteWebLocalAudioTrackDoNotPropagatesToMediaStream) {
+  V8TestingScope v8_scope;
+
+  // Create local audio track.
+  MediaStreamComponent* component = MakeMockAudioComponent();
+  MediaStreamTrack* track = MakeGarbageCollected<MediaStreamTrackImpl>(
+      v8_scope.GetExecutionContext(), component);
+
+  MockWebMediaStreamObserver observer;
+  if (base::FeatureList::IsEnabled(kPropagateEnabledEventForWebRtcAudioTrack)) {
+    EXPECT_CALL(observer, EnabledStateChangedForWebRtcAudio(_)).Times(0);
+  } else {
+    EXPECT_CALL(observer, EnabledStateChangedForWebRtcAudio(_)).Times(0);
+  }
+
+  // let media_stream = new MediaStream();
+  // media_stream.addTrack(track);
+  MediaStreamTrackVector audio_tracks = {track};
+  auto* media_stream =
+      MediaStream::Create(v8_scope.GetExecutionContext(), audio_tracks);
+  auto* descriptor = media_stream->Descriptor();
+  descriptor->SetActive(true);
+  descriptor->AddObserver(observer.AsWeakPtr());
+
+  // let video = document.createElement('video');
+  // video.srcObject = media_stream;
+  SetupHtmlVideoElement();
+  Video()->SetSrcObjectVariant(descriptor);
+  test::RunPendingTasks();
+
+  // track.enabled = false;
+  track->setEnabled(false);
+}
+
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+TEST_F(MediaStreamTrackImplTest,
+       ZoomStateUpdatesAndTriggersConfigurationChangeEvent) {
+  V8TestingScope v8_scope;
+  MediaStreamComponent* component;
+  MockMediaStreamVideoSource* platform_source_ptr;
+  std::tie(component, platform_source_ptr) =
+      MakeMockDisplayVideoCaptureComponent();
+
+  MediaStreamTrackImpl* track = MakeGarbageCollected<MediaStreamTrackImpl>(
+      v8_scope.GetExecutionContext(), component);
+  testing::StrictMock<MockEventListener>* event_listener =
+      MakeGarbageCollected<testing::StrictMock<MockEventListener>>();
+  track->addEventListener(event_type_names::kConfigurationchange,
+                          event_listener);
+  EXPECT_CALL(*event_listener, Invoke(_, _)).Times(1);
+
+  // Start the source.
+  platform_source_ptr->StartMockedSource();
+  MediaStreamSource* source = component->Source();
+
+  EXPECT_EQ(track->GetZoomLevelForTesting(), std::nullopt);
+  ASSERT_TRUE(track->device());
+  source->OnZoomLevelChange(*track->device(), 125);
+  EXPECT_EQ(track->GetZoomLevelForTesting(), 125);
+
+  // Stop the track.
+  track->stopTrack(v8_scope.GetExecutionContext());
+
+  // After the track stops, zoom_level of the device should not change.
+  source->OnZoomLevelChange(*track->device(), 150);
+  EXPECT_EQ(track->GetZoomLevelForTesting(), 125);
+}
+#endif
 
 TEST_F(MediaStreamTrackImplTest, MutedDoesntUpdateAfterEnding) {
   V8TestingScope v8_scope;
@@ -360,7 +545,7 @@ TEST_F(MediaStreamTrackImplTest, ApplyConstraintsUpdatesSourceFormat) {
   // Apply new frame rate constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
       kReducedWidth, kReducedHeight, kMinFrameRate, kMaxFrameRate);
-  ScriptPromise apply_constraints_promise =
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -396,8 +581,8 @@ TEST_F(MediaStreamTrackImplTest,
   EXPECT_NE(initialFrameRate, kMaxFrameRate);
   // Apply new frame rate constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
-      absl::nullopt, absl::nullopt, kMinFrameRate, kMaxFrameRate);
-  ScriptPromise apply_constraints_promise =
+      std::nullopt, std::nullopt, kMinFrameRate, kMaxFrameRate);
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -432,8 +617,8 @@ TEST_F(MediaStreamTrackImplTest,
   EXPECT_NE(initialHeight, kReducedHeight);
   // Apply new frame rate constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
-      kReducedWidth, kReducedHeight, absl::nullopt, absl::nullopt);
-  ScriptPromise apply_constraints_promise =
+      kReducedWidth, kReducedHeight, std::nullopt, std::nullopt);
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -468,8 +653,8 @@ TEST_F(MediaStreamTrackImplTest,
   EXPECT_NE(initialHeight, kReducedHeight);
   // Apply new frame rate constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
-      kReducedWidth, absl::nullopt, absl::nullopt, absl::nullopt);
-  ScriptPromise apply_constraints_promise =
+      kReducedWidth, std::nullopt, std::nullopt, std::nullopt);
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -506,8 +691,8 @@ TEST_F(MediaStreamTrackImplTest, ApplyConstraintsWidthAndAspectRatio) {
   EXPECT_NE(initialHeight, kReducedHeight);
   // Apply new frame rate constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
-      kReducedWidth, absl::nullopt, absl::nullopt, absl::nullopt, kAspectRatio);
-  ScriptPromise apply_constraints_promise =
+      kReducedWidth, std::nullopt, std::nullopt, std::nullopt, kAspectRatio);
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -554,54 +739,9 @@ TEST_F(MediaStreamTrackImplTest,
   // Apply new constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
       kReducedWidth, kReducedHeight, kMinFrameRate, kMaxFrameRate);
-  EXPECT_CALL(*platform_source_ptr, GetCropVersion)
+  EXPECT_CALL(*platform_source_ptr, GetSubCaptureTargetVersion)
       .WillRepeatedly(testing::Return(1));
-  ScriptPromise apply_constraints_promise =
-      track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
-
-  ScriptPromiseTester tester(v8_scope.GetScriptState(),
-                             apply_constraints_promise);
-  tester.WaitUntilSettled();
-  EXPECT_TRUE(tester.IsFulfilled());
-  // Verify that the settings are not updated and that the source was not
-  // restarted.
-  EXPECT_EQ(platform_source_ptr->restart_count(), 0);
-  EXPECT_EQ(platform_source_ptr->max_requested_width(), initialWidth);
-  EXPECT_EQ(platform_source_ptr->max_requested_height(), initialHeight);
-  EXPECT_EQ(platform_source_ptr->max_requested_frame_rate(), initialFrameRate);
-}
-
-TEST_F(MediaStreamTrackImplTest,
-       ApplyConstraintsDoesNotUpdateSourceFormatIfDisabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      // Enabled features.
-      {},
-      // Disabled features.
-      {kApplyConstraintsRestartsVideoContentSources});
-
-  V8TestingScope v8_scope;
-  MediaStreamComponent* component;
-  MockMediaStreamVideoSource* platform_source_ptr;
-  std::tie(component, platform_source_ptr) =
-      MakeMockDisplayVideoCaptureComponent();
-  MediaStreamTrack* track = MakeGarbageCollected<MediaStreamTrackImpl>(
-      v8_scope.GetExecutionContext(), component);
-
-  // Start the source.
-  platform_source_ptr->StartMockedSource();
-  // Get initial settings and verify that resolution and frame rate are
-  // different than the new constraints.
-  int initialWidth = platform_source_ptr->max_requested_width();
-  int initialHeight = platform_source_ptr->max_requested_height();
-  float initialFrameRate = platform_source_ptr->max_requested_frame_rate();
-  EXPECT_NE(initialWidth, kReducedWidth);
-  EXPECT_NE(initialHeight, kReducedHeight);
-  EXPECT_NE(initialFrameRate, kMaxFrameRate);
-  // Apply new constraints.
-  MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
-      kReducedWidth, kReducedHeight, kMinFrameRate, kMaxFrameRate);
-  ScriptPromise apply_constraints_promise =
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -634,7 +774,7 @@ TEST_F(MediaStreamTrackImplTest, ApplyConstraintsWithUnchangedConstraints) {
   // Apply new constraints that are fulfilled by the current settings.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
       initialWidth, initialHeight, initialFrameRate, initialFrameRate);
-  ScriptPromise apply_constraints_promise =
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -671,7 +811,7 @@ TEST_F(MediaStreamTrackImplTest, ApplyConstraintsCannotRestartSource) {
   // Apply new constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
       kReducedWidth, kReducedHeight, kMinFrameRate, kMaxFrameRate);
-  ScriptPromise apply_constraints_promise =
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
 
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
@@ -708,8 +848,8 @@ TEST_F(MediaStreamTrackImplTest, ApplyConstraintsUpdatesMinFps) {
 
   // Apply new constraints.
   MediaTrackConstraints* track_constraints = MakeMediaTrackConstraints(
-      absl::nullopt, absl::nullopt, kMinFrameRate, initialFrameRate);
-  ScriptPromise apply_constraints_promise =
+      std::nullopt, std::nullopt, kMinFrameRate, initialFrameRate);
+  auto apply_constraints_promise =
       track->applyConstraints(v8_scope.GetScriptState(), track_constraints);
   ScriptPromiseTester tester(v8_scope.GetScriptState(),
                              apply_constraints_promise);
@@ -723,6 +863,53 @@ TEST_F(MediaStreamTrackImplTest, ApplyConstraintsUpdatesMinFps) {
   EXPECT_EQ(platform_source_ptr->max_requested_height(), initialHeight);
   EXPECT_EQ(platform_source_ptr->max_requested_frame_rate(), initialFrameRate);
   EXPECT_EQ(video_track->min_frame_rate(), kMinFrameRate);
+}
+
+TEST_F(MediaStreamTrackImplTest, StopAudioTrackAfterSinkDestroyed) {
+  V8TestingScope v8_scope;
+
+  // 1. Create the underlying platform track and its component.
+  // Keep this component alive with a Persistent handle to control its
+  // lifetime, ensuring it outlives the temporary track and sink created below.
+  Persistent<MediaStreamComponent> component = MakeMockAudioComponent();
+  MediaStreamAudioSource* source =
+      MediaStreamAudioSource::From(component->Source());
+
+  MediaStreamAudioTrack* platform_track =
+      MediaStreamAudioTrack::From(component.Get());
+  ASSERT_TRUE(source);
+  ASSERT_TRUE(platform_track);
+
+  // 2. Start the platform track by connecting it to the source. After this, the
+  // track is "live" and can accept sinks.
+  source->ConnectToInitializedTrack(component.Get());
+
+  // 3. Create a temporary MediaStreamTrackImpl wrapper and a sink in a
+  // separate scope. This wrapper will "own" the sink via a strong GC ref.
+  {
+    MediaStreamTrack* track1 = MakeGarbageCollected<MediaStreamTrackImpl>(
+        v8_scope.GetExecutionContext(), component.Get());
+    auto* sink = MakeGarbageCollected<SpeechRecognitionMediaStreamAudioSink>(
+        v8_scope.GetExecutionContext(), base::DoNothing());
+
+    // 4. Register the sink with the wrapper and add its raw pointer to the
+    // platform track's sink list.
+    track1->RegisterSink(sink);
+    platform_track->AddSink(sink);
+  }
+
+  // 5. Force garbage collection. This destroys `track_with_sink` and `sink`.
+  // If the fix is present, `track_with_sink->Dispose()` is called, removing
+  // the sink from `platform_track`.
+  WebHeap::CollectAllGarbageForTesting();
+
+  // 5. Now, destroy the component that owns the platform track by clearing the
+  // persistent handle and running GC again. The component's pre-finalizer,
+  // Dispose(), will call `platform_track->StopAndNotify()`.
+  component.Clear();
+  WebHeap::CollectAllGarbageForTesting();
+
+  // The test passes if it doesn't crash.
 }
 
 }  // namespace blink

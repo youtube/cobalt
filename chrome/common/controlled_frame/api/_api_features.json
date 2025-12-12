@@ -9,8 +9,13 @@
 {
   "controlledFrameInternal": {
     "internal": true,
-    "channel": "dev",
-    "contexts": ["web_page"],
+    "channel": "stable",
+    "contexts": [
+      "web_page"
+    ],
+    "matches": [
+      "<all_urls>"
+    ],
     // This feature is only enabled if the embedder's delegated check returns
     // true.
     "requires_delegated_availability_check": true

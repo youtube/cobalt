@@ -3,15 +3,16 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/arc/survey/arc_survey_service.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -40,7 +41,11 @@ class ArcSurveyServiceTest : public testing::Test {
     EXPECT_EQ(2u, arc_survey_service_->GetAllowedPackagesForTesting()->size());
   }
 
-  void OnTaskCreated(int32_t task_id, const std::string package_name) {
+  void TearDown() override {
+    arc_service_manager_.set_browser_context(nullptr);
+  }
+
+  void OnTaskCreated(int32_t task_id, const std::string& package_name) {
     arc_survey_service_->OnTaskCreated(task_id, package_name, "" /* activity */,
                                        "" /* intent */, 0 /* session_id */);
   }
@@ -73,7 +78,7 @@ class ArcSurveyServiceTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   TestingProfile testing_profile_;
   ArcServiceManager arc_service_manager_;
-  raw_ptr<ArcSurveyService, ExperimentalAsh> arc_survey_service_ = nullptr;
+  raw_ptr<ArcSurveyService> arc_survey_service_ = nullptr;
 };
 
 TEST_F(ArcSurveyServiceTest, ConstructDestruct) {}

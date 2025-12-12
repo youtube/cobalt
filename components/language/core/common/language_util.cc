@@ -5,11 +5,14 @@
 #include "components/language/core/common/language_util.h"
 
 #include <stddef.h>
-#include <algorithm>
 
+#include <algorithm>
+#include <string_view>
+
+#include "base/feature_list.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "components/country_codes/country_codes.h"
+#include "components/language/core/common/language_experiments.h"
 #include "components/language/core/common/locale_util.h"
 
 namespace language {
@@ -28,7 +31,7 @@ struct LanguageCodePair {
 // are different to be exact.
 //
 // If this table is updated, please sync this with the synonym table in
-// chrome/browser/resources/settings/languages_page/languages.js.
+// chrome/browser/resources/settings/languages_page/languages.ts.
 const LanguageCodePair kTranslateOnlySynonyms[] = {
     {"no", "nb"},
     {"id", "in"},
@@ -38,8 +41,9 @@ const LanguageCodePair kTranslateOnlySynonyms[] = {
 // codes are used, so we must see them as synonyms.
 //
 // If this table is updated, please sync this with the synonym table in
-// chrome/browser/resources/settings/languages_page/languages.js.
+// chrome/browser/resources/settings/languages_page/languages.ts.
 const LanguageCodePair kLanguageCodeSynonyms[] = {
+    {"gom", "kok"},
     {"iw", "he"},
     {"jw", "jv"},
     {"tl", "fil"},
@@ -49,7 +53,7 @@ const LanguageCodePair kLanguageCodeSynonyms[] = {
 // Translate.
 //
 // If this table is updated, please sync this with the synonym table in
-// chrome/browser/resources/settings/languages_page/languages.js.
+// chrome/browser/resources/settings/languages_page/languages.ts.
 const LanguageCodePair kLanguageCodeChineseCompatiblePairs[] = {
     {"zh-TW", "zh-HK"},
     {"zh-TW", "zh-MO"},
@@ -60,7 +64,10 @@ const LanguageCodePair kLanguageCodeChineseCompatiblePairs[] = {
 
 bool OverrideTranslateTriggerInIndia() {
 #if BUILDFLAG(IS_ANDROID)
-  return country_codes::GetCurrentCountryCode() == "IN";
+  if (base::FeatureList::IsEnabled(language::kDisableGeoLanguageModel)) {
+    return false;
+  }
+  return country_codes::GetCurrentCountryID().CountryCode() == "IN";
 #else
   return false;
 #endif
@@ -79,25 +86,48 @@ OverrideLanguageModel GetOverrideLanguageModel() {
 
 void ToTranslateLanguageSynonym(std::string* language) {
   // Get the base language (e.g. "es" for "es-MX")
-  base::StringPiece main_part = language::SplitIntoMainAndTail(*language).first;
+  auto [main_part, tail_part] = language::SplitIntoMainAndTail(*language);
+
   if (main_part.empty()) {
     return;
   }
 
-  // Chinese is a special case: we do not return the main_part only.
-  // There is not a single base language, but two: traditional and simplified.
-  // The kLanguageCodeChineseCompatiblePairs list contains the relation between
-  // various Chinese locales. We need to return the code from that mapping
-  // instead of the main_part.
-  // Note that "zh" does not have any mapping and as such we leave it as is. See
-  // https://crbug/798512 for more info.
-  for (const auto& language_pair : kLanguageCodeChineseCompatiblePairs) {
-    if (*language == language_pair.chrome_language) {
-      *language = language_pair.translate_language;
+  if (main_part == "mni") {
+    // "mni-Mtei" does not have any mapping and as such we leave it as is.
+    return;
+  }
+
+  if (main_part == "zh") {
+    // Chinese is a special case, there can be two base languages: traditional
+    // and simplified. The kLanguageCodeChineseCompatiblePairs list contains the
+    // relation between various Chinese locales. We need to return the code from
+    // that mapping - if it exists.
+    for (const auto& language_pair : kLanguageCodeChineseCompatiblePairs) {
+      if (*language == language_pair.chrome_language) {
+        *language = language_pair.translate_language;
+        return;
+      }
+    }
+    // Note that "zh" does not have any mapping and as such we leave it as is.
+    // See https://crbug/798512 for more info.
+    return;
+  }
+
+  if (main_part == "cmn") {
+    // The Speech On-Device API (SODA) uses the Mandarin Chinese (cmn) language
+    // codes.
+    if (tail_part.rfind("-hant", 0) == 0) {
+      *language = "zh-TW";
       return;
     }
-  }
-  if (main_part == "zh") {
+
+    if (tail_part.rfind("-hans", 0) == 0) {
+      *language = "zh-CN";
+      return;
+    }
+
+    // If there is no matching script tag for cmn return zh.
+    *language = "zh";
     return;
   }
 

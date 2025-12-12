@@ -24,19 +24,31 @@ class BorealisAppLauncherImpl : public BorealisAppLauncher {
 
   // Launch the given |app_id|'s associated application. This can be the
   // borealis launcher itself or one of its GuestOsRegistry apps.
-  void Launch(std::string app_id, OnLaunchedCallback callback) override;
+  void Launch(std::string app_id,
+              BorealisLaunchSource source,
+              OnLaunchedCallback callback) override;
 
   // Launch the given |app_id|'s associated application with the given |args|.
   // This can be the borealis launcher itself or one of its GuestOsRegistry
-  // apps.
+  // apps. |source| indicates the source of the launch request.
   void Launch(std::string app_id,
               const std::vector<std::string>& args,
+              BorealisLaunchSource source,
               OnLaunchedCallback callback) override;
 
  private:
-  const raw_ptr<Profile, ExperimentalAsh> profile_;
+  // Launch the given |app_id|'s associated application with the given |args|.
+  // This can be the borealis launcher itself or one of its GuestOsRegistry
+  // apps. |source| indicates the source of the launch request.
+  void LaunchAfterMOTD(std::string app_id,
+                       const std::vector<std::string>& args,
+                       BorealisLaunchSource source,
+                       OnLaunchedCallback callback);
+
+  const raw_ptr<Profile, DanglingUntriaged> profile_;
+  base::WeakPtrFactory<BorealisAppLauncherImpl> weak_factory_{this};
 };
 
 }  // namespace borealis
 
-#endif  // CHROME_BROWSER_ASH_BOREALIS_BOREALIS_APP_LAUNCHER_H_
+#endif  // CHROME_BROWSER_ASH_BOREALIS_BOREALIS_APP_LAUNCHER_IMPL_H_

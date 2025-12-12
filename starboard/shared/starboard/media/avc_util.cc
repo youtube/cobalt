@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/media/avc_util.h"
 
 #include <string.h>
+
 #include <type_traits>
 
 #include "starboard/common/check_op.h"

@@ -22,11 +22,13 @@ import android.os.Handler;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.annotation.Config;
 
@@ -38,27 +40,20 @@ import org.chromium.chrome.browser.net.connectivitydetector.ConnectivityDetector
 import org.chromium.chrome.browser.net.connectivitydetector.ConnectivityDetector.ConnectionState;
 import org.chromium.chrome.browser.status_indicator.StatusIndicatorCoordinator;
 
-/**
- * Unit tests for {@link OfflineIndicatorControllerV2}.
- */
+/** Unit tests for {@link OfflineIndicatorControllerV2}. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class OfflineIndicatorControllerV2UnitTest {
-    @Mock
-    private StatusIndicatorCoordinator mStatusIndicator;
-    @Mock
-    private ConnectivityDetector mConnectivityDetector;
-    @Mock
-    private OfflineDetector mOfflineDetector;
-    @Mock
-    private Handler mHandler;
-    @Mock
-    private Supplier<Boolean> mCanAnimateNativeBrowserControls;
-    @Mock
-    private OfflineIndicatorMetricsDelegate mMetricsDelegate;
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Mock private StatusIndicatorCoordinator mStatusIndicator;
+    @Mock private ConnectivityDetector mConnectivityDetector;
+    @Mock private OfflineDetector mOfflineDetector;
+    @Mock private Handler mHandler;
+    @Mock private Supplier<Boolean> mCanAnimateNativeBrowserControls;
+    @Mock private OfflineIndicatorMetricsDelegate mMetricsDelegate;
 
     private Context mContext;
-    private ObservableSupplierImpl<Boolean> mIsUrlBarFocusedSupplier =
+    private final ObservableSupplierImpl<Boolean> mIsUrlBarFocusedSupplier =
             new ObservableSupplierImpl<>();
     private OfflineIndicatorControllerV2 mController;
     private long mElapsedTimeMs;
@@ -67,9 +62,8 @@ public class OfflineIndicatorControllerV2UnitTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
         mContext = Robolectric.buildActivity(Activity.class).get();
-        mContext.setTheme(org.chromium.chrome.tab_ui.R.style.Theme_BrowserUI_DayNight);
+        mContext.setTheme(R.style.Theme_BrowserUI_DayNight);
 
         mOfflineString = mContext.getString(R.string.offline_indicator_v2_offline_text);
         mOnlineString = mContext.getString(R.string.offline_indicator_v2_back_online_text);
@@ -84,8 +78,12 @@ public class OfflineIndicatorControllerV2UnitTest {
         mElapsedTimeMs = 0;
         OfflineIndicatorControllerV2.setMockElapsedTimeSupplier(() -> mElapsedTimeMs);
         OfflineIndicatorControllerV2.setMockOfflineIndicatorMetricsDelegate(mMetricsDelegate);
-        mController = new OfflineIndicatorControllerV2(mContext, mStatusIndicator,
-                mIsUrlBarFocusedSupplier, mCanAnimateNativeBrowserControls);
+        mController =
+                new OfflineIndicatorControllerV2(
+                        mContext,
+                        mStatusIndicator,
+                        mIsUrlBarFocusedSupplier,
+                        mCanAnimateNativeBrowserControls);
         mController.setHandlerForTesting(mHandler);
     }
 
@@ -94,9 +92,7 @@ public class OfflineIndicatorControllerV2UnitTest {
         OfflineIndicatorControllerV2.setMockElapsedTimeSupplier(null);
     }
 
-    /**
-     * Tests that the offline indicator shows when the device goes offline.
-     */
+    /** Tests that the offline indicator shows when the device goes offline. */
     @Test
     public void testShowsStatusIndicatorWhenOffline() {
         // Show.
@@ -104,9 +100,7 @@ public class OfflineIndicatorControllerV2UnitTest {
         verify(mStatusIndicator).show(eq(mOfflineString), any(), anyInt(), anyInt(), anyInt());
     }
 
-    /**
-     * Tests that the offline indicator hides when the device goes online.
-     */
+    /** Tests that the offline indicator hides when the device goes online. */
     @Test
     public void testHidesStatusIndicatorWhenOnline() {
         // First, show.
@@ -119,22 +113,26 @@ public class OfflineIndicatorControllerV2UnitTest {
         // after that. First, verify the #updateContent() call.
         final ArgumentCaptor<Runnable> endAnimationCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(mStatusIndicator)
-                .updateContent(eq(mOnlineString), any(), anyInt(), anyInt(), anyInt(),
+                .updateContent(
+                        eq(mOnlineString),
+                        any(),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
                         endAnimationCaptor.capture());
         // Simulate browser controls animation ending.
         endAnimationCaptor.getValue().run();
         // This should post a runnable to hide w/ a delay.
         final ArgumentCaptor<Runnable> hideCaptor = ArgumentCaptor.forClass(Runnable.class);
-        verify(mHandler).postDelayed(
-                hideCaptor.capture(), eq(STATUS_INDICATOR_WAIT_BEFORE_HIDE_DURATION_MS));
+        verify(mHandler)
+                .postDelayed(
+                        hideCaptor.capture(), eq(STATUS_INDICATOR_WAIT_BEFORE_HIDE_DURATION_MS));
         // Let's see if the Runnable we captured actually hides the indicator.
         hideCaptor.getValue().run();
         verify(mStatusIndicator).hide();
     }
 
-    /**
-     * Tests that the indicator doesn't hide before the cool-down is complete.
-     */
+    /** Tests that the indicator doesn't hide before the cool-down is complete. */
     @Test
     public void testCoolDown_Hide() {
         // First, show.
@@ -148,21 +146,26 @@ public class OfflineIndicatorControllerV2UnitTest {
         verify(mStatusIndicator, never())
                 .updateContent(any(), any(), anyInt(), anyInt(), anyInt(), any(Runnable.class));
         final ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-        verify(mHandler).postDelayed(
-                captor.capture(), eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 3000L));
+        verify(mHandler)
+                .postDelayed(
+                        captor.capture(),
+                        eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 3000L));
 
         // Advance the time and simulate the |Handler| running the posted runnable.
         advanceTimeByMs(2000);
         captor.getValue().run();
         // #updateContent() should be called since the cool-down is complete.
         verify(mStatusIndicator)
-                .updateContent(eq(mOnlineString), any(), anyInt(), anyInt(), anyInt(),
+                .updateContent(
+                        eq(mOnlineString),
+                        any(),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
                         any(Runnable.class));
     }
 
-    /**
-     * Tests that the indicator doesn't show before the cool-down is complete.
-     */
+    /** Tests that the indicator doesn't show before the cool-down is complete. */
     @Test
     public void testCoolDown_Show() {
         // First, show.
@@ -182,8 +185,10 @@ public class OfflineIndicatorControllerV2UnitTest {
         verify(mStatusIndicator, times(1))
                 .show(eq(mOfflineString), any(), anyInt(), anyInt(), anyInt());
         final ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-        verify(mHandler).postDelayed(
-                captor.capture(), eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 1000L));
+        verify(mHandler)
+                .postDelayed(
+                        captor.capture(),
+                        eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 1000L));
 
         // Advance the time and simulate the |Handler| running the posted runnable.
         advanceTimeByMs(4000);
@@ -211,8 +216,10 @@ public class OfflineIndicatorControllerV2UnitTest {
         verify(mStatusIndicator, times(1))
                 .show(eq(mOfflineString), any(), anyInt(), anyInt(), anyInt());
         final ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-        verify(mHandler).postDelayed(
-                captor.capture(), eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 1000L));
+        verify(mHandler)
+                .postDelayed(
+                        captor.capture(),
+                        eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 1000L));
         // Callbacks to show/hide are removed every time the connectivity changes. We use this to
         // capture the callback.
         verify(mHandler, times(3)).removeCallbacks(captor.getValue());
@@ -228,9 +235,7 @@ public class OfflineIndicatorControllerV2UnitTest {
                 .show(eq(mOfflineString), any(), anyInt(), anyInt(), anyInt());
     }
 
-    /**
-     * Tests that the indicator doesn't show until the omnibox is unfocused.
-     */
+    /** Tests that the indicator doesn't show until the omnibox is unfocused. */
     @Test
     public void testOmniboxFocus_DelayShowing() {
         // Simulate focusing the omnibox.
@@ -285,8 +290,10 @@ public class OfflineIndicatorControllerV2UnitTest {
         verify(mStatusIndicator, times(1))
                 .show(eq(mOfflineString), any(), anyInt(), anyInt(), anyInt());
         final ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
-        verify(mHandler).postDelayed(
-                captor.capture(), eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 1000L));
+        verify(mHandler)
+                .postDelayed(
+                        captor.capture(),
+                        eq(STATUS_INDICATOR_COOLDOWN_BEFORE_NEXT_ACTION_MS - 1000L));
 
         // Now, simulate focusing the omnibox.
         mIsUrlBarFocusedSupplier.set(true);
@@ -400,8 +407,12 @@ public class OfflineIndicatorControllerV2UnitTest {
 
         // Simulate the app being restarted, and still being offline.
         changeApplicationState(true);
-        mController = new OfflineIndicatorControllerV2(mContext, mStatusIndicator,
-                mIsUrlBarFocusedSupplier, mCanAnimateNativeBrowserControls);
+        mController =
+                new OfflineIndicatorControllerV2(
+                        mContext,
+                        mStatusIndicator,
+                        mIsUrlBarFocusedSupplier,
+                        mCanAnimateNativeBrowserControls);
         mController.setHandlerForTesting(mHandler);
         verify(mMetricsDelegate, times(2)).onAppForegrounded();
 
@@ -451,8 +462,12 @@ public class OfflineIndicatorControllerV2UnitTest {
 
         // Simulate the app being restarted, but now being online.
         changeApplicationState(true);
-        mController = new OfflineIndicatorControllerV2(mContext, mStatusIndicator,
-                mIsUrlBarFocusedSupplier, mCanAnimateNativeBrowserControls);
+        mController =
+                new OfflineIndicatorControllerV2(
+                        mContext,
+                        mStatusIndicator,
+                        mIsUrlBarFocusedSupplier,
+                        mCanAnimateNativeBrowserControls);
         mController.setHandlerForTesting(mHandler);
         verify(mMetricsDelegate, times(2)).onAppForegrounded();
 

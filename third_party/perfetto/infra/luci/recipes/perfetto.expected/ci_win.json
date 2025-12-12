@@ -12,7 +12,7 @@
       "/path/to/tmp/json",
       "ensure-directory",
       "--mode",
-      "0777",
+      "0o777",
       "[CACHE]\\builder\\perfetto"
     ],
     "infra_step": true,
@@ -62,7 +62,8 @@
       "git",
       "fetch",
       "--tags",
-      "https://android.googlesource.com/platform/external/perfetto",
+      "--force",
+      "https://chromium.googlesource.com/external/github.com/google/perfetto",
       "refs/heads/main"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
@@ -137,7 +138,8 @@
   {
     "cmd": [
       "python3",
-      "tools/install-build-deps"
+      "tools/install-build-deps",
+      "--no-dev-tools"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
     "infra_step": true,
@@ -188,7 +190,7 @@
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
       "@@@STEP_LOG_LINE@json.output@    \"\": [@@@",
       "@@@STEP_LOG_LINE@json.output@      {@@@",
-      "@@@STEP_LOG_LINE@json.output@        \"instance_id\": \"resolved-instance_id-of-uploaded:2019-09\", @@@",
+      "@@@STEP_LOG_LINE@json.output@        \"instance_id\": \"resolved-instance_id-of-uploaded:2019-09\",@@@",
       "@@@STEP_LOG_LINE@json.output@        \"package\": \"chrome_internal/third_party/sdk/windows\"@@@",
       "@@@STEP_LOG_LINE@json.output@      }@@@",
       "@@@STEP_LOG_LINE@json.output@    ]@@@",
@@ -224,16 +226,16 @@
       "@@@STEP_LOG_LINE@json.output@  \"env\": {@@@",
       "@@@STEP_LOG_LINE@json.output@    \"PATH\": [@@@",
       "@@@STEP_LOG_LINE@json.output@      [@@@",
-      "@@@STEP_LOG_LINE@json.output@        \"..\", @@@",
-      "@@@STEP_LOG_LINE@json.output@        \"..\", @@@",
-      "@@@STEP_LOG_LINE@json.output@        \"win_sdk\", @@@",
-      "@@@STEP_LOG_LINE@json.output@        \"bin\", @@@",
+      "@@@STEP_LOG_LINE@json.output@        \"..\",@@@",
+      "@@@STEP_LOG_LINE@json.output@        \"..\",@@@",
+      "@@@STEP_LOG_LINE@json.output@        \"win_sdk\",@@@",
+      "@@@STEP_LOG_LINE@json.output@        \"bin\",@@@",
       "@@@STEP_LOG_LINE@json.output@        \"x64\"@@@",
       "@@@STEP_LOG_LINE@json.output@      ]@@@",
-      "@@@STEP_LOG_LINE@json.output@    ], @@@",
+      "@@@STEP_LOG_LINE@json.output@    ],@@@",
       "@@@STEP_LOG_LINE@json.output@    \"VSINSTALLDIR\": [@@@",
       "@@@STEP_LOG_LINE@json.output@      [@@@",
-      "@@@STEP_LOG_LINE@json.output@        \"..\", @@@",
+      "@@@STEP_LOG_LINE@json.output@        \"..\",@@@",
       "@@@STEP_LOG_LINE@json.output@        \"..\\\\\"@@@",
       "@@@STEP_LOG_LINE@json.output@      ]@@@",
       "@@@STEP_LOG_LINE@json.output@    ]@@@",
@@ -272,6 +274,36 @@
       }
     },
     "name": "gn gen"
+  },
+  {
+    "cmd": [
+      "python3",
+      "tools/gn",
+      "clean",
+      "[CACHE]\\builder\\perfetto\\out\\windows-amd64"
+    ],
+    "cwd": "[CACHE]\\builder\\perfetto",
+    "env": {
+      "VSINSTALLDIR": "[CACHE]\\windows_sdk"
+    },
+    "env_prefixes": {
+      "PATH": [
+        "[CACHE]\\windows_sdk\\win_sdk\\bin\\x64"
+      ]
+    },
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "gn clean"
   },
   {
     "cmd": [
@@ -345,6 +377,38 @@
   },
   {
     "cmd": [
+      "python3",
+      "-u",
+      "RECIPE_MODULE[depot_tools::gsutil]\\resources\\gsutil_smart_retry.py",
+      "--",
+      "RECIPE_REPO[depot_tools]\\gsutil.py",
+      "----",
+      "cp",
+      "[CACHE]\\builder\\perfetto\\out\\windows-amd64\\trace_processor_shell.exe.pdb",
+      "gs://perfetto-luci-artifacts//windows-amd64/trace_processor_shell.exe.pdb"
+    ],
+    "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "Artifact upload.gsutil upload (2)",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@",
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts//windows-amd64/trace_processor_shell.exe.pdb@@@"
+    ]
+  },
+  {
+    "cmd": [
       "cipd.bat",
       "pkg-build",
       "-pkg-def",
@@ -357,6 +421,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -374,7 +439,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -390,10 +455,13 @@
       "latest",
       "-tag",
       "git_revision:",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -411,7 +479,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/trace_processor_shell/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -445,10 +513,42 @@
         "hostname": "rdbhost"
       }
     },
-    "name": "Artifact upload.gsutil upload (2)",
+    "name": "Artifact upload.gsutil upload (3)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts//windows-amd64/traceconv.exe@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
+      "-u",
+      "RECIPE_MODULE[depot_tools::gsutil]\\resources\\gsutil_smart_retry.py",
+      "--",
+      "RECIPE_REPO[depot_tools]\\gsutil.py",
+      "----",
+      "cp",
+      "[CACHE]\\builder\\perfetto\\out\\windows-amd64\\traceconv.exe.pdb",
+      "gs://perfetto-luci-artifacts//windows-amd64/traceconv.exe.pdb"
+    ],
+    "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "Artifact upload.gsutil upload (4)",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@",
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts//windows-amd64/traceconv.exe.pdb@@@"
     ]
   },
   {
@@ -465,6 +565,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -482,7 +583,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -498,10 +599,13 @@
       "latest",
       "-tag",
       "git_revision:",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -519,7 +623,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traceconv/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -553,10 +657,42 @@
         "hostname": "rdbhost"
       }
     },
-    "name": "Artifact upload.gsutil upload (3)",
+    "name": "Artifact upload.gsutil upload (5)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts//windows-amd64/perfetto.exe@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
+      "-u",
+      "RECIPE_MODULE[depot_tools::gsutil]\\resources\\gsutil_smart_retry.py",
+      "--",
+      "RECIPE_REPO[depot_tools]\\gsutil.py",
+      "----",
+      "cp",
+      "[CACHE]\\builder\\perfetto\\out\\windows-amd64\\perfetto.exe.pdb",
+      "gs://perfetto-luci-artifacts//windows-amd64/perfetto.exe.pdb"
+    ],
+    "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "Artifact upload.gsutil upload (6)",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@",
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts//windows-amd64/perfetto.exe.pdb@@@"
     ]
   },
   {
@@ -573,6 +709,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -590,7 +727,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -606,10 +743,13 @@
       "latest",
       "-tag",
       "git_revision:",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -627,7 +767,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/perfetto/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -661,10 +801,42 @@
         "hostname": "rdbhost"
       }
     },
-    "name": "Artifact upload.gsutil upload (4)",
+    "name": "Artifact upload.gsutil upload (7)",
     "~followup_annotations": [
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts//windows-amd64/traced.exe@@@"
+    ]
+  },
+  {
+    "cmd": [
+      "python3",
+      "-u",
+      "RECIPE_MODULE[depot_tools::gsutil]\\resources\\gsutil_smart_retry.py",
+      "--",
+      "RECIPE_REPO[depot_tools]\\gsutil.py",
+      "----",
+      "cp",
+      "[CACHE]\\builder\\perfetto\\out\\windows-amd64\\traced.exe.pdb",
+      "gs://perfetto-luci-artifacts//windows-amd64/traced.exe.pdb"
+    ],
+    "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
+    "luci_context": {
+      "realm": {
+        "name": "perfetto:ci"
+      },
+      "resultdb": {
+        "current_invocation": {
+          "name": "invocations/build:8945511751514863184",
+          "update_token": "token"
+        },
+        "hostname": "rdbhost"
+      }
+    },
+    "name": "Artifact upload.gsutil upload (8)",
+    "~followup_annotations": [
+      "@@@STEP_NEST_LEVEL@1@@@",
+      "@@@STEP_LINK@gsutil.upload@https://storage.cloud.google.com/perfetto-luci-artifacts//windows-amd64/traced.exe.pdb@@@"
     ]
   },
   {
@@ -681,6 +853,7 @@
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -698,7 +871,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",
@@ -714,10 +887,13 @@
       "latest",
       "-tag",
       "git_revision:",
+      "-metadata",
+      "build_id:8945511751514863184",
       "-json-output",
       "/path/to/tmp/json"
     ],
     "cwd": "[CACHE]\\builder\\perfetto",
+    "infra_step": true,
     "luci_context": {
       "realm": {
         "name": "perfetto:ci"
@@ -735,7 +911,7 @@
       "@@@STEP_NEST_LEVEL@1@@@",
       "@@@STEP_LOG_LINE@json.output@{@@@",
       "@@@STEP_LOG_LINE@json.output@  \"result\": {@@@",
-      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\", @@@",
+      "@@@STEP_LOG_LINE@json.output@    \"instance_id\": \"40-chars-fake-of-the-package-instance_id\",@@@",
       "@@@STEP_LOG_LINE@json.output@    \"package\": \"perfetto/traced/windows-amd64\"@@@",
       "@@@STEP_LOG_LINE@json.output@  }@@@",
       "@@@STEP_LOG_LINE@json.output@}@@@",

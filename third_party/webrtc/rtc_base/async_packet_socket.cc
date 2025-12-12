@@ -10,7 +10,25 @@
 
 #include "rtc_base/async_packet_socket.h"
 
-namespace rtc {
+#include <cstddef>
+#include <functional>
+#include <utility>
+
+#include "absl/functional/any_invocable.h"
+#include "api/sequence_checker.h"
+#include "rtc_base/checks.h"
+#include "rtc_base/dscp.h"
+#include "rtc_base/network/received_packet.h"
+#include "rtc_base/network/sent_packet.h"
+
+namespace webrtc {
+
+AsyncSocketPacketOptions::AsyncSocketPacketOptions() = default;
+AsyncSocketPacketOptions::AsyncSocketPacketOptions(DiffServCodePoint dscp)
+    : dscp(dscp) {}
+AsyncSocketPacketOptions::AsyncSocketPacketOptions(
+    const AsyncSocketPacketOptions& other) = default;
+AsyncSocketPacketOptions::~AsyncSocketPacketOptions() = default;
 
 PacketTimeUpdateParams::PacketTimeUpdateParams() = default;
 
@@ -19,31 +37,46 @@ PacketTimeUpdateParams::PacketTimeUpdateParams(
 
 PacketTimeUpdateParams::~PacketTimeUpdateParams() = default;
 
-PacketOptions::PacketOptions() = default;
-PacketOptions::PacketOptions(DiffServCodePoint dscp) : dscp(dscp) {}
-PacketOptions::PacketOptions(const PacketOptions& other) = default;
-PacketOptions::~PacketOptions() = default;
-
 AsyncPacketSocket::~AsyncPacketSocket() = default;
 
-void AsyncPacketSocket::SubscribeClose(
+void AsyncPacketSocket::SubscribeCloseEvent(
     const void* removal_tag,
     std::function<void(AsyncPacketSocket*, int)> callback) {
   RTC_DCHECK_RUN_ON(&network_checker_);
   on_close_.AddReceiver(removal_tag, std::move(callback));
 }
 
-void AsyncPacketSocket::UnsubscribeClose(const void* removal_tag) {
+void AsyncPacketSocket::UnsubscribeCloseEvent(const void* removal_tag) {
   RTC_DCHECK_RUN_ON(&network_checker_);
   on_close_.RemoveReceivers(removal_tag);
 }
 
+void AsyncPacketSocket::RegisterReceivedPacketCallback(
+    absl::AnyInvocable<void(AsyncPacketSocket*, const ReceivedIpPacket&)>
+        received_packet_callback) {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  RTC_CHECK(!received_packet_callback_);
+  received_packet_callback_ = std::move(received_packet_callback);
+}
+
+void AsyncPacketSocket::DeregisterReceivedPacketCallback() {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  received_packet_callback_ = nullptr;
+}
+
+void AsyncPacketSocket::NotifyPacketReceived(const ReceivedIpPacket& packet) {
+  RTC_DCHECK_RUN_ON(&network_checker_);
+  if (received_packet_callback_) {
+    received_packet_callback_(this, packet);
+    return;
+  }
+}
+
 void CopySocketInformationToPacketInfo(size_t packet_size_bytes,
                                        const AsyncPacketSocket& socket_from,
-                                       bool is_connectionless,
-                                       rtc::PacketInfo* info) {
+                                       PacketInfo* info) {
   info->packet_size_bytes = packet_size_bytes;
   info->ip_overhead_bytes = socket_from.GetLocalAddress().ipaddr().overhead();
 }
 
-}  // namespace rtc
+}  // namespace webrtc

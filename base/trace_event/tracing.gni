@@ -2,8 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt_hermetic_build && current_toolchain == starboard_toolchain) {
+  import("//copied_base/base/trace_event/tracing.gni")
+} else {
 import("//build/config/chrome_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
 
 declare_args() {
   # Enable more trace events. Disabled by default due to binary size impact,
@@ -17,5 +19,6 @@ declare_args() {
   # Disabled by default on Android and ChromeOS due to binary size impact,
   # enabled everywhere else.
   optional_trace_events_enabled =
-      (!is_android && !is_chromeos_ash) || extended_tracing_enabled
+      (!is_android && !is_chromeos) || extended_tracing_enabled
+}
 }

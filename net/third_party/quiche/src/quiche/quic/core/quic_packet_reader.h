@@ -18,9 +18,9 @@
 namespace quic {
 
 // Read in larger batches to minimize recvmmsg overhead.
-const int kNumPacketsPerReadMmsgCall = 16;
+inline constexpr int kNumPacketsPerReadMmsgCall = 16;
 
-class QUIC_EXPORT_PRIVATE QuicPacketReader {
+class QUICHE_EXPORT QuicPacketReader {
  public:
   QuicPacketReader();
   QuicPacketReader(const QuicPacketReader&) = delete;
@@ -47,7 +47,7 @@ class QUIC_EXPORT_PRIVATE QuicPacketReader {
   static QuicIpAddress GetSelfIpFromPacketInfo(
       const QuicUdpPacketInfo& packet_info, bool prefer_v6_ip);
 
-  struct QUIC_EXPORT_PRIVATE ReadBuffer {
+  struct QUICHE_EXPORT ReadBuffer {
     ABSL_CACHELINE_ALIGNED char
         control_buffer[kDefaultUdpPacketControlBufferSize];  // For ancillary
                                                              // data.

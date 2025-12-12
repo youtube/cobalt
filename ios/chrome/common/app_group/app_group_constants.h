@@ -20,11 +20,30 @@ enum AppGroupApplications {
   APP_GROUP_TODAY_EXTENSION,
 };
 
+// The different types of outcome used for UMA and created by the open
+// extension.
+// The entries should not be removed or reordered.
+// Also add the name of the enum and histogram.
+enum class OpenExtensionOutcome : NSInteger {
+  kSuccess = 0,
+  kInvalid = 1,
+  kFailureInvalidURL = 2,
+  kFailureURLNotFound = 3,
+  kFailureOpenInNotFound = 4,
+  kFailureUnsupportedScheme = 5,
+  kMaxValue = kFailureUnsupportedScheme,
+};
+
 // The different types of item that can be created by the share extension.
 enum ShareExtensionItemType {
   READING_LIST_ITEM = 0,
   BOOKMARK_ITEM,
-  OPEN_IN_CHROME_ITEM
+  OPEN_IN_CHROME_ITEM,
+  OPEN_IN_CHROME_INCOGNITO_ITEM,
+  IMAGE_SEARCH_ITEM,
+  TEXT_SEARCH_ITEM,
+  INCOGNITO_IMAGE_SEARCH_ITEM,
+  INCOGNITO_TEXT_SEARCH_ITEM
 };
 
 // The key of a preference containing a dictionary of capabilities supported by
@@ -34,6 +53,10 @@ extern NSString* const kChromeCapabilitiesPreference;
 // ---- Chrome capabilities -----
 // Show default browser promo capability.
 extern NSString* const kChromeShowDefaultBrowserPromoCapability;
+
+// Capability declaring a list of supported bundle IDs that can open incognito
+// links in chrome.
+extern NSString* const kChromeSupportOpenLinksParametersFromCapability;
 
 // The x-callback-url indicating that an application in the group requires a
 // command.
@@ -58,11 +81,22 @@ extern const char kChromeAppGroupCommandCommandPreference[];
 // The command to open a URL. Parameter must contain the URL.
 extern const char kChromeAppGroupOpenURLCommand[];
 
+// The command to open a URL in incognito. Parameter must contain the URL.
+extern NSString* const kChromeAppGroupOpenURLInIcognitoCommand;
+
 // The command to search some text. Parameter must contain the text.
 extern const char kChromeAppGroupSearchTextCommand[];
 
+// The command to search some text in incognito. Parameter must contain the
+// text.
+extern NSString* const kChromeAppGroupIncognitoSearchTextCommand;
+
 // The command to search an image. Data parameter must contain the image.
 extern const char kChromeAppGroupSearchImageCommand[];
+
+// The command to search an image in incognito. Data parameter must contain the
+// image.
+extern NSString* const kChromeAppGroupIncognitoSearchImageCommand;
 
 // The command to trigger a voice search.
 extern const char kChromeAppGroupVoiceSearchCommand[];
@@ -81,6 +115,9 @@ extern const char kChromeAppGroupQRScannerCommand[];
 
 // The command to open Lens.
 extern const char kChromeAppGroupLensCommand[];
+
+// The command to open the Password Manager's search page.
+extern const char kChromeAppGroupSearchPasswordsCommand[];
 
 // The key in kChromeAppGroupCommandPreference containing a NSDate at which
 // `kChromeAppGroupCommandAppPreference` issued the command.
@@ -139,9 +176,20 @@ extern NSString* const kOpenCommandSourceContentExtension;
 extern NSString* const kOpenCommandSourceSearchExtension;
 extern NSString* const kOpenCommandSourceShareExtension;
 extern NSString* const kOpenCommandSourceCredentialsExtension;
+extern NSString* const kOpenCommandSourceOpenExtension;
 
-// The value of the key for the sharedDefaults used by the Content Widget.
+// The value of the key for the sharedDefaults used by the Shortcuts Widget.
 extern NSString* const kSuggestedItems;
+// The value of the key for the sharedDefaults last modification date used by
+// the Shortcuts Widget.
+extern NSString* const kSuggestedItemsLastModificationDate;
+
+// NSUserDefaults key containing a dictionary with most visited sites data for a
+// given gaiaID. Used by the Shortcuts Widget.
+extern NSString* const kSuggestedItemsForMultiprofile;
+// NSUserDefaults key containing the last modification date. Used by
+// the Shortcuts Widget.
+extern NSString* const kSuggestedItemsLastModificationDateForMultiprofile;
 
 // The current epoch time, on the first run of chrome on this machine. It is set
 // once and must be attached to metrics reports forever thereafter.
@@ -150,6 +198,41 @@ extern const char kInstallDate[];
 // The brand code string associated with the install. This brand code will be
 // added to metrics logs.
 extern const char kBrandCode[];
+
+// The five keys of the outcomes by the open extension to Chrome (Success,
+// FailureInvalidURL, FailureURLNotFound, FailureOpenInNotFound,
+// FailureUnsupportedScheme).
+extern NSString* const kOpenExtensionOutcomeSuccess;
+extern NSString* const kOpenExtensionOutcomeFailureInvalidURL;
+extern NSString* const kOpenExtensionOutcomeFailureURLNotFound;
+extern NSString* const kOpenExtensionOutcomeFailureOpenInNotFound;
+extern NSString* const kOpenExtensionOutcomeFailureUnsupportedScheme;
+
+// A key in the application group NSUserDefault that contains
+// the outcomes of the Open Extension.
+extern NSString* const kOpenExtensionOutcomes;
+
+// Name of NSUserDefault key containing info about registered profiles to be
+// passed to widgets.
+extern NSString* const kAccountsOnDevice;
+// Names of keys in dictionary saved in kAccountsOnDevice.
+extern NSString* const kEmail;
+// Key used to save info for widgets when no account is signed-in.
+extern NSString* const kDefaultAccount;
+
+// Supported bundle IDs for opening incognito links in Chrome.
+extern NSString* const kYoutubeBundleID;
+
+// Stores in NSUserDefaults info about the latest changed primary account for
+// all profiles. Empty if last operation was a sign-out.
+extern NSString* const kPrimaryAccount;
+
+// Key in storage indicating if Chrome is likely the default browser.
+extern NSString* const kChromeLikelyDefaultBrowser;
+
+// Conversion helpers between keys and OpenExtensionOutcome.
+NSString* KeyForOpenExtensionOutcomeType(OpenExtensionOutcome);
+OpenExtensionOutcome OutcomeTypeFromKey(NSString*);
 
 // Gets the application group.
 NSString* ApplicationGroup();
@@ -160,15 +243,19 @@ NSString* CommonApplicationGroup();
 // Gets the legacy share extension folder URL.
 // This folder is deprecated and will be removed soon. Please do not add items
 // to it.
-// TODO(crbug.com/695381): Remove this value.
+// TODO(crbug.com/41303853): Remove this value.
 NSURL* LegacyShareExtensionItemsFolder();
 
 // Gets the shared folder URL containing commands from other applications.
 NSURL* ExternalCommandsItemsFolder();
 
-// Gets the shared folder URL in which favicons used by the content widget are
+// Gets the shared folder URL in which favicons used by the shortcuts widget are
 // stored.
-NSURL* ContentWidgetFaviconsFolder();
+NSURL* ShortcutsWidgetFaviconsFolder();
+
+// Gets the shared folder URL in which avatar used by the widgets are
+// stored.
+NSURL* WidgetsAvatarFolder();
 
 // Gets the shared folder URL in which favicon attributes used by the credential
 // provider extensions are stored.

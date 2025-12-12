@@ -16,13 +16,13 @@
 #define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 
 #include <algorithm>
+#include <cstddef>
 
 #include "base/check.h"
 #include "base/logging.h"
 #include "starboard/common/allocator.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 
 namespace media {
 

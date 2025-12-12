@@ -6,18 +6,15 @@
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF",
       "invalidations": [
-        [0, 100, 100, 100]
+        [0, 0, 200, 200]
       ],
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) TD id='moveMe' class='fixed'",
+      "name": "LayoutBlockFlow (positioned) TD id='moveMe' class='fixed'",
       "bounds": [100, 100],
       "contentsOpaque": true,
       "backgroundColor": "#008000",
-      "invalidations": [
-        [0, 0, 100, 100]
-      ],
       "transform": 2
     },
     {

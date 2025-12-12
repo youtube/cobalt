@@ -29,20 +29,19 @@
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
-#include "third_party/blink/public/mojom/feature_observer/feature_observer.mojom-blink.h"
 #include "third_party/blink/public/mojom/indexeddb/indexeddb.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_idb_object_store_parameters.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_idb_transaction_options.h"
 #include "third_party/blink/renderer/core/dom/dom_string_list.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_state_observer.h"
 #include "third_party/blink/renderer/modules/event_modules.h"
 #include "third_party/blink/renderer/modules/event_target_modules.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_metadata.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_object_store.h"
 #include "third_party/blink/renderer/modules/indexeddb/idb_transaction.h"
 #include "third_party/blink/renderer/modules/indexeddb/indexed_db.h"
-#include "third_party/blink/renderer/modules/indexeddb/web_idb_database.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -57,20 +56,19 @@ class ScriptState;
 class V8UnionStringOrStringSequence;
 
 class MODULES_EXPORT IDBDatabase final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ActiveScriptWrappable<IDBDatabase>,
-      public ExecutionContextLifecycleObserver,
+      public ExecutionContextLifecycleStateObserver,
       public mojom::blink::IDBDatabaseCallbacks {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   IDBDatabase(
       ExecutionContext*,
-      std::unique_ptr<WebIDBDatabase>,
       mojo::PendingAssociatedReceiver<mojom::blink::IDBDatabaseCallbacks>
           callbacks_receiver,
-      mojo::PendingRemote<mojom::blink::ObservedFeature> connection_lifetime);
-  ~IDBDatabase() override;
+      mojo::PendingAssociatedRemote<mojom::blink::IDBDatabase> pending_database,
+      int scheduling_priority);
 
   void Trace(Visitor*) const override;
 
@@ -82,8 +80,14 @@ class MODULES_EXPORT IDBDatabase final
   // versionchage transaction is aborted.
   void SetDatabaseMetadata(const IDBDatabaseMetadata&);
   void TransactionCreated(IDBTransaction*);
+
+  // If `transaction` is an upgrade transaction, verifies that it is the same as
+  // `version_change_transaction_` and clears that member. Called in both abort
+  // and commit paths.
+  void TransactionWillFinish(const IDBTransaction* transaction);
+
+  // This will be called after the transaction's final event dispatch.
   void TransactionFinished(const IDBTransaction*);
-  const String& GetObjectStoreName(int64_t object_store_id) const;
 
   // Implement the IDL
   const String& name() const { return metadata_.name; }
@@ -98,7 +102,7 @@ class MODULES_EXPORT IDBDatabase final
   }
   IDBTransaction* transaction(ScriptState* script_state,
                               const V8UnionStringOrStringSequence* store_names,
-                              const String& mode,
+                              const V8IDBTransactionMode& mode,
                               const IDBTransactionOptions* options,
                               ExceptionState& exception_state);
   void deleteObjectStore(const String& name, ExceptionState&);
@@ -120,9 +124,11 @@ class MODULES_EXPORT IDBDatabase final
   // ScriptWrappable
   bool HasPendingActivity() const final;
 
-  // ExecutionContextLifecycleObserver
+  // ExecutionContextLifecycleStateObserver
   void ContextDestroyed() override;
   void ContextEnteredBackForwardCache() override;
+  void ContextLifecycleStateChanged(
+      mojom::blink::FrameLifecycleState state) override;
 
   // EventTarget
   const AtomicString& InterfaceName() const override;
@@ -130,7 +136,6 @@ class MODULES_EXPORT IDBDatabase final
 
   bool IsClosePending() const { return close_pending_; }
   const IDBDatabaseMetadata& Metadata() const { return metadata_; }
-  void EnqueueEvent(Event*);
 
   int64_t FindObjectStoreId(const String& name) const;
   bool ContainsObjectStore(const String& name) const {
@@ -140,9 +145,6 @@ class MODULES_EXPORT IDBDatabase final
   void RevertObjectStoreCreation(int64_t object_store_id);
   void RevertObjectStoreMetadata(
       scoped_refptr<IDBObjectStoreMetadata> old_metadata);
-
-  // Will return nullptr if this database is stopped.
-  WebIDBDatabase* Backend() const { return backend_.get(); }
 
   static int64_t NextTransactionId();
 
@@ -164,6 +166,113 @@ class MODULES_EXPORT IDBDatabase final
   static const char kTransactionReadOnlyErrorMessage[];
   static const char kDatabaseClosedErrorMessage[];
 
+  static const int64_t kMinimumIndexId = 30;
+
+  void RenameObjectStore(int64_t transaction_id,
+                         int64_t object_store_id,
+                         const String& new_name) {
+    database_remote_->RenameObjectStore(transaction_id, object_store_id,
+                                        new_name);
+  }
+  void CreateTransaction(mojo::PendingAssociatedReceiver<
+                             mojom::blink::IDBTransaction> transaction_receiver,
+                         int64_t transaction_id,
+                         const Vector<int64_t>& object_store_ids,
+                         mojom::blink::IDBTransactionMode mode,
+                         mojom::blink::IDBTransactionDurability durability) {
+    database_remote_->CreateTransaction(std::move(transaction_receiver),
+                                        transaction_id, object_store_ids, mode,
+                                        durability);
+  }
+  void VersionChangeIgnored() { database_remote_->VersionChangeIgnored(); }
+  void Get(
+      int64_t transaction_id,
+      int64_t object_store_id,
+      int64_t index_id,
+      const IDBKeyRange*,
+      bool key_only,
+      base::OnceCallback<void(mojom::blink::IDBDatabaseGetResultPtr)> result);
+  void GetAll(int64_t transaction_id,
+              int64_t object_store_id,
+              int64_t index_id,
+              const IDBKeyRange*,
+              mojom::blink::IDBGetAllResultType result_type,
+              int64_t max_count,
+              mojom::blink::IDBCursorDirection direction,
+              IDBRequest*);
+  void SetIndexKeys(int64_t transaction_id,
+                    int64_t object_store_id,
+                    std::unique_ptr<IDBKey> primary_key,
+                    Vector<IDBIndexKeys>);
+  void SetIndexesReady(int64_t transaction_id,
+                       int64_t object_store_id,
+                       const Vector<int64_t>& index_ids);
+  void OpenCursor(int64_t object_store_id,
+                  int64_t index_id,
+                  const IDBKeyRange*,
+                  mojom::blink::IDBCursorDirection direction,
+                  bool key_only,
+                  mojom::blink::IDBTaskType,
+                  IDBRequest*);
+  void Count(int64_t transaction_id,
+             int64_t object_store_id,
+             int64_t index_id,
+             const IDBKeyRange*,
+             mojom::blink::IDBDatabase::CountCallback callback);
+  void Delete(int64_t transaction_id,
+              int64_t object_store_id,
+              const IDBKey* primary_key,
+              mojom::blink::IDBDatabase::DeleteRangeCallback callback);
+  void DeleteRange(int64_t transaction_id,
+                   int64_t object_store_id,
+                   const IDBKeyRange*,
+                   mojom::blink::IDBDatabase::DeleteRangeCallback callback);
+  void GetKeyGeneratorCurrentNumber(
+      int64_t transaction_id,
+      int64_t object_store_id,
+      mojom::blink::IDBDatabase::GetKeyGeneratorCurrentNumberCallback callback);
+  void Clear(int64_t transaction_id,
+             int64_t object_store_id,
+             mojom::blink::IDBDatabase::ClearCallback callback);
+  void CreateIndex(int64_t transaction_id,
+                   int64_t object_store_id,
+                   int64_t index_id,
+                   const String& name,
+                   const IDBKeyPath&,
+                   bool unique,
+                   bool multi_entry);
+  void DeleteIndex(int64_t transaction_id,
+                   int64_t object_store_id,
+                   int64_t index_id);
+  void RenameIndex(int64_t transaction_id,
+                   int64_t object_store_id,
+                   int64_t index_id,
+                   const String& new_name);
+  void Abort(int64_t transaction_id);
+  void DidBecomeInactive() { database_remote_->DidBecomeInactive(); }
+
+  bool IsConnectionOpen() const;
+
+  int scheduling_priority() const { return scheduling_priority_; }
+
+  // Converts a lifecycle state to a priority integer. Lower values represent
+  // higher priority.
+  //
+  // A note on the input type: the scheduling lifecycle state is used as an
+  // imperfect proxy for the general priority of the frame. Its primary
+  // advantage is that it is synchronously accessible during the flow of
+  // creating a transaction. In contrast, the concept of priority in the
+  // browser's `PerformanceManager` would require asynchronous lookup from IDB
+  // backend code (which runs on a threadpool), which would add latency to
+  // transaction processing. The scheduler's lifecycle state may be slightly out
+  // of date if there are in-flight IPC from the browser, but:
+  //
+  // * prioritization is somewhat heuristic anyway
+  // * nothing should break if the priority is occasionally misjudged.
+  // * `scheduler_observer_` should eventually pick up and forward updates.
+  static int GetSchedulingPriority(
+      scheduler::SchedulingLifecycleState lifecycle_state);
+
  protected:
   // EventTarget
   DispatchEventResult DispatchEventInternal(Event&) override;
@@ -175,23 +284,23 @@ class MODULES_EXPORT IDBDatabase final
                                     ExceptionState&);
   void CloseConnection();
 
+  void OnSchedulerLifecycleStateChanged(
+      scheduler::SchedulingLifecycleState lifecycle_state);
+
   IDBDatabaseMetadata metadata_;
-  std::unique_ptr<WebIDBDatabase> backend_;
+  HeapMojoAssociatedRemote<mojom::blink::IDBDatabase> database_remote_;
   Member<IDBTransaction> version_change_transaction_;
   HeapHashMap<int64_t, Member<IDBTransaction>> transactions_;
-  // No interface here, so no need to bind it.  This is only for
-  // lifetime observation of the use of IndexedDB from the browser.
-  mojo::PendingRemote<mojom::blink::ObservedFeature> connection_lifetime_;
 
   bool close_pending_ = false;
 
-  Member<EventQueue> event_queue_;
+  // See notes above `GetSchedulingPriority`.
+  int scheduling_priority_;
+  std::unique_ptr<FrameOrWorkerScheduler::LifecycleObserverHandle>
+      scheduler_observer_;
 
   HeapMojoAssociatedReceiver<mojom::blink::IDBDatabaseCallbacks, IDBDatabase>
       callbacks_receiver_;
-
-  FrameOrWorkerScheduler::SchedulingAffectingFeatureHandle
-      feature_handle_for_scheduler_;
 };
 
 }  // namespace blink

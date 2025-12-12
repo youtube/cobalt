@@ -15,7 +15,6 @@ static_library("custom_handlers") {
   ]
 
   deps = [
-    "//build:chromeos_buildflags",
     "//components/keyed_service/content",
     "//components/keyed_service/core",
     "//components/pref_registry",
@@ -95,4 +94,10 @@ source_set("browser_tests") {
     "//testing/gmock",
     "//testing/gtest",
   ]
+  if (is_ios) {
+    deps += [
+      "//components/test:custom_handlers_test_bundle_data",
+      "//components/test:fenced_frames_test_bundle_data",
+    ]
+  }
 }

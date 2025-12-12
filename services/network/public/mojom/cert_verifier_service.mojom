@@ -20,14 +20,11 @@ struct RequestParams {
 
 // Temporary config struct--this should eventually be deleted as the network
 // service has no reason to know about this config.
-// TODO(https://crbug.com/1427326): remove this.
+// TODO(crbug.com/40899828): remove this.
 struct CertVerifierConfig {
   bool enable_rev_checking;
   bool require_rev_checking_local_anchors;
   bool enable_sha1_local_anchors;
-  bool disable_symantec_enforcement;
-  array<network.mojom.X509Certificate> additional_trust_anchors;
-  array<network.mojom.X509Certificate> additional_untrusted_authorities;
 };
 
 // Allows the CertVerifierService to connect a new URLLoaderFactory if its
@@ -54,9 +51,7 @@ interface CertVerifierService {
   // Mojo IPC used to verify a certificate. Sends results to the
   // |cert_verifier_request| interface when verification is complete.
   Verify(RequestParams params,
-         /*NetLogSourceType*/ uint32 netlog_source_type,
-         uint32 netlog_source_id,
-         mojo_base.mojom.TimeTicks netlog_source_start_time,
+         network.mojom.NetLogSource net_log_source,
          pending_remote<CertVerifierRequest> cert_verifier_request);
   // Sets the config for the underlying CertVerifier.
   SetConfig(CertVerifierConfig config);

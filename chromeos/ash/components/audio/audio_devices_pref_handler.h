@@ -7,6 +7,8 @@
 
 #include "base/component_export.h"
 #include "base/memory/ref_counted.h"
+#include "base/values.h"
+#include "chromeos/ash/components/audio/audio_device.h"
 #include "chromeos/ash/components/audio/audio_pref_observer.h"
 
 namespace ash {
@@ -22,6 +24,8 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) AudioDevicesPrefHandler
   static constexpr double kDefaultInputGainPercent = 50;
   static constexpr double kDefaultOutputVolumePercent = 75;
   static constexpr double kDefaultHdmiOutputVolumePercent = 100;
+  static constexpr double kDefaultBluetoothOutputVolumePercent = 25;
+  static constexpr double kDefaultUsbOutputVolumePercent = 25;
 
   // Gets the audio output volume value from prefs for a device. Since we can
   // only have either a gain or a volume for a device (depending on whether it
@@ -36,10 +40,23 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) AudioDevicesPrefHandler
   // Sets the audio mute value to prefs for a device.
   virtual void SetMuteValue(const AudioDevice& device, bool mute_on) = 0;
 
+  // Reads whether input voice isolation is on from profile prefs.
+  virtual bool GetVoiceIsolationState() const = 0;
+  // Sets the input voice isolation in profile prefs.
+  virtual void SetVoiceIsolationState(bool voice_isolation_state) = 0;
+
+  virtual uint32_t GetVoiceIsolationPreferredEffect() const = 0;
+  virtual void SetVoiceIsolationPreferredEffect(uint32_t effect) = 0;
+
   // Reads whether input noise cancellation is on from profile prefs.
   virtual bool GetNoiseCancellationState() = 0;
   // Sets the input noise cancellation in profile prefs.
   virtual void SetNoiseCancellationState(bool noise_cancellation_state) = 0;
+
+  // Reads whether input style transfer is on from profile prefs.
+  virtual bool GetStyleTransferState() const = 0;
+  // Sets the input style transfer in profile prefs.
+  virtual void SetStyleTransferState(bool style_transfer_state) = 0;
 
   // Sets the device active state in prefs.
   // Note: |activate_by_user| indicates whether |device| is set to active
@@ -69,6 +86,23 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) AudioDevicesPrefHandler
   // Reads the user priority from prefs.
   virtual int GetUserPriority(const AudioDevice& device) = 0;
 
+  // Gets the preferred device stable id given a set of devices from prefs.
+  virtual const std::optional<uint64_t> GetPreferredDeviceFromPreferenceSet(
+      bool is_input,
+      const AudioDeviceList& devices) = 0;
+
+  // Set |preferred_device| as the preferred device among a set of |devices|.
+  virtual void UpdateDevicePreferenceSet(
+      const AudioDeviceList& devices,
+      const AudioDevice& preferred_device) = 0;
+
+  // Gets the preferred device stable id given a set of devices from prefs.
+  virtual const base::Value::List& GetMostRecentActivatedDeviceIdList(
+      bool is_input) = 0;
+
+  virtual void UpdateMostRecentActivatedDeviceIdList(
+      const AudioDevice& device) = 0;
+
   // Reads the audio output allowed value from prefs.
   virtual bool GetAudioOutputAllowedValue() const = 0;
 
@@ -82,6 +116,21 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_AUDIO) AudioDevicesPrefHandler
   virtual void DropLeastRecentlySeenDevices(
       const std::vector<AudioDevice>& connected_devices,
       size_t keep_devices) = 0;
+
+  // Reads whether input force respect ui gains is on from profile prefs.
+  virtual bool GetForceRespectUiGainsState() = 0;
+  // Sets the input force respect ui gains in profile prefs.
+  virtual void SetForceRespectUiGainsState(bool force_respect_ui_gains) = 0;
+
+  // Reads whether hfp_mic_sr is on from profile prefs.
+  virtual bool GetHfpMicSrState() = 0;
+  // Sets the hfp_mic_sr in profile prefs.
+  virtual void SetHfpMicSrState(bool hfp_mic_sr_state) = 0;
+
+  // Reads whether spatial audio is on from profile prefs.
+  virtual bool GetSpatialAudioState() = 0;
+  // Sets the spatial audio in profile prefs.
+  virtual void SetSpatialAudioState(bool spatial_audio) = 0;
 
  protected:
   virtual ~AudioDevicesPrefHandler() = default;

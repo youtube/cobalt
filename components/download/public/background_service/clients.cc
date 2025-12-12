@@ -32,7 +32,6 @@ std::string BackgroundDownloadClientToString(DownloadClient client) {
       break;
   }
   NOTREACHED();
-  return std::string();
 }
 
 }  // namespace download

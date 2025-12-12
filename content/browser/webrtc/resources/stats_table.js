@@ -2,26 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {$} from 'chrome://resources/js/util_ts.js';
+import {$} from 'chrome://resources/js/util.js';
 
-import {GetSsrcFromReport, SsrcInfoManager} from './ssrc_info_manager.js';
 import {generateStatsLabel} from './stats_helper.js';
 
 /**
  * Maintains the stats table.
- * @param {SsrcInfoManager} ssrcInfoManager The source of the ssrc info.
  */
 export class StatsTable {
-  /**
-   * @param {SsrcInfoManager} ssrcInfoManager The source of the ssrc info.
-   */
-  constructor(ssrcInfoManager) {
-    /**
-     * @type {SsrcInfoManager}
-     * @private
-     */
-    this.ssrcInfoManager_ = ssrcInfoManager;
-  }
+  constructor() {}
 
   /**
    * Adds |report| to the stats table of |peerConnectionElement|.
@@ -126,15 +115,7 @@ export class StatsTable {
 
       table.appendChild($('trth-template').content.cloneNode(true));
       table.rows[0].cells[0].textContent = 'Statistics ' + report.id;
-
-      // Only for legacy stats.
-      if (report.type === 'ssrc') {
-        table.insertRow(1);
-        table.rows[1].appendChild(
-            $('td-colspan-template').content.cloneNode(true));
-        this.ssrcInfoManager_.populateSsrcInfo(
-            table.rows[1].cells[0], GetSsrcFromReport(report));
-      }
+      table['data-peerconnection-id'] = peerConnectionElement.id;
     }
     return table;
   }
@@ -148,6 +129,31 @@ export class StatsTable {
    * @private
    */
   addStatsToTable_(statsTable, time, statsData) {
+    const definedMetrics = new Set();
+    for (let i = 0; i < statsData.length - 1; i = i + 2) {
+      definedMetrics.add(statsData[i]);
+    }
+    // For any previously reported metric that is no longer defined, replace its
+    // now obsolete value with the magic string "(removed)".
+    const metricsContainer = statsTable.firstChild;
+    for (let i = 0; i < metricsContainer.children.length; ++i) {
+      const metricElement = metricsContainer.children[i];
+      // `metricElement` IDs have the format `bla-bla-bla-bla-${metricName}`.
+      let metricName =
+          metricElement.id.substring(metricElement.id.lastIndexOf('-') + 1);
+      if (metricName.endsWith(']')) {
+        // Computed metrics may contain the '-' character (e.g.
+        // `DifferenceCalculator` based metrics) in which case `metricName` will
+        // not have been parsed correctly. Instead look for starting '['.
+        metricName =
+            metricElement.id.substring(metricElement.id.indexOf('['));
+      }
+      if (metricName && metricName != 'timestamp' &&
+          !definedMetrics.has(metricName)) {
+        this.updateStatsTableRow_(statsTable, metricName, '(removed)');
+      }
+    }
+    // Add or update all "metric: value" that have a defined value.
     const date = new Date(time);
     this.updateStatsTableRow_(statsTable, 'timestamp', date.toLocaleString());
     for (let i = 0; i < statsData.length - 1; i = i + 2) {
@@ -175,19 +181,16 @@ export class StatsTable {
       trElement = document.createElement('tr');
       trElement.id = trId;
       statsTable.firstChild.appendChild(trElement);
-      const item = $('td2-template').content.cloneNode(true);
+      const item = $('statsrow-template').content.cloneNode(true);
       item.querySelector('td').textContent = rowName;
       trElement.appendChild(item);
     }
     trElement.cells[1].textContent = value;
-
-    // Highlights the table for the active connection.
-    if (rowName === 'googActiveConnection') {
-      if (value === true) {
-        statsTable.parentElement.classList.add(activeConnectionClass);
-      } else {
-        statsTable.parentElement.classList.remove(activeConnectionClass);
-      }
+    if (rowName.endsWith('Id')) {
+      // unicode link symbol
+      trElement.cells[2].children[0].textContent = ' \u{1F517}';
+      trElement.cells[2].children[0].href =
+        '#' + statsTable['data-peerconnection-id'] + '-table-' + value;
     }
   }
 

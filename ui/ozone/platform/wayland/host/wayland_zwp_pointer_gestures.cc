@@ -4,11 +4,9 @@
 
 #include "ui/ozone/platform/wayland/host/wayland_zwp_pointer_gestures.h"
 
-#include <pointer-gestures-unstable-v1-client-protocol.h>
 #include <wayland-util.h>
 
 #include "base/logging.h"
-#include "build/chromeos_buildflags.h"
 #include "ui/gfx/geometry/vector2d_f.h"
 #include "ui/ozone/platform/wayland/common/wayland_util.h"
 #include "ui/ozone/platform/wayland/host/wayland_connection.h"
@@ -22,7 +20,8 @@ namespace ui {
 
 namespace {
 constexpr uint32_t kMinVersion = 1;
-}
+constexpr uint32_t kMaxVersion = 3;
+}  // namespace
 
 // static
 constexpr char WaylandZwpPointerGestures::kInterfaceName[];
@@ -41,8 +40,8 @@ void WaylandZwpPointerGestures::Instantiate(WaylandConnection* connection,
     return;
   }
 
-  auto zwp_pointer_gestures_v1 =
-      wl::Bind<struct zwp_pointer_gestures_v1>(registry, name, kMinVersion);
+  auto zwp_pointer_gestures_v1 = wl::Bind<struct zwp_pointer_gestures_v1>(
+      registry, name, std::min(version, kMaxVersion));
   if (!zwp_pointer_gestures_v1) {
     LOG(ERROR) << "Failed to bind wp_pointer_gestures_v1";
     return;
@@ -66,19 +65,30 @@ WaylandZwpPointerGestures::WaylandZwpPointerGestures(
 WaylandZwpPointerGestures::~WaylandZwpPointerGestures() = default;
 
 void WaylandZwpPointerGestures::Init() {
+  DCHECK(connection_->seat());
   DCHECK(connection_->seat()->pointer());
+  wl_pointer* pointer = connection_->seat()->pointer()->wl_object();
 
-  pinch_.reset(zwp_pointer_gestures_v1_get_pinch_gesture(
-      obj_.get(), connection_->seat()->pointer()->wl_object()));
+  pinch_.reset(zwp_pointer_gestures_v1_get_pinch_gesture(obj_.get(), pointer));
+  static constexpr zwp_pointer_gesture_pinch_v1_listener kPinchListener = {
+      .begin = &OnPinchBegin,
+      .update = &OnPinchUpdate,
+      .end = &OnPinchEnd,
+  };
+  zwp_pointer_gesture_pinch_v1_add_listener(pinch_.get(), &kPinchListener,
+                                            this);
 
-  static constexpr zwp_pointer_gesture_pinch_v1_listener
-      zwp_pointer_gesture_pinch_v1_listener = {
-          &WaylandZwpPointerGestures::OnPinchBegin,
-          &WaylandZwpPointerGestures::OnPinchUpdate,
-          &WaylandZwpPointerGestures::OnPinchEnd,
-      };
-  zwp_pointer_gesture_pinch_v1_add_listener(
-      pinch_.get(), &zwp_pointer_gesture_pinch_v1_listener, this);
+#if defined(ZWP_POINTER_GESTURES_V1_GET_HOLD_GESTURE_SINCE_VERSION)
+  if (zwp_pointer_gestures_v1_get_version(obj_.get()) <
+      ZWP_POINTER_GESTURES_V1_GET_HOLD_GESTURE_SINCE_VERSION) {
+    return;
+  }
+
+  hold_.reset(zwp_pointer_gestures_v1_get_hold_gesture(obj_.get(), pointer));
+  static constexpr zwp_pointer_gesture_hold_v1_listener kHoldListener = {
+      .begin = &OnHoldBegin, .end = &OnHoldEnd};
+  zwp_pointer_gesture_hold_v1_add_listener(hold_.get(), &kHoldListener, this);
+#endif
 }
 
 // static
@@ -91,13 +101,11 @@ void WaylandZwpPointerGestures::OnPinchBegin(
     uint32_t fingers) {
   auto* self = static_cast<WaylandZwpPointerGestures*>(data);
 
-  base::TimeTicks timestamp = base::TimeTicks() + base::Milliseconds(time);
-
   self->current_scale_ = 1;
 
-  self->delegate_->OnPinchEvent(ET_GESTURE_PINCH_BEGIN,
-                                gfx::Vector2dF() /*delta*/, timestamp,
-                                self->obj_.id());
+  self->delegate_->OnPinchEvent(
+      EventType::kGesturePinchBegin, gfx::Vector2dF() /*delta*/,
+      wl::EventMillisecondsToTimeTicks(time), self->obj_.id());
 }
 
 // static
@@ -111,7 +119,6 @@ void WaylandZwpPointerGestures::OnPinchUpdate(
     wl_fixed_t rotation) {
   auto* self = static_cast<WaylandZwpPointerGestures*>(data);
 
-#if !BUILDFLAG(IS_CHROMEOS_LACROS)
   // During the pinch zoom session, libinput sends the current scale relative to
   // the start of the session.  On the other hand, the compositor expects the
   // change of the scale relative to the previous update in form of a multiplier
@@ -121,18 +128,10 @@ void WaylandZwpPointerGestures::OnPinchUpdate(
   const auto scale_delta = new_scale / self->current_scale_;
   self->current_scale_ = new_scale;
 
-#else
-  // TODO(crbug.com/1298099): Remove this code when exo is fixed.
-  // Exo currently sends relative scale values so it should be passed along to
-  // Chrome without modification until exo can be fixed.
-  const auto scale_delta = wl_fixed_to_double(scale);
-#endif
-
-  base::TimeTicks timestamp = base::TimeTicks() + base::Milliseconds(time);
-
   gfx::Vector2dF delta = {static_cast<float>(wl_fixed_to_double(dx)),
                           static_cast<float>(wl_fixed_to_double(dy))};
-  self->delegate_->OnPinchEvent(ET_GESTURE_PINCH_UPDATE, delta, timestamp,
+  self->delegate_->OnPinchEvent(EventType::kGesturePinchUpdate, delta,
+                                wl::EventMillisecondsToTimeTicks(time),
                                 self->obj_.id(), scale_delta);
 }
 
@@ -144,11 +143,43 @@ void WaylandZwpPointerGestures::OnPinchEnd(
     int32_t cancelled) {
   auto* self = static_cast<WaylandZwpPointerGestures*>(data);
 
-  base::TimeTicks timestamp = base::TimeTicks() + base::Milliseconds(time);
-
-  self->delegate_->OnPinchEvent(ET_GESTURE_PINCH_END,
-                                gfx::Vector2dF() /*delta*/, timestamp,
-                                self->obj_.id());
+  self->delegate_->OnPinchEvent(
+      EventType::kGesturePinchEnd, gfx::Vector2dF() /*delta*/,
+      wl::EventMillisecondsToTimeTicks(time), self->obj_.id());
 }
+
+#if defined(ZWP_POINTER_GESTURE_HOLD_V1_BEGIN_SINCE_VERSION)
+// static
+void WaylandZwpPointerGestures::OnHoldBegin(
+    void* data,
+    struct zwp_pointer_gesture_hold_v1* zwp_pointer_gesture_hold_v1,
+    uint32_t serial,
+    uint32_t time,
+    struct wl_surface* surface,
+    uint32_t fingers) {
+  auto* self = static_cast<WaylandZwpPointerGestures*>(data);
+
+  self->delegate_->OnHoldEvent(
+      EventType::kTouchPressed, fingers, wl::EventMillisecondsToTimeTicks(time),
+      self->obj_.id(), wl::EventDispatchPolicy::kImmediate);
+}
+#endif
+
+#if defined(ZWP_POINTER_GESTURE_HOLD_V1_END_SINCE_VERSION)
+// static
+void WaylandZwpPointerGestures::OnHoldEnd(
+    void* data,
+    struct zwp_pointer_gesture_hold_v1* zwp_pointer_gesture_hold_v1,
+    uint32_t serial,
+    uint32_t time,
+    int32_t cancelled) {
+  auto* self = static_cast<WaylandZwpPointerGestures*>(data);
+
+  self->delegate_->OnHoldEvent(
+      cancelled ? EventType::kTouchCancelled : EventType::kTouchReleased, 0,
+      wl::EventMillisecondsToTimeTicks(time), self->obj_.id(),
+      wl::EventDispatchPolicy::kImmediate);
+}
+#endif
 
 }  // namespace ui

@@ -15,8 +15,7 @@
 #ifndef MEDIA_STARBOARD_PROGRESSIVE_AVC_PARSER_H_
 #define MEDIA_STARBOARD_PROGRESSIVE_AVC_PARSER_H_
 
-#include <vector>
-
+#include "base/containers/heap_array.h"
 #include "media/base/media_log.h"
 #include "media/starboard/progressive/progressive_parser.h"
 #include "ui/gfx/geometry/rect.h"
@@ -70,7 +69,7 @@ class AVCParser : public ProgressiveParser {
   uint8_t nal_header_size_;
   // audio frames have a fixed-size small prepend that we attach to every
   // audio buffer created by DownloadBuffer()
-  std::vector<uint8_t> audio_prepend_;
+  base::HeapArray<uint8_t> audio_prepend_;
   // video frames have a variable-size prepend that we limit to a reasonable
   // upper bound. We only need to attach it to keyframes, however, the rest
   // of the frames need only an AnnexB start code.

@@ -5,44 +5,31 @@
 #include "components/policy/content/safe_sites_navigation_throttle.h"
 
 #include "base/functional/bind.h"
-#include "base/strings/string_piece.h"
 #include "components/policy/content/safe_search_service.h"
 #include "components/url_matcher/url_util.h"
 #include "content/public/browser/navigation_handle.h"
 #include "url/gurl.h"
 
-SafeSitesNavigationThrottle::SafeSitesNavigationThrottle(
-    content::NavigationHandle* navigation_handle,
-    content::BrowserContext* context)
-    : SafeSitesNavigationThrottle(
-          navigation_handle,
-          context,
-          base::BindRepeating(&SafeSitesNavigationThrottle::OnDeferredResult,
-                              base::Unretained(this))) {}
-
-SafeSitesNavigationThrottle::SafeSitesNavigationThrottle(
-    content::NavigationHandle* navigation_handle,
-    content::BrowserContext* context,
-    DeferredResultCallback deferred_result_callback)
-    : NavigationThrottle(navigation_handle),
-      safe_seach_service_(SafeSearchFactory::GetForBrowserContext(context)),
-      deferred_result_callback_(std::move(deferred_result_callback)) {}
-
 // Use of Unretained for is safe because it is called synchronously from this
 // object.
 SafeSitesNavigationThrottle::SafeSitesNavigationThrottle(
-    content::NavigationHandle* navigation_handle,
+    content::NavigationThrottleRegistry& registry,
     content::BrowserContext* context,
-    base::StringPiece safe_sites_error_page_content)
-    : NavigationThrottle(navigation_handle),
-      safe_seach_service_(SafeSearchFactory::GetForBrowserContext(context)),
-      deferred_result_callback_(
-          base::BindRepeating(&SafeSitesNavigationThrottle::OnDeferredResult,
-                              base::Unretained(this))),
-      safe_sites_error_page_content_(
-          std::string(safe_sites_error_page_content)) {}
+    std::optional<std::string_view> safe_sites_error_page_content)
+    : Client(registry),
+      safe_search_service_(SafeSearchFactory::GetForBrowserContext(context)),
+      safe_sites_error_page_content_(std::move(safe_sites_error_page_content)) {
+  SetDeferredResultCallback(base::BindRepeating(
+      &SafeSitesNavigationThrottle::OnDeferredResult, base::Unretained(this)));
+}
 
 SafeSitesNavigationThrottle::~SafeSitesNavigationThrottle() = default;
+
+void SafeSitesNavigationThrottle::SetDeferredResultCallback(
+    const ProceedUntilResponseNavigationThrottle::DeferredResultCallback&
+        deferred_result_callback) {
+  deferred_result_callback_ = deferred_result_callback;
+}
 
 content::NavigationThrottle::ThrottleCheckResult
 SafeSitesNavigationThrottle::WillStartRequest() {
@@ -50,18 +37,21 @@ SafeSitesNavigationThrottle::WillStartRequest() {
 
   // Ignore blob scheme because we may use it to deliver navigation responses
   // to the renderer process.
-  if (url.SchemeIs(url::kBlobScheme))
+  if (url.SchemeIs(url::kBlobScheme)) {
     return PROCEED;
+  }
 
-  // Safe Sites filter applies to top-level HTTP[S] requests.
-  if (!url.SchemeIsHTTPOrHTTPS())
+  // Safe Sites filter applies to HTTP[S] requests.
+  if (!url.SchemeIsHTTPOrHTTPS()) {
     return PROCEED;
+  }
 
   GURL effective_url = url_matcher::util::GetEmbeddedURL(url);
-  if (!effective_url.is_valid())
+  if (!effective_url.is_valid()) {
     effective_url = url;
+  }
 
-  bool synchronous = safe_seach_service_->CheckSafeSearchURL(
+  const bool synchronous = safe_search_service_->CheckSafeSearchURL(
       effective_url,
       base::BindOnce(&SafeSitesNavigationThrottle::CheckSafeSearchCallback,
                      weak_ptr_factory_.GetWeakPtr()));
@@ -70,8 +60,9 @@ SafeSitesNavigationThrottle::WillStartRequest() {
     return DEFER;
   }
 
-  if (should_cancel_)
+  if (should_cancel_) {
     return CreateCancelResult();
+  }
   return PROCEED;
 }
 
@@ -95,12 +86,13 @@ void SafeSitesNavigationThrottle::CheckSafeSearchCallback(bool is_safe) {
 }
 
 void SafeSitesNavigationThrottle::OnDeferredResult(
-    bool is_safe,
-    ThrottleCheckResult cancel_result) {
-  if (is_safe) {
+    bool proceed,
+    std::optional<ThrottleCheckResult> result) {
+  if (proceed) {
     Resume();
   } else {
-    CancelDeferredNavigation(cancel_result);
+    CHECK(result.has_value());
+    CancelDeferredNavigation(*result);
   }
 }
 

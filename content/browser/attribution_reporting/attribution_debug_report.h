@@ -5,37 +5,58 @@
 #ifndef CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_DEBUG_REPORT_H_
 #define CONTENT_BROWSER_ATTRIBUTION_REPORTING_ATTRIBUTION_DEBUG_REPORT_H_
 
-#include "base/time/time.h"
+#include <stddef.h>
+
+#include <optional>
+
+#include "base/functional/function_ref.h"
 #include "base/values.h"
+#include "components/attribution_reporting/suitable_origin.h"
 #include "content/common/content_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
+
+class GURL;
 
 namespace attribution_reporting {
-class SuitableOrigin;
+struct RegistrationHeaderError;
 }  // namespace attribution_reporting
+
+namespace url {
+class Origin;
+}  // namespace url
 
 namespace content {
 
-class AttributionTrigger;
 class CreateReportResult;
-class StorableSource;
+class StoreSourceResult;
 
-struct StoreSourceResult;
+struct OsRegistration;
 
 // Class that contains all the data needed to serialize and send an attribution
 // debug report.
 class CONTENT_EXPORT AttributionDebugReport {
  public:
-  static absl::optional<AttributionDebugReport> Create(
-      const StorableSource& source,
-      bool is_debug_cookie_set,
+  static std::optional<AttributionDebugReport> Create(
+      base::FunctionRef<bool()> is_operation_allowed,
       const StoreSourceResult& result);
 
-  static absl::optional<AttributionDebugReport> Create(
-      const AttributionTrigger& trigger,
-      bool is_debug_cookie_set,
+  static std::optional<AttributionDebugReport> Create(
+      base::FunctionRef<bool()> is_operation_allowed,
+      bool cookie_based_debug_allowed,
       const CreateReportResult& result);
+
+  static std::optional<AttributionDebugReport> Create(
+      const OsRegistration&,
+      size_t item_index,
+      base::FunctionRef<bool(const url::Origin& registration_origin)>
+          is_operation_allowed);
+
+  static std::optional<AttributionDebugReport> Create(
+      attribution_reporting::SuitableOrigin reporting_origin,
+      attribution_reporting::RegistrationHeaderError,
+      const attribution_reporting::SuitableOrigin& context_origin,
+      bool is_within_fenced_frame,
+      base::FunctionRef<bool(const url::Origin& reporting_origin)>
+          is_operation_allowed);
 
   ~AttributionDebugReport();
 
@@ -47,26 +68,19 @@ class CONTENT_EXPORT AttributionDebugReport {
 
   const base::Value::List& ReportBody() const { return report_body_; }
 
-  const GURL& report_url() const { return report_url_; }
-
-  // TODO(apaseltiner): This is a workaround to allow the simulator to adjust
-  // times while accounting for sub-second precision. Investigate removing it.
-  base::Time GetOriginalReportTimeForTesting() const {
-    return original_report_time_;
+  const attribution_reporting::SuitableOrigin& reporting_origin() const {
+    return reporting_origin_;
   }
+
+  GURL ReportUrl() const;
 
  private:
   AttributionDebugReport(
       base::Value::List report_body,
-      const attribution_reporting::SuitableOrigin& reporting_origin,
-      base::Time original_report_time);
+      attribution_reporting::SuitableOrigin reporting_origin);
 
   base::Value::List report_body_;
-  GURL report_url_;
-
-  // Only set for report bodies that would include an event-level
-  // scheduled_report_time field.
-  base::Time original_report_time_;
+  attribution_reporting::SuitableOrigin reporting_origin_;
 };
 
 }  // namespace content

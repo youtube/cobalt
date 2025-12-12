@@ -166,7 +166,6 @@ bool ShouldDelayRequestForProfile(Profile* profile) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 bool ShouldDelayRequestForWebContents(content::WebContents* web_contents) {

@@ -81,9 +81,9 @@ void CallbackTracker::Remove(
   base::AutoLock acquire(lock_);
   CallbackSetMap::iterator map_it =
       pending_callbacks_.find(tracked_callback->resource_id());
-  DCHECK(map_it != pending_callbacks_.end());
+  CHECK(map_it != pending_callbacks_.end());
   CallbackSet::iterator it = map_it->second.find(tracked_callback);
-  DCHECK(it != map_it->second.end());
+  CHECK(it != map_it->second.end());
   map_it->second.erase(it);
 
   // If there are no pending callbacks left for this ID, get rid of the entry.

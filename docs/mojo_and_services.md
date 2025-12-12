@@ -431,7 +431,7 @@ The preferred way to define the sandbox for your interface is by specifying a
 `[ServiceSandbox=type]` attribute on your `interface {}` in its `.mojom` file:
 
 ```
-import "sandbox/policy/mojom/sandbox.mojom"
+import "sandbox/policy/mojom/sandbox.mojom";
 [ServiceSandbox=sandbox.mojom.Sandbox.kService]
 interface FakeService {
   ...
@@ -445,7 +445,7 @@ out-of-process using `content::ServiceProcessHost::Launch()`.
 
 As a last resort, dynamic or feature based mapping to an underlying platform
 sandbox can be achieved but requires plumbing through ContentBrowserClient
-(e.g. `ShouldEnableNetworkServiceSandbox()`).
+(e.g. `ShouldSandboxNetworkService()`).
 
 ## Content-Layer Services Overview
 

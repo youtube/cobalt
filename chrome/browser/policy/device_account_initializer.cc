@@ -105,7 +105,7 @@ void DeviceAccountInitializer::OnOAuthError() {
   // response is bad (empty access token returned).
   LOG(ERROR) << "OAuth protocol error while fetching API refresh token.";
   handling_request_ = false;
-  delegate_->OnDeviceAccountTokenFetchError(/*dm_status=*/absl::nullopt);
+  delegate_->OnDeviceAccountTokenFetchError(/*dm_status=*/std::nullopt);
 }
 
 // GaiaOAuthClient::Delegate network error when fetching refresh token.
@@ -113,7 +113,7 @@ void DeviceAccountInitializer::OnNetworkError(int response_code) {
   LOG(ERROR) << "Network error while fetching API refresh token: "
              << response_code;
   handling_request_ = false;
-  delegate_->OnDeviceAccountTokenFetchError(/*dm_status=*/absl::nullopt);
+  delegate_->OnDeviceAccountTokenFetchError(/*dm_status=*/std::nullopt);
 }
 
 void DeviceAccountInitializer::StoreToken() {
@@ -138,11 +138,6 @@ void DeviceAccountInitializer::Stop() {
   handling_request_ = false;
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
-
-void DeviceAccountInitializer::OnPolicyFetched(CloudPolicyClient* client) {}
-
-void DeviceAccountInitializer::OnRegistrationStateChanged(
-    CloudPolicyClient* client) {}
 
 void DeviceAccountInitializer::OnClientError(CloudPolicyClient* client) {
   if (!handling_request_)

@@ -5,7 +5,12 @@
 #ifndef EXTENSIONS_RENDERER_EXTENSION_INJECTION_HOST_H_
 #define EXTENSIONS_RENDERER_EXTENSION_INJECTION_HOST_H_
 
+#include <optional>
+#include <string>
+
+#include "base/memory/raw_ptr.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/renderer/injection_host.h"
 
 namespace extensions {
@@ -24,7 +29,7 @@ class ExtensionInjectionHost : public InjectionHost {
   // Create an ExtensionInjectionHost object. If the extension is gone, returns
   // a null scoped ptr.
   static std::unique_ptr<const InjectionHost> Create(
-      const std::string& extension_id);
+      const ExtensionId& extension_id);
 
  private:
   // InjectionHost:
@@ -37,7 +42,10 @@ class ExtensionInjectionHost : public InjectionHost {
       int tab_id,
       bool is_declarative) const override;
 
-  const Extension* extension_;
+  raw_ptr<const Extension, DanglingUntriaged> extension_;
+
+  // The isolated world CSP, cached to avoid duplication.
+  const std::optional<std::string> isolated_world_csp_;
 };
 
 }  // namespace extesions

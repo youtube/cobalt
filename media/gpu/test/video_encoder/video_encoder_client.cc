@@ -5,6 +5,7 @@
 #include "media/gpu/test/video_encoder/video_encoder_client.h"
 
 #include <algorithm>
+#include <array>
 #include <numeric>
 #include <string>
 #include <utility>
@@ -15,15 +16,20 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "gpu/config/gpu_driver_bug_workarounds.h"
+#include "gpu/config/gpu_info.h"
 #include "gpu/config/gpu_preferences.h"
 #include "media/base/bitrate.h"
 #include "media/base/media_log.h"
 #include "media/gpu/gpu_video_encode_accelerator_factory.h"
 #include "media/gpu/macros.h"
 #include "media/gpu/test/bitstream_helpers.h"
-#include "media/gpu/test/video.h"
+#include "media/gpu/test/raw_video.h"
 #include "media/gpu/test/video_test_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "gpu/config/gpu_info_collector.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace media {
 namespace test {
@@ -45,7 +51,7 @@ static unsigned int kMinInFlightFrames = 12;
 // only dereferenced after rescheduling the task on the specified task runner.
 template <typename CallbackFunc, typename... CallbackArgs>
 void CallbackThunk(
-    absl::optional<base::WeakPtr<VideoEncoderClient>> encoder_client,
+    std::optional<base::WeakPtr<VideoEncoderClient>> encoder_client,
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     CallbackFunc func,
     CallbackArgs... args) {
@@ -57,24 +63,31 @@ void CallbackThunk(
 }  // namespace
 
 VideoEncoderClientConfig::VideoEncoderClientConfig(
-    const Video* video,
+    const RawVideo* video,
     VideoCodecProfile output_profile,
     const std::vector<VideoEncodeAccelerator::Config::SpatialLayer>&
         spatial_layers,
+    SVCInterLayerPredMode inter_layer_pred_mode,
+    VideoEncodeAccelerator::Config::ContentType content_type,
     const VideoBitrateAllocation& bitrate_allocation,
     bool reverse)
     : output_profile(output_profile),
       output_resolution(video->Resolution()),
+      spatial_layers(spatial_layers),
       num_temporal_layers(spatial_layers.empty()
                               ? 1
                               : spatial_layers[0].num_of_temporal_layers),
       num_spatial_layers(
           std::max(spatial_layers.size(), static_cast<size_t>(1u))),
-      spatial_layers(spatial_layers),
+      inter_layer_pred_mode(inter_layer_pred_mode),
+      content_type(content_type),
       bitrate_allocation(bitrate_allocation),
       framerate(video->FrameRate()),
       num_frames_to_encode(video->NumFrames()),
-      reverse(reverse) {}
+      reverse(reverse) {
+  CHECK(inter_layer_pred_mode == SVCInterLayerPredMode::kOff ||
+        inter_layer_pred_mode == SVCInterLayerPredMode::kOnKeyPic);
+}
 
 VideoEncoderClientConfig::VideoEncoderClientConfig(
     const VideoEncoderClientConfig&) = default;
@@ -121,11 +134,11 @@ uint32_t VideoEncoderStats::LayerBitrate(size_t spatial_idx,
   // when the number of temporal layers is three, the ratio of framerate of
   // layers are 1/4, 1/4 and 1/2 for the first, second and third layer,
   // respectively.
-  constexpr size_t kFramerateDenom[][3] = {
+  constexpr auto kFramerateDenom = std::to_array<std::array<size_t, 3>>({
       {1, 0, 0},
       {2, 2, 0},
       {4, 4, 2},
-  };
+  });
 
   const double layer_framerate =
       static_cast<double>(framerate) /
@@ -174,7 +187,8 @@ VideoEncoderClient::VideoEncoderClient(
       encoder_client_state_(VideoEncoderClientState::kUninitialized),
       current_stats_(encoder_client_config_.framerate,
                      config.num_temporal_layers,
-                     config.num_spatial_layers) {
+                     config.num_spatial_layers),
+      test_sii_(base::MakeRefCounted<gpu::TestSharedImageInterface>()) {
   DETACH_FROM_SEQUENCE(encoder_client_sequence_checker_);
 
   weak_this_ = weak_this_factory_.GetWeakPtr();
@@ -195,7 +209,7 @@ std::unique_ptr<VideoEncoderClient> VideoEncoderClient::Create(
       event_cb, std::move(bitstream_processors), config));
 }
 
-bool VideoEncoderClient::Initialize(const Video* video) {
+bool VideoEncoderClient::Initialize(const RawVideo* video) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(test_sequence_checker_);
   DCHECK(video);
 
@@ -317,12 +331,9 @@ void VideoEncoderClient::RequireBitstreamBuffers(
   // Follow the behavior of the chrome capture stack; |natural_size| is the
   // dimension to be encoded.
   aligned_data_helper_ = std::make_unique<AlignedDataHelper>(
-      video_->Data(), video_->NumFrames(),
-      encoder_client_config_.num_frames_to_encode,
-      encoder_client_config_.reverse, video_->PixelFormat(),
-      /*src_coded_size=*/video_->Resolution(),
+      video_, encoder_client_config_.num_frames_to_encode,
+      encoder_client_config_.reverse,
       /*dst_coded_size=*/coded_size,
-      /*visible_rect=*/video_->VisibleRect(),
       /*natural_size=*/encoder_client_config_.output_resolution, frame_rate,
       encoder_client_config_.input_storage_type ==
               VideoEncodeAccelerator::Config::StorageType::kGpuMemoryBuffer
@@ -356,11 +367,17 @@ VideoEncoderClient::CreateBitstreamRef(
   DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_client_sequence_checker_);
   auto it = bitstream_buffers_.find(bitstream_buffer_id);
   LOG_ASSERT(it != bitstream_buffers_.end());
-  auto decoder_buffer = DecoderBuffer::FromSharedMemoryRegion(
-      it->second.Duplicate(), 0u /* offset */, metadata.payload_size_bytes);
-  if (!decoder_buffer)
-    return nullptr;
-  decoder_buffer->set_timestamp(base::Microseconds(frame_index_));
+
+  scoped_refptr<DecoderBuffer> decoder_buffer;
+  if (!metadata.dropped_frame()) {
+    decoder_buffer = DecoderBuffer::FromSharedMemoryRegion(
+        it->second.Duplicate(), 0u /* offset */, metadata.payload_size_bytes);
+    if (!decoder_buffer) {
+      return nullptr;
+    }
+    decoder_buffer->set_timestamp(base::Microseconds(frame_index_));
+  }
+
   auto source_timestamp_it = source_timestamps_.find(metadata.timestamp);
   LOG_ASSERT(source_timestamp_it != source_timestamps_.end());
 
@@ -377,31 +394,46 @@ void VideoEncoderClient::BitstreamBufferReady(
     const BitstreamBufferMetadata& metadata) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_client_sequence_checker_);
   DVLOGF(4) << "frame_index=" << frame_index_
-            << ", encoded image size=" << metadata.payload_size_bytes;
+            << ", encoded image size=" << metadata.payload_size_bytes
+            << (metadata.dropped_frame() ? " (Drop Frame)" : "");
   {
+    // |metadata.payload_size_bytes| can be zero here, but counts the dropped
+    // frame to compute a bitrate from the network point of view.
     base::AutoLock auto_lock(stats_lock_);
     current_stats_.total_num_encoded_frames++;
     current_stats_.total_encoded_frames_size += metadata.payload_size_bytes;
-    if (metadata.vp9.has_value()) {
-      uint8_t temporal_id = metadata.vp9->temporal_idx;
-      uint8_t spatial_id = metadata.vp9->spatial_idx;
-      ASSERT_LT(spatial_id, current_stats_.num_spatial_layers);
-      ASSERT_LT(temporal_id, current_stats_.num_temporal_layers);
-      current_stats_.num_encoded_frames_per_layer[spatial_id][temporal_id]++;
-      current_stats_.encoded_frames_size_per_layer[spatial_id][temporal_id] +=
-          metadata.payload_size_bytes;
-    } else if (metadata.h264.has_value()) {
-      uint8_t temporal_id = metadata.h264->temporal_idx;
-      ASSERT_EQ(current_stats_.num_spatial_layers, 1u);
-      current_stats_.num_encoded_frames_per_layer[0][temporal_id]++;
-      current_stats_.encoded_frames_size_per_layer[0][temporal_id] +=
-          metadata.payload_size_bytes;
-    } else if (metadata.vp8.has_value()) {
-      uint8_t temporal_id = metadata.vp8->temporal_idx;
-      ASSERT_EQ(current_stats_.num_spatial_layers, 1u);
-      current_stats_.num_encoded_frames_per_layer[0][temporal_id]++;
-      current_stats_.encoded_frames_size_per_layer[0][temporal_id] +=
-          metadata.payload_size_bytes;
+    if (metadata.dropped_frame()) {
+      current_stats_.num_dropped_frames++;
+    } else {
+      if (metadata.vp9.has_value()) {
+        uint8_t temporal_id = metadata.vp9->temporal_idx;
+        uint8_t spatial_id = metadata.vp9->spatial_idx;
+        ASSERT_LT(spatial_id, current_stats_.num_spatial_layers);
+        ASSERT_LT(temporal_id, current_stats_.num_temporal_layers);
+        current_stats_.num_encoded_frames_per_layer[spatial_id][temporal_id]++;
+        current_stats_.encoded_frames_size_per_layer[spatial_id][temporal_id] +=
+            metadata.payload_size_bytes;
+      } else if (metadata.h264.has_value()) {
+        uint8_t temporal_id = metadata.h264->temporal_idx;
+        ASSERT_EQ(current_stats_.num_spatial_layers, 1u);
+        current_stats_.num_encoded_frames_per_layer[0][temporal_id]++;
+        current_stats_.encoded_frames_size_per_layer[0][temporal_id] +=
+            metadata.payload_size_bytes;
+      } else if (metadata.vp8.has_value()) {
+        uint8_t temporal_id = metadata.vp8->temporal_idx;
+        ASSERT_EQ(current_stats_.num_spatial_layers, 1u);
+        current_stats_.num_encoded_frames_per_layer[0][temporal_id]++;
+        current_stats_.encoded_frames_size_per_layer[0][temporal_id] +=
+            metadata.payload_size_bytes;
+      } else if (metadata.svc_generic.has_value()) {
+        uint8_t temporal_id = metadata.svc_generic->temporal_idx;
+        uint8_t spatial_id = metadata.svc_generic->spatial_idx;
+        ASSERT_LT(spatial_id, current_stats_.num_spatial_layers);
+        ASSERT_LT(temporal_id, current_stats_.num_temporal_layers);
+        current_stats_.num_encoded_frames_per_layer[spatial_id][temporal_id]++;
+        current_stats_.encoded_frames_size_per_layer[spatial_id][temporal_id] +=
+            metadata.payload_size_bytes;
+      }
     }
   }
 
@@ -425,16 +457,8 @@ void VideoEncoderClient::BitstreamBufferReady(
       bitstream_processor_->ProcessBitstream(bitstream_ref, frame_index_);
     }
   }
-  if (metadata.vp9.has_value()) {
-    if (!metadata.vp9->spatial_layer_resolutions.empty()) {
-      current_top_spatial_index_ =
-          metadata.vp9->spatial_layer_resolutions.size() - 1;
-    }
-    if (metadata.vp9->spatial_idx == current_top_spatial_index_) {
-      frame_index_++;
-      CHECK_EQ(source_timestamps_.erase(metadata.timestamp), 1u);
-    }
-  } else {
+
+  if (metadata.end_of_picture()) {
     frame_index_++;
     CHECK_EQ(source_timestamps_.erase(metadata.timestamp), 1u);
   }
@@ -479,7 +503,7 @@ void VideoEncoderClient::NotifyErrorStatus(const EncoderStatus& status) {
 void VideoEncoderClient::NotifyEncoderInfoChange(const VideoEncoderInfo& info) {
 }
 
-void VideoEncoderClient::CreateEncoderTask(const Video* video,
+void VideoEncoderClient::CreateEncoderTask(const RawVideo* video,
                                            bool* success,
                                            base::WaitableEvent* done) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_client_sequence_checker_);
@@ -489,19 +513,37 @@ void VideoEncoderClient::CreateEncoderTask(const Video* video,
 
   video_ = video;
 
-  const VideoEncodeAccelerator::Config config(
+  VideoEncodeAccelerator::Config config(
       video_->PixelFormat(), encoder_client_config_.output_resolution,
       encoder_client_config_.output_profile,
       encoder_client_config_.bitrate_allocation.GetSumBitrate(),
-      encoder_client_config_.framerate, absl::nullopt /* gop_length */,
-      absl::nullopt /* h264_output_level*/, false /* is_constrained_h264 */,
+      encoder_client_config_.framerate,
       encoder_client_config_.input_storage_type,
-      VideoEncodeAccelerator::Config::ContentType::kCamera,
-      encoder_client_config_.spatial_layers);
+      encoder_client_config_.content_type);
 
-  encoder_ = GpuVideoEncodeAcceleratorFactory::CreateVEA(
+  config.drop_frame_thresh_percentage =
+      encoder_client_config_.drop_frame_thresh;
+  config.spatial_layers = encoder_client_config_.spatial_layers;
+  config.inter_layer_pred = encoder_client_config_.inter_layer_pred_mode;
+  if (encoder_client_config_.gop_length != 0) {
+    config.gop_length = encoder_client_config_.gop_length;
+  }
+
+  gpu::GPUInfo gpu_info;
+
+#if BUILDFLAG(IS_WIN)
+  gpu::CollectGraphicsInfoForTesting(&gpu_info);
+#endif  // BUILDFLAG(IS_WIN)
+
+  auto encoder_or_error = GpuVideoEncodeAcceleratorFactory::CreateVEA(
       config, this, gpu::GpuPreferences(), gpu::GpuDriverBugWorkarounds(),
-      gpu::GPUInfo::GPUDevice());
+      gpu_info.active_gpu());
+  encoder_ = encoder_or_error.has_value() ? std::move(encoder_or_error).value()
+                                          : nullptr;
+  if (encoder_) {
+    encoder_->SetSharedImageInterfaceForTesting(test_sii_);
+  }
+
   *success = (encoder_ != nullptr);
 
   // Initialization is continued once the encoder notifies us of the coded size
@@ -606,7 +648,7 @@ void VideoEncoderClient::UpdateBitrateTask(
   DCHECK_CALLED_ON_VALID_SEQUENCE(encoder_client_sequence_checker_);
   DVLOGF(4);
   aligned_data_helper_->UpdateFrameRate(framerate);
-  encoder_->RequestEncodingParametersChange(bitrate, framerate);
+  encoder_->RequestEncodingParametersChange(bitrate, framerate, std::nullopt);
   base::AutoLock auto_lcok(stats_lock_);
   current_stats_.framerate = framerate;
 }

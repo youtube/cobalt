@@ -16,6 +16,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_value.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview_blob_usvstring.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_union_arraybuffer_arraybufferview_blob_usvstring_writeparams.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_write_command_type.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_write_params.h"
 #include "third_party/blink/renderer/core/fileapi/blob.h"
 #include "third_party/blink/renderer/modules/file_system_access/file_system_access_error.h"
@@ -35,14 +36,14 @@ FileSystemUnderlyingSink::FileSystemUnderlyingSink(
   DCHECK(writer_remote_.is_bound());
 }
 
-ScriptPromise FileSystemUnderlyingSink::start(
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::start(
     ScriptState* script_state,
     WritableStreamDefaultController* controller,
     ExceptionState& exception_state) {
-  return ScriptPromise::CastUndefined(script_state);
+  return ToResolvedUndefinedPromise(script_state);
 }
 
-ScriptPromise FileSystemUnderlyingSink::write(
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::write(
     ScriptState* script_state,
     ScriptValue chunk,
     WritableStreamDefaultController* controller,
@@ -51,7 +52,7 @@ ScriptPromise FileSystemUnderlyingSink::write(
       V8UnionArrayBufferOrArrayBufferViewOrBlobOrUSVStringOrWriteParams>::
       NativeValue(script_state->GetIsolate(), chunk.V8Value(), exception_state);
   if (exception_state.HadException())
-    return ScriptPromise();
+    return EmptyPromise();
 
   if (input->IsWriteParams()) {
     return HandleParams(script_state, *input->GetAsWriteParams(),
@@ -63,72 +64,75 @@ ScriptPromise FileSystemUnderlyingSink::write(
   return WriteData(script_state, offset_, write_data, exception_state);
 }
 
-ScriptPromise FileSystemUnderlyingSink::close(ScriptState* script_state,
-                                              ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::close(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   if (!writer_remote_.is_bound() || pending_operation_) {
     ThrowDOMExceptionAndInvalidateSink(exception_state,
                                        DOMExceptionCode::kInvalidStateError,
                                        "Object reached an invalid state");
-    return ScriptPromise();
+    return EmptyPromise();
   }
-  pending_operation_ = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  ScriptPromise result = pending_operation_->Promise();
+  pending_operation_ =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+          script_state, exception_state.GetContext());
+  auto result = pending_operation_->Promise();
   writer_remote_->Close(WTF::BindOnce(&FileSystemUnderlyingSink::CloseComplete,
                                       WrapPersistent(this)));
 
   return result;
 }
 
-ScriptPromise FileSystemUnderlyingSink::abort(ScriptState* script_state,
-                                              ScriptValue reason,
-                                              ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::abort(
+    ScriptState* script_state,
+    ScriptValue reason,
+    ExceptionState& exception_state) {
   // The specification guarantees that this will only be called after all
   // pending writes have been aborted. Terminating the remote connection
   // will ensure that the writes are not closed successfully.
   if (writer_remote_.is_bound())
     writer_remote_.reset();
-  return ScriptPromise::CastUndefined(script_state);
+  return ToResolvedUndefinedPromise(script_state);
 }
 
-ScriptPromise FileSystemUnderlyingSink::HandleParams(
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::HandleParams(
     ScriptState* script_state,
     const WriteParams& params,
     ExceptionState& exception_state) {
-  if (params.type() == "truncate") {
+  if (params.type() == V8WriteCommandType::Enum::kTruncate) {
     if (!params.hasSizeNonNull()) {
       ThrowDOMExceptionAndInvalidateSink(
           exception_state, DOMExceptionCode::kSyntaxError,
           "Invalid params passed. truncate requires a size argument");
-      return ScriptPromise();
+      return EmptyPromise();
     }
     return Truncate(script_state, params.sizeNonNull(), exception_state);
   }
 
-  if (params.type() == "seek") {
+  if (params.type() == V8WriteCommandType::Enum::kSeek) {
     if (!params.hasPositionNonNull()) {
       ThrowDOMExceptionAndInvalidateSink(
           exception_state, DOMExceptionCode::kSyntaxError,
           "Invalid params passed. seek requires a position argument");
-      return ScriptPromise();
+      return EmptyPromise();
     }
     return Seek(script_state, params.positionNonNull(), exception_state);
   }
 
-  if (params.type() == "write") {
+  if (params.type() == V8WriteCommandType::Enum::kWrite) {
     uint64_t position =
         params.hasPositionNonNull() ? params.positionNonNull() : offset_;
     if (!params.hasData()) {
       ThrowDOMExceptionAndInvalidateSink(
           exception_state, DOMExceptionCode::kSyntaxError,
           "Invalid params passed. write requires a data argument");
-      return ScriptPromise();
+      return EmptyPromise();
     }
     if (!params.data()) {
       ThrowTypeErrorAndInvalidateSink(
           exception_state,
           "Invalid params passed. write requires a non-null data");
-      return ScriptPromise();
+      return EmptyPromise();
     }
     return WriteData(script_state, position, params.data(), exception_state);
   }
@@ -136,7 +140,7 @@ ScriptPromise FileSystemUnderlyingSink::HandleParams(
   ThrowDOMExceptionAndInvalidateSink(exception_state,
                                      DOMExceptionCode::kInvalidStateError,
                                      "Object reached an invalid state");
-  return ScriptPromise();
+  return EmptyPromise();
 }
 
 namespace {
@@ -153,7 +157,7 @@ namespace {
 // success when both succeeded, or an error when either operation failed.
 //
 // This class deletes itself after calling its callback.
-class WriterHelper : public base::SupportsWeakPtr<WriterHelper> {
+class WriterHelper {
  public:
   explicit WriterHelper(
       base::OnceCallback<void(mojom::blink::FileSystemAccessErrorPtr result,
@@ -179,6 +183,8 @@ class WriterHelper : public base::SupportsWeakPtr<WriterHelper> {
     producer_result_ = std::move(result);
     MaybeCallCallbackAndDeleteThis();
   }
+
+  virtual base::WeakPtr<WriterHelper> AsWeakPtr() = 0;
 
  private:
   void MaybeCallCallbackAndDeleteThis() {
@@ -223,7 +229,7 @@ class WriterHelper : public base::SupportsWeakPtr<WriterHelper> {
 // WriterHelper implementation that is used when data is being produced by a
 // mojo::DataPipeProducer, generally because the data was passed in as an
 // ArrayBuffer or String.
-class StreamWriterHelper : public WriterHelper {
+class StreamWriterHelper final : public WriterHelper {
  public:
   StreamWriterHelper(
       std::unique_ptr<mojo::DataPipeProducer> producer,
@@ -246,14 +252,19 @@ class StreamWriterHelper : public WriterHelper {
     }
   }
 
+  base::WeakPtr<WriterHelper> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   std::unique_ptr<mojo::DataPipeProducer> producer_;
+  base::WeakPtrFactory<WriterHelper> weak_ptr_factory_{this};
 };
 
 // WriterHelper implementation that is used when data is being produced by a
 // Blob.
-class BlobWriterHelper : public mojom::blink::BlobReaderClient,
-                         public WriterHelper {
+class BlobWriterHelper final : public mojom::blink::BlobReaderClient,
+                               public WriterHelper {
  public:
   BlobWriterHelper(
       mojo::PendingReceiver<mojom::blink::BlobReaderClient> receiver,
@@ -287,6 +298,10 @@ class BlobWriterHelper : public mojom::blink::BlobReaderClient,
     }
   }
 
+  base::WeakPtr<WriterHelper> AsWeakPtr() override {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   void OnDisconnect() {
     if (!complete_called_) {
@@ -299,6 +314,7 @@ class BlobWriterHelper : public mojom::blink::BlobReaderClient,
 
   mojo::Receiver<mojom::blink::BlobReaderClient> receiver_;
   bool complete_called_ = false;
+  base::WeakPtrFactory<WriterHelper> weak_ptr_factory_{this};
 };
 
 // Creates a mojo data pipe, where the capacity of the data pipe is derived from
@@ -335,7 +351,7 @@ void FileSystemUnderlyingSink::ThrowTypeErrorAndInvalidateSink(
   writer_remote_.reset();
 }
 
-ScriptPromise FileSystemUnderlyingSink::WriteData(
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::WriteData(
     ScriptState* script_state,
     uint64_t position,
     const V8UnionArrayBufferOrArrayBufferViewOrBlobOrUSVString* data,
@@ -346,17 +362,17 @@ ScriptPromise FileSystemUnderlyingSink::WriteData(
     ThrowDOMExceptionAndInvalidateSink(exception_state,
                                        DOMExceptionCode::kInvalidStateError,
                                        "Object reached an invalid state");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
+  offset_ = position;
   std::unique_ptr<mojo::DataPipeProducer::DataSource> data_source;
   switch (data->GetContentType()) {
     case V8UnionArrayBufferOrArrayBufferViewOrBlobOrUSVString::ContentType::
         kArrayBuffer: {
       DOMArrayBuffer* array_buffer = data->GetAsArrayBuffer();
       data_source = std::make_unique<mojo::StringDataSource>(
-          base::span<const char>(static_cast<const char*>(array_buffer->Data()),
-                                 array_buffer->ByteLength()),
+          base::as_chars(array_buffer->ByteSpan()),
           mojo::StringDataSource::AsyncWritingMode::
               STRING_MAY_BE_INVALIDATED_BEFORE_COMPLETION);
       break;
@@ -366,9 +382,7 @@ ScriptPromise FileSystemUnderlyingSink::WriteData(
       DOMArrayBufferView* array_buffer_view =
           data->GetAsArrayBufferView().Get();
       data_source = std::make_unique<mojo::StringDataSource>(
-          base::span<const char>(
-              static_cast<const char*>(array_buffer_view->BaseAddress()),
-              array_buffer_view->byteLength()),
+          base::as_chars(array_buffer_view->ByteSpan()),
           mojo::StringDataSource::AsyncWritingMode::
               STRING_MAY_BE_INVALIDATED_BEFORE_COMPLETION);
       break;
@@ -379,7 +393,7 @@ ScriptPromise FileSystemUnderlyingSink::WriteData(
     case V8UnionArrayBufferOrArrayBufferViewOrBlobOrUSVString::ContentType::
         kUSVString:
       data_source = std::make_unique<mojo::StringDataSource>(
-          StringUTF8Adaptor(data->GetAsUSVString()).AsStringPiece(),
+          StringUTF8Adaptor(data->GetAsUSVString()).AsStringView(),
           mojo::StringDataSource::AsyncWritingMode::
               STRING_MAY_BE_INVALIDATED_BEFORE_COMPLETION);
       break;
@@ -396,7 +410,7 @@ ScriptPromise FileSystemUnderlyingSink::WriteData(
     ThrowDOMExceptionAndInvalidateSink(exception_state,
                                        DOMExceptionCode::kInvalidStateError,
                                        "Failed to create datapipe");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   WriterHelper* helper;
@@ -428,12 +442,13 @@ ScriptPromise FileSystemUnderlyingSink::WriteData(
       position, std::move(consumer_handle),
       WTF::BindOnce(&WriterHelper::WriteComplete, helper->AsWeakPtr()));
 
-  pending_operation_ = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
+  pending_operation_ =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+          script_state, exception_state.GetContext());
   return pending_operation_->Promise();
 }
 
-ScriptPromise FileSystemUnderlyingSink::Truncate(
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::Truncate(
     ScriptState* script_state,
     uint64_t size,
     ExceptionState& exception_state) {
@@ -441,69 +456,86 @@ ScriptPromise FileSystemUnderlyingSink::Truncate(
     ThrowDOMExceptionAndInvalidateSink(exception_state,
                                        DOMExceptionCode::kInvalidStateError,
                                        "Object reached an invalid state");
-    return ScriptPromise();
+    return EmptyPromise();
   }
-  pending_operation_ = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  ScriptPromise result = pending_operation_->Promise();
+  pending_operation_ =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+          script_state, exception_state.GetContext());
+  auto result = pending_operation_->Promise();
   writer_remote_->Truncate(
       size, WTF::BindOnce(&FileSystemUnderlyingSink::TruncateComplete,
                           WrapPersistent(this), size));
   return result;
 }
 
-ScriptPromise FileSystemUnderlyingSink::Seek(ScriptState* script_state,
-                                             uint64_t offset,
-                                             ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> FileSystemUnderlyingSink::Seek(
+    ScriptState* script_state,
+    uint64_t offset,
+    ExceptionState& exception_state) {
   if (!writer_remote_.is_bound() || pending_operation_) {
     ThrowDOMExceptionAndInvalidateSink(exception_state,
                                        DOMExceptionCode::kInvalidStateError,
                                        "Object reached an invalid state");
-    return ScriptPromise();
+    return EmptyPromise();
   }
   offset_ = offset;
-  return ScriptPromise::CastUndefined(script_state);
+  return ToResolvedUndefinedPromise(script_state);
 }
 
 void FileSystemUnderlyingSink::WriteComplete(
     mojom::blink::FileSystemAccessErrorPtr result,
     uint64_t bytes_written) {
   DCHECK(pending_operation_);
-  file_system_access_error::ResolveOrReject(pending_operation_, *result);
-  pending_operation_ = nullptr;
 
   if (result->status == mojom::blink::FileSystemAccessStatus::kOk) {
     // Advance offset.
     offset_ += bytes_written;
+
+    pending_operation_->Resolve();
+  } else {
+    // An error of any kind puts the underlying stream into an unrecoverable
+    // error state. See https://crbug.com/1380650#c5. Close the mojo pipe to
+    // clean up resources held by the browser process - including the file lock.
+    writer_remote_.reset();
+    file_system_access_error::Reject(pending_operation_, *result);
   }
+  pending_operation_ = nullptr;
 }
 
 void FileSystemUnderlyingSink::TruncateComplete(
     uint64_t to_size,
     mojom::blink::FileSystemAccessErrorPtr result) {
   DCHECK(pending_operation_);
-  file_system_access_error::ResolveOrReject(pending_operation_, *result);
-  pending_operation_ = nullptr;
 
   if (result->status == mojom::blink::FileSystemAccessStatus::kOk) {
     // Set offset to smallest last set size so that a subsequent write is not
     // out of bounds.
     offset_ = to_size < offset_ ? to_size : offset_;
+
+    pending_operation_->Resolve();
+  } else {
+    // An error of any kind puts the underlying stream into an unrecoverable
+    // error state. See https://crbug.com/1380650#c5. Close the mojo pipe to
+    // clean up resources held by the browser process - including the file lock.
+    writer_remote_.reset();
+    file_system_access_error::Reject(pending_operation_, *result);
   }
+  pending_operation_ = nullptr;
 }
 
 void FileSystemUnderlyingSink::CloseComplete(
     mojom::blink::FileSystemAccessErrorPtr result) {
   DCHECK(pending_operation_);
-  file_system_access_error::ResolveOrReject(pending_operation_, *result);
-  pending_operation_ = nullptr;
+
   // We close the mojo pipe because we intend this writable file stream to be
   // discarded after close. Subsequent operations will fail.
   writer_remote_.reset();
+
+  file_system_access_error::ResolveOrReject(pending_operation_, *result);
+  pending_operation_ = nullptr;
 }
 
 void FileSystemUnderlyingSink::Trace(Visitor* visitor) const {
-  ScriptWrappable::Trace(visitor);
   UnderlyingSinkBase::Trace(visitor);
   visitor->Trace(writer_remote_);
   visitor->Trace(pending_operation_);

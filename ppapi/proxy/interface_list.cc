@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ppapi/proxy/interface_list.h"
 
 #include <memory>
@@ -143,7 +148,7 @@ InterfaceProxy* ProxyFactory(Dispatcher* dispatcher) {
 }
 
 base::LazyInstance<PpapiPermissions>::DestructorAtExit
-    g_process_global_permissions;
+    g_process_global_permissions = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -321,10 +326,11 @@ const void* InterfaceList::GetInterfaceForPPB(const std::string& name) {
   return nullptr;
 }
 
-const void* InterfaceList::GetInterfaceForPPP(const std::string& name) const {
+const void* InterfaceList::GetInterfaceForPPP(const std::string& name) {
   auto found = name_to_plugin_info_.find(name);
   if (found == name_to_plugin_info_.end())
     return nullptr;
+  found->second->LogWithUmaOnce(name);
   return found->second->iface();
 }
 

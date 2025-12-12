@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/host/installer/mac/uninstaller/remoting_uninstaller.h"
 
 #import <Cocoa/Cocoa.h>
@@ -9,6 +14,7 @@
 
 #include "base/mac/authorization_util.h"
 #include "base/mac/scoped_authorizationref.h"
+#include "base/strings/stringprintf.h"
 #include "remoting/host/mac/constants_mac.h"
 
 void logOutput(FILE* pipe) {
@@ -22,8 +28,8 @@ void logOutput(FILE* pipe) {
   }
 }
 
-NSArray* convertToNSArray(const char** array) {
-  NSMutableArray* ns_array = [[[NSMutableArray alloc] init] autorelease];
+NSArray<NSString*>* convertToNSArray(const char** array) {
+  NSMutableArray<NSString*>* ns_array = [[NSMutableArray alloc] init];
   int i = 0;
   const char* element = array[i++];
   while (element != nullptr) {
@@ -35,49 +41,45 @@ NSArray* convertToNSArray(const char** array) {
 
 @implementation RemotingUninstaller
 
-- (void)runCommand:(const char*)cmd
-     withArguments:(const char**)args {
-  NSTask* task;
+- (void)runCommand:(const char*)cmd withArguments:(const char**)args {
   NSPipe* output = [NSPipe pipe];
   NSString* result;
 
-  NSArray* arg_array = convertToNSArray(args);
+  NSArray<NSString*>* arg_array = convertToNSArray(args);
   NSLog(@"Executing: %s %@", cmd, [arg_array componentsJoinedByString:@" "]);
 
   @try {
-    task = [[[NSTask alloc] init] autorelease];
-    [task setLaunchPath:@(cmd)];
-    [task setArguments:arg_array];
-    [task setStandardInput:[NSPipe pipe]];
-    [task setStandardOutput:output];
-    [task launch];
+    NSTask* task = [[NSTask alloc] init];
+    task.executableURL = [NSURL fileURLWithPath:@(cmd)];
+    task.arguments = arg_array;
+    task.standardInput = [NSPipe pipe];
+    task.standardOutput = output;
+    [task launchAndReturnError:nil];
 
-    NSData* data = [[output fileHandleForReading] readDataToEndOfFile];
+    NSData* data =
+        [output.fileHandleForReading readDataToEndOfFileAndReturnError:nil];
 
     [task waitUntilExit];
 
-    if ([task terminationStatus] != 0) {
-      // TODO(garykac): When we switch to sdk_10.6, show the
-      // [task terminationReason] as well.
-      NSLog(@"Command terminated status=%d", [task terminationStatus]);
+    if (task.terminationStatus != 0) {
+      NSLog(@"Command terminated status=%d, reason=%ld", task.terminationStatus,
+            (long)task.terminationReason);
     }
 
-    result = [[[NSString alloc] initWithData:data
-                                    encoding:NSUTF8StringEncoding]
-              autorelease];
-    if ([result length] != 0) {
+    result = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+    if (result.length != 0) {
       NSLog(@"Result: %@", result);
     }
   }
   @catch (NSException* exception) {
-    NSLog(@"Exception %@ %@", [exception name], [exception reason]);
+    NSLog(@"Exception %@ %@", exception.name, exception.reason);
   }
 }
 
 - (void)sudoCommand:(const char*)cmd
       withArguments:(const char**)args
           usingAuth:(AuthorizationRef)authRef  {
-  NSArray* arg_array = convertToNSArray(args);
+  NSArray<NSString*>* arg_array = convertToNSArray(args);
   NSLog(@"Executing (as Admin): %s %@", cmd,
         [arg_array componentsJoinedByString:@" "]);
   FILE* pipe = nullptr;
@@ -103,17 +105,30 @@ NSArray* convertToNSArray(const char** array) {
   [self sudoCommand:"/bin/rm" withArguments:args usingAuth:authRef];
 }
 
-- (void)shutdownService {
+- (void)shutdownServiceUsingAuth:(AuthorizationRef)authRef {
   const char* launchCtl = "/bin/launchctl";
   const char* argsStop[] = { "stop", remoting::kServiceName, nullptr };
   [self runCommand:launchCtl withArguments:argsStop];
 
-  if ([[NSFileManager defaultManager]
+  if ([NSFileManager.defaultManager
           fileExistsAtPath:@(remoting::kServicePlistPath)]) {
     const char* argsUnload[] = { "unload", "-w", "-S", "Aqua",
                                 remoting::kServicePlistPath, nullptr };
     [self runCommand:launchCtl withArguments:argsUnload];
   }
+
+  const char* argsUnloadBroker[] = {"bootout", remoting::kBrokerServiceTarget,
+                                    nullptr};
+  [self sudoCommand:launchCtl withArguments:argsUnloadBroker usingAuth:authRef];
+}
+
+- (void)killAllRemotingProcessesUsingAuth:(AuthorizationRef)authRef {
+  const char* pkill = "/usr/bin/pkill";
+  std::string remoting_processes_regex =
+      base::StringPrintf("^%s.*$", remoting::kHostBinaryPath);
+  const char* argsPkill[] = {"-9", "-f", remoting_processes_regex.data(),
+                             nullptr};
+  [self sudoCommand:pkill withArguments:argsPkill usingAuth:authRef];
 }
 
 - (void)keystoneUnregisterUsingAuth:(AuthorizationRef)authRef {
@@ -147,9 +162,11 @@ NSArray* convertToNSArray(const char** array) {
   // restart itself.
   [self sudoDelete:remoting::kHostEnabledPath usingAuth:authRef];
 
-  [self shutdownService];
+  [self shutdownServiceUsingAuth:authRef];
+  [self killAllRemotingProcessesUsingAuth:authRef];
 
   [self sudoDelete:remoting::kServicePlistPath usingAuth:authRef];
+  [self sudoDelete:remoting::kBrokerPlistPath usingAuth:authRef];
   [self sudoDelete:remoting::kHostBinaryPath usingAuth:authRef];
   [self sudoDelete:remoting::kHostLegacyBinaryPath usingAuth:authRef];
   [self sudoDelete:remoting::kOldHostHelperScriptPath usingAuth:authRef];
@@ -185,8 +202,7 @@ NSArray* convertToNSArray(const char** array) {
                              kAuthorizationFlagExtendRights;
   status = AuthorizationCopyRights(authRef, &rights, nullptr, flags, nullptr);
   if (status == errAuthorizationSuccess) {
-    RemotingUninstaller* uninstaller =
-        [[[RemotingUninstaller alloc] init] autorelease];
+    RemotingUninstaller* uninstaller = [[RemotingUninstaller alloc] init];
     [uninstaller remotingUninstallUsingAuth:authRef];
   }
   return status;

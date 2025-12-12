@@ -3,7 +3,6 @@
 load("@org_tensorflow//tensorflow:tensorflow.bzl", "pybind_extension")
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = [
         "//tensorflow_lite_support:users",
     ],
@@ -16,8 +15,11 @@ pybind_extension(
         "pywrap_tflite_registerer.cc",
     ],
     additional_exported_symbols = ["TFLite_RaggedTensorToTensorRegisterer"],
+    enable_stub_generation = True,
     module_name = "pywrap_tflite_registerer",
-    srcs_version = "PY3ONLY",
+    pytype_srcs = [
+        "pywrap_tflite_registerer.pyi",
+    ],
     deps = [
         "//tensorflow_lite_support/custom_ops/kernel/ragged:py_tflite_registerer",
         "@local_config_python//:python_headers",

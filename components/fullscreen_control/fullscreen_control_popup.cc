@@ -25,10 +25,12 @@ std::unique_ptr<views::Widget> CreatePopupWidget(
     std::unique_ptr<FullscreenControlView> view) {
   // Initialize the popup.
   std::unique_ptr<views::Widget> popup = std::make_unique<views::Widget>();
-  views::Widget::InitParams params(views::Widget::InitParams::TYPE_POPUP);
+  views::Widget::InitParams params(
+      views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+      views::Widget::InitParams::TYPE_POPUP);
   params.opacity = views::Widget::InitParams::WindowOpacity::kTranslucent;
-  params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
   params.z_order = ui::ZOrderLevel::kSecuritySurface;
+  params.shadow_type = views::Widget::InitParams::ShadowType::kNone;
   params.parent = parent_view;
   popup->Init(std::move(params));
   popup->SetContentsView(std::move(view));
@@ -48,7 +50,7 @@ FullscreenControlPopup::FullscreenControlPopup(
               std::make_unique<FullscreenControlView>(on_button_pressed)),
           on_visibility_changed) {}
 
-FullscreenControlPopup::~FullscreenControlPopup() {}
+FullscreenControlPopup::~FullscreenControlPopup() = default;
 
 // static
 int FullscreenControlPopup::GetButtonBottomOffset() {
@@ -104,9 +106,9 @@ FullscreenControlPopup::FullscreenControlPopup(
     std::unique_ptr<views::Widget> popup,
     const base::RepeatingClosure& on_visibility_changed)
     : AnimationDelegateViews(popup->GetRootView()),
-      control_view_(
-          static_cast<FullscreenControlView*>(popup->GetContentsView())),
       popup_(std::move(popup)),
+      control_view_(
+          static_cast<FullscreenControlView*>(popup_->GetContentsView())),
       animation_(std::make_unique<gfx::SlideAnimation>(this)),
       on_visibility_changed_(on_visibility_changed) {
   DCHECK(on_visibility_changed_);
@@ -119,7 +121,7 @@ void FullscreenControlPopup::AnimationProgressed(
       animation_->CurrentValueBetween(kInitialOpacity, kFinalOpacity));
   popup_->SetOpacity(opacity);
 
-  int initial_offset = -control_view_->GetPreferredSize().height();
+  int initial_offset = -control_view_->GetPreferredSize({}).height();
   popup_->SetBounds(CalculateBounds(
       animation_->CurrentValueBetween(initial_offset, kFinalOffset)));
 }
@@ -140,9 +142,9 @@ gfx::Rect FullscreenControlPopup::CalculateBounds(int y_offset) const {
     return gfx::Rect();
 
   gfx::Point origin(parent_bounds_in_screen_.CenterPoint().x() -
-                        control_view_->GetPreferredSize().width() / 2,
+                        control_view_->GetPreferredSize({}).width() / 2,
                     parent_bounds_in_screen_.y() + y_offset);
-  return {origin, control_view_->GetPreferredSize()};
+  return {origin, control_view_->GetPreferredSize({})};
 }
 
 void FullscreenControlPopup::OnVisibilityChanged() {

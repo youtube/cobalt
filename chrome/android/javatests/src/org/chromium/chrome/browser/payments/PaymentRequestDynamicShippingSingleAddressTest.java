@@ -12,18 +12,17 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.autofill.AutofillTestHelper;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.AutofillProfile;
-import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.payments.PaymentRequestTestRule.AppPresence;
+import org.chromium.chrome.browser.payments.PaymentRequestTestRule.FactorySpeed;
 import org.chromium.chrome.browser.payments.ui.PaymentRequestSection;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.R;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
-import org.chromium.ui.modaldialog.ModalDialogProperties;
+import org.chromium.components.autofill.AutofillProfile;
 
 import java.util.concurrent.TimeoutException;
 
@@ -42,32 +41,43 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
     public void setUp() throws TimeoutException {
         AutofillTestHelper helper = new AutofillTestHelper();
         // The user has a shipping address on disk.
-        String billingAddressId = helper.setProfile(new AutofillProfile("", "https://example.test",
-                true, "" /* honorific prefix */, "Jon Doe", "Google", "340 Main St", "CA",
-                "Los Angeles", "", "90291", "", "US", "650-253-0000", "", "en-US"));
-        helper.setCreditCard(new CreditCard("", "https://example.test", true, true, "Jon Doe",
-                "4111111111111111", "1111", "12", "2050", "visa", R.drawable.visa_card,
-                billingAddressId, "" /* serverId */));
+        helper.setProfile(
+                AutofillProfile.builder()
+                        .setFullName("Jon Doe")
+                        .setCompanyName("Google")
+                        .setStreetAddress("340 Main St")
+                        .setRegion("CA")
+                        .setLocality("Los Angeles")
+                        .setPostalCode("90291")
+                        .setCountryCode("US")
+                        .setPhoneNumber("650-253-0000")
+                        .setLanguageCode("en-US")
+                        .build());
+        mPaymentRequestTestRule.addPaymentAppFactory(
+                AppPresence.HAVE_APPS, FactorySpeed.FAST_FACTORY);
     }
 
     /** The shipping address should not be selected in UI by default. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testAddressNotSelected() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
-        Assert.assertEquals(PaymentRequestSection.EDIT_BUTTON_CHOOSE,
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
+        Assert.assertEquals(
+                PaymentRequestSection.EDIT_BUTTON_CHOOSE,
                 mPaymentRequestTestRule.getShippingAddressSectionButtonState());
     }
 
     /** Expand the shipping address section, select an address, and click "Pay." */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testSelectValidAddressAndPay() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         // Check that there is a selected payment method (makes sure we are not ready to pay because
         // of the Shipping Address).
         mPaymentRequestTestRule.expectPaymentMethodRowIsSelected(0);
@@ -76,23 +86,32 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_first_radio_button, mPaymentRequestTestRule.getReadyToPay());
         mPaymentRequestTestRule.clickAndWait(
-                R.id.button_primary, mPaymentRequestTestRule.getReadyForUnmaskInput());
-        mPaymentRequestTestRule.setTextInCardUnmaskDialogAndWait(
-                R.id.card_unmask_input, "123", mPaymentRequestTestRule.getReadyToUnmask());
-        mPaymentRequestTestRule.clickCardUnmaskButtonAndWait(
-                ModalDialogProperties.ButtonType.POSITIVE, mPaymentRequestTestRule.getDismissed());
-        mPaymentRequestTestRule.expectResultContains(new String[] {"Jon Doe", "4111111111111111",
-                "12", "2050", "basic-card", "123", "Google", "340 Main St", "CA", "Los Angeles",
-                "90291", "+16502530000", "US", "en", "californiaShippingOption"});
+                R.id.button_primary, mPaymentRequestTestRule.getDismissed());
+        mPaymentRequestTestRule.expectResultContains(
+                new String[] {
+                    "Jon Doe",
+                    "\"methodName\": \"https://bobpay.test\"",
+                    "\"transaction\": 1337",
+                    "Google",
+                    "340 Main St",
+                    "CA",
+                    "Los Angeles",
+                    "90291",
+                    "+16502530000",
+                    "US",
+                    "en",
+                    "californiaShippingOption"
+                });
     }
 
     /** Expand the shipping address section, select an address, edit it and click "Pay." */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
-    public void testSelectValidAddressEditItAndPay() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+    public void testSelectValidAddressEditItAndPay() throws TimeoutException, InterruptedException {
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         // Check that there is a selected payment method (makes sure we are not ready to pay because
         // of the Shipping Address).
         mPaymentRequestTestRule.expectPaymentMethodRowIsSelected(0);
@@ -110,23 +129,33 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
         mPaymentRequestTestRule.expectShippingAddressRowIsSelected(0);
 
         mPaymentRequestTestRule.clickAndWait(
-                R.id.button_primary, mPaymentRequestTestRule.getReadyForUnmaskInput());
-        mPaymentRequestTestRule.setTextInCardUnmaskDialogAndWait(
-                R.id.card_unmask_input, "123", mPaymentRequestTestRule.getReadyToUnmask());
-        mPaymentRequestTestRule.clickCardUnmaskButtonAndWait(
-                ModalDialogProperties.ButtonType.POSITIVE, mPaymentRequestTestRule.getDismissed());
-        mPaymentRequestTestRule.expectResultContains(new String[] {"Jane Doe", "4111111111111111",
-                "12", "2050", "basic-card", "123", "Google", "340 Main St", "CA", "Los Angeles",
-                "90291", "+16502530000", "US", "en", "californiaShippingOption"});
+                R.id.button_primary, mPaymentRequestTestRule.getDismissed());
+        mPaymentRequestTestRule.expectResultContains(
+                new String[] {
+                    "Jane Doe",
+                    "\"methodName\": \"https://bobpay.test\"",
+                    "\"transaction\": 1337",
+                    "Google",
+                    "340 Main St",
+                    "CA",
+                    "Los Angeles",
+                    "90291",
+                    "+16502530000",
+                    "US",
+                    "en",
+                    "californiaShippingOption"
+                });
     }
 
     /** Expand the shipping address section, select address, edit but cancel editing, and "Pay". */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
-    public void testSelectValidAddressEditItAndCancelAndPay() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+    public void testSelectValidAddressEditItAndCancelAndPay()
+            throws TimeoutException, InterruptedException {
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         // Check that there is a selected payment method (makes sure we are not ready to pay because
         // of the Shipping Address).
         mPaymentRequestTestRule.expectPaymentMethodRowIsSelected(0);
@@ -145,23 +174,32 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
         mPaymentRequestTestRule.expectShippingAddressRowIsSelected(0);
 
         mPaymentRequestTestRule.clickAndWait(
-                R.id.button_primary, mPaymentRequestTestRule.getReadyForUnmaskInput());
-        mPaymentRequestTestRule.setTextInCardUnmaskDialogAndWait(
-                R.id.card_unmask_input, "123", mPaymentRequestTestRule.getReadyToUnmask());
-        mPaymentRequestTestRule.clickCardUnmaskButtonAndWait(
-                ModalDialogProperties.ButtonType.POSITIVE, mPaymentRequestTestRule.getDismissed());
-        mPaymentRequestTestRule.expectResultContains(new String[] {"Jon Doe", "4111111111111111",
-                "12", "2050", "basic-card", "123", "Google", "340 Main St", "CA", "Los Angeles",
-                "90291", "+16502530000", "US", "en", "californiaShippingOption"});
+                R.id.button_primary, mPaymentRequestTestRule.getDismissed());
+        mPaymentRequestTestRule.expectResultContains(
+                new String[] {
+                    "Jon Doe",
+                    "\"methodName\": \"https://bobpay.test\"",
+                    "\"transaction\": 1337",
+                    "Google",
+                    "340 Main St",
+                    "CA",
+                    "Los Angeles",
+                    "90291",
+                    "+16502530000",
+                    "US",
+                    "en",
+                    "californiaShippingOption"
+                });
     }
 
     /** Attempt to add an invalid address and cancel the transaction. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testAddInvalidAddressAndCancel() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         // Check that there is a selected payment method (makes sure we are not ready to pay because
         // of the Shipping Address).
         mPaymentRequestTestRule.expectPaymentMethodRowIsSelected(0);
@@ -181,57 +219,76 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
     }
 
     /**
-     * Add a valid address and complete the transaction.
-     * @MediumTest
-     * @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE) // crbug.com/626289
+     * Add a valid address and complete the
+     * transaction. @MediumTest @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE) //
+     * crbug.com/626289
      */
     @Test
-    @DisabledTest(message = "crbug.com/626289")
+    @MediumTest
     @Feature({"Payments"})
     public void testAddAddressAndPay() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_add_option_button, mPaymentRequestTestRule.getReadyToEdit());
         mPaymentRequestTestRule.setTextInEditorAndWait(
-                new String[] {"Bob", "Google", "1600 Amphitheatre Pkwy", "Mountain View", "CA",
-                        "94043", "650-253-0000"},
+                new String[] {
+                    "Bob",
+                    "Google",
+                    "1600 Amphitheatre Pkwy",
+                    "Mountain View",
+                    "CA",
+                    "94043",
+                    "650-253-0000"
+                },
                 mPaymentRequestTestRule.getEditorTextUpdate());
         mPaymentRequestTestRule.clickInEditorAndWait(
                 R.id.editor_dialog_done_button, mPaymentRequestTestRule.getReadyToPay());
         mPaymentRequestTestRule.clickAndWait(
-                R.id.button_primary, mPaymentRequestTestRule.getReadyForUnmaskInput());
-        mPaymentRequestTestRule.setTextInCardUnmaskDialogAndWait(
-                R.id.card_unmask_input, "123", mPaymentRequestTestRule.getReadyToUnmask());
-        mPaymentRequestTestRule.clickCardUnmaskButtonAndWait(
-                ModalDialogProperties.ButtonType.POSITIVE, mPaymentRequestTestRule.getDismissed());
-        mPaymentRequestTestRule.expectResultContains(new String[] {"Bob", "Google",
-                "1600 Amphitheatre Pkwy", "Mountain View", "CA", "94043", "+16502530000"});
+                R.id.button_primary, mPaymentRequestTestRule.getDismissed());
+        mPaymentRequestTestRule.expectResultContains(
+                new String[] {
+                    "Bob",
+                    "\"methodName\": \"https://bobpay.test\"",
+                    "\"transaction\": 1337",
+                    "Google",
+                    "1600 Amphitheatre Pkwy",
+                    "Mountain View",
+                    "CA",
+                    "94043",
+                    "+16502530000"
+                });
     }
 
     /** Quickly pressing "add address" and then [X] should not crash. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testQuickAddAddressAndCloseShouldNotCrash() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
 
         // Quickly press "add address" and then [X].
         int callCount = mPaymentRequestTestRule.getReadyToEdit().getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getShippingAddressSectionForTest()
-                    .findViewById(R.id.payments_add_option_button)
-                    .performClick();
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getDialogForTest()
-                    .findViewById(R.id.close_button)
-                    .performClick();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getShippingAddressSectionForTest()
+                            .findViewById(R.id.payments_add_option_button)
+                            .performClick();
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getDialogForTest()
+                            .findViewById(R.id.close_button)
+                            .performClick();
+                });
         mPaymentRequestTestRule.getReadyToEdit().waitForCallback(callCount);
 
         mPaymentRequestTestRule.clickInEditorAndWait(
@@ -245,25 +302,29 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
     /** Quickly pressing [X] and then "add address" should not crash. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testQuickCloseAndAddAddressShouldNotCrash() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
 
         // Quickly press [X] and then "add address."
         int callCount = mPaymentRequestTestRule.getDismissed().getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getDialogForTest()
-                    .findViewById(R.id.close_button)
-                    .performClick();
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getShippingAddressSectionForTest()
-                    .findViewById(R.id.payments_add_option_button)
-                    .performClick();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getDialogForTest()
+                            .findViewById(R.id.close_button)
+                            .performClick();
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getShippingAddressSectionForTest()
+                            .findViewById(R.id.payments_add_option_button)
+                            .performClick();
+                });
         mPaymentRequestTestRule.getDismissed().waitForCallback(callCount);
 
         mPaymentRequestTestRule.expectResultContains(
@@ -273,25 +334,29 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
     /** Quickly pressing "add address" and then "cancel" should not crash. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testQuickAddAddressAndCancelShouldNotCrash() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
 
         // Quickly press "add address" and then "cancel."
         int callCount = mPaymentRequestTestRule.getReadyToEdit().getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getShippingAddressSectionForTest()
-                    .findViewById(R.id.payments_add_option_button)
-                    .performClick();
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getDialogForTest()
-                    .findViewById(R.id.button_secondary)
-                    .performClick();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getShippingAddressSectionForTest()
+                            .findViewById(R.id.payments_add_option_button)
+                            .performClick();
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getDialogForTest()
+                            .findViewById(R.id.button_secondary)
+                            .performClick();
+                });
         mPaymentRequestTestRule.getReadyToEdit().waitForCallback(callCount);
 
         mPaymentRequestTestRule.clickInEditorAndWait(
@@ -305,25 +370,29 @@ public class PaymentRequestDynamicShippingSingleAddressTest {
     /** Quickly pressing on "cancel" and then "add address" should not crash. */
     @Test
     @MediumTest
-    @DisabledTest(message = "crbug.com/1182234")
     @Feature({"Payments"})
     public void testQuickCancelAndAddAddressShouldNotCrash() throws TimeoutException {
-        mPaymentRequestTestRule.triggerUIAndWait("buy", mPaymentRequestTestRule.getReadyForInput());
+        mPaymentRequestTestRule.runJavaScriptAndWaitForUiEvent(
+                "buyWithMethods([{supportedMethods: 'https://bobpay.test'}]);",
+                mPaymentRequestTestRule.getReadyForInput());
         mPaymentRequestTestRule.clickInShippingAddressAndWait(
                 R.id.payments_section, mPaymentRequestTestRule.getReadyForInput());
 
         // Quickly press on "cancel" and then "add address."
         int callCount = mPaymentRequestTestRule.getDismissed().getCallCount();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getDialogForTest()
-                    .findViewById(R.id.button_secondary)
-                    .performClick();
-            mPaymentRequestTestRule.getPaymentRequestUI()
-                    .getShippingAddressSectionForTest()
-                    .findViewById(R.id.payments_add_option_button)
-                    .performClick();
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getDialogForTest()
+                            .findViewById(R.id.button_secondary)
+                            .performClick();
+                    mPaymentRequestTestRule
+                            .getPaymentRequestUi()
+                            .getShippingAddressSectionForTest()
+                            .findViewById(R.id.payments_add_option_button)
+                            .performClick();
+                });
         mPaymentRequestTestRule.getDismissed().waitForCallback(callCount);
 
         mPaymentRequestTestRule.expectResultContains(

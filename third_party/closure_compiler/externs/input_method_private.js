@@ -27,7 +27,8 @@ chrome.inputMethodPrivate.MenuItemStyle = {
 };
 
 /**
- * A menu item used by an input method to interact with the user from the language menu.
+ * A menu item used by an input method to interact with the user from the
+ * language menu.
  * @typedef {{
  *   id: string,
  *   label: (string|undefined),
@@ -97,6 +98,27 @@ chrome.inputMethodPrivate.AutoCapitalizeType = {
 };
 
 /**
+ * @enum {string}
+ */
+chrome.inputMethodPrivate.LanguagePackStatus = {
+  UNKNOWN: 'unknown',
+  NOT_INSTALLED: 'notInstalled',
+  IN_PROGRESS: 'inProgress',
+  INSTALLED: 'installed',
+  ERROR_OTHER: 'errorOther',
+  ERROR_NEEDS_REBOOT: 'errorNeedsReboot',
+};
+
+/**
+ * Object returned by callbacks when the status of language packs change.
+ * @typedef {{
+ *   engineIds: !Array<string>,
+ *   status: !chrome.inputMethodPrivate.LanguagePackStatus
+ * }}
+ */
+chrome.inputMethodPrivate.LanguagePackStatusChange;
+
+/**
  * Describes an input Context
  * @typedef {{
  *   contextID: number,
@@ -108,23 +130,25 @@ chrome.inputMethodPrivate.AutoCapitalizeType = {
  *   spellCheck: boolean,
  *   shouldDoLearning: boolean,
  *   focusReason: !chrome.inputMethodPrivate.FocusReason,
- *   hasBeenPassword: boolean,
  *   appKey: (string|undefined)
  * }}
  */
 chrome.inputMethodPrivate.InputContext;
 
 /**
- * User preference settings for a specific input method. Japanese input methods are not included because they are managed separately by Mozc module.
+ * User preference settings for a specific input method. Japanese input methods
+ * are not included because they are managed separately by Mozc module.
  * @typedef {{
  *   enableCompletion: (boolean|undefined),
  *   enableDoubleSpacePeriod: (boolean|undefined),
  *   enableGestureTyping: (boolean|undefined),
  *   enablePrediction: (boolean|undefined),
  *   enableSoundOnKeypress: (boolean|undefined),
+ *   physicalKeyboardAutoCorrectionEnabledByDefault: (boolean|undefined),
  *   physicalKeyboardAutoCorrectionLevel: (number|undefined),
  *   physicalKeyboardEnableCapitalization: (boolean|undefined),
  *   physicalKeyboardEnableDiacriticsOnLongpress: (boolean|undefined),
+ *   physicalKeyboardEnablePredictiveWriting: (boolean|undefined),
  *   virtualKeyboardAutoCorrectionLevel: (number|undefined),
  *   virtualKeyboardEnableCapitalization: (boolean|undefined),
  *   xkbLayout: (string|undefined),
@@ -153,7 +177,16 @@ chrome.inputMethodPrivate.InputContext;
  *   }|undefined),
  *   zhuyinKeyboardLayout: (string|undefined),
  *   zhuyinPageSize: (number|undefined),
- *   zhuyinSelectKeys: (string|undefined)
+ *   zhuyinSelectKeys: (string|undefined),
+ *   vietnameseVniAllowFlexibleDiacritics: (boolean|undefined),
+ *   vietnameseVniNewStyleToneMarkPlacement: (boolean|undefined),
+ *   vietnameseVniInsertDoubleHornOnUo: (boolean|undefined),
+ *   vietnameseVniShowUnderline: (boolean|undefined),
+ *   vietnameseTelexAllowFlexibleDiacritics: (boolean|undefined),
+ *   vietnameseTelexNewStyleToneMarkPlacement: (boolean|undefined),
+ *   vietnameseTelexInsertDoubleHornOnUo: (boolean|undefined),
+ *   vietnameseTelexInsertUHornOnW: (boolean|undefined),
+ *   vietnameseTelexShowUnderline: (boolean|undefined)
  * }}
  */
 chrome.inputMethodPrivate.InputMethodSettings;
@@ -330,25 +363,18 @@ chrome.inputMethodPrivate.reset = function() {};
 chrome.inputMethodPrivate.onAutocorrect = function(parameters) {};
 
 /**
- * Get the bounds of the current text field
- * @param {{
- *   contextID: number
- * }} parameters
- * @param {function({
- *   x: number,
- *   y: number,
- *   width: number,
- *   height: number
- * }): void} callback Called with screen coordinates of the text field when the
- *     operation completes. On failure, $(ref:runtime.lastError) is set.
- */
-chrome.inputMethodPrivate.getTextFieldBounds = function(parameters, callback) {};
-
-/**
  * Notifies Chrome that the current input method is ready to accept key events
  * from Tast.
  */
 chrome.inputMethodPrivate.notifyInputMethodReadyForTesting = function() {};
+
+/**
+ * Gets the aggregate status of all language packs for a given input method.
+ * @param {string} inputMethodId Fully qualified ID of the input method
+ * @param {function(!chrome.inputMethodPrivate.LanguagePackStatus): void}
+ *     callback Called with a LanguagePackStatus when the operation completes.
+ */
+chrome.inputMethodPrivate.getLanguagePackStatus = function(inputMethodId, callback) {};
 
 /**
  * Fired when the caret bounds change.
@@ -402,13 +428,6 @@ chrome.inputMethodPrivate.onImeMenuItemsChanged;
 chrome.inputMethodPrivate.onFocus;
 
 /**
- * This event is sent when a touch occurs in a text field. Should only happen
- * after onFocus()
- * @type {!ChromeEvent}
- */
-chrome.inputMethodPrivate.onTouch;
-
-/**
  * This event is sent when the settings for any input method changed. It is sent
  * to all extensions that are listening to this event, and enabled by the user.
  * @type {!ChromeEvent}
@@ -433,3 +452,9 @@ chrome.inputMethodPrivate.onSuggestionsChanged;
  * @type {!ChromeEvent}
  */
 chrome.inputMethodPrivate.onInputMethodOptionsChanged;
+
+/**
+ * This event is sent when any IME's language pack status is changed.
+ * @type {!ChromeEvent}
+ */
+chrome.inputMethodPrivate.onLanguagePackStatusChanged;

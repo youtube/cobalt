@@ -14,10 +14,12 @@
 
 #include "starboard/shared/widevine/widevine_storage.h"
 
+#include <cstddef>
+#include <cstdint>
+
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/widevine/widevine_keybox_hash.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

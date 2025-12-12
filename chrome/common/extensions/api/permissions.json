@@ -5,7 +5,7 @@
 [
   {
     "namespace": "permissions",
-    "description": "Use the <code>chrome.permissions</code> API to request <a href='permissions#manifest'>declared optional permissions</a> at run time rather than install time, so users understand why the permissions are needed and grant only those that are necessary.",
+    "description": "Use the <code>chrome.permissions</code> API to request <a href='/docs/extensions/develop/concepts/declare-permissions'>declared optional permissions</a> at run time rather than install time, so users understand why the permissions are needed and grant only those that are necessary.",
     "types": [
       {
         "id": "Permissions",
@@ -21,7 +21,7 @@
             "type": "array",
             "items": {"type": "string"},
             "optional": true,
-            "description": "The list of host permissions, including those specified in the <code>optional_permissions</code> or <code>permissions</code> keys in the manifest, and those associated with <a href='content_scripts'>Content Scripts</a>."
+            "description": "The list of host permissions, including those specified in the <code>optional_permissions</code> or <code>permissions</code> keys in the manifest, and those associated with <a href='/docs/extensions/develop/concepts/content-scripts'>Content Scripts</a>."
           }
         }
       }
@@ -64,7 +64,7 @@
              {
               "name": "permissions",
               "$ref": "Permissions",
-              "description": "The extension's active permissions. Note that the <code>origins</code> property will contain granted origins from those specified in the <code>permissions</code> and <code>optional_permissions</code> keys in the manifest and those associated with <a href='content_scripts'>Content Scripts</a>."
+              "description": "The extension's active permissions. Note that the <code>origins</code> property will contain granted origins from those specified in the <code>permissions</code> and <code>optional_permissions</code> keys in the manifest and those associated with <a href='/docs/extensions/develop/concepts/content-scripts'>Content Scripts</a>."
             }
           ]
         }
@@ -132,6 +132,72 @@
               "description": "True if the permissions were removed."
             }
           ]
+        }
+      },
+      {
+        "name": "addHostAccessRequest",
+        "type": "function",
+        "description": "Adds a host access request. Request will only be signaled to the user if extension can be granted access to the host in the request. Request will be reset on cross-origin navigation. When accepted, grants persistent access to the site’s top origin",
+        "parameters": [
+          {
+            "name": "request",
+            "type": "object",
+            "properties": {
+              "documentId": {
+                "type": "string",
+                "optional": true,
+                "description": "The id of a document where host access requests can be shown. Must be the top-level document within a tab. If provided, the request is shown on the tab of the specified document and is removed when the document navigates to a new origin. Adding a new request will override any existent request for `tabId`. This or `tabId` must be specified."
+              },
+              "tabId": {
+                "type": "number",
+                "optional": true,
+                "description": "The id of the tab where host access requests can be shown. If provided, the request is shown on the specified tab and is removed when the tab navigates to a new origin. Adding a new request will override an existent request for `documentId`. This or `documentId` must be specified."
+              },
+              "pattern": {
+                "type": "string",
+                "optional": true,
+                "description": "The URL pattern where host access requests can be shown. If provided, host access requests will only be shown on URLs that match this pattern."
+              }
+            }
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "optional": true,
+          "parameters": []
+        }
+      },
+      {
+        "name": "removeHostAccessRequest",
+        "type": "function",
+        "description": "Removes a host access request, if existent.",
+        "parameters": [
+          {
+            "name": "request",
+            "type": "object",
+            "properties": {
+              "documentId": {
+                "type": "string",
+                "optional": true,
+                "description": "The id of a document where host access request will be removed. Must be the top-level document within a tab. This or `tabId` must be specified."
+              },
+              "tabId": {
+                "type": "number",
+                "optional": true,
+                "description": "The id of the tab where host access request will be removed. This or `documentId` must be specified."
+              },
+              "pattern": {
+                "type": "string",
+                "optional": true,
+                "description": "The URL pattern where host access request will be removed. If provided, this must exactly match the pattern of an existing host access request."
+              }
+            }
+          }
+        ],
+        "returns_async": {
+          "name": "callback",
+          "optional": true,
+          "parameters": []
         }
       }
     ]

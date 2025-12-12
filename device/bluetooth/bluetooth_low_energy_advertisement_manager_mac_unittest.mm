@@ -100,8 +100,8 @@ class BluetoothLowEnergyAdvertisementManagerMacTest : public testing::Test {
  protected:
   scoped_refptr<base::TestSimpleTaskRunner> ui_task_runner_;
   BluetoothLowEnergyAdvertisementManagerMac advertisement_manager_;
-  CBPeripheralManager* peripheral_manager_;
-  id peripheral_manager_mock_;
+  CBPeripheralManager* __strong peripheral_manager_;
+  id __strong peripheral_manager_mock_;
   CBManagerState peripheral_manager_state_;
 
   scoped_refptr<BluetoothAdvertisement> advertisement_;
@@ -236,7 +236,7 @@ TEST_F(BluetoothLowEnergyAdvertisementManagerMacTest, Unregister_Success) {
 TEST_F(BluetoothLowEnergyAdvertisementManagerMacTest,
        Unregister_InvalidAdvertisement) {
   scoped_refptr<BluetoothAdvertisementMac> invalid_advertisement =
-      new BluetoothAdvertisementMac(absl::nullopt, base::DoNothing(),
+      new BluetoothAdvertisementMac(std::nullopt, base::DoNothing(),
                                     base::DoNothing(), &advertisement_manager_);
 
   // Register advertisement.

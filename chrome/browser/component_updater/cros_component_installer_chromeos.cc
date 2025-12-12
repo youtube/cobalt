@@ -4,6 +4,7 @@
 
 #include "chrome/browser/component_updater/cros_component_installer_chromeos.h"
 
+#include <algorithm>
 #include <map>
 #include <utility>
 
@@ -11,12 +12,12 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/task/single_thread_task_runner.h"
+#include "base/strings/to_string.h"
 #include "base/task/thread_pool.h"
-#include "chrome/browser/ash/crosapi/browser_util.h"
+#include "chrome/browser/ash/login/demo_mode/demo_mode_dimensions.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/component_updater/component_installer_errors.h"
 #include "chrome/browser/component_updater/metadata_table_chromeos.h"
@@ -24,8 +25,11 @@
 #include "chrome/common/pref_names.h"
 #include "chromeos/ash/components/dbus/dbus_thread_manager.h"
 #include "chromeos/ash/components/dbus/image_loader/image_loader_client.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
+#include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/component_updater/component_updater_paths.h"
+#include "components/component_updater/component_updater_switches.h"
 #include "components/crx_file/id_util.h"
 #include "components/prefs/pref_service.h"
 #include "components/version_info/version_info.h"
@@ -34,13 +38,6 @@
 #include "crypto/sha2.h"
 
 namespace component_updater {
-
-// Switch that can be used for opting in to receive DCHECK-enabled binaries. If
-// we need to expose this through chrome://flags on other platforms this can
-// move to a shared place (but still share the prefer-dcheck name).
-const char kPreferDcheckSwitch[] = "prefer-dcheck";
-const char kPreferDcheckOptIn[] = "opt-in";
-const char kPreferDcheckOptOut[] = "opt-out";
 
 // Root path where all components are stored.
 constexpr char kComponentsRootPath[] = "cros-components";
@@ -57,39 +54,20 @@ const ComponentConfig kConfigs[] = {
      "93c093ebac788581389015e9c59c5af111d2fa5174d206eb795042e6376cbd10"},
     {"demo-mode-app", ComponentConfig::PolicyType::kDemoApp, nullptr,
      "b6c5ce9f03b0ce830eb5f9f92ed3016cfdb7a2327330f0187adbe9a00ddfd34d"},
-    // NOTE: If you change the lacros component names, you must also update
-    // chrome/browser/ash/crosapi/browser_loader.cc.
-    {"lacros-dogfood-canary", ComponentConfig::PolicyType::kLacros, nullptr,
-     "7a85ffb4b316a3b89135a3f43660ef3049950a61a2f8df4237e1ec213852b848"},
-    {"lacros-dogfood-dev", ComponentConfig::PolicyType::kLacros, nullptr,
-     "b3e1ef1780c0acd2d3fa44b4d73c657a0f1ed3ad83fd8c964a18a3502ccf5f4f"},
-    {"lacros-dogfood-beta", ComponentConfig::PolicyType::kLacros, nullptr,
-     "7d5c1428f7f67b56f95123851adec1da105980c56b5c126352040f3b65d3e43b"},
-    {"lacros-dogfood-stable", ComponentConfig::PolicyType::kLacros, nullptr,
-     "47f910805afac79e2d4d9117c42d5291a32ac60a4ea1a42e537fd86082c3ba48"},
+    {"growth-campaigns", ComponentConfig::PolicyType::kGrowthCampaigns, nullptr,
+     "36448796af5fb67380ec0180a8379ddd26fce20d3da6a231e0a60dfe2360407e"},
 };
-
-const char* g_ash_version_for_test = nullptr;
-
-// Returns the major version of the current binary, which is the ash/OS binary.
-// For example, for ash 89.0.1234.1 returns 89.
-uint32_t GetAshMajorVersion() {
-  base::Version ash_version = g_ash_version_for_test
-                                  ? base::Version(g_ash_version_for_test)
-                                  : version_info::GetVersion();
-  return ash_version.components()[0];
-}
 
 const ComponentConfig* FindConfig(const std::string& name) {
   const ComponentConfig* config =
-      base::ranges::find(kConfigs, name, &ComponentConfig::name);
-  if (config == std::end(kConfigs))
+      std::ranges::find(kConfigs, name, &ComponentConfig::name);
+  if (config == std::end(kConfigs)) {
     return nullptr;
+  }
   return config;
 }
 
-// TODO(xiaochu): add metrics for component usage (https://crbug.com/793052).
-void LogCustomUninstall(absl::optional<bool> result) {}
+void LogCustomUninstall(std::optional<bool> result) {}
 
 void FinishCustomUninstallOnUIThread(const std::string& name) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
@@ -110,16 +88,23 @@ std::string GenerateId(const std::string& sha2hashstr) {
 std::vector<ComponentConfig> GetInstalled() {
   std::vector<ComponentConfig> configs;
   base::FilePath root;
-  if (!base::PathService::Get(DIR_COMPONENT_USER, &root))
+  if (!base::PathService::Get(DIR_COMPONENT_USER, &root)) {
     return configs;
+  }
 
   root = root.Append(kComponentsRootPath);
   for (const ComponentConfig& config : kConfigs) {
     base::FilePath component_path = root.Append(config.name);
-    if (base::PathExists(component_path))
+    if (base::PathExists(component_path)) {
       configs.push_back(config);
+    }
   }
   return configs;
+}
+
+// Report Error code.
+void ReportError(ComponentManagerAsh::Error error) {
+  UMA_HISTOGRAM_ENUMERATION("ComponentUpdater.InstallResult", error);
 }
 
 }  // namespace
@@ -128,8 +113,9 @@ CrOSComponentInstallerPolicy::CrOSComponentInstallerPolicy(
     const ComponentConfig& config,
     CrOSComponentInstaller* cros_component_installer)
     : cros_component_installer_(cros_component_installer), name_(config.name) {
-  if (strlen(config.sha2hash) != crypto::kSHA256Length * 2)
+  if (strlen(config.sha2hash) != crypto::kSHA256Length * 2) {
     return;
+  }
 
   bool converted = base::HexStringToBytes(config.sha2hash, &sha2_hash_);
   DCHECK(converted);
@@ -144,6 +130,10 @@ bool CrOSComponentInstallerPolicy::SupportsGroupPolicyEnabledComponentUpdates()
 }
 
 bool CrOSComponentInstallerPolicy::RequiresNetworkEncryption() const {
+  return true;
+}
+
+bool CrOSComponentInstallerPolicy::AllowUpdates() const {
   return true;
 }
 
@@ -196,13 +186,16 @@ void EnvVersionInstallerPolicy::ComponentReady(const base::Version& version,
                                                const base::FilePath& path,
                                                base::Value::Dict manifest) {
   std::string* min_env_version = manifest.FindString("min_env_version");
-  if (!min_env_version)
+  if (!min_env_version) {
     return;
+  }
 
-  if (!IsCompatible(env_version_, *min_env_version))
+  if (!IsCompatible(env_version_, *min_env_version)) {
     return;
+  }
 
-  cros_component_installer_->RegisterCompatiblePath(GetName(), path);
+  cros_component_installer_->RegisterCompatiblePath(
+      GetName(), CompatibleComponentInfo(path, version));
 }
 
 update_client::InstallerAttributes
@@ -223,56 +216,6 @@ bool EnvVersionInstallerPolicy::IsCompatible(
          env_version >= min_env_version;
 }
 
-LacrosInstallerPolicy::LacrosInstallerPolicy(
-    const ComponentConfig& config,
-    CrOSComponentInstaller* cros_component_installer)
-    : CrOSComponentInstallerPolicy(config, cros_component_installer) {}
-
-LacrosInstallerPolicy::~LacrosInstallerPolicy() = default;
-
-void LacrosInstallerPolicy::ComponentReady(const base::Version& version,
-                                           const base::FilePath& path,
-                                           base::Value::Dict manifest) {
-  // Each version of Lacros guarantees it will be compatible through the same
-  // major ash/OS version and -2. For example, Lacros 89 will work with ash/OS
-  // 89, 88, and 87. But it may not work with ash/OS 86 or 90.
-  //
-  // As you see we (client side) only enforces the Lacros/Ash same version
-  // check here, while the code does not check the -2 version skew requirement.
-  // This is because go/lacros-version-skew-guide mentions the restriction on
-  // lacros being too new is enforced on the Omaha server side - and the too
-  // old check is enforced client side. Supposedly this makes it easy for us to
-  // start supporting newer lacros versions by just updating the Omaha server
-  // code.
-  uint32_t lacros_major_version = version.components()[0];
-  if (lacros_major_version < GetAshMajorVersion()) {
-    // Current lacros install is not compatible.
-    return;
-  }
-  cros_component_installer_->RegisterCompatiblePath(GetName(), path);
-
-  // Clear the load cache for the newly installed component version to avoid
-  // loading stale components on successive loads, causing a version update
-  // restart loop (see crbug.com/1322678).
-  cros_component_installer_->RemoveLoadCacheEntry(GetName());
-}
-
-update_client::InstallerAttributes
-LacrosInstallerPolicy::GetInstallerAttributes() const {
-  update_client::InstallerAttributes attributes;
-  auto* const cmdline = base::CommandLine::ForCurrentProcess();
-  if (cmdline->HasSwitch(kPreferDcheckSwitch)) {
-    attributes[kPreferDcheckSwitch] =
-        cmdline->GetSwitchValueASCII(kPreferDcheckSwitch);
-  }
-  return attributes;
-}
-
-// static
-void LacrosInstallerPolicy::SetAshVersionForTest(const char* version) {
-  g_ash_version_for_test = version;
-}
-
 DemoAppInstallerPolicy::DemoAppInstallerPolicy(
     const ComponentConfig& config,
     CrOSComponentInstaller* cros_component_installer)
@@ -283,22 +226,53 @@ DemoAppInstallerPolicy::~DemoAppInstallerPolicy() = default;
 void DemoAppInstallerPolicy::ComponentReady(const base::Version& version,
                                             const base::FilePath& path,
                                             base::Value::Dict manifest) {
-  cros_component_installer_->RegisterCompatiblePath(GetName(), path);
+  cros_component_installer_->RegisterCompatiblePath(
+      GetName(), CompatibleComponentInfo(path, version));
 }
 
 update_client::InstallerAttributes
 DemoAppInstallerPolicy::GetInstallerAttributes() const {
-  PrefService* prefs = g_browser_process->local_state();
   update_client::InstallerAttributes demo_app_installer_attributes;
-  demo_app_installer_attributes["retailer_id"] =
-      prefs->GetString(prefs::kDemoModeRetailerId);
-  demo_app_installer_attributes["store_id"] =
-      prefs->GetString(prefs::kDemoModeStoreId);
-  demo_app_installer_attributes["demo_country"] =
-      prefs->GetString(prefs::kDemoModeCountry);
+  demo_app_installer_attributes["retailer_id"] = ash::demo_mode::RetailerName();
+  demo_app_installer_attributes["store_id"] = ash::demo_mode::StoreNumber();
+  demo_app_installer_attributes["demo_country"] = ash::demo_mode::Country();
   demo_app_installer_attributes["is_cloud_gaming_device"] =
-      chromeos::features::IsCloudGamingDeviceEnabled() ? "true" : "false";
+      base::ToString(ash::demo_mode::IsCloudGamingDevice());
+  demo_app_installer_attributes["is_feature_aware_device"] =
+      base::ToString(ash::demo_mode::IsFeatureAwareDevice());
+
+  auto* const cmdline = base::CommandLine::ForCurrentProcess();
+  if (cmdline->HasSwitch(switches::kDemoModeTestTag)) {
+    demo_app_installer_attributes["tag"] =
+        cmdline->GetSwitchValueASCII(switches::kDemoModeTestTag);
+  }
   return demo_app_installer_attributes;
+}
+
+GrowthCampaignsInstallerPolicy::GrowthCampaignsInstallerPolicy(
+    const ComponentConfig& config,
+    CrOSComponentInstaller* cros_component_installer)
+    : CrOSComponentInstallerPolicy(config, cros_component_installer) {}
+
+GrowthCampaignsInstallerPolicy::~GrowthCampaignsInstallerPolicy() = default;
+
+void GrowthCampaignsInstallerPolicy::ComponentReady(
+    const base::Version& version,
+    const base::FilePath& path,
+    base::Value::Dict manifest) {
+  cros_component_installer_->RegisterCompatiblePath(
+      GetName(), CompatibleComponentInfo(path, version));
+}
+
+update_client::InstallerAttributes
+GrowthCampaignsInstallerPolicy::GetInstallerAttributes() const {
+  update_client::InstallerAttributes attributes;
+  auto* const cmdline = base::CommandLine::ForCurrentProcess();
+  if (cmdline->HasSwitch(switches::kCampaignsTestTag)) {
+    attributes["tag"] =
+        cmdline->GetSwitchValueASCII(switches::kCampaignsTestTag);
+  }
+  return attributes;
 }
 
 CrOSComponentInstaller::CrOSComponentInstaller(
@@ -326,9 +300,9 @@ void CrOSComponentInstaller::Load(const std::string& name,
     LoadInternal(name, std::move(load_callback));
   } else {
     // A compatible component is installed, do not load it.
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(load_callback), Error::NONE,
-                                  base::FilePath()));
+    static constexpr Error error = Error::NONE;
+    ReportError(error);
+    std::move(load_callback).Run(error, base::FilePath());
   }
 }
 
@@ -347,17 +321,43 @@ bool CrOSComponentInstaller::Unload(const std::string& name) {
          component_updater_->UnregisterComponent(id);
 }
 
+void CrOSComponentInstaller::GetVersion(
+    const std::string& name,
+    base::OnceCallback<void(const base::Version&)> version_callback) const {
+  if (!IsCompatible(name)) {
+    // `name` does not match to any component.
+    std::move(version_callback).Run(base::Version());
+    return;
+  }
+
+  auto component_iter = compatible_components_.find(name);
+
+  // Path compatible to `name` must exist.
+  CHECK(component_iter != compatible_components_.end() &&
+        !(component_iter->second.path.empty()));
+  if (component_iter->second.version.has_value()) {
+    content::GetUIThreadTaskRunner({})->PostTask(
+        FROM_HERE, base::BindOnce(std::move(version_callback),
+                                  component_iter->second.version.value()));
+  } else {
+    ash::ImageLoaderClient::Get()->RequestComponentVersion(
+        name, base::BindOnce(&CrOSComponentInstaller::FinishGetVersion,
+                             weak_factory_.GetWeakPtr(),
+                             std::move(version_callback)));
+  }
+}
+
 void CrOSComponentInstaller::RegisterInstalled() {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, {base::MayBlock()}, base::BindOnce(GetInstalled),
       base::BindOnce(&CrOSComponentInstaller::RegisterN,
-                     base::Unretained(this)));
+                     weak_factory_.GetWeakPtr()));
 }
 
 void CrOSComponentInstaller::RegisterCompatiblePath(
     const std::string& name,
-    const base::FilePath& path) {
-  compatible_components_[name] = path;
+    CompatibleComponentInfo info) {
+  compatible_components_[name] = std::move(info);
 }
 
 void CrOSComponentInstaller::UnregisterCompatiblePath(const std::string& name) {
@@ -369,12 +369,14 @@ void CrOSComponentInstaller::UnregisterCompatiblePath(const std::string& name) {
 base::FilePath CrOSComponentInstaller::GetCompatiblePath(
     const std::string& name) const {
   const auto it = compatible_components_.find(name);
-  return it == compatible_components_.end() ? base::FilePath() : it->second;
+  return it == compatible_components_.end() ? base::FilePath()
+                                            : it->second.path;
 }
 
 void CrOSComponentInstaller::EmitInstalledSignal(const std::string& component) {
-  if (delegate_)
+  if (delegate_) {
     delegate_->EmitInstalledSignal(component);
+  }
 }
 
 CrOSComponentInstaller::LoadInfo::LoadInfo() = default;
@@ -391,8 +393,9 @@ void CrOSComponentInstaller::RemoveLoadCacheEntry(
 
 bool CrOSComponentInstaller::IsRegisteredMayBlock(const std::string& name) {
   base::FilePath root;
-  if (!base::PathService::Get(DIR_COMPONENT_USER, &root))
+  if (!base::PathService::Get(DIR_COMPONENT_USER, &root)) {
     return false;
+  }
 
   return base::PathExists(root.Append(kComponentsRootPath).Append(name));
 }
@@ -404,11 +407,11 @@ void CrOSComponentInstaller::Register(const ComponentConfig& config,
     case ComponentConfig::PolicyType::kEnvVersion:
       policy = std::make_unique<EnvVersionInstallerPolicy>(config, this);
       break;
-    case ComponentConfig::PolicyType::kLacros:
-      policy = std::make_unique<LacrosInstallerPolicy>(config, this);
-      break;
     case ComponentConfig::PolicyType::kDemoApp:
       policy = std::make_unique<DemoAppInstallerPolicy>(config, this);
+      break;
+    case ComponentConfig::PolicyType::kGrowthCampaigns:
+      policy = std::make_unique<GrowthCampaignsInstallerPolicy>(config, this);
       break;
   }
   auto installer = base::MakeRefCounted<ComponentInstaller>(std::move(policy));
@@ -421,19 +424,20 @@ void CrOSComponentInstaller::Install(const std::string& name,
                                      LoadCallback load_callback) {
   const ComponentConfig* config = FindConfig(name);
   if (!config) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(load_callback),
-                                  Error::UNKNOWN_COMPONENT, base::FilePath()));
+    static constexpr Error error = Error::UNKNOWN_COMPONENT;
+    ReportError(error);
+    std::move(load_callback).Run(error, base::FilePath());
     return;
   }
 
-  Register(*config,
-           base::BindOnce(
-               &CrOSComponentInstaller::StartInstall, base::Unretained(this),
-               name, GenerateId(config->sha2hash), update_policy,
-               base::BindOnce(&CrOSComponentInstaller::FinishInstall,
-                              base::Unretained(this), name, mount_policy,
-                              update_policy, std::move(load_callback))));
+  Register(
+      *config,
+      base::BindOnce(
+          &CrOSComponentInstaller::StartInstall, weak_factory_.GetWeakPtr(),
+          name, GenerateId(config->sha2hash), update_policy,
+          base::BindOnce(&CrOSComponentInstaller::FinishInstall,
+                         weak_factory_.GetWeakPtr(), name, mount_policy,
+                         update_policy, std::move(load_callback))));
 }
 
 void CrOSComponentInstaller::StartInstall(
@@ -446,9 +450,7 @@ void CrOSComponentInstaller::StartInstall(
   const bool is_compatible = IsCompatible(name);
   if (update_policy == UpdatePolicy::kSkip ||
       (is_compatible && update_policy != UpdatePolicy::kForce)) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(install_callback),
-                                  update_client::Error::NONE));
+    std::move(install_callback).Run(update_client::Error::NONE);
     return;
   }
 
@@ -469,22 +471,20 @@ void CrOSComponentInstaller::FinishInstall(const std::string& name,
     if (error == update_client::Error::UPDATE_IN_PROGRESS) {
       err = Error::UPDATE_IN_PROGRESS;
     }
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(load_callback), err, base::FilePath()));
+    ReportError(err);
+    std::move(load_callback).Run(err, base::FilePath());
   } else if (!IsCompatible(name)) {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(load_callback),
-                                  update_policy == UpdatePolicy::kSkip
-                                      ? Error::NOT_FOUND
-                                      : Error::COMPATIBILITY_CHECK_FAILED,
-                                  base::FilePath()));
+    const Error err = update_policy == UpdatePolicy::kSkip
+                          ? Error::NOT_FOUND
+                          : Error::COMPATIBILITY_CHECK_FAILED;
+    ReportError(err);
+    std::move(load_callback).Run(err, base::FilePath());
   } else if (mount_policy == MountPolicy::kMount) {
     LoadInternal(name, std::move(load_callback));
   } else {
-    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(load_callback), Error::NONE,
-                                  base::FilePath()));
+    static constexpr Error err = Error::NONE;
+    ReportError(err);
+    std::move(load_callback).Run(err, base::FilePath());
   }
 }
 
@@ -505,23 +505,26 @@ void CrOSComponentInstaller::LoadInternal(const std::string& name,
   }
 
   // Update the cache to indicate the request is being queued.
-  load_cache_[name].success = absl::nullopt;
+  load_cache_[name].success = std::nullopt;
 
   const base::FilePath path = GetCompatiblePath(name);
   DCHECK(!path.empty());
   ash::ImageLoaderClient::Get()->LoadComponentAtPath(
       name, path,
       base::BindOnce(&CrOSComponentInstaller::FinishLoad,
-                     base::Unretained(this), std::move(load_callback), name));
+                     weak_factory_.GetWeakPtr(), std::move(load_callback),
+                     name));
 }
 
 void CrOSComponentInstaller::FinishLoad(LoadCallback load_callback,
                                         const std::string& name,
-                                        absl::optional<base::FilePath> result) {
-  bool success = result.has_value();
+                                        std::optional<base::FilePath> result) {
+  // ImageLoader returns an empty path if mount failed.
+  bool success = result.has_value() && !result.value().empty();
   base::FilePath path;
-  if (success)
+  if (success) {
     path = result.value();
+  }
 
   DispatchLoadCallback(std::move(load_callback), path, success);
 
@@ -537,6 +540,12 @@ void CrOSComponentInstaller::FinishLoad(LoadCallback load_callback,
     }
     it->second.callbacks.clear();
   }
+}
+
+void CrOSComponentInstaller::FinishGetVersion(
+    base::OnceCallback<void(const base::Version&)> version_callback,
+    std::optional<std::string> result) const {
+  std::move(version_callback).Run(base::Version(result.value_or("")));
 }
 
 void CrOSComponentInstaller::RegisterN(
@@ -555,8 +564,8 @@ void CrOSComponentInstaller::DispatchLoadCallback(LoadCallback callback,
                                                   base::FilePath path,
                                                   bool success) {
   Error error = success ? Error::NONE : Error::MOUNT_FAILURE;
-  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(callback), error, std::move(path)));
+  ReportError(error);
+  std::move(callback).Run(error, std::move(path));
 }
 
 void CrOSComponentInstaller::DispatchFailedLoads(

@@ -15,17 +15,27 @@ GlobalErrorService* GlobalErrorServiceFactory::GetForProfile(Profile* profile) {
 
 // static
 GlobalErrorServiceFactory* GlobalErrorServiceFactory::GetInstance() {
-  return base::Singleton<GlobalErrorServiceFactory>::get();
+  static base::NoDestructor<GlobalErrorServiceFactory> instance;
+  return instance.get();
 }
 
 GlobalErrorServiceFactory::GlobalErrorServiceFactory()
     : ProfileKeyedServiceFactory(
           "GlobalErrorService",
-          ProfileSelections::BuildRedirectedInIncognito()) {}
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {}
 
 GlobalErrorServiceFactory::~GlobalErrorServiceFactory() = default;
 
-KeyedService* GlobalErrorServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+GlobalErrorServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* profile) const {
-  return new GlobalErrorService();
+  return std::make_unique<GlobalErrorService>();
 }

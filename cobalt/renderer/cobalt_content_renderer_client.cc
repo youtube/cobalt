@@ -13,6 +13,7 @@
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
+#include "media/base/key_systems_support_registration.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
@@ -132,15 +133,18 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
 }
 
-void CobaltContentRendererClient::GetSupportedKeySystems(
+std::unique_ptr<media::KeySystemSupportRegistration>
+CobaltContentRendererClient::GetSupportedKeySystems(
+    content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   ::media::KeySystemInfos key_systems;
   AddStarboardCmaKeySystems(&key_systems);
   std::move(cb).Run(std::move(key_systems));
+  return nullptr;
 }
 
-bool CobaltContentRendererClient::IsSupportedAudioType(
+bool CobaltContentRendererClient::IsDecoderSupportedAudioType(
     const ::media::AudioType& type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string mime = GetMimeFromAudioType(type);
@@ -154,7 +158,7 @@ bool CobaltContentRendererClient::IsSupportedAudioType(
   return result;
 }
 
-bool CobaltContentRendererClient::IsSupportedVideoType(
+bool CobaltContentRendererClient::IsDecoderSupportedVideoType(
     const ::media::VideoType& type) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::string mime = GetMimeFromVideoType(type);

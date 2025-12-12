@@ -30,16 +30,14 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
-    : content::ShellMainDelegate(is_content_browsertests) {}
+CobaltMainDelegate::CobaltMainDelegate() : content::ShellMainDelegate() {}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
-absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
-  cl->AppendSwitch("cobalt-custom-should-disable-http-caching");
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
@@ -66,7 +64,7 @@ CobaltMainDelegate::CreateContentUtilityClient() {
   return utility_client_.get();
 }
 
-absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   content::RenderFrameHost::AllowInjectingJavaScript();
 
@@ -79,6 +77,10 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   }
 
   InitializeHangWatcher();
+
+  const std::string process_type =
+      base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
+          switches::kProcessType);
 
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
   // Consequently, we provide no parameters for these two. The memory_system
@@ -94,13 +96,14 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
       .SetDispatcherParameters(memory_system::DispatcherParameters::
                                    PoissonAllocationSamplerInclusion::kEnforce,
                                memory_system::DispatcherParameters::
-                                   AllocationTraceRecorderInclusion::kIgnore)
+                                   AllocationTraceRecorderInclusion::kIgnore,
+                               process_type)
       .Initialize(memory_system_);
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
-absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
+std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
   // For non-browser process, return and have the caller run the main loop.
@@ -110,8 +113,6 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
-  base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
-      content::kTraceEventBrowserProcessSortIndex);
 
   main_runner_ = content::BrowserMainRunner::Create();
 
@@ -153,7 +154,9 @@ void CobaltMainDelegate::InitializeHangWatcher() {
   } else {
     hang_watcher_process_type = base::HangWatcher::ProcessType::kUnknownProcess;
   }
+  const bool emit_crashes = false;
 
-  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type);
+  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type,
+                                            emit_crashes);
 }
 }  // namespace cobalt

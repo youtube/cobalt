@@ -14,14 +14,25 @@ See also the following for definitions:
 
 ## Step 1: Adding a new `base::Feature`
 
+*** note
+**NOTE:** All files mentioned in Step 1 require the features to be listed in alphabetical order.
+***
+
 This step would be different depending on where you want to use the flag:
 
-### To Use the Flag in `content/` Only
+### To use the Flag in `content/` and its embedders
 
 Add a `base::Feature` to the following files:
 
 * [content/public/common/content_features.cc](https://cs.chromium.org/chromium/src/content/public/common/content_features.cc)
 * [content/public/common/content_features.h](https://cs.chromium.org/chromium/src/content/public/common/content_features.h)
+
+### To use the Flag in `content/` Only
+
+Add a `base::Feature` to the following files:
+
+* [content/common/features.cc](https://cs.chromium.org/chromium/src/content/common/features.cc)
+* [content/common/features.h](https://cs.chromium.org/chromium/src/content/common/features.h)
 
 ### To Use the Flag in `third_party/blink/` (and Possibly in `content/`)
 
@@ -36,6 +47,28 @@ feature needs to be runtime-enabled, read also Blink's
 [Initialization of Blink runtime features in content layer][blink-rte-init].
 
 [blink-rte]: ../third_party/blink/renderer/platform/RuntimeEnabledFeatures.md
+
+### To Use the Flag in `third_party/devtools-frontend/`
+
+Add a `base::Feature` to the following files
+
+* [chrome/browser/devtools/features.cc](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/devtools/features.cc)
+* [chrome/browser/devtools/features.h](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/devtools/features.h)
+
+and add appropriate logic to `DevToolsUIBindings::GetHostConfig()` in
+
+* [chrome/browser/devtools/devtools_ui_bindings.cc](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/devtools/devtools_ui_bindings.cc)
+
+to expose the feature to DevTools' front-end ([example CL](https://crrev.com/c/6084996)).
+Afterwards hook up the feature in `devtools-frontend` by following the steps outlined
+in the [documentation][devtools-cli-docs].
+
+Historically, DevTools front-end used [Experiments][devtools-experiments] to gate
+new (experimental) features, but going forward the `base::Feature` mechanism should
+be used.
+
+[devtools-experiments]: https://developer.chrome.com/docs/devtools/settings/experiments
+[devtools-cli-docs]: https://chromium.googlesource.com/devtools/devtools-frontend/+/HEAD/docs/contributing/settings-experiments-features.md#how-to-add-command-line-flags
 
 ### Examples
 
@@ -72,30 +105,31 @@ for WebView flags.
 
 You have to modify these five files in total.
 
-* [chrome/browser/about_flags.cc](https://cs.chromium.org/chromium/src/chrome/browser/about_flags.cc)
-* [chrome/browser/flag_descriptions.cc](https://cs.chromium.org/chromium/src/chrome/browser/flag_descriptions.cc)
-* [chrome/browser/flag_descriptions.h](https://cs.chromium.org/chromium/src/chrome/browser/flag_descriptions.h)
+* [chrome/browser/about_flags.cc](https://cs.chromium.org/chromium/src/chrome/browser/about_flags.cc) (Add your changes at the bottom of the list, search for "Add new entries above this line.")
+* [chrome/browser/flag_descriptions.cc](https://cs.chromium.org/chromium/src/chrome/browser/flag_descriptions.cc) (Features should be alphabetically sorted)
+* [chrome/browser/flag_descriptions.h](https://cs.chromium.org/chromium/src/chrome/browser/flag_descriptions.h) (Features should be alphabetically sorted)
 * [tools/metrics/histograms/enums.xml](https://cs.chromium.org/chromium/src/tools/metrics/histograms/enums.xml)
 * [chrome/browser/flag-metadata.json](https://cs.chromium.org/chromium/src/chrome/browser/flag-metadata.json)
 
 At first you need to add an entry to __about_flags.cc__,
 __flag_descriptions.cc__ and __flag_descriptions.h__. After that, try running
-the following test.
+the following script which will update enums.xml:
 
 ```bash
-# Build unit_tests
-autoninja -C out/Default unit_tests
-# Run AboutFlagsHistogramTest.CheckHistograms
+# Updates enums.xml
+./tools/metrics/histograms/generate_flag_enums.py --feature <your awesome feature>
+# Run AboutFlagsHistogramTest.CheckHistograms to verify enums.xml
 ./out/Default/unit_tests --gtest_filter=AboutFlagsHistogramTest.CheckHistograms
-# Run AboutFlagsHistogramTest.CheckHistograms on Android
+# Run AboutFlagsHistogramTest.CheckHistograms on Android to verify enums.xml
 ./out/Default/bin/run_unit_tests --gtest_filter=AboutFlagsHistogramTest.CheckHistograms
 ```
 
-That test will ask you to add several entries to enums.xml. After doing so, run
-`git cl format` which will insert the entries in enums.xml in the correct order
-and run the tests again.
-You can refer to [this CL](https://chromium-review.googlesource.com/c/593707) as
-an example.
+*** note
+**NOTE:** If CheckHistograms returns an error, it will ask you to add several
+entries to enums.xml. After doing so, run `git cl format` which will insert the
+entries in enums.xml in the correct order and run the tests again. You can refer
+to [this CL](https://chromium-review.googlesource.com/c/593707) as an example.
+***
 
 Finally, run the following test.
 
@@ -118,7 +152,7 @@ First remove the flag from the UI:
 * [chrome/browser/flag-metadata.json](https://cs.chromium.org/chromium/src/chrome/browser/flag-metadata.json)
 * Do not edit enums.xml. Keep the flag for archeological purposes.
 
-Once there is no way to change the flag value it's usage can be removed from the code.
+Once there is no way to change the flag value, it's usage can be removed from the code.
 
 Finally, once the flag is no longer referenced, it can be removed from content/ and
 third_party/blink/

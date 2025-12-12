@@ -13,6 +13,7 @@ import android.util.SparseArray;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.process_launcher.ChildProcessServiceDelegate;
+import org.chromium.base.process_launcher.IChildProcessArgs;
 import org.chromium.native_test.MainRunner;
 
 import java.util.List;
@@ -22,19 +23,21 @@ public class MultiprocessTestClientServiceDelegate implements ChildProcessServic
     private static final String TAG = "MPTestCSDelegate";
 
     private ITestCallback mTestCallback;
+    private IBinder mBinderBox;
 
-    private final ITestController.Stub mTestController = new ITestController.Stub() {
-        @Override
-        public boolean forceStopSynchronous(int exitCode) {
-            System.exit(exitCode);
-            return true;
-        }
+    private final ITestController.Stub mTestController =
+            new ITestController.Stub() {
+                @Override
+                public boolean forceStopSynchronous(int exitCode) {
+                    System.exit(exitCode);
+                    return true;
+                }
 
-        @Override
-        public void forceStop(int exitCode) {
-            System.exit(exitCode);
-        }
-    };
+                @Override
+                public void forceStop(int exitCode) {
+                    System.exit(exitCode);
+                }
+            };
 
     @Override
     public void onServiceCreated() {
@@ -46,8 +49,10 @@ public class MultiprocessTestClientServiceDelegate implements ChildProcessServic
     public void onServiceBound(Intent intent) {}
 
     @Override
-    public void onConnectionSetup(Bundle connectionBundle, List<IBinder> callbacks) {
+    public void onConnectionSetup(
+            IChildProcessArgs args, List<IBinder> callbacks, IBinder binderBox) {
         mTestCallback = ITestCallback.Stub.asInterface(callbacks.get(0));
+        mBinderBox = binderBox;
     }
 
     @Override
@@ -76,7 +81,7 @@ public class MultiprocessTestClientServiceDelegate implements ChildProcessServic
 
     @Override
     public void runMain() {
-        int result = MainRunner.runMain(CommandLine.getJavaSwitchesOrNull());
+        int result = MainRunner.runMain(CommandLine.getJavaSwitchesForTesting(), mBinderBox);
         try {
             mTestCallback.mainReturned(result);
         } catch (RemoteException re) {

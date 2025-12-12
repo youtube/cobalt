@@ -8,8 +8,12 @@
 #include <cstdint>
 #include <iosfwd>
 #include <string>
+#include <utility>
 
-#include "base/strings/string_piece.h"
+#include "base/check.h"
+#include "base/functional/callback.h"
+#include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "components/reporting/proto/synced/status.pb.h"
 
 namespace reporting {
@@ -48,14 +52,22 @@ class [[nodiscard]] Status {
   // Creates a "successful" status.
   Status();
 
-  // Create a status in the canonical error space with the specified
-  // code, and error message.  If "code == 0", error_message is
-  // ignored and a Status object identical to Status::OK is
-  // constructed.
-  Status(error::Code error_code, base::StringPiece error_message);
   Status(const Status&);
-  Status& operator=(const Status& x);
-  ~Status() = default;
+  Status& operator=(const Status&);
+  Status(Status&&);
+  Status& operator=(Status&&);
+  virtual ~Status();
+
+  // Create a status in the canonical error space with the specified code, and
+  // error message. If "code == 0", error_message is ignored and a Status object
+  // identical to Status::OK is constructed.
+  //
+  // If a string literal is passed in, it will be copied to construct a
+  // `std::string` object. While it is possible to create a constructor tag or
+  // factory function to construct a `Status` object from a string literal
+  // that does not copy, we think that its cost to code maintainability
+  // outweighs the performance benefit it brings.
+  Status(error::Code error_code, std::string error_message);
 
   // Pre-defined Status object
   static const Status& StatusOK();
@@ -64,11 +76,10 @@ class [[nodiscard]] Status {
   bool ok() const { return error_code_ == error::OK; }
   int error_code() const { return error_code_; }
   error::Code code() const { return error_code_; }
-  base::StringPiece error_message() const { return error_message_; }
-  base::StringPiece message() const { return error_message_; }
+  const std::string& error_message() const { return error_message_; }
+  const std::string& message() const { return error_message_; }
 
-  bool operator==(const Status& x) const;
-  bool operator!=(const Status& x) const { return !operator==(x); }
+  friend bool operator==(const Status&, const Status&) = default;
 
   // Return a combination of the error code name and message.
   std::string ToString() const;
@@ -88,11 +99,64 @@ class [[nodiscard]] Status {
 // Prints a human-readable representation of 'x' to 'os'.
 std::ostream& operator<<(std::ostream& os, const Status& x);
 
-#define CHECK_OK(value) CHECK((value).ok())
-#define DCHECK_OK(value) DCHECK((value).ok())
-#define ASSERT_OK(value) ASSERT_TRUE((value).ok())
-#define EXPECT_OK(value) EXPECT_TRUE((value).ok())
+// Auto runner wrapping a provided callback.
+// When it goes out of scope and the callback has not been run, it is invoked
+// with the `failed` value. Intended to be used in code like:
+//
+//   class Handler {
+//    public:
+//     using ResultCb = base::OnceCallback<void(Status)>;
+//     Handler(...) {...}
+//     void Method(..., Scoped<ResultCb> done) {
+//       ...
+//       std::move(done).Run(Status::StatusOK());
+//     }
+//   };
+//   auto handler = std::make_unique<Handler>(...);
+//   task_runner->PostTask(
+//       FROM_HERE,
+//       base::BindOnce(&Handler::Method, handler->GetWeakPtr(), ...,
+//                      Scoped<ResultCb>(
+//                          base::BindOnce(&Done, ...),
+//                          Status(error::UNAVAILABLE,
+//                                 "Handler has been destructed"))));
+//
+// If at run time `handler` is destructed before `Handler::Method` is executed,
+// `Done` will still be called with:
+//     Status(error::UNAVAILABLE, "Handler has been destructed")
+//  as a result.
+//
+// If `Done` expects something else than `Status`, `Scoped` needs to be
+// tagged with respective type - e.g.
+//                      Scoped<ResultCb, StatusOr<Result>>(
+//                          base::BindOnce(&Done, ...),
+//                          base::unexpected(Status(error::UNAVAILABLE,
+//                                           "Handler has been destructed")))
+//
 
+template <typename Failed = Status>
+class Scoped : public base::OnceCallback<void(Failed)> {
+ public:
+  using Callback = base::OnceCallback<void(Failed)>;
+
+  Scoped(Callback cb, Failed failed)
+      : Callback(std::forward<Callback>(cb)), failed_(std::move(failed)) {}
+
+  Scoped(Scoped&& other)
+      : Callback(std::exchange<Callback>(other, base::NullCallback())),
+        failed_(std::move(other.failed_)) {}
+
+  Scoped& operator=(Scoped&& other) { return Scoped(other); }
+
+  ~Scoped() {
+    if (!Callback::is_null()) {
+      std::move(*this).Run(std::move(failed_));
+    }
+  }
+
+ private:
+  Failed failed_;
+};
 }  // namespace reporting
 
 #endif  // COMPONENTS_REPORTING_UTIL_STATUS_H_

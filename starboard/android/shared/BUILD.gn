@@ -43,7 +43,6 @@ static_library("starboard_platform") {
     "//starboard/shared/linux/system_get_used_cpu_memory.cc",
     "//starboard/shared/linux/system_is_debugger_attached.cc",
     "//starboard/shared/linux/system_symbolize.cc",
-    "//starboard/shared/linux/thread_get_id.cc",
     "//starboard/shared/opus/opus_audio_decoder.cc",
     "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/environment.cc",
@@ -214,7 +213,6 @@ static_library("starboard_platform") {
     "media_get_audio_configuration.cc",
     "media_get_audio_output_count.cc",
     "media_get_initial_buffer_capacity.cc",
-    "media_get_max_buffer_capacity.cc",
     "media_get_video_buffer_budget.cc",
     "media_is_audio_supported.cc",
     "media_is_buffer_pool_allocate_on_demand.cc",
@@ -260,7 +258,6 @@ static_library("starboard_platform") {
     "system_has_capability.cc",
     "system_info_api.cc",
     "system_info_api.h",
-    "system_network_is_disconnected.cc",
     "system_platform_error.cc",
     "system_request_conceal.cc",
     "system_request_freeze_no_freezedone_callback.cc",
@@ -269,6 +266,8 @@ static_library("starboard_platform") {
     "text_to_speech_helper.h",
     "text_to_speech_observer.h",
     "thread_create_priority.cc",
+    "thread_get_id.cc",
+    "thread_platform_android.cc",
     "time_zone_get_name.cc",
     "video_decoder.cc",
     "video_decoder.h",
@@ -319,7 +318,6 @@ static_library("starboard_platform") {
 
   deps = [
     "//base",
-    "//third_party/libevent",
     "//third_party/opus",
   ]
 
@@ -382,6 +380,7 @@ test("starboard_platform_tests") {
   sources = media_tests_sources + player_tests_sources + [
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
+              "media_capabilities_cache_test.cc",
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",

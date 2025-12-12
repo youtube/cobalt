@@ -3,21 +3,22 @@
 // found in the LICENSE file.
 
 #include "components/page_load_metrics/browser/page_load_metrics_update_dispatcher.h"
-#include "base/memory/raw_ptr.h"
-#include "components/page_load_metrics/browser/layout_shift_normalization.h"
 
+#include <optional>
 #include <ostream>
 #include <utility>
 
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "components/page_load_metrics/browser/layout_shift_normalization.h"
 #include "components/page_load_metrics/browser/page_load_metrics_embedder_interface.h"
 #include "components/page_load_metrics/browser/page_load_metrics_util.h"
 #include "components/page_load_metrics/browser/page_load_tracker.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_frame_host.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace page_load_metrics {
@@ -38,7 +39,7 @@ namespace {
 
 // Helper to allow use of Optional<> values in LOG() messages.
 std::ostream& operator<<(std::ostream& os,
-                         const absl::optional<base::TimeDelta>& opt) {
+                         const std::optional<base::TimeDelta>& opt) {
   if (opt)
     os << opt.value();
   else
@@ -48,8 +49,8 @@ std::ostream& operator<<(std::ostream& os,
 
 // If second is non-zero, first must also be non-zero and less than or equal to
 // second.
-bool EventsInOrder(const absl::optional<base::TimeDelta>& first,
-                   const absl::optional<base::TimeDelta>& second) {
+bool EventsInOrder(const std::optional<base::TimeDelta>& first,
+                   const std::optional<base::TimeDelta>& second) {
   if (!second) {
     return true;
   }
@@ -217,31 +218,6 @@ internal::PageLoadTimingStatus IsValidPageLoadTiming(
     return internal::INVALID_NULL_FIRST_SCROLL_DELAY;
   }
 
-  if (timing.interactive_timing->longest_input_delay.has_value() &&
-      !timing.interactive_timing->longest_input_timestamp.has_value()) {
-    return internal::INVALID_NULL_LONGEST_INPUT_TIMESTAMP;
-  }
-
-  if (!timing.interactive_timing->longest_input_delay.has_value() &&
-      timing.interactive_timing->longest_input_timestamp.has_value()) {
-    return internal::INVALID_NULL_LONGEST_INPUT_DELAY;
-  }
-
-  if (timing.interactive_timing->longest_input_delay.has_value() &&
-      timing.interactive_timing->first_input_delay.has_value() &&
-      timing.interactive_timing->longest_input_delay <
-          timing.interactive_timing->first_input_delay) {
-    return internal::INVALID_LONGEST_INPUT_DELAY_LESS_THAN_FIRST_INPUT_DELAY;
-  }
-
-  if (timing.interactive_timing->longest_input_timestamp.has_value() &&
-      timing.interactive_timing->first_input_timestamp.has_value() &&
-      timing.interactive_timing->longest_input_timestamp <
-          timing.interactive_timing->first_input_timestamp) {
-    return internal::
-        INVALID_LONGEST_INPUT_TIMESTAMP_LESS_THAN_FIRST_INPUT_TIMESTAMP;
-  }
-
   return internal::VALID;
 }
 
@@ -288,9 +264,9 @@ class PageLoadTimingMerger {
   // |navigation_start_offset| contains the delta in navigation start time
   // between the main frame and the frame for |optional_candidate_new_value|.
   bool MaybeUpdateTimeDelta(
-      absl::optional<base::TimeDelta>* inout_existing_value,
+      std::optional<base::TimeDelta>* inout_existing_value,
       base::TimeDelta navigation_start_offset,
-      const absl::optional<base::TimeDelta>& optional_candidate_new_value) {
+      const std::optional<base::TimeDelta>& optional_candidate_new_value) {
     // If we don't get a new value, there's nothing to do
     if (!optional_candidate_new_value)
       return false;
@@ -317,8 +293,8 @@ class PageLoadTimingMerger {
       // We only want to set this for new updates. If there's already a value,
       // then the window during which we buffer updates is over. We'll still
       // update the value.
-      // TODO(811752): should we just throw the data out if we're past the
-      // buffering window?
+      // TODO(crbug.com/40562705): should we just throw the data out if we're
+      // past the buffering window?
       should_buffer_timing_update_callback_ = true;
     }
 
@@ -358,8 +334,6 @@ class PageLoadTimingMerger {
           new_paint_timing.experimental_largest_contentful_paint.Clone();
       target_paint_timing->first_input_or_scroll_notified_timestamp =
           new_paint_timing.first_input_or_scroll_notified_timestamp;
-      target_paint_timing->portal_activated_paint =
-          new_paint_timing.portal_activated_paint;
     }
   }
 
@@ -377,24 +351,6 @@ class PageLoadTimingMerger {
       // associated first input delay.
       target_interactive_timing->first_input_delay =
           new_interactive_timing.first_input_delay;
-      if (new_interactive_timing.first_input_processing_time.has_value()) {
-        target_interactive_timing->first_input_processing_time =
-            new_interactive_timing.first_input_processing_time;
-      }
-    }
-
-    if (new_interactive_timing.longest_input_delay.has_value()) {
-      base::TimeDelta new_longest_input_timestamp =
-          navigation_start_offset +
-          new_interactive_timing.longest_input_timestamp.value();
-      if (!target_interactive_timing->longest_input_delay.has_value() ||
-          new_interactive_timing.longest_input_delay.value() >
-              target_interactive_timing->longest_input_delay.value()) {
-        target_interactive_timing->longest_input_delay =
-            new_interactive_timing.longest_input_delay;
-        target_interactive_timing->longest_input_timestamp =
-            new_longest_input_timestamp;
-      }
     }
 
     // Update First Scroll Delay.
@@ -471,9 +427,9 @@ void PageLoadMetricsUpdateDispatcher::UpdateMetrics(
     mojom::FrameRenderDataUpdatePtr render_data,
     mojom::CpuTimingPtr new_cpu_timing,
     mojom::InputTimingPtr input_timing_delta,
-    const absl::optional<blink::SubresourceLoadMetrics>&
+    const std::optional<blink::SubresourceLoadMetrics>&
         subresource_load_metrics,
-    uint32_t soft_navigation_count,
+    mojom::SoftNavigationMetricsPtr soft_navigation_metrics,
     internal::PageLoadTrackerPageType page_type) {
   if (embedder_interface_->IsExtensionUrl(
           render_frame_host->GetLastCommittedURL())) {
@@ -498,8 +454,19 @@ void PageLoadMetricsUpdateDispatcher::UpdateMetrics(
     if (subresource_load_metrics) {
       UpdateMainFrameSubresourceLoadMetrics(*subresource_load_metrics);
     }
-    UpdateSoftNavigationCount(soft_navigation_count);
+    UpdateSoftNavigationIntervalResponsivenessMetrics(*input_timing_delta);
+    UpdateSoftNavigationIntervalLayoutShift(*render_data);
+    UpdateSoftNavigation(std::move(*soft_navigation_metrics));
   } else {
+    if (!render_frame_host->GetParentOrOuterDocument()) {
+      // TODO(crbug.com/40065854): This can be removed once
+      // PageLoadMetricsUpdateDispatcher::IsPageMainFrame() is made consistent
+      // with the main-frame status reported by the RenderFrameHost.
+      LOG(ERROR) << "IsPageMainFrame() did not correctly identify the "
+                    "RenderFrameHost as a main frame.";
+      return;
+    }
+
     UpdateSubFrameMetadata(render_frame_host, std::move(new_metadata));
     UpdateSubFrameTiming(render_frame_host, std::move(new_timing));
     // This path is just for the AMP metrics.
@@ -541,14 +508,14 @@ void PageLoadMetricsUpdateDispatcher::UpdateFeatures(
   client_->UpdateFeaturesUsage(render_frame_host, new_features);
 }
 
-void PageLoadMetricsUpdateDispatcher::SetUpSharedMemoryForSmoothness(
+void PageLoadMetricsUpdateDispatcher::SetUpSharedMemoryForUkms(
     content::RenderFrameHost* render_frame_host,
-    base::ReadOnlySharedMemoryRegion shared_memory) {
+    base::ReadOnlySharedMemoryRegion smoothness_memory,
+    base::ReadOnlySharedMemoryRegion dropped_frames_memory) {
   const bool is_main_frame = client_->IsPageMainFrame(render_frame_host);
   if (is_main_frame) {
-    client_->SetUpSharedMemoryForSmoothness(std::move(shared_memory));
-  } else {
-    // TODO(1115136): Merge smoothness metrics from OOPIFs with the main-frame.
+    client_->SetUpSharedMemoryForUkms(std::move(smoothness_memory),
+                                      std::move(dropped_frames_memory));
   }
 }
 
@@ -573,7 +540,7 @@ void PageLoadMetricsUpdateDispatcher::DidFinishSubFrameNavigation(
 }
 
 void PageLoadMetricsUpdateDispatcher::OnSubFrameDeleted(
-    int frame_tree_node_id) {
+    content::FrameTreeNodeId frame_tree_node_id) {
   subframe_navigation_start_offset_.erase(frame_tree_node_id);
 }
 
@@ -642,10 +609,31 @@ void PageLoadMetricsUpdateDispatcher::UpdateMainFrameSubresourceLoadMetrics(
   subresource_load_metrics_ = subresource_load_metrics;
 }
 
-void PageLoadMetricsUpdateDispatcher::UpdateSoftNavigationCount(
-    uint32_t soft_navigation_count) {
-  client_->OnSoftNavigationCountChanged(soft_navigation_count);
+void PageLoadMetricsUpdateDispatcher::UpdateSoftNavigation(
+    const mojom::SoftNavigationMetrics& soft_navigation_metrics) {
+  client_->OnSoftNavigationChanged(soft_navigation_metrics);
 }
+
+void PageLoadMetricsUpdateDispatcher::UpdateSoftNavigationIntervalLayoutShift(
+    const mojom::FrameRenderDataUpdate& render_data) {
+  soft_nav_interval_render_data_.layout_shift_score +=
+      render_data.layout_shift_delta;
+  soft_nav_interval_layout_shift_normalization_.AddNewLayoutShifts(
+      render_data.new_layout_shifts, base::TimeTicks::Now(),
+      soft_nav_interval_render_data_.layout_shift_score);
+}
+
+void PageLoadMetricsUpdateDispatcher::
+    UpdateSoftNavigationIntervalResponsivenessMetrics(
+        const mojom::InputTiming& input_timing_delta) {
+  if (input_timing_delta.num_interactions) {
+    soft_navigation_interval_responsiveness_metrics_normalization_
+        .AddNewUserInteractionLatencies(
+            input_timing_delta.num_interactions,
+            *(input_timing_delta.max_event_durations));
+  }
+}
+
 void PageLoadMetricsUpdateDispatcher::MaybeUpdateMainFrameIntersectionRect(
     content::RenderFrameHost* render_frame_host,
     const mojom::FrameMetadataPtr& frame_metadata) {
@@ -655,9 +643,10 @@ void PageLoadMetricsUpdateDispatcher::MaybeUpdateMainFrameIntersectionRect(
 
   // Do not notify intersections for untracked loads,
   // subframe_navigation_start_offset_ excludes untracked loads.
-  // TODO(crbug/1061091): Document definition of untracked loads in page load
-  // metrics.
-  const int frame_tree_node_id = render_frame_host->GetFrameTreeNodeId();
+  // TODO(crbug.com/40679417): Document definition of untracked loads in page
+  // load metrics.
+  const content::FrameTreeNodeId frame_tree_node_id =
+      render_frame_host->GetFrameTreeNodeId();
   bool is_main_frame = client_->IsPageMainFrame(render_frame_host);
   if (!is_main_frame &&
       subframe_navigation_start_offset_.find(frame_tree_node_id) ==
@@ -777,10 +766,6 @@ void PageLoadMetricsUpdateDispatcher::UpdateMainFrameMetadata(
 
 void PageLoadMetricsUpdateDispatcher::UpdatePageInputTiming(
     const mojom::InputTiming& input_timing_delta) {
-  page_input_timing_->num_input_events += input_timing_delta.num_input_events;
-  page_input_timing_->total_input_delay += input_timing_delta.total_input_delay;
-  page_input_timing_->total_adjusted_input_delay +=
-      input_timing_delta.total_adjusted_input_delay;
   // On the sending side, we ensure input_timing_delta.max_event_duration and
   // input_timing_delta.total_event_durations are not null pointers otherwise
   // VALIDATION_ERROR_UNEXPECTED_NULL_POINTER will be triggered on the receiving
@@ -792,10 +777,8 @@ void PageLoadMetricsUpdateDispatcher::UpdatePageInputTiming(
         input_timing_delta.num_interactions,
         *(input_timing_delta.max_event_durations));
   }
-  if (input_timing_delta.num_interactions ||
-      page_input_timing_->num_input_events) {
-    client_->OnPageInputTimingChanged(input_timing_delta.num_interactions,
-                                      page_input_timing_->num_input_events);
+  if (input_timing_delta.num_interactions) {
+    client_->OnPageInputTimingChanged(input_timing_delta.num_interactions);
   }
 }
 

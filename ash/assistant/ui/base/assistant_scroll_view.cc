@@ -5,9 +5,9 @@
 #include "ash/assistant/ui/base/assistant_scroll_view.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/scrollbar/overlay_scroll_bar.h"
@@ -20,6 +20,8 @@ namespace {
 // ContentView ----------------------------------------------------------------
 
 class ContentView : public views::View, views::ViewObserver {
+  METADATA_HEADER(ContentView, views::View)
+
  public:
   ContentView() { AddObserver(this); }
 
@@ -47,6 +49,9 @@ class ContentView : public views::View, views::ViewObserver {
   }
 };
 
+BEGIN_METADATA(ContentView)
+END_METADATA
+
 }  // namespace
 
 // AssistantScrollView ---------------------------------------------------------
@@ -58,10 +63,10 @@ AssistantScrollView::AssistantScrollView() {
 AssistantScrollView::~AssistantScrollView() = default;
 
 void AssistantScrollView::OnViewPreferredSizeChanged(views::View* view) {
-  DCHECK_EQ(content_view_, view);
+  DCHECK_EQ(content_view(), view);
 
   for (auto& observer : observers_)
-    observer.OnContentsPreferredSizeChanged(content_view_);
+    observer.OnContentsPreferredSizeChanged(content_view());
 
   PreferredSizeChanged();
 }
@@ -75,13 +80,12 @@ void AssistantScrollView::RemoveScrollViewObserver(Observer* observer) {
 }
 
 void AssistantScrollView::InitLayout() {
-  SetBackgroundColor(absl::nullopt);
+  SetBackgroundColor(std::nullopt);
   SetDrawOverflowIndicator(false);
 
   // Content view.
-  auto content_view = std::make_unique<ContentView>();
-  content_view->AddObserver(this);
-  content_view_ = SetContents(std::move(content_view));
+  content_view_observation_.Observe(
+      SetContents(std::make_unique<ContentView>()));
 
   // Scroll bars.
   SetVerticalScrollBarMode(views::ScrollView::ScrollBarMode::kHiddenButEnabled);
@@ -89,7 +93,7 @@ void AssistantScrollView::InitLayout() {
       views::ScrollView::ScrollBarMode::kHiddenButEnabled);
 }
 
-BEGIN_METADATA(AssistantScrollView, views::ScrollView)
+BEGIN_METADATA(AssistantScrollView)
 END_METADATA
 
 }  // namespace ash

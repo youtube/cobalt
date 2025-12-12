@@ -10,8 +10,17 @@
 
 #include "modules/rtp_rtcp/source/packet_sequencer.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+
+#include "api/units/time_delta.h"
+#include "api/units/timestamp.h"
+#include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/random.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
@@ -24,7 +33,7 @@ constexpr uint32_t kTimestampTicksPerMs = 90;
 }  // namespace
 
 PacketSequencer::PacketSequencer(uint32_t media_ssrc,
-                                 absl::optional<uint32_t> rtx_ssrc,
+                                 std::optional<uint32_t> rtx_ssrc,
                                  bool require_marker_before_media_padding,
                                  Clock* clock)
     : media_ssrc_(media_ssrc),
@@ -35,14 +44,13 @@ PacketSequencer::PacketSequencer(uint32_t media_ssrc,
       rtx_sequence_number_(0),
       last_payload_type_(-1),
       last_rtp_timestamp_(0),
-      last_capture_time_ms_(0),
-      last_timestamp_time_ms_(0),
       last_packet_marker_bit_(false) {
   Random random(clock_->TimeInMicroseconds());
   // Random start, 16 bits. Upper half of range is avoided in order to prevent
-  // wraparound issues during startup. Sequence number 0 is avoided for
-  // historical reasons, presumably to avoid debugability or test usage
-  // conflicts.
+  // SRTP wraparound issues during startup. See this unit test for details:
+  // SrtpSessionTest.ProtectUnprotectWrapAroundRocMismatch
+  // Sequence number 0 is avoided for historical reasons, presumably to avoid
+  // debugability or test usage conflicts.
   constexpr uint16_t kMaxInitRtpSeqNumber = 0x7fff;  // 2^15 - 1.
   media_sequence_number_ = random.Rand(1, kMaxInitRtpSeqNumber);
   rtx_sequence_number_ = random.Rand(1, kMaxInitRtpSeqNumber);
@@ -73,15 +81,15 @@ void PacketSequencer::Sequence(RtpPacketToSend& packet) {
 void PacketSequencer::SetRtpState(const RtpState& state) {
   media_sequence_number_ = state.sequence_number;
   last_rtp_timestamp_ = state.timestamp;
-  last_capture_time_ms_ = state.capture_time_ms;
-  last_timestamp_time_ms_ = state.last_timestamp_time_ms;
+  last_capture_time_ = state.capture_time;
+  last_timestamp_time_ = state.last_timestamp_time;
 }
 
 void PacketSequencer::PopulateRtpState(RtpState& state) const {
   state.sequence_number = media_sequence_number_;
   state.timestamp = last_rtp_timestamp_;
-  state.capture_time_ms = last_capture_time_ms_;
-  state.last_timestamp_time_ms = last_timestamp_time_ms_;
+  state.capture_time = last_capture_time_;
+  state.last_timestamp_time = last_timestamp_time_;
 }
 
 void PacketSequencer::UpdateLastPacketState(const RtpPacketToSend& packet) {
@@ -98,8 +106,8 @@ void PacketSequencer::UpdateLastPacketState(const RtpPacketToSend& packet) {
   }
   // Save timestamps to generate timestamp field and extensions for the padding.
   last_rtp_timestamp_ = packet.Timestamp();
-  last_timestamp_time_ms_ = clock_->TimeInMilliseconds();
-  last_capture_time_ms_ = packet.capture_time().ms();
+  last_timestamp_time_ = clock_->CurrentTime();
+  last_capture_time_ = packet.capture_time();
 }
 
 void PacketSequencer::PopulatePaddingFields(RtpPacketToSend& packet) {
@@ -107,7 +115,7 @@ void PacketSequencer::PopulatePaddingFields(RtpPacketToSend& packet) {
     RTC_DCHECK(CanSendPaddingOnMediaSsrc());
 
     packet.SetTimestamp(last_rtp_timestamp_);
-    packet.set_capture_time(Timestamp::Millis(last_capture_time_ms_));
+    packet.set_capture_time(last_capture_time_);
     packet.SetPayloadType(last_payload_type_);
     return;
   }
@@ -119,20 +127,17 @@ void PacketSequencer::PopulatePaddingFields(RtpPacketToSend& packet) {
   }
 
   packet.SetTimestamp(last_rtp_timestamp_);
-  packet.set_capture_time(Timestamp::Millis(last_capture_time_ms_));
+  packet.set_capture_time(last_capture_time_);
 
   // Only change the timestamp of padding packets sent over RTX.
   // Padding only packets over RTP has to be sent as part of a media
   // frame (and therefore the same timestamp).
-  int64_t now_ms = clock_->TimeInMilliseconds();
-  if (last_timestamp_time_ms_ > 0) {
+  if (last_timestamp_time_ > Timestamp::Zero()) {
+    TimeDelta since_last_media = clock_->CurrentTime() - last_timestamp_time_;
     packet.SetTimestamp(packet.Timestamp() +
-                        (now_ms - last_timestamp_time_ms_) *
-                            kTimestampTicksPerMs);
+                        since_last_media.ms() * kTimestampTicksPerMs);
     if (packet.capture_time() > Timestamp::Zero()) {
-      packet.set_capture_time(
-          packet.capture_time() +
-          TimeDelta::Millis(now_ms - last_timestamp_time_ms_));
+      packet.set_capture_time(packet.capture_time() + since_last_media);
     }
   }
 }

@@ -27,6 +27,11 @@ const base::TimeDelta GetDefaultReportUploadFrequency() {
                         kDefaultReportUploadFrequencyForTesting);
 }
 
+const base::TimeDelta GetDefaultKioskHeartbeatUploadFrequency() {
+  return GetDefaultRate(kDefaultKioskHeartbeatUploadFrequency,
+                        kDefaultKioskHeartbeatUploadFrequencyForTesting);
+}
+
 const base::TimeDelta GetDefaultCollectionRate(base::TimeDelta default_rate) {
   return GetDefaultRate(default_rate, kDefaultCollectionRateForTesting);
 }
@@ -34,34 +39,5 @@ const base::TimeDelta GetDefaultCollectionRate(base::TimeDelta default_rate) {
 const base::TimeDelta GetDefaultEventCheckingRate(
     base::TimeDelta default_rate) {
   return GetDefaultRate(default_rate, kDefaultEventCheckingRateForTesting);
-}
-
-// static
-base::TimeDelta InitDelayParam::init_delay = base::Minutes(1);
-
-// static
-void InitDelayParam::SetForTesting(const base::TimeDelta& delay) {
-  InitDelayParam::init_delay = delay;
-}
-
-// static
-const base::TimeDelta InitDelayParam::Get() {
-  return InitDelayParam::init_delay;
-}
-
-// static
-// 5 seconds is what was recommended by the upstream maintainer of FWUPD
-base::TimeDelta PeripheralCollectionDelayParam::collection_delay_ =
-    base::Seconds(5);
-
-// static
-void PeripheralCollectionDelayParam::SetForTesting(
-    const base::TimeDelta& delay) {
-  PeripheralCollectionDelayParam::collection_delay_ = delay;
-}
-
-// static
-const base::TimeDelta PeripheralCollectionDelayParam::Get() {
-  return PeripheralCollectionDelayParam::collection_delay_;
 }
 }  // namespace reporting::metrics

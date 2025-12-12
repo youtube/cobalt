@@ -4,7 +4,28 @@
 
 #include "quiche/quic/masque/masque_dispatcher.h"
 
+#include <cstdint>
+#include <memory>
+#include <utility>
+
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/connection_id_generator.h"
+#include "quiche/quic/core/crypto/quic_crypto_server_config.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_crypto_server_stream_base.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_version_manager.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/masque/masque_server_backend.h"
 #include "quiche/quic/masque/masque_server_session.h"
+#include "quiche/quic/masque/masque_utils.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/tools/quic_simple_dispatcher.h"
 
 namespace quic {
 
@@ -29,14 +50,14 @@ MasqueDispatcher::MasqueDispatcher(
 std::unique_ptr<QuicSession> MasqueDispatcher::CreateQuicSession(
     QuicConnectionId connection_id, const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address, absl::string_view /*alpn*/,
-    const ParsedQuicVersion& version,
-    const ParsedClientHello& /*parsed_chlo*/) {
+    const ParsedQuicVersion& version, const ParsedClientHello& /*parsed_chlo*/,
+    ConnectionIdGeneratorInterface& connection_id_generator) {
   // The MasqueServerSession takes ownership of |connection| below.
   QuicConnection* connection = new QuicConnection(
       connection_id, self_address, peer_address, helper(), alarm_factory(),
       writer(),
       /*owns_writer=*/false, Perspective::IS_SERVER,
-      ParsedQuicVersionVector{version}, connection_id_generator());
+      ParsedQuicVersionVector{version}, connection_id_generator);
 
   auto session = std::make_unique<MasqueServerSession>(
       masque_mode_, config(), GetSupportedVersions(), connection, this,

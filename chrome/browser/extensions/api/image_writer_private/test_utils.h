@@ -19,10 +19,11 @@
 #include "chrome/browser/extensions/api/image_writer_private/operation_manager.h"
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
+#include "extensions/common/extension_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/disks/disk_mount_manager.h"
 #include "chromeos/ash/components/disks/mock_disk_mount_manager.h"
 #endif
@@ -30,20 +31,20 @@
 namespace extensions {
 namespace image_writer {
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 class ImageWriterFakeImageBurnerClient;
 #endif
 
-const char kDummyExtensionId[] = "DummyExtension";
+inline constexpr char kDummyExtensionId[] = "DummyExtension";
 
 // Default file size to use in tests.  Currently 32kB.
-const int kTestFileSize = 32 * 1024;
+inline constexpr size_t kTestFileSize = 32 * 1024;
 // Pattern to use in the image file.
-const uint8_t kImagePattern = 0x55;  // 01010101
+inline constexpr uint8_t kImagePattern = 0x55;  // 01010101
 // Pattern to use in the device file.
-const uint8_t kDevicePattern = 0xAA;  // 10101010
+inline constexpr uint8_t kDevicePattern = 0xAA;  // 10101010
 // Disk file system type
-const char kTestFileSystemType[] = "vfat";
+inline constexpr char kTestFileSystemType[] = "vfat";
 
 // A mock around the operation manager for tracking callbacks.  Note that there
 // are non-virtual methods on this class that should not be called in tests.
@@ -56,7 +57,7 @@ class MockOperationManager : public OperationManager {
                                 image_writer_api::Stage stage,
                                 int progress));
   // Callback for completion events.
-  MOCK_METHOD1(OnComplete, void(const std::string& extension_id));
+  MOCK_METHOD1(OnComplete, void(const ExtensionId& extension_id));
 
   // Callback for error events.
   MOCK_METHOD4(OnError, void(const ExtensionId& extension_id,
@@ -65,13 +66,13 @@ class MockOperationManager : public OperationManager {
                              const std::string& error_message));
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-// A fake for the DiskMountManager that will successfully call the unmount
+#if BUILDFLAG(IS_CHROMEOS)
+// A mock for the DiskMountManager that will successfully call the unmount
 // callback.
-class FakeDiskMountManager : public ash::disks::MockDiskMountManager {
+class UnmountingMockDiskMountManager : public ash::disks::MockDiskMountManager {
  public:
-  FakeDiskMountManager();
-  ~FakeDiskMountManager() override;
+  UnmountingMockDiskMountManager();
+  ~UnmountingMockDiskMountManager() override;
 
   void UnmountDeviceRecursively(
       const std::string& device_path,
@@ -111,8 +112,8 @@ class FakeImageWriterClient : public ImageWriterUtilityClient {
 
   void Shutdown() override;
 
-  // Issues Operation::Progress() calls with items in |progress_list| on
-  // Operation Write(). Sends Operation::Success() iff |will_succeed| is true,
+  // Issues Operation::Progress() calls with items in `progress_list` on
+  // Operation Write(). Sends Operation::Success() iff `will_succeed` is true,
   // otherwise issues an error.
   void SimulateProgressOnWrite(const std::vector<int>& progress_list,
                                bool will_succeed);
@@ -140,8 +141,8 @@ class FakeImageWriterClient : public ImageWriterUtilityClient {
   ErrorCallback error_callback_;
   CancelCallback cancel_callback_;
 
-  absl::optional<SimulateProgressInfo> simulate_on_write_;
-  absl::optional<SimulateProgressInfo> simulate_on_verify_;
+  std::optional<SimulateProgressInfo> simulate_on_write_;
+  std::optional<SimulateProgressInfo> simulate_on_verify_;
 };
 
 class ImageWriterTestUtils {
@@ -149,7 +150,7 @@ class ImageWriterTestUtils {
   ImageWriterTestUtils();
   virtual ~ImageWriterTestUtils();
 
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
   using UtilityClientCreationCallback =
       base::OnceCallback<void(FakeImageWriterClient*)>;
   void RunOnUtilityClientCreation(UtilityClientCreationCallback callback);
@@ -163,7 +164,7 @@ class ImageWriterTestUtils {
   // may be larger than the image.
   bool ImageWrittenToDevice();
 
-  // Fills |file| with |length| bytes of |pattern|, overwriting any existing
+  // Fills `file` with `length` bytes of `pattern`, overwriting any existing
   // data.
   bool FillFile(const base::FilePath& file, uint8_t pattern, size_t length);
 
@@ -181,7 +182,7 @@ class ImageWriterTestUtils {
   base::FilePath test_image_path_;
   base::FilePath test_device_path_;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<ImageWriterFakeImageBurnerClient> image_burner_client_;
   bool concierge_client_initialized_ = false;
 #else

@@ -34,6 +34,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/events/base_event_utils.h"
 #include "ui/views/bubble/bubble_border.h"
 #include "ui/views/controls/scroll_view.h"
@@ -101,7 +102,7 @@ CastDialogModel CreateModelWithSinks(std::vector<UIMediaSink> sinks) {
 }
 
 ui::MouseEvent CreateMouseEvent() {
-  return ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(0, 0),
+  return ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(0, 0),
                         gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
 }
 
@@ -109,16 +110,27 @@ ui::MouseEvent CreateMouseEvent() {
 
 class MockCastDialogController : public CastDialogController {
  public:
-  MOCK_METHOD1(AddObserver, void(CastDialogController::Observer* observer));
-  MOCK_METHOD1(RemoveObserver, void(CastDialogController::Observer* observer));
-  MOCK_METHOD2(StartCasting,
-               void(const std::string& sink_id, MediaCastMode cast_mode));
-  MOCK_METHOD1(StopCasting, void(const std::string& route_id));
-  MOCK_METHOD1(ClearIssue, void(const Issue::Id& issue_id));
-  MOCK_METHOD1(FreezeRoute, void(const std::string& route_id));
-  MOCK_METHOD1(UnfreezeRoute, void(const std::string& route_id));
-  MOCK_METHOD0(TakeMediaRouteStarter, std::unique_ptr<MediaRouteStarter>());
-  MOCK_METHOD1(RegisterDestructor, void(base::OnceClosure));
+  MOCK_METHOD(void,
+              AddObserver,
+              (CastDialogController::Observer * observer),
+              (override));
+  MOCK_METHOD(void,
+              RemoveObserver,
+              (CastDialogController::Observer * observer),
+              (override));
+  MOCK_METHOD(void,
+              StartCasting,
+              (const std::string& sink_id, MediaCastMode cast_mode),
+              (override));
+  MOCK_METHOD(void, StopCasting, (const std::string& route_id), (override));
+  MOCK_METHOD(void, ClearIssue, (const Issue::Id& issue_id), (override));
+  MOCK_METHOD(void, FreezeRoute, (const std::string& route_id), (override));
+  MOCK_METHOD(void, UnfreezeRoute, (const std::string& route_id), (override));
+  MOCK_METHOD(std::unique_ptr<MediaRouteStarter>,
+              TakeMediaRouteStarter,
+              (),
+              (override));
+  MOCK_METHOD(void, RegisterDestructor, (base::OnceClosure), (override));
 };
 
 class CastDialogViewTest : public ChromeViewsTestBase {
@@ -127,7 +139,9 @@ class CastDialogViewTest : public ChromeViewsTestBase {
     ChromeViewsTestBase::SetUp();
 
     // Create an anchor for the dialog.
-    anchor_widget_ = CreateTestWidget(views::Widget::InitParams::TYPE_WINDOW);
+    anchor_widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                         views::Widget::InitParams::TYPE_WINDOW);
     anchor_widget_->Show();
   }
 
@@ -160,7 +174,7 @@ class CastDialogViewTest : public ChromeViewsTestBase {
   }
 
   void NotifyButtonOfClick(views::Button* button) {
-    ui::MouseEvent mouse_event(ui::ET_MOUSE_PRESSED, gfx::Point(0, 0),
+    ui::MouseEvent mouse_event(ui::EventType::kMousePressed, gfx::Point(0, 0),
                                gfx::Point(0, 0), ui::EventTimeForNow(), 0, 0);
     views::test::ButtonTestApi(button).NotifyClick(mouse_event);
     // The request to cast/stop is sent asynchronously, so we must call
@@ -168,13 +182,18 @@ class CastDialogViewTest : public ChromeViewsTestBase {
     base::RunLoop().RunUntilIdle();
   }
 
-  const std::vector<raw_ptr<CastDialogSinkView>>& sink_views() {
+  const std::vector<raw_ptr<CastDialogSinkView, DanglingUntriaged>>&
+  sink_views() {
     return dialog_->sink_views_for_test();
   }
 
   views::ScrollView* scroll_view() { return dialog_->scroll_view_for_test(); }
 
   views::View* no_sinks_view() { return dialog_->no_sinks_view_for_test(); }
+
+  views::View* permission_rejected_view() {
+    return dialog_->permission_rejected_view_for_test();
+  }
 
   views::Button* sources_button() { return dialog_->sources_button_for_test(); }
 
@@ -193,7 +212,7 @@ class CastDialogViewTest : public ChromeViewsTestBase {
   std::unique_ptr<views::Widget> anchor_widget_;
   NiceMock<MockCastDialogController> controller_;
   CastDialogCoordinator cast_dialog_coordinator_;
-  raw_ptr<CastDialogView> dialog_ = nullptr;
+  raw_ptr<CastDialogView, DanglingUntriaged> dialog_ = nullptr;
   TestingProfile profile_;
 };
 
@@ -203,7 +222,8 @@ TEST_F(CastDialogViewTest, PopulateDialog) {
 
   EXPECT_TRUE(dialog_->ShouldShowCloseButton());
   EXPECT_EQ(model.dialog_header(), dialog_->GetWindowTitle());
-  EXPECT_EQ(ui::DIALOG_BUTTON_NONE, dialog_->GetDialogButtons());
+  EXPECT_EQ(static_cast<int>(ui::mojom::DialogButton::kNone),
+            dialog_->buttons());
 }
 
 TEST_F(CastDialogViewTest, StartCasting) {
@@ -219,9 +239,7 @@ TEST_F(CastDialogViewTest, StartCasting) {
 }
 
 TEST_F(CastDialogViewTest, FreezeUiStartCasting) {
-  // Enable the proper features / prefs.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kAccessCodeCastFreezeUI);
+  // Enable the proper pref.
   profile_.GetPrefs()->SetBoolean(prefs::kAccessCodeCastEnabled, true);
 
   std::vector<UIMediaSink> media_sinks = {CreateAvailableSink(),
@@ -241,28 +259,11 @@ TEST_F(CastDialogViewTest, StopCasting) {
   InitializeDialogWithModel(model);
   EXPECT_CALL(controller_,
               StopCasting(model.media_sinks()[1].route->media_route_id()));
-  SinkPressedAtIndex(1);
-}
-
-TEST_F(CastDialogViewTest, FreezeUiStopCasting) {
-  // Enable the proper features / prefs.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kAccessCodeCastFreezeUI);
-  profile_.GetPrefs()->SetBoolean(prefs::kAccessCodeCastEnabled, true);
-
-  CastDialogModel model = CreateModelWithSinks({CreateConnectedSink()});
-  InitializeDialogWithModel(model);
-
-  EXPECT_CALL(controller_,
-              StopCasting(model.media_sinks()[0].route->media_route_id()))
-      .Times(1);
-  StopPressedAtIndex(0);
+  StopPressedAtIndex(1);
 }
 
 TEST_F(CastDialogViewTest, FreezeRoute) {
-  // Enable the proper features / prefs.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kAccessCodeCastFreezeUI);
+  // Enable the proper pref.
   profile_.GetPrefs()->SetBoolean(prefs::kAccessCodeCastEnabled, true);
 
   CastDialogModel model = CreateModelWithSinks(
@@ -280,9 +281,7 @@ TEST_F(CastDialogViewTest, FreezeRoute) {
 }
 
 TEST_F(CastDialogViewTest, FreezeNoRoute) {
-  // Enable the proper features / prefs.
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kAccessCodeCastFreezeUI);
+  // Enable the proper pref.
   profile_.GetPrefs()->SetBoolean(prefs::kAccessCodeCastEnabled, true);
 
   CastDialogModel model = CreateModelWithSinks({CreateFreezableSink()});
@@ -305,8 +304,8 @@ TEST_F(CastDialogViewTest, FreezeNoRoute) {
 
 TEST_F(CastDialogViewTest, ClearIssue) {
   std::vector<UIMediaSink> media_sinks = {CreateAvailableSink()};
-  media_sinks[0].issue =
-      Issue(IssueInfo("title", IssueInfo::Severity::WARNING, "sinkId1"));
+  media_sinks[0].issue = Issue::CreateIssueWithIssueInfo(
+      IssueInfo("title", IssueInfo::Severity::WARNING, "sinkId1"));
   CastDialogModel model = CreateModelWithSinks(std::move(media_sinks));
   InitializeDialogWithModel(model);
   // When there is an issue, clicking on an available sink should clear the
@@ -411,9 +410,28 @@ TEST_F(CastDialogViewTest, SwitchToNoDeviceView) {
   EXPECT_FALSE(scroll_view());
 }
 
-TEST_F(CastDialogViewTest, ShowAccessCodeCastButtonDisabled) {
+TEST_F(CastDialogViewTest, ShowPermissionRejectedView) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kAccessCodeCastUI);
+  scoped_feature_list.InitAndEnableFeature(
+      media_router::kShowCastPermissionRejectedError);
+
+  // No sink, permission pending/granted.
+  CastDialogModel model;
+  InitializeDialogWithModel(model);
+  EXPECT_TRUE(no_sinks_view());
+  EXPECT_FALSE(scroll_view());
+  EXPECT_FALSE(permission_rejected_view());
+
+  // No sink, permission rejected.
+  model.set_is_permission_rejected(true);
+  InitializeDialogWithModel(model);
+  EXPECT_FALSE(no_sinks_view());
+  EXPECT_FALSE(scroll_view());
+  EXPECT_TRUE(permission_rejected_view() &&
+              permission_rejected_view()->GetVisible());
+}
+
+TEST_F(CastDialogViewTest, ShowAccessCodeCastButtonDisabled) {
   profile_.GetPrefs()->SetBoolean(prefs::kAccessCodeCastEnabled, false);
 
   CastDialogModel model = CreateModelWithSinks({CreateAvailableSink()});
@@ -422,8 +440,6 @@ TEST_F(CastDialogViewTest, ShowAccessCodeCastButtonDisabled) {
 }
 
 TEST_F(CastDialogViewTest, ShowAccessCodeCastButtonEnabled) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kAccessCodeCastUI);
   profile_.GetPrefs()->SetBoolean(prefs::kAccessCodeCastEnabled, true);
 
   CastDialogModel model = CreateModelWithSinks({CreateAvailableSink()});
@@ -436,8 +452,6 @@ TEST_F(CastDialogViewTest, ShowAccessCodeCastButtonEnabled) {
 // available to the user, that the sources button is available even if no
 // sinks are available.
 TEST_F(CastDialogViewTest, AccessCodeEmptySinksSourcesAvailable) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(features::kAccessCodeCastUI);
   profile_.GetPrefs()->SetBoolean(prefs::kAccessCodeCastEnabled, false);
 
   CastDialogModel model;

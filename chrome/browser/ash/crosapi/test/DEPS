@@ -1,5 +1,0 @@
-specific_include_rules = {
-  "ash_crosapi_tests_main.cc": [
-    "+mojo/core/embedder",
-  ],
-}

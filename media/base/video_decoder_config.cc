@@ -10,6 +10,7 @@
 #include "base/check_op.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/to_string.h"
 #include "media/base/limits.h"
 #include "media/base/media_util.h"
 #include "media/base/video_types.h"
@@ -41,6 +42,14 @@ VideoDecoderConfig::VideoDecoderConfig(VideoCodec codec,
 }
 
 VideoDecoderConfig::VideoDecoderConfig(const VideoDecoderConfig& other) =
+    default;
+
+VideoDecoderConfig::VideoDecoderConfig(VideoDecoderConfig&& other) = default;
+
+VideoDecoderConfig& VideoDecoderConfig::operator=(
+    const VideoDecoderConfig& other) = default;
+
+VideoDecoderConfig& VideoDecoderConfig::operator=(VideoDecoderConfig&& other) =
     default;
 
 VideoDecoderConfig::~VideoDecoderConfig() = default;
@@ -81,6 +90,7 @@ bool VideoDecoderConfig::Matches(const VideoDecoderConfig& config) const {
          coded_size() == config.coded_size() &&
          visible_rect() == config.visible_rect() &&
          natural_size() == config.natural_size() &&
+         aspect_ratio() == config.aspect_ratio() &&
          extra_data() == config.extra_data() &&
          encryption_scheme() == config.encryption_scheme() &&
          color_space_info() == config.color_space_info() &&
@@ -101,29 +111,14 @@ std::string VideoDecoderConfig::AsHumanReadableString() const {
     << "," << visible_rect().width() << "," << visible_rect().height() << "]"
     << ", natural size: [" << natural_size().width() << ","
     << natural_size().height() << "]"
-    << ", has extra data: " << (extra_data().empty() ? "false" : "true")
+    << ", has extra data: " << base::ToString(!extra_data().empty())
     << ", encryption scheme: " << encryption_scheme()
     << ", rotation: " << VideoRotationToString(video_transformation().rotation)
     << ", flipped: " << video_transformation().mirrored
     << ", color space: " << color_space_info().ToGfxColorSpace().ToString();
 
   if (hdr_metadata().has_value()) {
-    s << std::setprecision(4) << ", luminance range: "
-      << hdr_metadata()->color_volume_metadata.luminance_min << "-"
-      << hdr_metadata()->color_volume_metadata.luminance_max
-      << ", primaries: r("
-      << hdr_metadata()->color_volume_metadata.primaries.fRX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fRY << ") g("
-      << hdr_metadata()->color_volume_metadata.primaries.fGX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fGY << ") b("
-      << hdr_metadata()->color_volume_metadata.primaries.fBX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fBY << ") wp("
-      << hdr_metadata()->color_volume_metadata.primaries.fWX << ","
-      << hdr_metadata()->color_volume_metadata.primaries.fWY
-      << "), max_content_light_level="
-      << hdr_metadata()->max_content_light_level
-      << ", max_frame_average_light_level="
-      << hdr_metadata()->max_frame_average_light_level;
+    s << ", hdr metadata: " << hdr_metadata()->ToString();
   }
 
   return s.str();

@@ -43,11 +43,11 @@ const char* const kGNOME3ProxyConfigCommand[] = {"gnome-control-center",
 const char* const kKDE3ProxyConfigCommand[] = {"kcmshell", "proxy"};
 const char* const kKDE4ProxyConfigCommand[] = {"kcmshell4", "proxy"};
 const char* const kKDE5ProxyConfigCommand[] = {"kcmshell5", "proxy"};
-const char* const kKDE6ProxyConfigCommand[] = {"kcmshell6", "proxy"};
+const char* const kKDE6ProxyConfigCommand[] = {"kcmshell6", "kcm_proxy"};
 
 // In Deepin OS, we might need to run dde-control-center instead.
-const char* const kDeepinProxyConfigCommand[] = {"dde-control-center",
-                                                 "-m", "network"};
+const char* const kDeepinProxyConfigCommand[] = {"dde-control-center", "-m",
+                                                 "network"};
 
 // The URL for Linux proxy configuration help when not running under a
 // supported desktop environment.
@@ -57,18 +57,21 @@ constexpr char kLinuxProxyConfigUrl[] = "chrome://linux-proxy-config";
 void ShowLinuxProxyConfigUrl(base::WeakPtr<content::WebContents> web_contents,
                              bool launched) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (launched)
+  if (launched) {
     return;
+  }
   std::unique_ptr<base::Environment> env(base::Environment::Create());
   const char* name = base::nix::GetDesktopEnvironmentName(env.get());
-  if (name)
+  if (name) {
     LOG(ERROR) << "Could not find " << name << " network settings in $PATH";
+  }
   OpenURLParams params(GURL(kLinuxProxyConfigUrl), Referrer(),
                        WindowOpenDisposition::NEW_FOREGROUND_TAB,
                        ui::PAGE_TRANSITION_LINK, false);
 
-  if (web_contents)
-    web_contents->OpenURL(params);
+  if (web_contents) {
+    web_contents->OpenURL(params, /*navigation_handle_callback=*/{});
+  }
 }
 
 // Start the given proxy configuration utility.
@@ -81,8 +84,9 @@ bool StartProxyConfigUtil(base::span<const char* const> command) {
   // success, so we search $PATH first to predict whether the exec is
   // expected to succeed.
   std::unique_ptr<base::Environment> env(base::Environment::Create());
-  if (!base::ExecutableExistsInPath(env.get(), command[0]))
+  if (!base::ExecutableExistsInPath(env.get(), command[0])) {
     return false;
+  }
 
   std::vector<std::string> argv;
   for (const char* arg : command) {

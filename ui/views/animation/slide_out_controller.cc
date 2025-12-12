@@ -8,8 +8,12 @@
 
 #include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
+#include "ui/events/event.h"
+#include "ui/events/types/event_type.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/views/animation/animation_builder.h"
 #include "ui/views/animation/slide_out_controller_delegate.h"
@@ -35,8 +39,9 @@ SlideOutController::SlideOutController(ui::EventTarget* target,
 SlideOutController::~SlideOutController() = default;
 
 void SlideOutController::CaptureControlOpenState() {
-  if (!has_swipe_control_)
+  if (!has_swipe_control_) {
     return;
+  }
   if ((mode_ == SlideMode::kFull || mode_ == SlideMode::kPartial) &&
       fabs(gesture_amount_) >= swipe_control_width_) {
     control_open_state_ = gesture_amount_ < 0
@@ -54,7 +59,7 @@ void SlideOutController::OnGestureEvent(ui::GestureEvent* event) {
       has_swipe_control_ ? swipe_control_width_ + kSwipeCloseMargin
                          : width * 0.5;
 
-  if (event->type() == ui::ET_SCROLL_FLING_START) {
+  if (event->type() == ui::EventType::kScrollFlingStart) {
     // The threshold for the fling velocity is computed empirically.
     // The unit is in pixels/second.
     const float kFlingThresholdForClose = 800.f;
@@ -69,10 +74,11 @@ void SlideOutController::OnGestureEvent(ui::GestureEvent* event) {
     return;
   }
 
-  if (!event->IsScrollGestureEvent())
+  if (!event->IsScrollGestureEvent()) {
     return;
+  }
 
-  if (event->type() == ui::ET_GESTURE_SCROLL_BEGIN) {
+  if (event->type() == ui::EventType::kGestureScrollBegin) {
     switch (control_open_state_) {
       case SwipeControlOpenState::kClosed:
         gesture_amount_ = 0.f;
@@ -84,10 +90,10 @@ void SlideOutController::OnGestureEvent(ui::GestureEvent* event) {
         gesture_amount_ = swipe_control_width_;
         break;
       default:
-        NOTREACHED_NORETURN();
+        NOTREACHED();
     }
     delegate_->OnSlideStarted();
-  } else if (event->type() == ui::ET_GESTURE_SCROLL_UPDATE) {
+  } else if (event->type() == ui::EventType::kGestureScrollUpdate) {
     // The scroll-update events include the incremental scroll amount.
     gesture_amount_ += event->details().scroll_x();
 
@@ -120,7 +126,7 @@ void SlideOutController::OnGestureEvent(ui::GestureEvent* event) {
     transform.Translate(scroll_amount, 0.0);
     layer->SetTransform(transform);
     delegate_->OnSlideChanged(true);
-  } else if (event->type() == ui::ET_GESTURE_SCROLL_END) {
+  } else if (event->type() == ui::EventType::kGestureScrollEnd) {
     float scrolled_ratio = fabsf(gesture_amount_) / width;
     if (mode_ == SlideMode::kFull &&
         scrolled_ratio >= scroll_amount_for_closing_notification / width) {
@@ -130,6 +136,46 @@ void SlideOutController::OnGestureEvent(ui::GestureEvent* event) {
     }
     CaptureControlOpenState();
     RestoreVisualState();
+  }
+
+  event->SetHandled();
+}
+
+void SlideOutController::OnScrollEvent(ui::ScrollEvent* event) {
+  // Ignore events if slide out by trackpad is not available.
+  if (!trackpad_gestures_enabled_ || mode_ != SlideMode::kFull) {
+    return;
+  }
+
+  // Ignore events where vertical offset is greater than horizontal (likely not
+  // a slide-out gesture).
+  if (abs(event->x_offset()) < abs(event->y_offset())) {
+    return;
+  }
+
+  if (event->type() == ui::EventType::kScrollFlingCancel) {
+    gesture_amount_ = 0;
+  } else if (event->type() == ui::EventType::kScroll) {
+    if (event->finger_count() == 2) {
+      gesture_amount_ += event->x_offset();
+    }
+  } else if (event->type() == ui::EventType::kScrollFlingStart) {
+    auto* layer = delegate_->GetSlideOutLayer();
+    int width = layer->bounds().width();
+    if (abs(gesture_amount_) > width) {
+      int direction = gesture_amount_ > 0 ? -1 : 1;
+      gfx::Transform transform;
+      transform.Translate(direction * width, 0);
+
+      AnimationBuilder()
+          .OnEnded(base::BindOnce(&SlideOutController::OnSlideOut,
+                                  weak_ptr_factory_.GetWeakPtr()))
+          .Once()
+          .SetDuration(base::Milliseconds(kSwipeOutTotalDurationMs))
+          .SetTransform(layer, transform, kSwipeTweenType)
+          .SetOpacity(layer, 0.f);
+    }
+    gesture_amount_ = 0;
   }
 
   event->SetHandled();
@@ -169,8 +215,9 @@ void SlideOutController::SlideOutAndClose(int direction) {
 }
 
 void SlideOutController::SetOpacityIfNecessary(float opacity) {
-  if (update_opacity_)
+  if (update_opacity_) {
     delegate_->GetSlideOutLayer()->SetOpacity(opacity);
+  }
   opacity_ = opacity;
 }
 
@@ -214,8 +261,9 @@ void SlideOutController::OnAnimationsCompleted() {
       !is_completely_slid_out;
   delegate_->OnSlideChanged(in_progress);
 
-  if (!is_completely_slid_out)
+  if (!is_completely_slid_out) {
     return;
+  }
 
   // Call SlideOutControllerDelegate::OnSlideOut() if this animation came from
   // SlideOutAndClose().
@@ -238,8 +286,9 @@ void SlideOutController::SetSwipeControlWidth(int swipe_control_width) {
 }
 
 void SlideOutController::CloseSwipeControl() {
-  if (!has_swipe_control_)
+  if (!has_swipe_control_) {
     return;
+  }
   gesture_amount_ = 0;
   CaptureControlOpenState();
   RestoreVisualState();

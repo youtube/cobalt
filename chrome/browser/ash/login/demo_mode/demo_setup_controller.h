@@ -12,11 +12,9 @@
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "chrome/browser/ash/login/demo_mode/demo_session.h"
-#include "chrome/browser/ash/login/enrollment/enterprise_enrollment_helper.h"
+#include "chrome/browser/ash/login/enrollment/enrollment_launcher.h"
 #include "chrome/browser/component_updater/cros_component_installer_chromeos.h"
 #include "components/policy/core/common/cloud/cloud_policy_store.h"
-
-class PrefRegistrySimple;
 
 namespace policy {
 class EnrollmentStatus;
@@ -28,7 +26,7 @@ class DemoComponents;
 
 // Controls enrollment flow for setting up Demo Mode.
 class DemoSetupController
-    : public EnterpriseEnrollmentHelper::EnrollmentStatusConsumer {
+    : public EnrollmentLauncher::EnrollmentStatusConsumer {
  public:
   // All steps required for setup.
   enum class DemoSetupStep {
@@ -37,80 +35,122 @@ class DemoSetupController
     // Enrolling in Demo Mode.
     kEnrollment,
     // Setup is complete.
-    kComplete
+    kComplete,
+  };
+
+  // The types of the result of each component loading during the demo mode
+  // setup process. This enum is tied directly to a UMA enum
+  // `DemoModeSetupComponentLoadingResult` defined in
+  // //tools/metrics/histograms/enums.xml, and should always reflect it (do not
+  // change one without changing the other). Entries should never be modified or
+  // reordered. Entries can only be removed by deprecating it and its value
+  // should never be reused. New ones should be added to the end (right before
+  // the max value).
+  enum class DemoSetupComponentLoadingResult {
+    // The app component loading success and the resources component loading
+    // success.
+    kAppSuccessResourcesSuccess = 0,
+
+    // The app component loading success and the resources component loading
+    // failure.
+    kAppSuccessResourcesFailure = 1,
+
+    // The app component loading failure and the resources component loading
+    // success.
+    kAppFailureResourcesSuccess = 2,
+
+    // The app component loading failure and the resources component loading
+    // failure.
+    kAppFailureResourcesFailure = 3,
+
+    // Add future entries above this comment, in sync with enums.xml.
+    // Update kMaxValue to the last value.
+    kMaxValue = kAppFailureResourcesFailure,
   };
 
   // Contains information related to setup error.
   class DemoSetupError {
    public:
-    // Type of setup error.
+    // The type of setup error. This enum is tied directly to a UMA enum
+    // `DemoModeSetupError` defined in //tools/metrics/histograms/enums.xml, and
+    // should always reflect it (do not change one without changing the other).
+    // Entries should never be modified or reordered. Entries can only be
+    // removed by deprecating it and its value should never be reused. New ones
+    // should be added to the end (right before the max value).
     enum class ErrorCode {
       // Cannot perform offline setup without online FRE check.
-      kOnlineFRECheckRequired,
+      kOnlineFRECheckRequired = 0,
       // Cannot load online component.
-      kOnlineComponentError,
+      kOnlineComponentError = 1,
       // Invalid request to DMServer.
-      kInvalidRequest,
+      kInvalidRequest = 2,
       // Request to DMServer failed, because of network error.
-      kRequestNetworkError,
+      kRequestNetworkError = 3,
       // DMServer temporary unavailable.
-      kTemporaryUnavailable,
+      kTemporaryUnavailable = 4,
       // DMServer returned abnormal response code.
-      kResponseError,
+      kResponseError = 5,
       // DMServer response cannot be decoded.
-      kResponseDecodingError,
+      kResponseDecodingError = 6,
       // Device management not supported for demo account.
-      kDemoAccountError,
+      kDemoAccountError = 7,
       // DMServer cannot find the device.
-      kDeviceNotFound,
+      kDeviceNotFound = 8,
       // Invalid device management token.
-      kInvalidDMToken,
+      kInvalidDMToken = 9,
       // Serial number invalid or unknown to DMServer,
-      kInvalidSerialNumber,
+      kInvalidSerialNumber = 10,
       // Device id conflict.
-      kDeviceIdError,
+      kDeviceIdError = 11,
       // Not enough licenses or domain expired.
-      kLicenseError,
+      kLicenseError = 12,
       // Device was deprovisioned.ec
-      kDeviceDeprovisioned,
+      kDeviceDeprovisioned = 13,
       // Device belongs to different domain (FRE).
-      kDomainMismatch,
+      kDomainMismatch = 14,
       // Management request could not be signed by the client.
-      kSigningError,
+      kSigningError = 15,
       // DMServer could not find policy for the device.
-      kPolicyNotFound,
+      kPolicyNotFound = 16,
       // ARC disabled for demo domain.
-      kArcError,
+      kArcError = 17,
       // Cannot determine server-backed state keys.
-      kNoStateKeys,
+      kNoStateKeys = 18,
       // Failed to fetch robot account auth or refresh token.
-      kRobotFetchError,
+      kRobotFetchError = 19,
       // Failed to fetch robot account refresh token.
-      kRobotStoreError,
+      kRobotStoreError = 20,
       // Unsuppored device mode returned by the server.
-      kBadMode,
+      kBadMode = 21,
       // Could not fetch registration cert,
-      kCertFetchError,
+      kCertFetchError = 22,
       // Could not fetch the policy.
-      kPolicyFetchError,
+      kPolicyFetchError = 23,
       // Policy validation failed.
-      kPolicyValidationError,
+      kPolicyValidationError = 24,
       // Timeout during locking the device.
-      kLockTimeout,
+      kLockTimeout = 25,
       // Error during locking the device.
-      kLockError,
+      kLockError = 26,
       // Device locked to different domain on mode.
-      kAlreadyLocked,
+      kAlreadyLocked = 27,
       // Error while installing online policy.
-      kOnlineStoreError,
+      kOnlineStoreError = 28,
       // Could not determine device model or serial number.
-      kMachineIdentificationError,
+      kMachineIdentificationError = 29,
       // Could not store DM token.
-      kDMTokenStoreError,
+      kDMTokenStoreError = 30,
       // Unexpected/fatal error.
-      kUnexpectedError,
+      kUnexpectedError = 31,
       // Too many requests error.
-      kTooManyRequestsError,
+      kTooManyRequestsError = 32,
+      // No Error - Success Code. This is only used to record the UMA metrics so
+      // we can know the success rate of the whole demo mode setup process.
+      kSuccess = 33,
+
+      // Add future entries above this comment, in sync with enums.xml.
+      // Update kMaxValue to the last value.
+      kMaxValue = kSuccess,
     };
 
     // Type of recommended recovery from the setup error.
@@ -133,10 +173,10 @@ class DemoSetupController
         const policy::EnrollmentStatus& status);
 
     static DemoSetupError CreateFromOtherEnrollmentError(
-        EnterpriseEnrollmentHelper::OtherError error);
+        EnrollmentLauncher::OtherError error);
 
     static DemoSetupError CreateFromComponentError(
-        component_updater::CrOSComponentManager::Error error,
+        component_updater::ComponentManagerAsh::Error error,
         std::string component_name);
 
     DemoSetupError(ErrorCode error_code, RecoveryMethod recovery_method);
@@ -163,8 +203,6 @@ class DemoSetupController
   using OnSetupError = base::OnceCallback<void(const DemoSetupError&)>;
   using OnSetCurrentSetupStep =
       base::RepeatingCallback<void(const DemoSetupStep)>;
-
-  static void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
 
   // Clears demo device enrollment requisition if it is set.
   static void ClearDemoRequisition();
@@ -229,16 +267,18 @@ class DemoSetupController
   base::FilePath GetPreinstalledDemoResourcesPath(
       const base::FilePath& relative_path);
 
-  // EnterpriseEnrollmentHelper::EnrollmentStatusConsumer:
+  // EnrollmentLauncher::EnrollmentStatusConsumer:
   void OnDeviceEnrolled() override;
   void OnEnrollmentError(policy::EnrollmentStatus status) override;
   void OnAuthError(const GoogleServiceAuthError& error) override;
-  void OnOtherError(EnterpriseEnrollmentHelper::OtherError error) override;
+  void OnOtherError(EnrollmentLauncher::OtherError error) override;
   void OnDeviceAttributeUploadCompleted(bool success) override;
   void OnDeviceAttributeUpdatePermission(bool granted) override;
 
   void SetCrOSComponentLoadErrorForTest(
-      component_updater::CrOSComponentManager::Error error);
+      component_updater::ComponentManagerAsh::Error error);
+
+  void EnableLoadRealComponentsForTest();
 
  private:
   // Attempts to load the demo SWA and demo resources ChromeOS components  for
@@ -289,8 +329,8 @@ class DemoSetupController
 
   // Error code to use when attempting to load the demo resources CrOS
   // component.
-  component_updater::CrOSComponentManager::Error component_error_for_tests_ =
-      component_updater::CrOSComponentManager::Error::NONE;
+  component_updater::ComponentManagerAsh::Error component_error_for_tests_ =
+      component_updater::ComponentManagerAsh::Error::NONE;
 
   // Callback to call when setup step is updated.
   OnSetCurrentSetupStep set_current_setup_step_;
@@ -301,10 +341,12 @@ class DemoSetupController
   // Callback to call when enrollment finishes successfully.
   OnSetupSuccess on_setup_success_;
 
-  std::unique_ptr<EnterpriseEnrollmentHelper> enrollment_helper_;
+  std::unique_ptr<EnrollmentLauncher> enrollment_launcher_;
 
   // The Demo Mode Resources ChromeOS Component downloaded for online Demo Mode.
   std::unique_ptr<DemoComponents> demo_components_;
+
+  bool load_real_components_for_test_ = false;
 
   base::WeakPtrFactory<DemoSetupController> weak_ptr_factory_{this};
 };

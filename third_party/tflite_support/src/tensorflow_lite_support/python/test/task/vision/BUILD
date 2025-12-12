@@ -1,7 +1,6 @@
 # Placeholder for internal Python strict test compatibility macro.
 
 package(
-    default_applicable_licenses = ["//tensorflow_lite_support:license"],
     default_visibility = ["//visibility:private"],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -13,7 +12,9 @@ py_test(
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_images",
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_models",
     ],
+    tags = ["not_run:arm"],
     deps = [
+        # build rule placeholder: google/protobuf:use_fast_cpp_protos dep,  # Automatically added go/proto_python_upb_flip
         # build rule placeholder: numpy dep,
         # build rule placeholder: tensorflow dep,
         "//tensorflow_lite_support/python/task/core:base_options",
@@ -35,6 +36,7 @@ py_test(
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_models",
     ],
     deps = [
+        # build rule placeholder: google/protobuf:use_fast_cpp_protos dep,  # Automatically added go/proto_python_upb_flip
         # build rule placeholder: tensorflow dep,
         "//tensorflow_lite_support/python/task/core:base_options",
         "//tensorflow_lite_support/python/task/processor/proto:bounding_box_pb2",
@@ -56,6 +58,7 @@ py_test(
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_models",
     ],
     deps = [
+        # build rule placeholder: google/protobuf:use_fast_cpp_protos dep,  # Automatically added go/proto_python_upb_flip
         # build rule placeholder: numpy dep,
         # build rule placeholder: tensorflow dep,
         "//tensorflow_lite_support/python/task/core:base_options",
@@ -76,7 +79,9 @@ py_test(
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_indices",
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_models",
     ],
+    tags = ["not_run:arm"],
     deps = [
+        # build rule placeholder: google/protobuf:use_fast_cpp_protos dep,  # Automatically added go/proto_python_upb_flip
         # build rule placeholder: tensorflow dep,
         "//tensorflow_lite_support/python/task/core:base_options",
         "//tensorflow_lite_support/python/task/processor/proto:bounding_box_pb2",
@@ -97,7 +102,9 @@ py_test(
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_images",
         "//tensorflow_lite_support/cc/test/testdata/task/vision:test_models",
     ],
+    tags = ["not_run:arm"],
     deps = [
+        # build rule placeholder: google/protobuf:use_fast_cpp_protos dep,  # Automatically added go/proto_python_upb_flip
         # build rule placeholder: tensorflow dep,
         "//tensorflow_lite_support/python/task/core:base_options",
         "//tensorflow_lite_support/python/task/processor/proto:bounding_box_pb2",

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ChangePageAndXyDetail, ChangePageDetail, ChangeZoomDetail, NavigateDetail} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
-import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {ChangePageAndXyDetail, ChangePageDetail, ChangeZoomDetail, NavigateDetail} from 'chrome-extension://mhjfbmdgcfjbbpaeojofohoefgiehjai/pdf_viewer_wrapper.js';
+import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {createBookmarksForTest} from './test_util.js';
 
@@ -62,26 +62,26 @@ chrome.test.runTests([
    * Test that a bookmark is followed when clicked in
    * test-bookmarks-with-zoom.pdf.
    */
-  function testFollowBookmark() {
+  async function testFollowBookmark() {
     const viewer = document.body.querySelector('pdf-viewer')!;
     const bookmarkContent = createBookmarksForTest();
     bookmarkContent.bookmarks = viewer.bookmarks;
     document.body.appendChild(bookmarkContent);
 
-    flush();
+    await microtasksFinished();
 
     const rootBookmarks =
-        bookmarkContent.shadowRoot!.querySelectorAll('viewer-bookmark');
+        bookmarkContent.shadowRoot.querySelectorAll('viewer-bookmark');
     chrome.test.assertEq(3, rootBookmarks.length, 'three root bookmarks');
     const expandButton = rootBookmarks[0]!.$.expand;
     chrome.test.assertEq('false', expandButton.getAttribute('aria-expanded'));
     expandButton.click();
 
-    flush();
+    await microtasksFinished();
 
     chrome.test.assertEq('true', expandButton.getAttribute('aria-expanded'));
     const subBookmarks =
-        rootBookmarks[0]!.shadowRoot!.querySelectorAll('viewer-bookmark');
+        rootBookmarks[0]!.shadowRoot.querySelectorAll('viewer-bookmark');
     chrome.test.assertEq(1, subBookmarks.length, 'one sub bookmark');
 
     let lastPageChange: number|undefined;
@@ -116,10 +116,11 @@ chrome.test.runTests([
     type ExpectedEventDetail =
         ChangePageAndXyDetail|ChangePageDetail|ChangeZoomDetail|NavigateDetail;
 
-    function testTapTarget(
+    async function testTapTarget(
         tapTarget: HTMLElement, expectedDetail: ExpectedEventDetail) {
       resetLastChange();
       tapTarget.click();
+      await microtasksFinished();
       chrome.test.assertEq(
           (expectedDetail as ChangePageDetail).page, lastPageChange);
       chrome.test.assertEq(
@@ -132,13 +133,13 @@ chrome.test.runTests([
           (expectedDetail as NavigateDetail).uri, lastUriNavigation);
     }
 
-    testTapTarget(
+    await testTapTarget(
         rootBookmarks[0]!.$.item, {page: 0, x: 133, y: 667, zoom: 1.25});
-    testTapTarget(
+    await testTapTarget(
         subBookmarks[0]!.$.item, {page: 1, x: 133, y: 667, zoom: 1.5});
-    testTapTarget(
+    await testTapTarget(
         rootBookmarks[1]!.$.item, {page: 2, x: 133, y: 667, zoom: 1.75});
-    testTapTarget(
+    await testTapTarget(
         rootBookmarks[2]!.$.item,
         {uri: 'http://www.chromium.org', newtab: false});
 

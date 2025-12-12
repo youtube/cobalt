@@ -12,6 +12,44 @@
 #include "common/platform.h"
 #include "image_util/imageformats.h"
 
+#if defined(ANGLE_PLATFORM_WINDOWS) && !defined(_M_ARM) && !defined(_M_ARM64)
+#    if defined(_MSC_VER)
+#        include <intrin.h>
+#        define ANGLE_LOADIMAGE_USE_SSE
+#    elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
+#        include <x86intrin.h>
+#        if __SSE__
+#            define ANGLE_LOADIMAGE_USE_SSE
+#        endif
+#    endif
+#endif
+
+#if defined(ANGLE_LOADIMAGE_USE_SSE)
+inline bool supportsSSE2()
+{
+    static bool checked  = false;
+    static bool supports = false;
+
+    if (checked)
+    {
+        return supports;
+    }
+
+    int info[4];
+    __cpuid(info, 0);
+
+    if (info[0] >= 1)
+    {
+        __cpuid(info, 1);
+
+        supports = (info[3] >> 26) & 1;
+    }
+
+    checked = true;
+    return supports;
+}
+#endif
+
 namespace angle
 {
 ImageLoadContext::ImageLoadContext()                              = default;
@@ -29,8 +67,8 @@ void LoadA8ToRGBA8(const ImageLoadContext &context,
                    size_t outputRowPitch,
                    size_t outputDepthPitch)
 {
-#if defined(ANGLE_USE_SSE)
-    if (gl::supportsSSE2())
+#if defined(ANGLE_LOADIMAGE_USE_SSE)
+    if (supportsSSE2())
     {
         __m128i zeroWide = _mm_setzero_si128();
 
@@ -271,6 +309,36 @@ void LoadL16FToRGBA16F(const ImageLoadContext &context,
                 dest[4 * x + 1] = source[x];
                 dest[4 * x + 2] = source[x];
                 dest[4 * x + 3] = gl::Float16One;
+            }
+        }
+    }
+}
+
+void LoadLA8ToRGBA4(const ImageLoadContext &context,
+                    size_t width,
+                    size_t height,
+                    size_t depth,
+                    const uint8_t *input,
+                    size_t inputRowPitch,
+                    size_t inputDepthPitch,
+                    uint8_t *output,
+                    size_t outputRowPitch,
+                    size_t outputDepthPitch)
+{
+    for (size_t z = 0; z < depth; z++)
+    {
+        for (size_t y = 0; y < height; y++)
+        {
+            const uint8_t *source =
+                priv::OffsetDataPointer<uint8_t>(input, y, z, inputRowPitch, inputDepthPitch);
+            uint8_t *dest =
+                priv::OffsetDataPointer<uint8_t>(output, y, z, outputRowPitch, outputDepthPitch);
+            for (size_t x = 0; x < width; x++)
+            {
+                uint8_t l       = source[2 * x + 0] >> 4;
+                uint8_t a       = source[2 * x + 1] >> 4;
+                dest[4 * x + 0] = l | l << 4;
+                dest[4 * x + 1] = l | a << 4;
             }
         }
     }
@@ -617,8 +685,8 @@ void LoadRGBA8ToBGRA8(const ImageLoadContext &context,
                       size_t outputRowPitch,
                       size_t outputDepthPitch)
 {
-#if defined(ANGLE_USE_SSE)
-    if (gl::supportsSSE2())
+#if defined(ANGLE_LOADIMAGE_USE_SSE)
+    if (supportsSSE2())
     {
         __m128i brMask = _mm_set1_epi32(0x00ff00ff);
 
@@ -1014,6 +1082,39 @@ void LoadRGB10A2ToRGB5A1(const ImageLoadContext &context,
     }
 }
 
+void LoadRGB10A2ToRGB565(const ImageLoadContext &context,
+                         size_t width,
+                         size_t height,
+                         size_t depth,
+                         const uint8_t *input,
+                         size_t inputRowPitch,
+                         size_t inputDepthPitch,
+                         uint8_t *output,
+                         size_t outputRowPitch,
+                         size_t outputDepthPitch)
+{
+    for (size_t z = 0; z < depth; z++)
+    {
+        for (size_t y = 0; y < height; y++)
+        {
+            const R10G10B10A2 *source =
+                priv::OffsetDataPointer<R10G10B10A2>(input, y, z, inputRowPitch, inputDepthPitch);
+            uint16_t *dest =
+                priv::OffsetDataPointer<uint16_t>(output, y, z, outputRowPitch, outputDepthPitch);
+            for (size_t x = 0; x < width; x++)
+            {
+                R10G10B10A2 rgb10a2 = source[x];
+
+                uint16_t r5 = static_cast<uint16_t>(rgb10a2.R >> 5u);
+                uint16_t g6 = static_cast<uint16_t>(rgb10a2.G >> 4u);
+                uint16_t b5 = static_cast<uint16_t>(rgb10a2.B >> 5u);
+
+                dest[x] = (r5 << 11) | (g6 << 5) | b5;
+            }
+        }
+    }
+}
+
 void LoadRGB5A1ToA1RGB5(const ImageLoadContext &context,
                         size_t width,
                         size_t height,
@@ -1206,6 +1307,37 @@ void LoadRGB10A2ToRGBA8(const ImageLoadContext &context,
     }
 }
 
+void LoadRGB10A2ToRGB8(const ImageLoadContext &context,
+                       size_t width,
+                       size_t height,
+                       size_t depth,
+                       const uint8_t *input,
+                       size_t inputRowPitch,
+                       size_t inputDepthPitch,
+                       uint8_t *output,
+                       size_t outputRowPitch,
+                       size_t outputDepthPitch)
+{
+    for (size_t z = 0; z < depth; z++)
+    {
+        for (size_t y = 0; y < height; y++)
+        {
+
+            const uint32_t *source =
+                priv::OffsetDataPointer<uint32_t>(input, y, z, inputRowPitch, inputDepthPitch);
+            uint8_t *dest =
+                priv::OffsetDataPointer<uint8_t>(output, y, z, outputRowPitch, outputDepthPitch);
+            for (size_t x = 0; x < width; x++)
+            {
+                uint32_t rgba   = source[x];
+                dest[3 * x + 0] = static_cast<uint8_t>((rgba & 0x000003FF) >> 2);
+                dest[3 * x + 1] = static_cast<uint8_t>((rgba & 0x000FFC00) >> 12);
+                dest[3 * x + 2] = static_cast<uint8_t>((rgba & 0x3FF00000) >> 22);
+            }
+        }
+    }
+}
+
 void LoadRGB10A2ToRGB10X2(const ImageLoadContext &context,
                           size_t width,
                           size_t height,
@@ -1228,6 +1360,38 @@ void LoadRGB10A2ToRGB10X2(const ImageLoadContext &context,
             for (size_t x = 0; x < width; x++)
             {
                 dest[x] = source[x] | 0xC0000000;
+            }
+        }
+    }
+}
+
+void LoadBGR10A2ToRGB10A2(const ImageLoadContext &context,
+                          size_t width,
+                          size_t height,
+                          size_t depth,
+                          const uint8_t *input,
+                          size_t inputRowPitch,
+                          size_t inputDepthPitch,
+                          uint8_t *output,
+                          size_t outputRowPitch,
+                          size_t outputDepthPitch)
+{
+    for (size_t z = 0; z < depth; z++)
+    {
+        for (size_t y = 0; y < height; y++)
+        {
+            const uint32_t *source =
+                priv::OffsetDataPointer<uint32_t>(input, y, z, inputRowPitch, inputDepthPitch);
+            uint32_t *dest =
+                priv::OffsetDataPointer<uint32_t>(output, y, z, outputRowPitch, outputDepthPitch);
+            for (size_t x = 0; x < width; x++)
+            {
+                const uint32_t src  = source[x];
+                const uint32_t srcB = src & 0x3FF;
+                const uint32_t srcG = src >> 10 & 0x3FF;
+                const uint32_t srcR = src >> 20 & 0x3FF;
+                const uint32_t srcA = src >> 30 & 0x3;
+                dest[x]             = srcR | srcG << 10 | srcB << 20 | srcA << 30;
             }
         }
     }
@@ -1776,7 +1940,7 @@ void LoadD32ToX8D24(const ImageLoadContext &context,
 
 // This conversion was added to support using a 32F depth buffer
 // as emulation for 16unorm depth buffer in Metal.
-// See https://anglebug.com/6597
+// See https://anglebug.com/42265093
 void LoadD16ToD32F(const ImageLoadContext &context,
                    size_t width,
                    size_t height,

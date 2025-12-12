@@ -1,37 +1,41 @@
 // Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+import 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_heading.js';
 import 'chrome://resources/cr_elements/cr_auto_img/cr_auto_img.js';
-import 'chrome://resources/cr_elements/cr_hidden_style.css.js';
 import 'chrome://resources/cr_elements/cr_grid/cr_grid.js';
-import 'chrome://resources/cr_elements/cr_icons.css.js';
-import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import './check_mark_wrapper.js';
+import '/strings.m.js';
 
-import {HelpBubbleMixin, HelpBubbleMixinInterface} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin.js';
-import {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {SpHeadingElement} from 'chrome://customize-chrome-side-panel.top-chrome/shared/sp_heading.js';
+import {HelpBubbleMixinLit} from 'chrome://resources/cr_components/help_bubble/help_bubble_mixin_lit.js';
+import type {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {FocusOutlineManager} from 'chrome://resources/js/focus_outline_manager.js';
-import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
+import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
-import {BackgroundCollection, CollectionImage, CustomizeChromePageCallbackRouter, CustomizeChromePageHandlerInterface, Theme} from './customize_chrome.mojom-webui.js';
+import {CustomizeChromeAction, NtpImageType, recordCustomizeChromeAction, recordCustomizeChromeImageError} from './common.js';
+import type {BackgroundCollection, CollectionImage, CustomizeChromePageCallbackRouter, CustomizeChromePageHandlerInterface, Theme} from './customize_chrome.mojom-webui.js';
 import {CustomizeChromeApiProxy} from './customize_chrome_api_proxy.js';
-import {getTemplate} from './themes.html.js';
+import {getCss} from './themes.css.js';
+import {getHtml} from './themes.html.js';
+import {WindowProxy} from './window_proxy.js';
 
 export const CHROME_THEME_ELEMENT_ID =
     'CustomizeChromeUI::kChromeThemeElementId';
 export const CHROME_THEME_BACK_ELEMENT_ID =
     'CustomizeChromeUI::kChromeThemeBackElementId';
 
-const ThemesElementBase = HelpBubbleMixin(PolymerElement) as
-    {new (): PolymerElement & HelpBubbleMixinInterface};
+const ThemesElementBase = HelpBubbleMixinLit(CrLitElement);
 
 export interface ThemesElement {
   $: {
-    backButton: HTMLButtonElement,
-    header: HTMLElement,
     refreshDailyToggle: CrToggleElement,
+    heading: SpHeadingElement,
   };
 }
 
@@ -40,40 +44,38 @@ export class ThemesElement extends ThemesElementBase {
     return 'customize-chrome-themes';
   }
 
-  static get template() {
-    return getTemplate();
+  static override get styles() {
+    return getCss();
   }
 
-  static get properties() {
+  override render() {
+    return getHtml.bind(this)();
+  }
+
+  static override get properties() {
     return {
-      selectedCollection: {
-        type: Object,
-        value: null,
-        observer: 'onCollectionChange_',
-      },
-      isRefreshToggleChecked_: {
-        type: Boolean,
-        computed: `computeIsRefreshToggleChecked_(theme_, selectedCollection)`,
-      },
-      theme_: {
-        type: Object,
-        value: undefined,
-      },
-      themes_: Array,
-      header_: String,
+      selectedCollection: {type: Object},
+      header_: {type: String},
+      imageErrorDetectionEnabled_: {type: Boolean},
+      isRefreshToggleChecked_: {type: Boolean},
+      theme_: {type: Object},
+      themes_: {type: Array},
     };
   }
 
-  public selectedCollection: BackgroundCollection|null;
+  accessor selectedCollection: BackgroundCollection|null = null;
 
-  private header_: string;
-  private isRefreshToggleChecked_: boolean;
-  private theme_: Theme|undefined;
-  private themes_: CollectionImage[];
-  private setThemeListenerId_: number|null = null;
+  protected accessor header_: string = '';
+  protected accessor imageErrorDetectionEnabled_: boolean =
+      loadTimeData.getBoolean('imageErrorDetectionEnabled');
+  protected accessor isRefreshToggleChecked_: boolean = false;
+  private accessor theme_: Theme|undefined;
+  protected accessor themes_: CollectionImage[] = [];
 
   private callbackRouter_: CustomizeChromePageCallbackRouter;
   private pageHandler_: CustomizeChromePageHandlerInterface;
+  private previewImageLoadStartEpoch_: number = -1;
+  private setThemeListenerId_: number|null = null;
 
   constructor() {
     super();
@@ -97,19 +99,77 @@ export class ThemesElement extends ThemesElementBase {
     this.callbackRouter_.removeListener(this.setThemeListenerId_);
   }
 
-  override ready() {
-    super.ready();
-    this.registerHelpBubble(CHROME_THEME_BACK_ELEMENT_ID, this.$.backButton);
+  override willUpdate(changedProperties: PropertyValues<this>) {
+    super.willUpdate(changedProperties);
+
+    if (changedProperties.has('selectedCollection')) {
+      this.onCollectionChange_();
+    }
+
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
+
+    if (changedPrivateProperties.has('theme_') ||
+        changedProperties.has('selectedCollection')) {
+      this.isRefreshToggleChecked_ = this.computeIsRefreshToggleChecked_();
+    }
+  }
+
+  override updated(changedProperties: PropertyValues<this>) {
+    super.updated(changedProperties);
+
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
+
+    if (changedPrivateProperties.has('themes_') && this.themes_.length > 0) {
+      this.onThemesRendered_();
+    }
+  }
+
+  override firstUpdated() {
+    this.registerHelpBubble(
+        CHROME_THEME_BACK_ELEMENT_ID, this.$.heading.getBackButton());
   }
 
   focusOnBackButton() {
-    this.$.backButton.focus();
+    this.$.heading.getBackButton().focus();
   }
 
   private onThemesRendered_() {
-    const firstTile = this.root!.querySelector('.tile.theme');
+    const firstTile = this.shadowRoot.querySelector('.tile.theme');
     if (firstTile) {
       this.registerHelpBubble(CHROME_THEME_ELEMENT_ID, firstTile);
+    }
+  }
+
+  protected shouldShowTheme_(itemLoaded: boolean) {
+    return !this.imageErrorDetectionEnabled_ || itemLoaded;
+  }
+
+  protected onPreviewImageLoad_(e: Event) {
+    if (this.imageErrorDetectionEnabled_) {
+      const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+      assert(this.themes_[index]);
+      this.themes_[index].imageVerified = true;
+      this.requestUpdate();
+    }
+
+    chrome.metricsPrivate.recordValue(
+        {
+          metricName: 'NewTabPage.Images.ShownTime.ThemePreviewImage',
+          type: chrome.metricsPrivate.MetricTypeType.HISTOGRAM_LOG,
+          min: 1,
+          max: 60000,  // 60 seconds.
+          buckets: 100,
+        },
+        Math.floor(
+            WindowProxy.getInstance().now() -
+            this.previewImageLoadStartEpoch_));
+  }
+
+  protected onPreviewImageError_() {
+    if (this.imageErrorDetectionEnabled_) {
+      recordCustomizeChromeImageError(NtpImageType.BACKGROUND_IMAGE);
     }
   }
 
@@ -117,7 +177,8 @@ export class ThemesElement extends ThemesElementBase {
     this.header_ = '';
     this.themes_ = [];
     if (this.selectedCollection) {
-      this.pageHandler_.getBackgroundImages(this.selectedCollection!.id)
+      this.previewImageLoadStartEpoch_ = WindowProxy.getInstance().now();
+      this.pageHandler_.getBackgroundImages(this.selectedCollection.id)
           .then(({images}) => {
             this.themes_ = images;
           });
@@ -125,11 +186,16 @@ export class ThemesElement extends ThemesElementBase {
     }
   }
 
-  private onBackClick_() {
+  protected onBackClick_() {
     this.dispatchEvent(new Event('back-click'));
   }
 
-  private onSelectTheme_(e: DomRepeatEvent<CollectionImage>) {
+  protected onSelectTheme_(e: Event) {
+    const index = Number((e.currentTarget as HTMLElement).dataset['index']);
+    const theme = this.themes_[index]!;
+
+    recordCustomizeChromeAction(
+        CustomizeChromeAction.FIRST_PARTY_COLLECTION_THEME_SELECTED);
     const {
       attribution1,
       attribution2,
@@ -137,7 +203,7 @@ export class ThemesElement extends ThemesElementBase {
       imageUrl,
       previewImageUrl,
       collectionId,
-    } = e.model.item;
+    } = theme;
     this.pageHandler_.setBackgroundImage(
         attribution1, attribution2, attributionUrl, imageUrl, previewImageUrl,
         collectionId);
@@ -149,28 +215,19 @@ export class ThemesElement extends ThemesElementBase {
     }
     return !!this.theme_ && !!this.theme_.backgroundImage &&
         this.theme_.backgroundImage.dailyRefreshEnabled &&
-        this.selectedCollection!.id ===
-        this.theme_.backgroundImage.collectionId;
+        this.selectedCollection.id === this.theme_.backgroundImage.collectionId;
   }
 
-  private onRefreshDailyToggleChange_(e: CustomEvent<boolean>) {
-    if (e.detail) {
-      this.pageHandler_.setDailyRefreshCollectionId(
-          this.selectedCollection!.id);
-    } else {
-      this.pageHandler_.setDailyRefreshCollectionId('');
-    }
+  protected onRefreshDailyToggleChange_(e: CustomEvent<boolean>) {
+    this.pageHandler_.setDailyRefreshCollectionId(
+        e.detail ? this.selectedCollection!.id : '');
   }
 
-  private isThemeSelected_(url: string) {
-    return this.theme_ && !this.theme_.thirdPartyThemeInfo &&
-        this.theme_.backgroundImage &&
-        this.theme_.backgroundImage.url.url === url &&
+  protected isThemeSelected_(url: string): boolean {
+    return !!this.theme_ && !this.theme_.thirdPartyThemeInfo &&
+        !!this.theme_.backgroundImage &&
+        this.theme_?.backgroundImage.url.url === url &&
         !this.isRefreshToggleChecked_;
-  }
-
-  private getThemeCheckedStatus_(url: string): string {
-    return this.isThemeSelected_(url) ? 'true' : 'false';
   }
 }
 

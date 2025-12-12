@@ -32,6 +32,7 @@ config("runtime_library") {
     }
   }
 
+  # This include path is needed for |__config_site| in that folder.
   include_dirs += [ "//buildtools/third_party/libc++" ]
 
   # libc++ has two levels of additional checking:
@@ -41,6 +42,16 @@ config("runtime_library") {
   #    expensive checks. Enable these only if enable_iterator_debugging is on.
   if (enable_iterator_debugging) {
     defines += [ "_LIBCPP_ENABLE_DEBUG_MODE" ]
+  }
+
+  # Fuzzers build parts of the code with asan enabled and some with it
+  # disabled. That's incompatible with _LIBCPP_INSTRUMENTED_WITH_ASAN, see
+  # https://crbug.com/347026228#comment25
+  # TODO(thakis): Enable on apple if https://llvm.org/PR96099 gets fixed.
+  if (is_asan && !use_fuzzing_engine && !is_apple) {
+    defines += [ "_LIBCPP_INSTRUMENTED_WITH_ASAN=1" ]
+  } else {
+    defines += [ "_LIBCPP_INSTRUMENTED_WITH_ASAN=0" ]
   }
 
   defines += [ "CR_LIBCXX_REVISION=$libcxx_revision" ]
@@ -73,22 +84,7 @@ config("runtime_library") {
       # Note that //third_party/musl/src/starboard/include MUST be included
       # before the general musl include directory to prefer Starboard-specific
       # posix headers over default posix headers.
-      cflags_cc += [
-        "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
-                                 root_build_dir),
-        "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
-        "-isystem" +
-            rebase_path("//third_party/musl/arch/generic", root_build_dir),
-        "-femulated-tls",
-      ]
-      cflags_c = [
-        "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
-                                 root_build_dir),
-        "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
-        "-isystem" +
-            rebase_path("//third_party/musl/arch/generic", root_build_dir),
-        "-femulated-tls",
-      ]
+      configs = [ "//third_party/musl:system_includes" ]
     }
 
     cflags_objcc = cflags_cc
@@ -116,7 +112,11 @@ config("runtime_library") {
       ]
     }
   }
-  if (use_custom_libcxx && enable_safe_libcxx) {
-    defines += [ "_LIBCPP_ENABLE_ASSERTIONS=1" ]
-  }
+
+  # In a world without NaCl, the `runtime_library` config would also configure
+  # the `_LIBCPP_ENABLE_ASSERTIONS` define to enable hardening when using the
+  # custom hermetic libc++. However, this is currently added by the `compiler`
+  # config instead, since this hardening define should also be used by the NaCl
+  # saigo toolchain, which uses a prebuilt libc++ that is distinct from the
+  # custom hermetic libc++.
 }

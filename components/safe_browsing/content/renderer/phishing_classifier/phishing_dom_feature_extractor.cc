@@ -88,7 +88,7 @@ struct PhishingDOMFeatureExtractor::PageFeatureState {
         start_time(start_time_ticks),
         num_iterations(0) {}
 
-  ~PageFeatureState() {}
+  ~PageFeatureState() = default;
 };
 
 // Per-frame state
@@ -190,8 +190,6 @@ void PhishingDOMFeatureExtractor::ExtractFeaturesWithTimeout() {
         base::TimeTicks now = clock_->NowTicks();
         if (now - page_feature_state_->start_time >=
             base::Milliseconds(kMaxTotalTimeMs)) {
-          // We expect this to happen infrequently, so record when it does.
-          UMA_HISTOGRAM_COUNTS_1M("SBClientPhishing.DOMFeatureTimeout", 1);
           RunCallback(false);
           return;
         }

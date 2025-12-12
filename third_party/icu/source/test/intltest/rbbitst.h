@@ -42,7 +42,7 @@ public:
     RBBITest();
     virtual ~RBBITest();
 
-    void runIndexedTest( int32_t index, UBool exec, const char* &name, char* par = NULL ) override;
+    void runIndexedTest( int32_t index, UBool exec, const char* &name, char* par = nullptr ) override;
 
     void TestGetAvailableLocales();
     void TestGetDisplayName();
@@ -96,6 +96,8 @@ public:
     void TestLSTMThai();
     void TestLSTMBurmese();
     void TestRandomAccess();
+    void TestExternalBreakEngineWithFakeTaiLe();
+    void TestExternalBreakEngineWithFakeYue();
 
 #if U_ENABLE_TRACING
     void TestTraceCreateCharacter();

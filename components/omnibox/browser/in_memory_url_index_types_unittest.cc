@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/omnibox/browser/in_memory_url_index_types.h"
 
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
 #include <string>
 
 #include "base/strings/utf_string_conversions.h"
@@ -28,8 +34,7 @@ bool IntArraysEqual(const size_t* expected,
   return true;
 }
 
-class InMemoryURLIndexTypesTest : public testing::Test {
-};
+class InMemoryURLIndexTypesTest : public testing::Test {};
 
 TEST_F(InMemoryURLIndexTypesTest, StaticFunctions) {
   // Test String16VectorFromString16
@@ -55,9 +60,9 @@ TEST_F(InMemoryURLIndexTypesTest, StaticFunctions) {
       u" funky%20string-with=@strange   sequences, intended(to exceed)");
   WordStarts actual_starts_b;
   string_vec = String16VectorFromString16(string_b, &actual_starts_b);
-  ASSERT_EQ(8U, string_vec.size());
+  ASSERT_EQ(9U, string_vec.size());
   // Note that we stop collecting words and word starts at kMaxSignificantChars.
-  size_t expected_starts_b[] = {1, 7, 16, 22, 32, 43, 52, 55};
+  size_t expected_starts_b[] = {1, 7, 9, 16, 22, 32, 43, 52, 55};
   EXPECT_TRUE(IntArraysEqual(expected_starts_b, std::size(expected_starts_b),
                              actual_starts_b));
 
@@ -133,7 +138,8 @@ TEST_F(InMemoryURLIndexTypesTest, StaticFunctions) {
   // Test MatchTermInString
   TermMatches matches_g =
       MatchTermInString(u"x", u"axbxcxdxex fxgx/hxixjx.kx", 123);
-  const size_t expected_offsets[] = { 1, 3, 5, 7, 9, 12, 14, 17, 19, 21, 24 };
+  const auto expected_offsets =
+      std::to_array<size_t>({1, 3, 5, 7, 9, 12, 14, 17, 19, 21, 24});
   ASSERT_EQ(std::size(expected_offsets), matches_g.size());
   for (size_t i = 0; i < std::size(expected_offsets); ++i)
     EXPECT_EQ(expected_offsets[i], matches_g[i].offset);
@@ -148,7 +154,8 @@ TEST_F(InMemoryURLIndexTypesTest, OffsetsAndTermMatches) {
   matches_a.push_back(TermMatch(3, 10, 1));
   matches_a.push_back(TermMatch(4, 14, 5));
   std::vector<size_t> offsets = OffsetsFromTermMatches(matches_a);
-  const size_t expected_offsets_a[] = {1, 3, 4, 7, 9, 10, 10, 11, 14, 19};
+  const auto expected_offsets_a =
+      std::to_array<size_t>({1, 3, 4, 7, 9, 10, 10, 11, 14, 19});
   ASSERT_EQ(offsets.size(), std::size(expected_offsets_a));
   for (size_t i = 0; i < offsets.size(); ++i)
     EXPECT_EQ(expected_offsets_a[i], offsets[i]);
@@ -156,7 +163,7 @@ TEST_F(InMemoryURLIndexTypesTest, OffsetsAndTermMatches) {
   // Test ReplaceOffsetsInTermMatches
   offsets[4] = std::u16string::npos;  // offset of third term
   TermMatches matches_b = ReplaceOffsetsInTermMatches(matches_a, offsets);
-  const size_t expected_offsets_b[] = {1, 4, 10, 14};
+  const auto expected_offsets_b = std::to_array<size_t>({1, 4, 10, 14});
   ASSERT_EQ(std::size(expected_offsets_b), matches_b.size());
   for (size_t i = 0; i < matches_b.size(); ++i)
     EXPECT_EQ(expected_offsets_b[i], matches_b[i].offset);

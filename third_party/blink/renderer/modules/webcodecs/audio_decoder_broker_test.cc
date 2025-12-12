@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "third_party/blink/renderer/modules/webcodecs/audio_decoder_broker.h"
+
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/files/file_util.h"
@@ -30,9 +33,8 @@
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
-
-#include "third_party/blink/renderer/modules/webcodecs/audio_decoder_broker.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -122,8 +124,9 @@ class FakeInterfaceFactory : public media::mojom::InterfaceFactory {
   void CreateAudioDecoder(
       mojo::PendingReceiver<media::mojom::AudioDecoder> receiver) override {
     audio_decoder_receivers_.Add(
-        std::make_unique<media::MojoAudioDecoderService>(&mojo_media_client_,
-                                                         &cdm_service_context_),
+        std::make_unique<media::MojoAudioDecoderService>(
+            &mojo_media_client_, &cdm_service_context_,
+            base::SingleThreadTaskRunner::GetCurrentDefault()),
         std::move(receiver));
   }
   void CreateAudioEncoder(
@@ -132,8 +135,14 @@ class FakeInterfaceFactory : public media::mojom::InterfaceFactory {
   // Stub out other mojom::InterfaceFactory interfaces.
   void CreateVideoDecoder(
       mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
-      mojo::PendingRemote<media::stable::mojom::StableVideoDecoder>
-          dst_video_decoder) override {}
+      mojo::PendingRemote<media::mojom::VideoDecoder> dst_video_decoder)
+      override {}
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+  void CreateVideoDecoderWithTracker(
+      mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
+      mojo::PendingRemote<media::mojom::VideoDecoderTracker> tracker) override {
+  }
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   void CreateDefaultRenderer(
       const std::string& audio_device_id,
       mojo::PendingReceiver<media::mojom::Renderer> receiver) override {}
@@ -143,12 +152,6 @@ class FakeInterfaceFactory : public media::mojom::InterfaceFactory {
       mojo::PendingReceiver<media::mojom::Renderer> receiver) override {}
 #endif
 #if BUILDFLAG(IS_ANDROID)
-  void CreateMediaPlayerRenderer(
-      mojo::PendingRemote<media::mojom::MediaPlayerRendererClientExtension>
-          client_extension_remote,
-      mojo::PendingReceiver<media::mojom::Renderer> receiver,
-      mojo::PendingReceiver<media::mojom::MediaPlayerRendererExtension>
-          renderer_extension_receiver) override {}
   void CreateFlingingRenderer(
       const std::string& presentation_id,
       mojo::PendingRemote<media::mojom::FlingingRendererClientExtension>
@@ -157,7 +160,8 @@ class FakeInterfaceFactory : public media::mojom::InterfaceFactory {
 #endif  // BUILDFLAG(IS_ANDROID)
   void CreateCdm(const media::CdmConfig& cdm_config,
                  CreateCdmCallback callback) override {
-    std::move(callback).Run(mojo::NullRemote(), nullptr, "CDM not supported");
+    std::move(callback).Run(mojo::NullRemote(), nullptr,
+                            media::CreateCdmStatus::kCdmNotSupported);
   }
 #if BUILDFLAG(IS_WIN)
   void CreateMediaFoundationRenderer(
@@ -281,6 +285,7 @@ class AudioDecoderBrokerTest : public testing::Test {
   bool SupportsDecryption() { return decoder_broker_->SupportsDecryption(); }
 
  protected:
+  test::TaskEnvironment task_environment_;
   media::NullMediaLog null_media_log_;
   std::unique_ptr<AudioDecoderBroker> decoder_broker_;
   std::vector<scoped_refptr<media::AudioBuffer>> output_buffers_;
@@ -307,10 +312,10 @@ TEST_F(AudioDecoderBrokerTest, Decode_Uninitialized) {
 media::AudioDecoderConfig MakeVorbisConfig() {
   std::string extradata_name = "vorbis-extradata";
   base::FilePath extradata_path = media::GetTestDataFilePath(extradata_name);
-  int64_t tmp = 0;
-  CHECK(base::GetFileSize(extradata_path, &tmp))
-      << "Failed to get file size for '" << extradata_name << "'";
-  int file_size = base::checked_cast<int>(tmp);
+  std::optional<int64_t> tmp = base::GetFileSize(extradata_path);
+  CHECK(tmp.has_value()) << "Failed to get file size for '" << extradata_name
+                         << "'";
+  int file_size = base::checked_cast<int>(tmp.value());
   std::vector<uint8_t> extradata(file_size);
   CHECK_EQ(file_size,
            base::ReadFile(extradata_path,

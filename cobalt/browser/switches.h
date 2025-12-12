@@ -15,7 +15,6 @@
 #include <string>
 
 #include "base/command_line.h"
-#include "cobalt/shell/common/shell_switches.h"
 
 #ifndef COBALT_BROWSER_SWITCHES_H_
 #define COBALT_BROWSER_SWITCHES_H_
@@ -35,6 +34,14 @@ constexpr char kEnforceHTTPS[] = "https-enforcement";
 
 // Specify the initial window size: --window-size=w,h
 constexpr char kWindowSize[] = "window-size";
+
+// Whether to request, download, and install uncompressed (rather than
+// compressed) Evergreen binaries.
+constexpr char kUseUncompressedUpdates[] = "use_uncompressed_updates";
+
+// Uses the QA update server to test the changes to the configuration of the
+// PROD update server.
+constexpr char kUseQAUpdateServer[] = "use_qa_update_server";
 
 }  // namespace switches
 }  // namespace cobalt

@@ -6,6 +6,7 @@
 #define COMPONENTS_FEED_CORE_V2_TEST_TEST_UTIL_H_
 
 #include <string>
+#include <string_view>
 
 #include "base/functional/callback.h"
 #include "base/time/time.h"
@@ -37,6 +38,22 @@ const base::TimeDelta kEpsilon = base::Milliseconds(5);
                                << got___;                   \
   }
 
+// Trims whitespace from begin and end of all lines of text.
+std::string TrimLines(std::string_view text);
+
+// Does the protobuf argument's ToTextProto() output match message? Allows some
+// whitespace differences.
+MATCHER_P(EqualsTextProto, message, message) {
+  std::string actual_string = ToTextProto(arg);
+  if (TrimLines(actual_string) != TrimLines(message)) {
+    return testing::ExplainMatchResult(testing::Eq(message), ToTextProto(arg),
+                                       result_listener);
+  } else {
+    return true;
+  }
+}
+
+// Does the protobuf argument match message?
 MATCHER_P(EqualsProto, message, ToTextProto(message)) {
   std::string expected_serialized, actual_serialized;
   message.SerializeToString(&expected_serialized);

@@ -13,16 +13,17 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <tuple>
+
 #include "absl/algorithm/container.h"
+#include "api/array_view.h"
+#include "api/units/data_rate.h"
 #include "api/video/video_layers_allocation.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
 #include "modules/rtp_rtcp/source/leb128.h"
 #include "rtc_base/checks.h"
 
 namespace webrtc {
-
-constexpr RTPExtensionType RtpVideoLayersAllocationExtension::kId;
-
 namespace {
 
 constexpr int kMaxNumRtpStreams = 4;
@@ -109,7 +110,7 @@ SpatialLayersBitmasks SpatialLayersBitmasksPerRtpStream(
 // for the description of the format.
 
 bool RtpVideoLayersAllocationExtension::Write(
-    rtc::ArrayView<uint8_t> data,
+    ArrayView<uint8_t> data,
     const VideoLayersAllocation& allocation) {
   RTC_DCHECK(AllocationIsValid(allocation));
   RTC_DCHECK_GE(data.size(), ValueSize(allocation));
@@ -178,7 +179,7 @@ bool RtpVideoLayersAllocationExtension::Write(
 }
 
 bool RtpVideoLayersAllocationExtension::Parse(
-    rtc::ArrayView<const uint8_t> data,
+    ArrayView<const uint8_t> data,
     VideoLayersAllocation* allocation) {
   if (data.empty() || allocation == nullptr) {
     return false;

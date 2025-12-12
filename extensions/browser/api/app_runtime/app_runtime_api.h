@@ -5,12 +5,12 @@
 #ifndef EXTENSIONS_BROWSER_API_APP_RUNTIME_APP_RUNTIME_API_H_
 #define EXTENSIONS_BROWSER_API_APP_RUNTIME_APP_RUNTIME_API_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "base/values.h"
 #include "extensions/common/constants.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 
@@ -21,7 +21,6 @@ class BrowserContext;
 namespace extensions {
 
 namespace api::app_runtime {
-struct ActionData;
 struct LaunchData;
 }  // namespace api::app_runtime
 
@@ -42,7 +41,7 @@ class AppRuntimeEventRouter {
       content::BrowserContext* context,
       const Extension* extension,
       AppLaunchSource source,
-      absl::optional<api::app_runtime::LaunchData> launch_data);
+      std::optional<api::app_runtime::LaunchData> launch_data);
 
   // Dispatches the onRestarted event to the given app, providing a list of
   // restored file entries from the previous run.
@@ -61,8 +60,8 @@ class AppRuntimeEventRouter {
   //   }
   // }
 
-  // The FileEntries are created from |file_system_id| and |base_name|.
-  // |handler_id| corresponds to the id of the file_handlers item in the
+  // The FileEntries are created from `file_system_id` and `base_name`.
+  // `handler_id` corresponds to the id of the file_handlers item in the
   // manifest that resulted in a match which triggered this launch.
   static void DispatchOnLaunchedEventWithFileEntries(
       content::BrowserContext* context,
@@ -70,10 +69,9 @@ class AppRuntimeEventRouter {
       AppLaunchSource source,
       const std::string& handler_id,
       const std::vector<EntryInfo>& entries,
-      const std::vector<GrantedFileEntry>& file_entries,
-      absl::optional<api::app_runtime::ActionData> action_data);
+      const std::vector<GrantedFileEntry>& file_entries);
 
-  // |handler_id| corresponds to the id of the url_handlers item
+  // `handler_id` corresponds to the id of the url_handlers item
   // in the manifest that resulted in a match which triggered this launch.
   static void DispatchOnLaunchedEventWithUrl(content::BrowserContext* context,
                                              const Extension* extension,

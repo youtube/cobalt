@@ -4,9 +4,7 @@
 
 #import "ios/web/public/web_state_delegate.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "base/containers/contains.h"
 
 namespace web {
 
@@ -37,6 +35,7 @@ WebState* WebStateDelegate::OpenURLFromWebState(
 
 void WebStateDelegate::ShowRepostFormWarningDialog(
     WebState*,
+    FormWarningType warning_type,
     base::OnceCallback<void(bool)> callback) {
   std::move(callback).Run(true);
 }
@@ -65,12 +64,12 @@ UIView* WebStateDelegate::GetWebViewContainer(WebState* source) {
 }
 
 void WebStateDelegate::Attach(WebState* source) {
-  DCHECK(attached_states_.find(source) == attached_states_.end());
+  DCHECK(!base::Contains(attached_states_, source));
   attached_states_.insert(source);
 }
 
 void WebStateDelegate::Detach(WebState* source) {
-  DCHECK(attached_states_.find(source) != attached_states_.end());
+  DCHECK(base::Contains(attached_states_, source));
   attached_states_.erase(source);
 }
 
@@ -90,4 +89,6 @@ id<CRWResponderInputView> WebStateDelegate::GetResponderInputView(
   return nil;
 }
 
-}  // web
+void WebStateDelegate::OnNewWebViewCreated(WebState* source) {}
+
+}  // namespace web

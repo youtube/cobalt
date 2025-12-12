@@ -11,7 +11,6 @@
 #include "base/test/task_environment.h"
 #include "chromeos/ash/components/multidevice/remote_device_test_util.h"
 #include "chromeos/ash/services/device_sync/public/cpp/fake_device_sync_client.h"
-#include "chromeos/ash/services/device_sync/public/cpp/fake_gcm_device_info_provider.h"
 #include "chromeos/ash/services/multidevice_setup/fake_account_status_change_delegate.h"
 #include "chromeos/ash/services/multidevice_setup/fake_feature_state_observer.h"
 #include "chromeos/ash/services/multidevice_setup/fake_host_status_observer.h"
@@ -46,8 +45,6 @@ class FakeMultiDeviceSetupFactory : public MultiDeviceSetupImpl::Factory {
       FakeAndroidSmsAppHelperDelegate* expected_android_sms_app_helper_delegate,
       FakeAndroidSmsPairingStateTracker*
           expected_android_sms_pairing_state_tracker,
-      const device_sync::FakeGcmDeviceInfoProvider*
-          expected_gcm_device_info_provider,
       bool expected_is_secondary_user)
       : expected_testing_pref_service_(expected_testing_pref_service),
         expected_device_sync_client_(expected_device_sync_client),
@@ -57,7 +54,6 @@ class FakeMultiDeviceSetupFactory : public MultiDeviceSetupImpl::Factory {
             expected_android_sms_app_helper_delegate),
         expected_android_sms_pairing_state_tracker_(
             expected_android_sms_pairing_state_tracker),
-        expected_gcm_device_info_provider_(expected_gcm_device_info_provider),
         expected_is_secondary_user_(expected_is_secondary_user) {}
 
   FakeMultiDeviceSetupFactory(const FakeMultiDeviceSetupFactory&) = delete;
@@ -76,7 +72,6 @@ class FakeMultiDeviceSetupFactory : public MultiDeviceSetupImpl::Factory {
       OobeCompletionTracker* oobe_completion_tracker,
       AndroidSmsAppHelperDelegate* android_sms_app_helper_delegate,
       AndroidSmsPairingStateTracker* android_sms_pairing_state_tracker,
-      const device_sync::GcmDeviceInfoProvider* gcm_device_info_provider,
       bool is_secondary_user) override {
     EXPECT_FALSE(instance_);
     EXPECT_EQ(expected_testing_pref_service_, pref_service);
@@ -87,7 +82,6 @@ class FakeMultiDeviceSetupFactory : public MultiDeviceSetupImpl::Factory {
               android_sms_app_helper_delegate);
     EXPECT_EQ(expected_android_sms_pairing_state_tracker_,
               android_sms_pairing_state_tracker);
-    EXPECT_EQ(expected_gcm_device_info_provider_, gcm_device_info_provider);
     EXPECT_EQ(expected_is_secondary_user_, is_secondary_user);
 
     auto instance = std::make_unique<FakeMultiDeviceSetup>();
@@ -95,23 +89,18 @@ class FakeMultiDeviceSetupFactory : public MultiDeviceSetupImpl::Factory {
     return instance;
   }
 
-  raw_ptr<sync_preferences::TestingPrefServiceSyncable, ExperimentalAsh>
+  raw_ptr<sync_preferences::TestingPrefServiceSyncable>
       expected_testing_pref_service_;
-  raw_ptr<device_sync::FakeDeviceSyncClient, ExperimentalAsh>
-      expected_device_sync_client_;
-  raw_ptr<FakeAuthTokenValidator, ExperimentalAsh>
-      expected_auth_token_validator_;
-  raw_ptr<OobeCompletionTracker, ExperimentalAsh>
-      expected_oobe_completion_tracker_;
-  raw_ptr<FakeAndroidSmsAppHelperDelegate, ExperimentalAsh>
+  raw_ptr<device_sync::FakeDeviceSyncClient> expected_device_sync_client_;
+  raw_ptr<FakeAuthTokenValidator> expected_auth_token_validator_;
+  raw_ptr<OobeCompletionTracker> expected_oobe_completion_tracker_;
+  raw_ptr<FakeAndroidSmsAppHelperDelegate>
       expected_android_sms_app_helper_delegate_;
-  raw_ptr<FakeAndroidSmsPairingStateTracker, ExperimentalAsh>
+  raw_ptr<FakeAndroidSmsPairingStateTracker>
       expected_android_sms_pairing_state_tracker_;
-  raw_ptr<const device_sync::FakeGcmDeviceInfoProvider, ExperimentalAsh>
-      expected_gcm_device_info_provider_;
   bool expected_is_secondary_user_;
 
-  raw_ptr<FakeMultiDeviceSetup, ExperimentalAsh> instance_ = nullptr;
+  raw_ptr<FakeMultiDeviceSetup, DanglingUntriaged> instance_ = nullptr;
 };
 
 }  // namespace
@@ -140,9 +129,6 @@ class MultiDeviceSetupServiceTest : public testing::Test {
         std::make_unique<FakeAndroidSmsAppHelperDelegate>();
     fake_android_sms_pairing_state_tracker_ =
         std::make_unique<FakeAndroidSmsPairingStateTracker>();
-    fake_gcm_device_info_provider_ =
-        std::make_unique<device_sync::FakeGcmDeviceInfoProvider>(
-            cryptauth::GcmDeviceInfo());
 
     fake_multidevice_setup_factory_ =
         std::make_unique<FakeMultiDeviceSetupFactory>(
@@ -150,8 +136,7 @@ class MultiDeviceSetupServiceTest : public testing::Test {
             fake_auth_token_validator_.get(),
             fake_oobe_completion_tracker_.get(),
             fake_android_sms_app_helper_delegate_.get(),
-            fake_android_sms_pairing_state_tracker_.get(),
-            fake_gcm_device_info_provider_.get(), is_secondary_user_);
+            fake_android_sms_pairing_state_tracker_.get(), is_secondary_user_);
     MultiDeviceSetupImpl::Factory::SetFactoryForTesting(
         fake_multidevice_setup_factory_.get());
 
@@ -159,8 +144,7 @@ class MultiDeviceSetupServiceTest : public testing::Test {
         test_pref_service_.get(), fake_device_sync_client_.get(),
         fake_auth_token_validator_.get(), fake_oobe_completion_tracker_.get(),
         fake_android_sms_app_helper_delegate_.get(),
-        fake_android_sms_pairing_state_tracker_.get(),
-        fake_gcm_device_info_provider_.get(), is_secondary_user_);
+        fake_android_sms_pairing_state_tracker_.get(), is_secondary_user_);
 
     service_->BindMultiDeviceSetup(
         multidevice_setup_remote_.BindNewPipeAndPassReceiver());
@@ -226,14 +210,12 @@ class MultiDeviceSetupServiceTest : public testing::Test {
       fake_android_sms_app_helper_delegate_;
   std::unique_ptr<FakeAndroidSmsPairingStateTracker>
       fake_android_sms_pairing_state_tracker_;
-  std::unique_ptr<device_sync::FakeGcmDeviceInfoProvider>
-      fake_gcm_device_info_provider_;
   bool is_secondary_user_ = false;
 
   std::unique_ptr<FakeMultiDeviceSetupFactory> fake_multidevice_setup_factory_;
 
   std::unique_ptr<MultiDeviceSetupService> service_;
-  absl::optional<bool> last_debug_event_success_;
+  std::optional<bool> last_debug_event_success_;
 
   mojo::Remote<mojom::MultiDeviceSetup> multidevice_setup_remote_;
   mojo::Remote<mojom::PrivilegedHostDeviceSetter>

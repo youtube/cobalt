@@ -17,7 +17,6 @@ config("modular") {
   cflags = [
     "-ffunction-sections",
     "-fdata-sections",
-    "-nostdlibinc",
   ]
 
   cflags += [ "-fPIC" ]
@@ -26,7 +25,7 @@ config("modular") {
     # Enable GNU extensions to get prototypes like ffsl.
     "_GNU_SOURCE=1",
 
-    "_LIBCPP_HAS_MUSL_LIBC",
+    "_LIBCPP_HAS_MUSL_LIBC=1",
 
     # File format of the shared object we will generate.
     "__ELF__",

@@ -9,7 +9,6 @@
 #include <memory>
 #include <vector>
 
-#include "base/android/jni_weak_ref.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "content/browser/web_contents/web_contents_android.h"
@@ -42,7 +41,7 @@ class MediaSessionAndroid final
   void MediaSessionInfoChanged(
       media_session::mojom::MediaSessionInfoPtr session_info) override;
   void MediaSessionMetadataChanged(
-      const absl::optional<media_session::MediaMetadata>& metadata) override;
+      const std::optional<media_session::MediaMetadata>& metadata) override;
   void MediaSessionActionsChanged(
       const std::vector<media_session::mojom::MediaSessionAction>& action)
       override;
@@ -51,7 +50,7 @@ class MediaSessionAndroid final
                            std::vector<media_session::MediaImage>>& images)
       override;
   void MediaSessionPositionChanged(
-      const absl::optional<media_session::MediaPosition>& position) override;
+      const std::optional<media_session::MediaPosition>& position) override;
 
   // MediaSession method wrappers.
   void Resume(JNIEnv* env, const base::android::JavaParamRef<jobject>& j_obj);
@@ -71,11 +70,12 @@ class MediaSessionAndroid final
       const base::android::JavaParamRef<jobject>& j_obj);
 
  private:
+  friend class WebContentsObserverProxy;
   base::android::ScopedJavaLocalRef<jobject> GetJavaObject();
 
-  // The linked Java object. The strong reference is hold by Java WebContensImpl
-  // to avoid introducing a new GC root.
-  JavaObjectWeakGlobalRef j_media_session_;
+  // The linked Java object.
+  base::android::ScopedJavaGlobalRef<jobject> j_media_session_;
+
   // WebContentsAndroid corresponding to the Java WebContentsImpl that holds a
   // strong reference to |j_media_session_|.
   raw_ptr<WebContentsAndroid, DanglingUntriaged> web_contents_android_;

@@ -2,21 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/sessions/session_service_log.h"
+
 #include <stddef.h>
 
 #include <list>
 #include <memory>
+#include <optional>
 
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
 #include "base/memory/raw_ptr.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/resource_coordinator/session_restore_policy.h"
 #include "chrome/browser/sessions/session_restore_test_helper.h"
 #include "chrome/browser/sessions/session_restore_test_utils.h"
-#include "chrome/browser/sessions/session_service_log.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_list.h"
@@ -29,7 +31,6 @@
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/page_transition_types.h"
 
 class SessionServiceLogTest : public InProcessBrowserTest {
@@ -38,7 +39,7 @@ class SessionServiceLogTest : public InProcessBrowserTest {
   ~SessionServiceLogTest() override = default;
 
  protected:
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void SetUpCommandLine(base::CommandLine* command_line) override {
     // TODO(nkostylev): Investigate if we can remove this switch.
     command_line->AppendSwitch(switches::kCreateBrowserOnStartupForTests);
@@ -57,14 +58,14 @@ class SessionServiceLogTest : public InProcessBrowserTest {
     SessionStartupPref::SetStartupPref(browser()->profile(), pref);
   }
 
-  absl::optional<SessionServiceEvent> FindMostRecentEventOfType(
+  std::optional<SessionServiceEvent> FindMostRecentEventOfType(
       SessionServiceEventLogType type) const {
     auto events = GetSessionServiceEvents(profile_);
     for (const SessionServiceEvent& event : base::Reversed(events)) {
       if (event.type == type)
         return event;
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   std::list<SessionServiceEvent>::reverse_iterator
@@ -88,7 +89,7 @@ class SessionServiceLogTest : public InProcessBrowserTest {
 
  protected:
   // Cached as browser() may be destroyed.
-  raw_ptr<Profile, DanglingUntriaged> profile_ = nullptr;
+  raw_ptr<Profile, AcrossTasksDanglingUntriaged> profile_ = nullptr;
   std::unique_ptr<ScopedKeepAlive> keep_alive_;
 };
 

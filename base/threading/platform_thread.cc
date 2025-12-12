@@ -5,7 +5,8 @@
 #include "base/threading/platform_thread.h"
 
 #include "base/task/current_thread.h"
-#include "third_party/abseil-cpp/absl/base/attributes.h"
+#include "base/threading/thread_id_name_manager.h"
+#include "base/trace_event/base_tracing.h"
 
 #if BUILDFLAG(IS_FUCHSIA)
 #include "base/fuchsia/scheduler.h"
@@ -15,13 +16,16 @@ namespace base {
 
 namespace {
 
-ABSL_CONST_INIT thread_local ThreadType current_thread_type =
-    ThreadType::kDefault;
+constinit thread_local ThreadType current_thread_type = ThreadType::kDefault;
 
 }  // namespace
 
+void PlatformThreadId::WriteIntoTrace(perfetto::TracedValue&& context) const {
+  perfetto::WriteIntoTracedValue(std::move(context), value_);
+}
+
 // static
-void PlatformThread::SetCurrentThreadType(ThreadType thread_type) {
+void PlatformThreadBase::SetCurrentThreadType(ThreadType thread_type) {
   MessagePumpType message_pump_type = MessagePumpType::DEFAULT;
   if (CurrentIOThread::IsSet()) {
     message_pump_type = MessagePumpType::IO;
@@ -35,21 +39,27 @@ void PlatformThread::SetCurrentThreadType(ThreadType thread_type) {
 }
 
 // static
-ThreadType PlatformThread::GetCurrentThreadType() {
+ThreadType PlatformThreadBase::GetCurrentThreadType() {
   return current_thread_type;
 }
 
 // static
-absl::optional<TimeDelta> PlatformThread::GetThreadLeewayOverride() {
+std::optional<TimeDelta> PlatformThreadBase::GetThreadLeewayOverride() {
 #if BUILDFLAG(IS_FUCHSIA)
   // On Fuchsia, all audio threads run with the CPU scheduling profile that uses
   // an interval of |kAudioSchedulingPeriod|. Using the default leeway may lead
   // to some tasks posted to audio threads to be executed too late (see
   // http://crbug.com/1368858).
-  if (GetCurrentThreadType() == ThreadType::kRealtimeAudio)
+  if (GetCurrentThreadType() == ThreadType::kRealtimeAudio) {
     return kAudioSchedulingPeriod;
+  }
 #endif
-  return absl::nullopt;
+  return std::nullopt;
+}
+
+// static
+void PlatformThreadBase::SetNameCommon(const std::string& name) {
+  ThreadIdNameManager::GetInstance()->SetName(name);
 }
 
 namespace internal {

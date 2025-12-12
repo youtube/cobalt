@@ -6,16 +6,16 @@
 #define COMPONENTS_METRICS_METRICS_LOG_STORE_H_
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/metrics/histogram_base.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "components/metrics/log_store.h"
 #include "components/metrics/metrics_log.h"
 #include "components/metrics/metrics_logs_event_manager.h"
 #include "components/metrics/unsent_log_store.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class PrefService;
 class PrefRegistrySimple;
@@ -39,25 +39,14 @@ class MetricsServiceClient;
 class MetricsLogStore : public LogStore {
  public:
   // Configurable limits for ensuring and restricting local log storage.
-  //
-  // |min_{initial,ongoing}_log_queue_count| are the minimum numbers of unsent
-  // logs that UnsentLogStore must persist before deleting old logs.
-  //
-  // |min_{initial,ongoing}_log_queue_size| are the minimum numbers of bytes in
-  // total across all logs within the initial or ongoing log queue that
-  // UnsentLogStore must persist before deleting old logs.
-  //
-  // If both |min_..._log_queue_count| and |min_..._log_queue_size| are 0, then
-  // this LogStore won't persist unsent logs to local storage.
-  //
-  // |max_ongoing_log_size| is the maximum size of any individual ongoing log.
-  // When set to 0, no limits are imposed, i.e. individual logs can be any size.
   struct StorageLimits {
-    size_t min_initial_log_queue_count = 0;
-    size_t min_initial_log_queue_size = 0;
-    size_t min_ongoing_log_queue_count = 0;
-    size_t min_ongoing_log_queue_size = 0;
-    size_t max_ongoing_log_size = 0;
+    // Log store limits for |initial_log_queue_|. See
+    // comments at //components/metrics/unsent_log_store.h for more details.
+    UnsentLogStore::UnsentLogStoreLimits initial_log_queue_limits;
+
+    // Log store limits for |ongoing_log_queue_|.See
+    // comments at //components/metrics/unsent_log_store.h for more details.
+    UnsentLogStore::UnsentLogStoreLimits ongoing_log_queue_limits;
   };
 
   // Constructs a MetricsLogStore that persists data into |local_state|.
@@ -81,7 +70,7 @@ class MetricsLogStore : public LogStore {
 
   // Saves |log_data| as the given |log_type|. Before being stored, the data
   // will be compressed, and a hash and signature will be computed.
-  // TODO(crbug/1052796): Remove this function, and use StoreLogInfo()
+  // TODO(crbug.com/40119012): Remove this function, and use StoreLogInfo()
   // everywhere instead.
   void StoreLog(const std::string& log_data,
                 MetricsLog::LogType log_type,
@@ -135,9 +124,10 @@ class MetricsLogStore : public LogStore {
   const std::string& staged_log() const override;
   const std::string& staged_log_hash() const override;
   const std::string& staged_log_signature() const override;
-  absl::optional<uint64_t> staged_log_user_id() const override;
+  std::optional<uint64_t> staged_log_user_id() const override;
+  const LogMetadata staged_log_metadata() const override;
   void StageNextLog() override;
-  void DiscardStagedLog(base::StringPiece reason = "") override;
+  void DiscardStagedLog(std::string_view reason = "") override;
   void MarkStagedLogAsSent() override;
   void TrimAndPersistUnsentLogs(bool overwrite_in_memory_store) override;
   void LoadPersistedUnsentLogs() override;

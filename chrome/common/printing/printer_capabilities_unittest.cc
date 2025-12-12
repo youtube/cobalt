@@ -11,7 +11,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "chrome/common/printing/printing_buildflags.h"
 #include "content/public/test/browser_task_environment.h"
 #include "printing/backend/test_print_backend.h"
@@ -44,13 +44,28 @@ void VerifyPaper(const base::Value& paper_dict,
   const std::string* vendor = paper_dict.GetDict().FindString("vendor_id");
   ASSERT_TRUE(vendor);
   EXPECT_EQ(expected_vendor, *vendor);
-  absl::optional<int> width = paper_dict.GetDict().FindInt("width_microns");
+  std::optional<int> width = paper_dict.GetDict().FindInt("width_microns");
   ASSERT_TRUE(width.has_value());
   EXPECT_EQ(expected_size.width(), width.value());
-  absl::optional<int> height = paper_dict.GetDict().FindInt("height_microns");
+  std::optional<int> height = paper_dict.GetDict().FindInt("height_microns");
   ASSERT_TRUE(height.has_value());
   EXPECT_EQ(expected_size.height(), height.value());
 }
+
+#if BUILDFLAG(IS_CHROMEOS)
+void VerifyMediaType(const base::Value& media_type_dict,
+                     const std::string& expected_name,
+                     const std::string& expected_vendor) {
+  ASSERT_TRUE(media_type_dict.is_dict());
+  const std::string* name =
+      media_type_dict.GetDict().FindString("custom_display_name");
+  ASSERT_TRUE(name);
+  EXPECT_EQ(expected_name, *name);
+  const std::string* vendor = media_type_dict.GetDict().FindString("vendor_id");
+  ASSERT_TRUE(vendor);
+  EXPECT_EQ(expected_vendor, *vendor);
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace
 
@@ -68,10 +83,7 @@ class PrinterCapabilitiesTest : public testing::Test {
     disallow_blocking_ = std::make_unique<base::ScopedDisallowBlocking>();
   }
 
-  void TearDown() override {
-    disallow_blocking_.reset();
-    test_backend_.reset();
-  }
+  void TearDown() override { PrintBackend::SetPrintBackendForTesting(nullptr); }
 
   base::Value::Dict GetSettingsOnBlockingTaskRunnerAndWaitForResults(
       const std::string& printer_name,
@@ -206,7 +218,11 @@ TEST_F(PrinterCapabilitiesTest, UserDefinedPapers) {
 
   // Verify the 3 paper sizes are the ones in |caps->papers|, followed by the
   // ones in |user_defined_papers|.
+#if BUILDFLAG(PRINT_MEDIA_L10N_ENABLED)
+  VerifyPaper((*media_option)[0], "0 x 0 mm", "om_100x234um_0x0mm", {100, 234});
+#else
   VerifyPaper((*media_option)[0], "printer_foo", "printer_vendor", {100, 234});
+#endif
   VerifyPaper((*media_option)[1], "foo", "vendor", {200, 300});
   VerifyPaper((*media_option)[2], "bar", "vendor", {600, 600});
 }
@@ -272,7 +288,8 @@ TEST_F(PrinterCapabilitiesTest, PaperLocalizationsApplied) {
 
   // Verify the paper sizes are the ones in `caps->papers` in the correct
   // order.
-  VerifyPaper((*media_option)[0], "2 x 3 in", "oe_2x3_2x3in", {50800, 76200});
+  VerifyPaper((*media_option)[0], "2 x 3 in", "om_50800x76200um_50x76mm",
+              {50800, 76200});
   VerifyPaper((*media_option)[1], "3.5 x 5 in", "oe_photo-l_3.5x5in",
               {88900, 127000});
   VerifyPaper((*media_option)[2], "4 x 4 in", "oe_square-photo_4x4in",
@@ -281,18 +298,19 @@ TEST_F(PrinterCapabilitiesTest, PaperLocalizationsApplied) {
               {101600, 152400});
   VerifyPaper((*media_option)[4], "5 x 5 in", "oe_square-photo_5x5in",
               {127000, 127000});
-  VerifyPaper((*media_option)[5], "1 x 1 mm", "om_1-x-1_1x1mm", {1000, 1000});
-  VerifyPaper((*media_option)[6], "210 x 330 mm", "om_folio_210x330mm",
+  VerifyPaper((*media_option)[5], "9 x 12.1 in", "om_228600x307340um_228x307mm",
+              {228600, 307340});
+  VerifyPaper((*media_option)[6], "1 x 1 mm", "om_1000x1000um_1x1mm",
+              {1000, 1000});
+  VerifyPaper((*media_option)[7], "210 x 330 mm", "om_folio_210x330mm",
               {210000, 330000});
-  VerifyPaper((*media_option)[7], "215 x 315 mm", "om_folio-sp_215x315mm",
+  VerifyPaper((*media_option)[8], "215 x 315 mm", "om_folio-sp_215x315mm",
               {215000, 315000});
-  VerifyPaper((*media_option)[8], "215 x 400 mm", "om_photo-21x40_215x400mm",
-              {215000, 400000});
-  VerifyPaper((*media_option)[9], "A4", "iso_a4_210x297mm", {210000, 297000});
-  VerifyPaper((*media_option)[10], "Custom 1 (9 x 12.1 in)",
-              "na_custom-1_9x12.1in", {228600, 307340});
-  VerifyPaper((*media_option)[11], "Custom 2 (299.6 x 405.3 mm)",
-              "na_custom-2_299.6x405.3mm", {299600, 405300});
+  VerifyPaper((*media_option)[9], "215 x 400 mm",
+              "om_215000x400000um_215x400mm", {215000, 400000});
+  VerifyPaper((*media_option)[10], "300 x 405 mm",
+              "om_299600x405300um_299x405mm", {299600, 405300});
+  VerifyPaper((*media_option)[11], "A4", "iso_a4_210x297mm", {210000, 297000});
   VerifyPaper((*media_option)[12], "Letter", "na_letter_8.5x11in",
               {215900, 279400});
   VerifyPaper((*media_option)[13], "foo", "vendor", {200, 300});
@@ -300,7 +318,53 @@ TEST_F(PrinterCapabilitiesTest, PaperLocalizationsApplied) {
 }
 #endif  // BUILDFLAG(PRINT_MEDIA_L10N_ENABLED)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
+TEST_F(PrinterCapabilitiesTest, MediaTypeLocalizationsApplied) {
+  std::string printer_name = "test_printer";
+  PrinterBasicInfo basic_info;
+
+  // Set a capability and add a valid printer.
+  auto caps = std::make_unique<PrinterSemanticCapsAndDefaults>();
+  caps->papers.push_back({"na letter", "na_letter_8.5x11in", {215900, 279400}});
+
+  // Add some media types.
+  caps->media_types.push_back({"stationery display name", "stationery"});
+  caps->media_types.push_back({"custom 1 display name", "custom-1"});
+  caps->media_types.push_back({"photo display name", "photographic"});
+  caps->media_types.push_back({"custom 2 display name", "custom-2"});
+
+  caps->dpis = {{600, 600}};
+  print_backend()->AddValidPrinter(
+      printer_name, std::move(caps),
+      std::make_unique<printing::PrinterBasicInfo>(basic_info));
+
+  base::Value::Dict settings_dictionary =
+      GetSettingsOnBlockingTaskRunnerAndWaitForResults(printer_name, basic_info,
+                                                       {});
+
+  // Verify settings were created.
+  ASSERT_FALSE(settings_dictionary.empty());
+
+  // Verify there is a CDD with a printer entry.
+  const base::Value::Dict* cdd =
+      settings_dictionary.FindDict(kSettingCapabilities);
+  ASSERT_TRUE(cdd);
+  const base::Value::Dict* printer = cdd->FindDict(kPrinter);
+  ASSERT_TRUE(printer);
+
+  // Verify there are 4 media types.
+  const base::Value::Dict* media_type = printer->FindDict("media_type");
+  ASSERT_TRUE(media_type);
+  const base::Value::List* media_type_option = media_type->FindList("option");
+  ASSERT_TRUE(media_type_option);
+  ASSERT_EQ(4U, media_type_option->size());
+
+  VerifyMediaType((*media_type_option)[0], "Paper (Plain)", "stationery");
+  VerifyMediaType((*media_type_option)[1], "custom 1 display name", "custom-1");
+  VerifyMediaType((*media_type_option)[2], "Photo", "photographic");
+  VerifyMediaType((*media_type_option)[3], "custom 2 display name", "custom-2");
+}
+
 TEST_F(PrinterCapabilitiesTest, HasNotSecureProtocol) {
   std::string printer_name = "test_printer";
   PrinterBasicInfo basic_info;
@@ -330,10 +394,10 @@ TEST_F(PrinterCapabilitiesTest, HasNotSecureProtocol) {
   // Verify that pin is not supported.
   const base::Value::Dict* pin = printer->FindDict("pin");
   ASSERT_TRUE(pin);
-  absl::optional<bool> pin_supported = pin->FindBool("supported");
+  std::optional<bool> pin_supported = pin->FindBool("supported");
   ASSERT_TRUE(pin_supported.has_value());
   ASSERT_FALSE(pin_supported.value());
 }
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace printing

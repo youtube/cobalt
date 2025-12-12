@@ -15,10 +15,10 @@
 
 #include "common/angle_version_info.h"
 #include "libANGLE/renderer/driver_utils.h"
-#include "libANGLE/renderer/vulkan/RendererVk.h"
 #include "libANGLE/renderer/vulkan/android/HardwareBufferImageSiblingVkAndroid.h"
 #include "libANGLE/renderer/vulkan/android/WindowSurfaceVkAndroid.h"
 #include "libANGLE/renderer/vulkan/vk_caps_utils.h"
+#include "libANGLE/renderer/vulkan/vk_renderer.h"
 
 namespace rx
 {
@@ -64,9 +64,9 @@ egl::ConfigSet DisplayVkAndroid::generateConfigs()
     // universally available.
 
     // Assume GL_RGB8 and GL_RGBA8 is always available.
-    std::vector<GLenum> kColorFormats        = {GL_RGBA8, GL_RGB8};
+    angle::FastVector<GLenum, 5> kColorFormats = {GL_RGBA8, GL_RGB8};
     std::vector<GLenum> kDesiredColorFormats = {GL_RGB565, GL_RGB10_A2, GL_RGBA16F};
-    if (!getRenderer()->getFeatures().supportsSurfacelessQueryExtension.enabled)
+    if (!getFeatures().supportsSurfacelessQueryExtension.enabled)
     {
         // Old path: Assume GL_RGB565 is available, as it is generally available on the devices
         // that support Vulkan.
@@ -77,7 +77,8 @@ egl::ConfigSet DisplayVkAndroid::generateConfigs()
         // DisplayVk should have already queried and cached supported surface formats.
         for (GLenum glFormat : kDesiredColorFormats)
         {
-            VkFormat vkFormat = mRenderer->getFormat(glFormat).getActualRenderableImageVkFormat();
+            VkFormat vkFormat =
+                mRenderer->getFormat(glFormat).getActualRenderableImageVkFormat(mRenderer);
             ASSERT(vkFormat != VK_FORMAT_UNDEFINED);
             if (isConfigFormatSupported(vkFormat))
             {
@@ -102,14 +103,26 @@ void DisplayVkAndroid::enableRecordableIfSupported(egl::Config *config)
 {
     // TODO(b/181163023): Determine how to properly query for support. This is a hack to unblock
     // launching SwANGLE on Cuttlefish.
-    // anglebug.com/6612: This is also required for app compatiblity.
-    config->recordable = true;
+    // anglebug.com/42265110: This is also required for app compatiblity.
+
+    const bool isRGBA8888Config = (config->redSize == 8 && config->greenSize == 8 &&
+                                   config->blueSize == 8 && config->alphaSize == 8);
+    const bool isRGB888Config   = (config->redSize == 8 && config->greenSize == 8 &&
+                                 config->blueSize == 8 && config->alphaSize == 0);
+    const bool isRGB10A2Config  = (config->redSize == 10 && config->greenSize == 10 &&
+                                  config->blueSize == 10 && config->alphaSize == 2);
+
+    // enabled recordable only for RGBA8888, RGB888 and RGB10_A2 configs
+    const EGLBoolean enableRecordableBit =
+        (isRGBA8888Config || isRGB888Config || isRGB10A2Config) ? EGL_TRUE : EGL_FALSE;
+
+    config->recordable = enableRecordableBit;
 }
 
 void DisplayVkAndroid::checkConfigSupport(egl::Config *config)
 {
     // TODO(geofflang): Test for native support and modify the config accordingly.
-    // anglebug.com/2692
+    // anglebug.com/42261400
 
     enableRecordableIfSupported(config);
 }

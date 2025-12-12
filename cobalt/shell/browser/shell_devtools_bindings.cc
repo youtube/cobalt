@@ -20,7 +20,6 @@
 
 #include "base/base64.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
@@ -28,9 +27,7 @@
 #include "base/json/string_escape.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/uuid.h"
@@ -128,15 +125,13 @@ class ShellDevToolsBindings::NetworkResourceLoader
     response_headers_ = response_head.headers;
   }
 
-  void OnDataReceived(base::StringPiece chunk,
+  void OnDataReceived(std::string_view chunk,
                       base::OnceClosure resume) override {
     base::Value chunkValue;
 
     bool encoded = !base::IsStringUTF8(chunk);
     if (encoded) {
-      std::string encoded_string;
-      base::Base64Encode(chunk, &encoded_string);
-      chunkValue = base::Value(std::move(encoded_string));
+      chunkValue = base::Value(base::Base64Encode(chunk));
     } else {
       chunkValue = base::Value(chunk);
     }
@@ -200,19 +195,7 @@ ShellDevToolsBindings::~ShellDevToolsBindings() {
 
   auto* bindings = GetShellDevtoolsBindingsInstances();
   DCHECK(base::Contains(*bindings, this));
-  base::Erase(*bindings, this);
-}
-
-// static
-std::vector<ShellDevToolsBindings*>
-ShellDevToolsBindings::GetInstancesForWebContents(WebContents* web_contents) {
-  std::vector<ShellDevToolsBindings*> result;
-  base::ranges::copy_if(*GetShellDevtoolsBindingsInstances(),
-                        std::back_inserter(result),
-                        [web_contents](ShellDevToolsBindings* binding) {
-                          return binding->inspected_contents() == web_contents;
-                        });
-  return result;
+  std::erase(*bindings, this);
 }
 
 void ShellDevToolsBindings::ReadyToCommitNavigation(
@@ -246,8 +229,7 @@ void ShellDevToolsBindings::AttachInternal() {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
   const bool create_for_tab = false;
 #else
-  const bool create_for_tab = base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kContentShellDevToolsTabTarget);
+  const bool create_for_tab = true;
 #endif
   agent_host_ = create_for_tab
                     ? DevToolsAgentHost::GetOrCreateForTab(inspected_contents_)
@@ -308,15 +290,15 @@ void ShellDevToolsBindings::HandleMessageFromDevToolsFrontend(
     if (!agent_host_ || !protocol_message) {
       return;
     }
-    agent_host_->DispatchProtocolMessage(
-        this, base::as_bytes(base::make_span(*protocol_message)));
+    agent_host_->DispatchProtocolMessage(this,
+                                         base::as_byte_span(*protocol_message));
   } else if (*method == "loadCompleted") {
     CallClientFunction("DevToolsAPI", "setUseSoftMenu", base::Value(true));
   } else if (*method == "loadNetworkResource" && params.size() == 3) {
     // TODO(pfeldman): handle some of the embedder messages in content.
     const std::string* url = params[0].GetIfString();
     const std::string* headers = params[1].GetIfString();
-    absl::optional<const int> stream_id = params[2].GetIfInt();
+    std::optional<const int> stream_id = params[2].GetIfInt();
     if (!url || !headers || !stream_id.has_value()) {
       return;
     }
@@ -427,8 +409,8 @@ void ShellDevToolsBindings::HandleMessageFromDevToolsFrontend(
 void ShellDevToolsBindings::DispatchProtocolMessage(
     DevToolsAgentHost* agent_host,
     base::span<const uint8_t> message) {
-  base::StringPiece str_message(reinterpret_cast<const char*>(message.data()),
-                                message.size());
+  std::string_view str_message(reinterpret_cast<const char*>(message.data()),
+                               message.size());
   if (str_message.length() < kShellMaxMessageChunkSize) {
     CallClientFunction("DevToolsAPI", "dispatchMessage",
                        base::Value(std::string(str_message)));
@@ -436,7 +418,7 @@ void ShellDevToolsBindings::DispatchProtocolMessage(
     size_t total_size = str_message.length();
     for (size_t pos = 0; pos < str_message.length();
          pos += kShellMaxMessageChunkSize) {
-      base::StringPiece str_message_chunk =
+      std::string_view str_message_chunk =
           str_message.substr(pos, kShellMaxMessageChunkSize);
 
       CallClientFunction(

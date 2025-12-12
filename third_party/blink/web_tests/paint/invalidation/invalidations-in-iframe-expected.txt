@@ -6,17 +6,14 @@
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF",
       "invalidations": [
-        [8, 158, 200, 200]
+        [0, 0, 800, 600]
       ]
     },
     {
-      "name": "LayoutNGBlockFlow DIV",
+      "name": "LayoutBlockFlow DIV",
       "bounds": [100, 100],
       "contentsOpaque": true,
       "backgroundColor": "#8888FF",
-      "invalidations": [
-        [0, 0, 100, 100]
-      ],
       "transform": 2
     }
   ],

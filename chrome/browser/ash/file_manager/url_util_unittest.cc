@@ -26,7 +26,7 @@ namespace {
 // Parse a JSON query string into a base::Value.
 base::Value ParseJsonQueryString(const std::string& query) {
   const std::string json = base::UnescapeBinaryURLComponent(query);
-  absl::optional<base::Value> value = base::JSONReader::Read(json);
+  std::optional<base::Value> value = base::JSONReader::Read(json);
   return value ? std::move(*value) : base::Value();
 }
 
@@ -82,17 +82,10 @@ TEST(FileManagerUrlUtilTest, GetFileManagerMainPageUrlWithParams_NoFileTypes) {
 
 TEST(FileManagerUrlUtilTest,
      GetFileManagerMainPageUrlWithParams_WithFileTypes) {
-  // Create a FileTypeInfo which looks like:
-  // extensions: [["htm", "html"], ["txt"]]
-  // descriptions: ["HTML", "TEXT"]
-  ui::SelectFileDialog::FileTypeInfo file_types;
-  file_types.extensions.emplace_back();
-  file_types.extensions[0].push_back(FILE_PATH_LITERAL("htm"));
-  file_types.extensions[0].push_back(FILE_PATH_LITERAL("html"));
-  file_types.extensions.emplace_back();
-  file_types.extensions[1].push_back(FILE_PATH_LITERAL("txt"));
-  file_types.extension_description_overrides.push_back(u"HTML");
-  file_types.extension_description_overrides.push_back(u"TEXT");
+  ui::SelectFileDialog::FileTypeInfo file_types{
+      {{FILE_PATH_LITERAL("htm"), FILE_PATH_LITERAL("html")},
+       {FILE_PATH_LITERAL("txt")}},
+      {u"HTML", u"TEXT"}};
   // "shouldReturnLocalPath" will be false if drive is supported.
   file_types.allowed_paths = ui::SelectFileDialog::FileTypeInfo::ANY_PATH;
 

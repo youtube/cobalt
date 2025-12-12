@@ -4,10 +4,8 @@
 
 # Perfetto tracing internals and API/ABI boundaries.
 primiano@google.com
-skyostil@google.com
 
 # UI, Ftrace interop, traced_probes, protozero, Android internals.
-hjd@google.com
 
 # Trace Processor, metrics, infra.
 lalitm@google.com
@@ -22,8 +20,8 @@ eseckler@google.com
 nuskos@google.com
 oysteine@google.com
 
-# UI, Chromium-related metrics and simpler trace processor changes.
-altimin@google.com
+# UI
+stevegolton@google.com
 
 # Most Android-related metrics.
 ilkos@google.com
@@ -37,3 +35,4 @@ fmayer@google.com
 eseckler@chromium.org
 nuskos@chromium.org
 skyostil@chromium.org
+include platform/system/core:main:/janitors/OWNERS #{LAST_RESORT_SUGGESTION}

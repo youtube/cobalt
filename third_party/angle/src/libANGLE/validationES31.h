@@ -15,6 +15,8 @@
 namespace gl
 {
 
+void RecordVersionErrorES31(const Context *context, angle::EntryPoint entryPoint);
+
 bool ValidateTexBufferBase(const Context *context,
                            angle::EntryPoint entryPoint,
                            TextureType target,
@@ -27,6 +29,14 @@ bool ValidateTexBufferRangeBase(const Context *context,
                                 BufferID bufferPacked,
                                 GLintptr offset,
                                 GLsizeiptr size);
+
+// GL_EXT_geometry_shader
+bool ValidateFramebufferTextureCommon(const Context *context,
+                                      angle::EntryPoint entryPoint,
+                                      GLenum target,
+                                      GLenum attachment,
+                                      TextureID texture,
+                                      GLint level);
 
 // GL_EXT_multi_draw_indirect
 bool ValidateMultiDrawIndirectBase(const Context *context,
@@ -69,11 +79,6 @@ bool ValidateGetProgramPipelineivBase(const Context *context,
 bool ValidateIsProgramPipelineBase(const Context *context,
                                    angle::EntryPoint entryPoint,
                                    ProgramPipelineID pipelinePacked);
-bool ValidateProgramParameteriBase(const Context *context,
-                                   angle::EntryPoint entryPoint,
-                                   ShaderProgramID programPacked,
-                                   GLenum pname,
-                                   GLint value);
 bool ValidateProgramUniform1fBase(const Context *context,
                                   angle::EntryPoint entryPoint,
                                   ShaderProgramID programPacked,
@@ -295,6 +300,13 @@ bool ValidateUseProgramStagesBase(const Context *context,
 bool ValidateValidateProgramPipelineBase(const Context *context,
                                          angle::EntryPoint entryPoint,
                                          ProgramPipelineID pipelinePacked);
+
+// GL_EXT_tessellation_shader
+bool ValidatePatchParameteriBase(const PrivateState &state,
+                                 ErrorSet *errors,
+                                 angle::EntryPoint entryPoint,
+                                 GLenum pname,
+                                 GLint value);
 }  // namespace gl
 
 #endif  // LIBANGLE_VALIDATION_ES31_H_

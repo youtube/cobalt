@@ -5,6 +5,7 @@
 #include "chrome/services/sharing/nearby/platform/wifi_lan_medium.h"
 
 #include "base/check.h"
+#include "base/containers/span.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
@@ -16,11 +17,11 @@
 #include "base/time/time.h"
 #include "chromeos/ash/services/nearby/public/cpp/tcp_server_socket_port.h"
 #include "chromeos/services/network_config/public/mojom/cros_network_config.mojom.h"
+#include "components/cross_device/nearby/nearby_features.h"
 #include "net/base/net_errors.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 
-namespace nearby {
-namespace chrome {
+namespace nearby::chrome {
 
 namespace {
 
@@ -69,26 +70,59 @@ constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
             "their own policies associated with them."
         })");
 
+// Nearby Connections passes service types of the form "_%s._tcp.", which each
+// platform is expected to transform as needed to perform discovery. For
+// ChromeOS, that looks like "_%s._tcp.local". Provide some helpers below to
+// enforce the transformation.
+const char kServiceTypeSuffix[] = "local";
+
+std::string LongServiceType(const std::string& service_type) {
+  // Should not already have the suffix.
+  auto found_index =
+      service_type.find(kServiceTypeSuffix, /*pos=*/service_type.length() -
+                                                strlen(kServiceTypeSuffix));
+  CHECK(found_index == std::string::npos);
+  return service_type + kServiceTypeSuffix;
+}
+
+std::string ShortServiceType(const std::string& service_type) {
+  // Should already have the suffix.
+  CHECK(service_type.length() >= strlen(kServiceTypeSuffix));
+  auto found_index =
+      service_type.find(kServiceTypeSuffix, /*pos=*/service_type.length() -
+                                                strlen(kServiceTypeSuffix));
+  CHECK(found_index != std::string::npos);
+  return service_type.substr(0, found_index);
+}
+
 }  // namespace
 
 WifiLanMedium::WifiLanMedium(
-    const mojo::SharedRemote<sharing::mojom::TcpSocketFactory>& socket_factory,
+    const mojo::SharedRemote<::sharing::mojom::TcpSocketFactory>&
+        socket_factory,
     const mojo::SharedRemote<
         chromeos::network_config::mojom::CrosNetworkConfig>&
         cros_network_config,
-    const mojo::SharedRemote<sharing::mojom::FirewallHoleFactory>&
-        firewall_hole_factory)
+    const mojo::SharedRemote<::sharing::mojom::FirewallHoleFactory>&
+        firewall_hole_factory,
+    const mojo::SharedRemote<::sharing::mojom::MdnsManager>& mdns_manager)
     : task_runner_(
           base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})),
       socket_factory_(socket_factory),
       cros_network_config_(cros_network_config),
-      firewall_hole_factory_(firewall_hole_factory) {
+      firewall_hole_factory_(firewall_hole_factory),
+      mdns_manager_(mdns_manager) {
   // NOTE: We do not set the disconnect handler for the SharedRemotes here. They
   // are fundamental dependencies of the Nearby Connections process, which will
   // crash if any dependency disconnects.
+  if (mdns_manager_.is_bound() && ::features::IsNearbyMdnsEnabled()) {
+    mdns_manager_->AddObserver(mdns_observer_.BindNewPipeAndPassRemote());
+    VLOG(1) << " Added Mdns observer.";
+  }
 }
 
 WifiLanMedium::~WifiLanMedium() {
+  mdns_observer_.reset();
   // For thread safety, shut down on the |task_runner_|.
   base::WaitableEvent shutdown_waitable_event;
   task_runner_->PostTask(FROM_HERE, base::BindOnce(&WifiLanMedium::Shutdown,
@@ -112,6 +146,12 @@ bool WifiLanMedium::IsNetworkConnected() const {
 std::unique_ptr<api::WifiLanSocket> WifiLanMedium::ConnectToService(
     const NsdServiceInfo& remote_service_info,
     CancellationFlag* cancellation_flag) {
+  if (cancellation_flag && cancellation_flag->Cancelled()) {
+    LOG(WARNING) << "WifiLanMedium::" << __func__
+                 << ": Cancelled before connect attempt";
+    return nullptr;
+  }
+
   return ConnectToService(remote_service_info.GetIPAddress(),
                           remote_service_info.GetPort(), cancellation_flag);
 }
@@ -120,17 +160,14 @@ std::unique_ptr<api::WifiLanSocket> WifiLanMedium::ConnectToService(
     const std::string& ip_address,
     int port,
     CancellationFlag* cancellation_flag) {
-  // TODO(https://crbug.com/1261238): Possibly utilize cancellation_flag.
-
-  net::IPAddress ip(reinterpret_cast<const uint8_t*>(ip_address.data()),
-                    ip_address.length());
+  net::IPAddress ip(base::as_byte_span(ip_address));
   const net::AddressList address_list =
       net::AddressList::CreateFromIPAddress(ip, port);
 
   // To accommodate the synchronous ConnectToService() signature, block until we
   // connect to the remote TCP server socket or fail.
   base::WaitableEvent connect_waitable_event;
-  absl::optional<WifiLanSocket::ConnectedSocketParameters>
+  std::optional<WifiLanSocket::ConnectedSocketParameters>
       connected_socket_parameters;
   task_runner_->PostTask(
       FROM_HERE,
@@ -138,6 +175,13 @@ std::unique_ptr<api::WifiLanSocket> WifiLanMedium::ConnectToService(
                      address_list, &connected_socket_parameters,
                      &connect_waitable_event));
   connect_waitable_event.Wait();
+
+  if (cancellation_flag && cancellation_flag->Cancelled()) {
+    LOG(WARNING) << "WifiLanMedium::" << __func__
+                 << ": Cancelled during connect to "
+                 << address_list.back().ToString();
+    return nullptr;
+  }
 
   bool success = connected_socket_parameters.has_value();
   if (!success) {
@@ -152,7 +196,7 @@ std::unique_ptr<api::WifiLanSocket> WifiLanMedium::ConnectToService(
 
 void WifiLanMedium::DoConnect(
     const net::AddressList& address_list,
-    absl::optional<WifiLanSocket::ConnectedSocketParameters>*
+    std::optional<WifiLanSocket::ConnectedSocketParameters>*
         connected_socket_parameters,
     base::WaitableEvent* connect_waitable_event) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -166,7 +210,7 @@ void WifiLanMedium::DoConnect(
       tcp_connected_socket.InitWithNewPipeAndPassReceiver();
   socket_factory_->CreateTCPConnectedSocket(
       /*timeout=*/kConnectTimeout,
-      /*local_addr=*/absl::nullopt, address_list,
+      /*local_addr=*/std::nullopt, address_list,
       /*tcp_connected_socket_options=*/nullptr,
       net::MutableNetworkTrafficAnnotationTag(kTrafficAnnotation),
       std::move(receiver), /*observer=*/mojo::NullRemote(),
@@ -176,14 +220,14 @@ void WifiLanMedium::DoConnect(
 }
 
 void WifiLanMedium::OnConnect(
-    absl::optional<WifiLanSocket::ConnectedSocketParameters>*
+    std::optional<WifiLanSocket::ConnectedSocketParameters>*
         connected_socket_parameters,
     base::WaitableEvent* connect_waitable_event,
     mojo::PendingRemote<network::mojom::TCPConnectedSocket>
         tcp_connected_socket,
     int32_t result,
-    const absl::optional<net::IPEndPoint>& local_addr,
-    const absl::optional<net::IPEndPoint>& peer_addr,
+    const std::optional<net::IPEndPoint>& local_addr,
+    const std::optional<net::IPEndPoint>& peer_addr,
     mojo::ScopedDataPipeConsumerHandle receive_stream,
     mojo::ScopedDataPipeProducerHandle send_stream) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
@@ -221,7 +265,7 @@ std::unique_ptr<api::WifiLanServerSocket> WifiLanMedium::ListenForService(
   // To accommodate the synchronous ListenForService() signature, block until we
   // create a server socket and start listening for connections or fail.
   base::WaitableEvent listen_waitable_event;
-  absl::optional<WifiLanServerSocket::ServerSocketParameters>
+  std::optional<WifiLanServerSocket::ServerSocketParameters>
       server_socket_parameters;
   task_runner_->PostTask(
       FROM_HERE,
@@ -243,7 +287,7 @@ std::unique_ptr<api::WifiLanServerSocket> WifiLanMedium::ListenForService(
 }
 
 void WifiLanMedium::DoListenForService(
-    absl::optional<WifiLanServerSocket::ServerSocketParameters>*
+    std::optional<WifiLanServerSocket::ServerSocketParameters>*
         server_socket_parameters,
     base::WaitableEvent* listen_waitable_event,
     int port) {
@@ -253,8 +297,8 @@ void WifiLanMedium::DoListenForService(
 
   // TcpServerSocketPort enforces any necessary restrictions on port number
   // ranges. If |port| is 0, choose a random port from the acceptable range.
-  absl::optional<ash::nearby::TcpServerSocketPort> tcp_port =
-      port == 0 ? absl::make_optional<ash::nearby::TcpServerSocketPort>(
+  std::optional<ash::nearby::TcpServerSocketPort> tcp_port =
+      port == 0 ? std::make_optional<ash::nearby::TcpServerSocketPort>(
                       ash::nearby::TcpServerSocketPort::Random())
                 : ash::nearby::TcpServerSocketPort::FromInt(port);
   if (!tcp_port) {
@@ -278,7 +322,7 @@ void WifiLanMedium::DoListenForService(
 }
 
 void WifiLanMedium::OnGetNetworkStateList(
-    absl::optional<WifiLanServerSocket::ServerSocketParameters>*
+    std::optional<WifiLanServerSocket::ServerSocketParameters>*
         server_socket_parameters,
     base::WaitableEvent* listen_waitable_event,
     const ash::nearby::TcpServerSocketPort& port,
@@ -305,7 +349,7 @@ void WifiLanMedium::OnGetNetworkStateList(
 }
 
 void WifiLanMedium::OnGetNetworkProperties(
-    absl::optional<WifiLanServerSocket::ServerSocketParameters>*
+    std::optional<WifiLanServerSocket::ServerSocketParameters>*
         server_socket_parameters,
     base::WaitableEvent* listen_waitable_event,
     const ash::nearby::TcpServerSocketPort& port,
@@ -328,7 +372,7 @@ void WifiLanMedium::OnGetNetworkProperties(
   }
 
   // Local IP fetching: Step 3) Take the first valid IPv4 address.
-  absl::optional<net::IPAddress> ip_address;
+  std::optional<net::IPAddress> ip_address;
   for (const auto& ip_config : *properties->ip_configs) {
     if (!ip_config->ip_address)
       continue;
@@ -370,14 +414,14 @@ void WifiLanMedium::OnGetNetworkProperties(
 }
 
 void WifiLanMedium::OnTcpServerSocketCreated(
-    absl::optional<WifiLanServerSocket::ServerSocketParameters>*
+    std::optional<WifiLanServerSocket::ServerSocketParameters>*
         server_socket_parameters,
     base::WaitableEvent* listen_waitable_event,
     mojo::PendingRemote<network::mojom::TCPServerSocket> tcp_server_socket,
     const net::IPAddress& ip_address,
     const ash::nearby::TcpServerSocketPort& port,
     int32_t result,
-    const absl::optional<net::IPEndPoint>& local_addr) {
+    const std::optional<net::IPEndPoint>& local_addr) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (result != net::OK) {
     LOG(WARNING) << "WifiLanMedium::" << __func__
@@ -415,12 +459,12 @@ void WifiLanMedium::OnTcpServerSocketCreated(
 }
 
 void WifiLanMedium::OnFirewallHoleCreated(
-    absl::optional<WifiLanServerSocket::ServerSocketParameters>*
+    std::optional<WifiLanServerSocket::ServerSocketParameters>*
         server_socket_parameters,
     base::WaitableEvent* listen_waitable_event,
     mojo::PendingRemote<network::mojom::TCPServerSocket> tcp_server_socket,
     const net::IPEndPoint& local_addr,
-    mojo::PendingRemote<sharing::mojom::FirewallHole> firewall_hole) {
+    mojo::PendingRemote<::sharing::mojom::FirewallHole> firewall_hole) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (!firewall_hole) {
@@ -443,7 +487,111 @@ void WifiLanMedium::OnFirewallHoleCreated(
 // End: ListenForService()
 /*============================================================================*/
 
-absl::optional<std::pair<std::int32_t, std::int32_t>>
+/*============================================================================*/
+// Begin: StartDiscovery()
+/*============================================================================*/
+bool WifiLanMedium::StartDiscovery(const std::string& service_type,
+                                   DiscoveredServiceCallback callback) {
+  VLOG(1) << " Starting mDNS discovery.";
+
+  // This is expected to happen when the feature flag is false.
+  if (!mdns_observer_.is_bound()) {
+    VLOG(1) << " Cannot start mDNS discovery while observers unbound.";
+    return false;
+  }
+
+  bool success = false;
+  // MdnsManager expects the longer service type with suffix.
+  mdns_manager_->StartDiscoverySession(LongServiceType(service_type), &success);
+  if (success) {
+    discovery_callbacks_[LongServiceType(service_type)] = std::move(callback);
+  }
+
+  VLOG(1) << " Start mDNS discovery for service type " << service_type
+          << (success ? " succeeded." : " failed.");
+
+  return success;
+}
+
+bool WifiLanMedium::StopDiscovery(const std::string& service_type) {
+  auto discovery_callback =
+      discovery_callbacks_.find(LongServiceType(service_type));
+  if (discovery_callback == discovery_callbacks_.end()) {
+    VLOG(1) << " Can't stop discovery for service_type we weren't discovering.";
+    return false;
+  }
+
+  bool success = false;
+  // MdnsManager expects the longer service type with suffix.
+  mdns_manager_->StopDiscoverySession(LongServiceType(service_type), &success);
+  if (success) {
+    discovery_callbacks_.erase(discovery_callback);
+  }
+
+  VLOG(1) << " Stop mDNS discovery for service type " << service_type
+          << (success ? " succeeded." : " failed.");
+
+  return success;
+}
+
+void WifiLanMedium::ServiceFound(
+    sharing::mojom::NsdServiceInfoPtr service_info) {
+  auto discovery_callback =
+      discovery_callbacks_.find(service_info->service_type);
+  if (discovery_callback == discovery_callbacks_.end()) {
+    VLOG(1) << " Ignoring found service while not discovering.";
+    return;
+  }
+
+  NsdServiceInfo found_service_info;
+  found_service_info.SetServiceName(service_info->service_name);
+  // A found service that has an active discovery callback must
+  // have the service type suffix.
+  found_service_info.SetServiceType(
+      ShortServiceType(service_info->service_type));
+  if (service_info->ip_address.has_value()) {
+    found_service_info.SetIPAddress(service_info->ip_address.value());
+  }
+  if (service_info->port.has_value()) {
+    found_service_info.SetPort(service_info->port.value());
+  }
+  if (service_info->txt_records.has_value()) {
+    for (auto& entry : *service_info->txt_records) {
+      found_service_info.SetTxtRecord(entry.first, entry.second);
+    }
+  }
+
+  VLOG(1) << " Announcing service found for service: "
+          << service_info->service_name;
+  discovery_callback->second.service_discovered_cb(found_service_info);
+}
+
+void WifiLanMedium::ServiceLost(
+    sharing::mojom::NsdServiceInfoPtr service_info) {
+  auto discovery_callback =
+      discovery_callbacks_.find(service_info->service_type);
+  if (discovery_callback == discovery_callbacks_.end()) {
+    VLOG(1) << " Ignoring found service while not discovering.";
+    return;
+  }
+
+  VLOG(1) << " Announcing service lost for service: "
+          << service_info->service_name;
+  NsdServiceInfo lost_service_info;
+  lost_service_info.SetServiceName(service_info->service_name);
+  // A lost service that has an active discovery callback must
+  // have the service type suffix.
+  lost_service_info.SetServiceType(
+      ShortServiceType(service_info->service_type));
+
+  discovery_callback->second.service_lost_cb(lost_service_info);
+}
+
+/*============================================================================*/
+// End: StartDiscovery()
+/*============================================================================*/
+
+std::optional<std::pair<std::int32_t, std::int32_t>>
 WifiLanMedium::GetDynamicPortRange() {
   return std::pair<std::int32_t, std::int32_t>(
       ash::nearby::TcpServerSocketPort::kMin,
@@ -458,15 +606,6 @@ bool WifiLanMedium::StartAdvertising(const NsdServiceInfo& nsd_service_info) {
   return false;
 }
 bool WifiLanMedium::StopAdvertising(const NsdServiceInfo& nsd_service_info) {
-  NOTIMPLEMENTED();
-  return false;
-}
-bool WifiLanMedium::StartDiscovery(const std::string& service_type,
-                                   DiscoveredServiceCallback callback) {
-  NOTIMPLEMENTED();
-  return false;
-}
-bool WifiLanMedium::StopDiscovery(const std::string& service_type) {
   NOTIMPLEMENTED();
   return false;
 }
@@ -515,6 +654,8 @@ void WifiLanMedium::Shutdown(base::WaitableEvent* shutdown_waitable_event) {
   socket_factory_.reset();
   cros_network_config_.reset();
   firewall_hole_factory_.reset();
+  discovery_callbacks_.clear();
+  mdns_manager_.reset();
 
   // Cancel all pending connect/listen calls. This is thread safe because all
   // changes to the pending-event sets are sequenced. Make a copy of the events
@@ -541,5 +682,4 @@ void WifiLanMedium::Shutdown(base::WaitableEvent* shutdown_waitable_event) {
   shutdown_waitable_event->Signal();
 }
 
-}  // namespace chrome
-}  // namespace nearby
+}  // namespace nearby::chrome

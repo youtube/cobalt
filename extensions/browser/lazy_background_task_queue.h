@@ -50,7 +50,7 @@ class LazyBackgroundTaskQueue : public KeyedService,
   ~LazyBackgroundTaskQueue() override;
 
   // Convenience method to return the LazyBackgroundTaskQueue for a given
-  // |context|.
+  // `context`.
   static LazyBackgroundTaskQueue* Get(content::BrowserContext* context);
 
   // Returns true if the task should be added to the queue (that is, if the
@@ -58,13 +58,20 @@ class LazyBackgroundTaskQueue : public KeyedService,
   // extension has a lazy background page that is being suspended this method
   // cancels that suspension.
   bool ShouldEnqueueTask(content::BrowserContext* context,
-                         const Extension* extension) override;
+                         const Extension* extension) const override;
+
+  // Returns true if the lazy background is ready to run tasks. This currently
+  // means this and `ShouldEnqueueTask()` will return true at the same time. But
+  // because of experiments on service workers needs to be separated out into
+  // its own function.
+  bool IsReadyToRunTasks(content::BrowserContext* context,
+                         const Extension* extension) const override;
 
   // Adds a task to the queue for a given extension. If this is the first
   // task added for the extension, its lazy background page will be loaded.
   // The task will be called either when the page is loaded, or when the
   // page fails to load for some reason (e.g. a crash or browser
-  // shutdown). In the latter case, |task| will be called with an empty
+  // shutdown). In the latter case, `task` will be called with an empty
   // std::unique_ptr<ContextItem> parameter.
   void AddPendingTask(const LazyContextId& context_id,
                       PendingTask task) override;
@@ -74,12 +81,10 @@ class LazyBackgroundTaskQueue : public KeyedService,
   FRIEND_TEST_ALL_PREFIXES(LazyBackgroundTaskQueueTest, ProcessPendingTasks);
   FRIEND_TEST_ALL_PREFIXES(LazyBackgroundTaskQueueTest,
                            CreateLazyBackgroundPageOnExtensionLoaded);
+  using PendingTasksList = std::vector<PendingTask>;
   // A map between a LazyContextId and the queue of tasks pending the load of
   // its background page.
-  using PendingTasksKey = LazyContextId;
-  using PendingTasksList = std::vector<PendingTask>;
-  using PendingTasksMap =
-      std::map<PendingTasksKey, std::unique_ptr<PendingTasksList>>;
+  using PendingTasksMap = std::map<LazyContextId, PendingTasksList>;
 
   // ExtensionHostRegistry::Observer:
   void OnExtensionHostCompletedFirstLoad(
@@ -95,7 +100,7 @@ class LazyBackgroundTaskQueue : public KeyedService,
                            const Extension* extension,
                            UnloadedExtensionReason reason) override;
 
-  // If there are pending tasks for |extension| in |browser_context|, try to
+  // If there are pending tasks for `extension` in `browser_context`, try to
   // create the background host. If the background host cannot be created, the
   // pending tasks are invoked with nullptr.
   void CreateLazyBackgroundHostOnExtensionLoaded(

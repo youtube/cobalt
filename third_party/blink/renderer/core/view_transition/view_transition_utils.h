@@ -5,114 +5,78 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_VIEW_TRANSITION_VIEW_TRANSITION_UTILS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_VIEW_TRANSITION_VIEW_TRANSITION_UTILS_H_
 
+#include "base/functional/function_ref.h"
 #include "third_party/blink/renderer/core/core_export.h"
-#include "third_party/blink/renderer/core/css/style_engine.h"
-#include "third_party/blink/renderer/core/dom/document.h"
-#include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/style/computed_style_constants.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition_request_forward.h"
+#include "third_party/blink/renderer/platform/heap/heap_traits.h"
 
 namespace blink {
 
+class DOMViewTransition;
+class Document;
+class Element;
+class LayoutObject;
+class Node;
+class PseudoElement;
 class ViewTransition;
 
 class CORE_EXPORT ViewTransitionUtils {
  public:
-  template <typename Functor>
-  static void ForEachTransitionPseudo(Document& document, Functor& func) {
-    if (!document.documentElement()) {
-      return;
-    }
+  // Scope class used during getComputedStyle to ensure we don't expose internal
+  // pseudo elements before the start phase on the transition.
+  class GetPropertyCSSValueScope {
+    STACK_ALLOCATED();
 
-    auto* transition_pseudo =
-        document.documentElement()->GetPseudoElement(kPseudoIdViewTransition);
-    if (!transition_pseudo)
-      return;
+   public:
+    GetPropertyCSSValueScope(Document& document, PseudoId pseudo_id);
+    ~GetPropertyCSSValueScope();
 
-    func(transition_pseudo);
+   private:
+    Document& document_;
+    PseudoId pseudo_id_;
+  };
 
-    for (const auto& view_transition_name :
-         document.GetStyleEngine().ViewTransitionTags()) {
-      auto* container_pseudo = transition_pseudo->GetPseudoElement(
-          kPseudoIdViewTransitionGroup, view_transition_name);
-      if (!container_pseudo)
-        continue;
+  using PseudoFunctor = base::FunctionRef<void(PseudoElement*)>;
+  using PseudoPredicate = base::FunctionRef<bool(PseudoElement*)>;
 
-      func(container_pseudo);
+  static void ForEachTransitionPseudo(Element&, PseudoFunctor);
+  static PseudoElement* FindPseudoIf(const Element&, PseudoPredicate);
+  static void ForEachDirectTransitionPseudo(const Element*, PseudoFunctor);
 
-      auto* wrapper_pseudo = container_pseudo->GetPseudoElement(
-          kPseudoIdViewTransitionImagePair, view_transition_name);
-      if (!wrapper_pseudo)
-        continue;
+  // Returns the view transition in-progress in the given document, if one
+  // exists.
+  static ViewTransition* GetTransition(const Document& document);
 
-      func(wrapper_pseudo);
+  static ViewTransition* GetTransition(const Element& element);
 
-      if (auto* content = wrapper_pseudo->GetPseudoElement(
-              kPseudoIdViewTransitionOld, view_transition_name)) {
-        func(content);
-      }
+  static ViewTransition* GetTransition(const Node& node);
 
-      if (auto* content = wrapper_pseudo->GetPseudoElement(
-              kPseudoIdViewTransitionNew, view_transition_name)) {
-        func(content);
-      }
-    }
-  }
+  // Returns the view transition that the element associated with the specified
+  // layout object is participating in, if one exists.
+  static ViewTransition* TransitionForTaggedElement(const LayoutObject&);
 
-  template <typename Functor>
-  static PseudoElement* FindPseudoIf(const Document& document,
-                                     const Functor& condition) {
-    if (!document.documentElement()) {
-      return nullptr;
-    }
+  // Calls the supplied function for every active transition (document-level or
+  // element-scoped).
+  // Note: making this a function template blows up compile size.
+  // TODO(crbug.com/394052227): Consider converting other ForEach* methods in
+  // this class to take base::FunctionRef instead of being templates.
+  static void ForEachTransition(const Document& document,
+                                base::FunctionRef<void(ViewTransition&)>);
 
-    auto* transition_pseudo =
-        document.documentElement()->GetPseudoElement(kPseudoIdViewTransition);
-    if (!transition_pseudo) {
-      return nullptr;
-    }
-    if (condition(transition_pseudo)) {
-      return transition_pseudo;
-    }
+  // Return the incoming cross-document view transition, if one exists.
+  static ViewTransition* GetIncomingCrossDocumentTransition(
+      const Document& document);
 
-    for (const auto& view_transition_name :
-         document.GetStyleEngine().ViewTransitionTags()) {
-      auto* container_pseudo = transition_pseudo->GetPseudoElement(
-          kPseudoIdViewTransitionGroup, view_transition_name);
-      if (!container_pseudo) {
-        continue;
-      }
-      if (condition(container_pseudo)) {
-        return container_pseudo;
-      }
+  // Return the outgoing cross-document view transition, if one exists.
+  static ViewTransition* GetOutgoingCrossDocumentTransition(
+      const Document& document);
 
-      auto* wrapper_pseudo = container_pseudo->GetPseudoElement(
-          kPseudoIdViewTransitionImagePair, view_transition_name);
-      if (!wrapper_pseudo) {
-        continue;
-      }
-      if (condition(wrapper_pseudo)) {
-        return wrapper_pseudo;
-      }
-
-      if (auto* content = wrapper_pseudo->GetPseudoElement(
-              kPseudoIdViewTransitionOld, view_transition_name);
-          content && condition(content)) {
-        return content;
-      }
-
-      if (auto* content = wrapper_pseudo->GetPseudoElement(
-              kPseudoIdViewTransitionNew, view_transition_name);
-          content && condition(content)) {
-        return content;
-      }
-    }
-
-    return nullptr;
-  }
-
-  // Returns the active transition from the document, if any.
-  static ViewTransition* GetActiveTransition(const Document& document);
+  // If the given document has an in-progress view transition, this will return
+  // the script delegate associated with that view transition (which may be
+  // null).
+  static DOMViewTransition* GetTransitionScriptDelegate(
+      const Document& document);
 
   // Returns the ::view-transition pseudo element that is the root of the
   // view-transition DOM hierarchy.
@@ -126,20 +90,21 @@ class CORE_EXPORT ViewTransitionUtils {
   // ::view-transition pseudo element of a view transition hierarchy.
   static bool IsViewTransitionRoot(const LayoutObject& object);
 
-  // Returns true if this object represents an element that is a view transition
-  // participant.
-  static bool IsViewTransitionParticipant(const LayoutObject& object);
-
   // Returns true if this element is a view transition participant. This is a
   // slow check that walks all of the view transition elements in the
   // ViewTransitionStyleTracker.
-  static bool IsViewTransitionParticipantFromSupplement(const Element& element);
+  static bool IsViewTransitionElementExcludingRootFromSupplement(
+      const Element& element);
 
   // Returns true if this object represents an element that is a view transition
   // participant. This is a slow check that walks all of the view transition
   // elements in the ViewTransitionStyleTracker.
   static bool IsViewTransitionParticipantFromSupplement(
       const LayoutObject& object);
+
+  // Called when the lifecycle will update style and layout tree for the given
+  // document. Used to invalidate pseudo styles if necessary.
+  static void WillUpdateStyleAndLayoutTree(Document& document);
 };
 
 }  // namespace blink

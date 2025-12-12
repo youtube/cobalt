@@ -11,7 +11,6 @@
 #include <memory>
 
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/power_monitor/power_monitor.h"
@@ -26,6 +25,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 namespace ash {
 
@@ -107,7 +107,7 @@ class TimeZoneResolver::TimeZoneResolverImpl
 
   // Called by TZRequest.
   SimpleGeolocationProvider* geolocation_provider() {
-    return &geolocation_provider_;
+    return resolver_->geolocation_provider_;
   }
   TimeZoneProvider* timezone_provider() { return &timezone_provider_; }
 
@@ -129,7 +129,7 @@ class TimeZoneResolver::TimeZoneResolverImpl
   bool ShouldSendCellularGeolocationData();
 
  private:
-  raw_ptr<const TimeZoneResolver, ExperimentalAsh> resolver_;
+  raw_ptr<const TimeZoneResolver> resolver_;
 
   // Helper to check timezone detection policy against expected value
   bool CheckTimezoneManagementSetting(int expected_policy_value);
@@ -137,7 +137,6 @@ class TimeZoneResolver::TimeZoneResolverImpl
   // Returns delay to next timezone update request
   base::TimeDelta CalculateNextInterval();
 
-  SimpleGeolocationProvider geolocation_provider_;
   TimeZoneProvider timezone_provider_;
 
   base::OneShotTimer refresh_timer_;
@@ -183,8 +182,7 @@ class TZRequest {
   // This is called by network detector when network is available.
   void StartRequestOnNetworkAvailable();
 
-  const raw_ptr<TimeZoneResolver::TimeZoneResolverImpl, ExperimentalAsh>
-      resolver_;
+  const raw_ptr<TimeZoneResolver::TimeZoneResolverImpl> resolver_;
 
   base::WeakPtrFactory<TZRequest> weak_ptr_factory_{this};
 };
@@ -197,7 +195,8 @@ void TZRequest::StartRequestOnNetworkAvailable() {
       base::Seconds(kRefreshTimeZoneTimeoutSeconds),
       resolver_->ShouldSendWiFiGeolocationData(),
       resolver_->ShouldSendCellularGeolocationData(),
-      base::BindOnce(&TZRequest::OnLocationResolved, AsWeakPtr()));
+      base::BindOnce(&TZRequest::OnLocationResolved, AsWeakPtr()),
+      SimpleGeolocationProvider::ClientId::kTimezoneResolver);
 }
 
 void TZRequest::Start() {
@@ -209,9 +208,9 @@ void TZRequest::Start() {
 void TZRequest::OnLocationResolved(const Geoposition& position,
                                    bool server_error,
                                    const base::TimeDelta elapsed) {
-  base::ScopedClosureRunner on_request_finished(
-      base::BindOnce(&TimeZoneResolver::TimeZoneResolverImpl::RequestIsFinished,
-                     base::Unretained(resolver_)));
+  absl::Cleanup on_request_finished = [this] {
+    resolver_->RequestIsFinished();
+  };
 
   // Ignore invalid position.
   if (!position.Valid())
@@ -229,16 +228,16 @@ void TZRequest::OnLocationResolved(const Geoposition& position,
       position, timeout - elapsed,
       base::BindOnce(&TZRequest::OnTimezoneResolved, AsWeakPtr()));
 
-  // Prevent |on_request_finished| from firing here.
-  base::OnceClosure unused = on_request_finished.Release();
+  // `OnTimezoneResolved` is responsible for calling `RequestIsFinished()` now.
+  std::move(on_request_finished).Cancel();
 }
 
 void TZRequest::OnTimezoneResolved(
     std::unique_ptr<TimeZoneResponseData> timezone,
     bool server_error) {
-  base::ScopedClosureRunner on_request_finished(
-      base::BindOnce(&TimeZoneResolver::TimeZoneResolverImpl::RequestIsFinished,
-                     base::Unretained(resolver_)));
+  absl::Cleanup on_request_finished = [this] {
+    resolver_->RequestIsFinished();
+  };
 
   DCHECK(timezone);
   VLOG(1) << "Refreshed local timezone={" << timezone->ToStringForDebug()
@@ -264,17 +263,14 @@ base::WeakPtr<TZRequest> TZRequest::AsWeakPtr() {
 TimeZoneResolver::TimeZoneResolverImpl::TimeZoneResolverImpl(
     const TimeZoneResolver* resolver)
     : resolver_(resolver),
-      geolocation_provider_(
-          resolver->delegate_,
-          resolver->shared_url_loader_factory(),
-          SimpleGeolocationProvider::DefaultGeolocationProviderURL()),
+
       timezone_provider_(resolver->shared_url_loader_factory(),
                          DefaultTimezoneProviderURL()),
       requests_count_(0) {
   DCHECK(!resolver_->apply_timezone().is_null());
   DCHECK(!resolver_->delay_network_call().is_null());
 
-  base::PowerMonitor::AddPowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->AddPowerSuspendObserver(this);
 
   const int64_t last_refresh_at_us =
       resolver_->local_state()->GetInt64(kLastTimeZoneRefreshTime);
@@ -290,7 +286,7 @@ TimeZoneResolver::TimeZoneResolverImpl::TimeZoneResolverImpl(
 }
 
 TimeZoneResolver::TimeZoneResolverImpl::~TimeZoneResolverImpl() {
-  base::PowerMonitor::RemovePowerSuspendObserver(this);
+  base::PowerMonitor::GetInstance()->RemovePowerSuspendObserver(this);
 }
 
 void TimeZoneResolver::TimeZoneResolverImpl::Start() {
@@ -394,14 +390,14 @@ TimeZoneResolver::TimeZoneResolverImpl::AsWeakPtr() {
 
 TimeZoneResolver::TimeZoneResolver(
     Delegate* delegate,
+    SimpleGeolocationProvider* geolocation_provider,
     scoped_refptr<network::SharedURLLoaderFactory> factory,
-    const GURL& url,
     const ApplyTimeZoneCallback& apply_timezone,
     const DelayNetworkCallClosure& delay_network_call,
     PrefService* local_state)
     : delegate_(delegate),
+      geolocation_provider_(geolocation_provider),
       shared_url_loader_factory_(std::move(factory)),
-      url_(url),
       apply_timezone_(apply_timezone),
       delay_network_call_(delay_network_call),
       local_state_(local_state) {
@@ -418,12 +414,18 @@ void TimeZoneResolver::Start() {
   if (!implementation_) {
     implementation_ = std::make_unique<TimeZoneResolverImpl>(this);
     implementation_->Start();
+    is_running_ = true;
   }
 }
 
 void TimeZoneResolver::Stop() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   implementation_.reset();
+  is_running_ = false;
+}
+
+bool TimeZoneResolver::IsRunning() {
+  return is_running_;
 }
 
 // static

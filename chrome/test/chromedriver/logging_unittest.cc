@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "chrome/test/chromedriver/logging.h"
 
 #include <stddef.h>
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -22,11 +24,15 @@
 
 namespace {
 
-const char* const kAllWdLevels[] = {
-  "ALL", "DEBUG", "INFO", "WARNING", "SEVERE", "OFF"
-};
-
-}
+constexpr auto kAllWdLevels = std::to_array<const char*>({
+    "ALL",
+    "DEBUG",
+    "INFO",
+    "WARNING",
+    "SEVERE",
+    "OFF",
+});
+}  // namespace
 
 TEST(Logging, NameLevelConversionHappy) {
   // All names map to a valid enum value.

@@ -4,32 +4,22 @@
 
 #include "remoting/base/util.h"
 
-#include <math.h>
-#include <string.h>
+#include <algorithm>
+#include <string>
+#include <string_view>
 
-#include "base/logging.h"
-#include "base/strings/stringprintf.h"
+#include "base/i18n/time_formatting.h"
 #include "base/time/time.h"
 #include "remoting/base/cpu_utils.h"
-#include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_region.h"
 
 namespace remoting {
 
-enum { kBytesPerPixelRGB32 = 4 };
-
-static int CalculateRGBOffset(int x, int y, int stride) {
-  return stride * y + kBytesPerPixelRGB32 * x;
-}
-
 // Do not write LOG messages in this routine since it is called from within
 // our LOG message handler. Bad things will happen.
 std::string GetTimestampString() {
-  base::Time t = base::Time::NowFromSystemTime();
-  base::Time::Exploded tex;
-  t.LocalExplode(&tex);
-  return base::StringPrintf("%02d%02d/%02d%02d%02d:", tex.month,
-                            tex.day_of_month, tex.hour, tex.minute, tex.second);
+  return base::UnlocalizedTimeFormatWithPattern(base::Time::NowFromSystemTime(),
+                                                "MMdd/HHmmss:");
 }
 
 int RoundToTwosMultiple(int x) {
@@ -54,68 +44,30 @@ webrtc::DesktopRect GetRowAlignedRect(const webrtc::DesktopRect rect,
                                        rect.bottom());
 }
 
-void CopyRGB32Rect(const uint8_t* source_buffer,
-                   int source_stride,
-                   const webrtc::DesktopRect& source_buffer_rect,
-                   uint8_t* dest_buffer,
-                   int dest_stride,
-                   const webrtc::DesktopRect& dest_buffer_rect,
-                   const webrtc::DesktopRect& dest_rect) {
-  DCHECK(DoesRectContain(dest_buffer_rect, dest_rect));
-  DCHECK(DoesRectContain(source_buffer_rect, dest_rect));
-
-  // Get the address of the starting point.
-  source_buffer += CalculateRGBOffset(
-      dest_rect.left() - source_buffer_rect.left(),
-      dest_rect.top() - source_buffer_rect.top(), source_stride);
-  dest_buffer += CalculateRGBOffset(dest_rect.left() - dest_buffer_rect.left(),
-                                    dest_rect.top() - dest_buffer_rect.top(),
-                                    source_stride);
-
-  // Copy pixels in the rectangle line by line.
-  const int bytes_per_line = kBytesPerPixelRGB32 * dest_rect.width();
-  for (int i = 0; i < dest_rect.height(); ++i) {
-    memcpy(dest_buffer, source_buffer, bytes_per_line);
-    source_buffer += source_stride;
-    dest_buffer += dest_stride;
-  }
-}
-
-std::string ReplaceLfByCrLf(const std::string& in) {
+std::string ReplaceLfByCrLf(std::string_view in) {
   std::string out;
-  out.resize(2 * in.size());
-  char* out_p_begin = &out[0];
-  char* out_p = out_p_begin;
-  const char* in_p_begin = &in[0];
-  const char* in_p_end = &in[in.size()];
-  for (const char* in_p = in_p_begin; in_p < in_p_end; ++in_p) {
-    char c = *in_p;
+  out.reserve(2 * in.size());
+  for (char c : in) {
     if (c == '\n') {
-      *out_p++ = '\r';
+      out.push_back('\r');
     }
-    *out_p++ = c;
+    out.push_back(c);
   }
-  out.resize(out_p - out_p_begin);
   return out;
 }
 
-std::string ReplaceCrLfByLf(const std::string& in) {
+std::string ReplaceCrLfByLf(std::string_view in) {
   std::string out;
-  out.resize(in.size());
-  char* out_p_begin = &out[0];
-  char* out_p = out_p_begin;
-  const char* in_p_begin = &in[0];
-  const char* in_p_end = &in[in.size()];
-  for (const char* in_p = in_p_begin; in_p < in_p_end; ++in_p) {
-    char c = *in_p;
-    if ((c == '\r') && (in_p + 1 < in_p_end) && (*(in_p + 1) == '\n')) {
-      *out_p++ = '\n';
-      ++in_p;
+  out.reserve(in.size());
+  for (size_t i = 0; i < in.size();) {
+    if (i + 1 < in.size() && in[i] == '\r' && in[i + 1] == '\n') {
+      out.push_back('\n');
+      i += 2;
     } else {
-      *out_p++ = c;
+      out.push_back(in[i]);
+      ++i;
     }
   }
-  out.resize(out_p - out_p_begin);
   return out;
 }
 

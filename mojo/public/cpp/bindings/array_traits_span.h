@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef MOJO_PUBLIC_CPP_BINDINGS_ARRAY_TRAITS_SPAN_H_
 #define MOJO_PUBLIC_CPP_BINDINGS_ARRAY_TRAITS_SPAN_H_
 
@@ -33,7 +38,7 @@ struct ArrayTraits<base::span<T, Extent>> {
   static bool Resize(base::span<T>& input, size_t size) {
     if (size > input.size())
       return false;
-    input = input.subspan(0, size);
+    input = input.first(size);
     return true;
   }
 };

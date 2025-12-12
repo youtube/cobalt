@@ -6,6 +6,7 @@
 #define COMPONENTS_UPDATE_CLIENT_UPDATE_CHECKER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -14,26 +15,26 @@
 #include "base/memory/ref_counted.h"
 #include "components/update_client/component.h"
 #include "components/update_client/protocol_parser.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/installation_manager.h"
+#endif
 
 namespace update_client {
 
 class Configurator;
-class PersistedData;
 struct UpdateContext;
 
 class UpdateChecker {
  public:
-  using UpdateCheckCallback = base::OnceCallback<void(
-      const absl::optional<ProtocolParser::Results>& results,
-      ErrorCategory error_category,
-      int error,
-      int retry_after_sec)>;
+  using UpdateCheckCallback =
+      base::OnceCallback<void(std::optional<ProtocolParser::Results> results,
+                              ErrorCategory error_category,
+                              int error,
+                              int retry_after_sec)>;
 
-  using Factory =
-      std::unique_ptr<UpdateChecker> (*)(scoped_refptr<Configurator> config,
-                                         PersistedData* persistent);
+  using Factory = base::RepeatingCallback<std::unique_ptr<UpdateChecker>(
+      scoped_refptr<Configurator> config)>;
 
   UpdateChecker(const UpdateChecker&) = delete;
   UpdateChecker& operator=(const UpdateChecker&) = delete;
@@ -49,10 +50,17 @@ class UpdateChecker {
       const base::flat_map<std::string, std::string>& additional_attributes,
       UpdateCheckCallback update_check_callback) = 0;
 
-  static std::unique_ptr<UpdateChecker> Create(
-      scoped_refptr<Configurator> config,
-      PersistedData* persistent);
+#if BUILDFLAG(IS_STARBOARD)
+  virtual void Cancel() = 0;
+  virtual bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api) = 0;
+#endif
 
+  static std::unique_ptr<UpdateChecker> Create(
+      scoped_refptr<Configurator> config);
+
+#if BUILDFLAG(IS_STARBOARD)
+  virtual PersistedData* GetPersistedData() = 0;
+#endif
  protected:
   UpdateChecker() = default;
 };

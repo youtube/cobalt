@@ -6,6 +6,9 @@
 
 #include <stddef.h>
 
+#include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -17,7 +20,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
@@ -111,6 +113,7 @@ void AttachProperties(const Properties& properties,
 std::string CreateMultipartUploadMetadataJson(
     const std::string& title,
     const std::string& parent_resource_id,
+    std::optional<std::string_view> converted_mime_type,
     const base::Time& modified_date,
     const base::Time& last_viewed_by_me_date,
     const Properties& properties) {
@@ -123,6 +126,10 @@ std::string CreateMultipartUploadMetadataJson(
     base::Value::List parents;
     parents.Append(google_apis::util::CreateParentValue(parent_resource_id));
     root.Set("parents", base::Value(std::move(parents)));
+  }
+
+  if (converted_mime_type.has_value()) {
+    root.Set("mimeType", *converted_mime_type);
   }
 
   if (!modified_date.is_null()) {
@@ -173,12 +180,12 @@ bool ParseMultipartResponse(const std::string& content_type,
   if (response.empty())
     return false;
 
-  base::StringPiece content_type_piece(content_type);
+  std::string_view content_type_piece(content_type);
   if (!base::StartsWith(content_type_piece, kMultipartMixedMimeTypePrefix)) {
     return false;
   }
   content_type_piece.remove_prefix(
-      base::StringPiece(kMultipartMixedMimeTypePrefix).size());
+      std::string_view(kMultipartMixedMimeTypePrefix).size());
 
   if (content_type_piece.empty())
     return false;
@@ -194,7 +201,7 @@ bool ParseMultipartResponse(const std::string& content_type,
   const std::string header = "--" + boundary;
   const std::string terminator = "--" + boundary + "--";
 
-  std::vector<base::StringPiece> lines = base::SplitStringPieceUsingSubstr(
+  std::vector<std::string_view> lines = base::SplitStringPieceUsingSubstr(
       response, kHttpBr, base::KEEP_WHITESPACE, base::SPLIT_WANT_ALL);
 
   enum {
@@ -219,8 +226,7 @@ bool ParseMultipartResponse(const std::string& content_type,
       if (base::StartsWith(line, kHttpStatusPrefix)) {
         int int_code;
         base::StringToInt(
-            line.substr(base::StringPiece(kHttpStatusPrefix).size()),
-            &int_code);
+            line.substr(std::string_view(kHttpStatusPrefix).size()), &int_code);
         if (int_code > 0)
           code = static_cast<ApiErrorCode>(int_code);
         else
@@ -237,7 +243,7 @@ bool ParseMultipartResponse(const std::string& content_type,
       body.clear();
       continue;
     }
-    const base::StringPiece chopped_line =
+    const std::string_view chopped_line =
         base::TrimString(line, " \t", base::TRIM_TRAILING);
     const bool is_new_part = chopped_line == header;
     const bool was_last_part = chopped_line == terminator;
@@ -875,6 +881,7 @@ MultipartUploadNewFileDelegate::MultipartUploadNewFileDelegate(
     const std::string& title,
     const std::string& parent_resource_id,
     const std::string& content_type,
+    std::optional<std::string_view> converted_mime_type,
     int64_t content_length,
     const base::Time& modified_date,
     const base::Time& last_viewed_by_me_date,
@@ -887,6 +894,7 @@ MultipartUploadNewFileDelegate::MultipartUploadNewFileDelegate(
           task_runner,
           CreateMultipartUploadMetadataJson(title,
                                             parent_resource_id,
+                                            converted_mime_type,
                                             modified_date,
                                             last_viewed_by_me_date,
                                             properties),
@@ -896,12 +904,14 @@ MultipartUploadNewFileDelegate::MultipartUploadNewFileDelegate(
           std::move(callback),
           progress_callback),
       has_modified_date_(!modified_date.is_null()),
+      convert_(converted_mime_type.has_value()),
       url_generator_(url_generator) {}
 
 MultipartUploadNewFileDelegate::~MultipartUploadNewFileDelegate() = default;
 
 GURL MultipartUploadNewFileDelegate::GetURL() const {
-  return url_generator_.GetMultipartUploadNewFileUrl(has_modified_date_);
+  return url_generator_.GetMultipartUploadNewFileUrl(has_modified_date_,
+                                                     convert_);
 }
 
 HttpRequestMethod MultipartUploadNewFileDelegate::GetRequestType() const {
@@ -925,18 +935,19 @@ MultipartUploadExistingFileDelegate::MultipartUploadExistingFileDelegate(
     const DriveApiUrlGenerator& url_generator,
     FileResourceCallback callback,
     ProgressCallback progress_callback)
-    : MultipartUploadRequestBase(
-          task_runner,
-          CreateMultipartUploadMetadataJson(title,
-                                            parent_resource_id,
-                                            modified_date,
-                                            last_viewed_by_me_date,
-                                            properties),
-          content_type,
-          content_length,
-          local_file_path,
-          std::move(callback),
-          progress_callback),
+    : MultipartUploadRequestBase(task_runner,
+                                 CreateMultipartUploadMetadataJson(
+                                     title,
+                                     parent_resource_id,
+                                     /*converted_mime_type=*/std::nullopt,
+                                     modified_date,
+                                     last_viewed_by_me_date,
+                                     properties),
+                                 content_type,
+                                 content_length,
+                                 local_file_path,
+                                 std::move(callback),
+                                 progress_callback),
       resource_id_(resource_id),
       etag_(etag),
       has_modified_date_(!modified_date.is_null()),
@@ -1149,7 +1160,7 @@ void BatchUploadRequest::OnChildRequestPrepared(RequestID request_id,
                                                 ApiErrorCode result) {
   DCHECK(CalledOnValidThread());
   auto const child = GetChildEntry(request_id);
-  DCHECK(child != child_requests_.end());
+  CHECK(child != child_requests_.end());
   if (IsSuccessfulDriveApiErrorCode(result)) {
     (*child)->prepared = true;
   } else {

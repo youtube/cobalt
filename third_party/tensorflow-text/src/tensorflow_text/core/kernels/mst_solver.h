@@ -1,4 +1,4 @@
-// Copyright 2021 TF.Text Authors.
+// Copyright 2024 TF.Text Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -90,7 +90,7 @@ class MstSolver {
   // error.  Discards existing state; call AddArc() and AddRoot() to add arcs
   // and root selections.  If |forest| is true, then this solves for a maximum
   // spanning forest (i.e., a set of disjoint trees that span the digraph).
-  tensorflow::Status Init(bool forest, Index num_nodes);
+  absl::Status Init(bool forest, Index num_nodes);
 
   // Adds an arc from the |source| node to the |target| node with the |score|.
   // The |source| and |target| must be distinct node indices in [0,n), and the
@@ -116,10 +116,10 @@ class MstSolver {
   //
   // NB: If multiple spanning trees achieve the maximum score, |argmax| will be
   // set to one of the maximal trees, but it is unspecified which one.
-  tensorflow::Status Solve(absl::Span<Index> argmax);
+  absl::Status Solve(absl::Span<Index> argmax);
 
   // Convience method
-  tensorflow::Status Solve(std::vector<Index>* argmax) {
+  absl::Status Solve(std::vector<Index> *argmax) {
     return Solve(absl::MakeSpan(argmax->data(), argmax->size()));
   }
 
@@ -187,8 +187,7 @@ class MstSolver {
 
     // Returns a string representation of this arc.
     std::string DebugString() const {
-      if (!Exists())
-        return "[null]";
+      if (!Exists()) return "[null]";
       if (IsRoot()) {
         return absl::StrCat("[*->", target, "=", score, "]");
       }
@@ -214,7 +213,7 @@ class MstSolver {
   void MaybePenalizeRootScoresForTree();
 
   // Returns the maximum inbound arc of the |node|, or null if there is none.
-  const Arc* MaximumInboundArc(Index node) const;
+  const Arc *MaximumInboundArc(Index node) const;
 
   // Merges the inbound arcs of the |cycle_node| into the inbound arcs of the
   // |contracted_node|.  Arcs are merged as follows:
@@ -226,8 +225,7 @@ class MstSolver {
   //   |contracted_node| has the better-scoring arc.
   // The |score_offset| is added to the arc scores of the |cycle_node| before
   // they are merged into the |contracted_node|.
-  void MergeInboundArcs(Index cycle_node,
-                        Score score_offset,
+  void MergeInboundArcs(Index cycle_node, Score score_offset,
                         Index contracted_node);
 
   // Contracts the cycle in |argmax_arcs_| that contains the |node|.
@@ -237,12 +235,12 @@ class MstSolver {
   // phase finds the best inbound arc for each node, contracting cycles as they
   // are formed.  Stops when every node has selected an inbound arc and there
   // are no cycles.
-  tensorflow::Status ContractionPhase();
+  absl::Status ContractionPhase();
 
   // Runs the expansion phase of the solver, or returns non-OK on error.  This
   // phase expands each contracted node, breaks cycles, and populates |argmax|
   // with the maximum spanning tree.
-  tensorflow::Status ExpansionPhase(absl::Span<Index> argmax);
+  absl::Status ExpansionPhase(absl::Span<Index> argmax);
 
   // If true, solve for a spanning forest instead of a spanning tree.
   bool forest_ = false;
@@ -295,17 +293,17 @@ class MstSolver {
 
   // The maximum inbound arc for each node.  The first element is null because
   // the artificial root has no inbound arcs.
-  std::vector<const Arc*> argmax_arcs_;
+  std::vector<const Arc *> argmax_arcs_;
 
   // Workspace for ContractCycle(), which records the nodes and arcs in the
   // cycle being contracted.
-  std::vector<std::pair<Index, const Arc*>> cycle_;
+  std::vector<std::pair<Index, const Arc *>> cycle_;
 };
 
 // Implementation details below.
 
 template <class Index, class Score>
-tensorflow::Status MstSolver<Index, Score>::Init(bool forest, Index num_nodes) {
+absl::Status MstSolver<Index, Score>::Init(bool forest, Index num_nodes) {
   if (num_nodes <= 0) {
     return tensorflow::errors::InvalidArgument("Non-positive number of nodes: ",
                                                num_nodes);
@@ -339,14 +337,14 @@ tensorflow::Status MstSolver<Index, Score>::Init(bool forest, Index num_nodes) {
   // This doesn't need to be cleared now; it will be cleared before use.
   cycle_.reserve(num_original_nodes_);
 
-  return tensorflow::Status::OK();
+  return absl::OkStatus();
 }
 
 template <class Index, class Score>
 void MstSolver<Index, Score>::AddArc(Index source, Index target, Score score) {
   DCHECK_NE(source, target);
   DCHECK(std::isfinite(score));
-  Arc& arc = arcs_[ArcIndex(source + 1, target + 1)];
+  Arc &arc = arcs_[ArcIndex(source + 1, target + 1)];
   arc.score = score;
   arc.source = source + 1;
   arc.target = target + 1;
@@ -355,7 +353,7 @@ void MstSolver<Index, Score>::AddArc(Index source, Index target, Score score) {
 template <class Index, class Score>
 void MstSolver<Index, Score>::AddRoot(Index root, Score score) {
   DCHECK(std::isfinite(score));
-  Arc& arc = arcs_[ArcIndex(0, root + 1)];
+  Arc &arc = arcs_[ArcIndex(0, root + 1)];
   arc.score = score;
   arc.source = 0;
   arc.target = root + 1;
@@ -363,24 +361,24 @@ void MstSolver<Index, Score>::AddRoot(Index root, Score score) {
 
 template <class Index, class Score>
 Score MstSolver<Index, Score>::ArcScore(Index source, Index target) const {
-  const Arc& arc = arcs_[ArcIndex(source + 1, target + 1)];
+  const Arc &arc = arcs_[ArcIndex(source + 1, target + 1)];
   DCHECK(arc.Exists());
   return arc.score;
 }
 
 template <class Index, class Score>
 Score MstSolver<Index, Score>::RootScore(Index root) const {
-  const Arc& arc = arcs_[ArcIndex(0, root + 1)];
+  const Arc &arc = arcs_[ArcIndex(0, root + 1)];
   DCHECK(arc.Exists());
   return arc.score;
 }
 
 template <class Index, class Score>
-tensorflow::Status MstSolver<Index, Score>::Solve(absl::Span<Index> argmax) {
+absl::Status MstSolver<Index, Score>::Solve(absl::Span<Index> argmax) {
   MaybePenalizeRootScoresForTree();
   TF_RETURN_IF_ERROR(ContractionPhase());
   TF_RETURN_IF_ERROR(ExpansionPhase(argmax));
-  return tensorflow::Status::OK();
+  return absl::OkStatus();
 }
 
 template <class Index, class Score>
@@ -393,8 +391,7 @@ inline size_t MstSolver<Index, Score>::ArcIndex(size_t source,
 
 template <class Index, class Score>
 void MstSolver<Index, Score>::MaybePenalizeRootScoresForTree() {
-  if (forest_)
-    return;
+  if (forest_) return;
   DCHECK_EQ(num_current_nodes_, num_initial_nodes_)
       << "Root penalties must be applied before starting the algorithm.";
 
@@ -402,40 +399,36 @@ void MstSolver<Index, Score>::MaybePenalizeRootScoresForTree() {
   // of possible tree scores.
   Score max_score = std::numeric_limits<Score>::lowest();
   Score min_score = std::numeric_limits<Score>::max();
-  for (const Arc& arc : arcs_) {
-    if (!arc.Exists())
-      continue;
+  for (const Arc &arc : arcs_) {
+    if (!arc.Exists()) continue;
     max_score = std::max(max_score, arc.score);
     min_score = std::min(min_score, arc.score);
   }
 
   // Nothing to do, no existing arcs.
-  if (max_score < min_score)
-    return;
+  if (max_score < min_score) return;
 
   // A spanning tree or forest contains n arcs.  The penalty below ensures that
   // every structure with one root has a higher score than every structure with
   // two roots, and so on.
   const Score root_penalty = 1 + num_initial_nodes_ * (max_score - min_score);
   for (Index root = 1; root < num_initial_nodes_; ++root) {
-    Arc& arc = arcs_[ArcIndex(0, root)];
-    if (!arc.Exists())
-      continue;
+    Arc &arc = arcs_[ArcIndex(0, root)];
+    if (!arc.Exists()) continue;
     arc.score -= root_penalty;
   }
 }
 
 template <class Index, class Score>
-const typename MstSolver<Index, Score>::Arc*
+const typename MstSolver<Index, Score>::Arc *
 MstSolver<Index, Score>::MaximumInboundArc(Index node) const {
-  const Arc* __restrict arc = &arcs_[ArcIndex(0, node)];
-  const Arc* arc_end = arc + num_initial_nodes_;
+  const Arc *__restrict arc = &arcs_[ArcIndex(0, node)];
+  const Arc *arc_end = arc + num_initial_nodes_;
 
   Score max_score = std::numeric_limits<Score>::lowest();
-  const Arc* argmax_arc = nullptr;
+  const Arc *argmax_arc = nullptr;
   for (; arc < arc_end; ++arc) {
-    if (!arc->Exists())
-      continue;
+    if (!arc->Exists()) continue;
     const Score score = arc->score;
     if (max_score <= score) {
       max_score = score;
@@ -449,13 +442,12 @@ template <class Index, class Score>
 void MstSolver<Index, Score>::MergeInboundArcs(Index cycle_node,
                                                Score score_offset,
                                                Index contracted_node) {
-  const Arc* __restrict cycle_arc = &arcs_[ArcIndex(0, cycle_node)];
-  const Arc* cycle_arc_end = cycle_arc + num_initial_nodes_;
-  Arc* __restrict contracted_arc = &arcs_[ArcIndex(0, contracted_node)];
+  const Arc *__restrict cycle_arc = &arcs_[ArcIndex(0, cycle_node)];
+  const Arc *cycle_arc_end = cycle_arc + num_initial_nodes_;
+  Arc *__restrict contracted_arc = &arcs_[ArcIndex(0, contracted_node)];
 
   for (; cycle_arc < cycle_arc_end; ++cycle_arc, ++contracted_arc) {
-    if (!cycle_arc->Exists())
-      continue;  // nothing to merge
+    if (!cycle_arc->Exists()) continue;  // nothing to merge
 
     // Skip self-loops; they are useless because they cannot be used to break
     // the cycle represented by the |contracted_node|.
@@ -488,7 +480,7 @@ void MstSolver<Index, Score>::ContractCycle(Index node) {
   Index cycle_node = node;
   do {
     // Gather the nodes and arcs in |cycle_| for the second pass.
-    const Arc* cycle_arc = argmax_arcs_[cycle_node];
+    const Arc *cycle_arc = argmax_arcs_[cycle_node];
     DCHECK(!cycle_arc->IsRoot()) << cycle_arc->DebugString();
     cycle_.emplace_back(cycle_node, cycle_arc);
 
@@ -508,21 +500,21 @@ void MstSolver<Index, Score>::ContractCycle(Index node) {
   } while (cycle_node != contracted_node);
 
   // Merge the inbound arcs of each cycle node into the |contracted_node|.
-  for (const auto& node_and_arc : cycle_) {
+  for (const auto &node_and_arc : cycle_) {
     // Set the |score_offset| to the cost of breaking the cycle by replacing the
     // arc currently directed into the |cycle_node|.
-    const Index cycle_node = node_and_arc.first;
+    const Index local_cycle_node = node_and_arc.first;
     const Score score_offset = -node_and_arc.second->score;
-    MergeInboundArcs(cycle_node, score_offset, contracted_node);
+    MergeInboundArcs(local_cycle_node, score_offset, contracted_node);
   }
 }
 
 template <class Index, class Score>
-tensorflow::Status MstSolver<Index, Score>::ContractionPhase() {
+absl::Status MstSolver<Index, Score>::ContractionPhase() {
   // Skip the artificial root since it has no inbound arcs.
   for (Index target = 1; target < num_current_nodes_; ++target) {
     // Find the maximum inbound arc for the current |target|, if any.
-    const Arc* arc = MaximumInboundArc(target);
+    const Arc *arc = MaximumInboundArc(target);
     if (arc == nullptr) {
       return tensorflow::errors::FailedPrecondition("Infeasible digraph");
     }
@@ -530,8 +522,7 @@ tensorflow::Status MstSolver<Index, Score>::ContractionPhase() {
 
     // The articifial root cannot be part of a cycle, so we do not need to check
     // for cycles or even update its membership in the connected components.
-    if (arc->IsRoot())
-      continue;
+    if (arc->IsRoot()) continue;
 
     // Since every node has at most one selected inbound arc, cycles can be
     // detected using weakly-connected components.
@@ -546,12 +537,11 @@ tensorflow::Status MstSolver<Index, Score>::ContractionPhase() {
     }
   }
 
-  return tensorflow::Status::OK();
+  return absl::OkStatus();
 }
 
 template <class Index, class Score>
-tensorflow::Status MstSolver<Index, Score>::ExpansionPhase(
-    absl::Span<Index> argmax) {
+absl::Status MstSolver<Index, Score>::ExpansionPhase(absl::Span<Index> argmax) {
   if (argmax.size() < num_original_nodes_) {
     return tensorflow::errors::InvalidArgument(
         "Argmax array too small: ", num_original_nodes_,
@@ -564,12 +554,11 @@ tensorflow::Status MstSolver<Index, Score>::ExpansionPhase(
   // this loop, entries [1,n] of |argmax_arcs_| provide the arcs of the maximum
   // spanning tree.
   for (Index i = num_current_nodes_ - 1; i >= num_initial_nodes_; --i) {
-    if (contracted_into_[i] == kNullIndex)
-      continue;            // already deleted
+    if (contracted_into_[i] == kNullIndex) continue;  // already deleted
     const Index root = i;  // if not deleted, must be a root due to toposorting
 
     // Copy the cycle-breaking arc to its specified target.
-    const Arc* arc = argmax_arcs_[root];
+    const Arc *arc = argmax_arcs_[root];
     argmax_arcs_[arc->target] = arc;
 
     // The |arc| not only breaks the cycle associated with the |root|, but also
@@ -587,7 +576,7 @@ tensorflow::Status MstSolver<Index, Score>::ExpansionPhase(
   // for validation below.
   Index num_roots = 0;
   for (Index target = 0; target < num_original_nodes_; ++target) {
-    const Arc& arc = *argmax_arcs_[target + 1];
+    const Arc &arc = *argmax_arcs_[target + 1];
     DCHECK_EQ(arc.target, target + 1) << arc.DebugString();
     if (arc.IsRoot()) {
       ++num_roots;
@@ -596,7 +585,6 @@ tensorflow::Status MstSolver<Index, Score>::ExpansionPhase(
       argmax[target] = arc.source - 1;
     }
   }
-  DCHECK_GE(num_roots, 1);
 
   // Even when |forest_| is false, |num_roots| can still be more than 1.  While
   // the root score penalty discourages structures with multiple root arcs, it
@@ -609,7 +597,7 @@ tensorflow::Status MstSolver<Index, Score>::ExpansionPhase(
     return tensorflow::errors::FailedPrecondition("Infeasible digraph");
   }
 
-  return tensorflow::Status::OK();
+  return absl::OkStatus();
 }
 
 }  // namespace text

@@ -74,34 +74,14 @@ class ASH_PUBLIC_EXPORT LoginScreenClient {
   // Focus user pod of user with |account_id|.
   virtual void OnFocusPod(const AccountId& account_id) = 0;
 
-  // Notify that no user pod is focused.
-  virtual void OnNoPodFocused() = 0;
-
-  // Load wallpaper of user with |account_id|.
-  virtual void LoadWallpaper(const AccountId& account_id) = 0;
-
-  // Sign out current user.
-  virtual void SignOutUser() = 0;
-
   // Close add user screen.
   virtual void CancelAddUser() = 0;
-
-  // Launches guest mode.
-  virtual void LoginAsGuest() = 0;
 
   // Show guest terms of service screen.
   virtual void ShowGuestTosScreen() = 0;
 
   // User with |account_id| has reached maximum incorrect password attempts.
   virtual void OnMaxIncorrectPasswordAttempted(const AccountId& account_id) = 0;
-
-  // Should pass the focus to the active lock screen app window, if there is
-  // one. This is called when a lock screen app is reported to be active (using
-  // tray_action mojo interface), and is next in the tab order.
-  // |HandleFocusLeavingLockScreenApps| should be called to return focus to the
-  // lock screen.
-  // |reverse|:   Whether the tab order is reversed.
-  virtual void FocusLockScreenApps(bool reverse) = 0;
 
   // Passes focus to the OOBE dialog if it is showing. No-op otherwise.
   virtual void FocusOobeDialog() = 0;
@@ -110,6 +90,10 @@ class ASH_PUBLIC_EXPORT LoginScreenClient {
   // The value in |prefilled_account| will be used to prefill the sign-in dialog
   // so the user does not need to type the account email.
   virtual void ShowGaiaSignin(const AccountId& prefilled_account) = 0;
+
+  // Starts the flow for recovering access to user's home directory.
+  // The value in |account_to_recover| should be non-empty AccountId.
+  virtual void StartUserRecovery(const AccountId& account_to_recover) = 0;
 
   // Show OS-Install screen.
   virtual void ShowOsInstallScreen() = 0;

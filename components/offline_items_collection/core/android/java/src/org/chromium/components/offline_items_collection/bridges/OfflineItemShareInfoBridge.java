@@ -7,8 +7,10 @@ package org.chromium.components.offline_items_collection.bridges;
 import android.net.Uri;
 import android.text.TextUtils;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.offline_items_collection.OfflineItemShareInfo;
 
 /**
@@ -18,6 +20,7 @@ import org.chromium.components.offline_items_collection.OfflineItemShareInfo;
  * {@link OfflineItemShareInfo} instances.
  */
 @JNINamespace("offline_items_collection::android")
+@NullMarked
 public final class OfflineItemShareInfoBridge {
     private OfflineItemShareInfoBridge() {}
 

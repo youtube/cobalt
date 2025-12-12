@@ -23,9 +23,9 @@
 #include "content/public/browser/site_instance.h"
 #include "ppapi/buildflags/buildflags.h"
 #include "third_party/blink/public/common/tokens/tokens.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/base/window_open_disposition.h"
+#include "ui/menus/simple_menu_model.h"
 
 namespace content {
 class RenderFrameHost;
@@ -39,7 +39,7 @@ class RenderViewContextMenuBase : public ui::SimpleMenuModel::Delegate,
   // the embedder.
   class ToolkitDelegate {
    public:
-    virtual ~ToolkitDelegate() {}
+    virtual ~ToolkitDelegate() = default;
     // Initialize the toolkit's menu.
     virtual void Init(ui::SimpleMenuModel* menu_model) = 0;
 
@@ -121,12 +121,11 @@ class RenderViewContextMenuBase : public ui::SimpleMenuModel::Delegate,
   void RemoveMenuItem(int command_id) override;
   void RemoveAdjacentSeparators() override;
   void RemoveSeparatorBeforeMenuItem(int command_id) override;
-  content::RenderViewHost* GetRenderViewHost() const override;
   content::WebContents* GetWebContents() const override;
   content::BrowserContext* GetBrowserContext() const override;
 
   // May return nullptr if the frame was deleted while the menu was open.
-  content::RenderFrameHost* GetRenderFrameHost() const;
+  content::RenderFrameHost* GetRenderFrameHost() const override;
 
  protected:
   friend class RenderViewContextMenuTest;
@@ -164,30 +163,32 @@ class RenderViewContextMenuBase : public ui::SimpleMenuModel::Delegate,
 
   // TODO(oshima): Remove this.
   virtual void AppendPlatformEditableItems() {}
-  virtual void ExecOpenInReadAnything() = 0;
 
   bool IsCustomItemChecked(int id) const;
   bool IsCustomItemEnabled(int id) const;
 
-  // Opens the specified URL string in a new tab.
+  // Opens the specified URL.
   void OpenURL(const GURL& url,
                const GURL& referrer,
+               const url::Origin& initiator,
                WindowOpenDisposition disposition,
                ui::PageTransition transition);
 
-  // Opens the specified URL string in a new tab with the extra headers.
-  void OpenURLWithExtraHeaders(const GURL& url,
-                               const GURL& referrer,
-                               WindowOpenDisposition disposition,
-                               ui::PageTransition transition,
-                               const std::string& extra_headers,
-                               bool started_from_context_menu);
+  // Opens the specified URL with extra headers.
+  virtual void OpenURLWithExtraHeaders(const GURL& url,
+                                       const GURL& referrer,
+                                       const url::Origin& initiator,
+                                       WindowOpenDisposition disposition,
+                                       ui::PageTransition transition,
+                                       const std::string& extra_headers,
+                                       bool started_from_context_menu);
 
   // Populates OpenURLParams for opening the specified URL string in a new tab
   // with the extra headers.
   content::OpenURLParams GetOpenURLParamsWithExtraHeaders(
       const GURL& url,
       const GURL& referring_url,
+      const url::Origin& initiator,
       WindowOpenDisposition disposition,
       ui::PageTransition transition,
       const std::string& extra_headers,
@@ -212,8 +213,8 @@ class RenderViewContextMenuBase : public ui::SimpleMenuModel::Delegate,
   scoped_refptr<content::SiteInstance> site_instance_;
 
   // Our observers.
-  mutable base::ObserverList<RenderViewContextMenuObserver>::Unchecked
-      observers_;
+  mutable base::ObserverList<
+      RenderViewContextMenuObserver>::UncheckedAndDanglingUntriaged observers_;
 
   // Whether a command has been executed. Used to track whether menu observers
   // should be notified of menu closing without execution.

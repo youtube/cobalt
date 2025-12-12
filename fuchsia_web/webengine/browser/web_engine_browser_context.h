@@ -10,6 +10,7 @@
 #include "base/files/file_path.h"
 #include "components/client_hints/browser/in_memory_client_hints_controller_delegate.h"
 #include "components/keyed_service/core/simple_factory_key.h"
+#include "components/reduce_accept_language/browser/in_memory_reduce_accept_language_service.h"
 #include "content/public/browser/browser_context.h"
 #include "fuchsia_web/webengine/browser/web_engine_permission_delegate.h"
 
@@ -41,7 +42,6 @@ class WebEngineBrowserContext final : public content::BrowserContext {
       const base::FilePath& partition_path) override;
   base::FilePath GetPath() override;
   bool IsOffTheRecord() override;
-  content::ResourceContext* GetResourceContext() override;
   content::DownloadManagerDelegate* GetDownloadManagerDelegate() override;
   content::BrowserPluginGuestManager* GetGuestManager() override;
   storage::SpecialStoragePolicy* GetSpecialStoragePolicy() override;
@@ -64,9 +64,6 @@ class WebEngineBrowserContext final : public content::BrowserContext {
   GetReduceAcceptLanguageControllerDelegate() override;
 
  private:
-  // Contains URLRequestContextGetter required for resource loading.
-  class ResourceContext;
-
   explicit WebEngineBrowserContext(
       base::FilePath data_dir_path,
       network::NetworkQualityTracker* network_quality_tracker);
@@ -76,8 +73,9 @@ class WebEngineBrowserContext final : public content::BrowserContext {
   const std::unique_ptr<WebEngineNetLogObserver> net_log_observer_;
   SimpleFactoryKey simple_factory_key_;
   WebEnginePermissionDelegate permission_delegate_;
-  std::unique_ptr<ResourceContext> resource_context_;
   client_hints::InMemoryClientHintsControllerDelegate client_hints_delegate_;
+  reduce_accept_language::InMemoryReduceAcceptLanguageService
+      reduce_accept_language_delegate_;
 };
 
 #endif  // FUCHSIA_WEB_WEBENGINE_BROWSER_WEB_ENGINE_BROWSER_CONTEXT_H_

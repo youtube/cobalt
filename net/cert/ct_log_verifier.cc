@@ -2,16 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "net/cert/ct_log_verifier.h"
 
 #include <string.h>
 
+#include <bit>
+#include <string_view>
 #include <vector>
 
-#include "base/bits.h"
 #include "base/logging.h"
 #include "base/notreached.h"
-#include "base/strings/string_piece.h"
 #include "crypto/openssl_util.h"
 #include "crypto/sha2.h"
 #include "net/cert/ct_log_verifier_util.h"
@@ -49,7 +54,6 @@ const EVP_MD* GetEvpAlg(ct::DigitallySigned::HashAlgorithm alg) {
     case ct::DigitallySigned::HASH_ALGO_NONE:
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -57,7 +61,7 @@ const EVP_MD* GetEvpAlg(ct::DigitallySigned::HashAlgorithm alg) {
 
 // static
 scoped_refptr<const CTLogVerifier> CTLogVerifier::Create(
-    base::StringPiece public_key,
+    std::string_view public_key,
     std::string description) {
   auto result = base::WrapRefCounted(new CTLogVerifier(std::move(description)));
   if (!result->Init(public_key))
@@ -146,9 +150,9 @@ bool CTLogVerifier::VerifyConsistencyProof(
 
   // 1. If "first" is an exact power of 2, then prepend "first_hash" to the
   // "consistency_path" array.
-  base::StringPiece first_proof_node = old_tree_hash;
+  std::string_view first_proof_node = old_tree_hash;
   auto iter = proof.nodes.begin();
-  if (!base::bits::IsPowerOfTwo(proof.first_tree_size)) {
+  if (!std::has_single_bit(proof.first_tree_size)) {
     if (iter == proof.nodes.end())
       return false;
     first_proof_node = *iter;
@@ -264,7 +268,7 @@ bool CTLogVerifier::VerifyAuditProof(const ct::MerkleAuditProof& proof,
 
 CTLogVerifier::~CTLogVerifier() = default;
 
-bool CTLogVerifier::Init(base::StringPiece public_key) {
+bool CTLogVerifier::Init(std::string_view public_key) {
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   CBS cbs;
@@ -301,8 +305,8 @@ bool CTLogVerifier::Init(base::StringPiece public_key) {
   return true;
 }
 
-bool CTLogVerifier::VerifySignature(base::StringPiece data_to_sign,
-                                    base::StringPiece signature) const {
+bool CTLogVerifier::VerifySignature(std::string_view data_to_sign,
+                                    std::string_view signature) const {
   crypto::OpenSSLErrStackTracer err_tracer(FROM_HERE);
 
   const EVP_MD* hash_alg = GetEvpAlg(hash_algorithm_);

@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/task/single_thread_task_runner.h"
+#include "remoting/protocol/authenticator.h"
 #include "remoting/protocol/fake_authenticator.h"
 #include "remoting/protocol/session_plugin.h"
 #include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
@@ -58,7 +59,7 @@ void FakeSession::SetEventHandler(EventHandler* event_handler) {
   event_handler_ = event_handler;
 }
 
-ErrorCode FakeSession::error() {
+ErrorCode FakeSession::error() const {
   return error_;
 }
 
@@ -70,11 +71,17 @@ const SessionConfig& FakeSession::config() {
   return *config_;
 }
 
+const Authenticator& FakeSession::authenticator() const {
+  return *authenticator_;
+}
+
 void FakeSession::SetTransport(Transport* transport) {
   transport_ = transport;
 }
 
-void FakeSession::Close(ErrorCode error) {
+void FakeSession::Close(ErrorCode error,
+                        std::string_view error_details,
+                        const SourceLocation& error_location) {
   closed_ = true;
   error_ = error;
   event_handler_->OnSessionStateChange(CLOSED);
@@ -85,10 +92,15 @@ void FakeSession::Close(ErrorCode error) {
     peer_.reset();
 
     if (signaling_delay_.is_zero()) {
-      peer->Close(error);
+      peer->Close(error, error_details, error_location);
     } else {
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
-          FROM_HERE, base::BindOnce(&FakeSession::Close, peer, error),
+          FROM_HERE,
+          // Cannot just bind `error_details` as a string view, since the
+          // underlying data could be invalidated before the callback is run.
+          // See: crbug.com/376675478
+          base::BindOnce(&FakeSession::Close, peer, error,
+                         std::string(error_details), error_location),
           signaling_delay_);
     }
   }

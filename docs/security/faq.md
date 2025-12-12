@@ -47,6 +47,35 @@ deployments should always track the latest stable release. When you do this,
 there is no need to further assess the risk of Chromium vulnerabilities: we
 strive to fix vulnerabilities quickly and release often.
 
+<a name="TOC-How-can-I-know-which-fixes-to-include-in-my-downstream-project-"></a>
+### How can I know which fixes to include in my downstream project?
+
+Chrome is built with mitigations and hardening which aim to prevent or reduce
+the impact of security issues. We classify bugs as security issues if they are
+known to affect a version and configuration of Chrome that we ship to the
+public. Some classes of bug might present as security issues if Chrome was
+compiled with different flags, or linked against a different C++ standard
+library, but do not with the toolchain and configuration that we use to build
+Chrome. We discuss some of these cases elsewhere in this FAQ.
+
+If we become aware of them, these issues may be triaged as `Type=Vulnerability,
+Security_Impact-None` or as `Type=Bug` because they do not affect the production
+version of Chrome. They may or may not be immediately visible to the public in
+the bug tracker, and may or may not be identified as security issues. If fixes
+are landed, they may or may not be merged from HEAD to a release branch. Chrome
+will only label, fix and merge security issues in Chrome, but attackers can
+still analyze public issues, or commits in the Chromium project to identify bugs
+that might be exploitable in other contexts.
+
+Chromium embedders and other downstream projects may build with different
+compilers, compile options, target operating systems, standard library, or
+additional software components. It is possible that some issues Chrome
+classifies as functional issues will manifest as security issues in a product
+embedding Chromium - it is the responsibility of any such project to understand
+what code they are shipping, and how it is compiled. We recommend using Chrome's
+[configuration](https://source.chromium.org/chromium/chromium/src/+/main:build/config/)
+whenever possible.
+
 <a name="TOC-Can-I-see-these-security-bugs-so-that-I-can-back-port-the-fixes-to-my-downstream-project-"></a>
 ### Can I see these security bugs so that I can back-port the fixes to my downstream project?
 
@@ -198,10 +227,45 @@ demonstrate how to bypass one of these protections then we’d like to hear abou
 it. You can see if a Safe Browsing check happened by opening
 chrome://safe-browsing before starting the download.
 
+<a name="TOC-what-about-dangerous-file-types-not-listed-in-the-file-type-policy-"></a>
+### What about dangerous file types not listed in the file type policy?
+
+The [file type
+policy](https://source.chromium.org/chromium/chromium/src/+/main:components/safe_browsing/content/resources/download_file_types.asciipb?q=download_file_types.asciipb%20-f:%2Fgen%2F&ss=chromium)
+controls some details of which security checks to enable for a given file
+extension. Most importantly, it controls whether we contact Safe Browsing about
+a download, and whether we show a warning for all downloads of that file type.
+Starting in M74, the default for unknown file types has been to contact Safe
+Browsing. This prevents large-scale abuse from a previously unknown file type.
+Starting in M105, showing a warning for all downloads of an extension became
+reserved for exceptionally dangerous file types that can compromise a user
+without any user interaction with the file (e.g. DLL hijacking). If you discover
+a new file type that meets that condition, we’d like to hear about it.
+
+<a name="TOC-i-found-a-local-file-or-directory-that-may-be-security-sensitive-and-is-not-blocked-by-file-system-access-api-"></a>
+### I found a local file or directory that may be security-sensitive and is not blocked by File System Access API - is this a security bug?
+
+The File System Access API maintains a [blocklist](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/file_system_access/chrome_file_system_access_permission_context.cc;l=266-346)
+of directories and files that may be sensitive such as systems file, and if user
+chooses a file or a directory matching the list on a site using File System
+Access API, the access is blocked.
+
+The blocklist is designed to help mitigate accidental granting by users by
+listing well-known, security-sensitive locations, as a defense in-depth
+strategy. Therefore, the blocklist coverage is not deemed as a security bug,
+especially as it requires user's explicit selection on a file or a directory
+from the file picker.
+
 <a name="TOC-I-can-download-a-file-with-an-unsafe-extension-but-a-different-extension-or-file-type-is-shown-to-the-user-"></a>
 ### I can download a file with an unsafe extension but a different extension or file type is shown to the user - is this a security bug?
+
+See [file types](#TOC-The-wrong-description-for-a-file-type-is-added-by-Chrome-).
+
 <a name="TOC-Extensions-for-downloaded-files-are-not-shown-in-a-file-dialog-"></a>
 ### Extensions for downloaded files are not shown in a file dialog - is this a security bug?
+
+See [file types](#TOC-The-wrong-description-for-a-file-type-is-added-by-Chrome-).
+
 <a name="TOC-The-wrong-description-for-a-file-type-is-added-by-Chrome-"></a>
 ### The wrong description for a file type is added by Chrome - is this a security bug?
 
@@ -241,6 +305,86 @@ would want to dismiss. [Example](https://crbug.com/854455#c11).
 Note that a user navigating to a download will cause a file to be
 [downloaded](https://crbug.com/1114592).
 
+<a name="TOC-security-properties-not-inherited-using-contextual-menu-"></a>
+### Sandbox/CSP/etc... security properties are not inherited when navigating using the middle-click/contextual-menu - is this a security bug?
+
+The security properties of the document providing the URL are not used/inherited
+when the user deliberately opens a link in a popup using one of:
+
+- Ctrl + left-click (Open link in new tab)
+- Shift + left-click (Open link in new window)
+- Middle-click (Open a link in a new tab)
+- Right-click > "Open link in ..."
+
+These methods of following a link have more or less the same implications as the
+user copying the link's URL and pasting it into a newly-opened window. We treat
+them as user-initiated top-level navigations, and as such will not apply or
+inherit policy restrictions into the new context
+
+Example of security related properties:
+
+- Content-Security-Policy
+- Cross-Origin-Embedder-Policy
+- Cross-Origin-Opener-Policy
+- Origin
+- Referrer
+- Sandbox
+- etc...
+
+These browser's actions/shortcuts are specific to Chrome. They are different
+from the behavior specified by the web-platform, such as using executing
+`window.open()` or opening a link with the `target=_blank` attribute.
+
+<a name="TOC-What-is-the-threat-model-for-Chrome-for-Testing"></a>
+### What is the threat model for Chrome for Testing?
+
+[Chrome for Testing](https://developer.chrome.com/blog/chrome-for-testing) is a
+distribution of current and older versions of Chrome. It does not auto-update.
+Therefore, it may lack recent fixes for security bugs. Security bugs can more
+easily be exploited once their fixes are [published in the main Chromium source
+code repository](updates.md) and so it is unsafe to use Chrome for Testing to
+access any untrusted website.  You should use Chrome for Testing only for
+browser automation and testing purposes, consuming only trustworthy content.
+`chrome-headless-shell` also lacks auto-updates and so, for the same reason,
+should only be used to consume trusted content.
+
+<a name="TOC-What-makes-a-ui-spoof-interesting-to-report"></a>
+### What makes a UI spoof interesting to report?
+As a general rule, a UI spoof is only a security bug if _either_:
+
+* There is evidence that it is actually being exploited to trick users in the
+  field, or
+* You can make a convincing case that it would mislead a user into making a
+  _security decision_ incorrectly, or otherwise taking an action with actual
+  security consequences for that user
+
+That means that for example these are interesting security bugs:
+
+* A spoof that convinces the user they are currently on origin A when in fact
+  they are on origin B
+* A spoof that convinces the user that a permission request is from origin A
+  when in fact it is from origin B
+* A spoof that convinces the user they are installing extension A when in fact
+  they are installing extension B
+
+and so on, but for example these are **not** interesting security bugs:
+
+* A spoof that convinces the user to copy text they didn't expect to their
+  clipboard
+* A spoof that convinces the user to download a file they didn't expect (simply
+  downloading a file is not a security decision - running it is though!)
+* A spoof that convinces the user to navigate to a link they didn't expect
+* A spoof that convinces the user to click a browser UI element they weren't
+  intending to _unless you can show security consequences for them doing so_.
+
+We often tend to look at what a "reasonable and prudent" user would do in a
+situation, meaning a user who is taking basic security precautions like paying
+attention to security cues given in the product UI and who is, while not a
+security expert or even particularly security-minded, trying to take basic
+precautions to stay safe online. That doesn't mean bugs that require user error
+are always out of scope, but it does mean that spoofs which would not deceive
+a user being reasonable and prudent are out of scope.
+
 ## Areas outside Chrome's Threat Model
 
 <a name="TOC-Are-privacy-issues-considered-security-bugs-"></a>
@@ -275,6 +419,8 @@ some previously-stored state, such as browsing history.
 No. Chromium once contained a reflected XSS filter called the [XSSAuditor](https://www.chromium.org/developers/design-documents/xss-auditor)
 that was a best-effort second line of defense against reflected XSS flaws found
 in web sites. The XSS Auditor was [removed in Chrome 78](https://groups.google.com/a/chromium.org/forum/#!msg/blink-dev/TuYw-EZhO9g/blGViehIAwAJ).
+Consequently, Chromium no longer takes any special action in response to an
+X-XSS-Protection header.
 
 <a name="TOC-Are-denial-of-service-issues-considered-security-bugs-"></a>
 ### Are denial of service issues considered security bugs?
@@ -282,11 +428,11 @@ in web sites. The XSS Auditor was [removed in Chrome 78](https://groups.google.c
 No. Denial of Service (DoS) issues are treated as **abuse** or **stability**
 issues rather than security vulnerabilities.
 
-*    If you find a reproducible crash, we encourage you to [report
-     it](https://bugs.chromium.org/p/chromium/issues/entry?template=Crash%20Report).
+*    If you find a reproducible crash (e.g. a way to hit a `CHECK`),
+     we encourage you to [report it](https://issues.chromium.org/new).
 *    If you find a site that is abusing the user experience (e.g. preventing you
      from leaving a site), we encourage you to [report
-     it](https://crbug.com/new).
+     it](https://issues.chromium.org/new).
 
 DoS issues are not considered under the security vulnerability rewards program;
 the [severity guidelines](severity-guidelines.md) outline the types of bugs that
@@ -358,6 +504,14 @@ Security](https://web.archive.org/web/20160311224620/https://technet.microsoft.c
 Other cases covered by this section include leaving a debugger port open to
 the world, remote shells, and so forth.
 
+<a name="TOC-If-a-website-can-open-an-android-app-via-an-intent"></a>
+### If a website can open an Android app via an intent is this a security bug?
+
+No - websites can link to external handlers or applications - but there are
+restrictions around requiring a user gesture and the type of intent that can
+be launched. Full details are available in the
+[external_intents](../../components/external_intents/README.md) documentation.
+
 <a name="TOC-Does-entering-JavaScript:-URLs-in-the-URL-bar-or-running-script-in-the-developer-tools-mean-there-s-an-XSS-vulnerability-"></a>
 ### Does entering JavaScript: URLs in the URL bar or running script in the developer tools mean there's an XSS vulnerability?
 
@@ -392,9 +546,32 @@ served (e.g. no document.cookie).
 ### Are PDF files static content in Chromium?
 
 No. PDF files have some powerful capabilities including invoking printing or
-posting form data. To mitigate abuse of these capabiliies, such as beaconing
+posting form data. To mitigate abuse of these capabilities, such as beaconing
 upon document open, we require interaction with the document (a "user gesture")
 before allowing their use.
+
+<a name="TOC-Are-non_committed-URLs-entered-by-the-user-considered-URL-spoofs-"></a>
+### Are non-committed URLs entered by the user considered URL spoofs?
+
+No. When a user enters a URL into the address bar (whether by typing,
+copy/pasting, drag and drop, or otherwise), Chrome intentionally displays
+it instead of the last committed URL of the currently active page, until
+both the navigation begins and the new page commits. During this time, the
+currently active page can change its appearance to mimic the new URL while
+its own URL is not shown. However, the active page does not have control
+over which URL the user entered into the address bar, limiting the
+effectiveness of a spoof attempt. The new
+[lock-replacement icon](https://blog.chromium.org/2023/05/an-update-on-lock-icon.html)
+is also not present in this state, and in many cases (i.e., once the new
+navigation has started), the loading indicators are present.
+
+The confusion between the non-committed URL and the active page's
+appearance is a consequence of the address bar needing to serve two roles:
+showing both where you are and where you are going. In general, we don't think
+this technique can deceive a [reasonable and prudent
+user](#TOC-What-makes-a-ui-spoof-interesting-to-report).
+
+See also https://crbug.com/378932942 for context.
 
 <a name="TOC-What-about-URL-spoofs-using-Internationalized-Domain-Names-IDN-"></a>
 ### What about URL spoofs using Internationalized Domain Names (IDN)?
@@ -418,8 +595,31 @@ This topic has been moved to the [Extensions Security FAQ](https://chromium.goog
 
 Null pointer dereferences with consistent, small, fixed offsets are not considered
 security bugs. A read or write to the NULL page results in a non-exploitable crash.
-If the offset is larger than a page, or if there's uncertainty about whether the
+If the offset is larger than 32KB, or if there's uncertainty about whether the
 offset is controllable, it is considered a security bug.
+
+All supported Chrome platforms do not allow mapping memory in at least the first
+32KB of address space:
+
+- Windows: Windows 8 and later disable mapping the first 64k of address space;
+  see page 33 of [Exploit Mitigation Improvements in Windows
+  8][windows-null-page-mapping] [[archived]][windows-null-page-mapping-archived].
+- Mac and iOS: by default, the linker reserves the first 4GB of address space
+  with the `__PAGEZERO` segment for 64-bit binaries.
+- Linux: the default `mmap_min_addr` value for supported distributions is at
+  least 64KB.
+- Android: [CTS][android-mmap_min_addr] enforces that `mmap_min_addr` is set to
+  exactly 32KB.
+- ChromeOS: the [ChromeOS kernels][chromeos-mmap_min_addr] set the default
+  `mmap_min_addr` value to at least 32KB.
+- Fuchsia: the [userspace base address][fuchsia-min-base-address] begins at 2MB;
+  this is configured per-platform but set to the same value on all platforms.
+
+[windows-null-page-mapping]: https://media.blackhat.com/bh-us-12/Briefings/M_Miller/BH_US_12_Miller_Exploit_Mitigation_Slides.pdf
+[windows-null-page-mapping-archived]: https://web.archive.org/web/20230608131033/https://media.blackhat.com/bh-us-12/Briefings/M_Miller/BH_US_12_Miller_Exploit_Mitigation_Slides.pdf
+[android-mmap_min_addr]: https://android.googlesource.com/platform/cts/+/496152a250d10e629d31ac90b2e828ad77b8d70a/tests/tests/security/src/android/security/cts/KernelSettingsTest.java#43
+[chromeos-mmap_min_addr]: https://source.chromium.org/search?q=%22CONFIG_DEFAULT_MMAP_MIN_ADDR%3D%22%20path:chromeos%2F&ss=chromiumos%2Fchromiumos%2Fcodesearch:src%2Fthird_party%2Fkernel%2F
+[fuchsia-min-base-address]: https://cs.opensource.google/fuchsia/fuchsia/+/main:zircon/kernel/arch/arm64/include/arch/kernel_aspace.h;l=20;drc=eeceea01eee2615de74b1339bcf6e6c2c6f72769
 
 <a name="TOC-Indexing-a-container-out-of-bounds-hits-a-libcpp-verbose-abort--is-this-a-security-bug-"></a>
 ### Indexing a container out of bounds hits a __libcpp_verbose_abort, is this a security bug?
@@ -441,6 +641,13 @@ the operating system and avoid accessing them, e.g.:
 *    A frame with a very large stack allocation.
 *    C variable length array with an attacker-controlled size.
 *    A call to `alloca()` with an attacker-controlled size.
+
+<a name="TOC-Are-tint-ICE-considered-security-bugs-"></a>
+### Are tint shader compiler Internal Compiler Errors considered security bugs?
+
+No. When tint fails and throws an ICE (Internal Compiler Error), it will
+terminate the process in an intentional manner and produce no shader output.
+Thus there is not security bug that follows from it.
 
 <a name="TOC-Are-enterprise-admins-considered-privileged-"></a>
 ### Are enterprise admins considered privileged?
@@ -478,7 +685,7 @@ of user expectations, we will attempt to remedy these policies and we will apply
 the guidance laid out in this document to any newly added policies.
 
 See the [Web Platform Security
-guidelines](https://chromium.googlesource.com/chromium/src/+/master/docs/security/web-platfom-security-guidelines.md#enterprise-policies)
+guidelines](https://chromium.googlesource.com/chromium/src/+/main/docs/security/web-platform-security-guidelines.md#enterprise-policies)
 for more information on how enterprise policies should interact with Web
 Platform APIs.
 
@@ -494,6 +701,68 @@ important security benefits are redundant with or superseded by built-in attack
 mitigations within the browser. For users, the very marginal security benefit is
 not usually a good trade-off for the compatibility issues and performance
 degradation the toolkit can cause.
+
+<a name="TOC-dangling-pointers"></a>
+### Dangling pointers
+
+Chromium can be instrumented to detect [dangling
+pointers](https://chromium.googlesource.com/chromium/src/+/main/docs/dangling_ptr.md):
+
+Notable build flags are:
+- `enable_dangling_raw_ptr_checks=true`
+- `use_raw_ptr_asan_unowned_impl=true`
+
+Notable runtime flags are:
+- `--enable-features=PartitionAllocDanglingPtr`
+
+It is important to note that detecting a dangling pointer alone does not
+necessarily indicate a security vulnerability. A dangling pointer becomes a
+security vulnerability only when it is dereferenced and used after it becomes
+dangling.
+
+In general, dangling pointer issues should be assigned to feature teams as
+ordinary bugs and be fixed by them. However, they can be considered only if
+there is a demonstrable way to show a memory corruption. e.g. with a POC causing
+crash with ASAN **without the flags above**.
+
+<a name="TOC-hard-coded-lists"></a>
+### My domain is on the [Public Suffix List / HSTS preload list / etc.] upstream but this is not yet reflected in Chrome! Is this a security bug?
+
+Chrome does not make any guarantees about how soon additions to or removals from
+external lists like the [HSTS preload list](https://hstspreload.org) or the
+[Public Suffix List (PSL)](https://publicsuffix.org/) will be incorporated into Chrome.
+If you believe Chrome's copies of these lists are notably out-of-date, we are
+happy to field bug reports but we do not consider this to be a vulnerability.
+
+## AI Generated Vulnerability reports
+
+<a name="TOC-should-i-ask-an-ai-to-generate-a-vulnerability-report-for-chrome"></a>
+### Should I ask an AI to Generate a Vulnerability Report for Chrome?
+
+Simply asking an AI to identify a bug report in Chrome is unlikely to yield a
+valid report. Before submitting a report generated by AI please ensure you have
+done enough human work to validate that any issue is (a) in our threat model,
+and (b) reachable in Chrome by constructing a POC, generating an ASAN trace,
+recording the bug reproducing, or performing your own debugging.
+
+AI is prone to hallucinations when asked to find security bugs and can generate
+reports that repeat previously fixed issues, or describe general classes of bugs
+without discovering a specific actionable issue. As the reports can be lengthy,
+they take a lot of time for our security experts to process and understand
+before closing. Submitting reports without doing some work yourself to validate
+that an issue is actually present in Chrome harms our users by wasting the time
+and resources of the Chrome security team.
+
+Submitting multiple low-quality AI generated reports will be treated as spamming
+and has lead to accounts being banned from our reporting systems.
+
+AI can be used to accelerate developer workflows and may be useful when
+understanding code or translating from one language to another. AI tools can be
+helpful when searching for security vulnerabilities in Chrome, but remember that
+additional work must be done to ensure that vulnerability reports are brief,
+actionable, and reproducible. These must meet the prerequisites of a [baseline
+security bug report](https://g.co/chrome/vrp#report-quality) before we can pass
+them to teams to be fixed.
 
 ## Certificates & Connection Indicators
 
@@ -571,7 +840,7 @@ that the current server is not the true server.
 
 To enable certificate chain validation, Chrome has access to two stores of trust
 anchors (i.e., certificates that are empowered as issuers). One trust anchor
-store is for authenticating public internet servers, and depending on the 
+store is for authenticating public internet servers, and depending on the
 version of Chrome being used and the platform it is running on, the
 [Chrome Root Store](https://chromium.googlesource.com/chromium/src/+/main/net/data/ssl/chrome_root_store/faq.md#what-is-the-chrome-root-store)
 might be in use. The private store contains certificates installed by the user
@@ -606,7 +875,7 @@ connection will fail as it should.
 <a name="TOC-When-is-key-pinning-enabled-"></a>
 ### When is key pinning enabled?
 
-Key pinning is enabled for Chrome-branded, non-mobile builds when the local
+Key pinning is enabled for Chrome-branded non-iOS builds when the local
 clock is within ten weeks of the embedded build timestamp. Key pinning is a
 useful security measure but it tightly couples client and server configurations
 and completely breaks when those configurations are out of sync. In order to
@@ -616,16 +885,15 @@ reasonable timeframe.
 
 Each of the conditions listed above helps ensure those properties:
 Chrome-branded builds are those that Google provides and they all have an
-auto-update mechanism that can be used in an emergency. However, auto-update on
-mobile devices is significantly less effective thus they are excluded. Even in
-cases where auto-update is generally effective, there are still non-trivial
-populations of stragglers for various reasons. The ten-week timeout prevents
-those stragglers from causing problems for regular, non-emergency changes and
+auto-update mechanism that can be used in an emergency. Even in cases where
+auto-update is generally effective, there are still non-trivial populations
+of stragglers for various reasons. The ten-week timeout prevents those
+stragglers from causing problems for regular, non-emergency changes and
 allows stuck users to still, for example, conduct searches and access Chrome's
 homepage to hopefully get unstuck.
 
 In order to determine whether key pinning is active, try loading
-[https://pinningtest.appspot.com](https://pinningtest.appspot.com). If key
+[https://pinning-test.badssl.com/](https://pinning-test.badssl.com/). If key
 pinning is active the load will _fail_ with a pinning error.
 
 <a name="TOC-How-does-certificate-transparency-interact-with-local-proxies-and-filters-"></a>
@@ -658,7 +926,7 @@ securely, it cannot actually provide any guarantee. (After all, a MITM attacker
 could have modified the code, if it was not transported securely.)
 
 See the [Web Platform Security
-guidelines](https://chromium.googlesource.com/chromium/src/+/master/docs/security/web-platform-security-guidelines.md#encryption)
+guidelines](https://chromium.googlesource.com/chromium/src/+/main/docs/security/web-platform-security-guidelines.md#encryption)
 for more information on security guidelines applicable to web platform APIs.
 
 <a name="TOC-Which-origins-are-secure-"></a>
@@ -686,34 +954,36 @@ for more details.
 ### What's the story with certificate revocation?
 
 Chrome's primary mechanism for checking certificate revocation status is
-[CRLsets](https://dev.chromium.org/Home/chromium-security/crlsets). 
+[CRLSets](https://dev.chromium.org/Home/chromium-security/crlsets).
 Additionally, by default, [stapled Online Certificate Status Protocol (OCSP)
 responses](https://en.wikipedia.org/wiki/OCSP_stapling) are honored.
 
-"Online" certificate revocation status checks using Certificate Revocation
-List (CRL) or OCSP URLs included in certificates are disabled by default. This
-is because unless a client, like Chrome, refuses to connect to a website if it
-cannot get a valid response, online checks offer limited security value. 
+As of 2024, Chrome enforces most security-relevant certificate revocations that
+are visible via Certificate Revocation Lists (CRLs) published to the
+[CCADB](https://www.ccadb.org/) via CRLSets. There is some inherent delay in
+getting revocation information to Chrome clients, but most revocations should
+reach most users within a few days of appearing on a CA's CRL.
+
+Chrome clients do not, by default, perform "online" certificate revocation
+status checks using CRLs directly or via OCSP URLs included in certificates.
+This is because online checks offer limited security value unless a client, like
+Chrome, refuses to connect to a website if it cannot get a valid response,
 
 Unfortunately, there are many widely-prevalent causes for why a client
 might be unable to get a valid certificate revocation status response to
 include:
 * timeouts (e.g., an OCSP responder is online but does not respond within an
-  acceptable time limit), 
-* availability issues (e.g., the OCSP responder is offline), 
-* invalid responses (e.g., a "stale" or malformed status response), and 
-* local network attacks misrouting traffic or blocking responses. 
+  acceptable time limit),
+* availability issues (e.g., the OCSP responder is offline),
+* invalid responses (e.g., a "stale" or malformed status response), and
+* local network attacks misrouting traffic or blocking responses.
 
-Additional concern with OCSP checks are related to privacy. OCSP 
+Additional concern with OCSP checks are related to privacy. OCSP
 requests reveal details of individuals' browsing history to the operator of the
 OCSP responder (i.e., a third party). These details can be exposed accidentally
 (e.g., via data breach of logs) or intentionally (e.g., via subpoena). Chrome
 used to perform revocation checks for Extended Validation certificates, but that
 behavior was disabled in 2022 for [privacy reasons](https://groups.google.com/a/mozilla.org/g/dev-security-policy/c/S6A14e_X-T0/m/T4WxWgajAAAJ).
-
-For more discussion on challenges with certificate revocation status checking,
-explained by Adam Langley, see [https://www.imperialviolet.org/2014/04/29/revocationagain.html](https://www.imperialviolet.org/2014/04/29/revocationagain.html)
-and [https://www.imperialviolet.org/2014/04/19/revchecking.html](https://www.imperialviolet.org/2014/04/19/revchecking.html).
 
 The following enterprise policies can be used to change the default revocation
 checking behavior in Chrome, though these may be removed in the future:
@@ -816,22 +1086,21 @@ specific:
      (DPAPI)](https://msdn.microsoft.com/en-us/library/ms995355.aspx) to bind
      your passwords to your user account and store them on disk encrypted with
      a key only accessible to processes running as the same logged on user.
-*    On macOS, Chrome previously stored credentials directly in the user's
+*    On macOS and iOS, Chrome previously stored credentials directly in the user's
      Keychain, but for technical reasons, it has switched to storing the
      credentials in "Login Data" in the Chrome users profile directory, but
      encrypted on disk with a key that is then stored in the user's Keychain.
-     See [Issue 466638](https://crbug.com/466638) for further explanation.
+     See [Issue 466638](https://crbug.com/466638) and [Issue 520437](https://crbug.com/520437) for further explanation.
 *    On Linux, Chrome previously stored credentials directly in the user's
-     Gnome Keyring or KWallet, but for technical reasons, it has switched to
+     Gnome Secret Service or KWallet, but for technical reasons, it has switched to
      storing the credentials in "Login Data" in the Chrome user's profile directory,
      but encrypted on disk with a key that is then stored in the user's Gnome
-     Keyring or KWallet. If there is no available Keyring or KWallet, the data is
-     not encrypted when stored.
-*    On iOS, passwords are currently stored directly in the iOS Keychain and
-     referenced from the rest of the metadata stored in a separate DB. The plan
-     there is to just store them in plain text in the DB, because iOS gives
-     strong guarantees about only Chrome being able to access its storage. See
-     [Issue 520437](https://crbug.com/520437) to follow this migration.
+     Secret Service or KWallet. If there is no available Secret Service or KWallet,
+     the data is not encrypted when stored.
+*    On Android, Chrome doesn't store in the profile anymore, instead it uses Google
+     Play Services to access passwords stored on a device.
+*    On ChromeOS passwords are only obfuscated since all profile data is encrypted
+     by the OS.
 
 <a name="TOC-If-theres-a-way-to-see-stored-passwords-without-entering-a-password--is-this-a-security-bug-"></a>
 ### If there's a way to see stored passwords without entering a password, is this a security bug?
@@ -847,6 +1116,21 @@ users inadvertently revealing their passwords on screen, for example if
 they’re screen sharing. We don’t do this on all platforms because we consider
 such risks greater on some than on others.
 
+
+<a name="TOC-On-some-websites-I-can-use-a-passkey-without-passing-a-lock-screen-or-biometric-challenge-is-this-a-security-bug"></a>
+### On some websites, I can use passkeys without passing a lock screen or biometric challenge. Is this a security bug?
+
+Probably not. When a website requests a passkeys signature, it can choose
+whether the authenticator should perform user verification (e.g. with a local
+user lock screen challenge). Unless the website sets user verification parameter
+in the request to 'required', the passkey authenticator can choose to skip the
+lock screen challenge. Authenticators commonly skip an optional challenge if
+biometrics are unavailable (e.g. on a laptop with a closed lid).
+
+If you can demonstrate bypassing the user verification challenge where the
+request user verification parameter is set to 'required', please
+[report it](https://issues.chromium.org/issues/new?noWizard=true&component=1363614&template=1922342).
+
 ## Other
 
 <a name="TOC-What-is-the-security-story-for-Service-Workers-"></a>
@@ -859,6 +1143,74 @@ FAQ](https://chromium.googlesource.com/chromium/src/+/main/docs/security/service
 ### What is the security story for Extensions?
 
 See our dedicated [Extensions Security FAQ](https://chromium.googlesource.com/chromium/src/+/main/extensions/docs/security_faq.md).
+
+<a name="TOC-What-is-the-security-model-for-Chrome-Custom-Tabs-"></a>
+### What's the security model for Chrome Custom Tabs?
+
+See our [Chrome Custom Tabs security FAQ](custom-tabs-faq.md).
+
+<a name="TOC-What-is-the-security-story-for-Fullscreen-"></a>
+### What is the security story for Fullscreen?
+
+See our dedicated [Fullscreen Security FAQ](https://chromium.googlesource.com/chromium/src/+/main/docs/security/fullscreen.md).
+
+<a name="TOC-How-is-security-different-in-Chrome-for-iOS--"></a>
+### How is security different in Chrome for iOS?
+
+Chrome for iOS does not use Chrome's standard rendering engine. Due to Apple's
+iOS platform restrictions, it instead uses Apple's WebKit engine and a more
+restricted process isolation model. This means its security properties are
+different from Chrome on all other platforms.
+
+The differences in security are far too extensive to list exhaustively, but some
+notable points are:
+
+* Chromium's [site
+  isolation](https://www.chromium.org/Home/chromium-security/site-isolation/)
+  isn't used; WebKit has its own alternative implementation with different costs
+  and benefits.
+* WebKit has [historically been slower at shipping security
+  fixes](https://googleprojectzero.blogspot.com/2022/02/a-walk-through-project-zero-metrics.html).
+* Chrome's network stack, [root
+  store](https://www.chromium.org/Home/chromium-security/root-ca-policy/) and
+  associated technology are not used, so
+  the platform will make different decisions about what web servers to trust.
+* Sandboxing APIs are not available for native code.
+
+Given that the fundamentals of the browser are so different, and given these
+limitations, Chrome for iOS has historically not consistently implemented some
+of Chrome's [standard security guidelines](rules.md). This includes the
+important [Rule of Two](rule-of-2.md). Future Chrome for iOS features should
+meet all guidelines except in cases where the lack of platform APIs make it
+unrealistic. (The use of WebAssembly-based sandboxing is currently considered
+unrealistic though this could change in future.)
+
+If the Rule of Two cannot be followed, features for Chrome for iOS should
+nevertheless follow it as closely as possible, and adopt additional mitigations
+where they cannot:
+
+* First consider adding a validation layer between unsafe code and web contents,
+  or adopting memory-safe parsers at the boundary between the renderer and the
+  browser process. Consider changing the design of the feature so the riskiest
+  parsing can happen in javascript injected in the renderer process.
+* Any unsafe unsandboxed code that is exposed to web contents or other
+  untrustworthy data sources must be extensively tested and fuzzed.
+
+The Chrome team is enthusiastic about the future possibility of making a version
+of Chrome for iOS that meets our usual security standards if richer platform
+facilities become widely available: this will require revisiting existing
+features to see if adjustment is required.
+
+<a name="TOC-Are-all-Chrome-updates-important--"></a>
+### Are all Chrome updates important?
+
+Yes - see [our updates FAQ](updates.md).
+
+<a name="TOC-What-older-Chrome-versions-are-supported--"></a>
+### What older Chrome versions are supported?
+
+We always recommend being on the most recent Chrome stable version - see
+[our updates FAQ](updates.md).
 
 <a name="TOC-Im-making-a-Chromium-based-browser-how-should-I-secure-it-"></a>
 ### I'm making a Chromium-based browser. How should I secure it?
@@ -896,3 +1248,18 @@ backported. This can happen for several reasons, for example: because they
 depend upon architectural changes (e.g. breaking API changes); because the
 security improvement is a significant new feature; or because the security
 improvement is the removal of a broken feature.
+
+<a name="TOC-How-can-I-appeal-a-Safe-Browsing-warning-"></a>
+### How can I appeal a Safe Browsing warning?
+To request a review of warnings relating to your own website, use the
+[Security Issues report](https://support.google.com/webmasters/answer/9044101)
+page in your Google Search Console. If the warning applies to another site, you
+may be able to use
+[https://safebrowsing.google.com/safebrowsing/report_error/](https://safebrowsing.google.com/safebrowsing/report_error/),
+though you are likely better off contacting the site owner.
+
+If your concern relates to malware warnings, you may find the warning in your
+Security Issues report and request a review from there. There is no separate
+appeal form or process at this time. Please follow these
+[guidelines](https://developers.google.com/search/docs/monitor-debug/security/malware#guidelines)
+to avoid having your binary show warnings from Safe Browsing.

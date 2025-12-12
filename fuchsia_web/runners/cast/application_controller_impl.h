@@ -11,14 +11,19 @@
 #include <lib/fidl/cpp/binding.h>
 #include <lib/fidl/cpp/interface_request.h>
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
+#include "base/memory/raw_ptr.h"
 
 class ApplicationControllerImpl final
     : public fidl::Server<chromium_cast::ApplicationController> {
  public:
+  // `trace_flow_id` is used by the controller to report media blocking trace
+  // event as a part of the application flow.
   ApplicationControllerImpl(
       fuchsia::web::Frame* frame,
-      fidl::Client<chromium_cast::ApplicationContext>& context);
+      fidl::Client<chromium_cast::ApplicationContext>& context,
+      uint64_t trace_flow_id);
 
   ApplicationControllerImpl(const ApplicationControllerImpl&) = delete;
   ApplicationControllerImpl& operator=(const ApplicationControllerImpl&) =
@@ -40,9 +45,10 @@ class ApplicationControllerImpl final
       GetPrivateMemorySizeCompleter::Sync& completer) override;
 
  private:
-  absl::optional<fidl::ServerBinding<chromium_cast::ApplicationController>>
+  std::optional<fidl::ServerBinding<chromium_cast::ApplicationController>>
       binding_;
-  fuchsia::web::Frame* const frame_;
+  const raw_ptr<fuchsia::web::Frame> frame_;
+  const uint64_t trace_flow_id_;
 };
 
 #endif  // FUCHSIA_WEB_RUNNERS_CAST_APPLICATION_CONTROLLER_IMPL_H_

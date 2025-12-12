@@ -26,7 +26,7 @@ namespace vr {
 VrTabHelper::VrTabHelper(content::WebContents* contents)
     : content::WebContentsUserData<VrTabHelper>(*contents) {}
 
-VrTabHelper::~VrTabHelper() {}
+VrTabHelper::~VrTabHelper() = default;
 
 void VrTabHelper::SetIsInVr(bool is_in_vr) {
   if (is_in_vr_ == is_in_vr)
@@ -81,7 +81,7 @@ void VrTabHelper::SetIsContentDisplayedInHeadset(content::WebContents* contents,
   vr_tab_helper->SetIsContentDisplayedInHeadset(state);
   if (old_state != state) {
 #if !BUILDFLAG(IS_ANDROID)
-    Browser* browser = chrome::FindBrowserWithWebContents(contents);
+    Browser* browser = chrome::FindBrowserWithTab(contents);
     if (browser) {
       TabStripModel* tab_strip_model = browser->tab_strip_model();
       if (tab_strip_model) {

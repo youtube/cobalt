@@ -45,13 +45,14 @@ ChildIteratorBase ChildIteratorBase::operator--(int) {
 }
 
 gfx::NativeViewAccessible ChildIteratorBase::GetNativeViewAccessible() const {
-  if (index_ < parent_->GetChildCount())
+  if (index_ < parent_->GetChildCount()) {
     return parent_->ChildAtIndex(index_);
+  }
 
-  return nullptr;
+  return gfx::NativeViewAccessible();
 }
 
-absl::optional<size_t> ChildIteratorBase::GetIndexInParent() const {
+std::optional<size_t> ChildIteratorBase::GetIndexInParent() const {
   return index_;
 }
 
@@ -64,7 +65,7 @@ AXPlatformNodeDelegate* ChildIteratorBase::get() const {
 AXPlatformNodeDelegate& ChildIteratorBase::operator*() const {
   AXPlatformNode* platform_node =
       AXPlatformNode::FromNativeViewAccessible(GetNativeViewAccessible());
-  DCHECK(platform_node && platform_node->GetDelegate());
+  DCHECK(platform_node);
   return *(platform_node->GetDelegate());
 }
 

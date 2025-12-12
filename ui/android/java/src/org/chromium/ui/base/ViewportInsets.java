@@ -4,6 +4,8 @@
 
 package org.chromium.ui.base;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * Information about various kinds of insets on the application viewport.
  *
@@ -77,6 +79,7 @@ package org.chromium.ui.base;
  *                              │┼───────────────────────┼│
  *                              └─────────────────────────┘
  */
+@NullMarked
 public class ViewportInsets {
     /**
      * The total vertical inset on the application viewport coming from all visible UI controls.
@@ -92,8 +95,6 @@ public class ViewportInsets {
      */
     public int webContentsHeightInset;
 
-    /**
-     * The bottom inset applied to the WebContents to derive the visual viewport rect.
-     */
+    /** The bottom inset applied to the WebContents to derive the visual viewport rect. */
     public int visualViewportBottomInset;
 }

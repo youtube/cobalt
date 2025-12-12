@@ -6,6 +6,7 @@
 
 #include "base/notreached.h"
 #include "base/unguessable_token.h"
+#include "net/base/network_isolation_partition.h"
 #include "services/network/public/cpp/cookie_manager_shared_mojom_traits.h"
 #include "services/network/public/cpp/crash_keys.h"
 
@@ -43,17 +44,16 @@ network::mojom::IsolationInfoRequestType EnumTraits<
   }
 
   NOTREACHED();
-  return network::mojom::IsolationInfoRequestType::kOther;
 }
 
 bool StructTraits<network::mojom::IsolationInfoDataView, net::IsolationInfo>::
     Read(network::mojom::IsolationInfoDataView data, net::IsolationInfo* out) {
-  absl::optional<url::Origin> top_frame_origin;
-  absl::optional<url::Origin> frame_origin;
-  absl::optional<base::UnguessableToken> nonce;
+  std::optional<url::Origin> top_frame_origin;
+  std::optional<url::Origin> frame_origin;
+  std::optional<base::UnguessableToken> nonce;
   net::SiteForCookies site_for_cookies;
   net::IsolationInfo::RequestType request_type;
-  absl::optional<std::vector<net::SchemefulSite>> mojo_party_context;
+  net::NetworkIsolationPartition network_isolation_partition;
 
   if (!data.ReadTopFrameOrigin(&top_frame_origin)) {
     network::debug::SetDeserializationCrashKeyString("isolation_top_origin");
@@ -65,22 +65,14 @@ bool StructTraits<network::mojom::IsolationInfoDataView, net::IsolationInfo>::
   }
   if (!data.ReadNonce(&nonce) || !data.ReadSiteForCookies(&site_for_cookies) ||
       !data.ReadRequestType(&request_type) ||
-      !data.ReadPartyContext(&mojo_party_context)) {
+      !data.ReadNetworkIsolationPartition(&network_isolation_partition)) {
     return false;
   }
 
-  absl::optional<std::set<net::SchemefulSite>> party_context;
-  if (mojo_party_context.has_value()) {
-    party_context = std::set<net::SchemefulSite>(mojo_party_context->begin(),
-                                                 mojo_party_context->end());
-    if (party_context->size() != mojo_party_context->size())
-      return false;
-  }
-
-  absl::optional<net::IsolationInfo> isolation_info =
-      net::IsolationInfo::CreateIfConsistent(request_type, top_frame_origin,
-                                             frame_origin, site_for_cookies,
-                                             std::move(party_context), nonce);
+  std::optional<net::IsolationInfo> isolation_info =
+      net::IsolationInfo::CreateIfConsistent(
+          request_type, top_frame_origin, frame_origin, site_for_cookies, nonce,
+          network_isolation_partition);
   if (!isolation_info) {
     network::debug::SetDeserializationCrashKeyString("isolation_inconsistent");
     return false;

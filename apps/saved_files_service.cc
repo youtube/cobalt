@@ -9,22 +9,23 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 
 #include "apps/saved_files_service_factory.h"
 #include "base/json/values_util.h"
 #include "base/memory/raw_ptr.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "content/public/browser/browser_context.h"
 #include "extensions/browser/api/file_system/saved_file_entry.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_system.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/permissions/api_permission.h"
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_data.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace apps {
 
@@ -59,7 +60,7 @@ int g_max_sequence_number = kMaxSequenceNumber;
 
 // Persists a SavedFileEntry in ExtensionPrefs.
 void AddSavedFileEntry(ExtensionPrefs* prefs,
-                       const std::string& extension_id,
+                       const extensions::ExtensionId& extension_id,
                        const SavedFileEntry& file_entry) {
   ExtensionPrefs::ScopedDictionaryUpdate update(
       prefs, extension_id, kFileEntries);
@@ -77,7 +78,7 @@ void AddSavedFileEntry(ExtensionPrefs* prefs,
 
 // Updates the sequence_number of a SavedFileEntry persisted in ExtensionPrefs.
 void UpdateSavedFileEntry(ExtensionPrefs* prefs,
-                          const std::string& extension_id,
+                          const extensions::ExtensionId& extension_id,
                           const SavedFileEntry& file_entry) {
   ExtensionPrefs::ScopedDictionaryUpdate update(
       prefs, extension_id, kFileEntries);
@@ -93,7 +94,7 @@ void UpdateSavedFileEntry(ExtensionPrefs* prefs,
 
 // Removes a SavedFileEntry from ExtensionPrefs.
 void RemoveSavedFileEntry(ExtensionPrefs* prefs,
-                          const std::string& extension_id,
+                          const extensions::ExtensionId& extension_id,
                           const std::string& file_entry_id) {
   ExtensionPrefs::ScopedDictionaryUpdate update(
       prefs, extension_id, kFileEntries);
@@ -103,14 +104,14 @@ void RemoveSavedFileEntry(ExtensionPrefs* prefs,
 
 // Clears all SavedFileEntry for the app from ExtensionPrefs.
 void ClearSavedFileEntries(ExtensionPrefs* prefs,
-                           const std::string& extension_id) {
-  prefs->UpdateExtensionPref(extension_id, kFileEntries, absl::nullopt);
+                           const extensions::ExtensionId& extension_id) {
+  prefs->UpdateExtensionPref(extension_id, kFileEntries, std::nullopt);
 }
 
 // Returns all SavedFileEntries for the app.
 std::vector<SavedFileEntry> GetSavedFileEntries(
     ExtensionPrefs* prefs,
-    const std::string& extension_id) {
+    const extensions::ExtensionId& extension_id) {
   std::vector<SavedFileEntry> result;
 
   const auto* dict = prefs->ReadPrefAsDict(extension_id, kFileEntries);
@@ -126,13 +127,13 @@ std::vector<SavedFileEntry> GetSavedFileEntries(
     const base::Value* path_value = file_entry->Find(kFileEntryPath);
     if (!path_value)
       continue;
-    absl::optional<base::FilePath> file_path =
+    std::optional<base::FilePath> file_path =
         base::ValueToFilePath(*path_value);
     if (!file_path)
       continue;
     bool is_directory =
         file_entry->FindBool(kFileEntryIsDirectory).value_or(false);
-    const absl::optional<int> sequence_number =
+    const std::optional<int> sequence_number =
         file_entry->FindInt(kFileEntrySequenceNumber);
     if (!sequence_number || sequence_number.value() == 0)
       continue;
@@ -146,7 +147,8 @@ std::vector<SavedFileEntry> GetSavedFileEntries(
 
 class SavedFilesService::SavedFiles {
  public:
-  SavedFiles(content::BrowserContext* context, const std::string& extension_id);
+  SavedFiles(content::BrowserContext* context,
+             const extensions::ExtensionId& extension_id);
   SavedFiles(const SavedFiles&) = delete;
   SavedFiles& operator=(const SavedFiles&) = delete;
   ~SavedFiles();
@@ -168,7 +170,7 @@ class SavedFilesService::SavedFiles {
   void LoadSavedFileEntriesFromPreferences();
 
   raw_ptr<content::BrowserContext> context_;
-  const std::string extension_id_;
+  const extensions::ExtensionId extension_id_;
 
   // Contains all file entries that have been registered, keyed by ID.
   std::unordered_map<std::string, std::unique_ptr<SavedFileEntry>>
@@ -177,7 +179,7 @@ class SavedFilesService::SavedFiles {
   // The queue of file entries that have been retained, keyed by
   // sequence_number. Values are a subset of values in registered_file_entries_.
   // This should be kept in sync with file entries stored in extension prefs.
-  std::map<int, SavedFileEntry*> saved_file_lru_;
+  std::map<int, raw_ptr<SavedFileEntry, CtnExperimental>> saved_file_lru_;
 };
 
 // static
@@ -203,33 +205,36 @@ void SavedFilesService::OnExtensionHostDestroyed(
   }
 }
 
-void SavedFilesService::RegisterFileEntry(const std::string& extension_id,
-                                          const std::string& id,
-                                          const base::FilePath& file_path,
-                                          bool is_directory) {
+void SavedFilesService::RegisterFileEntry(
+    const extensions::ExtensionId& extension_id,
+    const std::string& id,
+    const base::FilePath& file_path,
+    bool is_directory) {
   GetOrInsert(extension_id)->RegisterFileEntry(id, file_path, is_directory);
 }
 
-void SavedFilesService::EnqueueFileEntry(const std::string& extension_id,
-                                         const std::string& id) {
+void SavedFilesService::EnqueueFileEntry(
+    const extensions::ExtensionId& extension_id,
+    const std::string& id) {
   GetOrInsert(extension_id)->EnqueueFileEntry(id);
 }
 
 std::vector<SavedFileEntry> SavedFilesService::GetAllFileEntries(
-    const std::string& extension_id) {
+    const extensions::ExtensionId& extension_id) {
   SavedFiles* saved_files = Get(extension_id);
   if (saved_files)
     return saved_files->GetAllFileEntries();
   return GetSavedFileEntries(ExtensionPrefs::Get(context_), extension_id);
 }
 
-bool SavedFilesService::IsRegistered(const std::string& extension_id,
-                                     const std::string& id) {
+bool SavedFilesService::IsRegistered(
+    const extensions::ExtensionId& extension_id,
+    const std::string& id) {
   return GetOrInsert(extension_id)->IsRegistered(id);
 }
 
 const SavedFileEntry* SavedFilesService::GetFileEntry(
-    const std::string& extension_id,
+    const extensions::ExtensionId& extension_id,
     const std::string& id) {
   return GetOrInsert(extension_id)->GetFileEntry(id);
 }
@@ -254,7 +259,7 @@ void SavedFilesService::OnApplicationTerminating() {
 }
 
 SavedFilesService::SavedFiles* SavedFilesService::Get(
-    const std::string& extension_id) const {
+    const extensions::ExtensionId& extension_id) const {
   auto it = extension_id_to_saved_files_.find(extension_id);
   if (it != extension_id_to_saved_files_.end())
     return it->second.get();
@@ -263,7 +268,7 @@ SavedFilesService::SavedFiles* SavedFilesService::Get(
 }
 
 SavedFilesService::SavedFiles* SavedFilesService::GetOrInsert(
-    const std::string& extension_id) {
+    const extensions::ExtensionId& extension_id) {
   SavedFiles* saved_files = Get(extension_id);
   if (saved_files)
     return saved_files;
@@ -276,12 +281,13 @@ SavedFilesService::SavedFiles* SavedFilesService::GetOrInsert(
   return saved_files;
 }
 
-void SavedFilesService::Clear(const std::string& extension_id) {
+void SavedFilesService::Clear(const extensions::ExtensionId& extension_id) {
   extension_id_to_saved_files_.erase(extension_id);
 }
 
-SavedFilesService::SavedFiles::SavedFiles(content::BrowserContext* context,
-                                          const std::string& extension_id)
+SavedFilesService::SavedFiles::SavedFiles(
+    content::BrowserContext* context,
+    const extensions::ExtensionId& extension_id)
     : context_(context), extension_id_(extension_id) {
   LoadSavedFileEntriesFromPreferences();
 }
@@ -302,12 +308,12 @@ void SavedFilesService::SavedFiles::RegisterFileEntry(
 
 void SavedFilesService::SavedFiles::EnqueueFileEntry(const std::string& id) {
   auto id_it = registered_file_entries_.find(id);
-  DCHECK(id_it != registered_file_entries_.end());
+  CHECK(id_it != registered_file_entries_.end());
 
   SavedFileEntry* file_entry = id_it->second.get();
   int old_sequence_number = file_entry->sequence_number;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // crbug.com/983844 Convert path from legacy Download/ to MyFiles/Downloads/
   // so entries saved before MyFiles don't fail. TODO(lucmult): Remove this
   // after M-83.
@@ -320,8 +326,8 @@ void SavedFilesService::SavedFiles::EnqueueFileEntry(const std::string& id) {
 
   if (!saved_file_lru_.empty()) {
     // Get the sequence number after the last file entry in the LRU.
-    std::map<int, SavedFileEntry*>::reverse_iterator it =
-        saved_file_lru_.rbegin();
+    std::map<int, raw_ptr<SavedFileEntry, CtnExperimental>>::reverse_iterator
+        it = saved_file_lru_.rbegin();
     if (it->second == file_entry)
       return;
 
@@ -339,7 +345,8 @@ void SavedFilesService::SavedFiles::EnqueueFileEntry(const std::string& id) {
   } else {
     AddSavedFileEntry(prefs, extension_id_, *file_entry);
     if (saved_file_lru_.size() > g_max_saved_file_entries) {
-      std::map<int, SavedFileEntry*>::iterator it = saved_file_lru_.begin();
+      std::map<int, raw_ptr<SavedFileEntry, CtnExperimental>>::iterator it =
+          saved_file_lru_.begin();
       it->second->sequence_number = 0;
       RemoveSavedFileEntry(prefs, extension_id_, it->second->id);
       saved_file_lru_.erase(it);
@@ -376,8 +383,8 @@ void SavedFilesService::SavedFiles::MaybeCompactSequenceNumbers() {
   DCHECK_GE(g_max_sequence_number, 0);
   DCHECK_GE(static_cast<size_t>(g_max_sequence_number),
             g_max_saved_file_entries);
-  std::map<int, SavedFileEntry*>::reverse_iterator last_it =
-      saved_file_lru_.rbegin();
+  std::map<int, raw_ptr<SavedFileEntry, CtnExperimental>>::reverse_iterator
+      last_it = saved_file_lru_.rbegin();
   if (last_it == saved_file_lru_.rend())
     return;
 
@@ -388,9 +395,9 @@ void SavedFilesService::SavedFiles::MaybeCompactSequenceNumbers() {
 
   int sequence_number = 0;
   ExtensionPrefs* prefs = ExtensionPrefs::Get(context_);
-  for (std::map<int, SavedFileEntry*>::iterator it = saved_file_lru_.begin();
-       it != saved_file_lru_.end();
-       ++it) {
+  for (std::map<int, raw_ptr<SavedFileEntry, CtnExperimental>>::iterator it =
+           saved_file_lru_.begin();
+       it != saved_file_lru_.end(); ++it) {
     sequence_number++;
     if (it->second->sequence_number == sequence_number)
       continue;

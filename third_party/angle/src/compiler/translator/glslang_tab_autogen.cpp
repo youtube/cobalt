@@ -725,7 +725,7 @@ void *malloc(YYSIZE_T); /* INFRINGES ON USER NAME SPACE */
 #        ifndef YYFREE
 #            define YYFREE free
 #            if !defined free && !defined EXIT_SUCCESS
-void free(void *);      /* INFRINGES ON USER NAME SPACE */
+void free(void *); /* INFRINGES ON USER NAME SPACE */
 #            endif
 #        endif
 #    endif
@@ -850,21 +850,21 @@ static const yytype_int16 yyrline[] = {
     454,  458,  465,  466,  469,  472,  475,  481,  482,  485,  491,  492,  499,  500,  507,  508,
     515,  516,  522,  523,  529,  530,  536,  537,  543,  544,  550,  551,  552,  553,  557,  558,
     559,  563,  567,  571,  575,  582,  585,  591,  598,  605,  608,  611,  615,  619,  623,  627,
-    631,  638,  645,  648,  655,  668,  691,  701,  704,  710,  714,  718,  722,  729,  736,  739,
-    743,  747,  752,  759,  763,  767,  771,  776,  783,  787,  793,  796,  799,  809,  813,  820,
-    826,  832,  836,  840,  843,  846,  850,  858,  863,  867,  870,  873,  876,  879,  883,  891,
-    894,  898,  901,  904,  907,  910,  913,  917,  924,  931,  934,  937,  943,  950,  953,  959,
-    962,  965,  968,  974,  977,  984,  989,  996,  1001, 1012, 1015, 1018, 1021, 1024, 1027, 1031,
-    1035, 1039, 1043, 1047, 1051, 1055, 1059, 1063, 1067, 1071, 1075, 1079, 1083, 1087, 1091, 1095,
-    1099, 1103, 1107, 1111, 1118, 1121, 1124, 1127, 1130, 1133, 1136, 1144, 1152, 1162, 1165, 1168,
-    1171, 1174, 1177, 1180, 1188, 1196, 1206, 1209, 1212, 1215, 1218, 1221, 1224, 1232, 1240, 1250,
-    1253, 1256, 1259, 1267, 1275, 1282, 1292, 1299, 1306, 1309, 1312, 1315, 1318, 1321, 1324, 1327,
-    1330, 1333, 1336, 1339, 1342, 1350, 1358, 1366, 1374, 1382, 1390, 1400, 1410, 1420, 1423, 1430,
-    1437, 1444, 1447, 1455, 1455, 1458, 1458, 1464, 1467, 1473, 1476, 1483, 1487, 1493, 1496, 1502,
-    1506, 1510, 1511, 1517, 1518, 1519, 1520, 1521, 1522, 1523, 1527, 1531, 1531, 1531, 1538, 1539,
-    1543, 1543, 1544, 1544, 1549, 1553, 1560, 1564, 1571, 1572, 1576, 1582, 1586, 1595, 1595, 1602,
-    1605, 1611, 1615, 1621, 1621, 1626, 1626, 1630, 1630, 1638, 1641, 1647, 1650, 1656, 1660, 1667,
-    1670, 1673, 1676, 1679, 1687, 1693, 1699, 1702, 1708, 1708};
+    631,  638,  645,  648,  655,  668,  691,  701,  704,  710,  714,  718,  722,  729,  735,  738,
+    742,  746,  751,  758,  762,  766,  770,  775,  782,  786,  792,  795,  798,  808,  812,  819,
+    825,  831,  835,  839,  842,  845,  849,  857,  862,  866,  869,  872,  875,  878,  882,  892,
+    895,  899,  902,  905,  908,  911,  914,  918,  925,  932,  935,  938,  944,  951,  954,  960,
+    963,  966,  969,  975,  978,  985,  990,  997,  1005, 1019, 1022, 1025, 1028, 1031, 1034, 1038,
+    1042, 1046, 1050, 1054, 1058, 1062, 1066, 1070, 1074, 1078, 1082, 1086, 1090, 1094, 1098, 1102,
+    1106, 1110, 1114, 1118, 1125, 1128, 1131, 1134, 1137, 1140, 1143, 1151, 1159, 1169, 1172, 1175,
+    1178, 1181, 1184, 1187, 1195, 1203, 1213, 1216, 1219, 1222, 1225, 1228, 1231, 1239, 1247, 1257,
+    1260, 1263, 1266, 1274, 1282, 1289, 1299, 1306, 1313, 1316, 1319, 1322, 1325, 1328, 1331, 1334,
+    1337, 1340, 1343, 1346, 1349, 1357, 1365, 1373, 1381, 1389, 1397, 1407, 1417, 1427, 1430, 1437,
+    1444, 1451, 1454, 1464, 1464, 1467, 1467, 1473, 1476, 1482, 1485, 1492, 1496, 1502, 1505, 1511,
+    1515, 1519, 1520, 1526, 1527, 1528, 1529, 1530, 1531, 1532, 1536, 1540, 1540, 1540, 1547, 1548,
+    1552, 1552, 1553, 1553, 1558, 1562, 1569, 1573, 1580, 1581, 1588, 1594, 1598, 1607, 1607, 1614,
+    1617, 1623, 1627, 1633, 1633, 1638, 1638, 1642, 1642, 1650, 1653, 1659, 1662, 1668, 1672, 1679,
+    1682, 1685, 1688, 1691, 1699, 1705, 1711, 1714, 1720, 1720};
 #endif
 
 /** Accessing symbol of state STATE.  */
@@ -1800,7 +1800,9 @@ static int yy_location_print_(FILE *yyo, YYLTYPE const *const yylocp)
     {
         res += YYFPRINTF(yyo, "%d", yylocp->first_line);
         if (0 <= yylocp->first_column)
+        {
             res += YYFPRINTF(yyo, ".%d", yylocp->first_column);
+        }
     }
     if (0 <= yylocp->last_line)
     {
@@ -1808,10 +1810,14 @@ static int yy_location_print_(FILE *yyo, YYLTYPE const *const yylocp)
         {
             res += YYFPRINTF(yyo, "-%d", yylocp->last_line);
             if (0 <= end_col)
+            {
                 res += YYFPRINTF(yyo, ".%d", end_col);
+            }
         }
         else if (0 <= end_col && yylocp->first_column < end_col)
+        {
             res += YYFPRINTF(yyo, "-%d", end_col);
+        }
     }
     return res;
 }
@@ -1860,7 +1866,9 @@ static void yy_symbol_value_print(FILE *yyo,
     YY_USE(context);
     YY_USE(scanner);
     if (!yyvaluep)
+    {
         return;
+    }
     YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
     YY_USE(yykind);
     YY_IGNORE_MAYBE_UNINITIALIZED_END
@@ -1983,7 +1991,9 @@ static void yydestruct(const char *yymsg,
     YY_USE(context);
     YY_USE(scanner);
     if (!yymsg)
+    {
         yymsg = "Deleting";
+    }
     YY_SYMBOL_PRINT(yymsg, yykind, yyvaluep, yylocationp);
 
     YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
@@ -2117,23 +2127,31 @@ yysetstate:
 #    else /* defined YYSTACK_RELOCATE */
         /* Extend the stack our own way.  */
         if (YYMAXDEPTH <= yystacksize)
+        {
             YYNOMEM;
+        }
         yystacksize *= 2;
         if (YYMAXDEPTH < yystacksize)
+        {
             yystacksize = YYMAXDEPTH;
+        }
 
         {
             yy_state_t *yyss1    = yyss;
             union yyalloc *yyptr = YY_CAST(
                 union yyalloc *, YYSTACK_ALLOC(YY_CAST(YYSIZE_T, YYSTACK_BYTES(yystacksize))));
             if (!yyptr)
+            {
                 YYNOMEM;
+            }
             YYSTACK_RELOCATE(yyss_alloc, yyss);
             YYSTACK_RELOCATE(yyvs_alloc, yyvs);
             YYSTACK_RELOCATE(yyls_alloc, yyls);
 #        undef YYSTACK_RELOCATE
             if (yyss1 != yyssa)
+            {
                 YYSTACK_FREE(yyss1);
+            }
         }
 #    endif
 
@@ -2146,12 +2164,16 @@ yysetstate:
         YY_IGNORE_USELESS_CAST_END
 
         if (yyss + yystacksize - 1 <= yyssp)
+        {
             YYABORT;
+        }
     }
 #endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
 
     if (yystate == YYFINAL)
+    {
         YYACCEPT;
+    }
 
     goto yybackup;
 
@@ -2165,7 +2187,9 @@ yybackup:
     /* First try to decide what to do without reference to lookahead token.  */
     yyn = yypact[yystate];
     if (yypact_value_is_default(yyn))
+    {
         goto yydefault;
+    }
 
     /* Not known => get a lookahead token if don't already have one.  */
 
@@ -2203,12 +2227,16 @@ yybackup:
        detect an error, take that action.  */
     yyn += yytoken;
     if (yyn < 0 || YYLAST < yyn || yycheck[yyn] != yytoken)
+    {
         goto yydefault;
+    }
     yyn = yytable[yyn];
     if (yyn <= 0)
     {
         if (yytable_value_is_error(yyn))
+        {
             goto yyerrlab;
+        }
         yyn = -yyn;
         goto yyreduce;
     }
@@ -2216,7 +2244,9 @@ yybackup:
     /* Count tokens shifted since error; after three, turn off error
        status.  */
     if (yyerrstatus)
+    {
         yyerrstatus--;
+    }
 
     /* Shift the lookahead token.  */
     YY_SYMBOL_PRINT("Shifting", yytoken, &yylval, &yylloc);
@@ -2236,7 +2266,9 @@ yybackup:
 yydefault:
     yyn = yydefact[yystate];
     if (yyn == 0)
+    {
         goto yyerrlab;
+    }
     goto yyreduce;
 
 /*-----------------------------.
@@ -2965,7 +2997,7 @@ yyreduce:
         {
             // Add the parameter
             (yyval.interm.function) = (yyvsp[-1].interm.function);
-            if ((yyvsp[0].interm.param).type->getBasicType() != EbtVoid)
+            if ((yyvsp[0].interm.param).type.getBasicType() != EbtVoid)
             {
                 (yyvsp[-1].interm.function)
                     ->addParameter((yyvsp[0].interm.param).createVariable(&context->symbolTable));
@@ -2985,7 +3017,7 @@ yyreduce:
             (yyval.interm.function) = (yyvsp[-2].interm.function);
             // Only first parameter of one-parameter functions can be void
             // The check for named parameters not being void is done in parameter_declarator
-            if ((yyvsp[0].interm.param).type->getBasicType() == EbtVoid)
+            if ((yyvsp[0].interm.param).type.getBasicType() == EbtVoid)
             {
                 // This parameter > first is void
                 context->error((yylsp[-1]), "cannot be a parameter type except for '(void)'",
@@ -3026,45 +3058,46 @@ yyreduce:
         case 104: /* parameter_declarator: type_specifier identifier array_specifier  */
         {
             (yyval.interm.param) = context->parseParameterArrayDeclarator(
-                ImmutableString((yyvsp[-1].lex).string), (yylsp[-1]),
-                *((yyvsp[0].interm.arraySizes)), (yylsp[0]), &(yyvsp[-2].interm.type));
+                (yyvsp[-2].interm.type), ImmutableString((yyvsp[-1].lex).string), (yylsp[-1]),
+                (yyvsp[0].interm.arraySizes), (yylsp[0]));
         }
         break;
 
         case 105: /* parameter_declaration: type_qualifier parameter_declarator  */
         {
             (yyval.interm.param) = (yyvsp[0].interm.param);
-            context->checkIsParameterQualifierValid(
-                (yylsp[0]), *(yyvsp[-1].interm.typeQualifierBuilder), (yyvsp[0].interm.param).type);
+            context->parseParameterQualifier((yylsp[0]), *(yyvsp[-1].interm.typeQualifierBuilder),
+                                             (yyval.interm.param).type);
         }
         break;
 
         case 106: /* parameter_declaration: parameter_declarator  */
         {
             (yyval.interm.param) = (yyvsp[0].interm.param);
-            (yyval.interm.param).type->setQualifier(EvqParamIn);
+            (yyval.interm.param).type.setQualifier(EvqParamIn);
         }
         break;
 
         case 107: /* parameter_declaration: type_qualifier parameter_type_specifier  */
         {
-            (yyval.interm.param) = (yyvsp[0].interm.param);
-            context->checkIsParameterQualifierValid(
-                (yylsp[0]), *(yyvsp[-1].interm.typeQualifierBuilder), (yyvsp[0].interm.param).type);
+            (yyval.interm.param) = context->parseParameterDeclarator(
+                (yyvsp[0].interm.type), kEmptyImmutableString, (yylsp[0]));
+            context->parseParameterQualifier((yylsp[0]), *(yyvsp[-1].interm.typeQualifierBuilder),
+                                             (yyval.interm.param).type);
         }
         break;
 
         case 108: /* parameter_declaration: parameter_type_specifier  */
         {
-            (yyval.interm.param) = (yyvsp[0].interm.param);
-            (yyval.interm.param).type->setQualifier(EvqParamIn);
+            (yyval.interm.param) = context->parseParameterDeclarator(
+                (yyvsp[0].interm.type), kEmptyImmutableString, (yylsp[0]));
+            (yyval.interm.param).type.setQualifier(EvqParamIn);
         }
         break;
 
         case 109: /* parameter_type_specifier: type_specifier  */
         {
-            TParameter param     = {0, new TType((yyvsp[0].interm.type))};
-            (yyval.interm.param) = param;
+            (yyval.interm.type) = (yyvsp[0].interm.type);
         }
         break;
 
@@ -3316,8 +3349,10 @@ yyreduce:
 
         case 142: /* storage_qualifier: PATCH  */
         {
+            constexpr std::array<TExtension, 2u> extensions{
+                {TExtension::OES_tessellation_shader, TExtension::EXT_tessellation_shader}};
             if (context->getShaderVersion() < 320 &&
-                !context->checkCanUseExtension((yylsp[0]), TExtension::EXT_tessellation_shader))
+                !context->checkCanUseOneOfExtensions((yylsp[0]), extensions))
             {
                 context->error((yylsp[0]), "unsupported storage qualifier", "patch");
             }
@@ -3501,6 +3536,10 @@ yyreduce:
             ES3_1_OR_NEWER("[]", (yylsp[-1]), "arrays of arrays");
             (yyval.interm.arraySizes) = (yyvsp[-2].interm.arraySizes);
             (yyval.interm.arraySizes)->insert((yyval.interm.arraySizes)->begin(), 0u);
+            if (!context->checkIsValidArrayDimension((yylsp[-1]), (yyval.interm.arraySizes)))
+            {
+                YYABORT;
+            }
         }
         break;
 
@@ -3515,6 +3554,10 @@ yyreduce:
             // This ensures useless error messages regarding a variable's non-arrayness won't
             // follow.
             (yyval.interm.arraySizes)->insert((yyval.interm.arraySizes)->begin(), size);
+            if (!context->checkIsValidArrayDimension((yylsp[-2]), (yyval.interm.arraySizes)))
+            {
+                YYABORT;
+            }
         }
         break;
 
@@ -4227,6 +4270,9 @@ yyreduce:
         {
             // This is for user defined type names. The lexical phase looked up the type.
             const TStructure *structure = static_cast<const TStructure *>((yyvsp[0].lex).symbol);
+            // Temporary check until VK and Metal backends support type name like
+            // gl_DepthRangeParameters.
+            context->checkIsNotReserved((yylsp[0]), ImmutableString((yyvsp[0].lex).string));
             (yyval.interm.typeSpecifierNonArray).initializeStruct(structure, false, (yylsp[0]));
         }
         break;
@@ -4483,6 +4529,7 @@ yyreduce:
 
         case 297: /* expression_statement: expression SEMICOLON  */
         {
+            context->checkIsValidExpressionStatement((yyloc), (yyvsp[-1].interm.intermTypedNode));
             (yyval.interm.intermNode) = (yyvsp[-1].interm.intermTypedNode);
         }
         break;
@@ -4511,7 +4558,7 @@ yyreduce:
 
         case 301: /* $@7: %empty  */
         {
-            context->incrSwitchNestingLevel();
+            context->incrSwitchNestingLevel((yylsp[-3]));
         }
         break;
 
@@ -4556,7 +4603,7 @@ yyreduce:
         case 307: /* $@8: %empty  */
         {
             context->symbolTable.push();
-            context->incrLoopNestingLevel();
+            context->incrLoopNestingLevel((yylsp[-1]));
         }
         break;
 
@@ -4573,7 +4620,7 @@ yyreduce:
 
         case 309: /* $@9: %empty  */
         {
-            context->incrLoopNestingLevel();
+            context->incrLoopNestingLevel((yylsp[0]));
         }
         break;
 
@@ -4590,7 +4637,7 @@ yyreduce:
         case 311: /* $@10: %empty  */
         {
             context->symbolTable.push();
-            context->incrLoopNestingLevel();
+            context->incrLoopNestingLevel((yylsp[-1]));
         }
         break;
 
@@ -4775,7 +4822,9 @@ yyerrlab:
         {
             /* Return failure if at end of input.  */
             if (yychar == YYEOF)
+            {
                 YYABORT;
+            }
         }
         else
         {
@@ -4795,7 +4844,9 @@ yyerrorlab:
     /* Pacify compilers when the user code never invokes YYERROR and the
        label yyerrorlab therefore never appears in user code.  */
     if (0)
+    {
         YYERROR;
+    }
     ++yynerrs;
 
     /* Do not reclaim the symbols of the rule whose action triggered
@@ -4823,13 +4874,17 @@ yyerrlab1:
             {
                 yyn = yytable[yyn];
                 if (0 < yyn)
+                {
                     break;
+                }
             }
         }
 
         /* Pop the current state because it cannot handle the error token.  */
         if (yyssp == yyss)
+        {
             YYABORT;
+        }
 
         yyerror_range[1] = *yylsp;
         yydestruct("Error: popping", YY_ACCESSING_SYMBOL(yystate), yyvsp, yylsp, context, scanner);
@@ -4897,7 +4952,9 @@ yyreturnlab:
     }
 #ifndef yyoverflow
     if (yyss != yyssa)
+    {
         YYSTACK_FREE(yyss);
+    }
 #endif
 
     return yyresult;

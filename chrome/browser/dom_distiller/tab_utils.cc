@@ -10,11 +10,11 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
+#include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/dom_distiller/dom_distiller_service_factory.h"
 #include "chrome/browser/ui/tab_contents/core_tab_helper.h"
 #include "components/back_forward_cache/back_forward_cache_disable.h"
 #include "components/dom_distiller/content/browser/distiller_page_web_contents.h"
-#include "components/dom_distiller/content/browser/uma_helper.h"
 #include "components/dom_distiller/core/distiller_page.h"
 #include "components/dom_distiller/core/dom_distiller_service.h"
 #include "components/dom_distiller/core/task_tracker.h"
@@ -90,7 +90,7 @@ SelfDeletingRequestDelegate::SelfDeletingRequestDelegate(
     content::WebContents* web_contents)
     : WebContentsObserver(web_contents) {}
 
-SelfDeletingRequestDelegate::~SelfDeletingRequestDelegate() {}
+SelfDeletingRequestDelegate::~SelfDeletingRequestDelegate() = default;
 
 void SelfDeletingRequestDelegate::OnArticleReady(
     const DistilledArticleProto* article_proto) {}
@@ -161,12 +161,6 @@ void DistillCurrentPageAndView(content::WebContents* old_web_contents) {
   new_web_contents->GetController().CopyStateFrom(
       &old_web_contents->GetController(), /* needs_reload */ true);
 
-#if !BUILDFLAG(IS_ANDROID)
-  // Use the old_web_contents to log time on the distillable page before
-  // navigating away from these contents.
-  dom_distiller::UMAHelper::LogTimeOnDistillablePage(old_web_contents);
-#endif
-
   // StartNavigationToDistillerViewer must come before swapping the tab contents
   // to avoid triggering a reload of the page.  This reloadmakes it very
   // difficult to distinguish between the intermediate reload and a user hitting
@@ -189,9 +183,11 @@ void DistillCurrentPageAndView(content::WebContents* old_web_contents) {
   SelfDeletingRequestDelegate* view_request_delegate =
       new SelfDeletingRequestDelegate(new_web_contents.get());
 
+  TabAndroid* tab = TabAndroid::FromWebContents(old_web_contents);
   std::unique_ptr<content::WebContents> old_web_contents_owned =
-      CoreTabHelper::FromWebContents(old_web_contents)
-          ->SwapWebContents(std::move(new_web_contents), false, false);
+      tab->SwapWebContents(std::move(new_web_contents),
+                           /*did_start_load=*/false,
+                           /*did_finish_load=*/false);
 
   std::unique_ptr<SourcePageHandleWebContents> source_page_handle(
       new SourcePageHandleWebContents(old_web_contents_owned.release(), true));
@@ -219,23 +215,4 @@ void DistillAndView(content::WebContents* source_web_contents,
 
   StartNavigationToDistillerViewer(destination_web_contents,
                                    source_web_contents->GetLastCommittedURL());
-}
-
-void ReturnToOriginalPage(content::WebContents* distilled_web_contents) {
-  DCHECK(distilled_web_contents);
-  DCHECK(dom_distiller::url_utils::IsDistilledPage(
-      distilled_web_contents->GetLastCommittedURL()));
-
-  GURL distilled_url = distilled_web_contents->GetLastCommittedURL();
-  GURL source_url =
-      dom_distiller::url_utils::GetOriginalUrlFromDistillerUrl(distilled_url);
-  DCHECK_NE(source_url, distilled_url)
-      << "Could not retrieve original page for distilled URL: "
-      << distilled_url;
-
-  // TODO(https://crbug.com/925965): Consider saving & retrieving the original
-  // page web contents instead of reloading the page.
-  content::NavigationController::LoadURLParams params(source_url);
-  params.transition_type = ui::PAGE_TRANSITION_AUTO_BOOKMARK;
-  distilled_web_contents->GetController().LoadURLWithParams(params);
 }

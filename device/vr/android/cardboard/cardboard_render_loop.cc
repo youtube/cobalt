@@ -4,14 +4,15 @@
 
 #include "device/vr/android/cardboard/cardboard_render_loop.h"
 
+#include <time.h>
 #include <memory>
 
 #include "base/task/bind_post_task.h"
 #include "device/vr/android/cardboard/cardboard_image_transport.h"
 #include "device/vr/android/cardboard/cardboard_sdk.h"
-#include "device/vr/android/xr_java_coordinator.h"
 #include "device/vr/public/mojom/isolated_xr_service.mojom.h"
 #include "device/vr/public/mojom/vr_service.mojom-shared.h"
+#include "device/vr/util/transform_utils.h"
 #include "mojo/public/cpp/bindings/associated_receiver.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/gl/gl_bindings.h"
@@ -23,6 +24,29 @@
 #include "ui/gl/init/gl_factory.h"
 
 namespace device {
+namespace {
+// TODO(crbug.com/40900871): It's not clear if the display rotation
+// should factor into Cardboard's viewport orientation. Initial attempts to
+// map them together frequently gave wrong results, whereas statically using
+// kLandscapeLeft has the expected effect.
+constexpr CardboardViewportOrientation kViewportOrientation = kLandscapeLeft;
+
+// Default downscale factor for computing the recommended WebXR
+// render_width/render_height from the 1:1 pixel mapped size.
+static constexpr float kRecommendedResolutionScale = 0.7;
+
+constexpr uint64_t kNanosInMs = 1000000;
+constexpr uint64_t kNanosInSeconds = 1000 * kNanosInMs;
+
+// Static prediction value used in the hello_cardboard sample.
+constexpr uint64_t kPredictionTimeWithoutVsyncNanos = 50 * kNanosInMs;
+
+int64_t GetBootTimeNano() {
+  struct timespec res;
+  clock_gettime(CLOCK_BOOTTIME, &res);
+  return (res.tv_sec * kNanosInSeconds) + res.tv_nsec;
+}
+}  // namespace
 
 CardboardRenderLoop::CardboardRenderLoop(
     std::unique_ptr<CardboardImageTransportFactory>
@@ -47,17 +71,9 @@ void CardboardRenderLoop::GetEnvironmentIntegrationProvider(
       "Environment integration is not supported.");
 }
 
-void CardboardRenderLoop::SetInputSourceButtonListener(
-    mojo::PendingAssociatedRemote<device::mojom::XRInputSourceButtonListener>) {
-  // Input eventing is not supported. This call should not
-  // be made on this device.
-  frame_data_receiver_.ReportBadMessage("Input eventing is not supported.");
-}
-
 void CardboardRenderLoop::CreateSession(
     CardboardRequestSessionCallback session_request_callback,
     base::OnceClosure session_shutdown_callback,
-    XrJavaCoordinator* java_coordinator,
     CardboardSdk* cardboard_sdk,
     gfx::AcceleratedWidget drawing_widget,
     const gfx::Size& frame_size,
@@ -67,10 +83,11 @@ void CardboardRenderLoop::CreateSession(
   CHECK(!session_request_callback_);
   CHECK(!frame_size.IsEmpty());
   DVLOG(1) << __func__;
-
-  cardboard_image_transport_ =
-      cardboard_image_transport_factory_->Create(std::move(mailbox_bridge_));
   cardboard_sdk_ = cardboard_sdk;
+
+  // The initial frame size given here should correspond with the display size.
+  cardboard_image_transport_ = cardboard_image_transport_factory_->Create(
+      std::move(mailbox_bridge_), frame_size);
   session_request_callback_ = std::move(session_request_callback);
   session_shutdown_callback_ = std::move(session_shutdown_callback);
   texture_size_ = frame_size;
@@ -82,8 +99,21 @@ void CardboardRenderLoop::CreateSession(
   enabled_features_.insert(options->optional_features.begin(),
                            options->optional_features.end());
 
-  // TODO(https://crbug.com/1429096): `display_rotation` will need to be stored
-  // and translated to a cardboard type to get a head pose.
+  if (!InitializeGl(drawing_widget)) {
+    std::move(session_request_callback_).Run(nullptr);
+    return;
+  }
+
+  // Set whether or not the session produces frames with WebGPU based on in the
+  // 'webgpu' feature was requested.
+  bool webgpu_session =
+      enabled_features_.contains(device::mojom::XRSessionFeature::WEBGPU);
+
+  cardboard_image_transport_->Initialize(
+      webxr_.get(),
+      base::BindOnce(&CardboardRenderLoop::OnCardboardImageTransportReady,
+                     weak_ptr_factory_.GetWeakPtr()),
+      webgpu_session);
 
   left_eye_ = mojom::XRView::New();
   left_eye_->eye = mojom::XREye::kLeft;
@@ -96,34 +126,24 @@ void CardboardRenderLoop::CreateSession(
       gfx::Rect(texture_size_.width() / 2, 0, texture_size_.width() / 2,
                 texture_size_.height());
 
-  // TODO(https://crbug.com/1429096): Finalize mojo_from_view.
-  left_eye_->mojo_from_view = gfx::Transform();
-  left_eye_->field_of_view =
-      cardboard_image_transport_->GetFOV(CardboardEye::kLeft, texture_size_);
+  left_eye_->geometry = mojom::XRViewGeometry::New();
+  left_eye_->geometry->mojo_from_view = gfx::Transform();
+  left_eye_->geometry->field_of_view =
+      cardboard_image_transport_->GetFOV(CardboardEye::kLeft);
 
-  right_eye_->mojo_from_view = gfx::Transform();
-  right_eye_->field_of_view =
-      cardboard_image_transport_->GetFOV(CardboardEye::kRight, texture_size_);
+  right_eye_->geometry = mojom::XRViewGeometry::New();
+  right_eye_->geometry->mojo_from_view = gfx::Transform();
+  right_eye_->geometry->field_of_view =
+      cardboard_image_transport_->GetFOV(CardboardEye::kRight);
 
-  if (!InitializeGl(drawing_widget)) {
-    std::move(session_request_callback_).Run(nullptr);
-    return;
-  }
+  head_tracker_ = internal::ScopedCardboardObject<CardboardHeadTracker*>(
+      CardboardHeadTracker_create());
 
-  base::android::ScopedJavaLocalRef<jobject> application_context =
-      java_coordinator->GetApplicationContext();
-  if (!application_context.obj()) {
-    DLOG(ERROR) << "Unable to retrieve the Java context/activity!";
-    std::move(session_request_callback_).Run(nullptr);
-    return;
-  }
-
-  cardboard_sdk_->Initialize(application_context.obj());
-
-  cardboard_image_transport_->Initialize(
-      webxr_.get(),
-      base::BindOnce(&CardboardRenderLoop::OnCardboardImageTransportReady,
-                     weak_ptr_factory_.GetWeakPtr()));
+  // If the head tracker isn't explicitly resumed after creation it doesn't
+  // deliver any poses. Not clear if this is intended, as it's not mentioned in
+  // the documentation.
+  CardboardHeadTracker_resume(head_tracker_.get());
+  CardboardHeadTracker_recenter(head_tracker_.get());
 }
 
 bool CardboardRenderLoop::InitializeGl(gfx::AcceleratedWidget drawing_widget) {
@@ -131,11 +151,11 @@ bool CardboardRenderLoop::InitializeGl(gfx::AcceleratedWidget drawing_widget) {
   DCHECK(task_runner()->BelongsToCurrentThread());
   CHECK(drawing_widget);
 
-  // TODO(https://crbug.com/1170580): While we actually *can* launch Cardboard
+  // TODO(crbug.com/40744597): While we actually *can* launch Cardboard
   // with ANGLE support; if we do so, once we try to launch ARCore (which
   // disables it), we end up hitting a crash. We should investigate if this can
   // be resolved to use ANGLE with Cardboard.
-  gl::init::DisableANGLE();
+  gl::DisableANGLE();
 
   gl::GLDisplay* display = nullptr;
   if (gl::GetGLImplementation() == gl::kGLImplementationNone) {
@@ -167,6 +187,10 @@ bool CardboardRenderLoop::InitializeGl(gfx::AcceleratedWidget drawing_widget) {
     DLOG(ERROR) << "gl::GLContext::MakeCurrent() failed";
     return false;
   }
+
+  // Swap the surface once so that it will show an empty texture rather than
+  // just being transparent.
+  surface->SwapBuffers(base::DoNothing(), gfx::FrameData());
 
   // Assign the surface and context members now that initialization has
   // succeeded.
@@ -217,20 +241,9 @@ void CardboardRenderLoop::OnCardboardImageTransportReady(bool success) {
       device::mojom::XRPresentationTransportOptions::New();
   transport_options->wait_for_gpu_fence = true;
 
-  if (CardboardImageTransport::UseSharedBuffer()) {
-    DVLOG(2) << __func__
-             << ": UseSharedBuffer()=true, DRAW_INTO_TEXTURE_MAILBOX";
-    transport_options->transport_method =
-        device::mojom::XRPresentationTransportMethod::DRAW_INTO_TEXTURE_MAILBOX;
-  } else {
-    DVLOG(2) << __func__
-             << ": UseSharedBuffer()=false, SUBMIT_AS_MAILBOX_HOLDER";
-    transport_options->transport_method =
-        device::mojom::XRPresentationTransportMethod::SUBMIT_AS_MAILBOX_HOLDER;
-    transport_options->wait_for_transfer_notification = true;
-    cardboard_image_transport_->SetFrameAvailableCallback(base::BindRepeating(
-        &CardboardRenderLoop::RenderFrame, weak_ptr_factory_.GetWeakPtr()));
-  }
+  DVLOG(2) << __func__ << ": UseSharedBuffer()=true, DRAW_INTO_TEXTURE_MAILBOX";
+  transport_options->transport_method =
+      device::mojom::XRPresentationTransportMethod::DRAW_INTO_TEXTURE_MAILBOX;
 
   mojom::XRRuntimeSessionResultPtr result =
       device::mojom::XRRuntimeSessionResult::New();
@@ -254,8 +267,10 @@ void CardboardRenderLoop::OnCardboardImageTransportReady(bool success) {
   session->device_config = device::mojom::XRSessionDeviceConfig::New();
   auto* config = session->device_config.get();
 
-  // TODO(https://crbug.com/1429098): Determine if we should support this.
+  // TODO(crbug.com/40900872): Determine if we should support this.
   config->supports_viewport_scaling = false;
+
+  config->default_framebuffer_scale = kRecommendedResolutionScale;
 
   config->views.push_back(left_eye_.Clone());
   config->views.push_back(right_eye_.Clone());
@@ -297,7 +312,8 @@ void CardboardRenderLoop::CleanUp() {
 void CardboardRenderLoop::GetFrameData(
     mojom::XRFrameDataRequestOptionsPtr options,
     mojom::XRFrameDataProvider::GetFrameDataCallback callback) {
-  TRACE_EVENT1("gpu", __func__, "frame", webxr_->PeekNextFrameIndex());
+  TRACE_EVENT1("gpu", "CardboardRenderLoop::GetFrameData", "frame",
+               webxr_->PeekNextFrameIndex());
   DCHECK(task_runner()->BelongsToCurrentThread());
   CHECK(!texture_size_.IsEmpty());
 
@@ -325,34 +341,67 @@ void CardboardRenderLoop::GetFrameData(
 
   base::TimeTicks now = base::TimeTicks::Now();
   mojom::XRFrameDataPtr frame_data = mojom::XRFrameData::New();
+  frame_data->render_info = mojom::XRRenderInfo::New();
 
-  frame_data->frame_id = webxr_->StartFrameAnimating();
+  frame_data->render_info->frame_id = webxr_->StartFrameAnimating();
   WebXrFrame* xr_frame = webxr_->GetAnimatingFrame();
 
   xr_frame->time_pose = now;
   xr_frame->bounds_left = left_bounds_;
   xr_frame->bounds_right = right_bounds_;
 
-  if (CardboardImageTransport::UseSharedBuffer()) {
-    // TODO(https://crbug.com/1429099): Do we need to pass a uv_transform?
-    frame_data->buffer_holder = cardboard_image_transport_->TransferFrame(
-        webxr_.get(), texture_size_, /*uv_transform=*/gfx::Transform());
-  }
+  // We aren't modifying the texture that we give to the page, so we just pass
+  // in identity for the uv_transform.
+  WebXrSharedBuffer* shared_buffer = cardboard_image_transport_->TransferFrame(
+      webxr_.get(), texture_size_, gfx::Transform());
+  CHECK(shared_buffer);
+  frame_data->buffer_shared_image = shared_buffer->shared_image->Export();
+  frame_data->buffer_sync_token = shared_buffer->sync_token;
 
-  frame_data->views.push_back(left_eye_.Clone());
-  frame_data->views.push_back(right_eye_.Clone());
+  // Get the head pose
+  int64_t timestamp_ns = GetBootTimeNano() + kPredictionTimeWithoutVsyncNanos;
+  float position[3];
+  float orientation[4];
+  CardboardHeadTracker_getPose(head_tracker_.get(), timestamp_ns,
+                               kViewportOrientation, position, orientation);
 
-  // TODO(https://crbug.com/1429096): Populate this.
-  frame_data->mojo_from_viewer = mojom::VRPose::New();
+  // Translate the head pose into the viewer pose pointer
+  // This needs to be inverted because the Cardboard SDK appears to be giving
+  // back values that are the inverse of what WebXR expects.
+  mojom::VRPosePtr pose = mojom::VRPose::New();
+  pose->position = gfx::Point3F(-position[0], -position[1], -position[2]);
+  pose->orientation = gfx::Quaternion(-orientation[0], -orientation[1],
+                                      -orientation[2], orientation[3]);
+  pose->emulated_position = true;
+
+  gfx::Transform mojo_from_viewer = vr_utils::VrPoseToTransform(pose.get());
+  frame_data->render_info->mojo_from_viewer = std::move(pose);
+
+  // Get the view transform for each eye
+  left_eye_->geometry->mojo_from_view =
+      cardboard_image_transport_->GetMojoFromView(kLeft, mojo_from_viewer);
+  right_eye_->geometry->mojo_from_view =
+      cardboard_image_transport_->GetMojoFromView(kRight, mojo_from_viewer);
+
+  frame_data->render_info->views.push_back(left_eye_.Clone());
+  frame_data->render_info->views.push_back(right_eye_.Clone());
+
+  std::vector<mojom::XRInputSourceStatePtr> input_state;
+  input_state.push_back(GetInputSourceState());
+  frame_data->input_state = std::move(input_state);
 
   frame_data->time_delta = now - base::TimeTicks();
 
-  // TODO(https://crbug.com/1429098): Calculating
+  // TODO(crbug.com/40900872): Calculating
   // frame_data->rendering_time_ratio may be necessary for viewport scaling.
   std::move(callback).Run(std::move(frame_data));
 }
 
 bool CardboardRenderLoop::IsSubmitFrameExpected(int16_t frame_index) {
+  DVLOG(3) << __func__ << ": Frame Index=" << frame_index
+           << " submit_client_=" << !!submit_client_.get()
+           << " HaveAnimatingFrame()=" << webxr_->HaveAnimatingFrame()
+           << " pending_shutdown_=" << pending_shutdown_;
   // submit_client_ could be null when we exit presentation, if there were
   // pending SubmitFrame messages queued.  XRSessionClient::OnExitPresent
   // will clean up state in blink, so it doesn't wait for
@@ -385,8 +434,9 @@ bool CardboardRenderLoop::IsSubmitFrameExpected(int16_t frame_index) {
 
 void CardboardRenderLoop::SubmitFrameMissing(int16_t frame_index,
                                              const gpu::SyncToken& sync_token) {
-  TRACE_EVENT1("gpu", __func__, "frame", frame_index);
-  DVLOG(2) << __func__;
+  TRACE_EVENT1("gpu", "CardboardRenderLoop::SubmitFrameMissing", "frame",
+               frame_index);
+  DVLOG(2) << __func__ << ": frame=" << frame_index;
 
   if (!IsSubmitFrameExpected(frame_index)) {
     return;
@@ -395,52 +445,25 @@ void CardboardRenderLoop::SubmitFrameMissing(int16_t frame_index,
   webxr_->RecycleUnusedAnimatingFrame();
   cardboard_image_transport_->WaitSyncToken(sync_token);
   FinishFrame(frame_index);
+
+  if (pending_getframedata_) {
+    std::move(pending_getframedata_).Run();
+  }
 }
 
 void CardboardRenderLoop::SubmitFrame(int16_t frame_index,
                                       const gpu::MailboxHolder& mailbox,
                                       base::TimeDelta time_waited) {
-  TRACE_EVENT1("gpu", __func__, "frame", frame_index);
-  DVLOG(2) << __func__ << ": frame=" << frame_index;
-  CHECK(!CardboardImageTransport::UseSharedBuffer());
-
-  if (!IsSubmitFrameExpected(frame_index)) {
-    return;
-  }
-
-  webxr_->ProcessOrDefer(
-      base::BindOnce(&CardboardRenderLoop::ProcessFrameFromMailbox,
-                     weak_ptr_factory_.GetWeakPtr(), frame_index, mailbox));
-}
-
-void CardboardRenderLoop::ProcessFrameFromMailbox(
-    int16_t frame_index,
-    const gpu::MailboxHolder& mailbox) {
-  TRACE_EVENT1("gpu", __func__, "frame", frame_index);
-  DVLOG(2) << __func__ << ": frame=" << frame_index;
-  CHECK(webxr_->HaveProcessingFrame());
-  CHECK(!CardboardImageTransport::UseSharedBuffer());
-
-  // TODO(https://crbug.com/1429099): Do we need to pass a uv_transform?
-  cardboard_image_transport_->CopyMailboxToSurfaceAndSwap(
-      texture_size_, mailbox, gfx::Transform());
-
-  // Notify the client that we're done with the mailbox so that the underlying
-  // image is eligible for destruction.
-  submit_client_->OnSubmitFrameTransferred(true);
-
-  // Now wait for cardboard_image_transport_ to call RenderFrame indicating that
-  // the image drawn onto the Surface is ready for consumption from the
-  // SurfaceTexture.
+  NOTREACHED();
 }
 
 void CardboardRenderLoop::SubmitFrameDrawnIntoTexture(
     int16_t frame_index,
     const gpu::SyncToken& sync_token,
     base::TimeDelta time_waited) {
-  TRACE_EVENT1("gpu", __func__, "frame", frame_index);
+  TRACE_EVENT1("gpu", "CardboardRenderLoop::SubmitFrameDrawnIntoTexture",
+               "frame", frame_index);
   DVLOG(2) << __func__ << ": frame=" << frame_index;
-  CHECK(CardboardImageTransport::UseSharedBuffer());
 
   if (!IsSubmitFrameExpected(frame_index)) {
     return;
@@ -458,6 +481,10 @@ void CardboardRenderLoop::ProcessFrameDrawnIntoTexture(
   cardboard_image_transport_->CreateGpuFenceForSyncToken(
       sync_token,
       base::BindOnce(&CardboardRenderLoop::OnWebXrTokenSignaled, GetWeakPtr()));
+
+  if (pending_getframedata_) {
+    std::move(pending_getframedata_).Run();
+  }
 }
 
 void CardboardRenderLoop::OnWebXrTokenSignaled(
@@ -495,12 +522,11 @@ void CardboardRenderLoop::RenderFrame(const gfx::Transform& uv_transform) {
   DVLOG(2) << __func__;
   CHECK(webxr_->HaveProcessingFrame());
   int16_t frame_index = webxr_->GetProcessingFrame()->index;
-  TRACE_EVENT1("gpu", __func__, "frame", frame_index);
+  TRACE_EVENT1("gpu", "CardboardRenderLoop::RenderFrame", "frame", frame_index);
 
   TransitionProcessingFrameToRendering();
 
-  cardboard_image_transport_->Render(webxr_.get(), /*framebuffer=*/0,
-                                     texture_size_);
+  cardboard_image_transport_->Render(webxr_.get(), /*framebuffer=*/0);
 
   FinishFrame(frame_index);
 
@@ -530,7 +556,8 @@ void CardboardRenderLoop::FinishRenderingFrame(WebXrFrame* frame) {
 }
 
 void CardboardRenderLoop::ClearRenderingFrame(WebXrFrame* frame) {
-  TRACE_EVENT1("gpu", __func__, "frame", frame->index);
+  TRACE_EVENT1("gpu", "CardboardRenderLoop::ClearRenderingFrame", "frame",
+               frame->index);
   DVLOG(3) << __func__ << ": frame=" << frame->index;
 
   // Ensure that we're totally finished with the rendering frame, then collect
@@ -543,7 +570,7 @@ void CardboardRenderLoop::ClearRenderingFrame(WebXrFrame* frame) {
 }
 
 void CardboardRenderLoop::FinishFrame(int16_t frame_index) {
-  TRACE_EVENT1("gpu", __func__, "frame", frame_index);
+  TRACE_EVENT1("gpu", "CardboardRenderLoop::FinishFrame", "frame", frame_index);
   DVLOG(3) << __func__;
 
   surface_->SwapBuffers(base::DoNothing(), gfx::FrameData());
@@ -616,7 +643,7 @@ void CardboardRenderLoop::UpdateLayerBounds(int16_t frame_index,
   left_bounds_ = left_bounds;
   right_bounds_ = right_bounds;
 
-  // TODO(https://crbug.com/1429105): This was lifted from ArCoreGl which does
+  // TODO(crbug.com/40900879): This was lifted from ArCoreGl which does
   // a very similar thing, but both cases actually use this texture_size_ to
   // render with and there isn't a corresponding item on the
   // WebXrPresentationState. Replacing the assignment below with a CHECK did not
@@ -639,11 +666,49 @@ void CardboardRenderLoop::SetFrameDataRestricted(bool frame_data_restricted) {
   }
 }
 
+void CardboardRenderLoop::OnTriggerEvent(bool pressed) {
+  DVLOG(2) << __func__ << ": pressed=" << pressed;
+
+  if (pressed) {
+    trigger_pressed_ = true;
+  } else if (trigger_pressed_) {
+    trigger_pressed_ = false;
+    trigger_clicked_ = true;
+  }
+}
+
+device::mojom::XRInputSourceStatePtr
+CardboardRenderLoop::GetInputSourceState() {
+  device::mojom::XRInputSourceStatePtr state =
+      device::mojom::XRInputSourceState::New();
+  // Only one gaze input source to worry about, so it can have a static id.
+  state->source_id = 1;
+
+  // Report any trigger state changes made since the last call and reset the
+  // state here.
+  state->primary_input_pressed = trigger_pressed_;
+  state->primary_input_clicked = trigger_clicked_;
+  trigger_clicked_ = false;
+
+  state->description = device::mojom::XRInputSourceDescription::New();
+
+  // It's a gaze-cursor-based device.
+  state->description->target_ray_mode = device::mojom::XRTargetRayMode::GAZING;
+  state->emulated_position = true;
+
+  // No implicit handedness
+  state->description->handedness = device::mojom::XRHandedness::NONE;
+
+  // Pointer and grip transforms are omitted since this is a gaze-based source.
+
+  return state;
+}
+
 void CardboardRenderLoop::Pause() {
   DCHECK(task_runner()->BelongsToCurrentThread());
   DVLOG(1) << __func__;
 
-  // TODO(https://crbug.com/1429102): Pause the device.
+  CardboardHeadTracker_pause(head_tracker_.get());
   is_paused_ = true;
 }
 
@@ -651,7 +716,7 @@ void CardboardRenderLoop::Resume() {
   DCHECK(task_runner()->BelongsToCurrentThread());
   DVLOG(1) << __func__;
 
-  // TODO(https://crbug.com/1429102): Resume the Device.
+  CardboardHeadTracker_resume(head_tracker_.get());
   is_paused_ = false;
 }
 

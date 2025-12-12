@@ -2,10 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/lottie/animation.h"
 
 #include <map>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/check.h"
 #include "base/memory/raw_ptr.h"
@@ -28,10 +35,10 @@
 #include "cc/test/skia_common.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkRect.h"
 #include "third_party/skia/include/core/SkStream.h"
+#include "ui/gfx/animation/animation.h"
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/lottie/animation_observer.h"
@@ -114,6 +121,10 @@ class TestAnimationObserver : public AnimationObserver {
     last_frame_painted_ = t;
   }
 
+  void AnimationStopped(const Animation* animation) override {
+    animation_stopped_ = true;
+  }
+
   void AnimationIsDeleting(const Animation* animation) override {
     animation_is_deleted_ = true;
     observation_.Reset();
@@ -130,8 +141,9 @@ class TestAnimationObserver : public AnimationObserver {
     return animation_will_start_playing_;
   }
   bool animation_resuming() const { return animation_resuming_; }
+  bool animation_stopped() const { return animation_stopped_; }
   bool animation_is_deleted() const { return animation_is_deleted_; }
-  const absl::optional<float>& last_frame_painted() const {
+  const std::optional<float>& last_frame_painted() const {
     return last_frame_painted_;
   }
 
@@ -141,7 +153,8 @@ class TestAnimationObserver : public AnimationObserver {
   bool animation_will_start_playing_ = false;
   bool animation_resuming_ = false;
   bool animation_is_deleted_ = false;
-  absl::optional<float> last_frame_painted_;
+  bool animation_stopped_ = false;
+  std::optional<float> last_frame_painted_;
 };
 
 class TestSkottieFrameDataProvider : public cc::SkottieFrameDataProvider {
@@ -162,8 +175,8 @@ class TestSkottieFrameDataProvider : public cc::SkottieFrameDataProvider {
       current_frame_data_ = std::move(current_frame_data);
     }
 
-    const absl::optional<float>& last_frame_t() const { return last_frame_t_; }
-    const absl::optional<float>& last_frame_scale_factor() const {
+    const std::optional<float>& last_frame_t() const { return last_frame_t_; }
+    const std::optional<float>& last_frame_scale_factor() const {
       return last_frame_scale_factor_;
     }
 
@@ -173,8 +186,8 @@ class TestSkottieFrameDataProvider : public cc::SkottieFrameDataProvider {
     ~ImageAssetImpl() override = default;
 
     cc::SkottieFrameData current_frame_data_;
-    absl::optional<float> last_frame_t_;
-    absl::optional<float> last_frame_scale_factor_;
+    std::optional<float> last_frame_t_;
+    std::optional<float> last_frame_scale_factor_;
   };
 
   TestSkottieFrameDataProvider() = default;
@@ -184,9 +197,9 @@ class TestSkottieFrameDataProvider : public cc::SkottieFrameDataProvider {
   ~TestSkottieFrameDataProvider() override = default;
 
   scoped_refptr<ImageAsset> LoadImageAsset(
-      base::StringPiece resource_id,
+      std::string_view resource_id,
       const base::FilePath& resource_path,
-      const absl::optional<gfx::Size>& size) override {
+      const std::optional<gfx::Size>& size) override {
     auto new_asset = base::MakeRefCounted<ImageAssetImpl>();
     CHECK(current_assets_.emplace(std::string(resource_id), new_asset).second);
     return new_asset;
@@ -201,6 +214,20 @@ class TestSkottieFrameDataProvider : public cc::SkottieFrameDataProvider {
   std::map<std::string, scoped_refptr<ImageAssetImpl>> current_assets_;
 };
 
+class ScopedPrefersReducedMotion {
+ public:
+  ScopedPrefersReducedMotion() {
+    gfx::Animation::SetPrefersReducedMotionForTesting(true);
+  }
+
+  ~ScopedPrefersReducedMotion() {
+    gfx::Animation::SetPrefersReducedMotionForTesting(previous_);
+  }
+
+ private:
+  bool previous_ = gfx::Animation::PrefersReducedMotion();
+};
+
 }  // namespace
 
 class AnimationTest : public testing::Test {
@@ -213,8 +240,8 @@ class AnimationTest : public testing::Test {
   void SetUp() override {
     canvas_ = std::make_unique<gfx::Canvas>(
         gfx::Size(kAnimationWidth, kAnimationHeight), 1.f, false);
-    skottie_ = cc::SkottieWrapper::CreateNonSerializable(
-        base::as_bytes(base::make_span(kData, std::strlen(kData))));
+    skottie_ = cc::SkottieWrapper::UnsafeCreateNonSerializable(
+        base::byte_span_from_cstring(kData));
     animation_ = std::make_unique<Animation>(skottie_);
   }
 
@@ -332,16 +359,16 @@ class AnimationWithImageAssetsTest : public AnimationTest {
 };
 
 TEST_F(AnimationTest, InitializationAndLoadingData) {
-  skottie_ = cc::SkottieWrapper::CreateNonSerializable(
-      base::as_bytes(base::make_span(kData, std::strlen(kData))));
+  skottie_ = cc::SkottieWrapper::UnsafeCreateNonSerializable(
+      base::byte_span_from_cstring(kData));
   animation_ = std::make_unique<Animation>(skottie_);
   EXPECT_FLOAT_EQ(animation_->GetOriginalSize().width(), kAnimationWidth);
   EXPECT_FLOAT_EQ(animation_->GetOriginalSize().height(), kAnimationHeight);
   EXPECT_EQ(animation_->GetAnimationDuration(), kAnimationDuration);
   EXPECT_TRUE(IsStopped());
 
-  skottie_ = cc::SkottieWrapper::CreateNonSerializable(
-      base::as_bytes(base::make_span(kData, std::strlen(kData))));
+  skottie_ = cc::SkottieWrapper::UnsafeCreateNonSerializable(
+      base::byte_span_from_cstring(kData));
   animation_ = std::make_unique<Animation>(skottie_);
   EXPECT_FLOAT_EQ(animation_->GetOriginalSize().width(), kAnimationWidth);
   EXPECT_FLOAT_EQ(animation_->GetOriginalSize().height(), kAnimationHeight);
@@ -397,6 +424,34 @@ TEST_F(AnimationTest, PlayLinearAnimation) {
   IsAllSameColor(SK_ColorBLUE, canvas()->GetBitmap());
 }
 
+TEST_F(AnimationTest, ReducedAnimations) {
+  // This test ensures that reduced animations only affects the rendering of the
+  // animation, and has no side effects on the events or reporting of progress.
+  TestAnimationObserver observer(animation_.get());
+  ScopedPrefersReducedMotion prefers_reduced_motion;
+
+  AdvanceClock(base::Milliseconds(300));
+
+  EXPECT_TRUE(IsStopped());
+  animation_->Start(Animation::PlaybackConfig::CreateWithStyle(
+      Animation::Style::kLinear, *animation_));
+  animation_->Paint(canvas(), NowTicks(), animation_->GetOriginalSize());
+  IsAllSameColor(SK_ColorGREEN, canvas()->GetBitmap());
+  constexpr auto kAdvance = base::Milliseconds(50);
+  AdvanceClock(kAdvance);
+
+  animation_->Paint(canvas(), NowTicks(), animation_->GetOriginalSize());
+  IsAllSameColor(SK_ColorGREEN, canvas()->GetBitmap());
+
+  // Advance the clock to the end of the animation.
+  constexpr auto kAdvanceToEnd =
+      kAnimationDuration - kAdvance + base::Milliseconds(1);
+  AdvanceClock(kAdvanceToEnd);
+  animation_->Paint(canvas(), NowTicks(), animation_->GetOriginalSize());
+  // The frame should not change.
+  IsAllSameColor(SK_ColorGREEN, canvas()->GetBitmap());
+}
+
 TEST_F(AnimationTest, StopLinearAnimation) {
   TestAnimationObserver observer(animation_.get());
 
@@ -417,7 +472,9 @@ TEST_F(AnimationTest, StopLinearAnimation) {
   EXPECT_FLOAT_EQ(*animation_->GetCurrentProgress(),
                   kAdvance / kAnimationDuration);
 
+  EXPECT_FALSE(observer.animation_stopped());
   animation_->Stop();
+  EXPECT_TRUE(observer.animation_stopped());
   EXPECT_FALSE(animation_->GetCurrentProgress());
   EXPECT_TRUE(IsStopped());
 }
@@ -1476,7 +1533,7 @@ class AnimationRestarter : public AnimationObserver {
   }
 
  private:
-  const base::raw_ptr<Animation> animation_;
+  const raw_ptr<Animation> animation_;
   base::ScopedObservation<Animation, AnimationObserver> observation_{this};
 };
 

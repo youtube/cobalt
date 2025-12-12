@@ -119,7 +119,7 @@ init_gcloud () {
 
 
 is_release_build () {
-  [[ "${KOKORO_ROOT_JOB_TYPE}" == "RELEASE" ]]
+  [[ "${KOKORO_ROOT_JOB_TYPE:-}" == "RELEASE" ]]
 }
 
 
@@ -186,17 +186,6 @@ run_package_release_pipeline () {
     # Create release package
     export PYTHONPATH="${WORKSPACE_COBALT}"
 
-    local package_platform="linux"
-    if [[ "${PLATFORM}" =~ "android" ]]; then
-      package_platform="android"
-    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-rdk" ]]; then
-      package_platform="evergreen-arm-hardfp-rdk"
-    elif [[ "${PLATFORM}" =~ "evergreen-arm-hardfp-raspi" ]]; then
-      package_platform="evergreen-arm-hardfp-raspi"
-    elif [[ "${PLATFORM}" =~ "evergreen-x64" ]]; then
-      package_platform="evergreen-x64"
-    fi
-
     # IMPORTANT: chromedriver must be built without starboardizations. We ensure
     # that the biary is built with the linux-x64x11-no-starboard config in a
     # previous build step. Then copy the file into this out directory to
@@ -213,8 +202,9 @@ run_package_release_pipeline () {
     # specific. GCS upload is also done separately because the Json recipe is
     # not branch, date, and build number specific though this can be added.
     python3 "${WORKSPACE_COBALT}/cobalt/build/packager.py" \
+      --print_contents \
       --name="${PLATFORM}_${CONFIG}" \
-      --json_path="${WORKSPACE_COBALT}/cobalt/build/${package_platform}/package.json" \
+      --json_path="${WORKSPACE_COBALT}/cobalt/build/${PACKAGE_PLATFORM}/package.json" \
       --out_dir="${out_dir}" \
       --package_dir="${package_dir}"
 
@@ -223,7 +213,7 @@ run_package_release_pipeline () {
     if [[ "$(get_kokoro_env)" == "qa" ]]; then
       bucket="cobalt-internal-build-artifacts-qa"
     fi
-    local gcs_archive_path="gs://${bucket}/${PLATFORM}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+    local gcs_archive_path="gs://${bucket}/${PLATFORM}${GCS_PLATFORM_SUFFIX:-}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
     init_gcloud
     # Ensure that only package directory contents are uploaded and not the
     # directory itself.

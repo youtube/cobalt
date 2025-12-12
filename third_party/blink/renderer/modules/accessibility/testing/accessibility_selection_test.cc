@@ -4,10 +4,12 @@
 
 #include "third_party/blink/renderer/modules/accessibility/testing/accessibility_selection_test.h"
 
+#include <algorithm>
 #include <iterator>
+#include <string_view>
 
+#include "base/containers/span.h"
 #include "base/memory/scoped_refptr.h"
-#include "base/ranges/algorithm.h"
 #include "third_party/blink/public/platform/file_path_conversion.h"
 #include "third_party/blink/renderer/core/dom/character_data.h"
 #include "third_party/blink/renderer/core/dom/container_node.h"
@@ -17,12 +19,12 @@
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/modules/accessibility/ax_object-inl.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_object_cache_impl.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_position.h"
 #include "third_party/blink/renderer/modules/accessibility/ax_selection.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
@@ -60,14 +62,14 @@ class AXSelectionSerializer final {
     builder_.Append(AXObject::InternalRoleName(text_object.RoleValue()));
     builder_.Append(": ");
     const String name = text_object.ComputedName() + ">\n";
-    const AXObject& base_container = *selection_.Base().ContainerObject();
-    const AXObject& extent_container = *selection_.Extent().ContainerObject();
+    const AXObject& base_container = *selection_.Anchor().ContainerObject();
+    const AXObject& extent_container = *selection_.Focus().ContainerObject();
 
     if (base_container == text_object && extent_container == text_object) {
-      DCHECK(selection_.Base().IsTextPosition() &&
-             selection_.Extent().IsTextPosition());
-      const int base_offset = selection_.Base().TextOffset();
-      const int extent_offset = selection_.Extent().TextOffset();
+      DCHECK(selection_.Anchor().IsTextPosition() &&
+             selection_.Focus().IsTextPosition());
+      const int base_offset = selection_.Anchor().TextOffset();
+      const int extent_offset = selection_.Focus().TextOffset();
 
       if (base_offset == extent_offset) {
         builder_.Append(name.Left(base_offset));
@@ -96,8 +98,8 @@ class AXSelectionSerializer final {
     }
 
     if (base_container == text_object) {
-      DCHECK(selection_.Base().IsTextPosition());
-      const int base_offset = selection_.Base().TextOffset();
+      DCHECK(selection_.Anchor().IsTextPosition());
+      const int base_offset = selection_.Anchor().TextOffset();
 
       builder_.Append(name.Left(base_offset));
       builder_.Append('^');
@@ -106,8 +108,8 @@ class AXSelectionSerializer final {
     }
 
     if (extent_container == text_object) {
-      DCHECK(selection_.Extent().IsTextPosition());
-      const int extent_offset = selection_.Extent().TextOffset();
+      DCHECK(selection_.Focus().IsTextPosition());
+      const int extent_offset = selection_.Focus().TextOffset();
 
       builder_.Append(name.Left(extent_offset));
       builder_.Append('|');
@@ -136,13 +138,14 @@ class AXSelectionSerializer final {
     if (!position.IsValid())
       return;
 
-    if (selection_.Extent() == position) {
+    if (selection_.Focus() == position) {
       builder_.Append('|');
       return;
     }
 
-    if (selection_.Base() != position)
+    if (selection_.Anchor() != position) {
       return;
+    }
 
     builder_.Append('^');
   }
@@ -196,54 +199,60 @@ class AXSelectionDeserializer final {
  public:
   explicit AXSelectionDeserializer(AXObjectCacheImpl& cache)
       : ax_object_cache_(&cache),
-        anchors_(MakeGarbageCollected<VectorOfPairs<Node, int>>()),
-        foci_(MakeGarbageCollected<VectorOfPairs<Node, int>>()) {}
+        anchors_(MakeGarbageCollected<Holder>()),
+        foci_(MakeGarbageCollected<Holder>()) {}
   ~AXSelectionDeserializer() = default;
+
+  const AXObjectCacheImpl& GetAXObjectCache() const {
+    return *ax_object_cache_;
+  }
 
   // Creates an accessibility tree rooted at the given HTML element from the
   // provided HTML snippet and returns |AXSelection| objects that can select the
   // parts of the tree indicated by the selection markers in the snippet.
-  const Vector<AXSelection> Deserialize(const std::string& html_snippet,
+  const Vector<AXSelection> Deserialize(const std::string_view& html_snippet,
                                         HTMLElement& element) {
     element.setInnerHTML(String::FromUTF8(html_snippet));
     element.GetDocument().View()->UpdateAllLifecyclePhasesForTest();
-    AXObject* root = ax_object_cache_->GetOrCreate(&element);
+    AXObject* root = ax_object_cache_->Get(&element);
     if (!root || root->IsDetached())
       return {};
 
     FindSelectionMarkers(*root);
-    DCHECK((foci_->size() == 1 && anchors_->size() == 0) ||
-           anchors_->size() == foci_->size())
+    DCHECK((foci()->size() == 1 && anchors()->size() == 0) ||
+           anchors()->size() == foci()->size())
         << "There should be an equal number of '^'s and '|'s in the HTML that "
            "is being deserialized, or if caret placement is required, only a "
            "single '|'.";
-    if (foci_->empty())
+    if (foci()->empty()) {
       return {};
+    }
 
     Vector<AXSelection> ax_selections;
-    if (anchors_->empty()) {
+    if (anchors()->empty()) {
       // Handle the case when there is just a single '|' marker representing the
       // position of the caret.
-      DCHECK(foci_->at(0).first);
-      const Position caret(foci_->at(0).first, foci_->at(0).second);
-      const auto ax_caret = AXPosition::FromPosition(caret);
-      AXSelection::Builder builder;
+      DCHECK(foci()->at(0).first);
+      const Position caret(foci()->at(0).first, foci()->at(0).second);
+      const auto ax_caret = AXPosition::FromPosition(caret, GetAXObjectCache());
+      AXSelection::Builder builder(GetAXObjectCache());
       ax_selections.push_back(
-          builder.SetBase(ax_caret).SetExtent(ax_caret).Build());
+          builder.SetAnchor(ax_caret).SetFocus(ax_caret).Build());
       return ax_selections;
     }
 
-    for (wtf_size_t i = 0; i < foci_->size(); ++i) {
-      DCHECK(anchors_->at(i).first);
-      const Position base(*anchors_->at(i).first, anchors_->at(i).second);
-      const auto ax_base = AXPosition::FromPosition(base);
+    for (wtf_size_t i = 0; i < foci()->size(); ++i) {
+      DCHECK(anchors()->at(i).first);
+      const Position base(*anchors()->at(i).first, anchors()->at(i).second);
+      const auto ax_base = AXPosition::FromPosition(base, GetAXObjectCache());
 
-      DCHECK(foci_->at(i).first);
-      const Position extent(*foci_->at(i).first, foci_->at(i).second);
-      const auto ax_extent = AXPosition::FromPosition(extent);
-      AXSelection::Builder builder;
+      DCHECK(foci()->at(i).first);
+      const Position extent(*foci()->at(i).first, foci()->at(i).second);
+      const auto ax_extent =
+          AXPosition::FromPosition(extent, GetAXObjectCache());
+      AXSelection::Builder builder(GetAXObjectCache());
       ax_selections.push_back(
-          builder.SetBase(ax_base).SetExtent(ax_extent).Build());
+          builder.SetAnchor(ax_base).SetFocus(ax_extent).Build());
     }
 
     return ax_selections;
@@ -292,10 +301,10 @@ class AXSelectionDeserializer final {
       int index_in_parent = static_cast<int>(node->NodeIndex());
 
       for (size_t i = 0; i < base_offsets.size(); ++i)
-        anchors_->emplace_back(parent, index_in_parent);
+        anchors()->emplace_back(parent, index_in_parent);
 
       for (size_t i = 0; i < extent_offsets.size(); ++i)
-        foci_->emplace_back(parent, index_in_parent);
+        foci()->emplace_back(parent, index_in_parent);
 
       return;
     }
@@ -305,9 +314,9 @@ class AXSelectionDeserializer final {
     //
 
     for (int base_offset : base_offsets)
-      anchors_->emplace_back(node, base_offset);
+      anchors()->emplace_back(node, base_offset);
     for (int extent_offset : extent_offsets)
-      foci_->emplace_back(node, extent_offset);
+      foci()->emplace_back(node, extent_offset);
   }
 
   void HandleObject(const AXObject& object) {
@@ -333,13 +342,16 @@ class AXSelectionDeserializer final {
 
   Persistent<AXObjectCacheImpl> const ax_object_cache_;
 
+  using Holder = DisallowNewWrapper<VectorOfPairs<Node, int>>;
+
+  VectorOfPairs<Node, int>* anchors() const { return &anchors_->Value(); }
+
+  VectorOfPairs<Node, int>* foci() const { return &foci_->Value(); }
+
   // Pairs of anchor nodes + anchor offsets.
-  Persistent<VectorOfPairs<Node, int>> anchors_;
-
+  Persistent<Holder> anchors_;
   // Pairs of focus nodes + focus offsets.
-  Persistent<VectorOfPairs<Node, int>> foci_;
-
-  ScopedAccessibilityExposeHTMLElementForTest expose_html_element_{true};
+  Persistent<Holder> foci_;
 };
 
 }  // namespace
@@ -348,10 +360,18 @@ AccessibilitySelectionTest::AccessibilitySelectionTest(
     LocalFrameClient* local_frame_client)
     : AccessibilityTest(local_frame_client) {}
 
+void AccessibilitySelectionTest::SetUp() {
+  RenderingTest::SetUp();
+  // Do not include noisy inline textboxes in selection tests.
+  ax_context_ =
+      std::make_unique<AXContext>(GetDocument(), ui::AXMode::kWebContents);
+}
+
 std::string AccessibilitySelectionTest::GetCurrentSelectionText() const {
   const SelectionInDOMTree selection =
       GetFrame().Selection().GetSelectionInDOMTree();
-  const auto ax_selection = AXSelection::FromSelection(selection);
+  const auto ax_selection =
+      AXSelection::FromSelection(selection, GetAXObjectCache());
   return GetSelectionText(ax_selection);
 }
 
@@ -373,12 +393,12 @@ AXSelection AccessibilitySelectionTest::SetSelectionText(
     const std::string& selection_text) const {
   HTMLElement* body = GetDocument().body();
   if (!body)
-    return AXSelection::Builder().Build();
+    return AXSelection::Builder(GetAXObjectCache()).Build();
   const Vector<AXSelection> ax_selections =
       AXSelectionDeserializer(GetAXObjectCache())
           .Deserialize(selection_text, *body);
   if (ax_selections.empty())
-    return AXSelection::Builder().Build();
+    return AXSelection::Builder(GetAXObjectCache()).Build();
   return ax_selections.front();
 }
 
@@ -389,7 +409,7 @@ AXSelection AccessibilitySelectionTest::SetSelectionText(
       AXSelectionDeserializer(GetAXObjectCache())
           .Deserialize(selection_text, element);
   if (ax_selections.empty())
-    return AXSelection::Builder().Build();
+    return AXSelection::Builder(GetAXObjectCache()).Build();
   return ax_selections.front();
 }
 
@@ -402,11 +422,8 @@ void AccessibilitySelectionTest::RunSelectionTest(
   const String test_path = test::AccessibilityTestDataPath(relative_path);
 
   const String test_file = test_path + String::FromUTF8(kTestFileSuffix);
-  scoped_refptr<SharedBuffer> test_file_buffer = test::ReadFromFile(test_file);
-  std::string test_file_contents;
-  base::ranges::copy(test_file_buffer->CopyAs<Vector<char>>(),
-                     std::back_inserter(test_file_contents));
-  ASSERT_FALSE(test_file_contents.empty())
+  std::optional<Vector<char>> test_file_data = test::ReadFromFile(test_file);
+  ASSERT_TRUE(test_file_data)
       << "Test file cannot be empty.\n"
       << test_file.Utf8()
       << "\nDid you forget to add a data dependency to the BUILD file?";
@@ -414,20 +431,18 @@ void AccessibilitySelectionTest::RunSelectionTest(
   const String ax_file =
       test_path +
       String::FromUTF8(suffix.empty() ? kAXTestExpectationSuffix : suffix);
-  scoped_refptr<SharedBuffer> ax_file_buffer = test::ReadFromFile(ax_file);
-  std::string ax_file_contents;
-  base::ranges::copy(ax_file_buffer->CopyAs<Vector<char>>(),
-                     std::back_inserter(ax_file_contents));
-  ASSERT_FALSE(ax_file_contents.empty())
+  std::optional<Vector<char>> ax_file_data = test::ReadFromFile(ax_file);
+  ASSERT_TRUE(ax_file_data)
       << "Expectations file cannot be empty.\n"
       << ax_file.Utf8()
       << "\nDid you forget to add a data dependency to the BUILD file?";
+  std::string_view ax_file_contents = base::as_string_view(*ax_file_data);
 
   HTMLElement* body = GetDocument().body();
   ASSERT_NE(nullptr, body);
   Vector<AXSelection> ax_selections =
       AXSelectionDeserializer(GetAXObjectCache())
-          .Deserialize(test_file_contents, *body);
+          .Deserialize(base::as_string_view(*test_file_data), *body);
   std::string actual_ax_file_contents;
 
   for (auto& ax_selection : ax_selections) {
@@ -438,7 +453,12 @@ void AccessibilitySelectionTest::RunSelectionTest(
     actual_ax_file_contents += GetCurrentSelectionText();
   }
 
-  EXPECT_EQ(ax_file_contents, actual_ax_file_contents);
+  EXPECT_TRUE(ax_file_contents == actual_ax_file_contents)
+      << "\nSelection does not match expectations. Legend: ^=selection start  "
+         "|=selection end"
+      << "\n\nExpected:\n--------\n"
+      << ax_file_contents << "\n\nActual:\n------\n"
+      << actual_ax_file_contents;
 
   // Uncomment these lines to write the output to the expectations file.
   // TODO(dmazzoni): make this a command-line parameter.

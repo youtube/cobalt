@@ -9,8 +9,15 @@ dullweber@chromium.org
 harrisonsean@chromium.org
 
 # For Privacy.DIPS.*
-wanderview@chromium.org
+# For PrivacySandbox.*
+liu@chromium.org
+svend@chromium.org
 
 # For PrivacySandbox.AggregationService.*
 csharrison@chromium.org
-johnidel@chromium.org
+
+# For PrivacySandbox.*
+boujane@google.com
+
+# For PrivacySandbox.Attestations.*
+xiaochenzh@chromium.org

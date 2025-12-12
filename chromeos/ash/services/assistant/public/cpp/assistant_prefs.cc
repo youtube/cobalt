@@ -57,6 +57,10 @@ const char kAssistantOnboardingMode[] = "settings.assistant.onboarding_mode";
 // This preference should only be changed via policy.
 const char kAssistantVoiceMatchEnabledDuringOobe[] =
     "settings.voice_interaction.oobe_voice_match.enabled";
+// A preference that stores the number of failures since the last successful run
+// of Assistant service.
+extern const char kAssistantNumFailuresSinceLastServiceRun[] =
+    "ash.assistant.num_failures_since_last_service_run";
 
 void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterIntegerPref(kAssistantConsentStatus,
@@ -71,13 +75,16 @@ void RegisterProfilePrefs(PrefRegistrySimple* registry) {
   registry->RegisterBooleanPref(kAssistantVoiceMatchEnabledDuringOobe, true);
   registry->RegisterStringPref(kAssistantOnboardingMode,
                                kAssistantOnboardingModeDefault);
+  registry->RegisterIntegerPref(prefs::kAssistantNumFailuresSinceLastServiceRun,
+                                0);
 }
 
 AssistantOnboardingMode ToOnboardingMode(const std::string& onboarding_mode) {
   if (onboarding_mode == kAssistantOnboardingModeEducation)
     return AssistantOnboardingMode::kEducation;
-  if (onboarding_mode != kAssistantOnboardingModeDefault)
+  if (onboarding_mode != kAssistantOnboardingModeDefault) {
     NOTREACHED();
+  }
   return AssistantOnboardingMode::kDefault;
 }
 
@@ -89,7 +96,6 @@ std::string ToOnboardingModeString(AssistantOnboardingMode onboarding_mode) {
       return kAssistantOnboardingModeEducation;
   }
   NOTREACHED();
-  return std::string();
 }
 
 }  // namespace ash::assistant::prefs

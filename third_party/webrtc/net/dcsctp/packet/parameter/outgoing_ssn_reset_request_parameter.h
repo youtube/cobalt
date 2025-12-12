@@ -49,8 +49,8 @@ class OutgoingSSNResetRequestParameter
         sender_last_assigned_tsn_(sender_last_assigned_tsn),
         stream_ids_(std::move(stream_ids)) {}
 
-  static absl::optional<OutgoingSSNResetRequestParameter> Parse(
-      rtc::ArrayView<const uint8_t> data);
+  static std::optional<OutgoingSSNResetRequestParameter> Parse(
+      webrtc::ArrayView<const uint8_t> data);
 
   void SerializeTo(std::vector<uint8_t>& out) const override;
   std::string ToString() const override;
@@ -62,7 +62,7 @@ class OutgoingSSNResetRequestParameter
     return response_sequence_number_;
   }
   TSN sender_last_assigned_tsn() const { return sender_last_assigned_tsn_; }
-  rtc::ArrayView<const StreamID> stream_ids() const { return stream_ids_; }
+  webrtc::ArrayView<const StreamID> stream_ids() const { return stream_ids_; }
 
  private:
   static constexpr size_t kStreamIdSize = sizeof(uint16_t);

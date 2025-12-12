@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "components/back_forward_cache/back_forward_cache_disable.h"
+
 #include "content/public/browser/back_forward_cache.h"
+#include "third_party/blink/public/common/features_generated.h"
 
 namespace back_forward_cache {
 
@@ -29,30 +31,38 @@ std::string ReasonIdToString(DisabledReasonId reason_id) {
       return "PermissionRequestManager";
     case DisabledReasonId::kModalDialog:
       return "ModalDialog";
-    case DisabledReasonId::kExtensions:
-      return "Extensions";
     case DisabledReasonId::kExtensionMessaging:
       return "ExtensionMessaging";
-    case DisabledReasonId::kExtensionMessagingForOpenPort:
-      return "ExtensionMessagingForOpenPort";
     case DisabledReasonId::kExtensionSentMessageToCachedFrame:
       return "ExtensionSentMessageToCachedFrame";
     case DisabledReasonId::kOomInterventionTabHelper:
       return "OomInterventionTabHelper";
+    case DisabledReasonId::kRequestedByWebViewClient:
+      return "RequestedByWebViewClient";
+    case DisabledReasonId::kPostMessageByWebViewClient:
+      return "PostMessageByWebViewClient";
   }
 }
 
 // Report string used for NotRestoredReasons API. This will be brief and will
-// mask extension related reasons as "Extensions".
+// mask all the non-actionable reasons.
 std::string ReasonIdToReportString(DisabledReasonId reason_id) {
   switch (reason_id) {
-    case DisabledReasonId::kExtensions:
     case DisabledReasonId::kExtensionMessaging:
-    case DisabledReasonId::kExtensionMessagingForOpenPort:
     case DisabledReasonId::kExtensionSentMessageToCachedFrame:
-      return "Extensions";
+      return base::FeatureList::IsEnabled(
+                 blink::features::kBackForwardCacheUpdateNotRestoredReasonsName)
+                 ? "masked"
+                 : "extension-messaging";
+    case DisabledReasonId::kPermissionRequestManager:
+      return base::FeatureList::IsEnabled(
+                 blink::features::kBackForwardCacheUpdateNotRestoredReasonsName)
+                 ? "masked"
+                 : "pending-permission-request";
+    case DisabledReasonId::kModalDialog:
+      return "modals";
     default:
-      return ReasonIdToString(reason_id);
+      return "masked";
   }
 }
 

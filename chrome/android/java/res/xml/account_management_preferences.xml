@@ -5,21 +5,25 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
-<!--Used only when ChromeFeatureList.ADD_EDU_ACCOUNT_FROM_ACCOUNT_SETTINGS_FOR_SUPERVISED_USERS is enabled-->
 <PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools">
 
   <org.chromium.components.browser_ui.settings.TextMessagePreference
       android:key="parent_account_category"
-      tools:summary="@string/account_management_two_parent_names"/>
+      tools:summary="@string/account_management_header_two_parent_names"/>
+
+  <org.chromium.chrome.browser.sync.settings.IdentityErrorCardPreference
+      android:key="identity_error_card"
+      app:isPreferenceVisible="false"/>
 
   <PreferenceCategory
       android:key="accounts_category"
       android:title="@string/account_management_title"/>
 
   <Preference
-      android:layout="@layout/divider_preference"/>
+      android:layout="@layout/horizontal_divider"/>
 
   <Preference
       android:key="sign_out"
@@ -27,6 +31,6 @@ found in the LICENSE file.
 
   <Preference
       android:key="sign_out_divider"
-      android:layout="@layout/divider_preference"/>
+      android:layout="@layout/horizontal_divider"/>
 
 </PreferenceScreen>

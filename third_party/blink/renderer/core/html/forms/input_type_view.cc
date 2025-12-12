@@ -30,13 +30,12 @@
 
 #include "third_party/blink/renderer/core/dom/events/simulated_click_options.h"
 #include "third_party/blink/renderer/core/dom/focus_params.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
 #include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
-#include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/layout/layout_block_flow.h"
 
 namespace blink {
 
@@ -79,8 +78,9 @@ void InputTypeView::DispatchSimulatedClickIfActive(KeyboardEvent& event) const {
 }
 
 void InputTypeView::AccessKeyAction(SimulatedClickCreationScope) {
-  GetElement().Focus(FocusParams(SelectionBehaviorOnFocus::kReset,
-                                 mojom::blink::FocusType::kNone, nullptr));
+  GetElement().Focus(FocusParams(
+      SelectionBehaviorOnFocus::kReset, mojom::blink::FocusType::kNone, nullptr,
+      FocusOptions::Create(), FocusTrigger::kUserGesture));
 }
 
 bool InputTypeView::ShouldSubmitImplicitly(const Event& event) {
@@ -95,11 +95,15 @@ HTMLFormElement* InputTypeView::FormForSubmission() const {
 
 LayoutObject* InputTypeView::CreateLayoutObject(
     const ComputedStyle& style) const {
+  // Avoid LayoutInline, which can be split to multiple lines.
+  if (style.IsDisplayInlineType() && !style.IsDisplayReplacedType()) {
+    return MakeGarbageCollected<LayoutBlockFlow>(&GetElement());
+  }
   return LayoutObject::CreateObject(&GetElement(), style);
 }
 
-ControlPart InputTypeView::AutoAppearance() const {
-  return kNoControlPart;
+AppearanceValue InputTypeView::AutoAppearance() const {
+  return AppearanceValue::kNone;
 }
 
 TextDirection InputTypeView::ComputedTextDirection() {
@@ -126,24 +130,41 @@ bool InputTypeView::HasOpenedPopup() const {
   return false;
 }
 
+bool InputTypeView::IsPickerVisible() const {
+  return false;
+}
+
 bool InputTypeView::NeedsShadowSubtree() const {
   return true;
 }
 
-TextControlInnerEditorElement* InputTypeView::EnsureInnerEditorElement() {
-  CreateShadowSubtreeIfNeeded();
-  return GetElement().InnerEditorElement();
-}
-
 void InputTypeView::CreateShadowSubtree() {}
 
-void InputTypeView::CreateShadowSubtreeIfNeeded() {
+void InputTypeView::CreateShadowSubtreeIfNeeded(bool is_type_changing) {
   if (has_created_shadow_subtree_ || !NeedsShadowSubtree()) {
     return;
   }
   GetElement().EnsureUserAgentShadowRoot();
   has_created_shadow_subtree_ = true;
   CreateShadowSubtree();
+  // When called and the type is changing, HTMLInputElement's internal state may
+  // not fully be up to date, so that it's problematic to do the following.
+  // Additionally the following is not necessary when the type is changing,
+  // because HTMLInputElement effectively has similar logic.
+  if (!is_type_changing) {
+    if (needs_update_view_in_create_shadow_subtree_) {
+      UpdateView();
+    }
+    // Placeholder updates are ignored. Update now if needed.
+    if (!GetElement().SuggestedValue().empty() ||
+        GetElement().FastHasAttribute(html_names::kPlaceholderAttr)) {
+      GetElement().UpdatePlaceholderVisibility();
+      if (auto* placeholder = GetElement().PlaceholderElement()) {
+        GetElement().UpdatePlaceholderShadowPseudoId(*placeholder);
+      }
+    }
+  }
+  needs_update_view_in_create_shadow_subtree_ = false;
 }
 
 void InputTypeView::DestroyShadowSubtree() {
@@ -201,7 +222,9 @@ bool InputTypeView::ShouldDrawCapsLockIndicator() const {
 
 void InputTypeView::UpdateClearButtonVisibility() {}
 
-void InputTypeView::UpdatePlaceholderText(bool) {}
+HTMLElement* InputTypeView::UpdatePlaceholderText(bool) {
+  return nullptr;
+}
 
 AXObject* InputTypeView::PopupRootAXObject() {
   return nullptr;

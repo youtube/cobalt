@@ -21,15 +21,12 @@ blink::mojom::FrameOwnerElementType EnumTraits<
       return blink::mojom::FrameOwnerElementType::kEmbed;
     case blink::FrameOwnerElementType::kFrame:
       return blink::mojom::FrameOwnerElementType::kFrame;
-    case blink::FrameOwnerElementType::kPortal:
-      return blink::mojom::FrameOwnerElementType::kPortal;
     case blink::FrameOwnerElementType::kFencedframe:
       return blink::mojom::FrameOwnerElementType::kFencedframe;
     case blink::FrameOwnerElementType::kNone:
       return blink::mojom::FrameOwnerElementType::kNone;
   }
   NOTREACHED();
-  return blink::mojom::FrameOwnerElementType::kFrame;
 }
 
 bool EnumTraits<blink::mojom::FrameOwnerElementType,
@@ -48,9 +45,6 @@ bool EnumTraits<blink::mojom::FrameOwnerElementType,
       return true;
     case blink::mojom::FrameOwnerElementType::kFrame:
       *output = blink::FrameOwnerElementType::kFrame;
-      return true;
-    case blink::mojom::FrameOwnerElementType::kPortal:
-      *output = blink::FrameOwnerElementType::kPortal;
       return true;
     case blink::mojom::FrameOwnerElementType::kFencedframe:
       *output = blink::FrameOwnerElementType::kFencedframe;

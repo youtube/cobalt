@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "third_party/blink/public/platform/media/multi_buffer.h"
+#include "third_party/blink/renderer/platform/media/multi_buffer.h"
 
 #include <utility>
 
-#include "base/functional/bind.h"
+#include "base/containers/contains.h"
+#include "base/feature_list.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "media/base/media_switches.h"
+#include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 
@@ -23,7 +29,7 @@ enum {
 // Returns the block ID closest to (but less or equal than) |pos| from |index|.
 template <class T>
 static MultiBuffer::BlockId ClosestPreviousEntry(
-    const std::map<MultiBuffer::BlockId, T>& index,
+    const base::flat_map<MultiBuffer::BlockId, T>& index,
     MultiBuffer::BlockId pos) {
   auto i = index.upper_bound(pos);
   DCHECK(i == index.end() || i->first > pos);
@@ -39,7 +45,7 @@ static MultiBuffer::BlockId ClosestPreviousEntry(
 // from |index|.
 template <class T>
 static MultiBuffer::BlockId ClosestNextEntry(
-    const std::map<MultiBuffer::BlockId, T>& index,
+    const base::flat_map<MultiBuffer::BlockId, T>& index,
     MultiBuffer::BlockId pos) {
   auto i = index.lower_bound(pos);
   if (i == index.end()) {
@@ -112,8 +118,10 @@ bool MultiBuffer::GlobalLRU::Pruneable() const {
 
 void MultiBuffer::GlobalLRU::SchedulePrune() {
   if (Pruneable() && !background_pruning_pending_) {
-    task_runner_->PostDelayedTask(
-        FROM_HERE, base::BindOnce(&MultiBuffer::GlobalLRU::PruneTask, this),
+    PostDelayedCrossThreadTask(
+        *task_runner_, FROM_HERE,
+        CrossThreadBindOnce(&MultiBuffer::GlobalLRU::PruneTask,
+                            WTF::RetainedRef(this)),
         base::Seconds(kBlockPruneInterval));
     background_pruning_pending_ = true;
   }
@@ -185,7 +193,7 @@ MultiBuffer::~MultiBuffer() {
 }
 
 void MultiBuffer::AddReader(const BlockId& pos, Reader* reader) {
-  std::set<Reader*>* set_of_readers = &readers_[pos];
+  std::set<raw_ptr<Reader, SetExperimental>>* set_of_readers = &readers_[pos];
   bool already_waited_for = !set_of_readers->empty();
   set_of_readers->insert(reader);
 
@@ -204,7 +212,6 @@ void MultiBuffer::AddReader(const BlockId& pos, Reader* reader) {
     if (i.value()) {
       // Shouldn't happen, we already tested that Contains(pos) is true.
       NOTREACHED();
-      closest_block = pos;
     } else if (i == present_.begin()) {
       closest_block = -1;
     } else {
@@ -219,7 +226,7 @@ void MultiBuffer::AddReader(const BlockId& pos, Reader* reader) {
     }
   }
   if (!provider) {
-    DCHECK(writer_index_.find(pos) == writer_index_.end());
+    DCHECK(!base::Contains(writer_index_, pos));
     writer_index_[pos] = CreateWriter(pos, is_client_audio_element_);
     provider = writer_index_[pos].get();
   }
@@ -249,7 +256,7 @@ void MultiBuffer::CleanupWriters(const BlockId& pos) {
 bool MultiBuffer::Contains(const BlockId& pos) const {
   DCHECK(present_[pos] == 0 || present_[pos] == 1)
       << " pos = " << pos << " present_[pos] " << present_[pos];
-  DCHECK_EQ(present_[pos], data_.find(pos) != data_.end() ? 1 : 0);
+  DCHECK_EQ(present_[pos], base::Contains(data_, pos) ? 1 : 0);
   return !!present_[pos];
 }
 
@@ -336,7 +343,7 @@ std::unique_ptr<MultiBuffer::DataProvider> MultiBuffer::RemoveProvider(
     DataProvider* provider) {
   BlockId pos = provider->Tell();
   auto iter = writer_index_.find(pos);
-  DCHECK(iter != writer_index_.end());
+  CHECK(iter != writer_index_.end());
   DCHECK_EQ(iter->second.get(), provider);
   std::unique_ptr<DataProvider> ret = std::move(iter->second);
   writer_index_.erase(iter);
@@ -344,7 +351,8 @@ std::unique_ptr<MultiBuffer::DataProvider> MultiBuffer::RemoveProvider(
 }
 
 MultiBuffer::ProviderState MultiBuffer::SuggestProviderState(
-    const BlockId& pos) const {
+    const BlockId& pos,
+    bool is_stale) const {
   MultiBufferBlockId next_reader_pos = ClosestNextEntry(readers_, pos);
   if (next_reader_pos != std::numeric_limits<MultiBufferBlockId>::max() &&
       (next_reader_pos - pos <= kMaxWaitForWriterOffset || !RangeSupported())) {
@@ -364,7 +372,15 @@ MultiBuffer::ProviderState MultiBuffer::SuggestProviderState(
     MultiBufferBlockId previous_writer_pos =
         ClosestPreviousEntry(writer_index_, pos - 1);
     if (previous_writer_pos < previous_reader_pos) {
-      return ProviderStateDefer;
+      // When kMultiBufferNeverDefer is enabled, providers will submit
+      // themselves for cleanup after being deferred for too long.
+      //
+      // See https://crbug.com/409117400 for notes on why we don't also include
+      // the ProviderStateDead case below in this feature.
+      return is_stale &&
+                     base::FeatureList::IsEnabled(media::kMultiBufferNeverDefer)
+                 ? ProviderStateDead
+                 : ProviderStateDefer;
     }
   }
 
@@ -373,8 +389,9 @@ MultiBuffer::ProviderState MultiBuffer::SuggestProviderState(
 
 bool MultiBuffer::ProviderCollision(const BlockId& id) const {
   // If there is a writer at the same location, it is always a collision.
-  if (writer_index_.find(id) != writer_index_.end())
+  if (base::Contains(writer_index_, id)) {
     return true;
+  }
 
   // Data already exists at providers current position,
   // if the URL supports ranges, we can kill the data provider.
@@ -433,7 +450,7 @@ void MultiBuffer::OnDataProviderEvent(DataProvider* provider_tmp) {
   // readers to seek or self-destruct and clean up any associated writers.
   auto i = writer_index_.find(pos);
   if (i != writer_index_.end() && i->second.get() == provider_tmp) {
-    switch (SuggestProviderState(pos)) {
+    switch (SuggestProviderState(pos, provider_tmp->IsStale())) {
       case ProviderStateLoad:
         // Not sure we actually need to do this
         provider_tmp->SetDeferred(false);
@@ -536,7 +553,7 @@ void MultiBuffer::PinRange(const BlockId& from,
         for (BlockId block = present_transitioned_range.end - 1;
              block >= present_transitioned_range.begin; --block) {
           DCHECK_GE(block, 0);
-          DCHECK(data_.find(block) != data_.end());
+          DCHECK(base::Contains(data_, block));
           if (pin) {
             DCHECK(pinned_[block]);
             lru_->Remove(this, block);

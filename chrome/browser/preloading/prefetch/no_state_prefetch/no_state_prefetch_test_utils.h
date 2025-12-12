@@ -20,7 +20,6 @@
 #include "base/synchronization/lock.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/external_protocol/external_protocol_handler.h"
-#include "chrome/browser/preloading/prefetch/no_state_prefetch/chrome_no_state_prefetch_contents_delegate.h"
 #include "chrome/browser/safe_browsing/test_safe_browsing_service.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/no_state_prefetch/browser/no_state_prefetch_contents.h"
@@ -35,6 +34,8 @@ namespace prerender {
 
 namespace test_utils {
 
+extern const char kSecondaryDomain[];
+
 class TestNoStatePrefetchContents : public NoStatePrefetchContents,
                                     public content::RenderWidgetHostObserver {
  public:
@@ -43,7 +44,7 @@ class TestNoStatePrefetchContents : public NoStatePrefetchContents,
       content::BrowserContext* browser_context,
       const GURL& url,
       const content::Referrer& referrer,
-      const absl::optional<url::Origin>& initiator_origin,
+      const std::optional<url::Origin>& initiator_origin,
       Origin origin,
       FinalStatus expected_final_status,
       bool ignore_final_status);
@@ -89,8 +90,7 @@ class TestNoStatePrefetchContents : public NoStatePrefetchContents,
 // A handle to a TestNoStatePrefetchContents whose lifetime is under the
 // caller's control. A NoStatePrefetchContents may be destroyed at any point.
 // This allows tracking the FinalStatus.
-class TestPrerender : public NoStatePrefetchContents::Observer,
-                      public base::SupportsWeakPtr<TestPrerender> {
+class TestPrerender : public NoStatePrefetchContents::Observer {
  public:
   TestPrerender();
 
@@ -122,6 +122,10 @@ class TestPrerender : public NoStatePrefetchContents::Observer,
 
   void OnPrefetchStop(NoStatePrefetchContents* contents) override;
 
+  base::WeakPtr<TestPrerender> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   raw_ptr<TestNoStatePrefetchContents> contents_;
   FinalStatus final_status_;
@@ -136,6 +140,7 @@ class TestPrerender : public NoStatePrefetchContents::Observer,
   base::RunLoop create_loop_;
   base::RunLoop start_loop_;
   base::RunLoop stop_loop_;
+  base::WeakPtrFactory<TestPrerender> weak_ptr_factory_{this};
 };
 
 // Blocks until a TestNoStatePrefetchContents has been destroyed with the given
@@ -238,7 +243,7 @@ class TestNoStatePrefetchContentsFactory
       content::BrowserContext* browser_context,
       const GURL& url,
       const content::Referrer& referrer,
-      const absl::optional<url::Origin>& initiator_origin,
+      const std::optional<url::Origin>& initiator_origin,
       Origin origin) override;
 
  private:
@@ -365,9 +370,9 @@ class PrerenderInProcessBrowserTest : virtual public InProcessBrowserTest {
       external_protocol_handler_delegate_;
   std::unique_ptr<safe_browsing::TestSafeBrowsingServiceFactory>
       safe_browsing_factory_;
-  raw_ptr<TestNoStatePrefetchContentsFactory, DanglingUntriaged>
+  raw_ptr<TestNoStatePrefetchContentsFactory, AcrossTasksDanglingUntriaged>
       no_state_prefetch_contents_factory_;
-  raw_ptr<Browser, DanglingUntriaged> explicitly_set_browser_;
+  raw_ptr<Browser, AcrossTasksDanglingUntriaged> explicitly_set_browser_;
   bool autostart_test_server_;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<net::EmbeddedTestServer> https_src_server_;

@@ -19,7 +19,7 @@ SecurityEventRecorderImpl::SecurityEventRecorderImpl(
   DCHECK(clock_);
 }
 
-SecurityEventRecorderImpl::~SecurityEventRecorderImpl() {}
+SecurityEventRecorderImpl::~SecurityEventRecorderImpl() = default;
 
 void SecurityEventRecorderImpl::RecordGaiaPasswordReuse(
     const sync_pb::GaiaPasswordReuse& event) {
@@ -32,12 +32,12 @@ void SecurityEventRecorderImpl::RecordGaiaPasswordReuse(
   security_event_sync_bridge_->RecordSecurityEvent(std::move(specifics));
 }
 
-base::WeakPtr<syncer::ModelTypeControllerDelegate>
+base::WeakPtr<syncer::DataTypeControllerDelegate>
 SecurityEventRecorderImpl::GetControllerDelegate() {
   if (security_event_sync_bridge_) {
     return security_event_sync_bridge_->GetControllerDelegate();
   }
-  return base::WeakPtr<syncer::ModelTypeControllerDelegate>();
+  return base::WeakPtr<syncer::DataTypeControllerDelegate>();
 }
 
 void SecurityEventRecorderImpl::Shutdown() {}

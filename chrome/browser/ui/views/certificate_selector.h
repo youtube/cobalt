@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "net/ssl/client_cert_identity.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
 #include "ui/views/controls/table/table_view_observer.h"
 #include "ui/views/window/dialog_delegate.h"
 
@@ -22,13 +23,11 @@ namespace views {
 class LabelButton;
 class TableView;
 class View;
-}
+}  // namespace views
 
 namespace ui {
 class TableModel;
 }
-
-namespace chrome {
 
 // A base class for dialogs that show a given list of certificates to the user.
 // The user can select a single certificate and look at details of each
@@ -37,9 +36,9 @@ namespace chrome {
 // The explanatory text shown to the user must be provided to |InitWithText()|.
 class CertificateSelector : public views::DialogDelegateView,
                             public views::TableViewObserver {
- public:
-  METADATA_HEADER(CertificateSelector);
+  METADATA_HEADER(CertificateSelector, views::DialogDelegateView)
 
+ public:
   // Indicates if the dialog can be successfully shown.
   // TODO(davidben): Remove this when the certificate selector prompt is moved
   // to the WebContentsDelegate. https://crbug.com/456255.
@@ -69,7 +68,7 @@ class CertificateSelector : public views::DialogDelegateView,
   // DialogDelegateView:
   bool Accept() override;
   std::u16string GetWindowTitle() const override;
-  bool IsDialogButtonEnabled(ui::DialogButton button) const override;
+  bool IsDialogButtonEnabled(ui::mojom::DialogButton button) const override;
   views::View* GetInitiallyFocusedView() override;
 
   // views::TableViewObserver:
@@ -102,12 +101,11 @@ class CertificateSelector : public views::DialogDelegateView,
   bool show_provider_column_ = false;
   std::unique_ptr<CertificateTableModel> model_;
 
-  const raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;
+  const raw_ptr<content::WebContents, AcrossTasksDanglingUntriaged>
+      web_contents_;
 
   raw_ptr<views::TableView, DanglingUntriaged> table_ = nullptr;
   raw_ptr<views::LabelButton, DanglingUntriaged> view_cert_button_ = nullptr;
 };
-
-}  // namespace chrome
 
 #endif  // CHROME_BROWSER_UI_VIEWS_CERTIFICATE_SELECTOR_H_

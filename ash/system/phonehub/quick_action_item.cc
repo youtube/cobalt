@@ -4,12 +4,17 @@
 
 #include "ash/system/phonehub/quick_action_item.h"
 
+#include <string_view>
+
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/style/ash_color_provider.h"
+#include "ash/style/typography.h"
 #include "ash/system/tray/tray_constants.h"
 #include "base/functional/bind.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/views/border.h"
@@ -20,19 +25,10 @@ namespace ash {
 
 namespace {
 
-void ConfigureLabel(views::Label* label, int line_height, int font_size) {
+void ConfigureLabelProperties(views::Label* label) {
   label->SetAutoColorReadabilityEnabled(false);
   label->SetSubpixelRenderingEnabled(false);
   label->SetCanProcessEventsWithinSubtree(false);
-
-  label->SetLineHeight(line_height);
-
-  gfx::Font default_font;
-  gfx::Font label_font =
-      default_font.Derive(font_size - default_font.GetFontSize(),
-                          gfx::Font::NORMAL, gfx::Font::Weight::NORMAL);
-  gfx::FontList font_list(label_font);
-  label->SetFontList(font_list);
 }
 
 }  // namespace
@@ -65,13 +61,19 @@ QuickActionItem::QuickActionItem(Delegate* delegate,
   label_->SetBorder(views::CreateEmptyBorder(
       gfx::Insets::TLBR(0, 0, kUnifiedFeaturePodInterLabelPadding, 0)));
   sub_label_ = label_view->AddChildView(std::make_unique<views::Label>());
-  ConfigureLabel(label_, kUnifiedFeaturePodLabelLineHeight,
-                 kUnifiedFeaturePodLabelFontSize);
-  ConfigureLabel(sub_label_, kUnifiedFeaturePodSubLabelLineHeight,
-                 kUnifiedFeaturePodSubLabelFontSize);
 
-  sub_label_color_ = AshColorProvider::Get()->GetContentLayerColor(
-      AshColorProvider::ContentLayerType::kTextColorSecondary);
+  ConfigureLabelProperties(label_);
+  ConfigureLabelProperties(sub_label_);
+
+  // StyleLabel() will configure the height, weight, font, etc.
+  TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosButton2,
+                                        *label_);
+  TypographyProvider::Get()->StyleLabel(ash::TypographyToken::kCrosBody2,
+                                        *sub_label_);
+  sub_label_color_ =
+      GetColorProvider()
+          ? GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurfaceVariant)
+          : gfx::kPlaceholderColor;
 
   SetEnabled(true /* enabled */);
 }
@@ -101,25 +103,35 @@ bool QuickActionItem::IsToggled() const {
   return icon_button_->toggled();
 }
 
-const std::u16string& QuickActionItem::GetItemLabel() const {
+std::u16string_view QuickActionItem::GetItemLabel() const {
   return label_->GetText();
 }
 
 void QuickActionItem::SetEnabled(bool enabled) {
   View::SetEnabled(enabled);
   icon_button_->SetEnabled(enabled);
+  if (!GetColorProvider()) {
+    return;
+  }
+
+  // When creating QuickActionItem |sub_label_color_| may have been set to
+  // gfx::kPlaceholderColor if color provider was null, update color here.
+  // TODO(b/322067753): Convert all usage of |AshColorProvider| to use
+  // |cros_tokens| instead.
+  sub_label_color_ =
+      GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurfaceVariant);
 
   if (!enabled) {
     label_->SetEnabledColor(AshColorProvider::Get()->GetContentLayerColor(
         AshColorProvider::ContentLayerType::kTextColorSecondary));
-    sub_label_->SetEnabledColor(AshColorProvider::Get()->GetContentLayerColor(
-        AshColorProvider::ContentLayerType::kTextColorSecondary));
+    sub_label_->SetEnabledColor(
+        GetColorProvider()->GetColor(cros_tokens::kCrosSysOnSurfaceVariant));
 
     sub_label_->SetText(l10n_util::GetStringUTF16(
         IDS_ASH_PHONE_HUB_QUICK_ACTIONS_NOT_AVAILABLE_STATE));
     icon_button_->SetTooltipText(l10n_util::GetStringFUTF16(
         IDS_ASH_PHONE_HUB_QUICK_ACTIONS_NOT_AVAILABLE_STATE_TOOLTIP,
-        GetItemLabel()));
+        std::u16string(GetItemLabel())));
   } else {
     label_->SetEnabledColor(AshColorProvider::Get()->GetContentLayerColor(
         AshColorProvider::ContentLayerType::kTextColorPrimary));
@@ -136,8 +148,7 @@ void QuickActionItem::RequestFocus() {
   icon_button_->RequestFocus();
 }
 
-const char* QuickActionItem::GetClassName() const {
-  return "QuickActionItem";
-}
+BEGIN_METADATA(QuickActionItem)
+END_METADATA
 
 }  // namespace ash

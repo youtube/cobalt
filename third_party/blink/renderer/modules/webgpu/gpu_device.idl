@@ -5,11 +5,12 @@
 // https://gpuweb.github.io/gpuweb/
 
 [
-    Exposed(Window WebGPU, DedicatedWorker WebGPU),
+    Exposed=(Window, Worker),
     SecureContext
 ] interface GPUDevice : EventTarget {
     [SameObject] readonly attribute GPUSupportedFeatures features;
     [SameObject] readonly attribute GPUSupportedLimits limits;
+    [SameObject] readonly attribute GPUAdapterInfo adapterInfo;
 
     [CallWith=ScriptState] readonly attribute Promise<GPUDeviceLostInfo> lost;
 
@@ -20,18 +21,18 @@
     [RaisesException] GPUBuffer createBuffer(GPUBufferDescriptor descriptor);
     [RaisesException] GPUTexture createTexture(GPUTextureDescriptor descriptor);
     GPUSampler createSampler(optional GPUSamplerDescriptor descriptor = {});
-    [RaisesException, CallWith=ScriptState] GPUExternalTexture importExternalTexture(GPUExternalTextureDescriptor descriptor);
+    [RaisesException] GPUExternalTexture importExternalTexture(GPUExternalTextureDescriptor descriptor);
 
     [RaisesException] GPUBindGroup createBindGroup(GPUBindGroupDescriptor descriptor);
     [RaisesException] GPUBindGroupLayout createBindGroupLayout(GPUBindGroupLayoutDescriptor descriptor);
     GPUPipelineLayout createPipelineLayout(GPUPipelineLayoutDescriptor descriptor);
 
-    [RaisesException] GPUShaderModule createShaderModule(GPUShaderModuleDescriptor descriptor);
+    GPUShaderModule createShaderModule(GPUShaderModuleDescriptor descriptor);
     [CallWith=ScriptState] GPURenderPipeline createRenderPipeline(GPURenderPipelineDescriptor descriptor);
     [RaisesException] GPUComputePipeline createComputePipeline(GPUComputePipelineDescriptor descriptor);
 
-    [CallWith=ScriptState] Promise<GPURenderPipeline?> createRenderPipelineAsync(GPURenderPipelineDescriptor descriptor);
-    [CallWith=ScriptState] Promise<GPUComputePipeline?> createComputePipelineAsync(GPUComputePipelineDescriptor descriptor);
+    [CallWith=ScriptState, RaisesException] Promise<GPURenderPipeline> createRenderPipelineAsync(GPURenderPipelineDescriptor descriptor);
+    [CallWith=ScriptState] Promise<GPUComputePipeline> createComputePipelineAsync(GPUComputePipelineDescriptor descriptor);
 
     GPUCommandEncoder createCommandEncoder(optional GPUCommandEncoderDescriptor descriptor = {});
     [RaisesException] GPURenderBundleEncoder createRenderBundleEncoder(GPURenderBundleEncoderDescriptor descriptor);

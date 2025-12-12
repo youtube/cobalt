@@ -6,10 +6,6 @@
 
 #import "net/base/url_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 void HttpsUpgradeService::SetHttpsPortForTesting(
     int https_port_for_testing,
     bool use_fake_https_for_testing) {
@@ -56,8 +52,9 @@ GURL HttpsUpgradeService::GetUpgradedHttpsUrl(const GURL& http_url) const {
     replacements.SetPortStr(port_str);
 
     // Change the URL to help with debugging.
-    if (use_fake_https_for_testing_)
+    if (use_fake_https_for_testing_) {
       replacements.SetRefStr("fake-https");
+    }
   }
   if (!use_fake_https_for_testing_) {
     replacements.SetSchemeStr(url::kHttpsScheme);

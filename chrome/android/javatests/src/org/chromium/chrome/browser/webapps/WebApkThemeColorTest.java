@@ -20,33 +20,33 @@ import org.chromium.chrome.browser.browserservices.intents.WebappConstants;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.browser.ThemeTestUtils;
-import org.chromium.ui.test.util.UiRestriction;
+import org.chromium.ui.base.DeviceFormFactor;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Tests for status bar color with EXTRA_THEME_COLOR specified in the Intent.
- */
+/** Tests for status bar color with EXTRA_THEME_COLOR specified in the Intent. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 public class WebApkThemeColorTest {
-    @Rule
-    public final WebApkActivityTestRule mActivityTestRule = new WebApkActivityTestRule();
+    @Rule public final WebApkActivityTestRule mActivityTestRule = new WebApkActivityTestRule();
 
     @Test
     @SmallTest
-    @Restriction({UiRestriction.RESTRICTION_TYPE_PHONE})
+    @Restriction({DeviceFormFactor.PHONE})
     // Customizing status bar color is disallowed for tablets.
     @Feature({"WebApk"})
     public void testAllowsBrightThemeColor() throws ExecutionException, TimeoutException {
         final int intentThemeColor = Color.MAGENTA;
         final int pageThemeColor = Color.RED;
         final int white = Color.WHITE;
-        String pageWithThemeColorUrl = mActivityTestRule.getTestServer().getURL(
-                "/chrome/test/data/android/theme_color_test.html");
+        String pageWithThemeColorUrl =
+                mActivityTestRule
+                        .getTestServer()
+                        .getURL("/chrome/test/data/android/theme_color_test.html");
         Intent intent =
-                mActivityTestRule.createIntent()
+                mActivityTestRule
+                        .createIntent()
                         .putExtra(WebappConstants.EXTRA_URL, pageWithThemeColorUrl)
                         .putExtra(WebappConstants.EXTRA_THEME_COLOR, (long) intentThemeColor);
         mActivityTestRule.startWebApkActivity(intent);

@@ -15,12 +15,14 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/constrained_window/constrained_window_views.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/mojom/ui_base_types.mojom-shared.h"
 #include "ui/base/ui_base_types.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
@@ -53,25 +55,28 @@ std::unique_ptr<views::Label> CreateLabel() {
 
 // static
 base::WeakPtr<views::Widget> IdleDialog::Show(
+    Browser* browser,
     base::TimeDelta dialog_duration,
     base::TimeDelta idle_threshold,
     IdleDialog::ActionSet actions,
     base::OnceClosure on_close_by_user) {
-  return policy::IdleDialogView::Show(dialog_duration, idle_threshold, actions,
-                                      std::move(on_close_by_user));
+  return policy::IdleDialogView::Show(browser, dialog_duration, idle_threshold,
+                                      actions, std::move(on_close_by_user));
 }
 
 namespace policy {
 
 // static
 base::WeakPtr<views::Widget> IdleDialogView::Show(
+    Browser* browser,
     base::TimeDelta dialog_duration,
     base::TimeDelta idle_threshold,
     IdleDialog::ActionSet actions,
     base::OnceClosure on_close_by_user) {
-  auto view = std::make_unique<IdleDialogView>(
-      dialog_duration, idle_threshold, actions, std::move(on_close_by_user));
-  auto* widget = CreateDialogWidget(std::move(view), nullptr, nullptr);
+  views::Widget* widget = constrained_window::CreateBrowserModalDialogViews(
+      std::make_unique<IdleDialogView>(dialog_duration, idle_threshold, actions,
+                                       std::move(on_close_by_user)),
+      browser->window()->GetNativeWindow());
   widget->Show();
   return widget->GetWeakPtr();
 }
@@ -95,7 +100,7 @@ ui::ImageModel IdleDialogView::GetWindowIcon() {
   return ui::ImageModel::FromVectorIcon(
       vector_icons::kBusinessIcon, ui::kColorIcon,
       ChromeLayoutProvider::Get()->GetDistanceMetric(
-          DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE));
+          views::DISTANCE_BUBBLE_HEADER_VECTOR_ICON_SIZE));
 }
 
 IdleDialogView::IdleDialogView(base::TimeDelta dialog_duration,
@@ -106,18 +111,18 @@ IdleDialogView::IdleDialogView(base::TimeDelta dialog_duration,
       actions_(actions),
       deadline_(base::TimeTicks::Now() + dialog_duration) {
   CHECK(actions.close || actions.clear);
-  SetDefaultButton(ui::DIALOG_BUTTON_OK);
-  SetButtonLabel(ui::DIALOG_BUTTON_OK,
+  SetDefaultButton(static_cast<int>(ui::mojom::DialogButton::kOk));
+  SetButtonLabel(ui::mojom::DialogButton::kOk,
                  l10n_util::GetStringUTF16(IDS_IDLE_DISMISS_BUTTON));
   SetShowIcon(true);
-  SetButtons(ui::DIALOG_BUTTON_OK);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kOk));
   auto [callback1, callback2] =
       base::SplitOnceCallback(std::move(on_close_by_user));
   SetAcceptCallback(std::move(callback1));
   SetCancelCallback(std::move(callback2));
 
-  set_draggable(true);
-  SetModalType(ui::MODAL_TYPE_NONE);
+  SetModalType(ui::mojom::ModalType::kWindow);
+  SetShowCloseButton(false);
   set_fixed_width(views::LayoutProvider::Get()->GetDistanceMetric(
       views::DISTANCE_MODAL_DIALOG_PREFERRED_WIDTH));
 
@@ -125,6 +130,10 @@ IdleDialogView::IdleDialogView(base::TimeDelta dialog_duration,
   layout->SetOrientation(views::BoxLayout::Orientation::kVertical);
   layout->set_cross_axis_alignment(
       views::BoxLayout::CrossAxisAlignment::kStretch);
+
+  const ChromeLayoutProvider* provider = ChromeLayoutProvider::Get();
+  set_margins(provider->GetDialogInsetsForContentType(
+      views::DialogContentType::kText, views::DialogContentType::kText));
 
   main_label_ = AddChildView(CreateLabel());
   incognito_label_ = AddChildView(CreateLabel());

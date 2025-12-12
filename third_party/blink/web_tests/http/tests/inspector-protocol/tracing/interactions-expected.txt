@@ -7,8 +7,10 @@ Object: {
 		data: {
 			cancelable: boolean
 			duration: number
+			enqueuedToMainThreadTime: number
 			frame: string
 			interactionId: number
+			interactionOffset: number
 			nodeId: number
 			processingEnd: number
 			processingStart: number
@@ -30,6 +32,21 @@ Object: {
 	}
 	cat: string
 	id: string
+	name: string
+	ph: string
+	pid: number
+	tid: number
+	ts: number
+}
+Got EventDispatch event
+Object: {
+	args: {
+		data: {
+			type: string
+		}
+	}
+	cat: string
+	dur: number
 	name: string
 	ph: string
 	pid: number

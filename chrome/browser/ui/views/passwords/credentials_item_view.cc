@@ -12,7 +12,9 @@
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/chrome_typography.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/grit/theme_resources.h"
+#include "components/affiliations/core/browser/affiliation_utils.h"
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/vector_icons/vector_icons.h"
 #include "third_party/skia/include/core/SkPath.h"
@@ -24,6 +26,7 @@
 #include "ui/gfx/canvas.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/bubble/tooltip_icon.h"
 #include "ui/views/controls/button/button.h"
@@ -35,8 +38,9 @@
 namespace {
 
 class CircularImageView : public views::ImageView {
+  METADATA_HEADER(CircularImageView, views::ImageView)
+
  public:
-  METADATA_HEADER(CircularImageView);
   CircularImageView() = default;
   CircularImageView(const CircularImageView&) = delete;
   CircularImageView& operator=(const CircularImageView&) = delete;
@@ -58,7 +62,7 @@ void CircularImageView::OnPaint(gfx::Canvas* canvas) {
   ImageView::OnPaint(canvas);
 }
 
-BEGIN_METADATA(CircularImageView, views::ImageView)
+BEGIN_METADATA(CircularImageView)
 END_METADATA
 
 }  // namespace
@@ -130,45 +134,45 @@ CredentialsItemView::CredentialsItemView(
     lower_label_ = text_container->AddChildView(std::move(lower_label));
   }
 
-  if (password_manager_util::GetMatchType(*form) !=
-      password_manager_util::GetLoginMatchType::kExact) {
-    info_icon_ = AddChildView(std::make_unique<views::TooltipIcon>(
-        base::UTF8ToUTF16(form->url.DeprecatedGetOriginAsURL().spec())));
+  // Add info icon with a tooltip providing the source of the PSL, affiliated
+  // and grouped credentials.
+  if (form->match_type.has_value() &&
+      password_manager_util::GetMatchType(*form) !=
+          password_manager_util::GetLoginMatchType::kExact) {
+    auto facet =
+        affiliations::FacetURI::FromPotentiallyInvalidSpec(form->signon_realm);
+    if (facet.IsValidAndroidFacetURI()) {
+      std::u16string app_name = base::UTF8ToUTF16(form->app_display_name);
+      if (app_name.empty()) {
+        app_name = l10n_util::GetStringFUTF16(
+            IDS_SETTINGS_PASSWORDS_ANDROID_APP,
+            base::UTF8ToUTF16(facet.android_package_name()));
+      }
+      info_icon_ = AddChildView(std::make_unique<views::TooltipIcon>(app_name));
+    } else {
+      info_icon_ = AddChildView(std::make_unique<views::TooltipIcon>(
+          base::UTF8ToUTF16(form->url.DeprecatedGetOriginAsURL().spec())));
+    }
   }
 
-  if (!upper_text.empty() && !lower_text.empty())
-    SetAccessibleName(upper_text + u"\n" + lower_text);
-  else
-    SetAccessibleName(upper_text + lower_text);
+  if (!upper_text.empty() && !lower_text.empty()) {
+    GetViewAccessibility().SetName(upper_text + u"\n" + lower_text);
+  } else {
+    GetViewAccessibility().SetName(upper_text + lower_text);
+  }
 
   SetFocusBehavior(FocusBehavior::ALWAYS);
+  SetInstallFocusRingOnFocus(true);
+  // With Focus Ring on Focus there is a line around the button.
+  // We want to remove this line so setting the thickness as 0.
+  views::FocusRing::Get(this)->SetHaloThickness(0.0f);
 }
 
 CredentialsItemView::~CredentialsItemView() = default;
 
-void CredentialsItemView::SetStoreIndicatorIcon(
-    password_manager::PasswordForm::Store store) {
-  if (store == password_manager::PasswordForm::Store::kAccountStore &&
-      !store_indicator_icon_view_) {
-    store_indicator_icon_view_ =
-        AddChildView(std::make_unique<views::ImageView>());
-    store_indicator_icon_view_->SetCanProcessEventsWithinSubtree(false);
-    store_indicator_icon_view_->SetImage(ui::ImageModel::FromVectorIcon(
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-        vector_icons::kGoogleGLogoIcon,
-#else
-        vector_icons::kSyncIcon,
-#endif  // !BUILDFLAG(GOOGLE_CHROME_BRANDING)
-        gfx::kPlaceholderColor));
-  } else if (store == password_manager::PasswordForm::Store::kProfileStore &&
-             store_indicator_icon_view_) {
-    RemoveChildView(store_indicator_icon_view_);
-    store_indicator_icon_view_ = nullptr;
-  }
-}
-
 void CredentialsItemView::UpdateAvatar(const gfx::ImageSkia& image) {
-  image_view_->SetImage(ScaleImageForAccountAvatar(image));
+  image_view_->SetImage(
+      ui::ImageModel::FromImageSkia(ScaleImageForAccountAvatar(image)));
 }
 
 int CredentialsItemView::GetPreferredHeight() const {
@@ -176,11 +180,12 @@ int CredentialsItemView::GetPreferredHeight() const {
 }
 
 void CredentialsItemView::OnPaintBackground(gfx::Canvas* canvas) {
-  if (GetState() == STATE_PRESSED || GetState() == STATE_HOVERED) {
+  if (GetState() == STATE_PRESSED || GetState() == STATE_HOVERED ||
+      HasFocus()) {
     canvas->DrawColor(
         GetColorProvider()->GetColor(ui::kColorMenuItemBackgroundSelected));
   }
 }
 
-BEGIN_METADATA(CredentialsItemView, views::Button)
+BEGIN_METADATA(CredentialsItemView)
 END_METADATA

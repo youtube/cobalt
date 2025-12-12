@@ -6,70 +6,56 @@
 
 #include <tuple>
 
+#include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
+#include "base/types/pass_key.h"
 #include "cc/test/layer_tree_test.h"
 #include "cc/trees/layer_tree_host.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/public/platform/scheduler/test/renderer_scheduler_test_support.h"
+#include "third_party/blink/renderer/platform/widget/compositing/test/stub_widget_base_client.h"
 #include "third_party/blink/renderer/platform/widget/widget_base.h"
 #include "third_party/blink/renderer/platform/widget/widget_base_client.h"
+#include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
 
 namespace blink {
 
-class StubWidgetBaseClient : public WidgetBaseClient {
- public:
-  void OnCommitRequested() override {}
-  void BeginMainFrame(base::TimeTicks) override {}
-  void UpdateLifecycle(WebLifecycleUpdate, DocumentUpdateReason) override {}
-  std::unique_ptr<cc::LayerTreeFrameSink> AllocateNewLayerTreeFrameSink()
-      override {
-    return nullptr;
-  }
-  KURL GetURLForDebugTrace() override { return {}; }
-  WebInputEventResult DispatchBufferedTouchEvents() override {
-    return WebInputEventResult::kNotHandled;
-  }
-  WebInputEventResult HandleInputEvent(const WebCoalescedInputEvent&) override {
-    return WebInputEventResult::kNotHandled;
-  }
-  bool SupportsBufferedTouchEvents() override { return false; }
-  void WillHandleGestureEvent(const WebGestureEvent&, bool* suppress) override {
-  }
-  void WillHandleMouseEvent(const WebMouseEvent&) override {}
-  void ObserveGestureEventAndResult(const WebGestureEvent&,
-                                    const gfx::Vector2dF&,
-                                    const cc::OverscrollBehavior&,
-                                    bool) override {}
-  void FocusChanged(mojom::blink::FocusState) override {}
-  void UpdateVisualProperties(
-      const VisualProperties& visual_properties) override {}
-  const display::ScreenInfos& GetOriginalScreenInfos() override {
-    return screen_infos_;
-  }
-  gfx::Rect ViewportVisibleRect() override { return gfx::Rect(); }
-
- private:
-  display::ScreenInfos screen_infos_;
-};
-
 class FakeWidgetCompositor : public WidgetCompositor {
  public:
-  FakeWidgetCompositor(
+  static scoped_refptr<FakeWidgetCompositor> Create(
       cc::LayerTreeHost* layer_tree_host,
       base::WeakPtr<WidgetBase> widget_base,
       scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
       scoped_refptr<base::SingleThreadTaskRunner> compositor_task_runner,
-      mojo::PendingReceiver<mojom::blink::WidgetCompositor> receiver)
-      : WidgetCompositor(widget_base,
+      mojo::PendingReceiver<mojom::blink::WidgetCompositor> receiver) {
+    auto compositor = base::MakeRefCounted<FakeWidgetCompositor>(
+        WidgetCompositorPassKeyProvider::GetPassKey(), layer_tree_host,
+        std::move(widget_base), std::move(main_task_runner),
+        std::move(compositor_task_runner));
+    compositor->BindOnThread(std::move(receiver));
+    return compositor;
+  }
+
+  FakeWidgetCompositor(
+      base::PassKey<WidgetCompositorPassKeyProvider> pass_key,
+      cc::LayerTreeHost* layer_tree_host,
+      base::WeakPtr<WidgetBase> widget_base,
+      scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
+      scoped_refptr<base::SingleThreadTaskRunner> compositor_task_runner)
+      : WidgetCompositor(std::move(pass_key),
+                         widget_base,
                          std::move(main_task_runner),
-                         std::move(compositor_task_runner),
-                         std::move(receiver)),
+                         std::move(compositor_task_runner)),
         layer_tree_host_(layer_tree_host) {}
 
   cc::LayerTreeHost* LayerTreeHost() const override { return layer_tree_host_; }
 
-  cc::LayerTreeHost* layer_tree_host_;
+  raw_ptr<cc::LayerTreeHost> layer_tree_host_;
+
+ private:
+  friend class ThreadSafeRefCounted<FakeWidgetCompositor>;
+  ~FakeWidgetCompositor() override = default;
 };
 
 class WidgetCompositorTest : public cc::LayerTreeTest {
@@ -93,7 +79,7 @@ class WidgetCompositorTest : public cc::LayerTreeTest {
         /*is_for_child_local_root=*/false,
         /*is_for_scalable_page=*/true);
 
-    widget_compositor_ = base::MakeRefCounted<FakeWidgetCompositor>(
+    widget_compositor_ = FakeWidgetCompositor::Create(
         layer_tree_host(), widget_base_->GetWeakPtr(),
         layer_tree_host()->GetTaskRunnerProvider()->MainThreadTaskRunner(),
         layer_tree_host()->GetTaskRunnerProvider()->ImplThreadTaskRunner(),

@@ -48,14 +48,14 @@ class RootWindowController : public aura::client::WindowParentingClient,
     virtual ~DesktopDelegate() = default;
 
     // Called when the root window requests to be closed. This should eventually
-    // destroy |root_window_controller|.
+    // destroy `root_window_controller`.
     virtual void CloseRootWindowController(
         RootWindowController* root_window_controller) = 0;
   };
 
   // RootWindowController initializes and displays a WindowTreeHost within
-  // |bounds| (in physical pixels).
-  // |desktop_delegate| must outlive the RootWindowController.
+  // `bounds` (in physical pixels).
+  // `desktop_delegate` must outlive the RootWindowController.
   RootWindowController(DesktopDelegate* desktop_delegate,
                        const gfx::Rect& bounds,
                        content::BrowserContext* browser_context);
@@ -83,7 +83,8 @@ class RootWindowController : public aura::client::WindowParentingClient,
 
   // aura::client::WindowParentingClient:
   aura::Window* GetDefaultParent(aura::Window* window,
-                                 const gfx::Rect& bounds) override;
+                                 const gfx::Rect& bounds,
+                                 const int64_t display_id) override;
 
   // aura::WindowTreeHostObserver:
   void OnHostCloseRequested(aura::WindowTreeHost* host) override;
@@ -105,9 +106,9 @@ class RootWindowController : public aura::client::WindowParentingClient,
   std::unique_ptr<aura::WindowTreeHost> host_;
 
   // List of AppWindows we've created. Used to close any remaining app windows
-  // when |host_| is closed or |this| is destroyed.
+  // when `host_` is closed or `this` is destroyed.
   // Note: Pointers are unowned. NativeAppWindow::Close() will delete them.
-  std::list<AppWindow*> app_windows_;
+  std::list<raw_ptr<AppWindow, CtnExperimental>> app_windows_;
 };
 
 }  // namespace extensions

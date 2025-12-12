@@ -4,12 +4,12 @@
 
 #include "chrome/browser/ash/crostini/crostini_disk.h"
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "chrome/browser/ash/crostini/crostini_features.h"
@@ -86,7 +86,7 @@ void GetDiskInfo(OnceDiskInfoCallback callback,
 void OnAmountOfFreeDiskSpace(OnceDiskInfoCallback callback,
                              Profile* profile,
                              std::string vm_name,
-                             absl::optional<int64_t> free_space) {
+                             std::optional<int64_t> free_space) {
   if (!free_space.has_value() || free_space.value() <= 0) {
     LOG(ERROR) << "Failed to get amount of free disk space";
     std::move(callback).Run(nullptr);
@@ -126,7 +126,7 @@ void OnListVmDisks(
     OnceDiskInfoCallback callback,
     std::string vm_name,
     int64_t free_space,
-    absl::optional<vm_tools::concierge::ListVmDisksResponse> response) {
+    std::optional<vm_tools::concierge::ListVmDisksResponse> response) {
   if (!response) {
     LOG(ERROR) << "Failed to get response from concierge";
     std::move(callback).Run(nullptr);
@@ -139,8 +139,8 @@ void OnListVmDisks(
     return;
   }
   auto disk_info = std::make_unique<CrostiniDiskInfo>();
-  auto image = base::ranges::find(response->images(), vm_name,
-                                  &vm_tools::concierge::VmDiskInfo::name);
+  auto image = std::ranges::find(response->images(), vm_name,
+                                 &vm_tools::concierge::VmDiskInfo::name);
   if (image == response->images().end()) {
     // No match found for the VM:
     LOG(ERROR) << "No VM found with name " << vm_name;
@@ -192,11 +192,8 @@ void OnListVmDisks(
   std::move(callback).Run(std::move(disk_info));
 }
 
-std::vector<crostini::mojom::DiskSliderTickPtr> GetTicks(
-    int64_t min,
-    int64_t current,
-    int64_t max,
-    int* out_default_index) {
+std::vector<crostini::mojom::DiskSliderTickPtr>
+GetTicks(int64_t min, int64_t current, int64_t max, int* out_default_index) {
   if (current < min) {
     // btrfs is conservative, sometimes it won't let us resize to what the user
     // currently has. In those cases act like the current size is the same as
@@ -295,7 +292,7 @@ void OnVMRunning(base::OnceCallback<void(bool)> callback,
 
 void OnResize(
     base::OnceCallback<void(bool)> callback,
-    absl::optional<vm_tools::concierge::ResizeDiskImageResponse> response) {
+    std::optional<vm_tools::concierge::ResizeDiskImageResponse> response) {
   if (!response) {
     LOG(ERROR) << "Got null response from concierge";
     EmitResizeResultMetric(DiskImageStatus::DISK_STATUS_UNKNOWN);

@@ -3,24 +3,28 @@
 // found in the LICENSE file.
 
 #include "base/path_service.h"
+#include "base/strings/stringprintf.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
+#include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "chrome/browser/sync/test/integration/fake_server_match_status_checker.h"
+#include "chrome/browser/sync/test/integration/history_helper.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
-#include "chrome/browser/sync/test/integration/typed_urls_helper.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/chrome_test_utils.h"
+#include "components/history/core/browser/history_service.h"
+#include "components/history/core/browser/history_service_observer.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service_impl.h"
 #include "components/sync/protocol/history_specifics.pb.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -32,127 +36,41 @@
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/metrics/desktop_session_duration/desktop_session_duration_tracker.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #endif
 
-namespace sync_pb {
-
-// Makes the GMock matchers print out a readable version of the protobuf.
-void PrintTo(const HistorySpecifics& history, std::ostream* os) {
-  *os << "[ Visit time: " << history.visit_time_windows_epoch_micros()
-      << ", Originator: " << history.originator_cache_guid()
-      << ", Redirects: ( ";
-  for (int i = 0; i < history.redirect_entries_size(); i++) {
-    *os << history.redirect_entries(i).url() << " ";
-  }
-  *os << "), Transition: " << history.page_transition().core_transition()
-      << ", Referring visit: " << history.originator_referring_visit_id()
-      << ", Duration: " << history.visit_duration_micros() << " ]";
-}
-
-}  // namespace sync_pb
-
-namespace history {
-
-// Makes the GMock matchers print out a readable version of a VisitRow.
-void PrintTo(const VisitRow& row, std::ostream* os) {
-  *os << "[ VisitID: " << row.visit_id << ", Duration: " << row.visit_duration
-      << " ]";
-}
-
-}  // namespace history
-
-namespace {
-
+using history_helper::CoreTransitionIs;
+using history_helper::HasHttpResponseCode;
+using history_helper::HasOpenerVisit;
+using history_helper::HasReferrerURL;
+using history_helper::HasReferringVisit;
+using history_helper::HasVisitDuration;
+using history_helper::IsChainEnd;
+using history_helper::IsChainStart;
+using history_helper::ReferrerURLIs;
+using history_helper::StandardFieldsArePopulated;
+using history_helper::UrlIs;
+using history_helper::UrlsAre;
+using history_helper::VisitRowDurationIs;
+using history_helper::VisitRowIdIs;
+using ::testing::_;
 using testing::AllOf;
 using testing::Not;
 using testing::UnorderedElementsAre;
 
-const char kRedirectFromPath[] = "/redirect.html";
-const char kRedirectToPath[] = "/sync/simple.html";
+namespace {
 
-// Matchers for sync_pb::HistorySpecifics.
+constexpr char kRedirectFromPath[] = "/redirect.html";
+constexpr char kRedirectToPath[] = "/sync/simple.html";
 
-MATCHER_P(UrlIs, url, "") {
-  if (arg.redirect_entries_size() != 1) {
-    return false;
-  }
-  return arg.redirect_entries(0).url() == url;
-}
-
-MATCHER_P2(UrlsAre, url1, url2, "") {
-  if (arg.redirect_entries_size() != 2) {
-    return false;
-  }
-  return arg.redirect_entries(0).url() == url1 &&
-         arg.redirect_entries(1).url() == url2;
-}
-
-MATCHER_P(CoreTransitionIs, transition, "") {
-  return arg.page_transition().core_transition() == transition;
-}
-
-MATCHER(IsChainStart, "") {
-  return !arg.redirect_chain_start_incomplete();
-}
-
-MATCHER(IsChainEnd, "") {
-  return !arg.redirect_chain_end_incomplete();
-}
-
-MATCHER(HasReferringVisit, "") {
-  return arg.originator_referring_visit_id() != 0;
-}
-
-MATCHER(HasOpenerVisit, "") {
-  return arg.originator_opener_visit_id() != 0;
-}
-
-MATCHER(HasReferrerURL, "") {
-  return !arg.referrer_url().empty();
-}
-
-MATCHER_P(ReferrerURLIs, referrer_url, "") {
-  return arg.referrer_url() == referrer_url;
-}
-
-MATCHER(HasVisitDuration, "") {
-  return arg.visit_duration_micros() > 0;
-}
-
-MATCHER(HasHttpResponseCode, "") {
-  return arg.http_response_code() > 0;
-}
-
-// Matchers for history::VisitRow.
-
-MATCHER_P(VisitRowIdIs, visit_id, "") {
-  return arg.visit_id == visit_id;
-}
-
-MATCHER_P(VisitRowDurationIs, duration, "") {
-  return arg.visit_duration == duration;
-}
-
-MATCHER(StandardFieldsArePopulated, "") {
-  // Checks all fields that should never be empty/unset/default. Some fields can
-  // be legitimately empty, or are set after an entity is first created.
-  // May be legitimately empty:
-  //   redirect_entries.title (may simply be empty)
-  //   redirect_entries.redirect_type (empty if it's not a redirect)
-  //   originator_referring_visit_id, originator_opener_visit_id (may not exist)
-  //   root_task_id, parent_task_id (not always set)
-  //   http_response_code (unset for replaced navigations)
-  // Populated later:
-  //   visit_duration_micros, page_language, password_state
-  return arg.visit_time_windows_epoch_micros() > 0 &&
-         !arg.originator_cache_guid().empty() &&
-         arg.redirect_entries_size() > 0 &&
-         arg.redirect_entries(0).originator_visit_id() > 0 &&
-         !arg.redirect_entries(0).url().empty() && arg.has_browser_type() &&
-         arg.window_id() > 0 && arg.tab_id() > 0 && arg.task_id() > 0;
-}
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
+constexpr char kMetricNameWithHistorySync[] =
+    "Session.TotalDurationMax1Day.WithHistorySync";
+constexpr char kMetricNameWithHistorySyncWithoutAuthError[] =
+    "Session.TotalDurationMax1Day.WithHistorySyncWithoutAuthError";
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS)
 
 GURL GetFileUrl(const char* file) {
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -205,121 +123,34 @@ std::unique_ptr<syncer::LoopbackServerEntity> CreateFakeServerEntity(
       /*last_modified_time=*/0);
 }
 
-std::vector<sync_pb::HistorySpecifics> SyncEntitiesToHistorySpecifics(
-    std::vector<sync_pb::SyncEntity> entities) {
-  std::vector<sync_pb::HistorySpecifics> history;
-  for (sync_pb::SyncEntity& entity : entities) {
-    DCHECK(entity.specifics().has_history());
-    history.push_back(std::move(entity.specifics().history()));
-  }
-  return history;
-}
-
-// A helper class that waits for entries in the local history DB that match the
-// given matchers.
-// Note that this only checks URLs that were passed in - any additional URLs in
-// the DB (and their corresponding visits) are ignored.
-class LocalHistoryMatchChecker : public SingleClientStatusChangeChecker {
+// Used to test if the History Service Observer gets called for both
+// `OnURLVisited()` and `OnURLVisitedWithNavigationId()`.
+class MockHistoryServiceObserver : public history::HistoryServiceObserver {
  public:
-  using Matcher = testing::Matcher<std::vector<history::VisitRow>>;
+  MockHistoryServiceObserver() = default;
 
-  explicit LocalHistoryMatchChecker(syncer::SyncServiceImpl* service,
-                                    const std::map<GURL, Matcher>& matchers);
-  ~LocalHistoryMatchChecker() override;
+  MOCK_METHOD(void,
+              OnURLVisited,
+              (history::HistoryService*,
+               const history::URLRow&,
+               const history::VisitRow&),
+              (override));
 
-  // StatusChangeChecker implementation.
-  bool IsExitConditionSatisfied(std::ostream* os) override;
-
-  // syncer::SyncServiceObserver implementation.
-  void OnSyncCycleCompleted(syncer::SyncService* sync) override;
-
- private:
-  const std::map<GURL, Matcher> matchers_;
+  MOCK_METHOD(void,
+              OnURLVisitedWithNavigationId,
+              (history::HistoryService*,
+               const history::URLRow&,
+               const history::VisitRow&,
+               std::optional<int64_t>),
+              (override));
 };
-
-LocalHistoryMatchChecker::LocalHistoryMatchChecker(
-    syncer::SyncServiceImpl* service,
-    const std::map<GURL, Matcher>& matchers)
-    : SingleClientStatusChangeChecker(service), matchers_(matchers) {}
-
-LocalHistoryMatchChecker::~LocalHistoryMatchChecker() = default;
-
-bool LocalHistoryMatchChecker::IsExitConditionSatisfied(std::ostream* os) {
-  for (const auto& [url, matcher] : matchers_) {
-    history::VisitVector visits =
-        typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url);
-    testing::StringMatchResultListener result_listener;
-    const bool matches =
-        testing::ExplainMatchResult(matcher, visits, &result_listener);
-    *os << result_listener.str();
-    if (!matches) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void LocalHistoryMatchChecker::OnSyncCycleCompleted(syncer::SyncService* sync) {
-  CheckExitCondition();
-}
-
-// A helper class that waits for the HISTORY entities on the FakeServer to match
-// a given GMock matcher.
-class ServerHistoryMatchChecker
-    : public fake_server::FakeServerMatchStatusChecker {
- public:
-  using Matcher = testing::Matcher<std::vector<sync_pb::HistorySpecifics>>;
-
-  explicit ServerHistoryMatchChecker(const Matcher& matcher);
-  ~ServerHistoryMatchChecker() override;
-  ServerHistoryMatchChecker(const ServerHistoryMatchChecker&) = delete;
-  ServerHistoryMatchChecker& operator=(const ServerHistoryMatchChecker&) =
-      delete;
-
-  // FakeServer::Observer overrides.
-  void OnCommit(const std::string& committer_invalidator_client_id,
-                syncer::ModelTypeSet committed_model_types) override;
-
-  // StatusChangeChecker overrides.
-  bool IsExitConditionSatisfied(std::ostream* os) override;
-
- private:
-  const Matcher matcher_;
-};
-
-ServerHistoryMatchChecker::ServerHistoryMatchChecker(const Matcher& matcher)
-    : matcher_(matcher) {}
-
-ServerHistoryMatchChecker::~ServerHistoryMatchChecker() = default;
-
-void ServerHistoryMatchChecker::OnCommit(
-    const std::string& committer_invalidator_client_id,
-    syncer::ModelTypeSet committed_model_types) {
-  if (committed_model_types.Has(syncer::HISTORY)) {
-    CheckExitCondition();
-  }
-}
-
-bool ServerHistoryMatchChecker::IsExitConditionSatisfied(std::ostream* os) {
-  std::vector<sync_pb::HistorySpecifics> entities =
-      SyncEntitiesToHistorySpecifics(
-          fake_server()->GetSyncEntitiesByModelType(syncer::HISTORY));
-
-  testing::StringMatchResultListener result_listener;
-  const bool matches =
-      testing::ExplainMatchResult(matcher_, entities, &result_listener);
-  *os << result_listener.str();
-  return matches;
-}
 
 class SingleClientHistorySyncTest : public SyncTest {
  public:
   SingleClientHistorySyncTest() : SyncTest(SINGLE_CLIENT) {
-    features_.InitWithFeatures(
-        {syncer::kSyncEnableHistoryDataType},
-        // TODO(crbug.com/1394910): Use HTTPS URLs in tests to avoid having to
-        // disable this feature.
-        /*disabled_features=*/{features::kHttpsUpgrades});
+    // TODO(crbug.com/40248833): Use HTTPS URLs in tests to avoid having to
+    // disable this feature.
+    features_.InitAndDisableFeature(features::kHttpsUpgrades);
   }
   ~SingleClientHistorySyncTest() override = default;
 
@@ -387,13 +218,15 @@ class SingleClientHistorySyncTest : public SyncTest {
 
   bool WaitForServerHistory(
       testing::Matcher<std::vector<sync_pb::HistorySpecifics>> matcher) {
-    return ServerHistoryMatchChecker(matcher).Wait();
+    return history_helper::ServerHistoryMatchChecker(matcher).Wait();
   }
 
   bool WaitForLocalHistory(
       const std::map<GURL, testing::Matcher<std::vector<history::VisitRow>>>&
           matchers) {
-    return LocalHistoryMatchChecker(GetSyncService(0), matchers).Wait();
+    return history_helper::LocalHistoryMatchChecker(/*profile_index=*/0,
+                                                    GetSyncService(0), matchers)
+        .Wait();
   }
 
   content::WebContents* GetActiveWebContents() {
@@ -469,8 +302,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
   WaitForServerHistory(UnorderedElementsAre(UrlIs(synced_url)));
 }
 
-// TODO(crbug.com/1373448): EnterSyncPausedStateForPrimaryAccount is currently
-// not supported on Android. Enable this test once it is.
+// TODO(crbug.com/40871747): EnterSyncPausedStateForPrimaryAccount is currently
+// not supported on Android. Enable these tests once it is.
 #if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, DoesNotUploadWhilePaused) {
   ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
@@ -514,6 +347,64 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, DoesNotUploadWhilePaused) {
       UnorderedElementsAre(UrlIs(synced_url1.spec()), UrlIs(synced_url2.spec()),
                            UrlIs(synced_url3.spec()))));
 }
+
+// Session total duration is not instrumented on ChromeOS.
+#if !BUILDFLAG(IS_CHROMEOS)
+IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
+                       PRE_ReportsSessionTotalDurationWhilePaused) {
+  {
+    ASSERT_TRUE(SetupSync());
+
+    base::HistogramTester histograms;
+    metrics::DesktopSessionDurationTracker::Get()->EndSessionForTesting();
+
+    histograms.ExpectTotalCount(kMetricNameWithHistorySync, 1);
+    histograms.ExpectTotalCount(kMetricNameWithHistorySyncWithoutAuthError, 1);
+  }
+
+  GetClient(0)->EnterSyncPausedStateForPrimaryAccount();
+  ASSERT_EQ(GetSyncService(0)->GetTransportState(),
+            syncer::SyncService::TransportState::PAUSED);
+  ASSERT_TRUE(GetSyncService(0)->HasCachedPersistentAuthErrorForMetrics());
+
+  base::HistogramTester histograms;
+  metrics::DesktopSessionDurationTracker::Get()->EndSessionForTesting();
+
+  histograms.ExpectTotalCount(kMetricNameWithHistorySync, 1);
+  histograms.ExpectTotalCount(kMetricNameWithHistorySyncWithoutAuthError, 0);
+}
+
+IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
+                       ReportsSessionTotalDurationWhilePaused) {
+  // Invoke the base class directly as this test doesn't need a tab, and it
+  // allows verifying that the very initial transport state is *not* PAUSED.
+  ASSERT_TRUE(SyncTest::SetupClients());
+
+  ASSERT_NE(GetSyncService(0)->GetTransportState(),
+            syncer::SyncService::TransportState::PAUSED);
+  ASSERT_TRUE(GetSyncService(0)->HasCachedPersistentAuthErrorForMetrics());
+
+  {
+    base::HistogramTester histograms;
+    metrics::DesktopSessionDurationTracker::Get()->EndSessionForTesting();
+
+    histograms.ExpectTotalCount(kMetricNameWithHistorySync, 1);
+    histograms.ExpectTotalCount(kMetricNameWithHistorySyncWithoutAuthError, 0);
+  }
+
+  GetClient(0)->ExitSyncPausedStateForPrimaryAccount();
+  ASSERT_EQ(GetSyncService(0)->GetTransportState(),
+            syncer::SyncService::TransportState::ACTIVE);
+
+  {
+    base::HistogramTester histograms;
+    metrics::DesktopSessionDurationTracker::Get()->EndSessionForTesting();
+
+    histograms.ExpectTotalCount(kMetricNameWithHistorySync, 1);
+    histograms.ExpectTotalCount(kMetricNameWithHistorySyncWithoutAuthError, 1);
+  }
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, UploadsAllFields) {
@@ -560,7 +451,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
   // Now also verify that the local visit is marked as known to sync.
   history::VisitVector visits =
-      typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url1);
+      history_helper::GetVisitsForURLFromClient(/*index=*/0, url1);
   ASSERT_EQ(visits.size(), 1U);
   EXPECT_TRUE(visits[0].is_known_to_sync);
 }
@@ -660,6 +551,21 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
             IsChainEnd(), HasOpenerVisit()))));
 }
 
+IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, UploadsExternalReferrer) {
+  ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
+
+  // Navigate to some URL, and specify a referrer that is not actually in the
+  // history DB.
+  GURL referrer("https://www.referrer.com/");
+  GURL url =
+      embedded_test_server()->GetURL("www.host.com", "/sync/simple.html");
+  NavigateToURL(url, ui::PAGE_TRANSITION_LINK, referrer);
+
+  EXPECT_TRUE(WaitForServerHistory(UnorderedElementsAre(
+      AllOf(StandardFieldsArePopulated(), UrlIs(url.spec()),
+            Not(HasReferringVisit()), ReferrerURLIs(referrer.spec())))));
+}
+
 IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, DownloadsAndMerges) {
   ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
 
@@ -669,8 +575,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, DownloadsAndMerges) {
   const GURL url_remote("https://www.url-remote.com");
   const GURL url_both("https://www.url-both.com");
 
-  typed_urls_helper::AddUrlToHistory(/*index=*/0, url_local);
-  typed_urls_helper::AddUrlToHistory(/*index=*/0, url_both);
+  history_helper::AddUrlToHistory(/*index=*/0, url_local);
+  history_helper::AddUrlToHistory(/*index=*/0, url_both);
 
   GetFakeServer()->InjectEntity(CreateFakeServerEntity(CreateSpecifics(
       base::Time::Now() - base::Minutes(5), "other_cache_guid", url_remote)));
@@ -685,18 +591,68 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, DownloadsAndMerges) {
   // "both" one should have two.
   history::URLRow row_local;
   EXPECT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_local, &row_local));
+      history_helper::GetUrlFromClient(/*index=*/0, url_local, &row_local));
   EXPECT_EQ(row_local.visit_count(), 1);
 
   history::URLRow row_remote;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(/*index=*/0, url_remote,
-                                                  &row_remote));
+  EXPECT_TRUE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote, &row_remote));
   EXPECT_EQ(row_remote.visit_count(), 1);
 
   history::URLRow row_both;
   EXPECT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_both, &row_both));
+      history_helper::GetUrlFromClient(/*index=*/0, url_both, &row_both));
   EXPECT_EQ(row_both.visit_count(), 2);
+}
+
+IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
+                       ObserversCallBothOnURLVisitedForSyncedVisits) {
+  ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
+
+  history::HistoryService* history_service =
+      HistoryServiceFactory::GetForProfile(GetProfile(0),
+                                           ServiceAccessType::EXPLICIT_ACCESS);
+
+  MockHistoryServiceObserver mock_observer;
+  history_service->AddObserver(&mock_observer);
+
+  const GURL url_remote("https://www.url-remote.com");
+  GetFakeServer()->InjectEntity(CreateFakeServerEntity(CreateSpecifics(
+      base::Time::Now() - base::Minutes(5), "other_cache_guid", url_remote)));
+
+  // The History Service Observer should be called for the synced visit.
+  history::VisitRow visit_row;
+  history::VisitRow visit_row2;
+  EXPECT_CALL(mock_observer, OnURLVisited(history_service, _, _))
+      .WillOnce(testing::SaveArg<2>(&visit_row));
+  EXPECT_CALL(mock_observer,
+              OnURLVisitedWithNavigationId(history_service, _, _,
+                                           testing::Eq(std::nullopt)))
+      .WillOnce(testing::SaveArg<2>(&visit_row2));
+
+  // Turn on Sync - this should cause the remote URL to get downloaded.
+  ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
+
+  // The remote URL should have one visit marked as known to Sync.
+  history::URLRow row_remote;
+  EXPECT_TRUE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote, &row_remote));
+  EXPECT_EQ(row_remote.visit_count(), 1);
+
+  history::VisitVector visits =
+      history_helper::GetVisitsFromClient(/*index=*/0, row_remote.id());
+  ASSERT_EQ(visits.size(), 1U);
+  EXPECT_TRUE(visits[0].is_known_to_sync);
+
+  // Both observer calls should have received the same fields as the synced
+  // visit.
+  EXPECT_EQ(visit_row.url_id, visits[0].url_id);
+  EXPECT_EQ(visit_row.originator_cache_guid, visits[0].originator_cache_guid);
+
+  EXPECT_EQ(visit_row2.url_id, visits[0].url_id);
+  EXPECT_EQ(visit_row2.originator_cache_guid, visits[0].originator_cache_guid);
+
+  history_service->RemoveObserver(&mock_observer);
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
@@ -713,12 +669,12 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
   // The "remote" URLs should have one visit marked as known to Sync.
   history::URLRow row_remote;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(/*index=*/0, url_remote,
-                                                  &row_remote));
+  EXPECT_TRUE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote, &row_remote));
   EXPECT_EQ(row_remote.visit_count(), 1);
 
   history::VisitVector visits =
-      typed_urls_helper::GetVisitsFromClient(/*index=*/0, row_remote.id());
+      history_helper::GetVisitsFromClient(/*index=*/0, row_remote.id());
   ASSERT_EQ(visits.size(), 1U);
   EXPECT_TRUE(visits[0].is_known_to_sync);
 }
@@ -737,24 +693,24 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
   // Make sure the chain arrived intact.
   history::URLRow url_row;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(/*index=*/0, url3, &url_row));
+  EXPECT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url3, &url_row));
   history::VisitVector visits =
-      typed_urls_helper::GetVisitsFromClient(/*index=*/0, url_row.id());
+      history_helper::GetVisitsFromClient(/*index=*/0, url_row.id());
   ASSERT_EQ(visits.size(), 1u);
   history::VisitVector redirect_chain =
-      typed_urls_helper::GetRedirectChainFromClient(/*index=*/0, visits[0]);
+      history_helper::GetRedirectChainFromClient(/*index=*/0, visits[0]);
   ASSERT_EQ(redirect_chain.size(), 3u);
 
   history::URLRow url_row1;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(
+  EXPECT_TRUE(history_helper::GetUrlFromClient(
       /*index=*/0, redirect_chain[0].url_id, &url_row1));
   EXPECT_EQ(url_row1.url(), url1);
   history::URLRow url_row2;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(
+  EXPECT_TRUE(history_helper::GetUrlFromClient(
       /*index=*/0, redirect_chain[1].url_id, &url_row2));
   EXPECT_EQ(url_row2.url(), url2);
   history::URLRow url_row3;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(
+  EXPECT_TRUE(history_helper::GetUrlFromClient(
       /*index=*/0, redirect_chain[2].url_id, &url_row3));
   EXPECT_EQ(url_row3.url(), url3);
 }
@@ -785,20 +741,20 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
   // Make sure the chain arrived intact (i.e. was stitched back together).
   history::URLRow url_row;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(/*index=*/0, url2, &url_row));
+  EXPECT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url2, &url_row));
   history::VisitVector visits =
-      typed_urls_helper::GetVisitsFromClient(/*index=*/0, url_row.id());
+      history_helper::GetVisitsFromClient(/*index=*/0, url_row.id());
   ASSERT_EQ(visits.size(), 1u);
   history::VisitVector redirect_chain =
-      typed_urls_helper::GetRedirectChainFromClient(/*index=*/0, visits[0]);
+      history_helper::GetRedirectChainFromClient(/*index=*/0, visits[0]);
   ASSERT_EQ(redirect_chain.size(), 2u);
 
   history::URLRow url_row1;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(
+  EXPECT_TRUE(history_helper::GetUrlFromClient(
       /*index=*/0, redirect_chain[0].url_id, &url_row1));
   EXPECT_EQ(url_row1.url(), url1);
   history::URLRow url_row2;
-  EXPECT_TRUE(typed_urls_helper::GetUrlFromClient(
+  EXPECT_TRUE(history_helper::GetUrlFromClient(
       /*index=*/0, redirect_chain[1].url_id, &url_row2));
   EXPECT_EQ(url_row2.url(), url2);
 }
@@ -814,6 +770,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
       base::Time::Now() - base::Minutes(4), "other_cache_guid", url2, 102);
   // The second visit has the first one as a referrer.
   specifics2.set_originator_referring_visit_id(101);
+  specifics2.set_referrer_url(url1.spec());
 
   GetFakeServer()->InjectEntity(CreateFakeServerEntity(specifics1));
   GetFakeServer()->InjectEntity(CreateFakeServerEntity(specifics2));
@@ -826,16 +783,19 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
   history::VisitID visit_id2 = history::kInvalidVisitID;
   {
     history::VisitVector visits1 =
-        typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url1);
+        history_helper::GetVisitsForURLFromClient(/*index=*/0, url1);
     ASSERT_EQ(visits1.size(), 1u);
     visit_id1 = visits1[0].visit_id;
 
     history::VisitVector visits2 =
-        typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url2);
+        history_helper::GetVisitsForURLFromClient(/*index=*/0, url2);
     ASSERT_EQ(visits2.size(), 1u);
     visit_id2 = visits2[0].visit_id;
 
     EXPECT_EQ(visits2[0].referring_visit, visits1[0].visit_id);
+    // Since there is an actual referrer visit, the external referrer URL should
+    // be empty.
+    EXPECT_TRUE(visits2[0].external_referrer_url.is_empty());
   }
 
   // Update the visits on the server.
@@ -862,11 +822,11 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
   // Make sure the updates arrived, and the referrer link was preserved.
   {
     history::VisitVector visits1 =
-        typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url1);
+        history_helper::GetVisitsForURLFromClient(/*index=*/0, url1);
     ASSERT_EQ(visits1.size(), 1u);
 
     history::VisitVector visits2 =
-        typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url2);
+        history_helper::GetVisitsForURLFromClient(/*index=*/0, url2);
     ASSERT_EQ(visits2.size(), 1u);
 
     // The local visit IDs shouldn't have changed.
@@ -879,7 +839,33 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
     // And finally, the referrer link should still exist.
     EXPECT_EQ(visits2[0].referring_visit, visits1[0].visit_id);
+    // Since there is an actual referrer visit, the external referrer URL should
+    // still be empty.
+    EXPECT_TRUE(visits2[0].external_referrer_url.is_empty());
   }
+}
+
+IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest, DownloadsExternalReferrer) {
+  const GURL url("https://www.url.com");
+  const GURL referrer("https://www.referrer.com");
+
+  sync_pb::HistorySpecifics specifics = CreateSpecifics(
+      base::Time::Now() - base::Minutes(5), "other_cache_guid", url, 101);
+  // The foreign visit has a referrer URL, but no referring visit ID.
+  specifics.set_referrer_url(referrer.spec());
+
+  GetFakeServer()->InjectEntity(CreateFakeServerEntity(specifics));
+
+  ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
+
+  // Make sure the visit arrived, and its referrer URL was stored as an
+  // "external" referrer.
+  history::VisitVector visits =
+      history_helper::GetVisitsForURLFromClient(/*index=*/0, url);
+  ASSERT_EQ(visits.size(), 1u);
+  history::VisitRow visit = visits[0];
+  EXPECT_EQ(visit.referring_visit, history::kInvalidVisitID);
+  EXPECT_EQ(visit.external_referrer_url, referrer);
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
@@ -906,50 +892,118 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
   // None of these should have made it into the history DB.
   EXPECT_TRUE(
-      typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url1).empty());
+      history_helper::GetVisitsForURLFromClient(/*index=*/0, url1).empty());
   EXPECT_TRUE(
-      typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url2).empty());
+      history_helper::GetVisitsForURLFromClient(/*index=*/0, url2).empty());
   EXPECT_TRUE(
-      typed_urls_helper::GetVisitsForURLFromClient(/*index=*/0, url3).empty());
+      history_helper::GetVisitsForURLFromClient(/*index=*/0, url3).empty());
 }
 
-// Signing out or turning off Sync isn't possible in ChromeOS-Ash.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
+                       RecordsLatencyForIncrementalUpdates) {
+  const base::Time now = base::Time::Now();
+  // Lots of history exists on the server - enough to require multiple
+  // GetUpdates requests.
+  GetFakeServer()->SetMaxGetUpdatesBatchSize(10);
+  for (int i = 0; i < 30; i++) {
+    const GURL url(base::StringPrintf("https://www.url%i.com", i));
+    GetFakeServer()->InjectEntity(CreateFakeServerEntity(
+        CreateSpecifics(now - base::Seconds(60 + i), "other_cache_guid", url)));
+  }
+
+  base::HistogramTester histograms;
+
+  // Turn on Sync - this causes all of the remote URLs to get downloaded.
+  ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
+
+  // Spot-check that the URLs made it to the client.
+  history::URLRow row0;
+  ASSERT_TRUE(history_helper::GetUrlFromClient(
+      /*index=*/0, GURL("https://www.url0.com"), &row0));
+  ASSERT_EQ(row0.visit_count(), 1);
+
+  history::URLRow row29;
+  ASSERT_TRUE(history_helper::GetUrlFromClient(
+      /*index=*/0, GURL("https://www.url29.com"), &row29));
+  ASSERT_EQ(row29.visit_count(), 1);
+
+  // Since this was all the initial sync (even across multiple GetUpdates
+  // requests), no latency metrics should have been reported.
+  histograms.ExpectTotalCount(
+      "Sync.NonReflectionUpdateFreshnessPossiblySkewed2.HISTORY", 0);
+
+  // Add another URL to the server, simulating that the user is browsing on a
+  // different device.
+  const GURL new_url("https://www.new-url.com");
+  GetFakeServer()->InjectEntity(CreateFakeServerEntity(
+      CreateSpecifics(now - base::Seconds(1), "other_cache_guid", new_url)));
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, invalidations for HISTORY are disabled by default, so
+  // explicitly trigger a GetUpdates.
+  GetSyncService(0)->TriggerRefresh({syncer::HISTORY});
+#endif  // BUILDFLAG(IS_ANDROID)
+  WaitForLocalHistory({{new_url, testing::SizeIs(1)}});
+
+  // The latency of this update should've been recorded.
+  histograms.ExpectTotalCount(
+      "Sync.NonReflectionUpdateFreshnessPossiblySkewed2.HISTORY", 1);
+}
+
+// Signing out or turning off Sync isn't possible on ChromeOS.
+#if !BUILDFLAG(IS_CHROMEOS)
 
 IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
                        ClearsForeignHistoryOnTurningSyncOff) {
   ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
 
-  // Before Sync gets enabled, one URL exists locally, one remotely.
+  // Before Sync gets enabled, one URL exists locally, one remotely, and one
+  // redirect chain consisting of 3 URLs also remotely.
   const GURL url_local("https://www.url-local.com");
-  const GURL url_remote("https://www.url-remote.com");
 
-  typed_urls_helper::AddUrlToHistory(/*index=*/0, url_local);
+  const GURL url_remote("https://www.url-remote.com");
+  const GURL url_remote_chain1("https://www.url-remote1.com");
+  const GURL url_remote_chain2("https://www.url-remote2.com");
+  const GURL url_remote_chain3("https://www.url-remote3.com");
+
+  history_helper::AddUrlToHistory(/*index=*/0, url_local);
 
   GetFakeServer()->InjectEntity(CreateFakeServerEntity(CreateSpecifics(
       base::Time::Now() - base::Minutes(5), "other_cache_guid", url_remote)));
 
-  // Turn on Sync - this will cause the remote URL to get downloaded.
+  GetFakeServer()->InjectEntity(CreateFakeServerEntity(
+      CreateSpecifics(base::Time::Now() - base::Minutes(5), "other_cache_guid",
+                      {url_remote_chain1, url_remote_chain2, url_remote_chain3},
+                      {101, 102, 103})));
+
+  // Turn on Sync - this will cause the remote URLs to get downloaded.
   ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
 
   // Make sure the "local" and "remote" URLs both exist in the DB.
   history::URLRow row;
+  ASSERT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
+  ASSERT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
   ASSERT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote_chain1, &row));
   ASSERT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote_chain2, &row));
+  ASSERT_TRUE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote_chain3, &row));
 
   // Turn Sync off by removing the primary account.
   GetClient(0)->SignOutPrimaryAccount();
   ASSERT_EQ(GetSyncService(0)->GetTransportState(),
             syncer::SyncService::TransportState::DISABLED);
 
-  // This should have triggered the deletion of foreign history (but left
-  // local history alone).
-  EXPECT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
+  // This should have triggered the deletion of foreign history, both the
+  // individual visit and the redirect chain (but left local history alone).
+  EXPECT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
+  EXPECT_FALSE(history_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
   EXPECT_FALSE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote_chain1, &row));
+  EXPECT_FALSE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote_chain2, &row));
+  EXPECT_FALSE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_remote_chain3, &row));
 }
 
 IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
@@ -960,7 +1014,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
   const GURL url_local("https://www.url-local.com");
   const GURL url_remote("https://www.url-remote.com");
 
-  typed_urls_helper::AddUrlToHistory(/*index=*/0, url_local);
+  history_helper::AddUrlToHistory(/*index=*/0, url_local);
 
   GetFakeServer()->InjectEntity(CreateFakeServerEntity(CreateSpecifics(
       base::Time::Now() - base::Minutes(5), "other_cache_guid", url_remote)));
@@ -970,10 +1024,8 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
   // Make sure the "local" and "remote" URLs both exist in the DB.
   history::URLRow row;
-  ASSERT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
-  ASSERT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
+  ASSERT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
+  ASSERT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
 
   // Turn Sync off *in two steps* (similar to what actually happens in practice,
   // see crbug.com/1383912#c5):
@@ -992,13 +1044,64 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
 
   // This should have triggered the deletion of foreign history (but left
   // local history alone).
-  EXPECT_TRUE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
-  EXPECT_FALSE(
-      typed_urls_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
+  EXPECT_TRUE(history_helper::GetUrlFromClient(/*index=*/0, url_local, &row));
+  EXPECT_FALSE(history_helper::GetUrlFromClient(/*index=*/0, url_remote, &row));
 }
 
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+IN_PROC_BROWSER_TEST_F(SingleClientHistorySyncTest,
+                       DoesNotDuplicateEntriesWhenTurningSyncOffAndOnAgain) {
+  ASSERT_TRUE(SetupClients()) << "SetupClients() failed.";
+
+  // One URL exists on the server already.
+  const GURL url_other_client("https://www.other-client.com");
+  GetFakeServer()->InjectEntity(CreateFakeServerEntity(
+      CreateSpecifics(base::Time::Now() - base::Minutes(5), "other_cache_guid",
+                      url_other_client)));
+
+  // Turn on Sync.
+  ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
+
+  // After Sync was enabled, navigate somewhere, and make sure this arrives on
+  // the server.
+  GURL url_this_client =
+      embedded_test_server()->GetURL("this-client.com", "/sync/simple.html");
+  NavigateToURL(url_this_client);
+  ASSERT_TRUE(WaitForServerHistory(UnorderedElementsAre(
+      UrlIs(url_other_client.spec()), UrlIs(url_this_client.spec()))));
+
+  // Turn Sync off by removing the primary account.
+  GetClient(0)->SignOutPrimaryAccount();
+  ASSERT_EQ(GetSyncService(0)->GetTransportState(),
+            syncer::SyncService::TransportState::DISABLED);
+
+  // The visit that happened on this device is still here.
+  history::URLRow row;
+  ASSERT_TRUE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_this_client, &row));
+  ASSERT_EQ(history_helper::GetVisitsFromClient(0, row.id()).size(), 1u);
+  // ..but the remote visit isn't
+  ASSERT_FALSE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_other_client, &row));
+
+  // Turn Sync back on.
+  ASSERT_TRUE(GetClient(0)->SetupSync());
+  ASSERT_TRUE(
+      GetSyncService(0)->GetActiveDataTypes().Has(syncer::DataType::HISTORY));
+
+  // Wait for the remote data to be re-downloaded.
+  ASSERT_TRUE(
+      WaitForLocalHistory({{url_other_client, UnorderedElementsAre(_)}}));
+
+  // Sanity check: The remote URL came back.
+  ASSERT_TRUE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_other_client, &row));
+  // There should still be only a single visit for the synced URL.
+  ASSERT_TRUE(
+      history_helper::GetUrlFromClient(/*index=*/0, url_this_client, &row));
+  EXPECT_EQ(history_helper::GetVisitsFromClient(0, row.id()).size(), 1u);
+}
+
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
 // On Android, switches::kSyncUserForTest isn't supported (the passed-in
 // username gets ignored in SyncSigninDelegateAndroid::SigninFake()), so it's
@@ -1019,7 +1122,8 @@ class SingleClientHistoryNonGmailSyncTest : public SingleClientHistorySyncTest {
   }
 
   void SignInAndSetAccountInfo(bool is_managed) {
-    ASSERT_TRUE(GetClient(0)->SignInPrimaryAccount());
+    ASSERT_TRUE(
+        GetClient(0)->SignInPrimaryAccount(signin::ConsentLevel::kSync));
 
     signin::IdentityManager* identity_manager =
         IdentityManagerFactory::GetForProfile(GetProfile(0));
@@ -1040,7 +1144,7 @@ IN_PROC_BROWSER_TEST_F(SingleClientHistoryNonGmailSyncTest,
   SignInAndSetAccountInfo(/*is_managed=*/true);
   ASSERT_TRUE(SetupSync()) << "SetupSync() failed.";
 
-  ASSERT_FALSE(GetSyncService(0)->GetActiveDataTypes().Empty());
+  ASSERT_FALSE(GetSyncService(0)->GetActiveDataTypes().empty());
   EXPECT_FALSE(GetSyncService(0)->GetActiveDataTypes().Has(syncer::HISTORY));
 }
 

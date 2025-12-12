@@ -15,7 +15,7 @@ class QuicCoalescedPacketPeer;
 
 // QuicCoalescedPacket is used to buffer multiple packets which can be coalesced
 // into the same UDP datagram.
-class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
+class QUICHE_EXPORT QuicCoalescedPacket {
  public:
   QuicCoalescedPacket();
   ~QuicCoalescedPacket();
@@ -26,7 +26,8 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
                            const QuicSocketAddress& self_address,
                            const QuicSocketAddress& peer_address,
                            quiche::QuicheBufferAllocator* allocator,
-                           QuicPacketLength current_max_packet_length);
+                           QuicPacketLength current_max_packet_length,
+                           QuicEcnCodepoint ecn_codepoint, uint32_t flow_label);
 
   // Clears this coalesced packet.
   void Clear();
@@ -66,6 +67,10 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
 
   std::vector<size_t> packet_lengths() const;
 
+  QuicEcnCodepoint ecn_codepoint() const { return ecn_codepoint_; }
+
+  uint32_t flow_label() const { return flow_label_; }
+
  private:
   friend class test::QuicCoalescedPacketPeer;
 
@@ -89,6 +94,12 @@ class QUIC_EXPORT_PRIVATE QuicCoalescedPacket {
   // frames are copied to allow it be re-serialized when this coalesced packet
   // gets sent.
   std::unique_ptr<SerializedPacket> initial_packet_;
+
+  // A coalesced packet shares an ECN codepoint.
+  QuicEcnCodepoint ecn_codepoint_;
+
+  // A coalesced packet shares an single flow label.
+  uint32_t flow_label_;
 };
 
 }  // namespace quic

@@ -5,13 +5,14 @@
 #ifndef UI_VIEWS_EXAMPLES_COMBOBOX_EXAMPLE_H_
 #define UI_VIEWS_EXAMPLES_COMBOBOX_EXAMPLE_H_
 
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/base/models/combobox_model.h"
 #include "ui/views/examples/example_base.h"
 
 namespace views {
 
 class Combobox;
+class EditableCombobox;
 
 namespace examples {
 
@@ -27,10 +28,10 @@ class VIEWS_EXAMPLES_EXPORT ComboboxExample : public ExampleBase {
 
  private:
   void ValueChanged();
+  void EditableValueChanged();
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #addr-of
-  RAW_PTR_EXCLUSION Combobox* combobox_ = nullptr;
+  raw_ptr<Combobox> combobox_ = nullptr;
+  raw_ptr<EditableCombobox> editable_combobox_ = nullptr;
 };
 
 }  // namespace examples

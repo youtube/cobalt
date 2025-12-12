@@ -13,20 +13,42 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/types/optional.h"
-#include "api/audio/audio_mixer.h"
+#include "absl/strings/match.h"
+#include "api/audio/audio_device.h"
+#include "api/audio_codecs/audio_decoder_factory.h"
+#include "api/audio_codecs/audio_encoder_factory.h"
+#include "api/audio_options.h"
 #include "api/create_peerconnection_factory.h"
+#include "api/data_channel_interface.h"
+#include "api/environment/environment.h"
+#include "api/environment/environment_factory.h"
+#include "api/field_trials_view.h"
+#include "api/jsep.h"
+#include "api/make_ref_counted.h"
+#include "api/media_stream_interface.h"
+#include "api/media_types.h"
+#include "api/peer_connection_interface.h"
+#include "api/rtc_error.h"
+#include "api/rtp_parameters.h"
+#include "api/rtp_receiver_interface.h"
+#include "api/scoped_refptr.h"
 #include "api/sequence_checker.h"
+#include "api/test/rtc_error_matchers.h"
+#include "api/units/time_delta.h"
+#include "api/video/resolution.h"
+#include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_decoder_factory.h"
 #include "api/video_codecs/video_decoder_factory_template.h"
 #include "api/video_codecs/video_decoder_factory_template_dav1d_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h"
 #include "api/video_codecs/video_decoder_factory_template_open_h264_adapter.h"
+#include "api/video_codecs/video_encoder.h"
 #include "api/video_codecs/video_encoder_factory.h"
 #include "api/video_codecs/video_encoder_factory_template.h"
 #include "api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h"
@@ -34,32 +56,37 @@
 #include "api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h"
 #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 #include "media/engine/simulcast_encoder_adapter.h"
-#include "modules/audio_device/include/audio_device.h"
-#include "modules/audio_processing/include/audio_processing.h"
-#include "p2p/base/fake_port_allocator.h"
-#include "p2p/base/port_allocator.h"
+#include "p2p/test/fake_port_allocator.h"
+#include "pc/test/fake_audio_capture_module.h"
 #include "pc/test/fake_periodic_video_source.h"
+#include "pc/test/fake_periodic_video_track_source.h"
 #include "pc/test/fake_rtc_certificate_generator.h"
+#include "pc/test/fake_video_track_renderer.h"
 #include "pc/test/mock_peer_connection_observers.h"
-#include "rtc_base/gunit.h"
 #include "rtc_base/logging.h"
 #include "rtc_base/rtc_certificate_generator.h"
+#include "rtc_base/socket_server.h"
 #include "rtc_base/string_encode.h"
 #include "rtc_base/time_utils.h"
+#include "test/gmock.h"
 #include "test/gtest.h"
-
-using webrtc::FakeVideoTrackRenderer;
-using webrtc::IceCandidateInterface;
-using webrtc::MediaStreamInterface;
-using webrtc::MediaStreamTrackInterface;
-using webrtc::MockSetSessionDescriptionObserver;
-using webrtc::PeerConnectionInterface;
-using webrtc::RtpReceiverInterface;
-using webrtc::SdpType;
-using webrtc::SessionDescriptionInterface;
-using webrtc::VideoTrackInterface;
+#include "test/wait_until.h"
 
 namespace {
+
+using ::webrtc::Environment;
+using ::webrtc::FakeVideoTrackRenderer;
+using ::webrtc::FieldTrialsView;
+using ::webrtc::IceCandidateInterface;
+using ::webrtc::MediaStreamInterface;
+using ::webrtc::MediaStreamTrackInterface;
+using ::webrtc::MockSetSessionDescriptionObserver;
+using ::webrtc::PeerConnectionInterface;
+using ::webrtc::RtpReceiverInterface;
+using ::webrtc::SdpType;
+using ::webrtc::SessionDescriptionInterface;
+using ::webrtc::VideoTrackInterface;
+
 const char kStreamIdBase[] = "stream_id";
 const char kVideoTrackLabelBase[] = "video_track";
 const char kAudioTrackLabelBase[] = "audio_track";
@@ -73,13 +100,14 @@ class FuzzyMatchedVideoEncoderFactory : public webrtc::VideoEncoderFactory {
     return factory_.GetSupportedFormats();
   }
 
-  std::unique_ptr<webrtc::VideoEncoder> CreateVideoEncoder(
+  std::unique_ptr<webrtc::VideoEncoder> Create(
+      const Environment& env,
       const webrtc::SdpVideoFormat& format) override {
-    if (absl::optional<webrtc::SdpVideoFormat> original_format =
+    if (std::optional<webrtc::SdpVideoFormat> original_format =
             webrtc::FuzzyMatchSdpVideoFormat(factory_.GetSupportedFormats(),
                                              format)) {
       return std::make_unique<webrtc::SimulcastEncoderAdapter>(
-          &factory_, *original_format);
+          env, &factory_, nullptr, *original_format);
     }
 
     return nullptr;
@@ -87,7 +115,7 @@ class FuzzyMatchedVideoEncoderFactory : public webrtc::VideoEncoderFactory {
 
   CodecSupport QueryCodecSupport(
       const webrtc::SdpVideoFormat& format,
-      absl::optional<std::string> scalability_mode) const override {
+      std::optional<std::string> scalability_mode) const override {
     return factory_.QueryCodecSupport(format, scalability_mode);
   }
 
@@ -115,9 +143,9 @@ void PeerConnectionTestWrapper::Connect(PeerConnectionTestWrapper* caller,
 
 PeerConnectionTestWrapper::PeerConnectionTestWrapper(
     const std::string& name,
-    rtc::SocketServer* socket_server,
-    rtc::Thread* network_thread,
-    rtc::Thread* worker_thread)
+    webrtc::SocketServer* socket_server,
+    webrtc::Thread* network_thread,
+    webrtc::Thread* worker_thread)
     : name_(name),
       socket_server_(socket_server),
       network_thread_(network_thread),
@@ -142,13 +170,13 @@ PeerConnectionTestWrapper::~PeerConnectionTestWrapper() {
 
 bool PeerConnectionTestWrapper::CreatePc(
     const webrtc::PeerConnectionInterface::RTCConfiguration& config,
-    rtc::scoped_refptr<webrtc::AudioEncoderFactory> audio_encoder_factory,
-    rtc::scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory) {
-  std::unique_ptr<cricket::PortAllocator> port_allocator(
-      new cricket::FakePortAllocator(
-          network_thread_,
-          std::make_unique<rtc::BasicPacketSocketFactory>(socket_server_),
-          &field_trials_));
+    webrtc::scoped_refptr<webrtc::AudioEncoderFactory> audio_encoder_factory,
+    webrtc::scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory,
+    std::unique_ptr<webrtc::VideoEncoderFactory> video_encoder_factory,
+    std::unique_ptr<webrtc::VideoDecoderFactory> video_decoder_factory,
+    std::unique_ptr<webrtc::FieldTrialsView> field_trials) {
+  auto port_allocator = std::make_unique<webrtc::FakePortAllocator>(
+      CreateEnvironment(field_trials.get()), socket_server_, network_thread_);
 
   RTC_DCHECK_RUN_ON(&pc_thread_checker_);
 
@@ -158,21 +186,18 @@ bool PeerConnectionTestWrapper::CreatePc(
   }
 
   peer_connection_factory_ = webrtc::CreatePeerConnectionFactory(
-      network_thread_, worker_thread_, rtc::Thread::Current(),
-      rtc::scoped_refptr<webrtc::AudioDeviceModule>(fake_audio_capture_module_),
+      network_thread_, worker_thread_, webrtc::Thread::Current(),
+      webrtc::scoped_refptr<webrtc::AudioDeviceModule>(
+          fake_audio_capture_module_),
       audio_encoder_factory, audio_decoder_factory,
-      std::make_unique<FuzzyMatchedVideoEncoderFactory>(),
-      std::make_unique<webrtc::VideoDecoderFactoryTemplate<
-          webrtc::LibvpxVp8DecoderTemplateAdapter,
-          webrtc::LibvpxVp9DecoderTemplateAdapter,
-          webrtc::OpenH264DecoderTemplateAdapter,
-          webrtc::Dav1dDecoderTemplateAdapter>>(),
-      nullptr /* audio_mixer */, nullptr /* audio_processing */);
+      std::move(video_encoder_factory), std::move(video_decoder_factory),
+      nullptr /* audio_mixer */, nullptr /* audio_processing */, nullptr,
+      std::move(field_trials));
   if (!peer_connection_factory_) {
     return false;
   }
 
-  std::unique_ptr<rtc::RTCCertificateGeneratorInterface> cert_generator(
+  std::unique_ptr<webrtc::RTCCertificateGeneratorInterface> cert_generator(
       new FakeRTCCertificateGenerator());
   webrtc::PeerConnectionDependencies deps(this);
   deps.allocator = std::move(port_allocator);
@@ -187,7 +212,23 @@ bool PeerConnectionTestWrapper::CreatePc(
   }
 }
 
-rtc::scoped_refptr<webrtc::DataChannelInterface>
+bool PeerConnectionTestWrapper::CreatePc(
+    const webrtc::PeerConnectionInterface::RTCConfiguration& config,
+    webrtc::scoped_refptr<webrtc::AudioEncoderFactory> audio_encoder_factory,
+    webrtc::scoped_refptr<webrtc::AudioDecoderFactory> audio_decoder_factory,
+    std::unique_ptr<webrtc::FieldTrialsView> field_trials) {
+  return CreatePc(config, std::move(audio_encoder_factory),
+                  std::move(audio_decoder_factory),
+                  std::make_unique<FuzzyMatchedVideoEncoderFactory>(),
+                  std::make_unique<webrtc::VideoDecoderFactoryTemplate<
+                      webrtc::LibvpxVp8DecoderTemplateAdapter,
+                      webrtc::LibvpxVp9DecoderTemplateAdapter,
+                      webrtc::OpenH264DecoderTemplateAdapter,
+                      webrtc::Dav1dDecoderTemplateAdapter>>(),
+                  std::move(field_trials));
+}
+
+webrtc::scoped_refptr<webrtc::DataChannelInterface>
 PeerConnectionTestWrapper::CreateDataChannel(
     const std::string& label,
     const webrtc::DataChannelInit& init) {
@@ -201,8 +242,25 @@ PeerConnectionTestWrapper::CreateDataChannel(
   return result.MoveValue();
 }
 
+std::optional<webrtc::RtpCodecCapability>
+PeerConnectionTestWrapper::FindFirstSendCodecWithName(
+    webrtc::MediaType media_type,
+    const std::string& name) const {
+  std::vector<webrtc::RtpCodecCapability> codecs =
+      peer_connection_factory_->GetRtpSenderCapabilities(media_type).codecs;
+  for (const auto& codec : codecs) {
+    if (absl::EqualsIgnoreCase(codec.name, name)) {
+      return codec;
+    }
+  }
+  return std::nullopt;
+}
+
 void PeerConnectionTestWrapper::WaitForNegotiation() {
-  EXPECT_TRUE_WAIT(!pending_negotiation_, kMaxWait);
+  EXPECT_THAT(webrtc::WaitUntil(
+                  [&] { return !pending_negotiation_; }, ::testing::IsTrue(),
+                  {.timeout = webrtc::TimeDelta::Millis(kMaxWait)}),
+              webrtc::IsRtcOk());
 }
 
 void PeerConnectionTestWrapper::OnSignalingChange(
@@ -213,8 +271,8 @@ void PeerConnectionTestWrapper::OnSignalingChange(
 }
 
 void PeerConnectionTestWrapper::OnAddTrack(
-    rtc::scoped_refptr<RtpReceiverInterface> receiver,
-    const std::vector<rtc::scoped_refptr<MediaStreamInterface>>& streams) {
+    webrtc::scoped_refptr<RtpReceiverInterface> receiver,
+    const std::vector<webrtc::scoped_refptr<MediaStreamInterface>>& streams) {
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_ << ": OnAddTrack";
   if (receiver->track()->kind() == MediaStreamTrackInterface::kVideoKind) {
     auto* video_track =
@@ -232,7 +290,7 @@ void PeerConnectionTestWrapper::OnIceCandidate(
 }
 
 void PeerConnectionTestWrapper::OnDataChannel(
-    rtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
+    webrtc::scoped_refptr<webrtc::DataChannelInterface> data_channel) {
   SignalOnDataChannel(data_channel.get());
 }
 
@@ -281,7 +339,7 @@ void PeerConnectionTestWrapper::SetLocalDescription(SdpType type,
                    << ": SetLocalDescription " << webrtc::SdpTypeToString(type)
                    << " " << sdp;
 
-  auto observer = rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
+  auto observer = webrtc::make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetLocalDescription(
       observer.get(), webrtc::CreateSessionDescription(type, sdp).release());
 }
@@ -292,7 +350,7 @@ void PeerConnectionTestWrapper::SetRemoteDescription(SdpType type,
                    << ": SetRemoteDescription " << webrtc::SdpTypeToString(type)
                    << " " << sdp;
 
-  auto observer = rtc::make_ref_counted<MockSetSessionDescriptionObserver>();
+  auto observer = webrtc::make_ref_counted<MockSetSessionDescriptionObserver>();
   peer_connection_->SetRemoteDescription(
       observer.get(), webrtc::CreateSessionDescription(type, sdp).release());
 }
@@ -301,19 +359,30 @@ void PeerConnectionTestWrapper::AddIceCandidate(const std::string& sdp_mid,
                                                 int sdp_mline_index,
                                                 const std::string& candidate) {
   std::unique_ptr<webrtc::IceCandidateInterface> owned_candidate(
-      webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, NULL));
+      webrtc::CreateIceCandidate(sdp_mid, sdp_mline_index, candidate, nullptr));
   EXPECT_TRUE(peer_connection_->AddIceCandidate(owned_candidate.get()));
 }
 
-void PeerConnectionTestWrapper::WaitForCallEstablished() {
-  WaitForConnection();
-  WaitForAudio();
-  WaitForVideo();
+bool PeerConnectionTestWrapper::WaitForCallEstablished() {
+  if (!WaitForConnection())
+    return false;
+  if (!WaitForAudio())
+    return false;
+  if (!WaitForVideo())
+    return false;
+  return true;
 }
 
-void PeerConnectionTestWrapper::WaitForConnection() {
-  EXPECT_TRUE_WAIT(CheckForConnection(), kMaxWait);
+bool PeerConnectionTestWrapper::WaitForConnection() {
+  EXPECT_THAT(webrtc::WaitUntil(
+                  [&] { return CheckForConnection(); }, ::testing::IsTrue(),
+                  {.timeout = webrtc::TimeDelta::Millis(kMaxWait)}),
+              webrtc::IsRtcOk());
+  if (testing::Test::HasFailure()) {
+    return false;
+  }
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_ << ": Connected.";
+  return true;
 }
 
 bool PeerConnectionTestWrapper::CheckForConnection() {
@@ -323,10 +392,17 @@ bool PeerConnectionTestWrapper::CheckForConnection() {
           PeerConnectionInterface::kIceConnectionCompleted);
 }
 
-void PeerConnectionTestWrapper::WaitForAudio() {
-  EXPECT_TRUE_WAIT(CheckForAudio(), kMaxWait);
+bool PeerConnectionTestWrapper::WaitForAudio() {
+  EXPECT_THAT(
+      webrtc::WaitUntil([&] { return CheckForAudio(); }, ::testing::IsTrue(),
+                        {.timeout = webrtc::TimeDelta::Millis(kMaxWait)}),
+      webrtc::IsRtcOk());
+  if (testing::Test::HasFailure()) {
+    return false;
+  }
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_
                    << ": Got enough audio frames.";
+  return true;
 }
 
 bool PeerConnectionTestWrapper::CheckForAudio() {
@@ -334,10 +410,17 @@ bool PeerConnectionTestWrapper::CheckForAudio() {
           kTestAudioFrameCount);
 }
 
-void PeerConnectionTestWrapper::WaitForVideo() {
-  EXPECT_TRUE_WAIT(CheckForVideo(), kMaxWait);
+bool PeerConnectionTestWrapper::WaitForVideo() {
+  EXPECT_THAT(
+      webrtc::WaitUntil([&] { return CheckForVideo(); }, ::testing::IsTrue(),
+                        {.timeout = webrtc::TimeDelta::Millis(kMaxWait)}),
+      webrtc::IsRtcOk());
+  if (testing::Test::HasFailure()) {
+    return false;
+  }
   RTC_LOG(LS_INFO) << "PeerConnectionTestWrapper " << name_
                    << ": Got enough video frames.";
+  return true;
 }
 
 bool PeerConnectionTestWrapper::CheckForVideo() {
@@ -349,9 +432,9 @@ bool PeerConnectionTestWrapper::CheckForVideo() {
 
 void PeerConnectionTestWrapper::GetAndAddUserMedia(
     bool audio,
-    const cricket::AudioOptions& audio_options,
+    const webrtc::AudioOptions& audio_options,
     bool video) {
-  rtc::scoped_refptr<webrtc::MediaStreamInterface> stream =
+  webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream =
       GetUserMedia(audio, audio_options, video);
   for (const auto& audio_track : stream->GetAudioTracks()) {
     EXPECT_TRUE(peer_connection_->AddTrack(audio_track, {stream->id()}).ok());
@@ -361,24 +444,24 @@ void PeerConnectionTestWrapper::GetAndAddUserMedia(
   }
 }
 
-rtc::scoped_refptr<webrtc::MediaStreamInterface>
+webrtc::scoped_refptr<webrtc::MediaStreamInterface>
 PeerConnectionTestWrapper::GetUserMedia(
     bool audio,
-    const cricket::AudioOptions& audio_options,
+    const webrtc::AudioOptions& audio_options,
     bool video,
     webrtc::Resolution resolution) {
   std::string stream_id =
-      kStreamIdBase + rtc::ToString(num_get_user_media_calls_++);
-  rtc::scoped_refptr<webrtc::MediaStreamInterface> stream =
+      kStreamIdBase + absl::StrCat(num_get_user_media_calls_++);
+  webrtc::scoped_refptr<webrtc::MediaStreamInterface> stream =
       peer_connection_factory_->CreateLocalMediaStream(stream_id);
 
   if (audio) {
-    cricket::AudioOptions options = audio_options;
+    webrtc::AudioOptions options = audio_options;
     // Disable highpass filter so that we can get all the test audio frames.
     options.highpass_filter = false;
-    rtc::scoped_refptr<webrtc::AudioSourceInterface> source =
+    webrtc::scoped_refptr<webrtc::AudioSourceInterface> source =
         peer_connection_factory_->CreateAudioSource(options);
-    rtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
+    webrtc::scoped_refptr<webrtc::AudioTrackInterface> audio_track(
         peer_connection_factory_->CreateAudioTrack(kAudioTrackLabelBase,
                                                    source.get()));
     stream->AddTrack(audio_track);
@@ -388,16 +471,17 @@ PeerConnectionTestWrapper::GetUserMedia(
     // Set max frame rate to 10fps to reduce the risk of the tests to be flaky.
     webrtc::FakePeriodicVideoSource::Config config;
     config.frame_interval_ms = 100;
-    config.timestamp_offset_ms = rtc::TimeMillis();
+    config.timestamp_offset_ms = webrtc::TimeMillis();
     config.width = resolution.width;
     config.height = resolution.height;
 
-    auto source = rtc::make_ref_counted<webrtc::FakePeriodicVideoTrackSource>(
-        config, /* remote */ false);
+    auto source =
+        webrtc::make_ref_counted<webrtc::FakePeriodicVideoTrackSource>(
+            config, /* remote */ false);
     fake_video_sources_.push_back(source);
 
     std::string videotrack_label = stream_id + kVideoTrackLabelBase;
-    rtc::scoped_refptr<webrtc::VideoTrackInterface> video_track(
+    webrtc::scoped_refptr<webrtc::VideoTrackInterface> video_track(
         peer_connection_factory_->CreateVideoTrack(source, videotrack_label));
 
     stream->AddTrack(video_track);

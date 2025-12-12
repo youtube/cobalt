@@ -9,7 +9,9 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/files/file_path.h"
@@ -24,11 +26,13 @@
 #include "content/public/common/content_client.h"
 #include "media/base/audio_parameters.h"
 #include "media/base/key_system_info.h"
+#include "media/base/key_systems_support_registration.h"
 #include "media/base/supported_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/tokens/tokens.h"
 #include "third_party/blink/public/platform/url_loader_throttle_provider.h"
 #include "third_party/blink/public/platform/web_content_settings_client.h"
 #include "third_party/blink/public/platform/websocket_handshake_throttle_provider.h"
+#include "third_party/blink/public/web/web_link_preview_triggerer.h"
 #include "third_party/blink/public/web/web_navigation_policy.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "ui/base/page_transition_types.h"
@@ -75,6 +79,7 @@ class ResourceProvider;
 namespace media {
 class DecoderFactory;
 class Demuxer;
+class ExternalMemoryAllocator;
 class GpuVideoAcceleratorFactories;
 class MediaLog;
 class RendererFactory;
@@ -82,6 +87,10 @@ class RendererFactory;
 
 namespace mojo {
 class BinderMap;
+}
+
+namespace url {
+class Origin;
 }
 
 namespace content {
@@ -99,6 +108,10 @@ class CONTENT_EXPORT ContentRendererClient {
   // process. Binders can be added to |*binders| to service incoming interface
   // binding requests from RenderProcessHost::BindReceiver().
   virtual void ExposeInterfacesToBrowser(mojo::BinderMap* binders) {}
+
+  // Sets up trap handling for WebAssembly. Default implementation assumes that
+  // a crash handler (such as crashpad) is already in use.
+  virtual void SetUpWebAssemblyTrapHandler();
 
   // Notifies that a new RenderFrame has been created.
   virtual void RenderFrameCreated(RenderFrame* render_frame) {}
@@ -125,6 +138,10 @@ class CONTENT_EXPORT ContentRendererClient {
       const blink::WebElement& plugin_element,
       const GURL& original_url,
       const std::string& original_mime_type);
+
+  // Specifies whether to disable DOM storage interfaces such as localStorage
+  // and sessionStorage.
+  virtual bool IsDomStorageDisabled() const;
 
   // Returns a scriptable object which implements custom javascript API for the
   // given element. This is used for external plugin handlers for providing
@@ -195,6 +212,11 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual std::unique_ptr<blink::WebSocketHandshakeThrottleProvider>
   CreateWebSocketHandshakeThrottleProvider();
 
+  // Allows the embedder to control whether the renderer should leverage the
+  // compiled code cache with hashing for a given `request_url`.
+  virtual bool ShouldUseCodeCacheWithHashing(
+      const blink::WebURL& request_url) const;
+
   // Called immediately after the sandbox is initialized on the main thread.
   // (If the renderer is run with --no-sandbox, it is still called in
   // RendererMain at about the same time.)
@@ -217,8 +239,14 @@ class CONTENT_EXPORT ContentRendererClient {
   // Returns true if a popup window should be allowed.
   virtual bool AllowPopup();
 
+  // Service worker may react on the activity. For example, reset the idle
+  // timer.
+  virtual bool ShouldNotifyServiceWorkerOnWebSocketActivity(
+      v8::Local<v8::Context> context);
+
   // Returns the security level to use for Navigator.RegisterProtocolHandler().
-  virtual blink::ProtocolHandlerSecurityLevel GetProtocolHandlerSecurityLevel();
+  virtual blink::ProtocolHandlerSecurityLevel GetProtocolHandlerSecurityLevel(
+      const url::Origin& origin);
 
 #if BUILDFLAG(IS_ANDROID)
   // TODO(sgurun) This callback is deprecated and will be removed as soon
@@ -236,15 +264,17 @@ class CONTENT_EXPORT ContentRendererClient {
 #endif
 
   // Notifies the embedder that the given frame is requesting the resource at
-  // |url|. If the function returns a valid |new_url|, the request must be
-  // updated to use it.
+  // `target_url`. If the function returns a valid `new_url`, the request must
+  // be updated to use it.
   //
-  // The |site_for_cookies| is the site_for_cookies of the request. (This is
-  // approximately the URL of the main frame. It is empty in the case of
-  // cross-site iframes.)
+  // `upstream_url`: URL of the frame that initiated the request.
+  // `target_url`: URL being requested by `upstream_url`.
+  // `site_for_cookies`: Approximately the URL of the request of the main
+  // frame. It is empty in the case of cross-site iframes.
   virtual void WillSendRequest(blink::WebLocalFrame* frame,
                                ui::PageTransition transition_type,
-                               const blink::WebURL& url,
+                               const blink::WebURL& upstream_url,
+                               const blink::WebURL& target_url,
                                const net::SiteForCookies& site_for_cookies,
                                const url::Origin* initiator_origin,
                                GURL* new_url);
@@ -254,8 +284,14 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual bool IsPrefetchOnly(RenderFrame* render_frame);
 
   // See blink::Platform.
-  virtual uint64_t VisitedLinkHash(const char* canonical_url, size_t length);
+  virtual uint64_t VisitedLinkHash(std::string_view canonical_url);
+  virtual uint64_t PartitionedVisitedLinkFingerprint(
+      std::string_view canonical_link_url,
+      const net::SchemefulSite& top_level_site,
+      const url::Origin& frame_origin);
   virtual bool IsLinkVisited(uint64_t link_hash);
+  virtual void AddOrUpdateVisitedLinkSalt(const url::Origin& origin,
+                                          uint64_t salt);
 
   // Creates a WebPrescientNetworking instance for |render_frame|. The returned
   // instance is owned by the frame. May return null.
@@ -273,16 +309,25 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual bool IsOriginIsolatedPepperPlugin(const base::FilePath& plugin_path);
 
   // Allows embedder to register the key system(s) it supports.
-  virtual void GetSupportedKeySystems(media::GetSupportedKeySystemsCB cb);
+  virtual std::unique_ptr<media::KeySystemSupportRegistration>
+  GetSupportedKeySystems(RenderFrame* render_frame,
+                         media::GetSupportedKeySystemsCB cb);
 
-  // Allows embedder to describe customized audio capabilities.
-  virtual bool IsSupportedAudioType(const media::AudioType& type);
+  // Allows embedder to describe customized audio decoder capabilities.
+  virtual bool IsDecoderSupportedAudioType(const media::AudioType& type);
 
-  // Allows embedder to describe customized video capabilities.
-  virtual bool IsSupportedVideoType(const media::VideoType& type);
+  // Allows embedder to describe customized video decoder capabilities.
+  virtual bool IsDecoderSupportedVideoType(const media::VideoType& type);
+
+  // Allows embedder to describe customized video encoder capabilities.
+  virtual bool IsEncoderSupportedVideoType(const media::VideoType& type);
 
   // Return true if the bitstream format |codec| is supported by the audio sink.
   virtual bool IsSupportedBitstreamAudioCodec(media::AudioCodec codec);
+
+  // Returns custom allocator if exists, else nullptr
+  // Allocator will live as long as ContentRendererClient.
+  virtual media::ExternalMemoryAllocator* GetMediaAllocator();
 
   // Returns true if we should report a detailed message (including a stack
   // trace) for console [logs|errors|exceptions]. |source| is the WebKit-
@@ -298,9 +343,7 @@ class CONTENT_EXPORT ContentRendererClient {
 #if !BUILDFLAG(IS_ANDROID)
   // Creates a speech recognition client used to transcribe audio into captions.
   virtual std::unique_ptr<media::SpeechRecognitionClient>
-  CreateSpeechRecognitionClient(
-      RenderFrame* render_frame,
-      media::SpeechRecognitionClient::OnReadyCallback callback);
+  CreateSpeechRecognitionClient(RenderFrame* render_frame);
 #endif
 
   // Returns true if the page at |url| can use Pepper CameraDevice APIs.
@@ -351,7 +394,8 @@ class CONTENT_EXPORT ContentRendererClient {
       v8::Local<v8::Context> v8_context,
       int64_t service_worker_version_id,
       const GURL& service_worker_scope,
-      const GURL& script_url) {}
+      const GURL& script_url,
+      const blink::ServiceWorkerToken& service_worker_token) {}
 
   // Notifies that a service worker context has finished executing its top-level
   // JavaScript. This function is called from the worker thread.
@@ -407,7 +451,7 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual void DidSetUserAgent(const std::string& user_agent);
 
   // Optionally returns audio renderer algorithm parameters.
-  virtual absl::optional<::media::AudioRendererAlgorithmParameters>
+  virtual std::optional<::media::AudioRendererAlgorithmParameters>
   GetAudioRendererAlgorithmParameters(
       ::media::AudioParameters audio_parameters);
 
@@ -415,7 +459,7 @@ class CONTENT_EXPORT ContentRendererClient {
   // `url`. This allows the embedder to customize the applied CSP.
   virtual void AppendContentSecurityPolicy(
       const blink::WebURL& url,
-      blink::WebVector<blink::WebContentSecurityPolicyHeader>* csp);
+      std::vector<blink::WebContentSecurityPolicyHeader>* csp);
 
   // Returns a RendererFactory to use as the "base" for a
   // RendererFactorySelector. Returns `nullptr` to get the default behaviour.
@@ -434,6 +478,13 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual std::unique_ptr<cast_streaming::ResourceProvider>
   CreateCastStreamingResourceProvider();
 #endif
+
+  // Creates a WebLinkPreviewTriggerer if an embedder wants to observe events
+  // and trigger preview. It is allowed to return nullptr.
+  //
+  // See blink::WebLinkPreviewTriggerer for more details.
+  virtual std::unique_ptr<blink::WebLinkPreviewTriggerer>
+  CreateLinkPreviewTriggerer();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // This is used for StarboardRenderer to acquire customizations

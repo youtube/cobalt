@@ -10,12 +10,8 @@
 #include "base/android/jni_weak_ref.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "chrome/browser/ui/android/layouts/scene_layer.h"
-#include "ui/gfx/geometry/point.h"
-#include "ui/gfx/geometry/point_f.h"
-#include "ui/gfx/geometry/size.h"
-#include "ui/gfx/geometry/size_f.h"
 
 namespace android {
 
@@ -36,17 +32,14 @@ class StaticTabSceneLayer : public SceneLayer {
   SkColor GetBackgroundColor() override;
 
   // Update StaticTabSceneLayer with the new parameters.
-  void UpdateTabLayer(
-      JNIEnv* env,
-      const base::android::JavaParamRef<jobject>& jobj,
-      jint id,
-      jboolean can_use_live_layer,
-      jint default_background_color,
-      jfloat x,
-      jfloat y,
-      jfloat static_to_view_blend,
-      jfloat saturation,
-      jfloat brightness);
+  void UpdateTabLayer(JNIEnv* env,
+                      const base::android::JavaParamRef<jobject>& jobj,
+                      jint id,
+                      jboolean can_use_live_layer,
+                      jint default_background_color,
+                      jfloat x,
+                      jfloat y,
+                      const base::android::JavaParamRef<jobject>& joffset_tag);
 
   void SetTabContentManager(
       JNIEnv* env,
@@ -57,9 +50,7 @@ class StaticTabSceneLayer : public SceneLayer {
   scoped_refptr<android::ContentLayer> content_layer_;
 
   raw_ptr<TabContentManager> tab_content_manager_;
-  int last_set_tab_id_;
   int background_color_;
-  float brightness_;
 };
 
 }  // namespace android

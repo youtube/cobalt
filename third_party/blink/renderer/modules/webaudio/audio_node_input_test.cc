@@ -15,10 +15,12 @@
 #include "third_party/blink/renderer/modules/webaudio/audio_node_wiring.h"
 #include "third_party/blink/renderer/modules/webaudio/delay_node.h"
 #include "third_party/blink/renderer/modules/webaudio/offline_audio_context.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 
 namespace blink {
 
 TEST(AudioNodeInputTest, InputDestroyedBeforeOutput) {
+  test::TaskEnvironment task_environment;
   auto page = std::make_unique<DummyPageHolder>();
   OfflineAudioContext* context = OfflineAudioContext::Create(
       page->GetFrame().DomWindow(), 2, 1, 48000, ASSERT_NO_EXCEPTION);
@@ -31,7 +33,7 @@ TEST(AudioNodeInputTest, InputDestroyedBeforeOutput) {
   auto output = std::make_unique<AudioNodeOutput>(&handler2, 0);
 
   {
-    BaseAudioContext::GraphAutoLocker graph_lock(context);
+    DeferredTaskHandler::GraphAutoLocker graph_lock(context);
     AudioNodeWiring::Connect(*output, *input);
     ASSERT_TRUE(output->IsConnected());
 
@@ -43,6 +45,7 @@ TEST(AudioNodeInputTest, InputDestroyedBeforeOutput) {
 }
 
 TEST(AudioNodeInputTest, OutputDestroyedBeforeInput) {
+  test::TaskEnvironment task_environment;
   auto page = std::make_unique<DummyPageHolder>();
   OfflineAudioContext* context = OfflineAudioContext::Create(
       page->GetFrame().DomWindow(), 2, 1, 48000, ASSERT_NO_EXCEPTION);
@@ -55,7 +58,7 @@ TEST(AudioNodeInputTest, OutputDestroyedBeforeInput) {
   auto output = std::make_unique<AudioNodeOutput>(&handler2, 0);
 
   {
-    BaseAudioContext::GraphAutoLocker graph_lock(context);
+    DeferredTaskHandler::GraphAutoLocker graph_lock(context);
     AudioNodeWiring::Connect(*output, *input);
     ASSERT_TRUE(output->IsConnected());
 

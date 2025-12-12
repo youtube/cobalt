@@ -29,10 +29,9 @@ enum OverrideState {
 interface H5vccExperiments {
     SetExperimentState(mojo_base.mojom.DictionaryValue experiment_config) => ();
     ResetExperimentState() => ();
-    [Sync]
-    GetActiveExperimentIds() => (array<uint32> active_experiment_ids);
-    [Sync]
     GetFeature(string feature_name) => (OverrideState feature_value);
-    [Sync]
-    GetFeatureParam(string feature_param_name) => (string feature_param_value);
+    GetActiveExperimentConfigData() => (string active_experiment_config_data);
+    GetLatestExperimentConfigHashData() => (string latest_experiment_config_hash_data);
+    SetLatestExperimentConfigHashData(string hash_data) => ();
+    SetFinchParameters(mojo_base.mojom.DictionaryValue settings) => ();
 };

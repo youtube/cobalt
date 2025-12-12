@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/platform/bindings/callback_interface_base.h"
 
 #include "third_party/blink/renderer/platform/bindings/binding_security_for_platform.h"
+#include "third_party/blink/renderer/platform/bindings/exception_messages.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/task_attribution_tracker.h"
 
@@ -18,7 +19,8 @@ CallbackInterfaceBase::CallbackInterfaceBase(
   v8::Isolate* isolate = callback_object->GetIsolate();
   callback_object_.Reset(isolate, callback_object);
 
-  incumbent_script_state_ = ScriptState::From(isolate->GetIncumbentContext());
+  incumbent_script_state_ =
+      ScriptState::From(isolate, isolate->GetIncumbentContext());
   is_callback_object_callable_ =
       (single_op_or_not == kSingleOperation) && callback_object->IsCallable();
 
@@ -31,16 +33,15 @@ CallbackInterfaceBase::CallbackInterfaceBase(
     // it's not the same origin-domain, it's already been possible for the
     // callsite to run arbitrary script in the context. No need to protect it.
     // This is an optimization faster than ShouldAllowAccessToV8Context below.
-    callback_relevant_script_state_ = ScriptState::From(
-        callback_object->GetCreationContext().ToLocalChecked());
+    callback_relevant_script_state_ =
+        ScriptState::ForRelevantRealm(isolate, callback_object);
   } else {
     v8::MaybeLocal<v8::Context> creation_context =
         callback_object->GetCreationContext();
     if (BindingSecurityForPlatform::ShouldAllowAccessToV8Context(
-            incumbent_script_state_->GetContext(), creation_context,
-            BindingSecurityForPlatform::ErrorReportOption::kDoNotReport)) {
+            incumbent_script_state_->GetContext(), creation_context)) {
       callback_relevant_script_state_ =
-          ScriptState::From(creation_context.ToLocalChecked());
+          ScriptState::From(isolate, creation_context.ToLocalChecked());
     }
   }
 }
@@ -55,18 +56,17 @@ ScriptState* CallbackInterfaceBase::CallbackRelevantScriptStateOrReportError(
     const char* interface_name,
     const char* operation_name) {
   if (callback_relevant_script_state_)
-    return callback_relevant_script_state_;
+    return callback_relevant_script_state_.Get();
 
   // Report a SecurityError due to a cross origin callback object.
   ScriptState::Scope incumbent_scope(incumbent_script_state_);
   v8::TryCatch try_catch(GetIsolate());
   try_catch.SetVerbose(true);
-  ExceptionState exception_state(GetIsolate(),
-                                 ExceptionState::kExecutionContext,
-                                 interface_name, operation_name);
-  exception_state.ThrowSecurityError(
+  ExceptionState exception_state(GetIsolate());
+  exception_state.ThrowSecurityError(ExceptionMessages::FailedToExecute(
+      operation_name, interface_name,
       "An invocation of the provided callback failed due to cross origin "
-      "access.");
+      "access."));
   return nullptr;
 }
 
@@ -74,16 +74,15 @@ ScriptState* CallbackInterfaceBase::CallbackRelevantScriptStateOrThrowException(
     const char* interface_name,
     const char* operation_name) {
   if (callback_relevant_script_state_)
-    return callback_relevant_script_state_;
+    return callback_relevant_script_state_.Get();
 
   // Throw a SecurityError due to a cross origin callback object.
   ScriptState::Scope incumbent_scope(incumbent_script_state_);
-  ExceptionState exception_state(GetIsolate(),
-                                 ExceptionState::kExecutionContext,
-                                 interface_name, operation_name);
-  exception_state.ThrowSecurityError(
+  ExceptionState exception_state(GetIsolate());
+  exception_state.ThrowSecurityError(ExceptionMessages::FailedToExecute(
+      operation_name, interface_name,
       "An invocation of the provided callback failed due to cross origin "
-      "access.");
+      "access."));
   return nullptr;
 }
 

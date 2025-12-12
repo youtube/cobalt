@@ -6,35 +6,82 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "ash/login/ui/login_test_base.h"
-#include "ash/metrics/user_metrics_recorder.h"
 #include "ash/public/cpp/shelf_item_delegate.h"
 #include "ash/public/cpp/shelf_model.h"
-#include "ash/session/test_session_controller_client.h"
 #include "ash/shell.h"
+#include "ash/test/animation_metrics_test_util.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
-#include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chromeos/ash/components/login/login_state/login_state.h"
 #include "components/app_constants/constants.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "ui/aura/window_tree_host.h"
-#include "ui/compositor/test/draw_waiter_for_test.h"
 #include "ui/gfx/image/image_unittest_util.h"
+
+using ::testing::_;
+using ::testing::MockFunction;
+using ::testing::StrictMock;
 
 namespace ash {
 namespace {
 
-constexpr char kAshLoginAnimationDurationTabletMode[] =
-    "Ash.LoginAnimation.Duration.TabletMode";
-constexpr char kAshLoginAnimationDurationClamshellMode[] =
-    "Ash.LoginAnimation.Duration.ClamshellMode";
-constexpr char kAshUnlockAnimationDurationTabletMode[] =
-    "Ash.UnlockAnimation.Duration.TabletMode";
-constexpr char kAshUnlockAnimationDurationClamshellMode[] =
-    "Ash.UnlockAnimation.Duration.ClamshellMode";
+class MockPostLoginEventObserver : public PostLoginEventObserver {
+ public:
+  explicit MockPostLoginEventObserver(
+      LoginUnlockThroughputRecorder* login_unlock_throughput_recorder) {
+    scoped_observation_.Observe(login_unlock_throughput_recorder);
+  }
+
+  MOCK_METHOD(void, OnAuthSuccess, (base::TimeTicks ts), (override));
+  MOCK_METHOD(void,
+              OnUserLoggedIn,
+              (base::TimeTicks ts,
+               bool is_ash_restarted,
+               bool is_regular_user_or_owner),
+              (override));
+  MOCK_METHOD(void,
+              OnAllExpectedShelfIconLoaded,
+              (base::TimeTicks ts),
+              (override));
+  MOCK_METHOD(void,
+              OnSessionRestoreDataLoaded,
+              (base::TimeTicks ts, bool restore_automatically),
+              (override));
+  MOCK_METHOD(void,
+              OnAllBrowserWindowsCreated,
+              (base::TimeTicks ts),
+              (override));
+  MOCK_METHOD(void, OnAllBrowserWindowsShown, (base::TimeTicks ts), (override));
+  MOCK_METHOD(void,
+              OnAllBrowserWindowsPresented,
+              (base::TimeTicks ts),
+              (override));
+  MOCK_METHOD(void, OnShelfAnimationFinished, (base::TimeTicks ts), (override));
+  MOCK_METHOD(void,
+              OnCompositorAnimationFinished,
+              (base::TimeTicks ts,
+               const cc::FrameSequenceMetrics::CustomReportData& data),
+              (override));
+  MOCK_METHOD(void, OnArcUiReady, (base::TimeTicks ts), (override));
+  MOCK_METHOD(void, OnDeferredTasksStarted, (base::TimeTicks ts), (override));
+  MOCK_METHOD(void,
+              OnShelfIconsLoadedAndSessionRestoreDone,
+              (base::TimeTicks ts),
+              (override));
+  MOCK_METHOD(void,
+              OnShelfAnimationAndCompositorAnimationDone,
+              (base::TimeTicks ts),
+              (override));
+
+ private:
+  base::ScopedObservation<LoginUnlockThroughputRecorder, PostLoginEventObserver>
+      scoped_observation_{this};
+};
 
 // A test shelf item delegate that simulates an activated window when a shelf
 // item is selected.
@@ -78,6 +125,13 @@ class TestShelfModel : public ShelfModel {
     }
   }
 
+  void AddBrowserIcon() {
+    ShelfItem item;
+    item.id = ShelfID(app_constants::kChromeAppId);
+    item.type = TYPE_PINNED_APP;
+    Add(item, std::make_unique<TestShelfItemDelegate>(item.id));
+  }
+
   void SetIconsLoadedFor(const std::vector<int>& ids) {
     for (int n : ids) {
       const ShelfID id(base::StringPrintf("item%d", n));
@@ -91,99 +145,18 @@ class TestShelfModel : public ShelfModel {
       Set(index, item);
     }
   }
-};
 
-class TestObserver final : public ui::CompositorAnimationObserver {
- public:
-  explicit TestObserver(ui::Compositor* compositor) : compositor_(compositor) {
-    compositor_->AddAnimationObserver(this);
+  void SetIconLoadedForBrowser() {
+    const ShelfID id(app_constants::kChromeAppId);
+    int index = ItemIndexByID(id);
+    // Expect item exists.
+    ASSERT_GE(index, 0);
+
+    ShelfItem item = items()[index];
+    item.image = gfx::test::CreateImageSkia(/*width=*/10, /*height=*/10);
+
+    Set(index, item);
   }
-  TestObserver(const TestObserver&) = delete;
-  TestObserver& operator=(const TestObserver&) = delete;
-  ~TestObserver() override = default;
-
-  // ui::CompositorAnimationObserver:
-  void OnAnimationStep(base::TimeTicks timestamp) override {
-    ++count_;
-    if (count_ < 3)
-      compositor_->ScheduleFullRedraw();
-    else
-      compositor_->RemoveAnimationObserver(this);
-  }
-
-  void OnCompositingShuttingDown(ui::Compositor* compositor) override {}
-
- private:
-  int count_ = 0;
-  const base::raw_ptr<ui::Compositor> compositor_;
-};
-
-class BeginMainFrameWaiter : public ui::CompositorObserver {
- public:
-  explicit BeginMainFrameWaiter(ui::Compositor* compositor)
-      : compositor_(compositor) {
-    compositor->AddObserver(this);
-  }
-
-  ~BeginMainFrameWaiter() override { compositor_->RemoveObserver(this); }
-
-  // ui::CompositorObserver
-  void OnDidBeginMainFrame(ui::Compositor* compositor) override {
-    DCHECK_EQ(compositor_, compositor);
-    done_ = true;
-    if (run_loop_)
-      run_loop_->Quit();
-  }
-
-  void Wait() {
-    if (done_)
-      return;
-
-    run_loop_ = std::make_unique<base::RunLoop>(
-        base::RunLoop::Type::kNestableTasksAllowed);
-    run_loop_->Run();
-    run_loop_.reset();
-  }
-
- private:
-  const base::raw_ptr<ui::Compositor> compositor_;
-  bool done_ = false;
-  std::unique_ptr<base::RunLoop> run_loop_;
-};
-
-class FirstNonAnimatedFrameStartedWaiter : public ui::CompositorObserver {
- public:
-  explicit FirstNonAnimatedFrameStartedWaiter(ui::Compositor* compositor)
-      : compositor_(compositor) {
-    compositor->AddObserver(this);
-  }
-
-  ~FirstNonAnimatedFrameStartedWaiter() override {
-    compositor_->RemoveObserver(this);
-  }
-
-  // ui::CompositorObserver
-  void OnFirstNonAnimatedFrameStarted(ui::Compositor* compositor) override {
-    DCHECK_EQ(compositor_, compositor);
-    done_ = true;
-    if (run_loop_)
-      run_loop_->Quit();
-  }
-
-  void Wait() {
-    if (done_)
-      return;
-
-    run_loop_ = std::make_unique<base::RunLoop>(
-        base::RunLoop::Type::kNestableTasksAllowed);
-    run_loop_->Run();
-    run_loop_.reset();
-  }
-
- private:
-  raw_ptr<ui::Compositor, ExperimentalAsh> compositor_;
-  bool done_ = false;
-  std::unique_ptr<base::RunLoop> run_loop_;
 };
 
 void GiveItSomeTime(base::TimeDelta delta) {
@@ -206,34 +179,10 @@ void GiveItSomeTime(base::TimeDelta delta) {
   run_loop.Run();
 }
 
-class MetricsWaiter {
- public:
-  MetricsWaiter(base::HistogramTester* histogram_tester,
-                std::string metrics_name)
-      : histogram_tester_(histogram_tester), metrics_name_(metrics_name) {}
-
-  MetricsWaiter(const MetricsWaiter&) = delete;
-  MetricsWaiter& operator=(const MetricsWaiter&) = delete;
-
-  ~MetricsWaiter() = default;
-
-  void Wait() {
-    while (histogram_tester_->GetAllSamples(metrics_name_).empty()) {
-      GiveItSomeTime(base::Milliseconds(16));
-    }
-  }
-
- private:
-  base::raw_ptr<base::HistogramTester> histogram_tester_;
-  const std::string metrics_name_;
-};
-
 }  // namespace
 
 // Test fixture for the LoginUnlockThroughputRecorder class.
-class LoginUnlockThroughputRecorderTestBase
-    : public LoginTestBase,
-      public testing::WithParamInterface<bool> {
+class LoginUnlockThroughputRecorderTestBase : public LoginTestBase {
  public:
   LoginUnlockThroughputRecorderTestBase() = default;
 
@@ -247,40 +196,27 @@ class LoginUnlockThroughputRecorderTestBase
   // LoginTestBase:
   void SetUp() override {
     LoginTestBase::SetUp();
-    histogram_tester_ = std::make_unique<base::HistogramTester>();
   }
 
   void LoginOwner() {
-    CreateUserSessions(1);
+    SimulateUserLogin(kRegularUserLoginInfo);
     LoginState::Get()->SetLoggedInState(LoginState::LOGGED_IN_ACTIVE,
-                                        LoginState::LOGGED_IN_USER_OWNER);
+                                        LoginState::LOGGED_IN_USER_REGULAR);
   }
 
-  void LockScreenAndAnimate() {
-    GetSessionControllerClient()->LockScreen();
-    RunSimpleAnimation();
-  }
-
-  void UnlockScreenAndAnimate() {
-    GetSessionControllerClient()->UnlockScreen();
-    RunSimpleAnimation();
-  }
-
-  void AddScheduledRestoreBrowserWindows(const std::vector<int>& ids,
-                                         bool is_lacros) {
-    for (int n : ids) {
-      throughput_recorder()->AddScheduledRestoreWindow(
-          n, is_lacros ? app_constants::kLacrosAppId : "",
-          LoginUnlockThroughputRecorder::kBrowser);
+  void AddScheduledRestoreWindows(
+      const std::vector<int>& browser_ids,
+      const std::vector<int>& non_browser_ids = {}) {
+    std::vector<LoginUnlockThroughputRecorder::RestoreWindowID> window_ids;
+    for (int n : browser_ids) {
+      std::string app_name = app_constants::kChromeAppId;
+      window_ids.emplace_back(n, std::move(app_name));
     }
-  }
-
-  void AddScheduledRestoreNonBrowserWindows(const std::vector<int>& ids) {
-    for (int n : ids) {
-      throughput_recorder()->AddScheduledRestoreWindow(
-          n, base::StringPrintf("some_app%d", n),
-          LoginUnlockThroughputRecorder::kBrowser);
+    for (int n : non_browser_ids) {
+      window_ids.emplace_back(n, base::StringPrintf("some_app%d", n));
     }
+    throughput_recorder()->FullSessionRestoreDataLoaded(
+        std::move(window_ids), /*restore_automatically=*/true);
   }
 
   void RestoredWindowsCreated(const std::vector<int>& ids) {
@@ -299,18 +235,19 @@ class LoginUnlockThroughputRecorderTestBase
 
   void RestoredWindowsPresented(const std::vector<int>& ids) {
     for (int n : ids) {
-      throughput_recorder()->OnRestoredWindowPresented(n);
+      throughput_recorder()->window_restore_tracker()->OnPresentedForTesting(n);
     }
   }
 
  protected:
-  void RunSimpleAnimation() {
-    ui::Compositor* compositor =
-        Shell::GetPrimaryRootWindow()->GetHost()->compositor();
-    TestObserver observer(compositor);
-    BeginMainFrameWaiter(compositor).Wait();
-    FirstNonAnimatedFrameStartedWaiter(compositor).Wait();
-    ui::DrawWaiterForTest::WaitForCompositingEnded(compositor);
+  void SetupDisplay(bool has_display) {
+    if (has_display) {
+      // A single default display will be configured automatically.
+      return;
+    }
+    const std::vector<display::ManagedDisplayInfo> empty;
+    display_manager()->OnNativeDisplaysChanged(empty);
+    EXPECT_EQ(1U, display_manager()->GetNumDisplays());
   }
 
   void EnableTabletMode(bool enable) {
@@ -323,16 +260,14 @@ class LoginUnlockThroughputRecorderTestBase
 
   bool IsThroughputRecorderBlocked() {
     return throughput_recorder()
-        ->login_animation_throughput_reporter()
+        ->GetLoginAnimationThroughputReporterForTesting()
         ->IsBlocked();
   }
-
-  // Used to verify recorded data.
-  std::unique_ptr<base::HistogramTester> histogram_tester_;
 };
 
-using LoginUnlockThroughputRecorderLoginAnimationTest =
-    LoginUnlockThroughputRecorderTestBase;
+class LoginUnlockThroughputRecorderLoginAnimationTest
+    : public LoginUnlockThroughputRecorderTestBase,
+      public testing::WithParamInterface<bool> {};
 
 // Boolean parameter controls tablet mode.
 INSTANTIATE_TEST_SUITE_P(All,
@@ -343,46 +278,102 @@ INSTANTIATE_TEST_SUITE_P(All,
 // initialization.
 TEST_P(LoginUnlockThroughputRecorderLoginAnimationTest,
        ReportLoginAnimationOnly) {
+  StrictMock<MockPostLoginEventObserver> mock_observer(throughput_recorder());
+  StrictMock<MockFunction<void(const char* check_point_name)>> check_point;
+
+  {
+    ::testing::InSequence inseq;
+
+    EXPECT_CALL(mock_observer,
+                OnUserLoggedIn(_, /*is_ash_restarted=*/false,
+                               /*is_regular_user_or_owner=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("login_done")).Times(1);
+
+    EXPECT_CALL(mock_observer, OnCompositorAnimationFinished(_, _)).Times(1);
+
+    EXPECT_CALL(check_point, Call("animation_done")).Times(1);
+  }
+
   EnableTabletMode(GetParam());
-  const std::string metrics_name =
-      GetParam() ? kAshLoginAnimationDurationTabletMode
-                 : kAshLoginAnimationDurationClamshellMode;
 
   LoginOwner();
-  RunSimpleAnimation();
+  test::RunSimpleAnimation();
   GiveItSomeTime(base::Milliseconds(100));
 
-  // Should not report login histogram until shelf is initialized.
-  EXPECT_EQ(histogram_tester_.get()->GetTotalSum(metrics_name), 0);
+  check_point.Call("login_done");
 
-  // In this test case we ignore the shelf initialization. Pretend that it
-  // was done.
+  // In this test case we ignore the shelf initialization and session restore.
+  // Pretend that it was done. It should only trigger
+  // OnCompositorAnimationFinished.
   throughput_recorder()->ResetScopedThroughputReporterBlockerForTesting();
-  RunSimpleAnimation();
+  test::RunSimpleAnimation();
+  GiveItSomeTime(base::Milliseconds(100));
 
-  MetricsWaiter(histogram_tester_.get(),
-                GetParam() ? kAshLoginAnimationDurationTabletMode
-                           : kAshLoginAnimationDurationClamshellMode)
-      .Wait();
+  check_point.Call("animation_done");
 }
 
 // Verifies that login animation metrics are reported correctly after shelf is
 // initialized.
 TEST_P(LoginUnlockThroughputRecorderLoginAnimationTest,
        ReportLoginWithShelfInitialization) {
+  StrictMock<MockPostLoginEventObserver> mock_observer(throughput_recorder());
+  StrictMock<MockFunction<void(const char* check_point_name)>> check_point;
+
+  {
+    ::testing::InSequence inseq;
+
+    EXPECT_CALL(mock_observer,
+                OnUserLoggedIn(_, /*is_ash_restarted=*/false,
+                               /*is_regular_user_or_owner=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("login_done")).Times(1);
+
+    EXPECT_CALL(mock_observer,
+                OnSessionRestoreDataLoaded(_, /*restore_automatically=*/true))
+        .Times(1);
+    // NOTE: No browser restore events here since the restore list is empty in
+    // this scenario.
+
+    EXPECT_CALL(check_point, Call("restore_data_loaded")).Times(1);
+
+    EXPECT_CALL(check_point, Call("shelf_initialized")).Times(1);
+    EXPECT_CALL(check_point, Call("shelf_updated_1")).Times(1);
+    EXPECT_CALL(check_point, Call("shelf_updated_2")).Times(1);
+    EXPECT_CALL(check_point, Call("shelf_updated_3")).Times(1);
+
+    EXPECT_CALL(mock_observer, OnAllExpectedShelfIconLoaded(_)).Times(1);
+    EXPECT_CALL(mock_observer, OnShelfIconsLoadedAndSessionRestoreDone(_))
+        .Times(1);
+    // OnShelfAnimationFinished is triggered immediately as no shelf animation
+    // is ongoing at this point.
+    EXPECT_CALL(mock_observer, OnShelfAnimationFinished(_)).Times(1);
+    EXPECT_CALL(mock_observer, OnDeferredTasksStarted(_)).Times(1);
+
+    EXPECT_CALL(check_point, Call("shelf_icons_loaded")).Times(1);
+
+    EXPECT_CALL(mock_observer, OnCompositorAnimationFinished(_, _)).Times(1);
+    EXPECT_CALL(mock_observer, OnShelfAnimationAndCompositorAnimationDone(_))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("animation_done")).Times(1);
+  }
+
   EnableTabletMode(GetParam());
-  const std::string metrics_name =
-      GetParam() ? kAshLoginAnimationDurationTabletMode
-                 : kAshLoginAnimationDurationClamshellMode;
 
   LoginOwner();
+  test::RunSimpleAnimation();
   GiveItSomeTime(base::Milliseconds(100));
 
-  // Do not expect any windows to be restored.
-  throughput_recorder()->RestoreDataLoaded();
+  check_point.Call("login_done");
 
-  // Should not report login histogram until shelf is initialized.
-  EXPECT_EQ(histogram_tester_.get()->GetTotalSum(metrics_name), 0);
+  // Do not expect any windows to be restored.
+  throughput_recorder()->FullSessionRestoreDataLoaded(
+      {}, /*restore_automatically=*/true);
+
+  check_point.Call("restore_data_loaded");
 
   TestShelfModel model;
   model.InitializeIconList({1, 2, 3, 4, 5, 6});
@@ -390,19 +381,25 @@ TEST_P(LoginUnlockThroughputRecorderLoginAnimationTest,
   // None of the expected shelf items have icons loaded.
   throughput_recorder()->InitShelfIconList(&model);
 
-  RunSimpleAnimation();
+  test::RunSimpleAnimation();
   GiveItSomeTime(base::Milliseconds(100));
   EXPECT_TRUE(IsThroughputRecorderBlocked());
+
+  check_point.Call("shelf_initialized");
 
   model.SetIconsLoadedFor({1, 2, 3});
   throughput_recorder()->UpdateShelfIconList(&model);
   EXPECT_TRUE(IsThroughputRecorderBlocked());
+
+  check_point.Call("shelf_updated_1");
 
   // Remove last shelf button.
   model.InitializeIconList({1, 2, 3, 4, 5});
   model.SetIconsLoadedFor({1, 2, 3});
   throughput_recorder()->UpdateShelfIconList(&model);
   EXPECT_TRUE(IsThroughputRecorderBlocked());
+
+  check_point.Call("shelf_updated_2");
 
   // Add extra buttons.
   model.InitializeIconList({4, 5, 6, 7, 8, 9});
@@ -411,273 +408,320 @@ TEST_P(LoginUnlockThroughputRecorderLoginAnimationTest,
   throughput_recorder()->UpdateShelfIconList(&model);
   EXPECT_TRUE(IsThroughputRecorderBlocked());
 
+  check_point.Call("shelf_updated_3");
+
   model.SetIconsLoadedFor({4, 5});
   // All buttons should have icons.
   throughput_recorder()->UpdateShelfIconList(&model);
   // All loaded icons should trigger login histograms.
   EXPECT_FALSE(IsThroughputRecorderBlocked());
-  EXPECT_GT(histogram_tester_.get()->GetTotalSum(
-                "Ash.LoginSessionRestore.AllShelfIconsLoaded"),
-            0);
 
+  check_point.Call("shelf_icons_loaded");
+
+  // Start login animation.
+  test::RunSimpleAnimation();
   GiveItSomeTime(base::Milliseconds(100));
-  // Should not report login histogram until login animation starts.
-  EXPECT_EQ(histogram_tester_.get()->GetTotalSum(metrics_name), 0);
-  // Shelf metrics should be already reported. Did not specifically start shelf
-  // animations, but it should be reported immediately when there are no shelf
-  // animation.
-  EXPECT_GT(histogram_tester_.get()->GetTotalSum(
-                "Ash.LoginSessionRestore.ShelfLoginAnimationEnd"),
-            0);
 
-  // Start login animation. It should trigger metrics reporting.
-  RunSimpleAnimation();
-  MetricsWaiter(histogram_tester_.get(), metrics_name).Wait();
+  check_point.Call("animation_done");
 }
 
-TEST_P(LoginUnlockThroughputRecorderLoginAnimationTest, ReportUnlock) {
-  LoginOwner();
+class LoginUnlockThroughputRecorderWindowRestoreTest
+    : public LoginUnlockThroughputRecorderTestBase,
+      public testing::WithParamInterface</*has_display=*/bool> {};
 
-  EnableTabletMode(GetParam());
-
-  LockScreenAndAnimate();
-  UnlockScreenAndAnimate();
-
-  MetricsWaiter(histogram_tester_.get(),
-                GetParam() ? kAshUnlockAnimationDurationTabletMode
-                           : kAshUnlockAnimationDurationClamshellMode)
-      .Wait();
-}
-
-using LoginUnlockThroughputRecorderWindowRestoreTest =
-    LoginUnlockThroughputRecorderTestBase;
-
-// Boolean parameter controls lacros mode.
 INSTANTIATE_TEST_SUITE_P(All,
                          LoginUnlockThroughputRecorderWindowRestoreTest,
-                         testing::Bool());
+                         /*has_display=*/testing::Bool());
 
 // Verifies that window restore metrics are reported correctly.
 TEST_P(LoginUnlockThroughputRecorderWindowRestoreTest,
        ReportWindowRestoreMetrics) {
-  const bool is_lacros = GetParam();
+  const bool has_display = GetParam();
 
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsCreated"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
+  StrictMock<MockPostLoginEventObserver> mock_observer(throughput_recorder());
+  StrictMock<MockFunction<void(const char* check_point_name)>> check_point;
+
+  {
+    ::testing::InSequence inseq;
+
+    EXPECT_CALL(mock_observer,
+                OnUserLoggedIn(_, /*is_ash_restarted=*/false,
+                               /*is_regular_user_or_owner=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("login_done")).Times(1);
+
+    EXPECT_CALL(mock_observer,
+                OnSessionRestoreDataLoaded(_, /*restore_automatically=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("restore_windows_scheduled")).Times(1);
+    EXPECT_CALL(check_point, Call("restore_ongoing_1")).Times(1);
+    EXPECT_CALL(check_point, Call("restore_ongoing_2")).Times(1);
+    EXPECT_CALL(check_point, Call("restore_ongoing_3")).Times(1);
+    EXPECT_CALL(mock_observer, OnAllBrowserWindowsCreated(_)).Times(1);
+    EXPECT_CALL(check_point, Call("last_window_created")).Times(1);
+
+    if (has_display) {
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsShown(_)).Times(1);
+      EXPECT_CALL(check_point, Call("last_window_shown")).Times(1);
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsPresented(_)).Times(1);
+      EXPECT_CALL(check_point, Call("last_window_presented")).Times(1);
+    } else {
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsShown(_)).Times(1);
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsPresented(_)).Times(1);
+      EXPECT_CALL(check_point, Call("last_window_shown")).Times(1);
+      EXPECT_CALL(check_point, Call("last_window_presented")).Times(1);
+    }
+  }
+
+  SetupDisplay(has_display);
 
   LoginOwner();
+  test::RunSimpleAnimation();
   GiveItSomeTime(base::Milliseconds(100));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsCreated"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
 
-  AddScheduledRestoreBrowserWindows({1, 2, 3, 4, 5, 6}, is_lacros);
-  AddScheduledRestoreNonBrowserWindows({7, 8, 9, 10, 11, 12});
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsCreated"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
+  check_point.Call("login_done");
+
+  AddScheduledRestoreWindows({1, 2, 3, 4, 5, 6}, {7, 8, 9, 10, 11, 12});
+
+  check_point.Call("restore_windows_scheduled");
 
   // The unexpected windows do not trigger the metrics.
   RestoredWindowsCreated({21, 22, 23, 24, 25, 26});
   RestoredWindowsShown({21, 22, 23, 24, 25, 26});
   RestoredWindowsPresented({21, 22, 23, 24, 25, 26});
-  GiveItSomeTime(base::Milliseconds(100));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsCreated"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
+
+  check_point.Call("restore_ongoing_1");
 
   // Window must go through all of the expected steps
   // (Created->Shown->Presented). The non-created windows do not trigger
   // metrics.
   RestoredWindowsShown({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
   RestoredWindowsPresented({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-  GiveItSomeTime(base::Milliseconds(100));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsCreated"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
+
+  check_point.Call("restore_ongoing_2");
 
   // Only wait for the expected browser windows: expected window 1 is missing.
   RestoredWindowsCreated({2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
   RestoredWindowsShown({2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
   RestoredWindowsPresented({2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
-  GiveItSomeTime(base::Milliseconds(100));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsCreated"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
+
+  check_point.Call("restore_ongoing_3");
 
   // Last window created.
   RestoredWindowsCreated({1});
-  EXPECT_TRUE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsCreated"));
-  GiveItSomeTime(base::Milliseconds(100));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
-  EXPECT_FALSE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
+
+  check_point.Call("last_window_created");
 
   RestoredWindowsShown({1});
-  EXPECT_TRUE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsShown"));
+
+  check_point.Call("last_window_shown");
 
   RestoredWindowsPresented({1});
-  EXPECT_TRUE(histogram_tester_.get()->GetTotalSum(
-      "Ash.LoginSessionRestore.AllBrowserWindowsPresented"));
 
-  // Should not report login histograms until shelf icons are loaded.
-  EXPECT_TRUE(histogram_tester_.get()
-                  ->GetAllSamples(kAshLoginAnimationDurationClamshellMode)
-                  .empty());
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.ShelfLoginAnimationEnd")
-          .empty());
+  check_point.Call("last_window_presented");
 }
 
 // Verifies that Login animation duration is reported when all shelf icons were
 // loaded but only after windows were restored.
 TEST_P(LoginUnlockThroughputRecorderWindowRestoreTest,
        ReportLoginAnimationDurationOnlyAfterWindowsRestore) {
-  const bool is_lacros = GetParam();
+  const bool has_display = GetParam();
 
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.AllBrowserWindowsCreated")
-          .empty());
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.AllBrowserWindowsShown")
-          .empty());
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.AllBrowserWindowsPresented")
-          .empty());
+  StrictMock<MockPostLoginEventObserver> mock_observer(throughput_recorder());
+  StrictMock<MockFunction<void(const char* check_point_name)>> check_point;
+
+  {
+    ::testing::InSequence inseq;
+
+    EXPECT_CALL(mock_observer,
+                OnUserLoggedIn(_, /*is_ash_restarted=*/false,
+                               /*is_regular_user_or_owner=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("login_done")).Times(1);
+
+    EXPECT_CALL(mock_observer,
+                OnSessionRestoreDataLoaded(_, /*restore_automatically=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("restore_windows_scheduled")).Times(1);
+
+    EXPECT_CALL(mock_observer, OnAllBrowserWindowsCreated(_)).Times(1);
+
+    EXPECT_CALL(check_point, Call("all_windows_created")).Times(1);
+
+    if (has_display) {
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsShown(_)).Times(1);
+      EXPECT_CALL(check_point, Call("all_windows_shown")).Times(1);
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsPresented(_)).Times(1);
+      EXPECT_CALL(check_point, Call("all_windows_presented")).Times(1);
+    } else {
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsShown(_)).Times(1);
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsPresented(_)).Times(1);
+      EXPECT_CALL(check_point, Call("all_windows_shown")).Times(1);
+      EXPECT_CALL(check_point, Call("all_windows_presented")).Times(1);
+    }
+
+    EXPECT_CALL(mock_observer, OnAllExpectedShelfIconLoaded(_)).Times(1);
+    EXPECT_CALL(mock_observer, OnShelfIconsLoadedAndSessionRestoreDone(_))
+        .Times(1);
+    // OnShelfAnimationFinished is triggered immediately as no shelf animation
+    // is ongoing at this point.
+    EXPECT_CALL(mock_observer, OnShelfAnimationFinished(_)).Times(1);
+    EXPECT_CALL(mock_observer, OnDeferredTasksStarted(_)).Times(1);
+
+    EXPECT_CALL(check_point, Call("shelf_icons_loaded")).Times(1);
+
+    EXPECT_CALL(mock_observer, OnCompositorAnimationFinished(_, _)).Times(1);
+    EXPECT_CALL(mock_observer, OnShelfAnimationAndCompositorAnimationDone(_))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("animation_done")).Times(1);
+  }
+
+  SetupDisplay(has_display);
 
   LoginOwner();
-  AddScheduledRestoreBrowserWindows({1, 2, 3}, is_lacros);
-  // Should not report login histograms until shelf icons are loaded.
-  EXPECT_TRUE(histogram_tester_.get()
-                  ->GetAllSamples(kAshLoginAnimationDurationClamshellMode)
-                  .empty());
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.ShelfLoginAnimationEnd")
-          .empty());
+  test::RunSimpleAnimation();
+  GiveItSomeTime(base::Milliseconds(100));
+
+  check_point.Call("login_done");
+
+  AddScheduledRestoreWindows({1, 2, 3});
+
+  check_point.Call("restore_windows_scheduled");
+
   RestoredWindowsCreated({1, 2, 3});
+
+  check_point.Call("all_windows_created");
+
   RestoredWindowsShown({1, 2, 3});
+
+  check_point.Call("all_windows_shown");
+
   RestoredWindowsPresented({1, 2, 3});
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.AllBrowserWindowsCreated")
-      .Wait();
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.AllBrowserWindowsShown")
-      .Wait();
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.AllBrowserWindowsPresented")
-      .Wait();
+
+  check_point.Call("all_windows_presented");
 
   TestShelfModel model;
   model.InitializeIconList({1, 2, 3});
+  model.AddBrowserIcon();
   model.SetIconsLoadedFor({1, 2, 3});
+  model.SetIconLoadedForBrowser();
   throughput_recorder()->InitShelfIconList(&model);
 
-  // Start login animation. It should trigger metrics reporting.
-  RunSimpleAnimation();
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.ShelfLoginAnimationEnd")
-      .Wait();
-  MetricsWaiter(histogram_tester_.get(),
-                kAshLoginAnimationDurationClamshellMode)
-      .Wait();
+  check_point.Call("shelf_icons_loaded");
+
+  // Start login animation.
+  test::RunSimpleAnimation();
+  GiveItSomeTime(base::Milliseconds(100));
+
+  check_point.Call("animation_done");
 }
 
 // Verifies that Login animation duration is reported when all browser windows
 // were restored but only after shelf icons were loaded.
 TEST_P(LoginUnlockThroughputRecorderWindowRestoreTest,
        ReportLoginAnimationDurationOnlyAfterShelfIconsLoaded) {
-  const bool is_lacros = GetParam();
+  const bool has_display = GetParam();
 
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.AllBrowserWindowsCreated")
-          .empty());
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.AllBrowserWindowsShown")
-          .empty());
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.AllBrowserWindowsPresented")
-          .empty());
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.ShelfLoginAnimationEnd")
-          .empty());
-  EXPECT_TRUE(histogram_tester_.get()
-                  ->GetAllSamples(kAshLoginAnimationDurationClamshellMode)
-                  .empty());
+  StrictMock<MockPostLoginEventObserver> mock_observer(throughput_recorder());
+  StrictMock<MockFunction<void(const char* check_point_name)>> check_point;
+
+  {
+    ::testing::InSequence inseq;
+
+    EXPECT_CALL(mock_observer,
+                OnUserLoggedIn(_, /*is_ash_restarted=*/false,
+                               /*is_regular_user_or_owner=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("login_done")).Times(1);
+
+    EXPECT_CALL(mock_observer, OnAllExpectedShelfIconLoaded(_)).Times(1);
+
+    EXPECT_CALL(check_point, Call("shelf_icons_loaded")).Times(1);
+
+    EXPECT_CALL(mock_observer,
+                OnSessionRestoreDataLoaded(_, /*restore_automatically=*/true))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("restore_windows_scheduled")).Times(1);
+
+    EXPECT_CALL(mock_observer, OnAllBrowserWindowsCreated(_)).Times(1);
+
+    EXPECT_CALL(check_point, Call("all_windows_created")).Times(1);
+
+    if (has_display) {
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsShown(_)).Times(1);
+      EXPECT_CALL(check_point, Call("all_windows_shown")).Times(1);
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsPresented(_)).Times(1);
+      EXPECT_CALL(mock_observer, OnShelfIconsLoadedAndSessionRestoreDone(_))
+          .Times(1);
+      EXPECT_CALL(mock_observer, OnShelfAnimationFinished(_)).Times(1);
+      EXPECT_CALL(mock_observer, OnDeferredTasksStarted(_)).Times(1);
+
+      EXPECT_CALL(check_point, Call("all_windows_presented")).Times(1);
+    } else {
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsShown(_)).Times(1);
+      EXPECT_CALL(mock_observer, OnAllBrowserWindowsPresented(_)).Times(1);
+      EXPECT_CALL(mock_observer, OnShelfIconsLoadedAndSessionRestoreDone(_))
+          .Times(1);
+      EXPECT_CALL(mock_observer, OnShelfAnimationFinished(_)).Times(1);
+      EXPECT_CALL(mock_observer, OnDeferredTasksStarted(_)).Times(1);
+
+      EXPECT_CALL(check_point, Call("all_windows_shown")).Times(1);
+      EXPECT_CALL(check_point, Call("all_windows_presented")).Times(1);
+    }
+
+    EXPECT_CALL(mock_observer, OnCompositorAnimationFinished(_, _)).Times(1);
+    EXPECT_CALL(mock_observer, OnShelfAnimationAndCompositorAnimationDone(_))
+        .Times(1);
+
+    EXPECT_CALL(check_point, Call("animation_done")).Times(1);
+  }
+
+  SetupDisplay(has_display);
 
   LoginOwner();
+  test::RunSimpleAnimation();
+  GiveItSomeTime(base::Milliseconds(100));
+
+  check_point.Call("login_done");
 
   TestShelfModel model;
   model.InitializeIconList({1, 2, 3});
+  model.AddBrowserIcon();
   model.SetIconsLoadedFor({1, 2, 3});
+  model.SetIconLoadedForBrowser();
   throughput_recorder()->InitShelfIconList(&model);
-  RunSimpleAnimation();
-
-  // Login is not completed until windows were restored.
-  EXPECT_TRUE(
-      histogram_tester_.get()
-          ->GetAllSamples("Ash.LoginSessionRestore.ShelfLoginAnimationEnd")
-          .empty());
-  EXPECT_TRUE(histogram_tester_.get()
-                  ->GetAllSamples(kAshLoginAnimationDurationClamshellMode)
-                  .empty());
+  test::RunSimpleAnimation();
   GiveItSomeTime(base::Milliseconds(100));
 
-  AddScheduledRestoreBrowserWindows({1, 2, 3}, is_lacros);
-  RestoredWindowsCreated({1, 2, 3});
-  RestoredWindowsShown({1, 2, 3});
-  RestoredWindowsPresented({1, 2, 3});
-  // Start login animation. It should trigger LoginAnimation.Duration reporting.
-  RunSimpleAnimation();
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.AllBrowserWindowsCreated")
-      .Wait();
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.AllBrowserWindowsShown")
-      .Wait();
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.AllBrowserWindowsPresented")
-      .Wait();
+  check_point.Call("shelf_icons_loaded");
 
-  // Login metrics should be reported.
-  // Start login animation. It should trigger LoginAnimation.Duration reporting.
-  RunSimpleAnimation();
-  MetricsWaiter(histogram_tester_.get(),
-                "Ash.LoginSessionRestore.ShelfLoginAnimationEnd")
-      .Wait();
-  MetricsWaiter(histogram_tester_.get(),
-                kAshLoginAnimationDurationClamshellMode)
-      .Wait();
+  AddScheduledRestoreWindows({1, 2, 3});
+
+  check_point.Call("restore_windows_scheduled");
+
+  RestoredWindowsCreated({1, 2, 3});
+
+  check_point.Call("all_windows_created");
+
+  RestoredWindowsShown({1, 2, 3});
+
+  check_point.Call("all_windows_shown");
+
+  RestoredWindowsPresented({1, 2, 3});
+
+  check_point.Call("all_windows_presented");
+
+  test::RunSimpleAnimation();
+  GiveItSomeTime(base::Milliseconds(100));
+
+  check_point.Call("animation_done");
 }
 
 }  // namespace ash

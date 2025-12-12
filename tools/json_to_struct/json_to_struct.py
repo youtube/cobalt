@@ -6,6 +6,9 @@
 # Format for the JSON schema file:
 # {
 #   "type_name": "DesiredCStructName",
+#   "system-headers": [   // Optional list of system headers to be included by
+#     "header"            // the .h.
+#   ],
 #   "headers": [          // Optional list of headers to be included by the .h.
 #     "path/to/header.h"
 #   ],
@@ -71,8 +74,15 @@ try:
 finally:
   sys.path.pop(0)
 
-import struct_generator
+from aggregation import AggregationKind
+from aggregation import GenerateCCAggregation
+from aggregation import GenerateHHAggregation
+from aggregation import GetAggregationDetails
+import class_generator
 import element_generator
+import java_element_generator
+import struct_generator
+
 
 HEAD = u"""// Copyright %d The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
@@ -84,6 +94,7 @@ HEAD = u"""// Copyright %d The Chromium Authors
 // DO NOT EDIT.
 
 """
+
 
 def _GenerateHeaderGuard(h_filename):
   """Generates the string used in #ifndef guarding the header file.
@@ -116,10 +127,23 @@ def _GenerateH(basepath, fileroot, head, namespace, schema, description):
     f.write(u'#define %s\n' % header_guard)
     f.write(u'\n')
 
+    aggregation = GetAggregationDetails(description)
+
+    if aggregation.kind == AggregationKind.ARRAY:
+      f.write("#include <array>\n")
     f.write(u'#include <cstddef>\n')
     f.write(u'\n')
 
-    for header in schema.get(u'headers', []):
+    if system_headers := schema.get(u'system-headers', []):
+      for header in system_headers:
+        f.write(u'#include <%s>\n' % header)
+      f.write(u'\n')
+
+    headers = schema.get(u'headers', [])
+    if aggregation.kind == AggregationKind.MAP:
+      headers.append("base/containers/fixed_flat_map.h")
+
+    for header in sorted(headers):
       f.write(u'#include "%s"\n' % header)
     f.write(u'\n')
 
@@ -133,18 +157,16 @@ def _GenerateH(basepath, fileroot, head, namespace, schema, description):
 
     for var_name, value in description.get('int_variables', {}).items():
       f.write(u'extern const int %s;\n' % var_name)
-    f.write(u'\n')
 
-    for element_name, element in description['elements'].items():
-      f.write(u'extern const %s %s;\n' % (schema['type_name'], element_name))
-
-    if 'generate_array' in description:
+    # Generate forward declarations of all elements.
+    if aggregation.export_items:
       f.write(u'\n')
-      f.write(
-          u'extern const %s* const %s[];\n' %
-          (schema['type_name'], description['generate_array']['array_name']))
-      f.write(u'extern const size_t %s;\n' %
-              (description['generate_array']['array_name'] + u'Length'))
+      for element_name, element in description['elements'].items():
+        f.write(u'extern const %s %s;\n' % (schema['type_name'], element_name))
+
+    aggregated = GenerateHHAggregation(schema['type_name'], aggregation)
+    if aggregated:
+      f.write(aggregated)
 
     if namespace:
       f.write(u'\n')
@@ -173,31 +195,68 @@ def _GenerateCC(basepath, fileroot, head, namespace, schema, description):
                encoding='utf-8') as f:
     f.write(head)
 
-    f.write(u'#include "%s"\n' % (fileroot + u'.h'))
-    f.write(u'\n')
+    f.write('#include "%s"\n' % (fileroot + u'.h'))
+    f.write('\n')
 
     if namespace:
-      f.write(u'namespace %s {\n' % namespace)
-      f.write(u'\n')
+      f.write('namespace %s {\n' % namespace)
+      f.write('\n')
+
+    aggregation = GetAggregationDetails(description)
+
+    if not aggregation.export_items:
+      f.write('namespace {\n')
+      f.write('\n')
 
     f.write(element_generator.GenerateElements(schema['type_name'],
         schema['schema'], description))
 
-    if 'generate_array' in description:
-      f.write(u'\n')
-      f.write(
-          u'const %s* const %s[] = {\n' %
-          (schema['type_name'], description['generate_array']['array_name']))
-      for element_name, _ in description['elements'].items():
-        f.write(u'\t&%s,\n' % element_name)
-      f.write(u'};\n')
-      f.write(u'const size_t %s = %d;\n' %
-              (description['generate_array']['array_name'] + u'Length',
-               len(description['elements'])))
+    if not aggregation.export_items:
+      f.write('\n}  // anonymous namespace \n\n')
+
+    aggregated = GenerateCCAggregation(schema['type_name'], aggregation)
+    if aggregated:
+      f.write(aggregated)
 
     if namespace:
       f.write(u'\n')
       f.write(u'}  // namespace %s\n' % namespace)
+
+
+def _GenerateJava(basepath, fileroot, head, package, schema, description):
+  """Generates the .java file containing the static initializers for the
+  of the elements specified in the description.
+
+  Args:
+    basepath: The base directory in which files are generated.
+    fileroot: The filename and path, relative to basepath, of the file to
+        create, without an extension.
+    head: The string to output as the header of the .cc file.
+    package: A string corresponding to the Java package to use.
+    schema: A dict containing the schema. See comment at the top of this file.
+    description: A dict containing the description. See comment at the top of
+        this file.
+  """
+  with io.open(os.path.join(basepath, fileroot + '.java'),
+               'w',
+               encoding='utf-8') as f:
+    f.write(head)
+
+    if package:
+      f.write(u'package %s;\n' % package)
+      f.write(u'\n')
+
+    f.write(u'public class GeneratedFieldtrialTestingConfigVariations {\n')
+
+    f.write(
+        class_generator.GenerateInnerClasses(schema['type_name'],
+                                             schema['schema']))
+
+    f.write(
+        java_element_generator.GenerateElements(schema['type_name'],
+                                                schema['schema'], description))
+
+    f.write(u'} // class GeneratedFieldtrialTestingConfigVariations\n')
 
 
 def _Load(filename):
@@ -207,6 +266,36 @@ def _Load(filename):
   with io.open(filename, 'r', encoding='utf-8') as handle:
     result = json.loads(json_comment_eater.Nom(handle.read()))
   return result
+
+
+def GenerateClass(basepath,
+                  output_root,
+                  package,
+                  schema,
+                  description,
+                  description_filename,
+                  schema_filename,
+                  year=None):
+  """Generates a Java class from a JSON description.
+
+  Args:
+    basepath: The base directory in which files are generated.
+    output_root: The filename and path, relative to basepath, of the file to
+        create, without an extension.
+    package: A string corresponding to the Java package to use.
+    schema: A dict containing the schema. See comment at the top of this file.
+    description: A dict containing the description. See comment at the top of
+        this file.
+    description_filename: The description filename. This is added to the
+        header of the outputted files.
+    schema_filename: The schema filename. This is added to the header of the
+        outputted files.
+    year: Year to display next to the copy-right in the header.
+  """
+  year = int(year) if year else datetime.now().year
+  head = HEAD % (year, schema_filename, description_filename)
+  _GenerateJava(basepath, output_root, head, package, schema, description)
+
 
 def GenerateStruct(basepath, output_root, namespace, schema, description,
                    description_filename, schema_filename, year=None):

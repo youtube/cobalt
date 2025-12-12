@@ -105,10 +105,11 @@ static_assert(std::is_base_of<IDLBase, IDLUnrestrictedFloat>::value,
 static_assert(std::is_same<IDLUnrestrictedFloat::ImplType, float>::value,
               "IDLUnrestrictedFloat's ImplType is float");
 
-static_assert(std::is_base_of<IDLBase, IDLPromise>::value,
+static_assert(std::is_base_of<IDLBase, IDLPromise<IDLAny>>::value,
               "IDLPromise inherits from IDLBase");
-static_assert(std::is_same<IDLPromise::ImplType, ScriptPromise>::value,
-              "IDLPromise's ImplType is ScriptPromise");
+static_assert(
+    std::is_same<IDLPromise<IDLAny>::ImplType, ScriptPromise<IDLAny>>::value,
+    "IDLPromise<T>'s ImplType is ScriptPromiseTyped<T>");
 
 static_assert(std::is_base_of<IDLBase, IDLSequence<IDLByte>>::value,
               "IDLSequence inherits from IDLBase");
@@ -153,15 +154,15 @@ static_assert(
 static_assert(std::is_base_of<IDLBase, IDLNullable<IDLDouble>>::value,
               "IDLNullable should have IDLBase as a base class");
 static_assert(std::is_same<IDLNullable<IDLDouble>::ImplType,
-                           absl::optional<double>>::value,
-              "double? corresponds to absl::optional<double>");
+                           std::optional<double>>::value,
+              "double? corresponds to std::optional<double>");
 static_assert(std::is_same<IDLNullable<Element>::ImplType, Element*>::value,
-              "Element? doesn't require a absl::optional<> wrapper");
+              "Element? doesn't require a std::optional<> wrapper");
 static_assert(std::is_same<IDLNullable<IDLString>::ImplType, String>::value,
-              "DOMString? doesn't require a absl::optional<> wrapper");
+              "DOMString? doesn't require a std::optional<> wrapper");
 static_assert(std::is_same<IDLNullable<V8UnionStringOrStringSequence>::ImplType,
                            V8UnionStringOrStringSequence*>::value,
-              "(union type)? doesn't require a absl::optional<> wrapper");
+              "(union type)? doesn't require a std::optional<> wrapper");
 
 }  // namespace
 

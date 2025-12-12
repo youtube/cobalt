@@ -6,9 +6,11 @@
 
 #include "third_party/blink/renderer/platform/fonts/character_range.h"
 #include "third_party/blink/renderer/platform/fonts/shaping/shape_result.h"
-#include "third_party/blink/renderer/platform/fonts/shaping/shape_result_inline_headers.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/shape_result_run.h"
+#include "third_party/blink/renderer/platform/fonts/shaping/shape_result_view.h"
 #include "third_party/blink/renderer/platform/fonts/simple_font_data.h"
 #include "third_party/blink/renderer/platform/text/text_direction.h"
+#include "third_party/blink/renderer/platform/text/text_run.h"
 #include "ui/gfx/geometry/point_f.h"
 
 namespace blink {
@@ -16,14 +18,71 @@ namespace blink {
 namespace {
 
 unsigned CharactersInShapeResult(
-    const Vector<scoped_refptr<const ShapeResult>, 64>& results) {
+    const HeapVector<Member<const ShapeResult>, 64>& results) {
   unsigned num_characters = 0;
-  for (const scoped_refptr<const ShapeResult>& result : results)
+  for (const Member<const ShapeResult>& result : results) {
     num_characters += result->NumCharacters();
+  }
   return num_characters;
 }
 
 }  // namespace
+
+void ShapeResultBuffer::ComputeRangeIn(const ShapeResult& result,
+                                       const gfx::RectF& ink_bounds,
+                                       CharacterRangeContext& context) {
+  result.EnsureGraphemes(StringView(context.text, context.total_num_characters,
+                                    result.NumCharacters()));
+  if (context.is_rtl) {
+    // Convert logical offsets to visual offsets, because results are in
+    // logical order while runs are in visual order.
+    if (!context.from_x && context.from >= 0 &&
+        static_cast<unsigned>(context.from) < result.NumCharacters()) {
+      context.from = result.NumCharacters() - context.from - 1;
+    }
+    if (!context.to_x && context.to >= 0 &&
+        static_cast<unsigned>(context.to) < result.NumCharacters()) {
+      context.to = result.NumCharacters() - context.to - 1;
+    }
+    context.current_x -= result.Width();
+  }
+  for (unsigned i = 0; i < result.runs_.size(); i++) {
+    if (!result.runs_[i]) {
+      continue;
+    }
+    DCHECK_EQ(context.is_rtl, result.runs_[i]->IsRtl());
+    int num_characters = result.runs_[i]->num_characters_;
+    if (!context.from_x && context.from >= 0 && context.from < num_characters) {
+      context.from_x = result.runs_[i]->XPositionForVisualOffset(
+                           context.from, AdjustMidCluster::kToStart) +
+                       context.current_x;
+    } else {
+      context.from -= num_characters;
+    }
+
+    if (!context.to_x && context.to >= 0 && context.to < num_characters) {
+      context.to_x = result.runs_[i]->XPositionForVisualOffset(
+                         context.to, AdjustMidCluster::kToEnd) +
+                     context.current_x;
+    } else {
+      context.to -= num_characters;
+    }
+
+    if (context.from_x || context.to_x) {
+      context.min_y = std::min(context.min_y, ink_bounds.y());
+      context.max_y = std::max(context.max_y, ink_bounds.bottom());
+    }
+
+    if (context.from_x && context.to_x) {
+      break;
+    }
+    context.current_x += result.runs_[i]->width_;
+  }
+  if (context.is_rtl) {
+    context.current_x -= result.Width();
+  }
+  context.total_num_characters += result.NumCharacters();
+}
 
 CharacterRange ShapeResultBuffer::GetCharacterRange(
     const StringView& text,
@@ -33,186 +92,43 @@ CharacterRange ShapeResultBuffer::GetCharacterRange(
     unsigned absolute_to) const {
   DCHECK_EQ(CharactersInShapeResult(results_), text.length());
 
-  float current_x = 0;
-  float from_x = 0;
-  float to_x = 0;
-  bool found_from_x = false;
-  bool found_to_x = false;
-  float min_y = 0;
-  float max_y = 0;
-
-  if (direction == TextDirection::kRtl)
-    current_x = total_width;
-
-  // The absoluteFrom and absoluteTo arguments represent the start/end offset
+  // The absolute_from and absolute_to arguments represent the start/end offset
   // for the entire run, from/to are continuously updated to be relative to
   // the current word (ShapeResult instance).
   int from = absolute_from;
   int to = absolute_to;
 
-  unsigned total_num_characters = 0;
+  CharacterRangeContext context{text, IsRtl(direction), from, to,
+                                IsRtl(direction) ? total_width : 0};
   for (unsigned j = 0; j < results_.size(); j++) {
-    const scoped_refptr<const ShapeResult> result = results_[j];
-    result->EnsureGraphemes(
-        StringView(text, total_num_characters, result->NumCharacters()));
-    if (direction == TextDirection::kRtl) {
-      // Convert logical offsets to visual offsets, because results are in
-      // logical order while runs are in visual order.
-      if (!found_from_x && from >= 0 &&
-          static_cast<unsigned>(from) < result->NumCharacters())
-        from = result->NumCharacters() - from - 1;
-      if (!found_to_x && to >= 0 &&
-          static_cast<unsigned>(to) < result->NumCharacters())
-        to = result->NumCharacters() - to - 1;
-      current_x -= result->Width();
-    }
-    for (unsigned i = 0; i < result->runs_.size(); i++) {
-      if (!result->runs_[i])
-        continue;
-      DCHECK_EQ(direction == TextDirection::kRtl, result->runs_[i]->IsRtl());
-      int num_characters = result->runs_[i]->num_characters_;
-      if (!found_from_x && from >= 0 && from < num_characters) {
-        from_x = result->runs_[i]->XPositionForVisualOffset(
-                     from, AdjustMidCluster::kToStart) +
-                 current_x;
-        found_from_x = true;
-      } else {
-        from -= num_characters;
-      }
-
-      if (!found_to_x && to >= 0 && to < num_characters) {
-        to_x = result->runs_[i]->XPositionForVisualOffset(
-                   to, AdjustMidCluster::kToEnd) +
-               current_x;
-        found_to_x = true;
-      } else {
-        to -= num_characters;
-      }
-
-      if (found_from_x || found_to_x) {
-        min_y = std::min(min_y, result->DeprecatedInkBounds().y());
-        max_y = std::max(max_y, result->DeprecatedInkBounds().bottom());
-      }
-
-      if (found_from_x && found_to_x)
-        break;
-      current_x += result->runs_[i]->width_;
-    }
-    if (direction == TextDirection::kRtl)
-      current_x -= result->Width();
-    total_num_characters += result->NumCharacters();
+    const ShapeResult* result = results_[j];
+    ComputeRangeIn(*result, result->GetDeprecatedInkBounds(), context);
   }
 
   // The position in question might be just after the text.
-  if (!found_from_x && absolute_from == total_num_characters) {
-    from_x = direction == TextDirection::kRtl ? 0 : total_width;
-    found_from_x = true;
+  if (!context.from_x && absolute_from == context.total_num_characters) {
+    context.from_x = direction == TextDirection::kRtl ? 0 : total_width;
   }
-  if (!found_to_x && absolute_to == total_num_characters) {
-    to_x = direction == TextDirection::kRtl ? 0 : total_width;
-    found_to_x = true;
+  if (!context.to_x && absolute_to == context.total_num_characters) {
+    context.to_x = direction == TextDirection::kRtl ? 0 : total_width;
   }
-  if (!found_from_x)
-    from_x = 0;
-  if (!found_to_x)
-    to_x = direction == TextDirection::kRtl ? 0 : total_width;
+  if (!context.from_x) {
+    context.from_x = 0;
+  }
+  if (!context.to_x) {
+    context.to_x = direction == TextDirection::kRtl ? 0 : total_width;
+  }
 
   // None of our runs is part of the selection, possibly invalid arguments.
-  if (!found_to_x && !found_from_x)
-    from_x = to_x = 0;
-  if (from_x < to_x)
-    return CharacterRange(from_x, to_x, -min_y, max_y);
-  return CharacterRange(to_x, from_x, -min_y, max_y);
-}
-
-Vector<CharacterRange> ShapeResultBuffer::IndividualCharacterRanges(
-    TextDirection direction,
-    float total_width) const {
-  Vector<CharacterRange> ranges;
-  float current_x = direction == TextDirection::kRtl ? total_width : 0;
-  for (const scoped_refptr<const ShapeResult>& result : results_)
-    current_x = result->IndividualCharacterRanges(&ranges, current_x);
-  return ranges;
-}
-
-void ShapeResultBuffer::AddRunInfoAdvances(const ShapeResult::RunInfo& run_info,
-                                           double offset,
-                                           Vector<double>& advances) {
-  const unsigned num_glyphs = run_info.glyph_data_.size();
-  const unsigned num_chars = run_info.num_characters_;
-
-  if (run_info.IsRtl())
-    offset += run_info.width_;
-
-  double current_width = 0;
-  for (unsigned glyph_id = 0; glyph_id < num_glyphs; glyph_id++) {
-    unsigned gid = run_info.IsRtl() ? num_glyphs - glyph_id - 1 : glyph_id;
-    unsigned next_gid =
-        run_info.IsRtl() ? num_glyphs - glyph_id - 2 : glyph_id + 1;
-    const HarfBuzzRunGlyphData& glyph = run_info.glyph_data_[gid];
-
-    unsigned char_id = glyph.character_index;
-    unsigned next_char_id =
-        (glyph_id + 1 == num_glyphs)
-            ? num_chars
-            : run_info.glyph_data_[next_gid].character_index;
-
-    current_width += glyph.advance;
-
-    if (char_id == next_char_id)
-      continue;
-
-    unsigned num_graphemes = run_info.NumGraphemes(char_id, next_char_id);
-
-    for (unsigned i = char_id; i < next_char_id; i++) {
-      if (run_info.IsRtl()) {
-        advances.push_back(offset - (current_width / num_graphemes));
-      } else {
-        advances.push_back(offset);
-      }
-
-      if (num_graphemes == next_char_id - char_id) {
-        offset += (current_width / num_graphemes) * (run_info.IsRtl() ? -1 : 1);
-      }
-    }
-
-    if (num_graphemes != next_char_id - char_id) {
-      offset += current_width * (run_info.IsRtl() ? -1 : 1);
-    }
-
-    current_width = 0;
+  if (!context.to_x && !context.from_x) {
+    context.from_x = context.to_x = 0;
   }
-}
-
-Vector<double> ShapeResultBuffer::IndividualCharacterAdvances(
-    const StringView& text,
-    TextDirection direction,
-    float total_width) const {
-  unsigned character_offset = 0;
-  Vector<double> advances;
-  double current_x = direction == TextDirection::kRtl ? total_width : 0;
-
-  for (const scoped_refptr<const ShapeResult>& result : results_) {
-    unsigned run_count = result->runs_.size();
-
-    result->EnsureGraphemes(
-        StringView(text, character_offset, result->NumCharacters()));
-
-    if (result->IsRtl()) {
-      for (int index = run_count - 1; index >= 0; index--) {
-        current_x -= result->runs_[index]->width_;
-        AddRunInfoAdvances(*result->runs_[index], current_x, advances);
-      }
-    } else {
-      for (unsigned index = 0; index < run_count; index++) {
-        AddRunInfoAdvances(*result->runs_[index], current_x, advances);
-        current_x += result->runs_[index]->width_;
-      }
-    }
-
-    character_offset += result->NumCharacters();
+  if (*context.from_x < *context.to_x) {
+    return CharacterRange(*context.from_x, *context.to_x, -context.min_y,
+                          context.max_y);
   }
-  return advances;
+  return CharacterRange(*context.to_x, *context.from_x, -context.min_y,
+                        context.max_y);
 }
 
 int ShapeResultBuffer::OffsetForPosition(
@@ -225,7 +141,7 @@ int ShapeResultBuffer::OffsetForPosition(
   if (run.Rtl()) {
     total_offset = run.length();
     for (unsigned i = results_.size(); i; --i) {
-      const scoped_refptr<const ShapeResult>& word_result = results_[i - 1];
+      const Member<const ShapeResult>& word_result = results_[i - 1];
       if (!word_result)
         continue;
       total_offset -= word_result->NumCharacters();
@@ -240,7 +156,7 @@ int ShapeResultBuffer::OffsetForPosition(
     }
   } else {
     total_offset = 0;
-    for (const scoped_refptr<const ShapeResult>& word_result : results_) {
+    for (const Member<const ShapeResult>& word_result : results_) {
       if (!word_result)
         continue;
       int offset_for_word = word_result->OffsetForPosition(
@@ -257,25 +173,15 @@ int ShapeResultBuffer::OffsetForPosition(
   return total_offset;
 }
 
-void ShapeResultBuffer::ExpandRangeToIncludePartialGlyphs(int* from,
-                                                          int* to) const {
-  int offset = 0;
-  for (unsigned j = 0; j < results_.size(); j++) {
-    const scoped_refptr<const ShapeResult> result = results_[j];
-    for (unsigned i = 0; i < result->runs_.size(); i++) {
-      if (!result->runs_[i])
-        continue;
-      result->runs_[i]->ExpandRangeToIncludePartialGlyphs(offset, from, to);
-      offset += result->runs_[i]->num_characters_;
-    }
-  }
-}
-
-Vector<ShapeResult::RunFontData> ShapeResultBuffer::GetRunFontData() const {
-  Vector<ShapeResult::RunFontData> font_data;
+HeapVector<ShapeResult::RunFontData> ShapeResultBuffer::GetRunFontData() const {
+  HeapVector<ShapeResult::RunFontData> font_data;
   for (const auto& result : results_)
     result->GetRunFontData(&font_data);
   return font_data;
+}
+
+ShapeResultView* ShapeResultBuffer::ViewAt(wtf_size_t index) const {
+  return ShapeResultView::Create(results_[index]);
 }
 
 GlyphData ShapeResultBuffer::EmphasisMarkGlyphData(
@@ -286,10 +192,9 @@ GlyphData ShapeResultBuffer::EmphasisMarkGlyphData(
       if (run->glyph_data_.IsEmpty())
         continue;
 
-      return GlyphData(
-          run->glyph_data_[0].glyph,
-          run->font_data_->EmphasisMarkFontData(font_description).get(),
-          run->CanvasRotation());
+      return GlyphData(run->glyph_data_[0].glyph,
+                       run->font_data_->EmphasisMarkFontData(font_description),
+                       run->CanvasRotation());
     }
   }
 

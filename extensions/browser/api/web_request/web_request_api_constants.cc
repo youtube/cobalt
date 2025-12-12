@@ -57,16 +57,6 @@ const char kOnResponseStartedEvent[] = "webRequest.onResponseStarted";
 const char kOnSendHeadersEvent[] = "webRequest.onSendHeaders";
 const char kOnAuthRequiredEvent[] = "webRequest.onAuthRequired";
 
-const char kOnBeforeRedirect[] = "onBeforeRedirect";
-const char kOnBeforeRequest[] = "onBeforeRequest";
-const char kOnBeforeSendHeaders[] = "onBeforeSendHeaders";
-const char kOnCompleted[] = "onCompleted";
-const char kOnErrorOccurred[] = "onErrorOccurred";
-const char kOnHeadersReceived[] = "onHeadersReceived";
-const char kOnResponseStarted[] = "onResponseStarted";
-const char kOnSendHeaders[] = "onSendHeaders";
-const char kOnAuthRequired[] = "onAuthRequired";
-
 const char kInvalidRedirectUrl[] = "redirectUrl '*' is not a valid URL.";
 const char kInvalidBlockingResponse[] =
     "cancel cannot be true in the presence of other keys.";
@@ -74,7 +64,8 @@ const char kInvalidRequestFilterUrl[] = "'*' is not a valid URL pattern.";
 const char kBlockingPermissionRequired[] =
     "You do not have permission to use blocking webRequest listeners. "
     "Be sure to declare the webRequestBlocking permission in your "
-    "manifest.";
+    "manifest. Note that webRequestBlocking is only allowed for extensions "
+    "that are installed using ExtensionInstallForcelist.";
 const char kHostPermissionsRequired[] =
     "You need to request host permissions in the manifest file in order to "
     "be notified about requests from the webRequest API.";

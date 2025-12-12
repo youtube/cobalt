@@ -20,7 +20,11 @@ config("cobalt_config") {
   configs = [
     ":default_includes",
     ":buildflag_defines",
+    ":global_defines",
   ]
+  if (enable_cobalt_hermetic_hacks) {
+    configs += [ ":no_mallinfo" ]
+  }
   if ((current_toolchain == starboard_toolchain &&
        starboard_toolchain != default_toolchain) ||
       current_toolchain == native_target) {
@@ -159,5 +163,23 @@ config("buildflag_defines") {
   # customizations to //base in order to build the library using C++17.
   if (build_base_with_cpp17) {
     defines += [ "ENABLE_BUILDFLAG_BUILD_BASE_WITH_CPP17" ]
+  }
+
+  # Use BUILDFLAG(IS_STARBOARD_TOOLCHAIN) to guard customizations that should
+  # only be built for the starboard toolchain. Note that this is not the same
+  # thing as BUILDFLAG(IS_STARBOARD).
+  if (current_toolchain == starboard_toolchain) {
+    defines += [ "ENABLE_BUILDFLAG_IS_STARBOARD_TOOLCHAIN" ]
+  }
+}
+
+config("no_mallinfo") {
+  defines = [ "__NO_MALLINFO__" ]
+}
+
+config("global_defines") {
+  defines = []
+  if (current_toolchain == default_toolchain) {
+    defines += [ "SB_IS_DEFAULT_TC" ]
   }
 }

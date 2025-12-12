@@ -18,11 +18,7 @@ export function ensureLazyLoaded(): Promise<void> {
 
     lazyLoadPromise = Promise
                           .all([
-                            'profile-type-choice',
-                            'local-profile-customization', 'profile-switch',
-                            // <if expr="chromeos_lacros">
-                            'account-selection-lacros',
-                            // </if>
+                            'profile-type-choice', 'profile-switch',
                           ].map(name => customElements.whenDefined(name)))
                           .then(() => {});
   }

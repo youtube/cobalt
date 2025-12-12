@@ -46,9 +46,9 @@ class MEDIA_EXPORT AudioFifo {
   void Clear();
 
   // Number of actual audio frames in the FIFO.
-  int frames() const;
+  size_t frames() const { return frames_; }
 
-  int max_frames() const { return max_frames_; }
+  size_t max_frames() const { return max_frames_; }
 
  private:
   // The actual FIFO is an audio bus implemented as a ring buffer.
@@ -56,17 +56,16 @@ class MEDIA_EXPORT AudioFifo {
 
   // Maximum number of elements the FIFO can contain.
   // This value is set by |frames| in the constructor.
-  const int max_frames_;
+  const size_t max_frames_;
 
   // Number of actual elements in the FIFO.
-  int frames_pushed_;
-  int frames_consumed_;
+  size_t frames_ = 0u;
 
   // Current read position.
-  int read_pos_;
+  size_t read_pos_ = 0u;
 
   // Current write position.
-  int write_pos_;
+  size_t write_pos_ = 0u;
 };
 
 }  // namespace media

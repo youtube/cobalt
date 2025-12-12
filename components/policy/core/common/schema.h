@@ -5,16 +5,16 @@
 #ifndef COMPONENTS_POLICY_CORE_COMMON_SCHEMA_H_
 #define COMPONENTS_POLICY_CORE_COMMON_SCHEMA_H_
 
+#include <optional>
 #include <string>
+#include <variant>
 #include <vector>
 
-#include "absl/types/variant.h"
 #include "base/memory/raw_ptr.h"
-#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/ref_counted.h"
+#include "base/types/expected.h"
 #include "base/values.h"
 #include "components/policy/policy_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace policy {
 namespace internal {
@@ -29,7 +29,7 @@ struct POLICY_EXPORT PropertiesNode;
 // The error path, which leads to an error occurred. Members of the
 // error path can either be ints in case of list items or strings in case of
 // dictionary keys.
-using PolicyErrorPath = std::vector<absl::variant<int, std::string>>;
+using PolicyErrorPath = std::vector<std::variant<int, std::string>>;
 
 // Returns a formatted string for a given error path |error_path|, consisting
 // of list indices and dict keys.
@@ -74,6 +74,11 @@ enum SchemaOnErrorStrategy {
 constexpr int kSchemaOptionsNone = 0;
 constexpr int kSchemaOptionsIgnoreUnknownAttributes = 1 << 0;
 
+// String used to hide sensitive policy values.
+// It should be consistent with the mask |NetworkConfigurationPolicyHandler|
+// uses for network credential fields.
+extern const char kSensitiveValueMask[];
+
 class Schema;
 
 typedef std::vector<Schema> SchemaList;
@@ -114,25 +119,22 @@ class POLICY_EXPORT Schema {
   // be quickly loaded at runtime.
   static Schema Wrap(const internal::SchemaData* data);
 
-  // Parses the JSON schema in |schema| and returns a Schema that owns
-  // the internal representation. If |schema| is invalid then an invalid Schema
-  // is returned and |error| contains a reason for the failure.
-  static Schema Parse(const std::string& schema, std::string* error);
+  // Parses a JSON schema. If the input `content` represents a valid schema,
+  // returns a Schema. Otherwise, returns an error message containing a reason
+  // for the failure.
+  static base::expected<Schema, std::string> Parse(const std::string& content);
 
   // Verifies if |schema| is a valid JSON v3 schema. When this validation passes
   // then |schema| is valid JSON that can be parsed into a Value::Dict which can
   // be used to build a |Schema|. Returns the parsed Value::Dict when |schema|
-  // validated, otherwise returns nullopt. In that case, |error| contains an
-  // error description. For performance reasons, currently IsValidSchema() won't
-  // check the correctness of regular expressions used in "pattern" and
-  // "patternProperties" and in Validate() invalid regular expression don't
-  // accept any strings.
-  // |options| is a bitwise-OR combination of the options above (see
-  // |kSchemaOptions*| above).
-  static absl::optional<base::Value::Dict> ParseToDictAndValidate(
+  // validated, otherwise returns an error description. For performance reasons,
+  // currently IsValidSchema() won't check the correctness of regular
+  // expressions used in "pattern" and "patternProperties" and in Validate()
+  // invalid regular expression don't accept any strings. |options| is a
+  // bitwise-OR combination of the options above (see |kSchemaOptions*| above).
+  static base::expected<base::Value::Dict, std::string> ParseToDictAndValidate(
       const std::string& schema,
-      int options,
-      std::string* error);
+      int options);
 
   // Returns true if this Schema is valid. Schemas returned by the methods below
   // may be invalid, and in those cases the other methods must not be used.
@@ -199,7 +201,7 @@ class POLICY_EXPORT Schema {
    private:
     scoped_refptr<const InternalStorage> storage_;
     raw_ptr<const internal::PropertyNode, AllowPtrArithmetic> it_;
-    raw_ptr<const internal::PropertyNode> end_;
+    raw_ptr<const internal::PropertyNode, AllowPtrArithmetic> end_;
   };
 
   // These methods should be called only if type() == Type::DICT,
@@ -270,9 +272,8 @@ class POLICY_EXPORT Schema {
   void MaskSensitiveValuesRecursive(base::Value* value) const;
 
   scoped_refptr<const InternalStorage> storage_;
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #union
-  RAW_PTR_EXCLUSION const internal::SchemaNode* node_;
+  raw_ptr<const internal::SchemaNode, DanglingUntriaged | AllowPtrArithmetic>
+      node_;
 };
 
 }  // namespace policy

@@ -4,6 +4,7 @@
 
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 
+#include <array>
 #include <vector>
 
 #include "base/base64.h"
@@ -14,6 +15,7 @@
 #include "base/time/time.h"
 #include "components/safe_browsing/core/browser/db/v4_test_util.h"
 #include "net/http/http_request_headers.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::Time;
@@ -106,9 +108,8 @@ TEST_F(V4ProtocolManagerUtilTest, TestGetRequestUrlAndUpdateHeaders) {
       "https://safebrowsing.googleapis.com/v4/someMethod?"
       "$req=request_base64&$ct=application/x-protobuf&key=test_key_param";
   EXPECT_EQ(expectedUrl, gurl.spec());
-  std::string header_value;
-  EXPECT_TRUE(headers.GetHeader("X-HTTP-Method-Override", &header_value));
-  EXPECT_EQ("POST", header_value);
+  EXPECT_THAT(headers.GetHeader("X-HTTP-Method-Override"),
+              testing::Optional(std::string("POST")));
 }
 
 // Tests that we generate the required host/path combinations for testing
@@ -154,12 +155,13 @@ TEST_F(V4ProtocolManagerUtilTest, UrlParsing) {
 // Tests the url canonicalization according to the Safe Browsing spec.
 // See: https://developers.google.com/safe-browsing/v4/urls-hashing
 TEST_F(V4ProtocolManagerUtilTest, CanonicalizeUrl) {
-  struct {
-    const char* input_url;
-    const char* expected_canonicalized_hostname;
-    const char* expected_canonicalized_path;
-    const char* expected_canonicalized_query;
-  } tests[] = {
+  struct TestCase {
+    std::string_view input_url;
+    std::string_view expected_canonicalized_hostname;
+    std::string_view expected_canonicalized_path;
+    std::string_view expected_canonicalized_query;
+  };
+  constexpr std::array<TestCase, 37> tests = {{
       {"http://host/%25%32%35", "host", "/%25", ""},
       {"http://host/%25%32%35%25%32%35", "host", "/%25%25", ""},
       {"http://host/%2525252525252525", "host", "/%25", ""},
@@ -167,7 +169,8 @@ TEST_F(V4ProtocolManagerUtilTest, CanonicalizeUrl) {
       {"http://host/%%%25%32%35asd%%", "host", "/%25%25%25asd%25%25", ""},
       {"http://host/%%%25%32%35asd%%", "host", "/%25%25%25asd%25%25", ""},
       {"http://www.google.com/", "www.google.com", "/", ""},
-      {"http://%31%36%38%2e%31%38%38%2e%39%39%2e%32%36/%2E%73%65%63%75%72%65/"
+      {"http://%31%36%38%2e%31%38%38%2e%39%39%2e%32%36/"
+       "%2E%73%65%63%75%72%65/"
        "%77"
        "%77%77%2E%65%62%61%79%2E%63%6F%6D/",
        "168.188.99.26", "/.secure/www.ebay.com/", ""},
@@ -179,7 +182,8 @@ TEST_F(V4ProtocolManagerUtilTest, CanonicalizeUrl) {
        ".eBaysecure=updateuserdataxplimnbqmn-xplmv"
        "alidateinfoswqpcmlx=hgplmcx/",
        ""},
-      {"http://host.com/%257Ea%2521b%2540c%2523d%2524e%25f%255E00%252611%252A"
+      {"http://host.com/"
+       "%257Ea%2521b%2540c%2523d%2524e%25f%255E00%252611%252A"
        "22%252833%252944_55%252B",
        "host.com", "/~a!b@c%23d$e%25f^00&11*22(33)44_55+", ""},
       {"http://3279880203/blah", "195.127.0.11", "/blah", ""},
@@ -200,21 +204,21 @@ TEST_F(V4ProtocolManagerUtilTest, CanonicalizeUrl) {
       {"http://%20leadingspace.com/", "%20leadingspace.com", "/", ""},
       {"https://www.securesite.com/", "www.securesite.com", "/", ""},
       {"http://host.com/ab%23cd", "host.com", "/ab%23cd", ""},
-      {"http://host%3e.com//twoslashes?more//slashes", "host>.com",
+      {"http://host%7d.com//twoslashes?more//slashes", "host}.com",
        "/twoslashes", "more//slashes"},
       {"http://host.com/abc?val=xyz#anything", "host.com", "/abc", "val=xyz"},
       {"http://abc:def@host.com/xyz", "host.com", "/xyz", ""},
-      {"http://host%3e.com/abc/%2e%2e%2fdef", "host>.com", "/def", ""},
+      {"http://host%7d.com/abc/%2e%2e%2fdef", "host}.com", "/def", ""},
       {"http://.......host...com.....//abc/////def%2F%2F%2Fxyz", "host.com",
        "/abc/def/xyz", ""},
       {"ftp://host.com/foo?bar", "host.com", "/foo", "bar"},
       {"data:text/html;charset=utf-8,%0D%0A", "", "", ""},
       {"javascript:alert()", "", "", ""},
       {"mailto:abc@example.com", "", "", ""},
-  };
-  for (size_t i = 0; i < std::size(tests); ++i) {
-    SCOPED_TRACE(base::StringPrintf("Test: %s", tests[i].input_url));
-    GURL url(tests[i].input_url);
+  }};
+  for (const TestCase& test : tests) {
+    SCOPED_TRACE(base::StringPrintf("Test: %s", test.input_url.data()));
+    GURL url(test.input_url);
 
     std::string canonicalized_hostname;
     std::string canonicalized_path;
@@ -223,40 +227,9 @@ TEST_F(V4ProtocolManagerUtilTest, CanonicalizeUrl) {
                                            &canonicalized_path,
                                            &canonicalized_query);
 
-    EXPECT_EQ(tests[i].expected_canonicalized_hostname, canonicalized_hostname);
-    EXPECT_EQ(tests[i].expected_canonicalized_path, canonicalized_path);
-    EXPECT_EQ(tests[i].expected_canonicalized_query, canonicalized_query);
-  }
-}
-
-TEST_F(V4ProtocolManagerUtilTest, TestIPAddressToEncodedIPV6) {
-  // To verify the test values, here's the python code:
-  // >> import socket, hashlib, binascii
-  // >> hashlib.sha1(socket.inet_pton(socket.AF_INET6, input)).digest() +
-  // chr(128)
-  // For example:
-  // >>> hashlib.sha1(socket.inet_pton(socket.AF_INET6,
-  // '::ffff:192.168.1.1')).digest() + chr(128)
-  // 'X\xf8\xa1\x17I\xe6Pl\xfd\xdb\xbb\xa0\x0c\x02\x9d#\n|\xe7\xcd\x80'
-  std::vector<std::tuple<bool, std::string, std::string>> test_cases = {
-      std::make_tuple(false, "", ""),
-      std::make_tuple(
-          true, "192.168.1.1",
-          "X\xF8\xA1\x17I\xE6Pl\xFD\xDB\xBB\xA0\f\x2\x9D#\n|\xE7\xCD\x80"),
-      std::make_tuple(
-          true,
-          "::", "\xE1)\xF2|Q\x3\xBC\\\xC4K\xCD\xF0\xA1^\x16\rDPf\xFF\x80")};
-  for (size_t i = 0; i < test_cases.size(); i++) {
-    DVLOG(1) << "Running case: " << i;
-    bool success = std::get<0>(test_cases[i]);
-    const auto& input = std::get<1>(test_cases[i]);
-    const auto& expected_output = std::get<2>(test_cases[i]);
-    std::string encoded_ip;
-    ASSERT_EQ(success, V4ProtocolManagerUtil::IPAddressToEncodedIPV6Hash(
-                           input, &encoded_ip));
-    if (success) {
-      ASSERT_EQ(expected_output, encoded_ip);
-    }
+    EXPECT_EQ(test.expected_canonicalized_hostname, canonicalized_hostname);
+    EXPECT_EQ(test.expected_canonicalized_path, canonicalized_path);
+    EXPECT_EQ(test.expected_canonicalized_query, canonicalized_query);
   }
 }
 

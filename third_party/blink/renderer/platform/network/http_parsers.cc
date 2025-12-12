@@ -33,27 +33,38 @@
 #include "third_party/blink/renderer/platform/network/http_parsers.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <utility>
 
 #include "base/containers/flat_map.h"
+#include "base/feature_list.h"
+#include "base/time/time.h"
 #include "net/http/http_content_disposition.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_util.h"
 #include "services/network/public/cpp/content_security_policy/content_security_policy.h"
 #include "services/network/public/cpp/no_vary_search_header_parser.h"
 #include "services/network/public/cpp/parsed_headers.h"
+#include "services/network/public/cpp/sri_message_signatures.h"
 #include "services/network/public/cpp/timing_allow_origin_parser.h"
+#include "services/network/public/mojom/integrity_policy.mojom-blink.h"
 #include "services/network/public/mojom/no_vary_search.mojom-blink-forward.h"
 #include "services/network/public/mojom/no_vary_search.mojom-blink.h"
 #include "services/network/public/mojom/parsed_headers.mojom-blink.h"
+#include "services/network/public/mojom/sri_message_signature.mojom-blink.h"
 #include "services/network/public/mojom/supports_loading_mode.mojom-blink.h"
 #include "services/network/public/mojom/timing_allow_origin.mojom-blink.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/features.h"
+#include "third_party/blink/public/common/mime_util/mime_util.h"
+#include "third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom-blink.h"
 #include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_response.h"
 #include "third_party/blink/renderer/platform/network/header_field_tokenizer.h"
 #include "third_party/blink/renderer/platform/network/http_names.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/date_math.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -108,7 +119,7 @@ String ConvertToBlink(const std::string& in) {
   return String::FromUTF8(in);
 }
 
-String ConvertToBlink(const absl::optional<std::string>& in) {
+String ConvertToBlink(const std::optional<std::string>& in) {
   return in ? String::FromUTF8(*in) : String();
 }
 
@@ -149,45 +160,68 @@ HashMap<OutKey, OutValue> ConvertToBlink(
 
 // ===== Converters from non-Blink to Blink variant of Mojo structs =====
 blink::CSPSourcePtr ConvertToBlink(const CSPSourcePtr& in) {
-  DCHECK(in);
+  CHECK(in);
   return blink::CSPSource::New(
       ConvertToBlink(in->scheme), ConvertToBlink(in->host), in->port,
       ConvertToBlink(in->path), in->is_host_wildcard, in->is_port_wildcard);
 }
 
+blink::IntegrityPolicy::Destination ConvertToBlink(
+    const IntegrityPolicy::Destination& in) {
+  return blink::IntegrityPolicy::Destination(in);
+}
+
+blink::IntegrityPolicy::Source ConvertToBlink(
+    const IntegrityPolicy::Source& in) {
+  return blink::IntegrityPolicy::Source(in);
+}
+
 blink::CSPHashSourcePtr ConvertToBlink(const CSPHashSourcePtr& in) {
-  DCHECK(in);
+  CHECK(in);
   Vector<uint8_t> hash_value = ConvertToBlink(in->value);
 
   return blink::CSPHashSource::New(in->algorithm, std::move(hash_value));
 }
 
 blink::CSPSourceListPtr ConvertToBlink(const CSPSourceListPtr& source_list) {
-  DCHECK(source_list);
+  CHECK(source_list);
 
   Vector<blink::CSPSourcePtr> sources = ConvertToBlink(source_list->sources);
   Vector<String> nonces = ConvertToBlink(source_list->nonces);
   Vector<blink::CSPHashSourcePtr> hashes = ConvertToBlink(source_list->hashes);
+  Vector<blink::CSPHashSourcePtr> url_hashes =
+      ConvertToBlink(source_list->url_hashes);
+  Vector<blink::CSPHashSourcePtr> eval_hashes =
+      ConvertToBlink(source_list->eval_hashes);
 
   return blink::CSPSourceList::New(
       std::move(sources), std::move(nonces), std::move(hashes),
-      source_list->allow_self, source_list->allow_star,
-      source_list->allow_response_redirects, source_list->allow_inline,
+      std::move(url_hashes), std::move(eval_hashes), source_list->allow_self,
+      source_list->allow_star, source_list->allow_inline,
       source_list->allow_inline_speculation_rules, source_list->allow_eval,
       source_list->allow_wasm_eval, source_list->allow_wasm_unsafe_eval,
       source_list->allow_dynamic, source_list->allow_unsafe_hashes,
 #if BUILDFLAG(IS_COBALT)
-      source_list->report_sample, source_list->cobalt_insecure_local_network);
+      source_list->report_sample, source_list->report_hash_algorithm,
+      source_list->cobalt_insecure_local_network);
 #else
-      source_list->report_sample);
+      source_list->report_sample, source_list->report_hash_algorithm);
 #endif
 }
 
 blink::ContentSecurityPolicyHeaderPtr ConvertToBlink(
     const ContentSecurityPolicyHeaderPtr& in) {
-  DCHECK(in);
+  CHECK(in);
   return blink::ContentSecurityPolicyHeader::New(
       ConvertToBlink(in->header_value), in->type, in->source);
+}
+
+blink::IntegrityPolicyPtr ConvertToBlink(const IntegrityPolicyPtr& in) {
+  Vector<blink::IntegrityPolicy::Destination> blocked_destinations =
+      ConvertToBlink(in->blocked_destinations);
+  return blink::IntegrityPolicy::New(
+      std::move(blocked_destinations), ConvertToBlink(in->sources),
+      ConvertToBlink(in->endpoints), ConvertToBlink(in->parsing_errors));
 }
 
 blink::CSPTrustedTypesPtr ConvertToBlink(const CSPTrustedTypesPtr& in) {
@@ -199,7 +233,7 @@ blink::CSPTrustedTypesPtr ConvertToBlink(const CSPTrustedTypesPtr& in) {
 
 blink::ContentSecurityPolicyPtr ConvertToBlink(
     const ContentSecurityPolicyPtr& in) {
-  DCHECK(in);
+  CHECK(in);
   return blink::ContentSecurityPolicy::New(
       ConvertToBlink(in->self_origin), ConvertToBlink(in->raw_directives),
       ConvertToBlink(in->directives), in->upgrade_insecure_requests,
@@ -227,7 +261,7 @@ blink::AllowCSPFromHeaderValuePtr ConvertToBlink(
 }
 
 blink::LinkHeaderPtr ConvertToBlink(const LinkHeaderPtr& in) {
-  DCHECK(in);
+  CHECK(in);
   return blink::LinkHeader::New(
       ConvertToBlink(in->href),
       // TODO(dcheng): Make these use ConvertToBlink
@@ -250,12 +284,6 @@ blink::TimingAllowOriginPtr ConvertToBlink(const TimingAllowOriginPtr& in) {
     case TimingAllowOrigin::Tag::kAll:
       return blink::TimingAllowOrigin::NewAll(/*ignored=*/0);
   }
-}
-
-blink::VariantsHeaderPtr ConvertToBlink(const VariantsHeaderPtr& in) {
-  DCHECK(in);
-  return blink::VariantsHeader::New(ConvertToBlink(in->name),
-                                    ConvertToBlink(in->available_values));
 }
 
 blink::NoVarySearchWithParseErrorPtr ConvertToBlink(
@@ -287,31 +315,89 @@ blink::NoVarySearchWithParseErrorPtr ConvertToBlink(
           no_vary_search->vary_on_key_order));
 }
 
+// `in` is a Mojo enum type, which is type aliased to the same underlying type
+// by both the non-Blink Mojo variant and the Blink Mojo variant.
+blink::SRIMessageSignatureComponentParameter::Type ConvertToBlink(
+    SRIMessageSignatureComponentParameter::Type in) {
+  return in;
+}
+
+// `in` is a Mojo enum type, which is type aliased to the same underlying type
+// by both the non-Blink Mojo variant and the Blink Mojo variant.
+blink::SRIMessageSignatureError ConvertToBlink(SRIMessageSignatureError in) {
+  return in;
+}
+
+blink::SRIMessageSignatureComponentParameterPtr ConvertToBlink(
+    const SRIMessageSignatureComponentParameterPtr& in) {
+  CHECK(in);
+  return blink::SRIMessageSignatureComponentParameter::New(
+      ConvertToBlink(in->type), ConvertToBlink(in->value));
+}
+
+blink::SRIMessageSignatureIssuePtr ConvertToBlink(
+    const SRIMessageSignatureIssuePtr& in) {
+  return blink::SRIMessageSignatureIssue::New(
+      ConvertToBlink(in->error), ConvertToBlink(in->signature_base),
+      in->integrity_assertions.has_value()
+          ? std::make_optional(ConvertToBlink(in->integrity_assertions.value()))
+          : std::nullopt);
+}
+
+blink::SRIMessageSignatureComponentPtr ConvertToBlink(
+    const SRIMessageSignatureComponentPtr& in) {
+  CHECK(in);
+  return blink::SRIMessageSignatureComponent::New(ConvertToBlink(in->name),
+                                                  ConvertToBlink(in->params));
+}
+
+blink::SRIMessageSignaturePtr ConvertToBlink(const SRIMessageSignaturePtr& in) {
+  CHECK(in);
+  return blink::SRIMessageSignature::New(
+      ConvertToBlink(in->label), ConvertToBlink(in->signature),
+      ConvertToBlink(in->components), in->created, in->expires,
+      ConvertToBlink(in->keyid), ConvertToBlink(in->nonce),
+      ConvertToBlink(in->tag), ConvertToBlink(in->serialized_signature_params));
+}
+
+blink::SRIMessageSignaturesPtr ConvertToBlink(
+    const SRIMessageSignaturesPtr& in) {
+  CHECK(in);
+  return blink::SRIMessageSignatures::New(ConvertToBlink(in->signatures),
+                                          ConvertToBlink(in->issues));
+}
+
 blink::ParsedHeadersPtr ConvertToBlink(const ParsedHeadersPtr& in) {
-  DCHECK(in);
+  CHECK(in);
   return blink::ParsedHeaders::New(
       ConvertToBlink(in->content_security_policy),
       ConvertToBlink(in->allow_csp_from), in->cross_origin_embedder_policy,
-      in->cross_origin_opener_policy, in->origin_agent_cluster,
+      in->cross_origin_opener_policy, in->document_isolation_policy,
+      in->integrity_policy, in->integrity_policy_report_only,
+      in->origin_agent_cluster,
       in->accept_ch.has_value()
-          ? absl::make_optional(ConvertToBlink(in->accept_ch.value()))
-          : absl::nullopt,
+          ? std::make_optional(ConvertToBlink(in->accept_ch.value()))
+          : std::nullopt,
       in->critical_ch.has_value()
-          ? absl::make_optional(ConvertToBlink(in->critical_ch.value()))
-          : absl::nullopt,
-      in->xfo, ConvertToBlink(in->link_headers),
-      ConvertToBlink(in->timing_allow_origin),
+          ? std::make_optional(ConvertToBlink(in->critical_ch.value()))
+          : std::nullopt,
+      in->client_hints_ignored_due_to_clear_site_data_header, in->xfo,
+      ConvertToBlink(in->link_headers), ConvertToBlink(in->timing_allow_origin),
       ConvertToBlink(in->supports_loading_mode),
       in->reporting_endpoints.has_value()
-          ? absl::make_optional(ConvertToBlink(in->reporting_endpoints.value()))
-          : absl::nullopt,
-      in->variants_headers.has_value()
-          ? absl::make_optional(ConvertToBlink(in->variants_headers.value()))
-          : absl::nullopt,
+          ? std::make_optional(ConvertToBlink(in->reporting_endpoints.value()))
+          : std::nullopt,
+      in->cookie_indices.has_value()
+          ? std::make_optional(ConvertToBlink(in->cookie_indices.value()))
+          : std::nullopt,
+      in->avail_language.has_value()
+          ? std::make_optional(ConvertToBlink(in->avail_language.value()))
+          : std::nullopt,
       in->content_language.has_value()
-          ? absl::make_optional(ConvertToBlink(in->content_language.value()))
-          : absl::nullopt,
-      ConvertToBlink(in->no_vary_search_with_parse_error));
+          ? std::make_optional(ConvertToBlink(in->content_language.value()))
+          : std::nullopt,
+      ConvertToBlink(in->no_vary_search_with_parse_error),
+      in->observe_browsing_topics, in->allow_cross_origin_event_reporting);
 }
 
 }  // namespace mojom
@@ -325,9 +411,11 @@ const Vector<AtomicString>& ReplaceHeaders() {
   // The list of response headers that we do not copy from the original
   // response when generating a ResourceResponse for a MIME payload.
   // Note: this is called only on the main thread.
-  DEFINE_STATIC_LOCAL(Vector<AtomicString>, headers,
-                      ({"content-type", "content-length", "content-disposition",
-                        "content-range", "range", "set-cookie"}));
+  DEFINE_STATIC_LOCAL(
+      Vector<AtomicString>, headers,
+      ({http_names::kLowerContentType, http_names::kLowerContentLength,
+        http_names::kLowerContentDisposition, http_names::kLowerContentRange,
+        http_names::kLowerRange, http_names::kLowerSetCookie}));
   return headers;
 }
 
@@ -372,8 +460,6 @@ bool ParseRefreshTime(const String& source, base::TimeDelta& delay) {
   for (unsigned i = 0; i < source.length(); ++i) {
     UChar ch = source[i];
     if (ch == kFullstopCharacter) {
-      // TODO(tkent): According to the HTML specification, we should support
-      // only integers. However we support fractional numbers.
       if (++full_stop_count == 2)
         number_end = i;
     } else if (!IsASCIIDigit(ch)) {
@@ -382,6 +468,9 @@ bool ParseRefreshTime(const String& source, base::TimeDelta& delay) {
   }
   bool ok;
   double time = source.Left(number_end).ToDouble(&ok);
+  if (RuntimeEnabledFeatures::MetaRefreshNoFractionalEnabled()) {
+    time = floor(time);
+  }
   if (!ok)
     return false;
   delay = base::Seconds(time);
@@ -480,8 +569,36 @@ bool ParseHTTPRefresh(const String& refresh,
   }
 }
 
-absl::optional<base::Time> ParseDate(const String& value) {
-  return ParseDateFromNullTerminatedCharacters(value.Utf8().c_str());
+std::optional<base::Time> ParseDate(const String& value,
+                                    UseCounter& use_counter) {
+  const std::string utf8_value = value.Utf8();
+  std::optional<base::Time> maybe_parsed_time =
+      ParseDateFromNullTerminatedCharacters(utf8_value.c_str());
+  {
+    // Assumes UTC if timezone isn't specified.
+    std::optional<base::Time> maybe_parsed_time_fromutcstring;
+    base::Time parsed_time;
+    if (base::Time::FromUTCString(utf8_value.c_str(), &parsed_time)) {
+      maybe_parsed_time_fromutcstring = parsed_time;
+    }
+    if (maybe_parsed_time != maybe_parsed_time_fromutcstring) {
+      use_counter.CountUse(
+          WebFeature::kHttpParsersParseDateFromUTCStringDifferent);
+    }
+  }
+  {
+    // Assumes local time if timezone isn't specified.
+    std::optional<base::Time> maybe_parsed_time_fromstring;
+    base::Time parsed_time;
+    if (base::Time::FromString(utf8_value.c_str(), &parsed_time)) {
+      maybe_parsed_time_fromstring = parsed_time;
+    }
+    if (maybe_parsed_time != maybe_parsed_time_fromstring) {
+      use_counter.CountUse(
+          WebFeature::kHttpParsersParseDateFromStringDifferent);
+    }
+  }
+  return maybe_parsed_time;
 }
 
 AtomicString ExtractMIMETypeFromMediaType(const AtomicString& media_type) {
@@ -522,19 +639,77 @@ AtomicString ExtractMIMETypeFromMediaType(const AtomicString& media_type) {
     ++pos;
   }
 
+  // Use a StringView to create an AtomicString here so we do not allocate an
+  // intermediate string.
   return AtomicString(
-      media_type.GetString().Substring(type_start, type_end - type_start));
+      StringView(media_type, type_start, type_end - type_start));
+}
+
+bool IsHTTPTabOrSpace(UChar c) {
+  // https://fetch.spec.whatwg.org/#http-tab-or-space
+  return c == kSpaceCharacter || c == kTabulationCharacter;
+}
+
+// https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type
+// Note that `mime_type` should already have been stripped of parameters by
+// `ExtractMIMETypeFromMediaType`.
+AtomicString MinimizedMIMEType(const AtomicString& mime_type) {
+  StringUTF8Adaptor mime_utf8(mime_type);
+
+  if (IsSupportedJavascriptMimeType(mime_utf8.AsStringView())) {
+    return AtomicString("text/javascript");
+  }
+
+  if (IsJSONMimeType(mime_utf8.AsStringView())) {
+    return AtomicString("application/json");
+  }
+
+  if (IsSVGMimeType(mime_utf8.AsStringView())) {
+    return AtomicString("image/svg+xml");
+  }
+
+  if (IsXMLMimeType(mime_utf8.AsStringView())) {
+    return AtomicString("application/xml");
+  }
+
+  if (IsSupportedMimeType(mime_utf8.AsStringView())) {
+    return mime_type;
+  }
+
+  return g_empty_atom;
 }
 
 ContentTypeOptionsDisposition ParseContentTypeOptionsHeader(
     const String& value) {
+  // The spec prescribes how to split the header value, and wants to include
+  // empty entries and to strip only particular type of whitespace.
+  // Spec: https://fetch.spec.whatwg.org/#x-content-type-options-header
+  // Test: external/wpt/fetch/nosniff/parsing-nosniff.window.html
+
   if (value.empty())
     return kContentTypeOptionsNone;
 
-  Vector<String> results;
-  value.Split(",", results);
-  if (results.size() && results[0].StripWhiteSpace().LowerASCII() == "nosniff")
+  String decoded_and_split_header_value;
+  if (base::FeatureList::IsEnabled(
+          features::kLegacyParsingOfXContentTypeOptions)) {
+    // Header parsing, as used until M120.
+    Vector<String> results;
+    value.Split(",", results);
+    if (results.size()) {
+      decoded_and_split_header_value = results[0].StripWhiteSpace();
+    }
+  } else {
+    // Header parsing, as demanded by the spec.
+    Vector<String> results;
+    value.Split(",", /* allow_empty_entries */ true, results);
+    CHECK(results.size());  // allow_empty_entries guarantees >= 1 results.
+    decoded_and_split_header_value =
+        results[0].StripWhiteSpace(IsHTTPTabOrSpace);
+  }
+
+  if (EqualIgnoringASCIICase(decoded_and_split_header_value, "nosniff")) {
     return kContentTypeOptionsNosniff;
+  }
   return kContentTypeOptionsNone;
 }
 
@@ -659,8 +834,8 @@ CacheControlHeader ParseCacheControlDirectives(
     const AtomicString& pragma_value) {
   CacheControlHeader cache_control_header;
   cache_control_header.parsed = true;
-  cache_control_header.max_age = absl::nullopt;
-  cache_control_header.stale_while_revalidate = absl::nullopt;
+  cache_control_header.max_age = std::nullopt;
+  cache_control_header.stale_while_revalidate = std::nullopt;
 
   static const char kNoCacheDirective[] = "no-cache";
   static const char kNoStoreDirective[] = "no-store";
@@ -730,14 +905,13 @@ void ParseCommaDelimitedHeader(const String& header_value,
     header_set.insert(value.StripWhiteSpace(IsWhitespace));
 }
 
-bool ParseMultipartHeadersFromBody(const char* bytes,
-                                   wtf_size_t size,
+bool ParseMultipartHeadersFromBody(base::span<const uint8_t> bytes,
                                    ResourceResponse* response,
                                    wtf_size_t* end) {
   DCHECK(IsMainThread());
 
   size_t headers_end_pos =
-      net::HttpUtil::LocateEndOfAdditionalHeaders(bytes, size, 0);
+      net::HttpUtil::LocateEndOfAdditionalHeaders(bytes, 0);
 
   if (headers_end_pos == std::string::npos)
     return false;
@@ -747,7 +921,7 @@ bool ParseMultipartHeadersFromBody(const char* bytes,
   // Eat headers and prepend a status line as is required by
   // HttpResponseHeaders.
   std::string headers("HTTP/1.1 200 OK\r\n");
-  headers.append(bytes, headers_end_pos);
+  headers.append(base::as_string_view(bytes.first(headers_end_pos)));
 
   auto response_headers = base::MakeRefCounted<net::HttpResponseHeaders>(
       net::HttpUtil::AssembleRawHeaders(headers));
@@ -761,7 +935,7 @@ bool ParseMultipartHeadersFromBody(const char* bytes,
   for (const AtomicString& header : ReplaceHeaders()) {
     std::string value;
     StringUTF8Adaptor adaptor(header);
-    base::StringPiece header_string_piece(adaptor.AsStringPiece());
+    std::string_view header_string_piece(adaptor.AsStringView());
     size_t iterator = 0;
 
     response->ClearHttpHeaderField(header);
@@ -776,14 +950,13 @@ bool ParseMultipartHeadersFromBody(const char* bytes,
   return true;
 }
 
-bool ParseMultipartFormHeadersFromBody(const char* bytes,
-                                       wtf_size_t size,
+bool ParseMultipartFormHeadersFromBody(base::span<const uint8_t> bytes,
                                        HTTPHeaderMap* header_fields,
                                        wtf_size_t* end) {
   DCHECK_EQ(0u, header_fields->size());
 
   size_t headers_end_pos =
-      net::HttpUtil::LocateEndOfAdditionalHeaders(bytes, size, 0);
+      net::HttpUtil::LocateEndOfAdditionalHeaders(bytes, 0);
 
   if (headers_end_pos == std::string::npos)
     return false;
@@ -793,7 +966,7 @@ bool ParseMultipartFormHeadersFromBody(const char* bytes,
   // Eat headers and prepend a status line as is required by
   // HttpResponseHeaders.
   std::string headers("HTTP/1.1 200 OK\r\n");
-  headers.append(bytes, headers_end_pos);
+  headers.append(base::as_string_view(bytes.first(headers_end_pos)));
 
   auto responseHeaders = base::MakeRefCounted<net::HttpResponseHeaders>(
       net::HttpUtil::AssembleRawHeaders(headers));
@@ -804,7 +977,7 @@ bool ParseMultipartFormHeadersFromBody(const char* bytes,
   for (const AtomicString* headerNamePointer : headerNamePointers) {
     StringUTF8Adaptor adaptor(*headerNamePointer);
     size_t iterator = 0;
-    base::StringPiece headerNameStringPiece = adaptor.AsStringPiece();
+    std::string_view headerNameStringPiece = adaptor.AsStringView();
     std::string value;
     while (responseHeaders->EnumerateHeader(&iterator, headerNameStringPiece,
                                             &value)) {
@@ -820,7 +993,7 @@ bool ParseContentRangeHeaderFor206(const String& content_range,
                                    int64_t* last_byte_position,
                                    int64_t* instance_length) {
   return net::HttpUtil::ParseContentRangeHeaderFor206(
-      StringUTF8Adaptor(content_range).AsStringPiece(), first_byte_position,
+      StringUTF8Adaptor(content_range).AsStringView(), first_byte_position,
       last_byte_position, instance_length);
 }
 
@@ -927,6 +1100,14 @@ ParseContentSecurityPolicyHeaders(
   parsed_csps.AppendRange(std::make_move_iterator(report_only_csps.begin()),
                           std::make_move_iterator(report_only_csps.end()));
   return parsed_csps;
+}
+
+network::mojom::blink::SRIMessageSignaturesPtr
+ParseSRIMessageSignaturesFromHeaders(const String& raw_headers) {
+  auto headers = base::MakeRefCounted<net::HttpResponseHeaders>(
+      net::HttpUtil::AssembleRawHeaders(raw_headers.Latin1()));
+  return network::mojom::ConvertToBlink(
+      network::ParseSRIMessageSignaturesFromHeaders(*headers));
 }
 
 network::mojom::blink::TimingAllowOriginPtr ParseTimingAllowOrigin(

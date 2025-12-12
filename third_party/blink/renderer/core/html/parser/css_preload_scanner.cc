@@ -32,8 +32,8 @@
 #include "third_party/blink/renderer/core/html/parser/html_parser_idioms.h"
 #include "third_party/blink/renderer/platform/loader/fetch/fetch_initiator_type_names.h"
 #include "third_party/blink/renderer/platform/network/http_names.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/text/segmented_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
 
 namespace blink {
 
@@ -53,8 +53,7 @@ void CSSPreloadScanner::Reset() {
 
 template <typename Char>
 void CSSPreloadScanner::ScanCommon(
-    const Char* begin,
-    const Char* end,
+    base::span<const Char> data,
     const SegmentedString& source,
     PreloadRequestStream& requests,
     const KURL& predicted_base_element_url,
@@ -63,9 +62,10 @@ void CSSPreloadScanner::ScanCommon(
   predicted_base_element_url_ = &predicted_base_element_url;
   exclusion_info_ = exclusion_info;
 
-  for (const Char* it = begin; it != end && state_ != kDoneParsingImportRules;
-       ++it)
+  for (auto it = data.begin();
+       it != data.end() && state_ != kDoneParsingImportRules; ++it) {
     Tokenize(*it, source);
+  }
 
   if (state_ == kRuleValue || state_ == kAfterRuleValue ||
       state_ == kAfterMaybeLayerValue)
@@ -82,8 +82,8 @@ void CSSPreloadScanner::Scan(
     PreloadRequestStream& requests,
     const KURL& predicted_base_element_url,
     const PreloadRequest::ExclusionInfo* exclusion_info) {
-  ScanCommon(data.data(), data.data() + data.size(), source, requests,
-             predicted_base_element_url, exclusion_info);
+  ScanCommon(base::span(data), source, requests, predicted_base_element_url,
+             exclusion_info);
 }
 
 void CSSPreloadScanner::Scan(
@@ -92,15 +92,10 @@ void CSSPreloadScanner::Scan(
     PreloadRequestStream& requests,
     const KURL& predicted_base_element_url,
     const PreloadRequest::ExclusionInfo* exclusion_info) {
-  if (tag_name.Is8Bit()) {
-    const LChar* begin = tag_name.Characters8();
-    ScanCommon(begin, begin + tag_name.length(), source, requests,
-               predicted_base_element_url, exclusion_info);
-    return;
-  }
-  const UChar* begin = tag_name.Characters16();
-  ScanCommon(begin, begin + tag_name.length(), source, requests,
-             predicted_base_element_url, exclusion_info);
+  WTF::VisitCharacters(tag_name, [&](auto chars) {
+    ScanCommon(chars, source, requests, predicted_base_element_url,
+               exclusion_info);
+  });
 }
 
 void CSSPreloadScanner::SetReferrerPolicy(
@@ -222,7 +217,6 @@ inline void CSSPreloadScanner::Tokenize(UChar c,
       break;
     case kDoneParsingImportRules:
       NOTREACHED();
-      break;
   }
 }
 
@@ -308,14 +302,13 @@ void CSSPreloadScanner::EmitRule(const SegmentedString& source) {
   if (EqualIgnoringASCIICase(rule_, "import")) {
     if (CanPreloadImportRule()) {
       String url = ParseCSSStringOrURL(rule_value_.ToString());
-      TextPosition position =
-          TextPosition(source.CurrentLine(), source.CurrentColumn());
       auto request = PreloadRequest::CreateIfNeeded(
-          fetch_initiator_type_names::kCSS, position, url,
-          *predicted_base_element_url_, ResourceType::kCSSStyleSheet,
-          referrer_policy_, ResourceFetcher::kImageNotImageSet,
-          exclusion_info_);
+          fetch_initiator_type_names::kCSS, url, *predicted_base_element_url_,
+          ResourceType::kCSSStyleSheet, referrer_policy_,
+          ResourceFetcher::kImageNotImageSet, exclusion_info_);
       if (request) {
+        request->SetInitiatorPosition(
+            TextPosition(source.CurrentLine(), source.CurrentColumn()));
         RenderBlockingBehavior behavior =
             !media_matches_
                 ? RenderBlockingBehavior::kNonBlocking

@@ -8,11 +8,15 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
-      key = 'PLATFORM'
-      value = 'evergreen-x64-sbversion-17'
+      key = 'PACKAGE_PLATFORM'
+      value = 'evergreen-x64'
     },
     {
-      key = 'TARGET'
+      key = 'PLATFORM'
+      value = 'evergreen-x64-sbversion-18'
+    },
+    {
+      key = 'GN_TARGET'
       value = 'cobalt:gn_all'
     },
     {

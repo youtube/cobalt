@@ -4,12 +4,12 @@
 
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_url_item.h"
 
-#import "base/mac/foundation_util.h"
+#import "base/apple/foundation_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/url_formatter/elide_url.h"
-#import "ios/chrome/browser/net/crurl.h"
+#import "ios/chrome/browser/net/model/crurl.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
-#import "ios/chrome/browser/shared/ui/table_view/chrome_table_view_styler.h"
+#import "ios/chrome/browser/shared/ui/table_view/legacy_chrome_table_view_styler.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/favicon/favicon_container_view.h"
@@ -18,14 +18,12 @@
 #import "ios/chrome/common/ui/table_view/table_view_url_cell_favicon_badge_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 // Default delimiter to use between the hostname and the supplemental URL text
 // if text is specified but not the delimiter.
 const char kDefaultSupplementalURLTextDelimiter[] = "•";
+// The max number of lines for the cell title label.
+const int kMaxNumberOfLinesForCellTitleLabel = 2;
 }  // namespace
 
 #pragma mark - TableViewURLItem
@@ -45,7 +43,7 @@ const char kDefaultSupplementalURLTextDelimiter[] = "•";
   [super configureCell:tableCell withStyler:styler];
 
   TableViewURLCell* cell =
-      base::mac::ObjCCastStrict<TableViewURLCell>(tableCell);
+      base::apple::ObjCCastStrict<TableViewURLCell>(tableCell);
   cell.titleLabel.text = [self titleLabelText];
   cell.URLLabel.text = [self URLLabelText];
   cell.thirdRowLabel.text = self.thirdRowText;
@@ -171,10 +169,14 @@ const char kDefaultSupplementalURLTextDelimiter[] = "•";
     // Set font sizes using dynamic type.
     _titleLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleBody];
     _titleLabel.adjustsFontForContentSizeCategory = YES;
+    // Sometimes a very long url is used as the cell title, so be sure it will
+    // not stretch the cell to an unlimited number of lines.
+    _titleLabel.numberOfLines = kMaxNumberOfLinesForCellTitleLabel;
     _URLLabel.font = [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
     _URLLabel.adjustsFontForContentSizeCategory = YES;
     _URLLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
     _URLLabel.hidden = YES;
+    _URLLabel.numberOfLines = 0;
     _thirdRowLabel.font =
         [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote];
     _thirdRowLabel.adjustsFontForContentSizeCategory = YES;
@@ -188,6 +190,7 @@ const char kDefaultSupplementalURLTextDelimiter[] = "•";
     _metadataLabel.adjustsFontForContentSizeCategory = YES;
     _metadataLabel.hidden = YES;
     _metadataImage.contentMode = UIViewContentModeCenter;
+    _metadataImage.accessibilityIdentifier = kTableViewURLCellMetadataImageID;
 
     // Use stack views to layout the subviews except for the favicon.
     UIStackView* verticalStack = [[UIStackView alloc]
@@ -196,13 +199,13 @@ const char kDefaultSupplementalURLTextDelimiter[] = "•";
     [_metadataLabel setContentHuggingPriority:UILayoutPriorityDefaultHigh
                                       forAxis:UILayoutConstraintAxisHorizontal];
     [_metadataLabel
-        setContentCompressionResistancePriority:UILayoutPriorityDefaultHigh
+        setContentCompressionResistancePriority:UILayoutPriorityRequired
                                         forAxis:
                                             UILayoutConstraintAxisHorizontal];
     [_metadataImage setContentHuggingPriority:UILayoutPriorityDefaultHigh
                                       forAxis:UILayoutConstraintAxisHorizontal];
     [_metadataImage
-        setContentCompressionResistancePriority:UILayoutPriorityDefaultHigh
+        setContentCompressionResistancePriority:UILayoutPriorityRequired
                                         forAxis:
                                             UILayoutConstraintAxisHorizontal];
 

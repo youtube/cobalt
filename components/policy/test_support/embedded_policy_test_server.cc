@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "components/policy/core/common/cloud/cloud_policy_constants.h"
 #include "components/policy/test_support/remote_commands_state.h"
+#include "components/policy/test_support/request_handler_for_check_user_account.h"
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 #include "components/policy/proto/chrome_extension_policy.pb.h"
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
@@ -37,6 +38,7 @@
 #include "components/policy/test_support/request_handler_for_remote_commands.h"
 #include "components/policy/test_support/request_handler_for_status_upload.h"
 #include "components/policy/test_support/request_handler_for_unregister.h"
+#include "components/policy/test_support/request_handler_for_upload_euicc_info.h"
 #include "components/policy/test_support/test_server_helpers.h"
 #include "crypto/sha2.h"
 #include "net/base/url_util.h"
@@ -59,8 +61,9 @@ const char kExternalEntityIdParam[] = "entity_id";
 std::unique_ptr<HttpResponse> LogStatusAndReturn(
     GURL url,
     std::unique_ptr<HttpResponse> response) {
-  if (!response)
+  if (!response) {
     return nullptr;
+  }
 
   CustomHttpResponse* basic_response =
       static_cast<CustomHttpResponse*>(response.get());
@@ -111,6 +114,7 @@ EmbeddedPolicyTestServer::EmbeddedPolicyTestServer()
   RegisterHandler(std::make_unique<RequestHandlerForCertUpload>(this));
   RegisterHandler(
       std::make_unique<RequestHandlerForCheckAndroidManagement>(this));
+  RegisterHandler(std::make_unique<RequestHandlerForCheckUserAccount>(this));
   RegisterHandler(std::make_unique<RequestHandlerForChromeDesktopReport>(this));
   RegisterHandler(
       std::make_unique<RequestHandlerForClientCertProvisioning>(this));
@@ -127,12 +131,14 @@ EmbeddedPolicyTestServer::EmbeddedPolicyTestServer()
   RegisterHandler(std::make_unique<RequestHandlerForPsmAutoEnrollment>(this));
 #endif  // BUILDFLAG(IS_CHROMEOS)
   RegisterHandler(std::make_unique<RequestHandlerForRegisterBrowser>(this));
+  RegisterHandler(std::make_unique<RequestHandlerForRegisterPolicyAgent>(this));
   RegisterHandler(std::make_unique<RequestHandlerForRegisterCertBased>(this));
   RegisterHandler(
       std::make_unique<RequestHandlerForRegisterDeviceAndUser>(this));
   RegisterHandler(std::make_unique<RequestHandlerForRemoteCommands>(this));
   RegisterHandler(std::make_unique<RequestHandlerForStatusUpload>(this));
   RegisterHandler(std::make_unique<RequestHandlerForUnregister>(this));
+  RegisterHandler(std::make_unique<RequestHandlerForUploadEuiccInfo>(this));
 
   http_server_.RegisterDefaultHandler(base::BindRepeating(
       &EmbeddedPolicyTestServer::HandleRequest, base::Unretained(this)));
@@ -189,8 +195,9 @@ std::unique_ptr<HttpResponse> EmbeddedPolicyTestServer::HandleRequest(
   GURL url = request.GetURL();
   LOG(INFO) << "Request URL: " << url;
 
-  if (url.path() == kExternalPolicyDataPath)
+  if (url.path() == kExternalPolicyDataPath) {
     return HandleExternalPolicyDataRequest(url);
+  }
 
   std::string request_type = KeyValueFromUrl(url, dm_protocol::kParamRequest);
 

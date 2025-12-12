@@ -4,13 +4,11 @@
 
 #include "chrome/browser/performance_manager/policies/working_set_trimmer_policy.h"
 
-#include "base/time/time.h"
-#include "build/build_config.h"
-
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "build/chromeos_buildflags.h"
+#include "base/time/time.h"
+#include "build/build_config.h"
 #include "chrome/browser/performance_manager/mechanisms/working_set_trimmer.h"
 #include "components/performance_manager/graph/graph_impl.h"
 #include "components/performance_manager/graph/process_node_impl.h"
@@ -18,7 +16,8 @@
 #include "components/performance_manager/public/graph/node_attached_data.h"
 #include "components/performance_manager/public/graph/node_data_describer_registry.h"
 #include "components/performance_manager/public/graph/process_node.h"
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/performance_manager/policies/working_set_trimmer_policy_chromeos.h"
 #endif
 
@@ -88,10 +87,7 @@ void WorkingSetTrimmerPolicy::TrimWorkingSet(const ProcessNode* process_node) {
   auto* trimmer = mechanism::WorkingSetTrimmer::GetInstance();
   DCHECK(trimmer);
 
-  static int renderers_trimmed = 0;
   if (process_node->GetProcess().IsValid()) {
-    UMA_HISTOGRAM_COUNTS_10000("Memory.WorkingSetTrim.RendererTrimCount",
-                               ++renderers_trimmed);
     SetLastTrimTimeNow(process_node);
     trimmer->TrimWorkingSet(process_node);
   }
@@ -116,7 +112,7 @@ base::Value::Dict WorkingSetTrimmerPolicy::DescribeProcessNodeData(
 
 // static
 bool WorkingSetTrimmerPolicy::PlatformSupportsWorkingSetTrim() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   return WorkingSetTrimmerPolicyChromeOS::PlatformSupportsWorkingSetTrim();
 #else
   return false;
@@ -126,7 +122,7 @@ bool WorkingSetTrimmerPolicy::PlatformSupportsWorkingSetTrim() {
 // static
 std::unique_ptr<WorkingSetTrimmerPolicy>
 WorkingSetTrimmerPolicy::CreatePolicyForPlatform() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   return std::make_unique<WorkingSetTrimmerPolicyChromeOS>();
 #else
   NOTIMPLEMENTED() << "Platform does not support WorkingSetTrim.";

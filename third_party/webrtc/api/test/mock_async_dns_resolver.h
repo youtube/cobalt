@@ -11,10 +11,11 @@
 #ifndef API_TEST_MOCK_ASYNC_DNS_RESOLVER_H_
 #define API_TEST_MOCK_ASYNC_DNS_RESOLVER_H_
 
-#include <functional>
 #include <memory>
 
+#include "absl/functional/any_invocable.h"
 #include "api/async_dns_resolver.h"
+#include "rtc_base/socket_address.h"
 #include "test/gmock.h"
 
 namespace webrtc {
@@ -23,7 +24,7 @@ class MockAsyncDnsResolverResult : public AsyncDnsResolverResult {
  public:
   MOCK_METHOD(bool,
               GetResolvedAddress,
-              (int, rtc::SocketAddress*),
+              (int, webrtc::SocketAddress*),
               (const, override));
   MOCK_METHOD(int, GetError, (), (const, override));
 };
@@ -32,11 +33,13 @@ class MockAsyncDnsResolver : public AsyncDnsResolverInterface {
  public:
   MOCK_METHOD(void,
               Start,
-              (const rtc::SocketAddress&, std::function<void()>),
+              (const webrtc::SocketAddress&, absl::AnyInvocable<void()>),
               (override));
   MOCK_METHOD(void,
               Start,
-              (const rtc::SocketAddress&, int family, std::function<void()>),
+              (const webrtc::SocketAddress&,
+               int family,
+               absl::AnyInvocable<void()>),
               (override));
   MOCK_METHOD(AsyncDnsResolverResult&, result, (), (const, override));
 };
@@ -45,11 +48,11 @@ class MockAsyncDnsResolverFactory : public AsyncDnsResolverFactoryInterface {
  public:
   MOCK_METHOD(std::unique_ptr<webrtc::AsyncDnsResolverInterface>,
               CreateAndResolve,
-              (const rtc::SocketAddress&, std::function<void()>),
+              (const webrtc::SocketAddress&, absl::AnyInvocable<void()>),
               (override));
   MOCK_METHOD(std::unique_ptr<webrtc::AsyncDnsResolverInterface>,
               CreateAndResolve,
-              (const rtc::SocketAddress&, int, std::function<void()>),
+              (const webrtc::SocketAddress&, int, absl::AnyInvocable<void()>),
               (override));
   MOCK_METHOD(std::unique_ptr<webrtc::AsyncDnsResolverInterface>,
               Create,

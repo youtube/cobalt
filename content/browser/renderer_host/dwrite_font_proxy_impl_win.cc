@@ -12,6 +12,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <tuple>
 #include <utility>
 
 #include "base/check_op.h"
@@ -24,20 +25,16 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/platform_thread.h"
+#include "base/threading/scoped_blocking_call.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "content/browser/renderer_host/dwrite_font_file_util_win.h"
-#include "content/browser/renderer_host/dwrite_font_uma_logging_win.h"
-#include "content/public/common/content_features.h"
+#include "content/common/features.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
-#include "third_party/abseil-cpp/absl/utility/utility.h"
 #include "third_party/blink/public/common/font_unique_name_lookup/font_unique_name_table.pb.h"
 #include "third_party/blink/public/common/font_unique_name_lookup/icu_fold_case_util.h"
-#include "third_party/skia/include/core/SkFontMgr.h"
-#include "third_party/skia/include/core/SkTypeface.h"
-#include "third_party/skia/include/ports/SkTypeface_win.h"
 #include "ui/gfx/win/direct_write.h"
 #include "ui/gfx/win/text_analysis_source.h"
 
@@ -49,9 +46,9 @@ namespace {
 
 // These are the fonts that Blink tries to load in getLastResortFallbackFont,
 // and will crash if none can be loaded.
-const wchar_t* kLastResortFontNames[] = {
-    L"Sans",     L"Arial",   L"MS UI Gothic",    L"Microsoft Sans Serif",
-    L"Segoe UI", L"Calibri", L"Times New Roman", L"Courier New"};
+constexpr auto kLastResortFontNames = std::to_array<const wchar_t*>(
+    {L"Sans", L"Arial", L"MS UI Gothic", L"Microsoft Sans Serif", L"Segoe UI",
+     L"Calibri", L"Times New Roman", L"Courier New"});
 
 struct RequiredFontStyle {
   const char16_t* family_name;
@@ -104,11 +101,6 @@ bool CheckRequiredStylesPresent(IDWriteFontCollection* collection,
       if (font->GetWeight() != font_style.required_weight ||
           font->GetStretch() != font_style.required_stretch ||
           font->GetStyle() != font_style.required_style) {
-        // Not really a loader type, but good to have telemetry on how often
-        // fonts like these are encountered, and the data can be compared with
-        // the other loader types.
-        LogLoaderType(
-            DirectWriteFontLoaderType::FONT_WITH_MISSING_REQUIRED_STYLES);
         return false;
       }
       break;
@@ -290,7 +282,7 @@ void DWriteFontProxyImpl::GetFamilyNames(UINT32 family_index,
     }
     CHECK_EQ(L'\0', name[length - 1]);
 
-    family_names.emplace_back(absl::in_place, base::WideToUTF16(locale.data()),
+    family_names.emplace_back(std::in_place, base::WideToUTF16(locale.data()),
                               base::WideToUTF16(name.data()));
   }
   std::move(callback).Run(std::move(family_names));
@@ -306,13 +298,11 @@ void DWriteFontProxyImpl::GetFontFileHandles(
   if (!collection_)
     return;
 
+  base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
+                                                base::BlockingType::MAY_BLOCK);
   mswr::ComPtr<IDWriteFontFamily> family;
   HRESULT hr = collection_->GetFontFamily(family_index, &family);
   if (FAILED(hr)) {
-    if (IsLastResortFallbackFont(family_index)) {
-      LogMessageFilterError(
-          MessageFilterError::LAST_RESORT_FONT_GET_FAMILY_FAILED);
-    }
     return;
   }
 
@@ -326,27 +316,15 @@ void DWriteFontProxyImpl::GetFontFileHandles(
     mswr::ComPtr<IDWriteFont> font;
     hr = family->GetFont(font_index, &font);
     if (FAILED(hr)) {
-      if (IsLastResortFallbackFont(family_index)) {
-        LogMessageFilterError(
-            MessageFilterError::LAST_RESORT_FONT_GET_FONT_FAILED);
-      }
       return;
     }
 
-    if (FAILED(AddFilesForFont(font.Get(), windows_fonts_path_, &path_set))) {
-      if (IsLastResortFallbackFont(family_index)) {
-        LogMessageFilterError(
-            MessageFilterError::LAST_RESORT_FONT_ADD_FILES_FAILED);
-      }
-    }
+    std::ignore = AddFilesForFont(font.Get(), windows_fonts_path_, &path_set);
   }
 
   std::vector<base::File> file_handles;
   // We pass handles for every path as the sandbox blocks direct access to font
   // files in the renderer.
-  // TODO(jam): if kDWriteFontProxyOnIO is removed also remove the exception
-  // for this class from thread_restrictions.h
-  base::ScopedAllowBlocking allow_io;
   for (const auto& font_path : path_set) {
     // Specify FLAG_WIN_EXCLUSIVE_WRITE to prevent base::File from opening the
     // file with FILE_SHARE_WRITE access. FLAG_WIN_EXCLUSIVE_WRITE doesn't
@@ -463,7 +441,6 @@ void DWriteFontProxyImpl::MapCharacters(
   }
 
   // Could not find a matching family
-  LogMessageFilterError(MessageFilterError::MAP_CHARACTERS_NO_FAMILY);
   DCHECK_EQ(result->family_index, UINT32_MAX);
   DCHECK_GT(result->mapped_length, 0u);
 }
@@ -564,50 +541,6 @@ void DWriteFontProxyImpl::MatchUniqueFont(
   std::move(callback).Run(std::move(font_file), ttc_index);
 }
 
-void DWriteFontProxyImpl::FallbackFamilyAndStyleForCodepoint(
-    const std::string& base_family_name,
-    const std::string& locale_name,
-    uint32_t codepoint,
-    FallbackFamilyAndStyleForCodepointCallback callback) {
-  InitializeDirectWrite();
-  callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
-      std::move(callback),
-      blink::mojom::FallbackFamilyAndStyle::New("",
-                                                /* weight */ 0,
-                                                /* width */ 0,
-                                                /* slant */ 0));
-
-  if (!codepoint || !collection_ || !factory_)
-    return;
-
-  sk_sp<SkFontMgr> font_mgr(
-      SkFontMgr_New_DirectWrite(factory_.Get(), collection_.Get()));
-
-  if (!font_mgr)
-    return;
-
-  const char* bcp47_locales[] = {locale_name.c_str()};
-  int num_locales = locale_name.empty() ? 0 : 1;
-  const char** locales = locale_name.empty() ? nullptr : bcp47_locales;
-
-  sk_sp<SkTypeface> typeface(font_mgr->matchFamilyStyleCharacter(
-      base_family_name.c_str(), SkFontStyle(), locales, num_locales,
-      codepoint));
-
-  if (!typeface)
-    return;
-
-  SkString family_name;
-  typeface->getFamilyName(&family_name);
-
-  SkFontStyle font_style = typeface->fontStyle();
-
-  auto result_fallback_and_style = blink::mojom::FallbackFamilyAndStyle::New(
-      family_name.c_str(), font_style.weight(), font_style.width(),
-      font_style.slant());
-  std::move(callback).Run(std::move(result_fallback_and_style));
-}
-
 void DWriteFontProxyImpl::InitializeDirectWrite() {
   if (direct_write_initialized_)
     return;
@@ -638,23 +571,18 @@ void DWriteFontProxyImpl::InitializeDirectWrite() {
   DCHECK(SUCCEEDED(hr));
 
   if (!collection_) {
-    base::UmaHistogramSparse(
-        "DirectWrite.Fonts.Proxy.GetSystemFontCollectionResult", hr);
-    LogMessageFilterError(MessageFilterError::ERROR_NO_COLLECTION);
     return;
   }
 
   // Temp code to help track down crbug.com/561873
-  for (size_t font = 0; font < std::size(kLastResortFontNames); font++) {
+  for (const wchar_t* font : kLastResortFontNames) {
     uint32_t font_index = 0;
     BOOL exists = FALSE;
-    if (SUCCEEDED(collection_->FindFamilyName(kLastResortFontNames[font],
-                                              &font_index, &exists)) &&
+    if (SUCCEEDED(collection_->FindFamilyName(font, &font_index, &exists)) &&
         exists && font_index != UINT32_MAX) {
       last_resort_fonts_.push_back(font_index);
     }
   }
-  LogLastResortFontCount(last_resort_fonts_.size());
 }
 
 bool DWriteFontProxyImpl::IsLastResortFallbackFont(uint32_t font_index) {

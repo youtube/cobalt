@@ -11,9 +11,7 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
-#include "ash/focus_cycler.h"
-#include "ash/keyboard/ui/keyboard_ui_controller.h"
-#include "ash/lock_screen_action/lock_screen_action_background_state.h"
+#include "ash/focus/focus_cycler.h"
 #include "ash/login/login_screen_controller.h"
 #include "ash/login/ui/lock_screen.h"
 #include "ash/metrics/login_metrics_recorder.h"
@@ -24,13 +22,13 @@
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/session/session_controller_impl.h"
 #include "ash/shelf/kiosk_app_instruction_bubble.h"
+#include "ash/shelf/kiosk_apps_button.h"
+#include "ash/shelf/login_shelf_button.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_shutdown_confirmation_bubble.h"
 #include "ash/shelf/shelf_widget.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
-#include "ash/style/ash_color_id.h"
-#include "ash/style/pill_button.h"
 #include "ash/style/style_util.h"
 #include "ash/system/model/enterprise_domain_model.h"
 #include "ash/system/model/system_tray_model.h"
@@ -40,40 +38,33 @@
 #include "ash/system/tray/tray_background_view.h"
 #include "ash/wm/lock_state_controller.h"
 #include "base/functional/bind.h"
-#include "base/functional/callback_helpers.h"
-#include "base/memory/raw_ref.h"
 #include "base/metrics/user_metrics.h"
 #include "base/sequence_checker.h"
 #include "base/task/single_thread_task_runner.h"
+#include "chromeos/ash/components/login/auth/auth_events_recorder.h"
 #include "chromeos/strings/grit/chromeos_strings.h"
 #include "chromeos/ui/vector_icons/vector_icons.h"
-#include "skia/ext/image_operations.h"
+#include "components/account_id/account_id.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/models/image_model.h"
-#include "ui/base/models/menu_model.h"
-#include "ui/base/models/simple_menu_model.h"
-#include "ui/color/color_id.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/display/manager/display_configurator.h"
 #include "ui/events/types/event_type.h"
-#include "ui/gfx/canvas.h"
-#include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
-#include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 #include "ui/views/animation/ink_drop_impl.h"
 #include "ui/views/animation/ink_drop_mask.h"
-#include "ui/views/controls/button/menu_button.h"
 #include "ui/views/controls/highlight_path_generator.h"
-#include "ui/views/controls/menu/menu_runner.h"
-#include "ui/views/controls/menu/menu_types.h"
 #include "ui/views/focus/focus_search.h"
+#include "ui/views/highlight_border.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/layout/fill_layout.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/widget/widget.h"
 
@@ -81,17 +72,23 @@ using session_manager::SessionState;
 
 namespace ash {
 namespace {
-
-const char* kLoginShelfButtonClassName = "LoginShelfButton";
-
 // Skip only that many to avoid blocking users in case of any subtle bugs.
 const int kMaxDroppedCallsWhenDisplaysOff = 3;
+
+// The LoginShelfButton's outer border radius.
+const int kButtonHighlightBorderRadius = 19;
+
+// The LoginShelfButton's outer border width.
+const int kButtonHighlightBorderWidth = 1;
+
+// To can retrieve the button and the container ID, we need to shift
+// the container IDs.
+const int kButtonContainerDiff = 100;
 
 constexpr LoginShelfView::ButtonId kButtonIds[] = {
     LoginShelfView::kShutdown,
     LoginShelfView::kRestart,
     LoginShelfView::kSignOut,
-    LoginShelfView::kCloseNote,
     LoginShelfView::kCancel,
     LoginShelfView::kParentAccess,
     LoginShelfView::kBrowseAsGuest,
@@ -99,21 +96,8 @@ constexpr LoginShelfView::ButtonId kButtonIds[] = {
     LoginShelfView::kEnterpriseEnrollment,
     LoginShelfView::kSignIn,
     LoginShelfView::kOsInstall,
+    LoginShelfView::kSchoolEnrollment,
 };
-
-// TODO(1190978): Remove this check once light mode is the default mode.
-bool IsOobe() {
-  return Shell::Get()->session_controller()->GetSessionState() ==
-         SessionState::OOBE;
-}
-
-ui::ColorId GetButtonTextColorId() {
-  return IsOobe() ? kColorAshButtonLabelColorLight : kColorAshButtonLabelColor;
-}
-
-ui::ColorId GetButtonIconColorId() {
-  return IsOobe() ? kColorAshButtonIconColorLight : kColorAshButtonIconColor;
-}
 
 LoginMetricsRecorder::ShelfButtonClickTarget GetUserClickTarget(int button_id) {
   switch (button_id) {
@@ -123,8 +107,6 @@ LoginMetricsRecorder::ShelfButtonClickTarget GetUserClickTarget(int button_id) {
       return LoginMetricsRecorder::ShelfButtonClickTarget::kRestartButton;
     case LoginShelfView::kSignOut:
       return LoginMetricsRecorder::ShelfButtonClickTarget::kSignOutButton;
-    case LoginShelfView::kCloseNote:
-      return LoginMetricsRecorder::ShelfButtonClickTarget::kCloseNoteButton;
     case LoginShelfView::kBrowseAsGuest:
       return LoginMetricsRecorder::ShelfButtonClickTarget::kBrowseAsGuestButton;
     case LoginShelfView::kAddUser:
@@ -140,6 +122,9 @@ LoginMetricsRecorder::ShelfButtonClickTarget GetUserClickTarget(int button_id) {
       return LoginMetricsRecorder::ShelfButtonClickTarget::kSignIn;
     case LoginShelfView::kOsInstall:
       return LoginMetricsRecorder::ShelfButtonClickTarget::kOsInstallButton;
+    case LoginShelfView::kSchoolEnrollment:
+      return LoginMetricsRecorder::ShelfButtonClickTarget::
+          kSchoolEnrollmentButton;
   }
   return LoginMetricsRecorder::ShelfButtonClickTarget::kTargetCount;
 }
@@ -148,13 +133,6 @@ void ButtonPressed(int id, base::RepeatingClosure callback) {
   UserMetricsRecorder::RecordUserClickOnShelfButton(GetUserClickTarget(id));
   std::move(callback).Run();
 }
-
-// The margins of the button contents.
-constexpr int kButtonMarginRightDp = PillButton::kPillButtonHorizontalSpacing;
-constexpr int kButtonMarginLeftDp = kButtonMarginRightDp - 4;
-
-// Spacing between the button image and label.
-constexpr int kImageLabelSpacingDp = 8;
 
 void AnimateButtonOpacity(ui::Layer* layer,
                           float target_opacity,
@@ -170,229 +148,6 @@ void AnimateButtonOpacity(ui::Layer* layer,
 
 }  // namespace
 
-class LoginShelfButton : public PillButton {
- public:
-  LoginShelfButton(PressedCallback callback,
-                   int text_resource_id,
-                   const gfx::VectorIcon& icon)
-      : PillButton(std::move(callback),
-                   l10n_util::GetStringUTF16(text_resource_id),
-                   PillButton::Type::kDefaultLargeWithIconLeading,
-                   &icon,
-                   PillButton::kPillButtonHorizontalSpacing),
-        text_resource_id_(text_resource_id),
-        icon_(icon) {
-    SetFocusBehavior(FocusBehavior::ALWAYS);
-    set_suppress_default_focus_handling();
-    SetFocusPainter(nullptr);
-    views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
-  }
-
-  LoginShelfButton(const LoginShelfButton&) = delete;
-  LoginShelfButton& operator=(const LoginShelfButton&) = delete;
-
-  ~LoginShelfButton() override = default;
-
-  int text_resource_id() const { return text_resource_id_; }
-
-  const char* GetClassName() const override {
-    return kLoginShelfButtonClassName;
-  }
-
-  std::u16string GetTooltipText(const gfx::Point& p) const override {
-    if (label()->IsDisplayTextTruncated())
-      return label()->GetText();
-    return std::u16string();
-  }
-
-  void UpdateButtonColors() {
-    SetEnabledTextColorIds(GetButtonTextColorId());
-    SetImageModel(
-        views::Button::STATE_NORMAL,
-        ui::ImageModel::FromVectorIcon(*icon_, GetButtonIconColorId()));
-  }
-
-  void OnFocus() override {
-    auto* const keyboard_controller = keyboard::KeyboardUIController::Get();
-    keyboard_controller->set_keyboard_locked(false /*lock*/);
-    keyboard_controller->HideKeyboardImplicitlyByUser();
-  }
-
- private:
-  const int text_resource_id_;
-  const raw_ref<const gfx::VectorIcon, ExperimentalAsh> icon_;
-};
-
-class KioskAppsButton : public views::MenuButton,
-                        public ui::SimpleMenuModel,
-                        public ui::SimpleMenuModel::Delegate {
- public:
-  KioskAppsButton()
-      : MenuButton(base::BindRepeating(
-                       [](KioskAppsButton* button) {
-                         if (button->is_launch_enabled_)
-                           button->DisplayMenu();
-                       },
-                       this),
-                   l10n_util::GetStringUTF16(IDS_ASH_SHELF_APPS_BUTTON)),
-        ui::SimpleMenuModel(this) {
-    SetFocusBehavior(FocusBehavior::ALWAYS);
-    set_suppress_default_focus_handling();
-    SetInstallFocusRingOnFocus(true);
-    views::FocusRing::Get(this)->SetColorId(ui::kColorAshFocusRing);
-    views::InstallRoundRectHighlightPathGenerator(
-        this, gfx::Insets(), ShelfConfig::Get()->control_border_radius());
-    SetFocusPainter(nullptr);
-    views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
-    SetHasInkDropActionOnClick(true);
-    views::InkDrop::UseInkDropWithoutAutoHighlight(
-        views::InkDrop::Get(this), /*highlight_on_hover=*/false);
-
-    StyleUtil::ConfigureInkDropAttributes(
-        this, StyleUtil::kBaseColor | StyleUtil::kInkDropOpacity);
-
-    // Layer rendering is required when the shelf background is visible, which
-    // happens when the wallpaper is not blurred.
-    SetPaintToLayer();
-    layer()->SetFillsBoundsOpaquely(false);
-
-    SetTextSubpixelRenderingEnabled(false);
-
-    SetImageLabelSpacing(kImageLabelSpacingDp);
-    label()->SetFontList(views::Label::GetDefaultFontList().Derive(
-        1, gfx::Font::NORMAL, gfx::Font::Weight::MEDIUM));
-  }
-
-  KioskAppsButton(const KioskAppsButton&) = delete;
-  KioskAppsButton& operator=(const KioskAppsButton&) = delete;
-
-  bool LaunchAppForTesting(const std::string& app_id) {
-    for (size_t i = 0; i < kiosk_apps_.size(); ++i) {
-      if (kiosk_apps_[i].app_id == app_id) {
-        ExecuteCommand(i, 0);
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Replace the existing items list with a new list of kiosk app menu items.
-  void SetApps(const std::vector<KioskAppMenuEntry>& kiosk_apps) {
-    kiosk_apps_ = kiosk_apps;
-    Clear();
-    const gfx::Size kAppIconSize(16, 16);
-    for (size_t i = 0; i < kiosk_apps_.size(); ++i) {
-      gfx::ImageSkia icon = gfx::ImageSkiaOperations::CreateResizedImage(
-          kiosk_apps_[i].icon, skia::ImageOperations::RESIZE_GOOD,
-          kAppIconSize);
-      AddItemWithIcon(i, kiosk_apps_[i].name,
-                      ui::ImageModel::FromImageSkia(icon));
-    }
-
-    // If the menu is being shown, update it.
-    if (menu_runner_ && menu_runner_->IsRunning()) {
-      DisplayMenu();
-    }
-  }
-
-  void ConfigureKioskCallbacks(
-      const base::RepeatingCallback<void(const KioskAppMenuEntry&)>& launch_app,
-      const base::RepeatingClosure& on_show_menu,
-      const base::RepeatingClosure& on_close_menu) {
-    launch_app_callback_ = launch_app;
-    on_show_menu_ = on_show_menu;
-    on_close_menu_ = on_close_menu;
-  }
-
-  bool HasApps() const { return !kiosk_apps_.empty(); }
-
-  int GetHeightForWidth(int width) const override {
-    return ShelfConfig::Get()->control_size();
-  }
-
-  // views::MenuButton:
-  gfx::Insets GetInsets() const override {
-    return gfx::Insets::TLBR(0, kButtonMarginLeftDp, 0, kButtonMarginRightDp);
-  }
-
-  SkPath GetButtonHighlightPath(const views::View* view) {
-    gfx::Rect rect(view->GetLocalBounds());
-
-    const int border_radius = ShelfConfig::Get()->control_border_radius();
-    return SkPath().addRoundRect(gfx::RectToSkRect(rect), border_radius,
-                                 border_radius);
-  }
-
-  void PaintButtonContents(gfx::Canvas* canvas) override {
-    cc::PaintFlags flags;
-    flags.setAntiAlias(true);
-    flags.setColor(ShelfConfig::Get()->GetShelfControlButtonColor(GetWidget()));
-    flags.setStyle(cc::PaintFlags::kFill_Style);
-    canvas->DrawPath(GetButtonHighlightPath(this), flags);
-  }
-
-  void SetVisible(bool visible) override {
-    MenuButton::SetVisible(visible);
-    if (visible)
-      is_launch_enabled_ = true;
-  }
-
-  void UpdateButtonColors() {
-    SetEnabledTextColorIds(GetButtonTextColorId());
-    SetImageModel(views::Button::STATE_NORMAL,
-                  ui::ImageModel::FromVectorIcon(kShelfAppsButtonIcon,
-                                                 GetButtonIconColorId()));
-  }
-
-  void DisplayMenu() {
-    const gfx::Point point = GetMenuPosition();
-    const gfx::Point origin(point.x() - width(), point.y() - height());
-    menu_runner_ = std::make_unique<views::MenuRunner>(
-        this, views::MenuRunner::HAS_MNEMONICS);
-    menu_runner_->RunMenuAt(GetWidget()->GetTopLevelWidget(),
-                            button_controller(), gfx::Rect(origin, gfx::Size()),
-                            views::MenuAnchorPosition::kTopLeft,
-                            ui::MENU_SOURCE_NONE);
-  }
-
-  // ui::SimpleMenuModel:
-  void ExecuteCommand(int command_id, int event_flags) override {
-    DCHECK(command_id >= 0 &&
-           base::checked_cast<size_t>(command_id) < kiosk_apps_.size());
-    // Once an app is clicked on, don't allow any additional clicks until
-    // the state is reset (when login screen reappears).
-    is_launch_enabled_ = false;
-
-    launch_app_callback_.Run(kiosk_apps_[command_id]);
-  }
-
-  void OnMenuWillShow(SimpleMenuModel* source) override {
-    is_menu_opened_ = true;
-    on_show_menu_.Run();
-  }
-
-  void MenuClosed(SimpleMenuModel* source) override {
-    on_close_menu_.Run();
-    is_menu_opened_ = false;
-  }
-
-  bool IsCommandIdChecked(int command_id) const override { return false; }
-
-  bool IsCommandIdEnabled(int command_id) const override { return true; }
-
-  bool IsMenuOpened() { return is_menu_opened_; }
-
- private:
-  base::RepeatingCallback<void(const KioskAppMenuEntry&)> launch_app_callback_;
-  base::RepeatingClosure on_show_menu_;
-  base::RepeatingClosure on_close_menu_;
-  std::unique_ptr<views::MenuRunner> menu_runner_;
-  std::vector<KioskAppMenuEntry> kiosk_apps_;
-
-  bool is_launch_enabled_ = true;
-  bool is_menu_opened_ = false;
-};
-
 // Class that temporarily disables Guest login buttin on shelf.
 class LoginShelfView::ScopedGuestButtonBlockerImpl
     : public ScopedGuestButtonBlocker {
@@ -401,19 +156,22 @@ class LoginShelfView::ScopedGuestButtonBlockerImpl
       base::WeakPtr<LoginShelfView> shelf_view)
       : shelf_view_(shelf_view) {
     ++(shelf_view_->scoped_guest_button_blockers_);
-    if (shelf_view_->scoped_guest_button_blockers_ == 1)
+    if (shelf_view_->scoped_guest_button_blockers_ == 1) {
       shelf_view_->UpdateUi();
+    }
   }
 
   ~ScopedGuestButtonBlockerImpl() override {
     DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-    if (!shelf_view_)
+    if (!shelf_view_) {
       return;
+    }
 
     DCHECK_GT(shelf_view_->scoped_guest_button_blockers_, 0);
     --(shelf_view_->scoped_guest_button_blockers_);
-    if (!shelf_view_->scoped_guest_button_blockers_)
+    if (!shelf_view_->scoped_guest_button_blockers_) {
       shelf_view_->UpdateUi();
+    }
   }
 
  private:
@@ -447,29 +205,33 @@ void LoginShelfView::OnRequestShutdownCancelled() {
 }
 
 void LoginShelfView::RequestShutdown() {
-  base::RecordAction(base::UserMetricsAction("Shelf_ShutDown"));
-  if (base::FeatureList::IsEnabled(features::kShutdownConfirmationBubble)) {
-    Shelf* shelf = Shelf::ForWindow(GetWidget()->GetNativeWindow());
-    // When the created ShelfShutdownConfirmationBubble is destroyed, it would
-    // call LoginShelfView::OnRequestShutdownCancelled() in the destructor to
-    // ensure that the pointer test_shutdown_confirmation_bubble_ here is
-    // cleaned up.
-    // And ShelfShutdownConfirmationBubble would be destroyed when it's
-    // dismissed or its buttons were presses.
-    test_shutdown_confirmation_bubble_ = new ShelfShutdownConfirmationBubble(
-        GetViewByID(kShutdown), shelf->alignment(),
-        base::BindOnce(&LoginShelfView::OnRequestShutdownConfirmed,
-                       weak_ptr_factory_.GetWeakPtr()),
-        base::BindOnce(&LoginShelfView::OnRequestShutdownCancelled,
-                       weak_ptr_factory_.GetWeakPtr()));
-  } else {
-    OnRequestShutdownConfirmed();
+  // If the shutdown bubble already on the screen, on the button click
+  // the bubble should be closed to match the right hand side (tray)
+  // behavior.
+  if (test_shutdown_confirmation_bubble_ != nullptr) {
+    test_shutdown_confirmation_bubble_->GetWidget()->CloseWithReason(
+        views::Widget::ClosedReason::kUnspecified);
+    return;
   }
+  base::RecordAction(base::UserMetricsAction("Shelf_ShutDown"));
+  Shelf* shelf = Shelf::ForWindow(GetWidget()->GetNativeWindow());
+  // When the created ShelfShutdownConfirmationBubble is destroyed, it would
+  // call LoginShelfView::OnRequestShutdownCancelled() in the destructor to
+  // ensure that the pointer test_shutdown_confirmation_bubble_ here is
+  // cleaned up.
+  // And ShelfShutdownConfirmationBubble would be destroyed when it's
+  // dismissed or its buttons were presses.
+  shutdown_confirmation_button_->SetIsActive(true);
+
+  test_shutdown_confirmation_bubble_ = new ShelfShutdownConfirmationBubble(
+      shutdown_confirmation_button_, shelf->alignment(),
+      base::BindOnce(&LoginShelfView::OnRequestShutdownConfirmed,
+                     weak_ptr_factory_.GetWeakPtr()),
+      base::BindOnce(&LoginShelfView::OnRequestShutdownCancelled,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
-LoginShelfView::LoginShelfView(
-    LockScreenActionBackgroundController* lock_screen_action_background)
-    : lock_screen_action_background_(lock_screen_action_background) {
+LoginShelfView::LoginShelfView() {
   ShelfConfig::Get()->AddObserver(this);
   // We reuse the focusable state on this view as a signal that focus should
   // switch to the lock screen or status area. This view should otherwise not
@@ -485,15 +247,27 @@ LoginShelfView::LoginShelfView(
       gfx::Insets::TLBR(0, ShelfConfig::Get()->button_spacing(), 0, 0));
   SetLayoutManager(std::move(box_layout));
 
-  auto add_button = [this](ButtonId id, base::RepeatingClosure callback,
-                           int text_resource_id, const gfx::VectorIcon& icon) {
-    LoginShelfButton* button = new LoginShelfButton(
+  auto add_button_common = [this](std::unique_ptr<LoginShelfButton> button,
+                                  ButtonId id) -> LoginShelfButton* {
+    View* button_container = AddChildView(std::make_unique<View>());
+    button_container->SetLayoutManager(std::make_unique<views::FillLayout>());
+    button_container->SetBorder(views::CreateRoundedRectBorder(
+        kButtonHighlightBorderWidth, kButtonHighlightBorderRadius,
+        ui::kColorCrosSystemHighlightBorder));
+    button_container->SetID(kButtonContainerDiff + id);
+    button->SetID(id);
+    return button_container->AddChildView(std::move(button));
+  };
+
+  auto add_button = [this, &add_button_common](
+                        ButtonId id, base::RepeatingClosure callback,
+                        int text_resource_id, const gfx::VectorIcon& icon) {
+    auto button = std::make_unique<LoginShelfButton>(
         base::BindRepeating(&ButtonPressed, id, std::move(callback)),
         text_resource_id, icon);
-    button->SetID(id);
-    AddChildView(button);
-    login_shelf_buttons_.push_back(button);
+    login_shelf_buttons_.push_back(add_button_common(std::move(button), id));
   };
+
   const auto shutdown_callback = base::BindRepeating(
       &LoginShelfView::RequestShutdown, weak_ptr_factory_.GetWeakPtr());
   add_button(
@@ -501,6 +275,8 @@ LoginShelfView::LoginShelfView(
       base::BindRepeating(&LoginShelfView::CallIfDisplayIsOn,
                           weak_ptr_factory_.GetWeakPtr(), shutdown_callback),
       IDS_ASH_SHELF_SHUTDOWN_BUTTON, kShelfShutdownButtonIcon);
+  shutdown_confirmation_button_ =
+      static_cast<LoginShelfButton*>(login_shelf_buttons_.back());
   const auto restart_callback = base::BindRepeating(
       &LockStateController::RequestShutdown,
       base::Unretained(Shell::Get()->lock_state_controller()),
@@ -516,15 +292,12 @@ LoginShelfView::LoginShelfView(
             Shell::Get()->session_controller()->RequestSignOut();
           })),
       IDS_ASH_SHELF_SIGN_OUT_BUTTON, kShelfSignOutButtonIcon);
-  kiosk_apps_button_ = new KioskAppsButton();
-  kiosk_apps_button_->SetID(kApps);
-  AddChildView(kiosk_apps_button_.get());
-  add_button(kCloseNote,
-             base::BindRepeating(
-                 &TrayAction::CloseLockScreenNote,
-                 base::Unretained(Shell::Get()->tray_action()),
-                 mojom::CloseLockScreenNoteReason::kUnlockButtonPressed),
-             IDS_ASH_SHELF_UNLOCK_BUTTON, kShelfUnlockButtonIcon);
+
+  kiosk_apps_button_ = static_cast<KioskAppsButton*>(
+      add_button_common(std::make_unique<KioskAppsButton>(), kApps));
+  login_shelf_buttons_.push_back(
+      static_cast<LoginShelfButton*>(kiosk_apps_button_));
+
   add_button(kCancel,
              base::BindRepeating(
                  [](LoginShelfView* shelf) {
@@ -541,13 +314,11 @@ LoginShelfView::LoginShelfView(
                  base::Unretained(Shell::Get()->login_screen_controller())),
              IDS_ASH_BROWSE_AS_GUEST_BUTTON, kShelfBrowseAsGuestButtonIcon);
   add_button(kAddUser,
-             base::BindRepeating(
-                 &LoginScreenController::ShowGaiaSignin,
-                 base::Unretained(Shell::Get()->login_screen_controller()),
-                 EmptyAccountId()),
+             base::BindRepeating(&LoginShelfView::OnAddUserButtonClicked,
+                                 base::Unretained(this)),
              IDS_ASH_ADD_USER_BUTTON, kShelfAddPersonButtonIcon);
   add_button(kParentAccess, base::BindRepeating([]() {
-               // TODO(https://crbug.com/999387): Remove this when handling
+               // TODO(crbug.com/40642787): Remove this when handling
                // touch cancellation is fixed for system modal windows.
                base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
                    FROM_HERE, base::BindOnce([]() {
@@ -555,12 +326,27 @@ LoginShelfView::LoginShelfView(
                    }));
              }),
              IDS_ASH_PARENT_ACCESS_BUTTON, kPinRequestLockIcon);
-  add_button(kEnterpriseEnrollment,
+  if (features::IsOobeSoftwareUpdateEnabled()) {
+    add_button(kEnterpriseEnrollment,
+               base::BindRepeating(
+                   &LoginScreenController::HandleAccelerator,
+                   base::Unretained(Shell::Get()->login_screen_controller()),
+                   ash::LoginAcceleratorAction::kStartEnrollment),
+               IDS_ASH_DEVICE_ENROLLMENT_BUTTON, kShelfEnterpriseIcon);
+  } else {
+    add_button(kEnterpriseEnrollment,
+               base::BindRepeating(
+                   &LoginScreenController::HandleAccelerator,
+                   base::Unretained(Shell::Get()->login_screen_controller()),
+                   ash::LoginAcceleratorAction::kStartEnrollment),
+               IDS_ASH_ENTERPRISE_ENROLLMENT_BUTTON, kShelfEnterpriseIcon);
+  }
+  add_button(kSchoolEnrollment,
              base::BindRepeating(
                  &LoginScreenController::HandleAccelerator,
                  base::Unretained(Shell::Get()->login_screen_controller()),
                  ash::LoginAcceleratorAction::kStartEnrollment),
-             IDS_ASH_ENTERPRISE_ENROLLMENT_BUTTON, kShelfEnterpriseIcon);
+             IDS_ASH_SCHOOL_ENROLLMENT_BUTTON, kShelfEnterpriseIcon);
   add_button(kSignIn,
              base::BindRepeating(
                  &LoginScreenController::HandleAccelerator,
@@ -574,14 +360,15 @@ LoginShelfView::LoginShelfView(
              IDS_ASH_SHELF_OS_INSTALL_BUTTON, kShelfOsInstallButtonIcon);
 
   // Adds observers for states that affect the visibility of different buttons.
-  tray_action_observation_.Observe(Shell::Get()->tray_action());
   shutdown_controller_observation_.Observe(Shell::Get()->shutdown_controller());
-  lock_screen_action_background_observation_.Observe(
-      lock_screen_action_background);
   login_data_dispatcher_observation_.Observe(
       Shell::Get()->login_screen_controller()->data_dispatcher());
   enterprise_domain_model_observation_.Observe(
       Shell::Get()->system_tray_model()->enterprise_domain());
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kToolbar);
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF8(IDS_ASH_SHELF_ACCESSIBLE_NAME));
 }
 
 LoginShelfView::~LoginShelfView() {
@@ -590,14 +377,12 @@ LoginShelfView::~LoginShelfView() {
 
 void LoginShelfView::UpdateAfterSessionChange() {
   UpdateUi();
+  UpdateAccessiblePreviousAndNextFocus();
 }
 
 void LoginShelfView::AddedToWidget() {
   UpdateUi();
-}
-
-const char* LoginShelfView::GetClassName() const {
-  return "LoginShelfView";
+  UpdateAccessiblePreviousAndNextFocus();
 }
 
 void LoginShelfView::OnFocus() {
@@ -625,23 +410,6 @@ void LoginShelfView::AboutToRequestFocusFromTabTraversal(bool reverse) {
   }
 }
 
-void LoginShelfView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  if (LockScreen::HasInstance()) {
-    GetViewAccessibility().OverridePreviousFocus(LockScreen::Get()->widget());
-  }
-
-  Shelf* shelf = Shelf::ForWindow(GetWidget()->GetNativeWindow());
-
-  GetViewAccessibility().OverrideNextFocus(shelf->GetStatusAreaWidget());
-  node_data->role = ax::mojom::Role::kToolbar;
-  node_data->SetName(l10n_util::GetStringUTF8(IDS_ASH_SHELF_ACCESSIBLE_NAME));
-}
-
-void LoginShelfView::Layout() {
-  views::View::Layout();
-  UpdateButtonUnionBounds();
-}
-
 void LoginShelfView::OnShelfConfigUpdated() {
   views::InstallRoundRectHighlightPathGenerator(
       kiosk_apps_button_, gfx::Insets(),
@@ -653,6 +421,11 @@ bool LoginShelfView::LaunchAppForTesting(const std::string& app_id) {
          kiosk_apps_button_->LaunchAppForTesting(app_id);
 }
 
+bool LoginShelfView::LaunchAppForTesting(const AccountId& account_id) {
+  return kiosk_apps_button_->GetEnabled() &&
+         kiosk_apps_button_->LaunchAppForTesting(account_id);  // IN-TEST
+}
+
 void LoginShelfView::InstallTestUiUpdateDelegate(
     std::unique_ptr<TestUiUpdateDelegate> delegate) {
   DCHECK(!test_ui_update_delegate_.get());
@@ -661,15 +434,18 @@ void LoginShelfView::InstallTestUiUpdateDelegate(
 
 void LoginShelfView::OnKioskMenuShown(
     const base::RepeatingClosure& on_kiosk_menu_shown) {
-  if (kiosk_instruction_bubble_)
+  if (kiosk_instruction_bubble_) {
     kiosk_instruction_bubble_->GetWidget()->Hide();
-
+  }
+  kiosk_apps_button_->SetIsActive(true);
   on_kiosk_menu_shown.Run();
 }
 
 void LoginShelfView::OnKioskMenuclosed() {
-  if (kiosk_instruction_bubble_)
+  if (kiosk_instruction_bubble_) {
     kiosk_instruction_bubble_->GetWidget()->Show();
+  }
+  kiosk_apps_button_->SetIsActive(false);
 }
 
 void LoginShelfView::SetKioskApps(
@@ -718,15 +494,16 @@ void LoginShelfView::SetAddUserButtonEnabled(bool enable_add_user) {
 }
 
 void LoginShelfView::SetShutdownButtonEnabled(bool enable_shutdown_button) {
-  GetViewByID(kShutdown)->SetEnabled(enable_shutdown_button);
+  shutdown_confirmation_button_->SetEnabled(enable_shutdown_button);
 }
 
 void LoginShelfView::SetButtonEnabled(bool enabled) {
   // Only allow enabling shelf buttons when shelf is temporarily disabled and
   // only allow temporarily disabling shelf buttons when shelf is not already
   // disabled.
-  if (enabled != is_shelf_temp_disabled_)
+  if (enabled != is_shelf_temp_disabled_) {
     return;
+  }
   is_shelf_temp_disabled_ = !enabled;
 
   for (const auto& button_id : kButtonIds) {
@@ -739,8 +516,9 @@ void LoginShelfView::SetButtonEnabled(bool enabled) {
     for (TrayBackgroundView* tray_button : status_area_widget->tray_buttons()) {
       // Do not enable the button if it is already in disabled state before we
       // temporarily disable it.
-      if (disabled_tray_buttons_.count(tray_button))
+      if (disabled_tray_buttons_.count(tray_button)) {
         continue;
+      }
       tray_button->SetEnabled(true);
     }
     disabled_tray_buttons_.clear();
@@ -748,8 +526,9 @@ void LoginShelfView::SetButtonEnabled(bool enabled) {
     for (TrayBackgroundView* tray_button : status_area_widget->tray_buttons()) {
       // Record the tray button if it is already in disabled state before we
       // temporarily disable it.
-      if (!tray_button->GetEnabled())
+      if (!tray_button->GetEnabled()) {
         disabled_tray_buttons_.insert(tray_button);
+      }
       tray_button->SetEnabled(false);
     }
   }
@@ -776,16 +555,6 @@ LoginShelfView::GetScopedGuestButtonBlocker() {
       weak_ptr_factory_.GetWeakPtr());
 }
 
-void LoginShelfView::OnLockScreenNoteStateChanged(
-    mojom::TrayActionState state) {
-  UpdateUi();
-}
-
-void LoginShelfView::OnLockScreenActionBackgroundStateChanged(
-    LockScreenActionBackgroundState state) {
-  UpdateUi();
-}
-
 void LoginShelfView::OnShutdownPolicyChanged(bool reboot_on_shutdown) {
   UpdateUi();
 }
@@ -800,27 +569,20 @@ void LoginShelfView::OnOobeDialogStateChanged(OobeDialogState state) {
 }
 
 void LoginShelfView::OnDeviceEnterpriseInfoChanged() {
-  // If feature is enabled, update the boolean kiosk_license_mode_. Otherwise,
-  // it's false by default.
-  if (features::IsKioskLoginScreenEnabled()) {
-    kiosk_license_mode_ =
-        Shell::Get()
-            ->system_tray_model()
-            ->enterprise_domain()
-            ->management_device_mode() == ManagementDeviceMode::kKioskSku;
-    UpdateUi();
-  }
+  kiosk_license_mode_ =
+      Shell::Get()
+          ->system_tray_model()
+          ->enterprise_domain()
+          ->management_device_mode() == ManagementDeviceMode::kKioskSku;
+  UpdateUi();
 }
 
 void LoginShelfView::OnEnterpriseAccountDomainChanged() {}
 
 void LoginShelfView::HandleLocaleChange() {
-  for (views::View* child : children()) {
-    if (child->GetClassName() == kLoginShelfButtonClassName) {
-      auto* button = static_cast<LoginShelfButton*>(child);
-      button->SetText(l10n_util::GetStringUTF16(button->text_resource_id()));
-      button->SetAccessibleName(button->GetText());
-    }
+  for (LoginShelfButton* button : login_shelf_buttons_) {
+    button->SetText(l10n_util::GetStringUTF16(button->text_resource_id()));
+    button->GetViewAccessibility().SetName(std::u16string(button->GetText()));
   }
 }
 
@@ -834,21 +596,27 @@ LoginShelfView::GetShutdownConfirmationBubbleForTesting() {
   return test_shutdown_confirmation_bubble_;
 }
 
-bool LoginShelfView::LockScreenActionBackgroundAnimating() const {
-  return lock_screen_action_background_->state() ==
-             LockScreenActionBackgroundState::kShowing ||
-         lock_screen_action_background_->state() ==
-             LockScreenActionBackgroundState::kHiding;
+LoginShelfButton* LoginShelfView::GetLoginShelfButtonByID(ButtonId button_id) {
+  for (LoginShelfButton* button : login_shelf_buttons_) {
+    if (button->GetID() == button_id) {
+      return button;
+    }
+  }
+  return nullptr;
+}
+
+void LoginShelfView::SetButtonVisible(ButtonId button_id, bool visible) {
+  GetButtonContainerByID(button_id)->SetVisible(visible);
+  GetViewByID(button_id)->SetVisible(visible);
 }
 
 void LoginShelfView::UpdateUi() {
   // Make sure observers are notified.
-  base::ScopedClosureRunner fire_observer(base::BindOnce(
-      [](LoginShelfView* self) {
-        if (self->test_ui_update_delegate())
-          self->test_ui_update_delegate()->OnUiUpdate();
-      },
-      base::Unretained(this)));
+  absl::Cleanup fire_observer = [this] {
+    if (test_ui_update_delegate()) {
+      test_ui_update_delegate()->OnUiUpdate();
+    }
+  };
 
   SessionState session_state =
       Shell::Get()->session_controller()->GetSessionState();
@@ -856,50 +624,43 @@ void LoginShelfView::UpdateUi() {
       session_state == SessionState::RMA) {
     // The entire view was set invisible. The buttons are also set invisible
     // to avoid affecting calculation of the shelf size.
-    for (auto* child : children())
+    for (views::View* child : children()) {
       child->SetVisible(false);
+    }
 
     return;
   }
 
   const gfx::Size old_preferred_size = GetPreferredSize();
   bool show_reboot = Shell::Get()->shutdown_controller()->reboot_on_shutdown();
-  mojom::TrayActionState tray_action_state =
-      Shell::Get()->tray_action()->GetLockScreenNoteState();
   bool is_locked = (session_state == SessionState::LOCKED);
-  bool is_lock_screen_note_in_foreground =
-      (tray_action_state == mojom::TrayActionState::kActive ||
-       tray_action_state == mojom::TrayActionState::kLaunching) &&
-      !LockScreenActionBackgroundAnimating();
 
-  GetViewByID(kShutdown)->SetVisible(!show_reboot &&
-                                     !is_lock_screen_note_in_foreground &&
-                                     ShouldShowShutdownButton());
-  GetViewByID(kRestart)->SetVisible(show_reboot &&
-                                    !is_lock_screen_note_in_foreground &&
-                                    ShouldShowShutdownButton());
-  GetViewByID(kSignOut)->SetVisible(is_locked &&
-                                    !is_lock_screen_note_in_foreground);
-  GetViewByID(kCloseNote)
-      ->SetVisible(is_locked && is_lock_screen_note_in_foreground);
-  GetViewByID(kCancel)->SetVisible(session_state ==
-                                   SessionState::LOGIN_SECONDARY);
-  GetViewByID(kParentAccess)->SetVisible(is_locked && show_parent_access_);
+  SetButtonVisible(kShutdown, !show_reboot &&
+                                  ShouldShowShutdownButton());
 
-  GetViewByID(kBrowseAsGuest)->SetVisible(ShouldShowGuestButton());
-  GetViewByID(kEnterpriseEnrollment)
-      ->SetVisible(ShouldShowEnterpriseEnrollmentButton());
-  GetViewByID(kSignIn)->SetVisible(ShouldShowSignInButton());
+  SetButtonVisible(kRestart, show_reboot &&
+                                 ShouldShowShutdownButton());
+  SetButtonVisible(kSignOut, is_locked);
+  SetButtonVisible(kCancel, session_state == SessionState::LOGIN_SECONDARY);
+  SetButtonVisible(kParentAccess, is_locked && show_parent_access_);
 
-  GetViewByID(kAddUser)->SetVisible(ShouldShowAddUserButton());
-  kiosk_apps_button_->SetVisible(kiosk_apps_button_->HasApps() &&
-                                 ShouldShowAppsButton());
+  SetButtonVisible(kBrowseAsGuest, ShouldShowGuestButton());
+  SetButtonVisible(kEnterpriseEnrollment,
+                   ShouldShowEnterpriseEnrollmentButton());
+
+  SetButtonVisible(kSchoolEnrollment, ShouldShowSchoolEnrollmentButton());
+
+  SetButtonVisible(kSignIn, ShouldShowSignInButton());
+
+  SetButtonVisible(kAddUser, ShouldShowAddUserButton());
+  SetButtonVisible(kApps,
+                   kiosk_apps_button_->HasApps() && ShouldShowAppsButton());
   if (kiosk_license_mode_) {
     // Create the bubble once the login shelf view is available for anchoring.
     if (!kiosk_instruction_bubble_) {
       Shelf* shelf = Shelf::ForWindow(GetWidget()->GetNativeWindow());
       kiosk_instruction_bubble_ =
-          new KioskAppInstructionBubble(GetViewByID(kApps), shelf->alignment());
+          new KioskAppInstructionBubble(kiosk_apps_button_, shelf->alignment());
     }
     if (kiosk_instruction_bubble_) {
       // Show kiosk instructions if the kiosk app button is visible and the menu
@@ -913,13 +674,13 @@ void LoginShelfView::UpdateUi() {
     }
   }
 
-  GetViewByID(kOsInstall)->SetVisible(ShouldShowOsInstallButton());
+  SetButtonVisible(kOsInstall, ShouldShowOsInstallButton());
 
   // If there is no visible (and thus focusable) buttons, we shouldn't focus
   // LoginShelfView. We update it here, so we don't need to check visibility
   // every time we move focus to system tray.
   bool is_anything_focusable = false;
-  for (auto* child : login_shelf_buttons_) {
+  for (ash::LoginShelfButton* child : login_shelf_buttons_) {
     if (child->IsFocusable()) {
       is_anything_focusable = true;
       break;
@@ -927,50 +688,34 @@ void LoginShelfView::UpdateUi() {
   }
   SetFocusBehavior(is_anything_focusable ? views::View::FocusBehavior::ALWAYS
                                          : views::View::FocusBehavior::NEVER);
-  UpdateButtonsColors();
 
-  // When the login shelf view is moved to its own widget, the login shelf
+  // The login shelf view lives in its own widget, therefore the login shelf
   // widget needs to change the size according to the login shelf view's
   // preferred size.
-  if (old_preferred_size != GetPreferredSize() &&
-      features::IsUseLoginShelfWidgetEnabled()) {
+  if (old_preferred_size != GetPreferredSize()) {
     PreferredSizeChanged();
   } else {
-    Layout();
+    DeprecatedLayoutImmediately();
   }
 }
 
-void LoginShelfView::UpdateButtonsColors() {
-  static_cast<LoginShelfButton*>(GetViewByID(kShutdown))->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kRestart))->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kSignOut))->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kCloseNote))->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kCancel))->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kParentAccess))
-      ->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kBrowseAsGuest))
-      ->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kAddUser))->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kEnterpriseEnrollment))
-      ->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kSignIn))->UpdateButtonColors();
-  static_cast<LoginShelfButton*>(GetViewByID(kOsInstall))->UpdateButtonColors();
-  kiosk_apps_button_->UpdateButtonColors();
-}
-
-void LoginShelfView::UpdateButtonUnionBounds() {
-  button_union_bounds_ = gfx::Rect();
-  View::Views children = GetChildrenInZOrder();
-  for (auto* child : children) {
-    if (child->GetVisible())
-      button_union_bounds_.Union(child->bounds());
+void LoginShelfView::UpdateAccessiblePreviousAndNextFocus() {
+  if (LockScreen::HasInstance()) {
+    GetViewAccessibility().SetPreviousFocus(LockScreen::Get()->widget());
   }
+
+  Shelf* shelf = Shelf::ForWindow(GetWidget()->GetNativeWindow());
+
+  GetViewAccessibility().SetNextFocus(shelf->GetStatusAreaWidget());
 }
 
 bool LoginShelfView::ShouldShowGuestAndAppsButtons() const {
   bool dialog_state_allowed = false;
   if (dialog_state_ == OobeDialogState::USER_CREATION ||
-      dialog_state_ == OobeDialogState::GAIA_SIGNIN) {
+      dialog_state_ == OobeDialogState::GAIA_SIGNIN ||
+      dialog_state_ == OobeDialogState::SETUP_CHILD ||
+      dialog_state_ == OobeDialogState::ENROLL_TRIAGE ||
+      dialog_state_ == OobeDialogState::GAIA_INFO) {
     dialog_state_allowed = !login_screen_has_users_ && is_first_signin_step_;
   } else if (dialog_state_ == OobeDialogState::ERROR ||
              dialog_state_ == OobeDialogState::HIDDEN ||
@@ -990,7 +735,9 @@ bool LoginShelfView::ShouldShowGuestAndAppsButtons() const {
 //     to shut down the device after enrollment);
 //  3. On first screen of gaia login flow (same reason as 2).
 bool LoginShelfView::ShouldShowShutdownButton() const {
-  return dialog_state_ == OobeDialogState::HIDDEN ||
+  return ((Shell::Get()->session_controller()->GetSessionState() !=
+           SessionState::OOBE) &&
+          dialog_state_ == OobeDialogState::HIDDEN) ||
          dialog_state_ == OobeDialogState::EXTENSION_LOGIN_CLOSED ||
          dialog_state_ == OobeDialogState::ENROLLMENT_SUCCESS ||
          dialog_state_ == OobeDialogState::EXTENSION_LOGIN ||
@@ -1013,23 +760,28 @@ bool LoginShelfView::ShouldShowShutdownButton() const {
 // 6. There are no scoped guest buttons blockers active.
 // 7. The device is not in kiosk license mode.
 bool LoginShelfView::ShouldShowGuestButton() const {
-  if (!allow_guest_)
+  if (!allow_guest_) {
     return false;
+  }
 
-  if (scoped_guest_button_blockers_ > 0)
+  if (scoped_guest_button_blockers_ > 0) {
     return false;
+  }
 
-  if (!ShouldShowGuestAndAppsButtons())
+  if (!ShouldShowGuestAndAppsButtons()) {
     return false;
+  }
 
   const SessionState session_state =
       Shell::Get()->session_controller()->GetSessionState();
 
-  if (session_state == SessionState::OOBE)
+  if (session_state == SessionState::OOBE) {
     return is_first_signin_step_;
+  }
 
-  if (session_state != SessionState::LOGIN_PRIMARY)
+  if (session_state != SessionState::LOGIN_PRIMARY) {
     return false;
+  }
 
   return true;
 }
@@ -1039,6 +791,15 @@ bool LoginShelfView::ShouldShowEnterpriseEnrollmentButton() const {
       Shell::Get()->session_controller()->GetSessionState();
   return session_state == SessionState::OOBE &&
          dialog_state_ == OobeDialogState::USER_CREATION;
+}
+
+bool LoginShelfView::ShouldShowSchoolEnrollmentButton() const {
+  const SessionState session_state =
+      Shell::Get()->session_controller()->GetSessionState();
+
+  return features::IsOobeSoftwareUpdateEnabled() &&
+         session_state == SessionState::OOBE &&
+         dialog_state_ == OobeDialogState::SETUP_CHILD;
 }
 
 bool LoginShelfView::ShouldShowSignInButton() const {
@@ -1056,48 +817,83 @@ bool LoginShelfView::ShouldShowAddUserButton() const {
   const SessionState session_state =
       Shell::Get()->session_controller()->GetSessionState();
 
-  if (session_state != SessionState::LOGIN_PRIMARY)
+  if (session_state != SessionState::LOGIN_PRIMARY) {
     return false;
+  }
 
-  if (kiosk_license_mode_)
+  if (kiosk_license_mode_) {
     return false;
+  }
 
   if (dialog_state_ != OobeDialogState::HIDDEN &&
-      dialog_state_ != OobeDialogState::EXTENSION_LOGIN_CLOSED)
+      dialog_state_ != OobeDialogState::EXTENSION_LOGIN_CLOSED) {
     return false;
+  }
 
   return true;
 }
 
 bool LoginShelfView::ShouldShowAppsButton() const {
-  if (!ShouldShowGuestAndAppsButtons())
+  if (!ShouldShowGuestAndAppsButtons()) {
     return false;
+  }
 
   const SessionState session_state =
       Shell::Get()->session_controller()->GetSessionState();
-  if (session_state != SessionState::LOGIN_PRIMARY)
+  if (session_state != SessionState::LOGIN_PRIMARY) {
     return false;
+  }
 
   return true;
 }
 
 bool LoginShelfView::ShouldShowOsInstallButton() const {
-  if (!switches::IsOsInstallAllowed())
+  if (!switches::IsOsInstallAllowed()) {
     return false;
+  }
 
-  if (!ShouldShowGuestAndAppsButtons())
+  if (!ShouldShowGuestAndAppsButtons()) {
     return false;
+  }
 
   const SessionState session_state =
       Shell::Get()->session_controller()->GetSessionState();
 
-  if (session_state == SessionState::OOBE)
+  if (session_state == SessionState::OOBE) {
     return is_first_signin_step_;
+  }
 
-  if (session_state != SessionState::LOGIN_PRIMARY)
+  if (session_state != SessionState::LOGIN_PRIMARY) {
     return false;
+  }
 
   return true;
 }
+
+views::View* LoginShelfView::GetButtonContainerByID(ButtonId button_id) {
+  return GetViewByID(button_id + kButtonContainerDiff);
+}
+
+void LoginShelfView::OnAddUserButtonClicked() {
+  session_manager::SessionState current_state =
+      Shell::Get()->session_controller()->GetSessionState();
+  if (current_state != session_manager::SessionState::OOBE &&
+      current_state != session_manager::SessionState::LOGIN_PRIMARY) {
+    // TODO(b/333882432): Prevent starting a gaia signin in some transitioning
+    // state like LOGGED_IN_NOT_ACTIVE.
+    LOG(WARNING) << "Add User button was called in an unexpected state: "
+                 << static_cast<int>(current_state)
+                 << " skip to call ShowGaiaSignin.";
+    return;
+  }
+  AuthEventsRecorder::Get()->OnAddUser();
+
+  // TODO(b/333882432): Remove this log after the bug fixed.
+  LOG(WARNING) << "b/333882432: LoginShelfView::OnAddUserButtonClicked";
+  Shell::Get()->login_screen_controller()->ShowGaiaSignin(EmptyAccountId());
+}
+
+BEGIN_METADATA(LoginShelfView)
+END_METADATA
 
 }  // namespace ash

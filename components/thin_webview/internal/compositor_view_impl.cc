@@ -9,11 +9,13 @@
 #include "base/android/jni_android.h"
 #include "cc/slim/layer.h"
 #include "cc/slim/solid_color_layer.h"
-#include "components/thin_webview/internal/jni_headers/CompositorViewImpl_jni.h"
 #include "content/public/browser/android/compositor.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/android/color_utils_android.h"
 #include "ui/android/window_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/thin_webview/internal/jni_headers/CompositorViewImpl_jni.h"
 
 using base::android::JavaParamRef;
 using base::android::JavaRef;
@@ -55,9 +57,9 @@ CompositorViewImpl::CompositorViewImpl(JNIEnv* env,
       current_surface_format_(kPixelFormatUnknown) {
   compositor_.reset(content::Compositor::Create(this, window_android));
   root_layer_->SetIsDrawable(true);
-  absl::optional<SkColor> background_color =
+  std::optional<SkColor> background_color =
       ui::JavaColorToOptionalSkColor(java_background_color);
-  // TODO(crbug/1308932): Remove FromColor and make all SkColor4f.
+  // TODO(crbug.com/40219248): Remove FromColor and make all SkColor4f.
   root_layer_->SetBackgroundColor(
       SkColor4f::FromColor(background_color.value()));
 }
@@ -83,7 +85,7 @@ void CompositorViewImpl::SurfaceDestroyed(JNIEnv* env,
   // detached and freed by OS.
   compositor_->PreserveChildSurfaceControls();
 
-  compositor_->SetSurface(nullptr, false);
+  compositor_->SetSurface(nullptr, false, nullptr);
   current_surface_format_ = kPixelFormatUnknown;
 }
 
@@ -97,7 +99,7 @@ void CompositorViewImpl::SurfaceChanged(JNIEnv* env,
   DCHECK(surface);
   if (current_surface_format_ != format) {
     current_surface_format_ = format;
-    compositor_->SetSurface(surface, can_be_used_with_surface_control);
+    compositor_->SetSurface(surface, can_be_used_with_surface_control, nullptr);
   }
 
   gfx::Size content_size(width, height);
@@ -123,7 +125,7 @@ void CompositorViewImpl::SetRootLayer(scoped_refptr<cc::slim::Layer> layer) {
 
 void CompositorViewImpl::RecreateSurface() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  compositor_->SetSurface(nullptr, false);
+  compositor_->SetSurface(nullptr, false, nullptr);
   Java_CompositorViewImpl_recreateSurface(env, obj_);
 }
 

@@ -9,6 +9,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -89,9 +90,8 @@ std::string StatusToString(Status status) {
       return "Key attribute value retrieval failed.";
     case Status::kErrorKeyAttributeSettingFailed:
       return "Setting key attribute value failed.";
-    case Status::kErrorKeyNotAllowedForSigning:
-      return "This key is not allowed for signing. Either it was used for "
-             "signing before or it was not correctly generated.";
+    case Status::kErrorKeyNotAllowedForOperation:
+      return "This key is not allowed for this operation.";
     case Status::kErrorKeyNotFound:
       return "Key not found.";
     case Status::kErrorShutDown:
@@ -130,8 +130,8 @@ crosapi::mojom::KeystoreError StatusToKeystoreError(Status status) {
       return KeystoreError::kKeyAttributeRetrievalFailed;
     case Status::kErrorKeyAttributeSettingFailed:
       return KeystoreError::kKeyAttributeSettingFailed;
-    case Status::kErrorKeyNotAllowedForSigning:
-      return KeystoreError::kKeyNotAllowedForSigning;
+    case Status::kErrorKeyNotAllowedForOperation:
+      return KeystoreError::kKeyNotAllowedForOperation;
     case Status::kErrorKeyNotFound:
       return KeystoreError::kKeyNotFound;
     case Status::kErrorShutDown:
@@ -158,7 +158,6 @@ Status StatusFromKeystoreError(crosapi::mojom::KeystoreError error) {
     case KeystoreError::kUnsupportedKeyType:
       // Keystore specific errors shouldn't be passed here.
       NOTREACHED();
-      return Status::kErrorInternal;
 
     case KeystoreError::kAlgorithmNotSupported:
       return Status::kErrorAlgorithmNotSupported;
@@ -178,8 +177,8 @@ Status StatusFromKeystoreError(crosapi::mojom::KeystoreError error) {
       return Status::kErrorKeyAttributeRetrievalFailed;
     case KeystoreError::kKeyAttributeSettingFailed:
       return Status::kErrorKeyAttributeSettingFailed;
-    case KeystoreError::kKeyNotAllowedForSigning:
-      return Status::kErrorKeyNotAllowedForSigning;
+    case KeystoreError::kKeyNotAllowedForOperation:
+      return Status::kErrorKeyNotAllowedForOperation;
     case KeystoreError::kKeyNotFound:
       return Status::kErrorKeyNotFound;
     case KeystoreError::kShutDown:
@@ -219,7 +218,7 @@ std::string KeystoreErrorToString(crosapi::mojom::KeystoreError error) {
 
 std::string GetSubjectPublicKeyInfo(
     const scoped_refptr<net::X509Certificate>& certificate) {
-  base::StringPiece spki_bytes;
+  std::string_view spki_bytes;
   if (!net::asn1::ExtractSPKIFromDERCert(
           net::x509_util::CryptoBufferAsStringPiece(certificate->cert_buffer()),
           &spki_bytes))
@@ -229,7 +228,7 @@ std::string GetSubjectPublicKeyInfo(
 
 std::vector<uint8_t> GetSubjectPublicKeyInfoBlob(
     const scoped_refptr<net::X509Certificate>& certificate) {
-  base::StringPiece spki_bytes;
+  std::string_view spki_bytes;
   if (!net::asn1::ExtractSPKIFromDERCert(
           net::x509_util::CryptoBufferAsStringPiece(certificate->cert_buffer()),
           &spki_bytes))
@@ -430,8 +429,8 @@ GetPublicKeyAndAlgorithmOutput GetPublicKeyAndAlgorithm(
     return output;
   }
 
-  absl::optional<base::Value::Dict> algorithm =
-      BuildWebCrypAlgorithmDictionary(key_info);
+  std::optional<base::Value::Dict> algorithm =
+      BuildWebCryptoAlgorithmDictionary(key_info);
   DCHECK(algorithm.has_value());
   output.algorithm = std::move(algorithm.value());
 
@@ -478,7 +477,7 @@ net::X509Certificate::PublicKeyType GetKeyTypeForAlgorithm(
   return net::X509Certificate::kPublicKeyTypeUnknown;
 }
 
-absl::optional<base::Value::Dict> BuildWebCrypAlgorithmDictionary(
+std::optional<base::Value::Dict> BuildWebCryptoAlgorithmDictionary(
     const PublicKeyInfo& key_info) {
   switch (key_info.key_type) {
     case net::X509Certificate::kPublicKeyTypeRSA: {
@@ -492,7 +491,7 @@ absl::optional<base::Value::Dict> BuildWebCrypAlgorithmDictionary(
       return result;
     }
     default:
-      return absl::nullopt;
+      return std::nullopt;
   }
 }
 

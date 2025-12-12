@@ -4,6 +4,7 @@
 
 #include "components/update_client/request_sender.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/base64.h"
@@ -15,21 +16,33 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
-#include "components/client_update_protocol/ecdsa.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/network.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/notreached.h"
+
+// TODO(b/448186580): Replace LOG with D(V)LOG
+#endif
 
 namespace update_client {
 
 namespace {
 
 // This is an ECDSA prime256v1 named-curve key.
-constexpr int kKeyVersion = 13;
-constexpr char kKeyPubBytesBase64[] =
-    "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE82WKnMkb4neVRYgyGaXoEY5nDaiO"
-    "renjt0LMSK/WiPs4+fsjz9kQs+T1PjJR7Hv2upGrsJcSaF8E1nK4WrSucA==";
+constexpr int kKeyVersion = 15;
+constexpr auto kPublicKey = std::to_array<uint8_t>({
+    0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+    0x42, 0x00, 0x04, 0x82, 0x95, 0xc5, 0xaf, 0xe4, 0xc4, 0x3f, 0x36, 0xdf,
+    0x80, 0x6f, 0x05, 0xe6, 0x8b, 0x4a, 0xfa, 0x9c, 0xf5, 0x22, 0x0a, 0xa8,
+    0x34, 0xa4, 0xfa, 0xd0, 0x77, 0x7a, 0x09, 0xe5, 0x47, 0xc0, 0xe7, 0x08,
+    0x3c, 0x3f, 0xe4, 0xe4, 0x5b, 0x76, 0x82, 0x5d, 0xac, 0xf3, 0xf9, 0x9b,
+    0x08, 0x48, 0xe9, 0x02, 0xd0, 0x8f, 0xed, 0x87, 0x9a, 0x9f, 0x52, 0xa0,
+    0xc1, 0xb4, 0x3c, 0xa9, 0x54, 0x98, 0xc6,
+});
 
 // The content type for all protocol requests.
 constexpr char kContentType[] = "application/json";
@@ -48,18 +61,22 @@ const std::string& SelectCupServerProof(
 
 }  // namespace
 
-RequestSender::RequestSender(scoped_refptr<Configurator> config)
-    : config_(config) {}
+RequestSender::RequestSender(
+    scoped_refptr<NetworkFetcherFactory> fetcher_factory)
+    : fetcher_factory_(fetcher_factory), signer_(kKeyVersion, kPublicKey) {}
 
 RequestSender::~RequestSender() = default;
 
-void RequestSender::Send(
+base::OnceClosure RequestSender::Send(
     const std::vector<GURL>& urls,
     const base::flat_map<std::string, std::string>& request_extra_headers,
     const std::string& request_body,
     bool use_signing,
     RequestSenderCallback request_sender_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "RequestSender::Send";
+#endif
 
   urls_ = urls;
   request_extra_headers_ = request_extra_headers;
@@ -68,19 +85,14 @@ void RequestSender::Send(
   request_sender_callback_ = std::move(request_sender_callback);
 
   if (urls_.empty()) {
-    return HandleSendError(static_cast<int>(ProtocolError::MISSING_URLS), 0);
+    HandleSendError(static_cast<int>(ProtocolError::MISSING_URLS), 0);
+    return base::DoNothing();
   }
 
   cur_url_ = urls_.begin();
 
-  if (use_signing_) {
-    public_key_ = GetKey(kKeyPubBytesBase64);
-    if (public_key_.empty())
-      return HandleSendError(
-          static_cast<int>(ProtocolError::MISSING_PUBLIC_KEY), 0);
-  }
-
   SendInternal();
+  return base::BindOnce(&RequestSender::Cancel, this);
 }
 
 void RequestSender::SendInternal() {
@@ -89,59 +101,76 @@ void RequestSender::SendInternal() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   GURL url(*cur_url_);
+  VLOG(2) << "url: " << url.spec();
 
   if (use_signing_) {
-    CHECK(!public_key_.empty());
-    signer_ = client_update_protocol::Ecdsa::Create(kKeyVersion, public_key_);
     std::string request_query_string;
-    signer_->SignRequest(request_body_, &request_query_string);
-
+    signer_.SignRequest(request_body_, &request_query_string);
     url = BuildUpdateUrl(url, request_query_string);
   }
+  VLOG_IF(2, !url.is_valid()) << "url is not valid.";
 
   VLOG(2) << "Sending Omaha request: " << request_body_;
 
-  network_fetcher_ = config_->GetNetworkFetcherFactory()->Create();
+  if (!fetcher_factory_) {
+    // The request was cancelled.
+    return;
+  }
+
+  network_fetcher_ = fetcher_factory_->Create();
   if (!network_fetcher_) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
-        base::BindOnce(&RequestSender::SendInternalComplete,
-                       base::Unretained(this),
+        base::BindOnce(&RequestSender::SendInternalComplete, this,
                        static_cast<int>(ProtocolError::URL_FETCHER_FAILED),
-                       std::string(), std::string(), std::string(), 0));
+                       std::string(), std::string(), std::string(),
+                       std::string(), 0));
+    return;
   }
   network_fetcher_->PostRequest(
       url, request_body_, kContentType, request_extra_headers_,
-      base::BindOnce(&RequestSender::OnResponseStarted, base::Unretained(this)),
+      base::BindRepeating(&RequestSender::OnResponseStarted, this),
       base::DoNothing(),
-      base::BindOnce(&RequestSender::OnNetworkFetcherComplete,
-                     base::Unretained(this), url));
+      base::BindOnce(&RequestSender::OnNetworkFetcherComplete, this, url));
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+void RequestSender::Cancel() {
+  LOG(INFO) << "RequestSender::Cancel";
+  // TODO(b/431862767): enable this in a follow-up PR with the Cobalt network
+  // fetcher implementation
+  NOTIMPLEMENTED();
+  // if (network_fetcher_.get()) {
+  //   network_fetcher_->Cancel();
+  // }
+}
+#endif
 
 void RequestSender::SendInternalComplete(
     int error,
     const std::string& response_body,
     const std::string& response_etag,
     const std::string& response_cup_server_proof,
+    const std::string& response_cookie,
     int retry_after_sec) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   VLOG(2) << "Omaha response received: " << response_body;
   VLOG_IF(2, error) << "Omaha send error: " << error;
 
   if (!error) {
     if (!use_signing_) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(request_sender_callback_), 0,
+          FROM_HERE, base::BindOnce(TakeRequestSenderCallback(), 0,
                                     response_body, retry_after_sec));
       return;
     }
 
     CHECK(use_signing_);
-    CHECK(signer_);
-    if (signer_->ValidateResponse(
+    if (signer_.ValidateResponse(
             response_body,
             SelectCupServerProof(response_cup_server_proof, response_etag))) {
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(request_sender_callback_), 0,
+          FROM_HERE, base::BindOnce(TakeRequestSenderCallback(), 0,
                                     response_body, retry_after_sec));
       return;
     }
@@ -155,8 +184,7 @@ void RequestSender::SendInternalComplete(
   // should not send further request until the cooldown has expired.
   if (retry_after_sec <= 0 && ++cur_url_ != urls_.end() &&
       base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(&RequestSender::SendInternal,
-                                    base::Unretained(this)))) {
+          FROM_HERE, base::BindOnce(&RequestSender::SendInternal, this))) {
     return;
   }
 
@@ -170,46 +198,46 @@ void RequestSender::OnResponseStarted(int response_code,
 
 void RequestSender::OnNetworkFetcherComplete(
     const GURL& original_url,
-    std::unique_ptr<std::string> response_body,
+    std::optional<std::string> response_body,
     int net_error,
     const std::string& header_etag,
     const std::string& xheader_cup_server_proof,
+    const std::string& header_cookie,
     int64_t xheader_retry_after_sec) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  LOG(INFO) << "RequestSender::OnNetworkFetcherComplete";
+#endif
 
   VLOG(1) << "Request completed from url: " << original_url.spec();
 
   int error = -1;
-  if (!net_error && response_code_ == 200)
+  if (!net_error && response_code_ == 200) {
     error = 0;
-  else if (response_code_ != -1)
+  } else if (response_code_ != -1) {
     error = response_code_;
-  else
+  } else {
     error = net_error;
+  }
 
   int retry_after_sec = -1;
-  if (original_url.SchemeIsCryptographic() && error > 0)
+  if (original_url.SchemeIsCryptographic() && error >= 0) {
     retry_after_sec = base::saturated_cast<int>(xheader_retry_after_sec);
+  }
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
-      base::BindOnce(&RequestSender::SendInternalComplete,
-                     base::Unretained(this), error,
-                     response_body ? *response_body : std::string(),
-                     header_etag, xheader_cup_server_proof, retry_after_sec));
+      base::BindOnce(&RequestSender::SendInternalComplete, this, error,
+                     std::move(response_body).value_or(std::string()),
+                     header_etag, xheader_cup_server_proof, header_cookie,
+                     retry_after_sec));
 }
 
 void RequestSender::HandleSendError(int error, int retry_after_sec) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(std::move(request_sender_callback_), error,
+      FROM_HERE, base::BindOnce(TakeRequestSenderCallback(), error,
                                 std::string(), retry_after_sec));
-}
-
-std::string RequestSender::GetKey(const char* key_bytes_base64) {
-  std::string result;
-  return base::Base64Decode(std::string(key_bytes_base64), &result)
-             ? result
-             : std::string();
 }
 
 GURL RequestSender::BuildUpdateUrl(const GURL& url,
@@ -222,6 +250,23 @@ GURL RequestSender::BuildUpdateUrl(const GURL& url,
   replacements.SetQueryStr(query_string);
 
   return url.ReplaceComponents(replacements);
+}
+
+#if !BUILDFLAG(IS_STARBOARD)
+void RequestSender::Cancel() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  HandleSendError(static_cast<int>(ServiceError::CANCELLED), 0);
+  network_fetcher_.reset();
+  fetcher_factory_.reset();
+}
+#endif
+
+RequestSender::RequestSenderCallback
+RequestSender::TakeRequestSenderCallback() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  RequestSenderCallback callback = std::move(request_sender_callback_);
+  request_sender_callback_ = base::DoNothing();
+  return callback;
 }
 
 }  // namespace update_client

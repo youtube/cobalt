@@ -30,13 +30,6 @@ class ShellCrashReporterClient : public crash_reporter::CrashReporterClient {
   ~ShellCrashReporterClient() override;
 
 #if BUILDFLAG(IS_POSIX)
-  // Returns a textual description of the product type and version to include
-  // in the crash report.
-  void GetProductNameAndVersion(const char** product_name,
-                                const char** version) override;
-  void GetProductNameAndVersion(std::string* product_name,
-                                std::string* version,
-                                std::string* channel) override;
   base::FilePath GetReporterLogFilename() override;
 #endif
 
@@ -44,11 +37,7 @@ class ShellCrashReporterClient : public crash_reporter::CrashReporterClient {
   // |crash_dir| was set.
   bool GetCrashDumpLocation(base::FilePath* crash_dir) override;
 
-#if BUILDFLAG(IS_ANDROID)
-  // Returns the descriptor key of the android minidump global descriptor.
-  int GetAndroidMinidumpDescriptor() override;
-#endif
-
+  void GetProductInfo(ProductInfo* product_info) override;
   bool EnableBreakpadForProcess(const std::string& process_type) override;
 };
 

@@ -28,7 +28,12 @@
 #include <algorithm>
 #include <memory>
 
-#include "third_party/blink/public/common/indexeddb/web_idb_types.h"
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
+#include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
+#include "third_party/blink/renderer/platform/bindings/script_state.h"
+#include "third_party/blink/renderer/platform/bindings/v8_binding.h"
 
 namespace blink {
 
@@ -76,7 +81,6 @@ std::unique_ptr<IDBKey> IDBKey::Clone(const IDBKey* rkey) {
       break;  // Not used, NOTREACHED.
   }
   NOTREACHED();
-  return nullptr;
 }
 
 IDBKey::IDBKey()
@@ -104,10 +108,10 @@ IDBKey::IDBKey(const String& value)
       size_estimate_(kIDBKeyOverheadSize + (string_.length() * sizeof(UChar))) {
 }
 
-IDBKey::IDBKey(scoped_refptr<SharedBuffer> value)
+IDBKey::IDBKey(scoped_refptr<base::RefCountedData<Vector<char>>> value)
     : type_(mojom::IDBKeyType::Binary),
       binary_(std::move(value)),
-      size_estimate_(kIDBKeyOverheadSize + binary_.get()->size()) {}
+      size_estimate_(kIDBKeyOverheadSize + binary_->data.size()) {}
 
 IDBKey::IDBKey(KeyArray key_array)
     : type_(mojom::IDBKeyType::Array),
@@ -154,11 +158,12 @@ int IDBKey::Compare(const IDBKey* other) const {
       }
       return CompareNumbers(array_.size(), other->array_.size());
     case mojom::IDBKeyType::Binary:
-      if (int result =
-              memcmp(binary_->Data(), other->binary_->Data(),
-                     std::min(binary_->size(), other->binary_->size())))
+      if (int result = UNSAFE_TODO(memcmp(
+              binary_->data.data(), other->binary_->data.data(),
+              std::min(binary_->data.size(), other->binary_->data.size())))) {
         return result < 0 ? -1 : 1;
-      return CompareNumbers(binary_->size(), other->binary_->size());
+      }
+      return CompareNumbers(binary_->data.size(), other->binary_->data.size());
     case mojom::IDBKeyType::String:
       return CodeUnitCompare(string_, other->string_);
     case mojom::IDBKeyType::Date:
@@ -170,11 +175,50 @@ int IDBKey::Compare(const IDBKey* other) const {
     case mojom::IDBKeyType::None:
     case mojom::IDBKeyType::Min:
       NOTREACHED();
-      return 0;
   }
 
   NOTREACHED();
-  return 0;
+}
+
+v8::Local<v8::Value> IDBKey::ToV8(ScriptState* script_state) const {
+  v8::Local<v8::Context> context = script_state->GetContext();
+  v8::Isolate* isolate = script_state->GetIsolate();
+  switch (type_) {
+    case mojom::IDBKeyType::Invalid:
+    case mojom::IDBKeyType::Min:
+      NOTREACHED();
+    case mojom::IDBKeyType::None:
+      return v8::Null(isolate);
+    case mojom::IDBKeyType::Number:
+      return v8::Number::New(isolate, Number());
+    case mojom::IDBKeyType::String:
+      return V8String(isolate, GetString());
+    case mojom::IDBKeyType::Binary:
+      // https://w3c.github.io/IndexedDB/#convert-a-value-to-a-key
+      return ToV8Traits<DOMArrayBuffer>::ToV8(
+          script_state,
+          DOMArrayBuffer::Create(base::as_byte_span(Binary()->data)));
+    case mojom::IDBKeyType::Date:
+      return v8::Date::New(context, Date()).ToLocalChecked();
+    case mojom::IDBKeyType::Array: {
+      v8::Local<v8::Array> array = v8::Array::New(isolate, Array().size());
+      for (wtf_size_t i = 0; i < Array().size(); ++i) {
+        v8::Local<v8::Value> value = Array()[i]->ToV8(script_state);
+        if (value.IsEmpty()) {
+          value = v8::Undefined(isolate);
+        }
+        bool created_property;
+        if (!array->CreateDataProperty(context, i, value)
+                 .To(&created_property) ||
+            !created_property) {
+          return v8::Local<v8::Value>();
+        }
+      }
+      return array;
+    }
+  }
+
+  NOTREACHED();
 }
 
 bool IDBKey::IsLessThan(const IDBKey* other) const {
@@ -207,7 +251,7 @@ Vector<std::unique_ptr<IDBKey>> IDBKey::ToMultiEntryArray(
       [](const std::unique_ptr<IDBKey>& a, const std::unique_ptr<IDBKey>& b) {
         return (a)->IsLessThan(b.get());
       });
-  std::unique_ptr<IDBKey>* end = std::unique(result.begin(), result.end());
+  auto end = std::unique(result.begin(), result.end());
   DCHECK_LE(static_cast<wtf_size_t>(end - result.begin()), result.size());
   result.resize(static_cast<wtf_size_t>(end - result.begin()));
 

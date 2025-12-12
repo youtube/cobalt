@@ -28,6 +28,7 @@
 
 #include "base/check_op.h"
 #include "base/time/time.h"
+#include "third_party/blink/public/common/scheduler/task_attribution_id.h"
 #include "third_party/blink/public/mojom/script/script_type.mojom-blink-forward.h"
 #include "third_party/blink/public/platform/scheduler/web_scoped_virtual_time_pauser.h"
 #include "third_party/blink/renderer/core/core_export.h"
@@ -36,6 +37,7 @@
 #include "third_party/blink/renderer/core/script/script_scheduling_type.h"
 #include "third_party/blink/renderer/platform/bindings/name_client.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/scheduler/public/task_attribution_info.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/text_position.h"
 
@@ -121,6 +123,14 @@ class CORE_EXPORT PendingScript : public GarbageCollected<PendingScript>,
     scheduling_type_ = scheduling_type;
   }
 
+  void SetParserInserted(bool parser_inserted) {
+    parser_inserted_ = parser_inserted;
+  }
+
+  void SetIsInDocumentWrite(bool is_in_document_write) {
+    is_in_document_write_ = is_in_document_write;
+  }
+
   bool WasCreatedDuringDocumentWrite() {
     return created_during_document_write_;
   }
@@ -138,23 +148,31 @@ class CORE_EXPORT PendingScript : public GarbageCollected<PendingScript>,
     return false;
   }
 
-  bool IsWatchingForLoad() const { return client_; }
+  bool IsWatchingForLoad() const { return client_ != nullptr; }
 
  protected:
-  PendingScript(ScriptElementBase*, const TextPosition& starting_position);
+  PendingScript(ScriptElementBase*,
+                const TextPosition& starting_position,
+                scheduler::TaskAttributionInfo* parent_task);
 
   virtual void DisposeInternal() = 0;
 
-  PendingScriptClient* Client() { return client_; }
+  PendingScriptClient* Client() { return client_.Get(); }
 
   virtual void CheckState() const = 0;
 
   Document* OriginalElementDocument() const {
-    return original_element_document_;
+    return original_element_document_.Get();
   }
   ExecutionContext* OriginalExecutionContext() const {
-    return original_execution_context_;
+    return original_execution_context_.Get();
   }
+
+  bool IsDisposed() const { return !element_; }
+
+  bool parser_inserted() const { return parser_inserted_; }
+
+  bool is_in_document_write() const { return is_in_document_write_; }
 
  private:
   static void ExecuteScriptBlockInternal(
@@ -177,6 +195,8 @@ class CORE_EXPORT PendingScript : public GarbageCollected<PendingScript>,
   base::TimeTicks parser_blocking_load_start_time_;
 
   ScriptSchedulingType scheduling_type_ = ScriptSchedulingType::kNotSet;
+  bool parser_inserted_ = false;
+  bool is_in_document_write_ = false;
 
   WebScopedVirtualTimePauser virtual_time_pauser_;
   Member<PendingScriptClient> client_;
@@ -188,6 +208,9 @@ class CORE_EXPORT PendingScript : public GarbageCollected<PendingScript>,
   WeakMember<ExecutionContext> original_execution_context_;
 
   const bool created_during_document_write_;
+
+  // The ID of the parent task that loaded the script.
+  Member<scheduler::TaskAttributionInfo> parent_task_;
 };
 
 }  // namespace blink

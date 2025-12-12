@@ -36,10 +36,10 @@
 #include <tuple>
 #include <utility>
 
-#include "base/allocator/partition_allocator/partition_alloc.h"
 #include "base/numerics/checked_math.h"
 #include "media/base/logging_override_if_enabled.h"
 #include "media/base/stream_parser_buffer.h"
+#include "partition_alloc/partition_alloc.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_source_buffer.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -149,14 +149,11 @@ scoped_refptr<media::StreamParserBuffer> MakeAudioStreamParserBuffer(
   // TODO(crbug.com/1144908): Add a way for StreamParserBuffer to share the
   // same underlying DecoderBuffer.
   auto stream_parser_buffer = media::StreamParserBuffer::CopyFrom(
-      audio_chunk.buffer()->data(),
-      base::checked_cast<int>(audio_chunk.buffer()->data_size()),
-      audio_chunk.buffer()->is_key_frame(), media::DemuxerStream::AUDIO,
-      kWebCodecsAudioTrackId);
+      *audio_chunk.buffer(), audio_chunk.buffer()->is_key_frame(),
+      media::DemuxerStream::AUDIO, kWebCodecsAudioTrackId);
 
   // Currently, we do not populate any side_data in these converters.
-  DCHECK_EQ(0U, stream_parser_buffer->side_data_size());
-  DCHECK_EQ(nullptr, stream_parser_buffer->side_data());
+  DCHECK(!stream_parser_buffer->side_data());
 
   stream_parser_buffer->set_timestamp(audio_chunk.buffer()->timestamp());
   // TODO(crbug.com/1144908): Get EncodedAudioChunk to have an optional duration
@@ -175,14 +172,11 @@ scoped_refptr<media::StreamParserBuffer> MakeVideoStreamParserBuffer(
   // TODO(crbug.com/1144908): Add a way for StreamParserBuffer to share the
   // same underlying DecoderBuffer.
   auto stream_parser_buffer = media::StreamParserBuffer::CopyFrom(
-      video_chunk.buffer()->data(),
-      base::checked_cast<int>(video_chunk.buffer()->data_size()),
-      video_chunk.buffer()->is_key_frame(), media::DemuxerStream::VIDEO,
-      kWebCodecsVideoTrackId);
+      *video_chunk.buffer(), video_chunk.buffer()->is_key_frame(),
+      media::DemuxerStream::VIDEO, kWebCodecsVideoTrackId);
 
   // Currently, we do not populate any side_data in these converters.
-  DCHECK_EQ(0U, stream_parser_buffer->side_data_size());
-  DCHECK_EQ(nullptr, stream_parser_buffer->side_data());
+  DCHECK(!stream_parser_buffer->side_data());
 
   stream_parser_buffer->set_timestamp(video_chunk.buffer()->timestamp());
   // TODO(crbug.com/1144908): Get EncodedVideoChunk to have an optional decode
@@ -192,6 +186,11 @@ scoped_refptr<media::StreamParserBuffer> MakeVideoStreamParserBuffer(
   // or decode errors.
   DCHECK(video_chunk.duration().has_value());
   stream_parser_buffer->set_duration(video_chunk.buffer()->duration());
+
+  if (video_chunk.buffer()->decrypt_config()) {
+    stream_parser_buffer->set_decrypt_config(
+        video_chunk.buffer()->decrypt_config()->Clone());
+  }
   return stream_parser_buffer;
 }
 
@@ -206,7 +205,6 @@ SourceBuffer::SourceBuffer(std::unique_ptr<WebSourceBuffer> web_source_buffer,
       source_(source),
       track_defaults_(MakeGarbageCollected<TrackDefaultList>()),
       async_event_queue_(async_event_queue),
-      mode_(SegmentsKeyword()),
       updating_(false),
       timestamp_offset_(0),
       append_window_start_(0),
@@ -259,17 +257,9 @@ void SourceBuffer::Dispose() {
   web_source_buffer_.reset();
 }
 
-AtomicString SourceBuffer::SegmentsKeyword() {
-  return "segments";
-}
-
-AtomicString SourceBuffer::SequenceKeyword() {
-  return "sequence";
-}
-
-void SourceBuffer::setMode(const AtomicString& new_mode,
+void SourceBuffer::setMode(const V8AppendMode& new_mode,
                            ExceptionState& exception_state) {
-  DVLOG(3) << __func__ << " this=" << this << " new_mode=" << new_mode;
+  DVLOG(3) << __func__ << " this=" << this << " new_mode=" << new_mode.AsCStr();
 
   // Section 3.1 On setting mode attribute steps.
   // https://www.w3.org/TR/media-source/#dom-sourcebuffer-mode
@@ -288,9 +278,9 @@ void SourceBuffer::setMode(const AtomicString& new_mode,
   // is protected from destruction (applicable especially for MSE-in-Worker
   // case). Note, we must have |source_| and |source_| must have an attachment
   // because !IsRemoved().
-  if (!source_->RunUnlessElementGoneOrClosingUs(
-          WTF::BindOnce(&SourceBuffer::SetMode_Locked, WrapPersistent(this),
-                        new_mode, WTF::Unretained(&exception_state)))) {
+  if (!source_->RunUnlessElementGoneOrClosingUs(WTF::BindOnce(
+          &SourceBuffer::SetMode_Locked, WrapPersistent(this),
+          new_mode.AsEnum(), WTF::Unretained(&exception_state)))) {
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     MediaSource::LogAndThrowDOMException(
@@ -300,7 +290,7 @@ void SourceBuffer::setMode(const AtomicString& new_mode,
 }
 
 void SourceBuffer::SetMode_Locked(
-    AtomicString new_mode,
+    V8AppendMode::Enum new_mode,
     ExceptionState* exception_state,
     MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */) {
   DCHECK(source_);
@@ -310,11 +300,11 @@ void SourceBuffer::SetMode_Locked(
   // 4. If generate timestamps flag equals true and new mode equals "segments",
   //    then throw a TypeError exception and abort these steps.
   if (web_source_buffer_->GetGenerateTimestampsFlag() &&
-      new_mode == SegmentsKeyword()) {
+      new_mode == V8AppendMode::Enum::kSegments) {
     MediaSource::LogAndThrowTypeError(
-        *exception_state, "The mode value provided (" + SegmentsKeyword() +
-                              ") is invalid for a byte stream format that uses "
-                              "generated timestamps.");
+        *exception_state,
+        "The mode value provided (segments) is invalid for a byte stream "
+        "format that uses generated timestamps.");
     return;
   }
 
@@ -331,8 +321,9 @@ void SourceBuffer::SetMode_Locked(
   //    the highest presentation end timestamp.
   WebSourceBuffer::AppendMode append_mode =
       WebSourceBuffer::kAppendModeSegments;
-  if (new_mode == SequenceKeyword())
+  if (new_mode == V8AppendMode::Enum::kSequence) {
     append_mode = WebSourceBuffer::kAppendModeSequence;
+  }
   if (!web_source_buffer_->SetMode(append_mode)) {
     MediaSource::LogAndThrowDOMException(
         *exception_state, DOMExceptionCode::kInvalidStateError,
@@ -613,8 +604,7 @@ void SourceBuffer::appendBuffer(DOMArrayBuffer* data,
   DVLOG(2) << __func__ << " this=" << this << " size=" << data->ByteLength();
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
-  AppendBufferInternal(static_cast<const unsigned char*>(data->Data()),
-                       data->ByteLength(), exception_state);
+  AppendBufferInternal(data->ByteSpan(), exception_state);
 }
 
 void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
@@ -622,8 +612,7 @@ void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
   DVLOG(3) << __func__ << " this=" << this << " size=" << data->byteLength();
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
-  AppendBufferInternal(static_cast<const unsigned char*>(data->BaseAddress()),
-                       data->byteLength(), exception_state);
+  AppendBufferInternal(data->ByteSpan(), exception_state);
 }
 
 // Note that |chunks| may be a sequence of mixed audio and video encoded chunks
@@ -635,7 +624,7 @@ void SourceBuffer::appendBuffer(NotShared<DOMArrayBufferView> data,
 // implementation. Further note, |chunks| may instead be a single audio or a
 // single video chunk as a helpful additional overload for one-chunk-at-a-time
 // append use-cases.
-ScriptPromise SourceBuffer::appendEncodedChunks(
+ScriptPromise<IDLUndefined> SourceBuffer::appendEncodedChunks(
     ScriptState* script_state,
     const V8EncodedChunks* chunks,
     ExceptionState& exception_state) {
@@ -651,7 +640,7 @@ ScriptPromise SourceBuffer::appendEncodedChunks(
                                         exception_state)) {
     TRACE_EVENT_NESTABLE_ASYNC_END0(
         "media", "SourceBuffer::appendEncodedChunks", TRACE_ID_LOCAL(this));
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   // Convert |chunks| to a StreamParser::BufferQueue.
@@ -668,8 +657,7 @@ ScriptPromise SourceBuffer::appendEncodedChunks(
     case V8EncodedChunks::ContentType::kEncodedAudioChunk:
       buffer_queue->emplace_back(
           MakeAudioStreamParserBuffer(*(chunks->GetAsEncodedAudioChunk())));
-      size += buffer_queue->back()->data_size() +
-              buffer_queue->back()->side_data_size();
+      size += buffer_queue->back()->size();
       break;
     case V8EncodedChunks::ContentType::kEncodedVideoChunk: {
       const auto& video_chunk = *(chunks->GetAsEncodedVideoChunk());
@@ -678,11 +666,10 @@ ScriptPromise SourceBuffer::appendEncodedChunks(
             exception_state,
             "EncodedVideoChunk is missing duration, required for use with "
             "SourceBuffer.");
-        return ScriptPromise();
+        return EmptyPromise();
       }
       buffer_queue->emplace_back(MakeVideoStreamParserBuffer(video_chunk));
-      size += buffer_queue->back()->data_size() +
-              buffer_queue->back()->side_data_size();
+      size += buffer_queue->back()->size();
       break;
     }
     case V8EncodedChunks::ContentType::
@@ -695,8 +682,7 @@ ScriptPromise SourceBuffer::appendEncodedChunks(
               kEncodedAudioChunk:
             buffer_queue->emplace_back(MakeAudioStreamParserBuffer(
                 *(av_chunk->GetAsEncodedAudioChunk())));
-            size += buffer_queue->back()->data_size() +
-                    buffer_queue->back()->side_data_size();
+            size += buffer_queue->back()->size();
             break;
           case V8UnionEncodedAudioChunkOrEncodedVideoChunk::ContentType::
               kEncodedVideoChunk: {
@@ -706,12 +692,11 @@ ScriptPromise SourceBuffer::appendEncodedChunks(
                   exception_state,
                   "EncodedVideoChunk is missing duration, required for use "
                   "with SourceBuffer.");
-              return ScriptPromise();
+              return EmptyPromise();
             }
             buffer_queue->emplace_back(
                 MakeVideoStreamParserBuffer(video_chunk));
-            size += buffer_queue->back()->data_size() +
-                    buffer_queue->back()->side_data_size();
+            size += buffer_queue->back()->size();
             break;
           }
         }
@@ -720,8 +705,9 @@ ScriptPromise SourceBuffer::appendEncodedChunks(
   }
 
   DCHECK(!append_encoded_chunks_resolver_);
-  append_encoded_chunks_resolver_ = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
+  append_encoded_chunks_resolver_ =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+          script_state, exception_state.GetContext());
   auto promise = append_encoded_chunks_resolver_->Promise();
 
   // Do remainder of steps of analogue of prepare append algorithm and sending
@@ -738,7 +724,7 @@ ScriptPromise SourceBuffer::appendEncodedChunks(
         exception_state, DOMExceptionCode::kInvalidStateError,
         "Worker MediaSource attachment is closing");
     append_encoded_chunks_resolver_ = nullptr;
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   return promise;
@@ -1091,7 +1077,7 @@ void SourceBuffer::ChangeType_Locked(
   //    of the mode attribute on this SourceBuffer object, without running any
   //    associated steps for that attribute being set.
   if (web_source_buffer_->GetGenerateTimestampsFlag())
-    SetMode_Locked(SequenceKeyword(), exception_state, pass_key);
+    SetMode_Locked(V8AppendMode::Enum::kSequence, exception_state, pass_key);
 
   // 9. Set pending initialization segment for changeType flag to true.
   // The logic for this flag is handled by the pipeline (the new bytestream
@@ -1292,7 +1278,7 @@ void SourceBuffer::RemoveMediaTracks() {
   // above, along with conditional enqueueing of change event.
   if (!audio_track_removal_ids.empty()) {
     attachment->RemoveAudioTracksFromMediaElement(
-        tracer, audio_track_removal_ids,
+        tracer, std::move(audio_track_removal_ids),
         removed_enabled_audio_track /* enqueue_change_event */);
   }
 
@@ -1337,7 +1323,7 @@ void SourceBuffer::RemoveMediaTracks() {
   // above, along with conditional enqueueing of change event.
   if (!video_track_removal_ids.empty()) {
     attachment->RemoveVideoTracksFromMediaElement(
-        tracer, video_track_removal_ids,
+        tracer, std::move(video_track_removal_ids),
         removed_selected_video_track /* enqueue_change_event */);
   }
 
@@ -1405,7 +1391,7 @@ AtomicString SourceBuffer::DefaultTrackLabel(
   // Spec: https://w3c.github.io/media-source/#sourcebuffer-default-track-label
   const TrackDefault* track_default =
       GetTrackDefault(track_type, byte_stream_track_id);
-  return track_default ? AtomicString(track_default->label()) : "";
+  return track_default ? AtomicString(track_default->label()) : g_empty_atom;
 }
 
 AtomicString SourceBuffer::DefaultTrackLanguage(
@@ -1415,11 +1401,11 @@ AtomicString SourceBuffer::DefaultTrackLanguage(
   // https://w3c.github.io/media-source/#sourcebuffer-default-track-language
   const TrackDefault* track_default =
       GetTrackDefault(track_type, byte_stream_track_id);
-  return track_default ? AtomicString(track_default->language()) : "";
+  return track_default ? AtomicString(track_default->language()) : g_empty_atom;
 }
 
 void SourceBuffer::AddPlaceholderCrossThreadTracks(
-    const WebVector<MediaTrackInfo>& new_tracks,
+    const std::vector<MediaTrackInfo>& new_tracks,
     scoped_refptr<MediaSourceAttachmentSupplement> attachment) {
   // TODO(https://crbug.com/878133): Complete the MSE-in-Workers function
   // necessary to enable successful experimental usage of AudioVideoTracks
@@ -1515,7 +1501,7 @@ void SourceBuffer::RemovePlaceholderCrossThreadTracks(
 }
 
 bool SourceBuffer::InitializationSegmentReceived(
-    const WebVector<MediaTrackInfo>& new_tracks) {
+    const std::vector<MediaTrackInfo>& new_tracks) {
   DVLOG(3) << __func__ << " this=" << this << " tracks=" << new_tracks.size();
   DCHECK(source_);
   source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
@@ -1559,10 +1545,10 @@ bool SourceBuffer::InitializationSegmentReceived(
       if (first_initialization_segment_received_)
         track = FindExistingTrackById(videoTracks(), track_info.id);
     } else {
-      DVLOG(3) << __func__ << " this=" << this
-               << " failed: unsupported track type " << track_info.track_type;
       // TODO(servolk): Add handling of text tracks.
-      NOTREACHED();
+      NOTREACHED() << __func__ << " this=" << this
+                   << " failed: unsupported track type "
+                   << track_info.track_type;
     }
     if (first_initialization_segment_received_ && !track) {
       DVLOG(3) << __func__ << " this=" << this
@@ -1701,7 +1687,9 @@ bool SourceBuffer::InitializationSegmentReceived(
       // 5.2.7 TODO(servolk): Implement track kind processing.
       // 5.2.8.2 Let new audio track be a new AudioTrack object.
       auto* audio_track = MakeGarbageCollected<AudioTrack>(
-          track_info.id, kind, std::move(label), std::move(language), false);
+          track_info.id, kind, std::move(label), std::move(language),
+          /*enabled=*/false,
+          /*exclusive=*/false);
       SourceBufferTrackBaseSupplement::SetSourceBuffer(*audio_track, this);
       // 5.2.8.7 If audioTracks.length equals 0, then run the following steps:
       if (audioTracks().length() == 0) {
@@ -1919,8 +1907,8 @@ bool SourceBuffer::PrepareAppend(double media_time,
     //    If the incoming data exceeds wtf_size_t::max, then our implementation
     //    cannot deal with it, so we also throw a QuotaExceededError.
     DVLOG(3) << __func__ << " this=" << this << " -> throw QuotaExceededError";
-    MediaSource::LogAndThrowDOMException(
-        exception_state, DOMExceptionCode::kQuotaExceededError,
+    MediaSource::LogAndThrowQuotaExceededError(
+        exception_state,
         "The SourceBuffer is full, and cannot free space to append additional "
         "buffers.");
     TRACE_EVENT_NESTABLE_ASYNC_END0("media", "SourceBuffer::prepareAppend",
@@ -1951,11 +1939,10 @@ bool SourceBuffer::EvictCodedFrames(double media_time, size_t new_data_size) {
   return result;
 }
 
-void SourceBuffer::AppendBufferInternal(const unsigned char* data,
-                                        size_t size,
+void SourceBuffer::AppendBufferInternal(base::span<const unsigned char> data,
                                         ExceptionState& exception_state) {
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("media", "SourceBuffer::appendBuffer",
-                                    TRACE_ID_LOCAL(this), "size", size);
+                                    TRACE_ID_LOCAL(this), "size", data.size());
   // Section 3.2 appendBuffer()
   // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#widl-SourceBuffer-appendBuffer-void-ArrayBufferView-data
   //
@@ -1986,7 +1973,7 @@ void SourceBuffer::AppendBufferInternal(const unsigned char* data,
   // |source_| and |source_| must have an attachment because !IsRemoved().
   if (!source_->RunUnlessElementGoneOrClosingUs(WTF::BindOnce(
           &SourceBuffer::AppendBufferInternal_Locked, WrapPersistent(this),
-          WTF::Unretained(data), size, WTF::Unretained(&exception_state)))) {
+          data, WTF::Unretained(&exception_state)))) {
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, exception should be for this case.
     MediaSource::LogAndThrowDOMException(
@@ -1996,8 +1983,7 @@ void SourceBuffer::AppendBufferInternal(const unsigned char* data,
 }
 
 void SourceBuffer::AppendBufferInternal_Locked(
-    const unsigned char* data,
-    size_t size,
+    base::span<const unsigned char> data,
     ExceptionState* exception_state,
     MediaSourceAttachmentSupplement::ExclusiveKey /* passkey */) {
   DCHECK(source_);
@@ -2006,7 +1992,7 @@ void SourceBuffer::AppendBufferInternal_Locked(
 
   // Finish the prepare append algorithm begun by the caller.
   double media_time = GetMediaTime();
-  if (!PrepareAppend(media_time, size, *exception_state)) {
+  if (!PrepareAppend(media_time, data.size(), *exception_state)) {
     TRACE_EVENT_NESTABLE_ASYNC_END0("media", "SourceBuffer::appendBuffer",
                                     TRACE_ID_LOCAL(this));
     return;
@@ -2014,22 +2000,16 @@ void SourceBuffer::AppendBufferInternal_Locked(
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("media", "prepareAsyncAppend",
                                     TRACE_ID_LOCAL(this));
 
-  // `data` can be nullptr iff `size` is 0. For example,
-  // sourceBuffer.appendBuffer(new ArrayBuffer()) results in this situation.
-  DCHECK(data || size == 0);
-
   // 2. Add data to the end of the input buffer. Zero-length appends result in
   // just a single async segment parser loop run later, with nothing added to
   // the parser's input buffer here synchronously.
-  if (data) {
-    if (!web_source_buffer_->AppendToParseBuffer(data, size)) {
-      MediaSource::LogAndThrowDOMException(
-          *exception_state, DOMExceptionCode::kQuotaExceededError,
-          "Unable to allocate space required to buffer appended media.");
-      TRACE_EVENT_NESTABLE_ASYNC_END0(
-          "media", "SourceBuffer::prepareAsyncAppend", TRACE_ID_LOCAL(this));
-      return;
-    }
+  if (!web_source_buffer_->AppendToParseBuffer(data)) {
+    MediaSource::LogAndThrowQuotaExceededError(
+        *exception_state,
+        "Unable to allocate space required to buffer appended media.");
+    TRACE_EVENT_NESTABLE_ASYNC_END0("media", "SourceBuffer::prepareAsyncAppend",
+                                    TRACE_ID_LOCAL(this));
+    return;
   }
 
   // 3. Set the updating attribute to true.
@@ -2116,10 +2096,9 @@ void SourceBuffer::AppendEncodedChunksAsyncPart_Locked(
     // attachment will send updated buffered and seekable information to the
     // main thread here, too.
     AppendError(pass_key);
-    append_encoded_chunks_resolver_->Reject(V8ThrowDOMException::CreateOrDie(
-        append_encoded_chunks_resolver_->GetScriptState()->GetIsolate(),
+    append_encoded_chunks_resolver_->RejectWithDOMException(
         DOMExceptionCode::kSyntaxError,
-        "Parsing or frame processing error while buffering encoded chunks."));
+        "Parsing or frame processing error while buffering encoded chunks.");
     append_encoded_chunks_resolver_ = nullptr;
   } else {
     updating_ = false;
@@ -2297,7 +2276,7 @@ void SourceBuffer::Trace(Visitor* visitor) const {
   visitor->Trace(append_encoded_chunks_resolver_);
   visitor->Trace(audio_tracks_);
   visitor->Trace(video_tracks_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 

@@ -35,11 +35,10 @@
 #include "third_party/blink/public/platform/web_common.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_node.h"
+#include "v8/include/v8-local-handle.h"
 
 namespace v8 {
 class Context;
-template <typename T>
-class Local;
 }  // namespace v8
 
 namespace blink {
@@ -47,7 +46,7 @@ namespace blink {
 struct BLINK_EXPORT WebConsoleMessage {
   mojom::ConsoleMessageLevel level = mojom::ConsoleMessageLevel::kInfo;
   WebString text;
-  WebVector<blink::WebNode> nodes;
+  std::vector<WebNode> nodes;
   WebString url;
   unsigned line_number = 0;
   unsigned column_number = 0;
@@ -55,10 +54,10 @@ struct BLINK_EXPORT WebConsoleMessage {
   WebConsoleMessage() = default;
   WebConsoleMessage(mojom::ConsoleMessageLevel level,
                     const WebString& text,
-                    const WebVector<blink::WebNode>& nodes)
+                    const std::vector<WebNode>& nodes)
       : level(level), text(text), nodes(nodes) {}
   WebConsoleMessage(mojom::ConsoleMessageLevel level, const WebString& text)
-      : WebConsoleMessage(level, text, WebVector<blink::WebNode>()) {}
+      : WebConsoleMessage(level, text, std::vector<WebNode>()) {}
   WebConsoleMessage(mojom::ConsoleMessageLevel level,
                     const WebString& text,
                     const WebString url,

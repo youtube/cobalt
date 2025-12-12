@@ -8,11 +8,10 @@ import math
 import json5_generator
 import template_expander
 import keyword_utils
-import bisect
 
 from blinkbuild.name_style_converter import NameStyleConverter
 from core.css import css_properties
-from core.style.computed_style_fields import DiffGroup, Enum, Group, Field
+from core.style.computed_style_fields import Enum, Group, Field
 
 from itertools import chain
 
@@ -29,10 +28,15 @@ ALIGNMENT_ORDER = [
     'ScaleTransformOperation',
     'RotateTransformOperation',
     'TranslateTransformOperation',
-    'GridTrackList',
+    'NGGridTrackList',
+    'StyleHighlightData',
+    'FilterOperations',
+    'DynamicRangeLimit',
     'ComputedGridTrackList',
-    'absl::optional<gfx::Size>',
+    'std::optional<gfx::Size>',
     'double',
+    'StyleViewTransitionGroup',
+    'Superellipse',
     # Aligns like a pointer (can be 32 or 64 bits)
     'NamedGridLinesMap',
     'NamedGridAreaMap',
@@ -43,9 +47,9 @@ ALIGNMENT_ORDER = [
     'Vector<TimelineAxis>',
     'Vector<TimelineInset>',
     'GridPosition',
+    'ScrollStartData',
     'AtomicString',
     'scoped_refptr',
-    'Persistent',
     'std::unique_ptr',
     'Vector<String>',
     'Font',
@@ -53,12 +57,21 @@ ALIGNMENT_ORDER = [
     'NinePieceImage',
     'SVGPaint',
     'IntrinsicLength',
+    'TextBoxEdge',
     'TextDecorationThickness',
+    'StyleAnchorScope',
     'StyleAspectRatio',
-    'absl::optional<StyleIntrinsicLength>',
-    'absl::optional<StyleOverflowClipMargin>',
+    'StyleIntrinsicLength',
+    'std::optional<StyleOverflowClipMargin>',
+    'std::optional<blink::PositionAreaOffsets>',
+    'std::optional<PhysicalOffset>',
+    'GapDataList<StyleColor>',
+    'GapDataList<int>',
+    'GapDataList<EBorderStyle>',
+    # Compressed builds a Member can be 32 bits, vs. a pointer will be 64.
+    'Member',
     # Aligns like float
-    'absl::optional<Length>',
+    'std::optional<Length>',
     'StyleInitialLetter',
     'StyleOffsetRotation',
     'TransformOrigin',
@@ -71,6 +84,7 @@ ALIGNMENT_ORDER = [
     'Length',
     'UnzoomedLength',
     'TextSizeAdjust',
+    'FitText',
     'TabSize',
     'float',
     # Aligns like int
@@ -88,7 +102,9 @@ ALIGNMENT_ORDER = [
     'size_t',
     'wtf_size_t',
     'int',
+    'PositionArea',
     # Aligns like short
+    'StyleFlexWrapData',
     'unsigned short',
     'short',
     # Aligns like char
@@ -163,7 +179,7 @@ def _create_groups(properties):
         # The flag field for this property, if any, should not be part of
         # the same group as the property; since it is not inherited
         # (you cannot inherit the inherit flag), that would always preclude
-        # copy-on-write for the group in InheritFrom().
+        # copy-on-write for the group when calling the inheriting constructor.
         if flag_field is not None:
             root_group_dict[None].append(flag_field)
 
@@ -184,64 +200,6 @@ def _create_builder_groups(properties):
     groups = _create_groups(properties)
     _mark_builder_flags(groups)
     return groups
-
-
-def _create_diff_groups_map(diff_function_inputs, root_group):
-    diff_functions_map = {}
-
-    for entry in diff_function_inputs:
-        # error handling
-        field_names = entry['fields_to_diff'] + _list_field_dependencies(
-            entry['methods_to_diff'] + entry['predicates_to_test'])
-        for name in field_names:
-            assert name in [
-                field.property_name for field in root_group.all_fields], \
-                "The field '{}' isn't a defined field on ComputedStyle. " \
-                "Please check that there's an entry for '{}' in " \
-                "css_properties.json5 or " \
-                "computed_style_extra_fields.json5".format(name, name)
-        diff_functions_map[entry['name'].original] = _create_diff_groups(
-            entry['fields_to_diff'], entry['methods_to_diff'],
-            entry['predicates_to_test'], root_group)
-    return diff_functions_map
-
-
-def _list_field_dependencies(entries_with_field_dependencies):
-    field_dependencies = []
-    for entry in entries_with_field_dependencies:
-        field_dependencies += entry['field_dependencies']
-    return field_dependencies
-
-
-def _create_diff_groups(fields_to_diff, methods_to_diff, predicates_to_test,
-                        root_group):
-    diff_group = DiffGroup(root_group)
-    field_dependencies = _list_field_dependencies(methods_to_diff +
-                                                  predicates_to_test)
-    for subgroup in root_group.subgroups:
-        if any(
-                field.property_name in (fields_to_diff + field_dependencies)
-                for field in subgroup.all_fields):
-            diff_group.subgroups.append(
-                _create_diff_groups(fields_to_diff, methods_to_diff,
-                                    predicates_to_test, subgroup))
-    for entry in fields_to_diff:
-        for field in root_group.fields:
-            if not field.is_inherited_flag and entry == field.property_name:
-                diff_group.fields.append(field)
-    for entry in methods_to_diff:
-        for field in root_group.fields:
-            if (not field.is_inherited_flag
-                    and field.property_name in entry['field_dependencies']
-                    and entry['method'] not in diff_group.expressions):
-                diff_group.expressions.append(entry['method'])
-    for entry in predicates_to_test:
-        for field in root_group.fields:
-            if (not field.is_inherited_flag
-                    and field.property_name in entry['field_dependencies']
-                    and entry['predicate'] not in diff_group.predicates):
-                diff_group.predicates.append(entry['predicate'])
-    return diff_group
 
 
 def _create_enums(properties):
@@ -283,6 +241,31 @@ def _create_enums(properties):
     return list(sorted(enums.values(), key=lambda e: e.type_name))
 
 
+def _find_size_for_property(property_):
+    if property_.field_template == 'keyword':
+        assert property_.field_size is None, \
+            ("'" + property_.name + "' is a keyword field, "
+             "so it should not specify a field_size")
+        return int(math.ceil(math.log(len(property_.keywords), 2)))
+    elif property_.field_template == 'multi_keyword':
+        return len(property_.keywords) - 1  # Subtract 1 for 'none' keyword
+    elif property_.field_template == 'bitset_keyword':
+        return len(property_.keywords)
+    elif property_.field_template == 'external':
+        return None
+    elif property_.field_template == 'primitive':
+        # pack bools with 1 bit.
+        return 1 if property_.type_name == 'bool' else property_.field_size
+    elif property_.field_template == 'pointer':
+        return None
+    elif property_.field_template == 'derived_flag':
+        return 2
+    else:
+        assert property_.field_template == 'monotonic_flag', \
+            "Please use a valid value for field_template"
+        return 1
+
+
 def _create_property_field(property_):
     """
     Create a property field.
@@ -293,29 +276,7 @@ def _create_property_field(property_):
         'MakeComputedStyleBase requires an default value for all fields, ' \
         'none specified for property ' + property_.name
 
-    type_name = property_.type_name
-    if property_.field_template == 'keyword':
-        assert property_.field_size is None, \
-            ("'" + property_.name + "' is a keyword field, "
-             "so it should not specify a field_size")
-        size = int(math.ceil(math.log(len(property_.keywords), 2)))
-    elif property_.field_template == 'multi_keyword':
-        size = len(property_.keywords) - 1  # Subtract 1 for 'none' keyword
-    elif property_.field_template == 'bitset_keyword':
-        size = len(property_.keywords)
-    elif property_.field_template == 'external':
-        size = None
-    elif property_.field_template == 'primitive':
-        # pack bools with 1 bit.
-        size = 1 if type_name == 'bool' else property_.field_size
-    elif property_.field_template == 'pointer':
-        size = None
-    elif property_.field_template == 'derived_flag':
-        size = 2
-    else:
-        assert property_.field_template == 'monotonic_flag', \
-            "Please use a valid value for field_template"
-        size = 1
+    size = _find_size_for_property(property_)
 
     return Field(
         'property',
@@ -329,8 +290,9 @@ def _create_property_field(property_):
         field_template=property_.field_template,
         size=size,
         default_value=property_.default_value,
+        invalidate=property_.invalidate,
         derived_from=property_.derived_from,
-        custom_copy=property_.custom_copy,
+        reset_on_new_style=property_.reset_on_new_style,
         custom_compare=property_.custom_compare,
         mutable=property_.mutable,
         getter_method_name=property_.getter,
@@ -362,7 +324,8 @@ def _create_inherited_flag_field(property_):
         size=1,
         default_value='true',
         derived_from=None,
-        custom_copy=False,
+        invalidate=[],
+        reset_on_new_style=False,
         custom_compare=False,
         mutable=False,
         getter_method_name=name_source.to_function_name(),
@@ -453,131 +416,46 @@ def _reorder_fields(fields):
         bit_fields)
 
 
-def _get_properties_ranking_using_partition_rule(properties_ranking,
-                                                 partition_rule):
-    """Take the contents of the properties ranking file and produce a dictionary
-    of css properties with their group number based on the partition_rule
-
-    Args:
-        properties_ranking: rankings map as read from CSSPropertyRanking.json5
-        partition_rule: cumulative distribution over properties_ranking
-
-    Returns:
-        dictionary with keys are css properties' name values are the group
-        that each css properties belong to. Smaller group number is higher
-        popularity in the ranking.
-    """
-    return dict(
-        zip(properties_ranking, [
-            bisect.bisect_left(partition_rule,
-                               float(i) / len(properties_ranking)) + 1
-            for i in range(len(properties_ranking))
-        ]))
-
-
-def _best_rank(prop, ranking_map):
-    """Return the best ranking value for the specified property.
-
-    This function collects ranking values for not only the property's real name
-    but also its aliases, and returns the best (lower is better) value.
-    If no ranking values for the property is available, this returns -1.
-    """
-    worst_rank = max(ranking_map.values()) + 1
-    best_rank = ranking_map.get(prop.name.original, worst_rank)
-
-    for alias_name in prop.aliases:
-        best_rank = min(best_rank, ranking_map.get(alias_name, worst_rank))
-    return best_rank if best_rank != worst_rank else -1
-
-
-def _evaluate_rare_non_inherited_group(properties,
-                                       properties_ranking,
-                                       num_layers,
-                                       partition_rule=None):
-    """Re-evaluate the grouping of RareNonInherited groups based on each
-    property's popularity.
+def _evaluate_misc_group(properties, bitfield_properties, inherited):
+    """Re-evaluate the grouping of Misc groups.
 
     Args:
         properties: list of all css properties
-        properties_ranking: map of property rankings
-        num_layers: the number of group to split
-        partition_rule: cumulative distribution over properties_ranking
-                        Ex: [0.3, 0.6, 1]
+        bitfield_properties: set of properties that are bitfields
+        inherited: whether we are considering inherited properties
+                   (otherwise, only non-inherited)
     """
-    if partition_rule is None:
-        partition_rule = [
-            1.0 * (i + 1) / num_layers for i in range(num_layers)
-        ]
+    base_name = "misc"
+    if inherited:
+        base_name += "-inherited"
 
-    assert num_layers == len(partition_rule), \
-        "Length of rule and num_layers mismatch"
-
-    layers_name = [
-        "rare-non-inherited-usage-less-than-{}-percent".format(
-            int(round(partition_rule[i] * 100))) for i in range(num_layers)
-    ]
-    properties_ranking = _get_properties_ranking_using_partition_rule(
-        properties_ranking, partition_rule)
-
-    for property_ in properties:
-        rank = _best_rank(property_, properties_ranking)
-        if (property_.field_group is not None and "*" in property_.field_group
-                and not property_.inherited and rank >= 0):
-
-            assert property_.field_group == "*", \
-                "The property {}  will be automatically assigned a group, " \
-                "please put '*' as the field_group".format(property_.name)
-
-            property_.field_group = "->".join(layers_name[0:rank])
-        elif (property_.field_group is not None
-              and "*" in property_.field_group and not property_.inherited
-              and rank < 0):
-            group_tree = property_.field_group.split("->")[1:]
-            group_tree = [layers_name[0], layers_name[0] + "-sub"] + group_tree
-            property_.field_group = "->".join(group_tree)
-
-
-def _evaluate_rare_inherit_group(properties,
-                                 properties_ranking,
-                                 num_layers,
-                                 partition_rule=None):
-    """Re-evaluate the grouping of RareInherited groups based on each property's
-    popularity.
-
-    Args:
-        properties: list of all css properties
-        properties_ranking: map of property rankings
-        num_layers: the number of group to split
-        partition_rule: cumulative distribution over properties_ranking
-                        Ex: [0.4, 1]
-    """
-    if partition_rule is None:
-        partition_rule = [
-            1.0 * (i + 1) / num_layers for i in range(num_layers)
-        ]
-
-    assert num_layers == len(partition_rule), \
-        "Length of rule and num_layers mismatch"
-
-    layers_name = [
-        "rare-inherited-usage-less-than-{}-percent".format(
-            int(round(partition_rule[i] * 100))) for i in range(num_layers)
-    ]
-
-    properties_ranking = _get_properties_ranking_using_partition_rule(
-        properties_ranking, partition_rule)
-
-    for property_ in properties:
-        rank = _best_rank(property_, properties_ranking)
-        if (property_.field_group is not None and "*" in property_.field_group
-                and property_.inherited and rank >= 0):
-            property_.field_group = "->".join(layers_name[0:rank])
-        elif (property_.field_group is not None
-              and "*" in property_.field_group and property_.inherited
-              and rank < 0):
-            group_tree = property_.field_group.split("->")[1:]
-            group_tree = [layers_name[0], layers_name[0] + "-sub"] + group_tree
-            property_.field_group = "->".join(group_tree)
+    i = 0
+    for prop in properties:
+        if (prop.field_group is not None and prop.field_group == "*"
+                and prop.inherited == inherited):
+            if prop.name.original in bitfield_properties:
+                # Putting a small (usually 1-bit, but we allow up to 7-bit) field
+                # into a deep misc group is a very risky business. Essentially,
+                # if the bet pays off (the field isn't used), we save one bit.
+                # But if the field _is_ used, we need to allocate a raredata group,
+                # which as of February 2025 is often 100 bytes.
+                #
+                # Taking a 800:1 bet is very unlikely to be worth it. (Of course,
+                # with multiple fields,  the math is going to be different, but the
+                # basic idea stands. In any case, we _also_ pay the price of pointer
+                # chasing every time we access them, which further tilts the balance.)
+                # So we put them on the top of the misc group.
+                prop.field_group = base_name
+            else:
+                # TODO(sesse): This basically splits groups alphabetically by number
+                # of elements (hopefully those with a common prefix are somewhat related).
+                # Consider doing something _slightly_ smarter, like e.g. balancing the groups
+                # by size. (We used to have a popularity-based system, but it was no better
+                # than this and much more complex.)
+                group_size = 16
+                prop.field_group = base_name + "->" + base_name + str(
+                    i // group_size + 1)
+                i += 1
 
 
 class ComputedStyleBaseWriter(json5_generator.Writer):
@@ -599,32 +477,34 @@ class ComputedStyleBaseWriter(json5_generator.Writer):
         # css_properties.json5 and we can get the longest continuous segment.
         # Thereby reduce the switch case statement to the minimum.
         properties = keyword_utils.sort_keyword_properties_by_canonical_order(
-            self._css_properties.longhands, json5_file_paths[5],
+            self._css_properties.longhands, json5_file_paths[4],
             self.default_parameters)
         self._properties = properties + self._css_properties.extra_fields
         self._longhands = [p for p in properties if p.is_longhand]
 
         self._generated_enums = _create_enums(self._properties)
+        self._diff_enum = [
+            NameStyleConverter(value).to_enum_value()
+            for value in self._css_properties.default_parameters["invalidate"]
+            ["valid_values"]
+        ]
 
         # Organise fields into a tree structure where the root group
         # is ComputedStyleBase.
-        group_parameters = dict(
-            [(conf["name"], conf["cumulative_distribution"])
-             for conf in json5_generator.Json5File.load_from_files(
-                 [json5_file_paths[7]]).name_dictionaries])
+        group_parameters = dict([
+            (conf["name"], conf["cumulative_distribution"])
+            for conf in json5_generator.Json5File.load_from_files(
+                [json5_file_paths[5]]).name_dictionaries
+        ])
 
-        properties_ranking = [
-            x["name"].original for x in json5_generator.Json5File.
-            load_from_files([json5_file_paths[6]]).name_dictionaries
-        ]
-        _evaluate_rare_non_inherited_group(
-            self._properties, properties_ranking,
-            len(group_parameters["rare_non_inherited_properties_rule"]),
-            group_parameters["rare_non_inherited_properties_rule"])
-        _evaluate_rare_inherit_group(
-            self._properties, properties_ranking,
-            len(group_parameters["rare_inherited_properties_rule"]),
-            group_parameters["rare_inherited_properties_rule"])
+        bitfield_properties = {
+            p.name.original
+            for p in self._properties if p.field_template is not None
+            and int(_find_size_for_property(p) or 64) < 8
+        }
+
+        _evaluate_misc_group(self._properties, bitfield_properties, False)
+        _evaluate_misc_group(self._properties, bitfield_properties, True)
         self._root_group = _create_groups(self._properties)
         # We create separate groups/fields for generating ComputedStyle-
         # BuilderBase. The only difference between these fields and the regular
@@ -634,9 +514,6 @@ class ComputedStyleBaseWriter(json5_generator.Writer):
         # TODO(crbug.com/1377295): When the builder is fully deployed, we no
         #                          longer need two groups.
         self._root_builder_group = _create_builder_groups(self._properties)
-        self._diff_functions_map = _create_diff_groups_map(
-            json5_generator.Json5File.load_from_files(
-                [json5_file_paths[4]]).name_dictionaries, self._root_group)
 
         self._include_paths = _get_include_paths(self._properties)
         self._outputs = {
@@ -645,7 +522,9 @@ class ComputedStyleBaseWriter(json5_generator.Writer):
             'computed_style_base.cc':
             self.generate_base_computed_style_cpp,
             'computed_style_base_constants.h':
-            self.generate_base_computed_style_constants,
+            self.generate_base_computed_style_constants_h,
+            'computed_style_base_constants.cc':
+            self.generate_base_computed_style_constants_cc,
         }
 
     @template_expander.use_jinja(
@@ -662,7 +541,7 @@ class ComputedStyleBaseWriter(json5_generator.Writer):
             'include_paths': self._include_paths,
             'computed_style': self._root_group,
             'computed_style_builder': self._root_builder_group,
-            'diff_functions_map': self._diff_functions_map,
+            'diff_enum': self._diff_enum,
         }
 
     @template_expander.use_jinja(
@@ -677,12 +556,20 @@ class ComputedStyleBaseWriter(json5_generator.Writer):
             'enums': self._generated_enums,
             'include_paths': self._include_paths,
             'computed_style': self._root_group,
-            'diff_functions_map': self._diff_functions_map,
         }
 
     @template_expander.use_jinja(
         'core/style/templates/computed_style_base_constants.h.tmpl')
-    def generate_base_computed_style_constants(self):
+    def generate_base_computed_style_constants_h(self):
+        return {
+            'input_files': self._input_files,
+            'properties': self._properties,
+            'enums': self._generated_enums,
+        }
+
+    @template_expander.use_jinja(
+        'core/style/templates/computed_style_base_constants.cc.tmpl')
+    def generate_base_computed_style_constants_cc(self):
         return {
             'input_files': self._input_files,
             'properties': self._properties,

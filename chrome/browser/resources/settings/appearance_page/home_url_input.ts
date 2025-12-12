@@ -8,15 +8,17 @@
  * prefs.homepage
  */
 import 'chrome://resources/cr_elements/cr_input/cr_input.js';
-import 'chrome://resources/cr_elements/policy/cr_policy_pref_indicator.js';
+import '/shared/settings/controls/cr_policy_pref_indicator.js';
 
-import {CrPolicyPrefMixin, CrPolicyPrefMixinInterface} from '/shared/settings/controls/cr_policy_pref_mixin.js';
+import type {CrPolicyPrefMixinInterface} from '/shared/settings/controls/cr_policy_pref_mixin.js';
+import {CrPolicyPrefMixin} from '/shared/settings/controls/cr_policy_pref_mixin.js';
 import {PrefControlMixin} from '/shared/settings/controls/pref_control_mixin.js';
-import {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {AppearanceBrowserProxy, AppearanceBrowserProxyImpl} from './appearance_browser_proxy.js';
+import type {AppearanceBrowserProxy} from './appearance_browser_proxy.js';
+import {AppearanceBrowserProxyImpl} from './appearance_browser_proxy.js';
 import {getTemplate} from './home_url_input.html.js';
 
 export interface HomeUrlInputElement {
@@ -61,11 +63,11 @@ export class HomeUrlInputElement extends HomeUrlInputElementBase {
     };
   }
 
-  pref: chrome.settingsPrivate.PrefObject<string>|undefined;
-  disabled: boolean;
-  canTab: boolean;
-  invalid: boolean;
-  value: string;
+  declare pref: chrome.settingsPrivate.PrefObject<string>|undefined;
+  declare disabled: boolean;
+  declare canTab: boolean;
+  declare invalid: boolean;
+  declare value: string;
   private browserProxy_: AppearanceBrowserProxy =
       AppearanceBrowserProxyImpl.getInstance();
 

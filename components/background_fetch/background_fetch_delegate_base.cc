@@ -113,6 +113,7 @@ void BackgroundFetchDelegateBase::DownloadUrl(
     job_details->MarkJobAsStarted();
   }
 
+  params.request_params.initiator = job_details->fetch_description->origin;
   params.request_params.isolation_info =
       job_details->fetch_description->isolation_info;
 
@@ -130,8 +131,9 @@ void BackgroundFetchDelegateBase::DownloadUrl(
 void BackgroundFetchDelegateBase::PauseDownload(const std::string& job_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   JobDetails* job_details = GetJobDetails(job_id, /*allow_null=*/true);
-  if (!job_details)
+  if (!job_details) {
     return;
+  }
 
   if (job_details->job_state == JobDetails::State::kDownloadsComplete ||
       job_details->job_state == JobDetails::State::kJobComplete) {
@@ -200,8 +202,9 @@ JobDetails* BackgroundFetchDelegateBase::GetJobDetails(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   auto job_details_iter = job_details_map_.find(job_id);
   if (job_details_iter == job_details_map_.end()) {
-    if (!allow_null)
+    if (!allow_null) {
       NOTREACHED();
+    }
 
     return nullptr;
   }
@@ -222,8 +225,9 @@ void BackgroundFetchDelegateBase::Abort(const std::string& job_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   JobDetails* job_details = GetJobDetails(job_id, /*allow_null=*/true);
-  if (!job_details)
+  if (!job_details) {
     return;
+  }
 
   job_details->job_state = JobDetails::State::kCancelled;
 
@@ -267,10 +271,11 @@ void BackgroundFetchDelegateBase::OnDownloadStarted(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   auto download_job_id_iter = download_job_id_map_.find(download_guid);
-  // TODO(crbug.com/779012): When DownloadService fixes cancelled jobs calling
+  // TODO(crbug.com/40546930): When DownloadService fixes cancelled jobs calling
   // OnDownload* methods, then this can be a DCHECK.
-  if (download_job_id_iter == download_job_id_map_.end())
+  if (download_job_id_iter == download_job_id_map_.end()) {
     return;
+  }
 
   const std::string& job_id = download_job_id_iter->second;
   JobDetails* job_details = GetJobDetails(job_id);
@@ -281,7 +286,7 @@ void BackgroundFetchDelegateBase::OnDownloadStarted(
 
   // Update the upload progress.
   auto it = job_details->current_fetch_guids.find(download_guid);
-  DCHECK(it != job_details->current_fetch_guids.end());
+  CHECK(it != job_details->current_fetch_guids.end());
   job_details->fetch_description->uploaded_bytes += it->second.body_size_bytes;
 }
 
@@ -291,10 +296,11 @@ void BackgroundFetchDelegateBase::OnDownloadUpdated(
     uint64_t bytes_downloaded) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   auto download_job_id_iter = download_job_id_map_.find(download_guid);
-  // TODO(crbug.com/779012): When DownloadService fixes cancelled jobs calling
+  // TODO(crbug.com/40546930): When DownloadService fixes cancelled jobs calling
   // OnDownload* methods, then this can be a DCHECK.
-  if (download_job_id_iter == download_job_id_map_.end())
+  if (download_job_id_iter == download_job_id_map_.end()) {
     return;
+  }
 
   const std::string job_id = download_job_id_iter->second;
 
@@ -325,11 +331,12 @@ void BackgroundFetchDelegateBase::OnDownloadFailed(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   auto download_job_id_iter = download_job_id_map_.find(download_guid);
-  // TODO(crbug.com/779012): When DownloadService fixes cancelled jobs
+  // TODO(crbug.com/40546930): When DownloadService fixes cancelled jobs
   // potentially calling OnDownloadFailed with a reason other than
   // CANCELLED/ABORTED, we should add a DCHECK here.
-  if (download_job_id_iter == download_job_id_map_.end())
+  if (download_job_id_iter == download_job_id_map_.end()) {
     return;
+  }
 
   const std::string& job_id = download_job_id_iter->second;
   JobDetails* job_details = GetJobDetails(job_id);
@@ -356,10 +363,11 @@ void BackgroundFetchDelegateBase::OnDownloadSucceeded(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   auto download_job_id_iter = download_job_id_map_.find(download_guid);
-  // TODO(crbug.com/779012): When DownloadService fixes cancelled jobs calling
+  // TODO(crbug.com/40546930): When DownloadService fixes cancelled jobs calling
   // OnDownload* methods, then this can be a DCHECK.
-  if (download_job_id_iter == download_job_id_map_.end())
+  if (download_job_id_iter == download_job_id_map_.end()) {
     return;
+  }
 
   const std::string& job_id = download_job_id_iter->second;
   JobDetails* job_details = GetJobDetails(job_id);
@@ -395,12 +403,10 @@ void BackgroundFetchDelegateBase::OnDownloadReceived(
     case StartResult::BACKOFF:
       // TODO(delphick): try again later?
       NOTREACHED();
-      break;
     case StartResult::UNEXPECTED_CLIENT:
       // This really should never happen since we're supplying the
       // DownloadClient.
       NOTREACHED();
-      break;
     case StartResult::CLIENT_CANCELLED:
       // TODO(delphick): do we need to do anything here, since we will have
       // cancelled it?
@@ -408,22 +414,22 @@ void BackgroundFetchDelegateBase::OnDownloadReceived(
     case StartResult::INTERNAL_ERROR:
       // TODO(delphick): We need to handle this gracefully.
       NOTREACHED();
-      break;
     case StartResult::COUNT:
       NOTREACHED();
-      break;
   }
 }
 
 bool BackgroundFetchDelegateBase::IsGuidOutstanding(
     const std::string& guid) const {
   auto job_id_iter = download_job_id_map_.find(guid);
-  if (job_id_iter == download_job_id_map_.end())
+  if (job_id_iter == download_job_id_map_.end()) {
     return false;
+  }
 
   auto job_details_iter = job_details_map_.find(job_id_iter->second);
-  if (job_details_iter == job_details_map_.end())
+  if (job_details_iter == job_details_map_.end()) {
     return false;
+  }
 
   return base::Contains(
       job_details_iter->second.fetch_description->outstanding_guids, guid);
@@ -433,8 +439,9 @@ void BackgroundFetchDelegateBase::RestartPausedDownload(
     const std::string& download_guid) {
   auto job_it = download_job_id_map_.find(download_guid);
 
-  if (job_it == download_job_id_map_.end())
+  if (job_it == download_job_id_map_.end()) {
     return;
+  }
 
   const std::string& job_id = job_it->second;
 
@@ -465,7 +472,7 @@ void BackgroundFetchDelegateBase::GetUploadData(
     const std::string& download_guid,
     download::GetUploadDataCallback callback) {
   auto job_it = download_job_id_map_.find(download_guid);
-  // TODO(crbug.com/779012): When DownloadService fixes cancelled jobs calling
+  // TODO(crbug.com/40546930): When DownloadService fixes cancelled jobs calling
   // client methods, then this can be a DCHECK.
   if (job_it == download_job_id_map_.end()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
@@ -527,8 +534,9 @@ void BackgroundFetchDelegateBase::DidGetUploadData(
 base::WeakPtr<content::BackgroundFetchDelegate::Client>
 BackgroundFetchDelegateBase::GetClient(const std::string& job_id) {
   auto it = job_details_map_.find(job_id);
-  if (it == job_details_map_.end())
+  if (it == job_details_map_.end()) {
     return nullptr;
+  }
   return it->second.client;
 }
 

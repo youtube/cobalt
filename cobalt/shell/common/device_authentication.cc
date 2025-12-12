@@ -98,7 +98,8 @@ std::string GetCertScopeFromPlatform() {
 // Returns the start time provided by the platform for use with device
 // authentication.
 std::string GetStartTime() {
-  return std::to_string(static_cast<int64_t>(base::Time::Now().ToDoubleT()));
+  return std::to_string(
+      static_cast<int64_t>(base::Time::Now().InSecondsFSinceUnixEpoch()));
 }
 
 }  // namespace

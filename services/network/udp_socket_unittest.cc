@@ -2,17 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "services/network/udp_socket.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
 #include <limits>
 #include <utility>
 
-#include "services/network/udp_socket.h"
-
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/notreached.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/run_loop.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
@@ -29,6 +31,10 @@
 #include "services/network/socket_factory.h"
 #include "services/network/test/udp_socket_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_MAC)
+#include "base/mac/mac_util.h"
+#endif  // BUILDFLAG(IS_MAC)
 
 namespace network {
 
@@ -49,13 +55,11 @@ class SocketWrapperTestImpl : public UDPSocket::SocketWrapper {
               mojom::UDPSocketOptionsPtr options,
               net::IPEndPoint* local_addr_out) override {
     NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
   }
   int Bind(const net::IPEndPoint& local_addr,
            mojom::UDPSocketOptionsPtr options,
            net::IPEndPoint* local_addr_out) override {
     NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
   }
   int SendTo(
       net::IOBuffer* buf,
@@ -64,42 +68,24 @@ class SocketWrapperTestImpl : public UDPSocket::SocketWrapper {
       net::CompletionOnceCallback callback,
       const net::NetworkTrafficAnnotationTag& traffic_annotation) override {
     NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
   }
-  int SetBroadcast(bool broadcast) override {
-    NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
-  }
-  int SetSendBufferSize(int send_buffer_size) override {
-    NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
-  }
-  int SetReceiveBufferSize(int receive_buffer_size) override {
-    NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
-  }
-  int JoinGroup(const net::IPAddress& group_address) override {
-    NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
-  }
-  int LeaveGroup(const net::IPAddress& group_address) override {
-    NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
-  }
+  int SetBroadcast(bool broadcast) override { NOTREACHED(); }
+  int SetSendBufferSize(int send_buffer_size) override { NOTREACHED(); }
+  int SetReceiveBufferSize(int receive_buffer_size) override { NOTREACHED(); }
+  int JoinGroup(const net::IPAddress& group_address) override { NOTREACHED(); }
+  int LeaveGroup(const net::IPAddress& group_address) override { NOTREACHED(); }
   int Write(
       net::IOBuffer* buf,
       int buf_len,
       net::CompletionOnceCallback callback,
       const net::NetworkTrafficAnnotationTag& traffic_annotation) override {
     NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
   }
   int RecvFrom(net::IOBuffer* buf,
                int buf_len,
                net::IPEndPoint* address,
                net::CompletionOnceCallback callback) override {
     NOTREACHED();
-    return net::ERR_NOT_IMPLEMENTED;
   }
 };
 
@@ -131,8 +117,7 @@ class HangingUDPSocket : public SocketWrapperTestImpl {
       const net::IPEndPoint& address,
       net::CompletionOnceCallback callback,
       const net::NetworkTrafficAnnotationTag& traffic_annotation) override {
-    EXPECT_EQ(expected_data_,
-              std::vector<unsigned char>(buf->data(), buf->data() + buf_len));
+    EXPECT_EQ(expected_data_, buf->first(base::checked_cast<size_t>(buf_len)));
     if (should_complete_requests_)
       return net::OK;
     pending_io_buffers_.push_back(buf);
@@ -145,7 +130,8 @@ class HangingUDPSocket : public SocketWrapperTestImpl {
     expected_data_ = expected_data;
   }
 
-  const std::vector<net::IOBuffer*>& pending_io_buffers() const {
+  const std::vector<raw_ptr<net::IOBuffer, VectorExperimental>>&
+  pending_io_buffers() const {
     return pending_io_buffers_;
   }
 
@@ -165,7 +151,7 @@ class HangingUDPSocket : public SocketWrapperTestImpl {
  private:
   std::vector<uint8_t> expected_data_;
   bool should_complete_requests_ = false;
-  std::vector<net::IOBuffer*> pending_io_buffers_;
+  std::vector<raw_ptr<net::IOBuffer, VectorExperimental>> pending_io_buffers_;
   std::vector<int> pending_io_buffer_lengths_;
   std::vector<net::CompletionOnceCallback> pending_send_requests_;
 };
@@ -286,7 +272,7 @@ TEST_F(UDPSocketTest, TestSendToWithConnect) {
   EXPECT_EQ(net::ERR_UNEXPECTED, result);
 }
 
-// TODO(crbug.com/1014916): These two tests are very flaky on Fuchsia.
+// TODO(crbug.com/40653437): These two tests are very flaky on Fuchsia.
 #if BUILDFLAG(IS_FUCHSIA)
 #define MAYBE_TestReadSendTo DISABLED_TestReadSendTo
 #define MAYBE_TestUnexpectedSequences DISABLED_TestUnexpectedSequences
@@ -363,8 +349,7 @@ TEST_F(UDPSocketTest, TestBufferValid) {
   // and that buffer still contains the exact same data.
   net::IOBuffer* buf = socket_raw_ptr->pending_io_buffers()[0];
   int buf_len = socket_raw_ptr->pending_io_buffer_lengths()[0];
-  EXPECT_EQ(test_msg,
-            std::vector<unsigned char>(buf->data(), buf->data() + buf_len));
+  EXPECT_EQ(test_msg, buf->first(base::checked_cast<size_t>(buf_len)));
 }
 
 // Test that exercises the queuing of send requests and makes sure
@@ -629,7 +614,7 @@ TEST_F(UDPSocketTest, TestSendToInvalidAddress) {
 
   std::vector<uint8_t> test_msg{1};
   std::vector<uint8_t> invalid_ip_addr{127, 0, 0, 0, 1};
-  net::IPAddress ip_address(invalid_ip_addr.data(), invalid_ip_addr.size());
+  net::IPAddress ip_address(invalid_ip_addr);
   EXPECT_FALSE(ip_address.IsValid());
   net::IPEndPoint invalid_addr(ip_address, 53);
   server_socket->SendTo(
@@ -682,6 +667,13 @@ TEST_F(UDPSocketTest, TestReadZeroByte) {
 #define MAYBE_JoinMulticastGroup JoinMulticastGroup
 #endif  // BUILDFLAG(IS_ANDROID)
 TEST_F(UDPSocketTest, MAYBE_JoinMulticastGroup) {
+#if BUILDFLAG(IS_MAC)
+  // See https://crbug.com/354933441
+  if (base::mac::MacOSMajorVersion() == 15) {
+    GTEST_SKIP() << "Disabled on macOS Sequoia.";
+  }
+#endif
+
   const char kGroup[] = "237.132.100.17";
 
   net::IPAddress group_ip;

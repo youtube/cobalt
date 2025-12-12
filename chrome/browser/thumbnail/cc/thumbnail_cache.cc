@@ -15,14 +15,15 @@
 #include "base/containers/adapters.h"
 #include "base/containers/contains.h"
 #include "base/containers/flat_set.h"
+#include "base/feature_list.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/rand_util.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
@@ -30,7 +31,6 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/thumbnail/cc/features.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "gpu/config/gpu_finch_features.h"
@@ -51,7 +51,6 @@
 namespace thumbnail {
 namespace {
 
-constexpr float kApproximationScaleFactor = 4.f;
 constexpr base::TimeDelta kDefaultCaptureMinRequestTimeMs(
     base::Milliseconds(1000));
 
@@ -59,37 +58,6 @@ constexpr int kKiB = 1024;
 
 // Indicates whether we prefer to have more free CPU memory over GPU memory.
 constexpr bool kPreferCPUMemory = true;
-
-unsigned int NextPowerOfTwo(int a) {
-  DCHECK(a >= 0);
-  auto x = static_cast<unsigned int>(a);
-  --x;
-  x |= x >> 1u;
-  x |= x >> 2u;
-  x |= x >> 4u;
-  x |= x >> 8u;
-  x |= x >> 16u;
-  return x + 1;
-}
-
-unsigned int RoundUpMod4(int a) {
-  DCHECK(a >= 0);
-  auto x = static_cast<unsigned int>(a);
-  return (x + 3u) & ~3u;
-}
-
-gfx::Size GetEncodedSize(const gfx::Size& bitmap_size, bool supports_npot) {
-  DCHECK(bitmap_size.width() >= 0);
-  DCHECK(bitmap_size.height() >= 0);
-  DCHECK(!bitmap_size.IsEmpty());
-  if (!supports_npot) {
-    return gfx::Size(NextPowerOfTwo(bitmap_size.width()),
-                     NextPowerOfTwo(bitmap_size.height()));
-  } else {
-    return gfx::Size(RoundUpMod4(bitmap_size.width()),
-                     RoundUpMod4(bitmap_size.height()));
-  }
-}
 
 // Borrowed from GetDelayForNextMemoryLog() in browser_metrics.cc.
 //
@@ -103,28 +71,24 @@ base::TimeDelta ComputeDelay(base::TimeDelta mean_time) {
 }  // anonymous namespace
 
 ThumbnailCache::ThumbnailCache(size_t default_cache_size,
-                               size_t approximation_cache_size,
                                size_t compression_queue_max_size,
                                size_t write_queue_max_size,
-                               bool use_approximation_thumbnail,
-                               bool save_jpeg_thumbnails,
-                               double jpeg_aspect_ratio)
+                               bool save_jpeg_thumbnails)
     : etc1_file_sequenced_task_runner_(
           base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})),
       jpeg_file_sequenced_task_runner_(
-          base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})),
+          base::ThreadPool::CreateSequencedTaskRunner(
+              {base::MayBlock(), base::TaskPriority::USER_VISIBLE})),
       etc1_helper_(GetCacheDirectory(), etc1_file_sequenced_task_runner_),
       jpeg_helper_(GetCacheDirectory(), jpeg_file_sequenced_task_runner_),
       compression_queue_max_size_(compression_queue_max_size),
       write_queue_max_size_(write_queue_max_size),
-      use_approximation_thumbnail_(use_approximation_thumbnail),
       save_jpeg_thumbnails_(save_jpeg_thumbnails),
       capture_min_request_time_ms_(kDefaultCaptureMinRequestTimeMs),
       compression_tasks_count_(0),
       write_tasks_count_(0),
       read_in_progress_(false),
       cache_(default_cache_size),
-      approximation_cache_(approximation_cache_size),
       ui_resource_provider_(nullptr) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   memory_pressure_ = std::make_unique<base::MemoryPressureListener>(
@@ -143,7 +107,6 @@ void ThumbnailCache::SetUIResourceProvider(
     return;
   }
 
-  approximation_cache_.Clear();
   cache_.Clear();
 
   ui_resource_provider_ = ui_resource_provider;
@@ -163,16 +126,19 @@ void ThumbnailCache::RemoveThumbnailCacheObserver(
   }
 }
 
-void ThumbnailCache::Put(TabId tab_id,
-                         const SkBitmap& bitmap,
-                         float thumbnail_scale,
-                         double jpeg_aspect_ratio) {
+void ThumbnailCache::Put(
+    TabId tab_id,
+    std::unique_ptr<ThumbnailCaptureTracker, base::OnTaskRunnerDeleter> tracker,
+    const SkBitmap& bitmap,
+    float thumbnail_scale) {
   if (!ui_resource_provider_ || bitmap.empty() || thumbnail_scale <= 0) {
+    tracker->MarkCaptureFailed();
     return;
   }
 
   if (thumbnail_meta_data_.find(tab_id) == thumbnail_meta_data_.end()) {
     DVLOG(1) << "Thumbnail meta data was removed for tab id " << tab_id;
+    tracker->MarkCaptureFailed();
     return;
   }
 
@@ -182,36 +148,24 @@ void ThumbnailCache::Put(TabId tab_id,
   thumbnail->SetBitmap(bitmap);
 
   RemoveFromReadQueue(tab_id);
-  if (!base::FeatureList::IsEnabled(kThumbnailCacheRefactor) ||
-      base::Contains(visible_ids_, tab_id)) {
+  if (base::Contains(visible_ids_, tab_id)) {
     MakeSpaceForNewItemIfNecessary(tab_id);
     cache_.Put(tab_id, std::move(thumbnail));
     NotifyObserversOfThumbnailAddedToCache(tab_id);
   }
 
-  if (use_approximation_thumbnail_) {
-    std::pair<SkBitmap, float> approximation =
-        CreateApproximation(bitmap, thumbnail_scale);
-    std::unique_ptr<Thumbnail> approx_thumbnail = Thumbnail::Create(
-        tab_id, time_stamp, approximation.second, ui_resource_provider_, this);
-    approx_thumbnail->SetBitmap(approximation.first);
-    approximation_cache_.Put(tab_id, std::move(approx_thumbnail));
-  }
-  CompressThumbnailIfNecessary(tab_id, time_stamp, bitmap, thumbnail_scale,
-                               jpeg_aspect_ratio);
+  CompressThumbnailIfNecessary(tab_id, std::move(tracker), time_stamp, bitmap,
+                               thumbnail_scale);
 }
 
 void ThumbnailCache::Remove(TabId tab_id) {
   cache_.Remove(tab_id);
-  approximation_cache_.Remove(tab_id);
   thumbnail_meta_data_.erase(tab_id);
   RemoveFromDisk(tab_id);
   RemoveFromReadQueue(tab_id);
 }
 
-Thumbnail* ThumbnailCache::Get(TabId tab_id,
-                               bool force_disk_read,
-                               bool allow_approximation) {
+Thumbnail* ThumbnailCache::Get(TabId tab_id, bool force_disk_read) {
   Thumbnail* thumbnail = cache_.Get(tab_id);
   if (thumbnail) {
     thumbnail->CreateUIResource();
@@ -225,14 +179,6 @@ Thumbnail* ThumbnailCache::Get(TabId tab_id,
     ReadNextThumbnail();
   }
 
-  if (allow_approximation) {
-    thumbnail = approximation_cache_.Get(tab_id);
-    if (thumbnail) {
-      thumbnail->CreateUIResource();
-      return thumbnail;
-    }
-  }
-
   return nullptr;
 }
 
@@ -241,7 +187,7 @@ void ThumbnailCache::InvalidateThumbnailIfChanged(TabId tab_id,
   auto meta_data_iter = thumbnail_meta_data_.find(tab_id);
   if (meta_data_iter == thumbnail_meta_data_.end()) {
     thumbnail_meta_data_[tab_id] = ThumbnailMetaData(base::Time(), url);
-  } else if (meta_data_iter->second.url() != url) {
+  } else if (!url.is_empty() && meta_data_iter->second.url() != url) {
     Remove(tab_id);
   }
 }
@@ -256,10 +202,11 @@ base::FilePath ThumbnailCache::GetCacheDirectory() {
 }
 
 bool ThumbnailCache::CheckAndUpdateThumbnailMetaData(TabId tab_id,
-                                                     const GURL& url) {
+                                                     const GURL& url,
+                                                     bool force_update) {
   base::Time current_time = base::Time::Now();
   auto meta_data_iter = thumbnail_meta_data_.find(tab_id);
-  if (meta_data_iter != thumbnail_meta_data_.end() &&
+  if (!force_update && meta_data_iter != thumbnail_meta_data_.end() &&
       meta_data_iter->second.url() == url &&
       (current_time - meta_data_iter->second.capture_time()) <
           capture_min_request_time_ms_) {
@@ -268,6 +215,10 @@ bool ThumbnailCache::CheckAndUpdateThumbnailMetaData(TabId tab_id,
 
   thumbnail_meta_data_[tab_id] = ThumbnailMetaData(current_time, url);
   return true;
+}
+
+bool ThumbnailCache::IsInVisibleIds(TabId tab_id) {
+  return primary_tab_id_ == tab_id || base::Contains(visible_ids_, tab_id);
 }
 
 void ThumbnailCache::UpdateVisibleIds(const std::vector<TabId>& priority,
@@ -326,9 +277,6 @@ void ThumbnailCache::UpdateVisibleIds(const std::vector<TabId>& priority,
 }
 
 void ThumbnailCache::PruneCache() {
-  if (!base::FeatureList::IsEnabled(kThumbnailCacheRefactor)) {
-    return;
-  }
   // Intentionally ignore `primary_tab_id_` as it should have a live layer. If
   // that isn't true or may be slow the caller should include it in
   // `visible_ids_`.
@@ -336,8 +284,6 @@ void ThumbnailCache::PruneCache() {
       std::vector<TabId>(visible_ids_.begin(), visible_ids_.end()));
   std::vector<TabId> ids_to_remove;
 
-  // Only prune `cache_` as `approximation_cache_` is already disabled if this
-  // codepath is called.
   for (const auto& entry : cache_) {
     if (!base::Contains(ids_to_keep, entry.first)) {
       ids_to_remove.push_back(entry.first);
@@ -348,34 +294,12 @@ void ThumbnailCache::PruneCache() {
   }
 }
 
-void ThumbnailCache::ForkToSaveAsJpeg(
-    base::OnceCallback<void(bool, const SkBitmap&)> callback,
-    int tab_id,
-    double jpeg_aspect_ratio,
-    bool result,
-    const SkBitmap& bitmap) {
-  if (result && !bitmap.isNull()) {
-    SaveAsJpeg(tab_id, bitmap, jpeg_aspect_ratio);
-  }
-  std::move(callback).Run(result, bitmap);
-}
-
-void ThumbnailCache::DecompressThumbnailFromFile(
+void ThumbnailCache::DecompressEtc1ThumbnailFromFile(
     TabId tab_id,
-    double jpeg_aspect_ratio,
     base::OnceCallback<void(bool, const SkBitmap&)> post_decompress_callback) {
-  base::OnceCallback<void(bool, const SkBitmap&)> transcoding_callback;
-  if (save_jpeg_thumbnails_) {
-    transcoding_callback = base::BindOnce(
-        &ThumbnailCache::ForkToSaveAsJpeg, weak_factory_.GetWeakPtr(),
-        std::move(post_decompress_callback), tab_id, jpeg_aspect_ratio);
-  } else {
-    transcoding_callback = std::move(post_decompress_callback);
-  }
-
   auto decompress_task = base::BindOnce(
       &thumbnail::Etc1ThumbnailHelper::Decompress, etc1_helper_.GetWeakPtr(),
-      std::move(transcoding_callback));
+      std::move(post_decompress_callback));
   etc1_helper_.Read(
       tab_id, base::BindPostTaskToCurrentDefault(std::move(decompress_task)));
 }
@@ -393,12 +317,6 @@ void ThumbnailCache::RecordCacheMetrics() {
                               cache_.size());
   base::UmaHistogramMemoryKB("Android.ThumbnailCache.InMemoryCacheSize",
                              ComputeCacheSize(cache_) / kKiB);
-  base::UmaHistogramCounts100(
-      "Android.ThumbnailCache.InMemoryApproximationCacheEntries",
-      approximation_cache_.size());
-  base::UmaHistogramMemoryKB(
-      "Android.ThumbnailCache.InMemoryApproximationCacheSize",
-      ComputeCacheSize(approximation_cache_) / kKiB);
   ScheduleRecordCacheMetrics(base::Minutes(5));
 }
 
@@ -423,56 +341,60 @@ void ThumbnailCache::WriteEtc1ThumbnailIfNecessary(
     const gfx::Size& content_size) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (write_tasks_count_ >= write_queue_max_size_) {
+  if (!compressed_data || write_tasks_count_ >= write_queue_max_size_) {
     return;
   }
 
   write_tasks_count_++;
 
   base::OnceClosure post_write_task = base::BindOnce(
-      &ThumbnailCache::PostWriteTask, weak_factory_.GetWeakPtr());
+      &ThumbnailCache::PostWriteEtc1Task, weak_factory_.GetWeakPtr());
   etc1_helper_.Write(tab_id, compressed_data, scale, content_size,
                      std::move(post_write_task));
 }
 
 void ThumbnailCache::WriteJpegThumbnailIfNecessary(
     TabId tab_id,
+    std::unique_ptr<ThumbnailCaptureTracker, base::OnTaskRunnerDeleter> tracker,
     std::vector<uint8_t> compressed_data) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (compressed_data.empty()) {
-    return;
-  }
-  if (write_tasks_count_ >= write_queue_max_size_) {
+  if (compressed_data.empty() || write_tasks_count_ >= write_queue_max_size_) {
+    if (tracker) {
+      tracker->MarkJpegFailed();
+    }
     return;
   }
 
   write_tasks_count_++;
 
-  base::OnceClosure post_write_task = base::BindOnce(
-      &ThumbnailCache::PostWriteTask, weak_factory_.GetWeakPtr());
+  auto post_write_task =
+      base::BindOnce(&ThumbnailCache::PostWriteJpegTask,
+                     weak_factory_.GetWeakPtr(), std::move(tracker));
   jpeg_helper_.Write(tab_id, std::move(compressed_data),
                      std::move(post_write_task));
 }
 
-void ThumbnailCache::SaveAsJpeg(TabId tab_id,
-                                const SkBitmap& bitmap,
-                                double jpeg_aspect_ratio) {
+void ThumbnailCache::SaveAsJpeg(
+    TabId tab_id,
+    std::unique_ptr<ThumbnailCaptureTracker, base::OnTaskRunnerDeleter> tracker,
+    const SkBitmap& bitmap) {
   base::OnceCallback<void(std::vector<uint8_t>)> post_jpeg_compression_task =
       base::BindOnce(&ThumbnailCache::WriteJpegThumbnailIfNecessary,
-                     weak_factory_.GetWeakPtr(), tab_id);
+                     weak_factory_.GetWeakPtr(), tab_id, std::move(tracker));
 
-  jpeg_helper_.Compress(jpeg_aspect_ratio, bitmap,
-                        std::move(post_jpeg_compression_task));
+  jpeg_helper_.Compress(bitmap, std::move(post_jpeg_compression_task));
 }
 
-void ThumbnailCache::CompressThumbnailIfNecessary(TabId tab_id,
-                                                  const base::Time& time_stamp,
-                                                  const SkBitmap& bitmap,
-                                                  float scale,
-                                                  double jpeg_aspect_ratio) {
+void ThumbnailCache::CompressThumbnailIfNecessary(
+    TabId tab_id,
+    std::unique_ptr<ThumbnailCaptureTracker, base::OnTaskRunnerDeleter> tracker,
+    const base::Time& time_stamp,
+    const SkBitmap& bitmap,
+    float scale) {
   if (compression_tasks_count_ >= compression_queue_max_size_) {
     RemoveOnMatchedTimeStamp(tab_id, time_stamp);
+    tracker->MarkCaptureFailed();
     return;
   }
 
@@ -483,14 +405,12 @@ void ThumbnailCache::CompressThumbnailIfNecessary(TabId tab_id,
           base::BindOnce(&ThumbnailCache::PostEtc1CompressionTask,
                          weak_factory_.GetWeakPtr(), tab_id, time_stamp, scale);
 
-  gfx::Size raw_data_size(bitmap.width(), bitmap.height());
-  gfx::Size encoded_size = GetEncodedSize(
-      raw_data_size, ui_resource_provider_->SupportsETC1NonPowerOfTwo());
-
-  etc1_helper_.Compress(bitmap, encoded_size, std::move(post_compression_task));
+  etc1_helper_.Compress(bitmap,
+                        ui_resource_provider_->SupportsETC1NonPowerOfTwo(),
+                        std::move(post_compression_task));
 
   if (save_jpeg_thumbnails_) {
-    SaveAsJpeg(tab_id, bitmap, jpeg_aspect_ratio);
+    SaveAsJpeg(tab_id, std::move(tracker), bitmap);
   }
 }
 
@@ -545,7 +465,7 @@ void ThumbnailCache::MakeSpaceForNewItemIfNecessary(TabId tab_id) {
 }
 
 void ThumbnailCache::RemoveFromReadQueue(TabId tab_id) {
-  auto read_iter = base::ranges::find(read_queue_, tab_id);
+  auto read_iter = std::ranges::find(read_queue_, tab_id);
   if (read_iter != read_queue_.end()) {
     read_queue_.erase(read_iter);
   }
@@ -554,21 +474,14 @@ void ThumbnailCache::RemoveFromReadQueue(TabId tab_id) {
 void ThumbnailCache::OnUIResourcesWereEvicted() {
   if (visible_ids_.empty()) {
     cache_.Clear();
-    approximation_cache_.Clear();
   } else {
     TabId last_tab = visible_ids_.front();
     std::unique_ptr<Thumbnail> thumbnail = cache_.Remove(last_tab);
     cache_.Clear();
-    std::unique_ptr<Thumbnail> approximation =
-        approximation_cache_.Remove(last_tab);
-    approximation_cache_.Clear();
 
     // Keep the thumbnail for app resume if it wasn't uploaded yet.
     if (thumbnail.get() && !thumbnail->ui_resource_id()) {
       cache_.Put(last_tab, std::move(thumbnail));
-    }
-    if (approximation.get() && !approximation->ui_resource_id()) {
-      approximation_cache_.Put(last_tab, std::move(approximation));
     }
   }
 }
@@ -586,14 +499,25 @@ void ThumbnailCache::InvalidateCachedThumbnail(Thumbnail* thumbnail) {
   if (cached_thumbnail && cached_thumbnail->ui_resource_id() == uid) {
     cache_.Remove(tab_id);
   }
-
-  cached_thumbnail = approximation_cache_.Get(tab_id);
-  if (cached_thumbnail && cached_thumbnail->ui_resource_id() == uid) {
-    approximation_cache_.Remove(tab_id);
-  }
 }
 
-void ThumbnailCache::PostWriteTask() {
+void ThumbnailCache::PostWriteJpegTask(
+    std::unique_ptr<ThumbnailCaptureTracker, base::OnTaskRunnerDeleter> tracker,
+    bool success) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  if (tracker) {
+    if (success) {
+      tracker->SetWroteJpeg();
+    } else {
+      tracker->MarkJpegFailed();
+    }
+  }
+
+  write_tasks_count_--;
+}
+
+void ThumbnailCache::PostWriteEtc1Task() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   write_tasks_count_--;
@@ -634,7 +558,7 @@ void ThumbnailCache::PostEtc1ReadTask(TabId tab_id,
                                       const gfx::Size& content_size) {
   read_in_progress_ = false;
 
-  auto iter = base::ranges::find(read_queue_, tab_id);
+  auto iter = std::ranges::find(read_queue_, tab_id);
   if (iter == read_queue_.end()) {
     ReadNextThumbnail();
     return;
@@ -649,9 +573,7 @@ void ThumbnailCache::PostEtc1ReadTask(TabId tab_id,
       time_stamp = meta_iter->second.capture_time();
     }
 
-    if (!base::FeatureList::IsEnabled(kThumbnailCacheRefactor) ||
-        (base::FeatureList::IsEnabled(kThumbnailCacheRefactor) &&
-         base::Contains(visible_ids_, tab_id))) {
+    if (base::Contains(visible_ids_, tab_id)) {
       MakeSpaceForNewItemIfNecessary(tab_id);
       std::unique_ptr<Thumbnail> thumbnail = Thumbnail::Create(
           tab_id, time_stamp, scale, ui_resource_provider_, this);
@@ -685,9 +607,7 @@ void ThumbnailCache::RemoveOnMatchedTimeStamp(TabId tab_id,
                                               const base::Time& time_stamp) {
   // We remove the cached version if it matches the tab_id and the time_stamp.
   Thumbnail* thumbnail = cache_.Get(tab_id);
-  Thumbnail* approx_thumbnail = approximation_cache_.Get(tab_id);
-  if ((thumbnail && thumbnail->time_stamp() == time_stamp) ||
-      (approx_thumbnail && approx_thumbnail->time_stamp() == time_stamp)) {
+  if (thumbnail && thumbnail->time_stamp() == time_stamp) {
     Remove(tab_id);
   }
 }
@@ -697,33 +617,10 @@ ThumbnailCache::ThumbnailMetaData::ThumbnailMetaData(
     GURL url)
     : capture_time_(current_time), url_(std::move(url)) {}
 
-std::pair<SkBitmap, float> ThumbnailCache::CreateApproximation(
-    const SkBitmap& bitmap,
-    float scale) {
-  DCHECK(!bitmap.empty());
-  DCHECK_GT(scale, 0);
-  float new_scale = 1.f / kApproximationScaleFactor;
-
-  gfx::Size dst_size = gfx::ScaleToFlooredSize(
-      gfx::Size(bitmap.width(), bitmap.height()), new_scale);
-  SkBitmap dst_bitmap;
-  dst_bitmap.allocPixels(SkImageInfo::Make(dst_size.width(), dst_size.height(),
-                                           bitmap.info().colorType(),
-                                           bitmap.info().alphaType()));
-  dst_bitmap.eraseColor(0);
-  SkCanvas canvas(dst_bitmap);
-  canvas.scale(new_scale, new_scale);
-  canvas.drawImage(bitmap.asImage(), 0, 0);
-  dst_bitmap.setImmutable();
-
-  return std::make_pair(dst_bitmap, new_scale * scale);
-}
-
 void ThumbnailCache::OnMemoryPressure(
     base::MemoryPressureListener::MemoryPressureLevel level) {
   if (level == base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL) {
     cache_.Clear();
-    approximation_cache_.Clear();
   }
 }
 

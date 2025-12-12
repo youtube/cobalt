@@ -2,17 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/formats/mp4/avc.h"
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "media/base/decrypt_config.h"
 #include "media/formats/mp4/box_definitions.h"
 #include "media/formats/mp4/box_reader.h"
-#include "media/video/h264_parser.h"
+#include "media/parsers/h264_parser.h"
 
 namespace media {
 namespace mp4 {
@@ -20,7 +25,8 @@ namespace mp4 {
 static constexpr uint8_t kAnnexBStartCode[] = {0, 0, 0, 1};
 static constexpr int kAnnexBStartCodeSize = 4;
 
-static bool ConvertAVCToAnnexBInPlaceForLengthSize4(std::vector<uint8_t>* buf) {
+// static
+bool AVC::ConvertAVCToAnnexBInPlaceForLengthSize4(std::vector<uint8_t>* buf) {
   const size_t kLengthSize = 4;
   size_t pos = 0;
   while (buf->size() > kLengthSize && buf->size() - kLengthSize > pos) {
@@ -34,7 +40,7 @@ static bool ConvertAVCToAnnexBInPlaceForLengthSize4(std::vector<uint8_t>* buf) {
       return false;
     }
 
-    base::ranges::copy(kAnnexBStartCode, buf->begin() + pos);
+    std::ranges::copy(kAnnexBStartCode, buf->begin() + pos);
     pos += kLengthSize + nal_length;
   }
   return pos == buf->size();
@@ -56,7 +62,6 @@ int AVC::FindSubsampleIndex(const std::vector<uint8_t>& buffer,
       return i;
   }
   NOTREACHED();
-  return 0;
 }
 
 // static
@@ -119,13 +124,14 @@ bool AVC::InsertParamSetsAnnexB(const AVCDecoderConfigurationRecord& avc_config,
 
   if (nalu.nal_unit_type == H264NALU::kAUD) {
     // Move insert point to just after the AUD.
-    config_insert_point += (nalu.data + nalu.size) - start;
+    config_insert_point +=
+        (nalu.data + base::checked_cast<size_t>(nalu.size)) - start;
   }
 
   // Clear |parser| and |start| since they aren't needed anymore and
   // will hold stale pointers once the insert happens.
   parser.reset();
-  start = NULL;
+  start = nullptr;
 
   std::vector<uint8_t> param_sets;
   RCHECK(AVC::ConvertConfigToAnnexB(avc_config, &param_sets));
@@ -187,7 +193,6 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
     size_t size,
     const std::vector<SubsampleEntry>& subsamples) {
   DVLOG(3) << __func__;
-  DCHECK(buffer);
 
   BitstreamConverter::AnalysisResult result;
   result.is_conformant = false;  // Will change if needed before return.
@@ -290,12 +295,8 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
 
           case H264NALU::kFiller:
           case H264NALU::kUnspecified:
-            if (!(order_state >= kAfterFirstVCL &&
-                  order_state < kEOStreamAllowed)) {
-              DVLOG(1) << "Unexpected NALU type " << nalu.nal_unit_type
-                       << " in order_state " << order_state;
-              return result;
-            }
+            // These syntax elements are to simply be ignored according to H264
+            // Annex B 7.4.2.7
             break;
 
           default:
@@ -315,7 +316,6 @@ BitstreamConverter::AnalysisResult AVC::AnalyzeAnnexB(
 
       case H264Parser::kUnsupportedStream:
         NOTREACHED() << "AdvanceToNextNALU() returned kUnsupportedStream!";
-        return result;
 
       case H264Parser::kEOStream:
         done = true;

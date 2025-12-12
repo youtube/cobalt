@@ -10,6 +10,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
 #include "base/token.h"
+#include "base/trace_event/trace_event.h"
 #include "media/capture/mojom/video_capture_types.mojom.h"
 
 namespace content {
@@ -78,13 +79,16 @@ void ServiceLaunchedVideoCaptureDevice::ResumeDevice() {
   subscription_->Resume();
 }
 
-void ServiceLaunchedVideoCaptureDevice::Crop(
-    const base::Token& crop_id,
-    uint32_t crop_version,
-    base::OnceCallback<void(media::mojom::CropRequestResult)> callback) {
+void ServiceLaunchedVideoCaptureDevice::ApplySubCaptureTarget(
+    media::mojom::SubCaptureTargetType type,
+    const base::Token& target,
+    uint32_t sub_capture_target_version,
+    base::OnceCallback<void(media::mojom::ApplySubCaptureTargetResult)>
+        callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  // TODO(crbug.com/1264849): Implement if necessary.
-  std::move(callback).Run(media::mojom::CropRequestResult::kNotImplemented);
+  // TODO(crbug.com/40203554): Implement if necessary.
+  std::move(callback).Run(
+      media::mojom::ApplySubCaptureTargetResult::kNotImplemented);
 }
 
 void ServiceLaunchedVideoCaptureDevice::RequestRefreshFrame() {
@@ -106,10 +110,7 @@ void ServiceLaunchedVideoCaptureDevice::OnUtilizationReport(
     media::VideoCaptureFeedback feedback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  if (feedback != last_feedback_) {
-    subscription_->ProcessFeedback(feedback);
-    last_feedback_ = feedback;
-  }
+  subscription_->ProcessFeedback(feedback);
 }
 
 void ServiceLaunchedVideoCaptureDevice::

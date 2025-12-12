@@ -9,6 +9,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/strings/string_util.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/bind.h"
 #include "base/test/test_reg_util_win.h"
@@ -29,8 +30,9 @@ namespace web_app {
 namespace {
 
 constexpr unsigned int kMaxProgIdLen = 39;
-const AppId app_id1 = "app_id12345678901234567890123456789012345678901234";
-const AppId app_id2 = "different_appid";
+const webapps::AppId app_id1 =
+    "app_id12345678901234567890123456789012345678901234";
+const webapps::AppId app_id2 = "different_appid";
 
 }  // namespace
 
@@ -62,18 +64,18 @@ class WebAppHandlerRegistrationUtilsWinTest : public testing::Test {
   TestingProfileManager* testing_profile_manager() const {
     return testing_profile_manager_.get();
   }
-  const AppId& app_id() const { return app_id_; }
+  const webapps::AppId& app_id() const { return app_id_; }
   const std::wstring& app_name() const { return app_name_; }
 
   // Adds a launcher file and OS registry entries for the given app parameters.
-  void RegisterApp(const AppId& app_id,
+  void RegisterApp(const webapps::AppId& app_id,
                    const std::wstring& app_name,
                    const std::wstring& app_name_extension,
                    const base::FilePath& profile_path) {
     base::FilePath web_app_path(
         GetOsIntegrationResourcesDirectoryForApp(profile_path, app_id, GURL()));
 
-    absl::optional<base::FilePath> launcher_path =
+    std::optional<base::FilePath> launcher_path =
         CreateAppLauncherFile(app_name, app_name_extension, web_app_path);
     ASSERT_TRUE(launcher_path.has_value());
 
@@ -93,7 +95,7 @@ class WebAppHandlerRegistrationUtilsWinTest : public testing::Test {
 
   // Tests that an app with |app_id| is registered with the expected name,
   // icon and extension.
-  void TestRegisteredApp(const AppId& app_id,
+  void TestRegisteredApp(const webapps::AppId& app_id,
                          const std::wstring& expected_app_name,
                          const std::wstring& expected_app_name_extension,
                          const base::FilePath& profile_path) {
@@ -126,7 +128,7 @@ class WebAppHandlerRegistrationUtilsWinTest : public testing::Test {
       content::BrowserTaskEnvironment::IO_MAINLOOP};
   raw_ptr<TestingProfile> profile_ = nullptr;
   std::unique_ptr<TestingProfileManager> testing_profile_manager_;
-  const AppId app_id_ = "app_id";
+  const webapps::AppId app_id_ = "app_id";
   const std::wstring app_name_ = L"app_name";
 };
 
@@ -159,8 +161,10 @@ TEST_F(WebAppHandlerRegistrationUtilsWinTest, GetProgIdForApp) {
   // See https://docs.microsoft.com/en-us/windows/win32/com/-progid--key.
   const std::wstring prog_id1 = GetProgIdForApp(profile()->GetPath(), app_id1);
   EXPECT_LE(prog_id1.length(), kMaxProgIdLen);
-  for (auto itr = prog_id1.begin(); itr != prog_id1.end(); itr++)
-    EXPECT_TRUE(std::isalnum(*itr) || (*itr == '.' && itr != prog_id1.begin()));
+  for (auto itr = prog_id1.begin(); itr != prog_id1.end(); itr++) {
+    EXPECT_TRUE(base::IsAsciiAlphaNumeric(*itr) ||
+                (*itr == '.' && itr != prog_id1.begin()));
+  }
   // Check that different app ids in the same profile have different prog ids.
   EXPECT_NE(prog_id1, GetProgIdForApp(profile()->GetPath(), app_id2));
 
@@ -180,8 +184,10 @@ TEST_F(WebAppHandlerRegistrationUtilsWinTest, GetProgIdForAppFileHandler) {
   const std::wstring prog_id1 = GetProgIdForAppFileHandler(
       profile()->GetPath(), app_id1, file_extensions1);
   EXPECT_LE(prog_id1.length(), kMaxProgIdLen);
-  for (auto itr = prog_id1.begin(); itr != prog_id1.end(); itr++)
-    EXPECT_TRUE(std::isalnum(*itr) || (*itr == '.' && itr != prog_id1.begin()));
+  for (auto itr = prog_id1.begin(); itr != prog_id1.end(); itr++) {
+    EXPECT_TRUE(base::IsAsciiAlphaNumeric(*itr) ||
+                (*itr == '.' && itr != prog_id1.begin()));
+  }
   // Check that different app ids in the same profile with the same file
   // extensions have different prog ids.
   EXPECT_NE(prog_id1, GetProgIdForAppFileHandler(profile()->GetPath(), app_id2,
@@ -280,7 +286,7 @@ TEST_F(WebAppHandlerRegistrationUtilsWinTest,
 
 TEST_F(WebAppHandlerRegistrationUtilsWinTest, CreateAppLauncherFile) {
   std::wstring app_name_extension = L" extension";
-  absl::optional<base::FilePath> launcher_path =
+  std::optional<base::FilePath> launcher_path =
       CreateAppLauncherFile(app_name(), app_name_extension,
                             GetOsIntegrationResourcesDirectoryForApp(
                                 profile()->GetPath(), app_id(), GURL()));

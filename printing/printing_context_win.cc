@@ -12,6 +12,7 @@
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/memory/free_deleter.h"
 #include "base/strings/string_number_conversions.h"
@@ -78,18 +79,15 @@ void SimpleModifyWorldTransform(HDC context,
 // static
 std::unique_ptr<PrintingContext> PrintingContext::CreateImpl(
     Delegate* delegate,
-    bool skip_system_calls) {
-  std::unique_ptr<PrintingContext> context;
-  context = std::make_unique<PrintingContextSystemDialogWin>(delegate);
-#if BUILDFLAG(ENABLE_OOP_PRINTING)
-  if (skip_system_calls)
-    context->set_skip_system_calls();
-#endif
-  return context;
+    OutOfProcessBehavior out_of_process_behavior) {
+  return std::make_unique<PrintingContextSystemDialogWin>(
+      delegate, out_of_process_behavior);
 }
 
-PrintingContextWin::PrintingContextWin(Delegate* delegate)
-    : PrintingContext(delegate), context_(nullptr) {}
+PrintingContextWin::PrintingContextWin(
+    Delegate* delegate,
+    OutOfProcessBehavior out_of_process_behavior)
+    : PrintingContext(delegate, out_of_process_behavior), context_(nullptr) {}
 
 PrintingContextWin::~PrintingContextWin() {
   ReleaseContext();
@@ -133,21 +131,37 @@ mojom::ResultCode PrintingContextWin::UseDefaultSettings() {
   DWORD count_returned = 0;
   (void)::EnumPrinters(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS, nullptr,
                        2, nullptr, 0, &bytes_needed, &count_returned);
-  if (bytes_needed) {
-    DCHECK_GE(bytes_needed, count_returned * sizeof(PRINTER_INFO_2));
-    std::vector<BYTE> printer_info_buffer(bytes_needed);
-    BOOL ret = ::EnumPrinters(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
-                              nullptr, 2, printer_info_buffer.data(),
-                              bytes_needed, &bytes_needed, &count_returned);
-    if (ret && count_returned) {  // have printers
+  logging::SystemErrorCode code = logging::GetLastSystemErrorCode();
+  if (code == ERROR_SUCCESS) {
+    // If EnumPrinters() succeeded, that means there are no printer drivers
+    // installed because 0 bytes was sufficient.
+    DCHECK_EQ(bytes_needed, 0u);
+    VLOG(1) << "Found no printers";
+    return mojom::ResultCode::kSuccess;
+  }
+
+  if (code != ERROR_INSUFFICIENT_BUFFER) {
+    LOG(ERROR) << "Error enumerating printers: "
+               << logging::SystemErrorCodeToString(code);
+    return GetResultCodeFromSystemErrorCode(code);
+  }
+
+  DCHECK_GE(bytes_needed, count_returned * sizeof(PRINTER_INFO_2));
+  std::vector<BYTE> printer_info_buffer(bytes_needed);
+  BOOL ret = ::EnumPrinters(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+                            nullptr, 2, printer_info_buffer.data(),
+                            bytes_needed, &bytes_needed, &count_returned);
+  if (ret && count_returned) {  // have printers
+    UNSAFE_TODO({
       // Open the first successfully found printer.
       const PRINTER_INFO_2* info_2 =
           reinterpret_cast<PRINTER_INFO_2*>(printer_info_buffer.data());
       const PRINTER_INFO_2* info_2_end = info_2 + count_returned;
       for (; info_2 < info_2_end; ++info_2) {
         ScopedPrinterHandle printer;
-        if (!printer.OpenPrinterWithName(info_2->pPrinterName))
+        if (!printer.OpenPrinterWithName(info_2->pPrinterName)) {
           continue;
+        }
         std::unique_ptr<DEVMODE, base::FreeDeleter> dev_mode =
             CreateDevMode(printer.Get(), nullptr);
         if (InitializeSettings(info_2->pPrinterName, dev_mode.get()) ==
@@ -155,8 +169,9 @@ mojom::ResultCode PrintingContextWin::UseDefaultSettings() {
           return mojom::ResultCode::kSuccess;
         }
       }
-      if (context_)
-        return mojom::ResultCode::kSuccess;
+    });
+    if (context_) {
+      return mojom::ResultCode::kSuccess;
     }
   }
 
@@ -169,10 +184,10 @@ gfx::Size PrintingContextWin::GetPdfPaperSizeDeviceUnits() {
 
   // Get settings from locale. Paper type buffer length is at most 4.
   const int paper_type_buffer_len = 4;
-  wchar_t paper_type_buffer[paper_type_buffer_len] = {0};
+  wchar_t paper_type_buffer[paper_type_buffer_len] = {};
   GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_IPAPERSIZE, paper_type_buffer,
                 paper_type_buffer_len);
-  if (wcslen(paper_type_buffer)) {  // The call succeeded.
+  if (UNSAFE_TODO(wcslen(paper_type_buffer))) {  // The call succeeded.
     int paper_code = _wtoi(paper_type_buffer);
     switch (paper_code) {
       case DMPAPER_LEGAL:
@@ -312,16 +327,26 @@ mojom::ResultCode PrintingContextWin::InitWithSettingsForTest(
 mojom::ResultCode PrintingContextWin::NewDocument(
     const std::u16string& document_name) {
   DCHECK(!in_print_job_);
-  if (!context_ && !skip_system_calls())
+  if (!context_
+#if BUILDFLAG(ENABLE_OOP_PRINTING)
+      &&
+      out_of_process_behavior() != OutOfProcessBehavior::kEnabledSkipSystemCalls
+#endif
+  ) {
     return OnError();
+  }
 
   // Set the flag used by the AbortPrintJob dialog procedure.
   abort_printing_ = false;
 
   in_print_job_ = true;
 
-  if (skip_system_calls())
+#if BUILDFLAG(ENABLE_OOP_PRINTING)
+  if (out_of_process_behavior() ==
+      OutOfProcessBehavior::kEnabledSkipSystemCalls) {
     return mojom::ResultCode::kSuccess;
+  }
+#endif
 
   if (base::FeatureList::IsEnabled(printing::features::kUseXpsForPrinting)) {
     // This is all the new document context needed when using XPS.
@@ -402,7 +427,7 @@ mojom::ResultCode PrintingContextWin::PrintDocument(
     const MetafilePlayer& metafile,
     const PrintSettings& settings,
     uint32_t num_pages) {
-  // TODO(crbug.com/1008222)
+  // TODO(crbug.com/40100562)
   NOTIMPLEMENTED();
   return mojom::ResultCode::kFailed;
 }

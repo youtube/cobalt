@@ -1,71 +1,17 @@
-/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
- * All rights reserved.
- *
- * This package is an SSL implementation written
- * by Eric Young (eay@cryptsoft.com).
- * The implementation was written so as to conform with Netscapes SSL.
- *
- * This library is free for commercial and non-commercial use as long as
- * the following conditions are aheared to.  The following conditions
- * apply to all code found in this distribution, be it the RC4, RSA,
- * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
- * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@cryptsoft.com).
- *
- * Copyright remains Eric Young's, and as such any Copyright notices in
- * the code are not to be removed.
- * If this package is used in a product, Eric Young should be given attribution
- * as the author of the parts of the library used.
- * This can be in the form of a textual message at program startup or
- * in documentation (online or textual) provided with the package.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *    "This product includes cryptographic software written by
- *     Eric Young (eay@cryptsoft.com)"
- *    The word 'cryptographic' can be left out if the rouines from the library
- *    being used are not cryptographic related :-).
- * 4. If you include any Windows specific code (or a derivative thereof) from
- *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
- *
- * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * The licence and distribution terms for any publically available version or
- * derivative of this code cannot be changed.  i.e. this code cannot simply be
- * copied and put under another distribution licence
- * [including the GNU Public Licence.]
- */
-/* ====================================================================
- * Copyright 2002 Sun Microsystems, Inc. ALL RIGHTS RESERVED.
- *
- * Portions of the attached software ("Contribution") are developed by
- * SUN MICROSYSTEMS, INC., and are contributed to the OpenSSL project.
- *
- * The Contribution is licensed pursuant to the Eric Young open source
- * license provided above.
- *
- * The binary polynomial arithmetic software is originally written by
- * Sheueling Chang Shantz and Douglas Stebila of Sun Microsystems
- * Laboratories. */
+// Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+// Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <assert.h>
 #include <errno.h>
@@ -74,6 +20,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 
 #include <gtest/gtest.h>
@@ -86,14 +33,16 @@
 #include <openssl/mem.h>
 #include <openssl/rand.h>
 
-#include "./internal.h"
-#include "./rsaz_exp.h"
 #include "../../internal.h"
 #include "../../test/abi_test.h"
 #include "../../test/file_test.h"
 #include "../../test/test_util.h"
 #include "../../test/wycheproof_util.h"
+#include "./internal.h"
+#include "./rsaz_exp.h"
 
+
+namespace {
 
 static int HexToBIGNUM(bssl::UniquePtr<BIGNUM> *out, const char *in) {
   BIGNUM *raw = NULL;
@@ -159,10 +108,12 @@ class BIGNUMFileTest {
   unsigned num_bignums_;
 };
 
-static testing::AssertionResult AssertBIGNUMSEqual(
-    const char *operation_expr, const char *expected_expr,
-    const char *actual_expr, const char *operation, const BIGNUM *expected,
-    const BIGNUM *actual) {
+static testing::AssertionResult AssertBIGNUMSEqual(const char *operation_expr,
+                                                   const char *expected_expr,
+                                                   const char *actual_expr,
+                                                   const char *operation,
+                                                   const BIGNUM *expected,
+                                                   const BIGNUM *actual) {
   if (BN_cmp(expected, actual) == 0) {
     return testing::AssertionSuccess();
   }
@@ -457,8 +408,8 @@ static void TestSquare(BIGNUMFileTest *t, BN_CTX *ctx) {
       SCOPED_TRACE(num_a);
       size_t num_r = 2 * num_a;
       // Use newly-allocated buffers so ASan will catch out-of-bounds writes.
-      std::unique_ptr<BN_ULONG[]> a_words(new BN_ULONG[num_a]),
-          r_words(new BN_ULONG[num_r]);
+      auto a_words = std::make_unique<BN_ULONG[]>(num_a);
+      auto r_words = std::make_unique<BN_ULONG[]>(num_r);
       ASSERT_TRUE(bn_copy_words(a_words.get(), num_a, a.get()));
 
       bn_mul_small(r_words.get(), num_r, a_words.get(), num_a, a_words.get(),
@@ -524,8 +475,9 @@ static void TestProduct(BIGNUMFileTest *t, BN_CTX *ctx) {
         SCOPED_TRACE(num_b);
         size_t num_r = num_a + num_b;
         // Use newly-allocated buffers so ASan will catch out-of-bounds writes.
-        std::unique_ptr<BN_ULONG[]> a_words(new BN_ULONG[num_a]),
-            b_words(new BN_ULONG[num_b]), r_words(new BN_ULONG[num_r]);
+        auto a_words = std::make_unique<BN_ULONG[]>(num_a);
+        auto b_words = std::make_unique<BN_ULONG[]>(num_b);
+        auto r_words = std::make_unique<BN_ULONG[]>(num_r);
         ASSERT_TRUE(bn_copy_words(a_words.get(), num_a, a.get()));
         ASSERT_TRUE(bn_copy_words(b_words.get(), num_b, b.get()));
 
@@ -648,8 +600,7 @@ static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
     ASSERT_TRUE(mont);
 
     // Sanity-check that the constant-time version computes the same n0 and RR.
-    bssl::UniquePtr<BN_MONT_CTX> mont2(
-        BN_MONT_CTX_new_consttime(m.get(), ctx));
+    bssl::UniquePtr<BN_MONT_CTX> mont2(BN_MONT_CTX_new_consttime(m.get(), ctx));
     ASSERT_TRUE(mont2);
     EXPECT_BIGNUMS_EQUAL("RR (mod M) (constant-time)", &mont->RR, &mont2->RR);
     EXPECT_EQ(mont->n0[0], mont2->n0[0]);
@@ -671,8 +622,9 @@ static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
 #if !defined(BORINGSSL_SHARED_LIBRARY)
     size_t m_width = static_cast<size_t>(bn_minimal_width(m.get()));
     if (m_width <= BN_SMALL_MAX_WORDS) {
-      std::unique_ptr<BN_ULONG[]> a_words(new BN_ULONG[m_width]),
-          b_words(new BN_ULONG[m_width]), r_words(new BN_ULONG[m_width]);
+      auto a_words = std::make_unique<BN_ULONG[]>(m_width);
+      auto b_words = std::make_unique<BN_ULONG[]>(m_width);
+      auto r_words = std::make_unique<BN_ULONG[]>(m_width);
       ASSERT_TRUE(bn_copy_words(a_words.get(), m_width, a.get()));
       ASSERT_TRUE(bn_copy_words(b_words.get(), m_width, b.get()));
       bn_to_montgomery_small(a_words.get(), a_words.get(), m_width, mont.get());
@@ -690,7 +642,7 @@ static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
       // inputs. Test this by running |bn_from_montgomery_small| on the result
       // of a product. Note |a_words| * |b_words| has an extra factor of R^2, so
       // we must reduce twice.
-      std::unique_ptr<BN_ULONG[]> prod_words(new BN_ULONG[m_width * 2]);
+      auto prod_words = std::make_unique<BN_ULONG[]>(m_width * 2);
       bn_mul_small(prod_words.get(), m_width * 2, a_words.get(), m_width,
                    b_words.get(), m_width);
       bn_from_montgomery_small(r_words.get(), m_width, prod_words.get(),
@@ -698,8 +650,8 @@ static void TestModMul(BIGNUMFileTest *t, BN_CTX *ctx) {
       bn_from_montgomery_small(r_words.get(), m_width, r_words.get(), m_width,
                                mont.get());
       ASSERT_TRUE(bn_set_words(ret.get(), r_words.get(), m_width));
-      EXPECT_BIGNUMS_EQUAL("A * B (mod M) (Montgomery, words)",
-                           mod_mul.get(), ret.get());
+      EXPECT_BIGNUMS_EQUAL("A * B (mod M) (Montgomery, words)", mod_mul.get(),
+                           ret.get());
     }
 #endif
   }
@@ -751,8 +703,9 @@ static void TestModSquare(BIGNUMFileTest *t, BN_CTX *ctx) {
 #if !defined(BORINGSSL_SHARED_LIBRARY)
     size_t m_width = static_cast<size_t>(bn_minimal_width(m.get()));
     if (m_width <= BN_SMALL_MAX_WORDS) {
-      std::unique_ptr<BN_ULONG[]> a_words(new BN_ULONG[m_width]),
-          a_copy_words(new BN_ULONG[m_width]), r_words(new BN_ULONG[m_width]);
+      auto a_words = std::make_unique<BN_ULONG[]>(m_width);
+      auto a_copy_words = std::make_unique<BN_ULONG[]>(m_width);
+      auto r_words = std::make_unique<BN_ULONG[]>(m_width);
       ASSERT_TRUE(bn_copy_words(a_words.get(), m_width, a.get()));
       bn_to_montgomery_small(a_words.get(), a_words.get(), m_width, mont.get());
       bn_mod_mul_montgomery_small(r_words.get(), a_words.get(), a_words.get(),
@@ -814,8 +767,8 @@ static void TestModExp(BIGNUMFileTest *t, BN_CTX *ctx) {
       bssl::UniquePtr<BN_MONT_CTX> mont(
           BN_MONT_CTX_new_for_modulus(m.get(), ctx));
       ASSERT_TRUE(mont.get());
-      std::unique_ptr<BN_ULONG[]> r_words(new BN_ULONG[m_width]),
-          a_words(new BN_ULONG[m_width]);
+      auto r_words = std::make_unique<BN_ULONG[]>(m_width);
+      auto a_words = std::make_unique<BN_ULONG[]>(m_width);
       ASSERT_TRUE(bn_copy_words(a_words.get(), m_width, a.get()));
       bn_to_montgomery_small(a_words.get(), a_words.get(), m_width, mont.get());
       bn_mod_exp_mont_small(r_words.get(), a_words.get(), m_width, e->d,
@@ -880,9 +833,7 @@ static void TestNotModSquare(BIGNUMFileTest *t, BN_CTX *ctx) {
   EXPECT_FALSE(BN_mod_sqrt(ret.get(), not_mod_square.get(), p.get(), ctx))
       << "BN_mod_sqrt unexpectedly succeeded.";
 
-  uint32_t err = ERR_peek_error();
-  EXPECT_EQ(ERR_LIB_BN, ERR_GET_LIB(err));
-  EXPECT_EQ(BN_R_NOT_A_SQUARE, ERR_GET_REASON(err));
+  EXPECT_TRUE(ErrorEquals(ERR_peek_error(), ERR_LIB_BN, BN_R_NOT_A_SQUARE));
   ERR_clear_error();
 }
 
@@ -908,6 +859,14 @@ static void TestModInv(BIGNUMFileTest *t, BN_CTX *ctx) {
       bn_mod_inverse_consttime(ret.get(), &no_inverse, a.get(), m.get(), ctx));
   EXPECT_BIGNUMS_EQUAL("inv(A) (mod M) (constant-time)", mod_inv.get(),
                        ret.get());
+
+  ASSERT_TRUE(BN_copy(ret.get(), m.get()));
+  ASSERT_TRUE(BN_mod_inverse(ret.get(), a.get(), ret.get(), ctx));
+  EXPECT_BIGNUMS_EQUAL("inv(A) (mod M) (ret == m)", mod_inv.get(), ret.get());
+
+  ASSERT_TRUE(BN_copy(ret.get(), a.get()));
+  ASSERT_TRUE(BN_mod_inverse(ret.get(), ret.get(), m.get(), ctx));
+  EXPECT_BIGNUMS_EQUAL("inv(A) (mod M) (ret == a)", mod_inv.get(), ret.get());
 }
 
 static void TestGCD(BIGNUMFileTest *t, BN_CTX *ctx) {
@@ -999,7 +958,7 @@ static void RunBNFileTest(FileTest *t, BN_CTX *ctx) {
       {"ModInv", TestModInv},
       {"GCD", TestGCD},
   };
-  void (*func)(BIGNUMFileTest * t, BN_CTX * ctx) = nullptr;
+  void (*func)(BIGNUMFileTest *t, BN_CTX *ctx) = nullptr;
   for (const auto &test : kTests) {
     if (t->GetType() == test.name) {
       func = test.func;
@@ -1146,8 +1105,8 @@ TEST_F(BNTest, LittleEndian) {
   ASSERT_TRUE(BN_bn2le_padded(out, sizeof(out), x.get()));
   EXPECT_EQ(Bytes(zeros), Bytes(out));
 
-  ASSERT_TRUE(BN_le2bn(out, sizeof(out), y.get()));
-  EXPECT_BIGNUMS_EQUAL("BN_le2bn round-trip", x.get(), y.get());
+  ASSERT_TRUE(BN_lebin2bn(out, sizeof(out), y.get()));
+  EXPECT_BIGNUMS_EQUAL("BN_lebin2bn round-trip", x.get(), y.get());
 
   // Test random numbers at various byte lengths.
   for (size_t bytes = 128 - 7; bytes <= 128; bytes++) {
@@ -1170,8 +1129,8 @@ TEST_F(BNTest, LittleEndian) {
     EXPECT_EQ(Bytes(out), Bytes(expected));
 
     // Make sure the decoding produces the same BIGNUM.
-    ASSERT_TRUE(BN_le2bn(out, bytes, y.get()));
-    EXPECT_BIGNUMS_EQUAL("BN_le2bn round-trip", x.get(), y.get());
+    ASSERT_TRUE(BN_lebin2bn(out, bytes, y.get()));
+    EXPECT_BIGNUMS_EQUAL("BN_lebin2bn round-trip", x.get(), y.get());
   }
 }
 
@@ -1295,12 +1254,12 @@ struct MPITest {
 };
 
 static const MPITest kMPITests[] = {
-  { "0", "\x00\x00\x00\x00", 4 },
-  { "1", "\x00\x00\x00\x01\x01", 5 },
-  { "-1", "\x00\x00\x00\x01\x81", 5 },
-  { "128", "\x00\x00\x00\x02\x00\x80", 6 },
-  { "256", "\x00\x00\x00\x02\x01\x00", 6 },
-  { "-256", "\x00\x00\x00\x02\x81\x00", 6 },
+    {"0", "\x00\x00\x00\x00", 4},
+    {"1", "\x00\x00\x00\x01\x01", 5},
+    {"-1", "\x00\x00\x00\x01\x81", 5},
+    {"128", "\x00\x00\x00\x02\x00\x80", 6},
+    {"256", "\x00\x00\x00\x02\x01\x00", 6},
+    {"-256", "\x00\x00\x00\x02\x81\x00", 6},
 };
 
 TEST_F(BNTest, MPI) {
@@ -1407,8 +1366,8 @@ TEST_F(BNTest, RandRange) {
     ASSERT_TRUE(BN_rand_range_ex(bn.get(), 1, six.get()));
 
     BN_ULONG word = BN_get_word(bn.get());
-    if (BN_is_negative(bn.get()) ||
-        word < 1 ||
+    if (BN_is_negative(bn.get()) ||  //
+        word < 1 ||                  //
         word >= 6) {
       FAIL() << "BN_rand_range_ex generated invalid value: " << word;
     }
@@ -1438,10 +1397,8 @@ static const ASN1Test kASN1Tests[] = {
     {"127", "\x02\x01\x7f", 3},
     {"128", "\x02\x02\x00\x80", 4},
     {"0xdeadbeef", "\x02\x05\x00\xde\xad\xbe\xef", 7},
-    {"0x0102030405060708",
-     "\x02\x08\x01\x02\x03\x04\x05\x06\x07\x08", 10},
-    {"0xffffffffffffffff",
-      "\x02\x09\x00\xff\xff\xff\xff\xff\xff\xff\xff", 11},
+    {"0x0102030405060708", "\x02\x08\x01\x02\x03\x04\x05\x06\x07\x08", 10},
+    {"0xffffffffffffffff", "\x02\x09\x00\xff\xff\xff\xff\xff\xff\xff\xff", 11},
 };
 
 struct ASN1InvalidTest {
@@ -1471,7 +1428,7 @@ TEST_F(BNTest, ASN1) {
     bssl::UniquePtr<BIGNUM> bn2(BN_new());
     ASSERT_TRUE(bn2);
     CBS cbs;
-    CBS_init(&cbs, reinterpret_cast<const uint8_t*>(test.der), test.der_len);
+    CBS_init(&cbs, reinterpret_cast<const uint8_t *>(test.der), test.der_len);
     ASSERT_TRUE(BN_parse_asn1_unsigned(&cbs, bn2.get()));
     EXPECT_EQ(0u, CBS_len(&cbs));
     EXPECT_BIGNUMS_EQUAL("decode ASN.1", bn.get(), bn2.get());
@@ -1488,7 +1445,7 @@ TEST_F(BNTest, ASN1) {
   }
 
   for (const ASN1InvalidTest &test : kASN1InvalidTests) {
-    SCOPED_TRACE(Bytes(test.der, test.der_len));;
+    SCOPED_TRACE(Bytes(test.der, test.der_len));
     bssl::UniquePtr<BIGNUM> bn(BN_new());
     ASSERT_TRUE(bn);
     CBS cbs;
@@ -1678,7 +1635,7 @@ TEST_F(BNTest, SmallPrime) {
   bssl::UniquePtr<BIGNUM> r(BN_new());
   ASSERT_TRUE(r);
   ASSERT_TRUE(BN_generate_prime_ex(r.get(), static_cast<int>(kBits), 0, NULL,
-                                  NULL, NULL));
+                                   NULL, NULL));
   EXPECT_EQ(kBits, BN_num_bits(r.get()));
 }
 
@@ -1761,7 +1718,7 @@ TEST_F(BNTest, SetGetU64) {
       {"ffffffffffffffff", UINT64_C(0xffffffffffffffff)},
   };
 
-  for (const auto& test : kU64Tests) {
+  for (const auto &test : kU64Tests) {
     SCOPED_TRACE(test.hex);
     bssl::UniquePtr<BIGNUM> bn(BN_new()), expected;
     ASSERT_TRUE(bn);
@@ -2058,7 +2015,7 @@ TEST_F(BNTest, PrimeChecking) {
   int is_probably_prime_1 = 0, is_probably_prime_2 = 0;
   enum bn_primality_result_t result_3;
 
-  const int max_prime = kPrimes[OPENSSL_ARRAY_SIZE(kPrimes)-1];
+  const int max_prime = kPrimes[OPENSSL_ARRAY_SIZE(kPrimes) - 1];
   size_t next_prime_index = 0;
 
   for (int i = 0; i <= max_prime; i++) {
@@ -2670,16 +2627,14 @@ TEST_F(BNTest, NonMinimal) {
   bssl::UniquePtr<BN_MONT_CTX> mont(
       BN_MONT_CTX_new_for_modulus(p.get(), ctx()));
   ASSERT_TRUE(mont);
-  bssl::UniquePtr<BN_MONT_CTX> mont2(
-      BN_MONT_CTX_new_consttime(p.get(), ctx()));
+  bssl::UniquePtr<BN_MONT_CTX> mont2(BN_MONT_CTX_new_consttime(p.get(), ctx()));
   ASSERT_TRUE(mont2);
 
   ASSERT_TRUE(bn_resize_words(p.get(), 32));
   bssl::UniquePtr<BN_MONT_CTX> mont3(
       BN_MONT_CTX_new_for_modulus(p.get(), ctx()));
   ASSERT_TRUE(mont3);
-  bssl::UniquePtr<BN_MONT_CTX> mont4(
-      BN_MONT_CTX_new_consttime(p.get(), ctx()));
+  bssl::UniquePtr<BN_MONT_CTX> mont4(BN_MONT_CTX_new_consttime(p.get(), ctx()));
   ASSERT_TRUE(mont4);
 
   EXPECT_EQ(mont->N.width, mont2->N.width);
@@ -2796,6 +2751,27 @@ TEST_F(BNTest, MontgomeryLarge) {
                                          ctx(), nullptr));
 }
 
+TEST_F(BNTest, FormatWord) {
+  char buf[32];
+  snprintf(buf, sizeof(buf), BN_DEC_FMT1, BN_ULONG{1234});
+  EXPECT_STREQ(buf, "1234");
+  snprintf(buf, sizeof(buf), BN_HEX_FMT1, BN_ULONG{1234});
+  EXPECT_STREQ(buf, "4d2");
+
+  // |BN_HEX_FMT2| is zero-padded up to the maximum value.
+#if defined(OPENSSL_64_BIT)
+  snprintf(buf, sizeof(buf), BN_HEX_FMT2, BN_ULONG{1234});
+  EXPECT_STREQ(buf, "00000000000004d2");
+  snprintf(buf, sizeof(buf), BN_HEX_FMT2, std::numeric_limits<BN_ULONG>::max());
+  EXPECT_STREQ(buf, "ffffffffffffffff");
+#else
+  snprintf(buf, sizeof(buf), BN_HEX_FMT2, BN_ULONG{1234});
+  EXPECT_STREQ(buf, "000004d2");
+  snprintf(buf, sizeof(buf), BN_HEX_FMT2, std::numeric_limits<BN_ULONG>::max());
+  EXPECT_STREQ(buf, "ffffffff");
+#endif
+}
+
 #if defined(SUPPORTS_ABI_TEST)
 // These functions are not always implemented in assembly, but they sometimes
 // are, so include ABI tests for each.
@@ -2817,7 +2793,7 @@ TEST_F(BNTest, ArithmeticABI) {
     CHECK_ABI(bn_mul_add_words, r.data(), a.data(), num, 42);
 
     r.resize(2 * num);
-    CHECK_ABI(bn_sqr_words, r.data(), a.data(), num);
+    CHECK_ABI(bn_sqr_add_words, r.data(), a.data(), num);
 
     if (num == 4) {
       CHECK_ABI(bn_mul_comba4, r.data(), a.data(), b.data());
@@ -2848,13 +2824,47 @@ TEST_F(BNTest, BNMulMontABI) {
     a[0] = 1;
     b[0] = 42;
 
+#if defined(OPENSSL_X86_64)
+    if (bn_mulx4x_mont_capable(words)) {
+      CHECK_ABI(bn_mulx4x_mont, r.data(), a.data(), b.data(), mont->N.d,
+                mont->n0, words);
+      CHECK_ABI(bn_mulx4x_mont, r.data(), a.data(), a.data(), mont->N.d,
+                mont->n0, words);
+    }
+    if (bn_mul4x_mont_capable(words)) {
+      CHECK_ABI(bn_mul4x_mont, r.data(), a.data(), b.data(), mont->N.d,
+                mont->n0, words);
+      CHECK_ABI(bn_mul4x_mont, r.data(), a.data(), a.data(), mont->N.d,
+                mont->n0, words);
+    }
+    CHECK_ABI(bn_mul_mont_nohw, r.data(), a.data(), b.data(), mont->N.d,
+              mont->n0, words);
+    CHECK_ABI(bn_mul_mont_nohw, r.data(), a.data(), a.data(), mont->N.d,
+              mont->n0, words);
+    if (bn_sqr8x_mont_capable(words)) {
+      CHECK_ABI(bn_sqr8x_mont, r.data(), a.data(), bn_mulx_adx_capable(),
+                mont->N.d, mont->n0, words);
+    }
+#elif defined(OPENSSL_ARM)
+    if (bn_mul8x_mont_neon_capable(words)) {
+      CHECK_ABI(bn_mul8x_mont_neon, r.data(), a.data(), b.data(), mont->N.d,
+                mont->n0, words);
+      CHECK_ABI(bn_mul8x_mont_neon, r.data(), a.data(), a.data(), mont->N.d,
+                mont->n0, words);
+    }
+    CHECK_ABI(bn_mul_mont_nohw, r.data(), a.data(), b.data(), mont->N.d,
+              mont->n0, words);
+    CHECK_ABI(bn_mul_mont_nohw, r.data(), a.data(), a.data(), mont->N.d,
+              mont->n0, words);
+#else
     CHECK_ABI(bn_mul_mont, r.data(), a.data(), b.data(), mont->N.d, mont->n0,
               words);
     CHECK_ABI(bn_mul_mont, r.data(), a.data(), a.data(), mont->N.d, mont->n0,
               words);
+#endif
   }
 }
-#endif   // OPENSSL_BN_ASM_MONT && SUPPORTS_ABI_TEST
+#endif  // OPENSSL_BN_ASM_MONT && SUPPORTS_ABI_TEST
 
 #if defined(OPENSSL_BN_ASM_MONT5) && defined(SUPPORTS_ABI_TEST)
 TEST_F(BNTest, BNMulMont5ABI) {
@@ -2881,16 +2891,34 @@ TEST_F(BNTest, BNMulMont5ABI) {
     }
     CHECK_ABI(bn_gather5, r.data(), words, table.data(), 13);
 
-    CHECK_ABI(bn_mul_mont_gather5, r.data(), r.data(), table.data(), m->d,
+    if (bn_mulx4x_mont_gather5_capable(words)) {
+      CHECK_ABI(bn_mulx4x_mont_gather5, r.data(), r.data(), table.data(), m->d,
+                mont->n0, words, 13);
+      CHECK_ABI(bn_mulx4x_mont_gather5, r.data(), a.data(), table.data(), m->d,
+                mont->n0, words, 13);
+    }
+    if (bn_mul4x_mont_gather5_capable(words)) {
+      CHECK_ABI(bn_mul4x_mont_gather5, r.data(), r.data(), table.data(), m->d,
+                mont->n0, words, 13);
+      CHECK_ABI(bn_mul4x_mont_gather5, r.data(), a.data(), table.data(), m->d,
+                mont->n0, words, 13);
+    }
+    CHECK_ABI(bn_mul_mont_gather5_nohw, r.data(), r.data(), table.data(), m->d,
               mont->n0, words, 13);
-    CHECK_ABI(bn_mul_mont_gather5, r.data(), a.data(), table.data(), m->d,
+    CHECK_ABI(bn_mul_mont_gather5_nohw, r.data(), a.data(), table.data(), m->d,
               mont->n0, words, 13);
 
-    if (words % 8 == 0) {
-      CHECK_ABI(bn_power5, r.data(), r.data(), table.data(), m->d, mont->n0,
+    if (bn_powerx5_capable(words)) {
+      CHECK_ABI(bn_powerx5, r.data(), r.data(), table.data(), m->d, mont->n0,
                 words, 13);
-      CHECK_ABI(bn_power5, r.data(), a.data(), table.data(), m->d, mont->n0,
+      CHECK_ABI(bn_powerx5, r.data(), a.data(), table.data(), m->d, mont->n0,
                 words, 13);
+    }
+    if (bn_power5_capable(words)) {
+      CHECK_ABI(bn_power5_nohw, r.data(), r.data(), table.data(), m->d,
+                mont->n0, words, 13);
+      CHECK_ABI(bn_power5_nohw, r.data(), a.data(), table.data(), m->d,
+                mont->n0, words, 13);
     }
   }
 }
@@ -2926,4 +2954,6 @@ TEST_F(BNTest, RSAZABI) {
   CHECK_ABI(rsaz_1024_gather5_avx2, rsaz1, table, 7);
   CHECK_ABI(rsaz_1024_red2norm_avx2, norm, rsaz1);
 }
-#endif   // RSAZ_ENABLED && SUPPORTS_ABI_TEST
+#endif  // RSAZ_ENABLED && SUPPORTS_ABI_TEST
+
+}  // namespace

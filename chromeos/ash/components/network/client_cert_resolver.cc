@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/ash/components/network/client_cert_resolver.h"
 
 #include <cert.h>
 #include <certt.h>  // for (SECCertUsageEnum) certUsageAnyCA
 #include <pk11pub.h>
 
+#include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/containers/flat_map.h"
@@ -17,7 +24,6 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/task/thread_pool.h"
 #include "base/time/clock.h"
@@ -36,7 +42,6 @@
 #include "net/cert/scoped_nss_types.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util_nss.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/cros_system_api/constants/pkcs11_custom_attributes.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 
@@ -108,7 +113,7 @@ base::flat_map<std::string, std::string> GetSubstitutionsForCert(
   return substitutions;
 }
 
-absl::optional<ResolvedCert> GetResolvedCert(CERTCertificate* cert) {
+std::optional<ResolvedCert> GetResolvedCert(CERTCertificate* cert) {
   int slot_id = -1;
   std::string pkcs11_id =
       NetworkCertLoader::GetPkcs11IdAndSlotForCert(cert, &slot_id);
@@ -161,15 +166,15 @@ namespace {
 // Returns the nickname of the private key for certificate |cert|, if such a
 // private key is installed. Note that this is not a cheap operation: it
 // iterates all tokens and attempts to look up the private key.
-// A return value of |absl::nullopt| means that no private key could be found
+// A return value of |std::nullopt| means that no private key could be found
 // for |cert|.
 // If a private key could be found for |cert| but it did not have a nickname,
 // will return the empty string.
-absl::optional<std::string> GetPrivateKeyNickname(CERTCertificate* cert) {
+std::optional<std::string> GetPrivateKeyNickname(CERTCertificate* cert) {
   crypto::ScopedSECKEYPrivateKey key(
       PK11_FindKeyByAnyCert(cert, /*wincx=*/nullptr));
   if (!key)
-    return absl::nullopt;
+    return std::nullopt;
 
   std::string key_nickname;
   char* nss_key_nickname = PK11_GetPrivateKeyNickname(key.get());
@@ -253,7 +258,6 @@ struct MatchCertWithCertConfig {
     }
 
     NOTREACHED();
-    return false;
   }
 
   const client_cert::ClientCertConfig cert_config;
@@ -262,6 +266,10 @@ struct MatchCertWithCertConfig {
 // Lookup the issuer certificate of |cert|. If it is available, return the PEM
 // encoding of that certificate. Otherwise return the empty string.
 std::string GetPEMEncodedIssuer(CERTCertificate* cert) {
+  // TODO(https://crbug.com/40554868): remove dependency on NSS and lookup the
+  // issuer directly from NetworkCertLoader's authority_certs(). (Currently
+  // this magically works because NetworkCertLoader stores the certs as NSS
+  // CERTCertificate objects so CERT_FindCertIssuer will find them implicitly.)
   net::ScopedCERTCertificate issuer_handle(
       CERT_FindCertIssuer(cert, PR_Now(), certUsageAnyCA));
   if (!issuer_handle) {
@@ -341,7 +349,7 @@ void CreateSortedCertAndIssuerList(
     }
     // GetPrivateKeyNickname should be invoked after the checks above for
     // performance reasons.
-    absl::optional<std::string> private_key_nickname =
+    std::optional<std::string> private_key_nickname =
         GetPrivateKeyNickname(cert);
     if (!private_key_nickname.has_value()) {
       // No private key has been found for this certificate.
@@ -396,7 +404,7 @@ std::vector<NetworkAndMatchingCert> FindCertificateMatches(
                 ::onc::ONC_SOURCE_DEVICE_POLICY
             ? &device_wide_client_cert_and_issuers
             : &all_client_cert_and_issuers;
-    auto cert_it = base::ranges::find_if(
+    auto cert_it = std::ranges::find_if(
         *client_certs,
         MatchCertWithCertConfig(network_and_cert_config.cert_config));
     if (cert_it == client_certs->end()) {
@@ -408,7 +416,7 @@ std::vector<NetworkAndMatchingCert> FindCertificateMatches(
       continue;
     }
 
-    absl::optional<ResolvedCert> resolved_cert =
+    std::optional<ResolvedCert> resolved_cert =
         GetResolvedCert(cert_it->cert.get());
     if (!resolved_cert) {
       LOG(ERROR) << "Couldn't determine PKCS#11 ID.";
@@ -505,7 +513,7 @@ bool ClientCertResolver::ResolveClientCertificateSync(
 
   // Search for a certificate matching the pattern, reference or
   // ProvisioningProfileId.
-  std::vector<CertAndIssuer>::iterator cert_it = base::ranges::find_if(
+  std::vector<CertAndIssuer>::iterator cert_it = std::ranges::find_if(
       client_cert_and_issuers, MatchCertWithCertConfig(client_cert_config));
 
   if (cert_it == client_cert_and_issuers.end()) {
@@ -641,10 +649,19 @@ void ClientCertResolver::ResolveNetworks(
 
     ::onc::ONCSource onc_source = ::onc::ONC_SOURCE_NONE;
     std::string userhash;
+
+    // crbug.com/362668527: |ClientCertResolver| is responsible for finding the
+    // correct certificate for the network and setting it using
+    // |ManagedNetworkConfigurationHandler::SetResolvedClientCertificate|.
+    // Here it cannot use the kWithRuntimeValues policy because the certificate
+    // pattern there is already replaced with a certificate (or an empty value).
+    // The kOriginal policy cannot be used here because it still contains the
+    // unexpanded placeholders.
     const base::Value::Dict* policy =
         managed_network_config_handler_->FindPolicyByGuidAndProfile(
             network->guid(), network->profile_path(),
-            ManagedNetworkConfigurationHandler::PolicyType::kOriginal,
+            ManagedNetworkConfigurationHandler::PolicyType::
+                kWithVariablesExpanded,
             &onc_source, &userhash);
 
     if (!policy) {

@@ -27,6 +27,7 @@
 #include "net/nqe/network_quality_estimator.h"
 #include "net/nqe/network_quality_observation_source.h"
 #include "net/nqe/rtt_throughput_estimates_observer.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_tag.h"
 
 class PrefService;
 
@@ -153,6 +154,8 @@ class CronetContext {
   // flush any remaining writes to disk.
   void StopNetLog();
 
+  void FlushWritePropertiesForTesting();
+
   // Destroys the URLRequestContext associated to `network` if `network` has
   // disconnected and it has no pending URLRequests. This must be called on
   // the network thread while destroying a CronetURLRequest as that might
@@ -182,8 +185,6 @@ class CronetContext {
     return bidi_stream_detect_broken_connection_;
   }
   base::TimeDelta heartbeat_interval() const { return heartbeat_interval_; }
-
-  bool enable_telemetry() const { return enable_telemetry_; }
 
   // NetworkTasks performs tasks on the network thread and owns objects that
   // live on the network thread.
@@ -309,6 +310,10 @@ class CronetContext {
     std::unique_ptr<net::URLRequestContext> BuildDefaultURLRequestContext(
         std::unique_ptr<net::ProxyConfigService> proxy_config_service);
 
+    raw_ptr<net::URLRequestContext> getDefaultContext() const {
+      return default_context_;
+    }
+
     std::unique_ptr<net::FileNetLogObserver> net_log_file_observer_;
 
     // A network quality estimator. This member variable has to be destroyed
@@ -374,9 +379,6 @@ class CronetContext {
   // period of the heartbeat signal.
   base::TimeDelta heartbeat_interval_;
 
-  // Whether Cronet Telemetry should be enabled or not.
-  bool enable_telemetry_;
-
   const int default_load_flags_;
 
   // File thread should be destroyed last.
@@ -384,7 +386,7 @@ class CronetContext {
 
   // |network_tasks_| is owned by |this|. It is created off the network thread,
   // but invoked and destroyed on network thread.
-  raw_ptr<NetworkTasks> network_tasks_;
+  raw_ptr<NetworkTasks, AcrossTasksDanglingUntriaged> network_tasks_;
 
   // Network thread is destroyed from client thread.
   std::unique_ptr<base::Thread> network_thread_;

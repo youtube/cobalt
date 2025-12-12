@@ -23,51 +23,59 @@
 
 #include <algorithm>
 
+#include "third_party/blink/renderer/core/css/style_containment_scope.h"
+#include "third_party/blink/renderer/core/css/style_containment_scope_tree.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
+#include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/layout_ng_text_combine.h"
 #include "third_party/blink/renderer/platform/text/layout_locale.h"
 #include "third_party/blink/renderer/platform/wtf/std_lib_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 
 namespace blink {
 
-LayoutQuote::LayoutQuote(PseudoElement& pseudo, QuoteType quote)
+LayoutQuote::LayoutQuote(LayoutObject& owner, QuoteType quote)
     : LayoutInline(nullptr),
       type_(quote),
       depth_(0),
-      next_(nullptr),
-      previous_(nullptr),
-      owning_pseudo_(&pseudo),
-      attached_(false) {
-  SetDocumentForAnonymous(&pseudo.GetDocument());
+      owning_pseudo_(DynamicTo<PseudoElement>(owner.GetNode())) {
+  SetDocumentForAnonymous(&owner.GetDocument());
 }
 
 LayoutQuote::~LayoutQuote() {
-  DCHECK(!attached_);
-  DCHECK(!next_);
-  DCHECK(!previous_);
+  DCHECK(!scope_);
 }
 
 void LayoutQuote::Trace(Visitor* visitor) const {
-  visitor->Trace(next_);
-  visitor->Trace(previous_);
   visitor->Trace(owning_pseudo_);
+  visitor->Trace(scope_);
   LayoutInline::Trace(visitor);
 }
 
 void LayoutQuote::WillBeDestroyed() {
   NOT_DESTROYED();
-  DetachQuote();
+  if (scope_) {
+    GetDocument()
+        .GetStyleEngine()
+        .EnsureStyleContainmentScopeTree()
+        .UpdateOutermostQuotesDirtyScope(scope_);
+    scope_->DetachQuote(*this);
+  }
   LayoutInline::WillBeDestroyed();
 }
 
 void LayoutQuote::WillBeRemovedFromTree() {
   NOT_DESTROYED();
   LayoutInline::WillBeRemovedFromTree();
-  DetachQuote();
+  if (scope_) {
+    GetDocument()
+        .GetStyleEngine()
+        .EnsureStyleContainmentScopeTree()
+        .UpdateOutermostQuotesDirtyScope(scope_);
+    scope_->DetachQuote(*this);
+  }
 }
 
 void LayoutQuote::StyleDidChange(StyleDifference diff,
@@ -91,27 +99,14 @@ void LayoutQuote::UpdateText() {
 
   text_ = text;
 
-  if (Parent() && !NeedsLayout() &&
-      GetDocument().GetStyleEngine().InContainerQueryStyleRecalc()) {
-    // TODO(crbug.com/882385): Implement style containment for quotes. For now,
-    // make sure we don't crash for container queries. Avoid modifying the
-    // layout tree on the outside of the container unless we know that we will
-    // reach it later during layout.
-    //
-    // The Parent() check makes sure the text is updated for quotes about to be
-    // inserted into the layout tree, which have not been marked for layout yet.
-    return;
-  }
-
   LayoutTextFragment* fragment = FindFragmentChild();
   if (fragment) {
-    fragment->SetStyle(IsA<LayoutNGTextCombine>(fragment->Parent())
+    fragment->SetStyle(IsA<LayoutTextCombine>(fragment->Parent())
                            ? fragment->Parent()->Style()
                            : Style());
     fragment->SetContentString(text_.Impl());
   } else {
-    fragment =
-        LayoutTextFragment::CreateAnonymous(*owning_pseudo_, text_.Impl());
+    fragment = LayoutTextFragment::CreateAnonymous(GetDocument(), text_.Impl());
     fragment->SetStyle(Style());
     AddChild(fragment);
   }
@@ -124,8 +119,9 @@ LayoutTextFragment* LayoutQuote::FindFragmentChild() const {
   auto* const last_child = LastChild();
   if (auto* fragment = DynamicTo<LayoutTextFragment>(last_child))
     return fragment;
-  if (auto* combine = DynamicTo<LayoutNGTextCombine>(last_child))
+  if (auto* combine = DynamicTo<LayoutTextCombine>(last_child)) {
     return DynamicTo<LayoutTextFragment>(combine->FirstChild());
+  }
   return nullptr;
 }
 
@@ -141,7 +137,6 @@ String LayoutQuote::ComputeText() const {
       return GetQuotesData()->GetOpenQuote(depth_).Impl();
   }
   NOTREACHED();
-  return g_empty_string;
 }
 
 scoped_refptr<const QuotesData> LayoutQuote::GetQuotesData() const {
@@ -155,102 +150,6 @@ scoped_refptr<const QuotesData> LayoutQuote::GetQuotesData() const {
   }
 
   return BasicQuotesData();
-}
-
-void LayoutQuote::AttachQuote() {
-  NOT_DESTROYED();
-  DCHECK(View());
-  DCHECK(!attached_);
-  DCHECK(!next_);
-  DCHECK(!previous_);
-  DCHECK(IsRooted());
-
-  if (!View()->LayoutQuoteHead()) {
-    View()->SetLayoutQuoteHead(this);
-    attached_ = true;
-    return;
-  }
-
-  for (LayoutObject* predecessor = PreviousInPreOrder(); predecessor;
-       predecessor = predecessor->PreviousInPreOrder()) {
-    // Skip unattached predecessors to avoid having stale m_previous pointers
-    // if the previous node is never attached and is then destroyed.
-    if (!predecessor->IsQuote() || !To<LayoutQuote>(predecessor)->IsAttached())
-      continue;
-    previous_ = To<LayoutQuote>(predecessor);
-    next_ = previous_->next_;
-    previous_->next_ = this;
-    if (next_)
-      next_->previous_ = this;
-    break;
-  }
-
-  if (!previous_) {
-    next_ = View()->LayoutQuoteHead();
-    View()->SetLayoutQuoteHead(this);
-    if (next_)
-      next_->previous_ = this;
-  }
-  attached_ = true;
-
-  for (LayoutQuote* quote = this; quote; quote = quote->next_) {
-    quote->UpdateDepth();
-  }
-
-  DCHECK(!next_ || next_->attached_);
-  DCHECK(!next_ || next_->previous_ == this);
-  DCHECK(!previous_ || previous_->attached_);
-  DCHECK(!previous_ || previous_->next_ == this);
-}
-
-void LayoutQuote::DetachQuote() {
-  NOT_DESTROYED();
-  DCHECK(!next_ || next_->attached_);
-  DCHECK(!previous_ || previous_->attached_);
-  if (!attached_)
-    return;
-
-  // Reset our attached status at this point because it's possible for
-  // updateDepth() to call into attachQuote(). Attach quote walks the layout
-  // tree looking for quotes that are attached and does work on them.
-  attached_ = false;
-
-  if (previous_)
-    previous_->next_ = next_;
-  else if (View())
-    View()->SetLayoutQuoteHead(next_);
-  if (next_)
-    next_->previous_ = previous_;
-  if (!DocumentBeingDestroyed()) {
-    for (LayoutQuote* quote = next_; quote; quote = quote->next_)
-      quote->UpdateDepth();
-  }
-  next_ = nullptr;
-  previous_ = nullptr;
-  depth_ = 0;
-}
-
-void LayoutQuote::UpdateDepth() {
-  NOT_DESTROYED();
-  DCHECK(attached_);
-  int old_depth = depth_;
-  depth_ = 0;
-  if (previous_) {
-    depth_ = previous_->depth_;
-    switch (previous_->type_) {
-      case QuoteType::kOpen:
-      case QuoteType::kNoOpen:
-        depth_++;
-        break;
-      case QuoteType::kClose:
-      case QuoteType::kNoClose:
-        if (depth_)
-          depth_--;
-        break;
-    }
-  }
-  if (old_depth != depth_)
-    UpdateText();
 }
 
 }  // namespace blink

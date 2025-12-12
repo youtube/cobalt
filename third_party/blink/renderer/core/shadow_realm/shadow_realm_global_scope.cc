@@ -6,6 +6,7 @@
 
 #include "base/task/single_thread_task_runner.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/core/event_target_names.h"
 #include "third_party/blink/renderer/core/inspector/inspector_audits_issue.h"
 
@@ -17,9 +18,18 @@ ShadowRealmGlobalScope::ShadowRealmGlobalScope(
                        initiator_execution_context->GetAgent()),
       initiator_execution_context_(initiator_execution_context) {}
 
+ExecutionContext* ShadowRealmGlobalScope::GetRootInitiatorExecutionContext()
+    const {
+  return initiator_execution_context_->IsShadowRealmGlobalScope()
+             ? To<ShadowRealmGlobalScope>(initiator_execution_context_.Get())
+                   ->GetRootInitiatorExecutionContext()
+             : initiator_execution_context_.Get();
+}
+
 void ShadowRealmGlobalScope::Trace(Visitor* visitor) const {
   visitor->Trace(initiator_execution_context_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
+  UniversalGlobalScope::Trace(visitor);
   ExecutionContext::Trace(visitor);
 }
 
@@ -46,23 +56,23 @@ void ShadowRealmGlobalScope::CountUse(mojom::blink::WebFeature feature) {}
 void ShadowRealmGlobalScope::CountDeprecation(
     mojom::blink::WebFeature feature) {}
 
+void ShadowRealmGlobalScope::CountWebDXFeature(
+    mojom::blink::WebDXFeature feature) {}
+
 bool ShadowRealmGlobalScope::IsShadowRealmGlobalScope() const {
   return true;
 }
 
 const KURL& ShadowRealmGlobalScope::Url() const {
-  NOTREACHED();
-  return url_;
+  return GetRootInitiatorExecutionContext()->Url();
 }
 
 const KURL& ShadowRealmGlobalScope::BaseURL() const {
   NOTREACHED();
-  return url_;
 }
 
 KURL ShadowRealmGlobalScope::CompleteURL(const String& url) const {
   NOTREACHED();
-  return url_;
 }
 
 void ShadowRealmGlobalScope::DisableEval(const String& error_message) {
@@ -76,7 +86,6 @@ void ShadowRealmGlobalScope::SetWasmEvalErrorMessage(
 
 String ShadowRealmGlobalScope::UserAgent() const {
   NOTREACHED();
-  return g_empty_string;
 }
 
 HttpsState ShadowRealmGlobalScope::GetHttpsState() const {
@@ -85,15 +94,9 @@ HttpsState ShadowRealmGlobalScope::GetHttpsState() const {
 
 ResourceFetcher* ShadowRealmGlobalScope::Fetcher() {
   NOTREACHED();
-  return nullptr;
 }
 
 void ShadowRealmGlobalScope::ExceptionThrown(ErrorEvent* error_event) {
-  NOTREACHED();
-}
-
-void ShadowRealmGlobalScope::AddInspectorIssue(
-    mojom::blink::InspectorIssueInfoPtr issue) {
   NOTREACHED();
 }
 
@@ -102,7 +105,6 @@ void ShadowRealmGlobalScope::AddInspectorIssue(AuditsIssue issue) {
 }
 
 EventTarget* ShadowRealmGlobalScope::ErrorEventTarget() {
-  NOTREACHED();
   return nullptr;
 }
 
@@ -120,12 +122,10 @@ bool ShadowRealmGlobalScope::IsIsolatedContext() const {
 
 ukm::UkmRecorder* ShadowRealmGlobalScope::UkmRecorder() {
   NOTREACHED();
-  return nullptr;
 }
 
 ukm::SourceId ShadowRealmGlobalScope::UkmSourceID() const {
   NOTREACHED();
-  return ukm::kInvalidSourceId;
 }
 
 ExecutionContextToken ShadowRealmGlobalScope::GetExecutionContextToken() const {
@@ -135,6 +135,10 @@ ExecutionContextToken ShadowRealmGlobalScope::GetExecutionContextToken() const {
 void ShadowRealmGlobalScope::AddConsoleMessageImpl(ConsoleMessage* message,
                                                    bool discard_duplicates) {
   NOTREACHED();
+}
+
+bool ShadowRealmGlobalScope::IsSecureContext() const {
+  return GetRootInitiatorExecutionContext()->IsSecureContext();
 }
 
 }  // namespace blink

@@ -13,14 +13,16 @@
 
 #include <stddef.h>
 
+#include <cstdint>
 #include <memory>
 
+#include "api/array_view.h"
 #include "rtc_base/async_packet_socket.h"
 #include "rtc_base/buffer.h"
 #include "rtc_base/socket.h"
 #include "rtc_base/socket_address.h"
 
-namespace rtc {
+namespace webrtc {
 
 // Simulates UDP semantics over TCP.  Send and Recv packet sizes
 // are preserved, and drops packets silently on Send, rather than
@@ -36,15 +38,16 @@ class AsyncTCPSocketBase : public AsyncPacketSocket {
   // Pure virtual methods to send and recv data.
   int Send(const void* pv,
            size_t cb,
-           const rtc::PacketOptions& options) override = 0;
-  virtual void ProcessInput(char* data, size_t* len) = 0;
+           const AsyncSocketPacketOptions& options) override = 0;
+  // Must return the number of bytes processed.
+  virtual size_t ProcessInput(ArrayView<const uint8_t> data) = 0;
 
   SocketAddress GetLocalAddress() const override;
   SocketAddress GetRemoteAddress() const override;
   int SendTo(const void* pv,
              size_t cb,
              const SocketAddress& addr,
-             const rtc::PacketOptions& options) override;
+             const AsyncSocketPacketOptions& options) override;
   int Close() override;
 
   State GetState() const override;
@@ -98,8 +101,8 @@ class AsyncTCPSocket : public AsyncTCPSocketBase {
 
   int Send(const void* pv,
            size_t cb,
-           const rtc::PacketOptions& options) override;
-  void ProcessInput(char* data, size_t* len) override;
+           const AsyncSocketPacketOptions& options) override;
+  size_t ProcessInput(ArrayView<const uint8_t>) override;
 };
 
 class AsyncTcpListenSocket : public AsyncListenSocket {
@@ -109,7 +112,7 @@ class AsyncTcpListenSocket : public AsyncListenSocket {
   State GetState() const override;
   SocketAddress GetLocalAddress() const override;
 
-  virtual void HandleIncomingConnection(rtc::Socket* socket);
+  virtual void HandleIncomingConnection(Socket* socket);
 
  private:
   // Called by the underlying socket
@@ -118,6 +121,16 @@ class AsyncTcpListenSocket : public AsyncListenSocket {
   std::unique_ptr<Socket> socket_;
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace rtc {
+using ::webrtc::AsyncTcpListenSocket;
+using ::webrtc::AsyncTCPSocket;
+using ::webrtc::AsyncTCPSocketBase;
 }  // namespace rtc
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // RTC_BASE_ASYNC_TCP_SOCKET_H_

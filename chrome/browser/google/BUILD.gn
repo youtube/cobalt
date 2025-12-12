@@ -3,13 +3,16 @@
 # found in the LICENSE file.
 
 import("//build/config/chrome_build.gni")
-import("//build/config/chromeos/ui_mode.gni")
+
+assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
 source_set("google") {
   sources = [
     "google_brand.cc",
     "google_brand.h",
   ]
+
+  public_deps = [ "//chrome/browser:browser_public_dependencies" ]
 
   deps = [
     "//base",
@@ -18,11 +21,7 @@ source_set("google") {
     "//content/public/browser",
   ]
 
-  if (is_mac) {
-    deps += [ "//chrome/browser/mac:keystone_glue" ]
-  }
-
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     sources += [
       "google_brand_chromeos.cc",
       "google_brand_chromeos.h",
@@ -32,6 +31,7 @@ source_set("google") {
 
     deps += [
       "//chrome/browser:browser_process",
+      "//chrome/browser/ash/policy/core",
       "//chromeos/ash/components/system:system",
       "//components/policy/core/common:common_constants",
     ]
@@ -54,7 +54,7 @@ source_set("google") {
         "switches.h",
       ]
 
-      deps += [ "//google_update" ]
+      deps += [ "//chrome/updater/app/server/win:updater_legacy_idl" ]
     }
 
     deps += [
@@ -67,7 +67,15 @@ source_set("google") {
     ]
   }
 
-  if (is_posix || is_fuchsia) {
+  if (is_mac) {
+    sources += [ "google_brand_mac.mm" ]
+    deps += [
+      "//chrome/common:channel_info",
+      "//chrome/updater:tagging",
+    ]
+  }
+
+  if (is_posix) {
     sources += [ "google_update_settings_posix.cc" ]
   }
   if (is_posix) {
@@ -90,7 +98,7 @@ source_set("unit_tests") {
     "//testing/gtest:gtest",
   ]
 
-  if (is_chromeos_ash) {
+  if (is_chromeos) {
     sources += [ "google_brand_code_map_chromeos_unittest.cc" ]
   }
 
@@ -103,8 +111,8 @@ source_set("unit_tests") {
     deps += [
       "//chrome/common:version_header",
       "//chrome/install_static/test:test_support",
+      "//chrome/updater/app/server/win:updater_legacy_idl",
       "//components/policy/core/common",
-      "//google_update",
     ]
   }
 }

@@ -27,7 +27,6 @@ EventPointerType ToEventPointerType(MotionEvent::ToolType tool_type) {
       return EventPointerType::kEraser;
     default:
       NOTREACHED() << "Invalid ToolType = " << tool_type;
-      return EventPointerType::kUnknown;
   }
 }
 

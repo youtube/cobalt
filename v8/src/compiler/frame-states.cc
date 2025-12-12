@@ -4,11 +4,13 @@
 
 #include "src/compiler/frame-states.h"
 
-#include "src/base/functional.h"
+#include <optional>
+
+#include "src/base/hashing.h"
 #include "src/codegen/callable.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -24,31 +26,61 @@ size_t hash_value(OutputFrameStateCombine const& sc) {
   return base::hash_value(sc.parameter_);
 }
 
-
 std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
   if (sc.parameter_ == OutputFrameStateCombine::kInvalidIndex)
     return os << "Ignore";
   return os << "PokeAt(" << sc.parameter_ << ")";
 }
 
+bool operator==(FrameStateFunctionInfo const& lhs,
+                FrameStateFunctionInfo const& rhs) {
+#if V8_HOST_ARCH_X64
+// If this static_assert fails, then you've probably added a new field to
+// FrameStateFunctionInfo. Make sure to take it into account in this equality
+// function, and update the static_assert.
+#if V8_ENABLE_WEBASSEMBLY
+  static_assert(sizeof(FrameStateFunctionInfo) == 40);
+#else
+  static_assert(sizeof(FrameStateFunctionInfo) == 32);
+#endif
+#endif
 
-bool operator==(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
-  return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
-         lhs.state_combine() == rhs.state_combine() &&
-         lhs.function_info() == rhs.function_info();
+#if V8_ENABLE_WEBASSEMBLY
+  if (lhs.wasm_liftoff_frame_size() != rhs.wasm_liftoff_frame_size() ||
+      lhs.wasm_function_index() != rhs.wasm_function_index()) {
+    return false;
+  }
+#endif
+
+  return lhs.type() == rhs.type() &&
+         lhs.parameter_count() == rhs.parameter_count() &&
+         lhs.max_arguments() == rhs.max_arguments() &&
+         lhs.local_count() == rhs.local_count() &&
+         lhs.shared_info().equals(rhs.shared_info()) &&
+         lhs.bytecode_array().equals(rhs.bytecode_array());
 }
 
+bool operator==(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
+#if V8_HOST_ARCH_X64
+  // If this static_assert fails, then you've probably added a new field to
+  // FrameStateInfo. Make sure to take it into account in this equality
+  // function, and update the static_assert.
+  static_assert(sizeof(FrameStateInfo) == 24);
+#endif
+
+  return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
+         lhs.state_combine() == rhs.state_combine() &&
+         *lhs.function_info() == *rhs.function_info();
+}
 
 bool operator!=(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
   return !(lhs == rhs);
 }
 
-
 size_t hash_value(FrameStateInfo const& info) {
   return base::hash_combine(static_cast<int>(info.type()), info.bailout_id(),
                             info.state_combine());
 }
-
 
 std::ostream& operator<<(std::ostream& os, FrameStateType type) {
   switch (type) {
@@ -58,32 +90,40 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kInlinedExtraArguments:
       os << "INLINED_EXTRA_ARGUMENTS";
       break;
-    case FrameStateType::kConstructStub:
-      os << "CONSTRUCT_STUB";
+    case FrameStateType::kConstructCreateStub:
+      os << "CONSTRUCT_CREATE_STUB";
+      break;
+    case FrameStateType::kConstructInvokeStub:
+      os << "CONSTRUCT_INVOKE_STUB";
       break;
     case FrameStateType::kBuiltinContinuation:
       os << "BUILTIN_CONTINUATION_FRAME";
       break;
 #if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kWasmInlinedIntoJS:
+      os << "WASM_INLINED_INTO_JS_FRAME";
+      break;
     case FrameStateType::kJSToWasmBuiltinContinuation:
       os << "JS_TO_WASM_BUILTIN_CONTINUATION_FRAME";
       break;
+    case FrameStateType::kLiftoffFunction:
+      os << "LIFTOFF_FRAME";
+      break;
 #endif  // V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJavaScriptBuiltinContinuation:
-      os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME";
+      os << "JAVASCRIPT_BUILTIN_CONTINUATION_FRAME";
       break;
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
-      os << "JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME";
+      os << "JAVASCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME";
       break;
   }
   return os;
 }
 
-
 std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
   os << info.type() << ", " << info.bailout_id() << ", "
      << info.state_combine();
-  Handle<SharedFunctionInfo> shared_info;
+  DirectHandle<SharedFunctionInfo> shared_info;
   if (info.shared_info().ToHandle(&shared_info)) {
     os << ", " << Brief(*shared_info);
   }
@@ -115,8 +155,8 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
     Node* context, Node** parameters, int parameter_count,
     Node* outer_frame_state,
     Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>(),
-    const wasm::FunctionSig* signature = nullptr) {
-  Graph* const graph = jsgraph->graph();
+    const wasm::CanonicalSig* signature = nullptr) {
+  TFGraph* const graph = jsgraph->graph();
   CommonOperatorBuilder* const common = jsgraph->common();
 
   const Operator* op_param =
@@ -129,12 +169,12 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
       signature ? common->CreateJSToWasmFrameStateFunctionInfo(
                       frame_type, parameter_count, 0, shared, signature)
                 : common->CreateFrameStateFunctionInfo(
-                      frame_type, parameter_count, 0, shared);
+                      frame_type, parameter_count, 0, 0, shared, {});
 #else
   DCHECK_NULL(signature);
   const FrameStateFunctionInfo* state_info =
-      common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0,
-                                           shared);
+      common->CreateFrameStateFunctionInfo(frame_type, parameter_count, 0, 0,
+                                           shared, {});
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   const Operator* op = common->FrameState(
@@ -149,7 +189,7 @@ FrameState CreateBuiltinContinuationFrameStateCommon(
 FrameState CreateStubBuiltinContinuationFrameState(
     JSGraph* jsgraph, Builtin name, Node* context, Node* const* parameters,
     int parameter_count, Node* outer_frame_state,
-    ContinuationFrameStateMode mode, const wasm::FunctionSig* signature) {
+    ContinuationFrameStateMode mode, const wasm::CanonicalSig* signature) {
   Callable callable = Builtins::CallableFor(jsgraph->isolate(), name);
   CallInterfaceDescriptor descriptor = callable.descriptor();
 
@@ -158,6 +198,11 @@ FrameState CreateStubBuiltinContinuationFrameState(
   // by the deoptimizer and aren't explicitly passed in the frame state.
   int stack_parameter_count =
       descriptor.GetStackParameterCount() - DeoptimizerParameterCountFor(mode);
+
+  // Deopt should just cause a crash, no need for parameter count validation.
+  if (name == Builtin::kAbort) {
+    stack_parameter_count = 0;
+  }
 
   // Ensure the parameters added by the deoptimizer are passed on the stack.
   // This check prevents using TFS builtins as continuations while doing the
@@ -194,8 +239,8 @@ FrameState CreateStubBuiltinContinuationFrameState(
 #if V8_ENABLE_WEBASSEMBLY
 FrameState CreateJSWasmCallBuiltinContinuationFrameState(
     JSGraph* jsgraph, Node* context, Node* outer_frame_state,
-    const wasm::FunctionSig* signature) {
-  base::Optional<wasm::ValueKind> wasm_return_kind =
+    const wasm::CanonicalSig* signature) {
+  std::optional<wasm::ValueKind> wasm_return_kind =
       wasm::WasmReturnTypeFromSignature(signature);
   Node* node_return_type =
       jsgraph->SmiConstant(wasm_return_kind ? wasm_return_kind.value() : -1);
@@ -216,7 +261,7 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
   DCHECK_EQ(Builtins::GetStackParameterCount(name),
             stack_parameter_count + DeoptimizerParameterCountFor(mode));
 
-  Node* argc = jsgraph->Constant(Builtins::GetStackParameterCount(name));
+  Node* argc = jsgraph->ConstantNoHole(Builtins::GetStackParameterCount(name));
 
   // Stack parameters first. They must be first because the receiver is expected
   // to be the second value in the translation when creating stack crawls
@@ -231,9 +276,17 @@ FrameState CreateJavaScriptBuiltinContinuationFrameState(
 
   // Register parameters follow stack parameters. The context will be added by
   // instruction selector during FrameState translation.
+  DCHECK_EQ(
+      Builtins::CallInterfaceDescriptorFor(name).GetRegisterParameterCount(),
+      V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL ? 4 : 3);
   actual_parameters.push_back(target);      // kJavaScriptCallTargetRegister
   actual_parameters.push_back(new_target);  // kJavaScriptCallNewTargetRegister
   actual_parameters.push_back(argc);        // kJavaScriptCallArgCountRegister
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  // The dispatch handle isn't used by the continuation builtins.
+  Node* handle = jsgraph->ConstantNoHole(kInvalidDispatchHandle.value());
+  actual_parameters.push_back(handle);  // kJavaScriptDispatchHandleRegister
+#endif
 
   return CreateBuiltinContinuationFrameStateCommon(
       jsgraph,
@@ -256,9 +309,17 @@ FrameState CreateGenericLazyDeoptContinuationFrameState(
       ContinuationFrameStateMode::LAZY);
 }
 
+Node* CreateInlinedApiFunctionFrameState(JSGraph* graph,
+                                         SharedFunctionInfoRef shared,
+                                         Node* target, Node* context,
+                                         Node* receiver,
+                                         Node* outer_frame_state) {
+  return outer_frame_state;
+}
+
 FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,
                            OutputFrameStateCombine changed_state_combine) {
-  Graph* graph = jsgraph->graph();
+  TFGraph* graph = jsgraph->graph();
   CommonOperatorBuilder* common = jsgraph->common();
 
   DCHECK_EQ(IrOpcode::kFrameState, frame_state->op()->opcode());

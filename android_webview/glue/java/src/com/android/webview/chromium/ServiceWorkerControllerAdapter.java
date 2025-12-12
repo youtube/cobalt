@@ -17,24 +17,20 @@ import org.chromium.android_webview.AwServiceWorkerController;
  * the chromium internal implementation.
  */
 public class ServiceWorkerControllerAdapter extends ServiceWorkerController {
-    private AwServiceWorkerController mAwServiceWorkerController;
+    private final AwServiceWorkerController mAwServiceWorkerController;
 
     public ServiceWorkerControllerAdapter(AwServiceWorkerController controller) {
         mAwServiceWorkerController = controller;
     }
 
-    /**
-     * Sets the settings for all service workers.
-     */
+    /** Sets the settings for all service workers. */
     @Override
     public ServiceWorkerWebSettings getServiceWorkerWebSettings() {
         return new ServiceWorkerSettingsAdapter(
                 mAwServiceWorkerController.getAwServiceWorkerSettings());
     }
 
-    /**
-     * Sets the client to capture service worker related callbacks.
-     */
+    /** Sets the client to capture service worker related callbacks. */
     @Override
     public void setServiceWorkerClient(@Nullable ServiceWorkerClient client) {
         mAwServiceWorkerController.setServiceWorkerClient(

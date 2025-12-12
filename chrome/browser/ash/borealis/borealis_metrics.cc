@@ -6,14 +6,22 @@
 
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/ash/borealis/borealis_installer.h"
+#include "chrome/browser/ash/borealis/borealis_types.mojom.h"
 
 namespace borealis {
+
+using borealis::mojom::InstallResult;
 
 const char kBorealisInstallNumAttemptsHistogram[] =
     "Borealis.Install.NumAttempts";
 const char kBorealisInstallResultHistogram[] = "Borealis.Install.Result";
+const char kBorealisInstallSourceHistogram[] = "Borealis.Install.Source";
 const char kBorealisInstallOverallTimeHistogram[] =
     "Borealis.Install.OverallTime";
+// Same as Borealis.Install.OverallTime, but with more appropriate bucket sizes.
+const char kBorealisInstallOverallTimeHistogram2[] =
+    "Borealis.Install.OverallTime2";
+const char kBorealisLaunchSourceHistogram[] = "Borealis.Launch.Source";
 const char kBorealisShutdownNumAttemptsHistogram[] =
     "Borealis.Shutdown.NumAttempts";
 const char kBorealisShutdownResultHistogram[] = "Borealis.Shutdown.Result";
@@ -23,6 +31,11 @@ const char kBorealisStartupNumAttemptsHistogram[] =
 const char kBorealisStartupResultHistogram[] = "Borealis.Startup.Result";
 const char kBorealisStartupOverallTimeHistogram[] =
     "Borealis.Startup.OverallTime";
+// Same as Borealis.Startup.OverallTime, but with more appropriate bucket sizes.
+const char kBorealisStartupOverallTimeHistogram2[] =
+    "Borealis.Startup.OverallTime2";
+const char kBorealisStartupTimeToFirstWindowHistogram[] =
+    "Borealis.Startup.TimeToFirstWindow";
 const char kBorealisUninstallNumAttemptsHistogram[] =
     "Borealis.Uninstall.NumAttempts";
 const char kBorealisUninstallResultHistogram[] = "Borealis.Uninstall.Result";
@@ -31,14 +44,24 @@ void RecordBorealisInstallNumAttemptsHistogram() {
   base::UmaHistogramBoolean(kBorealisInstallNumAttemptsHistogram, true);
 }
 
-void RecordBorealisInstallResultHistogram(
-    BorealisInstallResult install_result) {
+void RecordBorealisInstallResultHistogram(InstallResult install_result) {
   base::UmaHistogramEnumeration(kBorealisInstallResultHistogram,
                                 install_result);
 }
 
+void RecordBorealisInstallSourceHistogram(BorealisLaunchSource install_source) {
+  base::UmaHistogramEnumeration(kBorealisInstallSourceHistogram,
+                                install_source);
+}
+
 void RecordBorealisInstallOverallTimeHistogram(base::TimeDelta install_time) {
   base::UmaHistogramTimes(kBorealisInstallOverallTimeHistogram, install_time);
+  base::UmaHistogramLongTimes(kBorealisInstallOverallTimeHistogram2,
+                              install_time);
+}
+
+void RecordBorealisLaunchSourceHistogram(BorealisLaunchSource launch_source) {
+  base::UmaHistogramEnumeration(kBorealisLaunchSourceHistogram, launch_source);
 }
 
 void RecordBorealisUninstallNumAttemptsHistogram() {
@@ -63,6 +86,14 @@ void RecordBorealisStartupResultHistogram(
 
 void RecordBorealisStartupOverallTimeHistogram(base::TimeDelta startup_time) {
   base::UmaHistogramTimes(kBorealisStartupOverallTimeHistogram, startup_time);
+  base::UmaHistogramMediumTimes(kBorealisStartupOverallTimeHistogram2,
+                                startup_time);
+}
+
+void RecordBorealisStartupTimeToFirstWindowHistogram(
+    base::TimeDelta startup_time) {
+  base::UmaHistogramMediumTimes(kBorealisStartupTimeToFirstWindowHistogram,
+                                startup_time);
 }
 
 void RecordBorealisShutdownNumAttemptsHistogram() {
@@ -84,8 +115,6 @@ std::ostream& operator<<(std::ostream& stream,
       return stream << "Success";
     case borealis::BorealisStartupResult::kCancelled:
       return stream << "Cancelled";
-    case borealis::BorealisStartupResult::kMountFailed:
-      return stream << "Mount failed";
     case borealis::BorealisStartupResult::kDiskImageFailed:
       return stream << "Disk Image failed";
     case borealis::BorealisStartupResult::kStartVmFailed:
@@ -98,5 +127,30 @@ std::ostream& operator<<(std::ostream& stream,
       return stream << "Request Wayland failed";
     case borealis::BorealisStartupResult::kDisallowed:
       return stream << "Borealis is not allowed";
+    case borealis::BorealisStartupResult::kDlcCancelled:
+      return stream << "DLC install was cancelled";
+    case borealis::BorealisStartupResult::kDlcOffline:
+      return stream << "Device is offline";
+    case borealis::BorealisStartupResult::kDlcNeedUpdateError:
+      return stream
+             << "DLC service couldn't find an image at the correct version";
+    case borealis::BorealisStartupResult::kDlcNeedRebootError:
+      return stream << "Device needs to be rebooted";
+    case borealis::BorealisStartupResult::kDlcNeedSpaceError:
+      return stream << "Device needs more space to install DLC";
+    case borealis::BorealisStartupResult::kDlcBusyError:
+      return stream << "DLC service is busy";
+    case borealis::BorealisStartupResult::kDlcInternalError:
+      return stream << "DLC reported an internal error";
+    case borealis::BorealisStartupResult::kDlcUnsupportedError:
+      return stream << "Borealis DLC is not supported";
+    case borealis::BorealisStartupResult::kDlcUnknownError:
+      return stream << "DLC service ran into an unknown error";
+    case borealis::BorealisStartupResult::kConciergeUnavailable:
+      return stream << "Concierge is unavailable";
+    case borealis::BorealisStartupResult::kEmptyDiskResponse:
+      return stream << "Concierge returned an empty disk response";
+    case borealis::BorealisStartupResult::kStartVmEmptyResponse:
+      return stream << "Concierge returned an empty startup request";
   }
 }

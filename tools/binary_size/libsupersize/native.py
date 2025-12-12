@@ -670,8 +670,15 @@ def _CountRelocationsFromElf(elf_path):
   args = [path_util.GetReadElfPath(), '-r', elf_path]
   stdout = subprocess.check_output(args).decode('ascii')
   relocations = re.findall(
-      'Relocation section .* at offset .* contains (\d+) entries', stdout)
+      r'Relocation section .* at offset .* contains (\d+) entries', stdout)
   return sum([int(i) for i in relocations])
+
+
+def _FindToolchainSubdirs(output_directory):
+  return [
+      n for n in os.listdir(output_directory)
+      if os.path.exists(os.path.join(output_directory, n, 'toolchain.ninja'))
+  ]
 
 
 def CreateMetadata(*, native_spec, elf_info, shorten_path):
@@ -694,9 +701,6 @@ def CreateMetadata(*, native_spec, elf_info, shorten_path):
         os.path.getmtime(native_spec.elf_path))
     timestamp = calendar.timegm(timestamp_obj.timetuple())
     native_metadata[models.METADATA_ELF_MTIME] = timestamp
-
-    relocations_count = _CountRelocationsFromElf(native_spec.elf_path)
-    native_metadata[models.METADATA_ELF_RELOCATIONS_COUNT] = relocations_count
 
   if native_spec.map_path:
     native_metadata[models.METADATA_MAP_FILENAME] = shorten_path(
@@ -765,12 +769,15 @@ def CreateSymbols(*,
     else:
       thin_archives = None
 
-  outdir_context = None
   if output_directory:
+    toolchain_subdirs = _FindToolchainSubdirs(output_directory)
     outdir_context = _OutputDirectoryContext(elf_object_paths=elf_object_paths,
                                              known_inputs=known_inputs,
                                              output_directory=output_directory,
                                              thin_archives=thin_archives)
+  else:
+    toolchain_subdirs = None
+    outdir_context = None
 
   object_paths_by_name = None
   if native_spec.elf_path or native_spec.map_path:
@@ -807,10 +814,15 @@ def CreateSymbols(*,
   if elf_info:
     section_ranges = elf_info.section_ranges.copy()
     if native_spec.elf_path:
-      metrics_by_file[posixpath.basename(native_spec.elf_path)] = {
-          'SIZE/' + k: size
+      key = posixpath.basename(native_spec.elf_path)
+      metrics_by_file[key] = {
+          f'{models.METRICS_SIZE}/{k}': size
           for (k, (offset, size)) in section_ranges.items()
       }
+      relocations_count = _CountRelocationsFromElf(native_spec.elf_path)
+      metrics_by_file[key][
+          f'{models.METRICS_COUNT}/{models.METRICS_COUNT_RELOCATIONS}'] = (
+              relocations_count)
 
   source_path = ''
   if native_spec.apk_so_path:
@@ -845,7 +857,9 @@ def CreateSymbols(*,
 
   # Path normalization must come before compacting aliases so that
   # ancestor paths do not mix generated and non-generated paths.
-  archive_util.NormalizePaths(raw_symbols, native_spec.gen_dir_regex)
+  archive_util.NormalizePaths(raw_symbols,
+                              gen_dir_regex=native_spec.gen_dir_regex,
+                              toolchain_subdirs=toolchain_subdirs)
 
   if native_spec.elf_path or native_spec.map_path:
     logging.info('Converting excessive aliases into shared-path symbols')

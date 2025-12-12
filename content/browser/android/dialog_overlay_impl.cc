@@ -4,10 +4,11 @@
 
 #include "content/browser/android/dialog_overlay_impl.h"
 
+#include <variant>
+
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_base.h"
 #include "content/browser/web_contents/web_contents_impl.h"
-#include "content/public/android/content_jni_headers/DialogOverlayImpl_jni.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
@@ -16,9 +17,11 @@
 #include "gpu/ipc/common/gpu_surface_tracker.h"
 #include "media/mojo/mojom/android_overlay.mojom.h"
 #include "mojo/public/cpp/bindings/sync_call_restrictions.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "ui/android/view_android_observer.h"
 #include "ui/android/window_android.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "content/public/android/content_jni_headers/DialogOverlayImpl_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::JavaParamRef;
@@ -33,7 +36,7 @@ static jlong JNI_DialogOverlayImpl_Init(JNIEnv* env,
                                         jboolean power_efficient) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
-  absl::optional<base::UnguessableToken> token =
+  std::optional<base::UnguessableToken> token =
       base::UnguessableToken::Deserialize(high, low);
   if (!token.has_value()) {
     return 0;
@@ -325,9 +328,8 @@ static jint JNI_DialogOverlayImpl_RegisterSurface(
     const JavaParamRef<jobject>& surface) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   return gpu::GpuSurfaceTracker::Get()->AddSurfaceForNativeWidget(
-      gpu::GpuSurfaceTracker::SurfaceRecord(
-          gl::ScopedJavaSurface(surface, /*auto_release=*/false),
-          /*can_be_used_with_surface_control=*/false));
+      gpu::SurfaceRecord(gl::ScopedJavaSurface(surface, /*auto_release=*/false),
+                         /*can_be_used_with_surface_control=*/false));
 }
 
 static void JNI_DialogOverlayImpl_UnregisterSurface(
@@ -341,14 +343,15 @@ static ScopedJavaLocalRef<jobject>
 JNI_DialogOverlayImpl_LookupSurfaceForTesting(
     JNIEnv* env,
     jint surfaceId) {
-  bool can_be_used_with_surface_control = false;
-  auto surface_variant = gpu::GpuSurfaceTracker::Get()->AcquireJavaSurface(
-      surfaceId, &can_be_used_with_surface_control);
-  if (!absl::holds_alternative<gl::ScopedJavaSurface>(surface_variant)) {
+  auto surface_record =
+      gpu::GpuSurfaceTracker::Get()->AcquireJavaSurface(surfaceId);
+  if (!std::holds_alternative<gl::ScopedJavaSurface>(
+          surface_record.surface_variant)) {
     return nullptr;
   }
   return ScopedJavaLocalRef<jobject>(
-      absl::get<gl::ScopedJavaSurface>(surface_variant).j_surface());
+      std::get<gl::ScopedJavaSurface>(surface_record.surface_variant)
+          .j_surface());
 }
 
 }  // namespace content

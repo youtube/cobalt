@@ -13,15 +13,15 @@
 
 namespace ui {
 
-// TODO(crbug.com/1123230): Investigate creating a new clipboard_format_type_x11
-// as a wrapper around an X11 ::Atom. This wasn't possible in the past, because
-// unit tests spawned a new X11 server for each test, meaning Atom numeric
-// values didn't persist across tests.
+// TODO(crbug.com/40716597): Investigate creating a new
+// clipboard_format_type_x11 as a wrapper around an X11 ::Atom. This wasn't
+// possible in the past, because unit tests spawned a new X11 server for each
+// test, meaning Atom numeric values didn't persist across tests.
 ClipboardFormatType::ClipboardFormatType() = default;
 
 ClipboardFormatType::~ClipboardFormatType() = default;
 
-ClipboardFormatType::ClipboardFormatType(const std::string& native_format)
+ClipboardFormatType::ClipboardFormatType(std::string_view native_format)
     : data_(native_format) {}
 
 std::string ClipboardFormatType::Serialize() const {
@@ -30,7 +30,7 @@ std::string ClipboardFormatType::Serialize() const {
 
 // static
 ClipboardFormatType ClipboardFormatType::Deserialize(
-    const std::string& serialization) {
+    std::string_view serialization) {
   return ClipboardFormatType(serialization);
 }
 
@@ -48,8 +48,8 @@ bool ClipboardFormatType::operator==(const ClipboardFormatType& other) const {
 
 // static
 ClipboardFormatType ClipboardFormatType::CustomPlatformType(
-    const std::string& format_string) {
-  DCHECK(base::IsStringASCII(format_string));
+    std::string_view format_string) {
+  CHECK(base::IsStringASCII(format_string));
   return ClipboardFormatType::Deserialize(format_string);
 }
 
@@ -69,32 +69,26 @@ const ClipboardFormatType& ClipboardFormatType::WebCustomFormatMap() {
 // Various predefined ClipboardFormatTypes.
 
 // static
-ClipboardFormatType ClipboardFormatType::GetType(
-    const std::string& format_string) {
-  return ClipboardFormatType::Deserialize(format_string);
-}
-
-// static
 const ClipboardFormatType& ClipboardFormatType::FilenamesType() {
-  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeURIList);
+  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeUriList);
   return *type;
 }
 
 // static
 const ClipboardFormatType& ClipboardFormatType::UrlType() {
-  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeMozillaURL);
+  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeMozillaUrl);
   return *type;
 }
 
 // static
 const ClipboardFormatType& ClipboardFormatType::PlainTextType() {
-  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeText);
+  static base::NoDestructor<ClipboardFormatType> type(kMimeTypePlainText);
   return *type;
 }
 
 // static
 const ClipboardFormatType& ClipboardFormatType::HtmlType() {
-  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeHTML);
+  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeHtml);
   return *type;
 }
 
@@ -106,13 +100,13 @@ const ClipboardFormatType& ClipboardFormatType::SvgType() {
 
 // static
 const ClipboardFormatType& ClipboardFormatType::RtfType() {
-  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeRTF);
+  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeRtf);
   return *type;
 }
 
 // static
 const ClipboardFormatType& ClipboardFormatType::PngType() {
-  static base::NoDestructor<ClipboardFormatType> type(kMimeTypePNG);
+  static base::NoDestructor<ClipboardFormatType> type(kMimeTypePng);
   return *type;
 }
 
@@ -129,18 +123,10 @@ const ClipboardFormatType& ClipboardFormatType::WebKitSmartPasteType() {
 }
 
 // static
-const ClipboardFormatType& ClipboardFormatType::WebCustomDataType() {
-  static base::NoDestructor<ClipboardFormatType> type(kMimeTypeWebCustomData);
-  return *type;
-}
-
-#if BUILDFLAG(IS_CHROMEOS)
-// static
-const ClipboardFormatType& ClipboardFormatType::DataTransferEndpointDataType() {
+const ClipboardFormatType& ClipboardFormatType::DataTransferCustomType() {
   static base::NoDestructor<ClipboardFormatType> type(
-      kMimeTypeDataTransferEndpoint);
+      kMimeTypeDataTransferCustomData);
   return *type;
 }
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
 }  // namespace ui

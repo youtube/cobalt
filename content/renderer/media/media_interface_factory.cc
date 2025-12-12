@@ -12,12 +12,12 @@
 #include "media/mojo/mojom/content_decryption_module.mojom.h"
 #include "media/mojo/mojom/renderer.mojom.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 
 namespace content {
 
 MediaInterfaceFactory::MediaInterfaceFactory(
-    blink::BrowserInterfaceBrokerProxy* interface_broker)
+    const blink::BrowserInterfaceBrokerProxy* interface_broker)
     : interface_broker_(interface_broker) {
   task_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
   weak_this_ = weak_factory_.GetWeakPtr();
@@ -52,18 +52,16 @@ void MediaInterfaceFactory::CreateAudioDecoder(
 
 void MediaInterfaceFactory::CreateVideoDecoder(
     mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
-    mojo::PendingRemote<media::stable::mojom::StableVideoDecoder>
-        dst_video_decoder) {
+    mojo::PendingRemote<media::mojom::VideoDecoder> dst_video_decoder) {
   // The renderer process cannot act as a proxy for video decoding.
   DCHECK(!dst_video_decoder);
   if (!task_runner_->BelongsToCurrentThread()) {
     task_runner_->PostTask(
         FROM_HERE,
-        base::BindOnce(
-            &MediaInterfaceFactory::CreateVideoDecoder, weak_this_,
-            std::move(receiver),
-            /*dst_video_decoder=*/
-            mojo::PendingRemote<media::stable::mojom::StableVideoDecoder>()));
+        base::BindOnce(&MediaInterfaceFactory::CreateVideoDecoder, weak_this_,
+                       std::move(receiver),
+                       /*dst_video_decoder=*/
+                       mojo::PendingRemote<media::mojom::VideoDecoder>()));
     return;
   }
 
@@ -71,6 +69,16 @@ void MediaInterfaceFactory::CreateVideoDecoder(
   GetMediaInterfaceFactory()->CreateVideoDecoder(std::move(receiver),
                                                  /*dst_video_decoder=*/{});
 }
+
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
+void MediaInterfaceFactory::CreateVideoDecoderWithTracker(
+    mojo::PendingReceiver<media::mojom::VideoDecoder> receiver,
+    mojo::PendingRemote<media::mojom::VideoDecoderTracker> tracker) {
+  // CreateVideoDecoderWithTracker() should not be called by the renderer
+  // process.
+  NOTREACHED();
+}
+#endif  // BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 
 void MediaInterfaceFactory::CreateAudioEncoder(
     mojo::PendingReceiver<media::mojom::AudioEncoder> receiver) {
@@ -120,28 +128,6 @@ void MediaInterfaceFactory::CreateCastRenderer(
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
-void MediaInterfaceFactory::CreateMediaPlayerRenderer(
-    mojo::PendingRemote<media::mojom::MediaPlayerRendererClientExtension>
-        client_extension_remote,
-    mojo::PendingReceiver<media::mojom::Renderer> receiver,
-    mojo::PendingReceiver<media::mojom::MediaPlayerRendererExtension>
-        renderer_extension_receiver) {
-  if (!task_runner_->BelongsToCurrentThread()) {
-    task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&MediaInterfaceFactory::CreateMediaPlayerRenderer,
-                       weak_this_, std::move(client_extension_remote),
-                       std::move(receiver),
-                       std::move(renderer_extension_receiver)));
-    return;
-  }
-
-  DVLOG(1) << __func__;
-  GetMediaInterfaceFactory()->CreateMediaPlayerRenderer(
-      std::move(client_extension_remote), std::move(receiver),
-      std::move(renderer_extension_receiver));
-}
-
 void MediaInterfaceFactory::CreateFlingingRenderer(
     const std::string& presentation_id,
     mojo::PendingRemote<media::mojom::FlingingRendererClientExtension>

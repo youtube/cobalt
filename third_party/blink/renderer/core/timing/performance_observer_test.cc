@@ -4,18 +4,23 @@
 
 #include "third_party/blink/renderer/core/timing/performance_observer.h"
 
+#include <optional>
+
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/blink/public/common/origin_trials/scoped_test_origin_trial_policy.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_performance_mark_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_performance_observer_callback.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_performance_observer_init.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/origin_trials/origin_trial_context.h"
 #include "third_party/blink/renderer/core/timing/layout_shift.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/core/timing/performance_mark.h"
 #include "third_party/blink/renderer/core/timing/window_performance.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
 
@@ -46,8 +51,9 @@ class PerformanceObserverTest : public testing::Test {
 
   bool IsRegistered() { return observer_->is_registered_; }
   int NumPerformanceEntries() { return observer_->performance_entries_.size(); }
-  void Deliver() { observer_->Deliver(absl::nullopt); }
+  void Deliver() { observer_->Deliver(std::nullopt); }
 
+  test::TaskEnvironment task_environment_;
   Persistent<MockPerformance> base_;
   Persistent<V8PerformanceObserverCallback> cb_;
   Persistent<PerformanceObserver> observer_;
@@ -63,7 +69,7 @@ TEST_F(PerformanceObserverTest, Observe) {
   entry_type_vec.push_back("mark");
   options->setEntryTypes(entry_type_vec);
 
-  observer_->observe(options, exception_state);
+  observer_->observe(scope.GetScriptState(), options, exception_state);
   EXPECT_TRUE(IsRegistered());
 }
 
@@ -81,10 +87,10 @@ TEST_F(PerformanceObserverTest, ObserveWithBufferedFlag) {
   auto* entry =
       LayoutShift::Create(0.0, 1234, true, 5678, LayoutShift::AttributionList(),
                           LocalDOMWindow::From(scope.GetScriptState()));
-  base_->AddLayoutShiftBuffer(*entry);
+  base_->AddToLayoutShiftBuffer(*entry);
 
   // call observe with the buffered flag
-  observer_->observe(options, exception_state);
+  observer_->observe(scope.GetScriptState(), options, exception_state);
   EXPECT_TRUE(IsRegistered());
   // Verify that the entry was added to the performance entries
   EXPECT_EQ(1, NumPerformanceEntries());
@@ -98,7 +104,7 @@ TEST_F(PerformanceObserverTest, Enqueue) {
   PerformanceMarkOptions* options = PerformanceMarkOptions::Create();
   options->setStartTime(1234);
   Persistent<PerformanceEntry> entry = PerformanceMark::Create(
-      scope.GetScriptState(), "m", options, exception_state);
+      scope.GetScriptState(), AtomicString("m"), options, exception_state);
   EXPECT_EQ(0, NumPerformanceEntries());
 
   observer_->EnqueuePerformanceEntry(*entry);
@@ -113,7 +119,7 @@ TEST_F(PerformanceObserverTest, Deliver) {
   PerformanceMarkOptions* options = PerformanceMarkOptions::Create();
   options->setStartTime(1234);
   Persistent<PerformanceEntry> entry = PerformanceMark::Create(
-      scope.GetScriptState(), "m", options, exception_state);
+      scope.GetScriptState(), AtomicString("m"), options, exception_state);
   EXPECT_EQ(0, NumPerformanceEntries());
 
   observer_->EnqueuePerformanceEntry(*entry);
@@ -131,7 +137,7 @@ TEST_F(PerformanceObserverTest, Disconnect) {
   PerformanceMarkOptions* options = PerformanceMarkOptions::Create();
   options->setStartTime(1234);
   Persistent<PerformanceEntry> entry = PerformanceMark::Create(
-      scope.GetScriptState(), "m", options, exception_state);
+      scope.GetScriptState(), AtomicString("m"), options, exception_state);
   EXPECT_EQ(0, NumPerformanceEntries());
 
   observer_->EnqueuePerformanceEntry(*entry);
@@ -147,9 +153,11 @@ TEST_F(PerformanceObserverTest, Disconnect) {
 // detached.
 TEST_F(PerformanceObserverTest, ObserveAfterContextDetached) {
   NonThrowableExceptionState exception_state;
+  ScriptState* script_state;
   {
     V8TestingScope scope;
-    Initialize(scope.GetScriptState());
+    script_state = scope.GetScriptState();
+    Initialize(script_state);
   }
   PerformanceObserverInit* options = PerformanceObserverInit::Create();
   Vector<String> entry_type_vec;
@@ -158,7 +166,6 @@ TEST_F(PerformanceObserverTest, ObserveAfterContextDetached) {
   // The V8TestingScope is out of scope so the observer's ExecutionContext
   // should now be null.
   EXPECT_FALSE(observer_->GetExecutionContext());
-  observer_->observe(options, exception_state);
+  observer_->observe(script_state, options, exception_state);
 }
-
 }  // namespace blink

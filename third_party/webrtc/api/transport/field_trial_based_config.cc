@@ -9,10 +9,13 @@
  */
 #include "api/transport/field_trial_based_config.h"
 
+#include <string>
+
+#include "absl/strings/string_view.h"
 #include "system_wrappers/include/field_trial.h"
 
 namespace webrtc {
 std::string FieldTrialBasedConfig::GetValue(absl::string_view key) const {
-  return webrtc::field_trial::FindFullName(std::string(key));
+  return field_trial::FindFullName(std::string(key));
 }
 }  // namespace webrtc

@@ -14,8 +14,10 @@
 
 #include <string.h>
 
+#include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "client/crashpad_client.h"
 #include "util/misc/paths.h"
 
@@ -53,7 +55,7 @@ void CfgCrash() {
     IndirectCall(&func);
   } __except (EXCEPTION_EXECUTE_HANDLER) {
     // CFG fast fail should never be caught.
-    CHECK(false);
+    NOTREACHED();
   }
   // Should only reach here if CFG is disabled.
   abort();
@@ -128,6 +130,10 @@ int CrashyMain(int argc, wchar_t* argv[]) {
     LOG(ERROR) << "WerRegisterRuntimeExceptionModule";
     return EXIT_FAILURE;
   }
+
+  // Some versions of python call SetErrorMode() which extends to children, and
+  // prevents the WerFault infrastructure from running.
+  SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 
   if (type == L"cf")
     CfgCrash();

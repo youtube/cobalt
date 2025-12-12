@@ -4,21 +4,24 @@
 
 #include "chrome/browser/extensions/extension_service_test_with_install.h"
 
+#include <algorithm>
+
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "chrome/browser/extensions/chrome_test_extension_loader.h"
 #include "chrome/browser/extensions/crx_installer.h"
+#include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/extension_service_test_base.h"
 #include "chrome/browser/extensions/load_error_reporter.h"
+#include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/profiles/profile.h"
-#include "content/public/browser/notification_service.h"
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/extension_creator.h"
-#include "extensions/browser/notification_types.h"
+#include "extensions/browser/extension_prefs.h"
+#include "extensions/browser/unloaded_extension_reason.h"
 #include "extensions/common/verifier_formats.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -53,11 +56,11 @@ ExtensionServiceTestWithInstall::ExtensionServiceTestWithInstall(
           FeatureSwitch::prompt_for_external_extensions(),
           false) {}
 
-ExtensionServiceTestWithInstall::~ExtensionServiceTestWithInstall() {}
+ExtensionServiceTestWithInstall::~ExtensionServiceTestWithInstall() = default;
 
 void ExtensionServiceTestWithInstall::InitializeExtensionService(
-    const ExtensionServiceInitParams& params) {
-  ExtensionServiceTestBase::InitializeExtensionService(params);
+    ExtensionServiceInitParams params) {
+  ExtensionServiceTestBase::InitializeExtensionService(std::move(params));
 
   registry_observation_.Observe(registry());
 }
@@ -228,8 +231,7 @@ const Extension* ExtensionServiceTestWithInstall::VerifyCrxInstall(
       EXPECT_EQ(expected_extensions_count_, actual_extension_count) <<
           path.value();
       extension = loaded_extensions_[0].get();
-      EXPECT_TRUE(registry()->GetExtensionById(extension->id(),
-                                               ExtensionRegistry::ENABLED))
+      EXPECT_TRUE(registry()->enabled_extensions().GetByID(extension->id()))
           << path.value();
     }
 
@@ -284,12 +286,17 @@ void ExtensionServiceTestWithInstall::UpdateExtension(
   CRXFileInfo crx_info(path, GetTestVerifierFormat());
   crx_info.extension_id = id;
 
-  auto installer = service()->CreateUpdateInstaller(crx_info, true);
+  // Create an ExtensionUpdater and use it to create a CrxInstaller.
+  ExtensionPrefs* prefs = ExtensionPrefs::Get(profile());
+  ExtensionUpdater updater(profile());
+  updater.InitAndEnable(prefs, prefs->pref_service(), base::Minutes(10),
+                        /*cache=*/nullptr, ExtensionDownloader::Factory());
+  auto installer = updater.CreateUpdateInstaller(crx_info, true);
 
   if (installer) {
     base::RunLoop run_loop;
     installer->AddInstallerCallback(base::BindLambdaForTesting(
-        [&run_loop](const absl::optional<CrxInstallError>& error) {
+        [&run_loop](const std::optional<CrxInstallError>& error) {
           run_loop.Quit();
         }));
     installer->InstallCrxFile(crx_info);
@@ -330,10 +337,13 @@ void ExtensionServiceTestWithInstall::UpdateExtension(
 }
 
 void ExtensionServiceTestWithInstall::UninstallExtension(
-    const std::string& id) {
+    const std::string& id,
+    UninstallExtensionFileDeleteType delete_type) {
   // Verify that the extension is installed.
-  ASSERT_TRUE(registry()->GetExtensionById(id, ExtensionRegistry::EVERYTHING));
-  base::FilePath extension_path = extensions_install_dir().AppendASCII(id);
+  const Extension* extension =
+      registry()->GetExtensionById(id, ExtensionRegistry::EVERYTHING);
+  ASSERT_TRUE(extension);
+  base::FilePath extension_path = base::FilePath(extension->path());
   EXPECT_TRUE(base::PathExists(extension_path));
   ExtensionPrefs* prefs = ExtensionPrefs::Get(profile());
   EXPECT_TRUE(prefs->GetInstalledExtensionInfo(id));
@@ -342,7 +352,7 @@ void ExtensionServiceTestWithInstall::UninstallExtension(
   // once it's uninstalled.
   std::string extension_id = id;
   // Uninstall it.
-  EXPECT_TRUE(service()->UninstallExtension(
+  EXPECT_TRUE(registrar()->UninstallExtension(
       id, extensions::UNINSTALL_REASON_FOR_TESTING, nullptr));
   --expected_extensions_count_;
 
@@ -353,10 +363,20 @@ void ExtensionServiceTestWithInstall::UninstallExtension(
   // The extension should not be in the service anymore.
   EXPECT_FALSE(registry()->GetInstalledExtension(extension_id));
   EXPECT_FALSE(prefs->GetInstalledExtensionInfo(extension_id));
-  content::RunAllTasksUntilIdle();
+  task_environment()->RunUntilIdle();
 
-  // The directory should be gone.
-  EXPECT_FALSE(base::PathExists(extension_path));
+  switch (delete_type) {
+    case kDeleteAllVersions:
+      EXPECT_FALSE(base::PathExists(extension_path.DirName()))
+          << extension_path.value();
+      break;
+    case kDeletePath:
+      EXPECT_FALSE(base::PathExists(extension_path)) << extension_path.value();
+      break;
+    case kDoNotDelete:
+      EXPECT_TRUE(base::PathExists(extension_path)) << extension_path.value();
+      break;
+  }
 }
 
 void ExtensionServiceTestWithInstall::TerminateExtension(
@@ -365,11 +385,11 @@ void ExtensionServiceTestWithInstall::TerminateExtension(
     ADD_FAILURE();
     return;
   }
-  service()->TerminateExtension(id);
+  registrar()->TerminateExtension(id);
 }
 
 void ExtensionServiceTestWithInstall::BlockAllExtensions() {
-  service()->BlockAllExtensions();
+  registrar()->BlockAllExtensions();
 }
 
 void ExtensionServiceTestWithInstall::ClearLoadedExtensions() {
@@ -392,7 +412,7 @@ void ExtensionServiceTestWithInstall::OnExtensionUnloaded(
     UnloadedExtensionReason reason) {
   unloaded_id_ = extension->id();
   unloaded_reason_ = reason;
-  auto i = base::ranges::find(loaded_extensions_, extension);
+  auto i = std::ranges::find(loaded_extensions_, extension);
   // TODO(erikkay) fix so this can be an assert.  Right now the tests
   // are manually calling `ClearLoadedExtensions` since this method is not
   // called by reloads, so this isn't doable.

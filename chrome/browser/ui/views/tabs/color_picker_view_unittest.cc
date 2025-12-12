@@ -22,6 +22,7 @@
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
 #include "ui/gfx/canvas.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/bubble/bubble_dialog_delegate_view.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/focus/focus_manager.h"
@@ -43,8 +44,10 @@ class ColorPickerViewTest : public ChromeViewsTestBase {
   void SetUp() override {
     ChromeViewsTestBase::SetUp();
 
-    widget_ = CreateTestWidget();
-    bubble_view_ = std::make_unique<views::BubbleDialogDelegateView>();
+    widget_ =
+        CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
+    bubble_view_ = std::make_unique<views::BubbleDialogDelegateView>(
+        views::BubbleDialogDelegateView::CreatePassKey());
 
     auto color_picker = std::make_unique<ColorPickerView>(
         bubble_view(), kTestColors, tab_groups::TabGroupColorId::kBlue,
@@ -65,14 +68,14 @@ class ColorPickerViewTest : public ChromeViewsTestBase {
     gfx::Point root_center = center;
     views::View::ConvertPointToWidget(color_picker_, &root_center);
 
-    ui::MouseEvent pressed_event(ui::ET_MOUSE_PRESSED, center, root_center,
-                                 base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON,
-                                 0);
+    ui::MouseEvent pressed_event(ui::EventType::kMousePressed, center,
+                                 root_center, base::TimeTicks(),
+                                 ui::EF_LEFT_MOUSE_BUTTON, 0);
     element->OnMousePressed(pressed_event);
 
-    ui::MouseEvent released_event(ui::ET_MOUSE_RELEASED, center, root_center,
-                                  base::TimeTicks(), ui::EF_LEFT_MOUSE_BUTTON,
-                                  0);
+    ui::MouseEvent released_event(ui::EventType::kMouseReleased, center,
+                                  root_center, base::TimeTicks(),
+                                  ui::EF_LEFT_MOUSE_BUTTON, 0);
     element->OnMouseReleased(released_event);
   }
 
@@ -87,7 +90,7 @@ class ColorPickerViewTest : public ChromeViewsTestBase {
   ::testing::NiceMock<
       base::MockCallback<ColorPickerView::ColorSelectedCallback>>
       color_selected_callback_;
-  raw_ptr<ColorPickerView> color_picker_;
+  raw_ptr<ColorPickerView, DanglingUntriaged> color_picker_;
 
  private:
   std::unique_ptr<views::Widget> widget_;
@@ -95,7 +98,8 @@ class ColorPickerViewTest : public ChromeViewsTestBase {
 };
 
 TEST_F(ColorPickerViewTest, ColorSelectedByDefaultIfMatching) {
-  std::unique_ptr<views::Widget> widget = CreateTestWidget();
+  std::unique_ptr<views::Widget> widget =
+      CreateTestWidget(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET);
 
   ColorPickerView* color_picker =
       widget->SetContentsView(std::make_unique<ColorPickerView>(
@@ -107,6 +111,21 @@ TEST_F(ColorPickerViewTest, ColorSelectedByDefaultIfMatching) {
   EXPECT_TRUE(color_picker->GetSelectedElement().has_value());
   // Expect the index to match that of TabGroupId::kRed.
   EXPECT_EQ(color_picker->GetSelectedElement().value(), 0);
+}
+
+TEST_F(ColorPickerViewTest, AccessibleCheckedState) {
+  ui::AXNodeData data;
+  color_picker_->GetElementAtIndexForTesting(0)
+      ->GetViewAccessibility()
+      .GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.GetCheckedState(), ax::mojom::CheckedState::kFalse);
+
+  ClickColorAtIndex(0);
+  data = ui::AXNodeData();
+  color_picker_->GetElementAtIndexForTesting(0)
+      ->GetViewAccessibility()
+      .GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.GetCheckedState(), ax::mojom::CheckedState::kTrue);
 }
 
 TEST_F(ColorPickerViewTest, ClickingSelectsColor) {
@@ -147,7 +166,7 @@ TEST_F(ColorPickerViewTest, KeyboardFocusBehavesLikeRadioButtons) {
 
   // Pressing arrow keys should cycle through the elements.
   ui::KeyEvent arrow_event(
-      ui::EventType::ET_KEY_PRESSED,
+      ui::EventType::kKeyPressed,
       ui::DomCodeToUsLayoutKeyboardCode(ui::DomCode::ARROW_RIGHT),
       ui::DomCode::ARROW_RIGHT, ui::EF_NONE);
   EXPECT_FALSE(focus_manager->OnKeyEvent(arrow_event));

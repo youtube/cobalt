@@ -10,6 +10,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/values.h"
+#include "extensions/common/extension_id.h"
 #include "extensions/common/mojom/event_dispatcher.mojom-forward.h"
 #include "extensions/renderer/api/messaging/native_renderer_messaging_service.h"
 #include "extensions/renderer/bindings/api_binding_types.h"
@@ -35,7 +36,14 @@ class ScriptContextSetIterable;
 // a bit messy (since there used to be a different ExtensionBindingsSystem).
 class NativeExtensionBindingsSystem {
  public:
+  class Delegate {
+   public:
+    virtual ScriptContextSetIterable* GetScriptContextSet() = 0;
+    virtual ~Delegate() = default;
+  };
+
   explicit NativeExtensionBindingsSystem(
+      Delegate* delegate,
       std::unique_ptr<IPCMessageSender> ipc_message_sender);
 
   NativeExtensionBindingsSystem(const NativeExtensionBindingsSystem&) = delete;
@@ -45,31 +53,31 @@ class NativeExtensionBindingsSystem {
   ~NativeExtensionBindingsSystem();
 
   // Called when a new ScriptContext is created.
-  // Initializes the bindings for a newly created |context|.
+  // Initializes the bindings for a newly created `context`.
   void DidCreateScriptContext(ScriptContext* context);
 
   // Called when a ScriptContext is about to be released.
   void WillReleaseScriptContext(ScriptContext* context);
 
-  // Updates the bindings for a given |context|. This happens at initialization,
+  // Updates the bindings for a given `context`. This happens at initialization,
   // but also when e.g. an extension gets updated permissions.
   // TODO(lazyboy): Make this private, and expose a test getter.
   void UpdateBindingsForContext(ScriptContext* context);
 
-  // Dispatches an event with the given |name|, |event_args|, and
-  // |filtering_info| in the given |context|.
+  // Dispatches an event with the given `name`, `event_args`, and
+  // `filtering_info` in the given `context`.
   void DispatchEventInContext(
       const std::string& event_name,
       const base::Value::List& event_args,
       const mojom::EventFilteringInfoPtr& filtering_info,
       ScriptContext* context);
 
-  // Returns true if there is a listener for the given |event_name| in the
-  // associated |context|.
+  // Returns true if there is a listener for the given `event_name` in the
+  // associated `context`.
   bool HasEventListenerInContext(const std::string& event_name,
                                  ScriptContext* context);
 
-  // Handles the response associated with the given |request_id|.
+  // Handles the response associated with the given `request_id`.
   void HandleResponse(int request_id,
                       bool success,
                       const base::Value::List& response,
@@ -79,9 +87,9 @@ class NativeExtensionBindingsSystem {
   // Returns the associated IPC message sender.
   IPCMessageSender* GetIPCMessageSender();
 
-  // Adds or removes bindings for every context belonging to |extension_id|, or
-  // or all contexts if |extension_id| is empty. Also invalidates
-  // |feature_cache_| entry if |permissions_changed| = true.
+  // Adds or removes bindings for every context belonging to `extension_id`, or
+  // or all contexts if `extension_id` is empty. Also invalidates
+  // `feature_cache_` entry if `permissions_changed` = true.
   void UpdateBindings(const ExtensionId& extension_id,
                       bool permissions_changed,
                       ScriptContextSetIterable* script_context_set);
@@ -93,20 +101,21 @@ class NativeExtensionBindingsSystem {
   NativeRendererMessagingService* messaging_service() {
     return &messaging_service_;
   }
+  Delegate* delegate() { return delegate_; }
 
-  // Returns the API with the given |name| for the given |context|. Used for
+  // Returns the API with the given `name` for the given `context`. Used for
   // testing purposes.
   v8::Local<v8::Object> GetAPIObjectForTesting(ScriptContext* context,
                                                const std::string& api_name);
 
  private:
-  // Handles sending a given |request|, forwarding it on to the send_ipc_ after
+  // Handles sending a given `request`, forwarding it on to the send_ipc_ after
   // adding additional info.
   void SendRequest(std::unique_ptr<APIRequestHandler::Request> request,
                    v8::Local<v8::Context> context);
 
   // Called when listeners for a given event have changed, and forwards it along
-  // to |send_event_listener_ipc_|.
+  // to `send_event_listener_ipc_`.
   void OnEventListenerChanged(const std::string& event_name,
                               binding::EventListenersChanged change,
                               const base::Value::Dict* filter,
@@ -123,7 +132,7 @@ class NativeExtensionBindingsSystem {
       v8::Local<v8::Name> name,
       const v8::PropertyCallbackInfo<v8::Value>& info);
 
-  // Creates and returns the API binding for the given |name|.
+  // Creates and returns the API binding for the given `name`.
   static v8::Local<v8::Object> GetAPIHelper(v8::Local<v8::Context> context,
                                             v8::Local<v8::String> name);
 
@@ -136,23 +145,21 @@ class NativeExtensionBindingsSystem {
   static void GetInternalAPI(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   // Helper method to get a APIBindingJSUtil object for the current context,
-  // and populate |binding_util_out|. We use an out parameter instead of
+  // and populate `binding_util_out`. We use an out parameter instead of
   // returning it in order to let us use weak ptrs, which can't be used on a
   // method with a return value.
   void GetJSBindingUtil(v8::Local<v8::Context> context,
                         v8::Local<v8::Value>* binding_util_out);
 
-  // Updates a web page context within |context| with any content capabilities
+  // Updates a web page context within `context` with any content capabilities
   // granted by active extensions.
   void UpdateContentCapabilities(ScriptContext* context);
 
-  // Invalidates the cached feature availability for |extension|; called when
-  // bindings availability has changed (such as after a permissions change).
-  void InvalidateFeatureCache(const ExtensionId& extension_id);
-
-  // Creates the parameters objects inside chrome.scripting, if |context| is for
+  // Creates the parameters objects inside chrome.scripting, if `context` is for
   // content scripts running in an isolated world.
   void SetScriptingParams(ScriptContext* context);
+
+  const raw_ptr<Delegate> delegate_;
 
   std::unique_ptr<IPCMessageSender> ipc_message_sender_;
 

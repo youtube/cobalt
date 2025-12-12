@@ -2,15 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
+#include <array>
+
 #ifndef UI_GFX_GEOMETRY_MATRIX3_F_H_
 #define UI_GFX_GEOMETRY_MATRIX3_F_H_
 
 #include "base/check.h"
+#include "base/component_export.h"
 #include "ui/gfx/geometry/vector3d_f.h"
 
 namespace gfx {
 
-class GEOMETRY_EXPORT Matrix3F {
+class COMPONENT_EXPORT(GEOMETRY) Matrix3F {
  public:
   ~Matrix3F();
 
@@ -98,7 +102,7 @@ class GEOMETRY_EXPORT Matrix3F {
     return i * 3 + j;
   }
 
-  float data_[9];
+  std::array<float, 9> data_;
 };
 
 inline bool operator==(const Matrix3F& lhs, const Matrix3F& rhs) {
@@ -117,10 +121,10 @@ inline Matrix3F operator-(const Matrix3F& lhs, const Matrix3F& rhs) {
   return lhs.Subtract(rhs);
 }
 
-GEOMETRY_EXPORT Matrix3F MatrixProduct(const Matrix3F& lhs,
-                                       const Matrix3F& rhs);
-GEOMETRY_EXPORT Vector3dF MatrixProduct(const Matrix3F& lhs,
-                                        const Vector3dF& rhs);
+COMPONENT_EXPORT(GEOMETRY)
+Matrix3F MatrixProduct(const Matrix3F& lhs, const Matrix3F& rhs);
+COMPONENT_EXPORT(GEOMETRY)
+Vector3dF MatrixProduct(const Matrix3F& lhs, const Vector3dF& rhs);
 
 }  // namespace gfx
 

@@ -13,6 +13,7 @@
 #include "base/test/task_environment.h"
 #include "components/leveldb_proto/internal/leveldb_proto_feature_list.h"
 #include "components/leveldb_proto/internal/proto_database_selector.h"
+#include "components/leveldb_proto/internal/shared_proto_database.h"
 #include "components/leveldb_proto/internal/shared_proto_database_provider.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/leveldb_proto/testing/proto/test_db.pb.h"
@@ -23,12 +24,11 @@ namespace leveldb_proto {
 namespace {
 
 const std::string kDefaultClientName = "client";
-const std::string kDefaultClientName2 = "client_2";
 
 // Example struct defined by clients that can be used instead of protos.
 struct ClientStruct {
  public:
-  ClientStruct() {}
+  ClientStruct() = default;
   ClientStruct(ClientStruct&& other) {
     id_ = std::move(other.id_);
     data_ = std::move(other.data_);
@@ -100,7 +100,7 @@ class TestSharedProtoDatabase : public SharedProtoDatabase {
   }
 
  private:
-  ~TestSharedProtoDatabase() override {}
+  ~TestSharedProtoDatabase() override = default;
 
   Enums::InitStatus use_status_;
 };

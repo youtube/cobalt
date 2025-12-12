@@ -5,9 +5,11 @@
 
 #include "third_party/liburlpattern/parse.h"
 
+#include <string_view>
 #include <unordered_set>
 
 #include "third_party/abseil-cpp/absl/base/macros.h"
+#include "third_party/abseil-cpp/absl/status/statusor.h"
 #include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/liburlpattern/pattern.h"
 #include "third_party/liburlpattern/tokenize.h"
@@ -92,7 +94,7 @@ class State {
   // Append the given Token value to the pending fixed value.  This will
   // be converted to a kFixed Part when we reach the end of a run of
   // kChar and kEscapedChar tokens.
-  void AppendToPendingFixedValue(absl::string_view token_value) {
+  void AppendToPendingFixedValue(std::string_view token_value) {
     pending_fixed_value_.append(token_value.data(), token_value.size());
   }
 
@@ -103,8 +105,9 @@ class State {
       return absl::OkStatus();
 
     auto encoded_result = encode_callback_(std::move(pending_fixed_value_));
-    if (!encoded_result.ok())
-      return encoded_result.status();
+    if (!encoded_result.has_value()) {
+      return encoded_result.error();
+    }
 
     part_list_.emplace_back(PartType::kFixed, std::move(encoded_result.value()),
                             Modifier::kNone);
@@ -165,8 +168,9 @@ class State {
       if (prefix.empty())
         return absl::OkStatus();
       auto result = encode_callback_(std::move(prefix));
-      if (!result.ok())
-        return result.status();
+      if (!result.has_value()) {
+        return result.error();
+      }
       part_list_.emplace_back(PartType::kFixed, *result, modifier);
       return absl::OkStatus();
     }
@@ -215,12 +219,14 @@ class State {
     }
 
     auto prefix_result = encode_callback_(std::move(prefix));
-    if (!prefix_result.ok())
-      return prefix_result.status();
+    if (!prefix_result.has_value()) {
+      return prefix_result.error();
+    }
 
     auto suffix_result = encode_callback_(std::move(suffix));
-    if (!suffix_result.ok())
-      return suffix_result.status();
+    if (!suffix_result.has_value()) {
+      return suffix_result.error();
+    }
 
     // Finally add the part to the list.  We encode the prefix and suffix, but
     // must be careful not to encode the regex value since it can change the
@@ -274,12 +280,13 @@ class State {
 
 }  // namespace
 
-absl::StatusOr<Pattern> Parse(absl::string_view pattern,
-                              EncodeCallback encode_callback,
-                              const Options& options) {
+base::expected<Pattern, absl::Status> Parse(std::string_view pattern,
+                                            EncodeCallback encode_callback,
+                                            const Options& options) {
   auto result = Tokenize(pattern);
-  if (!result.ok())
-    return result.status();
+  if (!result.has_value()) {
+    return base::unexpected(result.error());
+  }
 
   State state(std::move(result.value()), std::move(encode_callback), options);
 
@@ -313,20 +320,20 @@ absl::StatusOr<Pattern> Parse(absl::string_view pattern,
       // Determine if the char token is a valid prefix.  Only characters in the
       // configured prefix_list are automatically treated as prefixes.  A
       // kEscapedChar Token is never treated as a prefix.
-      absl::string_view prefix = char_token ? char_token->value : "";
+      std::string_view prefix = char_token ? char_token->value : "";
       if (options.prefix_list.find(prefix.data(), /*pos=*/0, prefix.size()) ==
           std::string::npos) {
         // This is not a prefix character.  Add it to the buffered characters
         // to be added as a kFixed Part later.
         state.AppendToPendingFixedValue(prefix);
-        prefix = absl::string_view();
+        prefix = std::string_view();
       }
 
       // If we have any buffered characters in a pending fixed value, then
       // convert them into a kFixed Part now.
       absl::Status status = state.MaybeAddPartFromPendingFixedValue();
       if (!status.ok())
-        return status;
+        return base::unexpected(status);
 
       // kName and kRegex tokens can optionally be followed by a modifier.
       const Token* modifier_token = state.TryConsumeModifier();
@@ -336,7 +343,7 @@ absl::StatusOr<Pattern> Parse(absl::string_view pattern,
                              regex_or_wildcard_token,
                              /*suffix=*/"", modifier_token);
       if (!status.ok())
-        return status;
+        return base::unexpected(status);
       continue;
     }
 
@@ -385,7 +392,7 @@ absl::StatusOr<Pattern> Parse(absl::string_view pattern,
 
       auto result = state.MustConsume(TokenType::kClose);
       if (!result.ok())
-        return result.status();
+        return base::unexpected(result.status());
 
       const Token* modifier_token = state.TryConsumeModifier();
 
@@ -393,7 +400,7 @@ absl::StatusOr<Pattern> Parse(absl::string_view pattern,
           state.AddPart(std::move(prefix), name_token, regex_or_wildcard_token,
                         std::move(suffix), modifier_token);
       if (!status.ok())
-        return status;
+        return base::unexpected(status);
       continue;
     }
 
@@ -401,14 +408,14 @@ absl::StatusOr<Pattern> Parse(absl::string_view pattern,
     // a kFixed Part.
     absl::Status status = state.MaybeAddPartFromPendingFixedValue();
     if (!status.ok())
-      return status;
+      return base::unexpected(status);
 
     // We didn't find any tokens allowed by the syntax, so we should be
     // at the end of the token list.  If there is a syntax error, this
     // is where it will typically be caught.
     auto result = state.MustConsume(TokenType::kEnd);
     if (!result.ok())
-      return result.status();
+      return base::unexpected(result.status());
   }
 
   return state.TakeAsPattern();

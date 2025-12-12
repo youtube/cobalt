@@ -12,10 +12,11 @@
 
 #include <string.h>
 
-#include <type_traits>
+#include <cctype>
 
 #include "absl/algorithm/container.h"
-#include "api/array_view.h"
+#include "absl/strings/string_view.h"
+#include "api/units/time_delta.h"
 #include "modules/rtp_rtcp/source/rtp_packet.h"
 #include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 
@@ -45,7 +46,7 @@ bool IsLegalRsidName(absl::string_view name) {
           absl::c_all_of(name, isalnum));
 }
 
-StreamDataCounters::StreamDataCounters() : first_packet_time_ms(-1) {}
+StreamDataCounters::StreamDataCounters() = default;
 
 RtpPacketCounter::RtpPacketCounter(const RtpPacket& packet)
     : header_bytes(packet.headers_size()),

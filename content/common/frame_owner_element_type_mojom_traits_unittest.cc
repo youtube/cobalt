@@ -39,7 +39,7 @@ TEST_F(FrameOwnerElementTypeTest, RejectInvalid) {
   const auto mojo_type =
       static_cast<content::mojom::ChildFrameOwnerElementType>(1234);
   blink::FrameOwnerElementType output;
-  // TODO(https://crbug.com/1384256): Ideally, we would not use EnumTraits
+  // TODO(crbug.com/40246400): Ideally, we would not use EnumTraits
   // directly.
   bool valid =
       mojo::EnumTraits<content::mojom::ChildFrameOwnerElementType,
@@ -53,14 +53,13 @@ TEST_F(FrameOwnerElementTypeDeathTest, SerializeInvalid) {
   // mojom::ChildFrameOwnerElementType.
   constexpr blink::FrameOwnerElementType kUnconvertibleValues[] = {
       blink::FrameOwnerElementType::kNone,
-      blink::FrameOwnerElementType::kPortal,
       blink::FrameOwnerElementType::kFencedframe,
   };
 
   for (const auto type : kUnconvertibleValues) {
     SCOPED_TRACE(static_cast<int>(type));
     blink::FrameOwnerElementType output;
-    EXPECT_DCHECK_DEATH(
+    EXPECT_NOTREACHED_DEATH(
         mojo::test::SerializeAndDeserialize<
             content::mojom::ChildFrameOwnerElementType>(type, output));
   }

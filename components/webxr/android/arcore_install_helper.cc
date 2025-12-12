@@ -13,10 +13,12 @@
 #include "components/resources/android/theme_resources.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/webxr/android/webxr_utils.h"
-#include "components/webxr/android/xr_jni_headers/ArCoreInstallUtils_jni.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/webxr/android/xr_jni_headers/ArCoreInstallUtils_jni.h"
 
 using base::android::AttachCurrentThread;
 
@@ -106,7 +108,6 @@ void ArCoreInstallHelper::ShowMessage(int render_process_id,
     }
     case ArCoreAvailability::kSupportedInstalled:
       NOTREACHED();
-      break;
   }
 
   DCHECK_NE(-1, message_title);

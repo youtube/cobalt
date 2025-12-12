@@ -56,8 +56,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--force-video-overlays");
         // Autoplay video with url.
         paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-        // Remove below if Cobalt rebase to m120+.
-        paramOverrides.add("--user-level-memory-pressure-signal-params");
         // Disable rescaling Webpage.
         paramOverrides.add("--force-device-scale-factor=1");
         // Enable low end device mode.
@@ -72,9 +70,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--disable-accelerated-video-encode");
         // Rasterize Tiles directly to GPU memory.
         paramOverrides.add("--enable-zero-copy");
-        // Disable QUIC to save CPU budgets on m114.
-        // Remove below if Cobalt rebase to m138+.
-        paramOverrides.add("--disable-quic");
 
         return paramOverrides;
     }
@@ -113,9 +108,6 @@ public final class CommandLineOverrideHelper {
 
     public static StringJoiner getDefaultBlinkEnableFeatureOverridesList() {
         StringJoiner paramOverrides = new StringJoiner(",");
-
-        // Align with MSE spec for MediaSource.duration.
-        paramOverrides.add("MediaSourceNewAbortAndDuration");
 
         // Enable precise memory info so we can make accurate client-side
         // measurements.

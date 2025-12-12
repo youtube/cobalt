@@ -28,6 +28,7 @@ class TestLayerTreeHostBase : public testing::Test {
   ~TestLayerTreeHostBase() override;
 
   void SetUp() override;
+  void TearDown() override;
 
   virtual LayerTreeSettings CreateSettings();
   virtual std::unique_ptr<LayerTreeFrameSink> CreateLayerTreeFrameSink();
@@ -41,14 +42,20 @@ class TestLayerTreeHostBase : public testing::Test {
   void ResetLayerTreeFrameSink(
       std::unique_ptr<LayerTreeFrameSink> layer_tree_frame_sink);
   std::unique_ptr<FakeLayerTreeHostImpl> TakeHostImpl();
+  void ClearLayersAndHost();
 
   void SetupDefaultTrees(const gfx::Size& layer_bounds);
   void SetupTrees(scoped_refptr<RasterSource> pending_raster_source,
                   scoped_refptr<RasterSource> active_raster_source);
-  void SetupPendingTree(scoped_refptr<RasterSource> raster_source = nullptr);
-  void SetupPendingTree(scoped_refptr<RasterSource> raster_source,
-                        const gfx::Size& tile_size,
-                        const Region& invalidation);
+  void SetupPendingTree(scoped_refptr<RasterSource> raster_source = nullptr,
+                        const gfx::Size& tile_size = gfx::Size(),
+                        const Region& invalidation = Region()) {
+    CHECK(!host_impl()->CommitsToActiveTree());
+    SetupSyncTree(std::move(raster_source), tile_size, invalidation);
+  }
+  void SetupSyncTree(scoped_refptr<RasterSource> raster_source = nullptr,
+                     const gfx::Size& tile_size = gfx::Size(),
+                     const Region& invalidation = Region());
   void ActivateTree();
   void PerformImplSideInvalidation();
 
@@ -85,11 +92,13 @@ class TestLayerTreeHostBase : public testing::Test {
   std::unique_ptr<LayerTreeFrameSink> layer_tree_frame_sink_;
   std::unique_ptr<FakeLayerTreeHostImpl> host_impl_;
 
-  raw_ptr<FakePictureLayerImpl> pending_layer_;
-  raw_ptr<FakePictureLayerImpl> active_layer_;
-  raw_ptr<FakePictureLayerImpl> old_pending_layer_;
-  const int root_id_;
-  int next_layer_id_;
+  const int root_id_ = 1;
+  int next_layer_id_ = 2;
+
+ protected:
+  raw_ptr<FakePictureLayerImpl> pending_layer_ = nullptr;
+  raw_ptr<FakePictureLayerImpl> active_layer_ = nullptr;
+  raw_ptr<FakePictureLayerImpl> old_pending_layer_ = nullptr;
 };
 
 }  // namespace cc

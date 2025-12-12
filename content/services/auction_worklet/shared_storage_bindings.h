@@ -23,13 +23,14 @@ class CONTENT_EXPORT SharedStorageBindings : public Bindings {
   explicit SharedStorageBindings(
       AuctionV8Helper* v8_helper,
       mojom::AuctionSharedStorageHost* shared_storage_host,
+      mojom::AuctionWorkletFunction source_auction_worklet_function,
       bool shared_storage_permissions_policy_allowed);
   SharedStorageBindings(const SharedStorageBindings&) = delete;
   SharedStorageBindings& operator=(const SharedStorageBindings&) = delete;
   ~SharedStorageBindings() override;
 
-  // Add privateAggregation object to global context. `this` must outlive the
-  // context.
+  // Add `sharedStorage` object and modifier method constructors to global
+  // context. `this` must outlive the context.
   void AttachToContext(v8::Local<v8::Context> context) override;
   void Reset() override;
 
@@ -38,10 +39,22 @@ class CONTENT_EXPORT SharedStorageBindings : public Bindings {
   static void Append(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Delete(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Clear(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void BatchUpdate(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void SetMethodConstructor(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AppendMethodConstructor(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void DeleteMethodConstructor(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClearMethodConstructor(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 
   const raw_ptr<AuctionV8Helper> v8_helper_;
 
   const raw_ptr<mojom::AuctionSharedStorageHost> shared_storage_host_;
+
+  mojom::AuctionWorkletFunction source_auction_worklet_function_;
 
   bool shared_storage_permissions_policy_allowed_;
 };

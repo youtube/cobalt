@@ -27,7 +27,7 @@ enum class PasswordProtectionTrigger {
 };
 
 PasswordProtectionTrigger ConvertPasswordProtectionTrigger(
-    const absl::optional<safe_browsing::PasswordProtectionTrigger>&
+    const std::optional<safe_browsing::PasswordProtectionTrigger>&
         policy_value) {
   if (!policy_value) {
     return PasswordProtectionTrigger::kUnset;
@@ -42,7 +42,6 @@ PasswordProtectionTrigger ConvertPasswordProtectionTrigger(
       return PasswordProtectionTrigger::kPhisingReuse;
     case safe_browsing::PASSWORD_PROTECTION_TRIGGER_MAX:
       NOTREACHED();
-      return PasswordProtectionTrigger::kUnset;
   }
 }
 
@@ -92,11 +91,6 @@ void ContextSignalsDecorator::OnSignalsFetched(
               static_cast<int32_t>(context_info.os_firewall));
   signals.Set(device_signals::names::kSystemDnsServers,
               ToListValue(context_info.system_dns_servers));
-
-  if (context_info.third_party_blocking_enabled) {
-    signals.Set(device_signals::names::kThirdPartyBlockingEnabled,
-                context_info.third_party_blocking_enabled.value());
-  }
 
   LogSignalsCollectionLatency(kLatencyHistogramVariant, start_time);
 

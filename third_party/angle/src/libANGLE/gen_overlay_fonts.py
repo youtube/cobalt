@@ -21,6 +21,7 @@
 
 import sys
 
+# Conditional import enables getting inputs/outputs with python3 instead of vpython3
 if len(sys.argv) < 2:
     from freetype import *
 
@@ -118,7 +119,7 @@ const uint8_t *OverlayState::getFontData() const
 
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == 'inputs':
-        # disabled because of issues on Windows. http://anglebug.com/3892
+        # disabled because of issues on Windows. http://anglebug.com/42262538
         # print(font_file)
         return
     if len(sys.argv) == 2 and sys.argv[1] == 'outputs':
@@ -128,7 +129,7 @@ def main():
     # Font sizes are chosen such that the sizes form a mip chain.
     font_defs = [('large', 29), ('small', 14)]
     chars = ' !"#$%&\'()*+,-./0123456789:;<=>?' + \
-            '@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_' + \
+            '@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_' + \
             '`abcdefghijklmnopqrstuvwxyz{|}~'
     char_count = len(chars)
 

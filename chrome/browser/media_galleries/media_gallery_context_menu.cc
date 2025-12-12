@@ -9,12 +9,11 @@
 
 MediaGalleryContextMenu::MediaGalleryContextMenu(
     const ForgetGalleryCallback& callback)
-    : ui::SimpleMenuModel(nullptr), callback_(callback) {
-  set_delegate(this);
+    : ui::SimpleMenuModel(this), callback_(callback) {
   AddItem(1, l10n_util::GetStringUTF16(IDS_MEDIA_GALLERIES_DIALOG_DELETE));
 }
 
-MediaGalleryContextMenu::~MediaGalleryContextMenu() {}
+MediaGalleryContextMenu::~MediaGalleryContextMenu() = default;
 
 bool MediaGalleryContextMenu::IsCommandIdChecked(int command_id) const {
   return false;

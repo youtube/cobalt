@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,7 +40,6 @@
 #include "build/build_config.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/java_handler_thread.h"
@@ -48,13 +48,13 @@
 #endif
 
 #if BUILDFLAG(IS_WIN)
+#include <windows.h>
+
 #include "base/message_loop/message_pump_win.h"
 #include "base/process/memory.h"
 #include "base/win/current_module.h"
 #include "base/win/message_window.h"
 #include "base/win/scoped_handle.h"
-
-#include <windows.h>
 #endif
 
 using ::testing::IsNull;
@@ -69,7 +69,7 @@ namespace {
 
 class Foo : public RefCounted<Foo> {
  public:
-  Foo() : test_count_(0) {}
+  Foo() = default;
 
   Foo(const Foo&) = delete;
   Foo& operator=(const Foo&) = delete;
@@ -101,33 +101,38 @@ class Foo : public RefCounted<Foo> {
   }
 
   int test_count() const { return test_count_; }
-  const std::string& result() const { return result_; }
+  const std::string& result() const LIFETIME_BOUND { return result_; }
 
  private:
   friend class RefCounted<Foo>;
 
   ~Foo() = default;
 
-  int test_count_;
+  int test_count_ = 0;
   std::string result_;
 };
 
 // This function runs slowly to simulate a large amount of work being done.
-static void SlowFunc(TimeDelta pause, int* quit_counter) {
+static void SlowFunc(TimeDelta pause,
+                     int* quit_counter,
+                     base::OnceClosure quit_closure) {
   PlatformThread::Sleep(pause);
-  if (--(*quit_counter) == 0)
-    RunLoop::QuitCurrentWhenIdleDeprecated();
+  if (--(*quit_counter) == 0) {
+    std::move(quit_closure).Run();
+  }
 }
 
 // This function records the time when Run was called in a Time object, which is
 // useful for building a variety of SingleThreadTaskExecutor tests.
-static void RecordRunTimeFunc(TimeTicks* run_time, int* quit_counter) {
+static void RecordRunTimeFunc(TimeTicks* run_time,
+                              int* quit_counter,
+                              base::OnceClosure quit_closure) {
   *run_time = TimeTicks::Now();
 
   // Cause our Run function to take some time to execute.  As a result we can
   // count on subsequent RecordRunTimeFunc()s running at a future time,
   // without worry about the resolution of our system clock being an issue.
-  SlowFunc(Milliseconds(10), quit_counter);
+  SlowFunc(Milliseconds(10), quit_counter, std::move(quit_closure));
 }
 
 enum TaskType {
@@ -183,15 +188,14 @@ std::ostream& operator<<(std::ostream& os, TaskType type) {
       break;
     default:
       NOTREACHED();
-      os << "Unknown TaskType";
-      break;
   }
   return os;
 }
 
 std::ostream& operator<<(std::ostream& os, const TaskItem& item) {
-  if (item.start)
+  if (item.start) {
     return os << item.type << " " << item.cookie << " starts";
+  }
   return os << item.type << " " << item.cookie << " ends";
 }
 
@@ -264,9 +268,9 @@ void RecursiveFunc(TaskList* order, int cookie, int depth) {
   order->RecordEnd(RECURSIVE, cookie);
 }
 
-void QuitFunc(TaskList* order, int cookie) {
+void QuitFunc(TaskList* order, int cookie, base::OnceClosure quit_closure) {
   order->RecordStart(QUITMESSAGELOOP, cookie);
-  RunLoop::QuitCurrentWhenIdleDeprecated();
+  std::move(quit_closure).Run();
   order->RecordEnd(QUITMESSAGELOOP, cookie);
 }
 
@@ -290,10 +294,11 @@ const wchar_t kMessageBoxTitle[] = L"SingleThreadTaskExecutor Unit Test";
 // can cause implicit message loops.
 void MessageBoxFunc(TaskList* order, int cookie, bool is_reentrant) {
   order->RecordStart(MESSAGEBOX, cookie);
-  absl::optional<CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop>
+  std::optional<CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop>
       maybe_allow_nesting;
-  if (is_reentrant)
+  if (is_reentrant) {
     maybe_allow_nesting.emplace();
+  }
   ::MessageBox(NULL, L"Please wait...", kMessageBoxTitle, MB_OK);
   order->RecordEnd(MESSAGEBOX, cookie);
 }
@@ -316,7 +321,8 @@ void RecursiveFuncWin(scoped_refptr<SingleThreadTaskRunner> task_runner,
                       HANDLE event,
                       bool expect_window,
                       TaskList* order,
-                      bool message_box_is_reentrant) {
+                      bool message_box_is_reentrant,
+                      base::OnceClosure quit_closure) {
   task_runner->PostTask(FROM_HERE, BindOnce(&RecursiveFunc, order, 1, 2));
   task_runner->PostTask(
       FROM_HERE, BindOnce(&MessageBoxFunc, order, 2, message_box_is_reentrant));
@@ -328,7 +334,8 @@ void RecursiveFuncWin(scoped_refptr<SingleThreadTaskRunner> task_runner,
   // MessageBox will have been dismissed by the code below, where
   // expect_window_ is true.
   task_runner->PostTask(FROM_HERE, BindOnce(&EndDialogFunc, order, 4));
-  task_runner->PostTask(FROM_HERE, BindOnce(&QuitFunc, order, 5));
+  task_runner->PostTask(FROM_HERE,
+                        BindOnce(&QuitFunc, order, 5, std::move(quit_closure)));
 
   // Enforce that every tasks are sent before starting to run the main thread
   // message loop.
@@ -368,8 +375,9 @@ void Post128KTasksThenQuit(SingleThreadTaskRunner* executor_task_runner,
   // detailed logging for diagnosis where this flakes.
   const auto now = TimeTicks::Now();
   const auto scheduling_delay = now - last_post_ticks;
-  if (scheduling_delay > slowest_delay)
+  if (scheduling_delay > slowest_delay) {
     slowest_delay = scheduling_delay;
+  }
 
   if (num_posts_done == kNumTimes) {
     std::move(on_done).Run();
@@ -403,7 +411,7 @@ class TestIOHandler : public MessagePumpForIO::IOHandler {
                      DWORD error) override;
 
   void Init();
-  OVERLAPPED* context() { return &context_.overlapped; }
+  OVERLAPPED* context() { return context_.GetOverlapped(); }
   DWORD size() { return sizeof(buffer_); }
 
  private:
@@ -415,7 +423,7 @@ class TestIOHandler : public MessagePumpForIO::IOHandler {
 
 TestIOHandler::TestIOHandler(const wchar_t* name, HANDLE signal)
     : MessagePumpForIO::IOHandler(FROM_HERE), signal_(signal) {
-  memset(buffer_, 0, sizeof(buffer_));
+  UNSAFE_TODO(memset(buffer_, 0, sizeof(buffer_)));
 
   file_.Set(CreateFile(name, GENERIC_READ, 0, NULL, OPEN_EXISTING,
                        FILE_FLAG_OVERLAPPED, NULL));
@@ -423,7 +431,9 @@ TestIOHandler::TestIOHandler(const wchar_t* name, HANDLE signal)
 }
 
 void TestIOHandler::Init() {
-  CurrentIOThread::Get()->RegisterIOHandler(file_.get(), this);
+  const bool success =
+      CurrentIOThread::Get()->RegisterIOHandler(file_.get(), this);
+  ASSERT_TRUE(success);
 
   DWORD read;
   EXPECT_FALSE(ReadFile(file_.get(), buffer_, size(), &read, context()));
@@ -487,7 +497,7 @@ class SingleThreadTaskExecutorTypedTest
   SingleThreadTaskExecutorTypedTest& operator=(
       const SingleThreadTaskExecutorTypedTest&) = delete;
 
-  ~SingleThreadTaskExecutorTypedTest() = default;
+  ~SingleThreadTaskExecutorTypedTest() override = default;
 
   static std::string ParamInfoToString(
       ::testing::TestParamInfo<MessagePumpType> param_info) {
@@ -510,12 +520,12 @@ class SingleThreadTaskExecutorTypedTest
 #endif  // BUILDFLAG(IS_APPLE)
     }
     NOTREACHED();
-    return "";
   }
 };
 
 TEST_P(SingleThreadTaskExecutorTypedTest, PostTask) {
   SingleThreadTaskExecutor executor(GetParam());
+  base::RunLoop loop;
   // Add tests to message loop
   scoped_refptr<Foo> foo(new Foo());
   std::string a("a"), b("b"), c("c"), d("d");
@@ -533,10 +543,10 @@ TEST_P(SingleThreadTaskExecutorTypedTest, PostTask) {
       FROM_HERE, BindOnce(&Foo::Test2Mixed, foo, a, &d));
   // After all tests, post a message that will shut down the message loop
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&RunLoop::QuitCurrentWhenIdleDeprecated));
+      FROM_HERE, BindOnce(loop.QuitWhenIdleClosure()));
 
   // Now kick things off
-  RunLoop().Run();
+  loop.Run();
 
   EXPECT_EQ(foo->test_count(), 105);
   EXPECT_EQ(foo->result(), "abacad");
@@ -551,11 +561,14 @@ TEST_P(SingleThreadTaskExecutorTypedTest, PostDelayedTask_Basic) {
 
   int num_tasks = 1;
   TimeTicks run_time;
-
+  base::RunLoop loop;
   TimeTicks time_before_run = TimeTicks::Now();
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time, &num_tasks), kDelay);
-  RunLoop().Run();
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time, &num_tasks,
+               loop.QuitWhenIdleClosure()),
+      kDelay);
+  loop.Run();
   TimeTicks time_after_run = TimeTicks::Now();
 
   EXPECT_EQ(0, num_tasks);
@@ -568,17 +581,21 @@ TEST_P(SingleThreadTaskExecutorTypedTest, PostDelayedTask_InDelayOrder) {
   // Test that two tasks with different delays run in the right order.
   int num_tasks = 2;
   TimeTicks run_time1, run_time2;
-
+  base::RunLoop loop;
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks),
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks,
+               loop.QuitWhenIdleClosure()),
       Milliseconds(200));
   // If we get a large pause in execution (due to a context switch) here, this
   // test could fail.
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks),
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks,
+               loop.QuitWhenIdleClosure()),
       Milliseconds(10));
 
-  RunLoop().Run();
+  loop.Run();
   EXPECT_EQ(0, num_tasks);
 
   EXPECT_TRUE(run_time2 < run_time1);
@@ -599,13 +616,19 @@ TEST_P(SingleThreadTaskExecutorTypedTest, PostDelayedTask_InPostOrder) {
 
   int num_tasks = 2;
   TimeTicks run_time1, run_time2;
-
+  base::RunLoop loop;
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks), kDelay);
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks,
+               loop.QuitWhenIdleClosure()),
+      kDelay);
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks), kDelay);
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks,
+               loop.QuitWhenIdleClosure()),
+      kDelay);
 
-  RunLoop().Run();
+  loop.Run();
   EXPECT_EQ(0, num_tasks);
 
   EXPECT_TRUE(run_time1 < run_time2);
@@ -621,15 +644,18 @@ TEST_P(SingleThreadTaskExecutorTypedTest, PostDelayedTask_InPostOrder_2) {
 
   int num_tasks = 2;
   TimeTicks run_time;
-
-  executor.task_runner()->PostTask(FROM_HERE,
-                                   BindOnce(&SlowFunc, kPause, &num_tasks));
+  base::RunLoop loop;
+  executor.task_runner()->PostTask(
+      FROM_HERE,
+      BindOnce(&SlowFunc, kPause, &num_tasks, loop.QuitWhenIdleClosure()));
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time, &num_tasks),
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time, &num_tasks,
+               loop.QuitWhenIdleClosure()),
       Milliseconds(10));
 
   TimeTicks time_before_run = TimeTicks::Now();
-  RunLoop().Run();
+  loop.Run();
   TimeTicks time_after_run = TimeTicks::Now();
 
   EXPECT_EQ(0, num_tasks);
@@ -648,17 +674,21 @@ TEST_P(SingleThreadTaskExecutorTypedTest, PostDelayedTask_InPostOrder_3) {
 
   int num_tasks = 11;
   TimeTicks run_time1, run_time2;
-
+  base::RunLoop loop;
   // Clutter the ML with tasks.
-  for (int i = 1; i < num_tasks; ++i)
+  for (int i = 1; i < num_tasks; ++i) {
     executor.task_runner()->PostTask(
-        FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks));
+        FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks,
+                            loop.QuitWhenIdleClosure()));
+  }
 
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks),
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks,
+               loop.QuitWhenIdleClosure()),
       Milliseconds(1));
 
-  RunLoop().Run();
+  loop.Run();
   EXPECT_EQ(0, num_tasks);
 
   EXPECT_TRUE(run_time2 > run_time1);
@@ -674,17 +704,21 @@ TEST_P(SingleThreadTaskExecutorTypedTest, PostDelayedTask_SharedTimer) {
   // run loop to exit.
   int num_tasks = 1;
   TimeTicks run_time1, run_time2;
-
+  base::RunLoop loop;
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks),
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time1, &num_tasks,
+               loop.QuitWhenIdleClosure()),
       Seconds(1000));
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks),
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time2, &num_tasks,
+               loop.QuitWhenIdleClosure()),
       Milliseconds(10));
 
   TimeTicks start_time = TimeTicks::Now();
 
-  RunLoop().Run();
+  loop.Run();
   EXPECT_EQ(0, num_tasks);
 
   // Ensure that we ran in far less time than the slower timer.
@@ -717,9 +751,10 @@ class RecordDeletionProbe : public RefCounted<RecordDeletionProbe> {
 
   ~RecordDeletionProbe() {
     *was_deleted_ = true;
-    if (post_on_delete_.get())
+    if (post_on_delete_.get()) {
       SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
           FROM_HERE, BindOnce(&RecordDeletionProbe::Run, post_on_delete_));
+    }
   }
 
   scoped_refptr<RecordDeletionProbe> post_on_delete_;
@@ -776,26 +811,27 @@ TEST_P(SingleThreadTaskExecutorTypedTest, DISABLED_EnsureDeletion_Chain) {
 
 namespace {
 
-void NestingFunc(int* depth) {
+void NestingFunc(int* depth, base::OnceClosure quit_closure) {
   if (*depth > 0) {
     *depth -= 1;
+    base::RunLoop loop1{base::RunLoop::Type::kNestableTasksAllowed};
     SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, BindOnce(&NestingFunc, depth));
+        FROM_HERE, BindOnce(&NestingFunc, depth, loop1.QuitWhenIdleClosure()));
 
-    RunLoop(RunLoop::Type::kNestableTasksAllowed).Run();
+    loop1.Run();
   }
-  base::RunLoop::QuitCurrentWhenIdleDeprecated();
+  std::move(quit_closure).Run();
 }
 
 }  // namespace
 
 TEST_P(SingleThreadTaskExecutorTypedTest, Nesting) {
   SingleThreadTaskExecutor executor(GetParam());
-
+  base::RunLoop loop;
   int depth = 50;
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&NestingFunc, &depth));
-  RunLoop().Run();
+      FROM_HERE, BindOnce(&NestingFunc, &depth, loop.QuitWhenIdleClosure()));
+  loop.Run();
   EXPECT_EQ(depth, 0);
 }
 
@@ -803,14 +839,15 @@ TEST_P(SingleThreadTaskExecutorTypedTest, Recursive) {
   SingleThreadTaskExecutor executor(GetParam());
 
   TaskList order;
+  base::RunLoop loop;
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&RecursiveFunc, &order, 1, 2));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&RecursiveFunc, &order, 2, 2));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&QuitFunc, &order, 3));
+      FROM_HERE, BindOnce(&QuitFunc, &order, 3, loop.QuitWhenIdleClosure()));
 
-  RunLoop().Run();
+  loop.Run();
 
   // FIFO order.
   ASSERT_EQ(14U, order.Size());
@@ -844,14 +881,14 @@ TEST_P(SingleThreadTaskExecutorTypedTest, NonNestableWithNoNesting) {
   SingleThreadTaskExecutor executor(GetParam());
 
   TaskList order;
-
+  base::RunLoop loop;
   SingleThreadTaskRunner::GetCurrentDefault()->PostNonNestableTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 1));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 2));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&QuitFunc, &order, 3));
-  RunLoop().Run();
+      FROM_HERE, BindOnce(&QuitFunc, &order, 3, loop.QuitWhenIdleClosure()));
+  loop.Run();
 
   // FIFO order.
   ASSERT_EQ(6U, order.Size());
@@ -884,7 +921,7 @@ TEST_P(SingleThreadTaskExecutorTypedTest, NonNestableDelayedInNestedLoop) {
   SingleThreadTaskExecutor executor(GetParam());
 
   TaskList order;
-
+  base::RunLoop loop;
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&FuncThatPumps, &order, 1));
   SingleThreadTaskRunner::GetCurrentDefault()->PostNonNestableTask(
@@ -896,9 +933,9 @@ TEST_P(SingleThreadTaskExecutorTypedTest, NonNestableDelayedInNestedLoop) {
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 5));
   SingleThreadTaskRunner::GetCurrentDefault()->PostNonNestableTask(
-      FROM_HERE, BindOnce(&QuitFunc, &order, 6));
+      FROM_HERE, BindOnce(&QuitFunc, &order, 6, loop.QuitWhenIdleClosure()));
 
-  RunLoop().Run();
+  loop.Run();
 
   // FIFO order.
   ASSERT_EQ(12U, order.Size());
@@ -924,8 +961,8 @@ void FuncThatRuns(TaskList* order, int cookie, RunLoop* run_loop) {
   order->RecordEnd(RUNS, cookie);
 }
 
-void FuncThatQuitsNow() {
-  base::RunLoop::QuitCurrentDeprecated();
+void FuncThatQuitsNow(base::OnceClosure quit_closure) {
+  std::move(quit_closure).Run();
 }
 
 }  // namespace
@@ -937,22 +974,22 @@ TEST_P(SingleThreadTaskExecutorTypedTest, QuitNow) {
   TaskList order;
 
   RunLoop nested_run_loop(RunLoop::Type::kNestableTasksAllowed);
-
+  RunLoop outer_run_loop;
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       BindOnce(&FuncThatRuns, &order, 1, Unretained(&nested_run_loop)));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 2));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&FuncThatQuitsNow));
+      FROM_HERE, BindOnce(&FuncThatQuitsNow, nested_run_loop.QuitClosure()));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 3));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&FuncThatQuitsNow));
+      FROM_HERE, BindOnce(&FuncThatQuitsNow, outer_run_loop.QuitClosure()));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 4));  // never runs
 
-  RunLoop().Run();
+  outer_run_loop.Run();
 
   ASSERT_EQ(6U, order.Size());
   int task_index = 0;
@@ -1174,7 +1211,8 @@ TEST_P(SingleThreadTaskExecutorTypedTest, RunLoopQuitOrderBefore) {
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 1));  // never runs
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&FuncThatQuitsNow));  // never runs
+      FROM_HERE, BindOnce(&FuncThatQuitsNow,
+                          run_loop.QuitClosure()));  // never runs
 
   run_loop.Run();
 
@@ -1196,7 +1234,8 @@ TEST_P(SingleThreadTaskExecutorTypedTest, RunLoopQuitOrderDuring) {
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 2));  // never runs
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&FuncThatQuitsNow));  // never runs
+      FROM_HERE, BindOnce(&FuncThatQuitsNow,
+                          run_loop.QuitClosure()));  // never runs
 
   run_loop.Run();
 
@@ -1214,14 +1253,14 @@ TEST_P(SingleThreadTaskExecutorTypedTest, RunLoopQuitOrderAfter) {
   TaskList order;
 
   RunLoop nested_run_loop(RunLoop::Type::kNestableTasksAllowed);
-
+  RunLoop outer_run_loop;
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       BindOnce(&FuncThatRuns, &order, 1, Unretained(&nested_run_loop)));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 2));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&FuncThatQuitsNow));
+      FROM_HERE, BindOnce(&FuncThatQuitsNow, nested_run_loop.QuitClosure()));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 3));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -1229,11 +1268,8 @@ TEST_P(SingleThreadTaskExecutorTypedTest, RunLoopQuitOrderAfter) {
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, BindOnce(&OrderedFunc, &order, 4));
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&FuncThatQuitsNow));
+      FROM_HERE, BindOnce(&FuncThatQuitsNow, outer_run_loop.QuitClosure()));
 
-  nested_run_loop.allow_quit_current_deprecated_ = true;
-
-  RunLoop outer_run_loop;
   outer_run_loop.Run();
 
   ASSERT_EQ(8U, order.Size());
@@ -1258,7 +1294,7 @@ TEST_P(SingleThreadTaskExecutorTypedTest, RunLoopQuitOrderAfter) {
 // accumulated in the pipe per two posts, so we should repeat 128K times to
 // reproduce the bug.
 #if BUILDFLAG(IS_CHROMEOS)
-// TODO(crbug.com/1188497): This test is unreasonably slow on CrOS and flakily
+// TODO(crbug.com/40754898): This test is unreasonably slow on CrOS and flakily
 // times out (100x slower than other platforms which take < 1s to complete
 // it).
 #define MAYBE_RecursivePostsDoNotFloodPipe DISABLED_RecursivePostsDoNotFloodPipe
@@ -1333,33 +1369,11 @@ TEST_P(SingleThreadTaskExecutorTypedTest,
   run_loop.Run();
 }
 
-TEST_P(SingleThreadTaskExecutorTypedTest,
-       ApplicationTasksAllowedInNativeNestedLoopExplicitlyInScope) {
-  SingleThreadTaskExecutor executor(GetParam());
-  RunLoop run_loop;
-  executor.task_runner()->PostTask(
-      FROM_HERE,
-      BindOnce(
-          [](RunLoop* run_loop) {
-            {
-              CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop
-                  allow_nestable_tasks;
-              EXPECT_TRUE(CurrentThread::Get()
-                              ->ApplicationTasksAllowedInNativeNestedLoop());
-            }
-            EXPECT_FALSE(CurrentThread::Get()
-                             ->ApplicationTasksAllowedInNativeNestedLoop());
-            run_loop->Quit();
-          },
-          Unretained(&run_loop)));
-  run_loop.Run();
-}
-
 TEST_P(SingleThreadTaskExecutorTypedTest, IsIdleForTesting) {
   SingleThreadTaskExecutor executor(GetParam());
   EXPECT_TRUE(CurrentThread::Get()->IsIdleForTesting());
-  executor.task_runner()->PostTask(FROM_HERE, BindOnce([]() {}));
-  executor.task_runner()->PostDelayedTask(FROM_HERE, BindOnce([]() {}),
+  executor.task_runner()->PostTask(FROM_HERE, BindOnce([] {}));
+  executor.task_runner()->PostDelayedTask(FROM_HERE, BindOnce([] {}),
                                           Milliseconds(10));
   EXPECT_FALSE(CurrentThread::Get()->IsIdleForTesting());
   RunLoop().RunUntilIdle();
@@ -1375,14 +1389,14 @@ TEST_P(SingleThreadTaskExecutorTypedTest, IsIdleForTestingNonNestableTask) {
   EXPECT_TRUE(CurrentThread::Get()->IsIdleForTesting());
   bool nested_task_run = false;
   executor.task_runner()->PostTask(
-      FROM_HERE, BindLambdaForTesting([&]() {
+      FROM_HERE, BindLambdaForTesting([&] {
         RunLoop nested_run_loop(RunLoop::Type::kNestableTasksAllowed);
 
         executor.task_runner()->PostNonNestableTask(
-            FROM_HERE, BindLambdaForTesting([&]() { nested_task_run = true; }));
+            FROM_HERE, BindLambdaForTesting([&] { nested_task_run = true; }));
 
         executor.task_runner()->PostTask(
-            FROM_HERE, BindLambdaForTesting([&]() {
+            FROM_HERE, BindLambdaForTesting([&] {
               EXPECT_FALSE(nested_task_run);
               EXPECT_TRUE(CurrentThread::Get()->IsIdleForTesting());
             }));
@@ -1454,7 +1468,9 @@ TEST(SingleThreadTaskExecutorTest, PostDelayedTask_SharedTimer_SubPump) {
 
   // This very delayed task should never run.
   executor.task_runner()->PostDelayedTask(
-      FROM_HERE, BindOnce(&RecordRunTimeFunc, &run_time, &num_tasks),
+      FROM_HERE,
+      BindOnce(&RecordRunTimeFunc, &run_time, &num_tasks,
+               run_loop.QuitWhenIdleClosure()),
       Seconds(1000));
 
   // This slightly delayed task should run from within SubPumpFunc.
@@ -1681,7 +1697,7 @@ TEST(SingleThreadTaskExecutorTest,
   run_loop.Run();
 }
 
-// TODO(https://crbug.com/890016): Enable once multiple layers of nested loops
+// TODO(crbug.com/40595757): Enable once multiple layers of nested loops
 // works.
 TEST(SingleThreadTaskExecutorTest,
      DISABLED_UnwindingMultipleSubPumpsDoesntStarveApplicationTasks) {
@@ -1730,7 +1746,7 @@ namespace {
 // A side effect of this test is the generation a beep. Sorry.
 void RunTest_NestingDenial2(MessagePumpType message_pump_type) {
   SingleThreadTaskExecutor executor(message_pump_type);
-
+  base::RunLoop loop;
   Thread worker("NestingDenial2_worker");
   Thread::Options options;
   options.message_pump_type = message_pump_type;
@@ -1740,10 +1756,10 @@ void RunTest_NestingDenial2(MessagePumpType message_pump_type) {
   worker.task_runner()->PostTask(
       FROM_HERE,
       BindOnce(&RecursiveFuncWin, SingleThreadTaskRunner::GetCurrentDefault(),
-               event.get(), true, &order, false));
+               event.get(), true, &order, false, loop.QuitWhenIdleClosure()));
   // Let the other thread execute.
   WaitForSingleObject(event.get(), INFINITE);
-  RunLoop().Run();
+  loop.Run();
 
   ASSERT_EQ(17u, order.Size());
   EXPECT_EQ(order.Get(0), TaskItem(RECURSIVE, 1, true));
@@ -1781,7 +1797,7 @@ TEST(SingleThreadTaskExecutorTest, DISABLED_NestingDenial2) {
 // needs to process windows messages on the current thread.
 TEST(SingleThreadTaskExecutorTest, NestingSupport2) {
   SingleThreadTaskExecutor executor(MessagePumpType::UI);
-
+  base::RunLoop loop;
   Thread worker("NestingSupport2_worker");
   Thread::Options options;
   options.message_pump_type = MessagePumpType::UI;
@@ -1791,10 +1807,10 @@ TEST(SingleThreadTaskExecutorTest, NestingSupport2) {
   worker.task_runner()->PostTask(
       FROM_HERE,
       BindOnce(&RecursiveFuncWin, SingleThreadTaskRunner::GetCurrentDefault(),
-               event.get(), false, &order, true));
+               event.get(), false, &order, true, loop.QuitWhenIdleClosure()));
   // Let the other thread execute.
   WaitForSingleObject(event.get(), INFINITE);
-  RunLoop().Run();
+  loop.Run();
 
   ASSERT_EQ(18u, order.Size());
   EXPECT_EQ(order.Get(0), TaskItem(RECURSIVE, 1, true));
@@ -1829,47 +1845,6 @@ TEST(SingleThreadTaskExecutorTest, NestingSupport2) {
 TEST(SingleThreadTaskExecutorTest, IOHandler) {
   RunTest_IOHandler();
 }
-
-TEST(SingleThreadTaskExecutorTest, HighResolutionTimer) {
-  SingleThreadTaskExecutor executor;
-  Time::EnableHighResolutionTimer(true);
-
-  constexpr TimeDelta kFastTimer = Milliseconds(5);
-  constexpr TimeDelta kSlowTimer = Milliseconds(100);
-
-  {
-    // Post a fast task to enable the high resolution timers.
-    RunLoop run_loop;
-    executor.task_runner()->PostDelayedTask(
-        FROM_HERE,
-        BindOnce(
-            [](RunLoop* run_loop) {
-              EXPECT_TRUE(Time::IsHighResolutionTimerInUse());
-              run_loop->QuitWhenIdle();
-            },
-            &run_loop),
-        kFastTimer);
-    run_loop.Run();
-  }
-  EXPECT_FALSE(Time::IsHighResolutionTimerInUse());
-  {
-    // Check that a slow task does not trigger the high resolution logic.
-    RunLoop run_loop;
-    executor.task_runner()->PostDelayedTask(
-        FROM_HERE,
-        BindOnce(
-            [](RunLoop* run_loop) {
-              EXPECT_FALSE(Time::IsHighResolutionTimerInUse());
-              run_loop->QuitWhenIdle();
-            },
-            &run_loop),
-        kSlowTimer);
-    run_loop.Run();
-  }
-  Time::EnableHighResolutionTimer(false);
-  Time::ResetHighResolutionTimerUsage();
-}
-
 #endif  // BUILDFLAG(IS_WIN)
 
 namespace {
@@ -1903,8 +1878,7 @@ class MLDestructionObserver : public CurrentThread::DestructionObserver {
  public:
   MLDestructionObserver(bool* task_destroyed, bool* destruction_observer_called)
       : task_destroyed_(task_destroyed),
-        destruction_observer_called_(destruction_observer_called),
-        task_destroyed_before_message_loop_(false) {}
+        destruction_observer_called_(destruction_observer_called) {}
   void WillDestroyCurrentMessageLoop() override {
     task_destroyed_before_message_loop_ = *task_destroyed_;
     *destruction_observer_called_ = true;
@@ -1916,7 +1890,7 @@ class MLDestructionObserver : public CurrentThread::DestructionObserver {
  private:
   raw_ptr<bool> task_destroyed_;
   raw_ptr<bool> destruction_observer_called_;
-  bool task_destroyed_before_message_loop_;
+  bool task_destroyed_before_message_loop_ = false;
 };
 
 }  // namespace
@@ -1949,7 +1923,7 @@ TEST(SingleThreadTaskExecutorTest, DestructionObserverTest) {
 // it posts tasks on that message loop.
 TEST(SingleThreadTaskExecutorTest, ThreadMainTaskRunner) {
   SingleThreadTaskExecutor executor;
-
+  base::RunLoop loop;
   scoped_refptr<Foo> foo(new Foo());
   std::string a("a");
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
@@ -1957,10 +1931,10 @@ TEST(SingleThreadTaskExecutorTest, ThreadMainTaskRunner) {
 
   // Post quit task;
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&RunLoop::QuitCurrentWhenIdleDeprecated));
+      FROM_HERE, BindOnce(loop.QuitWhenIdleClosure()));
 
   // Now kick things off
-  RunLoop().Run();
+  loop.Run();
 
   EXPECT_EQ(foo->test_count(), 1);
   EXPECT_EQ(foo->result(), "a");
@@ -1982,7 +1956,8 @@ void PostMultipleTasks() {
 }
 
 static const int kSignalMsg = WM_USER + 2;
-
+// this feels wrong
+static base::RunLoop* g_loop_to_quit_from_message_handler = nullptr;
 void PostWindowsMessage(HWND message_hwnd) {
   PostMessage(message_hwnd, kSignalMsg, 0, 2);
 }
@@ -1998,10 +1973,12 @@ LRESULT CALLBACK TestWndProcThunk(HWND hwnd,
                                   UINT message,
                                   WPARAM wparam,
                                   LPARAM lparam) {
-  if (message == WM_CLOSE)
+  if (message == WM_CLOSE) {
     EXPECT_TRUE(DestroyWindow(hwnd));
-  if (message != kSignalMsg)
+  }
+  if (message != kSignalMsg) {
     return DefWindowProc(hwnd, message, wparam, lparam);
+  }
 
   switch (lparam) {
     case 1:
@@ -2027,17 +2004,21 @@ LRESULT CALLBACK TestWndProcThunk(HWND hwnd,
       // If it doesn't, then we'll loop here until the test times out.
       MSG msg;
       while (GetMessage(&msg, 0, 0, 0)) {
-        if (!CallMsgFilter(&msg, kMyMessageFilterCode))
+        if (!CallMsgFilter(&msg, kMyMessageFilterCode)) {
           DispatchMessage(&msg);
+        }
         // If this message is a WM_CLOSE, explicitly exit the modal loop.
         // Posting a WM_QUIT should handle this, but unfortunately
         // MessagePumpWin eats WM_QUIT messages even when running inside a modal
         // loop.
-        if (msg.message == WM_CLOSE)
+        if (msg.message == WM_CLOSE) {
           break;
+        }
       }
       EXPECT_TRUE(did_run);
-      RunLoop::QuitCurrentWhenIdleDeprecated();
+
+      g_loop_to_quit_from_message_handler->QuitWhenIdle();
+
       break;
   }
   return 0;
@@ -2045,6 +2026,8 @@ LRESULT CALLBACK TestWndProcThunk(HWND hwnd,
 
 TEST(SingleThreadTaskExecutorTest, AlwaysHaveUserMessageWhenNesting) {
   SingleThreadTaskExecutor executor(MessagePumpType::UI);
+  RunLoop loop;
+
   HINSTANCE instance = CURRENT_MODULE();
   WNDCLASSEX wc = {0};
   wc.cbSize = sizeof(wc);
@@ -2054,17 +2037,43 @@ TEST(SingleThreadTaskExecutorTest, AlwaysHaveUserMessageWhenNesting) {
   ATOM atom = RegisterClassEx(&wc);
   ASSERT_TRUE(atom);
 
+  g_loop_to_quit_from_message_handler = &loop;
   HWND message_hwnd = CreateWindow(MAKEINTATOM(atom), 0, 0, 0, 0, 0, 0,
                                    HWND_MESSAGE, 0, instance, 0);
+
   ASSERT_TRUE(message_hwnd) << GetLastError();
 
   ASSERT_TRUE(PostMessage(message_hwnd, kSignalMsg, 0, 1));
 
-  RunLoop().Run();
+  loop.Run();
 
   ASSERT_TRUE(UnregisterClass(MAKEINTATOM(atom), instance));
+  g_loop_to_quit_from_message_handler = nullptr;
 }
 #endif  // BUILDFLAG(IS_WIN)
+
+TEST(SingleThreadTaskExecutorTest,
+     ApplicationTasksAllowedInNativeNestedLoopExplicitlyInScope) {
+  // Only UI pumps support native loops.
+  SingleThreadTaskExecutor executor(MessagePumpType::UI);
+  RunLoop run_loop;
+  executor.task_runner()->PostTask(
+      FROM_HERE,
+      BindOnce(
+          [](RunLoop* run_loop) {
+            {
+              CurrentThread::ScopedAllowApplicationTasksInNativeNestedLoop
+                  allow_nestable_tasks;
+              EXPECT_TRUE(CurrentThread::Get()
+                              ->ApplicationTasksAllowedInNativeNestedLoop());
+            }
+            EXPECT_FALSE(CurrentThread::Get()
+                             ->ApplicationTasksAllowedInNativeNestedLoop());
+            run_loop->Quit();
+          },
+          Unretained(&run_loop)));
+  run_loop.Run();
+}
 
 // Verify that tasks posted to and code running in the scope of the same
 // SingleThreadTaskExecutor access the same SequenceLocalStorage values.
@@ -2074,10 +2083,10 @@ TEST(SingleThreadTaskExecutorTest, SequenceLocalStorageSetGet) {
   SequenceLocalStorageSlot<int> slot;
 
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindLambdaForTesting([&]() { slot.emplace(11); }));
+      FROM_HERE, BindLambdaForTesting([&] { slot.emplace(11); }));
 
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindLambdaForTesting([&]() { EXPECT_EQ(*slot, 11); }));
+      FROM_HERE, BindLambdaForTesting([&] { EXPECT_EQ(*slot, 11); }));
 
   RunLoop().RunUntilIdle();
   EXPECT_EQ(*slot, 11);
@@ -2091,7 +2100,7 @@ TEST(SingleThreadTaskExecutorTest, SequenceLocalStorageDifferentMessageLoops) {
   {
     SingleThreadTaskExecutor executor;
     SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, BindLambdaForTesting([&]() { slot.emplace(11); }));
+        FROM_HERE, BindLambdaForTesting([&] { slot.emplace(11); }));
 
     RunLoop().RunUntilIdle();
     EXPECT_EQ(*slot, 11);
@@ -2099,7 +2108,7 @@ TEST(SingleThreadTaskExecutorTest, SequenceLocalStorageDifferentMessageLoops) {
 
   SingleThreadTaskExecutor executor;
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindLambdaForTesting([&]() { EXPECT_FALSE(slot); }));
+      FROM_HERE, BindLambdaForTesting([&] { EXPECT_FALSE(slot); }));
 
   RunLoop().RunUntilIdle();
   EXPECT_NE(slot.GetOrCreateValue(), 11);
@@ -2109,7 +2118,7 @@ namespace {
 
 class PostTaskOnDestroy {
  public:
-  PostTaskOnDestroy(int times) : times_remaining_(times) {}
+  explicit PostTaskOnDestroy(int times) : times_remaining_(times) {}
 
   PostTaskOnDestroy(const PostTaskOnDestroy&) = delete;
   PostTaskOnDestroy& operator=(const PostTaskOnDestroy&) = delete;

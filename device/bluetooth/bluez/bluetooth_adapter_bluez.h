@@ -16,16 +16,18 @@
 
 #include "base/containers/queue.h"
 #include "base/gtest_prod_util.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "dbus/object_path.h"
 #include "device/bluetooth/bluetooth_adapter.h"
 #include "device/bluetooth/bluetooth_device.h"
 #include "device/bluetooth/bluetooth_discovery_session.h"
 #include "device/bluetooth/bluetooth_export.h"
 #include "device/bluetooth/bluetooth_gatt_service.h"
+#include "device/bluetooth/bluetooth_local_gatt_service.h"
 #include "device/bluetooth/bluez/bluetooth_service_record_bluez.h"
 #include "device/bluetooth/dbus/bluetooth_adapter_client.h"
 #include "device/bluetooth/dbus/bluetooth_admin_policy_client.h"
@@ -34,16 +36,18 @@
 #include "device/bluetooth/dbus/bluetooth_battery_client.h"
 #include "device/bluetooth/dbus/bluetooth_device_client.h"
 #include "device/bluetooth/dbus/bluetooth_input_client.h"
+#include "device/bluetooth/dbus/bluetooth_le_advertising_manager_client.h"
 #include "device/bluetooth/dbus/bluetooth_profile_manager_client.h"
 #include "device/bluetooth/dbus/bluetooth_profile_service_provider.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include <optional>
+
 #include "device/bluetooth/bluetooth_low_energy_scan_filter.h"
 #include "device/bluetooth/bluetooth_low_energy_scan_session.h"
 #include "device/bluetooth/dbus/bluetooth_advertisement_monitor_manager_client.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "services/data_decoder/public/mojom/ble_scan_parser.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 namespace base {
@@ -94,6 +98,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterBlueZ final
       public bluez::BluetoothDeviceClient::Observer,
       public bluez::BluetoothInputClient::Observer,
       public bluez::BluetoothAgentManagerClient::Observer,
+      public bluez::BluetoothLEAdvertisingManagerClient::Observer,
 #if BUILDFLAG(IS_CHROMEOS)
       public bluez::BluetoothAdvertisementMonitorManagerClient::Observer,
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -157,6 +162,10 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterBlueZ final
       CreateAdvertisementCallback callback,
       AdvertisementErrorCallback error_callback) override;
 
+#if BUILDFLAG(IS_CHROMEOS)
+  bool IsExtendedAdvertisementsAvailable() const override;
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
   void SetAdvertisingInterval(
       const base::TimeDelta& min,
       const base::TimeDelta& max,
@@ -168,12 +177,17 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterBlueZ final
 
   void ConnectDevice(
       const std::string& address,
-      const absl::optional<device::BluetoothDevice::AddressType>& address_type,
+      const std::optional<device::BluetoothDevice::AddressType>& address_type,
       ConnectDeviceCallback callback,
       ConnectDeviceErrorCallback error_callback) override;
 
   device::BluetoothLocalGattService* GetGattService(
       const std::string& identifier) const override;
+
+  base::WeakPtr<device::BluetoothLocalGattService> CreateLocalGattService(
+      const device::BluetoothUUID& uuid,
+      bool is_primary,
+      device::BluetoothLocalGattService::Delegate* delegate) override;
 
 #if BUILDFLAG(IS_CHROMEOS)
   void SetServiceAllowList(const UUIDList& uuids,
@@ -188,13 +202,12 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterBlueZ final
       std::unique_ptr<device::BluetoothLowEnergyScanFilter> filter,
       base::WeakPtr<device::BluetoothLowEnergyScanSession::Delegate> delegate)
       override;
-#endif  // BUILDFLAG(IS_CHROMEOS)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-  // Set the adapter name to one chosen from the system information. Only Ash
-  // needs to do this.
+  std::vector<BluetoothRole> GetSupportedRoles() override;
+
+  // Set the adapter name to one chosen from the system information.
   void SetStandardChromeOSAdapterName() override;
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
   // These functions are specifically for use with ARC. They have no need to
   // exist for other platforms, hence we're putting them directly in the BlueZ
@@ -583,14 +596,18 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterBlueZ final
   scoped_refptr<device::BluetoothSocketThread> socket_thread_;
 
   // The profiles we have registered with the bluetooth daemon.
-  std::map<device::BluetoothUUID, BluetoothAdapterProfileBlueZ*> profiles_;
+  std::map<device::BluetoothUUID,
+           raw_ptr<BluetoothAdapterProfileBlueZ, CtnExperimental>>
+      profiles_;
 
   // Profiles that have been released and are pending removal.
-  std::map<device::BluetoothUUID, BluetoothAdapterProfileBlueZ*>
+  std::map<device::BluetoothUUID,
+           raw_ptr<BluetoothAdapterProfileBlueZ, CtnExperimental>>
       released_profiles_;
 
   // Queue of delegates waiting for a profile to register.
-  std::map<device::BluetoothUUID, std::vector<RegisterProfileCompletionPair>*>
+  std::map<device::BluetoothUUID,
+           raw_ptr<std::vector<RegisterProfileCompletionPair>, CtnExperimental>>
       profile_queues_;
 
   // List of GATT services that are owned by this adapter.
@@ -598,7 +615,8 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothAdapterBlueZ final
       owned_gatt_services_;
 
   // GATT services that are currently available on the GATT server.
-  std::map<dbus::ObjectPath, BluetoothLocalGattServiceBlueZ*>
+  std::map<dbus::ObjectPath,
+           raw_ptr<BluetoothLocalGattServiceBlueZ, CtnExperimental>>
       registered_gatt_services_;
 
   // DBus Object Manager that acts as a service provider for all the services

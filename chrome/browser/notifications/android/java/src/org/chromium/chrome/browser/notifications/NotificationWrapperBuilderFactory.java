@@ -6,11 +6,11 @@ package org.chromium.chrome.browser.notifications;
 
 import android.content.Context;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.notifications.channels.ChromeChannelDefinitions;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
 import org.chromium.components.browser_ui.notifications.NotificationMetadata;
 import org.chromium.components.browser_ui.notifications.NotificationWrapperBuilder;
 import org.chromium.components.browser_ui.notifications.channels.ChannelsInitializer;
@@ -19,32 +19,34 @@ import org.chromium.components.browser_ui.notifications.channels.ChannelsInitial
  * Factory which supplies the appropriate type of notification builder based on Android version.
  * Should be used for all notifications we create, to ensure a notification channel is set on O.
  */
+@NullMarked
 public class NotificationWrapperBuilderFactory {
     /**
      * Creates a NotificationCompat.Builder under the hood, wrapped in our own interface, and
      * ensures the notification channel has been initialized.
      *
      * @param channelId The ID of the channel the notification should be posted to. This channel
-     *                  will be created if it did not already exist. Must be a known channel within
-     *                  {@link ChannelsInitializer#ensureInitialized(String)}.
+     *     will be created if it did not already exist. Must be a known channel within {@link
+     *     ChannelsInitializer#ensureInitialized(String)}.
      */
     public static NotificationWrapperBuilder createNotificationWrapperBuilder(String channelId) {
-        return createNotificationWrapperBuilder(channelId, null /* metadata */);
+        return createNotificationWrapperBuilder(channelId, /* metadata= */ null);
     }
 
     /**
      * Same as above, with additional parameter:
+     *
      * @param metadata Metadata contains notification id, tag, etc.
      */
     public static NotificationWrapperBuilder createNotificationWrapperBuilder(
             String channelId, @Nullable NotificationMetadata metadata) {
         Context context = ContextUtils.getApplicationContext();
 
-        NotificationManagerProxyImpl notificationManagerProxy =
-                new NotificationManagerProxyImpl(context);
-
-        ChannelsInitializer channelsInitializer = new ChannelsInitializer(notificationManagerProxy,
-                ChromeChannelDefinitions.getInstance(), context.getResources());
+        ChannelsInitializer channelsInitializer =
+                new ChannelsInitializer(
+                        BaseNotificationManagerProxyFactory.create(),
+                        ChromeChannelDefinitions.getInstance(),
+                        context.getResources());
 
         return new ChromeNotificationWrapperCompatBuilder(
                 context, channelId, channelsInitializer, metadata);

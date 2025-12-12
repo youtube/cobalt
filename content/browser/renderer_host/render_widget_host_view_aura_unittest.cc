@@ -18,6 +18,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
+#include "base/sanitizer_buildflags.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
@@ -27,8 +28,9 @@
 #include "base/test/with_feature_override.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "cc/trees/render_frame_metadata.h"
+#include "components/input/input_router.h"
+#include "components/input/mouse_wheel_event_queue.h"
 #include "components/viz/common/features.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/surfaces/child_local_surface_id_allocator.h"
@@ -38,14 +40,11 @@
 #include "components/viz/test/fake_surface_observer.h"
 #include "components/viz/test/test_latest_local_surface_id_lookup_delegate.h"
 #include "content/browser/browser_main_loop.h"
-#include "content/browser/compositor/test/test_image_transport_factory.h"
 #include "content/browser/gpu/compositor_util.h"
 #include "content/browser/renderer_host/delegated_frame_host.h"
 #include "content/browser/renderer_host/delegated_frame_host_client_aura.h"
 #include "content/browser/renderer_host/frame_token_message_queue.h"
 #include "content/browser/renderer_host/frame_tree.h"
-#include "content/browser/renderer_host/input/input_router.h"
-#include "content/browser/renderer_host/input/mouse_wheel_event_queue.h"
 #include "content/browser/renderer_host/overscroll_controller.h"
 #include "content/browser/renderer_host/overscroll_controller_delegate.h"
 #include "content/browser/renderer_host/render_frame_metadata_provider_impl.h"
@@ -57,17 +56,20 @@
 #include "content/browser/site_instance_group.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/browser/web_contents/web_contents_view_aura.h"
+#include "content/common/features.h"
 #include "content/public/browser/context_menu_params.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_view_delegate.h"
-#include "content/public/common/content_features.h"
 #include "content/public/test/fake_frame_widget.h"
 #include "content/public/test/mock_render_process_host.h"
 #include "content/public/test/test_browser_context.h"
+#include "content/public/test/test_image_transport_factory.h"
+#include "content/test/mock_render_input_router.h"
 #include "content/test/mock_render_widget_host_delegate.h"
 #include "content/test/mock_widget.h"
+#include "content/test/mock_widget_input_handler.h"
 #include "content/test/test_overscroll_delegate.h"
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_web_contents.h"
@@ -100,9 +102,9 @@
 #include "ui/base/ime/mock_input_method.h"
 #include "ui/base/ime/mojom/text_input_state.mojom.h"
 #include "ui/base/ime/virtual_keyboard_controller.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/base/ui_base_switches.h"
-#include "ui/base/ui_base_types.h"
 #include "ui/compositor/compositor.h"
 #include "ui/compositor/layer_tree_owner.h"
 #include "ui/compositor/test/draw_waiter_for_test.h"
@@ -124,8 +126,17 @@
 #include "ui/wm/core/window_util.h"
 
 #if BUILDFLAG(IS_WIN)
+#include "components/stylus_handwriting/win/features.h"
+#include "content/browser/renderer_host/input/stylus_handwriting_win_test_helper.h"
+#include "content/browser/renderer_host/legacy_render_widget_host_win.h"
+#include "third_party/blink/public/mojom/page/widget.mojom.h"
+#include "ui/base/ime/text_input_client.h"
 #include "ui/base/view_prop.h"
 #include "ui/base/win/window_event_target.h"
+#endif
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
 #endif
 
 using testing::_;
@@ -152,6 +163,33 @@ using viz::FrameEvictionManager;
   }
 
 namespace content {
+
+#if BUILDFLAG(IS_WIN)
+namespace {
+blink::mojom::StylusWritingFocusResultPtr
+CreateStylusWritingFocusResultForTesting() {
+  blink::mojom::StylusWritingFocusResultPtr result =
+      blink::mojom::StylusWritingFocusResult::New();
+  result->focused_edit_bounds = gfx::Rect(0, 0, 100, 10);
+  result->caret_bounds = gfx::Rect(0, 0, 0, 10);
+  // Intentionally skipping [0] because this simulates the "proximate" behavior,
+  // where the range provided may not include the entire text.
+  result->proximate_bounds = blink::mojom::ProximateCharacterRangeBounds::New(
+      gfx::Range(1, 3), std::vector<gfx::Rect>{gfx::Rect(10, 0, 10, 10),
+                                               gfx::Rect(20, 0, 10, 10)});
+  return result;
+}
+}  // namespace
+#endif  // BUILDFLAG(IS_WIN)
+
+void ParentHostView(RenderWidgetHostView* host_view,
+                    RenderWidgetHostView* parent_host_view,
+                    const gfx::Rect& bounds = gfx::Rect()) {
+  aura::client::ParentWindowWithContext(
+      host_view->GetNativeView(),
+      parent_host_view->GetNativeView()->GetRootWindow(), bounds,
+      display::kInvalidDisplayId);
+}
 
 void InstallDelegatedFrameHostClient(
     RenderWidgetHostViewAura* render_widget_host_view);
@@ -198,7 +236,7 @@ class TestWindowObserver : public aura::WindowObserver {
   raw_ptr<aura::Window> window_;
 
   // Was |window_| destroyed?
-  bool destroyed_;
+  bool destroyed_ = false;
 };
 
 class FakeWindowEventDispatcher : public aura::WindowEventDispatcher {
@@ -317,7 +355,9 @@ class FullscreenLayoutManager : public aura::LayoutManager {
 
 class MockRenderWidgetHostImpl : public RenderWidgetHostImpl {
  public:
-  ~MockRenderWidgetHostImpl() override {}
+  using RenderWidgetHostImpl::render_input_router_;
+
+  ~MockRenderWidgetHostImpl() override = default;
 
   // Extracts |latency_info| for wheel event, and stores it in
   // |last_wheel_or_touch_event_latency_info_|.
@@ -326,31 +366,8 @@ class MockRenderWidgetHostImpl : public RenderWidgetHostImpl {
       const ui::LatencyInfo& ui_latency) override {
     RenderWidgetHostImpl::ForwardWheelEventWithLatencyInfo(wheel_event,
                                                            ui_latency);
-    last_wheel_or_touch_event_latency_info_ = ui::LatencyInfo(ui_latency);
-  }
-
-  // Extracts |latency_info| for touch event, and stores it in
-  // |last_wheel_or_touch_event_latency_info_|.
-  void ForwardTouchEventWithLatencyInfo(
-      const blink::WebTouchEvent& touch_event,
-      const ui::LatencyInfo& ui_latency) override {
-    RenderWidgetHostImpl::ForwardTouchEventWithLatencyInfo(touch_event,
-                                                           ui_latency);
-    last_wheel_or_touch_event_latency_info_ = ui::LatencyInfo(ui_latency);
-  }
-
-  void ForwardGestureEventWithLatencyInfo(
-      const blink::WebGestureEvent& gesture_event,
-      const ui::LatencyInfo& ui_latency) override {
-    RenderWidgetHostImpl::ForwardGestureEventWithLatencyInfo(gesture_event,
-                                                             ui_latency);
-    last_forwarded_gesture_event_ = gesture_event;
-  }
-
-  absl::optional<WebGestureEvent> GetAndResetLastForwardedGestureEvent() {
-    absl::optional<WebGestureEvent> ret;
-    last_forwarded_gesture_event_.swap(ret);
-    return ret;
+    GetMockRenderInputRouter()->SetLastWheelOrTouchEventLatencyInfo(
+        ui::LatencyInfo(ui_latency));
   }
 
   void ClearVisualProperties() {
@@ -384,10 +401,16 @@ class MockRenderWidgetHostImpl : public RenderWidgetHostImpl {
                                         routing_id, hidden);
   }
 
-  MockWidgetInputHandler* input_handler() { return &input_handler_; }
+  MockWidgetInputHandler* input_handler() {
+    return GetMockRenderInputRouter()->mock_widget_input_handler_.get();
+  }
 
-  blink::mojom::WidgetInputHandler* GetWidgetInputHandler() override {
-    return &input_handler_;
+  MockRenderInputRouter* GetMockRenderInputRouter() {
+    return static_cast<MockRenderInputRouter*>(render_input_router_.get());
+  }
+
+  input::RenderInputRouter* GetRenderInputRouter() override {
+    return render_input_router_.get();
   }
 
   void reset_new_content_rendering_timeout_fired() {
@@ -402,24 +425,23 @@ class MockRenderWidgetHostImpl : public RenderWidgetHostImpl {
     widget_.SetTouchActionFromMain(touch_action);
   }
 
-  const ui::LatencyInfo& LastWheelOrTouchEventLatencyInfo() const {
-    return last_wheel_or_touch_event_latency_info_;
-  }
-
  private:
   MockRenderWidgetHostImpl(FrameTree* frame_tree,
                            RenderWidgetHostDelegate* delegate,
                            base::SafeRef<SiteInstanceGroup> site_instance_group,
                            int32_t routing_id,
                            bool hidden)
-      : RenderWidgetHostImpl(frame_tree,
-                             /*self_owned=*/true,
-                             delegate,
-                             std::move(site_instance_group),
-                             routing_id,
-                             hidden,
-                             /*renderer_initiated_creation=*/false,
-                             std::make_unique<FrameTokenMessageQueue>()) {
+      : RenderWidgetHostImpl(
+            frame_tree,
+            /*self_owned=*/true,
+            DefaultFrameSinkId(*site_instance_group, routing_id),
+            delegate,
+            site_instance_group,
+            routing_id,
+            hidden,
+            /*renderer_initiated_creation=*/false,
+            std::make_unique<FrameTokenMessageQueue>()) {
+    SetupMockRenderInputRouter();
     BindWidgetInterfaces(mojo::AssociatedRemote<blink::mojom::WidgetHost>()
                              .BindNewEndpointAndPassDedicatedReceiver(),
                          widget_.GetNewRemote());
@@ -429,11 +451,16 @@ class MockRenderWidgetHostImpl : public RenderWidgetHostImpl {
     new_content_rendering_timeout_fired_ = true;
   }
 
-  ui::LatencyInfo last_wheel_or_touch_event_latency_info_;
+  void SetupMockRenderInputRouter() {
+    render_input_router_.reset();
+    render_input_router_ = std::make_unique<MockRenderInputRouter>(
+        this, MakeFlingScheduler(), this,
+        base::SingleThreadTaskRunner::GetCurrentDefault());
+    SetupInputRouter();
+  }
+
   bool new_content_rendering_timeout_fired_ = false;
-  MockWidgetInputHandler input_handler_;
   MockWidget widget_;
-  absl::optional<WebGestureEvent> last_forwarded_gesture_event_;
 };
 
 class TestScopedKeyboardHook : public aura::ScopedKeyboardHook {
@@ -455,7 +482,7 @@ class TestScopedKeyboardHook : public aura::ScopedKeyboardHook {
 
  private:
   bool keyboard_lock_active_ = false;
-  absl::optional<ui::DomCode> locked_key_;
+  std::optional<ui::DomCode> locked_key_;
 };
 
 TestScopedKeyboardHook::TestScopedKeyboardHook() = default;
@@ -553,11 +580,12 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
         site_instance_group_->GetSafeRef(), routing_id, /*hidden = */ false);
     delegates_.back()->set_widget_host(parent_host_);
 
+    // This is an owning pointer. Released manually in TearDownEnvironment().
     parent_view_ = new RenderWidgetHostViewAura(parent_host_);
     parent_view_->InitAsChild(nullptr);
-    aura::client::ParentWindowWithContext(parent_view_->GetNativeView(),
-                                          aura_test_helper_->GetContext(),
-                                          gfx::Rect());
+    aura::client::ParentWindowWithContext(
+        parent_view_->GetNativeView(), aura_test_helper_->GetContext(),
+        gfx::Rect(), display::kInvalidDisplayId);
 
     parent_host_->BindFrameWidgetInterfaces(
         mojo::AssociatedRemote<blink::mojom::FrameWidgetHost>()
@@ -612,10 +640,14 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
   }
 
   void TearDownEnvironment() {
+    parent_host_ = nullptr;  // Owned indirectly by `view_`, destroyed below.
+
     sink_ = nullptr;
-    if (view_)
-      DestroyView(view_);
-    parent_view_->Destroy();
+    widget_host_ = nullptr;  // Owned by `view_` destroyed below:
+    if (view_) {
+      DestroyView(view_.ExtractAsDangling());
+    }
+    parent_view_.ExtractAsDangling()->Destroy();
 
     process_host_->Cleanup();
     site_instance_group_.reset();
@@ -660,6 +692,10 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
   bool HasTouchEventHandlers(bool has_handlers) { return has_handlers; }
   bool HasHitTestableScrollbar(bool has_scrollbar) { return has_scrollbar; }
 
+  ui::InputMethod* GetInputMethod() const {
+    return parent_view_->GetInputMethod();
+  }
+
  protected:
   BrowserContext* browser_context() { return browser_context_.get(); }
 
@@ -676,6 +712,12 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
         ->delegate()
         ->GetTextInputManager();
   }
+
+#if BUILDFLAG(IS_WIN)
+  LegacyRenderWidgetHostHWND* legacy_render_widget_host_HWND() const {
+    return view_->legacy_render_widget_host_HWND_;
+  }
+#endif  // BUILDFLAG(IS_WIN)
 
   // Sets the |view| active in TextInputManager with the given |type|. |type|
   // cannot be ui::TEXT_INPUT_TYPE_NONE.
@@ -704,9 +746,6 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
     view->TextInputStateChanged(state_with_type_text);
   }
 
-  void RunTimerBasedWheelEventPhaseInfoTest(
-      bool percent_based_scrolling_enabled);
-
   BrowserTaskEnvironment task_environment_{
       base::test::SingleThreadTaskEnvironment::TimeSource::MOCK_TIME};
   std::unique_ptr<aura::test::AuraTestHelper> aura_test_helper_;
@@ -718,13 +757,15 @@ class RenderWidgetHostViewAuraTest : public testing::Test {
 
   // Tests should set these to nullptr if they've already triggered their
   // destruction.
-  raw_ptr<RenderWidgetHostImpl> parent_host_;
-  raw_ptr<RenderWidgetHostViewAura> parent_view_;
+  raw_ptr<RenderWidgetHostImpl> parent_host_ = nullptr;
+  // The `parent_view_` owns the object.
+  // Note: It would be great turning this into a std::unique_ptr<>.
+  raw_ptr<RenderWidgetHostViewAura> parent_view_ = nullptr;
 
-  // Tests should set these to nullptr if they've already triggered their
+  // Tests should set `view` to nullptr if they've already triggered their
   // destruction.
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_;
   raw_ptr<FakeRenderWidgetHostViewAura> view_;
+  raw_ptr<MockRenderWidgetHostImpl> widget_host_ = nullptr;  // Owned by `view_`
 
   raw_ptr<IPC::TestSink> sink_ = nullptr;
   base::test::ScopedFeatureList mojo_feature_list_;
@@ -879,7 +920,8 @@ class RenderWidgetHostViewAuraOverscrollTest
   void SimulateGestureEventCoreWithLatencyInfo(
       const WebGestureEvent& gesture_event,
       const ui::LatencyInfo& ui_latency) {
-    widget_host_->ForwardGestureEventWithLatencyInfo(gesture_event, ui_latency);
+    widget_host_->GetRenderInputRouter()->ForwardGestureEventWithLatencyInfo(
+        gesture_event, ui_latency);
     base::RunLoop().RunUntilIdle();
   }
 
@@ -961,8 +1003,8 @@ class RenderWidgetHostViewAuraOverscrollTest
 
   uint32_t SendTouchEvent() {
     uint32_t touch_event_id = touch_event_.unique_touch_event_id;
-    widget_host_->ForwardTouchEventWithLatencyInfo(touch_event_,
-                                                   ui::LatencyInfo());
+    widget_host_->GetMockRenderInputRouter()->ForwardTouchEventWithLatencyInfo(
+        touch_event_, ui::LatencyInfo());
     touch_event_.ResetPoints();
     base::RunLoop().RunUntilIdle();
     return touch_event_id;
@@ -1168,7 +1210,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ParentMovementUpdatesScreenRect) {
             widget_host_->screen_rects().at(0).second);
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Checks that a popup view is destroyed when a user clicks outside of the popup
 // view and focus does not change. This is the case when the user clicks on the
 // desktop background on Chrome OS.
@@ -1188,12 +1230,11 @@ TEST_F(RenderWidgetHostViewAuraTest, DestroyPopupClickOutsidePopup) {
 
   TestWindowObserver observer(window);
   ui::test::EventGenerator generator(window->GetRootWindow(), click_point);
+  widget_host_ = nullptr;  // Owned by `view_`.
+  view_ = nullptr;         // Self destroying during `ClickLeftButton`.
   generator.ClickLeftButton();
   ASSERT_TRUE(parent_view_->HasFocus());
   ASSERT_TRUE(observer.destroyed());
-
-  widget_host_ = nullptr;
-  view_ = nullptr;
 }
 
 // Checks that a popup view is destroyed when a user taps outside of the popup
@@ -1215,16 +1256,15 @@ TEST_F(RenderWidgetHostViewAuraTest, DestroyPopupTapOutsidePopup) {
 
   TestWindowObserver observer(window);
   ui::test::EventGenerator generator(window->GetRootWindow(), tap_point);
+  widget_host_ = nullptr;  // Owned by `view_`.
+  view_ = nullptr;         // Self destroying during `GestureTapAt`.
   generator.GestureTapAt(tap_point);
   ASSERT_TRUE(parent_view_->HasFocus());
   ASSERT_TRUE(observer.destroyed());
-
-  widget_host_ = nullptr;
-  view_ = nullptr;
 }
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+#if BUILDFLAG(IS_LINUX)
 // On Desktop Linux, select boxes need mouse capture in order to work. Test that
 // when a select box is opened via a mouse press that it retains mouse capture
 // after the mouse is released.
@@ -1262,18 +1302,43 @@ TEST_F(RenderWidgetHostViewAuraTest, PopupClosesWhenParentLosesFocus) {
   aura::test::TestWindowDelegate delegate;
   std::unique_ptr<aura::Window> dialog_window(new aura::Window(&delegate));
   dialog_window->Init(ui::LAYER_TEXTURED);
-  aura::client::ParentWindowWithContext(
-      dialog_window.get(), popup_window, gfx::Rect());
+  aura::client::ParentWindowWithContext(dialog_window.get(), popup_window,
+                                        gfx::Rect(),
+                                        display::kInvalidDisplayId);
   dialog_window->Show();
   wm::ActivateWindow(dialog_window.get());
+  widget_host_ = nullptr;  // Owned by `view_`.
+  view_ = nullptr;         // Self destroying during `Focus` below:
   dialog_window->Focus();
 
   ASSERT_TRUE(wm::IsActiveWindow(dialog_window.get()));
   EXPECT_TRUE(observer.destroyed());
-
-  widget_host_ = nullptr;
-  view_ = nullptr;
 }
+
+#if !BUILDFLAG(IS_FUCHSIA)
+// Test that select boxes close when their parent window position changes.
+// This test is not relevant for Fuchsia, as the window bounds on Fuchsia does
+// not contain an offset.
+TEST_F(RenderWidgetHostViewAuraTest, PopupClosesWhenParentMoves) {
+  parent_view_->SetBounds(gfx::Rect(10, 10, 400, 400));
+  parent_view_->Focus();
+  EXPECT_TRUE(parent_view_->HasFocus());
+
+  InitViewForPopup(parent_view_, gfx::Rect(10, 10, 100, 100));
+
+  aura::Window* popup_window = view_->GetNativeView();
+  TestWindowObserver observer(popup_window);
+  widget_host_ = nullptr;  // Owned by `view_`.
+  view_ = nullptr;         // Self destroying during `SetBounds` below:
+
+  aura::WindowTreeHost* host = parent_view_->GetNativeView()->GetHost();
+  gfx::Rect bounds = host->GetBoundsInPixels();
+  bounds.Offset(10, 10);
+  host->SetBoundsInPixels(bounds);
+
+  EXPECT_TRUE(observer.destroyed());
+}
+#endif
 
 // Checks that IME-composition-event state is maintained correctly.
 TEST_F(RenderWidgetHostViewAuraTest, SetCompositionText) {
@@ -1365,9 +1430,9 @@ TEST_F(RenderWidgetHostViewAuraTest, FinishCompositionByMouse) {
   EXPECT_EQ("SetComposition", GetMessageNames(GetAndResetDispatchedMessages()));
 
   // Simulates the mouse press.
-  ui::MouseEvent mouse_event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                             ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-                             0);
+  ui::MouseEvent mouse_event(ui::EventType::kMousePressed, gfx::Point(),
+                             gfx::Point(), ui::EventTimeForNow(),
+                             ui::EF_LEFT_MOUSE_BUTTON, 0);
   view_->OnMouseEvent(&mouse_event);
   base::RunLoop().RunUntilIdle();
 
@@ -1428,13 +1493,13 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchEventState) {
       HasTouchEventHandlers(false), HasHitTestableScrollbar(false));
   widget_host_->SetHasTouchEventConsumers(std::move(touch_event_consumers));
 
-  ui::TouchEvent press(ui::ET_TOUCH_PRESSED, gfx::Point(30, 30),
+  ui::TouchEvent press(ui::EventType::kTouchPressed, gfx::Point(30, 30),
                        ui::EventTimeForNow(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 0));
-  ui::TouchEvent move(ui::ET_TOUCH_MOVED, gfx::Point(20, 20),
+  ui::TouchEvent move(ui::EventType::kTouchMoved, gfx::Point(20, 20),
                       ui::EventTimeForNow(),
                       ui::PointerDetails(ui::EventPointerType::kTouch, 0));
-  ui::TouchEvent release(ui::ET_TOUCH_RELEASED, gfx::Point(20, 20),
+  ui::TouchEvent release(ui::EventType::kTouchReleased, gfx::Point(20, 20),
                          ui::EventTimeForNow(),
                          ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
@@ -1508,7 +1573,7 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchEventState) {
   events = GetAndResetDispatchedMessages();
   EXPECT_EQ(0U, events.size());
 
-  ui::TouchEvent move2(ui::ET_TOUCH_MOVED, gfx::Point(20, 20),
+  ui::TouchEvent move2(ui::EventType::kTouchMoved, gfx::Point(20, 20),
                        base::TimeTicks::Now(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 0));
   view_->OnTouchEvent(&move2);
@@ -1517,7 +1582,7 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchEventState) {
   EXPECT_EQ(ui::MotionEvent::Action::MOVE, pointer_state().GetAction());
   EXPECT_EQ(1U, pointer_state().GetPointerCount());
 
-  ui::TouchEvent release2(ui::ET_TOUCH_RELEASED, gfx::Point(20, 20),
+  ui::TouchEvent release2(ui::EventType::kTouchReleased, gfx::Point(20, 20),
                           base::TimeTicks::Now(),
                           ui::PointerDetails(ui::EventPointerType::kTouch, 0));
   view_->OnTouchEvent(&release2);
@@ -1539,11 +1604,11 @@ TEST_F(RenderWidgetHostViewAuraTest,
   view_->event_handler()->scoped_keyboard_hook_ = std::move(test_hook);
 
   // This locked key will skip the prehandler and be sent to the input handler.
-  ui::KeyEvent key_event1(ui::ET_KEY_PRESSED,
+  ui::KeyEvent key_event1(ui::EventType::kKeyPressed,
                           ui::DomCodeToUsLayoutKeyboardCode(ui::DomCode::US_A),
                           ui::DomCode::US_A, ui::EF_NONE);
   view_->OnKeyEvent(&key_event1);
-  const NativeWebKeyboardEvent* event1 =
+  const input::NativeWebKeyboardEvent* event1 =
       render_widget_host_delegate()->last_event();
   ASSERT_FALSE(event1);
   // Run the runloop to ensure input messages are dispatched.  Otherwise the
@@ -1564,11 +1629,11 @@ TEST_F(RenderWidgetHostViewAuraTest,
       ui::DomCode::US_B,     ui::DomCode::US_Z,  ui::DomCode::TAB,
       ui::DomCode::ALT_LEFT, ui::DomCode::ENTER, ui::DomCode::ESCAPE};
   for (ui::DomCode dom_code : dom_codes) {
-    ui::KeyEvent key_event(ui::ET_KEY_PRESSED,
+    ui::KeyEvent key_event(ui::EventType::kKeyPressed,
                            ui::DomCodeToUsLayoutKeyboardCode(dom_code),
                            dom_code, ui::EF_NONE);
     view_->OnKeyEvent(&key_event);
-    const NativeWebKeyboardEvent* event =
+    const input::NativeWebKeyboardEvent* event =
         render_widget_host_delegate()->last_event();
     ASSERT_TRUE(event) << "Failed for DomCode: "
                        << ui::KeycodeConverter::DomCodeToCodeString(dom_code);
@@ -1590,11 +1655,11 @@ TEST_F(RenderWidgetHostViewAuraTest,
   // Although this key was locked, it will still pass through the prehandler as
   // we do not want to prevent ESC from being used to exit fullscreen.
   ui::KeyEvent key_event1(
-      ui::ET_KEY_PRESSED,
+      ui::EventType::kKeyPressed,
       ui::DomCodeToUsLayoutKeyboardCode(ui::DomCode::ESCAPE),
       ui::DomCode::ESCAPE, ui::EF_NONE);
   view_->OnKeyEvent(&key_event1);
-  const NativeWebKeyboardEvent* event1 =
+  const input::NativeWebKeyboardEvent* event1 =
       render_widget_host_delegate()->last_event();
   ASSERT_TRUE(event1);
   ASSERT_EQ(key_event1.key_code(), event1->windows_key_code);
@@ -1602,11 +1667,11 @@ TEST_F(RenderWidgetHostViewAuraTest,
             event1->native_key_code);
 
   // This event will pass through the prehandler since it isn't locked.
-  ui::KeyEvent key_event2(ui::ET_KEY_PRESSED,
+  ui::KeyEvent key_event2(ui::EventType::kKeyPressed,
                           ui::DomCodeToUsLayoutKeyboardCode(ui::DomCode::US_B),
                           ui::DomCode::US_B, ui::EF_NONE);
   view_->OnKeyEvent(&key_event2);
-  const NativeWebKeyboardEvent* event2 =
+  const input::NativeWebKeyboardEvent* event2 =
       render_widget_host_delegate()->last_event();
   ASSERT_TRUE(event2);
   ASSERT_EQ(key_event2.key_code(), event2->windows_key_code);
@@ -1628,11 +1693,11 @@ TEST_F(RenderWidgetHostViewAuraTest,
                                         ui::DomCode::TAB, ui::DomCode::ALT_LEFT,
                                         ui::DomCode::ENTER};
   for (ui::DomCode dom_code : dom_codes) {
-    ui::KeyEvent key_event(ui::ET_KEY_PRESSED,
+    ui::KeyEvent key_event(ui::EventType::kKeyPressed,
                            ui::DomCodeToUsLayoutKeyboardCode(dom_code),
                            dom_code, ui::EF_NONE);
     view_->OnKeyEvent(&key_event);
-    const NativeWebKeyboardEvent* event =
+    const input::NativeWebKeyboardEvent* event =
         render_widget_host_delegate()->last_event();
     ASSERT_FALSE(event) << "Failed for DomCode: "
                         << ui::KeycodeConverter::DomCodeToCodeString(dom_code);
@@ -1657,11 +1722,11 @@ TEST_F(RenderWidgetHostViewAuraTest,
   // Although this key was locked, it will still pass through the prehandler as
   // we do not want to prevent ESC from being used to exit fullscreen.
   ui::KeyEvent esc_key_event(
-      ui::ET_KEY_PRESSED,
+      ui::EventType::kKeyPressed,
       ui::DomCodeToUsLayoutKeyboardCode(ui::DomCode::ESCAPE),
       ui::DomCode::ESCAPE, ui::EF_NONE);
   view_->OnKeyEvent(&esc_key_event);
-  const NativeWebKeyboardEvent* esc_event =
+  const input::NativeWebKeyboardEvent* esc_event =
       render_widget_host_delegate()->last_event();
   ASSERT_TRUE(esc_event);
   ASSERT_EQ(esc_key_event.key_code(), esc_event->windows_key_code);
@@ -1700,16 +1765,17 @@ TEST_F(RenderWidgetHostViewAuraTest,
       ui::DomCode::US_A,     ui::DomCode::ENTER, ui::DomCode::TAB,
       ui::DomCode::ALT_LEFT, ui::DomCode::US_Z,  ui::DomCode::ESCAPE};
   for (ui::DomCode dom_code : dom_codes) {
-    ui::KeyEvent key_event(ui::ET_KEY_PRESSED,
+    ui::KeyEvent key_event(ui::EventType::kKeyPressed,
                            ui::DomCodeToUsLayoutKeyboardCode(dom_code),
                            dom_code, ui::EF_NONE);
     parent_view_->OnKeyEvent(&key_event);
-    const NativeWebKeyboardEvent* parent_event = delegates_[0]->last_event();
+    const input::NativeWebKeyboardEvent* parent_event =
+        delegates_[0]->last_event();
     ASSERT_FALSE(parent_event)
         << "Failed for DomCode: "
         << ui::KeycodeConverter::DomCodeToCodeString(dom_code);
 
-    const NativeWebKeyboardEvent* child_event =
+    const input::NativeWebKeyboardEvent* child_event =
         render_widget_host_delegate()->last_event();
     ASSERT_TRUE(child_event)
         << "Failed for DomCode: "
@@ -1733,22 +1799,6 @@ TEST_F(RenderWidgetHostViewAuraTest,
 }
 
 TEST_F(RenderWidgetHostViewAuraTest, TimerBasedWheelEventPhaseInfo) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndDisableFeature(
-      features::kWindowsScrollingPersonality);
-  RunTimerBasedWheelEventPhaseInfoTest(false);
-}
-
-TEST_F(RenderWidgetHostViewAuraTest,
-       TimerBasedWheelEventPhaseInfoWithPercentBasedScrolling) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      features::kWindowsScrollingPersonality);
-  RunTimerBasedWheelEventPhaseInfoTest(true);
-}
-
-void RenderWidgetHostViewAuraTest::RunTimerBasedWheelEventPhaseInfoTest(
-    bool percent_based_scrolling_enabled) {
   InitViewForFrame(nullptr);
   view_->Show();
   sink_->ClearMessages();
@@ -1781,17 +1831,13 @@ void RenderWidgetHostViewAuraTest::RunTimerBasedWheelEventPhaseInfoTest(
   EXPECT_EQ(WebInputEvent::Type::kGestureScrollUpdate,
             gesture_event->GetType());
   EXPECT_EQ(0U, gesture_event->data.scroll_update.delta_x);
-  EXPECT_EQ(percent_based_scrolling_enabled
-                ? 5 * ui::kScrollPercentPerLineOrChar /
-                      ui::MouseWheelEvent::kWheelDelta
-                : 5U,
-            gesture_event->data.scroll_update.delta_y);
+  EXPECT_EQ(gesture_event->data.scroll_update.delta_y, 5U);
   events[1]->ToEvent()->CallCallback(
       blink::mojom::InputEventResultState::kConsumed);
 
   // Send a ui::ScrollEvent instead of ui::MouseWheel event, the timer based
   // phase info doesn't differentiate between the two types of events.
-  ui::ScrollEvent scroll1(ui::ET_SCROLL, gfx::Point(2, 2),
+  ui::ScrollEvent scroll1(ui::EventType::kScroll, gfx::Point(2, 2),
                           ui::EventTimeForNow(), 0, 0, 2, 0, 2, 2);
   view_->OnScrollEvent(&scroll1);
   base::RunLoop().RunUntilIdle();
@@ -2080,12 +2126,13 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchpadFlingStartResetsWheelPhaseState) {
       TestTimeouts::action_max_timeout());
 
   // When the user puts their fingers down a GFC is receieved.
-  ui::ScrollEvent fling_cancel(ui::ET_SCROLL_FLING_CANCEL, gfx::Point(2, 2),
-                               ui::EventTimeForNow(), 0, 0, 0, 0, 0, 2);
+  ui::ScrollEvent fling_cancel(ui::EventType::kScrollFlingCancel,
+                               gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0, 0,
+                               0, 0, 2);
   view_->OnScrollEvent(&fling_cancel);
 
   // Scrolling starts.
-  ui::ScrollEvent scroll0(ui::ET_SCROLL, gfx::Point(2, 2),
+  ui::ScrollEvent scroll0(ui::EventType::kScroll, gfx::Point(2, 2),
                           ui::EventTimeForNow(), 0, 0, 5, 0, 5, 2);
   view_->OnScrollEvent(&scroll0);
   base::RunLoop().RunUntilIdle();
@@ -2123,7 +2170,7 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchpadFlingStartResetsWheelPhaseState) {
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostDelayedTask(
       FROM_HERE, run_loop.QuitClosure(), base::Milliseconds(200));
   run_loop.Run();
-  ui::ScrollEvent scroll1(ui::ET_SCROLL, gfx::Point(2, 2),
+  ui::ScrollEvent scroll1(ui::EventType::kScroll, gfx::Point(2, 2),
                           ui::EventTimeForNow(), 0, 0, 15, 0, 15, 2);
   view_->OnScrollEvent(&scroll1);
   base::RunLoop().RunUntilIdle();
@@ -2146,8 +2193,9 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchpadFlingStartResetsWheelPhaseState) {
   // reset the scroll state of the wheel phase handler. The velocity should be
   // big enough to make sure that fling is still active while sending the scroll
   // event.
-  ui::ScrollEvent fling_start(ui::ET_SCROLL_FLING_START, gfx::Point(2, 2),
-                              ui::EventTimeForNow(), 0, 0, 1000, 0, 1000, 2);
+  ui::ScrollEvent fling_start(ui::EventType::kScrollFlingStart,
+                              gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0,
+                              1000, 0, 1000, 2);
   view_->OnScrollEvent(&fling_start);
   base::RunLoop().RunUntilIdle();
 
@@ -2160,11 +2208,11 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchpadFlingStartResetsWheelPhaseState) {
   if (progress_event_sent)
     EXPECT_EQ("MouseWheel GestureScrollUpdate", GetMessageNames(events));
 
-  // Handling the next ui::ET_SCROLL event will generate a GFC which resets the
-  // phase state. The fling controller processes GFC and generates a wheel event
-  // with momentum_phase == kPhaseEnded. The mouse wheel created from scroll2
-  // will have phase == kPhaseBegan.
-  ui::ScrollEvent scroll2(ui::ET_SCROLL, gfx::Point(2, 2),
+  // Handling the next ui::EventType::kScroll event will generate a GFC which
+  // resets the phase state. The fling controller processes GFC and generates a
+  // wheel event with momentum_phase == kPhaseEnded. The mouse wheel created
+  // from scroll2 will have phase == kPhaseBegan.
+  ui::ScrollEvent scroll2(ui::EventType::kScroll, gfx::Point(2, 2),
                           ui::EventTimeForNow(), 0, 0, 15, 0, 15, 2);
   view_->OnScrollEvent(&scroll2);
   base::RunLoop().RunUntilIdle();
@@ -2197,8 +2245,9 @@ TEST_F(RenderWidgetHostViewAuraTest, MouseWheelScrollingAfterGFCWithoutGFS) {
   EXPECT_EQ(
       content::TOUCHPAD_SCROLL_STATE_UNKNOWN,
       GetMouseWheelPhaseHandler()->touchpad_scroll_phase_state_for_test());
-  ui::ScrollEvent fling_cancel(ui::ET_SCROLL_FLING_CANCEL, gfx::Point(2, 2),
-                               ui::EventTimeForNow(), 0, 0, 0, 0, 0, 2);
+  ui::ScrollEvent fling_cancel(ui::EventType::kScrollFlingCancel,
+                               gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0, 0,
+                               0, 0, 2);
   view_->OnScrollEvent(&fling_cancel);
   GetAndResetDispatchedMessages();
   EXPECT_EQ(
@@ -2247,12 +2296,13 @@ TEST_F(RenderWidgetHostViewAuraTest,
   sink_->ClearMessages();
 
   // When the user puts their fingers down a GFC is receieved.
-  ui::ScrollEvent fling_cancel(ui::ET_SCROLL_FLING_CANCEL, gfx::Point(2, 2),
-                               ui::EventTimeForNow(), 0, 0, 0, 0, 0, 2);
+  ui::ScrollEvent fling_cancel(ui::EventType::kScrollFlingCancel,
+                               gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0, 0,
+                               0, 0, 2);
   view_->OnScrollEvent(&fling_cancel);
 
-  // Start touchpad scrolling by sending a ui::ET_SCROLL event.
-  ui::ScrollEvent scroll0(ui::ET_SCROLL, gfx::Point(2, 2),
+  // Start touchpad scrolling by sending a ui::EventType::kScroll event.
+  ui::ScrollEvent scroll0(ui::EventType::kScroll, gfx::Point(2, 2),
                           ui::EventTimeForNow(), 0, 0, 5, 0, 5, 2);
   view_->OnScrollEvent(&scroll0);
   base::RunLoop().RunUntilIdle();
@@ -2286,8 +2336,8 @@ TEST_F(RenderWidgetHostViewAuraTest,
   events[1]->ToEvent()->CallCallback(
       blink::mojom::InputEventResultState::kConsumed);
 
-  // Start mouse wheel scrolling by sending a ui::ET_MOUSEWHEEL event. This
-  // should end the touchpad scrolling sequence and start a new timer-based
+  // Start mouse wheel scrolling by sending a ui::EventType::kMousewheel event.
+  // This should end the touchpad scrolling sequence and start a new timer-based
   // wheel scrolling sequence.
   ui::MouseWheelEvent wheel(gfx::Vector2d(0, 5), gfx::Point(2, 2),
                             gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0);
@@ -2317,7 +2367,7 @@ TEST_F(RenderWidgetHostViewAuraTest,
   view_->event_handler()->set_mouse_wheel_wheel_phase_handler_timeout(
       TestTimeouts::action_max_timeout());
 
-  ui::ScrollEvent scroll0(ui::ET_SCROLL, gfx::Point(2, 2),
+  ui::ScrollEvent scroll0(ui::EventType::kScroll, gfx::Point(2, 2),
                           ui::EventTimeForNow(), 0, 0, 5, 0, 5, 2);
   view_->OnScrollEvent(&scroll0);
   base::RunLoop().RunUntilIdle();
@@ -2345,7 +2395,8 @@ TEST_F(RenderWidgetHostViewAuraTest,
   events[1]->ToEvent()->CallCallback(
       blink::mojom::InputEventResultState::kConsumed);
 
-  ui::GestureEventDetails gesture_tap_down_details(ui::ET_GESTURE_TAP_DOWN);
+  ui::GestureEventDetails gesture_tap_down_details(
+      ui::EventType::kGestureTapDown);
   gesture_tap_down_details.set_is_source_touch_event_set_blocking(true);
   gesture_tap_down_details.set_device_type(
       ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
@@ -2355,7 +2406,7 @@ TEST_F(RenderWidgetHostViewAuraTest,
   base::RunLoop().RunUntilIdle();
   events = GetAndResetDispatchedMessages();
 
-  ui::GestureEventDetails event_details(ui::ET_GESTURE_SCROLL_BEGIN);
+  ui::GestureEventDetails event_details(ui::EventType::kGestureScrollBegin);
   event_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
   ui::GestureEvent scroll_begin(2, 2, 0, ui::EventTimeForNow(), event_details);
   view_->OnGestureEvent(&scroll_begin);
@@ -2386,15 +2437,16 @@ TEST_F(RenderWidgetHostViewAuraTest,
 
 TEST_F(RenderWidgetHostViewAuraTest,
        SyntheticFlingCancelAtTouchpadScrollBegin) {
-  ui::ScrollEvent scroll_event(ui::ET_SCROLL, gfx::Point(2, 2),
+  ui::ScrollEvent scroll_event(ui::EventType::kScroll, gfx::Point(2, 2),
                                ui::EventTimeForNow(), 0, 0, 5, 0, 5, 2);
 
   // Send the beginning scroll event. This should generate a synthetic fling
   // cancel to cancel any ongoing flings before the start of this scroll.
   view_->OnScrollEvent(&scroll_event);
   base::RunLoop().RunUntilIdle();
-  absl::optional<WebGestureEvent> last_gesture =
-      widget_host_->GetAndResetLastForwardedGestureEvent();
+  std::optional<WebGestureEvent> last_gesture =
+      widget_host_->GetMockRenderInputRouter()
+          ->GetAndResetLastForwardedGestureEvent();
   ASSERT_TRUE(last_gesture);
   EXPECT_EQ(WebInputEvent::Type::kGestureFlingCancel, last_gesture->GetType());
 
@@ -2412,7 +2464,8 @@ TEST_F(RenderWidgetHostViewAuraTest,
   // this sequence, so we should not generate another.
   view_->OnScrollEvent(&scroll_event);
   base::RunLoop().RunUntilIdle();
-  last_gesture = widget_host_->GetAndResetLastForwardedGestureEvent();
+  last_gesture = widget_host_->GetMockRenderInputRouter()
+                     ->GetAndResetLastForwardedGestureEvent();
   EXPECT_FALSE(last_gesture);
 
   dispatched_events = GetAndResetDispatchedMessages();
@@ -2431,12 +2484,13 @@ TEST_F(RenderWidgetHostViewAuraTest, MultiTouchPointsStates) {
   view_->Show();
   view_->UseFakeDispatcher();
 
-  ui::TouchEvent press0(ui::ET_TOUCH_PRESSED, gfx::Point(30, 30),
+  ui::TouchEvent press0(ui::EventType::kTouchPressed, gfx::Point(30, 30),
                         ui::EventTimeForNow(),
                         ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
   view_->OnTouchEvent(&press0);
-  static_cast<InputRouterImpl*>(view_->GetFocusedWidget()->input_router())
+  static_cast<input::InputRouterImpl*>(
+      view_->GetFocusedWidget()->input_router())
       ->SetTouchActionFromMain(cc::TouchAction::kAuto);
   base::RunLoop().RunUntilIdle();
 
@@ -2449,7 +2503,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MultiTouchPointsStates) {
   EXPECT_EQ(1U, pointer_state().GetPointerCount());
   EXPECT_EQ(1U, view_->dispatcher_->GetAndResetProcessedTouchEventCount());
 
-  ui::TouchEvent move0(ui::ET_TOUCH_MOVED, gfx::Point(20, 20),
+  ui::TouchEvent move0(ui::EventType::kTouchMoved, gfx::Point(20, 20),
                        ui::EventTimeForNow(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
@@ -2465,7 +2519,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MultiTouchPointsStates) {
 
   // For the second touchstart, only the state of the second touch point is
   // StatePressed, the state of the first touch point is StateStationary.
-  ui::TouchEvent press1(ui::ET_TOUCH_PRESSED, gfx::Point(10, 10),
+  ui::TouchEvent press1(ui::EventType::kTouchPressed, gfx::Point(10, 10),
                         ui::EventTimeForNow(),
                         ui::PointerDetails(ui::EventPointerType::kTouch, 1));
 
@@ -2482,7 +2536,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MultiTouchPointsStates) {
 
   // For the touchmove of second point, the state of the second touch point is
   // StateMoved, the state of the first touch point is StateStationary.
-  ui::TouchEvent move1(ui::ET_TOUCH_MOVED, gfx::Point(30, 30),
+  ui::TouchEvent move1(ui::EventType::kTouchMoved, gfx::Point(30, 30),
                        ui::EventTimeForNow(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 1));
 
@@ -2498,7 +2552,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MultiTouchPointsStates) {
 
   // For the touchmove of first point, the state of the first touch point is
   // StateMoved, the state of the second touch point is StateStationary.
-  ui::TouchEvent move2(ui::ET_TOUCH_MOVED, gfx::Point(10, 10),
+  ui::TouchEvent move2(ui::EventType::kTouchMoved, gfx::Point(10, 10),
                        ui::EventTimeForNow(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
@@ -2512,7 +2566,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MultiTouchPointsStates) {
   EXPECT_EQ(2U, pointer_state().GetPointerCount());
   EXPECT_EQ(1U, view_->dispatcher_->GetAndResetProcessedTouchEventCount());
 
-  ui::TouchEvent cancel0(ui::ET_TOUCH_CANCELLED, gfx::Point(10, 10),
+  ui::TouchEvent cancel0(ui::EventType::kTouchCancelled, gfx::Point(10, 10),
                          ui::EventTimeForNow(),
                          ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
@@ -2525,7 +2579,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MultiTouchPointsStates) {
   EXPECT_EQ(1U, pointer_state().GetPointerCount());
   EXPECT_EQ(1U, view_->dispatcher_->GetAndResetProcessedTouchEventCount());
 
-  ui::TouchEvent cancel1(ui::ET_TOUCH_CANCELLED, gfx::Point(30, 30),
+  ui::TouchEvent cancel1(ui::EventType::kTouchCancelled, gfx::Point(30, 30),
                          ui::EventTimeForNow(),
                          ui::PointerDetails(ui::EventPointerType::kTouch, 1));
 
@@ -2547,13 +2601,13 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchEventSyncAsync) {
       HasTouchEventHandlers(true), HasHitTestableScrollbar(false));
   widget_host_->SetHasTouchEventConsumers(std::move(touch_event_consumers));
 
-  ui::TouchEvent press(ui::ET_TOUCH_PRESSED, gfx::Point(30, 30),
+  ui::TouchEvent press(ui::EventType::kTouchPressed, gfx::Point(30, 30),
                        ui::EventTimeForNow(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 0));
-  ui::TouchEvent move(ui::ET_TOUCH_MOVED, gfx::Point(20, 20),
+  ui::TouchEvent move(ui::EventType::kTouchMoved, gfx::Point(20, 20),
                       ui::EventTimeForNow(),
                       ui::PointerDetails(ui::EventPointerType::kTouch, 0));
-  ui::TouchEvent release(ui::ET_TOUCH_RELEASED, gfx::Point(20, 20),
+  ui::TouchEvent release(ui::EventType::kTouchReleased, gfx::Point(20, 20),
                          ui::EventTimeForNow(),
                          ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
@@ -2581,16 +2635,13 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchEventSyncAsync) {
 
 TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
 
   widget_host_->ClearVisualProperties();
 
   view_->SetSize(gfx::Size(100, 100));
 
-  // Physical pixel size.
+  // Device pixel size.
   EXPECT_EQ(gfx::Size(100, 100), view_->GetCompositorViewportPixelSize());
   // Update to the renderer.
   base::RunLoop().RunUntilIdle();
@@ -2598,9 +2649,9 @@ TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
   {
     blink::VisualProperties visual_properties =
         widget_host_->visual_properties().at(0);
-    // DIP size.
-    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size);
-    // Physical pixel size.
+    // Device pixel size.
+    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size_device_px);
+    // Device pixel size.
     EXPECT_EQ(gfx::Size(100, 100),
               visual_properties.compositor_viewport_pixel_rect.size());
   }
@@ -2615,11 +2666,11 @@ TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
   sink_->ClearMessages();
   widget_host_->ClearVisualProperties();
 
-  // Device scale factor changes to 2, so the physical pixel sizes should
+  // Device scale factor changes to 2, so the device pixel sizes should
   // change, while the DIP sizes do not.
 
   aura_test_helper_->GetTestScreen()->SetDeviceScaleFactor(2.0f);
-  // Physical pixel size.
+  // Device pixel size.
   EXPECT_EQ(gfx::Size(200, 200), view_->GetCompositorViewportPixelSize());
   // Update to the renderer.
   base::RunLoop().RunUntilIdle();
@@ -2627,9 +2678,9 @@ TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
   {
     blink::VisualProperties visual_properties =
         widget_host_->visual_properties().at(0);
-    // DIP size.
-    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size);
-    // Physical pixel size.
+    // Device pixel size.
+    EXPECT_EQ(gfx::Size(200, 200), visual_properties.new_size_device_px);
+    // Device pixel size.
     EXPECT_EQ(gfx::Size(200, 200),
               visual_properties.compositor_viewport_pixel_rect.size());
   }
@@ -2645,7 +2696,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
 
   aura_test_helper_->GetTestScreen()->SetDeviceScaleFactor(1.0f);
 
-  // Physical pixel size.
+  // Device pixel size.
   EXPECT_EQ(gfx::Size(100, 100), view_->GetCompositorViewportPixelSize());
   // Update to the renderer.
   base::RunLoop().RunUntilIdle();
@@ -2654,8 +2705,8 @@ TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
     blink::VisualProperties visual_properties =
         widget_host_->visual_properties().at(0);
     // DIP size.
-    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size);
-    // Physical pixel size.
+    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size_device_px);
+    // Device pixel size.
     EXPECT_EQ(gfx::Size(100, 100),
               visual_properties.compositor_viewport_pixel_rect.size());
   }
@@ -2666,9 +2717,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CompositorViewportPixelSizeWithScale) {
 // changes and that message contains the latest ScreenInfo.
 TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithScale) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
 
   viz::LocalSurfaceId host_local_surface_id = view_->GetLocalSurfaceId();
   EXPECT_TRUE(host_local_surface_id.is_valid());
@@ -2739,9 +2788,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithScale) {
 TEST_F(RenderWidgetHostViewAuraTest,
        VerifyVisualPropertiesWhenDisablingAutoResize) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
 
   // Enable the auto resize.
   widget_host_->ClearVisualProperties();
@@ -2758,7 +2805,7 @@ TEST_F(RenderWidgetHostViewAuraTest,
   EXPECT_EQ(1u, widget_host_->visual_properties().size());
   const auto& received_property = widget_host_->visual_properties()[0];
   EXPECT_EQ(false, received_property.auto_resize_enabled);
-  EXPECT_EQ(size_after_disabling, received_property.new_size);
+  EXPECT_EQ(size_after_disabling, received_property.new_size_device_px);
 }
 
 // This test verifies that in AutoResize mode a new
@@ -2766,9 +2813,7 @@ TEST_F(RenderWidgetHostViewAuraTest,
 // changes.
 TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithBrowserInitiatedResize) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   viz::LocalSurfaceId host_local_surface_id(view_->GetLocalSurfaceId());
   EXPECT_TRUE(host_local_surface_id.is_valid());
 
@@ -2817,7 +2862,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithBrowserInitiatedResize) {
     // Auto-resizve limits sent to the renderer.
     EXPECT_EQ(gfx::Size(50, 50), visual_properties.min_size_for_auto_resize);
     EXPECT_EQ(gfx::Size(100, 100), visual_properties.max_size_for_auto_resize);
-    EXPECT_EQ(gfx::Size(120, 120), visual_properties.new_size);
+    EXPECT_EQ(gfx::Size(120, 120), visual_properties.new_size_device_px);
     EXPECT_EQ(1, visual_properties.screen_infos.current().device_scale_factor);
     // A newly generated LocalSurfaceId is sent.
     EXPECT_TRUE(visual_properties.local_surface_id.has_value());
@@ -2832,9 +2877,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AutoResizeWithBrowserInitiatedResize) {
 // viz::LocalSurfaceId will be properly routed and stored in the parent.
 TEST_F(RenderWidgetHostViewAuraTest, ChildAllocationAcceptedInParent) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   sink_->ClearMessages();
   viz::LocalSurfaceId local_surface_id1(view_->GetLocalSurfaceId());
   EXPECT_TRUE(local_surface_id1.is_valid());
@@ -2865,9 +2908,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ChildAllocationAcceptedInParent) {
 TEST_F(RenderWidgetHostViewAuraTest,
        ChildAllocationAcceptedInParentWhileHidden) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   widget_host_->ClearVisualProperties();
   viz::LocalSurfaceId local_surface_id1(view_->GetLocalSurfaceId());
   EXPECT_TRUE(local_surface_id1.is_valid());
@@ -2902,9 +2943,7 @@ TEST_F(RenderWidgetHostViewAuraTest,
 // viz::LocalSurfaceId the resulting conflict is resolved.
 TEST_F(RenderWidgetHostViewAuraTest, ConflictingAllocationsResolve) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   sink_->ClearMessages();
   viz::LocalSurfaceId local_surface_id1(view_->GetLocalSurfaceId());
   EXPECT_TRUE(local_surface_id1.is_valid());
@@ -2939,10 +2978,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ConflictingAllocationsResolve) {
 // dispatched to the renderer at the correct times.
 TEST_F(RenderWidgetHostViewAuraTest, CursorVisibilityChange) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->SetSize(gfx::Size(100, 100));
 
   aura::test::TestCursorClient cursor_client(
@@ -3015,7 +3051,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CursorVisibilityChange) {
   base::RunLoop().RunUntilIdle();
   auto events = GetAndResetDispatchedMessages();
 #if BUILDFLAG(IS_CHROMEOS)
-  // TODO(crbug.com/1164453): Investigate occasional extra mousemoves in CrOS.
+  // TODO(crbug.com/40163541): Investigate occasional extra mousemoves in CrOS.
   EXPECT_GE(1u, events.size());
 #else
   EXPECT_EQ(1u, events.size());
@@ -3027,11 +3063,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CursorVisibilityChange) {
 
 TEST_F(RenderWidgetHostViewAuraTest, UpdateCursorIfOverSelf) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   // Note that all coordinates in this test are screen coordinates.
   view_->SetBounds(gfx::Rect(60, 60, 100, 100));
   view_->Show();
@@ -3077,10 +3109,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ZeroSizeStillGetsLocalSurfaceId) {
   ASSERT_EQ(1u, widget_host_->visual_properties().size());
 
   // Set an empty size.
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   // It's set on the layer.
   ui::Layer* parent_layer = view_->GetNativeView()->layer();
   EXPECT_EQ(gfx::Rect(), parent_layer->bounds());
@@ -3094,7 +3123,7 @@ TEST_F(RenderWidgetHostViewAuraTest, ZeroSizeStillGetsLocalSurfaceId) {
     blink::VisualProperties visual_properties =
         widget_host_->visual_properties().at(0);
     // Empty size is sent.
-    EXPECT_EQ(gfx::Size(), visual_properties.new_size);
+    EXPECT_EQ(gfx::Size(), visual_properties.new_size_device_px);
     // A LocalSurfaceId is sent too.
     ASSERT_TRUE(visual_properties.local_surface_id.has_value());
     EXPECT_TRUE(visual_properties.local_surface_id->is_valid());
@@ -3106,9 +3135,7 @@ TEST_F(RenderWidgetHostViewAuraTest, BackgroundColorMatchesCompositorFrame) {
   parent_local_surface_id_allocator_.GenerateId();
 
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->SetSize(frame_size);
   view_->Show();
   cc::RenderFrameMetadata metadata;
@@ -3150,8 +3177,9 @@ TEST_F(RenderWidgetHostViewAuraTest, Resize) {
 
   aura::Window* root_window = parent_view_->GetNativeView()->GetRootWindow();
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), root_window, gfx::Rect(size1));
+  aura::client::ParentWindowWithContext(view_->GetNativeView(), root_window,
+                                        gfx::Rect(size1),
+                                        display::kInvalidDisplayId);
   view_->Show();
   view_->SetSize(size1);
   EXPECT_EQ(size1.ToString(), view_->GetRequestedRendererSize().ToString());
@@ -3172,7 +3200,7 @@ TEST_F(RenderWidgetHostViewAuraTest, Resize) {
   EXPECT_TRUE(widget_host_->visual_properties_ack_pending_for_testing());
   base::RunLoop().RunUntilIdle();
   ASSERT_EQ(1u, widget_host_->visual_properties().size());
-  EXPECT_EQ(size2, widget_host_->visual_properties().at(0).new_size);
+  EXPECT_EQ(size2, widget_host_->visual_properties().at(0).new_size_device_px);
   // Render should send back RenderFrameMetadata with new size.
   {
     cc::RenderFrameMetadata metadata;
@@ -3193,10 +3221,7 @@ TEST_F(RenderWidgetHostViewAuraTest, Resize) {
 // This test verifies that the primary SurfaceId is populated on resize.
 TEST_F(RenderWidgetHostViewAuraTest, SurfaceChanges) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   ASSERT_TRUE(view_->delegated_frame_host_);
 
   view_->SetSize(gfx::Size(300, 300));
@@ -3210,10 +3235,7 @@ TEST_F(RenderWidgetHostViewAuraTest, SurfaceChanges) {
 // factor changes.
 TEST_F(RenderWidgetHostViewAuraTest, DeviceScaleFactorChanges) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   view_->SetSize(gfx::Size(300, 300));
   ASSERT_TRUE(view_->HasPrimarySurface());
   EXPECT_EQ(gfx::Size(300, 300), view_->window_->layer()->size());
@@ -3263,9 +3285,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DiscardDelegatedFrames) {
     // to release its resize lock once it receives a frame of the expected
     // size.
     views[i]->InitAsChild(nullptr);
-    aura::client::ParentWindowWithContext(
-        views[i]->GetNativeView(),
-        parent_view_->GetNativeView()->GetRootWindow(), gfx::Rect());
+    ParentHostView(views[i], parent_view_);
 
     // The blink::mojom::Widget interfaces are bound during
     // MockRenderWidgetHostImpl construction.
@@ -3391,10 +3411,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DiscardDelegatedFramesWithMemoryPressure) {
 
     views[i] = new FakeRenderWidgetHostViewAura(hosts[i]);
     views[i]->InitAsChild(nullptr);
-    aura::client::ParentWindowWithContext(
-        views[i]->GetNativeView(),
-        parent_view_->GetNativeView()->GetRootWindow(),
-        gfx::Rect());
+    ParentHostView(views[i], parent_view_);
     views[i]->SetSize(view_rect.size());
     views[i]->Show();
     EXPECT_HAS_FRAME(views[i]);
@@ -3423,42 +3440,11 @@ TEST_F(RenderWidgetHostViewAuraTest, DiscardDelegatedFramesWithMemoryPressure) {
     views[i]->Destroy();
 }
 
-TEST_F(RenderWidgetHostViewAuraTest, SourceEventTypeExistsInLatencyInfo) {
-  // WHEEL source exists.
-  ui::ScrollEvent scroll(ui::ET_SCROLL, gfx::Point(2, 2), ui::EventTimeForNow(),
-                         0, 0, 0, 0, 0, 2);
-  view_->OnScrollEvent(&scroll);
-  EXPECT_EQ(
-      widget_host_->LastWheelOrTouchEventLatencyInfo().source_event_type(),
-      ui::SourceEventType::WHEEL);
-
-  // TOUCH source exists.
-  ui::TouchEvent press(ui::ET_TOUCH_PRESSED, gfx::Point(30, 30),
-                       ui::EventTimeForNow(),
-                       ui::PointerDetails(ui::EventPointerType::kTouch, 0));
-  ui::TouchEvent move(ui::ET_TOUCH_MOVED, gfx::Point(20, 20),
-                      ui::EventTimeForNow(),
-                      ui::PointerDetails(ui::EventPointerType::kTouch, 0));
-  ui::TouchEvent release(ui::ET_TOUCH_RELEASED, gfx::Point(20, 20),
-                         ui::EventTimeForNow(),
-                         ui::PointerDetails(ui::EventPointerType::kTouch, 0));
-  view_->OnTouchEvent(&press);
-  view_->OnTouchEvent(&move);
-  EXPECT_EQ(
-      widget_host_->LastWheelOrTouchEventLatencyInfo().source_event_type(),
-      ui::SourceEventType::TOUCH);
-  view_->OnTouchEvent(&release);
-}
-
 TEST_F(RenderWidgetHostViewAuraTest, VisibleViewportTest) {
   gfx::Rect view_rect(100, 100);
 
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
+  ParentHostView(view_, parent_view_);
   widget_host_->ClearVisualProperties();
   view_->SetSize(view_rect.size());
   view_->Show();
@@ -3472,8 +3458,9 @@ TEST_F(RenderWidgetHostViewAuraTest, VisibleViewportTest) {
   {
     blink::VisualProperties visual_properties =
         widget_host_->visual_properties().at(0);
-    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size);
-    EXPECT_EQ(gfx::Size(100, 100), visual_properties.visible_viewport_size);
+    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size_device_px);
+    EXPECT_EQ(gfx::Size(100, 100),
+              visual_properties.visible_viewport_size_device_px);
   }
 
   // Get back the UpdateVisualProperties ack.
@@ -3494,10 +3481,47 @@ TEST_F(RenderWidgetHostViewAuraTest, VisibleViewportTest) {
   {
     blink::VisualProperties visual_properties =
         widget_host_->visual_properties().at(0);
-    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size);
-    EXPECT_EQ(gfx::Size(100, 60), visual_properties.visible_viewport_size);
+    EXPECT_EQ(gfx::Size(100, 100), visual_properties.new_size_device_px);
+    EXPECT_EQ(gfx::Size(100, 60),
+              visual_properties.visible_viewport_size_device_px);
   }
 }
+
+#if BUILDFLAG(IS_OZONE)
+// Regression test for crbug.com/360147125.
+// Tests that when per-window scaling is used, the window scale is not compared
+// to display scale when display metrics changes.
+TEST_F(RenderWidgetHostViewAuraTest,
+       SkipDisplayScaleCheckOnDisplayMetricsChangeWithPerWindowScaleEnabled) {
+  if (ui::OzonePlatform::GetPlatformNameForTest() != "wayland") {
+    GTEST_SKIP() << "test only applicable on wayland";
+  }
+  using SupportsForTest =
+      ui::OzonePlatform::PlatformRuntimeProperties::SupportsForTest;
+  base::AutoReset<SupportsForTest> auto_reset(
+      &ui::OzonePlatform::PlatformRuntimeProperties::
+          override_supports_per_window_scaling_for_test,
+      SupportsForTest::kYes);
+  aura::Window* root_window = parent_view_->GetNativeView()->GetRootWindow();
+  InitViewForFrame(nullptr);
+  ParentHostView(view_, parent_view_);
+  EXPECT_TRUE(view_->CanSynchronizeVisualProperties());
+
+  // Set different values for window and display scales.
+  aura_test_helper_->GetTestScreen()->SetPreferredScaleFactorForWindow(
+      root_window, 1.75f);
+  aura_test_helper_->GetTestScreen()->SetDeviceScaleFactor(1.74623f);
+
+  view_->OnDisplayMetricsChanged(
+      display::Screen::GetScreen()->GetDisplayNearestView(
+          view_->GetNativeView()),
+      0);
+
+  // Synchronization of visual properties should be allowed in spite of the
+  // mismatch in preferred window scale and display scale.
+  EXPECT_TRUE(view_->CanSynchronizeVisualProperties());
+}
+#endif
 
 // Ensures that touch event positions are never truncated to integers.
 TEST_F(RenderWidgetHostViewAuraTest, TouchEventPositionsArentRounded) {
@@ -3507,7 +3531,7 @@ TEST_F(RenderWidgetHostViewAuraTest, TouchEventPositionsArentRounded) {
   InitViewForFrame(nullptr);
   view_->Show();
 
-  ui::TouchEvent press(ui::ET_TOUCH_PRESSED, gfx::Point(),
+  ui::TouchEvent press(ui::EventType::kTouchPressed, gfx::Point(),
                        ui::EventTimeForNow(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 0));
   press.set_location_f(gfx::PointF(kX, kY));
@@ -4230,9 +4254,16 @@ TEST_F(RenderWidgetHostViewAuraOverscrollTest,
 
 // Tests that the gesture debounce timer plays nice with the overscroll
 // controller.
-// TODO(crbug.com/776424): Disabled due to flakiness on Fuchsia and Linux tsan.
+// TODO(crbug.com/40545668): Disabled due to flakiness on Linux tsan.
+#if BUILDFLAG(USING_SANITIZER)
+#define MAYBE_GestureScrollDebounceTimerOverscroll \
+  DISABLED_GestureScrollDebounceTimerOverscroll
+#else
+#define MAYBE_GestureScrollDebounceTimerOverscroll \
+  GestureScrollDebounceTimerOverscroll
+#endif
 TEST_F(RenderWidgetHostViewAuraOverscrollTest,
-       DISABLED_GestureScrollDebounceTimerOverscroll) {
+       MAYBE_GestureScrollDebounceTimerOverscroll) {
   SetUpOverscrollEnvironmentWithDebounce(10);
 
   PressAndSetTouchActionAuto();
@@ -4943,7 +4974,7 @@ TEST_F(RenderWidgetHostViewAuraOverscrollTest, OverscrollResetsOnBlur) {
   ReleaseAndResetDispatchedMessages();
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // Check that when accessibility virtual keyboard is enabled, windows are
 // shifted up when focused and restored when focus is lost.
 TEST_F(RenderWidgetHostViewAuraTest, VirtualKeyboardFocusEnsureCaretInRect) {
@@ -4952,7 +4983,8 @@ TEST_F(RenderWidgetHostViewAuraTest, VirtualKeyboardFocusEnsureCaretInRect) {
   InitViewForFrame(nullptr);
   aura::Window* root_window = parent_view_->GetNativeView()->GetRootWindow();
   aura::client::ParentWindowWithContext(view_->GetNativeView(), root_window,
-                                        gfx::Rect());
+                                        gfx::Rect(),
+                                        display::kInvalidDisplayId);
 
   const gfx::Rect orig_view_bounds = gfx::Rect(0, 300, 400, 200);
   const gfx::Rect shifted_view_bounds = gfx::Rect(0, 200, 400, 200);
@@ -4988,7 +5020,8 @@ TEST_F(RenderWidgetHostViewAuraTest, UpdateInsetsWithVirtualKeyboardEnabled) {
   InitViewForFrame(nullptr);
   aura::Window* root_window = parent_view_->GetNativeView()->GetRootWindow();
   aura::client::ParentWindowWithContext(view_->GetNativeView(), root_window,
-                                        gfx::Rect());
+                                        gfx::Rect(),
+                                        display::kInvalidDisplayId);
 
   const gfx::Rect orig_view_bounds = gfx::Rect(0, 300, 400, 200);
   const gfx::Rect shifted_view_bounds = gfx::Rect(0, 200, 400, 200);
@@ -5034,7 +5067,7 @@ TEST_F(RenderWidgetHostViewAuraTest, UpdateInsetsWithVirtualKeyboardEnabled) {
   EXPECT_EQ(view_->insets_, resized_view_insets);
 }
 
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Tests that invalid touch events are consumed and handled
 // synchronously.
@@ -5047,13 +5080,13 @@ TEST_F(RenderWidgetHostViewAuraTest,
       HasTouchEventHandlers(true), HasHitTestableScrollbar(false));
   widget_host_->SetHasTouchEventConsumers(std::move(touch_event_consumers));
 
-  ui::TouchEvent press(ui::ET_TOUCH_PRESSED, gfx::Point(30, 30),
+  ui::TouchEvent press(ui::EventType::kTouchPressed, gfx::Point(30, 30),
                        ui::EventTimeForNow(),
                        ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
   // Construct a move with a touch id which doesn't exist.
   ui::TouchEvent invalid_move(
-      ui::ET_TOUCH_MOVED, gfx::Point(30, 30), ui::EventTimeForNow(),
+      ui::EventType::kTouchMoved, gfx::Point(30, 30), ui::EventTimeForNow(),
       ui::PointerDetails(ui::EventPointerType::kTouch, 1));
 
   // Valid press is handled asynchronously.
@@ -5081,11 +5114,11 @@ TEST_F(RenderWidgetHostViewAuraTest, KeyEvent) {
   InitViewForFrame(nullptr);
   view_->Show();
 
-  ui::KeyEvent key_event(ui::ET_KEY_PRESSED, ui::VKEY_A, ui::DomCode::US_A,
-                         ui::EF_NONE);
+  ui::KeyEvent key_event(ui::EventType::kKeyPressed, ui::VKEY_A,
+                         ui::DomCode::US_A, ui::EF_NONE);
   view_->OnKeyEvent(&key_event);
 
-  const NativeWebKeyboardEvent* event = delegates_.back()->last_event();
+  const input::NativeWebKeyboardEvent* event = delegates_.back()->last_event();
   ASSERT_TRUE(event);
   EXPECT_EQ(key_event.key_code(), event->windows_key_code);
   EXPECT_EQ(ui::KeycodeConverter::DomCodeToNativeKeycode(key_event.code()),
@@ -5096,7 +5129,7 @@ TEST_F(RenderWidgetHostViewAuraTest, KeyEventsHandled) {
   InitViewForFrame(nullptr);
   view_->Show();
 
-  ui::KeyEvent key_event1(ui::ET_KEY_PRESSED, ui::VKEY_A, ui::EF_NONE);
+  ui::KeyEvent key_event1(ui::EventType::kKeyPressed, ui::VKEY_A, ui::EF_NONE);
   view_->OnKeyEvent(&key_event1);
   // Normally event should be handled.
   EXPECT_TRUE(key_event1.handled());
@@ -5105,7 +5138,7 @@ TEST_F(RenderWidgetHostViewAuraTest, KeyEventsHandled) {
   // Make the delegate mark the event as not-handled.
   delegates_.back()->set_pre_handle_keyboard_event_result(
       KeyboardEventProcessingResult::HANDLED_DONT_UPDATE_EVENT);
-  ui::KeyEvent key_event2(ui::ET_KEY_PRESSED, ui::VKEY_A, ui::EF_NONE);
+  ui::KeyEvent key_event2(ui::EventType::kKeyPressed, ui::VKEY_A, ui::EF_NONE);
   view_->OnKeyEvent(&key_event2);
   EXPECT_FALSE(key_event2.handled());
 }
@@ -5162,8 +5195,9 @@ TEST_F(RenderWidgetHostViewAuraTest, SetCanScrollForWebMouseWheelEvent) {
       blink::mojom::InputEventResultState::kConsumed);
 
   // Simulates the scroll event with ctrl modifier applied.
-  ui::ScrollEvent scroll(ui::ET_SCROLL, gfx::Point(2, 2), ui::EventTimeForNow(),
-                         ui::EF_CONTROL_DOWN, 0, 5, 0, 5, 2);
+  ui::ScrollEvent scroll(ui::EventType::kScroll, gfx::Point(2, 2),
+                         ui::EventTimeForNow(), ui::EF_CONTROL_DOWN, 0, 5, 0, 5,
+                         2);
   view_->OnScrollEvent(&scroll);
   base::RunLoop().RunUntilIdle();
 
@@ -5190,7 +5224,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CorrectNumberOfAcksAreDispatched) {
   view_->Show();
   view_->UseFakeDispatcher();
 
-  ui::TouchEvent press1(ui::ET_TOUCH_PRESSED, gfx::Point(30, 30),
+  ui::TouchEvent press1(ui::EventType::kTouchPressed, gfx::Point(30, 30),
                         ui::EventTimeForNow(),
                         ui::PointerDetails(ui::EventPointerType::kTouch, 0));
 
@@ -5202,7 +5236,7 @@ TEST_F(RenderWidgetHostViewAuraTest, CorrectNumberOfAcksAreDispatched) {
   events[1]->ToEvent()->CallCallback(
       blink::mojom::InputEventResultState::kConsumed);
 
-  ui::TouchEvent press2(ui::ET_TOUCH_PRESSED, gfx::Point(20, 20),
+  ui::TouchEvent press2(ui::EventType::kTouchPressed, gfx::Point(20, 20),
                         ui::EventTimeForNow(),
                         ui::PointerDetails(ui::EventPointerType::kTouch, 1));
   view_->OnTouchEvent(&press2);
@@ -5315,33 +5349,33 @@ TEST_F(RenderWidgetHostViewAuraTest, ForwardMouseEvent) {
   InitViewForFrame(parent.get());
 
   // Simulate mouse events, ensure they are forwarded to delegate.
-  ui::MouseEvent mouse_event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                             ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-                             0);
+  ui::MouseEvent mouse_event(ui::EventType::kMousePressed, gfx::Point(),
+                             gfx::Point(), ui::EventTimeForNow(),
+                             ui::EF_LEFT_MOUSE_BUTTON, 0);
   view_->OnMouseEvent(&mouse_event);
   EXPECT_EQ("1 0", delegate.GetMouseButtonCountsAndReset());
 
   // Simulate mouse events, ensure they are forwarded to delegate.
-  mouse_event = ui::MouseEvent(ui::ET_MOUSE_MOVED, gfx::Point(1, 1),
+  mouse_event = ui::MouseEvent(ui::EventType::kMouseMoved, gfx::Point(1, 1),
                                gfx::Point(), ui::EventTimeForNow(), 0, 0);
   view_->OnMouseEvent(&mouse_event);
   EXPECT_EQ("0 1 0", delegate.GetMouseMotionCountsAndReset());
 
   // Lock the mouse, simulate, and ensure they are forwarded.
-  view_->LockMouse(false /* request_unadjusted_movement */);
+  view_->LockPointer(false /* request_unadjusted_movement */);
 
   mouse_event =
-      ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+      ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                      ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON, 0);
   view_->OnMouseEvent(&mouse_event);
   EXPECT_EQ("1 0", delegate.GetMouseButtonCountsAndReset());
 
-  mouse_event = ui::MouseEvent(ui::ET_MOUSE_MOVED, gfx::Point(), gfx::Point(),
-                               ui::EventTimeForNow(), 0, 0);
+  mouse_event = ui::MouseEvent(ui::EventType::kMouseMoved, gfx::Point(),
+                               gfx::Point(), ui::EventTimeForNow(), 0, 0);
   view_->OnMouseEvent(&mouse_event);
   EXPECT_EQ("0 1 0", delegate.GetMouseMotionCountsAndReset());
 
-  view_->UnlockMouse();
+  view_->UnlockPointer();
 
   // view_ will be destroyed when parent is destroyed.
   view_ = nullptr;
@@ -5404,7 +5438,6 @@ class MockWindowEventTarget : public ui::WindowEventTarget {
     return S_OK;
   }
 
-  void HandleParentChanged() override {}
   void ApplyPinchZoomScale(float scale) override {}
   void ApplyPinchZoomBegin() override {}
   void ApplyPinchZoomEnd() override {}
@@ -5422,7 +5455,7 @@ class MockWindowEventTarget : public ui::WindowEventTarget {
 // forwarded, resulting in stuck tooltips. Test that tooltips are cleared.
 TEST_F(RenderWidgetHostViewAuraTest, OcclusionHidesTooltip) {
   // Give the host window an event target, which allows the view to create the
-  // Chrome_RenderWidgetHostHWND window.
+  // LegacyRenderWidgetHostHWND Chrome_RenderWidgetHostHWND window.
   MockWindowEventTarget event_target;
   auto prop_window_target = std::make_unique<ui::ViewProp>(
       parent_view_->GetHostWindowHWND(),
@@ -5431,11 +5464,9 @@ TEST_F(RenderWidgetHostViewAuraTest, OcclusionHidesTooltip) {
 
   // Initialize the view.
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
-  EXPECT_TRUE(view_->UsesNativeWindowFrame());
+  EXPECT_TRUE(legacy_render_widget_host_HWND());
 
   // Simulate a tooltip.
   std::u16string tooltip_text(u"The tooltip!");
@@ -5448,41 +5479,43 @@ TEST_F(RenderWidgetHostViewAuraTest, OcclusionHidesTooltip) {
   EXPECT_TRUE(widget_host_->is_hidden());
   EXPECT_EQ(std::u16string(), view_->tooltip_);
 }
+
+TEST_F(RenderWidgetHostViewAuraTest, LegacyRenderWidgetHostHWNDAuraLookup) {
+  // Give the host window an event target, which allows the view to create the
+  // LegacyRenderWidgetHostHWND Chrome_RenderWidgetHostHWND window.
+  MockWindowEventTarget event_target;
+  auto prop_window_target = std::make_unique<ui::ViewProp>(
+      parent_view_->GetHostWindowHWND(),
+      ui::WindowEventTarget::kWin32InputEventTarget,
+      static_cast<ui::WindowEventTarget*>(&event_target));
+
+  // Initialize the view.
+  InitViewForFrame(nullptr);
+  ParentHostView(view_, parent_view_);
+  view_->Show();
+
+  ASSERT_TRUE(legacy_render_widget_host_HWND());
+  HWND hwnd = legacy_render_widget_host_HWND()->hwnd();
+  EXPECT_TRUE(hwnd);
+  auto* window_tree_host = aura::WindowTreeHost::GetForAcceleratedWidget(hwnd);
+  EXPECT_TRUE(window_tree_host);
+  EXPECT_EQ(view_->GetNativeView()->GetHost(), window_tree_host);
+}
 #endif
-
-class TouchpadRenderWidgetHostViewAuraTest
-    : public base::test::WithFeatureOverride,
-      public RenderWidgetHostViewAuraTest {
- public:
-  TouchpadRenderWidgetHostViewAuraTest()
-      : WithFeatureOverride(features::kTouchpadAsyncPinchEvents) {}
-
-  TouchpadRenderWidgetHostViewAuraTest(
-      const TouchpadRenderWidgetHostViewAuraTest&) = delete;
-  TouchpadRenderWidgetHostViewAuraTest& operator=(
-      const TouchpadRenderWidgetHostViewAuraTest&) = delete;
-
-  ~TouchpadRenderWidgetHostViewAuraTest() override = default;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-INSTANTIATE_FEATURE_OVERRIDE_TEST_SUITE(TouchpadRenderWidgetHostViewAuraTest);
 
 // Test that we elide touchpad pinch gesture steams consisting of only begin
 // and end events.
-TEST_P(TouchpadRenderWidgetHostViewAuraTest, ElideEmptyTouchpadPinchSequence) {
-  ui::GestureEventDetails begin_details(ui::ET_GESTURE_PINCH_BEGIN);
+TEST_F(RenderWidgetHostViewAuraTest, ElideEmptyTouchpadPinchSequence) {
+  ui::GestureEventDetails begin_details(ui::EventType::kGesturePinchBegin);
   begin_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHPAD);
   ui::GestureEvent begin_event(0, 0, 0, ui::EventTimeForNow(), begin_details);
 
-  ui::GestureEventDetails update_details(ui::ET_GESTURE_PINCH_UPDATE);
+  ui::GestureEventDetails update_details(ui::EventType::kGesturePinchUpdate);
   update_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHPAD);
   update_details.set_scale(1.23);
   ui::GestureEvent update_event(0, 0, 0, ui::EventTimeForNow(), update_details);
 
-  ui::GestureEventDetails end_details(ui::ET_GESTURE_PINCH_END);
+  ui::GestureEventDetails end_details(ui::EventType::kGesturePinchEnd);
   end_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHPAD);
   ui::GestureEvent end_event(0, 0, 0, ui::EventTimeForNow(), end_details);
 
@@ -5529,8 +5562,8 @@ TEST_F(RenderWidgetHostViewAuraTest,
   sink_->ClearMessages();
 
   ui::ScrollEvent begin_scroll(
-      ui::ET_SCROLL, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 2, 2, 2, 2, 2,
-      ui::EventMomentumPhase::NONE, ui::ScrollEventPhase::kBegan);
+      ui::EventType::kScroll, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 2, 2,
+      2, 2, 2, ui::EventMomentumPhase::NONE, ui::ScrollEventPhase::kBegan);
   view_->OnScrollEvent(&begin_scroll);
   base::RunLoop().RunUntilIdle();
 
@@ -5538,8 +5571,8 @@ TEST_F(RenderWidgetHostViewAuraTest,
   // momentum_phase == BLOCKED so that the end phase event can be dispatched
   // immediately, rather than scheduling for later dispatch.
   ui::ScrollEvent end_scroll_with_pinch_next(
-      ui::ET_SCROLL, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0, 0, 0, 0, 2,
-      ui::EventMomentumPhase::BLOCKED, ui::ScrollEventPhase::kEnd);
+      ui::EventType::kScroll, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0, 0,
+      0, 0, 2, ui::EventMomentumPhase::BLOCKED, ui::ScrollEventPhase::kEnd);
   view_->OnScrollEvent(&end_scroll_with_pinch_next);
   base::RunLoop().RunUntilIdle();
 
@@ -5565,8 +5598,8 @@ TEST_F(RenderWidgetHostViewAuraTest,
 
   // Now, try the same thing as above, but without knowing if pinch is next.
   ui::ScrollEvent begin_scroll2(
-      ui::ET_SCROLL, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 2, 2, 2, 2, 2,
-      ui::EventMomentumPhase::NONE, ui::ScrollEventPhase::kBegan);
+      ui::EventType::kScroll, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 2, 2,
+      2, 2, 2, ui::EventMomentumPhase::NONE, ui::ScrollEventPhase::kBegan);
   view_->OnScrollEvent(&begin_scroll2);
   base::RunLoop().RunUntilIdle();
 
@@ -5574,8 +5607,8 @@ TEST_F(RenderWidgetHostViewAuraTest,
   // This results in the phase end event being scheduled for dispatch, but not
   // ultimately dispatched in this test.
   ui::ScrollEvent end_scroll_with_momentum_next_maybe(
-      ui::ET_SCROLL, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0, 0, 0, 0, 2,
-      ui::EventMomentumPhase::NONE, ui::ScrollEventPhase::kEnd);
+      ui::EventType::kScroll, gfx::Point(2, 2), ui::EventTimeForNow(), 0, 0, 0,
+      0, 0, 2, ui::EventMomentumPhase::NONE, ui::ScrollEventPhase::kEnd);
   view_->OnScrollEvent(&end_scroll_with_momentum_next_maybe);
   base::RunLoop().RunUntilIdle();
 
@@ -5617,10 +5650,11 @@ TEST_F(RenderWidgetHostViewAuraTest, GestureTapFromStylusHasPointerType) {
 
   // GestureTap event should have correct pointer type.
   events = GetAndResetDispatchedMessages();
-  EXPECT_EQ("GestureTapDown GestureShowPress GestureTap",
-            GetMessageNames(events));
+  EXPECT_EQ(
+      "GestureBegin GestureTapDown GestureShowPress GestureTap GestureEnd",
+      GetMessageNames(events));
   const WebGestureEvent* gesture_event = static_cast<const WebGestureEvent*>(
-      &events[2]->ToEvent()->Event()->Event());
+      &events[3]->ToEvent()->Event()->Event());
   EXPECT_EQ(WebInputEvent::Type::kGestureTap, gesture_event->GetType());
   EXPECT_EQ(blink::WebPointerProperties::PointerType::kPen,
             gesture_event->primary_pointer_type);
@@ -5628,7 +5662,7 @@ TEST_F(RenderWidgetHostViewAuraTest, GestureTapFromStylusHasPointerType) {
 
 // Test that the rendering timeout for newly loaded content fires when enough
 // time passes without receiving a new compositor frame.
-// TODO(https://crbug.com/1225139): This test is flaky on "Linux ASan LSan Tests
+// TODO(crbug.com/40775652): This test is flaky on "Linux ASan LSan Tests
 // (1)"
 #if BUILDFLAG(IS_LINUX)
 #define MAYBE_NewContentRenderingTimeout DISABLED_NewContentRenderingTimeout
@@ -5639,11 +5673,8 @@ TEST_F(RenderWidgetHostViewAuraTest, MAYBE_NewContentRenderingTimeout) {
   constexpr base::TimeDelta kTimeout = base::Microseconds(10);
 
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
-
-  widget_host_->set_new_content_rendering_delay_for_testing(kTimeout);
+  ParentHostView(view_, parent_view_);
+  widget_host_->SetNewContentRenderingTimeoutForTesting(kTimeout);
 
   viz::LocalSurfaceId id0 = view_->GetLocalSurfaceId();
   EXPECT_TRUE(id0.is_valid());
@@ -5654,7 +5685,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MAYBE_NewContentRenderingTimeout) {
   // No new LocalSurfaceId should be allocated for the first navigation and the
   // timer should not fire.
   widget_host_->DidNavigate();
-  widget_host_->StartNewContentRenderingTimeout();
+  widget_host_->InitializePaintHolding(true);
   viz::LocalSurfaceId id1 = view_->GetLocalSurfaceId();
   EXPECT_EQ(id0, id1);
   {
@@ -5669,7 +5700,7 @@ TEST_F(RenderWidgetHostViewAuraTest, MAYBE_NewContentRenderingTimeout) {
 
   // Start the timer. Verify that a new LocalSurfaceId is allocated.
   widget_host_->DidNavigate();
-  widget_host_->StartNewContentRenderingTimeout();
+  widget_host_->InitializePaintHolding(true);
   viz::LocalSurfaceId id2 = view_->GetLocalSurfaceId();
   EXPECT_TRUE(id2.is_valid());
   EXPECT_LT(id1.parent_sequence_number(), id2.parent_sequence_number());
@@ -5691,9 +5722,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AllocateLocalSurfaceIdOnEviction) {
   InitViewForFrame(nullptr);
   // View has to not be empty in order for frame eviction to be invoked.
   view_->SetSize(gfx::Size(54, 32));
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
   viz::LocalSurfaceId id1 = view_->GetLocalSurfaceId();
   view_->Hide();
@@ -5709,9 +5738,7 @@ TEST_F(RenderWidgetHostViewAuraTest, AllocateLocalSurfaceIdOnEviction) {
 // visible we show blank.
 TEST_F(RenderWidgetHostViewAuraTest, DropFallbackIfResizedWhileHidden) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->SetSize(gfx::Size(50, 30));
   view_->Show();
   view_->Hide();
@@ -5726,9 +5753,7 @@ TEST_F(RenderWidgetHostViewAuraTest, DropFallbackIfResizedWhileHidden) {
 // fallback SurfaceId has to be preserved.
 TEST_F(RenderWidgetHostViewAuraTest, DontDropFallbackIfNotResizedWhileHidden) {
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
   // Force fallback being set.
   view_->DidNavigate();
@@ -5747,17 +5772,13 @@ TEST_F(RenderWidgetHostViewAuraTest, DontDropFallbackIfNotResizedWhileHidden) {
 TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContent) {
   // Initialize the first view.
   InitViewForFrame(nullptr);
-  aura::client::ParentWindowWithContext(
-      view_->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view_, parent_view_);
   view_->Show();
 
   // Create and initialize the second view.
   FakeRenderWidgetHostViewAura* view2 = CreateView();
   view2->InitAsChild(nullptr);
-  aura::client::ParentWindowWithContext(
-      view2->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(view2, parent_view_);
 
   // Call TakeFallbackContentFrom(). The second view should obtain a fallback
   // from the first view.
@@ -5774,9 +5795,7 @@ TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContent) {
 TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContentForPrerender) {
   FakeRenderWidgetHostViewAura* old_view = CreateView(/*hidden = */ false);
   old_view->InitAsChild(nullptr);
-  aura::client::ParentWindowWithContext(
-      old_view->GetNativeView(), parent_view_->GetNativeView()->GetRootWindow(),
-      gfx::Rect());
+  ParentHostView(old_view, parent_view_);
   old_view->Show();
   ASSERT_TRUE(old_view->IsShowing());
   ASSERT_TRUE(
@@ -5786,9 +5805,8 @@ TEST_F(RenderWidgetHostViewAuraTest, TakeFallbackContentForPrerender) {
   // Initialize the view as hidden.
   FakeRenderWidgetHostViewAura* prerender_view = CreateView(/*hidden = */ true);
   prerender_view->InitAsChild(nullptr);
-  aura::client::ParentWindowWithContext(
-      prerender_view->GetNativeView(),
-      parent_view_->GetNativeView()->GetRootWindow(), gfx::Rect());
+  ParentHostView(prerender_view, parent_view_);
+
   ASSERT_FALSE(prerender_view->IsShowing());
   ASSERT_FALSE(prerender_view->delegated_frame_host_client_
                    ->DelegatedFrameHostIsVisible());
@@ -5832,15 +5850,15 @@ class RenderWidgetHostViewAuraWithViewHarnessTest
   }
 
   void TearDown() override {
-    view_->Destroy();
+    view_.ExtractAsDangling()->Destroy();
     RenderViewHostImplTestHarness::TearDown();
   }
 
-  RenderWidgetHostViewAura* view() {
-    return view_;
-  }
+  RenderWidgetHostViewAura* view() { return view_; }
 
  private:
+  // The `view_` pointer owns the object.
+  // Note: It would be great turning this into a std::unique_ptr<>.
   raw_ptr<RenderWidgetHostViewAura> view_;
 };
 
@@ -5862,7 +5880,7 @@ class MockWebContentsViewDelegate : public WebContentsViewDelegate {
     return context_menu_request_received_;
   }
 
-  ui::MenuSourceType context_menu_source_type() const {
+  ui::mojom::MenuSourceType context_menu_source_type() const {
     return context_menu_params_.source_type;
   }
 
@@ -5875,7 +5893,7 @@ class MockWebContentsViewDelegate : public WebContentsViewDelegate {
 
   void ClearState() {
     context_menu_request_received_ = false;
-    context_menu_params_.source_type = ui::MENU_SOURCE_NONE;
+    context_menu_params_.source_type = ui::mojom::MenuSourceType::kNone;
   }
 
  private:
@@ -5897,45 +5915,46 @@ TEST_F(RenderWidgetHostViewAuraWithViewHarnessTest,
 
   RenderViewHostFactory::set_is_real_render_view_host(true);
 
-  // A context menu request with the MENU_SOURCE_MOUSE source type should
+  // A context menu request with the `MenuSourceType::kMouse` source type should
   // result in the MockWebContentsViewDelegate::ShowContextMenu method
   // getting called. This means that the request worked correctly.
   ContextMenuParams context_menu_params;
-  context_menu_params.source_type = ui::MENU_SOURCE_MOUSE;
+  context_menu_params.source_type = ui::mojom::MenuSourceType::kMouse;
   contents()->ShowContextMenu(
       *contents()->GetRenderViewHost()->GetMainRenderFrameHost(),
       mojo::NullAssociatedRemote(), context_menu_params);
   EXPECT_TRUE(delegate_ptr->context_menu_request_received());
-  EXPECT_EQ(delegate_ptr->context_menu_source_type(), ui::MENU_SOURCE_MOUSE);
+  EXPECT_EQ(delegate_ptr->context_menu_source_type(),
+            ui::mojom::MenuSourceType::kMouse);
 
-  // A context menu request with the MENU_SOURCE_TOUCH source type should
+  // A context menu request with the `MenuSourceType::kTouch` source type should
   // result in the MockWebContentsViewDelegate::ShowContextMenu method
   // getting called on all platforms. This means that the request worked
   // correctly.
   delegate_ptr->ClearState();
-  context_menu_params.source_type = ui::MENU_SOURCE_TOUCH;
+  context_menu_params.source_type = ui::mojom::MenuSourceType::kTouch;
   contents()->ShowContextMenu(
       *contents()->GetRenderViewHost()->GetMainRenderFrameHost(),
       mojo::NullAssociatedRemote(), context_menu_params);
   EXPECT_TRUE(delegate_ptr->context_menu_request_received());
 
-  // A context menu request with the MENU_SOURCE_LONG_TAP source type should
-  // result in the MockWebContentsViewDelegate::ShowContextMenu method
+  // A context menu request with the `MenuSourceType::kLongTap` source type
+  // should result in the MockWebContentsViewDelegate::ShowContextMenu method
   // getting called on all platforms. This means that the request worked
   // correctly.
   delegate_ptr->ClearState();
-  context_menu_params.source_type = ui::MENU_SOURCE_LONG_TAP;
+  context_menu_params.source_type = ui::mojom::MenuSourceType::kLongTap;
   contents()->ShowContextMenu(
       *contents()->GetRenderViewHost()->GetMainRenderFrameHost(),
       mojo::NullAssociatedRemote(), context_menu_params);
   EXPECT_TRUE(delegate_ptr->context_menu_request_received());
 
-  // A context menu request with the MENU_SOURCE_LONG_PRESS source type should
-  // result in the MockWebContentsViewDelegate::ShowContextMenu method
+  // A context menu request with the `MenuSourceType::kLongPress` source type
+  // should result in the MockWebContentsViewDelegate::ShowContextMenu method
   // getting called on non Windows platforms. This means that the request
   //  worked correctly.
   delegate_ptr->ClearState();
-  context_menu_params.source_type = ui::MENU_SOURCE_LONG_PRESS;
+  context_menu_params.source_type = ui::mojom::MenuSourceType::kLongPress;
   contents()->ShowContextMenu(
       *contents()->GetRenderViewHost()->GetMainRenderFrameHost(),
       mojo::NullAssociatedRemote(), context_menu_params);
@@ -5963,52 +5982,64 @@ class InputMethodAuraTestBase : public RenderWidgetHostViewAuraTest {
     RenderWidgetHostViewAuraTest::SetUp();
     InitializeAura();
 
-    widget_host_for_first_process_ =
+    MockRenderWidgetHostImpl* widget_host_for_process_1 =
         CreateRenderWidgetHostForSiteInstanceGroup(tab_site_instance_group());
-    view_for_first_process_ =
-        CreateViewForProcess(widget_host_for_first_process_);
+    widget_hosts_to_cleanup_.push_back(widget_host_for_process_1);
+
+    view_for_first_process_ = CreateViewForProcess(widget_host_for_process_1);
 
     second_process_host_ = CreateNewProcessHost();
     second_site_instance_group_ =
         base::WrapRefCounted(SiteInstanceGroup::CreateForTesting(
             tab_site_instance_group(), second_process_host_.get()));
-    widget_host_for_second_process_ =
+    MockRenderWidgetHostImpl* widget_host_for_process_2 =
         CreateRenderWidgetHostForSiteInstanceGroup(
             second_site_instance_group_.get());
-    view_for_second_process_ =
-        CreateViewForProcess(widget_host_for_second_process_);
+    widget_hosts_to_cleanup_.push_back(widget_host_for_process_2);
+    view_for_second_process_ = CreateViewForProcess(widget_host_for_process_2);
 
     third_process_host_ = CreateNewProcessHost();
     third_site_instance_group_ =
         base::WrapRefCounted(SiteInstanceGroup::CreateForTesting(
             tab_site_instance_group(), third_process_host_.get()));
-    widget_host_for_third_process_ = CreateRenderWidgetHostForSiteInstanceGroup(
-        third_site_instance_group_.get());
-    view_for_third_process_ =
-        CreateViewForProcess(widget_host_for_third_process_);
+    MockRenderWidgetHostImpl* widget_host_for_process_3 =
+        CreateRenderWidgetHostForSiteInstanceGroup(
+            third_site_instance_group_.get());
+    widget_hosts_to_cleanup_.push_back(widget_host_for_process_3);
+    view_for_third_process_ = CreateViewForProcess(widget_host_for_process_3);
 
-    views_.insert(views_.begin(),
-                  {tab_view(), view_for_first_process_,
-                   view_for_second_process_, view_for_third_process_});
-    widget_hosts_.insert(
-        widget_hosts_.begin(),
-        {tab_widget_host(), widget_host_for_first_process_,
-         widget_host_for_second_process_, widget_host_for_third_process_});
+    views_.insert(views_.begin(), {
+                                      tab_view(),
+                                      view_for_first_process_.get(),
+                                      view_for_second_process_.get(),
+                                      view_for_third_process_.get(),
+                                  });
+    widget_hosts_.insert(widget_hosts_.begin(), {
+                                                    tab_widget_host(),
+                                                    widget_host_for_process_1,
+                                                    widget_host_for_process_2,
+                                                    widget_host_for_process_3,
+                                                });
     active_view_sequence_.insert(active_view_sequence_.begin(),
                                  {0, 1, 2, 1, 1, 3, 0, 3, 1});
   }
 
   void TearDown() override {
-    view_for_first_process_->Destroy();
+    view_for_first_process_.ExtractAsDangling()->Destroy();
+    view_for_second_process_.ExtractAsDangling()->Destroy();
+    view_for_third_process_.ExtractAsDangling()->Destroy();
 
-    view_for_second_process_->Destroy();
+    for (content::MockRenderWidgetHostImpl* host : widget_hosts_to_cleanup_) {
+      host->ShutdownAndDestroyWidget(true);
+    }
+
     second_process_host_->Cleanup();
-    second_site_instance_group_.reset();
-    second_process_host_.reset();
-
-    view_for_third_process_->Destroy();
     third_process_host_->Cleanup();
+
+    second_site_instance_group_.reset();
     third_site_instance_group_.reset();
+
+    second_process_host_.reset();
     third_process_host_.reset();
 
     RenderWidgetHostViewAuraTest::TearDown();
@@ -6058,8 +6089,11 @@ class InputMethodAuraTestBase : public RenderWidgetHostViewAuraTest {
 
   MockRenderWidgetHostImpl* tab_widget_host() const { return widget_host_; }
 
-  std::vector<RenderWidgetHostViewBase*> views_;
-  std::vector<MockRenderWidgetHostImpl*> widget_hosts_;
+  std::vector<raw_ptr<RenderWidgetHostViewBase, VectorExperimental>> views_;
+  std::vector<raw_ptr<MockRenderWidgetHostImpl, VectorExperimental>>
+      widget_hosts_;
+  std::vector<raw_ptr<MockRenderWidgetHostImpl, VectorExperimental>>
+      widget_hosts_to_cleanup_;
   // A sequence of indices in [0, 3] which determines the index of a RWHV in
   // |views_|. This sequence is used in the tests to sequentially make a RWHV
   // active for a subsequent IME result method call.
@@ -6072,17 +6106,15 @@ class InputMethodAuraTestBase : public RenderWidgetHostViewAuraTest {
     InitViewForFrame(nullptr);
     view_->Show();
   }
-
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_for_first_process_;
-  raw_ptr<TestRenderWidgetHostView> view_for_first_process_;
   std::unique_ptr<MockRenderProcessHost> second_process_host_;
-  scoped_refptr<SiteInstanceGroup> second_site_instance_group_;
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_for_second_process_;
-  raw_ptr<TestRenderWidgetHostView> view_for_second_process_;
   std::unique_ptr<MockRenderProcessHost> third_process_host_;
-  scoped_refptr<SiteInstanceGroup> third_site_instance_group_;
-  raw_ptr<MockRenderWidgetHostImpl> widget_host_for_third_process_;
+
+  raw_ptr<TestRenderWidgetHostView> view_for_first_process_;
+  raw_ptr<TestRenderWidgetHostView> view_for_second_process_;
   raw_ptr<TestRenderWidgetHostView> view_for_third_process_;
+
+  scoped_refptr<SiteInstanceGroup> second_site_instance_group_;
+  scoped_refptr<SiteInstanceGroup> third_site_instance_group_;
 };
 
 // A group of tests which verify that the IME method results are routed to the
@@ -6356,8 +6388,8 @@ TEST_F(InputMethodStateAuraTest, GetCompositionCharacterBounds) {
   for (auto index : active_view_sequence_) {
     ActivateViewForTextInputManager(views_[index], ui::TEXT_INPUT_TYPE_TEXT);
     // Simulate an IPC to set character bounds for the view.
-    views_[index]->ImeCompositionRangeChanged(gfx::Range(),
-                                              {gfx::Rect(1, 2, 3, 4 + index)});
+    views_[index]->ImeCompositionRangeChanged(
+        gfx::Range(), {{gfx::Rect(1, 2, 3, 4 + index)}});
 
     // No bounds at index 1.
     EXPECT_FALSE(text_input_client()->GetCompositionCharacterBounds(1, &bound));
@@ -6506,7 +6538,7 @@ TEST_F(InputMethodStateAuraTest, SelectedTextCopiedToClipboard) {
 // composition, the RenderWidgetHostViewAura will receive the notification and
 // the current composition is canceled.
 TEST_F(InputMethodStateAuraTest, ImeCancelCompositionForAllViews) {
-  for (auto* view : views_) {
+  for (content::RenderWidgetHostViewBase* view : views_) {
     ActivateViewForTextInputManager(view, ui::TEXT_INPUT_TYPE_TEXT);
     // There is no composition in the beginning.
     EXPECT_FALSE(has_composition_text());
@@ -6539,9 +6571,9 @@ TEST_F(RenderWidgetHostViewAuraTest, FocusReasonMouse) {
   parent_view_->Focus();
   ActivateViewForTextInputManager(parent_view_, ui::TEXT_INPUT_TYPE_TEXT);
 
-  ui::MouseEvent mouse_event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                             ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
-                             0);
+  ui::MouseEvent mouse_event(ui::EventType::kMousePressed, gfx::Point(),
+                             gfx::Point(), ui::EventTimeForNow(),
+                             ui::EF_LEFT_MOUSE_BUTTON, 0);
   parent_view_->OnMouseEvent(&mouse_event);
   parent_view_->FocusedNodeChanged(true, gfx::Rect());
 
@@ -6553,7 +6585,7 @@ TEST_F(RenderWidgetHostViewAuraTest, FocusReasonTouch) {
   parent_view_->Focus();
   ActivateViewForTextInputManager(parent_view_, ui::TEXT_INPUT_TYPE_TEXT);
 
-  ui::GestureEventDetails tap_details(ui::ET_GESTURE_TAP_DOWN);
+  ui::GestureEventDetails tap_details(ui::EventType::kGestureTapDown);
   tap_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
   tap_details.set_primary_pointer_type(ui::EventPointerType::kTouch);
   ui::GestureEvent touch_event(0, 0, 0, base::TimeTicks(), tap_details);
@@ -6569,7 +6601,7 @@ TEST_F(RenderWidgetHostViewAuraTest, FocusReasonPen) {
   parent_view_->Focus();
   ActivateViewForTextInputManager(parent_view_, ui::TEXT_INPUT_TYPE_TEXT);
 
-  ui::GestureEventDetails tap_details(ui::ET_GESTURE_TAP_DOWN);
+  ui::GestureEventDetails tap_details(ui::EventType::kGestureTapDown);
   tap_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
   tap_details.set_primary_pointer_type(ui::EventPointerType::kPen);
   ui::GestureEvent pen_event(0, 0, 0, base::TimeTicks(), tap_details);
@@ -6587,7 +6619,7 @@ TEST_F(RenderWidgetHostViewAuraTest, FocusReasonMultipleEventsOnSameNode) {
 
   // Touch then pen.
   {
-    ui::GestureEventDetails tap_details(ui::ET_GESTURE_TAP_DOWN);
+    ui::GestureEventDetails tap_details(ui::EventType::kGestureTapDown);
     tap_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
     tap_details.set_primary_pointer_type(ui::EventPointerType::kTouch);
     ui::GestureEvent touch_event(0, 0, 0, base::TimeTicks(), tap_details);
@@ -6597,7 +6629,7 @@ TEST_F(RenderWidgetHostViewAuraTest, FocusReasonMultipleEventsOnSameNode) {
   }
 
   {
-    ui::GestureEventDetails tap_details(ui::ET_GESTURE_TAP_DOWN);
+    ui::GestureEventDetails tap_details(ui::EventType::kGestureTapDown);
     tap_details.set_device_type(ui::GestureDeviceType::DEVICE_TOUCHSCREEN);
     tap_details.set_primary_pointer_type(ui::EventPointerType::kPen);
     ui::GestureEvent pen_event(0, 0, 0, base::TimeTicks(), tap_details);
@@ -6622,11 +6654,17 @@ class RenderWidgetHostViewAuraInputMethodTest
 
   ~RenderWidgetHostViewAuraInputMethodTest() override {}
   void SetUp() override {
-    input_method_ = new ui::MockInputMethod(nullptr);
-    // transfers ownership.
-    ui::SetUpInputMethodForTesting(input_method_);
+    // TODO(crbug.com/40275284) Pass as unique_ptr<>.
+    ui::SetUpInputMethodForTesting(new ui::MockInputMethod(nullptr));
     SetUpEnvironment();
     text_input_client_ = nullptr;
+  }
+
+  void TearDown() override {
+    // text_input_client_ may point at |parent_view_| or something else owned by
+    // RenderWidgetHostViewAuraTest and will get destroyed in TearDown().
+    text_input_client_ = nullptr;
+    RenderWidgetHostViewAuraTest::TearDown();
   }
 
   // Override from ui::InputMethodObserver.
@@ -6639,21 +6677,14 @@ class RenderWidgetHostViewAuraInputMethodTest
   void OnInputMethodDestroyed(const ui::InputMethod* input_method) override {}
 
  protected:
-  // Not owned.
-  raw_ptr<ui::MockInputMethod> input_method_ = nullptr;
   raw_ptr<const ui::TextInputClient> text_input_client_;
 };
 
 // This test is for notifying InputMethod for surrounding text changes.
 TEST_F(RenderWidgetHostViewAuraInputMethodTest, OnCaretBoundsChanged) {
-  ui::InputMethod* input_method = parent_view_->GetInputMethod();
-  if (input_method != input_method_) {
-    // Some platforms don't support mocking input method. In that case, ignore this test.
-    return;
-  }
   ActivateViewForTextInputManager(parent_view_, ui::TEXT_INPUT_TYPE_TEXT);
-  input_method->SetFocusedTextInputClient(parent_view_);
-  input_method->AddObserver(this);
+  GetInputMethod()->SetFocusedTextInputClient(parent_view_);
+  GetInputMethod()->AddObserver(this);
 
   parent_view_->SelectionChanged(std::u16string(), 0, gfx::Range());
   EXPECT_EQ(parent_view_, text_input_client_);
@@ -6666,22 +6697,16 @@ TEST_F(RenderWidgetHostViewAuraInputMethodTest, OnCaretBoundsChanged) {
       /*bounding_box=*/gfx::Rect(), true);
   EXPECT_EQ(parent_view_, text_input_client_);
 
-  input_method->RemoveObserver(this);
+  GetInputMethod()->RemoveObserver(this);
 }
 
 // The input method should still receive caret bounds changes even if inputmode
 // is NONE. See crbug.com/1114559.
 TEST_F(RenderWidgetHostViewAuraInputMethodTest,
        OnCaretBoundsChangedInputModeNone) {
-  ui::InputMethod* input_method = parent_view_->GetInputMethod();
-  if (input_method != input_method_) {
-    // Some platforms don't support mocking input method. In that case, ignore
-    // this test.
-    return;
-  }
   ActivateViewForTextInputManager(parent_view_, ui::TEXT_INPUT_TYPE_TEXT);
-  input_method->SetFocusedTextInputClient(parent_view_);
-  input_method->AddObserver(this);
+  GetInputMethod()->SetFocusedTextInputClient(parent_view_);
+  GetInputMethod()->AddObserver(this);
 
   text_input_client_ = nullptr;
 
@@ -6695,7 +6720,7 @@ TEST_F(RenderWidgetHostViewAuraInputMethodTest,
 
   EXPECT_EQ(parent_view_, text_input_client_);
 
-  input_method->RemoveObserver(this);
+  GetInputMethod()->RemoveObserver(this);
 }
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS)
@@ -6777,21 +6802,23 @@ class RenderWidgetHostViewAuraKeyboardTest
 
   ~RenderWidgetHostViewAuraKeyboardTest() override {}
   void SetUp() override {
-    input_method_ = new RenderWidgetHostViewAuraKeyboardMockInputMethod();
-    // transfers ownership.
-    ui::SetUpInputMethodForTesting(input_method_);
+    // TODO(crbug.com/40275284) Pass as unique_ptr<>.
+    ui::SetUpInputMethodForTesting(
+        new RenderWidgetHostViewAuraKeyboardMockInputMethod());
     SetUpEnvironment();
   }
 
-  size_t keyboard_controller_observer_count() const {
-    return input_method_->keyboard_controller_observer_count();
+  RenderWidgetHostViewAuraKeyboardMockInputMethod* GetMockInputMethod() const {
+    return static_cast<RenderWidgetHostViewAuraKeyboardMockInputMethod*>(
+        GetInputMethod());
   }
-  bool IsKeyboardVisible() const { return input_method_->IsKeyboardVisible(); }
 
- private:
-  // Not owned.
-  raw_ptr<RenderWidgetHostViewAuraKeyboardMockInputMethod> input_method_ =
-      nullptr;
+  size_t keyboard_controller_observer_count() const {
+    return GetMockInputMethod()->keyboard_controller_observer_count();
+  }
+  bool IsKeyboardVisible() const {
+    return GetMockInputMethod()->IsKeyboardVisible();
+  }
 };
 #endif
 
@@ -6904,6 +6931,202 @@ TEST_F(RenderWidgetHostViewAuraKeyboardTest,
   EXPECT_EQ(keyboard_controller_observer_count(), 0u);
 }
 
+class InputMethodStateAuraHandwritingTest : public InputMethodStateAuraTest {
+ public:
+  InputMethodStateAuraHandwritingTest() = default;
+
+  InputMethodStateAuraHandwritingTest(
+      const InputMethodStateAuraHandwritingTest&) = delete;
+  InputMethodStateAuraHandwritingTest& operator=(
+      const InputMethodStateAuraHandwritingTest&) = delete;
+
+  ~InputMethodStateAuraHandwritingTest() override = default;
+
+  void SetUp() override {
+    InputMethodStateAuraTest::SetUp();
+    scoped_feature_list_.InitAndEnableFeature(
+        stylus_handwriting::win::kStylusHandwritingWin);
+    stylus_handwriting_win_test_helper_.SetUpDefaultMockInfrastructure();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+  StylusHandwritingWinTestHelper stylus_handwriting_win_test_helper_;
+};
+
+// This test is for "proximate" character bounds GetTextExt behavior.
+TEST_F(InputMethodStateAuraHandwritingTest, GetProximateCharacterBounds) {
+  std::optional<gfx::Rect> bound;
+  // If there isn't an active view, there should be no bounds.
+  bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(1, 2));
+  EXPECT_FALSE(bound.has_value());
+  for (auto index : active_view_sequence_) {
+    ActivateViewForTextInputManager(views_[index], ui::TEXT_INPUT_TYPE_TEXT);
+
+    // If the cache hasn't been populated, there should be no bounds.
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(1, 2));
+    EXPECT_FALSE(bound.has_value());
+
+    // Simulate an IPC to set character bounds for the view.
+    views_[index]->OnEditElementFocusedForStylusWriting(
+        CreateStylusWritingFocusResultForTesting());
+    const bool cache_available_for_view = views_[index] == tab_view();
+
+    // No bounds for empty range.
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(1, 1));
+    EXPECT_FALSE(bound);
+
+    // No bounds for reversed range.
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(2, 1));
+    EXPECT_FALSE(bound);
+
+    // No bounds at [0].
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(0, 1));
+    EXPECT_FALSE(bound);
+
+    // Valid bounds at [1].
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(1, 2));
+    EXPECT_EQ(bound.has_value(), cache_available_for_view);
+    if (cache_available_for_view) {
+      EXPECT_EQ(bound.value(), gfx::Rect(10, 0, 10, 10));
+    }
+
+    // Valid bounds at [2].
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(2, 3));
+    EXPECT_EQ(bound.has_value(), cache_available_for_view);
+    if (cache_available_for_view) {
+      EXPECT_EQ(bound.value(), gfx::Rect(20, 0, 10, 10));
+    }
+
+    // Valid bounds for the range [1, 3), joins both [1] and [2].
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(1, 3));
+    EXPECT_EQ(bound.has_value(), cache_available_for_view);
+    if (cache_available_for_view) {
+      EXPECT_EQ(bound.value(), gfx::Rect(10, 0, 20, 10));
+    }
+
+    // No bounds when range extends beyond "proximate" cache.
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(0, 3));
+    EXPECT_FALSE(bound);
+    bound = text_input_client()->GetProximateCharacterBounds(gfx::Range(1, 4));
+    EXPECT_FALSE(bound);
+
+    // Simulate an IPC to clear character bounds for the view.
+    views_[index]->OnEditElementFocusedForStylusWriting(nullptr);
+  }
+}
+
+// This test is for "proximate" character bounds GetACPFromPoint behavior.
+TEST_F(InputMethodStateAuraHandwritingTest,
+       GetProximateCharacterIndexFromPoint) {
+  constexpr gfx::Point kMissLeft(0, 0);
+  constexpr gfx::Point kMissRight(100, 0);
+  constexpr gfx::Point kHit1(15, 5);
+  constexpr gfx::Point kHit2(25, 5);
+  constexpr gfx::Point kHit1Right(18, 5);
+  constexpr gfx::Point kHit2Left(21, 5);
+  constexpr ui::IndexFromPointFlags kNoFlags = ui::IndexFromPointFlags::kNone;
+  constexpr ui::IndexFromPointFlags kNearestToContainedPoint =
+      ui::IndexFromPointFlags::kNearestToContainedPoint;
+  constexpr ui::IndexFromPointFlags kNearestToUncontainedPoint =
+      ui::IndexFromPointFlags::kNearestToUncontainedPoint;
+  constexpr ui::IndexFromPointFlags kNearestToPoint =
+      ui::IndexFromPointFlags::kNearestToPoint;
+  std::optional<size_t> acp_index;
+  // If there isn't an active view, there should be no bounds.
+  acp_index = text_input_client()->GetProximateCharacterIndexFromPoint(
+      kHit1, ui::IndexFromPointFlags::kNone);
+  EXPECT_FALSE(acp_index.has_value());
+  for (auto index : active_view_sequence_) {
+    ActivateViewForTextInputManager(views_[index], ui::TEXT_INPUT_TYPE_TEXT);
+
+    // If the cache hasn't been populated, there should be no bounds.
+    acp_index = text_input_client()->GetProximateCharacterIndexFromPoint(
+        kHit1, ui::IndexFromPointFlags::kNone);
+    EXPECT_FALSE(acp_index.has_value());
+
+    // Simulate an IPC to set character bounds for the view.
+    views_[index]->OnEditElementFocusedForStylusWriting(
+        CreateStylusWritingFocusResultForTesting());
+    const bool cache_available_for_view = views_[index] == tab_view();
+
+    constexpr struct {
+      gfx::Point point;
+      const ui::IndexFromPointFlags flags;
+      const std::optional<size_t> expect_index;
+    } kTestCases[] = {
+        // [kNone] cases
+        {kMissLeft, kNoFlags, std::nullopt},
+        {kHit1, kNoFlags, {1}},
+        {kHit2, kNoFlags, {2}},
+        {kHit1Right, kNoFlags, {1}},
+        {kHit2Left, kNoFlags, {2}},
+        // [kNearestToContainedPoint] cases
+        {kMissLeft, kNearestToContainedPoint, std::nullopt},
+        {kHit1, kNearestToContainedPoint, {1}},
+        {kHit2, kNearestToContainedPoint, {2}},
+        {kHit1Right, kNearestToContainedPoint, {2}},  // Rounds to [2].
+        {kHit2Left, kNearestToContainedPoint, {2}},   // Closer to [2].
+        // [kNearestToUncontainedPoint] cases
+        {kMissLeft, kNearestToUncontainedPoint, {1}},
+        {kMissRight, kNearestToUncontainedPoint, {2}},
+        {kHit1, kNearestToUncontainedPoint, {1}},
+        {kHit2, kNearestToUncontainedPoint, {2}},
+        {kHit1Right, kNearestToUncontainedPoint, {1}},
+        {kHit2Left, kNearestToUncontainedPoint, {2}},
+        // [kNearestToPoint] cases
+        {kMissLeft, kNearestToPoint, {1}},
+        {kMissRight, kNearestToPoint, {2}},
+        {kHit1, kNearestToPoint, {1}},
+        {kHit2, kNearestToPoint, {2}},
+        {kHit1Right, kNearestToPoint, {2}},  // Rounds to [2].
+        {kHit2Left, kNearestToPoint, {2}},   // Closer to [2].
+    };
+
+    size_t iteration = 0;
+    for (const auto& test : kTestCases) {
+      acp_index = text_input_client()->GetProximateCharacterIndexFromPoint(
+          test.point, test.flags);
+      EXPECT_EQ(acp_index.has_value(),
+                cache_available_for_view && test.expect_index.has_value())
+          << "[" << index << ":" << iteration << "]";
+      if (cache_available_for_view) {
+        EXPECT_EQ(acp_index, test.expect_index)
+            << "[" << index << ":" << iteration << "]"
+            << " point: " << test.point.ToString() << ", flags: " << test.flags;
+      }
+      ++iteration;
+    }
+
+    // Simulate an IPC to clear character bounds for the view.
+    views_[index]->OnEditElementFocusedForStylusWriting(nullptr);
+  }
+}
+
+TEST(IndexFromPointFlagsTest, OStreamOperator) {
+  std::stringstream none;
+  none << ui::IndexFromPointFlags::kNone;
+  std::stringstream nearest_to_contained_point;
+  nearest_to_contained_point
+      << ui::IndexFromPointFlags::kNearestToContainedPoint;
+  std::stringstream nearest_to_uncontained_point;
+  nearest_to_uncontained_point
+      << ui::IndexFromPointFlags::kNearestToUncontainedPoint;
+  std::stringstream nearest_to_point;
+  nearest_to_point << ui::IndexFromPointFlags::kNearestToPoint;
+  std::stringstream oob_bit;
+  oob_bit << static_cast<ui::IndexFromPointFlags>(0x04);
+  std::stringstream all_bits;
+  all_bits << static_cast<ui::IndexFromPointFlags>(~static_cast<size_t>(0));
+  EXPECT_STREQ(none.str().c_str(), "None");
+  EXPECT_STREQ(nearest_to_contained_point.str().c_str(),
+               "NearestToContainedPoint");
+  EXPECT_STREQ(nearest_to_uncontained_point.str().c_str(),
+               "NearestToUncontainedPoint");
+  EXPECT_STREQ(nearest_to_point.str().c_str(), "NearestToPoint");
+  EXPECT_STREQ(oob_bit.str().c_str(), "Unknown(0x04)");
+  EXPECT_STREQ(all_bits.str().c_str(), "Unknown(0xff)");
+}
 #endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace content

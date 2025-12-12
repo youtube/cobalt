@@ -22,7 +22,7 @@ namespace {
 void OnCheckURLDone(SafeSearchService::CheckSafeSearchCallback callback,
                     const GURL& /* url */,
                     safe_search_api::Classification classification,
-                    bool /* uncertain */) {
+                    safe_search_api::ClassificationDetails details) {
   std::move(callback).Run(classification ==
                           safe_search_api::Classification::SAFE);
 }
@@ -98,9 +98,10 @@ SafeSearchFactory::SafeSearchFactory()
 
 SafeSearchFactory::~SafeSearchFactory() = default;
 
-KeyedService* SafeSearchFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+SafeSearchFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  return new SafeSearchService(context);
+  return std::make_unique<SafeSearchService>(context);
 }
 
 content::BrowserContext* SafeSearchFactory::GetBrowserContextToUse(

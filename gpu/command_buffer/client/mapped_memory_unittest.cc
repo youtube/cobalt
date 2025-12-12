@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "gpu/command_buffer/client/mapped_memory.h"
 
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <list>
 #include <memory>
 
@@ -196,7 +202,7 @@ TEST_F(MappedMemoryManagerTest, FreePendingToken) {
   CHECK(kAllocCount * kSize == kBufferSize * 2);
 
   // Allocate several buffers across multiple chunks.
-  void *pointers[kAllocCount];
+  std::array<void*, kAllocCount> pointers;
   for (unsigned int i = 0; i < kAllocCount; ++i) {
     int32_t id = -1;
     unsigned int offset = 0xFFFFFFFFu;

@@ -6,15 +6,16 @@
 
 #include <vector>
 
+#include "ash/constants/ash_features.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "chrome/browser/ash/smb_client/discovery/mdns_host_locator.h"
 #include "chrome/browser/ash/smb_client/smb_constants.h"
 #include "chrome/browser/ash/smb_client/smb_errors.h"
+#include "chromeos/ash/components/dbus/upstart/upstart_client.h"
 
-namespace ash {
-namespace smb_client {
+namespace ash::smb_client {
 
 SmbShareFinder::SmbShareFinder(SmbProviderClient* client) : client_(client) {}
 SmbShareFinder::~SmbShareFinder() = default;
@@ -48,8 +49,8 @@ void SmbShareFinder::GatherSharesInNetwork(
   // discovery has been fully completed.
   InsertDiscoveryAndShareCallbacks(std::move(discovery_callback),
                                    std::move(shares_callback));
-  scanner_.FindHostsInNetwork(
-      base::BindOnce(&SmbShareFinder::OnHostsFound, AsWeakPtr()));
+  scanner_.FindHostsInNetwork(base::BindOnce(&SmbShareFinder::OnHostsFound,
+                                             weak_ptr_factory_.GetWeakPtr()));
 }
 
 void SmbShareFinder::DiscoverHostsInNetwork(
@@ -77,8 +78,8 @@ void SmbShareFinder::DiscoverHostsInNetwork(
   // GatherSharesInNetwork has not been called yet or the previous host
   // discovery has been fully completed.
   InsertDiscoveryCallback(std::move(discovery_callback));
-  scanner_.FindHostsInNetwork(
-      base::BindOnce(&SmbShareFinder::OnHostsFound, AsWeakPtr()));
+  scanner_.FindHostsInNetwork(base::BindOnce(&SmbShareFinder::OnHostsFound,
+                                             weak_ptr_factory_.GetWeakPtr()));
 }
 
 void SmbShareFinder::RegisterHostLocator(std::unique_ptr<HostLocator> locator) {
@@ -132,8 +133,8 @@ void SmbShareFinder::OnHostsFound(bool success, const HostMap& hosts) {
     const base::FilePath server_url(kSmbSchemePrefix + resolved_address);
 
     client_->GetShares(
-        server_url,
-        base::BindOnce(&SmbShareFinder::OnSharesFound, AsWeakPtr(), host_name));
+        server_url, base::BindOnce(&SmbShareFinder::OnSharesFound,
+                                   weak_ptr_factory_.GetWeakPtr(), host_name));
   }
 }
 
@@ -164,6 +165,16 @@ void SmbShareFinder::OnSharesFound(
 
   if (host_counter_ == 0) {
     RunSharesCallbacks(shares_);
+    if (base::FeatureList::IsEnabled(features::kSmbproviderdOnDemand)) {
+      // Stops smbproviderd Upstart job only after all hosts have been
+      // processed.
+      UpstartClient* client = UpstartClient::Get();
+      client->StopJob(kSmbProviderdUpstartJobName, /*upstart_env=*/{},
+                      base::BindOnce([](bool success) {
+                        LOG_IF(ERROR, !success)
+                            << "Failed to stop smbproviderd";
+                      }));
+    }
   }
 }
 
@@ -203,5 +214,4 @@ void SmbShareFinder::InsertDiscoveryCallback(
   discovery_callbacks_.push_back(std::move(discovery_callback));
 }
 
-}  // namespace smb_client
-}  // namespace ash
+}  // namespace ash::smb_client

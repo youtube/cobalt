@@ -14,15 +14,14 @@
 
 #include "cobalt/shell/common/shell_switches.h"
 
-#include "base/command_line.h"
-
 namespace switches {
 
 // Makes Content Shell use the given path for its data directory.
-// NOTE: If changing this value, change the corresponding Java-side value in
-// ContentShellBrowserTestActivity.java#getUserDataDirectoryCommandLineSwitch()
-// to match.
-const char kContentShellDataPath[] = "data-path";
+// NOTE: "user-data-dir" is used to align with Chromedriver's behavior. Please
+// do NOT change this to another value.
+// NOTE: The same value is also used at Java-side in
+// ContentShellBrowserTestActivity.java#getUserDataDirectoryCommandLineSwitch().
+const char kContentShellUserDataDir[] = "user-data-dir";
 
 // The directory breakpad should store minidumps in.
 const char kCrashDumpsDir[] = "crash-dumps-dir";
@@ -35,13 +34,6 @@ const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
 
 // Hides toolbar from content_shell's host window.
 const char kContentShellHideToolbar[] = "content-shell-hide-toolbar";
-
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
-// Let DevTools front-end talk to the target of type "tab" rather than
-// "frame" when inspecting a WebContents.
-const char kContentShellDevToolsTabTarget[] =
-    "content-shell-devtools-tab-target";
-#endif
 
 // Enables APIs guarded with the [IsolatedContext] IDL attribute for the given
 // comma-separated list of origins.
@@ -57,5 +49,8 @@ const char kOmitDeviceAuthenticationQueryParameters[] =
 // perform any authentication, so exposing it too widely can be a security
 // risk.
 const char kRemoteDebuggingAddress[] = "remote-debugging-address";
+
+// Register the provided scheme as a standard scheme.
+const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
 
 }  // namespace switches

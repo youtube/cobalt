@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.h"
+
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h"
@@ -38,9 +39,10 @@ void H5vccMetrics::ContextDestroyed() {
   OnCloseConnection();
 }
 
-ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
-                                   ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLUndefined> H5vccMetrics::enable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -54,9 +56,10 @@ ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
-                                    ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLUndefined> H5vccMetrics::disable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -74,11 +77,11 @@ bool H5vccMetrics::isEnabled() {
   return is_reporting_enabled_;
 }
 
-ScriptPromise H5vccMetrics::setMetricEventInterval(
+ScriptPromise<IDLUndefined> H5vccMetrics::setMetricEventInterval(
     ScriptState* script_state,
     uint64_t interval_seconds,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -147,19 +150,20 @@ void H5vccMetrics::MaybeRegisterMojoListener() {
       receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
-void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   is_reporting_enabled_ = true;
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnDisable(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   is_reporting_enabled_ = false;
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::OnSetMetricEventInterval(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   resolver->Resolve();
 }
@@ -190,11 +194,11 @@ void H5vccMetrics::OnCloseConnection() {
     return;
   }
 
-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises;
+  HeapHashSet<Member<ScriptPromiseResolverBase>> h5vcc_metrics_promises;
   // Script may execute during a call to Resolve(). Swap these sets to prevent
   // concurrent modification.
   h5vcc_metrics_promises_.swap(h5vcc_metrics_promises);
-  for (ScriptPromiseResolver* resolver : h5vcc_metrics_promises) {
+  for (ScriptPromiseResolverBase* resolver : h5vcc_metrics_promises) {
     resolver->RejectWithDOMException(
         DOMExceptionCode::kOperationError,
         "Mojo connection to Browser process was closed.");
@@ -207,10 +211,10 @@ void H5vccMetrics::Trace(Visitor* visitor) const {
   visitor->Trace(remote_h5vcc_metrics_);
   visitor->Trace(receiver_);
   visitor->Trace(h5vcc_metrics_promises_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
 }
 
-void H5vccMetrics::CleanupPromise(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::CleanupPromise(ScriptPromiseResolverBase* resolver) {
   DCHECK(h5vcc_metrics_promises_.Contains(resolver));
   h5vcc_metrics_promises_.erase(resolver);
 }

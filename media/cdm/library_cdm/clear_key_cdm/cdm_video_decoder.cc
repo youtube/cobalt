@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/library_cdm/clear_key_cdm/cdm_video_decoder.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/command_line.h"
@@ -17,7 +23,6 @@
 #include "base/no_destructor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 // Necessary to convert async media::VideoDecoder to sync CdmVideoDecoder.
 // Typically not recommended for production code, but is ok here since
 // ClearKeyCdm is only for testing.
@@ -106,13 +111,13 @@ bool ToCdmVideoFrame(const VideoFrame& video_frame,
   cdm_video_frame->SetSize(
       {video_frame.coded_size().width(), video_frame.coded_size().height()});
   cdm_video_frame->SetTimestamp(video_frame.timestamp().InMicroseconds());
-  // TODO(crbug.com/707127): Set ColorSpace here. It's not trivial to convert
+  // TODO(crbug.com/40513452): Set ColorSpace here. It's not trivial to convert
   // a gfx::ColorSpace (from VideoFrame) to another other ColorSpace like
   // cdm::ColorSpace.
 
-  static_assert(VideoFrame::kYPlane == cdm::kYPlane && cdm::kYPlane == 0, "");
-  static_assert(VideoFrame::kUPlane == cdm::kUPlane && cdm::kUPlane == 1, "");
-  static_assert(VideoFrame::kVPlane == cdm::kVPlane && cdm::kVPlane == 2, "");
+  static_assert(VideoFrame::Plane::kY == cdm::kYPlane && cdm::kYPlane == 0, "");
+  static_assert(VideoFrame::Plane::kU == cdm::kUPlane && cdm::kUPlane == 1, "");
+  static_assert(VideoFrame::Plane::kV == cdm::kVPlane && cdm::kVPlane == 2, "");
 
   uint8_t* dst = buffer->Data();
   uint32_t offset = 0;
@@ -292,8 +297,8 @@ class VideoDecoderAdapter final : public CdmVideoDecoder {
 
   // Results of |video_decoder_| operations. Set iff the callback of the
   // operation has been called.
-  absl::optional<DecoderStatus> last_init_result_;
-  absl::optional<DecoderStatus> last_decode_status_;
+  std::optional<DecoderStatus> last_init_result_;
+  std::optional<DecoderStatus> last_decode_status_;
 
   // Queue of decoded video frames.
   using VideoFrameQueue = base::queue<scoped_refptr<VideoFrame>>;
@@ -309,7 +314,6 @@ std::unique_ptr<CdmVideoDecoder> CreateVideoDecoder(
     const cdm::VideoDecoderConfig_3& config) {
   SetupGlobalEnvironmentIfNeeded();
 
-  static base::NoDestructor<media::NullMediaLog> null_media_log;
   std::unique_ptr<VideoDecoder> video_decoder;
 
 #if BUILDFLAG(ENABLE_LIBVPX)
@@ -318,11 +322,15 @@ std::unique_ptr<CdmVideoDecoder> CreateVideoDecoder(
 #endif
 
 #if BUILDFLAG(ENABLE_DAV1D_DECODER)
-  if (config.codec == cdm::kCodecAv1)
-    video_decoder = std::make_unique<Dav1dVideoDecoder>(null_media_log.get());
+  if (config.codec == cdm::kCodecAv1) {
+    video_decoder =
+        std::make_unique<Dav1dVideoDecoder>(std::make_unique<NullMediaLog>());
+  }
 #endif
 
 #if BUILDFLAG(ENABLE_FFMPEG_VIDEO_DECODERS)
+  static base::NoDestructor<media::NullMediaLog> null_media_log;
+
   if (!video_decoder)
     video_decoder = std::make_unique<FFmpegVideoDecoder>(null_media_log.get());
 #endif

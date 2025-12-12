@@ -26,8 +26,8 @@ namespace {
 
 std::string ToBase64Message(const std::string& cert_scope,
                             const std::string& start_time) {
-  std::string base64_message;
-  base::Base64Encode(ComputeMessage(cert_scope, start_time), &base64_message);
+  std::string base64_message =
+      base::Base64Encode(ComputeMessage(cert_scope, start_time));
   return base64_message;
 }
 

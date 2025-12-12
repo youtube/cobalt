@@ -19,10 +19,17 @@ namespace viz {
 class VIZ_SERVICE_EXPORT OverlayProcessorOzone
     : public OverlayProcessorUsingStrategy {
  public:
+  class PixmapProvider {
+   public:
+    virtual scoped_refptr<gfx::NativePixmap> GetNativePixmap(
+        const gpu::Mailbox& mailbox) = 0;
+    virtual ~PixmapProvider();
+  };
+
   OverlayProcessorOzone(
       std::unique_ptr<ui::OverlayCandidatesOzone> overlay_candidates,
       std::vector<OverlayStrategy> available_strategies,
-      gpu::SharedImageInterface* shared_image_interface);
+      std::unique_ptr<PixmapProvider> pixmap_provider);
   ~OverlayProcessorOzone() override;
 
   bool IsOverlaySupported() const override;
@@ -32,6 +39,11 @@ class VIZ_SERVICE_EXPORT OverlayProcessorOzone
   // Override OverlayProcessorUsingStrategy.
   void SetDisplayTransformHint(gfx::OverlayTransform transform) override {}
   void SetViewportSize(const gfx::Size& size) override {}
+  bool SupportsFlipRotateTransform() const override;
+  void NotifyOverlayPromotion(
+      DisplayResourceProvider* display_resource_provider,
+      const OverlayCandidateList& candidate_list,
+      const QuadList& quad_list) override;
 
   void CheckOverlaySupportImpl(
       const OverlayProcessorInterface::OutputSurfaceOverlayPlane* primary_plane,
@@ -49,6 +61,10 @@ class VIZ_SERVICE_EXPORT OverlayProcessorOzone
       const OverlayCandidate& candidate) const override;
   void RegisterOverlayRequirement(bool requires_overlay) override;
 
+  // Forwards this message to the OverlayCandidates, which can react to swap
+  // result accordingly.
+  void OnSwapBuffersComplete(gfx::SwapResult swap_result) override;
+
  private:
   // Populates |native_pixmap| and |native_pixmap_unique_id| in |candidate|
   // based on |mailbox|. |is_primary| should be true if this is the primary
@@ -61,7 +77,7 @@ class VIZ_SERVICE_EXPORT OverlayProcessorOzone
   std::unique_ptr<ui::OverlayCandidatesOzone> overlay_candidates_;
   const std::vector<OverlayStrategy> available_strategies_;
   bool has_independent_cursor_plane_ = true;
-  const raw_ptr<gpu::SharedImageInterface> shared_image_interface_;
+  std::unique_ptr<PixmapProvider> pixmap_provider_;
 
   base::WeakPtrFactory<OverlayProcessorOzone> weak_ptr_factory_{this};
 };

@@ -22,7 +22,6 @@ std::string IPConfigTypeAsString(IPConfigType type) {
     ENUM_CASE(IPCONFIG_TYPE_PPP);
   }
   NOTREACHED();
-  return std::string();
 }
 #undef ENUM_CASE
 }  // namespace

@@ -17,7 +17,6 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
-#include "cobalt/browser/cobalt_web_contents_delegate.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/browser/generated_code_cache_settings.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -64,17 +63,17 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
 
   ~CobaltContentBrowserClient() override;
 
+  static CobaltContentBrowserClient* Get();
+
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
-  std::vector<std::unique_ptr<content::NavigationThrottle>>
-  CreateThrottlesForNavigation(content::NavigationHandle* handle) override;
+  void CreateThrottlesForNavigation(
+      content::NavigationThrottleRegistry& registry) override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
-  std::string GetFullUserAgent() override;
-  std::string GetReducedUserAgent() override;
   blink::UserAgentMetadata GetUserAgentMetadata() override;
   content::StoragePartitionConfig GetStoragePartitionConfigForSite(
       content::BrowserContext* browser_context,
@@ -86,8 +85,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       network::mojom::NetworkContextParams* network_context_params,
       cert_verifier::mojom::CertVerifierCreationParams*
           cert_verifier_creation_params) override;
-  void OverrideWebkitPrefs(content::WebContents* web_contents,
-                           blink::web_pref::WebPreferences* prefs) override;
+  void OverrideWebPreferences(content::WebContents* web_contents,
+                              content::SiteInstance& main_frame_site,
+                              blink::web_pref::WebPreferences* prefs) override;
   void OnWebContentsCreated(content::WebContents* web_contents) override;
   void RegisterBrowserInterfaceBindersForFrame(
       content::RenderFrameHost* render_frame_host,
@@ -107,30 +107,35 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // params for Cobalt experiments.
   void SetUpCobaltFeaturesAndParams(base::FeatureList* feature_list);
 
-  bool WillCreateURLLoaderFactory(
+  void WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,
       content::RenderFrameHost* frame,
       int render_process_id,
       URLLoaderFactoryType type,
       const url::Origin& request_initiator,
-      absl::optional<int64_t> navigation_id,
+      const net::IsolationInfo& isolation_info,
+      std::optional<int64_t> navigation_id,
       ukm::SourceIdObj ukm_source_id,
-      mojo::PendingReceiver<network::mojom::URLLoaderFactory>* factory_receiver,
+      network::URLLoaderFactoryBuilder& factory_builder,
       mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
           header_client,
       bool* bypass_redirect_checks,
       bool* disable_secure_dns,
-      network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
+      network::mojom::URLLoaderFactoryOverridePtr* factory_override,
+      scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner)
+      override;
+
+  void FlushCookiesAndLocalStorage(base::OnceClosure = base::DoNothing());
+  void DispatchBlur();
+  void DispatchFocus();
 
  private:
   void CreateVideoGeometrySetterService();
+  void DispatchEvent(const std::string&, base::OnceClosure);
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
-  std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
-  std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
-      cobalt_header_clients_;
 
   THREAD_CHECKER(thread_checker_);
 };

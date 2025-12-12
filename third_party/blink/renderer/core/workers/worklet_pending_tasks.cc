@@ -13,8 +13,9 @@
 
 namespace blink {
 
-WorkletPendingTasks::WorkletPendingTasks(Worklet* worklet,
-                                         ScriptPromiseResolver* resolver)
+WorkletPendingTasks::WorkletPendingTasks(
+    Worklet* worklet,
+    ScriptPromiseResolver<IDLUndefined>* resolver)
     : resolver_(resolver), worklet_(worklet) {
   DCHECK(IsMainThread());
 }
@@ -50,8 +51,8 @@ void WorkletPendingTasks::Abort(
       resolver_->Reject(error_to_rethrow->Deserialize(
           resolver_->GetScriptState()->GetIsolate()));
     } else {
-      resolver_->Reject(
-          MakeGarbageCollected<DOMException>(DOMExceptionCode::kAbortError));
+      resolver_->Reject(MakeGarbageCollected<DOMException>(
+          DOMExceptionCode::kAbortError, "Unable to load a worklet's module."));
     }
   }
 }

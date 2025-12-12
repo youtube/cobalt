@@ -4,15 +4,18 @@
 
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_handshake_impl_new.h"
 
+#include "ash/constants/ash_features.h"
 #include "ash/quick_pair/common/fast_pair/fast_pair_metrics.h"
-#include "ash/quick_pair/common/logging.h"
 #include "ash/quick_pair/common/pair_failure.h"
 #include "ash/quick_pair/common/protocol.h"
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_data_encryptor_impl.h"
 #include "ash/quick_pair/fast_pair_handshake/fast_pair_gatt_service_client_impl.h"
+#include "ash/quick_pair/fast_pair_handshake/fast_pair_gatt_service_client_lookup_impl.h"
 #include "base/functional/callback.h"
 #include "chromeos/ash/services/quick_pair/public/cpp/decrypted_response.h"
+#include "components/cross_device/logging/logging.h"
 #include "device/bluetooth/bluetooth_adapter.h"
+#include "device/bluetooth/floss/floss_features.h"
 #include "device/bluetooth/public/cpp/bluetooth_address.h"
 
 namespace ash::quick_pair {
@@ -20,6 +23,7 @@ namespace ash::quick_pair {
 constexpr uint8_t kKeyBasedPairingType = 0x00;
 constexpr uint8_t kInitialOrSubsequentFlags = 0x00;
 constexpr uint8_t kRetroactiveFlags = 0x10;
+constexpr uint8_t kSupportBleSpecFlags = 0x08;
 
 FastPairHandshakeImplNew::FastPairHandshakeImplNew(
     scoped_refptr<device::BluetoothAdapter> adapter,
@@ -39,44 +43,61 @@ void FastPairHandshakeImplNew::SetUpHandshake(
   on_failure_callback_ = std::move(on_failure_callback);
 
   if (!bluetooth_device) {
-    QP_LOG(VERBOSE) << __func__
-                    << ": Lost device before starting GATT connection.";
+    CD_LOG(VERBOSE, Feature::FP)
+        << __func__ << ": Lost device before starting GATT connection.";
     std::move(on_failure_callback_).Run(PairFailure::kPairingDeviceLost);
     return;
   }
 
-  // Reset() should always be called before a setup attempt so the GATT service
-  // client should always be null.
-  CHECK(!fast_pair_gatt_service_client_);
+  auto* fast_pair_gatt_service_client =
+      FastPairGattServiceClientLookup::GetInstance()->Get(bluetooth_device);
 
-  fast_pair_gatt_service_client_ =
-      FastPairGattServiceClientImpl::Factory::Create(
-          bluetooth_device, adapter_,
-          base::BindRepeating(
-              &FastPairHandshakeImplNew::OnGattClientInitializedCallback,
-              weak_ptr_factory_.GetWeakPtr()));
+  if (fast_pair_gatt_service_client) {
+    if (fast_pair_gatt_service_client->IsConnected()) {
+      CD_LOG(VERBOSE, Feature::FP)
+          << __func__
+          << ": Reusing existing GATT service client for handshake.";
+      RecordHandshakeStep(FastPairHandshakeSteps::kGattInitalized, *device_);
+      FastPairDataEncryptorImpl::Factory::CreateAsync(
+          device_, base::BindOnce(
+                       &FastPairHandshakeImplNew::OnDataEncryptorCreateAsync,
+                       weak_ptr_factory_.GetWeakPtr(), base::TimeTicks::Now()));
+      return;
+    } else {
+      // If the previous gatt service client did not complete successfully,
+      // erase it before attempting to create a new gatt connection for the
+      // device.
+      FastPairGattServiceClientLookup::GetInstance()->Erase(bluetooth_device);
+    }
+  }
+
+  CD_LOG(INFO, Feature::FP)
+      << __func__ << ": Creating new GATT service client for handshake.";
+  FastPairGattServiceClientLookup::GetInstance()->Create(
+      adapter_, bluetooth_device,
+      base::BindOnce(&FastPairHandshakeImplNew::OnGattClientInitializedCallback,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void FastPairHandshakeImplNew::Reset() {
   on_complete_callback_new_.Reset();
   on_failure_callback_.Reset();
   fast_pair_data_encryptor_.reset();
-  fast_pair_gatt_service_client_.reset();
 }
 
 void FastPairHandshakeImplNew::OnGattClientInitializedCallback(
-    absl::optional<PairFailure> failure) {
+    std::optional<PairFailure> failure) {
   if (failure) {
-    QP_LOG(WARNING) << __func__
-                    << ": Failed to init gatt client with failure = "
-                    << failure.value();
+    CD_LOG(WARNING, Feature::FP)
+        << __func__
+        << ": Failed to init gatt client with failure = " << failure.value();
     std::move(on_failure_callback_).Run(failure.value());
     RecordHandshakeResult(/*success=*/false);
     RecordHandshakeFailureReason(HandshakeFailureReason::kFailedGattInit);
     return;
   }
 
-  QP_LOG(VERBOSE)
+  CD_LOG(VERBOSE, Feature::FP)
       << __func__
       << ": Fast Pair GATT service client initialization successful.";
   RecordHandshakeStep(FastPairHandshakeSteps::kGattInitalized, *device_);
@@ -93,8 +114,8 @@ void FastPairHandshakeImplNew::OnDataEncryptorCreateAsync(
   RecordDataEncryptorCreateResult(/*success=*/success);
 
   if (!fast_pair_data_encryptor) {
-    QP_LOG(WARNING) << __func__
-                    << ": Fast Pair Data Encryptor failed to be created.";
+    CD_LOG(WARNING, Feature::FP)
+        << __func__ << ": Fast Pair Data Encryptor failed to be created.";
     std::move(on_failure_callback_).Run(PairFailure::kDataEncryptorRetrieval);
     RecordHandshakeResult(/*success=*/false);
     RecordHandshakeFailureReason(
@@ -103,15 +124,37 @@ void FastPairHandshakeImplNew::OnDataEncryptorCreateAsync(
   }
 
   fast_pair_data_encryptor_ = std::move(fast_pair_data_encryptor);
-  QP_LOG(INFO) << __func__ << ": beginning key-based pairing protocol";
+  CD_LOG(INFO, Feature::FP)
+      << __func__ << ": beginning key-based pairing protocol";
   RecordTotalDataEncryptorCreateTime(base::TimeTicks::Now() -
                                      encryptor_create_start_time);
 
   bool is_retroactive = device_->protocol() == Protocol::kFastPairRetroactive;
 
-  fast_pair_gatt_service_client_->WriteRequestAsync(
+  auto* device = adapter_->GetDevice(device_->ble_address());
+  if (!device) {
+    CD_LOG(WARNING, Feature::FP)
+        << __func__
+        << ": device lost when attempting to retrieve GATT service client.";
+    std::move(on_failure_callback_).Run(PairFailure::kPairingDeviceLost);
+    RecordHandshakeResult(/*success=*/false);
+    return;
+  }
+
+  auto* fast_pair_gatt_service_client =
+      FastPairGattServiceClientLookup::GetInstance()->Get(device);
+  CHECK(fast_pair_gatt_service_client);
+
+  uint8_t flags =
+      is_retroactive ? kRetroactiveFlags : kInitialOrSubsequentFlags;
+  if (ash::features::IsFastPairKeyboardsEnabled() &&
+      floss::features::IsFlossEnabled()) {
+    flags |= kSupportBleSpecFlags;
+  }
+
+  fast_pair_gatt_service_client->WriteRequestAsync(
       /*message_type=*/kKeyBasedPairingType,
-      /*flags=*/is_retroactive ? kRetroactiveFlags : kInitialOrSubsequentFlags,
+      /*flags=*/flags,
       /*provider_address=*/device_->ble_address(),
       /*seekers_address=*/is_retroactive ? adapter_->GetAddress() : "",
       fast_pair_data_encryptor_.get(),
@@ -121,11 +164,11 @@ void FastPairHandshakeImplNew::OnDataEncryptorCreateAsync(
 
 void FastPairHandshakeImplNew::OnKeybasedPairingWriteResponse(
     std::vector<uint8_t> response_bytes,
-    absl::optional<PairFailure> failure) {
+    std::optional<PairFailure> failure) {
   RecordWriteKeyBasedCharacteristicResult(/*success=*/!failure.has_value());
 
   if (failure) {
-    QP_LOG(WARNING)
+    CD_LOG(WARNING, Feature::FP)
         << __func__
         << ": Failed during key-based pairing protocol due to failure: "
         << failure.value();
@@ -136,7 +179,7 @@ void FastPairHandshakeImplNew::OnKeybasedPairingWriteResponse(
     return;
   }
 
-  QP_LOG(VERBOSE) << __func__ << ": Successfully wrote response.";
+  CD_LOG(VERBOSE, Feature::FP) << __func__ << ": Successfully wrote response.";
   RecordHandshakeStep(FastPairHandshakeSteps::kKeyBasedPairingResponseReceived,
                       *device_);
 
@@ -149,9 +192,10 @@ void FastPairHandshakeImplNew::OnKeybasedPairingWriteResponse(
 
 void FastPairHandshakeImplNew::OnParseKeybasedPairingDecryptedResponse(
     base::TimeTicks decrypt_start_time,
-    const absl::optional<DecryptedResponse>& response) {
+    const std::optional<DecryptedResponse>& response) {
   if (!response) {
-    QP_LOG(WARNING) << __func__ << ": Missing decrypted response from parse.";
+    CD_LOG(WARNING, Feature::FP)
+        << __func__ << ": Missing decrypted response from parse.";
     std::move(on_failure_callback_)
         .Run(PairFailure::kKeybasedPairingResponseDecryptFailure);
     RecordKeyBasedCharacteristicDecryptResult(/*success=*/false);
@@ -161,9 +205,14 @@ void FastPairHandshakeImplNew::OnParseKeybasedPairingDecryptedResponse(
     return;
   }
 
-  if (response->message_type != FastPairMessageType::kKeyBasedPairingResponse) {
-    QP_LOG(WARNING) << __func__
-                    << ": Incorrect message type from decrypted response.";
+  bool is_ext_resp = ash::features::IsFastPairKeyboardsEnabled() &&
+                     floss::features::IsFlossEnabled() &&
+                     response->message_type ==
+                         FastPairMessageType::kKeyBasedPairingExtendedResponse;
+  if (response->message_type != FastPairMessageType::kKeyBasedPairingResponse &&
+      !is_ext_resp) {
+    CD_LOG(WARNING, Feature::FP)
+        << __func__ << ": Incorrect message type from decrypted response.";
     std::move(on_failure_callback_)
         .Run(PairFailure::kIncorrectKeyBasedPairingResponseType);
     RecordKeyBasedCharacteristicDecryptResult(/*success=*/false);
@@ -179,6 +228,10 @@ void FastPairHandshakeImplNew::OnParseKeybasedPairingDecryptedResponse(
   std::string device_address =
       device::CanonicalizeBluetoothAddress(response->address_bytes);
   device_->set_classic_address(device_address);
+  if (ash::features::IsFastPairKeyboardsEnabled() &&
+      floss::features::IsFlossEnabled() && response->flags.has_value()) {
+    device_->set_key_based_pairing_flags(response->flags.value());
+  }
 
   completed_successfully_ = true;
   RecordHandshakeResult(/*success=*/true);

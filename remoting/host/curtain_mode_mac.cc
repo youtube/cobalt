@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "remoting/host/curtain_mode.h"
 
 #include <ApplicationServices/ApplicationServices.h>
@@ -9,31 +14,21 @@
 #include <Security/Security.h>
 #include <unistd.h>
 
+#include "base/apple/osstatus_logging.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/mac/scoped_cftyperef.h"
+#include "base/mac/login_util.h"
 #include "base/memory/ptr_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/task/single_thread_task_runner.h"
+#include "remoting/base/errors.h"
 #include "remoting/host/client_session_control.h"
-#include "remoting/protocol/errors.h"
 
 namespace remoting {
 
 namespace {
-
-// Standard path to CGSession (pre-Big Sur).
-// Note: This binary was removed for the official Big Sur release.
-// See tracking issues crbug://1169841 and rdar://8977508.
-const char* kCGSessionPath =
-    "/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/"
-    "CGSession";
-
-// Alternate path to search for CGSession.
-// Admins can copy the CGSession binary here to get curtain mode to work again
-// on Mac hosts. This is a temporary workaround for CGSession being removed
-// on Big Sur.
-const char* kCGSessionAltPath = "/usr/local/sbin/CGSession";
 
 // Most machines will have < 4 displays but a larger upper bound won't hurt.
 const UInt32 kMaxDisplaysToQuery = 32;
@@ -99,7 +94,9 @@ class SessionWatcher : public base::RefCountedThreadSafe<SessionWatcher> {
   void RemoveEventHandler();
 
   // Disconnects the client session.
-  void DisconnectSession(protocol::ErrorCode error);
+  void DisconnectSession(ErrorCode error,
+                         std::string_view error_details,
+                         const base::Location& error_location);
 
   // Handlers for the switch-in event.
   static OSStatus SessionActivateHandler(EventHandlerCallRef handler,
@@ -115,7 +112,7 @@ class SessionWatcher : public base::RefCountedThreadSafe<SessionWatcher> {
   // Used to disconnect the client session.
   base::WeakPtr<ClientSessionControl> client_session_control_;
 
-  EventHandlerRef event_handler_;
+  EventHandlerRef event_handler_ = nullptr;
 };
 
 SessionWatcher::SessionWatcher(
@@ -124,8 +121,7 @@ SessionWatcher::SessionWatcher(
     base::WeakPtr<ClientSessionControl> client_session_control)
     : caller_task_runner_(caller_task_runner),
       ui_task_runner_(ui_task_runner),
-      client_session_control_(client_session_control),
-      event_handler_(nullptr) {}
+      client_session_control_(client_session_control) {}
 
 void SessionWatcher::Start() {
   DCHECK(caller_task_runner_->BelongsToCurrentThread());
@@ -152,15 +148,32 @@ SessionWatcher::~SessionWatcher() {
 }
 
 void SessionWatcher::ActivateCurtain() {
+  if (getuid() == 0) {
+    // When curtain mode is in effect on Mac, the host process runs in the
+    // user's switched-out session, but launchd will also run an instance at
+    // the console login screen.  Even if no user is currently logged-on, we
+    // can't support remote-access to the login screen because the current host
+    // process model disconnects the client during login, which would leave
+    // the logged in session un-curtained on the console until they reconnect.
+    //
+    // In case of fast user switch, there will be two host processes running,
+    // one as the logged on user and another one as root. AgentProcessBroker
+    // will terminate the root host process in that case.
+    DisconnectSession(
+        ErrorCode::LOGIN_SCREEN_NOT_SUPPORTED,
+        "Connecting to the console login session is not yet supported.",
+        FROM_HERE);
+    return;
+  }
   // Try to install the switch-in handler. Do this before switching out the
   // current session so that the console session is not affected if it fails.
   if (!InstallEventHandler()) {
-    LOG(ERROR) << "Failed to install the switch-in handler.";
-    DisconnectSession(protocol::ErrorCode::HOST_CONFIGURATION_ERROR);
+    DisconnectSession(ErrorCode::HOST_CONFIGURATION_ERROR,
+                      "Failed to install the switch-in handler.", FROM_HERE);
     return;
   }
 
-  base::ScopedCFTypeRef<CFDictionaryRef> session(
+  base::apple::ScopedCFTypeRef<CFDictionaryRef> session(
       CGSessionCopyCurrentDictionary());
 
   // CGSessionCopyCurrentDictionary has been observed to return nullptr in some
@@ -170,63 +183,50 @@ void SessionWatcher::ActivateCurtain() {
   // this, or how common it is, a crash report is useful in this case (note
   // that the connection would have to be refused in any case, so this is no
   // loss of functionality).
-  CHECK(session != nullptr)
-      << "Error activating curtain-mode: "
-      << "CGSessionCopyCurrentDictionary() returned NULL. "
-      << "Logging out and back in should resolve this error.";
+  CHECK(session) << "Error activating curtain-mode: "
+                 << "CGSessionCopyCurrentDictionary() returned NULL. "
+                 << "Logging out and back in should resolve this error.";
 
   const void* on_console =
-      CFDictionaryGetValue(session, kCGSessionOnConsoleKey);
-  const void* logged_in = CFDictionaryGetValue(session, kCGSessionLoginDoneKey);
+      CFDictionaryGetValue(session.get(), kCGSessionOnConsoleKey);
+  const void* logged_in =
+      CFDictionaryGetValue(session.get(), kCGSessionLoginDoneKey);
   if (logged_in == kCFBooleanTrue && on_console == kCFBooleanTrue) {
-    // If IsRunningHeadless() returns true then we know that CGSession will fail
-    // silently w/o curtaining the session. This is a publicly known issue for
-    // CGSession and has been for several years.  We still want to try to
-    // curtain as the problem could be fixed in a future OS release and the user
-    // could try reconnecting in that case (until we had a real fix deployed).
-    // Issue is tracked via: rdar://42733382
+    // If IsRunningHeadless() returns true then we know that the attempt to
+    // switch to the login window will fail silently. This is a publicly known
+    // issue.  We still want to try to curtain as the problem could be fixed in
+    // a future OS release and the user could try reconnecting in that case
+    // (until we had a real fix deployed). Issue is tracked via: rdar://42733382
     bool is_headless = IsRunningHeadless();
 
-    // Check to see if the CGSession binary is available. If we cannot find it,
-    // then we can't enable curtain mode and need to disconnect the session.
-    const char* cgsession_path = NULL;
-    if (access(kCGSessionPath, X_OK) == 0) {
-      cgsession_path = kCGSessionPath;
-    } else if (access(kCGSessionAltPath, X_OK) == 0) {
-      cgsession_path = kCGSessionAltPath;
-    } else {
+    std::optional<OSStatus> err = base::mac::SwitchToLoginWindow();
+    if (!err.has_value()) {
       // Disconnect the session since we are unable to enter curtain mode.
-      LOG(ERROR) << "Can't find CGSession - unable to enter curtain mode.";
-      DisconnectSession(protocol::ErrorCode::HOST_CONFIGURATION_ERROR);
+      DisconnectSession(
+          ErrorCode::HOST_CONFIGURATION_ERROR,
+          "SACSwitchToLoginWindow unavailable - unable to enter curtain mode.",
+          FROM_HERE);
       return;
     }
-
-    pid_t child = fork();
-    if (child == 0) {
-      execl(cgsession_path, cgsession_path, "-suspend", nullptr);
-      _exit(1);
-    } else if (child > 0) {
-      int status = 0;
-      waitpid(child, &status, 0);
-      if (status != 0) {
-        LOG(ERROR) << kCGSessionPath << " failed.";
-        DisconnectSession(protocol::ErrorCode::HOST_CONFIGURATION_ERROR);
-        return;
-      }
-      if (is_headless) {
-        // Disconnect the session to prevent the user from unlocking the machine
-        // since the call to CGSession very likely failed.  If we allow them to
-        // unlock the machine, the local desktop would be visible if the local
-        // monitor were plugged in.
-        LOG(ERROR) << "Machine is running in headless mode (no monitors "
-                   << "attached), we attempted to curtain the session but "
-                   << "CGSession is likely to fail in this mode.";
-        DisconnectSession(protocol::ErrorCode::HOST_CONFIGURATION_ERROR);
-        return;
-      }
-    } else {
-      LOG(ERROR) << "fork() failed.";
-      DisconnectSession(protocol::ErrorCode::HOST_CONFIGURATION_ERROR);
+    if (err.value() != noErr) {
+      DisconnectSession(
+          ErrorCode::HOST_CONFIGURATION_ERROR,
+          base::StringPrintf("Failed to switch to login window: %d",
+                             err.value()),
+          FROM_HERE);
+      return;
+    }
+    if (is_headless) {
+      // Disconnect the session to prevent the user from unlocking the machine
+      // since the call to SACSwitchToLoginWindow very likely failed. If we
+      // allow them to unlock the machine, the local desktop would be visible if
+      // the local monitor were plugged in.
+      static const char error_details[] =
+          "Machine is running in headless mode (no monitors attached), we "
+          "attempted to curtain the session but SACSwitchToLoginWindow is "
+          "likely to fail in this mode.";
+      DisconnectSession(ErrorCode::HOST_CONFIGURATION_ERROR, error_details,
+                        FROM_HERE);
       return;
     }
   }
@@ -244,7 +244,10 @@ bool SessionWatcher::InstallEventHandler() {
       &event_handler_);
   if (result != noErr) {
     event_handler_ = nullptr;
-    DisconnectSession(protocol::ErrorCode::HOST_CONFIGURATION_ERROR);
+    DisconnectSession(
+        ErrorCode::HOST_CONFIGURATION_ERROR,
+        base::StringPrintf("Failed to install event handler: %d", result),
+        FROM_HERE);
     return false;
   }
 
@@ -260,16 +263,20 @@ void SessionWatcher::RemoveEventHandler() {
   }
 }
 
-void SessionWatcher::DisconnectSession(protocol::ErrorCode error) {
+void SessionWatcher::DisconnectSession(ErrorCode error,
+                                       std::string_view error_details,
+                                       const base::Location& error_location) {
   if (!caller_task_runner_->BelongsToCurrentThread()) {
     caller_task_runner_->PostTask(
         FROM_HERE,
-        base::BindOnce(&SessionWatcher::DisconnectSession, this, error));
+        base::BindOnce(&SessionWatcher::DisconnectSession, this, error,
+                       std::string(error_details), error_location));
     return;
   }
 
   if (client_session_control_) {
-    client_session_control_->DisconnectSession(error);
+    client_session_control_->DisconnectSession(error, error_details,
+                                               error_location);
   }
 }
 
@@ -277,7 +284,7 @@ OSStatus SessionWatcher::SessionActivateHandler(EventHandlerCallRef handler,
                                                 EventRef event,
                                                 void* user_data) {
   static_cast<SessionWatcher*>(user_data)->DisconnectSession(
-      protocol::ErrorCode::OK);
+      ErrorCode::OK, "User session activated", FROM_HERE);
   return noErr;
 }
 

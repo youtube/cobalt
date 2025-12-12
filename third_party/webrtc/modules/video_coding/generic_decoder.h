@@ -11,17 +11,31 @@
 #ifndef MODULES_VIDEO_CODING_GENERIC_DECODER_H_
 #define MODULES_VIDEO_CODING_GENERIC_DECODER_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
-#include <string>
+#include <optional>
 #include <utility>
+#include <variant>
 
 #include "api/field_trials_view.h"
+#include "api/rtp_packet_infos.h"
 #include "api/sequence_checker.h"
+#include "api/units/timestamp.h"
+#include "api/video/encoded_frame.h"
+#include "api/video/encoded_image.h"
+#include "api/video/video_content_type.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_frame_type.h"
+#include "api/video/video_rotation.h"
 #include "api/video_codecs/video_decoder.h"
+#include "common_video/frame_instrumentation_data.h"
+#include "common_video/include/corruption_score_calculator.h"
 #include "modules/video_coding/encoded_frame.h"
 #include "modules/video_coding/timing/timing.h"
 #include "rtc_base/synchronization/mutex.h"
+#include "rtc_base/thread_annotations.h"
+#include "system_wrappers/include/clock.h"
 
 namespace webrtc {
 
@@ -38,21 +52,27 @@ struct FrameInfo {
   // This is likely not optional, but some inputs seem to sometimes be negative.
   // TODO(bugs.webrtc.org/13756): See if this can be replaced with Timestamp
   // once all inputs to this field use Timestamp instead of an integer.
-  absl::optional<Timestamp> render_time;
-  absl::optional<Timestamp> decode_start;
+  std::optional<Timestamp> render_time;
+  std::optional<Timestamp> decode_start;
   VideoRotation rotation;
   VideoContentType content_type;
   EncodedImage::Timing timing;
   int64_t ntp_time_ms;
   RtpPacketInfos packet_infos;
   // ColorSpace is not stored here, as it might be modified by decoders.
+  VideoFrameType frame_type;
+  std::optional<
+      std::variant<FrameInstrumentationSyncData, FrameInstrumentationData>>
+      frame_instrumentation_data;
 };
 
 class VCMDecodedFrameCallback : public DecodedImageCallback {
  public:
-  VCMDecodedFrameCallback(VCMTiming* timing,
-                          Clock* clock,
-                          const FieldTrialsView& field_trials);
+  VCMDecodedFrameCallback(
+      VCMTiming* timing,
+      Clock* clock,
+      const FieldTrialsView& field_trials,
+      CorruptionScoreCalculator* corruption_score_calculator);
   ~VCMDecodedFrameCallback() override;
   void SetUserReceiveCallback(VCMReceiveCallback* receiveCallback);
   VCMReceiveCallback* UserReceiveCallback();
@@ -60,8 +80,8 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   int32_t Decoded(VideoFrame& decodedImage) override;
   int32_t Decoded(VideoFrame& decodedImage, int64_t decode_time_ms) override;
   void Decoded(VideoFrame& decodedImage,
-               absl::optional<int32_t> decode_time_ms,
-               absl::optional<uint8_t> qp) override;
+               std::optional<int32_t> decode_time_ms,
+               std::optional<uint8_t> qp) override;
 
   void OnDecoderInfoChanged(const VideoDecoder::DecoderInfo& decoder_info);
 
@@ -69,7 +89,7 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   void ClearTimestampMap();
 
  private:
-  std::pair<absl::optional<FrameInfo>, size_t> FindFrameInfo(
+  std::pair<std::optional<FrameInfo>, size_t> FindFrameInfo(
       uint32_t rtp_timestamp) RTC_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   SequenceChecker construction_thread_;
@@ -84,6 +104,7 @@ class VCMDecodedFrameCallback : public DecodedImageCallback {
   Mutex lock_;
   std::deque<FrameInfo> frame_infos_ RTC_GUARDED_BY(lock_);
   int64_t ntp_offset_;
+  CorruptionScoreCalculator* const corruption_score_calculator_;
 };
 
 class VCMGenericDecoder {
@@ -101,7 +122,10 @@ class VCMGenericDecoder {
    *
    * inputVideoBuffer reference to encoded video frame
    */
+  // TODO(https://bugs.webrtc.org/9378): Remove VCMEncodedFrame variant
+  // once the usage from code in deprecated/ is gone.
   int32_t Decode(const VCMEncodedFrame& inputFrame, Timestamp now);
+  int32_t Decode(const EncodedFrame& inputFrame, Timestamp now);
 
   /**
    * Set decode callback. Deregistering while decoding is illegal.
@@ -113,6 +137,12 @@ class VCMGenericDecoder {
   }
 
  private:
+  int32_t Decode(const EncodedImage& frame,
+                 Timestamp now,
+                 int64_t render_time_ms,
+                 const std::optional<std::variant<FrameInstrumentationSyncData,
+                                                  FrameInstrumentationData>>&
+                     frame_instrumentation_data);
   VCMDecodedFrameCallback* _callback = nullptr;
   VideoDecoder* const decoder_;
   VideoContentType _last_keyframe_content_type;

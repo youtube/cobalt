@@ -20,10 +20,12 @@ PpapiCommandBufferProxy::PpapiCommandBufferProxy(
     InstanceData::FlushInfo* flush_info,
     LockedSender* sender,
     const gpu::Capabilities& capabilities,
+    const gpu::GLCapabilities& gl_capabilities,
     SerializedHandle shared_state,
     gpu::CommandBufferId command_buffer_id)
     : command_buffer_id_(command_buffer_id),
       capabilities_(capabilities),
+      gl_capabilities_(gl_capabilities),
       resource_(resource),
       flush_info_(flush_info),
       sender_(sender),
@@ -119,6 +121,7 @@ void PpapiCommandBufferProxy::SetGetBuffer(int32_t transfer_buffer_id) {
 scoped_refptr<gpu::Buffer> PpapiCommandBufferProxy::CreateTransferBuffer(
     uint32_t size,
     int32_t* id,
+    uint32_t alignment,
     gpu::TransferBufferAllocationOption option) {
   *id = -1;
 
@@ -214,7 +217,6 @@ uint64_t PpapiCommandBufferProxy::GenerateFenceSyncRelease() {
 
 bool PpapiCommandBufferProxy::IsFenceSyncReleased(uint64_t release) {
   NOTREACHED();
-  return false;
 }
 
 void PpapiCommandBufferProxy::SignalSyncToken(const gpu::SyncToken& sync_token,
@@ -230,11 +232,14 @@ void PpapiCommandBufferProxy::WaitSyncToken(const gpu::SyncToken& sync_token) {
 bool PpapiCommandBufferProxy::CanWaitUnverifiedSyncToken(
     const gpu::SyncToken& sync_token) {
   NOTREACHED();
-  return false;
 }
 
 void PpapiCommandBufferProxy::SignalQuery(uint32_t query,
                                           base::OnceClosure callback) {
+  NOTREACHED();
+}
+
+void PpapiCommandBufferProxy::CancelAllQueries() {
   NOTREACHED();
 }
 
@@ -256,6 +261,10 @@ void PpapiCommandBufferProxy::SetGpuControlClient(gpu::GpuControlClient*) {
 
 const gpu::Capabilities& PpapiCommandBufferProxy::GetCapabilities() const {
   return capabilities_;
+}
+
+const gpu::GLCapabilities& PpapiCommandBufferProxy::GetGLCapabilities() const {
+  return gl_capabilities_;
 }
 
 bool PpapiCommandBufferProxy::Send(IPC::Message* msg) {
@@ -292,7 +301,7 @@ void PpapiCommandBufferProxy::TryUpdateState() {
     shared_state()->Read(&last_state_);
 }
 
-gpu::CommandBufferSharedState* PpapiCommandBufferProxy::shared_state() const {
+gpu::CommandBufferSharedState* PpapiCommandBufferProxy::shared_state() {
   return reinterpret_cast<gpu::CommandBufferSharedState*>(
       shared_state_mapping_.memory());
 }
@@ -305,7 +314,7 @@ void PpapiCommandBufferProxy::FlushInternal() {
 
   IPC::Message* message = new PpapiHostMsg_PPBGraphics3D_AsyncFlush(
       ppapi::API_ID_PPB_GRAPHICS_3D, flush_info_->resource,
-      flush_info_->put_offset);
+      flush_info_->put_offset, pending_fence_sync_release_);
 
   // Do not let a synchronous flush hold up this message. If this handler is
   // deferred until after the synchronous flush completes, it will overwrite the

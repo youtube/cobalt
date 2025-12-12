@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/memory/raw_ptr.h"
+#include "base/strings/strcat.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -54,7 +55,7 @@ class NotificationHeaderViewTest : public views::ViewsTestBase {
 
     notification_header_view_ =
         new NotificationHeaderView(views::Button::PressedCallback());
-    container->AddChildView(notification_header_view_.get());
+    container->AddChildViewRaw(notification_header_view_.get());
 
     widget_.Show();
   }
@@ -83,7 +84,8 @@ class NotificationHeaderViewTest : public views::ViewsTestBase {
   }
 
  protected:
-  raw_ptr<NotificationHeaderView> notification_header_view_ = nullptr;
+  raw_ptr<NotificationHeaderView, DanglingUntriaged> notification_header_view_ =
+      nullptr;
 
  private:
   views::Widget widget_;
@@ -278,11 +280,12 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   notification_header_view_->SetExpandButtonEnabled(true);
   notification_header_view_->SetExpanded(false);
 
-  views::test::AXEventCounter ax_counter(views::AXEventManager::Get());
+  views::test::AXEventCounter ax_counter(views::AXUpdateNotifier::Get());
   ui::AXNodeData data;
 
   // Initially the view is collapsed and there are no expanded-changed events.
-  notification_header_view_->GetAccessibleNodeData(&data);
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
   EXPECT_FALSE(data.HasState(ax::mojom::State::kExpanded));
   EXPECT_TRUE(data.HasState(ax::mojom::State::kCollapsed));
   EXPECT_EQ(ax_counter.GetCount(ax::mojom::Event::kExpandedChanged,
@@ -295,7 +298,8 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   // Expanding the view should result the expanded state being present and an
   // expanded-changed event being fired.
   notification_header_view_->SetExpanded(true);
-  notification_header_view_->GetAccessibleNodeData(&data);
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
   EXPECT_TRUE(data.HasState(ax::mojom::State::kExpanded));
   EXPECT_FALSE(data.HasState(ax::mojom::State::kCollapsed));
   EXPECT_EQ(ax_counter.GetCount(ax::mojom::Event::kExpandedChanged,
@@ -308,7 +312,8 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   // Calling `SetExpanded` without the changing the expanded state should not
   // result in an expanded-changed event being fired.
   notification_header_view_->SetExpanded(true);
-  notification_header_view_->GetAccessibleNodeData(&data);
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
   EXPECT_TRUE(data.HasState(ax::mojom::State::kExpanded));
   EXPECT_FALSE(data.HasState(ax::mojom::State::kCollapsed));
   EXPECT_EQ(ax_counter.GetCount(ax::mojom::Event::kExpandedChanged,
@@ -321,7 +326,8 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   // Collapsing the view should result the collapsed state being present and an
   // expanded-changed event being fired.
   notification_header_view_->SetExpanded(false);
-  notification_header_view_->GetAccessibleNodeData(&data);
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
   EXPECT_FALSE(data.HasState(ax::mojom::State::kExpanded));
   EXPECT_TRUE(data.HasState(ax::mojom::State::kCollapsed));
   EXPECT_EQ(ax_counter.GetCount(ax::mojom::Event::kExpandedChanged,
@@ -336,7 +342,8 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   // event, and neither the expanded nor the collapsed state should be present.
   notification_header_view_->SetExpandButtonEnabled(false);
   notification_header_view_->SetExpanded(true);
-  notification_header_view_->GetAccessibleNodeData(&data);
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
   EXPECT_FALSE(data.HasState(ax::mojom::State::kExpanded));
   EXPECT_FALSE(data.HasState(ax::mojom::State::kCollapsed));
   EXPECT_EQ(ax_counter.GetCount(ax::mojom::Event::kExpandedChanged,
@@ -351,7 +358,7 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   // "ignored" state to minimize test flakiness.
   bool expand_button_is_ignored = notification_header_view_->expand_button()
                                       ->GetViewAccessibility()
-                                      .IsIgnored();
+                                      .GetIsIgnored();
   EXPECT_EQ(
       ax_counter.GetCount(ax::mojom::Event::kChildrenChanged,
                           notification_header_view_->expand_button()->parent()),
@@ -365,7 +372,8 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   // the view. As a result, we should expect the previously-set expanded state
   // to be present, but no expanded-changed event fired.
   notification_header_view_->SetExpandButtonEnabled(true);
-  notification_header_view_->GetAccessibleNodeData(&data);
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
   EXPECT_TRUE(data.HasState(ax::mojom::State::kExpanded));
   EXPECT_FALSE(data.HasState(ax::mojom::State::kCollapsed));
   EXPECT_EQ(ax_counter.GetCount(ax::mojom::Event::kExpandedChanged,
@@ -377,12 +385,83 @@ TEST_F(NotificationHeaderViewTest, AccessibleExpandAndCollapse) {
   // event on the parent view.
   expand_button_is_ignored = notification_header_view_->expand_button()
                                  ->GetViewAccessibility()
-                                 .IsIgnored();
+                                 .GetIsIgnored();
   EXPECT_FALSE(expand_button_is_ignored);
   EXPECT_EQ(
       ax_counter.GetCount(ax::mojom::Event::kChildrenChanged,
                           notification_header_view_->expand_button()->parent()),
       1);
+}
+
+TEST_F(NotificationHeaderViewTest, AccessibleNameTest) {
+  ui::AXNodeData data;
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName), u"");
+  EXPECT_EQ(data.GetNameFrom(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
+
+  data = ui::AXNodeData();
+  notification_header_view_->SetAppName(u"Some app name");
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+            u"Some app name");
+}
+
+TEST_F(NotificationHeaderViewTest, AccessibleRoleTest) {
+  ui::AXNodeData data;
+  notification_header_view_->GetViewAccessibility().GetAccessibleNodeData(
+      &data);
+  EXPECT_EQ(data.role, ax::mojom::Role::kGenericContainer);
+
+  data = ui::AXNodeData();
+  notification_header_view_->expand_button()
+      ->GetViewAccessibility()
+      .GetAccessibleNodeData(&data);
+  EXPECT_EQ(data.role, ax::mojom::Role::kButton);
+  EXPECT_EQ(data.GetString16Attribute(ax::mojom::StringAttribute::kName), u"");
+  EXPECT_EQ(data.GetNameFrom(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
+}
+
+TEST_F(NotificationHeaderViewTest, AccessibleDescription) {
+  EXPECT_EQ(
+      notification_header_view_->GetViewAccessibility().GetCachedDescription(),
+      u" ");
+
+  notification_header_view_->SetSummaryText(u"Example Summary");
+
+  EXPECT_EQ(
+      notification_header_view_->GetViewAccessibility().GetCachedDescription(),
+      u"Example Summary ");
+
+  auto* timestamp_view =
+      notification_header_view_->timestamp_view_for_testing();
+
+  notification_header_view_->SetTimestamp(base::Time::Now() + base::Hours(3) +
+                                          base::Minutes(30));
+
+  EXPECT_EQ(
+      notification_header_view_->GetViewAccessibility().GetCachedDescription(),
+      base::StrCat({u"Example Summary ", timestamp_view->GetText()}));
+
+  int progress = 1;
+  notification_header_view_->SetProgress(progress);
+
+  EXPECT_EQ(
+      notification_header_view_->GetViewAccessibility().GetCachedDescription(),
+      l10n_util::GetStringFUTF16Int(
+          IDS_MESSAGE_CENTER_NOTIFICATION_PROGRESS_PERCENTAGE, progress) +
+          base::StrCat({u" ", timestamp_view->GetText()}));
+
+  int count = 4;
+  notification_header_view_->SetOverflowIndicator(count);
+
+  EXPECT_EQ(
+      notification_header_view_->GetViewAccessibility().GetCachedDescription(),
+      l10n_util::GetStringFUTF16Int(
+          IDS_MESSAGE_CENTER_LIST_NOTIFICATION_HEADER_OVERFLOW_INDICATOR,
+          count) +
+          base::StrCat({u" ", timestamp_view->GetText()}));
 }
 
 TEST_F(NotificationHeaderViewTest, MetadataTest) {

@@ -2,17 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "ui/gfx/geometry/transform_operation.h"
 
 #include <algorithm>
+#include <array>
 #include <limits>
+#include <numbers>
 #include <utility>
 
 #include "base/check_op.h"
+#include "base/containers/span.h"
 #include "base/notreached.h"
-#include "base/numerics/math_constants.h"
+#include "base/numerics/angle_conversions.h"
 #include "base/numerics/ranges.h"
-#include "ui/gfx/geometry/angle_conversions.h"
 #include "ui/gfx/geometry/box_f.h"
 #include "ui/gfx/geometry/transform_operations.h"
 #include "ui/gfx/geometry/transform_util.h"
@@ -169,7 +172,6 @@ bool TransformOperation::ApproximatelyEqual(const TransformOperation& other,
       return other.matrix.IsIdentity();
   }
   NOTREACHED();
-  return false;
 }
 
 bool TransformOperation::BlendTransformOperations(
@@ -302,13 +304,13 @@ bool TransformOperation::BlendTransformOperations(
 static void FindCandidatesInPlane(float px,
                                   float py,
                                   float nz,
-                                  double* candidates,
+                                  base::span<double> candidates,
                                   int* num_candidates) {
   double phi = atan2(px, py);
   *num_candidates = 4;
   candidates[0] = phi;
   for (int i = 1; i < *num_candidates; ++i)
-    candidates[i] = candidates[i - 1] + base::kPiDouble / 2;
+    candidates[i] = candidates[i - 1] + std::numbers::pi / 2;
   if (nz < 0.f) {
     for (int i = 0; i < *num_candidates; ++i)
       candidates[i] *= -1.f;
@@ -332,7 +334,7 @@ static void BoundingBoxForArc(const gfx::Point3F& point,
   // We will have at most 6 angles to test (excluding from->angle and
   // to->angle).
   static const int kMaxNumCandidates = 6;
-  double candidates[kMaxNumCandidates];
+  std::array<double, kMaxNumCandidates> candidates;
   int num_candidates = kMaxNumCandidates;
 
   if (x_is_zero && y_is_zero && z_is_zero)
@@ -417,27 +419,27 @@ static void BoundingBoxForArc(const gfx::Point3F& point,
     // tan(t) = v2.x/v1.x
     // t = atan2(v2.x, v1.x) + n*pi;
     candidates[0] = atan2(v2.x(), v1.x());
-    candidates[1] = candidates[0] + base::kPiDouble;
+    candidates[1] = candidates[0] + std::numbers::pi;
     candidates[2] = atan2(v2.y(), v1.y());
-    candidates[3] = candidates[2] + base::kPiDouble;
+    candidates[3] = candidates[2] + std::numbers::pi;
     candidates[4] = atan2(v2.z(), v1.z());
-    candidates[5] = candidates[4] + base::kPiDouble;
+    candidates[5] = candidates[4] + std::numbers::pi;
   }
 
-  double min_radians = gfx::DegToRad(min_degrees);
-  double max_radians = gfx::DegToRad(max_degrees);
+  double min_radians = base::DegToRad(min_degrees);
+  double max_radians = base::DegToRad(max_degrees);
 
   for (int i = 0; i < num_candidates; ++i) {
     double radians = candidates[i];
     while (radians < min_radians)
-      radians += 2.0 * base::kPiDouble;
+      radians += 2.0 * std::numbers::pi;
     while (radians > max_radians)
-      radians -= 2.0 * base::kPiDouble;
+      radians -= 2.0 * std::numbers::pi;
     if (radians < min_radians)
       continue;
 
     gfx::Transform rotation;
-    rotation.RotateAbout(axis, gfx::RadToDeg(radians));
+    rotation.RotateAbout(axis, base::RadToDeg(radians));
     gfx::Point3F rotated = rotation.MapPoint(point);
 
     box->ExpandTo(rotated);
@@ -518,7 +520,6 @@ bool TransformOperation::BlendedBoundsForBox(const gfx::BoxF& box,
       return false;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace gfx

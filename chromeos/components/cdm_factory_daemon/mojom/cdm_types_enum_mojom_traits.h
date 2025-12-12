@@ -35,7 +35,6 @@ struct EnumTraits<chromeos::cdm::mojom::CdmMessageType,
     }
 
     NOTREACHED();
-    return chromeos::cdm::mojom::CdmMessageType::LICENSE_REQUEST;
   }
 
   // Returning false results in deserialization failure and causes the
@@ -58,7 +57,6 @@ struct EnumTraits<chromeos::cdm::mojom::CdmMessageType,
     }
 
     NOTREACHED();
-    return false;
   }
 };
 
@@ -75,7 +73,6 @@ struct EnumTraits<chromeos::cdm::mojom::CdmSessionType,
     }
 
     NOTREACHED();
-    return chromeos::cdm::mojom::CdmSessionType::kTemporary;
   }
 
   // Returning false results in deserialization failure and causes the
@@ -92,7 +89,6 @@ struct EnumTraits<chromeos::cdm::mojom::CdmSessionType,
     }
 
     NOTREACHED();
-    return false;
   }
 };
 
@@ -113,7 +109,6 @@ struct EnumTraits<chromeos::cdm::mojom::EmeInitDataType,
     }
 
     NOTREACHED();
-    return chromeos::cdm::mojom::EmeInitDataType::UNKNOWN;
   }
 
   // Returning false results in deserialization failure and causes the
@@ -136,7 +131,6 @@ struct EnumTraits<chromeos::cdm::mojom::EmeInitDataType,
     }
 
     NOTREACHED();
-    return false;
   }
 };
 
@@ -167,7 +161,6 @@ struct EnumTraits<chromeos::cdm::mojom::HdcpVersion, ::media::HdcpVersion> {
     }
 
     NOTREACHED();
-    return chromeos::cdm::mojom::HdcpVersion::kHdcpVersionNone;
   }
 
   // Returning false results in deserialization failure and causes the
@@ -208,7 +201,6 @@ struct EnumTraits<chromeos::cdm::mojom::HdcpVersion, ::media::HdcpVersion> {
     }
 
     NOTREACHED();
-    return false;
   }
 };
 
@@ -229,7 +221,6 @@ struct EnumTraits<chromeos::cdm::mojom::PromiseException,
     }
 
     NOTREACHED();
-    return chromeos::cdm::mojom::PromiseException::INVALID_STATE_ERROR;
   }
 
   // Returning false results in deserialization failure and causes the
@@ -252,7 +243,6 @@ struct EnumTraits<chromeos::cdm::mojom::PromiseException,
     }
 
     NOTREACHED();
-    return false;
   }
 };
 

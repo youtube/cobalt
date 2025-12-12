@@ -12,7 +12,7 @@ MockAutoEnrollmentCheckScreen::MockAutoEnrollmentCheckScreen(
     const base::RepeatingCallback<void(Result result)>& exit_callback)
     : AutoEnrollmentCheckScreen(std::move(view), error_screen, exit_callback) {}
 
-MockAutoEnrollmentCheckScreen::~MockAutoEnrollmentCheckScreen() {}
+MockAutoEnrollmentCheckScreen::~MockAutoEnrollmentCheckScreen() = default;
 
 void MockAutoEnrollmentCheckScreen::RealShow() {
   AutoEnrollmentCheckScreen::ShowImpl();
@@ -27,5 +27,10 @@ MockAutoEnrollmentCheckScreenView::MockAutoEnrollmentCheckScreenView() =
 
 MockAutoEnrollmentCheckScreenView::~MockAutoEnrollmentCheckScreenView() =
     default;
+
+base::WeakPtr<AutoEnrollmentCheckScreenView>
+MockAutoEnrollmentCheckScreenView::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
+}
 
 }  // namespace ash

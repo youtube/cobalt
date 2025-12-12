@@ -8,7 +8,9 @@
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "chrome/browser/ash/extensions/file_manager/private_api_util.h"
+#include "chrome/browser/ash/guest_os/public/guest_os_mount_provider.h"
 #include "chrome/browser/ash/guest_os/public/guest_os_service.h"
+#include "chrome/browser/ash/guest_os/public/guest_os_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/extensions/api/file_manager_private.h"
 #include "extensions/browser/extension_function.h"
@@ -44,11 +46,11 @@ FileManagerPrivateMountGuestFunction::~FileManagerPrivateMountGuestFunction() =
 
 ExtensionFunction::ResponseAction FileManagerPrivateMountGuestFunction::Run() {
   using extensions::api::file_manager_private::MountGuest::Params;
-  const absl::optional<Params> params = Params::Create(args());
+  const std::optional<Params> params = Params::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   Profile* profile = Profile::FromBrowserContext(browser_context());
-  auto* registry =
-      guest_os::GuestOsService::GetForProfile(profile)->MountProviderRegistry();
+  auto* registry = guest_os::GuestOsServiceFactory::GetForProfile(profile)
+                       ->MountProviderRegistry();
   auto* provider = registry->Get(params->id);
   if (provider == nullptr) {
     auto error =
@@ -56,9 +58,8 @@ ExtensionFunction::ResponseAction FileManagerPrivateMountGuestFunction::Run() {
     LOG(ERROR) << error;
     return RespondNow(Error(error));
   }
-  provider->Mount(
-      profile, base::BindOnce(
-                   &FileManagerPrivateMountGuestFunction::MountCallback, this));
+  provider->Mount(base::BindOnce(
+      &FileManagerPrivateMountGuestFunction::MountCallback, this));
   return RespondLater();
 }
 

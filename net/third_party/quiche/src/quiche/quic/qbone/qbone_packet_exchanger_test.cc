@@ -4,8 +4,14 @@
 
 #include "quiche/quic/qbone/qbone_packet_exchanger.h"
 
+#include <list>
+#include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
+#include "absl/status/status.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/mock_qbone_client.h"
 
@@ -21,6 +27,7 @@ class MockVisitor : public QbonePacketExchanger::Visitor {
  public:
   MOCK_METHOD(void, OnReadError, (const std::string&), (override));
   MOCK_METHOD(void, OnWriteError, (const std::string&), (override));
+  MOCK_METHOD(absl::Status, OnWrite, (absl::string_view), (override));
 };
 
 class FakeQbonePacketExchanger : public QbonePacketExchanger {

@@ -7,7 +7,9 @@
 #include <memory>
 
 #include "base/memory/ptr_util.h"
-#include "third_party/blink/renderer/core/css/css_primitive_value_mappings.h"
+#include "third_party/blink/renderer/core/css/css_math_function_value.h"
+#include "third_party/blink/renderer/core/css/css_numeric_literal_value.h"
+#include "third_party/blink/renderer/core/css/css_primitive_value.h"
 #include "third_party/blink/renderer/core/css/resolver/style_builder_converter.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -31,19 +33,21 @@ class InheritedFontStretchChecker
 
 InterpolationValue CSSFontStretchInterpolationType::CreateFontStretchValue(
     FontSelectionValue font_stretch) const {
-  return InterpolationValue(std::make_unique<InterpolableNumber>(font_stretch));
+  return InterpolationValue(MakeGarbageCollected<InterpolableNumber>(
+      font_stretch, CSSPrimitiveValue::UnitType::kPercentage));
 }
 
 InterpolationValue CSSFontStretchInterpolationType::MaybeConvertNeutral(
     const InterpolationValue&,
     ConversionCheckers&) const {
-  return InterpolationValue(std::make_unique<InterpolableNumber>(0));
+  return InterpolationValue(MakeGarbageCollected<InterpolableNumber>(
+      0, CSSPrimitiveValue::UnitType::kPercentage));
 }
 
 InterpolationValue CSSFontStretchInterpolationType::MaybeConvertInitial(
     const StyleResolverState&,
     ConversionCheckers& conversion_checkers) const {
-  return CreateFontStretchValue(NormalWidthValue());
+  return CreateFontStretchValue(kNormalWidthValue);
 }
 
 InterpolationValue CSSFontStretchInterpolationType::MaybeConvertInherit(
@@ -54,16 +58,35 @@ InterpolationValue CSSFontStretchInterpolationType::MaybeConvertInherit(
   FontSelectionValue inherited_font_stretch =
       state.ParentStyle()->GetFontStretch();
   conversion_checkers.push_back(
-      std::make_unique<InheritedFontStretchChecker>(inherited_font_stretch));
+      MakeGarbageCollected<InheritedFontStretchChecker>(
+          inherited_font_stretch));
   return CreateFontStretchValue(inherited_font_stretch);
 }
 
 InterpolationValue CSSFontStretchInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState* state,
+    const StyleResolverState& state,
     ConversionCheckers& conversion_checkers) const {
-  return CreateFontStretchValue(
-      StyleBuilderConverterBase::ConvertFontStretch(value));
+  if (const auto* primitive_value = DynamicTo<CSSPrimitiveValue>(value)) {
+    if (primitive_value->IsPercentage()) {
+      if (auto* numeric_value =
+              DynamicTo<CSSNumericLiteralValue>(primitive_value)) {
+        return CreateFontStretchValue(
+            ClampTo<FontSelectionValue>(numeric_value->ComputePercentage()));
+      }
+      CHECK(primitive_value->IsMathFunctionValue());
+      return InterpolationValue(MakeGarbageCollected<InterpolableNumber>(
+          *To<CSSMathFunctionValue>(primitive_value)->ExpressionNode()));
+    }
+  }
+
+  if (std::optional<FontSelectionValue> keyword =
+          StyleBuilderConverter::ConvertFontStretchKeyword(value);
+      keyword.has_value()) {
+    return CreateFontStretchValue(keyword.value());
+  }
+
+  return CreateFontStretchValue(kNormalWidthValue);
 }
 
 InterpolationValue
@@ -76,8 +99,10 @@ void CSSFontStretchInterpolationType::ApplyStandardPropertyValue(
     const InterpolableValue& interpolable_value,
     const NonInterpolableValue*,
     StyleResolverState& state) const {
-  state.GetFontBuilder().SetStretch(FontSelectionValue(
-      ClampTo(To<InterpolableNumber>(interpolable_value).Value(), 0.0)));
+  state.GetFontBuilder().SetStretch(
+      FontSelectionValue(ClampTo(To<InterpolableNumber>(interpolable_value)
+                                     .Value(state.CssToLengthConversionData()),
+                                 0.0)));
 }
 
 }  // namespace blink

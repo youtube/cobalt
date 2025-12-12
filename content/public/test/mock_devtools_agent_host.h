@@ -16,8 +16,6 @@ class MockDevToolsAgentHost : public content::DevToolsAgentHost {
   std::string CreateIOStreamFromData(
       scoped_refptr<base::RefCountedMemory>) override;
   bool AttachClient(content::DevToolsAgentHostClient* client) override;
-  bool AttachClientWithoutWakeLock(
-      content::DevToolsAgentHostClient* client) override;
   bool DetachClient(content::DevToolsAgentHostClient* client) override;
   bool IsAttached() override;
   void DispatchProtocolMessage(content::DevToolsAgentHostClient* client,
@@ -50,7 +48,7 @@ class MockDevToolsAgentHost : public content::DevToolsAgentHost {
  protected:
   ~MockDevToolsAgentHost() override = default;
 
-  base::raw_ptr<content::DevToolsAgentHostClient> client_ = nullptr;
+  raw_ptr<content::DevToolsAgentHostClient> client_ = nullptr;
 };
 
 }  // namespace content

@@ -8,10 +8,6 @@
 #import "ios/components/security_interstitials/ios_blocking_page_metrics_helper.h"
 #import "ios/web/public/web_state.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 // Creates a metrics helper for `url`.
 std::unique_ptr<security_interstitials::IOSBlockingPageMetricsHelper>
@@ -39,7 +35,7 @@ void HttpsOnlyModeControllerClient::GoBack() {
 }
 
 void HttpsOnlyModeControllerClient::Proceed() {
-  // TODO(crbug.com/1302509): Remember the URL so that we don't block
+  // TODO(crbug.com/40825375): Remember the URL so that we don't block
   // again for a certain time.
   Reload();
 }

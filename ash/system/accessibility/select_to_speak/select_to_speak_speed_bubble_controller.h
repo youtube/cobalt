@@ -40,9 +40,12 @@ class ASH_EXPORT SelectToSpeakSpeedBubbleController
  private:
   friend class SelectToSpeakSpeedBubbleControllerTest;
 
+  void MaybeRecordDurationHistogram();
+
   // TrayBubbleView::Delegate:
   std::u16string GetAccessibleNameForBubble() override;
   void BubbleViewDestroyed() override;
+  void HideBubble(const TrayBubbleView* bubble_view) override;
 
   // ::wm::ActivationChangeObserver:
   void OnWindowActivated(ActivationReason reason,
@@ -52,14 +55,15 @@ class ASH_EXPORT SelectToSpeakSpeedBubbleController
   // SelectToSpeakSpeedView::Delegate:
   void OnSpeechRateSelected(double speech_rate) override;
 
+  base::Time last_show_time_;
+
   // Owned by views hierarchy.
-  raw_ptr<TrayBubbleView, ExperimentalAsh> bubble_view_ = nullptr;
-  raw_ptr<views::Widget, ExperimentalAsh> bubble_widget_ = nullptr;
-  raw_ptr<SelectToSpeakSpeedView, ExperimentalAsh> speed_view_ = nullptr;
+  raw_ptr<TrayBubbleView> bubble_view_ = nullptr;
+  raw_ptr<views::Widget> bubble_widget_ = nullptr;
+  raw_ptr<SelectToSpeakSpeedView, DanglingUntriaged> speed_view_ = nullptr;
 
   // Owned by parent whose lifetime exceeds this class.
-  raw_ptr<SelectToSpeakSpeedView::Delegate, ExperimentalAsh> delegate_ =
-      nullptr;
+  raw_ptr<SelectToSpeakSpeedView::Delegate> delegate_ = nullptr;
 };
 
 }  // namespace ash

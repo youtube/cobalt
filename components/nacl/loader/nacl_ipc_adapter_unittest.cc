@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/nacl/loader/nacl_ipc_adapter.h"
 
 #include <stddef.h>
@@ -26,7 +31,7 @@ namespace {
 
 class NaClIPCAdapterTest : public testing::Test {
  public:
-  NaClIPCAdapterTest() {}
+  NaClIPCAdapterTest() = default;
 
   // testing::Test implementation.
   void SetUp() override {
@@ -119,7 +124,7 @@ TEST_F(NaClIPCAdapterTest, SendRewriting) {
 
   // Send a message with one int inside it.
   const int buf_size = sizeof(NaClIPCAdapter::NaClMessageHeader) + sizeof(int);
-  char buf[buf_size] = {0};
+  char buf[buf_size] = {};
 
   NaClIPCAdapter::NaClMessageHeader* header =
       reinterpret_cast<NaClIPCAdapter::NaClMessageHeader*>(buf);
@@ -237,7 +242,7 @@ TEST_F(NaClIPCAdapterTest, SendOverflow) {
   // we can test what happens when we send too much data.
   const int buf_size = sizeof(NaClIPCAdapter::NaClMessageHeader) + sizeof(int);
   const int big_buf_size = buf_size + 4;
-  char buf[big_buf_size] = {0};
+  char buf[big_buf_size] = {};
 
   NaClIPCAdapter::NaClMessageHeader* header =
       reinterpret_cast<NaClIPCAdapter::NaClMessageHeader*>(buf);

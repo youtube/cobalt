@@ -2,7 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <algorithm>
+#include <array>
 #include <tuple>
 
 #include "base/functional/bind.h"
@@ -29,21 +35,13 @@
 namespace viz {
 
 namespace {
-int kYUVReadbackSizes[] = {2, 4, 14};
+auto kYUVReadbackSizes = std::to_array<int>({2, 4, 14});
 }
 
 class YUVReadbackTest : public testing::Test {
  protected:
   YUVReadbackTest() : context_(std::make_unique<gpu::GLInProcessContext>()) {
     gpu::ContextCreationAttribs attributes;
-    attributes.alpha_size = 8;
-    attributes.depth_size = 24;
-    attributes.red_size = 8;
-    attributes.green_size = 8;
-    attributes.blue_size = 8;
-    attributes.stencil_size = 8;
-    attributes.samples = 4;
-    attributes.sample_buffers = 1;
     attributes.bind_generates_resource = false;
 
     auto result = context_->Initialize(
@@ -61,8 +59,7 @@ class YUVReadbackTest : public testing::Test {
   void StartTracing(const std::string& filter) {
     base::trace_event::TraceLog::GetInstance()->SetEnabled(
         base::trace_event::TraceConfig(filter,
-                                       base::trace_event::RECORD_UNTIL_FULL),
-        base::trace_event::TraceLog::RECORDING_MODE);
+                                       base::trace_event::RECORD_UNTIL_FULL));
   }
 
   static void TraceDataCB(
@@ -70,10 +67,10 @@ class YUVReadbackTest : public testing::Test {
       std::string* output,
       const scoped_refptr<base::RefCountedString>& json_events_str,
       bool has_more_events) {
-    if (output->size() > 1 && !json_events_str->data().empty()) {
+    if (output->size() > 1 && !json_events_str->as_string().empty()) {
       output->append(",");
     }
-    output->append(json_events_str->data());
+    output->append(json_events_str->as_string());
     if (!has_more_events) {
       std::move(quit_closure).Run();
     }
@@ -94,15 +91,15 @@ class YUVReadbackTest : public testing::Test {
     auto parsed_json = base::JSONReader::ReadAndReturnValueWithError(json_data);
     CHECK(parsed_json.has_value())
         << "JSON parsing failed (" << parsed_json.error().message
-        << ") JSON data:" << std::endl
+        << ") JSON data:\n"
         << json_data;
 
     CHECK(parsed_json->is_list());
-    for (const base::Value& dict : parsed_json->GetList()) {
-      CHECK(dict.is_dict());
-      const std::string* name = dict.FindStringPath("name");
+    for (const base::Value& entry : parsed_json->GetList()) {
+      const auto& dict = entry.GetDict();
+      const std::string* name = dict.FindString("name");
       CHECK(name);
-      const std::string* trace_type = dict.FindStringPath("ph");
+      const std::string* trace_type = dict.FindString("ph");
       CHECK(trace_type);
       // Count all except END traces, as they come in BEGIN/END pairs.
       if (*trace_type != "E" && *trace_type != "e")
@@ -371,12 +368,12 @@ class YUVReadbackTest : public testing::Test {
     };
     yuv_reader->ReadbackYUV(
         src_texture, gfx::Size(xsize, ysize), gfx::Rect(0, 0, xsize, ysize),
-        output_frame->stride(media::VideoFrame::kYPlane),
-        output_frame->writable_data(media::VideoFrame::kYPlane),
-        output_frame->stride(media::VideoFrame::kUPlane),
-        output_frame->writable_data(media::VideoFrame::kUPlane),
-        output_frame->stride(media::VideoFrame::kVPlane),
-        output_frame->writable_data(media::VideoFrame::kVPlane),
+        output_frame->stride(media::VideoFrame::Plane::kY),
+        output_frame->writable_data(media::VideoFrame::Plane::kY),
+        output_frame->stride(media::VideoFrame::Plane::kU),
+        output_frame->writable_data(media::VideoFrame::Plane::kU),
+        output_frame->stride(media::VideoFrame::Plane::kV),
+        output_frame->writable_data(media::VideoFrame::Plane::kV),
         gfx::Point(xmargin, ymargin),
         base::BindOnce(run_quit_closure, run_loop.QuitClosure()));
 
@@ -390,21 +387,24 @@ class YUVReadbackTest : public testing::Test {
     }
 
     unsigned char* Y =
-        truth_frame->GetWritableVisibleData(media::VideoFrame::kYPlane);
+        truth_frame->GetWritableVisibleData(media::VideoFrame::Plane::kY);
     unsigned char* U =
-        truth_frame->GetWritableVisibleData(media::VideoFrame::kUPlane);
+        truth_frame->GetWritableVisibleData(media::VideoFrame::Plane::kU);
     unsigned char* V =
-        truth_frame->GetWritableVisibleData(media::VideoFrame::kVPlane);
-    int32_t y_stride = truth_frame->stride(media::VideoFrame::kYPlane);
-    int32_t u_stride = truth_frame->stride(media::VideoFrame::kUPlane);
-    int32_t v_stride = truth_frame->stride(media::VideoFrame::kVPlane);
+        truth_frame->GetWritableVisibleData(media::VideoFrame::Plane::kV);
+    int32_t y_stride = truth_frame->stride(media::VideoFrame::Plane::kY);
+    int32_t u_stride = truth_frame->stride(media::VideoFrame::Plane::kU);
+    int32_t v_stride = truth_frame->stride(media::VideoFrame::Plane::kV);
     memset(Y, 0x00, y_stride * output_ysize);
     memset(U, 0x80, u_stride * output_ysize / 2);
     memset(V, 0x80, v_stride * output_ysize / 2);
 
-    const float kRGBtoYColorWeights[] = {0.257f, 0.504f, 0.098f, 0.0625f};
-    const float kRGBtoUColorWeights[] = {-0.148f, -0.291f, 0.439f, 0.5f};
-    const float kRGBtoVColorWeights[] = {0.439f, -0.368f, -0.071f, 0.5f};
+    const auto kRGBtoYColorWeights =
+        std::to_array<float>({0.257f, 0.504f, 0.098f, 0.0625f});
+    const auto kRGBtoUColorWeights =
+        std::to_array<float>({-0.148f, -0.291f, 0.439f, 0.5f});
+    const auto kRGBtoVColorWeights =
+        std::to_array<float>({0.439f, -0.368f, -0.071f, 0.5f});
 
     for (int y = 0; y < ysize; y++) {
       for (int x = 0; x < xsize; x++) {
@@ -438,16 +438,16 @@ class YUVReadbackTest : public testing::Test {
     }
 
     ComparePlane(
-        Y, y_stride, output_frame->visible_data(media::VideoFrame::kYPlane),
-        output_frame->stride(media::VideoFrame::kYPlane), 2, output_xsize,
+        Y, y_stride, output_frame->visible_data(media::VideoFrame::Plane::kY),
+        output_frame->stride(media::VideoFrame::Plane::kY), 2, output_xsize,
         output_ysize, &input_pixels, message + " Y plane");
     ComparePlane(
-        U, u_stride, output_frame->visible_data(media::VideoFrame::kUPlane),
-        output_frame->stride(media::VideoFrame::kUPlane), 2, output_xsize / 2,
+        U, u_stride, output_frame->visible_data(media::VideoFrame::Plane::kU),
+        output_frame->stride(media::VideoFrame::Plane::kU), 2, output_xsize / 2,
         output_ysize / 2, &input_pixels, message + " U plane");
     ComparePlane(
-        V, v_stride, output_frame->visible_data(media::VideoFrame::kVPlane),
-        output_frame->stride(media::VideoFrame::kVPlane), 2, output_xsize / 2,
+        V, v_stride, output_frame->visible_data(media::VideoFrame::Plane::kV),
+        output_frame->stride(media::VideoFrame::Plane::kV), 2, output_xsize / 2,
         output_ysize / 2, &input_pixels, message + " V plane");
 
     gl_->DeleteTextures(1, &src_texture);
@@ -459,7 +459,14 @@ class YUVReadbackTest : public testing::Test {
   gl::DisableNullDrawGLBindings enable_pixel_output_;
 };
 
-TEST_F(YUVReadbackTest, YUVReadbackOptTest) {
+// TODO(crbug.com/388544212): Failing on linux and chromeOS MSAN.
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && defined(MEMORY_SANITIZER)
+#define MAYBE_YUVReadbackOptTest DISABLED_YUVReadbackOptTest
+#else
+#define MAYBE_YUVReadbackOptTest YUVReadbackOptTest
+#endif
+
+TEST_F(YUVReadbackTest, MAYBE_YUVReadbackOptTest) {
   for (int use_mrt = 0; use_mrt <= 1; ++use_mrt) {
     // This test uses the gpu.service/gpu.decoder tracing events to detect how
     // many scaling passes are actually performed by the YUV readback pipeline.

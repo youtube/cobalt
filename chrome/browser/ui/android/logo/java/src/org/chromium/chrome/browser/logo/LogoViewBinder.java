@@ -7,11 +7,13 @@ package org.chromium.chrome.browser.logo;
 import android.view.View;
 import android.view.ViewGroup.MarginLayoutParams;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
 
-/** Responsible for building and setting properties on the logo.*/
+/** Responsible for building and setting properties on the logo. */
+@NullMarked
 class LogoViewBinder
         implements PropertyModelChangeProcessor.ViewBinder<PropertyModel, View, PropertyKey> {
     @Override
@@ -44,6 +46,10 @@ class LogoViewBinder
             logoView.showLoadingView();
         } else if (LogoProperties.ANIMATED_LOGO == propertyKey) {
             logoView.playAnimatedLogo(model.get(LogoProperties.ANIMATED_LOGO));
+        } else if (LogoProperties.LOGO_AVAILABLE_CALLBACK == propertyKey) {
+            logoView.setLogoAvailableCallback(model.get(LogoProperties.LOGO_AVAILABLE_CALLBACK));
+        } else if (LogoProperties.DOODLE_SIZE == propertyKey) {
+            logoView.setDoodleSize(model.get(LogoProperties.DOODLE_SIZE));
         } else {
             assert false : "Unhandled property detected in LogoViewBinder!";
         }

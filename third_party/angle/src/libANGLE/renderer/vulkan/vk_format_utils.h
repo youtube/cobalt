@@ -9,12 +9,13 @@
 #ifndef LIBANGLE_RENDERER_VULKAN_VK_FORMAT_UTILS_H_
 #define LIBANGLE_RENDERER_VULKAN_VK_FORMAT_UTILS_H_
 
+#include "common/SimpleMutex.h"
 #include "common/vulkan/vk_headers.h"
 #include "libANGLE/formatutils.h"
 #include "libANGLE/renderer/Format.h"
 #include "libANGLE/renderer/copyvertex.h"
 #include "libANGLE/renderer/renderer_utils.h"
-#include "platform/FeaturesVk_autogen.h"
+#include "platform/autogen/FeaturesVk_autogen.h"
 
 #include <array>
 
@@ -26,11 +27,12 @@ class TextureCapsMap;
 
 namespace rx
 {
-class RendererVk;
 class ContextVk;
 
 namespace vk
 {
+class Renderer;
+
 // VkFormat values in range [0, kNumVkFormats) are used as indices in various tables.
 constexpr uint32_t kNumVkFormats = 185;
 
@@ -54,7 +56,7 @@ struct BufferFormatInitInfo final
     bool vertexLoadRequiresConversion;
 };
 
-VkFormat GetVkFormatFromFormatID(angle::FormatID actualFormatID);
+VkFormat GetVkFormatFromFormatID(const Renderer *renderer, angle::FormatID actualFormatID);
 angle::FormatID GetFormatIDFromVkFormat(VkFormat vkFormat);
 
 // Returns buffer alignment for image-copy operations (to or from a buffer).
@@ -96,9 +98,9 @@ class Format final : private angle::NonCopyable
     {
         return angle::Format::Get(mActualRenderableImageFormatID);
     }
-    VkFormat getActualRenderableImageVkFormat() const
+    VkFormat getActualRenderableImageVkFormat(const Renderer *renderer) const
     {
-        return GetVkFormatFromFormatID(mActualRenderableImageFormatID);
+        return GetVkFormatFromFormatID(renderer, mActualRenderableImageFormatID);
     }
 
     angle::FormatID getActualImageFormatID(ImageAccess access) const
@@ -106,9 +108,9 @@ class Format final : private angle::NonCopyable
         return ImageAccess::Renderable == access ? mActualRenderableImageFormatID
                                                  : mActualSampleOnlyImageFormatID;
     }
-    VkFormat getActualImageVkFormat(ImageAccess access) const
+    VkFormat getActualImageVkFormat(const Renderer *renderer, ImageAccess access) const
     {
-        return GetVkFormatFromFormatID(getActualImageFormatID(access));
+        return GetVkFormatFromFormatID(renderer, getActualImageFormatID(access));
     }
 
     LoadImageFunctionInfo getTextureLoadFunction(ImageAccess access, GLenum type) const
@@ -127,10 +129,10 @@ class Format final : private angle::NonCopyable
                                              : mActualBufferFormatID);
     }
 
-    VkFormat getActualBufferVkFormat(bool compressed) const
+    VkFormat getActualBufferVkFormat(const Renderer *renderer, bool compressed) const
     {
-        return GetVkFormatFromFormatID(compressed ? mActualCompressedBufferFormatID
-                                                  : mActualBufferFormatID);
+        return GetVkFormatFromFormatID(
+            renderer, compressed ? mActualCompressedBufferFormatID : mActualBufferFormatID);
     }
 
     VertexCopyFunction getVertexLoadFunction(bool compressed) const
@@ -170,11 +172,11 @@ class Format final : private angle::NonCopyable
     friend class FormatTable;
 
     // This is an auto-generated method in vk_format_table_autogen.cpp.
-    void initialize(RendererVk *renderer, const angle::Format &intendedAngleFormat);
+    void initialize(Renderer *renderer, const angle::Format &intendedAngleFormat);
 
     // These are used in the format table init.
-    void initImageFallback(RendererVk *renderer, const ImageFormatInitInfo *info, int numInfo);
-    void initBufferFallback(RendererVk *renderer,
+    void initImageFallback(Renderer *renderer, const ImageFormatInitInfo *info, int numInfo);
+    void initBufferFallback(Renderer *renderer,
                             const BufferFormatInitInfo *fallbackInfo,
                             int numInfo,
                             int compressedStartIndex);
@@ -210,7 +212,7 @@ class FormatTable final : angle::NonCopyable
     ~FormatTable();
 
     // Also initializes the TextureCapsMap and the compressedTextureCaps in the Caps instance.
-    void initialize(RendererVk *renderer, gl::TextureCapsMap *outTextureCapsMap);
+    void initialize(Renderer *renderer, gl::TextureCapsMap *outTextureCapsMap);
 
     ANGLE_INLINE const Format &operator[](GLenum internalFormat) const
     {
@@ -228,26 +230,67 @@ class FormatTable final : angle::NonCopyable
     std::array<Format, angle::kNumANGLEFormats> mFormatData;
 };
 
+// Extra data required for a renderable external format, for EXT_yuv_target support.
+// We have one of these structures per external format slot (angle::FormatID::EXTERNALn)
+// and allocate them to particular actual external formats in the order we see them.
+struct ExternalYuvFormatInfo
+{
+    // Vendor-specific external format value to be passed in VkExternalFormatANDROID
+    uint64_t externalFormat;
+    // Format the driver wants us to use for a temporary color attachment in order to render into
+    // this external format
+    VkFormat colorAttachmentFormat;
+    VkFormatFeatureFlags formatFeatures;
+};
+
+class ExternalFormatTable final : angle::NonCopyable
+{
+  public:
+    // Convert externalFormat to one of angle::FormatID::EXTERNALn so that we can pass around in
+    // ANGLE
+    angle::FormatID getOrAllocExternalFormatID(uint64_t externalFormat,
+                                               VkFormat colorAttachmentFormat,
+                                               VkFormatFeatureFlags formatFeatures);
+    const ExternalYuvFormatInfo &getExternalFormatInfo(angle::FormatID format) const;
+
+  private:
+    static constexpr size_t kMaxExternalFormatCountSupported =
+        ToUnderlying(angle::FormatID::EXTERNAL7) - ToUnderlying(angle::FormatID::EXTERNAL0) + 1;
+    // YUV rendering format cache. We build this table at run time when external formats are used.
+    angle::FixedVector<ExternalYuvFormatInfo, kMaxExternalFormatCountSupported> mExternalYuvFormats;
+    mutable angle::SimpleMutex mExternalYuvFormatMutex;
+};
+
+bool IsYUVExternalFormat(angle::FormatID formatID);
+
 // This will return a reference to a VkFormatProperties with the feature flags supported
 // if the format is a mandatory format described in section 31.3.3. Required Format Support
 // of the Vulkan spec. If the vkFormat isn't mandatory, it will return a VkFormatProperties
 // initialized to 0.
 const VkFormatProperties &GetMandatoryFormatSupport(angle::FormatID formatID);
 
-VkImageUsageFlags GetMaximalImageUsageFlags(RendererVk *renderer, angle::FormatID formatID);
+VkImageUsageFlags GetMaximalImageUsageFlags(Renderer *renderer, angle::FormatID formatID);
+VkImageCreateFlags GetMinimalImageCreateFlags(Renderer *renderer,
+                                              gl::TextureType textureType,
+                                              VkImageUsageFlags usage);
 
 }  // namespace vk
 
 // Checks if a Vulkan format supports all the features needed to use it as a GL texture format.
-bool HasFullTextureFormatSupport(RendererVk *renderer, angle::FormatID formatID);
+bool HasFullTextureFormatSupport(vk::Renderer *renderer, angle::FormatID formatID);
 // Checks if a Vulkan format supports all the features except rendering.
-bool HasNonRenderableTextureFormatSupport(RendererVk *renderer, angle::FormatID formatID);
+bool HasNonRenderableTextureFormatSupport(vk::Renderer *renderer, angle::FormatID formatID);
 // Checks if it is a ETC texture format
 bool IsETCFormat(angle::FormatID formatID);
 // Checks if it is a BC texture format
 bool IsBCFormat(angle::FormatID formatID);
 
 angle::FormatID GetTranscodeBCFormatID(angle::FormatID formatID);
+
+VkFormat AdjustASTCFormatForHDR(const vk::Renderer *renderer, VkFormat vkFormat);
+
+// Get Etc format cpu transcoding to Bc function.
+LoadImageFunctionInfo GetEtcToBcTransCodingFunc(angle::FormatID formatID);
 
 // Get the swizzle state based on format's requirements and emulations.
 gl::SwizzleState GetFormatSwizzle(const angle::Format &angleFormat, const bool sized);

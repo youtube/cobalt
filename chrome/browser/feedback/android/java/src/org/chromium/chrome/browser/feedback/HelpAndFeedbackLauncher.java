@@ -6,13 +6,13 @@ package org.chromium.chrome.browser.feedback;
 
 import android.app.Activity;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.Map;
 
-/**
- * Interface for launching a help and feedback page.
- */
+/** Interface for launching a help and feedback page. */
+@NullMarked
 public interface HelpAndFeedbackLauncher {
     /**
      * Starts an activity showing a help page for the specified context ID.
@@ -29,23 +29,30 @@ public interface HelpAndFeedbackLauncher {
      * Starts an activity prompting the user to enter feedback.
      *
      * @param activity The activity to use for starting the feedback activity and to take a
-     *                 screenshot of.
+     *     screenshot of.
      * @param url the current URL. May be null.
-     * @param categoryTag The category that this feedback report falls under.
+     * @param categoryTag The category that this feedback report falls under. Before making any
+     *     changes to categories or adding a new category tag to feedback collection, please ensure
+     *     the teams that operationalize feedback are aware and supportive. Contact: chrome-gtech@.
      * @param screenshotMode The kind of screenshot to include with the feedback.
      * @param feedbackContext The context that describes the current feature being used.
      */
-    void showFeedback(final Activity activity, @Nullable String url,
-            @Nullable final String categoryTag, int screenshotMode,
-            @Nullable final String feedbackContext);
+    void showFeedback(
+            final Activity activity,
+            @Nullable String url,
+            final @Nullable String categoryTag,
+            int screenshotMode,
+            final @Nullable String feedbackContext);
 
     /**
      * Starts an activity prompting the user to enter feedback.
      *
      * @param activity The activity to use for starting the feedback activity and to take a
-     *                 screenshot of.
+     *     screenshot of.
      * @param url the current URL. May be null.
-     * @param categoryTag The category that this feedback report falls under.
+     * @param categoryTag The category that this feedback report falls under. Before making any
+     *     changes to categories or adding a new category tag to feedback collection, please ensure
+     *     the teams that operationalize feedback are aware and supportive. Contact: chrome-gtech@.
      */
     void showFeedback(
             final Activity activity, @Nullable String url, @Nullable final String categoryTag);
@@ -54,10 +61,15 @@ public interface HelpAndFeedbackLauncher {
      * Starts an activity prompting the user to enter feedback for the interest feed.
      *
      * @param activity The activity to use for starting the feedback activity and to take a
-     *                 screenshot of.
-     * @param categoryTag The category that this feedback report falls under.
+     *     screenshot of.
+     * @param categoryTag The category that this feedback report falls under. Before making any
+     *     changes to categories or adding a new category tag to feedback collection, please ensure
+     *     the teams that operationalize feedback are aware and supportive. Contact: chrome-gtech@.
      * @param feedContext Feed specific parameters (url, title, etc) to include with feedback.
      */
-    void showFeedback(final Activity activity, @Nullable String url,
-            @Nullable final String categoryTag, @Nullable final Map<String, String> feedContext);
+    void showFeedback(
+            final Activity activity,
+            @Nullable String url,
+            final @Nullable String categoryTag,
+            final @Nullable Map<String, String> feedContext);
 }

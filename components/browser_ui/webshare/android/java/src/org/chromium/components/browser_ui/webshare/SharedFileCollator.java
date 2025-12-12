@@ -7,17 +7,18 @@ package org.chromium.components.browser_ui.webshare;
 import org.chromium.base.Callback;
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.mojo.system.MojoResult;
 import org.chromium.webshare.mojom.SharedFile;
 
-/**
- * Initiates the share dialog when all files have been received.
- */
+/** Initiates the share dialog when all files have been received. */
+@NullMarked
 public class SharedFileCollator implements Callback<Integer> {
     private static final String WILDCARD = "*/*";
 
     private int mPending;
-    private Callback<Boolean> mCallback;
+    private @Nullable Callback<Boolean> mCallback;
 
     /**
      * Constructs a SharedFileCollator.
@@ -47,7 +48,10 @@ public class SharedFileCollator implements Callback<Integer> {
         mCallback = null;
 
         PostTask.postTask(
-                TaskTraits.UI_DEFAULT, () -> { callback.onResult(result == MojoResult.OK); });
+                TaskTraits.UI_DEFAULT,
+                () -> {
+                    callback.onResult(result == MojoResult.OK);
+                });
     }
 
     /**

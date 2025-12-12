@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -25,8 +26,10 @@
 #include "base/path_service.h"
 #include "base/rand_util.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/platform_thread.h"
@@ -46,8 +49,9 @@
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/features/feature_channel.h"
+#include "net/base/file_stream.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "ui/gfx/native_widget_types.h"
 
 #if BUILDFLAG(IS_POSIX)
 #include "base/files/file_descriptor_watcher_posix.h"
@@ -55,6 +59,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
+
 #include "base/win/scoped_handle.h"
 #else
 #include <unistd.h>
@@ -70,9 +75,6 @@ namespace extensions {
 
 class FakeLauncher : public NativeProcessLauncher {
  public:
-  FakeLauncher(base::File read_file, base::File write_file)
-      : read_file_(std::move(read_file)), write_file_(std::move(write_file)) {}
-
   static std::unique_ptr<NativeProcessLauncher> Create(
       base::FilePath read_file,
       base::FilePath write_file) {
@@ -82,9 +84,9 @@ class FakeLauncher : public NativeProcessLauncher {
     read_flags |= base::File::FLAG_ASYNC;
     write_flags |= base::File::FLAG_ASYNC;
 #endif
-    return std::unique_ptr<NativeProcessLauncher>(
-        new FakeLauncher(base::File(read_file, read_flags),
-                         base::File(write_file, write_flags)));
+    return std::unique_ptr<NativeProcessLauncher>(new FakeLauncher(
+        CreateBackgroundTaskRunner(), base::File(read_file, read_flags),
+        base::File(write_file, write_flags)));
   }
 
   static std::unique_ptr<NativeProcessLauncher> CreateWithPipeInput(
@@ -95,21 +97,39 @@ class FakeLauncher : public NativeProcessLauncher {
     write_flags |= base::File::FLAG_ASYNC;
 #endif
 
-    return std::unique_ptr<NativeProcessLauncher>(new FakeLauncher(
-        std::move(read_pipe), base::File(write_file, write_flags)));
+    return std::unique_ptr<NativeProcessLauncher>(
+        new FakeLauncher(CreateBackgroundTaskRunner(), std::move(read_pipe),
+                         base::File(write_file, write_flags)));
   }
 
   void Launch(const GURL& origin,
               const std::string& native_host_name,
               LaunchedCallback callback) const override {
-    std::move(callback).Run(NativeProcessLauncher::RESULT_SUCCESS,
-                            base::Process(), std::move(read_file_),
-                            std::move(write_file_));
+    std::move(callback).Run(
+        NativeProcessLauncher::RESULT_SUCCESS, base::Process(),
+        std::exchange(read_file_, base::kInvalidPlatformFile),
+        std::move(read_stream_), std::move(write_stream_));
   }
 
  private:
-  mutable base::File read_file_;
-  mutable base::File write_file_;
+  FakeLauncher(scoped_refptr<base::TaskRunner> task_runner,
+               base::File read_file,
+               base::File write_file)
+      : read_file_(read_file.GetPlatformFile()),
+        read_stream_(std::make_unique<net::FileStream>(std::move(read_file),
+                                                       task_runner)),
+        write_stream_(std::make_unique<net::FileStream>(std::move(write_file),
+                                                        task_runner)) {}
+
+  static scoped_refptr<base::TaskRunner> CreateBackgroundTaskRunner() {
+    return base::ThreadPool::CreateTaskRunner(
+        {base::TaskPriority::USER_VISIBLE,
+         base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN, base::MayBlock()});
+  }
+
+  mutable base::PlatformFile read_file_;
+  mutable std::unique_ptr<net::FileStream> read_stream_;
+  mutable std::unique_ptr<net::FileStream> write_stream_;
 };
 
 class NativeMessagingTest : public ::testing::Test,
@@ -133,7 +153,7 @@ class NativeMessagingTest : public ::testing::Test,
     last_message_ = message;
 
     // Parse the message.
-    absl::optional<base::Value> dict_value = base::JSONReader::Read(message);
+    std::optional<base::Value> dict_value = base::JSONReader::Read(message);
     if (!dict_value || !dict_value->is_dict()) {
       LOG(ERROR) << "Failed to parse " << message;
       last_message_parsed_.reset();
@@ -178,7 +198,7 @@ class NativeMessagingTest : public ::testing::Test,
   TestingProfile profile_;
 
   std::string last_message_;
-  absl::optional<base::Value::Dict> last_message_parsed_;
+  std::optional<base::Value::Dict> last_message_parsed_;
   bool channel_closed_ = false;
 };
 
@@ -221,8 +241,8 @@ TEST_F(NativeMessagingTest, SingleSendMessageWrite) {
 
   base::File read_file;
 #if BUILDFLAG(IS_WIN)
-  std::wstring pipe_name = base::StringPrintf(
-      L"\\\\.\\pipe\\chrome.nativeMessaging.out.%llx", base::RandUint64());
+  std::wstring pipe_name = base::ASCIIToWide(base::StringPrintf(
+      "\\\\.\\pipe\\chrome.nativeMessaging.out.%llx", base::RandUint64()));
   base::File write_handle =
       base::File(base::ScopedPlatformFile(CreateNamedPipeW(
                      pipe_name.c_str(),
@@ -277,7 +297,7 @@ TEST_F(NativeMessagingTest, EchoConnect) {
   ASSERT_NO_FATAL_FAILURE(test_host.RegisterTestHost(false));
   std::string error_message;
   native_message_host_ = NativeMessageProcessHost::Create(
-      &profile_, NULL, ScopedTestNativeMessagingHost::kExtensionId,
+      &profile_, gfx::NativeView(), ScopedTestNativeMessagingHost::kExtensionId,
       ScopedTestNativeMessagingHost::kHostName, false, &error_message);
   native_message_host_->Start(this);
   ASSERT_TRUE(native_message_host_);
@@ -292,7 +312,7 @@ TEST_F(NativeMessagingTest, EchoConnect) {
                              ScopedTestNativeMessagingHost::kExtensionId + "/";
 
   {
-    absl::optional<int> id = last_message_parsed_->FindInt("id");
+    std::optional<int> id = last_message_parsed_->FindInt("id");
     ASSERT_TRUE(id);
     EXPECT_EQ(1, *id);
     const std::string* text =
@@ -309,7 +329,7 @@ TEST_F(NativeMessagingTest, EchoConnect) {
   run_loop_->Run();
 
   {
-    absl::optional<int> id = last_message_parsed_->FindInt("id");
+    std::optional<int> id = last_message_parsed_->FindInt("id");
     ASSERT_TRUE(id);
     EXPECT_EQ(2, *id);
     const std::string* text =
@@ -341,7 +361,7 @@ TEST_F(NativeMessagingTest, ReconnectArgs) {
   ASSERT_NO_FATAL_FAILURE(test_host.RegisterTestHost(false));
   std::string error_message;
   native_message_host_ = NativeMessageProcessHost::Create(
-      &profile_, NULL, ScopedTestNativeMessagingHost::kExtensionId,
+      &profile_, gfx::NativeView(), ScopedTestNativeMessagingHost::kExtensionId,
       ScopedTestNativeMessagingHost::
           kSupportsNativeInitiatedConnectionsHostName,
       false, &error_message);
@@ -395,7 +415,7 @@ TEST_F(NativeMessagingTest, ReconnectArgs_Disabled) {
   ASSERT_NO_FATAL_FAILURE(test_host.RegisterTestHost(false));
   std::string error_message;
   native_message_host_ = NativeMessageProcessHost::Create(
-      &profile_, NULL, ScopedTestNativeMessagingHost::kExtensionId,
+      &profile_, gfx::NativeView(), ScopedTestNativeMessagingHost::kExtensionId,
       ScopedTestNativeMessagingHost::
           kSupportsNativeInitiatedConnectionsHostName,
       false, &error_message);
@@ -423,7 +443,7 @@ TEST_F(NativeMessagingTest, ReconnectArgsIfNativeConnectionDisallowed) {
   ASSERT_NO_FATAL_FAILURE(test_host.RegisterTestHost(false));
   std::string error_message;
   native_message_host_ = NativeMessageProcessHost::Create(
-      &profile_, NULL, ScopedTestNativeMessagingHost::kExtensionId,
+      &profile_, gfx::NativeView(), ScopedTestNativeMessagingHost::kExtensionId,
       ScopedTestNativeMessagingHost::
           kSupportsNativeInitiatedConnectionsHostName,
       false, &error_message);
@@ -452,7 +472,7 @@ TEST_F(NativeMessagingTest, UserLevel) {
 
   std::string error_message;
   native_message_host_ = NativeMessageProcessHost::Create(
-      &profile_, NULL, ScopedTestNativeMessagingHost::kExtensionId,
+      &profile_, gfx::NativeView(), ScopedTestNativeMessagingHost::kExtensionId,
       ScopedTestNativeMessagingHost::kHostName, true, &error_message);
   native_message_host_->Start(this);
   ASSERT_TRUE(native_message_host_);
@@ -470,7 +490,7 @@ TEST_F(NativeMessagingTest, DisallowUserLevel) {
 
   std::string error_message;
   native_message_host_ = NativeMessageProcessHost::Create(
-      &profile_, NULL, ScopedTestNativeMessagingHost::kExtensionId,
+      &profile_, gfx::NativeView(), ScopedTestNativeMessagingHost::kExtensionId,
       ScopedTestNativeMessagingHost::kHostName, false, &error_message);
   native_message_host_->Start(this);
   ASSERT_TRUE(native_message_host_);

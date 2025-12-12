@@ -27,33 +27,32 @@
 #include "third_party/blink/renderer/core/editing/position_with_affinity.h"
 #include "third_party/blink/renderer/core/html/html_dimension.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
-#include "third_party/blink/renderer/core/layout/box_layout_extra_input.h"
+#include "third_party/blink/renderer/core/layout/fragmentation_utils.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_offset.h"
 #include "third_party/blink/renderer/core/layout/geometry/logical_size.h"
-#include "third_party/blink/renderer/core/layout/geometry/physical_offset.h"
 #include "third_party/blink/renderer/core/layout/geometry/physical_rect.h"
-#include "third_party/blink/renderer/core/layout/geometry/physical_size.h"
-#include "third_party/blink/renderer/core/layout/intrinsic_sizing_info.h"
+#include "third_party/blink/renderer/core/layout/geometry/writing_mode_converter.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/layout_block.h"
 #include "third_party/blink/renderer/core/layout/layout_box.h"
 #include "third_party/blink/renderer/core/layout/layout_image.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
 #include "third_party/blink/renderer/core/layout/layout_video.h"
 #include "third_party/blink/renderer/core/layout/layout_view_transition_content.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
-#include "third_party/blink/renderer/core/layout/ng/ng_fragmentation_utils.h"
-#include "third_party/blink/renderer/core/layout/ng/ng_length_utils.h"
-#include "third_party/blink/renderer/core/layout/ng/ng_physical_box_fragment.h"
+#include "third_party/blink/renderer/core/layout/length_utils.h"
+#include "third_party/blink/renderer/core/layout/natural_sizing_info.h"
+#include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/paint/paint_info.h"
 #include "third_party/blink/renderer/core/paint/paint_layer.h"
 #include "third_party/blink/renderer/core/paint/replaced_painter.h"
 #include "third_party/blink/renderer/core/style/basic_shapes.h"
 #include "third_party/blink/renderer/core/style/computed_style_base_constants.h"
 #include "third_party/blink/renderer/platform/geometry/layout_point.h"
-#include "third_party/blink/renderer/platform/geometry/layout_rect.h"
-#include "third_party/blink/renderer/platform/geometry/layout_size.h"
 #include "third_party/blink/renderer/platform/geometry/layout_unit.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
+#include "third_party/blink/renderer/platform/geometry/physical_offset.h"
+#include "third_party/blink/renderer/platform/geometry/physical_size.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "ui/gfx/geometry/rect_f.h"
 #include "ui/gfx/geometry/size_f.h"
 
@@ -62,16 +61,7 @@ namespace blink {
 const int LayoutReplaced::kDefaultWidth = 300;
 const int LayoutReplaced::kDefaultHeight = 150;
 
-LayoutReplaced::LayoutReplaced(Element* element)
-    : LayoutBox(element), intrinsic_size_(kDefaultWidth, kDefaultHeight) {
-  // TODO(jchaffraix): We should not set this boolean for block-level
-  // replaced elements (crbug.com/567964).
-  SetIsAtomicInlineLevel(true);
-}
-
-LayoutReplaced::LayoutReplaced(Element* element,
-                               const LayoutSize& intrinsic_size)
-    : LayoutBox(element), intrinsic_size_(intrinsic_size) {
+LayoutReplaced::LayoutReplaced(Element* element) : LayoutBox(element) {
   // TODO(jchaffraix): We should not set this boolean for block-level
   // replaced elements (crbug.com/567964).
   SetIsAtomicInlineLevel(true);
@@ -94,14 +84,15 @@ void LayoutReplaced::StyleDidChange(StyleDifference diff,
 
   // Replaced elements can have border-radius clips without clipping overflow;
   // the overflow clipping case is already covered in LayoutBox::StyleDidChange
-  if (old_style && !old_style->RadiiEqual(StyleRef()))
+  if (old_style && diff.BorderRadiusChanged()) {
     SetNeedsPaintPropertyUpdate();
+  }
 
   bool had_style = !!old_style;
   float old_zoom = had_style ? old_style->EffectiveZoom()
                              : ComputedStyleInitialValues::InitialZoom();
   if (Style() && StyleRef().EffectiveZoom() != old_zoom)
-    IntrinsicSizeChanged();
+    NaturalSizeChanged();
 
   if ((IsLayoutImage() || IsVideo() || IsCanvas()) && !ClipsToContentBox() &&
       !StyleRef().ObjectPropertiesPreventReplacedOverflow()) {
@@ -119,30 +110,8 @@ void LayoutReplaced::StyleDidChange(StyleDifference diff,
   }
 }
 
-void LayoutReplaced::UpdateLayout() {
+void LayoutReplaced::NaturalSizeChanged() {
   NOT_DESTROYED();
-  DCHECK(NeedsLayout());
-
-  PhysicalRect old_content_rect = ReplacedContentRect();
-
-  ClearLayoutOverflow();
-  ClearSelfNeedsLayoutOverflowRecalc();
-  ClearChildNeedsLayoutOverflowRecalc();
-
-  ClearNeedsLayout();
-
-  if (ReplacedContentRectFrom(SizeFromNG(), BorderPaddingFromNG()) !=
-      old_content_rect)
-    SetShouldDoFullPaintInvalidation();
-}
-
-void LayoutReplaced::IntrinsicSizeChanged() {
-  NOT_DESTROYED();
-  int scaled_width =
-      static_cast<int>(kDefaultWidth * StyleRef().EffectiveZoom());
-  int scaled_height =
-      static_cast<int>(kDefaultHeight * StyleRef().EffectiveZoom());
-  intrinsic_size_ = LayoutSize(scaled_width, scaled_height);
   SetNeedsLayoutAndIntrinsicWidthsRecalcAndFullPaintInvalidation(
       layout_invalidation_reason::kSizeChanged);
 }
@@ -152,20 +121,18 @@ void LayoutReplaced::Paint(const PaintInfo& paint_info) const {
   ReplacedPainter(*this).Paint(paint_info);
 }
 
-bool LayoutReplaced::NeedsPreferredWidthsRecalculation() const {
+void LayoutReplaced::AddVisualEffectOverflow() {
   NOT_DESTROYED();
-  // If the height is a percentage and the width is auto, then the
-  // containingBlocks's height changing can cause this node to change it's
-  // preferred width because it maintains aspect ratio.
-  return HasRelativeLogicalHeight() && StyleRef().LogicalWidth().IsAuto();
-}
+  if (!StyleRef().HasVisualOverflowingEffect()) {
+    return;
+  }
 
-static inline bool LayoutObjectHasIntrinsicAspectRatio(
-    const LayoutObject* layout_object) {
-  DCHECK(layout_object);
-  return layout_object->IsImage() || layout_object->IsCanvas() ||
-         IsA<LayoutVideo>(layout_object) ||
-         IsA<LayoutViewTransitionContent>(layout_object);
+  // Add in the final overflow with shadows, outsets and outline combined.
+  PhysicalRect visual_effect_overflow = PhysicalBorderBoxRect();
+  PhysicalBoxStrut outsets = ComputeVisualEffectOverflowOutsets();
+  visual_effect_overflow.Expand(outsets);
+  AddSelfVisualOverflow(visual_effect_overflow);
+  UpdateHasSubpixelVisualEffectOutsets(outsets);
 }
 
 void LayoutReplaced::RecalcVisualOverflow() {
@@ -188,103 +155,49 @@ void LayoutReplaced::RecalcVisualOverflow() {
     AddContentsVisualOverflow(ReplacedContentRect());
 }
 
-void LayoutReplaced::ComputeIntrinsicSizingInfoForReplacedContent(
-    IntrinsicSizingInfo& intrinsic_sizing_info) const {
+std::optional<PhysicalRect> LayoutReplaced::ComputeObjectViewBoxRect(
+    const PhysicalNaturalSizingInfo& sizing_info) const {
   NOT_DESTROYED();
-  // In cases where we apply size containment we don't need to compute sizing
-  // information, since the final result does not depend on it.
-  if (ShouldApplySizeContainment()) {
-    // Reset the size in case it was already populated.
-    intrinsic_sizing_info.size = gfx::SizeF();
-
-    const StyleAspectRatio& aspect_ratio = StyleRef().AspectRatio();
-    if (!aspect_ratio.IsAuto()) {
-      intrinsic_sizing_info.aspect_ratio.set_width(
-          aspect_ratio.GetRatio().width());
-      intrinsic_sizing_info.aspect_ratio.set_height(
-          aspect_ratio.GetRatio().height());
-    }
-
-    // If any of the dimensions are overridden, set those sizes.
-    if (HasOverrideIntrinsicContentLogicalWidth()) {
-      intrinsic_sizing_info.size.set_width(
-          OverrideIntrinsicContentLogicalWidth().ToFloat());
-    }
-    if (HasOverrideIntrinsicContentLogicalHeight()) {
-      intrinsic_sizing_info.size.set_height(
-          OverrideIntrinsicContentLogicalHeight().ToFloat());
-    }
-    return;
+  const BasicShape* object_view_box = StyleRef().ObjectViewBox();
+  if (!object_view_box) [[likely]] {
+    return std::nullopt;
   }
 
-  // Size overrides only apply if there is size-containment, which is checked
-  // above.
-  DCHECK(!HasOverrideIntrinsicContentLogicalWidth());
-  DCHECK(!HasOverrideIntrinsicContentLogicalHeight());
-
-  ComputeIntrinsicSizingInfo(intrinsic_sizing_info);
-
-  // Update our intrinsic size to match what was computed, so that
-  // when we constrain the size, the correct intrinsic size will be
-  // obtained for comparison against min and max widths.
-  if (!intrinsic_sizing_info.aspect_ratio.IsEmpty() &&
-      !intrinsic_sizing_info.size.IsEmpty()) {
-    intrinsic_size_ = LayoutSize(intrinsic_sizing_info.size);
-    if (!IsHorizontalWritingMode())
-      intrinsic_size_ = intrinsic_size_.TransposedSize();
+  if (!sizing_info.has_width || !sizing_info.has_height) {
+    return std::nullopt;
   }
-}
 
-absl::optional<gfx::SizeF>
-LayoutReplaced::ComputeObjectViewBoxSizeForIntrinsicSizing() const {
-  if (IntrinsicWidthOverride() || IntrinsicHeightOverride())
-    return absl::nullopt;
+  if (!ShouldApplyObjectViewBox()) {
+    return std::nullopt;
+  }
 
-  if (auto view_box = ComputeObjectViewBoxRect())
-    return static_cast<gfx::SizeF>(view_box->size);
+  if (sizing_info.size.IsEmpty()) {
+    return std::nullopt;
+  }
 
-  return absl::nullopt;
-}
+  DCHECK_EQ(object_view_box->GetType(), BasicShape::kBasicShapeInsetType);
 
-absl::optional<PhysicalRect> LayoutReplaced::ComputeObjectViewBoxRect(
-    const LayoutSize* overridden_intrinsic_size) const {
-  scoped_refptr<BasicShape> object_view_box = StyleRef().ObjectViewBox();
-  if (LIKELY(!object_view_box))
-    return absl::nullopt;
-
-  const auto& intrinsic_size =
-      overridden_intrinsic_size ? *overridden_intrinsic_size : intrinsic_size_;
-  if (intrinsic_size.IsEmpty())
-    return absl::nullopt;
-
-  if (!CanApplyObjectViewBox())
-    return absl::nullopt;
-
-  DCHECK(object_view_box->GetType() == BasicShape::kBasicShapeRectType ||
-         object_view_box->GetType() == BasicShape::kBasicShapeInsetType ||
-         object_view_box->GetType() == BasicShape::kBasicShapeXYWHType);
-
-  Path path;
-  gfx::RectF bounding_box(0, 0, intrinsic_size.Width().ToFloat(),
-                          intrinsic_size.Height().ToFloat());
-  object_view_box->GetPath(path, bounding_box, 1.f);
+  const gfx::RectF bounding_box{gfx::SizeF(sizing_info.size)};
+  const Path path =
+      object_view_box->GetPath(bounding_box, /*zoom=*/1.f, /*path_scale=*/1.f);
 
   const PhysicalRect view_box_rect =
       PhysicalRect::EnclosingRect(path.BoundingRect());
   if (view_box_rect.IsEmpty())
-    return absl::nullopt;
+    return std::nullopt;
 
-  const PhysicalRect intrinsic_rect(PhysicalOffset(), intrinsic_size);
-  if (view_box_rect == intrinsic_rect)
-    return absl::nullopt;
+  const PhysicalRect natural_rect(PhysicalOffset(), sizing_info.size);
+  if (view_box_rect == natural_rect) {
+    return std::nullopt;
+  }
 
   return view_box_rect;
 }
 
 PhysicalRect LayoutReplaced::ComputeReplacedContentRect(
-    const LayoutSize size,
-    const NGPhysicalBoxStrut& border_padding,
-    const LayoutSize* overridden_intrinsic_size) const {
+    const PhysicalRect& base_content_rect,
+    const PhysicalNaturalSizingInfo& sizing_info) const {
+  NOT_DESTROYED();
   // |intrinsic_size| provides the size of the embedded content rendered in the
   // replaced element. This is the reference size that object-view-box applies
   // to.
@@ -312,31 +225,27 @@ PhysicalRect LayoutReplaced::ComputeReplacedContentRect(
   // transparent pixels. Regions outside object-view-box (but within image
   // bounds) are scaled as defined by object-fit above and treated as ink
   // overflow.
-  const auto& intrinsic_size_for_object_view_box =
-      overridden_intrinsic_size ? *overridden_intrinsic_size : intrinsic_size_;
-  const auto view_box =
-      ComputeObjectViewBoxRect(&intrinsic_size_for_object_view_box);
+  const auto view_box = ComputeObjectViewBoxRect(sizing_info);
 
   // If no view box override was applied, then we don't need to adjust the
   // view-box paint rect.
   if (!view_box) {
-    return ComputeObjectFitAndPositionRect(size, border_padding,
-                                           overridden_intrinsic_size);
+    return ComputeObjectFitAndPositionRect(base_content_rect, sizing_info);
   }
 
   // Compute the paint rect based on bounds provided by the view box.
   DCHECK(!view_box->IsEmpty());
-  const LayoutSize view_box_size(view_box->Width(), view_box->Height());
-  const auto view_box_paint_rect =
-      ComputeObjectFitAndPositionRect(size, border_padding, &view_box_size);
+  const auto view_box_paint_rect = ComputeObjectFitAndPositionRect(
+      base_content_rect, PhysicalNaturalSizingInfo::MakeFixed(view_box->size));
   if (view_box_paint_rect.IsEmpty())
     return view_box_paint_rect;
 
   // Scale the original image bounds by the scale applied to the view box.
-  auto scaled_width = intrinsic_size_for_object_view_box.Width().MulDiv(
-      view_box_paint_rect.Width(), view_box->Width());
-  auto scaled_height = intrinsic_size_for_object_view_box.Height().MulDiv(
-      view_box_paint_rect.Height(), view_box->Height());
+  const auto natural_size = sizing_info.size;
+  auto scaled_width =
+      natural_size.width.MulDiv(view_box_paint_rect.Width(), view_box->Width());
+  auto scaled_height = natural_size.height.MulDiv(view_box_paint_rect.Height(),
+                                                  view_box->Height());
   const PhysicalSize scaled_image_size(scaled_width, scaled_height);
 
   // Scale the offset from the image origin by the scale applied to the view
@@ -352,31 +261,26 @@ PhysicalRect LayoutReplaced::ComputeReplacedContentRect(
 }
 
 PhysicalRect LayoutReplaced::ComputeObjectFitAndPositionRect(
-    const LayoutSize size,
-    const NGPhysicalBoxStrut& border_padding,
-    const LayoutSize* overridden_intrinsic_size) const {
+    const PhysicalRect& base_content_rect,
+    const PhysicalNaturalSizingInfo& sizing_info) const {
   NOT_DESTROYED();
-  PhysicalRect content_rect = PhysicalContentBoxRectFrom(size, border_padding);
   EObjectFit object_fit = StyleRef().GetObjectFit();
 
   if (object_fit == EObjectFit::kFill &&
       StyleRef().ObjectPosition() ==
           ComputedStyleInitialValues::InitialObjectPosition()) {
-    return content_rect;
+    return base_content_rect;
   }
 
-  // TODO(davve): intrinsicSize doubles as both intrinsic size and intrinsic
-  // ratio. In the case of SVG images this isn't correct since they can have
-  // intrinsic ratio but no intrinsic size. In order to maintain aspect ratio,
-  // the intrinsic size for SVG might be faked from the aspect ratio,
-  // see SVGImage::containerSize().
-  PhysicalSize intrinsic_size(
-      overridden_intrinsic_size ? *overridden_intrinsic_size : IntrinsicSize());
-  if (intrinsic_size.IsEmpty())
-    return content_rect;
+  const PhysicalSize intrinsic_size = sizing_info.size;
+  const PhysicalSize aspect_ratio = sizing_info.aspect_ratio;
+
+  if (intrinsic_size.IsEmpty() && aspect_ratio.IsEmpty()) {
+    return base_content_rect;
+  }
 
   PhysicalSize scaled_intrinsic_size(intrinsic_size);
-  PhysicalRect final_rect = content_rect;
+  PhysicalSize object_size = base_content_rect.size;
   switch (object_fit) {
     case EObjectFit::kScaleDown:
       // Srcset images have an intrinsic size depending on their destination,
@@ -388,16 +292,22 @@ PhysicalRect LayoutReplaced::ComputeObjectFitAndPositionRect(
       [[fallthrough]];
     case EObjectFit::kContain:
     case EObjectFit::kCover:
-      final_rect.size = final_rect.size.FitToAspectRatio(
-          intrinsic_size, object_fit == EObjectFit::kCover
+      if (!aspect_ratio.IsEmpty()) {
+        object_size = object_size.FitToAspectRatio(
+            aspect_ratio, object_fit == EObjectFit::kCover
                               ? kAspectRatioFitGrow
                               : kAspectRatioFitShrink);
+      }
       if (object_fit != EObjectFit::kScaleDown ||
-          final_rect.Width() <= scaled_intrinsic_size.width)
+          object_size.width <= scaled_intrinsic_size.width) {
         break;
+      }
       [[fallthrough]];
     case EObjectFit::kNone:
-      final_rect.size = scaled_intrinsic_size;
+      object_size =
+          intrinsic_size.IsEmpty()
+              ? ConcreteObjectSize(sizing_info, base_content_rect.size)
+              : scaled_intrinsic_size;
       break;
     case EObjectFit::kFill:
       break;
@@ -405,67 +315,27 @@ PhysicalRect LayoutReplaced::ComputeObjectFitAndPositionRect(
       NOTREACHED();
   }
 
-  LayoutUnit x_offset =
+  const PhysicalOffset object_position(
       MinimumValueForLength(StyleRef().ObjectPosition().X(),
-                            content_rect.Width() - final_rect.Width());
-  LayoutUnit y_offset =
+                            base_content_rect.Width() - object_size.width),
       MinimumValueForLength(StyleRef().ObjectPosition().Y(),
-                            content_rect.Height() - final_rect.Height());
-  final_rect.Move(PhysicalOffset(x_offset, y_offset));
+                            base_content_rect.Height() - object_size.height));
 
-  return final_rect;
+  return {base_content_rect.offset + object_position, object_size};
 }
 
 PhysicalRect LayoutReplaced::ReplacedContentRect() const {
   NOT_DESTROYED();
   // This function should compute the result with old geometry even if a
   // BoxLayoutExtraInput exists.
-  return ReplacedContentRectFrom(
-      Size(), NGPhysicalBoxStrut(BorderTop() + PaddingTop(),
-                                 BorderRight() + PaddingRight(),
-                                 BorderBottom() + PaddingBottom(),
-                                 BorderLeft() + PaddingLeft()));
+  return ReplacedContentRectFrom(PhysicalContentBoxRect());
 }
 
 PhysicalRect LayoutReplaced::ReplacedContentRectFrom(
-    const LayoutSize size,
-    const NGPhysicalBoxStrut& border_padding) const {
+    const PhysicalRect& base_content_rect) const {
   NOT_DESTROYED();
-  return ComputeReplacedContentRect(size, border_padding);
-}
-
-LayoutSize LayoutReplaced::SizeFromNG() const {
-  if (!GetBoxLayoutExtraInput()) {
-    return Size();
-  }
-  LayoutSize new_size(OverrideLogicalWidth(), OverrideLogicalHeight());
-  if (!StyleRef().IsHorizontalWritingMode())
-    new_size = new_size.TransposedSize();
-  return new_size;
-}
-
-NGPhysicalBoxStrut LayoutReplaced::BorderPaddingFromNG() const {
-  if (GetBoxLayoutExtraInput()) {
-    return GetBoxLayoutExtraInput()->border_padding_for_replaced;
-  }
-  return NGPhysicalBoxStrut(
-      BorderTop() + PaddingTop(), BorderRight() + PaddingRight(),
-      BorderBottom() + PaddingBottom(), BorderLeft() + PaddingLeft());
-}
-
-PhysicalRect LayoutReplaced::PhysicalContentBoxRectFromNG() const {
-  NOT_DESTROYED();
-  return PhysicalContentBoxRectFrom(SizeFromNG(), BorderPaddingFromNG());
-}
-
-PhysicalRect LayoutReplaced::PhysicalContentBoxRectFrom(
-    const LayoutSize size,
-    const NGPhysicalBoxStrut& border_padding) const {
-  NOT_DESTROYED();
-  return PhysicalRect(
-      border_padding.left, border_padding.top,
-      (size.Width() - border_padding.HorizontalSum()).ClampNegativeToZero(),
-      (size.Height() - border_padding.VerticalSum()).ClampNegativeToZero());
+  const PhysicalNaturalSizingInfo sizing_info = GetNaturalDimensions();
+  return ComputeReplacedContentRect(base_content_rect, sizing_info);
 }
 
 PhysicalRect LayoutReplaced::PreSnappedRectForPersistentSizing(
@@ -473,63 +343,36 @@ PhysicalRect LayoutReplaced::PreSnappedRectForPersistentSizing(
   return PhysicalRect(rect.offset, PhysicalSize(ToRoundedSize(rect.size)));
 }
 
-void LayoutReplaced::ComputeIntrinsicSizingInfo(
-    IntrinsicSizingInfo& intrinsic_sizing_info) const {
+PhysicalNaturalSizingInfo LayoutReplaced::ComputeNaturalSizingInfo() const {
   NOT_DESTROYED();
   DCHECK(!ShouldApplySizeContainment());
+  PhysicalNaturalSizingInfo sizing_info = GetNaturalDimensions();
 
-  auto view_box_size = ComputeObjectViewBoxSizeForIntrinsicSizing();
-  if (view_box_size) {
-    intrinsic_sizing_info.size = *view_box_size;
-    if (!IsHorizontalWritingMode())
-      intrinsic_sizing_info.size.Transpose();
-  } else {
-    intrinsic_sizing_info.size = gfx::SizeF(IntrinsicLogicalWidth().ToFloat(),
-                                            IntrinsicLogicalHeight().ToFloat());
+  // Apply a 'object-view-box' (if present) to the provided natural dimensions.
+  if (auto view_box = ComputeObjectViewBoxRect(sizing_info)) {
+    sizing_info.size = view_box->size;
+    if (!sizing_info.aspect_ratio.IsEmpty()) {
+      sizing_info.aspect_ratio = sizing_info.size;
+    }
   }
-
-  const StyleAspectRatio& aspect_ratio = StyleRef().AspectRatio();
-  if (!aspect_ratio.IsAuto()) {
-    intrinsic_sizing_info.aspect_ratio.set_width(
-        aspect_ratio.GetRatio().width());
-    intrinsic_sizing_info.aspect_ratio.set_height(
-        aspect_ratio.GetRatio().height());
-    if (!IsHorizontalWritingMode())
-      intrinsic_sizing_info.aspect_ratio.Transpose();
-  }
-  if (aspect_ratio.GetType() == EAspectRatioType::kRatio)
-    return;
-  // Otherwise, let the intrinsic aspect ratio take precedence, below.
-
-  // Figure out if we need to compute an intrinsic ratio.
-  if (!LayoutObjectHasIntrinsicAspectRatio(this))
-    return;
-
-  if (!intrinsic_sizing_info.size.IsEmpty())
-    intrinsic_sizing_info.aspect_ratio = intrinsic_sizing_info.size;
-}
-
-MinMaxSizes LayoutReplaced::ComputeIntrinsicLogicalWidths() const {
-  NOT_DESTROYED();
-  MinMaxSizes sizes;
-  sizes += BorderAndPaddingLogicalWidth() + IntrinsicLogicalWidth();
-  return sizes;
+  return sizing_info;
 }
 
 static std::pair<LayoutUnit, LayoutUnit> SelectionTopAndBottom(
-    const LayoutReplaced& layout_replaced) {
+    const LayoutReplaced& layout_replaced,
+    const LogicalRect& rect) {
   // TODO(layout-dev): This code is buggy if the replaced element is relative
   // positioned.
 
   // The fallback answer when we can't find the containing line box of
   // |layout_replaced|.
-  const std::pair<LayoutUnit, LayoutUnit> fallback(
-      layout_replaced.LogicalTop(), layout_replaced.LogicalBottom());
+  const std::pair<LayoutUnit, LayoutUnit> fallback(rect.BlockStartOffset(),
+                                                   rect.BlockEndOffset());
 
   if (layout_replaced.IsInline() &&
       layout_replaced.IsInLayoutNGInlineFormattingContext()) {
     // Step 1: Find the line box containing |layout_replaced|.
-    NGInlineCursor line_box;
+    InlineCursor line_box;
     line_box.MoveTo(layout_replaced);
     if (!line_box)
       return fallback;
@@ -544,10 +387,15 @@ static std::pair<LayoutUnit, LayoutUnit> SelectionTopAndBottom(
     const auto writing_direction = line_style.GetWritingDirection();
     const WritingModeConverter converter(writing_direction,
                                          line_box.ContainerFragment().Size());
-    PhysicalRect physical_rect = line_box.Current().RectInContainerFragment();
-    // The caller expects it to be in the "stitched" coordinate space.
-    physical_rect.offset +=
-        OffsetInStitchedFragments(line_box.ContainerFragment());
+    PhysicalRect physical_rect;
+    if (RuntimeEnabledFeatures::LayoutBoxVisualLocationEnabled()) {
+      physical_rect = line_box.CurrentRectInFirstContainerFragment();
+    } else {
+      physical_rect = line_box.Current().RectInContainerFragment();
+      // The caller expects it to be in the "stitched" coordinate space.
+      physical_rect.offset +=
+          OffsetInStitchedFragments(line_box.ContainerFragment());
+    }
     const LogicalRect logical_rect = converter.ToLogical(physical_rect);
     return {logical_rect.offset.block_offset, logical_rect.BlockEndOffset()};
   }
@@ -559,16 +407,14 @@ PositionWithAffinity LayoutReplaced::PositionForPoint(
     const PhysicalOffset& point) const {
   NOT_DESTROYED();
 
-  auto [top, bottom] = SelectionTopAndBottom(*this);
+  LogicalRect logical_rect = LogicalRectInContainer();
+  auto [top, bottom] = SelectionTopAndBottom(*this, logical_rect);
 
-  LayoutPoint flipped_point_in_container =
-      LocationContainer()->FlipForWritingMode(point + PhysicalLocation());
-  LayoutUnit block_direction_position = IsHorizontalWritingMode()
-                                            ? flipped_point_in_container.Y()
-                                            : flipped_point_in_container.X();
-  LayoutUnit line_direction_position = IsHorizontalWritingMode()
-                                           ? flipped_point_in_container.X()
-                                           : flipped_point_in_container.Y();
+  LogicalOffset logical_point =
+      LocationContainer()->CreateWritingModeConverter().ToLogical(
+          point + PhysicalLocation(), {});
+  LayoutUnit block_direction_position = logical_point.block_offset;
+  LayoutUnit line_direction_position = logical_point.inline_offset;
 
   if (block_direction_position < top)
     return PositionBeforeThis();  // coordinates are above
@@ -578,7 +424,8 @@ PositionWithAffinity LayoutReplaced::PositionForPoint(
 
   if (GetNode()) {
     const bool is_at_left_side =
-        line_direction_position <= LogicalLeft() + (LogicalWidth() / 2);
+        line_direction_position <=
+        logical_rect.offset.inline_offset + logical_rect.InlineSize() / 2;
     const bool is_at_start = is_at_left_side == IsLtr(ResolvedDirection());
     if (is_at_start)
       return PositionBeforeThis();
@@ -586,6 +433,11 @@ PositionWithAffinity LayoutReplaced::PositionForPoint(
   }
 
   return LayoutBox::PositionForPoint(point);
+}
+
+gfx::Size LayoutReplaced::ComputeSpeculativeDecodeSize() const {
+  NOT_DESTROYED();
+  return ReplacedContentRect().PixelSnappedSize();
 }
 
 PhysicalRect LayoutReplaced::LocalSelectionVisualRect() const {
@@ -597,7 +449,7 @@ PhysicalRect LayoutReplaced::LocalSelectionVisualRect() const {
 
   if (IsInline() && IsInLayoutNGInlineFormattingContext()) {
     PhysicalRect rect;
-    NGInlineCursor cursor;
+    InlineCursor cursor;
     cursor.MoveTo(*this);
     for (; cursor; cursor.MoveToNextForSameLayoutObject())
       rect.Unite(cursor.CurrentLocalSelectionRectForReplaced());
@@ -609,11 +461,13 @@ PhysicalRect LayoutReplaced::LocalSelectionVisualRect() const {
 }
 
 bool LayoutReplaced::RespectsCSSOverflow() const {
+  NOT_DESTROYED();
   const Element* element = DynamicTo<Element>(GetNode());
   return element && element->IsReplacedElementRespectingCSSOverflow();
 }
 
 bool LayoutReplaced::ClipsToContentBox() const {
+  NOT_DESTROYED();
   if (!RespectsCSSOverflow()) {
     // If an svg is clipped, it is guaranteed to be clipped to the element's
     // content box.

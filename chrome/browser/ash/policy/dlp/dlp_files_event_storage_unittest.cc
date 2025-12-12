@@ -5,6 +5,7 @@
 #include "chrome/browser/ash/policy/dlp/dlp_files_event_storage.h"
 
 #include <sys/types.h>
+
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -13,15 +14,16 @@
 
 #include "base/check.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_file_destination.h"
-#include "chrome/browser/chromeos/policy/dlp/dlp_histogram_helper.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_rules_manager.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chromeos/dbus/dlp/dlp_service.pb.h"
+#include "components/enterprise/data_controls/core/browser/dlp_histogram_helper.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,8 +34,8 @@ namespace {
 
 constexpr char kExampleUrl1[] = "https://example1.com/";
 
-constexpr ino_t kInode1 = 1;
-constexpr ino_t kInode2 = 2;
+constexpr DlpFilesEventStorage::FileId kFileId1 = {1, 1};
+constexpr DlpFilesEventStorage::FileId kFileId2 = {2, 2};
 
 constexpr base::TimeDelta kCooldownTimeout = base::Seconds(5);
 
@@ -67,24 +69,24 @@ TEST_F(DlpFilesEventStorageTest, UpsertEvents) {
       base::MakeRefCounted<base::TestMockTimeTaskRunner>();
   storage.SetTaskRunnerForTesting(task_runner);
 
-  const auto dst1 = DlpFileDestination(kExampleUrl1);
-  const auto dst2 = DlpFileDestination(DlpRulesManager::Component::kDrive);
+  const auto dst1 = DlpFileDestination(GURL(kExampleUrl1));
+  const auto dst2 = DlpFileDestination(data_controls::Component::kDrive);
 
   // Insertion
-  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kInode1, dst1));
-  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kInode1, dst2));
-  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kInode2, dst1));
-  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kInode2, dst2));
+  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId1, dst1));
+  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId1, dst2));
+  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId2, dst1));
+  ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId2, dst2));
 
   ASSERT_THAT(storage.GetSizeForTesting(), 4);
 
   task_runner->FastForwardBy(kCooldownTimeout / 2);
 
   // Update
-  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kInode1, dst1));
-  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kInode1, dst2));
-  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kInode2, dst1));
-  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kInode2, dst2));
+  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId1, dst1));
+  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId1, dst2));
+  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId2, dst1));
+  ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(kFileId2, dst2));
 
   ASSERT_THAT(storage.GetSizeForTesting(), 4);
 
@@ -93,13 +95,21 @@ TEST_F(DlpFilesEventStorageTest, UpsertEvents) {
   ASSERT_THAT(storage.GetSizeForTesting(), 0);
 
   histogram_tester_.ExpectBucketCount(
-      GetDlpHistogramPrefix() + dlp::kActiveFileEventsCount, 1, 1);
+      data_controls::GetDlpHistogramPrefix() +
+          data_controls::dlp::kActiveFileEventsCount,
+      1, 1);
   histogram_tester_.ExpectBucketCount(
-      GetDlpHistogramPrefix() + dlp::kActiveFileEventsCount, 2, 1);
+      data_controls::GetDlpHistogramPrefix() +
+          data_controls::dlp::kActiveFileEventsCount,
+      2, 1);
   histogram_tester_.ExpectBucketCount(
-      GetDlpHistogramPrefix() + dlp::kActiveFileEventsCount, 3, 1);
+      data_controls::GetDlpHistogramPrefix() +
+          data_controls::dlp::kActiveFileEventsCount,
+      3, 1);
   histogram_tester_.ExpectBucketCount(
-      GetDlpHistogramPrefix() + dlp::kActiveFileEventsCount, 4, 5);
+      data_controls::GetDlpHistogramPrefix() +
+          data_controls::dlp::kActiveFileEventsCount,
+      4, 5);
 }
 
 TEST_F(DlpFilesEventStorageTest, LimitEvents) {
@@ -114,21 +124,24 @@ TEST_F(DlpFilesEventStorageTest, LimitEvents) {
   for (size_t inode = 0; inode < max_inode; ++inode) {
     for (size_t dst_index = 0; dst_index < max_dst_index; ++dst_index) {
       count++;
-      auto dst = DlpFileDestination("https://example" +
-                                    base::NumberToString(dst_index) + ".com/");
+      auto dst = DlpFileDestination(
+          GURL("https://example" + base::NumberToString(dst_index) + ".com/"));
       if (count <= kEntriesLimit) {
-        ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(inode, dst));
+        ASSERT_TRUE(storage.StoreEventAndCheckIfItShouldBeReported(
+            {inode, /*crtime=*/inode}, dst));
         ASSERT_THAT(storage.GetSizeForTesting(), count);
       } else {
-        ASSERT_FALSE(
-            storage.StoreEventAndCheckIfItShouldBeReported(inode, dst));
+        ASSERT_FALSE(storage.StoreEventAndCheckIfItShouldBeReported(
+            {inode, /*crtime=*/inode}, dst));
         ASSERT_THAT(storage.GetSizeForTesting(), kEntriesLimit);
       }
     }
   }
   for (size_t bucket = 1; bucket <= kEntriesLimit; ++bucket) {
     histogram_tester_.ExpectBucketCount(
-        GetDlpHistogramPrefix() + dlp::kActiveFileEventsCount, bucket, 1);
+        data_controls::GetDlpHistogramPrefix() +
+            data_controls::dlp::kActiveFileEventsCount,
+        bucket, 1);
   }
 }
 

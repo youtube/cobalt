@@ -6,6 +6,7 @@
 
 #include "base/memory/scoped_refptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/protobuf_matchers.h"
 #include "base/test/task_environment.h"
 #include "components/sqlite_proto/table_manager.h"
 #include "components/sqlite_proto/test_proto.pb.h"
@@ -16,6 +17,8 @@
 namespace sqlite_proto {
 
 namespace {
+
+using base::test::EqualsProto;
 
 template <typename T>
 class FakeKeyValueTable : public KeyValueTable<T> {
@@ -64,15 +67,6 @@ class FakeTableManager : public TableManager {
   void LogDatabaseStats() override {}
 };
 
-MATCHER_P(EqualsProto,
-          message,
-          "Match a proto Message equal to the matcher's argument.") {
-  std::string expected_serialized, actual_serialized;
-  message.SerializeToString(&expected_serialized);
-  arg.SerializeToString(&actual_serialized);
-  return expected_serialized == actual_serialized;
-}
-
 struct TestProtoCompare {
   bool operator()(const TestProto& lhs, const TestProto& rhs) {
     return lhs.value() < rhs.value();
@@ -85,7 +79,7 @@ class KeyValueDataTest : public ::testing::Test {
  public:
   KeyValueDataTest()
       : manager_(base::MakeRefCounted<FakeTableManager>()),
-        data_(manager_, &table_, absl::nullopt, base::TimeDelta()) {
+        data_(manager_, &table_, std::nullopt, base::TimeDelta()) {
     // In these tests, we're using the current thread as the DB sequence.
     data_.InitializeOnDBSequence();
   }
@@ -189,7 +183,7 @@ TEST(KeyValueDataTestSize, PrunesOverlargeTable) {
   // Initialization: write a table of size 2 to |manager|'s backend.
   {
     KeyValueData<TestProto, TestProtoCompare> data(
-        manager, &table, /*max_num_entries=*/absl::nullopt,
+        manager, &table, /*max_num_entries=*/std::nullopt,
         /*flush_delay=*/base::TimeDelta());
     // In these tests, we're using the current thread as the DB sequence.
     data.InitializeOnDBSequence();
@@ -219,7 +213,7 @@ TEST(KeyValueDataTestSize, PrunesOverlargeTable) {
 
   {
     KeyValueData<TestProto, TestProtoCompare> data(
-        manager, &table, /*max_num_entries=*/absl::nullopt,
+        manager, &table, /*max_num_entries=*/std::nullopt,
         /*flush_delay=*/base::TimeDelta());
     // In these tests, we're using the current thread as the DB sequence.
     data.InitializeOnDBSequence();

@@ -28,8 +28,10 @@
 #include <limits>
 
 #include "base/auto_reset.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/security_context/insecure_request_policy.h"
 #include "third_party/blink/public/mojom/security_context/insecure_request_policy.mojom-blink.h"
+#include "third_party/blink/public/web/web_form_related_change_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_submit_event_init.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_element_radionodelist.h"
@@ -45,6 +47,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/remote_frame.h"
+#include "third_party/blink/renderer/core/html/collection_type.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
 #include "third_party/blink/renderer/core/html/forms/form_controller.h"
@@ -71,23 +74,23 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
+using mojom::blink::FormControlType;
+
 namespace {
 
-bool HasFormInBetween(const Node* root, const Node* descendant) {
-  DCHECK(!IsA<HTMLFormElement>(descendant));
-  // |descendant| might not actually be a descendant of |root|.
-  if (!descendant->IsDescendantOf(root))
-    return false;
-  for (ContainerNode* parent = descendant->parentNode();
-       parent && parent != root; parent = parent->parentNode()) {
-    if (DynamicTo<HTMLFormElement>(parent)) {
-      return true;
+// Invalidates the cache of all form elements that are ancestors of
+// `starting_node` or `starting_node` itself.
+void InvalidateAncestorFormsForAutofill(ContainerNode* starting_node) {
+  for (ContainerNode* node = starting_node; node;
+       node = node->ParentOrShadowHostNode()) {
+    if (HTMLFormElement* form = DynamicTo<HTMLFormElement>(node)) {
+      form->InvalidateListedElementsForAutofill();
     }
   }
-  return false;
 }
 
 }  // namespace
@@ -95,16 +98,13 @@ bool HasFormInBetween(const Node* root, const Node* descendant) {
 HTMLFormElement::HTMLFormElement(Document& document)
     : HTMLElement(html_names::kFormTag, document),
       listed_elements_are_dirty_(false),
-      listed_elements_including_shadow_trees_are_dirty_(false),
+      listed_elements_for_autofill_are_dirty_(false),
       image_elements_are_dirty_(false),
       has_elements_associated_by_parser_(false),
       has_elements_associated_by_form_attribute_(false),
       did_finish_parsing_children_(false),
       is_in_reset_function_(false),
       rel_list_(MakeGarbageCollected<RelList>(this)) {
-  static uint64_t next_unique_renderer_form_id = 1;
-  unique_renderer_form_id_ = next_unique_renderer_form_id++;
-
   UseCounter::Count(document, WebFeature::kFormElement);
 }
 
@@ -114,7 +114,7 @@ void HTMLFormElement::Trace(Visitor* visitor) const {
   visitor->Trace(past_names_map_);
   visitor->Trace(radio_button_group_scope_);
   visitor->Trace(listed_elements_);
-  visitor->Trace(listed_elements_including_shadow_trees_);
+  visitor->Trace(listed_elements_for_autofill_);
   visitor->Trace(image_elements_);
   visitor->Trace(rel_list_);
   HTMLElement::Trace(visitor);
@@ -137,8 +137,12 @@ Node::InsertionNotificationRequest HTMLFormElement::InsertedInto(
   HTMLElement::InsertedInto(insertion_point);
   LogAddElementIfIsolatedWorldAndInDocument("form", html_names::kMethodAttr,
                                             html_names::kActionAttr);
-  if (insertion_point.isConnected())
-    GetDocument().DidAddOrRemoveFormRelatedElement(this);
+  if (insertion_point.isConnected()) {
+    InvalidateAncestorFormsForAutofill(ParentElementOrShadowRoot());
+    GetDocument().MarkTopLevelFormsDirty();
+    GetDocument().DidChangeFormRelatedElementDynamically(
+        this, WebFormRelatedChangeType::kAdd);
+  }
   return kInsertionDone;
 }
 
@@ -159,9 +163,9 @@ void HTMLFormElement::RemovedFrom(ContainerNode& insertion_point) {
     } else {
       ListedElement::List elements;
       CollectListedElements(
-          NodeTraversal::HighestAncestorOrSelf(insertion_point), elements);
+          &NodeTraversal::HighestAncestorOrSelf(insertion_point), elements);
       NotifyFormRemovedFromTree(elements, root);
-      CollectListedElements(root, elements);
+      CollectListedElements(&root, elements);
       NotifyFormRemovedFromTree(elements, root);
     }
 
@@ -180,10 +184,11 @@ void HTMLFormElement::RemovedFrom(ContainerNode& insertion_point) {
   GetDocument().GetFormController().WillDeleteForm(this);
   HTMLElement::RemovedFrom(insertion_point);
 
-  if (base::FeatureList::IsEnabled(
-          blink::features::kAutofillDetectRemovedFormControls) &&
-      insertion_point.isConnected()) {
-    GetDocument().DidAddOrRemoveFormRelatedElement(this);
+  if (insertion_point.isConnected()) {
+    InvalidateAncestorFormsForAutofill(&insertion_point);
+    GetDocument().MarkTopLevelFormsDirty();
+    GetDocument().DidChangeFormRelatedElementDynamically(
+        this, WebFormRelatedChangeType::kRemove);
   }
 }
 
@@ -274,13 +279,9 @@ bool HTMLFormElement::ValidateInteractively() {
           "An invalid form control with name='%name' is not focusable.");
       message.Replace("%name", unhandled->GetName());
 
-      ConsoleMessage* console_message = MakeGarbageCollected<ConsoleMessage>(
+      unhandled->ToHTMLElement().AddConsoleMessage(
           mojom::blink::ConsoleMessageSource::kRendering,
           mojom::blink::ConsoleMessageLevel::kError, message);
-      console_message->SetNodes(
-          GetDocument().GetFrame(),
-          {DOMNodeIds::IdForNode(&unhandled->ToHTMLElement())});
-      GetDocument().AddConsoleMessage(console_message);
     }
   }
   return false;
@@ -303,13 +304,14 @@ void HTMLFormElement::PrepareForSubmission(
 
   if (GetExecutionContext()->IsSandboxed(
           network::mojom::blink::WebSandboxFlags::kForms)) {
-    GetExecutionContext()->AddConsoleMessage(
-        MakeGarbageCollected<ConsoleMessage>(
-            mojom::blink::ConsoleMessageSource::kSecurity,
-            mojom::blink::ConsoleMessageLevel::kError,
-            "Blocked form submission to '" + attributes_.Action() +
-                "' because the form's frame is sandboxed and the 'allow-forms' "
-                "permission is not set."));
+    GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
+                                             ConsoleMessage>(
+        mojom::blink::ConsoleMessageSource::kSecurity,
+        mojom::blink::ConsoleMessageLevel::kError,
+        WTF::StrCat(
+            {"Blocked form submission to '", attributes_.Action(),
+             "' because the form's frame is sandboxed and the 'allow-forms' "
+             "permission is not set."})));
     return;
   }
 
@@ -324,17 +326,26 @@ void HTMLFormElement::PrepareForSubmission(
         GetDocument().AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
             mojom::ConsoleMessageSource::kSecurity,
             mojom::ConsoleMessageLevel::kError,
-            "Form submission failed, as the <" + tag_name +
-                "> element named "
-                "'" +
-                element->GetName() +
-                "' was implicitly closed by reaching "
-                "the end of the file. Please add an explicit end tag "
-                "('</" +
-                tag_name + ">')"));
+            WTF::StrCat({"Form submission failed, as the <", tag_name,
+                         "> element named '", element->GetName(),
+                         "' was implicitly closed by reaching the end of the "
+                         "file. Please add an explicit end tag ('</",
+                         tag_name, ">')"})));
         DispatchEvent(*Event::Create(event_type_names::kError));
         return;
       }
+    }
+  }
+
+  for (ListedElement* element : ListedElements()) {
+    if (auto* form_control =
+            DynamicTo<HTMLFormControlElementWithState>(element)) {
+      // After attempting form submission we have to make the controls start
+      // matching :user-valid/:user-invalid. We could do this by calling
+      // SetUserHasEditedTheFieldAndBlurred() even though the user has not
+      // actually taken those actions, but that would have side effects on
+      // autofill.
+      form_control->ForceUserValid();
     }
   }
 
@@ -470,6 +481,12 @@ void HTMLFormElement::ScheduleFormSubmission(
 
   FormSubmission* form_submission =
       FormSubmission::Create(this, attributes_, event, submit_button);
+  if (!form_submission) {
+    // Form submission is not allowed for some NavigationPolicies, e.g. Link
+    // Preview. If an user triggered such user event for form submission, just
+    // ignores it.
+    return;
+  }
   Frame* target_frame = form_submission->TargetFrame();
 
   // 'formdata' event handlers might disconnect the form.
@@ -489,21 +506,21 @@ void HTMLFormElement::ScheduleFormSubmission(
   DCHECK(form_submission->Method() == FormSubmission::kPostMethod ||
          form_submission->Method() == FormSubmission::kGetMethod);
   DCHECK(form_submission->Data());
-  DCHECK(form_submission->Form());
   if (form_submission->Action().IsEmpty())
     return;
   if (GetExecutionContext()->IsSandboxed(
           network::mojom::blink::WebSandboxFlags::kForms)) {
     // FIXME: This message should be moved off the console once a solution to
     // https://bugs.webkit.org/show_bug.cgi?id=103274 exists.
-    GetExecutionContext()->AddConsoleMessage(
-        MakeGarbageCollected<ConsoleMessage>(
-            mojom::blink::ConsoleMessageSource::kSecurity,
-            mojom::blink::ConsoleMessageLevel::kError,
-            "Blocked form submission to '" +
-                form_submission->Action().ElidedString() +
-                "' because the form's frame is sandboxed and the 'allow-forms' "
-                "permission is not set."));
+    GetExecutionContext()->AddConsoleMessage(MakeGarbageCollected<
+                                             ConsoleMessage>(
+        mojom::blink::ConsoleMessageSource::kSecurity,
+        mojom::blink::ConsoleMessageLevel::kError,
+        WTF::StrCat(
+            {"Blocked form submission to '",
+             form_submission->Action().ElidedString(),
+             "' because the form's frame is sandboxed and the 'allow-forms' "
+             "permission is not set."})));
     return;
   }
 
@@ -512,9 +529,9 @@ void HTMLFormElement::ScheduleFormSubmission(
     // All other schemes are checked in the browser.
     //
     // TODO(antoniosartori): Should we keep the 'form-action' check for
-    // javascript: URLs? For 'frame-src' and 'navigate-to', we do not check
-    // javascript: URLs. Reading the specification, it looks like 'form-action'
-    // should not apply to javascript: URLs.
+    // javascript: URLs? For 'frame-src', we do not check javascript: URLs.
+    // Reading the specification, it looks like 'form-action' should not apply
+    // to javascript: URLs.
     if (!GetExecutionContext()->GetContentSecurityPolicy()->AllowFormAction(
             form_submission->Action())) {
       return;
@@ -589,9 +606,10 @@ FormData* HTMLFormElement::ConstructEntryList(
     if (!element.IsDisabledFormControl())
       control->AppendToFormData(form_data);
     if (auto* input = DynamicTo<HTMLInputElement>(element)) {
-      if (input->type() == input_type_names::kPassword &&
-          !input->Value().empty())
+      if (input->FormControlType() == FormControlType::kInputPassword &&
+          !input->Value().empty()) {
         form_data.SetContainsPasswordData(true);
+      }
     }
   }
   DispatchEvent(*MakeGarbageCollected<FormDataEvent>(form_data));
@@ -630,6 +648,20 @@ void HTMLFormElement::reset() {
     frame->GetPage()->GetChromeClient().FormElementReset(*this);
 }
 
+void HTMLFormElement::AttachLayoutTree(AttachContext& context) {
+  HTMLElement::AttachLayoutTree(context);
+  if (!GetLayoutObject()) {
+    FocusabilityLost();
+  }
+}
+
+void HTMLFormElement::DetachLayoutTree(bool performing_reattach) {
+  HTMLElement::DetachLayoutTree(performing_reattach);
+  if (!performing_reattach) {
+    FocusabilityLost();
+  }
+}
+
 void HTMLFormElement::ParseAttribute(
     const AttributeModificationParams& params) {
   const QualifiedName& name = params.name;
@@ -664,8 +696,7 @@ void HTMLFormElement::ParseAttribute(
     attributes_.SetAcceptCharset(params.new_value);
   } else if (name == html_names::kDisabledAttr) {
     UseCounter::Count(GetDocument(), WebFeature::kFormDisabledAttributePresent);
-  } else if (name == html_names::kRelAttr &&
-             RuntimeEnabledFeatures::FormRelAttributeEnabled()) {
+  } else if (name == html_names::kRelAttr) {
     rel_attribute_ = RelAttribute::kNone;
     rel_list_->DidUpdateAttributeValue(params.old_value, params.new_value);
     if (rel_list_->contains(AtomicString("noreferrer")))
@@ -683,8 +714,8 @@ void HTMLFormElement::ParseAttribute(
 void HTMLFormElement::Associate(ListedElement& e) {
   listed_elements_are_dirty_ = true;
   listed_elements_.clear();
-  listed_elements_including_shadow_trees_are_dirty_ = true;
-  listed_elements_including_shadow_trees_.clear();
+  listed_elements_for_autofill_are_dirty_ = true;
+  listed_elements_for_autofill_.clear();
   if (e.ToHTMLElement().FastHasAttribute(html_names::kFormAttr))
     has_elements_associated_by_form_attribute_ = true;
 }
@@ -692,8 +723,8 @@ void HTMLFormElement::Associate(ListedElement& e) {
 void HTMLFormElement::Disassociate(ListedElement& e) {
   listed_elements_are_dirty_ = true;
   listed_elements_.clear();
-  listed_elements_including_shadow_trees_are_dirty_ = true;
-  listed_elements_including_shadow_trees_.clear();
+  listed_elements_for_autofill_are_dirty_ = true;
+  listed_elements_for_autofill_.clear();
   RemoveFromPastNamesMap(e.ToHTMLElement());
 }
 
@@ -729,68 +760,183 @@ HTMLFormControlsCollection* HTMLFormElement::elements() {
   return EnsureCachedCollection<HTMLFormControlsCollection>(kFormControls);
 }
 
-void HTMLFormElement::CollectListedElements(
+// 1. While both autofill and reference target are traversing shadow trees,
+// autofill is traversing shadow trees "inside" the form node, e.g.,
+// <form><x-input></form>, and reference target is traversing shadow trees
+// "outside" the form node, e.g., <x-form referencetarget=realform>
+// <form id=realform></x-form>
+// 2. Since reference target doesn't traverse shadow trees inside the form node,
+// `this->element_` doesn't need to be invalidated in
+// InvalidateAncestorFormsForAutofill which is for autofill scenarios.
+// 3. If a referencing element in a separate shadow tree is added or removed,
+// the element list will be invalidated via Associate/Disassociate methods.
+// 4. TODO(crbug.com/413427414): invalidate the element list when
+// shadowRoot.referenceTarget is changed.
+void HTMLFormElement::CollectListedElementsForReferenceTarget(
     const Node& root,
     ListedElement::List& elements,
-    ListedElement::List* elements_including_shadow_trees,
-    bool in_shadow_tree) const {
-  DCHECK(!in_shadow_tree || elements_including_shadow_trees);
-  if (!in_shadow_tree)
-    elements.clear();
-  for (HTMLElement& element : Traversal<HTMLElement>::StartsAfter(root)) {
+    ListedElement::List* elements_for_autofill) const {
+  CHECK(RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+      GetDocument().GetExecutionContext()));
+  for (HTMLElement& element : Traversal<HTMLElement>::DescendantsOf(root)) {
     if (ListedElement* listed_element = ListedElement::From(element)) {
-      // If there is a <form> in between |root| and |listed_element|, then we
-      // shouldn't include it in |elements_including_shadow_trees| in order to
-      // prevent multiple forms from "owning" the same |listed_element| as shown
-      // by their |elements_including_shadow_trees|. |elements| doesn't have
-      // this problem because it can check |listed_element->Form()|.
-      if (in_shadow_tree && !HasFormInBetween(&root, &element) &&
-          !listed_element->Form()) {
-        elements_including_shadow_trees->push_back(listed_element);
-      } else if (listed_element->Form() == this) {
+      if (listed_element->Form() == this) {
         elements.push_back(listed_element);
-        if (elements_including_shadow_trees)
-          elements_including_shadow_trees->push_back(listed_element);
+      }
+
+      // TODO(crbug.com/414338073): optimize the perf (currently the traversal
+      // is O(n-logn)) by checking whether we've descended into `this`
+      if (elements_for_autofill &&
+          (listed_element->Form() == this ||
+           element.IsDescendantOrShadowDescendantOf(this))) {
+        elements_for_autofill->push_back(listed_element);
       }
     }
-    if (elements_including_shadow_trees && element.AuthorShadowRoot() &&
-        !HasFormInBetween(in_shadow_tree ? &root : this, &element)) {
-      const Node& shadow = *element.AuthorShadowRoot();
-      CollectListedElements(shadow, elements, elements_including_shadow_trees,
+
+    if (element.AuthorShadowRoot()) {
+      bool should_traverse_shadow_for_autofill =
+          elements_for_autofill &&
+          element.IsDescendantOrShadowDescendantOf(this);
+      bool should_traverse_shadow_for_reference_target =
+          element.GetShadowReferenceTarget(html_names::kFormAttr) == this;
+      if (should_traverse_shadow_for_autofill ||
+          should_traverse_shadow_for_reference_target) {
+        CollectListedElementsForReferenceTarget(
+            *element.AuthorShadowRoot(), elements, elements_for_autofill);
+      }
+    }
+  }
+}
+
+void HTMLFormElement::CollectListedElements(
+    const Node* root,
+    ListedElement::List& elements,
+    ListedElement::List* elements_for_autofill,
+    bool in_shadow_tree) const {
+  CHECK(root);
+  DCHECK(!in_shadow_tree || elements_for_autofill);
+  HeapVector<Member<HTMLFormElement>> nested_forms;
+  if (!in_shadow_tree) {
+    elements.clear();
+    if (elements_for_autofill) {
+      for (HTMLFormElement& nested_form :
+           Traversal<HTMLFormElement>::DescendantsOf(*this)) {
+        nested_forms.push_back(nested_form);
+      }
+    }
+  }
+
+  // We flatten elements of nested forms into `elements_for_autofill`.
+  // If one of the nested forms has an element associated by form attribute,
+  // that element may be outside of `root`'s subtree and we need to start at the
+  // root node.
+  const bool nested_forms_have_form_associated_elements =
+      std::ranges::any_of(nested_forms, [](const auto& form) {
+        return form->has_elements_associated_by_form_attribute_ ||
+               (form->has_elements_associated_by_parser_ &&
+                base::FeatureList::IsEnabled(
+                    features::
+                        kAutofillFixFieldsAssociatedWithNestedFormsByParser));
+      });
+  if (nested_forms_have_form_associated_elements && isConnected()) {
+    root = &GetTreeScope().RootNode();
+  }
+
+  // A performance optimization - if `root_is_descendant` is true,
+  // then we can save some checks whether elements that we are traversing are
+  // descendants of `this`.
+  const bool root_is_descendant = in_shadow_tree || root == this;
+
+  for (HTMLElement& element : Traversal<HTMLElement>::DescendantsOf(*root)) {
+    if (ListedElement* listed_element = ListedElement::From(element)) {
+      // Autofill only considers top level forms. We therefore include all form
+      // control descendants of the form whose elements we collect in
+      // `elements_for_autofill`, even if their closest ancestor is a
+      // different form.
+      // `elements` does not have this complication because it can check
+      // `listed_element->Form()`.
+      if (in_shadow_tree) {
+        elements_for_autofill->push_back(listed_element);
+      } else if (listed_element->Form() == this) {
+        elements.push_back(listed_element);
+        if (elements_for_autofill) {
+          elements_for_autofill->push_back(listed_element);
+        }
+      } else if (base::Contains(nested_forms, listed_element->Form())) {
+        elements_for_autofill->push_back(listed_element);
+      }
+    }
+    // Descend recursively into shadow DOM if the following conditions are met:
+    // - We are supposed to gather elements in shadow trees.
+    // - `element` is a shadow host.
+    // - `element` is a shadow-including descendant of `this`. If `root` is a
+    //   descendant of `this`, then that is trivially true.
+    if (elements_for_autofill && element.AuthorShadowRoot() &&
+        (root_is_descendant || element.IsDescendantOf(this))) {
+      CollectListedElements(element.AuthorShadowRoot(), elements,
+                            elements_for_autofill,
                             /*in_shadow_tree=*/true);
     }
   }
 }
 
-// This function should be const conceptually. However we update some fields
-// because of lazy evaluation.
-const ListedElement::List& HTMLFormElement::ListedElements(
-    bool include_shadow_trees) const {
-  if (!RuntimeEnabledFeatures::AutofillShadowDOMEnabled())
-    include_shadow_trees = false;
+const Node* HTMLFormElement::GetListedElementsScope() const {
+  HTMLFormElement* mutable_this = const_cast<HTMLFormElement*>(this);
+  Node* scope = mutable_this;
+  if (has_elements_associated_by_parser_) {
+    scope = &NodeTraversal::HighestAncestorOrSelf(*mutable_this);
+  }
+  if (isConnected() && has_elements_associated_by_form_attribute_) {
+    scope = &GetTreeScope().RootNode();
+  }
+  return scope;
+}
+
+const Node* HTMLFormElement::GetReferenceTargetScope() const {
+  if (!RuntimeEnabledFeatures::ShadowRootReferenceTargetEnabled(
+          GetDocument().GetExecutionContext())) {
+    return nullptr;
+  }
+
+  HTMLFormElement* mutable_this = const_cast<HTMLFormElement*>(this);
+  const Node* reference_target_scope = nullptr;
+  Element* host = mutable_this->OwnerShadowHost();
+  while (host && host->GetShadowReferenceTarget(html_names::kFormAttr) ==
+                     mutable_this) {
+    reference_target_scope = &host->GetTreeScope().RootNode();
+    host = host->OwnerShadowHost();
+  }
+  return reference_target_scope;
+}
+
+const ListedElement::List& HTMLFormElement::CollectAndCacheListedElements(
+    bool collect_for_autofill) const {
   bool collect_shadow_inputs =
-      include_shadow_trees && listed_elements_including_shadow_trees_are_dirty_;
+      collect_for_autofill && listed_elements_for_autofill_are_dirty_;
 
   if (listed_elements_are_dirty_ || collect_shadow_inputs) {
     HTMLFormElement* mutable_this = const_cast<HTMLFormElement*>(this);
-    Node* scope = mutable_this;
-    if (has_elements_associated_by_parser_)
-      scope = &NodeTraversal::HighestAncestorOrSelf(*mutable_this);
-    if (isConnected() && has_elements_associated_by_form_attribute_)
-      scope = &GetTreeScope().RootNode();
-    DCHECK(scope);
     mutable_this->listed_elements_.clear();
-    mutable_this->listed_elements_including_shadow_trees_.clear();
-    CollectListedElements(
-        *scope, mutable_this->listed_elements_,
-        collect_shadow_inputs
-            ? &mutable_this->listed_elements_including_shadow_trees_
-            : nullptr);
+    mutable_this->listed_elements_for_autofill_.clear();
+    ListedElement::List* elements_for_autofill =
+        collect_shadow_inputs ? &mutable_this->listed_elements_for_autofill_
+                              : nullptr;
+    // If this form is a reference target, we need to traverse the scope that
+    // includes the highest shadow host.
+    if (const Node* reference_target_scope = GetReferenceTargetScope()) {
+      CollectListedElementsForReferenceTarget(*reference_target_scope,
+                                              mutable_this->listed_elements_,
+                                              elements_for_autofill);
+    } else {
+      CollectListedElements(GetListedElementsScope(),
+                            mutable_this->listed_elements_,
+                            elements_for_autofill);
+    }
     mutable_this->listed_elements_are_dirty_ = false;
-    mutable_this->listed_elements_including_shadow_trees_are_dirty_ =
+    mutable_this->listed_elements_for_autofill_are_dirty_ =
         !collect_shadow_inputs;
   }
-  return include_shadow_trees ? listed_elements_including_shadow_trees_
+  return collect_for_autofill ? listed_elements_for_autofill_
                               : listed_elements_;
 }
 
@@ -799,7 +945,7 @@ void HTMLFormElement::CollectImageElements(
     HeapVector<Member<HTMLImageElement>>& elements) {
   elements.clear();
   for (HTMLImageElement& image :
-       Traversal<HTMLImageElement>::StartsAfter(root)) {
+       Traversal<HTMLImageElement>::DescendantsOf(root)) {
     if (image.formOwner() == this)
       elements.push_back(&image);
   }
@@ -917,6 +1063,10 @@ Element* HTMLFormElement::ElementFromPastNamesMap(
   return element;
 }
 
+bool HTMLFormElement::PastNamesEmpty() const {
+  return !past_names_map_;
+}
+
 void HTMLFormElement::AddToPastNamesMap(Element* element,
                                         const AtomicString& past_name) {
   if (past_name.empty())
@@ -953,6 +1103,14 @@ void HTMLFormElement::GetNamedElements(
   }
 }
 
+bool HTMLFormElement::HasNamedElements(const AtomicString& name) {
+  // http://www.whatwg.org/specs/web-apps/current-work/multipage/forms.html#dom-form-nameditem
+  if (elements()->HasNamedItems(name)) {
+    return true;
+  }
+  return ElementFromPastNamesMap(name);
+}
+
 bool HTMLFormElement::ShouldAutocomplete() const {
   return !EqualIgnoringASCIICase(
       FastGetAttribute(html_names::kAutocompleteAttr), "off");
@@ -970,6 +1128,12 @@ void HTMLFormElement::FinishParsingChildren() {
   HTMLElement::FinishParsingChildren();
   GetDocument().GetFormController().RestoreControlStateIn(*this);
   did_finish_parsing_children_ = true;
+}
+
+bool HTMLFormElement::HasAnyNamedProperties() const {
+  const auto* elements =
+      CachedCollection<HTMLFormControlsCollection>(kFormControls);
+  return (elements && !elements->NamedItemsEmpty()) || !PastNamesEmpty();
 }
 
 V8UnionElementOrRadioNodeList* HTMLFormElement::AnonymousNamedGetter(
@@ -1013,6 +1177,11 @@ V8UnionElementOrRadioNodeList* HTMLFormElement::AnonymousNamedGetter(
       GetRadioNodeList(name, only_match_img));
 }
 
+bool HTMLFormElement::NamedPropertyQuery(const AtomicString& name,
+                                         ExceptionState&) {
+  return HasNamedElements(name);
+}
+
 void HTMLFormElement::InvalidateDefaultButtonStyle() const {
   for (ListedElement* control : ListedElements()) {
     auto* html_form_control = DynamicTo<HTMLFormControlElement>(control);
@@ -1025,8 +1194,24 @@ void HTMLFormElement::InvalidateDefaultButtonStyle() const {
   }
 }
 
-void HTMLFormElement::InvalidateListedElementsIncludingShadowTrees() {
-  listed_elements_including_shadow_trees_are_dirty_ = true;
+void HTMLFormElement::InvalidateListedElementsForAutofill() {
+  listed_elements_for_autofill_are_dirty_ = true;
+}
+
+void HTMLFormElement::UseCountPropertyAccess(
+    v8::Local<v8::Name>& v8_property_name,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  bool hasPropertyInPrototypeChain =
+      !info.Holder()
+           ->GetRealNamedPropertyInPrototypeChain(
+               info.GetIsolate()->GetCurrentContext(), v8_property_name)
+           .IsEmpty();
+
+  UseCounter::Count(
+      GetDocument(),
+      hasPropertyInPrototypeChain
+          ? WebFeature::kDOMClobberedShadowedFormPropertyAccessed
+          : WebFeature::kDOMClobberedNotShadowedFormPropertyAccessed);
 }
 
 }  // namespace blink

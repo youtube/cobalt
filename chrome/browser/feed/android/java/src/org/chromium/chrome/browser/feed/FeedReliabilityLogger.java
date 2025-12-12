@@ -7,42 +7,47 @@ package org.chromium.chrome.browser.feed;
 import android.os.SystemClock;
 import android.view.View;
 
-import androidx.annotation.Nullable;
-
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
-import org.chromium.chrome.browser.xsurface.FeedLaunchReliabilityLogger;
-import org.chromium.chrome.browser.xsurface.FeedUserInteractionReliabilityLogger;
-import org.chromium.chrome.browser.xsurface.FeedUserInteractionReliabilityLogger.ClosedReason;
+import org.chromium.chrome.browser.xsurface.feed.FeedCardOpeningReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedCardOpeningReliabilityLogger.PageLoadError;
+import org.chromium.chrome.browser.xsurface.feed.FeedLaunchReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger;
+import org.chromium.chrome.browser.xsurface.feed.FeedUserInteractionReliabilityLogger.ClosedReason;
 import org.chromium.chrome.browser.xsurface.feed.StreamType;
 import org.chromium.components.feed.proto.wire.ReliabilityLoggingEnums.DiscoverLaunchResult;
+import org.chromium.net.NetError;
 
 /** Home for logic related to feed reliability logging. */
+@NullMarked
 public class FeedReliabilityLogger implements UrlFocusChangeListener {
     private final FeedLaunchReliabilityLogger mLaunchLogger;
     private final @Nullable FeedUserInteractionReliabilityLogger mUserInteractionLogger;
+    private final FeedCardOpeningReliabilityLogger mCardOpeningLogger;
 
     /**
      * Constructor records some info known about the feed UI before mLaunchLogger is available. UI
      * surface type and creation timestamp are logged as part of the feed launch flow.
+     *
      * @param launchLogger FeedLaunchReliabilityLogger for recording events during feed loading.
      * @param userInteractionLogger FeedUserInteractionReliabilityLogger for tracking user
-     *         interaction with feed content.
+     *     interaction with feed content.
+     * @param cardOpeningLogger FeedCardOpeningLogger for report events related to card tapping.
      */
-    public FeedReliabilityLogger(FeedLaunchReliabilityLogger launchLogger,
-            @Nullable FeedUserInteractionReliabilityLogger userInteractionLogger) {
+    public FeedReliabilityLogger(
+            FeedLaunchReliabilityLogger launchLogger,
+            @Nullable FeedUserInteractionReliabilityLogger userInteractionLogger,
+            FeedCardOpeningReliabilityLogger cardOpeningLogger) {
         mLaunchLogger = launchLogger;
         mUserInteractionLogger = userInteractionLogger;
-    }
-
-    /** Call this when the application is stoppped. */
-    public void onApplicationStopped() {
-        reportStreamClosed(ClosedReason.SUSPEND_APP);
+        mCardOpeningLogger = cardOpeningLogger;
     }
 
     /** Call this when the activity is paused. */
     public void onActivityPaused() {
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.FRAGMENT_PAUSED, /*userMightComeBack=*/false);
+                DiscoverLaunchResult.FRAGMENT_PAUSED, /* userMightComeBack= */ false);
     }
 
     /** Call this when the activity is resumed. */
@@ -55,7 +60,7 @@ public class FeedReliabilityLogger implements UrlFocusChangeListener {
         // The user could return to the feed while it's still loading, so consider the launch
         // "pending finished".
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.SEARCH_BOX_TAPPED, /*userMightComeBack=*/true);
+                DiscoverLaunchResult.SEARCH_BOX_TAPPED, /* userMightComeBack= */ true);
     }
 
     /** Call this when the user performs a voice search. */
@@ -63,7 +68,7 @@ public class FeedReliabilityLogger implements UrlFocusChangeListener {
         // The user could return to the feed while it's still loading, so consider the launch
         // "pending finished".
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.VOICE_SEARCH_TAPPED, /*userMightComeBack=*/true);
+                DiscoverLaunchResult.VOICE_SEARCH_TAPPED, /* userMightComeBack= */ true);
     }
 
     /**
@@ -72,7 +77,7 @@ public class FeedReliabilityLogger implements UrlFocusChangeListener {
      */
     public void onPageLoadStarted() {
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.NAVIGATED_AWAY_IN_APP, /*userMightComeBack=*/false);
+                DiscoverLaunchResult.NAVIGATED_AWAY_IN_APP, /* userMightComeBack= */ false);
     }
 
     /**
@@ -80,21 +85,20 @@ public class FeedReliabilityLogger implements UrlFocusChangeListener {
      */
     public void onNavigateBack() {
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.NAVIGATED_BACK, /*userMightComeBack=*/false);
+                DiscoverLaunchResult.NAVIGATED_BACK, /* userMightComeBack= */ false);
     }
 
     /** Call this when the user selects a tab. */
     public void onSwitchTabs() {
-        logLaunchFinishedIfInProgress(DiscoverLaunchResult.NAVIGATED_TO_ANOTHER_TAB,
-                /*userMightComeBack=*/false);
+        logLaunchFinishedIfInProgress(
+                DiscoverLaunchResult.NAVIGATED_TO_ANOTHER_TAB, /* userMightComeBack= */ false);
     }
 
     /** Call this when the user switches to another stream. */
     public void onSwitchStream(@StreamType int switchedToStream) {
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.SWITCHED_FEED_TABS, /*userMightComeBack=*/false);
+                DiscoverLaunchResult.SWITCHED_FEED_TABS, /* userMightComeBack= */ false);
         mLaunchLogger.logSwitchedFeeds(switchedToStream, SystemClock.elapsedRealtimeNanos());
-        reportStreamClosed(ClosedReason.SWITCH_STREAM);
     }
 
     /** Call this when the stream is binded. */
@@ -108,17 +112,52 @@ public class FeedReliabilityLogger implements UrlFocusChangeListener {
     }
 
     /** Call this when the stream is unbinded. */
-    public void onUnbindStream() {
+    public void onUnbindStream(@ClosedReason int closedReason) {
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.FRAGMENT_STOPPED, /*userMightComeBack=*/false);
-        reportStreamClosed(ClosedReason.LEAVE_FEED);
+                DiscoverLaunchResult.FRAGMENT_STOPPED, /* userMightComeBack= */ false);
+        reportStreamClosed(closedReason);
     }
 
     /** Call this when the card is about to open. */
-    public void onOpenCard() {
+    public void onOpenCard(int pageId, int cardCategory) {
         logLaunchFinishedIfInProgress(
-                DiscoverLaunchResult.CARD_TAPPED, /*userMightComeBack=*/false);
-        reportStreamClosed(ClosedReason.OPEN_CARD);
+                DiscoverLaunchResult.CARD_TAPPED, /* userMightComeBack= */ false);
+        mCardOpeningLogger.onCardClicked(pageId, cardCategory);
+    }
+
+    /** Call this when the page starts loading. */
+    public void onPageLoadStarted(int pageId) {
+        mCardOpeningLogger.onPageLoadStarted(pageId);
+    }
+
+    /** Call this when the page finishes loading. */
+    public void onPageLoadFinished(int pageId) {
+        mCardOpeningLogger.onPageLoadFinished(pageId);
+    }
+
+    /** Call this when the page fails to load. */
+    public void onPageLoadFailed(int pageId, @NetError int errorCode) {
+        int pageLoadError;
+        switch (errorCode) {
+            case NetError.ERR_INTERNET_DISCONNECTED:
+                pageLoadError = PageLoadError.INTERNET_DISCONNECTED;
+                break;
+            case NetError.ERR_CONNECTION_TIMED_OUT:
+                pageLoadError = PageLoadError.CONNECTION_TIMED_OUT;
+                break;
+            case NetError.ERR_NAME_RESOLUTION_FAILED:
+                pageLoadError = PageLoadError.NAME_RESOLUTION_FAILED;
+                break;
+            default:
+                pageLoadError = PageLoadError.PAGE_LOAD_ERROR;
+                break;
+        }
+        mCardOpeningLogger.onPageLoadFailed(pageId, pageLoadError);
+    }
+
+    /** Called when the page finishes first paint after non-empty layout. */
+    public void onPageFirstContentfulPaint(int pageId) {
+        mCardOpeningLogger.onPageFirstContentfulPaint(pageId);
     }
 
     /** Call this when the view is barely visible for the first time. */
@@ -132,6 +171,20 @@ public class FeedReliabilityLogger implements UrlFocusChangeListener {
     public void onViewFirstRendered(View view) {
         if (mUserInteractionLogger != null) {
             mUserInteractionLogger.onViewFirstRendered(view);
+        }
+    }
+
+    /** Call this when the loading indicator for load-more is shown. */
+    public void onPaginationIndicatorShown() {
+        if (mUserInteractionLogger != null) {
+            mUserInteractionLogger.onPaginationIndicatorShown();
+        }
+    }
+
+    /** Call this when the user scrolled away from the loading indicator for load-more. */
+    public void onPaginationUserScrolledAwayFromIndicator() {
+        if (mUserInteractionLogger != null) {
+            mUserInteractionLogger.onPaginationUserScrolledAwayFromIndicator();
         }
     }
 

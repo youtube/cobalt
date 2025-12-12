@@ -66,7 +66,7 @@ SharingHubBubbleActionButton::SharingHubBubbleActionButton(
   SetFocusBehavior(FocusBehavior::ALWAYS);
 
   SetEnabled(true);
-  SetBackground(views::CreateThemedSolidBackground(ui::kColorMenuBackground));
+  SetBackground(views::CreateSolidBackground(ui::kColorMenuBackground));
   SetCallback(base::BindRepeating(&SharingHubBubbleViewImpl::OnActionSelected,
                                   base::Unretained(bubble),
                                   base::Unretained(this)));
@@ -80,7 +80,8 @@ SharingHubBubbleActionButton::SharingHubBubbleActionButton(
       action_info.title, views::style::CONTEXT_MENU));
   title_->SetCanProcessEventsWithinSubtree(false);
 
-  GetViewAccessibility().OverrideName(title_->GetText());
+  GetViewAccessibility().SetName(std::u16string(title_->GetText()),
+                                 ax::mojom::NameFrom::kAttribute);
 }
 
 SharingHubBubbleActionButton::~SharingHubBubbleActionButton() = default;
@@ -122,7 +123,7 @@ void SharingHubBubbleActionButton::UpdateColors() {
                                   : views::style::STYLE_PRIMARY);
 }
 
-BEGIN_METADATA(SharingHubBubbleActionButton, Button)
+BEGIN_METADATA(SharingHubBubbleActionButton)
 END_METADATA
 
 }  // namespace sharing_hub

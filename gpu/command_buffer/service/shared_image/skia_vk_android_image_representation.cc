@@ -7,9 +7,8 @@
 #include <utility>
 
 #include "components/viz/common/gpu/vulkan_context_provider.h"
-#include "components/viz/common/resources/resource_format_utils.h"
+#include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
-#include "gpu/command_buffer/service/mailbox_manager.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_representation.h"
@@ -22,9 +21,15 @@
 #include "gpu/vulkan/vulkan_implementation.h"
 #include "gpu/vulkan/vulkan_util.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
-#include "third_party/skia/include/core/SkPromiseImageTexture.h"
-#include "third_party/skia/include/gpu/GrBackendSemaphore.h"
-#include "third_party/skia/include/gpu/GrBackendSurface.h"
+#include "third_party/skia/include/core/SkColorType.h"
+#include "third_party/skia/include/core/SkSurface.h"
+#include "third_party/skia/include/gpu/MutableTextureState.h"
+#include "third_party/skia/include/gpu/ganesh/GrBackendSemaphore.h"
+#include "third_party/skia/include/gpu/ganesh/GrBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSemaphore.h"
+#include "third_party/skia/include/gpu/vk/VulkanMutableTextureState.h"
+#include "third_party/skia/include/private/chromium/GrPromiseImageTexture.h"
 #include "ui/gl/gl_utils.h"
 
 namespace gpu {
@@ -63,7 +68,7 @@ SkiaVkAndroidImageRepresentation::BeginWriteAccess(
     const gfx::Rect& update_rect,
     std::vector<GrBackendSemaphore>* begin_semaphores,
     std::vector<GrBackendSemaphore>* end_semaphores,
-    std::unique_ptr<GrBackendSurfaceMutableState>* end_state) {
+    std::unique_ptr<skgpu::MutableTextureState>* end_state) {
   DCHECK_EQ(mode_, RepresentationAccessMode::kNone);
   DCHECK(promise_texture_);
 
@@ -80,9 +85,8 @@ SkiaVkAndroidImageRepresentation::BeginWriteAccess(
 
   if (!surface_ || final_msaa_count != surface_msaa_count_ ||
       surface_props != surface_->props()) {
-    SkColorType sk_color_type = viz::ToClosestSkColorType(
-        /*gpu_compositing=*/true, format());
-    surface_ = SkSurface::MakeFromBackendTexture(
+    SkColorType sk_color_type = viz::ToClosestSkColorType(format());
+    surface_ = SkSurfaces::WrapBackendTexture(
         gr_context, promise_texture_->backendTexture(), surface_origin(),
         final_msaa_count, sk_color_type, color_space().ToSkColorSpace(),
         &surface_props);
@@ -100,11 +104,11 @@ SkiaVkAndroidImageRepresentation::BeginWriteAccess(
   return {surface_};
 }
 
-std::vector<sk_sp<SkPromiseImageTexture>>
+std::vector<sk_sp<GrPromiseImageTexture>>
 SkiaVkAndroidImageRepresentation::BeginWriteAccess(
     std::vector<GrBackendSemaphore>* begin_semaphores,
     std::vector<GrBackendSemaphore>* end_semaphores,
-    std::unique_ptr<GrBackendSurfaceMutableState>* end_state) {
+    std::unique_ptr<skgpu::MutableTextureState>* end_state) {
   DCHECK_EQ(mode_, RepresentationAccessMode::kNone);
   DCHECK(promise_texture_);
 
@@ -134,11 +138,11 @@ void SkiaVkAndroidImageRepresentation::EndWriteAccess() {
   EndAccess(/*readonly=*/false);
 }
 
-std::vector<sk_sp<SkPromiseImageTexture>>
+std::vector<sk_sp<GrPromiseImageTexture>>
 SkiaVkAndroidImageRepresentation::BeginReadAccess(
     std::vector<GrBackendSemaphore>* begin_semaphores,
     std::vector<GrBackendSemaphore>* end_semaphores,
-    std::unique_ptr<GrBackendSurfaceMutableState>* end_state) {
+    std::unique_ptr<skgpu::MutableTextureState>* end_state) {
   DCHECK_EQ(mode_, RepresentationAccessMode::kNone);
   DCHECK(!surface_);
   DCHECK(promise_texture_);
@@ -232,12 +236,12 @@ bool SkiaVkAndroidImageRepresentation::BeginAccess(
   }
 
   if (begin_access_semaphore_ != VK_NULL_HANDLE) {
-    begin_semaphores->emplace_back();
-    begin_semaphores->back().initVulkan(begin_access_semaphore_);
+    begin_semaphores->emplace_back(
+        GrBackendSemaphores::MakeVk(begin_access_semaphore_));
   }
   if (end_semaphores) {
-    end_semaphores->emplace_back();
-    end_semaphores->back().initVulkan(end_access_semaphore_);
+    end_semaphores->emplace_back(
+        GrBackendSemaphores::MakeVk(end_access_semaphore_));
   }
 
   mode_ = readonly ? RepresentationAccessMode::kRead
@@ -281,25 +285,32 @@ void SkiaVkAndroidImageRepresentation::EndAccess(bool readonly) {
   mode_ = RepresentationAccessMode::kNone;
 }
 
-std::unique_ptr<GrBackendSurfaceMutableState>
+std::unique_ptr<skgpu::MutableTextureState>
 SkiaVkAndroidImageRepresentation::GetEndAccessState() {
   // There is no layout to change if there is no image.
   if (!vulkan_image_)
     return nullptr;
 
-  const uint32_t kSingleDeviceUsage =
+  // `kSingleDeviceUsage` defines the set of usages for which only the Vulkan
+  // device from SharedContextState is used. If the SI has any usages outside
+  // this set (e.g., if it has any GLES2 usage, including
+  // RASTER_OVER_GLES2_ONLY), then it will be accessed beyond the Vulkan device
+  // from SharedContextState and hence does not have single-device usage.
+  const SharedImageUsageSet kSingleDeviceUsage =
       SHARED_IMAGE_USAGE_DISPLAY_READ | SHARED_IMAGE_USAGE_DISPLAY_WRITE |
-      SHARED_IMAGE_USAGE_RASTER | SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
+      SHARED_IMAGE_USAGE_RASTER_READ | SHARED_IMAGE_USAGE_RASTER_WRITE |
+      SHARED_IMAGE_USAGE_OOP_RASTERIZATION;
 
   // If SharedImage is used outside of current VkDeviceQueue we need to transfer
   // image back to it's original queue. Note, that for multithreading we use
   // same vkDevice, so technically we could transfer between queues instead of
   // jumping to external queue. But currently it's not possible because we
   // create new vkImage each time.
-  if ((android_backing()->usage() & ~kSingleDeviceUsage) ||
+  if (!kSingleDeviceUsage.HasAll(android_backing()->usage()) ||
       android_backing()->is_thread_safe()) {
-    return std::make_unique<GrBackendSurfaceMutableState>(
-        VK_IMAGE_LAYOUT_UNDEFINED, vulkan_image_->queue_family_index());
+    return std::make_unique<skgpu::MutableTextureState>(
+        skgpu::MutableTextureStates::MakeVulkan(
+            VK_IMAGE_LAYOUT_UNDEFINED, vulkan_image_->queue_family_index()));
   }
   return nullptr;
 }

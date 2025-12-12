@@ -10,11 +10,9 @@
 
 #include "media/base/stream_params.h"
 #include "modules/rtp_rtcp/source/byte_io.h"
+#include "modules/rtp_rtcp/source/rtp_header_extensions.h"
 #include "modules/rtp_rtcp/source/rtp_util.h"
-#include "pc/media_session.h"
 #include "pc/session_description.h"
-#include "test/field_trial.h"
-#include "test/gmock.h"
 #include "test/gtest.h"
 #include "test/peer_scenario/peer_scenario.h"
 
@@ -47,7 +45,7 @@ std::string TestParametersMidTestConfigurationToString(
   }
 }
 
-class FrameObserver : public rtc::VideoSinkInterface<VideoFrame> {
+class FrameObserver : public VideoSinkInterface<VideoFrame> {
  public:
   FrameObserver() : frame_observed_(false) {}
   void OnFrame(const VideoFrame&) override { frame_observed_ = true; }
@@ -66,10 +64,10 @@ uint32_t get_ssrc(SessionDescriptionInterface* offer, size_t track_index) {
 
 void set_ssrc(SessionDescriptionInterface* offer, size_t index, uint32_t ssrc) {
   EXPECT_LT(index, offer->description()->contents().size());
-  cricket::StreamParams& new_stream_params = offer->description()
-                                                 ->contents()[index]
-                                                 .media_description()
-                                                 ->mutable_streams()[0];
+  StreamParams& new_stream_params = offer->description()
+                                        ->contents()[index]
+                                        .media_description()
+                                        ->mutable_streams()[0];
   new_stream_params.ssrcs[0] = ssrc;
   new_stream_params.ssrc_groups[0].ssrcs[0] = ssrc;
 }
@@ -98,7 +96,6 @@ TEST_P(UnsignaledStreamTest, ReplacesUnsignaledStreamOnCompletedSignaling) {
   PeerScenarioClient::Config config = PeerScenarioClient::Config();
   // Disable encryption so that we can inject a fake early media packet without
   // triggering srtp failures.
-  config.disable_encryption = true;
   auto* caller = s.CreateClient(config);
   auto* callee = s.CreateClient(config);
 
@@ -146,7 +143,7 @@ TEST_P(UnsignaledStreamTest, ReplacesUnsignaledStreamOnCompletedSignaling) {
 
   uint32_t first_ssrc = 0;
   uint32_t second_ssrc = 0;
-  absl::optional<int> mid_header_extension_id = absl::nullopt;
+  std::optional<int> mid_header_extension_id = std::nullopt;
 
   signaling.NegotiateSdp(
       /* munge_sdp = */
@@ -154,8 +151,7 @@ TEST_P(UnsignaledStreamTest, ReplacesUnsignaledStreamOnCompletedSignaling) {
         // Obtain the MID header extension ID and if we want the
         // MidTestConfiguration::kMidNotNegotiated setup then we remove the MID
         // header extension through SDP munging (otherwise SDP is not modified).
-        for (cricket::ContentInfo& content_info :
-             offer->description()->contents()) {
+        for (ContentInfo& content_info : offer->description()->contents()) {
           std::vector<RtpExtension> header_extensions =
               content_info.media_description()->rtp_header_extensions();
           for (auto it = header_extensions.begin();
@@ -219,7 +215,7 @@ TEST_P(UnsignaledStreamTest, ReplacesUnsignaledStreamOnCompletedSignaling) {
                 break;
             }
             // Inject the modified packet.
-            rtc::CopyOnWriteBuffer updated_buffer = parsed_packet.Buffer();
+            CopyOnWriteBuffer updated_buffer = parsed_packet.Buffer();
             EmulatedIpPacket updated_packet(
                 packet.from, packet.to, updated_buffer, packet.arrival_time);
             send_node->OnPacketReceived(std::move(updated_packet));

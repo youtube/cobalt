@@ -10,7 +10,7 @@
 #include "libANGLE/renderer/vulkan/SecondaryCommandPool.h"
 
 #include "common/debug.h"
-#include "libANGLE/renderer/vulkan/RendererVk.h"
+#include "libANGLE/renderer/vulkan/vk_renderer.h"
 #include "libANGLE/renderer/vulkan/vk_utils.h"
 
 namespace rx
@@ -18,7 +18,7 @@ namespace rx
 namespace vk
 {
 
-SecondaryCommandPool::SecondaryCommandPool() {}
+SecondaryCommandPool::SecondaryCommandPool() : mCollectedBuffers(kFixedQueueLimit) {}
 
 SecondaryCommandPool::~SecondaryCommandPool()
 {
@@ -26,7 +26,7 @@ SecondaryCommandPool::~SecondaryCommandPool()
     ASSERT(mCollectedBuffersOverflow.empty());
 }
 
-angle::Result SecondaryCommandPool::init(Context *context,
+angle::Result SecondaryCommandPool::init(ErrorContext *context,
                                          uint32_t queueFamilyIndex,
                                          ProtectionType protectionType)
 {
@@ -34,7 +34,7 @@ angle::Result SecondaryCommandPool::init(Context *context,
     poolInfo.sType                   = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags                   = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
     poolInfo.queueFamilyIndex        = queueFamilyIndex;
-    if (context->getRenderer()->getFeatures().useResetCommandBufferBitForSecondaryPools.enabled)
+    if (context->getFeatures().useResetCommandBufferBitForSecondaryPools.enabled)
     {
         poolInfo.flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     }
@@ -56,7 +56,8 @@ void SecondaryCommandPool::destroy(VkDevice device)
     mCommandPool.destroy(device);
 }
 
-angle::Result SecondaryCommandPool::allocate(Context *context, VulkanSecondaryCommandBuffer *buffer)
+angle::Result SecondaryCommandPool::allocate(ErrorContext *context,
+                                             VulkanSecondaryCommandBuffer *buffer)
 {
     ASSERT(valid());
     ASSERT(!buffer->valid());
@@ -89,7 +90,7 @@ void SecondaryCommandPool::collect(VulkanSecondaryCommandBuffer *buffer)
     }
     else
     {
-        std::lock_guard<std::mutex> lock(mOverflowMutex);
+        std::lock_guard<angle::SimpleMutex> lock(mOverflowMutex);
         mCollectedBuffersOverflow.emplace_back(bufferHandle);
         mHasOverflow.store(true, std::memory_order_relaxed);
     }
@@ -111,7 +112,7 @@ void SecondaryCommandPool::freeCollectedBuffers(VkDevice device)
     {
         std::vector<VkCommandBuffer> buffers;
         {
-            std::lock_guard<std::mutex> lock(mOverflowMutex);
+            std::lock_guard<angle::SimpleMutex> lock(mOverflowMutex);
             buffers = std::move(mCollectedBuffersOverflow);
             mHasOverflow.store(false, std::memory_order_relaxed);
         }

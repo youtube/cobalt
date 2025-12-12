@@ -4,11 +4,13 @@
 
 package org.chromium.chrome.browser.download.home.storage;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.content.Context;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.task.AsyncTask;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.download.DirectoryOption;
 import org.chromium.chrome.browser.download.DownloadDirectoryProvider;
 import org.chromium.chrome.browser.download.home.filter.OfflineItemFilterObserver;
@@ -26,6 +28,7 @@ import java.util.Collection;
  * TODO(shaktisahu): Rename this class to StorageSummaryMediator and have it manipulate the model
  * directly once migration to new download home is complete.
  */
+@NullMarked
 public class StorageSummaryProvider implements OfflineItemFilterObserver {
     /** A delegate for updating the UI about the storage information. */
     public interface Delegate {
@@ -36,7 +39,7 @@ public class StorageSummaryProvider implements OfflineItemFilterObserver {
     private final Delegate mDelegate;
 
     // Contains total space and available space of the file system.
-    private DirectoryOption mDirectoryOption;
+    private @Nullable DirectoryOption mDirectoryOption;
 
     // The total size in bytes used by downloads.
     private long mTotalDownloadSize;
@@ -82,12 +85,18 @@ public class StorageSummaryProvider implements OfflineItemFilterObserver {
             @Override
             protected DirectoryOption doInBackground() {
                 File defaultDownloadDir = DownloadDirectoryProvider.getPrimaryDownloadDirectory();
-                if (defaultDownloadDir == null) return null;
+                if (defaultDownloadDir == null) {
+                    assert false : "Default download directory should not be null.";
+                    return assumeNonNull(null);
+                }
 
-                DirectoryOption directoryOption = new DirectoryOption("",
-                        defaultDownloadDir.getAbsolutePath(), defaultDownloadDir.getUsableSpace(),
-                        defaultDownloadDir.getTotalSpace(),
-                        DirectoryOption.DownloadLocationDirectoryType.DEFAULT);
+                DirectoryOption directoryOption =
+                        new DirectoryOption(
+                                "",
+                                defaultDownloadDir.getAbsolutePath(),
+                                defaultDownloadDir.getUsableSpace(),
+                                defaultDownloadDir.getTotalSpace(),
+                                DirectoryOption.DownloadLocationDirectoryType.DEFAULT);
                 return directoryOption;
             }
 
@@ -110,9 +119,11 @@ public class StorageSummaryProvider implements OfflineItemFilterObserver {
 
         // Build the storage summary string.
         assert (mTotalDownloadSize >= 0);
-        String storageSummary = mContext.getString(R.string.download_manager_ui_space_using,
-                DownloadUtils.getStringForBytes(mContext, mTotalDownloadSize),
-                DownloadUtils.getStringForBytes(mContext, mDirectoryOption.totalSpace));
+        String storageSummary =
+                mContext.getString(
+                        R.string.download_manager_ui_space_using,
+                        DownloadUtils.getStringForBytes(mContext, mTotalDownloadSize),
+                        DownloadUtils.getStringForBytes(mContext, mDirectoryOption.totalSpace));
         mDelegate.onStorageInfoChanged(storageSummary);
     }
 }

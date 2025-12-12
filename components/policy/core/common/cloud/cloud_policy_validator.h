@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -23,7 +24,7 @@
 #include "components/policy/policy_export.h"
 #include "components/policy/proto/cloud_policy.pb.h"
 #include "components/policy/proto/device_management_backend.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "google_apis/gaia/gaia_id.h"
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 #include "components/policy/proto/chrome_extension_policy.pb.h"
@@ -138,6 +139,8 @@ class POLICY_EXPORT CloudPolicyValidatorBase {
     std::string policy_data_signature;
 
     ValidationResult();
+    ValidationResult(const ValidationResult&);
+    ValidationResult& operator=(const ValidationResult&);
     ~ValidationResult();
   };
 
@@ -185,7 +188,7 @@ class POLICY_EXPORT CloudPolicyValidatorBase {
   // matches the user credentials. It checks GAIA ID if policy blob has it,
   // otherwise falls back to username check.
   void ValidateUsernameAndGaiaId(const std::string& expected_user,
-                                 const std::string& gaia_id);
+                                 const GaiaId& gaia_id);
 
   // Instruct the validator to check that the policy blob is addressed to
   // |expected_domain|. This uses the domain part of the username field in the
@@ -216,12 +219,16 @@ class POLICY_EXPORT CloudPolicyValidatorBase {
   // successfully.
   void ValidatePayload();
 
-  // Instruct the validator to check that |cached_key| is valid by verifying the
-  // |cached_key_signature| using the passed |owning_domain| and the baked-in
-  // policy verification key.
+  // Instruct the validator to check that |new_cached_key| is valid by verifying
+  // the |new_cached_key_signature|. As a backup, if that validation fails, the
+  // deprecated validation of |cached_key| verifying the |cached_key_signature|
+  // using the passed |owning_domain| and the baked-in policy verification key
+  // is applied. The later is planned to be removed in the future.
   void ValidateCachedKey(const std::string& cached_key,
                          const std::string& cached_key_signature,
-                         const std::string& owning_domain);
+                         const std::string& owning_domain,
+                         const std::string& new_cached_key,
+                         const std::string& new_cached_key_signature);
 
   // Instruct the validator to check that the signature on the policy blob
   // verifies against |key|.
@@ -292,6 +299,9 @@ class POLICY_EXPORT CloudPolicyValidatorBase {
           policy_response,
       scoped_refptr<base::SequencedTaskRunner> background_task_runner);
 
+  // Returns the verification key to be used for current process.
+  static std::optional<std::string> GetCurrentPolicyVerificationKey();
+
   // Posts an asynchronous call to PerformValidation of the passed |validator|,
   // which will eventually report its result via |completion_callback|.
   static void PostValidationTask(
@@ -328,17 +338,26 @@ class POLICY_EXPORT CloudPolicyValidatorBase {
   // Helper routine that performs a verification-key-based signature check,
   // which includes the domain name associated with this policy. Returns true
   // if the verification succeeds, or if |signature| is empty.
-  bool CheckVerificationKeySignature(const std::string& key_to_verify,
-                                     const std::string& server_key,
-                                     const std::string& signature);
+  bool CheckVerificationKeySignatureDeprecated(const std::string& key_to_verify,
+                                               const std::string& server_key,
+                                               const std::string& signature);
 
   // Returns the domain name from the policy being validated. Returns an
   // empty string if the policy does not contain a username field.
   std::string ExtractDomainFromPolicy();
 
+  // Returns if the domain from the new_public_key_verification_data matches
+  // the domain extracted from the |policy_|.
+  bool CheckDomainInPublicKeyVerificationData(
+      const std::string& new_public_key_verification_data);
+
   // Sets the owning domain used to verify new public keys, and ensures that
   // callers don't try to set conflicting values.
   void set_owning_domain(const std::string& owning_domain);
+
+  // Get signature type from `policy_`. Only available for CBCM policies and
+  // type is set. Otherwise, default to SHA1.
+  SignatureType GetSignatureType();
 
   // Helper functions implementing individual checks.
   Status CheckTimestamp();
@@ -366,7 +385,7 @@ class POLICY_EXPORT CloudPolicyValidatorBase {
   ValidateDMTokenOption dm_token_option_;
   ValidateDeviceIdOption device_id_option_;
   std::string username_;
-  std::string gaia_id_;
+  GaiaId gaia_id_;
   bool canonicalize_user_;
   std::string domain_;
   std::string dm_token_;
@@ -376,7 +395,9 @@ class POLICY_EXPORT CloudPolicyValidatorBase {
   std::string key_;
   std::string cached_key_;
   std::string cached_key_signature_;
-  absl::optional<std::string> verification_key_;
+  std::string new_cached_key_;
+  std::string new_cached_key_signature_;
+  std::optional<std::string> verification_key_;
   std::string owning_domain_;
   bool allow_key_rotation_;
   scoped_refptr<base::SequencedTaskRunner> background_task_runner_;
@@ -428,7 +449,7 @@ class POLICY_EXPORT CloudPolicyValidator final
              value_validator : value_validators_) {
       value_validator->ValidateValues(*payload_, &value_validation_issues_);
     }
-    // TODO(hendrich,pmarko): https://crbug.com/794848
+    // TODO(hendrich): https://crbug.com/794848
     // Always return OK independent of value validation results for now. We only
     // want to reject policy blobs on failed value validation sometime in the
     // future.

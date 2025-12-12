@@ -12,47 +12,104 @@
 
 namespace page_info {
 
-#if BUILDFLAG(IS_ANDROID)
-// Enables the history sub page for Page Info.
-BASE_DECLARE_FEATURE(kPageInfoHistory);
-// Enables the store info row for Page Info.
-BASE_DECLARE_FEATURE(kPageInfoStoreInfo);
-// Enables an improved "About this site" bottomsheet in Page Info.
-BASE_DECLARE_FEATURE(kPageInfoAboutThisSiteImprovedBottomSheet);
-#endif
-
-// Shows the new icon for the "About this site" section in Page Info
-BASE_DECLARE_FEATURE(kPageInfoAboutThisSiteNewIcon);
-
 // Enables the "About this site" section in Page Info.
 extern bool IsAboutThisSiteFeatureEnabled(const std::string& locale);
 
 // Controls the feature for English and other languages that are enabled by
 // default. Use IsAboutThisSiteFeatureEnabled() to check a specific language.
-BASE_DECLARE_FEATURE(kPageInfoAboutThisSiteEn);
+BASE_DECLARE_FEATURE(kPageInfoAboutThisSite);
 // Controls the feature for languages that are not enabled by default yet.
-BASE_DECLARE_FEATURE(kPageInfoAboutThisSiteNonEn);
+BASE_DECLARE_FEATURE(kPageInfoAboutThisSiteMoreLangs);
 
 // Whether we show hard-coded content for some sites like https://example.com.
 extern const base::FeatureParam<bool> kShowSampleContent;
 
 #if !BUILDFLAG(IS_ANDROID)
-// Keeps the 'About this site' side panel open and updated on same tab
-// navigations
-BASE_DECLARE_FEATURE(kPageInfoAboutThisSiteKeepSidePanelOnSameTabNavs);
-
 // Enables the history section for Page Info on desktop.
 BASE_DECLARE_FEATURE(kPageInfoHistoryDesktop);
 
 // Hides site settings row.
 BASE_DECLARE_FEATURE(kPageInfoHideSiteSettings);
 
-// Enables Cookies Subpage. For implementation phase.
-BASE_DECLARE_FEATURE(kPageInfoCookiesSubpage);
+#endif  // !BUILDFLAG(IS_ANDROID)
 
-// Enables the new page specific site data dialog.
-BASE_DECLARE_FEATURE(kPageSpecificSiteDataDialog);
-#endif
+// Enables the merchant trust section for Page Info.
+BASE_DECLARE_FEATURE(kMerchantTrust);
+
+extern const char kMerchantTrustEnabledWithSampleDataName[];
+extern const base::FeatureParam<bool> kMerchantTrustEnabledWithSampleData;
+
+extern const char kMerchantTrustForceShowUIForTestingName[];
+extern const base::FeatureParam<bool> kMerchantTrustForceShowUIForTesting;
+
+extern const char kMerchantTrustEnableOmniboxChipName[];
+extern const base::FeatureParam<bool> kMerchantTrustEnableOmniboxChip;
+
+// Enables the merchant trust UI even when the shopper voice summary is missing.
+extern const char kMerchantTrustWithoutSummaryName[];
+extern const base::FeatureParam<bool> kMerchantTrustWithoutSummary;
+
+// Whether the merchant trust UI should be shown even when the shopper voice
+// summary is missing.
+extern bool IsMerchantTrustWithoutSummaryEnabled();
+
+// Whether the merchant trust section for Page Info based on country and locale.
+extern bool IsMerchantTrustFeatureEnabled(const std::string& country_code,
+                                          const std::string& locale);
+
+// Enables the 'Merchant trust' sentiment survey for control group. Used for
+// feature evaluation. This should be set in the fieldtrial config along with
+// the trigger ID for the corresponding survey (as en_site_id) and probability
+// (as probability).
+BASE_DECLARE_FEATURE(kMerchantTrustEvaluationControlSurvey);
+
+// A minimum amount of time, that has to pass after visiting a shopping page,
+// before trying to show a survey.
+extern const base::FeatureParam<base::TimeDelta>
+    kMerchantTrustEvaluationControlMinTimeToShowSurvey;
+
+// A maximum amount of time, that has passed after visiting a shopping page,
+// during which we can show a survey.
+extern const base::FeatureParam<base::TimeDelta>
+    kMerchantTrustEvaluationControlMaxTimeToShowSurvey;
+
+// Enables the 'Merchant trust' sentiment survey for experiment group. Used for
+// feature evaluation. The survey will be attempted to be shown on a new tab
+// when all the conditions apply. This should be set in the fieldtrial config
+// along with the trigger ID for the corresponding survey (as en_site_id) and
+// probability (as probability).
+BASE_DECLARE_FEATURE(kMerchantTrustEvaluationExperimentSurvey);
+
+// A minimum amount of time, that has to pass after seeing 'Merchant trust'
+// feature, before trying to show a survey.
+extern const base::FeatureParam<base::TimeDelta>
+    kMerchantTrustEvaluationExperimentMinTimeToShowSurvey;
+
+// A maximum amount of time, that has passed after seeing 'Merchant trust'
+// feature, during which we can show a survey.
+extern const base::FeatureParam<base::TimeDelta>
+    kMerchantTrustEvaluationExperimentMaxTimeToShowSurvey;
+
+// A minimal duration of the interaction with Merchant Trust UI required to show
+// the survey.
+extern const base::FeatureParam<base::TimeDelta>
+    kMerchantTrustRequiredInteractionDuration;
+
+// Enables the 'Merchant trust' sentiment survey that will be available for
+// users in the page info. Feature params are set directly in the code as due to
+// finch / fieldtrial config limitations we can't configure multiple surveys
+// with same params name but different values in distinct features within the
+// same config group.
+BASE_DECLARE_FEATURE(kMerchantTrustLearnSurvey);
+
+// The trigger ID of the learn survey to be shown.
+extern const base::FeatureParam<std::string> kMerchantTrustLearnSurveyTriggerId;
+
+// The probability of showing the learn survey.
+extern const base::FeatureParam<double> kMerchantTrustLearnSurveyProbability;
+
+// Whether this survey is user prompted.
+extern const base::FeatureParam<bool> kMerchantTrustLearnSurveyUserPrompted;
 
 }  // namespace page_info
 

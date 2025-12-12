@@ -52,7 +52,7 @@ void InstallCtrlCHandler(CtrlCHandlerFunction handler) {
     PERFETTO_BUILDFLAG(PERFETTO_OS_ANDROID) || \
     PERFETTO_BUILDFLAG(PERFETTO_OS_APPLE)
   // Setup signal handler.
-  struct sigaction sa {};
+  struct sigaction sa{};
 
 // Glibc headers for sa_sigaction trigger this.
 #pragma GCC diagnostic push
@@ -60,7 +60,11 @@ void InstallCtrlCHandler(CtrlCHandlerFunction handler) {
 #pragma GCC diagnostic ignored "-Wdisabled-macro-expansion"
 #endif
   sa.sa_handler = [](int) { g_handler(); };
+#if !PERFETTO_BUILDFLAG(PERFETTO_OS_QNX)
   sa.sa_flags = static_cast<decltype(sa.sa_flags)>(SA_RESETHAND | SA_RESTART);
+#else  // POSIX-compliant
+  sa.sa_flags = static_cast<decltype(sa.sa_flags)>(SA_RESETHAND);
+#endif
 #pragma GCC diagnostic pop
   sigaction(SIGINT, &sa, nullptr);
   sigaction(SIGTERM, &sa, nullptr);

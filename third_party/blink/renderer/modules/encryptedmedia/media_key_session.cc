@@ -28,9 +28,14 @@
 #include <cmath>
 #include <limits>
 
+#include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/to_string.h"
+#include "encrypted_media_utils.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/eme_constants.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_content_decryption_module.h"
 #include "third_party/blink/public/platform/web_content_decryption_module_exception.h"
@@ -106,7 +111,6 @@ static bool IsPersistentSessionType(WebEncryptedMediaSessionType session_type) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 V8MediaKeySessionClosedReason::Enum ConvertSessionClosedReason(
@@ -125,25 +129,21 @@ V8MediaKeySessionClosedReason::Enum ConvertSessionClosedReason(
   }
 }
 
-static ScriptPromise CreateRejectedPromiseNotCallable(
+static ScriptPromise<IDLUndefined> CreateRejectedPromiseNotCallable(
     ExceptionState& exception_state) {
   exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                     "The session is not callable.");
-  return ScriptPromise();
+  return EmptyPromise();
 }
 
-static ScriptPromise CreateRejectedPromiseAlreadyClosed(
-    ExceptionState& exception_state) {
+static void ThrowAlreadyClosed(ExceptionState& exception_state) {
   exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                     "The session is already closed.");
-  return ScriptPromise();
 }
 
-static ScriptPromise CreateRejectedPromiseAlreadyInitialized(
-    ExceptionState& exception_state) {
+static void ThrowAlreadyInitialized(ExceptionState& exception_state) {
   exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                     "The session is already initialized.");
-  return ScriptPromise();
 }
 
 // A class holding a pending action.
@@ -154,11 +154,11 @@ class MediaKeySession::PendingAction final
 
   Type GetType() const { return type_; }
 
-  ContentDecryptionModuleResult* Result() const { return result_; }
+  ContentDecryptionModuleResult* Result() const { return result_.Get(); }
 
   DOMArrayBuffer* Data() const {
     DCHECK(type_ == Type::kGenerateRequest || type_ == Type::kUpdate);
-    return data_;
+    return data_.Get();
   }
 
   media::EmeInitDataType InitDataType() const {
@@ -247,10 +247,10 @@ class MediaKeySession::PendingAction final
 // is not expected to be called, and will reject the promise.
 class NewSessionResultPromise : public ContentDecryptionModuleResultPromise {
  public:
-  NewSessionResultPromise(ScriptState* script_state,
+  NewSessionResultPromise(ScriptPromiseResolver<IDLUndefined>* resolver,
                           const MediaKeysConfig& config,
                           MediaKeySession* session)
-      : ContentDecryptionModuleResultPromise(script_state,
+      : ContentDecryptionModuleResultPromise(resolver,
                                              config,
                                              EmeApiType::kGenerateRequest),
         session_(session) {}
@@ -268,7 +268,7 @@ class NewSessionResultPromise : public ContentDecryptionModuleResultPromise {
 
     DCHECK_EQ(status, WebContentDecryptionModuleResult::kNewSession);
     session_->FinishGenerateRequest();
-    Resolve();
+    Resolve<IDLUndefined>();
   }
 
   void Trace(Visitor* visitor) const override {
@@ -287,10 +287,10 @@ class NewSessionResultPromise : public ContentDecryptionModuleResultPromise {
 // is not expected to be called, and will reject the promise.
 class LoadSessionResultPromise : public ContentDecryptionModuleResultPromise {
  public:
-  LoadSessionResultPromise(ScriptState* script_state,
+  LoadSessionResultPromise(ScriptPromiseResolver<IDLBoolean>* resolver,
                            const MediaKeysConfig& config,
                            MediaKeySession* session)
-      : ContentDecryptionModuleResultPromise(script_state,
+      : ContentDecryptionModuleResultPromise(resolver,
                                              config,
                                              EmeApiType::kLoad),
         session_(session) {}
@@ -307,13 +307,13 @@ class LoadSessionResultPromise : public ContentDecryptionModuleResultPromise {
       return;
 
     if (status == WebContentDecryptionModuleResult::kSessionNotFound) {
-      Resolve(false);
+      Resolve<IDLBoolean>(false);
       return;
     }
 
     DCHECK_EQ(status, WebContentDecryptionModuleResult::kNewSession);
     session_->FinishLoad();
-    Resolve(true);
+    Resolve<IDLBoolean>(true);
   }
 
   void Trace(Visitor* visitor) const override {
@@ -331,10 +331,10 @@ class LoadSessionResultPromise : public ContentDecryptionModuleResultPromise {
 // not expected to be called (and will reject the promise).
 class CloseSessionResultPromise : public ContentDecryptionModuleResultPromise {
  public:
-  CloseSessionResultPromise(ScriptState* script_state,
+  CloseSessionResultPromise(ScriptPromiseResolver<IDLUndefined>* resolver,
                             const MediaKeysConfig& config,
                             MediaKeySession* session)
-      : ContentDecryptionModuleResultPromise(script_state,
+      : ContentDecryptionModuleResultPromise(resolver,
                                              config,
                                              EmeApiType::kClose),
         session_(session) {}
@@ -350,7 +350,7 @@ class CloseSessionResultPromise : public ContentDecryptionModuleResultPromise {
       return;
 
     session_->OnClosePromiseResolved();
-    Resolve();
+    Resolve<IDLUndefined>();
   }
 
   void Trace(Visitor* visitor) const override {
@@ -370,11 +370,11 @@ class CloseSessionResultPromise : public ContentDecryptionModuleResultPromise {
 // promise).
 class SimpleResultPromise : public ContentDecryptionModuleResultPromise {
  public:
-  SimpleResultPromise(ScriptState* script_state,
+  SimpleResultPromise(ScriptPromiseResolver<IDLUndefined>* resolver,
                       const MediaKeysConfig& config,
                       MediaKeySession* session,
                       EmeApiType type)
-      : ContentDecryptionModuleResultPromise(script_state, config, type),
+      : ContentDecryptionModuleResultPromise(resolver, config, type),
         session_(session) {}
 
   ~SimpleResultPromise() override = default;
@@ -386,7 +386,7 @@ class SimpleResultPromise : public ContentDecryptionModuleResultPromise {
     if (!IsValidToFulfillPromise())
       return;
 
-    Resolve();
+    Resolve<IDLUndefined>();
   }
 
   void Trace(Visitor* visitor) const override {
@@ -439,7 +439,6 @@ MediaKeySession::MediaKeySession(ScriptState* script_state,
   DCHECK(std::isnan(expiration_));
 
   // 3.3 Let the closed attribute be a new promise.
-  DCHECK(!closed(script_state).IsUndefinedOrNull());
 
   // 3.4 Let the keyStatuses attribute be empty.
   DCHECK_EQ(0u, key_statuses_map_->size());
@@ -477,15 +476,16 @@ String MediaKeySession::sessionId() const {
   return session_id_;
 }
 
-ScriptPromise MediaKeySession::closed(ScriptState* script_state) {
+ScriptPromise<V8MediaKeySessionClosedReason> MediaKeySession::closed(
+    ScriptState* script_state) {
   return closed_promise_->Promise(script_state->World());
 }
 
 MediaKeyStatusMap* MediaKeySession::keyStatuses() {
-  return key_statuses_map_;
+  return key_statuses_map_.Get();
 }
 
-ScriptPromise MediaKeySession::generateRequest(
+ScriptPromise<IDLUndefined> MediaKeySession::generateRequest(
     ScriptState* script_state,
     const String& init_data_type_string,
     const DOMArrayPiece& init_data,
@@ -499,13 +499,16 @@ ScriptPromise MediaKeySession::generateRequest(
 
   // 1. If this object's closing or closed value is true, return a promise
   //    rejected with an InvalidStateError.
-  if (is_closing_ || is_closed_)
-    return CreateRejectedPromiseAlreadyClosed(exception_state);
+  if (is_closing_ || is_closed_) {
+    ThrowAlreadyClosed(exception_state);
+    return EmptyPromise();
+  }
 
   // 2. If this object's uninitialized value is false, return a promise
   //    rejected with an InvalidStateError.
   if (!is_uninitialized_) {
-    return CreateRejectedPromiseAlreadyInitialized(exception_state);
+    ThrowAlreadyInitialized(exception_state);
+    return EmptyPromise();
   }
 
   // 3. Let this object's uninitialized be false.
@@ -515,14 +518,14 @@ ScriptPromise MediaKeySession::generateRequest(
   //    with a newly created TypeError.
   if (init_data_type_string.empty()) {
     exception_state.ThrowTypeError("The initDataType parameter is empty.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   // 5. If initData is an empty array, return a promise rejected with a
   //    newly created TypeError.
   if (!init_data.ByteLength()) {
     exception_state.ThrowTypeError("The initData parameter is empty.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   // 6. If the Key System implementation represented by this object's cdm
@@ -540,21 +543,22 @@ ScriptPromise MediaKeySession::generateRequest(
                                       "The initialization data type '" +
                                           init_data_type_string +
                                           "' is not supported.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   // 7. Let init data be a copy of the contents of the initData parameter.
   DOMArrayBuffer* init_data_buffer =
-      DOMArrayBuffer::Create(init_data.Data(), init_data.ByteLength());
+      DOMArrayBuffer::Create(init_data.ByteSpan());
 
   // 8. Let session type be this object's session type.
   //    (Done in constructor.)
 
   // 9. Let promise be a new promise.
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   NewSessionResultPromise* result =
-      MakeGarbageCollected<NewSessionResultPromise>(script_state, config_,
-                                                    this);
-  ScriptPromise promise = result->Promise();
+      MakeGarbageCollected<NewSessionResultPromise>(resolver, config_, this);
 
   // 10. Run the following steps asynchronously (done in generateRequestTask())
   pending_actions_.push_back(PendingAction::CreatePendingGenerateRequest(
@@ -602,9 +606,10 @@ void MediaKeySession::FinishGenerateRequest() {
   //         (Done by NewSessionResultPromise.)
 }
 
-ScriptPromise MediaKeySession::load(ScriptState* script_state,
-                                    const String& session_id,
-                                    ExceptionState& exception_state) {
+ScriptPromise<IDLBoolean> MediaKeySession::load(
+    ScriptState* script_state,
+    const String& session_id,
+    ExceptionState& exception_state) {
   DVLOG(MEDIA_KEY_SESSION_LOG_LEVEL)
       << __func__ << "(" << this << ") " << session_id;
 
@@ -614,13 +619,16 @@ ScriptPromise MediaKeySession::load(ScriptState* script_state,
 
   // 1. If this object's closing or closed value is true, return a promise
   //    rejected with an InvalidStateError.
-  if (is_closing_ || is_closed_)
-    return CreateRejectedPromiseAlreadyClosed(exception_state);
+  if (is_closing_ || is_closed_) {
+    ThrowAlreadyClosed(exception_state);
+    return EmptyPromise();
+  }
 
   // 2. If this object's uninitialized value is false, return a promise
   //    rejected with an InvalidStateError.
   if (!is_uninitialized_) {
-    return CreateRejectedPromiseAlreadyInitialized(exception_state);
+    ThrowAlreadyInitialized(exception_state);
+    return EmptyPromise();
   }
 
   // 3. Let this object's uninitialized value be false.
@@ -630,7 +638,7 @@ ScriptPromise MediaKeySession::load(ScriptState* script_state,
   //    a newly created TypeError.
   if (session_id.empty()) {
     exception_state.ThrowTypeError("The sessionId parameter is empty.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   // 5. If the result of running the "Is persistent session type?" algorithm
@@ -638,17 +646,24 @@ ScriptPromise MediaKeySession::load(ScriptState* script_state,
   //    with a newly created TypeError.
   if (!IsPersistentSessionType(session_type_)) {
     exception_state.ThrowTypeError("The session type is not persistent.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
+
+  // Log the usage of loadSession().
+  EncryptedMediaUtils::ReportUsage(EmeApiType::kLoad, GetExecutionContext(),
+                                   config_.key_system,
+                                   config_.use_hardware_secure_codecs,
+                                   /*is_persistent_session=*/true);
 
   // 6. Let origin be the origin of this object's Document.
   //    (Available as getExecutionContext()->getSecurityOrigin() anytime.)
 
   // 7. Let promise be a new promise.
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   LoadSessionResultPromise* result =
-      MakeGarbageCollected<LoadSessionResultPromise>(script_state, config_,
-                                                     this);
-  ScriptPromise promise = result->Promise();
+      MakeGarbageCollected<LoadSessionResultPromise>(resolver, config_, this);
 
   // 8. Run the following steps asynchronously (done in loadTask())
   pending_actions_.push_back(
@@ -735,9 +750,10 @@ void MediaKeySession::FinishLoad() {
   //       (Done by LoadSessionResultPromise.)
 }
 
-ScriptPromise MediaKeySession::update(ScriptState* script_state,
-                                      const DOMArrayPiece& response,
-                                      ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> MediaKeySession::update(
+    ScriptState* script_state,
+    const DOMArrayPiece& response,
+    ExceptionState& exception_state) {
   DVLOG(MEDIA_KEY_SESSION_LOG_LEVEL) << __func__ << "(" << this << ")";
 
   // From https://w3c.github.io/encrypted-media/#update:
@@ -746,8 +762,10 @@ ScriptPromise MediaKeySession::update(ScriptState* script_state,
 
   // 1. If this object's closing or closed value is true, return a promise
   //    rejected with an InvalidStateError.
-  if (is_closing_ || is_closed_)
-    return CreateRejectedPromiseAlreadyClosed(exception_state);
+  if (is_closing_ || is_closed_) {
+    ThrowAlreadyClosed(exception_state);
+    return EmptyPromise();
+  }
 
   // 2. If this object's callable value is false, return a promise
   //    rejected with an InvalidStateError.
@@ -758,17 +776,24 @@ ScriptPromise MediaKeySession::update(ScriptState* script_state,
   //    newly created TypeError.
   if (!response.ByteLength()) {
     exception_state.ThrowTypeError("The response parameter is empty.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   // 4. Let response copy be a copy of the contents of the response parameter.
-  DOMArrayBuffer* response_copy =
-      DOMArrayBuffer::Create(response.Data(), response.ByteLength());
+  DOMArrayBuffer* response_copy = DOMArrayBuffer::Create(response.ByteSpan());
+
+  // Log the usage of update().
+  EncryptedMediaUtils::ReportUsage(EmeApiType::kUpdate, GetExecutionContext(),
+                                   config_.key_system,
+                                   config_.use_hardware_secure_codecs,
+                                   IsPersistentSessionType(session_type_));
 
   // 5. Let promise be a new promise.
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   SimpleResultPromise* result = MakeGarbageCollected<SimpleResultPromise>(
-      script_state, config_, this, EmeApiType::kUpdate);
-  ScriptPromise promise = result->Promise();
+      resolver, config_, this, EmeApiType::kUpdate);
 
   // 6. Run the following steps asynchronously (done in updateTask())
   pending_actions_.push_back(
@@ -792,8 +817,9 @@ void MediaKeySession::UpdateTask(ContentDecryptionModuleResult* result,
   // Last step (6.8.2 Resolve promise) will be done when |result| is resolved.
 }
 
-ScriptPromise MediaKeySession::close(ScriptState* script_state,
-                                     ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> MediaKeySession::close(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   DVLOG(MEDIA_KEY_SESSION_LOG_LEVEL) << __func__ << "(" << this << ")";
 
   // From https://w3c.github.io/encrypted-media/#close:
@@ -805,7 +831,7 @@ ScriptPromise MediaKeySession::close(ScriptState* script_state,
   // 1. If this object's closing or closed value is true, return a resolved
   //    promise.
   if (is_closing_ || is_closed_)
-    return ScriptPromise::CastUndefined(script_state);
+    return ToResolvedUndefinedPromise(script_state);
 
   // 2. If this object's callable value is false, return a promise rejected
   //    with an InvalidStateError.
@@ -813,10 +839,11 @@ ScriptPromise MediaKeySession::close(ScriptState* script_state,
     return CreateRejectedPromiseNotCallable(exception_state);
 
   // 3. Let promise be a new promise.
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   CloseSessionResultPromise* result =
-      MakeGarbageCollected<CloseSessionResultPromise>(script_state, config_,
-                                                      this);
-  ScriptPromise promise = result->Promise();
+      MakeGarbageCollected<CloseSessionResultPromise>(resolver, config_, this);
 
   // 4. Set this object's closing or closed value to true.
   is_closing_ = true;
@@ -847,8 +874,9 @@ void MediaKeySession::OnClosePromiseResolved() {
   Dispose();
 }
 
-ScriptPromise MediaKeySession::remove(ScriptState* script_state,
-                                      ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> MediaKeySession::remove(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   DVLOG(MEDIA_KEY_SESSION_LOG_LEVEL) << __func__ << "(" << this << ")";
 
   // From https://w3c.github.io/encrypted-media/#remove:
@@ -857,8 +885,10 @@ ScriptPromise MediaKeySession::remove(ScriptState* script_state,
 
   // 1. If this object's closing or closed value is true, return a promise
   //    rejected with an InvalidStateError.
-  if (is_closing_ || is_closed_)
-    return CreateRejectedPromiseAlreadyClosed(exception_state);
+  if (is_closing_ || is_closed_) {
+    ThrowAlreadyClosed(exception_state);
+    return EmptyPromise();
+  }
 
   // 2. If this object's callable value is false, return a promise rejected
   //    with an InvalidStateError.
@@ -866,9 +896,11 @@ ScriptPromise MediaKeySession::remove(ScriptState* script_state,
     return CreateRejectedPromiseNotCallable(exception_state);
 
   // 3. Let promise be a new promise.
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   SimpleResultPromise* result = MakeGarbageCollected<SimpleResultPromise>(
-      script_state, config_, this, EmeApiType::kRemove);
-  ScriptPromise promise = result->Promise();
+      resolver, config_, this, EmeApiType::kRemove);
 
   // 4. Run the following steps asynchronously (done in removeTask()).
   pending_actions_.push_back(PendingAction::CreatePendingRemove(result));
@@ -961,8 +993,7 @@ void MediaKeySession::OnSessionMessage(media::CdmMessageType message_type,
       break;
   }
   init->setMessage(
-      DOMArrayBuffer::Create(static_cast<const void*>(message),
-                             base::checked_cast<uint32_t>(message_length)));
+      DOMArrayBuffer::Create(UNSAFE_TODO(base::span(message, message_length))));
 
   MediaKeyMessageEvent* event =
       MediaKeyMessageEvent::Create(event_type_names::kMessage, init);
@@ -990,7 +1021,7 @@ void MediaKeySession::OnSessionClosed(media::CdmSessionClosedReason reason) {
 
   // 5. Run the Update Key Statuses algorithm on the session, providing
   //    an empty sequence.
-  OnSessionKeysChange(WebVector<WebEncryptedMediaKeyInformation>(), false);
+  OnSessionKeysChange(std::vector<WebEncryptedMediaKeyInformation>(), false);
 
   // 6. Run the Update Expiration algorithm on the session, providing NaN.
   OnSessionExpirationUpdate(std::numeric_limits<double>::quiet_NaN());
@@ -1044,12 +1075,12 @@ void MediaKeySession::OnSessionExpirationUpdate(
 }
 
 void MediaKeySession::OnSessionKeysChange(
-    const WebVector<WebEncryptedMediaKeyInformation>& keys,
+    const std::vector<WebEncryptedMediaKeyInformation>& keys,
     bool has_additional_usable_key) {
   DVLOG(MEDIA_KEY_SESSION_LOG_LEVEL)
       << __func__ << "(" << this << ") with " << keys.size()
       << " keys and hasAdditionalUsableKey is "
-      << (has_additional_usable_key ? "true" : "false");
+      << base::ToString(has_additional_usable_key);
 
   // From https://w3c.github.io/encrypted-media/#update-key-statuses:
   // The following steps are run:
@@ -1062,6 +1093,9 @@ void MediaKeySession::OnSessionKeysChange(
   // 4.1 Empty statuses.
   key_statuses_map_->Clear();
 
+  auto* ukm_recorder = GetExecutionContext()->UkmRecorder();
+  const ukm::SourceId source_id = GetExecutionContext()->UkmSourceID();
+
   // 4.2 For each pair in input statuses.
   for (size_t i = 0; i < keys.size(); ++i) {
     // 4.2.1 Let pair be the pair.
@@ -1069,7 +1103,11 @@ void MediaKeySession::OnSessionKeysChange(
     // 4.2.2 Insert an entry for pair's key ID into statuses with the
     //       value of pair's MediaKeyStatus value.
     key_statuses_map_->AddEntry(
-        key.Id(), EncryptedMediaUtils::ConvertKeyStatusToString(key.Status()));
+        key.Id(), EncryptedMediaUtils::ConvertKeyStatusToEnum(key.Status()));
+
+    ukm::builders::Media_EME_CdmSystemCode(source_id)
+        .SetCdmSystemCode(key.SystemCode())
+        .Record(ukm_recorder);
   }
 
   // 5. Queue a task to fire a simple event named keystatuseschange
@@ -1124,7 +1162,7 @@ void MediaKeySession::Trace(Visitor* visitor) const {
   visitor->Trace(key_statuses_map_);
   visitor->Trace(closed_promise_);
   visitor->Trace(action_timer_);
-  EventTargetWithInlineData::Trace(visitor);
+  EventTarget::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
 

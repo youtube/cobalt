@@ -27,7 +27,7 @@ constexpr size_t kTwoBandFilterSamplesPerFrame = 320;
 
 SplittingFilter::SplittingFilter(size_t num_channels,
                                  size_t num_bands,
-                                 size_t num_frames)
+                                 size_t /* num_frames */)
     : num_bands_(num_bands),
       two_bands_states_(num_bands_ == 2 ? num_channels : 0),
       three_band_filter_banks_(num_bands_ == 3 ? num_channels : 0) {
@@ -110,11 +110,10 @@ void SplittingFilter::ThreeBandsAnalysis(const ChannelBuffer<float>* data,
 
   for (size_t i = 0; i < three_band_filter_banks_.size(); ++i) {
     three_band_filter_banks_[i].Analysis(
-        rtc::ArrayView<const float, ThreeBandFilterBank::kFullBandSize>(
+        ArrayView<const float, ThreeBandFilterBank::kFullBandSize>(
             data->channels_view()[i].data(),
             ThreeBandFilterBank::kFullBandSize),
-        rtc::ArrayView<const rtc::ArrayView<float>,
-                       ThreeBandFilterBank::kNumBands>(
+        ArrayView<const ArrayView<float>, ThreeBandFilterBank::kNumBands>(
             bands->bands_view(i).data(), ThreeBandFilterBank::kNumBands));
   }
 }
@@ -132,10 +131,9 @@ void SplittingFilter::ThreeBandsSynthesis(const ChannelBuffer<float>* bands,
 
   for (size_t i = 0; i < data->num_channels(); ++i) {
     three_band_filter_banks_[i].Synthesis(
-        rtc::ArrayView<const rtc::ArrayView<float>,
-                       ThreeBandFilterBank::kNumBands>(
+        ArrayView<const ArrayView<float>, ThreeBandFilterBank::kNumBands>(
             bands->bands_view(i).data(), ThreeBandFilterBank::kNumBands),
-        rtc::ArrayView<float, ThreeBandFilterBank::kFullBandSize>(
+        ArrayView<float, ThreeBandFilterBank::kFullBandSize>(
             data->channels_view()[i].data(),
             ThreeBandFilterBank::kFullBandSize));
   }

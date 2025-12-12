@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/377326291): Fix and remove.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "mojo/public/cpp/bindings/message_dumper.h"
 
 #include "base/files/file.h"
@@ -47,8 +52,7 @@ void WriteMessage(uint64_t identifier,
   base::File file(path,
                   base::File::FLAG_WRITE | base::File::FLAG_CREATE_ALWAYS);
 
-  file.WriteAtCurrentPos(reinterpret_cast<const char*>(entry.data_bytes.data()),
-                         static_cast<int>(entry.data_bytes.size()));
+  file.WriteAtCurrentPos(entry.data_bytes);
 }
 
 }  // namespace

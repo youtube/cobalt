@@ -5,6 +5,8 @@
 #include "chrome/browser/ui/android/layouts/scene_layer.h"
 
 #include "cc/slim/layer.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/browser/ui/android/layouts/layouts_jni_headers/SceneLayer_jni.h"
 
 using base::android::JavaParamRef;
@@ -16,8 +18,9 @@ namespace android {
 // static
 SceneLayer* SceneLayer::FromJavaObject(JNIEnv* env,
                                        const JavaRef<jobject>& jobj) {
-  if (jobj.is_null())
+  if (jobj.is_null()) {
     return nullptr;
+  }
   return reinterpret_cast<SceneLayer*>(Java_SceneLayer_getNativePtr(env, jobj));
 }
 
@@ -32,10 +35,11 @@ SceneLayer::SceneLayer(JNIEnv* env,
 }
 
 SceneLayer::~SceneLayer() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = jni_zero::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> jobj = weak_java_scene_layer_.get(env);
-  if (jobj.is_null())
+  if (jobj.is_null()) {
     return;
+  }
 
   Java_SceneLayer_setNativePtr(
       env, jobj, reinterpret_cast<intptr_t>(static_cast<SceneLayer*>(nullptr)));
@@ -47,7 +51,7 @@ void SceneLayer::RemoveFromParent(JNIEnv* env,
 }
 
 void SceneLayer::OnDetach() {
-  // TODO(1129451): Determine if this needed with the exposure of
+  // TODO(crbug.com/40149397): Determine if this needed with the exposure of
   //                RemoveFromParent to java.
   layer()->RemoveFromParent();
 }

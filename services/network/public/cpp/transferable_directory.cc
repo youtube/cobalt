@@ -80,7 +80,6 @@ void TransferableDirectory::OpenForTransfer() {
 
 [[nodiscard]] base::OnceClosure TransferableDirectory::Mount() {
   NOTREACHED() << "Directory transfer not supported on this platform.";
-  return {};
 }
 
 #endif  // BUILDFLAG(IS_DIRECTORY_TRANSFER_REQUIRED)

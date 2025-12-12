@@ -5,18 +5,26 @@
 #ifndef CHROME_UPDATER_POLICY_SERVICE_H_
 #define CHROME_UPDATER_POLICY_SERVICE_H_
 
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
+#include "base/containers/flat_map.h"
 #include "base/functional/callback_forward.h"
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
+#include "base/values.h"
 #include "chrome/updater/external_constants.h"
+#include "chrome/updater/persisted_data.h"
 #include "chrome/updater/policy/manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace policy {
+enum class PolicyFetchReason;
+}  // namespace policy
 
 namespace updater {
 
@@ -41,74 +49,97 @@ class PolicyStatus {
   void AddPolicyIfNeeded(bool is_managed,
                          const std::string& source,
                          const T& policy) {
-    if (conflict_policy_)
+    if (conflict_policy_) {
       return;  // We already have enough policies.
+    }
 
     if (!effective_policy_ && is_managed) {
-      effective_policy_ = absl::make_optional<Entry>(source, policy);
+      effective_policy_ = std::make_optional<Entry>(source, policy);
     } else if (effective_policy_ &&
                policy != effective_policy_.value().policy) {
-      conflict_policy_ = absl::make_optional<Entry>(source, policy);
+      conflict_policy_ = std::make_optional<Entry>(source, policy);
     }
   }
 
-  const absl::optional<Entry>& effective_policy() const {
+  const std::optional<Entry>& effective_policy() const {
     return effective_policy_;
   }
-  const absl::optional<Entry>& conflict_policy() const {
+  const std::optional<Entry>& conflict_policy() const {
     return conflict_policy_;
   }
 
   explicit operator bool() const { return effective_policy_.has_value(); }
   // Convenience method to extract the effective policy's value.
-  const T& policy() {
+  const T& policy() const {
     CHECK(effective_policy_);
     return effective_policy_->policy;
   }
-  const T& policy_or(const T& fallback) {
+  const T& policy_or(const T& fallback) const {
     return effective_policy_ ? policy() : fallback;
   }
 
  private:
-  absl::optional<Entry> effective_policy_;
-  absl::optional<Entry> conflict_policy_;
+  std::optional<Entry> effective_policy_;
+  std::optional<Entry> conflict_policy_;
 };
 
 // The PolicyService returns policies for enterprise managed machines from the
 // source with the highest priority where the policy available.
 // This class is sequence affine and its instance is bound to the main sequence.
-// TODO(crbug.com/1358718) - modernize the public interface to return by value
-// instead of two out-params.
 class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
  public:
-  using PolicyManagerVector =
-      std::vector<scoped_refptr<PolicyManagerInterface>>;
-  using PolicyManagerNameMap =
-      base::flat_map<std::string, scoped_refptr<PolicyManagerInterface>>;
-  struct PolicyManagers {
-    PolicyManagers(PolicyManagerVector manager_vector,
-                   PolicyManagerNameMap manager_name_map);
+  class PolicyManagers {
+   public:
+    explicit PolicyManagers(
+        scoped_refptr<ExternalConstants> external_constants);
     ~PolicyManagers();
 
-    PolicyManagerVector vector;
-    PolicyManagerNameMap name_map;
+    void ResetDeviceManagementManager(
+        scoped_refptr<PolicyManagerInterface> dm_manager);
+
+    std::vector<scoped_refptr<PolicyManagerInterface>> managers() const {
+      return managers_;
+    }
+
+    void SetManagersForTesting(
+        std::vector<scoped_refptr<PolicyManagerInterface>> managers);
+
+   private:
+    void CreateManagers(scoped_refptr<ExternalConstants> external_constants);
+    void InitializeManagersVector();
+    void SortManagersVector();
+    static bool CloudPolicyOverridesPlatformPolicy(
+        const std::vector<scoped_refptr<PolicyManagerInterface>>& providers);
+
+    std::vector<scoped_refptr<PolicyManagerInterface>> managers_;
+    scoped_refptr<PolicyManagerInterface> dm_policy_manager_;
+    scoped_refptr<PolicyManagerInterface> external_constants_policy_manager_;
+    scoped_refptr<PolicyManagerInterface> platform_policy_manager_;
+    scoped_refptr<PolicyManagerInterface> default_policy_manager_;
   };
 
-  explicit PolicyService(PolicyManagerVector managers);
-  explicit PolicyService(scoped_refptr<ExternalConstants> external_constants);
+  PolicyService(scoped_refptr<ExternalConstants> external_constants,
+                scoped_refptr<PersistedData> persisted_data,
+                bool is_ceca_experiment_enabled);
   PolicyService(const PolicyService&) = delete;
   PolicyService& operator=(const PolicyService&) = delete;
 
   // Fetches policies from device management and updates the PolicyService
   // instance. `callback` is passed a result that is `kErrorOk` on success,
   // `kErrorDMRegistrationFailed` if DM registration fails, or any other error.
-  void FetchPolicies(base::OnceCallback<void(int)> callback);
+  // While a call to FetchPolicies is outstanding (i.e. has not invoked the
+  // callback), concurrent calls to FetchPolicies will reuse the results of the
+  // outstanding request.
+  void FetchPolicies(policy::PolicyFetchReason reason,
+                     base::OnceCallback<void(int)> callback);
 
   std::string source() const;
 
+  // These methods call and aggregate the results from the policy managers.
+  PolicyStatus<bool> CloudPolicyOverridesPlatformPolicy() const;
   PolicyStatus<base::TimeDelta> GetLastCheckPeriod() const;
   PolicyStatus<UpdatesSuppressedTimes> GetUpdatesSuppressedTimes() const;
-  PolicyStatus<std::string> GetDownloadPreferenceGroupPolicy() const;
+  PolicyStatus<std::string> GetDownloadPreference() const;
   PolicyStatus<int> GetPackageCacheSizeLimitMBytes() const;
   PolicyStatus<int> GetPackageCacheExpirationTimeDays() const;
   PolicyStatus<int> GetPolicyForAppInstalls(const std::string& app_id) const;
@@ -127,7 +158,20 @@ class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
   // in legacy interfaces where a PolicyStatus<int> is required.
   PolicyStatus<int> DeprecatedGetLastCheckPeriodMinutes() const;
 
+  // Helper methods.
+  base::Value GetAllPolicies() const;
   std::string GetAllPoliciesAsString() const;
+  bool AreUpdatesSuppressedNow(base::Time now = base::Time::Now()) const;
+
+  // Returns whether the Chrome Enterprise Companion App experiment is enabled.
+  bool IsCecaExperimentEnabled() const { return is_ceca_experiment_enabled_; }
+
+  // Queries whether the machine appears to be cloud managed by Chrome
+  // Enterprise Core (formerly Chrome Enterprise Cloud Management).
+  void IsCloudManaged(base::OnceCallback<void(bool)> callback) const;
+
+  void SetManagersForTesting(
+      std::vector<scoped_refptr<PolicyManagerInterface>> managers);
 
  protected:
   virtual ~PolicyService();
@@ -135,43 +179,55 @@ class PolicyService : public base::RefCountedThreadSafe<PolicyService> {
  private:
   friend class base::RefCountedThreadSafe<PolicyService>;
 
-  SEQUENCE_CHECKER(sequence_checker_);
+  template <typename T>
+  using PolicyQueryFunction =
+      std::optional<T> (PolicyManagerInterface::*)() const;
+  template <typename T>
+  using AppPolicyQueryFunction =
+      std::optional<T> (PolicyManagerInterface::*)(const std::string&) const;
+
+  void DoFetchPolicies(policy::PolicyFetchReason reason,
+                       base::OnceCallback<void(int)> callback,
+                       bool has_enrollment_token);
 
   // Called when `FetchPolicies` has completed. If `dm_policy_manager` is valid,
   // the policy managers within the policy service are reloaded/reset with the
-  // provided DM policy manager. The DM policy manager is preloaded separately
-  // in a blocking sequence since it needs to do I/O to load policies.
+  // provided DM policy manager.
   void FetchPoliciesDone(
-      base::OnceCallback<void(int)> callback,
+      scoped_refptr<PolicyFetcher> fetcher,
       int result,
       scoped_refptr<PolicyManagerInterface> dm_policy_manager);
+
+  // Queries the policy from the managed policy providers and determines the
+  // policy status. The provided `transform` can be used to modify the queried
+  // value to be a different type, or to nullify it when invalid.
+  template <typename T, typename U = T>
+  PolicyStatus<U> QueryPolicy(
+      PolicyQueryFunction<T> policy_query_function,
+      const base::RepeatingCallback<std::optional<U>(std::optional<T>)>&
+          transform = base::NullCallback()) const;
+
+  // Queries app policy from the managed policy providers and determines the
+  // policy status.
+  template <typename T>
+  PolicyStatus<T> QueryAppPolicy(
+      AppPolicyQueryFunction<T> policy_query_function,
+      const std::string& app_id) const;
+
+  std::set<std::string> GetAppsWithPolicy() const;
+
+  SEQUENCE_CHECKER(sequence_checker_);
 
   // List of policy providers in descending order of priority. All managed
   // providers should be ahead of non-managed providers.
   // Also contains a named map indexed by `source()` for all the policy
   // managers.
   PolicyManagers policy_managers_;
-
   const scoped_refptr<ExternalConstants> external_constants_;
-  const scoped_refptr<PolicyFetcher> policy_fetcher_;
 
-  // Helper function to query the policy from the managed policy providers and
-  // determines the policy status.
-  template <typename T>
-  PolicyStatus<T> QueryPolicy(
-      const base::RepeatingCallback<absl::optional<T>(
-          const PolicyManagerInterface*)>& policy_query_callback) const;
-
-  // Helper function to query app policy from the managed policy providers and
-  // determines the policy status.
-  template <typename T>
-  PolicyStatus<T> QueryAppPolicy(
-      const base::RepeatingCallback<
-          absl::optional<T>(const PolicyManagerInterface*,
-                            const std::string& app_id)>& policy_query_callback,
-      const std::string& app_id) const;
-
-  std::set<std::string> GetAppsWithPolicy() const;
+  base::OnceCallback<void(int)> fetch_policies_callback_;
+  scoped_refptr<PersistedData> persisted_data_;
+  const bool is_ceca_experiment_enabled_;
 };
 
 // Decouples the proxy configuration from `PolicyService`.
@@ -179,15 +235,20 @@ struct PolicyServiceProxyConfiguration {
   PolicyServiceProxyConfiguration();
   ~PolicyServiceProxyConfiguration();
   PolicyServiceProxyConfiguration(const PolicyServiceProxyConfiguration&);
+  PolicyServiceProxyConfiguration(PolicyServiceProxyConfiguration&&);
   PolicyServiceProxyConfiguration& operator=(
       const PolicyServiceProxyConfiguration&);
+  PolicyServiceProxyConfiguration& operator=(PolicyServiceProxyConfiguration&&);
 
-  static absl::optional<PolicyServiceProxyConfiguration> Get(
+  // Note `Get()` returns a nullopt when there's no proxy policies. Otherwise
+  // `proxy_auto_detect` must have a value, and is only set to true when the
+  // policy chooses "auto-detect".
+  static std::optional<PolicyServiceProxyConfiguration> Get(
       scoped_refptr<PolicyService> policy_service);
 
-  absl::optional<bool> proxy_auto_detect;
-  absl::optional<std::string> proxy_pac_url;
-  absl::optional<std::string> proxy_url;
+  bool proxy_auto_detect = false;
+  std::optional<std::string> proxy_pac_url;
+  std::optional<std::string> proxy_url;
 };
 
 }  // namespace updater

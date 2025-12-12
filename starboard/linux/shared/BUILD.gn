@@ -27,7 +27,6 @@ group("starboard_platform") {
   ]
 
   deps = [
-    "//third_party/libevent",
     "//third_party/modp_b64",
     "//third_party/opus",
   ]
@@ -181,8 +180,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
-    "//starboard/shared/starboard/crash_handler.cc",
-    "//starboard/shared/starboard/crash_handler.h",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
@@ -205,7 +202,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
     "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
     "//starboard/shared/starboard/media/media_get_initial_buffer_capacity.cc",
-    "//starboard/shared/starboard/media/media_get_max_buffer_capacity.cc",
     "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
@@ -244,6 +240,13 @@ static_library("starboard_platform_sources") {
     sources += [
       "//starboard/shared/starboard/loader_app_metrics.cc",
       "//starboard/shared/starboard/loader_app_metrics.h",
+    ]
+  }
+
+  if (use_evergreen) {
+    sources += [
+      "//starboard/shared/starboard/crash_handler.cc",
+      "//starboard/shared/starboard/crash_handler.h",
     ]
   }
 

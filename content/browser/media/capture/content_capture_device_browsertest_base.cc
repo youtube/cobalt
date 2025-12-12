@@ -147,7 +147,9 @@ void ContentCaptureDeviceBrowserTestBase::
   device_->AllocateAndStartWithReceiver(SnapshotCaptureParams(),
                                         capture_stack()->CreateFrameReceiver());
   RunUntilIdle();
-  EXPECT_TRUE(capture_stack()->Started());
+  // AllocateAndStart will not trigger 'started' event. The started event will
+  // be triggered when the first frame is captured successfully.
+  EXPECT_FALSE(capture_stack()->Started());
   EXPECT_FALSE(capture_stack()->ErrorOccurred());
   capture_stack()->ExpectNoLogMessages();
 
@@ -212,8 +214,6 @@ void ContentCaptureDeviceBrowserTestBase::SetUp() {
 
 void ContentCaptureDeviceBrowserTestBase::SetUpCommandLine(
     base::CommandLine* command_line) {
-  ContentBrowserTest::SetUpCommandLine(command_line);
-
   IsolateAllSitesForTesting(command_line);
 
   // Use a small window size to reduce test running time (since screen captures

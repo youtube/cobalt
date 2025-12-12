@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash)
+assert(is_chromeos)
 
 component("util") {
   output_name = "assistant_util"
@@ -30,6 +28,7 @@ component("util") {
     "//ash/assistant/model",
     "//ash/constants",
     "//ash/public/cpp",
+    "//ash/webui/settings/public/constants:mojom",
     "//base",
     "//base:i18n",
     "//chromeos/ash/services/assistant/public/cpp",

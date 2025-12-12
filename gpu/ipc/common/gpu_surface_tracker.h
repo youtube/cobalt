@@ -9,7 +9,6 @@
 
 #include <map>
 
-#include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
 #include "base/synchronization/lock.h"
 #include "gpu/gpu_export.h"
@@ -31,22 +30,7 @@ namespace gpu {
 // This class is thread safe.
 class GPU_EXPORT GpuSurfaceTracker : public gpu::GpuSurfaceLookup {
  public:
-  struct SurfaceRecord {
-    SurfaceRecord(gl::ScopedJavaSurface surface,
-                  bool can_be_used_with_surface_control);
-    explicit SurfaceRecord(gl::ScopedJavaSurfaceControl surface_control);
-    ~SurfaceRecord();
-
-    SurfaceRecord(SurfaceRecord&&);
-    SurfaceRecord(const SurfaceRecord&) = delete;
-
-    JavaSurfaceVariant surface_variant;
-    bool can_be_used_with_surface_control = false;
-  };
-
-  JavaSurfaceVariant AcquireJavaSurface(
-      gpu::SurfaceHandle surface_handle,
-      bool* can_be_used_with_surface_control) override;
+  SurfaceRecord AcquireJavaSurface(gpu::SurfaceHandle surface_handle) override;
 
   // Gets the global instance of the surface tracker.
   static GpuSurfaceTracker* Get() { return GetInstance(); }

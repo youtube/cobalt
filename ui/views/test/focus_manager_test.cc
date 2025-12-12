@@ -4,7 +4,9 @@
 
 #include "ui/views/test/focus_manager_test.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
+#include "base/memory/raw_ptr.h"
 #include "ui/views/focus/focus_manager.h"
 #include "ui/views/widget/widget.h"
 
@@ -24,27 +26,35 @@ FocusManager* FocusManagerTest::GetFocusManager() {
 void FocusManagerTest::SetUp() {
   ViewsTestBase::SetUp();
 
-  Widget* widget = new Widget;
-  Widget::InitParams params = CreateParams(Widget::InitParams::TYPE_WINDOW);
+  widget_ = std::make_unique<Widget>();
+  Widget::InitParams params = CreateParams(
+      Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_WINDOW);
   params.delegate = this;
   params.bounds = gfx::Rect(0, 0, 1024, 768);
-  widget->Init(std::move(params));
+  widget_->Init(std::move(params));
 
   InitContentView();
-  widget->Show();
+  widget_->Show();
 }
 
 void FocusManagerTest::TearDown() {
-  if (focus_change_listener_)
+  if (focus_change_listener_) {
     GetFocusManager()->RemoveFocusChangeListener(focus_change_listener_);
+  }
   if (widget_focus_change_listener_) {
     WidgetFocusManager::GetInstance()->RemoveFocusChangeListener(
         widget_focus_change_listener_);
   }
   GetWidget()->Close();
+  contents_view_ = nullptr;
 
   // Flush the message loop to make application verifiers happy.
   RunPendingMessages();
+  contents_view_ = nullptr;
+  focus_change_listener_ = nullptr;
+  widget_focus_change_listener_ = nullptr;
+  accessible_panes_.clear();
+  widget_.reset();
   ViewsTestBase::TearDown();
 }
 
@@ -61,7 +71,7 @@ const Widget* FocusManagerTest::GetWidget() const {
 }
 
 void FocusManagerTest::GetAccessiblePanes(std::vector<View*>* panes) {
-  base::ranges::copy(accessible_panes_, std::back_inserter(*panes));
+  std::ranges::copy(accessible_panes_, std::back_inserter(*panes));
 }
 
 void FocusManagerTest::InitContentView() {}
@@ -72,6 +82,14 @@ void FocusManagerTest::AddFocusChangeListener(FocusChangeListener* listener) {
   GetFocusManager()->AddFocusChangeListener(listener);
 }
 
+void FocusManagerTest::RemoveFocusChangeListener(
+    FocusChangeListener* listener) {
+  ASSERT_TRUE(focus_change_listener_);
+  ASSERT_EQ(focus_change_listener_, listener);
+  GetFocusManager()->RemoveFocusChangeListener(listener);
+  focus_change_listener_ = nullptr;
+}
+
 void FocusManagerTest::AddWidgetFocusChangeListener(
     WidgetFocusChangeListener* listener) {
   ASSERT_FALSE(widget_focus_change_listener_);
@@ -79,7 +97,16 @@ void FocusManagerTest::AddWidgetFocusChangeListener(
   WidgetFocusManager::GetInstance()->AddFocusChangeListener(listener);
 }
 
-void FocusManagerTest::SetAccessiblePanes(const std::vector<View*>& panes) {
+void FocusManagerTest::RemoveWidgetFocusChangeListener(
+    WidgetFocusChangeListener* listener) {
+  ASSERT_TRUE(widget_focus_change_listener_);
+  ASSERT_EQ(widget_focus_change_listener_, listener);
+  WidgetFocusManager::GetInstance()->RemoveFocusChangeListener(listener);
+  widget_focus_change_listener_ = nullptr;
+}
+
+void FocusManagerTest::SetAccessiblePanes(
+    const std::vector<raw_ptr<View, VectorExperimental>>& panes) {
   accessible_panes_ = panes;
 }
 

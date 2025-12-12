@@ -172,8 +172,7 @@ class StarboardRendererWrapperTest : public testing::Test {
         std::move(media_log_remote), base::UnguessableToken::Create(),
         base::Seconds(1), base::Seconds(1), std::string(), gfx::Size(),
         std::move(renderer_extension_receiver),
-        std::move(client_extension_remote), base::NullCallback(),
-        AndroidOverlayMojoFactoryCB());
+        std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));
     renderer_wrapper_->SetRendererForTesting(mock_renderer_.get());
@@ -182,13 +181,11 @@ class StarboardRendererWrapperTest : public testing::Test {
     EXPECT_CALL(media_resource_, GetAllStreams())
         .WillRepeatedly(
             Invoke(this, &StarboardRendererWrapperTest::GetAllStreams));
-    EXPECT_CALL(media_resource_, GetType())
-        .WillRepeatedly(Return(MediaResource::STREAM));
   }
 
   ~StarboardRendererWrapperTest() override {
-    mock_renderer_.reset();
     renderer_wrapper_.reset();
+    mock_renderer_.reset();
   }
 
   void AddStream(DemuxerStream::Type type, bool encrypted) {

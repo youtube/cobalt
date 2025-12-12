@@ -197,7 +197,7 @@ capability, and then use the uploaded files as SW scripts?
 
 The SW specification and implementation require that a SW script have the right
 JavaScript MIME type. (Additionally, as noted elsewhere in this document, server
-operators should reject SW script requests except for the exact endopints they
+operators should reject SW script requests except for the exact endpoints they
 intend to serve SW scripts from.)
 
 ## Can iframes register Service Workers?
@@ -207,8 +207,11 @@ definition](https://w3c.github.io/webappsec-secure-contexts/#examples-framed),
 that means that they must be nested inside secure contexts, all the way up to
 the top-level document.
 
-Additionally, third-party iframes can’t register Service Workers if third party
-cookies are blocked. (See chrome://settings/content.)
+Service Workers registered by third-party iframes are partitioned by top-level
+site in addition to the origin of the third-party iframe, even if third-party
+cookies are blocked. See the
+[Partitioning Storage, Service Workers, and Communication APIs explainer](https://github.com/wanderview/quota-storage-partitioning/blob/main/explainer.md)
+for more information.
 
 ## Why doesn’t Chrome prompt the user before registering a Service Worker?
 
@@ -230,10 +233,6 @@ from Service Workers.
 
 ## What if I don't want *any* SWs?
 
-You can disable SWs by disabling storage in chrome://settings. SW are gated on
-cookie/local data storage settings. (That is, the **Block sites from setting any
-data** radio button in **Content Settings**.)
-
 Clearing browser data (CBD; the **Clear browsing data...** button in
 **Settings** or chrome://settings/clearBrowserData) also deletes SWs. You can
 verify that by following this test procedure:
@@ -253,7 +252,7 @@ verify that by following this test procedure:
 You can also remove individual SW registrations with
 chrome://serviceworker-internals/.
 
-Another way to avid SWs is to use one of the browsers that don't (yet) support
+Another way to avoid SWs is to use one of the browsers that don't (yet) support
 SWs. But, eventually, the Open Web Platform will continue to evolve into a
 powerful, useful platform supporting applications that are [secure, linkable,
 indexable, composable, and ephemeral](https://paul.kinlan.me/slice-the-web/).
@@ -277,7 +276,7 @@ experts to participate in those open fora.
      online. [Here is one way to handle
      that](https://developers.google.com/web/updates/2016/06/2-cookie-handoff).
 
-## What SW bugs would quality for a bounty under [Chrome’s VRP](https://www.google.com/about/appsecurity/chrome-rewards/index.html)?
+## What SW bugs would qualify for a bounty under [Chrome’s VRP](https://www.google.com/about/appsecurity/chrome-rewards/index.html)?
 
 If you could break one or more of the security assertions we make in this FAQ,
 that would be potentially rewardable under the Vulnerability Rewards Program

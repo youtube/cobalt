@@ -212,7 +212,7 @@ void ServiceWorkerGlobalScopeProxy::DidCloseWorkerGlobalScope() {
   PostCrossThreadTask(
       *parent_thread_default_task_runner_, FROM_HERE,
       CrossThreadBindOnce(&WebEmbeddedWorkerImpl::TerminateWorkerContext,
-                          CrossThreadUnretained(embedded_worker_)));
+                          CrossThreadUnretained(embedded_worker_.get())));
 
   // NOTE: WorkerThread calls WillDestroyWorkerGlobalScope() synchronously after
   // this function returns, since it calls DidCloseWorkerGlobalScope() then
@@ -252,6 +252,12 @@ void ServiceWorkerGlobalScopeProxy::RequestTermination(
     CrossThreadOnceFunction<void(bool)> callback) {
   DCHECK_CALLED_ON_VALID_THREAD(worker_thread_checker_);
   Client().RequestTermination(ConvertToBaseOnceCallback(std::move(callback)));
+}
+
+bool ServiceWorkerGlobalScopeProxy::
+    ShouldNotifyServiceWorkerOnWebSocketActivity(
+        v8::Local<v8::Context> context) {
+  return Client().ShouldNotifyServiceWorkerOnWebSocketActivity(context);
 }
 
 ServiceWorkerGlobalScopeProxy::ServiceWorkerGlobalScopeProxy(
@@ -294,6 +300,25 @@ void ServiceWorkerGlobalScopeProxy::ResumeEvaluation() {
 mojom::blink::ServiceWorkerFetchHandlerType
 ServiceWorkerGlobalScopeProxy::FetchHandlerType() {
   return WorkerGlobalScope()->FetchHandlerType();
+}
+
+bool ServiceWorkerGlobalScopeProxy::HasHidEventHandlers() {
+  return WorkerGlobalScope()->HasHidEventHandlers();
+}
+
+bool ServiceWorkerGlobalScopeProxy::HasUsbEventHandlers() {
+  return WorkerGlobalScope()->HasUsbEventHandlers();
+}
+
+void ServiceWorkerGlobalScopeProxy::GetRemoteAssociatedInterface(
+    const WebString& name,
+    mojo::ScopedInterfaceEndpointHandle handle) {
+  WorkerGlobalScope()->GetRemoteAssociatedInterface(name, std::move(handle));
+}
+
+blink::AssociatedInterfaceRegistry&
+ServiceWorkerGlobalScopeProxy::GetAssociatedInterfaceRegistry() {
+  return WorkerGlobalScope()->GetAssociatedInterfaceRegistry();
 }
 
 WebServiceWorkerContextClient& ServiceWorkerGlobalScopeProxy::Client() const {

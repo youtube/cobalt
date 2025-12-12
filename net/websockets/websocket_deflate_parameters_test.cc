@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "net/websockets/websocket_deflate_parameters.h"
 
+#include <array>
+#include <iterator>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -120,7 +124,7 @@ TEST_P(WebSocketDeflateParametersInitializeTest, Initialize) {
 
   if (expected) {
     EXPECT_TRUE(actual);
-    EXPECT_TRUE(extension.Equals(parameters.AsExtension()));
+    EXPECT_TRUE(extension.Equivalent(parameters.AsExtension()));
   } else {
     EXPECT_FALSE(actual);
   }
@@ -179,7 +183,7 @@ std::vector<InitializeTestParameter> InitializeTestParameters() {
   const InitializeTestParameter::Expectation kUnknownParameter = {
       false, "Received an unexpected permessage-deflate extension parameter"};
 
-  const InitializeTestParameter parameters[] = {
+  const auto parameters = std::to_array<InitializeTestParameter>({
       {"", kInitialized},
       {"; server_no_context_takeover", kInitialized},
       {"; server_no_context_takeover=0", Invalid("server_no_context_takeover")},
@@ -215,12 +219,14 @@ std::vector<InitializeTestParameter> InitializeTestParameters() {
        "; server_max_window_bits=12; client_max_window_bits=13",
        kInitialized},
       {"; hogefuga", kUnknownParameter},
-  };
+  });
   return std::vector<InitializeTestParameter>(
-      parameters, parameters + std::size(parameters));
+      parameters.data(), base::span<const InitializeTestParameter>(parameters)
+                             .subspan(std::size(parameters))
+                             .data());
 }
 
-const CompatibilityTestParameter kCompatibilityTestParameters[] = {
+constexpr CompatibilityTestParameter kCompatibilityTestParameters[] = {
     {"", "", true},
     // server_no_context_takeover
     {"", "; server_no_context_takeover", true},

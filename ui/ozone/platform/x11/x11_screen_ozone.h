@@ -10,10 +10,16 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "ui/base/x/x11_display_manager.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/x/event.h"
 #include "ui/ozone/public/platform_screen.h"
+
+#if BUILDFLAG(IS_LINUX)
+#include "ui/linux/device_scale_factor_observer.h"
+#include "ui/linux/linux_ui.h"
+#endif
 
 namespace ui {
 
@@ -22,7 +28,12 @@ class X11WindowManager;
 // A PlatformScreen implementation for X11.
 class X11ScreenOzone : public PlatformScreen,
                        public x11::EventObserver,
-                       public XDisplayManager::Delegate {
+                       public XDisplayManager::Delegate
+#if BUILDFLAG(IS_LINUX)
+    ,
+                       public DeviceScaleFactorObserver
+#endif
+{
  public:
   X11ScreenOzone();
 
@@ -60,7 +71,6 @@ class X11ScreenOzone : public PlatformScreen,
   std::string GetCurrentWorkspace() override;
   base::Value::List GetGpuExtraInfo(
       const gfx::GpuExtraInfo& gpu_extra_info) override;
-  void SetDeviceScaleFactor(float scale) override;
 
   // Overridden from x11::EventObserver:
   void OnEvent(const x11::Event& event) override;
@@ -84,22 +94,25 @@ class X11ScreenOzone : public PlatformScreen,
     bool is_suspending_ = false;
   };
 
-  // Overridden from ui::XDisplayManager::Delegate:
+  // ui::XDisplayManager::Delegate:
   void OnXDisplayListUpdated() override;
-  float GetXDisplayScaleFactor() const override;
 
-  gfx::Point GetCursorLocation() const;
+#if BUILDFLAG(IS_LINUX)
+  // DeviceScaleFactorObserver:
+  void OnDeviceScaleFactorChanged() override;
+#endif
 
   const raw_ptr<x11::Connection> connection_;
   const raw_ptr<X11WindowManager> window_manager_;
   std::unique_ptr<ui::XDisplayManager> x11_display_manager_;
 
-  // Scale value that DesktopScreenOzoneLinux sets by listening to
-  // DeviceScaleFactorObserver.
-  float device_scale_factor_ = 1.0f;
-
   // Indicates that |this| is initialized.
   bool initialized_ = false;
+
+#if BUILDFLAG(IS_LINUX)
+  base::ScopedObservation<ui::LinuxUi, DeviceScaleFactorObserver>
+      display_scale_factor_observer_{this};
+#endif
 };
 
 }  // namespace ui

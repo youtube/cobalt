@@ -8,10 +8,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Frame::Frame(int fixed_frame_size_in_slots)
+Frame::Frame(int fixed_frame_size_in_slots, Zone* zone)
     : fixed_slot_count_(fixed_frame_size_in_slots),
       allocated_registers_(nullptr),
-      allocated_double_registers_(nullptr) {
+      allocated_double_registers_(nullptr),
+      zone_(zone) {
   slot_allocator_.AllocateUnaligned(fixed_frame_size_in_slots);
 }
 
@@ -46,7 +47,7 @@ void FrameAccessState::MarkHasFrame(bool state) {
 }
 
 void FrameAccessState::SetFrameAccessToDefault() {
-  if (has_frame() && !v8_flags.turbo_sp_frame_access) {
+  if (has_frame()) {
     SetFrameAccessToFP();
   } else {
     SetFrameAccessToSP();

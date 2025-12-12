@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ash/system/progress_indicator/progress_ring_pulse_animation.h"
 
 #include "base/dcheck_is_on.h"
@@ -14,7 +19,7 @@ namespace {
 
 // Animation -------------------------------------------------------------------
 
-constexpr float kAnimationDurationInMs = 2231.f;
+constexpr float kAnimationDurationInMs = 2331.f;
 
 // Models a single key frame in the animation.
 struct AnimationKeyFrame {
@@ -29,10 +34,10 @@ constexpr AnimationKeyFrame kAnimationKeyFrames[] = {
     {.fraction = 433.f / kAnimationDurationInMs, .opacity = 0.f},   // Hold.
     {.fraction = 766.f / kAnimationDurationInMs, .opacity = 1.f},   // Fade in.
     {.fraction = 999.f / kAnimationDurationInMs, .opacity = 1.f},   // Hold.
-    {.fraction = 1232.f / kAnimationDurationInMs, .opacity = 0.f},  // Fade out.
-    {.fraction = 1332.f / kAnimationDurationInMs, .opacity = 0.f},  // Hold.
-    {.fraction = 1665.f / kAnimationDurationInMs, .opacity = 1.f},  // Fade in.
-    {.fraction = 1889.f / kAnimationDurationInMs, .opacity = 1.f},  // Hold.
+    {.fraction = 1332.f / kAnimationDurationInMs, .opacity = 0.f},  // Fade out.
+    {.fraction = 1432.f / kAnimationDurationInMs, .opacity = 0.f},  // Hold.
+    {.fraction = 1765.f / kAnimationDurationInMs, .opacity = 1.f},  // Fade in.
+    {.fraction = 1998.f / kAnimationDurationInMs, .opacity = 1.f},  // Hold.
     {.fraction = 1.f, .opacity = 0.f}};                             // Fade out.
 
 }  // namespace

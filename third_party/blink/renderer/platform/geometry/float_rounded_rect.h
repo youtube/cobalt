@@ -30,8 +30,10 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GEOMETRY_FLOAT_ROUNDED_RECT_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GEOMETRY_FLOAT_ROUNDED_RECT_H_
 
+#include <array>
 #include <iosfwd>
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
+
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
@@ -39,6 +41,7 @@
 #include "ui/gfx/geometry/insets_f.h"
 #include "ui/gfx/geometry/outsets_f.h"
 #include "ui/gfx/geometry/rect_f.h"
+#include "ui/gfx/geometry/rrect_f.h"
 #include "ui/gfx/geometry/size_f.h"
 #include "ui/gfx/geometry/skia_conversions.h"
 
@@ -48,12 +51,22 @@ class QuadF;
 
 namespace blink {
 
-// Represents a rect with rounded corners.
-// We don't use gfx::RRect in blink because gfx::RRect is based on SkRRect
+// Represents a rect with rounded corners, where the rounding of each corner is
+// controlled by x radius and y radius.
+//
+// A simple example of a rounded corner is:
+// <div style="width: 50px; height: 50px; border-radius: 10px;"/>
+// Here, rect_ will be 0,0 50x50, and radii_ for each corner will be 10x10.
+//
+// The radii of each corner can be controlled independently:
+// <div style="... border-top-right-radius: 25px 10px;"/>
+// Here, the radii_.top_right_ will be 25x10.
+//
+// We don't use gfx::RRectF in blink because gfx::RRectF is based on SkRRect
 // which always keeps the radii constrained within the size of the rect, but
 // in blink sometimes we need to keep the unconstrained status of a rounded
-// rect. See ConstrainRadii(). This class also provides functions that are
-// uniquely needed by blink.
+// rect. See ConstrainRadii().
+
 class PLATFORM_EXPORT FloatRoundedRect {
   DISALLOW_NEW();
 
@@ -80,6 +93,7 @@ class PLATFORM_EXPORT FloatRoundedRect {
 
     constexpr Radii(const Radii&) = default;
     constexpr Radii& operator=(const Radii&) = default;
+    constexpr bool operator==(const Radii&) const = default;
 
     void SetTopLeft(const gfx::SizeF& size) { top_left_ = size; }
     void SetTopRight(const gfx::SizeF& size) { top_right_ = size; }
@@ -91,7 +105,7 @@ class PLATFORM_EXPORT FloatRoundedRect {
     constexpr const gfx::SizeF& BottomRight() const { return bottom_right_; }
 
     void SetMinimumRadius(float);
-    absl::optional<float> UniformRadius() const;
+    std::optional<float> UniformRadius() const;
 
     constexpr bool IsZero() const {
       return top_left_.IsZero() && top_right_.IsZero() &&
@@ -116,6 +130,10 @@ class PLATFORM_EXPORT FloatRoundedRect {
   constexpr FloatRoundedRect() = default;
   explicit FloatRoundedRect(const gfx::RectF&, const Radii& radii = Radii());
   explicit FloatRoundedRect(const gfx::Rect&, const Radii& radii = Radii());
+  explicit FloatRoundedRect(const SkRRect& r)
+      : FloatRoundedRect(gfx::RRectF(r)) {}
+  explicit FloatRoundedRect(const gfx::RRectF&);
+  constexpr bool operator==(const FloatRoundedRect&) const = default;
   FloatRoundedRect(float x, float y, float width, float height);
   FloatRoundedRect(const gfx::RectF& rect,
                    const gfx::SizeF& top_left,
@@ -188,10 +206,6 @@ class PLATFORM_EXPORT FloatRoundedRect {
                       radii_.BottomRight().height());
   }
 
-  bool XInterceptsAtY(float y,
-                      float& min_x_intercept,
-                      float& max_x_intercept) const;
-
   // Tests whether the quad intersects any part of this rounded rectangle.
   // This only works for convex quads.
   // This intersection is edge-inclusive and will return true even if the
@@ -209,6 +223,7 @@ class PLATFORM_EXPORT FloatRoundedRect {
   void ConstrainRadii();
 
   explicit operator SkRRect() const;
+  explicit operator gfx::RRectF() const { return gfx::RRectF(SkRRect(*this)); }
 
   String ToString() const;
 
@@ -221,7 +236,7 @@ inline FloatRoundedRect::operator SkRRect() const {
   SkRRect rrect;
 
   if (IsRounded()) {
-    SkVector radii[4];
+    std::array<SkVector, 4> radii;
     radii[SkRRect::kUpperLeft_Corner].set(TopLeftCorner().width(),
                                           TopLeftCorner().height());
     radii[SkRRect::kUpperRight_Corner].set(TopRightCorner().width(),
@@ -231,33 +246,12 @@ inline FloatRoundedRect::operator SkRRect() const {
     radii[SkRRect::kLowerLeft_Corner].set(BottomLeftCorner().width(),
                                           BottomLeftCorner().height());
 
-    rrect.setRectRadii(gfx::RectFToSkRect(Rect()), radii);
+    rrect.setRectRadii(gfx::RectFToSkRect(Rect()), radii.data());
   } else {
     rrect.setRect(gfx::RectFToSkRect(Rect()));
   }
 
   return rrect;
-}
-
-constexpr bool operator==(const FloatRoundedRect::Radii& a,
-                          const FloatRoundedRect::Radii& b) {
-  return a.TopLeft() == b.TopLeft() && a.TopRight() == b.TopRight() &&
-         a.BottomLeft() == b.BottomLeft() && a.BottomRight() == b.BottomRight();
-}
-
-constexpr bool operator!=(const FloatRoundedRect::Radii& a,
-                          const FloatRoundedRect::Radii& b) {
-  return !(a == b);
-}
-
-constexpr bool operator==(const FloatRoundedRect& a,
-                          const FloatRoundedRect& b) {
-  return a.Rect() == b.Rect() && a.GetRadii() == b.GetRadii();
-}
-
-constexpr bool operator!=(const FloatRoundedRect& a,
-                          const FloatRoundedRect& b) {
-  return !(a == b);
 }
 
 PLATFORM_EXPORT std::ostream& operator<<(std::ostream&,

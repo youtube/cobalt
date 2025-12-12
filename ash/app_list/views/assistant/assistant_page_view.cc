@@ -19,7 +19,6 @@
 #include "ash/public/cpp/assistant/assistant_state.h"
 #include "ash/public/cpp/assistant/controller/assistant_ui_controller.h"
 #include "ash/public/cpp/style/color_provider.h"
-#include "ash/public/cpp/view_shadow.h"
 #include "ash/search_box/search_box_constants.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
@@ -27,17 +26,24 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "third_party/skia/include/core/SkTypes.h"
 #include "ui/accessibility/ax_node_data.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/color/color_id.h"
 #include "ui/compositor/animation_throughput_reporter.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_type.h"
 #include "ui/compositor/scoped_layer_animation_settings.h"
 #include "ui/compositor_extra/shadow.h"
+#include "ui/display/screen.h"
+#include "ui/display/tablet_state.h"
+#include "ui/gfx/geometry/transform_util.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/layout/layout_manager_base.h"
+#include "ui/views/view_shadow.h"
 
 namespace ash {
 
@@ -85,6 +91,12 @@ class AssistantPageViewLayout : public views::LayoutManagerBase {
 
   // views::LayoutManagerBase:
   gfx::Size GetPreferredSize(const views::View* host) const override {
+    return GetPreferredSize(host, {});
+  }
+
+  gfx::Size GetPreferredSize(
+      const views::View* host,
+      const views::SizeBounds& available_size) const override {
     DCHECK_EQ(assistant_page_view_, host);
     return assistant_page_view_->contents_view()
         ->AdjustSearchBoxSizeToFitMargins(
@@ -105,7 +117,7 @@ class AssistantPageViewLayout : public views::LayoutManagerBase {
         std::max(preferred_height, host->GetMinimumSize().height());
 
     // Snap to |kMaxHeightDip| if |child| exceeds |preferred_height|.
-    for (const auto* child : host->children()) {
+    for (const views::View* child : host->children()) {
       if (child->GetHeightForWidth(width) > preferred_height)
         return kMaxHeightDip;
     }
@@ -125,7 +137,7 @@ class AssistantPageViewLayout : public views::LayoutManagerBase {
 
     views::ProposedLayout proposed_layout;
     proposed_layout.host_size = host_view()->size();
-    for (auto* child : host_view()->children()) {
+    for (views::View* child : host_view()->children()) {
       proposed_layout.child_layouts.push_back(views::ChildLayout{
           child, child->GetVisible(), bounds, views::SizeBounds()});
     }
@@ -134,7 +146,7 @@ class AssistantPageViewLayout : public views::LayoutManagerBase {
   }
 
  private:
-  const raw_ptr<AssistantPageView, ExperimentalAsh> assistant_page_view_;
+  const raw_ptr<AssistantPageView> assistant_page_view_;
 };
 
 }  // namespace
@@ -153,8 +165,11 @@ AssistantPageView::AssistantPageView(
   if (AssistantUiController::Get())  // May be |nullptr| in tests.
     AssistantUiController::Get()->GetModel()->AddObserver(this);
 
-  if (Shell::HasInstance())  // Shell might not has an instance in tests.
-    tablet_mode_observation_.Observe(Shell::Get()->tablet_mode_controller());
+  display_observation_.Observe(display::Screen::GetScreen());
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kPane);
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ASH_ASSISTANT_WINDOW));
 }
 
 AssistantPageView::~AssistantPageView() {
@@ -188,14 +203,6 @@ void AssistantPageView::RequestFocus() {
     assistant_main_view_->RequestFocus();
 }
 
-void AssistantPageView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  View::GetAccessibleNodeData(node_data);
-
-  // A valid role must be set prior to setting the name.
-  node_data->role = ax::mojom::Role::kPane;
-  node_data->SetName(l10n_util::GetStringUTF16(IDS_ASH_ASSISTANT_WINDOW));
-}
-
 void AssistantPageView::ChildPreferredSizeChanged(views::View* child) {
   PreferredSizeChanged();
 }
@@ -208,7 +215,7 @@ void AssistantPageView::VisibilityChanged(views::View* starting_from,
 
 void AssistantPageView::OnMouseEvent(ui::MouseEvent* event) {
   switch (event->type()) {
-    case ui::ET_MOUSE_PRESSED:
+    case ui::EventType::kMousePressed:
       // Prevents closing the AppListView when a click event is not handled.
       event->StopPropagation();
       break;
@@ -219,11 +226,11 @@ void AssistantPageView::OnMouseEvent(ui::MouseEvent* event) {
 
 void AssistantPageView::OnGestureEvent(ui::GestureEvent* event) {
   switch (event->type()) {
-    case ui::ET_GESTURE_TAP:
-    case ui::ET_GESTURE_DOUBLE_TAP:
-    case ui::ET_GESTURE_LONG_PRESS:
-    case ui::ET_GESTURE_LONG_TAP:
-    case ui::ET_GESTURE_TWO_FINGER_TAP:
+    case ui::EventType::kGestureTap:
+    case ui::EventType::kGestureDoubleTap:
+    case ui::EventType::kGestureLongPress:
+    case ui::EventType::kGestureLongTap:
+    case ui::EventType::kGestureTwoFingerTap:
       // Prevents closing the AppListView when a tap event is not handled.
       event->StopPropagation();
       break;
@@ -276,7 +283,7 @@ void AssistantPageView::OnAnimationStarted(AppListState from_state,
 
     ui::AnimationThroughputReporter reporter(
         settings->GetAnimator(),
-        metrics_util::ForSmoothness(base::BindRepeating([](int value) {
+        metrics_util::ForSmoothnessV3(base::BindRepeating([](int value) {
           base::UmaHistogramPercentage(
               "Ash.Assistant.AnimationSmoothness.ResizeAssistantPageView",
               value);
@@ -293,10 +300,17 @@ void AssistantPageView::OnAnimationStarted(AppListState from_state,
 
   // Animate the shadow's bounds through transform.
   {
-    gfx::Transform transform;
-    transform.Translate(from_rect.origin() - to_rect.origin());
-    transform.Scale(static_cast<float>(from_rect.width()) / to_rect.width(),
-                    static_cast<float>(from_rect.height()) / to_rect.height());
+    // `view_shadow_` can't be accurately scaled and translated because while
+    // its bounds need animation, the shadow size needs to remain the same. This
+    // causes the transformed shadow to be visually misplaced. To fix this,
+    // inset the `from_rect` so that the transformed shadow is completely hidden
+    // behind the view layer at the start of animation and slowly reveals itself
+    // when animating to the proper size.
+    gfx::Rect shadow_from_rect = from_rect;
+    shadow_from_rect.Inset(kShadowElevation);
+
+    const gfx::Transform transform = gfx::TransformBetweenRects(
+        gfx::RectF(to_rect), gfx::RectF(shadow_from_rect));
     view_shadow_->shadow()->layer()->SetTransform(transform);
 
     auto settings = contents_view()->CreateTransitionAnimationSettings(
@@ -353,8 +367,8 @@ void AssistantPageView::OnAssistantControllerDestroying() {
 void AssistantPageView::OnUiVisibilityChanged(
     AssistantVisibility new_visibility,
     AssistantVisibility old_visibility,
-    absl::optional<AssistantEntryPoint> entry_point,
-    absl::optional<AssistantExitPoint> exit_point) {
+    std::optional<AssistantEntryPoint> entry_point,
+    std::optional<AssistantExitPoint> exit_point) {
   if (!assistant_view_delegate_)
     return;
 
@@ -371,16 +385,23 @@ void AssistantPageView::OnUiVisibilityChanged(
       assistant_view_delegate_->IsTabletMode() ||
       AssistantState::Get()->launch_with_mic_open().value_or(false);
   if (!assistant::util::IsVoiceEntryPoint(entry_point.value(), prefer_voice)) {
-    NotifyAccessibilityEvent(ax::mojom::Event::kAlert, true);
+    NotifyAccessibilityEventDeprecated(ax::mojom::Event::kAlert, true);
   }
 }
 
-void AssistantPageView::OnTabletModeStarted() {
-  UpdateBackground(/*in_tablet_mode=*/true);
-}
-
-void AssistantPageView::OnTabletModeEnded() {
-  UpdateBackground(/*in_tablet_mode=*/false);
+void AssistantPageView::OnDisplayTabletStateChanged(
+    display::TabletState state) {
+  switch (state) {
+    case display::TabletState::kEnteringTabletMode:
+    case display::TabletState::kExitingTabletMode:
+      // Do nothing when the tablet mode is in process of changing.
+      break;
+    case display::TabletState::kInTabletMode:
+      UpdateBackground(/*in_tablet_mode=*/true);
+      break;
+    case display::TabletState::kInClamshellMode:
+      UpdateBackground(/*in_tablet_mode=*/false);
+  }
 }
 
 void AssistantPageView::OnThemeChanged() {
@@ -392,9 +413,8 @@ void AssistantPageView::OnThemeChanged() {
 void AssistantPageView::InitLayout() {
   // Use a solid color layer. The color is set in OnThemeChanged().
   SetPaintToLayer(ui::LAYER_SOLID_COLOR);
-  layer()->SetFillsBoundsOpaquely(false);
 
-  view_shadow_ = std::make_unique<ViewShadow>(this, kShadowElevation);
+  view_shadow_ = std::make_unique<views::ViewShadow>(this, kShadowElevation);
   view_shadow_->SetRoundedCornerRadius(
       kSearchBoxBorderCornerRadiusSearchResult);
 
@@ -410,22 +430,28 @@ void AssistantPageView::InitLayout() {
 
 void AssistantPageView::UpdateBackground(bool in_tablet_mode) {
   // Blur
-  layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
-  layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
+  if (chromeos::features::IsSystemBlurEnabled()) {
+    layer()->SetBackgroundBlur(ColorProvider::kBackgroundBlurSigma);
+    layer()->SetBackdropFilterQuality(ColorProvider::kBackgroundBlurQuality);
+  }
 
   // Color
   const auto* color_provider =
       GetWidget() ? GetWidget()->GetColorProvider() : nullptr;
 
+  const ui::ColorId layer_color_id =
+      chromeos::features::IsSystemBlurEnabled()
+          ? static_cast<ui::ColorId>(kColorAshShieldAndBase80)
+          : cros_tokens::kCrosSysSystemBaseElevatedOpaque;
   // ColorProvide might be nullptr in tests or this function is triggered before
   // `this` is added to the view hierarchy.
   if (color_provider)
-    layer()->SetColor(color_provider->GetColor(kColorAshShieldAndBase80));
+    layer()->SetColor(color_provider->GetColor(layer_color_id));
   else
     layer()->SetColor(SK_ColorWHITE);
 }
 
-BEGIN_METADATA(AssistantPageView, views::View)
+BEGIN_METADATA(AssistantPageView)
 END_METADATA
 
 }  // namespace ash

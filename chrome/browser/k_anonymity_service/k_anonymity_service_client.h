@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -77,6 +77,12 @@ class KAnonymityServiceClient : public content::KAnonymityServiceDelegate,
   base::TimeDelta GetJoinInterval() override;
   base::TimeDelta GetQueryInterval() override;
 
+  // Returns true if the profile is allowed to use the k-anonymity service. This
+  // currently checks if the primary profile CanRunChromePrivacySandboxTrials.
+  // This is partially to prevent exposing minors' data to the k-anonymity
+  // service.
+  static bool CanUseKAnonymityService(Profile* profile);
+
  private:
   struct PendingJoinRequest {
     PendingJoinRequest(std::string set_id,
@@ -119,13 +125,13 @@ class KAnonymityServiceClient : public content::KAnonymityServiceDelegate,
   // provided optional is not empty this triggers the JoinSet request.
   void OnMaybeHasTrustTokens(
       OHTTPKeyAndExpiration ohttp_key,
-      absl::optional<KeyAndNonUniqueUserId> maybe_key_and_id);
+      std::optional<KeyAndNonUniqueUserId> maybe_key_and_id);
   // Starts the OHTTP JoinSet request for the join_queue_.front() request.
   void JoinSetSendRequest(OHTTPKeyAndExpiration ohttp_key,
                           KeyAndNonUniqueUserId key_and_id);
   // Handle the response to the JoinSet request and call CompleteJoinSetRequest
   // if successful.
-  void JoinSetOnGotResponse(const absl::optional<std::string>& response,
+  void JoinSetOnGotResponse(const std::optional<std::string>& response,
                             int error_code);
   // Calls DoJoinSetCallback indicating the current request completed
   // successfully. If there are other items in the queue calls
@@ -157,7 +163,7 @@ class KAnonymityServiceClient : public content::KAnonymityServiceDelegate,
   // Called as an asynchronous response to the OHTTP request started by
   // QuerySetsSendRequest. Passes the JSON response received to be decoded and
   // handled in QuerySetsOnParsedResponse.
-  void QuerySetsOnGotResponse(const absl::optional<std::string>& response,
+  void QuerySetsOnGotResponse(const std::optional<std::string>& response,
                               int error_code);
   // Called asynchronously when the QuerySet response from
   // QuerySetsOnGotResponse has been decoded.
@@ -197,7 +203,7 @@ class KAnonymityServiceClient : public content::KAnonymityServiceDelegate,
   url::Origin join_origin_;
   url::Origin query_origin_;
 
-  base::raw_ptr<Profile> profile_;
+  raw_ptr<Profile> profile_;
   base::WeakPtrFactory<KAnonymityServiceClient> weak_ptr_factory_{this};
 };
 

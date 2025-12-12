@@ -1,0 +1,51 @@
+{
+	"lucicfg": "1.46.1",
+	"packages": [
+		{
+			"name": "@chromium-project",
+			"deps": [
+				"@chromium-luci",
+				"@chromium-targets"
+			],
+			"lucicfg": "1.44.1",
+			"resources": [
+				"autoshard_exceptions.json",
+				"dev/chromium-header.textpb",
+				"lib/linux-default.json",
+				"luci-analysis-dev.cfg",
+				"luci-analysis.cfg",
+				"luci-bisection-dev.cfg",
+				"luci-bisection.cfg",
+				"milestones.json",
+				"settings.json",
+				"templates/build_with_step_summary.template",
+				"templates/tree_closure_email.template",
+				"testhaus-staging.cfg",
+				"testhaus.cfg"
+			],
+			"entrypoints": [
+				"dev.star",
+				"main.star"
+			]
+		},
+		{
+			"name": "@chromium-luci",
+			"source": {
+				"repo": "https://chromium.googlesource.com/infra/chromium/+/refs/heads/main",
+				"revision": "16a5dd7e6154c4204d6bb97ae937697242bcbeb4",
+				"path": "starlark-libs/chromium-luci"
+			},
+			"lucicfg": "1.45.0"
+		},
+		{
+			"name": "@chromium-targets",
+			"source": {
+				"path": "./targets"
+			},
+			"deps": [
+				"@chromium-luci"
+			],
+			"lucicfg": "1.46.1"
+		}
+	]
+}

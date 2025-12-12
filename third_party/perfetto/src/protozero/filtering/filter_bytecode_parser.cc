@@ -71,7 +71,7 @@ bool FilterBytecodeParser::LoadInternal(const uint8_t* bytecode_data,
 
   words.pop_back();  // Pop the checksum.
 
-  // Temporay storage for each message. Cleared on every END_OF_MESSAGE.
+  // Temporary storage for each message. Cleared on every END_OF_MESSAGE.
   std::vector<uint32_t> direct_indexed_fields;
   std::vector<uint32_t> ranges;
   uint32_t max_msg_index = 0;
@@ -91,27 +91,33 @@ bool FilterBytecodeParser::LoadInternal(const uint8_t* bytecode_data,
     ranges.emplace_back(kAllowed | msg_id);
   };
 
+  bool is_eom = true;
   for (size_t i = 0; i < words.size(); ++i) {
     const uint32_t word = words[i];
     const bool has_next_word = i < words.size() - 1;
     const uint32_t opcode = word & 0x7u;
     const uint32_t field_id = word >> 3;
 
+    is_eom = opcode == kFilterOpcode_EndOfMessage;
     if (field_id == 0 && opcode != kFilterOpcode_EndOfMessage) {
       PERFETTO_DLOG("bytecode error @ word %zu, invalid field id (0)", i);
       return false;
     }
 
     if (opcode == kFilterOpcode_SimpleField ||
-        opcode == kFilterOpcode_NestedField) {
+        opcode == kFilterOpcode_NestedField ||
+        opcode == kFilterOpcode_FilterString) {
       // Field words are organized as follow:
       // MSB: 1 if allowed, 0 if not allowed.
       // Remaining bits:
       //   Message index in the case of nested (non-simple) messages.
-      //   0x7f..f in the case of simple messages.
+      //   0x7f..e in the case of string fields which need filtering.
+      //   0x7f..f in the case of simple fields.
       uint32_t msg_id;
       if (opcode == kFilterOpcode_SimpleField) {
         msg_id = kSimpleField;
+      } else if (opcode == kFilterOpcode_FilterString) {
+        msg_id = kFilterStringField;
       } else {  // FILTER_OPCODE_NESTED_FIELD
         // The next word in the bytecode contains the message index.
         if (!has_next_word) {
@@ -171,6 +177,12 @@ bool FilterBytecodeParser::LoadInternal(const uint8_t* bytecode_data,
     }
   }  // (for word in bytecode).
 
+  if (!is_eom) {
+    PERFETTO_DLOG(
+        "bytecode error: end of message not the last word in the bytecode");
+    return false;
+  }
+
   if (max_msg_index > 0 && max_msg_index >= message_offset_.size()) {
     PERFETTO_DLOG(
         "bytecode error: a message index (%u) is out of range "
@@ -188,7 +200,7 @@ bool FilterBytecodeParser::LoadInternal(const uint8_t* bytecode_data,
 
 FilterBytecodeParser::QueryResult FilterBytecodeParser::Query(
     uint32_t msg_index,
-    uint32_t field_id) {
+    uint32_t field_id) const {
   FilterBytecodeParser::QueryResult res{false, 0u};
   if (static_cast<uint64_t>(msg_index) + 1 >=
       static_cast<uint64_t>(message_offset_.size())) {
@@ -220,11 +232,11 @@ FilterBytecodeParser::QueryResult FilterBytecodeParser::Query(
         break;
       }
     }  // for (word in ranges)
-  }    // if (field_id >= num_directly_indexed)
+  }  // if (field_id >= num_directly_indexed)
 
   res.allowed = (field_state & kAllowed) != 0;
   res.nested_msg_index = field_state & ~kAllowed;
-  PERFETTO_DCHECK(res.simple_field() ||
+  PERFETTO_DCHECK(!res.nested_msg_field() ||
                   res.nested_msg_index < message_offset_.size() - 1);
   return res;
 }

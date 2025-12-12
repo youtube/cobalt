@@ -6,77 +6,23 @@
 #define CHROME_BROWSER_WEB_APPLICATIONS_WEB_APP_CONSTANTS_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
+#include <initializer_list>
 #include <iosfwd>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback_forward.h"
-#include "components/webapps/browser/installable/installable_metrics.h"
+#include "build/build_config.h"
 #include "third_party/blink/public/common/manifest/manifest.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-forward.h"
 
+namespace webapps {
+enum class WebappUninstallSource;
+}
+
 namespace web_app {
-
-// Installations of Web Apps have different sources of management. Apps can be
-// installed by different management systems - for example an app can be both
-// installed by the user and by policy. Keeping track of the which installation
-// managers have installed a web app allows for them to be installed by multiple
-// at the same time, and uninstalls from one manager doesn't affect another -
-// the app will stay installed as long as at least one management source has it
-// installed.
-//
-// This enum is also used to rank installation sources, so the ordering matters.
-// This enum should be zero based: values are used as index in a bitset.
-// We don't use this enum values in prefs or metrics: enumerators can be
-// reordered. This enum is not strongly typed enum class: it supports implicit
-// conversion to int and <> comparison operators.
-namespace WebAppManagement {
-enum Type {
-  kMinValue = 0,
-  kSystem = kMinValue,
-  // Installed by Kiosk on Chrome OS.
-  kKiosk,
-  kPolicy,
-  kOem,
-  kSubApp,
-  kWebAppStore,
-  kOneDriveIntegration,
-  // User-installed web apps are managed by the sync system.or
-  // user-installed apps without overlaps this is the only source that will be
-  // set.
-  kSync,
-  kCommandLine,
-  // This value is used by both the PreinstalledWebAppManager AND the
-  // AndroidSmsAppSetupControllerImpl, which is a potential conflict in the
-  // future.
-  // TODO(dmurph): Add a new source here so that the
-  // AndroidSmsAppSetupControllerImpl has it's own source, and migrate those
-  // installations to have the new source.
-  // https://crbug.com/1314055
-  kDefault,
-  kMaxValue = kDefault,
-};
-
-std::ostream& operator<<(std::ostream& os, WebAppManagement::Type type);
-}  // namespace WebAppManagement
-
-// Type of OS hook.
-//
-// This enum should be zero based. It is not strongly typed enum class to
-// support implicit conversion to int. Values are also used as index in
-// OsHooksErrors and OsHooksOptions.
-namespace OsHookType {
-enum Type {
-  kShortcuts = 0,
-  kRunOnOsLogin,
-  kShortcutsMenu,
-  kUninstallationViaOsSettings,
-  kFileHandlers,
-  kProtocolHandlers,
-  kUrlHandlers,
-  kMaxValue = kUrlHandlers,
-};
-}  // namespace OsHookType
 
 // ExternallyManagedAppManager: Where an app was installed from. This affects
 // what flags will be used when installing the app.
@@ -137,11 +83,13 @@ enum class ExternalInstallSource {
   // in ash::SystemWebAppManager::RefreshPolicyInstalledApps.
   kSystemInstalled = 3,
 
-  // Installed from ARC.
-  // There is no call to SynchronizeInstalledApps for this type, as these apps
-  // are not installed via ExternallyManagedAppManager. This is used in
-  // ExternallyInstalledWebAppPrefs to track navigation url to app_id entries.
-  kArc = 4,
+  // DEPRECATED: This was used by ApkWebAppInstaller to inject an entry into
+  // the now removed ExternallyInstalledWebAppPrefs to track installation of
+  // APK installed web apps however over time this enum value came to have no
+  // effect. Instead the APK installation is tracked via
+  // webapps::WebappUninstallSource::kArc and
+  // web_app::WebAppManagement::kWebAppStore.
+  // kArc = 4,
 
   // Installed by Kiosk. There is no call to SynchronizeInstalledApps for this
   // type because Kiosk apps are bound to their profiles. They will never be
@@ -163,10 +111,10 @@ enum class ExternalInstallSource {
 
 // Icon size in pixels.
 // Small icons are used in confirmation dialogs and app windows.
-constexpr int kWebAppIconSmall = 32;
+inline constexpr int kWebAppIconSmall = 32;
 
 // Limit on the number of jump list entries per web app.
-constexpr size_t kMaxApplicationDockMenuItems = 10;
+inline constexpr size_t kMaxApplicationDockMenuItems = 10;
 
 using DisplayMode = blink::mojom::DisplayMode;
 
@@ -185,6 +133,8 @@ enum class RunOnOsLoginMode {
   kMaxValue = kMinimized,
 };
 
+std::ostream& operator<<(std::ostream& os, RunOnOsLoginMode mode);
+
 // Command line parameter representing RunOnOsLoginMode::kWindowed.
 extern const char kRunOnOsLoginModeWindowed[];
 
@@ -199,17 +149,9 @@ enum class RunOnOsLoginPolicy {
   kRunWindowed = 2,
 };
 
-// Number of times IPH can be ignored for this app before it's muted.
-constexpr int kIphMuteAfterConsecutiveAppSpecificIgnores = 3;
-// Number of times IPH can be ignored for any app before it's muted.
-constexpr int kIphMuteAfterConsecutiveAppAgnosticIgnores = 4;
-// Number of days to mute IPH after it's ignored for this app.
-constexpr int kIphAppSpecificMuteTimeSpanDays = 90;
-// Number of days to mute IPH after it's ignored for any app.
-constexpr int kIphAppAgnosticMuteTimeSpanDays = 14;
 // Default threshold for site engagement score if it's not set by field trial
 // param.
-constexpr int kIphFieldTrialParamDefaultSiteEngagementThreshold = 10;
+inline constexpr int kIphFieldTrialParamDefaultSiteEngagementThreshold = 10;
 
 // Expected file handler update actions to be taken by OsIntegrationManager
 // during UpdateOsHooks.
@@ -231,14 +173,6 @@ enum class ApiApprovalState {
 };
 
 std::ostream& operator<<(std::ostream& os, ApiApprovalState state);
-
-// State concerning whether a particular feature has been enabled at the OS
-// level. For example, with File Handling, this indicates whether an app should
-// be/has been registered with the OS to handle opening certain file types.
-enum class OsIntegrationState {
-  kEnabled = 0,
-  kDisabled = 1,
-};
 
 // TODO(b/274172447): Remove these and the manifest.h include after refactoring
 // away blink::Manifest and moving the inner classes to regular classes
@@ -276,11 +210,18 @@ enum class Result {
   kError
 };
 
-using ResultCallback = base::OnceCallback<void(Result)>;
+#if BUILDFLAG(IS_CHROMEOS)
+// Represents the exit states of the PWABubbleView. To be used for CrOS events
+// logging.
+//
+// Do not re-use values.
+enum class WebAppInstallStatus : int64_t {
+  kCancelled = 0,
+  kAccepted = 1,
+};
+#endif
 
-// Convert the uninstall source to string for easy printing.
-std::string ConvertUninstallSourceToStringType(
-    const webapps::WebappUninstallSource& uninstall_source);
+using ResultCallback = base::OnceCallback<void(Result)>;
 
 }  // namespace web_app
 

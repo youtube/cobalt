@@ -37,8 +37,8 @@ bool IsContentInDocument(content::RenderFrameHost* rfh, std::string content) {
 
 class HeavyAdHelperBrowserTest : public InProcessBrowserTest {
  public:
-  HeavyAdHelperBrowserTest() {}
-  ~HeavyAdHelperBrowserTest() override {}
+  HeavyAdHelperBrowserTest() = default;
+  ~HeavyAdHelperBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
@@ -67,8 +67,7 @@ IN_PROC_BROWSER_TEST_F(HeavyAdHelperBrowserTest,
   controller.LoadPostCommitErrorPage(
       child, url,
       heavy_ad_intervention::PrepareHeavyAdPage(
-          g_browser_process->GetApplicationLocale()),
-      net::ERR_BLOCKED_BY_CLIENT);
+          g_browser_process->GetApplicationLocale()));
   error_observer.Wait();
 
   for (const auto& message : console_observer.messages()) {
@@ -96,8 +95,7 @@ IN_PROC_BROWSER_TEST_F(HeavyAdHelperBrowserTest,
   controller.LoadPostCommitErrorPage(
       child, url,
       heavy_ad_intervention::PrepareHeavyAdPage(
-          g_browser_process->GetApplicationLocale()),
-      net::ERR_BLOCKED_BY_CLIENT);
+          g_browser_process->GetApplicationLocale()));
   error_observer.Wait();
 
   child = ChildFrameAt(web_contents->GetPrimaryMainFrame(), 0);

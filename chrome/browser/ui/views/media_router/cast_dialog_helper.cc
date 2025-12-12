@@ -19,10 +19,10 @@ std::unique_ptr<views::View> CreateThrobber() {
   // The throbber is smaller than other icons, so the difference must be added
   // to the border to make their overall sizes match.
   const int extra_borders =
-      kPrimaryIconSize - throbber->CalculatePreferredSize().height();
+      kPrimaryIconSize - throbber->CalculatePreferredSize({}).height();
   throbber_container->SetBorder(views::CreateEmptyBorder(
       gfx::Insets(extra_borders / 2) + kPrimaryIconBorder));
-  throbber_container->AddChildView(throbber);
+  throbber_container->AddChildViewRaw(throbber);
   return throbber_container;
 }
 

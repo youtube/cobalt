@@ -18,10 +18,12 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "base/trace_event/trace_event.h"
 #include "base/unguessable_token.h"
+#include "base/version.h"
 #include "components/paint_preview/common/capture_result.h"
 #include "components/paint_preview/common/mojom/paint_preview_recorder.mojom-forward.h"
 #include "components/paint_preview/common/proto_validator.h"
 #include "components/paint_preview/common/version.h"
+#include "components/version_info/version_info.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/global_routing_id.h"
@@ -81,13 +83,14 @@ PaintPreviewCaptureResponseToPaintPreviewFrameProto(
 }
 
 // Records UKM data for the capture.
-// TODO(crbug/1038390): Add more metrics;
+// TODO(crbug.com/40113169): Add more metrics;
 // - Peak memory during capture (bucketized).
 // - Compressed on disk size (bucketized).
 void RecordUkmCaptureData(ukm::SourceId source_id,
                           base::TimeDelta blink_recording_time) {
-  if (source_id == ukm::kInvalidSourceId)
+  if (source_id == ukm::kInvalidSourceId) {
     return;
+  }
   ukm::builders::PaintPreviewCapture(source_id)
       .SetBlinkCaptureTime(blink_recording_time.InMilliseconds())
       .Record(ukm::UkmRecorder::Get());
@@ -99,8 +102,9 @@ base::flat_set<base::UnguessableToken> CreateAcceptedTokenList(
   render_frame_host->ForEachRenderFrameHost(
       [&tokens](content::RenderFrameHost* rfh) {
         auto maybe_token = rfh->GetEmbeddingToken();
-        if (maybe_token.has_value())
+        if (maybe_token.has_value()) {
           tokens.push_back(maybe_token.value());
+        }
       });
   return base::flat_set<base::UnguessableToken>(std::move(tokens));
 }
@@ -137,6 +141,10 @@ base::File CreateOrOverwriteFileForWriting(const base::FilePath& path) {
   return file;
 }
 
+void CloseFile(base::File file) {
+  file.Close();
+}
+
 using RecordingRequestParamsReadyCallback =
     base::OnceCallback<void(mojom::PaintPreviewStatus,
                             mojom::PaintPreviewCaptureParamsPtr)>;
@@ -149,6 +157,13 @@ void OnSerializedRecordingFileCreated(
   if (!file.IsValid()) {
     DLOG(ERROR) << "File create failed: " << file.error_details();
     std::move(callback).Run(mojom::PaintPreviewStatus::kFileCreationError, {});
+  } else if (callback.IsCancelled()) {
+    // The weak pointer is invalid, we should close the file on a background
+    // thread to avoid it being closed implicitly via the default dtor on the UI
+    // thread and triggering a scoped blocking call violation.
+    base::ThreadPool::PostTask(
+        FROM_HERE, {base::MayBlock(), base::TaskPriority::BEST_EFFORT},
+        base::BindOnce(&CloseFile, std::move(file)));
   } else {
     std::move(callback).Run(
         mojom::PaintPreviewStatus::kOk,
@@ -310,22 +325,27 @@ void PaintPreviewClient::CapturePaintPreview(
   metadata->set_url(url.spec());
   metadata->set_version(kPaintPreviewVersion);
   auto* chromeVersion = metadata->mutable_chrome_version();
-  chromeVersion->set_major(CHROME_VERSION_MAJOR);
-  chromeVersion->set_minor(CHROME_VERSION_MINOR);
-  chromeVersion->set_build(CHROME_VERSION_BUILD);
-  chromeVersion->set_patch(CHROME_VERSION_PATCH);
+  const auto& current_chrome_version = version_info::GetVersion();
+  chromeVersion->set_major(current_chrome_version.components()[0]);
+  chromeVersion->set_minor(current_chrome_version.components()[1]);
+  chromeVersion->set_build(current_chrome_version.components()[2]);
+  chromeVersion->set_patch(current_chrome_version.components()[3]);
   document_data.callback = std::move(callback);
+
+  // Ensure the frame is not under prerendering state as the UKM cannot be
+  // recorded while prerendering. Current callers pass frames that are under
+  // the primary page.
+  CHECK(!render_frame_host->IsInLifecycleState(
+      content::RenderFrameHost::LifecycleState::kPrerendering));
   document_data.source_id = render_frame_host->GetPageUkmSourceId();
+
   document_data.accepted_tokens = CreateAcceptedTokenList(render_frame_host);
   auto token = render_frame_host->GetEmbeddingToken();
   if (token.has_value()) {
     document_data.root_frame_token = token.value();
   } else {
-    // This should be impossible, but if it happens in a release build just
-    // abort.
-    DVLOG(1) << "Error: Root frame does not have an embedding token.";
-    NOTREACHED();
-    return;
+    // This should be impossible.
+    NOTREACHED() << "Error: Root frame does not have an embedding token.";
   }
   document_data.capture_links = params.inner.capture_links;
   document_data.max_per_capture_size = params.inner.max_capture_size;
@@ -345,12 +365,14 @@ void PaintPreviewClient::CaptureSubframePaintPreview(
     const base::UnguessableToken& guid,
     const gfx::Rect& rect,
     content::RenderFrameHost* render_subframe_host) {
-  if (guid.is_empty())
+  if (guid.is_empty()) {
     return;
+  }
 
   auto it = all_document_data_.find(guid);
-  if (it == all_document_data_.end())
+  if (it == all_document_data_.end()) {
     return;
+  }
 
   RecordingParams params(guid);
   params.clip_rect = rect;
@@ -364,22 +386,25 @@ void PaintPreviewClient::CaptureSubframePaintPreview(
 
 void PaintPreviewClient::RenderFrameDeleted(
     content::RenderFrameHost* render_frame_host) {
-  // TODO(crbug/1044983): Investigate possible issues with cleanup if just
+  // TODO(crbug.com/40115832): Investigate possible issues with cleanup if just
   // a single subframe gets deleted.
   auto maybe_token = render_frame_host->GetEmbeddingToken();
-  if (!maybe_token.has_value())
+  if (!maybe_token.has_value()) {
     return;
+  }
 
   bool is_main_frame = render_frame_host->GetParentOrOuterDocument() == nullptr;
   base::UnguessableToken frame_guid = maybe_token.value();
   auto it = pending_previews_on_subframe_.find(frame_guid);
-  if (it == pending_previews_on_subframe_.end())
+  if (it == pending_previews_on_subframe_.end()) {
     return;
+  }
 
   for (const auto& document_guid : it->second) {
     auto data_it = all_document_data_.find(document_guid);
-    if (data_it == all_document_data_.end())
+    if (data_it == all_document_data_.end()) {
       continue;
+    }
 
     auto* document_data = &data_it->second;
     document_data->awaiting_subframes.erase(frame_guid);
@@ -390,8 +415,9 @@ void PaintPreviewClient::RenderFrameDeleted(
         for (const auto& subframe_guid : document_data->awaiting_subframes) {
           auto subframe_docs = pending_previews_on_subframe_[subframe_guid];
           subframe_docs.erase(document_guid);
-          if (subframe_docs.empty())
+          if (subframe_docs.empty()) {
             pending_previews_on_subframe_.erase(subframe_guid);
+          }
         }
       }
       interface_ptrs_.erase(frame_guid);
@@ -412,26 +438,29 @@ void PaintPreviewClient::CapturePaintPreviewInternal(
   if (!token.has_value()) {
     DVLOG(1) << "Error: Attempted to capture a frame without an "
                 "embedding token.";
-    NOTREACHED();
+    DUMP_WILL_BE_NOTREACHED();
     return;
   }
 
   auto it = all_document_data_.find(params.document_guid);
-  if (it == all_document_data_.end())
+  if (it == all_document_data_.end()) {
     return;
+  }
   auto* document_data = &it->second;
 
   // The embedding token should be in the list of tokens in the tree when
   // capture was started. If this is not the case then the frame may have
   // navigated. This is unsafe to capture.
   base::UnguessableToken frame_guid = token.value();
-  if (!base::Contains(document_data->accepted_tokens, frame_guid))
+  if (!base::Contains(document_data->accepted_tokens, frame_guid)) {
     return;
+  }
 
   // Deduplicate data if a subframe is required multiple times.
   if (base::Contains(document_data->awaiting_subframes, frame_guid) ||
-      base::Contains(document_data->finished_subframes, frame_guid))
+      base::Contains(document_data->finished_subframes, frame_guid)) {
     return;
+  }
 
   PrepareRecordingRequestParams(
       document_data->persistence, document_data->FilePathForFrame(frame_guid),
@@ -439,7 +468,7 @@ void PaintPreviewClient::CapturePaintPreviewInternal(
       base::BindOnce(&PaintPreviewClient::RequestCaptureOnUIThread,
                      weak_ptr_factory_.GetWeakPtr(), frame_guid, params,
                      content::GlobalRenderFrameHostId(
-                         render_frame_host->GetProcess()->GetID(),
+                         render_frame_host->GetProcess()->GetDeprecatedID(),
                          render_frame_host->GetRoutingID())));
 }
 
@@ -452,11 +481,13 @@ void PaintPreviewClient::RequestCaptureOnUIThread(
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   auto it = all_document_data_.find(params.document_guid);
-  if (it == all_document_data_.end())
+  if (it == all_document_data_.end()) {
     return;
+  }
   auto* document_data = &it->second;
-  if (!document_data->callback)
+  if (!document_data->callback) {
     return;
+  }
 
   if (status != mojom::PaintPreviewStatus::kOk) {
     std::move(document_data->callback).Run(params.document_guid, status, {});
@@ -495,8 +526,9 @@ void PaintPreviewClient::RequestCaptureOnUIThread(
   }
 
   // For the main frame, apply a clip rect if one is provided.
-  if (params.is_main_frame)
+  if (params.is_main_frame) {
     capture_params->clip_rect_is_hint = false;
+  }
 
   interface_ptrs_[frame_guid]->CapturePaintPreview(
       std::move(capture_params),
@@ -524,8 +556,9 @@ void PaintPreviewClient::OnPaintPreviewCapturedCallback(
   }
 
   auto it = all_document_data_.find(params.document_guid);
-  if (it == all_document_data_.end())
+  if (it == all_document_data_.end()) {
     return;
+  }
   auto* document_data = &it->second;
 
   if (status == mojom::PaintPreviewStatus::kOk) {
@@ -541,19 +574,22 @@ void PaintPreviewClient::OnPaintPreviewCapturedCallback(
     }
   }
 
-  if (document_data->awaiting_subframes.empty())
+  if (document_data->awaiting_subframes.empty()) {
     OnFinished(params.document_guid, document_data);
+  }
 }
 
 void PaintPreviewClient::MarkFrameAsProcessed(
     base::UnguessableToken guid,
     const base::UnguessableToken& frame_guid) {
   pending_previews_on_subframe_[frame_guid].erase(guid);
-  if (pending_previews_on_subframe_[frame_guid].empty())
+  if (pending_previews_on_subframe_[frame_guid].empty()) {
     interface_ptrs_.erase(frame_guid);
+  }
   auto it = all_document_data_.find(guid);
-  if (it == all_document_data_.end())
+  if (it == all_document_data_.end()) {
     return;
+  }
   auto* document_data = &it->second;
   document_data->finished_subframes.insert(frame_guid);
   document_data->awaiting_subframes.erase(frame_guid);
@@ -562,8 +598,9 @@ void PaintPreviewClient::MarkFrameAsProcessed(
 void PaintPreviewClient::OnFinished(
     base::UnguessableToken guid,
     InProgressDocumentCaptureState* document_data) {
-  if (!document_data || !document_data->callback)
+  if (!document_data || !document_data->callback) {
     return;
+  }
 
   if (!PaintPreviewProtoValid(document_data->proto)) {
     document_data->had_success = false;

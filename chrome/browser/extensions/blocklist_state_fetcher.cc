@@ -9,7 +9,6 @@
 #include "base/strings/escape.h"
 #include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/safe_browsing/safe_browsing_service.h"
 #include "chrome/common/safe_browsing/crx_info.pb.h"
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "components/safe_browsing/core/common/features.h"
@@ -20,6 +19,10 @@
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
+#include "chrome/browser/safe_browsing/safe_browsing_service.h"
+#endif
 
 using content::BrowserThread;
 
@@ -39,6 +42,7 @@ void BlocklistStateFetcher::Request(const std::string& id,
                                     RequestCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (!safe_browsing_config_) {
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
     if (g_browser_process && g_browser_process->safe_browsing_service()) {
       SetSafeBrowsingConfig(
           g_browser_process->safe_browsing_service()->GetV4ProtocolConfig());
@@ -47,12 +51,18 @@ void BlocklistStateFetcher::Request(const std::string& id,
           FROM_HERE, base::BindOnce(std::move(callback), BLOCKLISTED_UNKNOWN));
       return;
     }
+#else
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(std::move(callback), BLOCKLISTED_UNKNOWN));
+    return;
+#endif
   }
 
   bool request_already_sent = base::Contains(callbacks_, id);
   callbacks_.insert(std::make_pair(id, std::move(callback)));
-  if (request_already_sent)
+  if (request_already_sent) {
     return;
+  }
 
   SendRequest(id);
 }
@@ -91,11 +101,6 @@ void BlocklistStateFetcher::SendRequest(const std::string& id) {
             "Users can enable or disable this feature by toggling 'Protect you "
             "and your device from dangerous sites' in Chromium settings under "
             "Privacy. This feature is enabled by default."
-          chrome_policy {
-              SafeBrowsingExtensionProtectionAllowed {
-                SafeBrowsingExtensionProtectionAllowed: false
-            }
-          }
           chrome_policy {
             SafeBrowsingProtectionLevel {
               policy_options {mode: MANDATORY}
@@ -138,12 +143,14 @@ void BlocklistStateFetcher::OnURLLoaderComplete(
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   int response_code = 0;
-  if (url_loader->ResponseInfo() && url_loader->ResponseInfo()->headers)
+  if (url_loader->ResponseInfo() && url_loader->ResponseInfo()->headers) {
     response_code = url_loader->ResponseInfo()->headers->response_code();
+  }
 
   std::string response_body_str;
-  if (response_body.get())
+  if (response_body.get()) {
     response_body_str = std::move(*response_body.get());
+  }
 
   OnURLLoaderCompleteInternal(url_loader, response_body_str, response_code,
                               url_loader->NetError());
@@ -157,7 +164,6 @@ void BlocklistStateFetcher::OnURLLoaderCompleteInternal(
   auto it = requests_.find(url_loader);
   if (it == requests_.end()) {
     NOTREACHED();
-    return;
   }
 
   std::unique_ptr<network::SimpleURLLoader> loader =

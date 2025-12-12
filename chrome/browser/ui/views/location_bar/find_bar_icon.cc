@@ -8,10 +8,10 @@
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/ink_drop.h"
 
 FindBarIcon::FindBarIcon(
@@ -25,17 +25,17 @@ FindBarIcon::FindBarIcon(
                          "Find"),
       browser_(browser) {
   DCHECK(browser_);
-  SetAccessibilityProperties(/*role*/ absl::nullopt,
-                             l10n_util::GetStringUTF16(IDS_TOOLTIP_FIND));
+  GetViewAccessibility().SetName(l10n_util::GetStringUTF16(IDS_TOOLTIP_FIND));
 }
 
-FindBarIcon::~FindBarIcon() {}
+FindBarIcon::~FindBarIcon() = default;
 
 void FindBarIcon::SetActive(bool activate, bool should_animate) {
   if (activate ==
       (views::InkDrop::Get(this)->GetInkDrop()->GetTargetInkDropState() ==
-       views::InkDropState::ACTIVATED))
+       views::InkDropState::ACTIVATED)) {
     return;
+  }
   if (activate) {
     if (should_animate) {
       views::InkDrop::Get(this)->AnimateToState(views::InkDropState::ACTIVATED,
@@ -56,21 +56,20 @@ views::BubbleDialogDelegate* FindBarIcon::GetBubble() const {
 }
 
 const gfx::VectorIcon& FindBarIcon::GetVectorIcon() const {
-  return OmniboxFieldTrial::IsChromeRefreshIconsEnabled()
-             ? omnibox::kFindInPageChromeRefreshIcon
-             : omnibox::kFindInPageIcon;
+  return omnibox::kFindInPageChromeRefreshIcon;
 }
 
 void FindBarIcon::UpdateImpl() {
   // |browser_->window()| may return nullptr because Update() is called while
   // BrowserWindow is being constructed.
-  if (!browser_->window() || !browser_->HasFindBarController())
+  if (!browser_->window() || !browser_->HasFindBarController()) {
     return;
+  }
 
   const bool was_visible = GetVisible();
   SetVisible(browser_->GetFindBarController()->find_bar()->IsFindBarVisible());
   SetActive(GetVisible(), was_visible != GetVisible());
 }
 
-BEGIN_METADATA(FindBarIcon, PageActionIconView)
+BEGIN_METADATA(FindBarIcon)
 END_METADATA

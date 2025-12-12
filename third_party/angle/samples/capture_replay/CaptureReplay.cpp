@@ -26,14 +26,8 @@ class CaptureReplaySample : public SampleApplication
 
     bool initialize() override
     {
-        mTraceLibrary.reset(new angle::TraceLibrary("capture_replay_sample_trace"));
+        mTraceLibrary.reset(new angle::TraceLibrary("capture_replay_sample_trace", mTraceInfo, ""));
         assert(mTraceLibrary->valid());
-
-        if (mTraceInfo.isBinaryDataCompressed)
-        {
-            mTraceLibrary->setBinaryDataDecompressCallback(angle::DecompressBinaryData,
-                                                           angle::DeleteBinaryData);
-        }
 
         std::stringstream binaryPathStream;
         binaryPathStream << angle::GetExecutableDirectory() << angle::GetPathSeparator()

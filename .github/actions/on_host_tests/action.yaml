@@ -23,7 +23,7 @@ runs:
         set -x
         mkdir -p unit_test/
         cd unit_test/
-        tar xzf ../test_artifacts.tar.gz
+        tar -I 'zstd -T0' -xf ../test_artifacts.tar.zstd
     - name: Run Tests
       id: run-tests
       shell: bash
@@ -55,6 +55,12 @@ runs:
         for test_binary_path in $(cat out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
           filename=$(basename "${test_binary_path}")
           test_binary="${filename%%.*}"
+
+          if [[ "${{ matrix.shard }}" != "0" && "${test_binary}" =~ ^nplb ]]; then
+            # Workaround for nplb not supporting sharding.
+            continue
+          fi
+
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"

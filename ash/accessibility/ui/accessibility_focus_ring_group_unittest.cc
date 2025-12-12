@@ -4,6 +4,7 @@
 
 #include "ash/accessibility/ui/accessibility_focus_ring_group.h"
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -172,7 +173,7 @@ TEST_F(AccessibilityFocusRingGroupTest, RectsToRingsParagraphShape) {
   ASSERT_EQ(1U, rings.size());
   EXPECT_EQ(gfx::Rect(100, 100, 600, 500), rings[0].GetBounds());
 
-  const gfx::Point* points = rings[0].points;
+  const std::array<gfx::Point, 36>& points = rings[0].points;
   EXPECT_EQ(gfx::Point(100, 190), points[0]);
   EXPECT_EQ(gfx::Point(100, 110), points[1]);
   EXPECT_EQ(gfx::Point(100, 100), points[2]);

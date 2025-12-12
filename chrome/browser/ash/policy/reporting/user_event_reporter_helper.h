@@ -5,7 +5,10 @@
 #ifndef CHROME_BROWSER_ASH_POLICY_REPORTING_USER_EVENT_REPORTER_HELPER_H_
 #define CHROME_BROWSER_ASH_POLICY_REPORTING_USER_EVENT_REPORTER_HELPER_H_
 
+#include <sys/types.h>
+
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/bind.h"
@@ -39,10 +42,9 @@ class UserEventReporterHelper {
       delete;
   virtual ~UserEventReporterHelper();
 
-  // Returns whether the user email can be included in the report. By default,
-  // only affiliated user emails are included. Function can accept
-  // canonicalized and non canonicalized user_email.
-  // Must be called on UI task runner (returned by valid_task_runner() below).
+  // DEPRECATED: please use ReportingUserTracker::ShouldReport() by passing
+  // its instance from DeviceCloudPolicyManagerAsh.
+  // TODO(b/267685577): Remove this.
   virtual bool ShouldReportUser(const std::string& user_email) const;
 
   // Returns whether the provided reporting policy is set.
@@ -63,6 +65,14 @@ class UserEventReporterHelper {
           base::BindOnce(&UserEventReporterHelper::OnEnqueueDefault));
 
   virtual bool IsCurrentUserNew() const;
+
+  virtual std::string GetDeviceDmToken() const;
+
+  // Returns a unique ID number based on the user's email if the device is
+  // managed. Otherwise, returns std::nulopt. The ID will be the same for a
+  // given email. It will only change if the device DM token changes.
+  virtual std::optional<uint32_t> GetUniqueUserIdForThisDevice(
+      std::string_view user_email) const;
 
   // Returns the only valid seq task runner for calls to ShouldReportUser and
   // ReportingEnabled.

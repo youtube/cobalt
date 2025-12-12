@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {assert, assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {dedupingMixin, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
+import type {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {dedupingMixin} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
 /**
  * The different pages that can be shown at a time.
@@ -14,7 +15,8 @@ export enum Page {
   SETTINGS = 'settings',
   // Sub-pages
   CHECKUP_DETAILS = 'checkup-details',
-  PASSWORD_DETAILS = 'password-details'
+  PASSWORD_DETAILS = 'password-details',
+  PASSWORD_CHANGE = 'password-change'
 }
 
 /**
@@ -66,6 +68,9 @@ export class Route {
       case Page.CHECKUP_DETAILS:
         assert(this.details);
         path = '/' + Page.CHECKUP + '/' + this.details;
+        break;
+      case Page.PASSWORD_CHANGE:
+        path = '/' + Page.SETTINGS + '/' + Page.PASSWORD_CHANGE;
         break;
     }
     const queryString = this.queryParameters.toString();
@@ -185,7 +190,11 @@ export class Router {
         }
         break;
       case Page.SETTINGS:
-        this.currentRoute_.page = Page.SETTINGS;
+        if (details === Page.PASSWORD_CHANGE) {
+          this.currentRoute_.page = Page.PASSWORD_CHANGE;
+        } else {
+          this.currentRoute_.page = Page.SETTINGS;
+        }
         break;
       default:
         history.replaceState({}, '', this.currentRoute_.page);

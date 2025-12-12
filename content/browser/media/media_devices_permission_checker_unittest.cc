@@ -14,9 +14,8 @@
 #include "content/public/test/test_renderer_host.h"
 #include "content/test/test_render_view_host.h"
 #include "content/test/test_web_contents.h"
+#include "services/network/public/cpp/permissions_policy/origin_with_possible_wildcards.h"
 #include "third_party/blink/public/common/mediastream/media_stream_request.h"
-#include "third_party/blink/public/common/permissions_policy/origin_with_possible_wildcards.h"
-#include "third_party/blink/public/common/permissions_policy/permissions_policy.h"
 #include "url/origin.h"
 
 using blink::mojom::MediaDeviceType;
@@ -30,7 +29,7 @@ class TestWebContentsDelegate : public content::WebContentsDelegate {
   ~TestWebContentsDelegate() override {}
 
   bool CheckMediaAccessPermission(RenderFrameHost* render_Frame_host,
-                                  const GURL& security_origin,
+                                  const url::Origin& security_origin,
                                   blink::mojom::MediaStreamType type) override {
     return true;
   }
@@ -50,15 +49,17 @@ class MediaDevicesPermissionCheckerTest : public RenderViewHostImplTestHarness {
   // The header policy should only be set once on page load, so we refresh the
   // page to simulate that.
   void RefreshPageAndSetHeaderPolicy(
-      blink::mojom::PermissionsPolicyFeature feature,
+      network::mojom::PermissionsPolicyFeature feature,
       bool enabled) {
     auto navigation = NavigationSimulator::CreateBrowserInitiated(
         origin_.GetURL(), web_contents());
-    std::vector<blink::OriginWithPossibleWildcards> allowlist;
-    if (enabled)
-      allowlist.emplace_back(origin_, /*has_subdomain_wildcard=*/false);
+    std::vector<network::OriginWithPossibleWildcards> allowlist;
+    if (enabled) {
+      allowlist.emplace_back(
+          *network::OriginWithPossibleWildcards::FromOrigin(origin_));
+    }
     navigation->SetPermissionsPolicyHeader({{feature, allowlist,
-                                             /*self_if_matches=*/absl::nullopt,
+                                             /*self_if_matches=*/std::nullopt,
                                              /*matches_all_origins=*/false,
                                              /*matches_opaque_src=*/false}});
     navigation->Commit();
@@ -68,7 +69,7 @@ class MediaDevicesPermissionCheckerTest : public RenderViewHostImplTestHarness {
     base::RunLoop run_loop;
     quit_closure_ = run_loop.QuitClosure();
     checker_.CheckPermission(
-        device_type, main_rfh()->GetProcess()->GetID(),
+        device_type, main_rfh()->GetProcess()->GetDeprecatedID(),
         main_rfh()->GetRoutingID(),
         base::BindOnce(
             &MediaDevicesPermissionCheckerTest::CheckPermissionCallback,
@@ -103,19 +104,20 @@ TEST_F(MediaDevicesPermissionCheckerTest,
        CheckPermissionWithPermissionsPolicy) {
   // Mic and Camera should be enabled by default for a frame (if permission is
   // granted).
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_AUDIO_INPUT));
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_VIDEO_INPUT));
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaAudioInput));
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaVideoInput));
 
   RefreshPageAndSetHeaderPolicy(
-      blink::mojom::PermissionsPolicyFeature::kMicrophone,
+      network::mojom::PermissionsPolicyFeature::kMicrophone,
       /*enabled=*/false);
-  EXPECT_FALSE(CheckPermission(MediaDeviceType::MEDIA_AUDIO_INPUT));
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_VIDEO_INPUT));
+  EXPECT_FALSE(CheckPermission(MediaDeviceType::kMediaAudioInput));
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaVideoInput));
 
-  RefreshPageAndSetHeaderPolicy(blink::mojom::PermissionsPolicyFeature::kCamera,
-                                /*enabled=*/false);
-  EXPECT_TRUE(CheckPermission(MediaDeviceType::MEDIA_AUDIO_INPUT));
-  EXPECT_FALSE(CheckPermission(MediaDeviceType::MEDIA_VIDEO_INPUT));
+  RefreshPageAndSetHeaderPolicy(
+      network::mojom::PermissionsPolicyFeature::kCamera,
+      /*enabled=*/false);
+  EXPECT_TRUE(CheckPermission(MediaDeviceType::kMediaAudioInput));
+  EXPECT_FALSE(CheckPermission(MediaDeviceType::kMediaVideoInput));
 }
 
 }  // namespace

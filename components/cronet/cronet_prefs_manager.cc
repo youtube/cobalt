@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/cronet/cronet_prefs_manager.h"
 
 #include <memory>
@@ -182,7 +187,6 @@ class NetworkQualitiesPrefDelegateImpl
 
   base::Value::Dict GetDictionaryValue() override {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    UMA_HISTOGRAM_EXACT_LINEAR("NQE.Prefs.ReadCount", 1, 2);
     return pref_service_->GetDict(kNetworkQualitiesPref).Clone();
   }
 
@@ -190,7 +194,6 @@ class NetworkQualitiesPrefDelegateImpl
   // Schedules the writing of the lossy prefs.
   void SchedulePendingLossyWrites() {
     DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    UMA_HISTOGRAM_EXACT_LINEAR("NQE.Prefs.WriteCount", 1, 2);
     pref_service_->SchedulePendingLossyWrites();
     lossy_prefs_writing_task_posted_ = false;
   }

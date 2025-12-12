@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,10 +36,13 @@
 #include "content/public/test/test_utils.h"
 #include "extensions/buildflags/buildflags.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 #include "chrome/browser/extensions/api/downloads/downloads_api.h"
+#endif
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/download/download_item_web_app_data.h"
 #endif
 
 using testing::_;
@@ -91,11 +95,11 @@ class FakeHistoryAdapter : public DownloadHistory::HistoryAdapter {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     CHECK(expect_query_downloads_.has_value());
 
-    // Use swap to reset the absl::optional<...> to a known state before
-    // moving the value (moving the value out of a absl::optional<...>
-    // does not reset it to absl::nullopt).
+    // Use swap to reset the std::optional<...> to a known state before
+    // moving the value (moving the value out of a std::optional<...>
+    // does not reset it to std::nullopt).
     using std::swap;
-    absl::optional<std::vector<history::DownloadRow>> rows;
+    std::optional<std::vector<history::DownloadRow>> rows;
     swap(rows, expect_query_downloads_);
 
     std::move(callback).Run(std::move(*rows));
@@ -201,7 +205,7 @@ class FakeHistoryAdapter : public DownloadHistory::HistoryAdapter {
   bool should_commit_immediately_ = false;
   base::OnceClosure create_download_callback_;
   history::DownloadRow update_download_;
-  absl::optional<std::vector<history::DownloadRow>> expect_query_downloads_;
+  std::optional<std::vector<history::DownloadRow>> expect_query_downloads_;
   IdSet remove_downloads_;
   history::DownloadRow create_download_row_;
 };
@@ -242,7 +246,7 @@ class DownloadHistoryTest : public testing::Test {
         row.guid, history::ToContentDownloadId(row.id), row.current_path,
         row.target_path, row.url_chain, row.referrer_url,
         row.embedder_download_data, row.tab_url, row.tab_referrer_url,
-        absl::nullopt, row.mime_type, row.original_mime_type, row.start_time,
+        std::nullopt, row.mime_type, row.original_mime_type, row.start_time,
         row.end_time, row.etag, row.last_modified, row.received_bytes,
         row.total_bytes, std::string(),
         history::ToContentDownloadState(row.state),
@@ -469,8 +473,14 @@ class DownloadHistoryTest : public testing::Test {
     new extensions::DownloadedByExtension(&item(index), row->by_ext_id,
                                           row->by_ext_name);
 #endif
+#if !BUILDFLAG(IS_ANDROID)
+    if (!row->by_web_app_id.empty()) {
+      DownloadItemWebAppData::CreateAndAttachToItem(&item(index),
+                                                    row->by_web_app_id);
+    }
+#endif
 
-    std::vector<download::DownloadItem*> items;
+    std::vector<raw_ptr<download::DownloadItem, VectorExperimental>> items;
     for (size_t i = 0; i < items_.size(); ++i) {
       items.push_back(&item(i));
     }
@@ -491,9 +501,10 @@ class DownloadHistoryTest : public testing::Test {
   content::BrowserTaskEnvironment task_environment_;
   std::vector<std::unique_ptr<StrictMockDownloadItem>> items_;
   std::unique_ptr<NiceMock<content::MockDownloadManager>> manager_;
-  raw_ptr<FakeHistoryAdapter> history_ = nullptr;
+  raw_ptr<FakeHistoryAdapter, DanglingUntriaged> history_ = nullptr;
   std::unique_ptr<DownloadHistory> download_history_;
-  raw_ptr<content::DownloadManager::Observer> manager_observer_ = nullptr;
+  raw_ptr<content::DownloadManager::Observer, DanglingUntriaged>
+      manager_observer_ = nullptr;
   size_t download_created_index_ = 0;
   base::test::ScopedFeatureList feature_list_;
   TestingProfile profile_;
@@ -988,5 +999,26 @@ TEST_F(DownloadHistoryTest,
   EXPECT_TRUE(DownloadHistory::IsPersisted(&item(0)));
   EXPECT_TRUE(DownloadHistory::IsPersisted(&item(1)));
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+// Test that web app id is inserted into history.
+TEST_F(DownloadHistoryTest, ByWebAppId) {
+  // Create a fresh item not from download DB
+  CreateDownloadHistory({});
+
+  history::DownloadRow row;
+  row.by_web_app_id = "by_web_app_id";
+  InitBasicItem(FILE_PATH_LITERAL("/foo/bar.pdf"), "http://example.com/bar.pdf",
+                "http://example.com/referrer.html",
+                download::DownloadItem::COMPLETE, &row);
+
+  EXPECT_CALL(item(0), IsDone()).WillRepeatedly(Return(true));
+
+  CallOnDownloadCreated(0);
+  ExpectDownloadCreated(row);
+  EXPECT_TRUE(DownloadHistory::IsPersisted(&item(0)));
+  EXPECT_NE(DownloadItemWebAppData::Get(&item(0)), nullptr);
+}
+#endif
 
 }  // anonymous namespace

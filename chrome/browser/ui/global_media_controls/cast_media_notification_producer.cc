@@ -4,9 +4,9 @@
 
 #include "chrome/browser/ui/global_media_controls/cast_media_notification_producer.h"
 
-#include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+#include <map>
+
 #include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/media/router/media_router_feature.h"
 #include "chrome/browser/profiles/profile.h"
@@ -22,32 +22,37 @@
 
 namespace {
 
-// Returns false if a notification item shouldn't be created for |route|.
-// If a route should be hidden, it's not possible to create an item
-// for this route until the next time |OnModuleUpdated()| is called.
-bool ShouldHideNotification(const raw_ptr<Profile> profile,
+// Returns false if a notification item shouldn't be created for |route|. If a
+// route should be hidden, it's impossible to create an item for this route
+// until the next time |OnRoutesUpdated()| is called.
+bool ShouldHideNotification(Profile* profile,
                             const media_router::MediaRoute& route) {
-  // TODO(crbug.com/1195382): Display multizone group route.
+  // TODO(crbug.com/40176012): Display multizone group route.
   if (route.is_connecting()) {
+    return true;
+  }
+  // If the user changes the pref to show all Cast sessions, they won't be shown
+  // until `OnRoutesUpdated()` is called again.
+  if (!route.is_local() &&
+      !profile->GetPrefs()->GetBoolean(
+          media_router::prefs::
+              kMediaRouterShowCastSessionsStartedByOtherDevices)) {
     return true;
   }
   std::unique_ptr<media_router::CastMediaSource> source =
       media_router::CastMediaSource::FromMediaSource(route.media_source());
-  if (media_router::GlobalMediaControlsCastStartStopEnabled(profile)) {
-    // Show local site-initiated Mirroring routes.
-    if (source && route.is_local() &&
-        media_router::IsSiteInitiatedMirroringSource(source->source_id())) {
-      return false;
-    }
-    // Hide a route if it contains a Streaming App, i.e. Tab/Desktop Mirroring
-    // and Remote Playback routes.
-    if (source && source->ContainsStreamingApp()) {
-      return true;
-    }
-  } else if (route.controller_type() !=
-             media_router::RouteControllerType::kGeneric) {
-    // Hide a route if it doesn't have a generic controller (play, pause etc.).
-    return true;
+  // Show local site-initiated Mirroring routes.
+  if (source && route.is_local() &&
+      media_router::IsSiteInitiatedMirroringSource(source->source_id())) {
+    return false;
+  }
+  // Hide a route if it contains a Streaming App, i.e. Tab/Desktop Mirroring
+  // and Remote Playback routes.
+  if (source && source->ContainsStreamingApp()) {
+    // Don't hide it in case of MirroringType::kOffscreenTab.
+    // This happens when 1UA mode is being used. It uses a URL for MediaSource
+    // and a streaming receiver app for CastMediaSource.
+    return !route.media_source().url().SchemeIsHTTPOrHTTPS();
   }
 
   // Skip the multizone member check if it's a DIAL route.
@@ -87,8 +92,9 @@ CastMediaNotificationProducer::~CastMediaNotificationProducer() = default;
 base::WeakPtr<media_message_center::MediaNotificationItem>
 CastMediaNotificationProducer::GetMediaItem(const std::string& id) {
   const auto item_it = items_.find(id);
-  if (item_it == items_.end())
+  if (item_it == items_.end()) {
     return nullptr;
+  }
   return item_it->second.GetWeakPtr();
 }
 
@@ -96,16 +102,10 @@ std::set<std::string>
 CastMediaNotificationProducer::GetActiveControllableItemIds() const {
   std::set<std::string> ids;
   for (const auto& item : items_) {
-    if (!item.second.is_active())
+    if (!item.second.is_active()) {
       continue;
-
-    // The non-local Cast session filter should not be put in
-    // |ShouldHideNotification()| because it's used to determine if an item
-    // should be created. It's possible that users later change the pref to
-    // show all Cast sessions.
-    // TODO(crbug.com/726823): Ash currently considers Lacros routes non-local
-    // and hides them if the pref is set to false.
-    if (!this->profile_->GetPrefs()->GetBoolean(
+    }
+    if (!profile_->GetPrefs()->GetBoolean(
             media_router::prefs::
                 kMediaRouterShowCastSessionsStartedByOtherDevices) &&
         !item.second.route_is_local()) {
@@ -123,8 +123,9 @@ bool CastMediaNotificationProducer::HasFrozenItems() {
 void CastMediaNotificationProducer::OnItemShown(
     const std::string& id,
     global_media_controls::MediaItemUI* item_ui) {
-  if (item_ui)
+  if (item_ui) {
     item_ui_observer_set_.Observe(id, item_ui);
+  }
 }
 
 void CastMediaNotificationProducer::OnDialogDisplayed() {
@@ -155,17 +156,18 @@ void CastMediaNotificationProducer::OnRoutesUpdated(
     const std::vector<media_router::MediaRoute>& routes) {
   const bool had_items = HasActiveItems();
 
-  base::EraseIf(items_, [&routes](const auto& item) {
+  std::erase_if(items_, [&routes](const auto& item) {
     return !base::Contains(routes, item.first,
                            &media_router::MediaRoute::media_route_id);
   });
 
   for (const auto& route : routes) {
-    if (ShouldHideNotification(profile_, route))
+    if (ShouldHideNotification(profile_, route)) {
       continue;
+    }
 
-    auto item_it = base::ranges::find(items_, route.media_route_id(),
-                                      &Items::value_type::first);
+    auto item_it = std::ranges::find(items_, route.media_route_id(),
+                                     &Items::value_type::first);
     if (item_it == items_.end()) {
       mojo::Remote<media_router::mojom::MediaController> controller_remote;
       mojo::PendingReceiver<media_router::mojom::MediaController>
@@ -199,7 +201,6 @@ bool CastMediaNotificationProducer::HasActiveItems() const {
 }
 
 bool CastMediaNotificationProducer::HasLocalMediaRoute() const {
-  return base::ranges::any_of(items_,
-                              &CastMediaNotificationItem::route_is_local,
-                              &Items::value_type::second);
+  return std::ranges::any_of(items_, &CastMediaNotificationItem::route_is_local,
+                             &Items::value_type::second);
 }

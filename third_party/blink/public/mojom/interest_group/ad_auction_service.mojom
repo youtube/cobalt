@@ -7,20 +7,18 @@ module blink.mojom;
 import "third_party/blink/public/mojom/fenced_frame/fenced_frame_config.mojom";
 import "third_party/blink/public/mojom/parakeet/ad_request.mojom";
 import "third_party/blink/public/mojom/interest_group/interest_group_types.mojom";
+import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/time.mojom";
+import "mojo/public/mojom/base/uuid.mojom";
 import "url/mojom/origin.mojom";
 import "url/mojom/url.mojom";
 
-struct AdKeywordReplacement {
-  string match;
-  string replacement;
-};
 
 // Represents which AuctionConfig is getting concrete value filled in after a
 // promise param resolved --- either the top-level auction (if `main_auction`)
 // or a particular component auction.
 union AuctionAdConfigAuctionId {
-  uint32 main_auction;  // value unused.
+  uint32 main_auction;
   uint32 component_auction;  // value position in component_auctions array.
 };
 
@@ -28,7 +26,8 @@ union AuctionAdConfigAuctionId {
 // that was originally passed in resolved.
 enum AuctionAdConfigField {
   kAuctionSignals,
-  kSellerSignals
+  kSellerSignals,
+  kSellerTKVSignals
 };
 
 // Represents which field that uses the AuctionAdConfigBuyerTimeouts struct is
@@ -55,6 +54,15 @@ interface AbortableAdAuction {
       AuctionAdConfigAuctionId auction,
       map<url.mojom.Origin, string>? per_buyer_signals);
 
+  // Used to provide result of resolving a promise for a single buyer's entry in
+  // the `per_buyer_tkv_signals` field of an AuctionConfig. A nullopt `json_value`
+  // means not to send any signals, either due to the promise being rejected, or
+  // being passed data that is not serializable to JSON.
+  ResolvedBuyerTkvSignalsPromise(
+      AuctionAdConfigAuctionId auction,
+      url.mojom.Origin buyer,
+      string? json_value);
+
   // Used to provide result of resolving a promise specifying
   // `per_buyer_timeouts` or `per_buyer_cumulative_timeouts` field of an
   // AuctionConfig.
@@ -74,6 +82,33 @@ interface AbortableAdAuction {
   ResolvedDirectFromSellerSignalsPromise(
       AuctionAdConfigAuctionId auction,
       DirectFromSellerSignals? direct_from_seller_signals);
+
+  // Used to provide result of resolving a promise specifying
+  // `direct_from_seller_signals_ad_slot` field of an AuctionConfig.
+  ResolvedDirectFromSellerSignalsHeaderAdSlotPromise(
+      AuctionAdConfigAuctionId auction,
+      string? direct_from_seller_signals_header_ad_slot);
+
+  // Used to provide result of resolving a promise specifying
+  // `deprecated_render_url_replacements` field of an AuctionConfig.
+  ResolvedDeprecatedRenderURLReplacementsPromise(
+    AuctionAdConfigAuctionId auction,
+    array<AdKeywordReplacement> deprecated_render_url_replacements);
+
+  // Used to provide result of resolving a promise specifying the Server
+  // Response for an AuctionConfig that uses AuctionAdServerResponseConfig.
+  // `result` is an encrypted payload containing the response from the bidding
+  // and auction server.
+  ResolvedAuctionAdResponsePromise(
+    AuctionAdConfigAuctionId auction,
+    mojo_base.mojom.BigBuffer result);
+
+  // Used to notify that the promise passed as an `additional_bids` field of an
+  // AuctionConfig has resolved. In response, it's checked for whether a
+  // response header containing signed additional bid information corresponding
+  // to an auction nonce was captured, and the matching entry is decoded (partly
+  // via utility processes) and injected as bids into the auction.
+  ResolvedAdditionalBids(AuctionAdConfigAuctionId auction);
 
   // Aborts the auction for which the receiver for this pipe was passed to
   // RunAdAuction(), unless the auction has already finished (with at most
@@ -109,12 +144,12 @@ interface AdAuctionService {
   // config `decision_logic_url`. The result of the auction is a URL for the
   // winning ad creative, which the publisher page loads into a page or iframe
   // in the owner's domain. This URL is embedded inside `config` below. If no ad
-  // wins the auction, null is returned. `manually_aborted` is set to true only
+  // wins the auction, null is returned. `aborted_by_script` is set to true only
   // if the auction was manually cancelled successfully via a call to
   // `abort_receiver->Abort()`.
   RunAdAuction(AuctionAdConfig config,
                pending_receiver<AbortableAdAuction>? abort_receiver)
-      => (bool manually_aborted, FencedFrameConfig? config);
+      => (bool aborted_by_script, FencedFrameConfig? config);
 
   // Requests that the browser process create or overwrite persisted interest
   // group keyed by `group.owner` and `group.name` with information from
@@ -161,6 +196,28 @@ interface AdAuctionService {
   // FLEDGE auction.
   LeaveInterestGroupForDocument();
 
+  // Requests the browser remove all interest groups owned by `owner` that were
+  // joined from the current main frame's origin, except for those with names
+  // in `interest_groups_to_keep`.
+  //
+  // The browser verifies that the origin of the frame that invoked the
+  // method has permission to leave the owner origin's interest groups,
+  // performing a CORS-enabled .well-known fetch if necessary, and invokes
+  // the callback on complete.
+  //
+  // `failed_well_known_check` is true if the join failed due to the
+  //  .well-known fetch failing. If it failed for other reasons, such as
+  //  per-site settings blocking joining the IG, it should still be the result
+  //  of the .well-known fetch, to avoid leaking per-site configuration to
+  //  the renderer.
+  //
+  // Neither the result nor the timing may leak anything about what interest
+  // groups the user belongs to, including whether the user was previously a
+  // member of any of the specified interest groups.
+  ClearOriginJoinedInterestGroups(url.mojom.Origin owner,
+                                  array<string> interest_groups_to_keep)
+      => (bool failed_well_known_check);
+
   // Requests the browser update stored interest groups owned by the current
   // frame's origin *only* (interest groups not owned by the frame origin aren't
   // modified) using the last `update_url` registered for each owned interest
@@ -203,4 +260,12 @@ interface AdAuctionService {
   // showing FLEDGE ads in iframes.
   DeprecatedReplaceInURN(url.mojom.Url uuid_url,
                          array<AdKeywordReplacement> replacements) => ();
+
+  // Gets the ad auction data for running an external auction on a bidding and
+  // auction server. The requests will contain each seller's encrypted ad
+  // auction data upon success, or error message if there is one upon failure.
+  GetInterestGroupAdAuctionData(map<url.mojom.Origin, url.mojom.Origin?> sellers,
+                                AuctionDataConfig config)
+      => (array<AdAuctionPerSellerRequest> requests,
+          mojo_base.mojom.Uuid? request_id);
 };

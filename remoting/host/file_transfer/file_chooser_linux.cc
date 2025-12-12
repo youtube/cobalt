@@ -9,12 +9,12 @@
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/sequence_bound.h"
 #include "remoting/base/string_resources.h"
-#include "ui/base/glib/glib_signal.h"
+#include "ui/base/glib/scoped_gsignal.h"
 #include "ui/base/l10n/l10n_util.h"
 
 namespace remoting {
@@ -38,20 +38,15 @@ class GtkFileChooserOnUiThread {
 
  private:
   // Callback for when the user responds to the Open File dialog.
-  CHROMEG_CALLBACK_1(GtkFileChooserOnUiThread,
-                     void,
-                     OnResponse,
-                     GtkWidget*,
-                     int);
+  void OnResponse(GtkWidget* dialog, int response_id);
 
   void RunCallback(FileChooser::Result result);
   void CleanUp();
 
-  // This field is not a raw_ptr<> because of a static_cast not related by
-  // inheritance.
-  RAW_PTR_EXCLUSION GObject* file_dialog_ = nullptr;
+  raw_ptr<GObject> file_dialog_ = nullptr;
   scoped_refptr<base::SequencedTaskRunner> caller_task_runner_;
   base::WeakPtr<FileChooserLinux> file_chooser_linux_;
+  ScopedGSignal signal_;
 };
 
 class FileChooserLinux : public FileChooser {
@@ -110,13 +105,17 @@ void GtkFileChooserOnUiThread::Show() {
   G_GNUC_END_IGNORE_DEPRECATIONS;
 #endif
 
-  gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(file_dialog_), false);
-  g_signal_connect(file_dialog_, "response", G_CALLBACK(OnResponseThunk), this);
+  gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(file_dialog_.get()),
+                                       false);
+  signal_ =
+      ScopedGSignal(GTK_WIDGET(file_dialog_.get()), "response",
+                    base::BindRepeating(&GtkFileChooserOnUiThread::OnResponse,
+                                        base::Unretained(this)));
 
 #if GTK_CHECK_VERSION(3, 90, 0)
-  gtk_native_dialog_show(GTK_NATIVE_DIALOG(file_dialog_));
+  gtk_native_dialog_show(GTK_NATIVE_DIALOG(file_dialog_.get()));
 #else
-  gtk_widget_show_all(GTK_WIDGET(file_dialog_));
+  gtk_widget_show_all(GTK_WIDGET(file_dialog_.get()));
 #endif
 }
 
@@ -129,9 +128,9 @@ void GtkFileChooserOnUiThread::RunCallback(FileChooser::Result result) {
 void GtkFileChooserOnUiThread::CleanUp() {
   if (file_dialog_) {
 #if GTK_CHECK_VERSION(3, 90, 0)
-    g_object_unref(file_dialog_);
+    g_object_unref(file_dialog_.get());
 #else
-    gtk_widget_destroy(GTK_WIDGET(file_dialog_));
+    gtk_widget_destroy(GTK_WIDGET(file_dialog_.get()));
 #endif
     file_dialog_ = nullptr;
   }

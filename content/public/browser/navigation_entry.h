@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/memory/ref_counted_memory.h"
@@ -17,7 +18,6 @@
 #include "content/common/content_export.h"
 #include "content/public/common/page_type.h"
 #include "content/public/common/referrer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/base/page_transition_types.h"
 
 class GURL;
@@ -69,7 +69,7 @@ class NavigationEntry : public base::SupportsUserData {
   // data: URL or something like that. Use GetVirtualURL() below for showing to
   // the user.
   virtual void SetURL(const GURL& url) = 0;
-  virtual const GURL& GetURL() = 0;
+  virtual const GURL& GetURL() const = 0;
 
   // Used for specifying a base URL for pages loaded via data URLs.
   virtual void SetBaseURLForDataURL(const GURL& url) = 0;
@@ -97,7 +97,7 @@ class NavigationEntry : public base::SupportsUserData {
   // GetVirtualURL() will return the URL to display to the user in all cases, so
   // if there is no overridden display URL, it will return the actual one.
   virtual void SetVirtualURL(const GURL& url) = 0;
-  virtual const GURL& GetVirtualURL() = 0;
+  virtual const GURL& GetVirtualURL() const = 0;
 
   // The title as set by the page. This will be empty if there is no title set.
   // The caller is responsible for detecting when there is no title and
@@ -107,8 +107,21 @@ class NavigationEntry : public base::SupportsUserData {
   // observers when the visible title changes. Only call
   // NavigationEntry::SetTitle() below directly when this entry is known not to
   // be visible.
-  virtual void SetTitle(const std::u16string& title) = 0;
+  virtual void SetTitle(std::u16string title) = 0;
   virtual const std::u16string& GetTitle() = 0;
+
+  // The application title as set by the page. SetApplicationTitle gets called
+  // only if page has an app-title meta tag. For all other pages, the
+  // application-title will not be set. This information is provided by an
+  // experimental meta tag. See:
+  // 'https://github.com/MicrosoftEdge/MSEdgeExplainers/blob/main/DocumentSubtitle/explainer.md'
+  virtual void SetApplicationTitle(const std::u16string& application_title) = 0;
+
+  // If application-title meta tag is set by the page, GetApplicationTitle will
+  // return the value set by the page, including empty string. If the page does
+  // not have an application-title meta tag, GetApplicationTitle will return a
+  // nullopt.
+  virtual const std::optional<std::u16string>& GetApplicationTitle() = 0;
 
   // Page state is an opaque blob created by Blink that represents the state of
   // the page. This includes form entries and scroll position for each frame.
@@ -228,7 +241,7 @@ class NavigationEntry : public base::SupportsUserData {
   // contains some information about the entry prior to being replaced. Even if
   // an entry is replaced multiple times, it represents data prior to the
   // *first* replace.
-  virtual const absl::optional<ReplacedNavigationEntryData>&
+  virtual const std::optional<ReplacedNavigationEntryData>&
   GetReplacedEntryData() = 0;
 
   // True if this entry is restored and hasn't been loaded.

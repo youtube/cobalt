@@ -2,9 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/viz/test/gl_scaler_test_util.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <ostream>
 
@@ -71,7 +77,6 @@ SkBitmap GLScalerTestUtil::CreateSMPTETestImage(const gfx::Size& size) {
       if (result.getColor4f(x, y) == kDeadColor) {
         NOTREACHED() << "TEST BUG: Error creating SMPTE test image. Bad size ("
                      << size.ToString() << ")?";
-        return result;
       }
     }
   }
@@ -249,8 +254,12 @@ SkBitmap GLScalerTestUtil::CreatePackedPlanarBitmap(const SkBitmap& source,
   SkBitmap result =
       AllocateRGBABitmap(gfx::Size(source.width() / 4, source.height()));
 
-  constexpr int kShiftForChannel[4] = {kRedShift, kGreenShift, kBlueShift,
-                                       kAlphaShift};
+  constexpr std::array<int, 4> kShiftForChannel = {
+      kRedShift,
+      kGreenShift,
+      kBlueShift,
+      kAlphaShift,
+  };
   const int shift = kShiftForChannel[channel];
   for (int y = 0; y < result.height(); ++y) {
     const uint32_t* const src = source.getAddr32(0, y);
@@ -289,8 +298,12 @@ void GLScalerTestUtil::UnpackPlanarBitmap(const SkBitmap& plane,
 
   // These determine which single byte in each of |out|'s uint32_t-valued pixels
   // will be modified.
-  constexpr int kShiftForChannel[4] = {kRedShift, kGreenShift, kBlueShift,
-                                       kAlphaShift};
+  constexpr std::array<int, 4> kShiftForChannel = {
+      kRedShift,
+      kGreenShift,
+      kBlueShift,
+      kAlphaShift,
+  };
   const int output_shift = kShiftForChannel[channel];
   const uint32_t output_retain_mask = ~(UINT32_C(0xff) << output_shift);
 
@@ -344,8 +357,12 @@ void GLScalerTestUtil::UnpackUVBitmap(const SkBitmap& plane, SkBitmap* out) {
 
   // These determine which single byte in each of |out|'s uint32_t-valued pixels
   // will be modified.
-  constexpr int kShiftForChannel[4] = {kRedShift, kGreenShift, kBlueShift,
-                                       kAlphaShift};
+  constexpr std::array<int, 4> kShiftForChannel = {
+      kRedShift,
+      kGreenShift,
+      kBlueShift,
+      kAlphaShift,
+  };
   constexpr uint32_t zero_green_mask = ~(UINT32_C(0xff) << kGreenShift);
   constexpr uint32_t zero_blue_mask = ~(UINT32_C(0xff) << kBlueShift);
   constexpr uint32_t zero_green_blue_mask = zero_green_mask & zero_blue_mask;

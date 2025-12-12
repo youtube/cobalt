@@ -4,7 +4,8 @@
 
 import 'chrome://password-manager/password_manager.js';
 
-import {CrButtonElement, CrDialogElement, Page, PasswordManagerImpl, PasswordsImporterElement, PluralStringProxyImpl, Router} from 'chrome://password-manager/password_manager.js';
+import type {CrButtonElement, CrDialogElement, PasswordsImporterElement} from 'chrome://password-manager/password_manager.js';
+import {Page, PasswordManagerImpl, PluralStringProxyImpl, Router} from 'chrome://password-manager/password_manager.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {flush} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 import {assertArrayEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -41,9 +42,9 @@ async function triggerImportHelper(
   flush();
 
   // In progress state after the click.
-  const spinner = importer.shadowRoot!.querySelector('paper-spinner-lite');
+  const spinner = importer.shadowRoot!.querySelector('.spinner');
   assertTrue(!!spinner);
-  assertTrue(spinner.active);
+  assertTrue(isVisible(spinner));
   assertFalse(isVisible(chooseFile));
 
   // Import flow should have been triggered.
@@ -173,83 +174,70 @@ suite('PasswordsImporterTest', function() {
   });
 
   test('account store user can import passwords to device', async function() {
-    // Store picker should pre-select preferred store as DEVICE.
-    passwordManager.data.isAccountStorageDefault = false;
     const importer = createPasswordsImporter(
         /*isUserSyncingPasswords=*/ false, /*isAccountStoreUser=*/ true,
         /*accountEmail=*/ 'test@test.com');
     await flushTasks();
 
-    // Clicking on the importer row should open the STORE_PICKER dialog.
+    // Clicking on the importer row should open the import dialog. The store
+    // picker should be shown and "account" should be the default.
     importer.$.linkRow.click();
     flush();
+    const storePicker =
+        importer.shadowRoot!.querySelector<HTMLSelectElement>('#storePicker');
+    assertTrue(!!storePicker);
+    assertTrue(isVisible(storePicker));
+    assertEquals(
+        storePicker.value, chrome.passwordsPrivate.PasswordStoreSet.ACCOUNT);
 
+    // Switch the picker to "device" and confirm. Passwords should be imported
+    // to the device.
     const expectedStore = chrome.passwordsPrivate.PasswordStoreSet.DEVICE;
+    storePicker.value = chrome.passwordsPrivate.PasswordStoreSet.DEVICE;
     await triggerImportHelper(importer, passwordManager, expectedStore);
   });
 
+
   test('account store user can import passwords to account', async function() {
-    // Store picker should pre-select preferred store as ACCOUNT.
-    passwordManager.data.isAccountStorageDefault = true;
     const importer = createPasswordsImporter(
         /*isUserSyncingPasswords=*/ false, /*isAccountStoreUser=*/ true,
         /*accountEmail=*/ 'test@test.com');
     await flushTasks();
 
-    // Clicking on the importer row should open the STORE_PICKER dialog.
+    // Clicking on the importer row should open the import dialog. The store
+    // picker should be shown and "account" should be the default.
     importer.$.linkRow.click();
     flush();
+    const storePicker =
+        importer.shadowRoot!.querySelector<HTMLSelectElement>('#storePicker');
+    assertTrue(!!storePicker);
+    assertTrue(isVisible(storePicker));
+    assertEquals(
+        storePicker.value, chrome.passwordsPrivate.PasswordStoreSet.ACCOUNT);
 
     const expectedStore = chrome.passwordsPrivate.PasswordStoreSet.ACCOUNT;
     await triggerImportHelper(importer, passwordManager, expectedStore);
   });
 
-  test('M1: has correct success state with no errors', async function() {
-    loadTimeData.overrideValues({enablePasswordsImportM2: false});
-    const importer = createPasswordsImporter();
-    passwordManager.setImportResults({
-      status: chrome.passwordsPrivate.ImportResultsStatus.SUCCESS,
-      numberImported: 42,
-      displayedEntries: [],
-      fileName: 'test.csv',
-    });
-
-    await triggerImportHelper(importer, passwordManager);
-    await pluralString.whenCalled('getPluralString');
+  test('non-account store user imports passwords to device', async function() {
+    const importer = createPasswordsImporter(
+        /*isUserSyncingPasswords=*/ false, /*isAccountStoreUser=*/ false,
+        /*accountEmail=*/ 'test@test.com');
     await flushTasks();
 
-    const dialog =
-        importer.shadowRoot!.querySelector<CrDialogElement>('#dialog');
-    assertTrue(!!dialog);
-    assertTrue(dialog.open);
+    // Clicking on the importer row should open the import dialog. The store
+    // picker should be hidden.
+    importer.$.linkRow.click();
+    flush();
+    assertFalse(isVisible(
+        importer.shadowRoot!.querySelector<HTMLSelectElement>('#storePicker')));
 
-    assertVisibleTextContent(
-        dialog, '#title', importer.i18n('importPasswordsSuccessTitle'));
-
-    assertTrue(isChildVisible(dialog, '#tipBox', /*checkLightDom=*/ true));
-
-    assertFalse(
-        isChildVisible(dialog, '#deleteFileOption', /*checkLightDom=*/ true));
-    assertFalse(
-        isChildVisible(dialog, '#failuresSummary', /*checkLightDom=*/ true));
-
-    const successTip = dialog.querySelector('#successTip');
-    assertTrue(!!successTip);
-    assertEquals(
-        successTip.innerHTML.toString(),
-        importer
-            .i18nAdvanced(
-                'importPasswordsSuccessTip',
-                {attrs: ['class'], substitutions: ['test.csv']})
-            .toString());
-
-    assertVisibleTextContent(dialog, '#closeButton', importer.i18n('close'));
-
-    await closeDialogHelper(importer, passwordManager, dialog, '#closeButton');
+    // Accepting the dialog should import to the device.
+    const expectedStore = chrome.passwordsPrivate.PasswordStoreSet.DEVICE;
+    await triggerImportHelper(importer, passwordManager, expectedStore);
   });
 
-  test('M2: has correct success state with no errors', async function() {
-    loadTimeData.overrideValues({enablePasswordsImportM2: true});
+  test('Has correct success state with no errors', async function() {
     const importer = createPasswordsImporter();
     passwordManager.setImportResults({
       status: chrome.passwordsPrivate.ImportResultsStatus.SUCCESS,
@@ -293,7 +281,6 @@ suite('PasswordsImporterTest', function() {
   });
 
   test('has correct conflicts state', async function() {
-    loadTimeData.overrideValues({enablePasswordsImportM2: true});
     const importer = createPasswordsImporter();
     passwordManager.setImportResults({
       status: chrome.passwordsPrivate.ImportResultsStatus.CONFLICTS,
@@ -350,7 +337,6 @@ suite('PasswordsImporterTest', function() {
   });
 
   test('can skip conflicts', async function() {
-    loadTimeData.overrideValues({enablePasswordsImportM2: true});
     const importer = createPasswordsImporter();
     passwordManager.setImportResults({
       status: chrome.passwordsPrivate.ImportResultsStatus.CONFLICTS,
@@ -389,9 +375,9 @@ suite('PasswordsImporterTest', function() {
     flush();
 
     // In progress state after the click.
-    const spinner = importer.shadowRoot!.querySelector('paper-spinner-lite');
+    const spinner = importer.shadowRoot!.querySelector('.spinner');
     assertTrue(!!spinner);
-    assertTrue(spinner.active);
+    assertTrue(isVisible(spinner));
 
     assertFalse(
         !!importer.shadowRoot!.querySelector<CrDialogElement>('#dialog'));
@@ -401,7 +387,6 @@ suite('PasswordsImporterTest', function() {
   });
 
   test('can continue import with conflicts', async function() {
-    loadTimeData.overrideValues({enablePasswordsImportM2: true});
     const importer = createPasswordsImporter();
     passwordManager.setImportResults({
       status: chrome.passwordsPrivate.ImportResultsStatus.CONFLICTS,
@@ -435,7 +420,10 @@ suite('PasswordsImporterTest', function() {
     assertTrue(dialog.open);
 
     const passwordItems = dialog.querySelectorAll('password-preview-item');
-    passwordItems.forEach(item => item.$.checkbox.click());
+    for (const item of passwordItems) {
+      item.$.checkbox.click();
+      await item.$.checkbox.updateComplete;
+    }
 
     const replaceButton =
         dialog.querySelector<CrButtonElement>('#replaceButton');
@@ -444,9 +432,9 @@ suite('PasswordsImporterTest', function() {
     flush();
 
     // In progress state after the click.
-    const spinner = importer.shadowRoot!.querySelector('paper-spinner-lite');
+    const spinner = importer.shadowRoot!.querySelector('.spinner');
     assertTrue(!!spinner);
-    assertTrue(spinner.active);
+    assertTrue(isVisible(spinner));
 
     assertFalse(
         !!importer.shadowRoot!.querySelector<CrDialogElement>('#dialog'));
@@ -456,7 +444,6 @@ suite('PasswordsImporterTest', function() {
   });
 
   test('correct conflicts state after failed re-auth', async function() {
-    loadTimeData.overrideValues({enablePasswordsImportM2: true});
     const importer = createPasswordsImporter();
     passwordManager.setImportResults({
       status: chrome.passwordsPrivate.ImportResultsStatus.CONFLICTS,
@@ -492,7 +479,10 @@ suite('PasswordsImporterTest', function() {
 
     let passwordItems = dialog.querySelectorAll('password-preview-item');
     // Select all rows.
-    passwordItems.forEach(item => item.$.checkbox.click());
+    for (const item of passwordItems) {
+      item.$.checkbox.click();
+      await item.$.checkbox.updateComplete;
+    }
 
     let replaceButton = dialog.querySelector<CrButtonElement>('#replaceButton');
     assertTrue(!!replaceButton);
@@ -526,9 +516,8 @@ suite('PasswordsImporterTest', function() {
   });
 
   test(
-      'M2: close button triggers file deletion with ticked checkbox',
+      'close button triggers file deletion with ticked checkbox',
       async function() {
-        loadTimeData.overrideValues({enablePasswordsImportM2: true});
         const importer = createPasswordsImporter();
         passwordManager.setImportResults({
           status: chrome.passwordsPrivate.ImportResultsStatus.SUCCESS,
@@ -558,9 +547,8 @@ suite('PasswordsImporterTest', function() {
       });
 
   test(
-      'M2: view passwords triggers file deletion with ticked checkbox',
+      'view passwords triggers file deletion with ticked checkbox',
       async function() {
-        loadTimeData.overrideValues({enablePasswordsImportM2: true});
         const importer = createPasswordsImporter();
         passwordManager.setImportResults({
           status: chrome.passwordsPrivate.ImportResultsStatus.SUCCESS,
@@ -647,13 +635,6 @@ suite('PasswordsImporterTest', function() {
           status: chrome.passwordsPrivate.ImportEntryStatus.LONG_URL,
           username: 'username',
           url: 'https://morethan2048chars.com',
-          password: '',
-          id: 0,
-        },
-        {
-          status: chrome.passwordsPrivate.ImportEntryStatus.NON_ASCII_URL,
-          username: 'username',
-          url: 'https://أهلا.com',
           password: '',
           id: 0,
         },

@@ -56,7 +56,9 @@
 #include <string>
 
 #include "base/functional/callback.h"
+#include "base/location.h"
 #include "remoting/protocol/session.h"
+#include "remoting/protocol/session_observer.h"
 
 namespace remoting {
 
@@ -92,7 +94,9 @@ class SessionManager {
   // Session::set_config(). The callback must take ownership of the |session| if
   // it ACCEPTs it.
   typedef base::RepeatingCallback<void(Session* session,
-                                       IncomingSessionResponse* response)>
+                                       IncomingSessionResponse* response,
+                                       std::string* rejection_reason,
+                                       base::Location* rejection_location)>
       IncomingSessionCallback;
 
   SessionManager() {}
@@ -126,6 +130,11 @@ class SessionManager {
   // factory before all authenticators it created are deleted.
   virtual void set_authenticator_factory(
       std::unique_ptr<AuthenticatorFactory> authenticator_factory) = 0;
+
+  // Adds a session observer. Discarding the returned subscription will result
+  // in the removal of the observer.
+  [[nodiscard]] virtual SessionObserver::Subscription AddSessionObserver(
+      SessionObserver* observer) = 0;
 };
 
 }  // namespace protocol

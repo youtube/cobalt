@@ -29,6 +29,7 @@
 #include "third_party/blink/renderer/core/dom/create_element_flags.h"
 #include "third_party/blink/renderer/core/html/blocking_attribute.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/core/probe/async_task_context.h"
 #include "third_party/blink/renderer/core/script/script_element_base.h"
 #include "third_party/blink/renderer/core/script/script_loader.h"
 #include "third_party/blink/renderer/platform/bindings/parkable_string.h"
@@ -37,14 +38,13 @@
 namespace blink {
 
 class ExceptionState;
-class ScriptState;
 
 class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
                                             public ScriptElementBase {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static bool supports(ScriptState*, const AtomicString&);
+  static bool supports(const AtomicString&);
 
   HTMLScriptElement(Document&, const CreateElementFlags);
 
@@ -54,7 +54,7 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
   String text() { return TextFromChildren(); }
   void setText(const String&);
   void setInnerTextForBinding(
-      const V8UnionStringTreatNullAsEmptyStringOrTrustedScript*
+      const V8UnionStringLegacyNullToEmptyStringOrTrustedScript*
           string_or_trusted_script,
       ExceptionState& exception_state) override;
   void setTextContentForBinding(const V8UnionStringOrTrustedScript* value,
@@ -91,7 +91,6 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
 
   bool IsURLAttribute(const Attribute&) const override;
   bool HasLegalLinkAttribute(const QualifiedName&) const override;
-  const QualifiedName& SubResourceAttributeName() const override;
 
   // ScriptElementBase overrides:
   String SourceAttributeValue() const override;
@@ -103,6 +102,7 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
   String EventAttributeValue() const override;
   String CrossOriginAttributeValue() const override;
   String IntegrityAttributeValue() const override;
+  String SignatureAttributeValue() const override;
   String ReferrerPolicyAttributeValue() const override;
   String FetchPriorityAttributeValue() const override;
   String ChildTextContent() override;
@@ -133,6 +133,8 @@ class CORE_EXPORT HTMLScriptElement final : public HTMLElement,
 
   Member<BlockingAttribute> blocking_attribute_;
   Member<ScriptLoader> loader_;
+
+  probe::AsyncTaskContext async_task_context_;
 };
 
 }  // namespace blink

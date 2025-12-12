@@ -11,7 +11,7 @@
 #include "chrome/common/pref_names_util.h"
 #include "components/prefs/pref_service.h"
 
-FontPrefChangeNotifier::Registrar::Registrar() {}
+FontPrefChangeNotifier::Registrar::Registrar() = default;
 FontPrefChangeNotifier::Registrar::~Registrar() {
   if (is_registered())
     Unregister();
@@ -59,10 +59,11 @@ void FontPrefChangeNotifier::RemoveRegistrar(Registrar* registrar) {
 }
 
 void FontPrefChangeNotifier::OnPreferenceChanged(PrefService* pref_service,
-                                                 const std::string& pref_name) {
+                                                 std::string_view pref_name) {
   if (base::StartsWith(pref_name, pref_names_util::kWebKitFontPrefPrefix,
                        base::CompareCase::SENSITIVE)) {
+    const std::string pref_name_string(pref_name);
     for (auto& reg : registrars_)
-      reg.callback_.Run(pref_name);
+      reg.callback_.Run(pref_name_string);
   }
 }

@@ -50,7 +50,8 @@ void PerformanceImpl::MeasureUsedCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
   auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
       base::GetCurrentProcessHandle());
-  auto used_memory = process_metrics->GetResidentSetSize();
+  auto info = process_metrics->GetMemoryInfo();
+  auto used_memory = info.has_value() ? info->resident_set_bytes : 0;
   std::move(callback).Run(used_memory);
 }
 
@@ -61,6 +62,10 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   auto startup_duration = starboard_bridge->GetAppStartDuration(env);
 #elif BUILDFLAG(IS_STARBOARD)
   // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
+  NOTIMPLEMENTED();
+  int64_t startup_duration = 0;
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement app startup time measurement for tvOS.
   NOTIMPLEMENTED();
   int64_t startup_duration = 0;
 #else

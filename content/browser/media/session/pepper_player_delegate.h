@@ -9,6 +9,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "content/browser/media/session/media_session_player_observer.h"
+#include "media/base/picture_in_picture_events_info.h"
 
 namespace content {
 
@@ -37,20 +38,28 @@ class PepperPlayerDelegate : public MediaSessionPlayerObserver {
   void OnSeekTo(int player_id, base::TimeDelta seek_time) override;
   void OnSetVolumeMultiplier(int player_id, double volume_multiplier) override;
   void OnEnterPictureInPicture(int player_id) override;
-  void OnExitPictureInPicture(int player_id) override;
   void OnSetAudioSinkId(int player_id,
                         const std::string& raw_device_id) override;
   void OnSetMute(int player_id, bool mute) override;
   void OnRequestMediaRemoting(int player_id) override {}
-  absl::optional<media_session::MediaPosition> GetPosition(
+  std::optional<media_session::MediaPosition> GetPosition(
       int player_id) const override;
+  void OnRequestVisibility(
+      int player_id,
+      RequestVisibilityCallback request_visibility_callback) override {}
   bool IsPictureInPictureAvailable(int player_id) const override;
+  bool HasSufficientlyVisibleVideo(int player_id) const override;
   RenderFrameHost* render_frame_host() const override;
   bool HasAudio(int player_id) const override;
   bool HasVideo(int player_id) const override;
+  bool IsPaused(int player_id) const override;
   std::string GetAudioOutputSinkId(int player_id) const override;
   bool SupportsAudioOutputDeviceSwitching(int player_id) const override;
   media::MediaContentType GetMediaContentType() const override;
+  void OnAutoPictureInPictureInfoChanged(
+      int player_id,
+      const media::PictureInPictureEventsInfo::AutoPipInfo&
+          auto_picture_in_picture_info) override {}
 
  private:
   void SetVolume(int player_id, double volume);

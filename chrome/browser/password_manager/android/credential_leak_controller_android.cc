@@ -7,32 +7,59 @@
 #include <memory>
 
 #include "base/android/jni_android.h"
-#include "base/android/jni_string.h"
-#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/password_manager/android/password_checkup_launcher_helper.h"
+#include "chrome/browser/password_manager/android/password_manager_android_util.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/android/passwords/credential_leak_dialog_view_android.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
+#include "components/password_manager/core/browser/password_manager_metrics_util.h"
 #include "ui/android/window_android.h"
-#include "url/android/gurl_android.h"
 
 using password_manager::CreateDialogTraits;
+using password_manager::CredentialLeakType;
 using password_manager::PasswordCheckReferrerAndroid;
 using password_manager::metrics_util::LeakDialogDismissalReason;
 using password_manager::metrics_util::LeakDialogMetricsRecorder;
 using password_manager::metrics_util::LeakDialogType;
 
+namespace {
+CredentialLeakType AdjustLeakTypeForLoginDbDeprecation(
+    CredentialLeakType leak_type,
+    Profile* profile) {
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kLoginDbDeprecationAndroid) &&
+      !password_manager_android_util::LoginDbDeprecationReady(
+          profile->GetPrefs())) {
+    // While the login DB deprecation is being prepared (passwords are
+    // exported), saved passwords from the DB are still visible to the leak
+    // service (until the export finishes). Resetting the leak type to 0,
+    // ensures we don't show a dialog with options for saved passwords
+    // (i.e. Password Checkup), because those are not available at this time.
+    return 0;
+  }
+  return leak_type;
+}
+
+}  // namespace
 CredentialLeakControllerAndroid::CredentialLeakControllerAndroid(
     password_manager::CredentialLeakType leak_type,
     const GURL& origin,
     const std::u16string& username,
+    Profile* profile,
     ui::WindowAndroid* window_android,
-    std::unique_ptr<LeakDialogMetricsRecorder> metrics_recorder)
-    : leak_type_(leak_type),
+    std::unique_ptr<PasswordCheckupLauncherHelper> checkup_launcher,
+    std::unique_ptr<LeakDialogMetricsRecorder> metrics_recorder,
+    std::string account_email)
+    : leak_type_(AdjustLeakTypeForLoginDbDeprecation(leak_type, profile)),
       origin_(origin),
       username_(username),
+      profile_(profile),
       window_android_(window_android),
-      leak_dialog_traits_(CreateDialogTraits(leak_type)),
-      metrics_recorder_(std::move(metrics_recorder)) {}
+      leak_dialog_traits_(CreateDialogTraits(leak_type_)),
+      checkup_launcher_(std::move(checkup_launcher)),
+      metrics_recorder_(std::move(metrics_recorder)),
+      account_email_(account_email) {}
 
 CredentialLeakControllerAndroid::~CredentialLeakControllerAndroid() = default;
 
@@ -63,21 +90,17 @@ void CredentialLeakControllerAndroid::OnAcceptDialog() {
 
   metrics_recorder_->LogLeakDialogTypeAndDismissalReason(dismissal_reason);
 
-  // |window_android_| might be null in tests.
-  if (!window_android_) {
-    delete this;
-    return;
-  }
-
   JNIEnv* env = base::android::AttachCurrentThread();
 
   switch (dialog_type) {
     case LeakDialogType::kChange:
+      // No-op.
+      break;
     case LeakDialogType::kCheckup:
     case LeakDialogType::kCheckupAndChange:
-      PasswordCheckupLauncherHelper::LaunchLocalCheckup(
-          env, window_android_->GetJavaObject(),
-          PasswordCheckReferrerAndroid::kLeakDialog);
+      checkup_launcher_->LaunchCheckupOnDevice(
+          env, profile_, window_android_,
+          PasswordCheckReferrerAndroid::kLeakDialog, account_email_);
       break;
   }
 

@@ -6,10 +6,10 @@
 
 #include <algorithm>
 
+#include "base/auto_reset.h"
 #include "base/check.h"
 #include "base/compiler_specific.h"
 #include "base/feature_list.h"
-#include "base/ranges/algorithm.h"
 #include "extensions/common/extension_features.h"
 
 namespace extensions {
@@ -20,22 +20,32 @@ namespace {
 // kill switches for extension features. Note any such feature flags must
 // generally be removed once the API has been stable for a few releases.
 const base::Feature* kFeatureFlags[] = {
-    &extensions_features::kApiRuntimeGetContexts,
-    &extensions_features::kNewWebstoreDomain,
+    &extensions_features::kApiActionOpenPopup,
+    &extensions_features::kApiContentSettingsClipboard,
+    &extensions_features::kApiEnterpriseKioskInput,
+    &extensions_features::kApiPermissionsHostAccessRequests,
+    &extensions_features::kApiUserScriptsExecute,
+    &extensions_features::kApiUserScriptsMultipleWorlds,
+    &extensions_features::kApiOdfsConfigPrivate,
+    &extensions_features::kExperimentalOmniboxLabs,
+    &extensions_features::kExtensionIconVariants,
     &extensions_features::kTelemetryExtensionPendingApprovalApi,
+    &extensions_features::
+        kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered,
+    &extensions_features::kWebstoreInstallerUserGestureKillSwitch,
 };
 
-CONSTINIT base::span<const base::Feature*> g_feature_flags_test_override;
+constinit base::span<const base::Feature*> g_feature_flags_test_override;
 
 const base::Feature* GetFeature(const std::string& feature_flag) {
-  if (UNLIKELY(!g_feature_flags_test_override.empty())) {
-    auto iter = base::ranges::find(g_feature_flags_test_override, feature_flag,
-                                   &base::Feature::name);
+  if (!g_feature_flags_test_override.empty()) [[unlikely]] {
+    auto iter = std::ranges::find(g_feature_flags_test_override, feature_flag,
+                                  &base::Feature::name);
     return iter == g_feature_flags_test_override.end() ? nullptr : *iter;
   }
 
   const base::Feature** feature =
-      base::ranges::find(kFeatureFlags, feature_flag, &base::Feature::name);
+      std::ranges::find(kFeatureFlags, feature_flag, &base::Feature::name);
 
   return feature == std::end(kFeatureFlags) ? nullptr : *feature;
 }

@@ -5,8 +5,12 @@
 #ifndef COMPONENTS_VIZ_COMMON_QUADS_SHARED_QUAD_STATE_H_
 #define COMPONENTS_VIZ_COMMON_QUADS_SHARED_QUAD_STATE_H_
 
+#include <memory>
+#include <optional>
+#include <utility>
+
+#include "components/viz/common/quads/offset_tag.h"
 #include "components/viz/common/viz_common_export.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBlendMode.h"
 #include "ui/gfx/geometry/mask_filter_info.h"
 #include "ui/gfx/geometry/rect.h"
@@ -37,18 +41,17 @@ class VIZ_COMMON_EXPORT SharedQuadState {
 
   void SetAll(const SharedQuadState& other);
 
-  // TODO(kylechar): Remove default value for `layer_id` after updating all
-  // callers.
   void SetAll(const gfx::Transform& transform,
               const gfx::Rect& layer_rect,
               const gfx::Rect& visible_layer_rect,
               const gfx::MaskFilterInfo& filter_info,
-              const absl::optional<gfx::Rect>& clip,
+              const std::optional<gfx::Rect>& clip,
               bool contents_opaque,
               float opacity_f,
               SkBlendMode blend,
               int sorting_context,
-              uint32_t layer_id = 0);
+              uint32_t layer_id,
+              bool fast_rounded_corner);
   void AsValueInto(base::trace_event::TracedValue* dict) const;
 
   // Transforms quad rects into the target content space.
@@ -66,19 +69,19 @@ class VIZ_COMMON_EXPORT SharedQuadState {
   // the clip rect given by the Rect part of |roudned_corner_bounds|.
   gfx::MaskFilterInfo mask_filter_info;
   // This rect lives in the target content space.
-  absl::optional<gfx::Rect> clip_rect;
+  std::optional<gfx::Rect> clip_rect;
   // Indicates whether the content in |quad_layer_rect| are fully opaque.
   bool are_contents_opaque = true;
   float opacity = 1.0f;
   SkBlendMode blend_mode = SkBlendMode::kSrcOver;
   int sorting_context_id = 0;
-  // Optionally set by the client with a stable ID for the layer that produced
-  // the DrawQuad(s). This is used to help identify that DrawQuad(s) in one
-  // frame came from the same layer as DrawQuads() from a previous frame, even
-  // if they changed position or other attributes.
+  // Optionally set by the client as a performance hint for viz with a stable ID
+  // for the layer that produced the DrawQuad(s). This is used to help identify
+  // that DrawQuad(s) in one frame came from the same layer as DrawQuads() from
+  // a previous frame, even if they changed position or other attributes.
   uint32_t layer_id = 0;
   // Used by SurfaceAggregator to namespace layer_ids from different clients.
-  uint32_t layer_namespace_id = 0;
+  std::pair<uint32_t, uint32_t> layer_namespace_id;
   // Used by SurfaceAggregator to decide whether to merge quads for a surface
   // into their target render pass. It is a performance optimization by avoiding
   // render passes as much as possible.
@@ -87,7 +90,13 @@ class VIZ_COMMON_EXPORT SharedQuadState {
   // and the OverlayProcessor. Do not set the value in CompositorRenderPass.
   // This index points to the damage rect in the surface damage rect list where
   // the overlay quad belongs to. SetAll() doesn't update this data.
-  absl::optional<size_t> overlay_damage_index;
+  // TODO(crbug.com/40072194): Consider moving this member out of this struct
+  // and into the quads themselves.
+  std::optional<size_t> overlay_damage_index;
+
+  // If not zero then the quads can be offset by some provided value. Offset is
+  // in target content space.
+  OffsetTag offset_tag;
 };
 
 }  // namespace viz

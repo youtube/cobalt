@@ -29,19 +29,6 @@ class TouchAccessibilityEnablerDelegate {
  public:
   virtual ~TouchAccessibilityEnablerDelegate() {}
 
-  // Called when we first detect two fingers are held down.
-  virtual void OnTwoFingerTouchStart() {}
-
-  // Called when the user is no longer holding down two fingers (including
-  // releasing one, holding down three, or moving them).
-  virtual void OnTwoFingerTouchStop() {}
-
-  // While the user holds down two fingers on a touch screen, which is the
-  // gesture to enable spoken feedback (if held down long enough), play a sound
-  // every "tick" (approximately every half-second) to warn the user something
-  // is about to happen.
-  virtual void PlaySpokenFeedbackToggleCountdown(int tick_count) {}
-
   // Toggles spoken feedback.
   virtual void ToggleSpokenFeedback() {}
 };
@@ -109,22 +96,19 @@ class ASH_EXPORT TouchAccessibilityEnabler : public ui::EventHandler {
     WAIT_FOR_NO_FINGERS
   };
 
-  raw_ptr<aura::Window, ExperimentalAsh> root_window_;
+  raw_ptr<aura::Window> root_window_;
 
   // Called when we detect a long-press of two fingers. Not owned.
-  raw_ptr<TouchAccessibilityEnablerDelegate, ExperimentalAsh> delegate_;
+  raw_ptr<TouchAccessibilityEnablerDelegate> delegate_;
 
   // The current state.
   State state_;
 
-  // The time when we entered the two finger state.
-  base::TimeTicks two_finger_start_time_;
-
   // Map of touch ids to their initial locations.
   std::map<int, gfx::PointF> touch_locations_;
 
-  // A timer that triggers repeatedly while two fingers are held down.
-  base::RepeatingTimer timer_;
+  // A timer that triggers after two fingers are held down for a given duration.
+  base::RetainingOneShotTimer timer_;
 
   // A default gesture detector config, so we can share the same
   // timeout and pixel slop constants.
@@ -132,7 +116,7 @@ class ASH_EXPORT TouchAccessibilityEnabler : public ui::EventHandler {
 
   // When touch_accessibility_enabler gets time relative to real time during
   // testing, this clock is set to the simulated clock and used.
-  raw_ptr<const base::TickClock, ExperimentalAsh> tick_clock_;
+  raw_ptr<const base::TickClock> tick_clock_;
 
   // Whether or not we currently have an event handler installed. It can
   // be removed when TouchExplorationController is running.

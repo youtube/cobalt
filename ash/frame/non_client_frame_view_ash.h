@@ -9,16 +9,14 @@
 
 #include "ash/ash_export.h"
 #include "ash/frame/frame_context_menu_controller.h"
-#include "ash/wm/overview/overview_observer.h"
-#include "base/functional/bind.h"
 #include "base/memory/weak_ptr.h"
 #include "chromeos/ui/frame/header_view.h"
 #include "chromeos/ui/frame/highlight_border_overlay.h"
 #include "chromeos/ui/frame/non_client_frame_view_base.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "ui/aura/window_observer.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/window/non_client_view.h"
 
 namespace chromeos {
 class FrameCaptionButtonContainerView;
@@ -41,10 +39,11 @@ class NonClientFrameViewAshImmersiveHelper;
 // BrowserNonClientFrameViewAsh.
 class ASH_EXPORT NonClientFrameViewAsh
     : public chromeos::NonClientFrameViewBase,
-      public FrameContextMenuController::Delegate {
- public:
-  METADATA_HEADER(NonClientFrameViewAsh);
+      public FrameContextMenuController::Delegate,
+      public aura::WindowObserver {
+  METADATA_HEADER(NonClientFrameViewAsh, chromeos::NonClientFrameViewBase)
 
+ public:
   // |control_immersive| controls whether ImmersiveFullscreenController is
   // created for the NonClientFrameViewAsh; if true and a WindowStateDelegate
   // has not been set on the WindowState associated with |frame|, then an
@@ -96,7 +95,9 @@ class ASH_EXPORT NonClientFrameViewAsh
   views::Widget* frame() { return frame_; }
 
   bool GetFrameEnabled() const { return frame_enabled_; }
-  virtual void SetFrameEnabled(bool enabled);
+  bool GetFrameOverlapped() const { return frame_overlapped_; }
+  void SetFrameEnabled(bool enabled);
+  void SetFrameOverlapped(bool overlapped);
 
   // Sets the callback to toggle the ARC++ resize-lock menu for this container
   // if applicable, which will be invoked via the keyboard shortcut.
@@ -105,13 +106,23 @@ class ASH_EXPORT NonClientFrameViewAsh
   base::RepeatingCallback<void()> GetToggleResizeLockMenuCallback() const;
   void ClearToggleResizeLockMenuCallback();
 
+  // views::NonClientFrameView:
+  void UpdateWindowRoundedCorners() override;
+
+  // aura::WindowObserver:
+  void OnWindowPropertyChanged(aura::Window* window,
+                               const void* key,
+                               intptr_t old) override;
+  void OnWindowDestroying(aura::Window* window) override;
+
  protected:
   // views::View:
   void OnDidSchedulePaint(const gfx::Rect& r) override;
   void AddedToWidget() override;
 
+  bool frame_overlapped_ = false;
+
  private:
-  friend class NonClientFrameViewAshTestWidgetDelegate;
   friend class TestWidgetConstraintsDelegate;
   friend class WindowServiceDelegateImplTest;
 
@@ -129,6 +140,10 @@ class ASH_EXPORT NonClientFrameViewAsh
   std::unique_ptr<NonClientFrameViewAshImmersiveHelper> immersive_helper_;
 
   std::unique_ptr<FrameContextMenuController> frame_context_menu_controller_;
+
+  // Observes property changes to window of `target_widget_`.
+  base::ScopedObservation<aura::Window, aura::WindowObserver>
+      window_observation_{this};
 
   base::RepeatingCallback<void()> toggle_resize_lock_menu_callback_;
 

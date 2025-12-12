@@ -44,6 +44,7 @@
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/timer.h"
+#include "third_party/blink/renderer/platform/transforms/affine_transform.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "ui/gfx/geometry/rect_f.h"
@@ -83,7 +84,7 @@ BitmapImage::BitmapImage(ImageObserver* observer, bool is_multipart)
 
 BitmapImage::~BitmapImage() {}
 
-bool BitmapImage::CurrentFrameHasSingleSecurityOrigin() const {
+bool BitmapImage::HasSingleSecurityOrigin() const {
   return true;
 }
 
@@ -127,8 +128,8 @@ PaintImage BitmapImage::CreatePaintImage() {
     return PaintImage();
 
   auto completion_state = all_data_received_
-                              ? PaintImage::CompletionState::DONE
-                              : PaintImage::CompletionState::PARTIALLY_DONE;
+                              ? PaintImage::CompletionState::kDone
+                              : PaintImage::CompletionState::kPartiallyDone;
   auto builder =
       CreatePaintImageBuilder()
           .set_paint_image_generator(std::move(generator))
@@ -174,6 +175,12 @@ void BitmapImage::RecordDecodedImageType(UseCounter* use_counter) {
                                             use_counter);
 }
 
+void BitmapImage::RecordDecodedImageC2PA(UseCounter* use_counter) {
+  if (decoder_->HasC2PAManifest()) {
+    BitmapImageMetrics::CountDecodedImageC2PA(use_counter);
+  }
+}
+
 bool BitmapImage::GetHotSpot(gfx::Point& hot_spot) const {
   return decoder_ && decoder_->HotSpot(hot_spot);
 }
@@ -185,7 +192,9 @@ bool BitmapImage::ShouldReportByteSizeUMAs(bool data_now_completely_received) {
   if (!decoder_)
     return false;
   return !all_data_received_ && data_now_completely_received &&
-         decoder_->ByteSize() != 0 && IsSizeAvailable();
+         decoder_->ByteSize() != 0 && IsSizeAvailable() &&
+         decoder_->RepetitionCount() == kAnimationNone &&
+         !decoder_->ImageIsHighBitDepth();
 }
 
 Image::SizeAvailability BitmapImage::SetData(scoped_refptr<SharedBuffer> data,
@@ -205,7 +214,7 @@ Image::SizeAvailability BitmapImage::SetData(scoped_refptr<SharedBuffer> data,
   bool has_enough_data = ImageDecoder::HasSufficientDataToSniffMimeType(*data);
   decoder_ = DeferredImageDecoder::Create(std::move(data), all_data_received,
                                           ImageDecoder::kAlphaPremultiplied,
-                                          ColorBehavior::Tag());
+                                          ColorBehavior::kTag);
   // If we had enough data but couldn't create a decoder, it implies a decode
   // failure.
   if (has_enough_data && !decoder_)
@@ -295,7 +304,7 @@ void BitmapImage::Draw(cc::PaintCanvas* canvas,
 
   ImageOrientation orientation = ImageOrientationEnum::kDefault;
   if (draw_options.respect_orientation == kRespectImageOrientation)
-    orientation = CurrentFrameOrientation();
+    orientation = Orientation();
 
   PaintCanvasAutoRestore auto_restore(canvas, false);
   gfx::RectF adjusted_dst_rect = dst_rect;
@@ -306,8 +315,8 @@ void BitmapImage::Draw(cc::PaintCanvas* canvas,
     canvas->translate(adjusted_dst_rect.x(), adjusted_dst_rect.y());
     adjusted_dst_rect.set_origin(gfx::PointF());
 
-    canvas->concat(AffineTransformToSkM44(
-        orientation.TransformFromDefault(adjusted_dst_rect.size())));
+    canvas->concat(
+        orientation.TransformFromDefault(adjusted_dst_rect.size()).ToSkM44());
 
     if (orientation.UsesWidthAsHeight()) {
       // The destination rect will have its width and height already reversed
@@ -321,18 +330,17 @@ void BitmapImage::Draw(cc::PaintCanvas* canvas,
   bool is_lazy_generated = image.IsLazyGenerated();
 
   const cc::PaintFlags* image_flags = &flags;
-  absl::optional<cc::PaintFlags> dark_mode_flags;
+  std::optional<cc::PaintFlags> dark_mode_flags;
   if (draw_options.dark_mode_filter) {
     dark_mode_flags = flags;
     draw_options.dark_mode_filter->ApplyFilterToImage(
         this, &dark_mode_flags.value(), gfx::RectFToSkRect(src_rect));
     image_flags = &dark_mode_flags.value();
   }
-  canvas->drawImageRect(
-      std::move(image), gfx::RectFToSkRect(adjusted_src_rect),
-      gfx::RectFToSkRect(adjusted_dst_rect), draw_options.sampling_options,
-      image_flags,
-      WebCoreClampingModeToSkiaRectConstraint(draw_options.clamping_mode));
+  canvas->drawImageRect(std::move(image), gfx::RectFToSkRect(adjusted_src_rect),
+                        gfx::RectFToSkRect(adjusted_dst_rect),
+                        draw_options.sampling_options, image_flags,
+                        ToSkiaRectConstraint(draw_options.clamping_mode));
 
   if (is_lazy_generated) {
     TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
@@ -407,20 +415,20 @@ scoped_refptr<Image> BitmapImage::ImageForDefaultFrame() {
   return Image::ImageForDefaultFrame();
 }
 
-bool BitmapImage::CurrentFrameKnownToBeOpaque() {
+bool BitmapImage::IsOpaque() {
   return decoder_ ? decoder_->AlphaType() == kOpaque_SkAlphaType : false;
 }
 
-bool BitmapImage::CurrentFrameIsComplete() {
+bool BitmapImage::FirstFrameIsComplete() {
   return decoder_ && decoder_->FrameIsReceivedAtIndex(0);
 }
 
-bool BitmapImage::CurrentFrameIsLazyDecoded() {
+bool BitmapImage::IsLazyDecoded() {
   // BitmapImage supports only lazy generated images.
   return true;
 }
 
-ImageOrientation BitmapImage::CurrentFrameOrientation() const {
+ImageOrientation BitmapImage::Orientation() const {
   return decoder_ ? decoder_->OrientationAtIndex(0)
                   : ImageOrientationEnum::kDefault;
 }

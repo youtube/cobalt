@@ -12,7 +12,9 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
+#include "absl/synchronization/mutex.h"
 #include "openssl/base.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
@@ -27,7 +29,6 @@
 #include "quiche/quic/core/proto/source_address_token_proto.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_mutex.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
@@ -41,7 +42,7 @@ struct QuicSignedServerConfig;
 
 // ClientHelloInfo contains information about a client hello message that is
 // only kept for as long as it's being processed.
-struct QUIC_EXPORT_PRIVATE ClientHelloInfo {
+struct QUICHE_EXPORT ClientHelloInfo {
   ClientHelloInfo(const QuicIpAddress& in_client_ip, QuicWallTime in_now);
   ClientHelloInfo(const ClientHelloInfo& other);
   ~ClientHelloInfo();
@@ -68,7 +69,7 @@ class QuicCryptoServerConfigPeer;
 }  // namespace test
 
 // Hook that allows application code to subscribe to primary config changes.
-class QUIC_EXPORT_PRIVATE PrimaryConfigChangedCallback {
+class QUICHE_EXPORT PrimaryConfigChangedCallback {
  public:
   PrimaryConfigChangedCallback();
   PrimaryConfigChangedCallback(const PrimaryConfigChangedCallback&) = delete;
@@ -79,11 +80,11 @@ class QUIC_EXPORT_PRIVATE PrimaryConfigChangedCallback {
 };
 
 // Callback used to accept the result of the |client_hello| validation step.
-class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
+class QUICHE_EXPORT ValidateClientHelloResultCallback {
  public:
   // Opaque token that holds information about the client_hello and
   // its validity.  Can be interpreted by calling ProcessClientHello.
-  struct QUIC_EXPORT_PRIVATE Result : public quiche::QuicheReferenceCounted {
+  struct QUICHE_EXPORT Result : public quiche::QuicheReferenceCounted {
     Result(const CryptoHandshakeMessage& in_client_hello,
            QuicIpAddress in_client_ip, QuicWallTime in_now);
 
@@ -110,7 +111,7 @@ class QUIC_EXPORT_PRIVATE ValidateClientHelloResultCallback {
 };
 
 // Callback used to accept the result of the ProcessClientHello method.
-class QUIC_EXPORT_PRIVATE ProcessClientHelloResultCallback {
+class QUICHE_EXPORT ProcessClientHelloResultCallback {
  public:
   ProcessClientHelloResultCallback();
   ProcessClientHelloResultCallback(const ProcessClientHelloResultCallback&) =
@@ -126,7 +127,7 @@ class QUIC_EXPORT_PRIVATE ProcessClientHelloResultCallback {
 
 // Callback used to receive the results of a call to
 // BuildServerConfigUpdateMessage.
-class QUIC_EXPORT_PRIVATE BuildServerConfigUpdateMessageResultCallback {
+class QUICHE_EXPORT BuildServerConfigUpdateMessageResultCallback {
  public:
   BuildServerConfigUpdateMessageResultCallback() = default;
   virtual ~BuildServerConfigUpdateMessageResultCallback() {}
@@ -139,7 +140,7 @@ class QUIC_EXPORT_PRIVATE BuildServerConfigUpdateMessageResultCallback {
 
 // Object that is interested in built rejections (which include REJ, SREJ and
 // cheap SREJ).
-class QUIC_EXPORT_PRIVATE RejectionObserver {
+class QUICHE_EXPORT RejectionObserver {
  public:
   RejectionObserver() = default;
   virtual ~RejectionObserver() {}
@@ -151,7 +152,7 @@ class QUIC_EXPORT_PRIVATE RejectionObserver {
 };
 
 // Factory for creating KeyExchange objects.
-class QUIC_EXPORT_PRIVATE KeyExchangeSource {
+class QUICHE_EXPORT KeyExchangeSource {
  public:
   virtual ~KeyExchangeSource() = default;
 
@@ -173,10 +174,10 @@ class QUIC_EXPORT_PRIVATE KeyExchangeSource {
 // order to support clients resuming with a previous configuration.
 // TODO(agl): when adding configurations at runtime is added, this object will
 // need to consider locking.
-class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
+class QUICHE_EXPORT QuicCryptoServerConfig {
  public:
   // ConfigOptions contains options for generating server configs.
-  struct QUIC_EXPORT_PRIVATE ConfigOptions {
+  struct QUICHE_EXPORT ConfigOptions {
     ConfigOptions();
     ConfigOptions(const ConfigOptions& other);
     ~ConfigOptions();
@@ -439,6 +440,18 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   SSL_CTX* ssl_ctx() const;
 
+  // The groups to use for key exchange in the TLS handshake;
+  const std::vector<uint16_t>& preferred_groups() const {
+    return preferred_groups_;
+  }
+
+  // Sets the preferred groups that will be used in the TLS handshake. Values
+  // in the |preferred_groups| vector are NamedGroup enum codepoints from
+  // https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.7.
+  void set_preferred_groups(const std::vector<uint16_t>& preferred_groups) {
+    preferred_groups_ = preferred_groups;
+  }
+
   // Pre-shared key used during the handshake.
   const std::string& pre_shared_key() const { return pre_shared_key_; }
   void set_pre_shared_key(absl::string_view psk) {
@@ -455,14 +468,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
     return source_address_token_boxer_;
   }
 
+  const QuicSSLConfig& ssl_config() const { return ssl_config_; }
+
  private:
   friend class test::QuicCryptoServerConfigPeer;
   friend struct QuicSignedServerConfig;
 
   // Config represents a server config: a collection of preferences and
   // Diffie-Hellman public values.
-  class QUIC_EXPORT_PRIVATE Config : public QuicCryptoConfig,
-                                     public quiche::QuicheReferenceCounted {
+  class QUICHE_EXPORT Config : public QuicCryptoConfig,
+                               public quiche::QuicheReferenceCounted {
    public:
     Config();
     Config(const Config&) = delete;
@@ -525,10 +540,10 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // Get a ref to the config with a given server config id.
   quiche::QuicheReferenceCountedPointer<Config> GetConfigWithScid(
       absl::string_view requested_scid) const
-      QUIC_SHARED_LOCKS_REQUIRED(configs_lock_);
+      ABSL_SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // A snapshot of the configs associated with an in-progress handshake.
-  struct QUIC_EXPORT_PRIVATE Configs {
+  struct QUICHE_EXPORT Configs {
     quiche::QuicheReferenceCountedPointer<Config> requested;
     quiche::QuicheReferenceCountedPointer<Config> primary;
     quiche::QuicheReferenceCountedPointer<Config> fallback;
@@ -554,7 +569,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // SelectNewPrimaryConfig reevaluates the primary config based on the
   // "primary_time" deadlines contained in each.
   void SelectNewPrimaryConfig(QuicWallTime now) const
-      QUIC_EXCLUSIVE_LOCKS_REQUIRED(configs_lock_);
+      ABSL_EXCLUSIVE_LOCKS_REQUIRED(configs_lock_);
 
   // EvaluateClientHello checks |client_hello_state->client_hello| for gross
   // errors and determines whether it is fresh (i.e. not a replay). The results
@@ -570,7 +585,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // Convenience class which carries the arguments passed to
   // |ProcessClientHellp| along.
-  class QUIC_EXPORT_PRIVATE ProcessClientHelloContext {
+  class QUICHE_EXPORT ProcessClientHelloContext {
    public:
     ProcessClientHelloContext(
         quiche::QuicheReferenceCountedPointer<
@@ -829,7 +844,7 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // Returns true if the next config promotion should happen now.
   bool IsNextConfigReady(QuicWallTime now) const
-      QUIC_SHARED_LOCKS_REQUIRED(configs_lock_);
+      ABSL_SHARED_LOCKS_REQUIRED(configs_lock_);
 
   // replay_protection_ controls whether the server enforces that handshakes
   // aren't replays.
@@ -844,16 +859,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //   1) configs_.empty() <-> primary_config_ == nullptr
   //   2) primary_config_ != nullptr -> primary_config_->is_primary
   //   3) ∀ c∈configs_, c->is_primary <-> c == primary_config_
-  mutable QuicMutex configs_lock_;
+  mutable absl::Mutex configs_lock_;
 
   // configs_ contains all active server configs. It's expected that there are
   // about half-a-dozen configs active at any one time.
-  ConfigMap configs_ QUIC_GUARDED_BY(configs_lock_);
+  ConfigMap configs_ ABSL_GUARDED_BY(configs_lock_);
 
   // primary_config_ points to a Config (which is also in |configs_|) which is
   // the primary config - i.e. the one that we'll give out to new clients.
   mutable quiche::QuicheReferenceCountedPointer<Config> primary_config_
-      QUIC_GUARDED_BY(configs_lock_);
+      ABSL_GUARDED_BY(configs_lock_);
 
   // fallback_config_ points to a Config (which is also in |configs_|) which is
   // the fallback config, which will be used if the other configs are unuseable
@@ -861,16 +876,16 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   //
   // TODO(b/112548056): This is currently always nullptr.
   quiche::QuicheReferenceCountedPointer<Config> fallback_config_
-      QUIC_GUARDED_BY(configs_lock_);
+      ABSL_GUARDED_BY(configs_lock_);
 
   // next_config_promotion_time_ contains the nearest, future time when an
   // active config will be promoted to primary.
   mutable QuicWallTime next_config_promotion_time_
-      QUIC_GUARDED_BY(configs_lock_);
+      ABSL_GUARDED_BY(configs_lock_);
 
   // Callback to invoke when the primary config changes.
   std::unique_ptr<PrimaryConfigChangedCallback> primary_config_changed_cb_
-      QUIC_GUARDED_BY(configs_lock_);
+      ABSL_GUARDED_BY(configs_lock_);
 
   // Used to protect the source-address tokens that are given to clients.
   CryptoSecretBoxer source_address_token_boxer_;
@@ -894,6 +909,9 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
 
   // ssl_ctx_ contains the server configuration for doing TLS handshakes.
   bssl::UniquePtr<SSL_CTX> ssl_ctx_;
+
+  // The groups to use for key exchange in the TLS handshake;
+  std::vector<uint16_t> preferred_groups_;
 
   // These fields store configuration values. See the comments for their
   // respective setter functions.
@@ -926,9 +944,12 @@ class QUIC_EXPORT_PRIVATE QuicCryptoServerConfig {
   // When source address is validated by some other means (e.g. when using ICE),
   // source address token validation may be disabled.
   bool validate_source_address_token_;
+
+  // Configs applied to BoringSSL's SSL object. TLS only.
+  QuicSSLConfig ssl_config_;
 };
 
-struct QUIC_EXPORT_PRIVATE QuicSignedServerConfig
+struct QUICHE_EXPORT QuicSignedServerConfig
     : public quiche::QuicheReferenceCounted {
   QuicSignedServerConfig();
 

@@ -5,14 +5,11 @@
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 
 #import <UIKit/UIKit.h>
+
 #import <limits>
 
 #import "base/check_op.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 bool UseRTLLayout() {
   return base::i18n::IsRTL();
@@ -280,4 +277,31 @@ BOOL EdgeLeadsEdge(CGFloat a, CGFloat b, base::i18n::TextDirection direction) {
 
 BOOL EdgeLeadsEdge(CGFloat a, CGFloat b) {
   return EdgeLeadsEdge(a, b, LayoutDirection());
+}
+
+NSTextAlignment DetermineBestAlignmentForText(NSString* text) {
+  if (text.length) {
+    NSString* lang = CFBridgingRelease(CFStringTokenizerCopyBestStringLanguage(
+        (CFStringRef)text, CFRangeMake(0, text.length)));
+
+    if ([NSLocale characterDirectionForLanguage:lang] ==
+        NSLocaleLanguageDirectionRightToLeft) {
+      return NSTextAlignmentRight;
+    }
+  }
+  return NSTextAlignmentLeft;
+}
+
+void ScrollToSemanticLeading(UIScrollView* scrollview, BOOL animated) {
+  BOOL isRTL = [UIView userInterfaceLayoutDirectionForSemanticContentAttribute:
+                           scrollview.semanticContentAttribute] ==
+               UIUserInterfaceLayoutDirectionRightToLeft;
+
+  CGFloat contentStartX = 0;
+
+  if (isRTL) {
+    contentStartX = MAX(scrollview.contentSize.width - 1, 0);
+  }
+
+  [scrollview setContentOffset:CGPointMake(contentStartX, 0) animated:animated];
 }

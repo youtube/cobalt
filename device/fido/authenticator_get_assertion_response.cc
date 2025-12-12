@@ -4,13 +4,13 @@
 
 #include "device/fido/authenticator_get_assertion_response.h"
 
+#include <optional>
 #include <utility>
 
 #include "components/cbor/values.h"
 #include "components/device_event_log/device_event_log.h"
 #include "device/fido/authenticator_data.h"
 #include "device/fido/fido_parsing_utils.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/boringssl/src/include/openssl/ecdsa.h"
 
 namespace device {
@@ -26,27 +26,30 @@ constexpr size_t kSignatureIndex = 5;
 }  // namespace
 
 // static
-absl::optional<AuthenticatorGetAssertionResponse>
+std::optional<AuthenticatorGetAssertionResponse>
 AuthenticatorGetAssertionResponse::CreateFromU2fSignResponse(
     base::span<const uint8_t, kRpIdHashLength> relying_party_id_hash,
     base::span<const uint8_t> u2f_data,
-    base::span<const uint8_t> key_handle) {
-  if (u2f_data.size() <= kSignatureIndex)
-    return absl::nullopt;
+    base::span<const uint8_t> key_handle,
+    std::optional<FidoTransportProtocol> transport_used) {
+  if (u2f_data.size() <= kSignatureIndex) {
+    return std::nullopt;
+  }
 
-  if (key_handle.empty())
-    return absl::nullopt;
+  if (key_handle.empty()) {
+    return std::nullopt;
+  }
 
   auto flags = u2f_data.subspan<kFlagIndex, kFlagLength>()[0];
   if (flags &
       (static_cast<uint8_t>(AuthenticatorData::Flag::kExtensionDataIncluded) |
        static_cast<uint8_t>(AuthenticatorData::Flag::kAttestation))) {
     // U2F responses cannot assert CTAP2 features.
-    return absl::nullopt;
+    return std::nullopt;
   }
   auto counter = u2f_data.subspan<kCounterIndex, kCounterLength>();
   AuthenticatorData authenticator_data(relying_party_id_hash, flags, counter,
-                                       absl::nullopt);
+                                       std::nullopt);
 
   auto signature =
       fido_parsing_utils::Materialize(u2f_data.subspan(kSignatureIndex));
@@ -56,11 +59,11 @@ AuthenticatorGetAssertionResponse::CreateFromU2fSignResponse(
   if (!parsed_sig) {
     FIDO_LOG(ERROR)
         << "Rejecting U2F assertion response with invalid signature";
-    return absl::nullopt;
+    return std::nullopt;
   }
 
-  AuthenticatorGetAssertionResponse response(std::move(authenticator_data),
-                                             std::move(signature));
+  AuthenticatorGetAssertionResponse response(
+      std::move(authenticator_data), std::move(signature), transport_used);
   response.credential = PublicKeyCredentialDescriptor(
       CredentialType::kPublicKey, fido_parsing_utils::Materialize(key_handle));
   return std::move(response);
@@ -68,9 +71,11 @@ AuthenticatorGetAssertionResponse::CreateFromU2fSignResponse(
 
 AuthenticatorGetAssertionResponse::AuthenticatorGetAssertionResponse(
     AuthenticatorData authenticator_data,
-    std::vector<uint8_t> signature)
+    std::vector<uint8_t> signature,
+    std::optional<FidoTransportProtocol> transport_used)
     : authenticator_data(std::move(authenticator_data)),
-      signature(std::move(signature)) {}
+      signature(std::move(signature)),
+      transport_used(transport_used) {}
 
 AuthenticatorGetAssertionResponse::AuthenticatorGetAssertionResponse(
     AuthenticatorGetAssertionResponse&& that) = default;

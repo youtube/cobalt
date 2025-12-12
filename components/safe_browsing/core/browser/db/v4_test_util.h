@@ -39,6 +39,8 @@ class TestV4Store : public V4Store {
   // |prefixes| does not need to be sorted.
   void SetPrefixes(std::vector<HashPrefixStr> prefixes, PrefixSize size);
 
+  HashPrefixStr GetMatchingHashPrefix(const FullHashStr& full_hash) override;
+
  private:
   // Holds mock prefixes from calls to MarkPrefixAsBad / SetPrefixes. Stored as
   // a vector for simplicity.
@@ -50,7 +52,7 @@ class TestV4StoreFactory : public V4StoreFactory {
   TestV4StoreFactory();
   ~TestV4StoreFactory() override;
 
-  std::unique_ptr<V4Store> CreateV4Store(
+  V4StorePtr CreateV4Store(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
       const base::FilePath& store_path) override;
 };
@@ -77,12 +79,14 @@ class TestV4DatabaseFactory : public V4DatabaseFactory {
 
   void MarkPrefixAsBad(ListIdentifier list_id, HashPrefixStr prefix);
 
+  bool IsReady();
+
  private:
   // Owned by V4LocalDatabaseManager. The following usage is expected: each
   // test in the test fixture instantiates a new SafebrowsingService instance,
   // which instantiates a new V4LocalDatabaseManager, which instantiates a new
   // V4Database using this method so use-after-free isn't possible.
-  raw_ptr<TestV4Database, DanglingUntriaged> v4_db_ = nullptr;
+  raw_ptr<TestV4Database, AcrossTasksDanglingUntriaged> v4_db_ = nullptr;
 };
 
 class TestV4GetHashProtocolManager : public V4GetHashProtocolManager {
@@ -110,7 +114,8 @@ class TestV4GetHashProtocolManagerFactory
 
  private:
   // Owned by the SafeBrowsingService.
-  raw_ptr<TestV4GetHashProtocolManager, DanglingUntriaged> pm_ = nullptr;
+  raw_ptr<TestV4GetHashProtocolManager, AcrossTasksDanglingUntriaged> pm_ =
+      nullptr;
 };
 
 struct TestV4HashResponseInfo {

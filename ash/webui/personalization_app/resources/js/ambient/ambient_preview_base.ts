@@ -8,14 +8,15 @@
  * polymer element.
  */
 
-import {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import {isNonEmptyArray} from 'chrome://resources/ash/common/sea_pen/sea_pen_utils.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 
-import {AmbientModeAlbum, TopicSource} from '../../personalization_app.mojom-webui.js';
-import {isAmbientModeAllowed, isPersonalizationJellyEnabled} from '../load_time_booleans.js';
+import type {AmbientModeAlbum} from '../../personalization_app.mojom-webui.js';
+import {TopicSource} from '../../personalization_app.mojom-webui.js';
+import {isAmbientModeAllowed} from '../load_time_booleans.js';
 import {setErrorAction} from '../personalization_actions.js';
 import {WithPersonalizationStore} from '../personalization_store.js';
-import {isNonEmptyArray} from '../utils.js';
 
 import {AmbientObserver} from './ambient_observer.js';
 import {getPhotoCount, getTopicSourceName} from './utils.js';
@@ -58,12 +59,6 @@ export class AmbientPreviewBase extends WithPersonalizationStore {
         type: Array,
         value: null,
       },
-      isPersonalizationJellyEnabled_: {
-        type: Boolean,
-        value() {
-          return isPersonalizationJellyEnabled();
-        },
-      },
       isAmbientModeAllowed_: {
         type: Boolean,
         value() {
@@ -75,7 +70,6 @@ export class AmbientPreviewBase extends WithPersonalizationStore {
 
   protected ambientModeEnabled_: boolean|null;
   protected previewImages_: Url[]|null;
-  protected isPersonalizationJellyEnabled_: boolean;
   protected previewAlbums_: AmbientModeAlbum[]|null;
   protected topicSource_: TopicSource|null;
 
@@ -102,9 +96,11 @@ export class AmbientPreviewBase extends WithPersonalizationStore {
   }
 
   private computeLoading_(): boolean {
-    return this.isAmbientModeAllowed_ &&
-        (this.ambientModeEnabled_ === null || this.albums_ === null ||
-         this.topicSource_ === null || this.previewImages_ === null);
+    if (!this.isAmbientModeAllowed_ || this.ambientModeEnabled_ === false) {
+      return false;
+    }
+    return this.ambientModeEnabled_ === null || this.albums_ === null ||
+        this.topicSource_ === null || this.previewImages_ === null;
   }
 
   private onLoadingChanged_(value: boolean) {
@@ -139,18 +135,13 @@ export class AmbientPreviewBase extends WithPersonalizationStore {
     const classes = [];
 
     if (this.ambientModeEnabled_ || this.loading_) {
-      classes.push('zero-state-disabled');
+      classes.push('ambient-mode-enabled');
     }
 
     if (!this.ambientModeEnabled_) {
       classes.push('ambient-mode-disabled');
     }
 
-    /* TODO(b/253470553): Remove this condition after Ambient subpage UI change
-     * is released. */
-    if (!this.isPersonalizationJellyEnabled_) {
-      classes.push('jelly-disabled');
-    }
     return classes.join(' ');
   }
 

@@ -5,6 +5,7 @@
 #ifndef CHROMEOS_ASH_COMPONENTS_OSAUTH_PUBLIC_AUTH_FACTOR_ENGINE_H_
 #define CHROMEOS_ASH_COMPONENTS_OSAUTH_PUBLIC_AUTH_FACTOR_ENGINE_H_
 
+#include "base/component_export.h"
 #include "base/functional/callback.h"
 #include "chromeos/ash/components/osauth/public/common_types.h"
 #include "components/account_id/account_id.h"
@@ -22,14 +23,15 @@ namespace ash {
 //   giving them a chance to wait for underlying services to become ready.
 // * Once authentication attempt starts (for user/purpose), AuthHub
 //   invokes `StartAuthFlow` on each factor engine to query if the factor
-//   is present for the user/purpose.
+//   is present for the user/purpose. Factors are started in `kDisabled` state
+//   and would be enabled by AuthHub once all factors are ready.
 // * If factor is not present, `StopAuthFlow` would eventually be called on
 //   corresponding engine to release resources.
 // * If factor is present, AuthHub would check if there are any restrictions
 //   on using this factor, by querying methods like `IsDisabledByPolicy`.
 //   Once all restrictions are checked, factor might be disabled via calling
-//   `SetEnabled(false)` method. Disabled factor should not allow any
-//   authentication attempts.
+//   `SetUsageAllowed(kDisabled)` method. Disabled factor should not allow
+//   any authentication attempts.
 // * While authentication is active, factor engine should notify AuthHub
 //   about any events that might change factor restrictions: policy changes,
 //   factor lockout, etc.
@@ -62,6 +64,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) AuthFactorEngine {
   // When notifying methods, engine should identify itself by
   // providing `factor` value same as one returned by `GetFactor()`.
   class FactorEngineObserver {
+   public:
     virtual ~FactorEngineObserver() = default;
 
     // Notify AuthHub about result of factor presence check.
@@ -77,7 +80,7 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) AuthFactorEngine {
 
     virtual void OnPolicyChanged(AshAuthFactor factor) = 0;
     virtual void OnLockoutChanged(AshAuthFactor factor) = 0;
-    virtual void OnOrientationRestrictionsChanged(AshAuthFactor factor) = 0;
+    virtual void OnFactorSpecificRestrictionsChanged(AshAuthFactor factor) = 0;
 
     // Notify AuthHub about some critical error. AuthHub would treat
     // this factor as disabled.
@@ -97,12 +100,13 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) AuthFactorEngine {
     kDisabled,                 // Discard authentication attempts.
   };
 
-  using CommonInitCallback = base::OnceClosure;
-  using ShutdownCallback = base::OnceClosure;
+  using CleanupCallback = base::OnceCallback<void(AshAuthFactor)>;
+  using CommonInitCallback = base::OnceCallback<void(AshAuthFactor)>;
+  using ShutdownCallback = base::OnceCallback<void(AshAuthFactor)>;
 
   virtual ~AuthFactorEngine() = default;
 
-  virtual AshAuthFactor GetFactor() = 0;
+  virtual AshAuthFactor GetFactor() const = 0;
 
   // Factor initialization stage that is not dependent on particular user.
   // E.g. awaiting the required DBus service to start.
@@ -122,14 +126,28 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) AuthFactorEngine {
                              AuthPurpose purpose,
                              FactorEngineObserver* observer) = 0;
 
+  // The way for the owning object to change the object that would
+  // be notified about engine events.
+  // All events after this call should be sent using new `observer`.
+  virtual void UpdateObserver(FactorEngineObserver* observer) = 0;
+
+  // Engine tears down any internal/external state that needs
+  // access of allocated resources, such as UserContext, after authentication
+  // and before shutdown. Typically, cryptohome based Engine should
+  // use this function to call TerminateAuthFactor.
+  virtual void CleanUp(CleanupCallback callback) = 0;
+
   // After this call Engine should stop notifying an `observer` set in
   // `StartAttempt`, and release any resources allocated as a result of
-  // starting attempt.
-  // User/purpose are provided for convenience, they would match
-  // the ones passed in `StartAuthFlow` call.
-  virtual void StopAuthFlow(const AccountId& account,
-                            AuthPurpose purpose,
-                            ShutdownCallback callback) = 0;
+  // starting attempt. Engine should not assume UserContext is available
+  // in this function.
+  virtual void StopAuthFlow(ShutdownCallback callback) = 0;
+
+  // Client should call this method only when `OnFactorAttemptResult`
+  // returned `true`.
+  // This method should store all data related to authentication
+  // to the `AuthSessionStorage` and return resulting AuthProofToken.
+  virtual AuthProofToken StoreAuthenticationContext() = 0;
 
   // Used by AuthHub to control if authentication attempts can be performed
   // by the engine. Most relevant for factors like fingerprint that can not
@@ -151,7 +169,19 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_OSAUTH) AuthFactorEngine {
   virtual bool IsLockedOut() = 0;
   // Relevant for factors like fingerprint, where in some
   // device orientations FP sensor can be used unintentionally.
-  virtual bool IsOrientationRestricted() = 0;
+  virtual bool IsFactorSpecificRestricted() = 0;
+
+  // Engines might override these methods to gracefully handle
+  // timeout during relevant lifecycle operations.
+  virtual void InitializationTimedOut() {}
+  virtual void ShutdownTimedOut() {}
+  virtual void StartFlowTimedOut() {}
+  virtual void StopFlowTimedOut() {}
+
+  // Called when any engine successfully authenticates an auth factor. Engines
+  // can override this when they have some action (e.g. removing a lockout) that
+  // should be carried out upon auth even when doing via another engine.
+  virtual void OnSuccessfulAuthentiation() {}
 };
 
 }  // namespace ash

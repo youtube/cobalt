@@ -1,8 +1,8 @@
 # Run a smoke set of browser tests relevant to CfT (crbug.com/1421409)
-
 ChromeForTestingInfoBarTest.*
 ClientHintsBrowserTest.*
 RecordLanguagesMetricsBrowserTest.*
+CrSettingsAboutPageTest.AboutPage*
 
 # DevTools browser tests
 GlobalConfirmInfoBarTest.*
@@ -108,3 +108,15 @@ BrowserRootViewBrowserTest.*
 -WebRtcDesktopCaptureBrowserTest.CloseAndReopenNonSharedTab
 -WebRtcDesktopCaptureBrowserTest.SwitchSharedTabBackAndForth
 -WebRtcDesktopCaptureBrowserTest.TabCaptureProvides0HzWith0MinFpsConstraintAndStaticContent
+
+# https://ci.chromium.org/ui/p/chromium/builders/ci/mac-rel-cft/16246/test-results
+-LayerTreeHostScrollTestCaseWithChild.DeviceScaleFactor1_ScrollChild
+-PasswordCheckDelegateTest.*
+-ReadAnythingModelTest.*
+-ThreadControllerWithMessagePumpTest.ThreadControllerActiveAdvancedNesting
+-TranslateManagerRenderViewHostTest.*
+
+# https://crbug.com/337761971
+-DistilledPageJsTest.*
+-DomDistillerDistillablePageUtilsTest.*
+-DistillerPageWebContentsTest.*

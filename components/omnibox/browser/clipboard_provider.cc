@@ -6,10 +6,10 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
-#include "base/containers/cxx20_erase.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted_memory.h"
@@ -21,31 +21,36 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "components/omnibox/browser/autocomplete_enums.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_provider_client.h"
 #include "components/omnibox/browser/autocomplete_provider_listener.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
+#include "components/omnibox/browser/omnibox_text_util.h"
+#include "components/omnibox/browser/omnibox_view.h"
+#include "components/omnibox/browser/page_classification_functions.h"
+#include "components/omnibox/browser/suggestion_group_util.h"
 #include "components/omnibox/browser/verbatim_match.h"
 #include "components/omnibox/common/omnibox_features.h"
 #include "components/open_from_clipboard/clipboard_recent_content.h"
 #include "components/search_engines/template_url_service.h"
 #include "components/strings/grit/components_strings.h"
 #include "components/url_formatter/url_formatter.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/metrics_proto/omnibox_focus_type.pb.h"
+#include "third_party/omnibox_proto/groups.pb.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/image/image_util.h"
 
+#if !BUILDFLAG(IS_IOS)
+#include "ui/base/clipboard/clipboard.h"  // nogncheck
+#endif                                    // !BUILDFLAG(IS_IOS)
+
 namespace {
+constexpr bool is_android = !!BUILDFLAG(IS_ANDROID);
 
 const size_t kMaxClipboardSuggestionShownNumTimesSimpleSize = 20;
-
-// Clipboard suggestion is placed in a dedicated SECTION_MOBILE_CLIPBOARD.
-// It is the only occupant of this section, making its relevance score not
-// important.
-const int kClipboardMatchRelevanceScore = 1;
 
 bool IsMatchDeletionEnabled() {
   return base::FeatureList::IsEnabled(
@@ -132,60 +137,39 @@ ClipboardProvider::ClipboardProvider(AutocompleteProviderClient* client,
   AddListener(listener);
 }
 
-ClipboardProvider::~ClipboardProvider() {}
+ClipboardProvider::~ClipboardProvider() = default;
 
 void ClipboardProvider::Start(const AutocompleteInput& input,
                               bool minimal_changes) {
+  using OEP = ::metrics::OmniboxEventProto;
+
   matches_.clear();
 
   // If the user started typing, do not offer clipboard based match.
-  if (input.focus_type() == metrics::OmniboxFocusType::INTERACTION_DEFAULT)
-    return;
-
-  // Image matched was kicked off asynchronously, so proceed when that ends.
-  if (!input.omit_asynchronous_matches() && CreateImageMatch(input))
-    return;
-
-  bool read_clipboard_content = false;
-  bool read_clipboard_url;
-  absl::optional<AutocompleteMatch> optional_match =
-      CreateURLMatch(input, &read_clipboard_url);
-  read_clipboard_content |= read_clipboard_url;
-  if (!optional_match) {
-    bool read_clipboard_text;
-    optional_match = CreateTextMatch(input, &read_clipboard_text);
-    read_clipboard_content |= read_clipboard_text;
-  }
-
-  if (optional_match) {
-    AddCreatedMatchWithTracking(input, std::move(optional_match).value(),
-                                clipboard_content_->GetClipboardContentAge());
+  if (!input.IsZeroSuggest()) {
     return;
   }
 
-  // If there was clipboard content, but no match, don't proceed. There was
-  // some other reason for not creating a match (e.g. copied URL but the URL was
-  // the same as the current URL).
-  if (read_clipboard_content) {
+  auto page_class = input.current_page_classification();
+  if (page_class == OEP::OTHER_ON_CCT ||
+      page_class == OEP::SEARCH_RESULT_PAGE_ON_CCT) {
     return;
   }
 
   done_ = true;
 
-  // On iOS 14, accessing the clipboard contents shows a notification to the
-  // user. To avoid this, all the methods above will not check the contents and
-  // will return false/absl::nullopt. Instead, check the existence of content
-  // without accessing the actual content and create blank matches.
+  // On iOS and Android, accessing the clipboard contents shows a notification
+  // to the user. To avoid this, all the methods above will not check the
+  // contents and will return false/std::nullopt. Instead, check the existence
+  // of content without accessing the actual content and create blank matches.
   if (!input.omit_asynchronous_matches()) {
     // Image matched was kicked off asynchronously, so proceed when that ends.
     CheckClipboardContent(input);
   }
 }
 
-void ClipboardProvider::Stop(bool clear_cached_results,
-                             bool due_to_user_inactivity) {
-  AutocompleteProvider::Stop(clear_cached_results, due_to_user_inactivity);
-
+void ClipboardProvider::Stop(AutocompleteStopReason stop_reason) {
+  AutocompleteProvider::Stop(stop_reason);
   callback_weak_ptr_factory_.InvalidateWeakPtrs();
 }
 
@@ -197,7 +181,7 @@ void ClipboardProvider::DeleteMatch(const AutocompleteMatch& match) {
   const auto pred = [&match](const AutocompleteMatch& i) {
     return i.contents == match.contents && i.type == match.type;
   };
-  base::EraseIf(matches_, pred);
+  std::erase_if(matches_, pred);
 }
 
 void ClipboardProvider::AddProviderInfo(ProvidersInfo* provider_info) const {
@@ -217,7 +201,7 @@ void ClipboardProvider::AddProviderInfo(ProvidersInfo* provider_info) const {
 
 void ClipboardProvider::AddCreatedMatchWithTracking(
     const AutocompleteInput& input,
-    const AutocompleteMatch& match,
+    AutocompleteMatch match,
     const base::TimeDelta clipboard_contents_age) {
   // Record the number of times the currently-offered URL has been suggested.
   // This only works over this run of Chrome; if the URL was in the clipboard
@@ -232,6 +216,15 @@ void ClipboardProvider::AddCreatedMatchWithTracking(
   RecordCreatingClipboardSuggestionMetrics(current_url_suggested_times_,
                                            matches_.empty(), match.type,
                                            clipboard_contents_age);
+
+  if (is_android && omnibox::IsNTPPage(input.current_page_classification())) {
+    // Assign the Clipboard to the PZPS group on NTP pages to improve the use
+    // of the suggest space.
+    match.suggestion_group_id = omnibox::GROUP_PERSONALIZED_ZERO_SUGGEST;
+  } else {
+    // Leave the clipboard in its dedicated section otherwise.
+    match.suggestion_group_id = omnibox::GROUP_MOBILE_CLIPBOARD;
+  }
 
   matches_.push_back(match);
 }
@@ -286,159 +279,62 @@ void ClipboardProvider::OnReceiveClipboardContent(
     const AutocompleteInput& input,
     base::TimeDelta clipboard_contents_age,
     std::set<ClipboardContentType> matched_types) {
-  if (matched_types.find(ClipboardContentType::Image) != matched_types.end()) {
+  if (TemplateURLSupportsImageSearch() &&
+      matched_types.find(ClipboardContentType::Image) != matched_types.end()) {
     // The image content will be added in later. If the image is large, encoding
     // the image may take some time, so just be wary whenever that step happens
     // (e.g OmniboxView::OpenMatch).
     AutocompleteMatch match = NewBlankImageMatch();
-    AddCreatedMatchWithTracking(input, match, clipboard_contents_age);
+    AddCreatedMatchWithTracking(input, std::move(match),
+                                clipboard_contents_age);
     NotifyListeners(true);
   } else if (matched_types.find(ClipboardContentType::URL) !=
              matched_types.end()) {
     AutocompleteMatch match = NewBlankURLMatch();
-    AddCreatedMatchWithTracking(input, match, clipboard_contents_age);
+    AddCreatedMatchWithTracking(input, std::move(match),
+                                clipboard_contents_age);
     NotifyListeners(true);
-  } else if (matched_types.find(ClipboardContentType::Text) !=
-             matched_types.end()) {
+  } else if (TemplateURLSupportsTextSearch() &&
+             matched_types.find(ClipboardContentType::Text) !=
+                 matched_types.end()) {
     AutocompleteMatch match = NewBlankTextMatch();
-    AddCreatedMatchWithTracking(input, match, clipboard_contents_age);
+    AddCreatedMatchWithTracking(input, std::move(match),
+                                clipboard_contents_age);
     NotifyListeners(true);
   }
-  done_ = true;
-}
-
-absl::optional<AutocompleteMatch> ClipboardProvider::CreateURLMatch(
-    const AutocompleteInput& input,
-    bool* read_clipboard_content) {
-  *read_clipboard_content = false;
-  if (base::FeatureList::IsEnabled(
-          omnibox::kClipboardSuggestionContentHidden)) {
-    return absl::nullopt;
-  }
-  // The clipboard does not contain a URL worth suggesting.
-  absl::optional<GURL> optional_gurl =
-      clipboard_content_->GetRecentURLFromClipboard();
-  if (!optional_gurl)
-    return absl::nullopt;
-
-  *read_clipboard_content = true;
-  GURL url = std::move(optional_gurl).value();
-
-  // The URL on the page is the same as the URL in the clipboard.  Don't
-  // bother suggesting it.
-  if (url == input.current_url())
-    return absl::nullopt;
-
-  return NewClipboardURLMatch(url);
-}
-
-absl::optional<AutocompleteMatch> ClipboardProvider::CreateTextMatch(
-    const AutocompleteInput& input,
-    bool* read_clipboard_content) {
-  *read_clipboard_content = false;
-  if (base::FeatureList::IsEnabled(
-          omnibox::kClipboardSuggestionContentHidden)) {
-    return absl::nullopt;
-  }
-
-  absl::optional<std::u16string> optional_text =
-      clipboard_content_->GetRecentTextFromClipboard();
-  if (!optional_text)
-    return absl::nullopt;
-
-  *read_clipboard_content = true;
-  std::u16string text = std::move(optional_text).value();
-
-  // The clipboard can contain the empty string, which shouldn't be suggested.
-  if (text.empty())
-    return absl::nullopt;
-
-  // The text in the clipboard is a url. We don't want to prompt the user to
-  // search for a url.
-  if (GURL(text).is_valid())
-    return absl::nullopt;
-
-  return NewClipboardTextMatch(text);
-}
-
-bool ClipboardProvider::CreateImageMatch(const AutocompleteInput& input) {
-  if (base::FeatureList::IsEnabled(
-          omnibox::kClipboardSuggestionContentHidden)) {
-    return false;
-  }
-
-  if (!clipboard_content_->HasRecentImageFromClipboard()) {
-    return false;
-  }
-
-  if (!TemplateURLSupportsImageSearch()) {
-    return false;
-  }
-
-  done_ = false;
-
-  // We want to get the age here because the contents of the clipboard could
-  // change after this point. We want the age of the image we actually use, not
-  // the age of whatever's on the clipboard when the histogram is created (i.e
-  // when the match is created).
-  base::TimeDelta clipboard_contents_age =
-      clipboard_content_->GetClipboardContentAge();
-  clipboard_content_->GetRecentImageFromClipboard(base::BindOnce(
-      &ClipboardProvider::CreateImageMatchCallback,
-      callback_weak_ptr_factory_.GetWeakPtr(), input, clipboard_contents_age));
-  return true;
-}
-
-void ClipboardProvider::CreateImageMatchCallback(
-    const AutocompleteInput& input,
-    const base::TimeDelta clipboard_contents_age,
-    absl::optional<gfx::Image> optional_image) {
-  NewClipboardImageMatch(
-      optional_image, base::BindOnce(&ClipboardProvider::AddImageMatchCallback,
-                                     callback_weak_ptr_factory_.GetWeakPtr(),
-                                     input, clipboard_contents_age));
-}
-
-void ClipboardProvider::AddImageMatchCallback(
-    const AutocompleteInput& input,
-    const base::TimeDelta clipboard_contents_age,
-    absl::optional<AutocompleteMatch> match) {
-  if (!match) {
-    return;
-  }
-  AddCreatedMatchWithTracking(input, match.value(), clipboard_contents_age);
-  NotifyListeners(true);
   done_ = true;
 }
 
 AutocompleteMatch ClipboardProvider::NewBlankURLMatch() {
-  AutocompleteMatch match(this, kClipboardMatchRelevanceScore,
+  AutocompleteMatch match(this, omnibox::kClipboardMatchZeroSuggestRelevance,
                           IsMatchDeletionEnabled(),
                           AutocompleteMatchType::CLIPBOARD_URL);
 
-  match.suggestion_group_id = omnibox::GROUP_MOBILE_CLIPBOARD;
   match.description.assign(l10n_util::GetStringUTF16(IDS_LINK_FROM_CLIPBOARD));
   if (!match.description.empty())
     match.description_class.push_back({0, ACMatchClassification::NONE});
   return match;
 }
 
-AutocompleteMatch ClipboardProvider::NewClipboardURLMatch(GURL url) {
+AutocompleteMatch ClipboardProvider::NewClipboardURLMatch(const GURL& url) {
   DCHECK(url.is_valid());
 
   AutocompleteMatch match = NewBlankURLMatch();
-
   UpdateClipboardURLContent(url, &match);
-
   return match;
 }
 
 AutocompleteMatch ClipboardProvider::NewBlankTextMatch() {
-  AutocompleteMatch match(this, kClipboardMatchRelevanceScore,
+  AutocompleteMatch match(this, omnibox::kClipboardMatchZeroSuggestRelevance,
                           IsMatchDeletionEnabled(),
                           AutocompleteMatchType::CLIPBOARD_TEXT);
+  // Any path leading here should first verify whether
+  // TemplateUrlSupportsTextSearch().
+  TemplateURLService* url_service = client_->GetTemplateURLService();
+  const TemplateURL* default_url = url_service->GetDefaultSearchProvider();
+  DCHECK(!!default_url);
+  match.keyword = default_url->keyword();
 
-  match.suggestion_group_id = omnibox::GROUP_MOBILE_CLIPBOARD;
   match.description.assign(l10n_util::GetStringUTF16(IDS_TEXT_FROM_CLIPBOARD));
   if (!match.description.empty())
     match.description_class.push_back({0, ACMatchClassification::NONE});
@@ -447,22 +343,27 @@ AutocompleteMatch ClipboardProvider::NewBlankTextMatch() {
   return match;
 }
 
-absl::optional<AutocompleteMatch> ClipboardProvider::NewClipboardTextMatch(
-    std::u16string text) {
+std::optional<AutocompleteMatch> ClipboardProvider::NewClipboardTextMatch(
+    const std::u16string& text) {
   AutocompleteMatch match = NewBlankTextMatch();
 
   if (!UpdateClipboardTextContent(text, &match))
-    return absl::nullopt;
+    return std::nullopt;
 
   return match;
 }
 
 AutocompleteMatch ClipboardProvider::NewBlankImageMatch() {
-  AutocompleteMatch match(this, kClipboardMatchRelevanceScore,
+  AutocompleteMatch match(this, omnibox::kClipboardMatchZeroSuggestRelevance,
                           IsMatchDeletionEnabled(),
                           AutocompleteMatchType::CLIPBOARD_IMAGE);
+  // Any path leading here should first verify whether
+  // TemplateUrlSupportsImageSearch().
+  TemplateURLService* url_service = client_->GetTemplateURLService();
+  const TemplateURL* default_url = url_service->GetDefaultSearchProvider();
+  DCHECK(!!default_url);
+  match.keyword = default_url->keyword();
 
-  match.suggestion_group_id = omnibox::GROUP_MOBILE_CLIPBOARD;
   match.description.assign(l10n_util::GetStringUTF16(IDS_IMAGE_FROM_CLIPBOARD));
   if (!match.description.empty())
     match.description_class.push_back({0, ACMatchClassification::NONE});
@@ -478,13 +379,13 @@ AutocompleteMatch ClipboardProvider::NewBlankImageMatch() {
 }
 
 void ClipboardProvider::NewClipboardImageMatch(
-    absl::optional<gfx::Image> optional_image,
+    std::optional<gfx::Image> optional_image,
     ClipboardImageMatchCallback callback) {
   // ImageSkia::ToImageSkia should only be called if the gfx::Image is
   // non-empty. It is unclear when the clipboard returns a non-optional but
   // empty image. See crbug.com/1136759 for more details.
   if (!optional_image || optional_image.value().IsEmpty()) {
-    std::move(callback).Run(absl::nullopt);
+    std::move(callback).Run(std::nullopt);
     return;
   }
   gfx::ImageSkia image_skia = *optional_image.value().ToImageSkia();
@@ -538,7 +439,7 @@ void ClipboardProvider::ConstructImageMatchCallback(
   match.search_terms_args =
       std::make_unique<TemplateURLRef::SearchTermsArgs>(u"");
   match.search_terms_args->image_thumbnail_content.assign(
-      image_bytes->front_as<char>(), image_bytes->size());
+      base::as_string_view(*image_bytes));
   TemplateURLRef::PostContent post_content;
   GURL result(default_url->image_url_ref().ReplaceSearchTerms(
       *match.search_terms_args.get(), url_service->search_terms_data(),
@@ -558,19 +459,20 @@ void ClipboardProvider::ConstructImageMatchCallback(
 void ClipboardProvider::OnReceiveURLForMatchWithContent(
     ClipboardMatchCallback callback,
     AutocompleteMatch* match,
-    absl::optional<GURL> optional_gurl) {
+    std::optional<GURL> optional_gurl) {
   if (!optional_gurl)
     return;
 
   GURL url = std::move(optional_gurl).value();
   UpdateClipboardURLContent(url, match);
+
   std::move(callback).Run();
 }
 
 void ClipboardProvider::OnReceiveTextForMatchWithContent(
     ClipboardMatchCallback callback,
     AutocompleteMatch* match,
-    absl::optional<std::u16string> optional_text) {
+    std::optional<std::u16string> optional_text) {
   if (!optional_text)
     return;
 
@@ -584,7 +486,7 @@ void ClipboardProvider::OnReceiveTextForMatchWithContent(
 void ClipboardProvider::OnReceiveImageForMatchWithContent(
     ClipboardMatchCallback callback,
     AutocompleteMatch* match,
-    absl::optional<gfx::Image> optional_image) {
+    std::optional<gfx::Image> optional_image) {
   if (!optional_image)
     return;
 
@@ -599,7 +501,7 @@ void ClipboardProvider::OnReceiveImageForMatchWithContent(
 void ClipboardProvider::OnReceiveImageMatchForMatchWithContent(
     ClipboardMatchCallback callback,
     AutocompleteMatch* match,
-    absl::optional<AutocompleteMatch> optional_match) {
+    std::optional<AutocompleteMatch> optional_match) {
   DCHECK(match);
   if (!optional_match)
     return;
@@ -616,6 +518,13 @@ void ClipboardProvider::UpdateClipboardURLContent(const GURL& url,
   DCHECK(url.is_valid());
   DCHECK(match);
 
+  std::u16string text_plain = base::ASCIIToUTF16(url.spec());
+  std::u16string text_sanitized = omnibox::SanitizeTextForPaste(text_plain);
+  if (text_plain != text_sanitized) {
+    UpdateClipboardTextContent(text_sanitized, match);
+    return;
+  }
+
   match->destination_url = url;
 
   // Because the user did not type a related input to get this clipboard
@@ -629,16 +538,38 @@ void ClipboardProvider::UpdateClipboardURLContent(const GURL& url,
   match->fill_into_edit =
       AutocompleteInput::FormattedStringWithEquivalentMeaning(
           url, match->contents, client_->GetSchemeClassifier(), nullptr);
+
+  // Update the match type in the event the Clipboard metadata told us this is a
+  // text, but we resolve it as a URL (e.g. "chrome://" URLs on Android).
+  match->type = AutocompleteMatchType::CLIPBOARD_URL;
 }
 
-bool ClipboardProvider::UpdateClipboardTextContent(const std::u16string& text,
-                                                   AutocompleteMatch* match) {
+bool ClipboardProvider::UpdateClipboardTextContent(
+    const std::u16string& raw_text,
+    AutocompleteMatch* match) {
   DCHECK(match);
+
+  std::u16string text = omnibox::SanitizeTextForPaste(raw_text);
 
   // The text in the clipboard is a url. We don't want to prompt the user to
   // search for a url.
-  if (GURL(text).is_valid())
+  if (GURL(text).is_valid()) {
+    // Note: on Android, the clipboard content is evaluated by Android
+    // Framework. The Framework is familiar with only a handful of URL schemes,
+    // and any non-explicitly annotated URL with scheme not recognized by the
+    // Android is immediately annotated as Text. Additionally, any application
+    // setting clipboard content may supply its own annotation, which may be
+    // inaccurate.
+    // we do not have the control over all sources from where such URLs can come
+    // from. The change below allows us to still open these URLs. Without this
+    // change Clipboard suggestions may be non interactable, if the clipboard
+    // contains an unannotated or mis-classified URL not recognized by Android.
+    if constexpr (is_android) {
+      UpdateClipboardURLContent(GURL(text), match);
+      return true;
+    }
     return false;
+  }
 
   match->fill_into_edit = text;
 
@@ -659,6 +590,11 @@ bool ClipboardProvider::UpdateClipboardTextContent(const std::u16string& text,
     match->contents_class.push_back({0, ACMatchClassification::NONE});
 
   match->keyword = default_url->keyword();
+
+  // Update the match type in the event the Clipboard metadata told us this is a
+  // URL, but we couldn't open it as such (either bad metadata, or javascript
+  // url).
+  match->type = AutocompleteMatchType::CLIPBOARD_TEXT;
 
   return true;
 }

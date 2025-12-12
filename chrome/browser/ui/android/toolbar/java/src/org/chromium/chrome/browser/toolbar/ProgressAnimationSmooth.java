@@ -4,11 +4,14 @@
 
 package org.chromium.chrome.browser.toolbar;
 
+import org.chromium.build.annotations.NullMarked;
+
 /**
  * Progress bar animation logic that smoothly accelerates in the beginning and smoothly decelerates
  * towards the end. The model is applying a constant acceleration followed by a constant
  * deceleration.
  */
+@NullMarked
 class ProgressAnimationSmooth implements ToolbarProgressBar.AnimationLogic {
     // The (de)acceleration unit is progress per second squared where 0 <= progress <= 1.
     private static final float FINISHING_ACCELERATION = 7.0f;
@@ -38,8 +41,9 @@ class ProgressAnimationSmooth implements ToolbarProgressBar.AnimationLogic {
         final float deceleratingDuration = frameTimeSec - acceleratingDuration;
 
         if (acceleratingDuration > 0.0f) {
-            float velocityChange = (targetProgress == 1.0f ? FINISHING_ACCELERATION : ACCELERATION)
-                    * acceleratingDuration;
+            float velocityChange =
+                    (targetProgress == 1.0f ? FINISHING_ACCELERATION : ACCELERATION)
+                            * acceleratingDuration;
             mProgress += (mVelocity + 0.5f * velocityChange) * acceleratingDuration;
             mVelocity += velocityChange;
         }
@@ -89,9 +93,12 @@ class ProgressAnimationSmooth implements ToolbarProgressBar.AnimationLogic {
         if (targetProgress == 1.0f) {
             return frameTimeSec;
         } else {
-            float maxAcceleratingDuration = CONSTANT_1 * mVelocity
-                    + (float) Math.sqrt(CONSTANT_2 * (targetProgress - mProgress)
-                            + CONSTANT_3 * mVelocity * mVelocity);
+            float maxAcceleratingDuration =
+                    CONSTANT_1 * mVelocity
+                            + (float)
+                                    Math.sqrt(
+                                            CONSTANT_2 * (targetProgress - mProgress)
+                                                    + CONSTANT_3 * mVelocity * mVelocity);
             return Math.max(0, Math.min(frameTimeSec, maxAcceleratingDuration));
         }
     }

@@ -4,34 +4,38 @@
 
 #include "chrome/browser/ash/login/saml/password_sync_token_fetcher.h"
 
+#include <memory>
+#include <string>
 #include <utility>
 
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/json/json_string_value_serializer.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/strings/escape.h"
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "components/account_id/account_id.h"
+#include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/access_token_fetcher.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/signin/public/identity_manager/primary_account_access_token_fetcher.h"
 #include "components/signin/public/identity_manager/scope_set.h"
-#include "components/user_manager/known_user.h"
 #include "content/public/browser/browser_context.h"
-#include "content/public/common/url_constants.h"
 #include "google_apis/credentials_mode.h"
 #include "google_apis/gaia/gaia_auth_fetcher.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "google_apis/google_api_keys.h"
 #include "net/base/load_flags.h"
+#include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
-#include "net/url_request/url_request_context_getter.h"
+#include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
@@ -42,7 +46,7 @@ namespace {
 
 // These values should not be renumbered and numeric values should never
 // be reused. This must be kept in sync with SamlInSessionPasswordSyncEvent
-// in tools/metrics/histogram/enums.xml
+// in tools/metrics/histograms/enums.xml
 enum class InSessionPasswordSyncEvent {
   kStartPollingInSession = 0,
   kStartPollingOnLogin = 1,
@@ -190,8 +194,7 @@ void PasswordSyncTokenFetcher::OnAccessTokenFetchComplete(
 }
 
 void PasswordSyncTokenFetcher::FetchSyncToken(const std::string& access_token) {
-  base::Value request_data(base::Value::Type::DICT);
-  request_data.SetStringKey(kTokenTypeKey, kTokenTypeValue);
+  auto request_data = base::Value::Dict().Set(kTokenTypeKey, kTokenTypeValue);
   std::string request_string;
   if (!base::JSONWriter::Write(request_data, &request_string)) {
     LOG(ERROR) << "Not able to serialize token request body.";

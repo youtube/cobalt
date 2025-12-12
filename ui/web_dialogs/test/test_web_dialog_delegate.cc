@@ -36,8 +36,8 @@ void TestWebDialogDelegate::SetCloseOnEscape(bool enabled) {
   close_on_escape_ = enabled;
 }
 
-ModalType TestWebDialogDelegate::GetDialogModalType() const {
-  return MODAL_TYPE_WINDOW;
+ui::mojom::ModalType TestWebDialogDelegate::GetDialogModalType() const {
+  return ui::mojom::ModalType::kWindow;
 }
 
 std::u16string TestWebDialogDelegate::GetDialogTitle() const {
@@ -46,10 +46,6 @@ std::u16string TestWebDialogDelegate::GetDialogTitle() const {
 
 GURL TestWebDialogDelegate::GetDialogContentURL() const {
   return url_;
-}
-
-void TestWebDialogDelegate::GetWebUIMessageHandlers(
-    std::vector<WebUIMessageHandler*>* handlers) const {
 }
 
 void TestWebDialogDelegate::GetDialogSize(gfx::Size* size) const {

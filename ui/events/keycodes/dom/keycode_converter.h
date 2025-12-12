@@ -7,10 +7,12 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <string>
 
-#include "base/strings/string_piece.h"
+#include <string>
+#include <string_view>
+
 #include "build/build_config.h"
+#include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -21,8 +23,6 @@
 // http://www.w3.org/TR/uievents/
 
 namespace ui {
-
-enum class DomCode;
 
 enum class DomKeyLocation { STANDARD, LEFT, RIGHT, NUMPAD };
 
@@ -83,19 +83,23 @@ class KeycodeConverter {
   // that are treated positionally for keyboard shortcuts, this returns the
   // DomCode of that key in the US layout. Any other key returns
   // |DomCode::NONE|.
-  static DomCode MapUSPositionalShortcutKeyToDomCode(KeyboardCode key_code);
+  static DomCode MapUSPositionalShortcutKeyToDomCode(
+      KeyboardCode key_code,
+      DomCode original_dom_code = ui::DomCode::NONE);
 
   // If |code| is one of the keys (plus, minus, brackets, period, comma) that
   // are treated positionally for keyboard shortcuts, this returns the
   // KeyboardCode (aka VKEY) of that key in the US layout. Any other key
   // returns |VKEY_UNKNOWN|
-  static KeyboardCode MapPositionalDomCodeToUSShortcutKey(DomCode code);
+  static KeyboardCode MapPositionalDomCodeToUSShortcutKey(
+      DomCode code,
+      KeyboardCode original_key_code = VKEY_UNKNOWN);
 #endif
 
   // Conversion between DOM Code string and DomCode enum values.
   // Returns the invalid value if the supplied code is not recognized,
   // or has no mapping.
-  static DomCode CodeStringToDomCode(base::StringPiece code);
+  static DomCode CodeStringToDomCode(std::string_view code);
   static std::string DomCodeToCodeString(DomCode dom_code);
 
   // Return the DomKeyLocation of a DomCode. The DomKeyLocation distinguishes
@@ -109,7 +113,7 @@ class KeycodeConverter {
   // - a key name from http://www.w3.org/TR/DOM-Level-3-Events-key/, or
   // - a single Unicode character (represented in UTF-8).
   // Returns DomKey::NONE for other inputs, including |nullptr|.
-  static DomKey KeyStringToDomKey(base::StringPiece key);
+  static DomKey KeyStringToDomKey(std::string_view key);
 
   // Convert a DomKey into a UI Events |key| string value.
   // Returns an empty string for invalid DomKey values.

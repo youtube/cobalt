@@ -5,8 +5,10 @@
 #include "chrome/browser/ui/android/omnibox/omnibox_view_util.h"
 
 #include "base/android/jni_string.h"
+#include "components/omnibox/browser/omnibox_text_util.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "chrome/browser/ui/android/omnibox/jni_headers/OmniboxViewUtil_jni.h"
-#include "components/omnibox/browser/omnibox_view.h"
 
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
@@ -17,6 +19,6 @@ ScopedJavaLocalRef<jstring> JNI_OmniboxViewUtil_SanitizeTextForPaste(
     const JavaParamRef<jstring>& jtext) {
   std::u16string pasted_text(
       base::android::ConvertJavaStringToUTF16(env, jtext));
-  pasted_text = OmniboxView::SanitizeTextForPaste(pasted_text);
+  pasted_text = omnibox::SanitizeTextForPaste(pasted_text);
   return base::android::ConvertUTF16ToJavaString(env, pasted_text);
 }

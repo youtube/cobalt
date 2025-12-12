@@ -4,12 +4,14 @@
 
 package org.chromium.content_public.browser;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 /**
  * The NavigationController Java wrapper to allow communicating with the native
  * NavigationController object.
  */
+@NullMarked
 public interface NavigationController {
     /**
      * @return Whether back navigation is possible from the "current entry".
@@ -40,14 +42,10 @@ public interface NavigationController {
      */
     void goToNavigationIndex(int index);
 
-    /**
-     * Goes to the first non-skippable navigation entry before the current.
-     */
+    /** Goes to the first non-skippable navigation entry before the current. */
     void goBack();
 
-    /**
-     * Goes to the first non-skippable navigation entry following the current.
-     */
+    /** Goes to the first non-skippable navigation entry following the current. */
     void goForward();
 
     /**
@@ -55,9 +53,7 @@ public interface NavigationController {
      */
     boolean isInitialNavigation();
 
-    /**
-     * Loads the current navigation if there is a pending lazy load (after tab restore).
-     */
+    /** Loads the current navigation if there is a pending lazy load (after tab restore). */
     public void loadIfNecessary();
 
     /**
@@ -65,38 +61,31 @@ public interface NavigationController {
      */
     public boolean needsReload();
 
-    /**
-     * Requests the current navigation to be loaded upon the next call to loadIfNecessary().
-     */
+    /** Requests the current navigation to be loaded upon the next call to loadIfNecessary(). */
     public void setNeedsReload();
 
-    /**
-     * Reload the current page.
-     */
+    /** Reload the current page. */
     public void reload(boolean checkForRepost);
 
-    /**
-     * Reload the current page, bypassing the contents of the cache.
-     */
+    /** Reload the current page, bypassing the contents of the cache. */
     public void reloadBypassingCache(boolean checkForRepost);
 
-    /**
-     * Cancel the pending reload.
-     */
+    /** Cancel the pending reload. */
     public void cancelPendingReload();
 
-    /**
-     * Continue the pending reload.
-     */
+    /** Continue the pending reload. */
     public void continuePendingReload();
 
     /**
-     * Load url without fixing up the url string. Consumers of NavigationController are
-     * responsible for ensuring the URL passed in is properly formatted (i.e. the
-     * scheme has been added if left off during user input).
+     * Load url without fixing up the url string. Consumers of NavigationController are responsible
+     * for ensuring the URL passed in is properly formatted (i.e. the scheme has been added if left
+     * off during user input).
+     *
      * @param params Parameters for this load.
+     * @return NavigationHandle for the initiated navigation (might be null if the navigation
+     *     couldn't be started for some reason).
      */
-    public void loadUrl(LoadUrlParams params);
+    public @Nullable NavigationHandle loadUrl(LoadUrlParams params);
 
     /**
      * Clears NavigationController's page history in both backwards and
@@ -108,21 +97,20 @@ public interface NavigationController {
      * Get a copy of the navigation history of NavigationController.
      * @return navigation history of NavigationController.
      */
-    public NavigationHistory getNavigationHistory();
+    public @Nullable NavigationHistory getNavigationHistory();
 
     /**
-    * Get the navigation history of NavigationController from current navigation entry index
-    * with direction (forward/backward)
-    * @param isForward determines forward or backward from current index
-    * @param itemLimit maximum number of entries to be retrieved in specified
-    * diection.
-    * @return navigation history by keeping above constraints.
-    */
-    public NavigationHistory getDirectedNavigationHistory(boolean isForward, int itemLimit);
-
-    /**
-     * Clears SSL preferences for this NavigationController.
+     * Get the navigation history of NavigationController from current navigation entry index
+     * with direction (forward/backward)
+     * @param isForward determines forward or backward from current index
+     * @param itemLimit maximum number of entries to be retrieved in specified
+     * diection.
+     * @return navigation history by keeping above constraints.
      */
+    public @Nullable NavigationHistory getDirectedNavigationHistory(
+            boolean isForward, int itemLimit);
+
+    /** Clears SSL preferences for this NavigationController. */
     public void clearSslPreferences();
 
     /**
@@ -144,7 +132,7 @@ public interface NavigationController {
      * @param index Index to retrieve the NavigationEntry for.
      * @return Entry containing info about the navigation, null if the index is out of bounds.
      */
-    public NavigationEntry getEntryAtIndex(int index);
+    public @Nullable NavigationEntry getEntryAtIndex(int index);
 
     /**
      * @return The {@link NavigationEntry} that is appropriate to be displayed in the address bar.
@@ -156,7 +144,7 @@ public interface NavigationController {
      * @return The pending {@link NavigationEntry} for this controller or {@code null} if none
      *         exists.
      */
-    public NavigationEntry getPendingEntry();
+    public @Nullable NavigationEntry getPendingEntry();
 
     /**
      * @return The index of the last committed entry.
@@ -182,10 +170,12 @@ public interface NavigationController {
      * @param key The data key.
      * @return The data value, or null if not found.
      */
+    @Nullable
     String getEntryExtraData(int index, String key);
 
     /**
      * Sets extra data on the {@link NavigationEntry} at {@code index}.
+     *
      * @param index The index of the navigation entry.
      * @param key The data key.
      * @param value The data value.
@@ -193,8 +183,9 @@ public interface NavigationController {
     void setEntryExtraData(int index, String key, String value);
 
     /**
-     * @param index The index of the navigation entry.
-     * @return true if the entry at |index| is marked to be skipped on back/forward UI.
+     * Copies the navigation controller state from {@param sourceNavigationController} to this.
+     *
+     * @param sourceNavigationController The {@link NavigationController} to copy from.
      */
-    public boolean isEntryMarkedToBeSkipped(int index);
+    void copyStateFrom(NavigationController sourceNavigationController);
 }

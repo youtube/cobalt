@@ -6,13 +6,12 @@
 #define CHROME_BROWSER_UI_VIEWS_QRCODE_GENERATOR_QRCODE_GENERATOR_BUBBLE_H_
 
 #include <memory>
+#include <optional>
 
-#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/qrcode_generator/qrcode_generator_bubble_view.h"
 #include "chrome/browser/ui/views/location_bar/location_bar_bubble_delegate_view.h"
-#include "chrome/services/qrcode_generator/public/mojom/qrcode_generator.mojom.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "components/qr_code_generator/bitmap_generator.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
@@ -39,10 +38,11 @@ namespace qrcode_generator {
 class QRCodeGeneratorBubble : public QRCodeGeneratorBubbleView,
                               public LocationBarBubbleDelegateView,
                               public views::TextfieldController {
+  METADATA_HEADER(QRCodeGeneratorBubble, LocationBarBubbleDelegateView)
+
  public:
-  METADATA_HEADER(QRCodeGeneratorBubble);
   QRCodeGeneratorBubble(views::View* anchor_view,
-                        content::WebContents* web_contents,
+                        base::WeakPtr<content::WebContents> web_contents,
                         base::OnceClosure on_closing,
                         base::OnceClosure on_back_button_pressed,
                         const GURL& url);
@@ -60,21 +60,12 @@ class QRCodeGeneratorBubble : public QRCodeGeneratorBubbleView,
   // e.g.: www.foo.com may suggest qrcode_foo.png.
   static const std::u16string GetQRCodeFilenameForURL(const GURL& url);
 
-  // Given an image |image| of a QR code, adds the required "quiet zone" padding
-  // around the outside of it. The |size| size is given in QR code tiles, not in
-  // pixels or dips. Both |image| and |size| must be square, and the resulting
-  // image is also square.
-  static gfx::ImageSkia AddQRCodeQuietZone(const gfx::ImageSkia& image,
-                                           const gfx::Size& size,
-                                           SkColor background_color);
-
   views::ImageView* image_for_testing() { return qr_code_image_; }
   views::Textfield* textfield_for_testing() { return textfield_url_; }
   views::Label* error_label_for_testing() { return bottom_error_label_; }
   views::LabelButton* download_button_for_testing() { return download_button_; }
 
-  void SetQRCodeServiceForTesting(
-      mojo::Remote<mojom::QRCodeGeneratorService>&& remote);
+  void SetQRCodeErrorForTesting(std::optional<qr_code_generator::Error> error);
 
  private:
   // Updates and formats QR code, text, and controls.
@@ -87,7 +78,7 @@ class QRCodeGeneratorBubble : public QRCodeGeneratorBubbleView,
   void DisplayPlaceholderImage();
 
   // Shows an error message.
-  void DisplayError(mojom::QRCodeGeneratorError error);
+  void DisplayError(qr_code_generator::Error error);
 
   // Hides all error messages and enables or disables download button.
   void HideErrors(bool enable_download_button);
@@ -112,31 +103,37 @@ class QRCodeGeneratorBubble : public QRCodeGeneratorBubbleView,
   bool HandleMouseEvent(views::Textfield* sender,
                         const ui::MouseEvent& mouse_event) override;
 
+  const SkBitmap GetBitmap();
+
+  void CopyButtonPressed();
+
   void DownloadButtonPressed();
 
   void BackButtonPressed();
 
-  // Callback for the request to the OOP service to generate a new image.
-  void OnCodeGeneratorResponse(const mojom::GenerateQRCodeResponsePtr response);
-
-  // Remote to service instance to generate QR code images.
-  mojo::Remote<mojom::QRCodeGeneratorService> qr_code_service_remote_;
+  // Unit tests can set `qr_code_error_override_` to inject QR code
+  // generation errors.
+  std::optional<qr_code_generator::Error> qrcode_error_override_;
 
   // URL for which the QR code is being generated.
   // Used for validation.
   GURL url_;
 
-  // Pointers to view widgets; weak.
-  raw_ptr<views::ImageView, DanglingUntriaged> qr_code_image_ = nullptr;
-  raw_ptr<views::Textfield, DanglingUntriaged> textfield_url_ = nullptr;
-  raw_ptr<views::LabelButton, DanglingUntriaged> download_button_ = nullptr;
-  raw_ptr<views::TooltipIcon, DanglingUntriaged> tooltip_icon_ = nullptr;
-  raw_ptr<views::Label, DanglingUntriaged> center_error_label_ = nullptr;
-  raw_ptr<views::Label, DanglingUntriaged> bottom_error_label_ = nullptr;
+  base::WeakPtr<actions::ActionItem> qrcode_action_item_ = nullptr;
+
+  // Pointers to subviews that we need to update the contents or visibility of
+  // after creation.
+  raw_ptr<views::ImageView> qr_code_image_ = nullptr;
+  raw_ptr<views::Textfield> textfield_url_ = nullptr;
+  raw_ptr<views::LabelButton> copy_button_ = nullptr;
+  raw_ptr<views::LabelButton> download_button_ = nullptr;
+  raw_ptr<views::TooltipIcon> tooltip_icon_ = nullptr;
+  raw_ptr<views::Label> center_error_label_ = nullptr;
+  raw_ptr<views::Label> bottom_error_label_ = nullptr;
 
   base::OnceClosure on_closing_;
   base::OnceClosure on_back_button_pressed_;
-  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_;  // weak.
+  base::WeakPtr<content::WebContents> web_contents_;
 };
 
 }  // namespace qrcode_generator

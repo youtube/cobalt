@@ -28,7 +28,6 @@ class AX_EXPORT AXTableInfo {
  public:
   struct CellData {
     raw_ptr<AXNode, DanglingUntriaged> cell;
-    AXNodeID cell_id;
     size_t col_index;
     size_t row_index;
     size_t col_span;
@@ -51,6 +50,8 @@ class AX_EXPORT AXTableInfo {
   // to be safe.
   bool valid() const { return valid_; }
   void Invalidate();
+
+  const AXNode* GetFirstCellInRow(const AXNode*) const;
 
   // The real row count, guaranteed to be at least as large as the
   // maximum row index of any cell.
@@ -87,7 +88,7 @@ class AX_EXPORT AXTableInfo {
   // Extra computed nodes for the accessibility tree for macOS:
   // one column node for each table column, followed by one
   // table header container node.
-  std::vector<AXNode*> extra_mac_nodes;
+  std::vector<raw_ptr<AXNode, VectorExperimental>> extra_mac_nodes;
 
   // Map from each cell's node ID to its index in unique_cell_ids.
   std::map<AXNodeID, size_t> cell_id_to_index;
@@ -96,7 +97,7 @@ class AX_EXPORT AXTableInfo {
   std::map<AXNodeID, size_t> row_id_to_index;
 
   // List of ax nodes that represent the rows of the table.
-  std::vector<AXNode*> row_nodes;
+  std::vector<raw_ptr<AXNode, VectorExperimental>> row_nodes;
 
   // The ARIA row count and column count, if any ARIA table or grid
   // attributes are used in the table at all.
@@ -106,15 +107,32 @@ class AX_EXPORT AXTableInfo {
   std::string ToString() const;
 
  private:
+  struct CellBuildState {
+   public:
+    size_t cell_index;
+    size_t current_col_index;
+    size_t current_row_index;
+    size_t spanned_col_index;
+    size_t current_aria_row_index;
+    size_t current_aria_col_index;
+    bool is_first_cell_in_row;
+  };
+
   AXTableInfo(AXTree* tree, AXNode* table_node);
 
   void ClearVectors();
   void BuildCellDataVectorFromRowAndCellNodes(
-      const std::vector<AXNode*>& row_node_list,
+      const std::vector<raw_ptr<AXNode, VectorExperimental>>& row_node_list,
       const std::vector<std::vector<AXNode*>>& cell_nodes_per_row);
+  void BuildCellDataVectorFromCellNodes(
+      const std::vector<std::vector<AXNode*>>& cell_nodes_per_row);
+  void BuildCellData(AXNode* cell,
+                     AXNode* row_or_first_cell,
+                     CellBuildState& state);
   void BuildCellAndHeaderVectorsFromCellData();
   void UpdateExtraMacNodes();
   void ClearExtraMacNodes();
+
   AXNode* CreateExtraMacColumnNode(size_t col_index);
   AXNode* CreateExtraMacTableHeaderNode();
   void UpdateExtraMacColumnNodeAttributes(size_t col_index);

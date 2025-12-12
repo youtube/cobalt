@@ -4,7 +4,11 @@
 
 package org.chromium.chrome.browser.device_dialog;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import android.Manifest;
+import android.app.Activity;
 import android.app.Dialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -20,22 +24,22 @@ import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import org.chromium.base.test.util.Batch;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
-import org.chromium.base.test.util.JniMocker;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.MaxAndroidSdkLevel;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
 import org.chromium.chrome.test.R;
-import org.chromium.chrome.test.batch.BlankCTATabInitialStateRule;
+import org.chromium.chrome.test.transit.AutoResetCtaTransitTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.components.location.LocationUtils;
 import org.chromium.components.permissions.BluetoothChooserDialog;
 import org.chromium.components.permissions.BluetoothChooserDialogJni;
@@ -43,37 +47,32 @@ import org.chromium.components.permissions.DeviceItemAdapter;
 import org.chromium.components.permissions.ItemChooserDialog;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.content_public.browser.bluetooth.BluetoothChooserEvent;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.content_public.browser.test.util.TouchCommon;
 import org.chromium.ui.base.ActivityWindowAndroid;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.permissions.AndroidPermissionDelegate;
 import org.chromium.ui.permissions.PermissionCallback;
 import org.chromium.ui.widget.TextViewWithClickableSpans;
 
+import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 
 /**
  * Tests for the BluetoothChooserDialog class.
  *
- * TODO(crbug.com/1222669): Componentize this test.
+ * <p>TODO(crbug.com/40187298): Componentize this test.
  */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
-@Batch(BluetoothChooserDialogTest.DEVICE_DIALOG_BATCH_NAME)
+// TODO(crbug.com/344665244): Failing when batched, batch this again.
 public class BluetoothChooserDialogTest {
     public static final String DEVICE_DIALOG_BATCH_NAME = "device_dialog";
 
-    @ClassRule
-    public static final ChromeTabbedActivityTestRule sActivityTestRule =
-            new ChromeTabbedActivityTestRule();
-
     @Rule
-    public final BlankCTATabInitialStateRule mInitialStateRule =
-            new BlankCTATabInitialStateRule(sActivityTestRule, false);
-
-    @Rule
-    public JniMocker mocker = new JniMocker();
+    public final AutoResetCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.fastAutoResetCtaActivityRule();
 
     private ActivityWindowAndroid mWindowAndroid;
     private FakeLocationUtils mLocationUtils;
@@ -84,7 +83,7 @@ public class BluetoothChooserDialogTest {
     private int mRestartSearchCount;
 
     private class TestBluetoothChooserDialogJni implements BluetoothChooserDialog.Natives {
-        private BluetoothChooserDialog mBluetoothChooserDialog;
+        private final BluetoothChooserDialog mBluetoothChooserDialog;
 
         TestBluetoothChooserDialogJni(BluetoothChooserDialog dialog) {
             mBluetoothChooserDialog = dialog;
@@ -93,9 +92,10 @@ public class BluetoothChooserDialogTest {
         @Override
         public void onDialogFinished(
                 long nativeBluetoothChooserAndroid, int eventType, String deviceId) {
-            Assert.assertEquals(nativeBluetoothChooserAndroid,
+            Assert.assertEquals(
+                    nativeBluetoothChooserAndroid,
                     mBluetoothChooserDialog.mNativeBluetoothChooserDialogPtr);
-            Assert.assertEquals(mFinishedEventType, -1);
+            Assert.assertEquals(-1, mFinishedEventType);
             mFinishedEventType = eventType;
             mFinishedDeviceId = deviceId;
             // The native code calls closeDialog() when OnDialogFinished is called.
@@ -132,7 +132,7 @@ public class BluetoothChooserDialogTest {
         mLocationUtils = new FakeLocationUtils();
         LocationUtils.setFactory(() -> mLocationUtils);
         mChooserDialog = createDialog();
-        mocker.mock(BluetoothChooserDialogJni.TEST_HOOKS,
+        BluetoothChooserDialogJni.setInstanceForTesting(
                 new TestBluetoothChooserDialogJni(mChooserDialog));
     }
 
@@ -142,13 +142,17 @@ public class BluetoothChooserDialogTest {
     }
 
     private BluetoothChooserDialog createDialog() {
-        return TestThreadUtils.runOnUiThreadBlockingNoException(
+        return ThreadUtils.runOnUiThreadBlocking(
                 () -> {
-                    mWindowAndroid = sActivityTestRule.getActivity().getWindowAndroid();
-                    BluetoothChooserDialog dialog = new BluetoothChooserDialog(mWindowAndroid,
-                            "https://origin.example.com/", ConnectionSecurityLevel.SECURE,
-                            new ChromeBluetoothChooserAndroidDelegate(),
-                            /*nativeBluetoothChooserDialogPtr=*/42);
+                    mWindowAndroid = mActivityTestRule.getActivity().getWindowAndroid();
+                    BluetoothChooserDialog dialog =
+                            new BluetoothChooserDialog(
+                                    mWindowAndroid,
+                                    "https://origin.example.com/",
+                                    ConnectionSecurityLevel.SECURE,
+                                    new ChromeBluetoothChooserAndroidDelegate(
+                                            ProfileManager.getLastUsedRegularProfile()),
+                                    /* nativeBluetoothChooserDialogPtr= */ 42);
                     dialog.show();
                     return dialog;
                 });
@@ -156,12 +160,17 @@ public class BluetoothChooserDialogTest {
 
     private void selectItem(int position) {
         final Dialog dialog = mChooserDialog.mItemChooserDialog.getDialogForTesting();
-        final ListView items = (ListView) dialog.findViewById(R.id.items);
-        final Button button = (Button) dialog.findViewById(R.id.positive);
+        final ListView items = dialog.findViewById(R.id.items);
+        final Button button = dialog.findViewById(R.id.positive);
 
         clickItemAtPosition(items, position - 1);
 
         CriteriaHelper.pollUiThread(() -> button.isEnabled());
+        // Make sure the button is properly rendered before clicking.
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(button.getHeight(), Matchers.greaterThan(0));
+                });
 
         TouchCommon.singleClickView(button);
 
@@ -171,21 +180,23 @@ public class BluetoothChooserDialogTest {
     private static void clickItemAtPosition(ListView listView, int position) {
         CriteriaHelper.pollUiThread(() -> listView.getChildAt(0) != null);
 
-        Callable<Boolean> isVisible = () -> {
-            int visibleStart = listView.getFirstVisiblePosition();
-            int visibleEnd = visibleStart + listView.getChildCount() - 1;
-            return position >= visibleStart && position <= visibleEnd;
-        };
+        Callable<Boolean> isVisible =
+                () -> {
+                    int visibleStart = listView.getFirstVisiblePosition();
+                    int visibleEnd = visibleStart + listView.getChildCount() - 1;
+                    return position >= visibleStart && position <= visibleEnd;
+                };
 
-        if (!TestThreadUtils.runOnUiThreadBlockingNoException(isVisible)) {
-            TestThreadUtils.runOnUiThreadBlocking(() -> listView.setSelection(position));
+        if (!ThreadUtils.runOnUiThreadBlocking(isVisible)) {
+            ThreadUtils.runOnUiThreadBlocking(() -> listView.setSelection(position));
             CriteriaHelper.pollUiThread(isVisible);
         }
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            TouchCommon.singleClickView(
-                    listView.getChildAt(position - listView.getFirstVisiblePosition()));
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    TouchCommon.singleClickView(
+                            listView.getChildAt(position - listView.getFirstVisiblePosition()));
+                });
     }
 
     /**
@@ -204,10 +215,12 @@ public class BluetoothChooserDialogTest {
         if (requestedPermissions == null) return false;
         String[] expectedPermissionBeforeS = {Manifest.permission.ACCESS_FINE_LOCATION};
         String[] expectedPermissionFromS = {
-                Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN};
-        String[] expected = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                ? expectedPermissionFromS
-                : expectedPermissionBeforeS;
+            Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN
+        };
+        String[] expected =
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                        ? expectedPermissionFromS
+                        : expectedPermissionBeforeS;
         String[] copied = Arrays.copyOf(requestedPermissions, requestedPermissions.length);
         Arrays.sort(expected);
         Arrays.sort(copied);
@@ -221,15 +234,15 @@ public class BluetoothChooserDialogTest {
         Dialog dialog = itemChooser.getDialogForTesting();
         Assert.assertTrue(dialog.isShowing());
 
-        TextViewWithClickableSpans statusView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.status);
-        final ListView items = (ListView) dialog.findViewById(R.id.items);
-        final Button button = (Button) dialog.findViewById(R.id.positive);
+        TextViewWithClickableSpans statusView = dialog.findViewById(R.id.status);
+        final ListView items = dialog.findViewById(R.id.items);
+        final Button button = dialog.findViewById(R.id.positive);
 
         // Before we add items to the dialog, the 'searching' message should be
         // showing, the Commit button should be disabled and the list view hidden.
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_searching)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule.getActivity().getString(R.string.bluetooth_searching)),
                 statusView.getText().toString());
         Assert.assertFalse(button.isEnabled());
         Assert.assertEquals(View.GONE, items.getVisibility());
@@ -249,15 +262,15 @@ public class BluetoothChooserDialogTest {
         Dialog dialog = itemChooser.getDialogForTesting();
         Assert.assertTrue(dialog.isShowing());
 
-        TextViewWithClickableSpans statusView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.status);
-        final ListView items = (ListView) dialog.findViewById(R.id.items);
-        final Button button = (Button) dialog.findViewById(R.id.positive);
+        TextViewWithClickableSpans statusView = dialog.findViewById(R.id.status);
+        final ListView items = dialog.findViewById(R.id.items);
+        final Button button = dialog.findViewById(R.id.positive);
 
         // Before we add items to the dialog, the 'searching' message should be
         // showing, the Commit button should be disabled and the list view hidden.
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_searching)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule.getActivity().getString(R.string.bluetooth_searching)),
                 statusView.getText().toString());
         Assert.assertFalse(button.isEnabled());
         Assert.assertEquals(View.GONE, items.getVisibility());
@@ -274,34 +287,48 @@ public class BluetoothChooserDialogTest {
     @SmallTest
     public void testSelectItem() {
         Dialog dialog = mChooserDialog.mItemChooserDialog.getDialogForTesting();
+        Assert.assertTrue(dialog.isShowing());
 
-        TextViewWithClickableSpans statusView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.status);
+        TextViewWithClickableSpans statusView = dialog.findViewById(R.id.status);
         final View items = dialog.findViewById(R.id.items);
-        final Button button = (Button) dialog.findViewById(R.id.positive);
+        final Button button = dialog.findViewById(R.id.positive);
         final View progress = dialog.findViewById(R.id.progress);
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            // Add non-connected device with no signal strength.
-            mChooserDialog.addOrUpdateDevice("id-1", "Name 1", false /* isGATTConnected */,
-                    -1 /* signalStrengthLevel */);
-            // Add connected device with no signal strength.
-            mChooserDialog.addOrUpdateDevice(
-                    "id-2", "Name 2", true /* isGATTConnected */, -1 /* signalStrengthLevel */);
-            // Add non-connected device with signal strength level 1.
-            mChooserDialog.addOrUpdateDevice(
-                    "id-3", "Name 3", false /* isGATTConnected */, 1 /* signalStrengthLevel */);
-            // Add connected device with signal strength level 1.
-            mChooserDialog.addOrUpdateDevice(
-                    "id-4", "Name 4", true /* isGATTConnected */, 1 /* signalStrengthLevel */);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    // Add non-connected device with no signal strength.
+                    mChooserDialog.addOrUpdateDevice(
+                            "id-1",
+                            "Name 1",
+                            /* isGATTConnected= */ false,
+                            /* signalStrengthLevel= */ -1);
+                    // Add connected device with no signal strength.
+                    mChooserDialog.addOrUpdateDevice(
+                            "id-2",
+                            "Name 2",
+                            /* isGATTConnected= */ true,
+                            /* signalStrengthLevel= */ -1);
+                    // Add non-connected device with signal strength level 1.
+                    mChooserDialog.addOrUpdateDevice(
+                            "id-3",
+                            "Name 3",
+                            /* isGATTConnected= */ false,
+                            /* signalStrengthLevel= */ 1);
+                    // Add connected device with signal strength level 1.
+                    mChooserDialog.addOrUpdateDevice(
+                            "id-4",
+                            "Name 4",
+                            /* isGATTConnected= */ true,
+                            /* signalStrengthLevel= */ 1);
+                });
 
         // After adding items to the dialog, the help message should be showing,
         // the progress spinner should disappear, the Commit button should still
         // be disabled (since nothing's selected), and the list view should
         // show.
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_searching)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule.getActivity().getString(R.string.bluetooth_searching)),
                 statusView.getText().toString());
         Assert.assertFalse(button.isEnabled());
         Assert.assertEquals(View.VISIBLE, items.getVisibility());
@@ -309,17 +336,40 @@ public class BluetoothChooserDialogTest {
 
         DeviceItemAdapter itemAdapter =
                 mChooserDialog.mItemChooserDialog.getItemAdapterForTesting();
-        Assert.assertTrue(itemAdapter.getItem(0).hasSameContents(
-                "id-1", "Name 1", null /* icon */, null /* iconDescription */));
-        Assert.assertTrue(itemAdapter.getItem(1).hasSameContents("id-2", "Name 2",
-                mChooserDialog.mConnectedIcon, mChooserDialog.mConnectedIconDescription));
-        Assert.assertTrue(itemAdapter.getItem(2).hasSameContents("id-3", "Name 3",
-                mChooserDialog.mSignalStrengthLevelIcon[1],
-                sActivityTestRule.getActivity().getResources().getQuantityString(
-                        R.plurals.signal_strength_level_n_bars, 1, 1)));
+        Assert.assertTrue(
+                itemAdapter
+                        .getItem(0)
+                        .hasSameContents(
+                                "id-1", "Name 1", /* icon= */ null, /* iconDescription= */ null));
+        Assert.assertTrue(
+                itemAdapter
+                        .getItem(1)
+                        .hasSameContents(
+                                "id-2",
+                                "Name 2",
+                                mChooserDialog.mConnectedIcon,
+                                mChooserDialog.mConnectedIconDescription));
+        Assert.assertTrue(
+                itemAdapter
+                        .getItem(2)
+                        .hasSameContents(
+                                "id-3",
+                                "Name 3",
+                                mChooserDialog.mSignalStrengthLevelIcon[1],
+                                mActivityTestRule
+                                        .getActivity()
+                                        .getResources()
+                                        .getQuantityString(
+                                                R.plurals.signal_strength_level_n_bars, 1, 1)));
         // We show the connected icon even if the device has a signal strength.
-        Assert.assertTrue(itemAdapter.getItem(3).hasSameContents("id-4", "Name 4",
-                mChooserDialog.mConnectedIcon, mChooserDialog.mConnectedIconDescription));
+        Assert.assertTrue(
+                itemAdapter
+                        .getItem(3)
+                        .hasSameContents(
+                                "id-4",
+                                "Name 4",
+                                mChooserDialog.mConnectedIcon,
+                                mChooserDialog.mConnectedIconDescription));
 
         selectItem(2);
 
@@ -334,41 +384,46 @@ public class BluetoothChooserDialogTest {
         Dialog dialog = itemChooser.getDialogForTesting();
         Assert.assertTrue(dialog.isShowing());
 
-        final TextViewWithClickableSpans statusView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.status);
-        final TextViewWithClickableSpans errorView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.not_found_message);
+        final TextViewWithClickableSpans statusView = dialog.findViewById(R.id.status);
+        final TextViewWithClickableSpans errorView = dialog.findViewById(R.id.not_found_message);
         final View items = dialog.findViewById(R.id.items);
-        final Button button = (Button) dialog.findViewById(R.id.positive);
+        final Button button = dialog.findViewById(R.id.positive);
         final View progress = dialog.findViewById(R.id.progress);
 
         final TestAndroidPermissionDelegate permissionDelegate =
                 new TestAndroidPermissionDelegate(dialog);
         mWindowAndroid.setAndroidPermissionDelegate(permissionDelegate);
 
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> mChooserDialog.notifyDiscoveryState(
-                                BluetoothChooserDialog.DiscoveryMode.DISCOVERY_FAILED_TO_START));
+        ThreadUtils.runOnUiThreadBlocking(() -> mChooserDialog.notifyAdapterUnauthorized());
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                        R.string.bluetooth_need_nearby_devices_permission)),
+            Assert.assertEquals(
+                    removeLinkTags(
+                            mActivityTestRule
+                                    .getActivity()
+                                    .getString(R.string.bluetooth_need_nearby_devices_permission)),
                     errorView.getText().toString());
         } else {
-            Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                        R.string.bluetooth_need_location_permission)),
+            Assert.assertEquals(
+                    removeLinkTags(
+                            mActivityTestRule
+                                    .getActivity()
+                                    .getString(R.string.bluetooth_need_location_permission)),
                     errorView.getText().toString());
         }
 
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_adapter_off_help)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule
+                                .getActivity()
+                                .getString(R.string.bluetooth_adapter_off_help)),
                 statusView.getText().toString());
         Assert.assertFalse(button.isEnabled());
         Assert.assertEquals(View.VISIBLE, errorView.getVisibility());
         Assert.assertEquals(View.GONE, items.getVisibility());
         Assert.assertEquals(View.GONE, progress.getVisibility());
 
-        TestThreadUtils.runOnUiThreadBlocking(
+        ThreadUtils.runOnUiThreadBlocking(
                 () -> errorView.getClickableSpans()[0].onClick(errorView));
 
         // Permission was requested.
@@ -379,25 +434,28 @@ public class BluetoothChooserDialogTest {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissionDelegate.mBluetoothConnectGranted = true;
             permissionDelegate.mBluetoothScanGranted = true;
-            TestThreadUtils.runOnUiThreadBlocking(
-                    ()
-                            -> permissionDelegate.mCallback.onRequestPermissionsResult(
-                                    new String[] {Manifest.permission.BLUETOOTH_CONNECT,
-                                            Manifest.permission.BLUETOOTH_SCAN},
+            ThreadUtils.runOnUiThreadBlocking(
+                    () ->
+                            permissionDelegate.mCallback.onRequestPermissionsResult(
+                                    new String[] {
+                                        Manifest.permission.BLUETOOTH_CONNECT,
+                                        Manifest.permission.BLUETOOTH_SCAN
+                                    },
                                     new int[] {PackageManager.PERMISSION_GRANTED}));
 
         } else {
             permissionDelegate.mLocationGranted = true;
-            TestThreadUtils.runOnUiThreadBlocking(
-                    ()
-                            -> permissionDelegate.mCallback.onRequestPermissionsResult(
+            ThreadUtils.runOnUiThreadBlocking(
+                    () ->
+                            permissionDelegate.mCallback.onRequestPermissionsResult(
                                     new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
                                     new int[] {PackageManager.PERMISSION_GRANTED}));
         }
 
         Assert.assertEquals(1, mRestartSearchCount);
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_searching)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule.getActivity().getString(R.string.bluetooth_searching)),
                 statusView.getText().toString());
         mChooserDialog.closeDialog();
     }
@@ -410,12 +468,10 @@ public class BluetoothChooserDialogTest {
         Dialog dialog = itemChooser.getDialogForTesting();
         Assert.assertTrue(dialog.isShowing());
 
-        final TextViewWithClickableSpans statusView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.status);
-        final TextViewWithClickableSpans errorView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.not_found_message);
+        final TextViewWithClickableSpans statusView = dialog.findViewById(R.id.status);
+        final TextViewWithClickableSpans errorView = dialog.findViewById(R.id.not_found_message);
         final View items = dialog.findViewById(R.id.items);
-        final Button button = (Button) dialog.findViewById(R.id.positive);
+        final Button button = dialog.findViewById(R.id.positive);
         final View progress = dialog.findViewById(R.id.progress);
 
         final TestAndroidPermissionDelegate permissionDelegate =
@@ -426,15 +482,18 @@ public class BluetoothChooserDialogTest {
         permissionDelegate.mLocationGranted = true;
         mLocationUtils.mSystemLocationSettingsEnabled = false;
 
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> mChooserDialog.notifyDiscoveryState(
-                                BluetoothChooserDialog.DiscoveryMode.DISCOVERY_FAILED_TO_START));
-
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_need_location_services_on)),
+        ThreadUtils.runOnUiThreadBlocking(() -> mChooserDialog.notifyAdapterUnauthorized());
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule
+                                .getActivity()
+                                .getString(R.string.bluetooth_need_location_services_on)),
                 errorView.getText().toString());
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_need_location_permission_help)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule
+                                .getActivity()
+                                .getString(R.string.bluetooth_need_location_permission_help)),
                 statusView.getText().toString());
         Assert.assertFalse(button.isEnabled());
         Assert.assertEquals(View.VISIBLE, errorView.getVisibility());
@@ -443,15 +502,16 @@ public class BluetoothChooserDialogTest {
 
         // Turn on Location Services.
         mLocationUtils.mSystemLocationSettingsEnabled = true;
-        TestThreadUtils.runOnUiThreadBlocking(
-                ()
-                        -> mChooserDialog.mLocationModeBroadcastReceiver.onReceive(
-                                sActivityTestRule.getActivity(),
+        ThreadUtils.runOnUiThreadBlocking(
+                () ->
+                        mChooserDialog.mLocationModeBroadcastReceiver.onReceive(
+                                mActivityTestRule.getActivity(),
                                 new Intent(LocationManager.MODE_CHANGED_ACTION)));
 
         Assert.assertEquals(1, mRestartSearchCount);
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_searching)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule.getActivity().getString(R.string.bluetooth_searching)),
                 statusView.getText().toString());
 
         mChooserDialog.closeDialog();
@@ -466,12 +526,10 @@ public class BluetoothChooserDialogTest {
         Dialog dialog = itemChooser.getDialogForTesting();
         Assert.assertTrue(dialog.isShowing());
 
-        final TextViewWithClickableSpans statusView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.status);
-        final TextViewWithClickableSpans errorView =
-                (TextViewWithClickableSpans) dialog.findViewById(R.id.not_found_message);
+        final TextViewWithClickableSpans statusView = dialog.findViewById(R.id.status);
+        final TextViewWithClickableSpans errorView = dialog.findViewById(R.id.not_found_message);
         final View items = dialog.findViewById(R.id.items);
-        final Button button = (Button) dialog.findViewById(R.id.positive);
+        final Button button = dialog.findViewById(R.id.positive);
         final View progress = dialog.findViewById(R.id.progress);
 
         final TestAndroidPermissionDelegate permissionDelegate =
@@ -487,13 +545,17 @@ public class BluetoothChooserDialogTest {
         }
 
         // Turn off adapter.
-        TestThreadUtils.runOnUiThreadBlocking(() -> mChooserDialog.notifyAdapterTurnedOff());
+        ThreadUtils.runOnUiThreadBlocking(() -> mChooserDialog.notifyAdapterTurnedOff());
 
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_adapter_off)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule.getActivity().getString(R.string.bluetooth_adapter_off)),
                 errorView.getText().toString());
-        Assert.assertEquals(removeLinkTags(sActivityTestRule.getActivity().getString(
-                                    R.string.bluetooth_adapter_off_help)),
+        Assert.assertEquals(
+                removeLinkTags(
+                        mActivityTestRule
+                                .getActivity()
+                                .getString(R.string.bluetooth_adapter_off_help)),
                 statusView.getText().toString());
         Assert.assertFalse(button.isEnabled());
         Assert.assertEquals(View.VISIBLE, errorView.getVisibility());
@@ -501,7 +563,7 @@ public class BluetoothChooserDialogTest {
         Assert.assertEquals(View.GONE, progress.getVisibility());
 
         // Turn on adapter.
-        TestThreadUtils.runOnUiThreadBlocking(() -> itemChooser.signalInitializingAdapter());
+        ThreadUtils.runOnUiThreadBlocking(() -> itemChooser.signalInitializingAdapter());
 
         Assert.assertEquals(View.GONE, errorView.getVisibility());
         Assert.assertEquals(View.GONE, items.getVisibility());
@@ -510,8 +572,41 @@ public class BluetoothChooserDialogTest {
         mChooserDialog.closeDialog();
     }
 
+    @Test
+    @SmallTest
+    @DisabledTest(message = "b/343347280")
+    public void testChooserBlockedByModalDialogManager() {
+        ModalDialogManager mockModalDialogManager = mock(ModalDialogManager.class);
+        when(mockModalDialogManager.isSuspended(ModalDialogManager.ModalDialogType.APP))
+                .thenReturn(true);
+        when(mockModalDialogManager.isSuspended(ModalDialogManager.ModalDialogType.TAB))
+                .thenReturn(true);
+        Activity mockActivity = mock(Activity.class);
+        WindowAndroid mockWindowAndroid = mock(WindowAndroid.class);
+        when(mockWindowAndroid.getActivity()).thenReturn(new WeakReference<>(mockActivity));
+        when(mockWindowAndroid.getModalDialogManager()).thenReturn(mockModalDialogManager);
+        when(mockWindowAndroid.hasPermission(Manifest.permission.BLUETOOTH_SCAN)).thenReturn(true);
+        when(mockWindowAndroid.hasPermission(Manifest.permission.BLUETOOTH_CONNECT))
+                .thenReturn(true);
+        when(mockWindowAndroid.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION))
+                .thenReturn(true);
+
+        BluetoothChooserDialog dialog;
+        dialog =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> {
+                            return BluetoothChooserDialog.create(
+                                    mockWindowAndroid,
+                                    "https://origin.example.com/",
+                                    ConnectionSecurityLevel.SECURE,
+                                    /* delegate= */ null,
+                                    /* nativeBluetoothChooserDialogPtr= */ 42);
+                        });
+        Assert.assertNull(dialog);
+    }
+
     private static class TestAndroidPermissionDelegate implements AndroidPermissionDelegate {
-        Dialog mDialog;
+        final Dialog mDialog;
         PermissionCallback mCallback;
         String[] mPermissionsRequested;
         public boolean mLocationGranted;
@@ -551,7 +646,7 @@ public class BluetoothChooserDialogTest {
         @Override
         public void requestPermissions(String[] permissions, PermissionCallback callback) {
             // Requesting for permission takes away focus from the window.
-            mDialog.onWindowFocusChanged(false /* hasFocus */);
+            mDialog.onWindowFocusChanged(/* hasFocus= */ false);
             mPermissionsRequested = permissions;
             mCallback = callback;
         }

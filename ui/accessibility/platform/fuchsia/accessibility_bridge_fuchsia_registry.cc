@@ -42,7 +42,7 @@ void AccessibilityBridgeFuchsiaRegistry::RegisterAccessibilityBridge(
 void AccessibilityBridgeFuchsiaRegistry::UnregisterAccessibilityBridge(
     aura::Window* window) {
   auto it = window_to_bridge_map_.find(window);
-  DCHECK(it != window_to_bridge_map_.end());
+  CHECK(it != window_to_bridge_map_.end());
 
   window_to_bridge_map_.erase(it);
 }

@@ -10,13 +10,13 @@
 // <if expr="is_ios">
 // This is needed for the iOS implementation of chrome.send (to communicate
 // between JS and native).
-// TODO(crbug.com/487000): Remove this once injected by web.
+// TODO(crbug.com/41173939): Remove this once injected by web.
 import 'chrome://resources/js/ios/web_ui.js';
 
 // </if>
 
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
-import {getRequiredElement} from 'chrome://resources/js/util_ts.js';
+import {getRequiredElement} from 'chrome://resources/js/util.js';
 
 // When the page loads, request the JSON local state data from C++.
 document.addEventListener('DOMContentLoaded', function() {

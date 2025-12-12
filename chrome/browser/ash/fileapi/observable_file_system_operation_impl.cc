@@ -29,20 +29,6 @@ FileChangeService* GetFileChangeService(const AccountId& account_id) {
 }
 
 // Notifies the `FileChangeService` associated with the given `account_id` of a
-// file being copied from `src` to `dst`. This method may only be called from
-// the browser UI thread.
-void NotifyFileCopiedOnUiThread(const AccountId& account_id,
-                                const storage::FileSystemURL& src,
-                                const storage::FileSystemURL& dst) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
-  FileChangeService* service = GetFileChangeService(account_id);
-  if (service) {
-    service->NotifyFileModified(dst);
-    service->NotifyFileCopied(src, dst);
-  }
-}
-
-// Notifies the `FileChangeService` associated with the given `account_id` of a
 // file being moved form `src` to `dst`. This method may only be called from the
 // browser UI thread.
 void NotifyFileMovedOnUiThread(const AccountId& account_id,
@@ -120,10 +106,12 @@ WriteCallback RunOnUiThreadOnCompleteCallback(
 
 ObservableFileSystemOperationImpl::ObservableFileSystemOperationImpl(
     const AccountId& account_id,
+    storage::OperationType type,
     const storage::FileSystemURL& url,
     storage::FileSystemContext* file_system_context,
     std::unique_ptr<storage::FileSystemOperationContext> operation_context)
     : storage::FileSystemOperationImpl(
+          type,
           url,
           file_system_context,
           std::move(operation_context),
@@ -132,35 +120,6 @@ ObservableFileSystemOperationImpl::ObservableFileSystemOperationImpl(
 
 ObservableFileSystemOperationImpl::~ObservableFileSystemOperationImpl() =
     default;
-
-void ObservableFileSystemOperationImpl::Copy(
-    const storage::FileSystemURL& src,
-    const storage::FileSystemURL& dst,
-    CopyOrMoveOptionSet options,
-    ErrorBehavior error_behavior,
-    std::unique_ptr<storage::CopyOrMoveHookDelegate> copy_or_move_hook_delegate,
-    StatusCallback callback) {
-  storage::FileSystemOperationImpl::Copy(
-      src, dst, options, error_behavior, std::move(copy_or_move_hook_delegate),
-      RunInOrderCallback(
-          RunOnUiThreadOnSuccessCallback(base::BindOnce(
-              &NotifyFileCopiedOnUiThread, account_id_, src, dst)),
-          std::move(callback)));
-}
-
-void ObservableFileSystemOperationImpl::CopyFileLocal(
-    const storage::FileSystemURL& src,
-    const storage::FileSystemURL& dst,
-    CopyOrMoveOptionSet options,
-    const CopyFileProgressCallback& progress_callback,
-    StatusCallback callback) {
-  storage::FileSystemOperationImpl::CopyFileLocal(
-      src, dst, options, progress_callback,
-      RunInOrderCallback(
-          RunOnUiThreadOnSuccessCallback(base::BindOnce(
-              &NotifyFileCopiedOnUiThread, account_id_, src, dst)),
-          std::move(callback)));
-}
 
 void ObservableFileSystemOperationImpl::Move(
     const storage::FileSystemURL& src,

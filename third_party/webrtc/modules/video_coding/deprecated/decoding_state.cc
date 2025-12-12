@@ -10,11 +10,20 @@
 
 #include "modules/video_coding/deprecated/decoding_state.h"
 
+#include <cstdint>
+#include <cstring>
+#include <map>
+#include <set>
+#include <vector>
+
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame_type.h"
 #include "common_video/h264/h264_common.h"
 #include "modules/include/module_common_types_public.h"
+#include "modules/video_coding/codecs/interface/common_constants.h"
 #include "modules/video_coding/deprecated/frame_buffer.h"
-#include "modules/video_coding/deprecated/jitter_buffer_common.h"
 #include "modules/video_coding/deprecated/packet.h"
+#include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
 namespace webrtc {
@@ -58,7 +67,7 @@ bool VCMDecodingState::IsOldFrame(const VCMFrameBuffer* frame) const {
   RTC_DCHECK(frame);
   if (in_initial_state_)
     return false;
-  return !IsNewerTimestamp(frame->Timestamp(), time_stamp_);
+  return !IsNewerTimestamp(frame->RtpTimestamp(), time_stamp_);
 }
 
 bool VCMDecodingState::IsOldPacket(const VCMPacket* packet) const {
@@ -74,7 +83,7 @@ void VCMDecodingState::SetState(const VCMFrameBuffer* frame) {
   if (!UsingFlexibleMode(frame))
     UpdateSyncState(frame);
   sequence_num_ = static_cast<uint16_t>(frame->GetHighSeqNum());
-  time_stamp_ = frame->Timestamp();
+  time_stamp_ = frame->RtpTimestamp();
   picture_id_ = frame->PictureId();
   temporal_id_ = frame->TemporalId();
   tl0_pic_id_ = frame->Tl0PicId();
@@ -144,7 +153,7 @@ bool VCMDecodingState::UpdateEmptyFrame(const VCMFrameBuffer* frame) {
     // Continuous empty packets or continuous frames can be dropped if we
     // advance the sequence number.
     sequence_num_ = frame->GetHighSeqNum();
-    time_stamp_ = frame->Timestamp();
+    time_stamp_ = frame->RtpTimestamp();
     return true;
   }
   return false;

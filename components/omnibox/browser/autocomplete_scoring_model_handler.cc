@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <memory>
+#include <optional>
 
 #include "base/logging.h"
 #include "base/memory/scoped_refptr.h"
@@ -15,17 +16,18 @@
 #include "components/optimization_guide/core/optimization_guide_model_provider.h"
 #include "components/optimization_guide/proto/autocomplete_scoring_model_metadata.pb.h"
 #include "components/optimization_guide/proto/models.pb.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/metrics_proto/omnibox_scoring_signals.pb.h"
 
 using ModelInput = AutocompleteScoringModelExecutor::ModelInput;
 using ModelOutput = AutocompleteScoringModelExecutor::ModelOutput;
-using ScoringSignals = ::metrics::OmniboxEventProto::Suggestion::ScoringSignals;
+using ScoringSignals = ::metrics::OmniboxScoringSignals;
 using ::optimization_guide::proto::AutocompleteScoringModelMetadata;
 using ::optimization_guide::proto::OptimizationTarget;
 using ::optimization_guide::proto::ScoringSignalSpec;
 using ::optimization_guide::proto::ScoringSignalTransformation;
 
 constexpr float kDefaultMissingValue = -1;
+constexpr float kSecondsInDay = 86400;
 
 namespace {
 
@@ -59,41 +61,77 @@ AutocompleteScoringModelHandler::AutocompleteScoringModelHandler(
     scoped_refptr<base::SequencedTaskRunner> model_executor_task_runner,
     std::unique_ptr<AutocompleteScoringModelExecutor> model_executor,
     OptimizationTarget optimization_target,
-    const absl::optional<optimization_guide::proto::Any>& model_metadata)
+    const std::optional<optimization_guide::proto::Any>& model_metadata)
     : optimization_guide::ModelHandler<ModelOutput, ModelInput>(
           model_provider,
           model_executor_task_runner,
           std::move(model_executor),
-          /*model_inference_timeout=*/absl::nullopt,
+          /*model_inference_timeout=*/std::nullopt,
           optimization_target,
           model_metadata) {
-  // Keep the model in memory.
+  // Store the model in memory as soon as it is available and keep it loaded for
+  // the whole browser session since model inference is latency sensitive and it
+  // cannot wait for the model to be loaded from disk.
+  SetShouldPreloadModel(true);
   SetShouldUnloadModelOnComplete(false);
 }
 
 AutocompleteScoringModelHandler::~AutocompleteScoringModelHandler() = default;
 
-absl::optional<std::vector<float>>
+std::optional<std::vector<float>>
 AutocompleteScoringModelHandler::GetModelInput(
     const ScoringSignals& scoring_signals) {
   DCHECK(ModelAvailable());
-  absl::optional<AutocompleteScoringModelMetadata> model_metadata =
+  std::optional<AutocompleteScoringModelMetadata> model_metadata =
       ParsedSupportedFeaturesForLoadedModel<AutocompleteScoringModelMetadata>();
   if (!model_metadata) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return ExtractInputFromScoringSignals(scoring_signals,
                                         model_metadata.value());
 }
 
+std::optional<std::vector<std::vector<float>>>
+AutocompleteScoringModelHandler::GetBatchModelInput(
+    const std::vector<const ScoringSignals*>& scoring_signals_vec) {
+  std::vector<std::vector<float>> batch_model_input;
+  for (const auto* scoring_signals : scoring_signals_vec) {
+    std::optional<std::vector<float>> model_input =
+        GetModelInput(*scoring_signals);
+    if (!model_input) {
+      // Return null if any input in the batch is invalid.
+      return std::nullopt;
+    }
+    batch_model_input.push_back(std::move(*model_input));
+  }
+  return batch_model_input;
+}
+
 std::vector<float>
 AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
     const ScoringSignals& scoring_signals,
     const AutocompleteScoringModelMetadata& metadata) {
+  // Keep consistent:
+  // - omnibox_event.proto `ScoringSignals`
+  // - omnibox_scoring_signals.proto `OmniboxScoringSignals`
+  // - autocomplete_scoring_model_handler.cc
+  //   `AutocompleteScoringModelHandler::ExtractInputFromScoringSignals()`
+  // - autocomplete_match.cc `AutocompleteMatch::MergeScoringSignals()`
+  // - autocomplete_controller.cc `RecordScoringSignalCoverageForProvider()`
+  // - omnibox_metrics_provider.cc `GetScoringSignalsForLogging()`
+  // - omnibox.mojom `struct Signals`
+  // - omnibox_page_handler.cc
+  //   `TypeConverter<AutocompleteMatch::ScoringSignals, mojom::SignalsPtr>`
+  // - omnibox_page_handler.cc `TypeConverter<mojom::SignalsPtr,
+  //   AutocompleteMatch::ScoringSignals>`
+  // - omnibox_util.ts `signalNames`
+  // - omnibox/histograms.xml
+  //   `Omnibox.URLScoringModelExecuted.ScoringSignalCoverage`
+
   std::vector<float> model_input;
   for (const auto& scoring_signal_spec : metadata.scoring_signal_specs()) {
-    absl::optional<float> val;
+    std::optional<float> val;
     switch (scoring_signal_spec.type()) {
       case optimization_guide::proto::SCORING_SIGNAL_TYPE_TYPED_COUNT:
         if (scoring_signals.has_typed_count()) {
@@ -110,6 +148,14 @@ AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
         if (scoring_signals.has_elapsed_time_last_visit_secs()) {
           val = static_cast<float>(
               scoring_signals.elapsed_time_last_visit_secs());
+        }
+        break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_ELAPSED_TIME_LAST_VISIT_DAYS:
+        if (scoring_signals.has_elapsed_time_last_visit_secs()) {
+          val = static_cast<float>(
+                    scoring_signals.elapsed_time_last_visit_secs()) /
+                kSecondsInDay;
         }
         break;
       case optimization_guide::proto::SCORING_SIGNAL_TYPE_IS_HOST_ONLY:
@@ -229,6 +275,76 @@ AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
               scoring_signals.elapsed_time_last_shortcut_visit_sec());
         }
         break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_ELAPSED_TIME_LAST_SHORTCUT_VISIT_DAYS:
+        if (scoring_signals.has_elapsed_time_last_shortcut_visit_sec()) {
+          val = static_cast<float>(
+                    scoring_signals.elapsed_time_last_shortcut_visit_sec()) /
+                kSecondsInDay;
+        }
+        break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_MATCHES_TITLE_OR_HOST_OR_SHORTCUT_TEXT: {
+        bool matches_title_or_host_or_shortcut_text = false;
+        matches_title_or_host_or_shortcut_text |=
+            (scoring_signals.total_host_match_length() > 0);
+        matches_title_or_host_or_shortcut_text |=
+            (scoring_signals.total_title_match_length() > 0);
+        matches_title_or_host_or_shortcut_text |=
+            (scoring_signals.shortcut_visit_count() > 0);
+
+        val = static_cast<float>(matches_title_or_host_or_shortcut_text);
+      } break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_NUM_INPUT_TERMS_MATCHED_BY_BOOKMARK_TITLE:
+        if (scoring_signals.has_num_input_terms_matched_by_bookmark_title()) {
+          val = static_cast<float>(
+              scoring_signals.num_input_terms_matched_by_bookmark_title());
+        }
+        break;
+      case optimization_guide::proto::SCORING_SIGNAL_TYPE_SITE_ENGAGEMENT:
+        if (scoring_signals.has_site_engagement()) {
+          val = static_cast<float>(scoring_signals.site_engagement());
+        }
+        break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_SEARCH_SUGGEST_RELEVANCE:
+        if (scoring_signals.has_search_suggest_relevance()) {
+          val = static_cast<float>(scoring_signals.search_suggest_relevance());
+        }
+        break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_IS_SEARCH_SUGGEST_ENTITY:
+        if (scoring_signals.has_is_search_suggest_entity()) {
+          val = static_cast<float>(scoring_signals.is_search_suggest_entity());
+        }
+        break;
+      case optimization_guide::proto::SCORING_SIGNAL_TYPE_IS_VERBATIM:
+        if (scoring_signals.has_is_verbatim()) {
+          val = static_cast<float>(scoring_signals.is_verbatim());
+        }
+        break;
+      case optimization_guide::proto::SCORING_SIGNAL_TYPE_IS_NAVSUGGEST:
+        if (scoring_signals.has_is_navsuggest()) {
+          val = static_cast<float>(scoring_signals.is_navsuggest());
+        }
+        break;
+      case optimization_guide::proto::
+          SCORING_SIGNAL_TYPE_IS_SEARCH_SUGGEST_TAIL:
+        if (scoring_signals.has_is_search_suggest_tail()) {
+          val = static_cast<float>(scoring_signals.is_search_suggest_tail());
+        }
+        break;
+      case optimization_guide::proto::SCORING_SIGNAL_TYPE_IS_ANSWER_SUGGEST:
+        if (scoring_signals.has_is_answer_suggest()) {
+          val = static_cast<float>(scoring_signals.is_answer_suggest());
+        }
+        break;
+      case optimization_guide::proto::SCORING_SIGNAL_TYPE_IS_CALCULATOR_SUGGEST:
+        if (scoring_signals.has_is_calculator_suggest()) {
+          val = static_cast<float>(scoring_signals.is_calculator_suggest());
+        }
+        break;
       case optimization_guide::proto::SCORING_SIGNAL_TYPE_UNKNOWN:
       default:
         // Reached when the metadata is updated to have a new signal that
@@ -246,7 +362,7 @@ AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
                << optimization_guide::proto::ScoringSignalType_Name(
                       scoring_signal_spec.type())
                << "': " << *val;
-      val = absl::nullopt;
+      val = std::nullopt;
     }
 
     if (val && scoring_signal_spec.has_transformation()) {
@@ -258,6 +374,13 @@ AutocompleteScoringModelHandler::ExtractInputFromScoringSignals(
       val = scoring_signal_spec.has_missing_value()
                 ? scoring_signal_spec.missing_value()
                 : kDefaultMissingValue;
+    }
+
+    // Normalize signal if configured.
+    if (scoring_signal_spec.has_norm_upper_boundary()) {
+      float upper_boundary = scoring_signal_spec.norm_upper_boundary();
+      DCHECK_GT(upper_boundary, 0);
+      val = std::clamp(*val, -upper_boundary, upper_boundary) / upper_boundary;
     }
 
     model_input.push_back(*val);

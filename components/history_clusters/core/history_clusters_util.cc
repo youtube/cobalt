@@ -5,12 +5,13 @@
 #include "components/history_clusters/core/history_clusters_util.h"
 
 #include <algorithm>
+#include <set>
+#include <string_view>
+#include <vector>
 
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/i18n/case_conversion.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/history/core/browser/history_types.h"
@@ -55,11 +56,14 @@ float MarkMatchesAndGetScore(const query_parser::QueryNodeVector& find_nodes,
   }
 
   for (auto& visit : cluster->visits) {
-    // 0-scored visits should not be considered; they should not be shown even
-    // if the cluster matches the query; nor should they surface the cluster
-    // even if the visit matches the query.
-    if (visit.score == 0)
+    // 0-scored and Hidden visits should not be considered; they should not be
+    // shown even if the cluster matches the query; nor should they surface th
+    // cluster even if the visit matches the query.
+    if (visit.score == 0 ||
+        visit.interaction_state ==
+            history::ClusterVisit::InteractionState::kHidden) {
       continue;
+    }
 
     bool match_found = false;
 
@@ -109,7 +113,8 @@ float MarkMatchesAndGetScore(const query_parser::QueryNodeVector& find_nodes,
 //
 // Note, this should NOT be called for `cluster_visits` with NO matching visits.
 void PromoteMatchingVisitsAboveNonMatchingVisits(
-    std::vector<history::ClusterVisit>& cluster_visits) {
+    std::vector<history::ClusterVisit>& cluster_visits,
+    history::Cluster::LabelSource label_source) {
   for (auto& visit : cluster_visits) {
     if (visit.matches_search_query) {
       // Smash all matching scores into the range that's above the fold.
@@ -119,8 +124,14 @@ void PromoteMatchingVisitsAboveNonMatchingVisits(
               (1 - GetConfig().min_score_to_always_show_above_the_fold);
     } else {
       // Smash all non-matching scores into the range that's below the fold.
-      visit.score =
-          visit.score * GetConfig().min_score_to_always_show_above_the_fold;
+      if (label_source == history::Cluster::LabelSource::kUngroupedVisits) {
+        // When dealing with a fake cluster of ungrouped visits,
+        // completely zero out the score of non-matching visits.
+        visit.score = 0;
+      } else {
+        visit.score =
+            visit.score * GetConfig().min_score_to_always_show_above_the_fold;
+      }
     }
   }
 
@@ -141,9 +152,9 @@ GURL ComputeURLForDeduping(const GURL& url) {
   GURL::Replacements replacements;
 
   // Strip out www, but preserve the eTLD+1. This matches the omnibox behavior.
-  // Make an explicit local, as a StringPiece can't point to a temporary.
+  // Make an explicit local, as a std::string_view can't point to a temporary.
   std::string stripped_host = url_formatter::StripWWW(url_for_deduping.host());
-  replacements.SetHostStr(base::StringPiece(stripped_host));
+  replacements.SetHostStr(std::string_view(stripped_host));
 
   // Replace http protocol with https. It's just for deduplication.
   if (url_for_deduping.SchemeIs(url::kHttpScheme))
@@ -182,7 +193,7 @@ std::u16string ComputeURLForDisplay(const GURL& url, bool trim_after_host) {
 }
 
 void StableSortVisits(std::vector<history::ClusterVisit>& visits) {
-  base::ranges::stable_sort(visits, [](auto& v1, auto& v2) {
+  std::ranges::stable_sort(visits, [](auto& v1, auto& v2) {
     if (v1.score != v2.score) {
       // Use v1 > v2 to get higher scored visits BEFORE lower scored visits.
       return v1.score > v2.score;
@@ -216,14 +227,15 @@ void ApplySearchQuery(const std::string& query,
     DCHECK_GE(total_matching_visit_score, 0);
     if (total_matching_visit_score > 0 &&
         GetConfig().rescore_visits_within_clusters_for_query) {
-      PromoteMatchingVisitsAboveNonMatchingVisits(cluster.visits);
+      PromoteMatchingVisitsAboveNonMatchingVisits(cluster.visits,
+                                                  cluster.label_source);
     }
 
     cluster.search_match_score = total_matching_visit_score;
 
     if (DoesQueryMatchClusterKeywords(find_nodes, cluster.GetKeywords())) {
       // Arbitrarily chosen that cluster keyword matches are worth three points.
-      // TODO(crbug.com/1307071): Use relevancy score for each cluster keyword
+      // TODO(crbug.com/40218625): Use relevancy score for each cluster keyword
       // once support for that is added to the backend.
       cluster.search_match_score += 3.0;
     }
@@ -235,7 +247,7 @@ void ApplySearchQuery(const std::string& query,
   }
 
   if (GetConfig().sort_clusters_within_batch_for_query) {
-    base::ranges::stable_sort(clusters, [](auto& c1, auto& c2) {
+    std::ranges::stable_sort(clusters, [](auto& c1, auto& c2) {
       // Use c1 > c2 to get higher scored clusters BEFORE lower scored clusters.
       return c1.search_match_score > c2.search_match_score;
     });
@@ -257,11 +269,11 @@ void CullNonProminentOrDuplicateClusters(
     // For the empty-query state, only show clusters with
     // `should_show_on_prominent_ui_surfaces` set to true. This restriction is
     // NOT applied when the user is searching for a specific keyword.
-    base::EraseIf(clusters, [](const history::Cluster& cluster) {
+    std::erase_if(clusters, [](const history::Cluster& cluster) {
       return !cluster.should_show_on_prominent_ui_surfaces;
     });
   } else {
-    base::EraseIf(clusters, [&](const history::Cluster& cluster) {
+    std::erase_if(clusters, [&](const history::Cluster& cluster) {
       // Erase all duplicate single-visit non-prominent
       // clusters.
       if (!cluster.should_show_on_prominent_ui_surfaces &&
@@ -277,28 +289,66 @@ void CullNonProminentOrDuplicateClusters(
   }
 }
 
-void HideAndCullLowScoringVisits(std::vector<history::Cluster>& clusters,
-                                 size_t min_visits) {
+void CullVisitsThatShouldBeHidden(std::vector<history::Cluster>& clusters,
+                                  bool is_zero_query_state) {
+  // When searching for something, even clusters with one visit only should be
+  // shown. If there's no query, we want at least two.
+  const size_t min_visits = is_zero_query_state ? 2 : 1;
+
   DCHECK_GT(min_visits, 0u);
-  base::EraseIf(clusters, [&](auto& cluster) {
+  std::erase_if(clusters, [&](auto& cluster) {
     int index = -1;
-    base::EraseIf(cluster.visits, [&](auto& visit) {
+    size_t num_visits_below_fold = 0;
+    std::erase_if(cluster.visits, [&](auto& visit) {
       index++;
-      return visit.score == 0.0 ||
-             (visit.score <
-                  GetConfig().min_score_to_always_show_above_the_fold &&
-              index >=
-                  static_cast<int>(
-                      GetConfig().num_visits_to_always_show_above_the_fold));
+      // Easy cases: cull all zero-score and explicitly Hidden visits.
+      if (visit.score == 0.0 ||
+          visit.interaction_state ==
+              history::ClusterVisit::InteractionState::kHidden) {
+        return true;
+      }
+
+      // Cull Done visits if the user is not searching for something too.
+      if (is_zero_query_state &&
+          visit.interaction_state ==
+              history::ClusterVisit::InteractionState::kDone) {
+        return true;
+      }
+
+      // Always leave alone high scoring visits.
+      if (visit.score >= GetConfig().min_score_to_always_show_above_the_fold) {
+        return false;
+      }
+
+      // At this point we know we have a low-scoring visit. If we haven't shown
+      // enough visits above the fold yet, admit these low-score ones first.
+      if (index >= static_cast<int>(
+                       GetConfig().num_visits_to_always_show_above_the_fold)) {
+        num_visits_below_fold++;
+        return true;
+      }
+      return false;
     });
-    return cluster.visits.size() < min_visits;
+    bool should_hide_cluster = cluster.visits.size() < min_visits;
+    if (!should_hide_cluster) {
+      // Log the # of visits that would be "below the fold" as a percentage of
+      // all visits in the cluster.
+      base::UmaHistogramCounts100("History.Clusters.Backend.NumVisitsBelowFold",
+                                  num_visits_below_fold);
+      base::UmaHistogramPercentage(
+          "History.Clusters.Backend.NumVisitsBelowFoldPercentage",
+          static_cast<int>(100 *
+                           (1.0 * num_visits_below_fold /
+                            (num_visits_below_fold + cluster.visits.size()))));
+    }
+    return should_hide_cluster;
   });
 }
 
 void CoalesceRelatedSearches(std::vector<history::Cluster>& clusters) {
   constexpr size_t kMaxRelatedSearches = 5;
 
-  base::ranges::for_each(clusters, [](auto& cluster) {
+  std::ranges::for_each(clusters, [](auto& cluster) {
     for (const auto& visit : cluster.visits) {
       // Coalesce the unique related searches of this visit into the cluster
       // until the cap is reached.
@@ -327,7 +377,7 @@ void SortClusters(std::vector<history::Cluster>* clusters) {
 
   // After that, sort clusters reverse-chronologically based on their highest
   // scored visit.
-  base::ranges::stable_sort(*clusters, [&](auto& c1, auto& c2) {
+  std::ranges::stable_sort(*clusters, [&](auto& c1, auto& c2) {
     if (c1.visits.empty()) {
       return false;
     }
@@ -344,8 +394,7 @@ void SortClusters(std::vector<history::Cluster>* clusters) {
 }
 
 bool ShouldUseNavigationContextClustersFromPersistence() {
-  return GetConfig().persist_clusters_in_history_db &&
-         GetConfig().use_navigation_context_clusters;
+  return GetConfig().use_navigation_context_clusters;
 }
 
 bool IsTransitionUserVisible(int32_t transition) {
@@ -389,7 +438,10 @@ bool IsUIRequestSource(ClusteringRequestSource source) {
 }
 
 bool IsShownVisitCandidate(const history::ClusterVisit& visit) {
-  return visit.score > 0.0f && !visit.annotated_visit.url_row.title().empty();
+  return visit.score > 0.0f &&
+         visit.interaction_state !=
+             history::ClusterVisit::InteractionState::kHidden &&
+         !visit.annotated_visit.url_row.title().empty();
 }
 
 bool IsVisitInCategories(const history::ClusterVisit& visit,
@@ -415,6 +467,18 @@ bool IsClusterInCategories(const history::Cluster& cluster,
     }
   }
   return false;
+}
+
+std::set<std::string> GetClusterCategoryIds(const history::Cluster& cluster) {
+  std::set<std::string> category_ids;
+  for (const auto& visit : cluster.visits) {
+    for (const auto& visit_category : visit.annotated_visit.content_annotations
+                                          .model_annotations.categories) {
+      category_ids.insert(visit_category.id);
+    }
+  }
+
+  return category_ids;
 }
 
 }  // namespace history_clusters

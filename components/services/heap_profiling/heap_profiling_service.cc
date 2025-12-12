@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/thread_pool.h"
 #include "components/services/heap_profiling/connection_manager.h"
@@ -46,11 +47,14 @@ class ProfilingServiceImpl
   void AddProfilingClient(base::ProcessId pid,
                           mojo::PendingRemote<mojom::ProfilingClient> client,
                           mojom::ProcessType process_type,
-                          mojom::ProfilingParamsPtr params) override {
+                          mojom::ProfilingParamsPtr params,
+                          mojom::ProfilingService::AddProfilingClientCallback
+                              started_profiling_closure) override {
     if (params->sampling_rate == 0)
       params->sampling_rate = 1;
     connection_manager_.OnNewConnection(pid, std::move(client), process_type,
-                                        std::move(params));
+                                        std::move(params),
+                                        std::move(started_profiling_closure));
   }
 
   void GetProfiledPids(GetProfiledPidsCallback callback) override {

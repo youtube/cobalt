@@ -6,27 +6,31 @@ package org.chromium.chrome.browser.locale;
 
 import android.app.Activity;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+
 import org.chromium.base.Callback;
+import org.chromium.base.ServiceLoaderUtil;
 import org.chromium.base.ThreadUtils;
-import org.chromium.base.annotations.CalledByNative;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.search_engines.DefaultSearchEngineDialogHelper;
 import org.chromium.chrome.browser.search_engines.SearchEnginePromoType;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
-import org.chromium.components.browser_ui.settings.SettingsLauncher;
 import org.chromium.components.search_engines.TemplateUrl;
 import org.chromium.ui.base.PageTransition;
 
 import java.util.List;
 
 /**
- * Manager for some locale specific logics.
- * TODO(https://crbug.com/1198923) Turn this into a per-activity object.
+ * Manager for some locale specific logics. TODO(crbug.com/40177565) Turn this into a per-activity
+ * object.
  */
+@NullMarked
 public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
-    private static LocaleManager sInstance = new LocaleManager();
+    private static final LocaleManager sInstance = new LocaleManager();
 
     private LocaleManagerDelegate mDelegate;
 
@@ -39,64 +43,35 @@ public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
         return sInstance;
     }
 
-    /**
-     * Default constructor.
-     */
-    public LocaleManager() {
-        mDelegate = new LocaleManagerDelegateImpl();
-        mDelegate.setDefaulSearchEngineDelegate(this);
+    /** Default constructor. */
+    private LocaleManager() {
+        LocaleManagerDelegate delegate = ServiceLoaderUtil.maybeCreate(LocaleManagerDelegate.class);
+        if (delegate == null) {
+            // Fallback if no @ServiceImpl is found.
+            delegate = new LocaleManagerDelegate();
+        }
+        mDelegate = delegate;
+        mDelegate.setDefaultSearchEngineDelegate(this);
     }
 
-    /**
-     * Starts listening to state changes of the phone.
-     */
+    /** Starts listening to state changes of the phone. */
     public void startObservingPhoneChanges() {
         mDelegate.startObservingPhoneChanges();
     }
 
-    /**
-     * Stops listening to state changes of the phone.
-     */
+    /** Stops listening to state changes of the phone. */
     public void stopObservingPhoneChanges() {
         mDelegate.stopObservingPhoneChanges();
     }
 
-    /**
-     * Starts recording metrics in deferred startup.
-     */
+    /** Starts recording metrics in deferred startup. */
     public void recordStartupMetrics() {
         mDelegate.recordStartupMetrics();
     }
 
-    /** Returns whether the Chrome instance is running in a special locale. */
-    public boolean isSpecialLocaleEnabled() {
-        return mDelegate.isSpecialLocaleEnabled();
-    }
-
-    /**
-     * @return The country id of the special locale.
-     */
-    public String getSpecialLocaleId() {
-        return mDelegate.getSpecialLocaleId();
-    }
-
-    /**
-     * Adds local search engines for special locale.
-     */
-    public void addSpecialSearchEngines() {
-        mDelegate.addSpecialSearchEngines();
-    }
-
-    /**
-     * Removes local search engines for special locale.
-     */
-    public void removeSpecialSearchEngines() {
-        mDelegate.removeSpecialSearchEngines();
-    }
-
     /**
      * Shows a promotion dialog about search engines depending on Locale and other conditions.
-     * See {@link LocaleManager#getSearchEnginePromoShowType()} for possible types and logic.
+     * See {@link LocaleManager#getSearchEnginePromoShowType} for possible types and logic.
      *
      * @param activity    Activity showing the dialog.
      * @param onSearchEngineFinalized Notified when the search engine has been finalized.  This can
@@ -108,9 +83,7 @@ public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
         mDelegate.showSearchEnginePromoIfNeeded(activity, onSearchEngineFinalized);
     }
 
-    /**
-     * Sets whether auto switch for search engine is enabled.
-     */
+    /** Sets whether auto switch for search engine is enabled. */
     public void setSearchEngineAutoSwitch(boolean isEnabled) {
         mDelegate.setSearchEngineAutoSwitch(isEnabled);
     }
@@ -123,17 +96,13 @@ public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
         mDelegate.setSnackbarManager(manager);
     }
 
-    /**
-     * Sets the settings launcher for search engines.
-     * @param settingsLauncher Launcher to start search engine settings on the snackbar UI.
-     */
-    public void setSettingsLauncher(SettingsLauncher settingsLauncher) {
-        mDelegate.setSettingsLauncher(settingsLauncher);
+    /** Shows a snackbar notifying the user that the default search engine has changed. */
+    public void showSnackbarForDeviceSearchEngineUpdate() {
+        mDelegate.showSnackbarForDeviceSearchEngineUpdate();
     }
 
     /** Returns whether and which search engine promo should be shown. */
-    @SearchEnginePromoType
-    public int getSearchEnginePromoShowType() {
+    public @SearchEnginePromoType int getSearchEnginePromoShowType() {
         return mDelegate.getSearchEnginePromoShowType();
     }
 
@@ -141,7 +110,7 @@ public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
      * @return The referral ID to be passed when searching with Yandex as the DSE.
      */
     @CalledByNative
-    protected String getYandexReferralId() {
+    protected @JniType("std::string") String getYandexReferralId() {
         return mDelegate.getYandexReferralId();
     }
 
@@ -149,7 +118,7 @@ public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
      * @return The referral ID to be passed when searching with Mail.RU as the DSE.
      */
     @CalledByNative
-    protected String getMailRUReferralId() {
+    protected @JniType("std::string") String getMailRUReferralId() {
         return mDelegate.getMailRUReferralId();
     }
 
@@ -162,36 +131,6 @@ public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
     public void onUserSearchEngineChoice(
             @SearchEnginePromoType int type, List<String> keywords, String keyword) {
         mDelegate.onUserSearchEngineChoiceFromPromoDialog(type, keywords, keyword);
-    }
-
-    /**
-     * To be called when the search engine promo dialog is dismissed without the user confirming
-     * a valid search engine selection.
-     */
-    public void onUserLeavePromoDialogWithNoConfirmedChoice(@SearchEnginePromoType int type) {
-        mDelegate.onUserLeavePromoDialogWithNoConfirmedChoice(type);
-    }
-
-    /** Set a LocaleManager instance. This is called only by AppHooks. */
-    public static void setInstance(LocaleManager instance) {
-        sInstance = instance;
-    }
-
-    /**
-     * Record any locale based metrics related with the search widget. Recorded on initialization
-     * only.
-     * @param widgetPresent Whether there is at least one search widget on home screen.
-     */
-    public void recordLocaleBasedSearchWidgetMetrics(boolean widgetPresent) {
-        mDelegate.recordLocaleBasedSearchWidgetMetrics(widgetPresent);
-    }
-
-    /**
-     * Returns whether the search engine promo has been shown and the user selected a valid option
-     *         and successfully completed the promo.
-     */
-    public boolean hasCompletedSearchEnginePromo() {
-        return mDelegate.hasCompletedSearchEnginePromo();
     }
 
     /** Returns whether the search engine promo has been shown in this session. */
@@ -215,25 +154,10 @@ public class LocaleManager implements DefaultSearchEngineDialogHelper.Delegate {
         mDelegate.recordLocaleBasedSearchMetrics(isFromSearchWidget, url, transition);
     }
 
-    /**
-     * Returns whether the user requires special handling.
-     */
-    public boolean isSpecialUser() {
-        return mDelegate.isSpecialUser();
-    }
-
-    /**
-     * Record metrics related to user type.
-     */
-    @CalledByNative
-    public void recordUserTypeMetrics() {
-        mDelegate.recordUserTypeMetrics();
-    }
-
     /** Set a LocaleManagerDelegate to be used for testing. */
     @VisibleForTesting
     public void setDelegateForTest(LocaleManagerDelegate delegate) {
         mDelegate = delegate;
-        mDelegate.setDefaulSearchEngineDelegate(this);
+        mDelegate.setDefaultSearchEngineDelegate(this);
     }
 }

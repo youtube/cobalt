@@ -7,8 +7,8 @@
 
 #include <ostream>
 
-#include "ash/components/arc/mojom/app.mojom-forward.h"
-#include "ash/components/arc/mojom/auth.mojom-forward.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom-forward.h"
+#include "chromeos/ash/experiences/arc/mojom/auth.mojom-forward.h"
 
 class Profile;
 
@@ -88,7 +88,13 @@ enum class OptInNetworkErrorActionType {
   // User wants to diagnose network.
   CHECK_NETWORK = 3,
 
-  kMaxValue = CHECK_NETWORK,
+  // Network error page was shown. This bucket encompasses all others and works
+  // as a total count for network-related errors (instead of the histogram's
+  // total sample count which doesn't reflect that information). This enum
+  // value was added on 2023 Dec 21. The data before this date is missing.
+  ERROR_SHOWN = 4,
+
+  kMaxValue = ERROR_SHOWN,
 };
 
 // These values are persisted to logs. Entries should not be renumbered and
@@ -202,6 +208,41 @@ enum class OptInFlowResult : int {
 
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
+enum class ArcProvisioningCheckinResult {
+  kSuccess = 0,
+  kUnknownError = 1,
+  kTimeout = 2,
+  kMaxValue = kTimeout,
+};
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class ArcProvisioningDpcResult {
+  kSuccess = 0,
+  kUnknownError = 1,
+  kInvalidToken = 2,
+  kAccountAddFail = 3,
+  kTimeout = 4,
+  kNetworkError = 5,
+  kOAuthAuthException = 6,
+  kOAuthIOException = 7,
+  kMaxValue = kOAuthIOException,
+};
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+enum class ArcProvisioningSigninResult {
+  kSuccess = 0,
+  kUnknownError = 1,
+  kNetworkError = 2,
+  kServiceUnavailable = 3,
+  kAuthFailure = 4,
+  kTimeout = 5,
+  kMaxValue = kTimeout,
+};
+
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum class ArcEnabledState {
   // ARC++ is enabled for non-managed case.
   ENABLED_NOT_MANAGED = 0,
@@ -240,15 +281,14 @@ void UpdateEnabledStateByUserTypeUMA();
 void UpdateOptInActionUMA(OptInActionType type);
 void UpdateOptInCancelUMA(OptInCancelReason reason);
 void UpdateOptInFlowResultUMA(OptInFlowResult result);
-void UpdateOptInNetworkErrorActionUMA(OptInNetworkErrorActionType type);
 void UpdateProvisioningStatusUMA(ProvisioningStatus status,
                                  const Profile* profile);
-void UpdateCloudProvisionFlowErrorUMA(mojom::CloudProvisionFlowError error,
-                                      const Profile* profile);
-void UpdateGMSSignInErrorUMA(mojom::GMSSignInError error,
-                             const Profile* profile);
-void UpdateGMSCheckInErrorUMA(mojom::GMSCheckInError error,
-                              const Profile* profile);
+void UpdateProvisioningDpcResultUMA(ArcProvisioningDpcResult result,
+                                    const Profile* profile);
+void UpdateProvisioningSigninResultUMA(ArcProvisioningSigninResult result,
+                                       const Profile* profile);
+void UpdateProvisioningCheckinResultUMA(ArcProvisioningCheckinResult result,
+                                        const Profile* profile);
 void UpdateSecondarySigninResultUMA(ProvisioningStatus status);
 void UpdateProvisioningTiming(const base::TimeDelta& elapsed_time,
                               bool success,
@@ -264,6 +304,7 @@ void UpdateArcUiAvailableTime(const base::TimeDelta& elapsed_time,
                               const Profile* profile);
 void UpdatePlayStoreLaunchTime(const base::TimeDelta& elapsed_time);
 void UpdateDeferredLaunchTime(const base::TimeDelta& elapsed_time);
+void UpdateOptinTosLoadResultUMA(bool success);
 void UpdateSilentAuthCodeUMA(OptInSilentAuthCode state);
 void UpdateSupervisionTransitionResultUMA(mojom::ManagementChangeStatus result);
 void UpdateReauthorizationSilentAuthCodeUMA(OptInSilentAuthCode state);
@@ -279,6 +320,15 @@ void UpdateAccountReauthReason(mojom::ReauthReason reason,
 void UpdateMainAccountResolutionStatus(
     const Profile* profile,
     mojom::MainAccountResolutionStatus status);
+
+// Returns the enum for use in UMA stat for reporting DPC errors.
+ArcProvisioningDpcResult GetDpcErrorResult(
+    mojom::CloudProvisionFlowError error);
+// Returns the enum for use in UMA stat for reporting signin errors.
+ArcProvisioningSigninResult GetSigninErrorResult(mojom::GMSSignInError error);
+// Returns the enum for use in UMA stat for reporting checkin errors.
+ArcProvisioningCheckinResult GetCheckinErrorResult(
+    mojom::GMSCheckInError error);
 
 // Returns the enum for use in UMA stat and displaying error code on the UI.
 // This enum should not be used anywhere else. Please work with the object

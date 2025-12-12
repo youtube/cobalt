@@ -10,29 +10,29 @@
 #include <utility>
 
 #include "base/containers/contains.h"
+#include "content/browser/process_lock.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/site_instance_impl.h"
 #include "content/browser/storage_partition_impl.h"
+#include "content/browser/web_exposed_isolation_info.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/child_process_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/site_isolation_policy.h"
+#include "content/public/browser/web_exposed_isolation_level.h"
+#include "content/public/common/content_client.h"
 #include "url/gurl.h"
 
 namespace content {
 
-ServiceWorkerProcessManager::ServiceWorkerProcessManager(
-    BrowserContext* browser_context)
-    : browser_context_(browser_context),
-      storage_partition_(nullptr),
+ServiceWorkerProcessManager::ServiceWorkerProcessManager()
+    : storage_partition_(nullptr),
       process_id_for_test_(ChildProcessHost::kInvalidUniqueID),
       new_process_id_for_test_(ChildProcessHost::kInvalidUniqueID),
       force_new_process_for_test_(false) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  DCHECK(browser_context);
-  weak_this_ = weak_this_factory_.GetWeakPtr();
 }
 
 ServiceWorkerProcessManager::~ServiceWorkerProcessManager() {
@@ -46,22 +46,11 @@ ServiceWorkerProcessManager::~ServiceWorkerProcessManager() {
   CHECK(worker_process_map_.empty());
 }
 
-BrowserContext* ServiceWorkerProcessManager::browser_context() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  // This is safe because reading |browser_context_| on the UI thread doesn't
-  // need locking (while modifying does).
-  return browser_context_;
-}
-
 void ServiceWorkerProcessManager::Shutdown() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   // `StoragePartitionImpl` might be destroyed before `this` is destroyed. Set
   // `storage_partition_` to nullptr to avoid holding a dangling ptr.
   storage_partition_ = nullptr;
-  {
-    base::AutoLock lock(browser_context_lock_);
-    browser_context_ = nullptr;
-  }
 
   // In single-process mode, Shutdown() is called when deleting the default
   // browser context, which is itself destroyed after the RenderProcessHost.
@@ -77,11 +66,12 @@ void ServiceWorkerProcessManager::Shutdown() {
     }
   }
   worker_process_map_.clear();
+  is_shutdown_ = true;
 }
 
 bool ServiceWorkerProcessManager::IsShutdown() {
-  base::AutoLock lock(browser_context_lock_);
-  return !browser_context_;
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  return is_shutdown_;
 }
 
 blink::ServiceWorkerStatusCode
@@ -127,23 +117,44 @@ ServiceWorkerProcessManager::AllocateWorkerProcess(
       SiteIsolationPolicy::IsProcessIsolationForFencedFramesEnabled();
   const bool is_coop_coep_cross_origin_isolated =
       !is_guest && network::CompatibleWithCrossOriginIsolated(coep_value);
+
+  WebExposedIsolationInfo isolation_info = [&] {
+    if (!is_coop_coep_cross_origin_isolated) {
+      return WebExposedIsolationInfo::CreateNonIsolated();
+    }
+    if (SiteIsolationPolicy::ShouldUrlUseApplicationIsolationLevel(
+            storage_partition_->browser_context(), script_url)) {
+      return WebExposedIsolationInfo::CreateIsolatedApplication(
+          url::Origin::Create(script_url));
+    }
+    return WebExposedIsolationInfo::CreateIsolated(
+        url::Origin::Create(script_url));
+  }();
   UrlInfo url_info(
       UrlInfoInit(script_url)
           .WithStoragePartitionConfig(storage_partition_->GetConfig())
-          .WithWebExposedIsolationInfo(
-              is_coop_coep_cross_origin_isolated
-                  ? WebExposedIsolationInfo::CreateIsolated(
-                        url::Origin::Create(script_url))
-                  : WebExposedIsolationInfo::CreateNonIsolated()));
+          .WithWebExposedIsolationInfo(std::move(isolation_info)));
+
   scoped_refptr<SiteInstanceImpl> site_instance =
-      SiteInstanceImpl::CreateForServiceWorker(browser_context_, url_info,
-                                               can_use_existing_process,
-                                               is_guest, is_fenced);
+      SiteInstanceImpl::CreateForServiceWorker(
+          storage_partition_->browser_context(), std::move(url_info),
+          can_use_existing_process, is_guest, is_fenced);
 
   // Get the process from the SiteInstance.
-  RenderProcessHost* rph = site_instance->GetProcess();
+  RenderProcessHost* rph =
+      site_instance->GetOrCreateProcess(ProcessAllocationContext{
+          ProcessAllocationSource::kServiceWorkerProcessManager});
   DCHECK(!storage_partition_ ||
          rph->InSameStoragePartition(storage_partition_));
+
+  // Let the embedder grant the worker process access to origins if the worker
+  // is locked to the same origin as the worker.
+  if (rph->GetProcessLock().MatchesOrigin(url::Origin::Create(script_url))) {
+    GetContentClient()
+        ->browser()
+        ->GrantAdditionalRequestPrivilegesToWorkerProcess(
+            rph->GetDeprecatedID(), script_url);
+  }
 
   ServiceWorkerMetrics::StartSituation start_situation;
   if (!rph->IsInitializedAndNotDead()) {
@@ -166,7 +177,7 @@ ServiceWorkerProcessManager::AllocateWorkerProcess(
   worker_process_map_.emplace(embedded_worker_id, std::move(site_instance));
   if (!rph->AreRefCountsDisabled())
     rph->IncrementWorkerRefCount();
-  out_info->process_id = rph->GetID();
+  out_info->process_id = rph->GetDeprecatedID();
   out_info->start_situation = start_situation;
   return blink::ServiceWorkerStatusCode::kOk;
 }
@@ -198,6 +209,12 @@ void ServiceWorkerProcessManager::ReleaseWorkerProcess(int embedded_worker_id) {
       process->DecrementWorkerRefCount();
   }
   worker_process_map_.erase(it);
+}
+
+base::WeakPtr<ServiceWorkerProcessManager>
+ServiceWorkerProcessManager::GetWeakPtr() {
+  DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 SiteInstance* ServiceWorkerProcessManager::GetSiteInstanceForWorker(

@@ -30,7 +30,6 @@
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
 #include "third_party/blink/renderer/core/dom/first_letter_pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/node.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/text.h"
 #include "third_party/blink/renderer/core/html_names.h"
@@ -39,6 +38,7 @@
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
+#include "third_party/blink/renderer/core/layout/layout_view_transition_root.h"
 #include "third_party/blink/renderer/core/svg/svg_element.h"
 #include "third_party/blink/renderer/core/svg_names.h"
 
@@ -57,33 +57,41 @@ LayoutObject* LayoutTreeBuilderForElement::NextLayoutObject() const {
   if (node_->IsFirstLetterPseudoElement()) {
     return context_.next_sibling;
   }
-  if (style_->StyleType() == kPseudoIdViewTransition) {
-    // ::view-transition is the last rendered child of LayoutView()
+  // ::scroll-marker pseudo elements are always attached one after another.
+  if (node_->IsScrollMarkerPseudoElement()) {
     return nullptr;
   }
-  if (style_->IsInTopLayer(*node_)) {
+  if (style_->IsRenderedInTopLayer(*node_)) {
     if (LayoutObject* next_in_top_layer =
             LayoutTreeBuilderTraversal::NextInTopLayer(*node_)) {
       return next_in_top_layer;
     }
-    // We are at the end of the top layer elements. The ::view-transition is
-    // rendered on top of the top layer elements, appended as the last child of
-    // the LayoutView.
-    if (PseudoElement* view_transition_pseudo =
-            node_->GetDocument().documentElement()->GetPseudoElement(
-                kPseudoIdViewTransition)) {
-      return view_transition_pseudo->GetLayoutObject();
-    }
-    return nullptr;
+
+    // We are at the end of the top layer elements. If we're in a transition,
+    // the ::view-transition is rendered on top of the top layer elements and
+    // its "snapshot containing block" is appended as the last child of the
+    // LayoutView. Otherwise, this returns nullptr and we're at the end.
+    return node_->GetDocument().GetLayoutView()->GetViewTransitionRoot();
   }
   return LayoutTreeBuilder::NextLayoutObject();
 }
 
 LayoutObject* LayoutTreeBuilderForElement::ParentLayoutObject() const {
-  if (style_->StyleType() == kPseudoIdViewTransition ||
-      style_->IsInTopLayer(*node_)) {
+  if (style_->IsRenderedInTopLayer(*node_)) {
     return node_->GetDocument().GetLayoutView();
   }
+#if DCHECK_IS_ON()
+  // Box of ::scroll-marker-group and ::scroll-button is previous/next
+  // sibling of its originating element, so the parent should be originating
+  // element's parent. But not in case of <html> element.
+  if ((node_->IsScrollMarkerGroupPseudoElement() ||
+       node_->IsScrollButtonPseudoElement()) &&
+      !node_->parentElement()->IsDocumentElement()) {
+    ContainerNode* parent_element =
+        LayoutTreeBuilderTraversal::LayoutParent(*node_->parentElement());
+    DCHECK_EQ(parent_element->GetLayoutObject(), context_.parent);
+  }
+#endif  // DCHECK_IS_ON()
   return context_.parent;
 }
 
@@ -98,7 +106,7 @@ void LayoutTreeBuilderForElement::CreateLayoutObject() {
   // If we are in the top layer and the parent layout object without top layer
   // adjustment can't have children, then don't render.
   // https://github.com/w3c/csswg-drafts/issues/6939#issuecomment-1016671534
-  if (style_->IsInTopLayer(*node_) && context_.parent &&
+  if (style_->IsRenderedInTopLayer(*node_) && context_.parent &&
       !context_.parent->CanHaveChildren() &&
       node_->GetPseudoId() != kPseudoIdBackdrop) {
     return;
@@ -119,26 +127,22 @@ void LayoutTreeBuilderForElement::CreateLayoutObject() {
     return;
   }
 
-  // Make sure the LayoutObject already knows it is going to be added to a
-  // LayoutFlowThread before we set the style for the first time. Otherwise code
-  // using IsInsideFlowThread() in the StyleWillChange and StyleDidChange will
-  // fail.
-  new_layout_object->SetIsInsideFlowThread(
-      parent_layout_object->IsInsideFlowThread());
+  // Make sure the LayoutObject already knows it's a descendant of a multicol
+  // container before we set the style for the first time. Otherwise code using
+  // IsInsideMulticol() in the StyleWillChange and StyleDidChange will fail.
+  new_layout_object->SetIsInsideMulticol(
+      parent_layout_object->IsInsideMulticol());
 
   LayoutObject* next_layout_object = NextLayoutObject();
-  // SetStyle() can depend on LayoutObject() already being set.
   node_->SetLayoutObject(new_layout_object);
 
   DCHECK(!new_layout_object->Style());
   new_layout_object->SetStyle(style_);
 
-  // Note: Adding new_layout_object instead of LayoutObject(). LayoutObject()
-  // may be a child of new_layout_object.
   parent_layout_object->AddChild(new_layout_object, next_layout_object);
 }
 
-scoped_refptr<const ComputedStyle>
+const ComputedStyle*
 LayoutTreeBuilderForText::CreateInlineWrapperStyleForDisplayContentsIfNeeded()
     const {
   // If the parent element is not a display:contents element, the style and the
@@ -174,20 +178,20 @@ LayoutTreeBuilderForText::CreateInlineWrapperForDisplayContentsIfNeeded(
 }
 
 void LayoutTreeBuilderForText::CreateLayoutObject() {
-  const ComputedStyle* style = style_.get();
+  const ComputedStyle* style = style_;
   LayoutObject* layout_object_parent = context_.parent;
   LayoutObject* next_layout_object = NextLayoutObject();
-  scoped_refptr<const ComputedStyle> nullable_wrapper_style =
+  const ComputedStyle* nullable_wrapper_style =
       CreateInlineWrapperStyleForDisplayContentsIfNeeded();
   if (LayoutObject* wrapper = CreateInlineWrapperForDisplayContentsIfNeeded(
-          nullable_wrapper_style.get())) {
+          nullable_wrapper_style)) {
     layout_object_parent = wrapper;
     next_layout_object = nullptr;
   }
   // SVG <text> doesn't accept anonymous LayoutInlines. But the Text should have
   // the adjusted ComputedStyle.
   if (nullable_wrapper_style)
-    style = nullable_wrapper_style.get();
+    style = nullable_wrapper_style;
 
   LayoutText* new_layout_object = node_->CreateTextLayoutObject();
   if (!layout_object_parent->IsChildAllowed(new_layout_object, *style)) {
@@ -195,12 +199,10 @@ void LayoutTreeBuilderForText::CreateLayoutObject() {
     return;
   }
 
-  // Make sure the LayoutObject already knows it is going to be added to a
-  // LayoutFlowThread before we set the style for the first time. Otherwise code
-  // using IsInsideFlowThread() in the StyleWillChange and StyleDidChange will
-  // fail.
-  new_layout_object->SetIsInsideFlowThread(
-      context_.parent->IsInsideFlowThread());
+  // Make sure the LayoutObject already knows it's a descendant of a multicol
+  // container before we set the style for the first time. Otherwise code using
+  // IsInsideMulticol() in the StyleWillChange and StyleDidChange will fail.
+  new_layout_object->SetIsInsideMulticol(context_.parent->IsInsideMulticol());
 
   node_->SetLayoutObject(new_layout_object);
   DCHECK(!new_layout_object->Style());

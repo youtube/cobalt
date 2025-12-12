@@ -12,8 +12,7 @@ namespace base {
 class SingleThreadTaskRunner;
 }
 
-namespace remoting {
-namespace mac {
+namespace remoting::mac {
 
 // Return true if the current process has been granted permission to inject
 // input. This will add an entry to the System Preference's Accessibility
@@ -27,11 +26,16 @@ bool CanInjectInput();
 // dialog informing the user that this app is requesting permission.
 bool CanRecordScreen();
 
+// Requests permission to capture the screen. This causes the OS to
+// prompt the user to grant permission if needed, and adds the calling
+// bundle to the applications list in Security & Privacy -> Screen Recording.
+void RequestScreenCapturePermission();
+
 // Prompts the user to add the current application to the set of trusted
 // Accessibility and Screen Recording applications.  The Accessibility
-// permission is required for input injection (10.14 and later) and Screen
-// Recording is required for screen capture (10.15 and later).  |task_runner|
-// is used to run the dialog message loop.
+// permission is required for input injection and Screen Recording is required
+// for screen capture.  |task_runner| is used to run the dialog message loop.
+// TODO(crbug.com/40275162): Remove.
 void PromptUserToChangeTrustStateIfNeeded(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner);
 
@@ -51,7 +55,6 @@ bool CanCaptureAudio();
 // ONLY call this function when CanCaptureAudio() returns false.
 void RequestAudioCapturePermission(base::OnceCallback<void(bool)> callback);
 
-}  // namespace mac
-}  // namespace remoting
+}  // namespace remoting::mac
 
 #endif  // REMOTING_HOST_MAC_PERMISSION_UTILS_H_

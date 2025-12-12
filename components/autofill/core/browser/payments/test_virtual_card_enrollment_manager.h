@@ -5,30 +5,25 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_TEST_VIRTUAL_CARD_ENROLLMENT_MANAGER_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_PAYMENTS_TEST_VIRTUAL_CARD_ENROLLMENT_MANAGER_H_
 
+#include "components/autofill/core/browser/foundations/test_autofill_client.h"
+#include "components/autofill/core/browser/payments/payments_autofill_client.h"
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
-#include "components/autofill/core/browser/test_autofill_client.h"
 
 namespace autofill {
 
-class TestPersonalDataManager;
+class PaymentsDataManager;
 
 class TestVirtualCardEnrollmentManager : public VirtualCardEnrollmentManager {
  public:
   TestVirtualCardEnrollmentManager(
-      TestPersonalDataManager* personal_data_manager,
-      payments::TestPaymentsClient* payments_client,
+      PaymentsDataManager* payments_data_manager,
+      payments::TestPaymentsNetworkInterface* payments_network_interface,
       TestAutofillClient* autofill_client);
   TestVirtualCardEnrollmentManager(const TestVirtualCardEnrollmentManager&) =
       delete;
   TestVirtualCardEnrollmentManager& operator=(
       const TestVirtualCardEnrollmentManager&) = delete;
   ~TestVirtualCardEnrollmentManager() override;
-
-  bool GetAvatarAnimationComplete() const { return avatar_animation_complete_; }
-
-  void SetAvatarAnimationComplete(bool avatar_animation_complete) {
-    avatar_animation_complete_ = avatar_animation_complete;
-  }
 
   bool GetEnrollResponseDetailsReceived() const {
     return enroll_response_details_received_;
@@ -38,9 +33,12 @@ class TestVirtualCardEnrollmentManager : public VirtualCardEnrollmentManager {
     enroll_response_details_received_ = enroll_response_details_received;
   }
 
-  AutofillClient::PaymentsRpcResult GetPaymentsRpcResult() { return result_; }
+  payments::PaymentsAutofillClient::PaymentsRpcResult GetPaymentsRpcResult() {
+    return result_;
+  }
 
-  void SetPaymentsRpcResult(AutofillClient::PaymentsRpcResult result) {
+  void SetPaymentsRpcResult(
+      payments::PaymentsAutofillClient::PaymentsRpcResult result) {
     result_ = result;
   }
 
@@ -54,6 +52,10 @@ class TestVirtualCardEnrollmentManager : public VirtualCardEnrollmentManager {
 
   VirtualCardEnrollmentProcessState* GetVirtualCardEnrollmentProcessState() {
     return &state_;
+  }
+
+  void ResetVirtualCardEnrollmentProcessState() {
+    state_ = VirtualCardEnrollmentProcessState();
   }
 
   void SetAutofillClient(AutofillClient* autofill_client) {
@@ -75,12 +77,14 @@ class TestVirtualCardEnrollmentManager : public VirtualCardEnrollmentManager {
       base::OnceCallback<void(const std::string&)> callback) override;
   void OnDidGetUpdateVirtualCardEnrollmentResponse(
       VirtualCardEnrollmentRequestType type,
-      AutofillClient::PaymentsRpcResult result) override;
+      payments::PaymentsAutofillClient::PaymentsRpcResult result) override;
   void Reset() override;
   void ShowVirtualCardEnrollBubble() override;
 
+  void OnVirtualCardEnrollmentBubbleCancelled();
+
  private:
-  AutofillClient::PaymentsRpcResult result_;
+  payments::PaymentsAutofillClient::PaymentsRpcResult result_;
 
   bool reset_called_ = false;
 

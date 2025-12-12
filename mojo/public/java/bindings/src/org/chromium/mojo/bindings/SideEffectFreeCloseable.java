@@ -4,18 +4,17 @@
 
 package org.chromium.mojo.bindings;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.io.Closeable;
 
-/**
- * An implementation of closeable that doesn't do anything.
- */
+/** An implementation of closeable that doesn't do anything. */
+@NullMarked
 public class SideEffectFreeCloseable implements Closeable {
 
     /**
      * @see java.io.Closeable#close()
      */
     @Override
-    public void close() {
-    }
-
+    public void close() {}
 }

@@ -16,44 +16,49 @@ import androidx.mediarouter.app.MediaRouteControllerDialogFragment;
 import androidx.mediarouter.media.MediaRouteSelector;
 import androidx.mediarouter.media.MediaRouter;
 
-/**
- * Manages the dialog responsible for controlling an existing media route.
- */
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Manages the dialog responsible for controlling an existing media route. */
+@NullMarked
 public class MediaRouteControllerDialogManager extends BaseMediaRouteDialogManager {
     private static final String DIALOG_FRAGMENT_TAG =
             "androidx.mediarouter:MediaRouteControllerDialogFragment";
 
     private final String mMediaRouteId;
 
-    private final MediaRouter.Callback mCallback = new MediaRouter.Callback() {
-        @Override
-        public void onRouteUnselected(MediaRouter router, MediaRouter.RouteInfo route) {
-            delegate().onRouteClosed(mMediaRouteId);
-        }
-    };
+    private final MediaRouter.Callback mCallback =
+            new MediaRouter.Callback() {
+                @Override
+                public void onRouteUnselected(MediaRouter router, MediaRouter.RouteInfo route) {
+                    delegate().onRouteClosed(mMediaRouteId);
+                }
+            };
 
-    public MediaRouteControllerDialogManager(String sourceId, MediaRouteSelector routeSelector,
-            String mediaRouteId, MediaRouteDialogDelegate delegate) {
+    public MediaRouteControllerDialogManager(
+            String sourceId,
+            MediaRouteSelector routeSelector,
+            String mediaRouteId,
+            MediaRouteDialogDelegate delegate) {
         super(sourceId, routeSelector, delegate);
         mMediaRouteId = mediaRouteId;
     }
 
-    /**
-     * Fragment implementation for MediaRouteControllerDialogManager.
-     */
+    /** Fragment implementation for MediaRouteControllerDialogManager. */
     public static class Fragment extends MediaRouteControllerDialogFragment {
         private final Handler mHandler = new Handler();
         private final SystemVisibilitySaver mVisibilitySaver = new SystemVisibilitySaver();
-        private BaseMediaRouteDialogManager mManager;
-        private MediaRouter.Callback mCallback;
+        private @Nullable BaseMediaRouteDialogManager mManager;
+        private MediaRouter.@Nullable Callback mCallback;
 
         public Fragment() {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    Fragment.this.dismiss();
-                }
-            });
+            mHandler.post(
+                    new Runnable() {
+                        @Override
+                        public void run() {
+                            Fragment.this.dismiss();
+                        }
+                    });
         }
 
         public Fragment(BaseMediaRouteDialogManager manager, MediaRouter.Callback callback) {
@@ -63,7 +68,7 @@ public class MediaRouteControllerDialogManager extends BaseMediaRouteDialogManag
 
         @Override
         public MediaRouteControllerDialog onCreateControllerDialog(
-                Context context, Bundle savedInstanceState) {
+                Context context, @Nullable Bundle savedInstanceState) {
             MediaRouteControllerDialog dialog =
                     super.onCreateControllerDialog(context, savedInstanceState);
             dialog.setCanceledOnTouchOutside(true);
@@ -86,15 +91,16 @@ public class MediaRouteControllerDialogManager extends BaseMediaRouteDialogManag
         public void onDismiss(DialogInterface dialog) {
             super.onDismiss(dialog);
             if (mManager == null) return;
+            assert mCallback != null;
 
             mManager.delegate().onDialogCancelled();
             mManager.androidMediaRouter().removeCallback(mCallback);
             mManager.mDialogFragment = null;
         }
-    };
+    }
 
     @Override
-    protected DialogFragment openDialogInternal(FragmentManager fm) {
+    protected @Nullable DialogFragment openDialogInternal(FragmentManager fm) {
         if (fm.findFragmentByTag(DIALOG_FRAGMENT_TAG) != null) return null;
 
         Fragment fragment = new Fragment(this, mCallback);

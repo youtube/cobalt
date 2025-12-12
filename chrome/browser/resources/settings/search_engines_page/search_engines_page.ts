@@ -10,7 +10,6 @@ import 'chrome://resources/cr_elements/cr_button/cr_button.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/js/cr.js';
-import 'chrome://resources/polymer/v3_0/iron-flex-layout/iron-flex-layout-classes.js';
 import '../controls/controlled_radio_button.js';
 import '../controls/settings_radio_group.js';
 import '../simple_confirmation_dialog.js';
@@ -20,17 +19,20 @@ import './omnibox_extension_entry.js';
 import '../settings_shared.css.js';
 import '../settings_vars.css.js';
 
-import {WebUiListenerMixin, WebUiListenerMixinInterface} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import type {WebUiListenerMixinInterface} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
+import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
-import {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
+import type {IronListElement} from 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {SettingsRadioGroupElement} from '../controls/settings_radio_group.js';
-import {GlobalScrollTargetMixin} from '../global_scroll_target_mixin.js';
+import type {SettingsRadioGroupElement} from '../controls/settings_radio_group.js';
+import {GlobalScrollTargetMixin, type GlobalScrollTargetMixinInterface} from '../global_scroll_target_mixin.js';
 import {routes} from '../route.js';
+import type {Route} from '../router.js';
 
-import {SearchEngine, SearchEnginesBrowserProxy, SearchEnginesBrowserProxyImpl, SearchEnginesInfo, SearchEnginesInteractions} from './search_engines_browser_proxy.js';
+import type {SearchEngine, SearchEnginesBrowserProxy, SearchEnginesInfo} from './search_engines_browser_proxy.js';
+import {SearchEnginesBrowserProxyImpl, SearchEnginesInteractions} from './search_engines_browser_proxy.js';
 import {getTemplate} from './search_engines_page.html.js';
 
 type SearchEngineEditEvent = CustomEvent<{
@@ -51,8 +53,10 @@ export interface SettingsSearchEnginesPageElement {
 }
 
 const SettingsSearchEnginesPageElementBase =
-    GlobalScrollTargetMixin(WebUiListenerMixin(PolymerElement)) as
-    {new (): PolymerElement & WebUiListenerMixinInterface};
+    GlobalScrollTargetMixin(WebUiListenerMixin(PolymerElement)) as {
+      new (): PolymerElement & WebUiListenerMixinInterface &
+          GlobalScrollTargetMixinInterface,
+    };
 
 export class SettingsSearchEnginesPageElement extends
     SettingsSearchEnginesPageElementBase {
@@ -147,22 +151,24 @@ export class SettingsSearchEnginesPageElement extends
     return ['extensionsChanged_(extensions, showExtensionsList_)'];
   }
 
-  defaultEngines: SearchEngine[];
-  activeEngines: SearchEngine[];
-  otherEngines: SearchEngine[];
-  extensions: SearchEngine[];
-  private showExtensionsList_: boolean;
-  filter: string;
-  private matchingDefaultEngines_: SearchEngine[];
-  private matchingActiveEngines_: SearchEngine[];
-  private matchingOtherEngines_: SearchEngine[];
-  private matchingExtensions_: SearchEngine[];
-  private omniboxExtensionlastFocused_: HTMLElement;
-  private omniboxExtensionListBlurred_: boolean;
-  private dialogModel_: SearchEngine|null;
-  private dialogAnchorElement_: HTMLElement|null;
-  private showEditDialog_: boolean;
-  private showDeleteConfirmationDialog_: boolean;
+  declare prefs: {[key: string]: any};
+  declare defaultEngines: SearchEngine[];
+  declare activeEngines: SearchEngine[];
+  declare otherEngines: SearchEngine[];
+  declare extensions: SearchEngine[];
+  declare subpageRoute: Route;
+  declare private showExtensionsList_: boolean;
+  declare filter: string;
+  declare private matchingDefaultEngines_: SearchEngine[];
+  declare private matchingActiveEngines_: SearchEngine[];
+  declare private matchingOtherEngines_: SearchEngine[];
+  declare private matchingExtensions_: SearchEngine[];
+  declare private omniboxExtensionlastFocused_: HTMLElement;
+  declare private omniboxExtensionListBlurred_: boolean;
+  declare private dialogModel_: SearchEngine|null;
+  declare private dialogAnchorElement_: HTMLElement|null;
+  declare private showEditDialog_: boolean;
+  declare private showDeleteConfirmationDialog_: boolean;
   private browserProxy_: SearchEnginesBrowserProxy =
       SearchEnginesBrowserProxyImpl.getInstance();
 
@@ -175,7 +181,7 @@ export class SettingsSearchEnginesPageElement extends
         'search-engines-changed', this.enginesChanged_.bind(this));
 
     this.addEventListener(
-        'edit-search-engine',
+        'view-or-edit-search-engine',
         e => this.onEditSearchEngine_(e as SearchEngineEditEvent));
 
     this.addEventListener(
@@ -236,15 +242,8 @@ export class SettingsSearchEnginesPageElement extends
 
   private enginesChanged_(searchEnginesInfo: SearchEnginesInfo) {
     this.defaultEngines = searchEnginesInfo.defaults;
-
-    // Sort |activeEngines| and |otherEngines| in alphabetical order.
-    this.activeEngines = searchEnginesInfo.actives.sort(
-        (a, b) => a.name.toLocaleLowerCase().localeCompare(
-            b.name.toLocaleLowerCase()));
-    this.otherEngines = searchEnginesInfo.others.sort(
-        (a, b) => a.name.toLocaleLowerCase().localeCompare(
-            b.name.toLocaleLowerCase()));
-
+    this.activeEngines = searchEnginesInfo.actives;
+    this.otherEngines = searchEnginesInfo.others;
     this.extensions = searchEnginesInfo.extensions;
   }
 

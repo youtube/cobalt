@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromecast/media/cma/backend/mixer/post_processors/governor.h"
 
 #include <cmath>
@@ -22,7 +27,7 @@ namespace post_processor_test {
 
 namespace {
 
-const char* kConfigTemplate =
+constexpr char kConfigTemplate[] =
     R"config({"onset_volume": %f, "clamp_multiplier": %f})config";
 
 const float kDefaultClamp = 0.6f;

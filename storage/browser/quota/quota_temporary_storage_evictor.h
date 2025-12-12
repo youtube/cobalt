@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 
@@ -18,7 +19,6 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/mojom/quota/quota_types.mojom.h"
 
 namespace storage {
@@ -53,11 +53,11 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) QuotaTemporaryStorageEvictor {
 
     int64_t usage_on_beginning_of_round = -1;
     int64_t usage_on_end_of_round = -1;
-    int64_t num_evicted_buckets_in_round = 0;
+    int64_t num_evicted_buckets = 0;
   };
 
   QuotaTemporaryStorageEvictor(QuotaEvictionHandler* quota_eviction_handler,
-                               int64_t interval_ms);
+                               base::TimeDelta interval);
 
   QuotaTemporaryStorageEvictor(const QuotaTemporaryStorageEvictor&) = delete;
   QuotaTemporaryStorageEvictor& operator=(const QuotaTemporaryStorageEvictor&) =
@@ -75,7 +75,7 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) QuotaTemporaryStorageEvictor {
  private:
   friend class QuotaTemporaryStorageEvictorTest;
 
-  void StartEvictionTimerWithDelay(int64_t delay_ms);
+  void StartEvictionTimerWithDelay(base::TimeDelta delay);
   void ConsiderEviction();
   void OnEvictedExpiredBuckets(blink::mojom::QuotaStatusCode status);
   void OnGotEvictionRoundInfo(blink::mojom::QuotaStatusCode status,
@@ -84,8 +84,9 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) QuotaTemporaryStorageEvictor {
                               int64_t total_space,
                               int64_t current_usage,
                               bool current_usage_is_complete);
-  void OnGotEvictionBucket(const absl::optional<BucketLocator>& bucket);
-  void OnEvictionComplete(QuotaError status);
+  void OnGotEvictionBuckets(const std::set<BucketLocator>& buckets);
+  void OnEvictionComplete(int expected_evicted_buckets,
+                          int actual_evicted_buckets);
 
   void OnEvictionRoundStarted();
   void OnEvictionRoundFinished();
@@ -97,9 +98,8 @@ class COMPONENT_EXPORT(STORAGE_BROWSER) QuotaTemporaryStorageEvictor {
   Statistics previous_statistics_;
   EvictionRoundStatistics round_statistics_;
   base::Time time_of_end_of_last_nonskipped_round_;
-  base::Time time_of_end_of_last_round_;
 
-  int64_t interval_ms_;
+  base::TimeDelta interval_;
   bool timer_disabled_for_testing_ = false;
   base::RepeatingClosure on_round_finished_for_testing_;
 

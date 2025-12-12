@@ -11,14 +11,15 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/css/cssom/css_style_value.h"
 #include "third_party/blink/renderer/platform/bindings/v8_binding.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/wtf/casting.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
-class CSSCustomPropertyDeclaration;
+class CSSUnparsedDeclarationValue;
 class CSSVariableData;
-class CSSVariableReferenceValue;
 
 class CORE_EXPORT CSSUnparsedValue final : public CSSStyleValue {
   DEFINE_WRAPPERTYPEINFO();
@@ -33,8 +34,7 @@ class CORE_EXPORT CSSUnparsedValue final : public CSSStyleValue {
   static CSSUnparsedValue* Create() {
     return Create(HeapVector<Member<V8CSSUnparsedSegment>>());
   }
-  static CSSUnparsedValue* FromCSSValue(const CSSVariableReferenceValue&);
-  static CSSUnparsedValue* FromCSSValue(const CSSCustomPropertyDeclaration&);
+  static CSSUnparsedValue* FromCSSValue(const CSSUnparsedDeclarationValue&);
   static CSSUnparsedValue* FromCSSVariableData(const CSSVariableData&);
   static CSSUnparsedValue* FromString(const String& string) {
     HeapVector<Member<V8CSSUnparsedSegment>> tokens;
@@ -67,14 +67,23 @@ class CORE_EXPORT CSSUnparsedValue final : public CSSStyleValue {
     CSSStyleValue::Trace(visitor);
   }
 
-  String ToString() const { return ToStringInternal(/*separate_tokens=*/true); }
+  // Unlike CSSStyleValue::toString(), this returns tokens without
+  // substituting variables. There are extra /**/ inserted between
+  // every token to ensure there are no ambiguities, which is fine
+  // because this value is never presented directly to the user
+  // (ToCSSValue() will parse to a token range and then re-serialize
+  // using extra /**/ only where needed).
+  String ToUnparsedString() const;
 
  private:
-  String ToStringInternal(bool separate_tokens) const;
+  // Return 'false' if there is a cycle in the serialization.
+  bool AppendUnparsedString(
+      StringBuilder&,
+      HeapHashSet<Member<const CSSUnparsedValue>>& values_on_stack) const;
 
   HeapVector<Member<V8CSSUnparsedSegment>> tokens_;
 
-  FRIEND_TEST_ALL_PREFIXES(CSSVariableReferenceValueTest, MixedList);
+  FRIEND_TEST_ALL_PREFIXES(CSSUnparsedDeclarationValueTest, MixedList);
 };
 
 template <>

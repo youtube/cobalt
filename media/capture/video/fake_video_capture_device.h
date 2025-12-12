@@ -15,10 +15,6 @@
 #include "base/time/time.h"
 #include "media/capture/video/video_capture_device.h"
 
-namespace gpu {
-class GpuMemoryBufferSupport;
-}  // namespace gpu
-
 namespace media {
 
 struct FakeDeviceState;
@@ -123,18 +119,7 @@ struct FakeDeviceState {
                   double exposure_time,
                   double focus_distance,
                   float frame_rate,
-                  VideoPixelFormat pixel_format)
-      : pan(pan),
-        tilt(tilt),
-        zoom(zoom),
-        exposure_time(exposure_time),
-        focus_distance(focus_distance),
-        format(gfx::Size(), frame_rate, pixel_format) {
-    exposure_mode = (exposure_time >= 0.0f) ? mojom::MeteringMode::MANUAL
-                                            : mojom::MeteringMode::CONTINUOUS;
-    focus_mode = (focus_distance >= 0.0f) ? mojom::MeteringMode::MANUAL
-                                          : mojom::MeteringMode::CONTINUOUS;
-  }
+                  VideoPixelFormat pixel_format);
 
   double pan;
   double tilt;
@@ -145,15 +130,16 @@ struct FakeDeviceState {
   mojom::MeteringMode focus_mode;
   VideoCaptureFormat format;
   bool background_blur = false;
+  bool background_segmentation_mask = false;
+  bool eye_gaze_correction = false;
+  bool face_framing = false;
 };
 
 // A dependency needed by FakeVideoCaptureDevice.
 class FrameDelivererFactory {
  public:
-  FrameDelivererFactory(
-      FakeVideoCaptureDevice::DeliveryMode delivery_mode,
-      const FakeDeviceState* device_state,
-      std::unique_ptr<gpu::GpuMemoryBufferSupport> gmb_support);
+  FrameDelivererFactory(FakeVideoCaptureDevice::DeliveryMode delivery_mode,
+                        const FakeDeviceState* device_state);
   ~FrameDelivererFactory();
 
   std::unique_ptr<FrameDeliverer> CreateFrameDeliverer(
@@ -163,7 +149,6 @@ class FrameDelivererFactory {
  private:
   const FakeVideoCaptureDevice::DeliveryMode delivery_mode_;
   raw_ptr<const FakeDeviceState> device_state_ = nullptr;
-  std::unique_ptr<gpu::GpuMemoryBufferSupport> gmb_support_;
 };
 
 struct FakePhotoDeviceConfig {

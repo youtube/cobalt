@@ -31,7 +31,7 @@ void ClientControlledAcceleratorTarget::RegisterAccelerator(
 bool ClientControlledAcceleratorTarget::AcceleratorPressed(
     const ui::Accelerator& accelerator) {
   auto it = accelerators_.find(accelerator);
-  DCHECK(it != accelerators_.end());
+  CHECK(it != accelerators_.end());
   ClientControlledAcceleratorAction action = it->second;
 
   switch (action) {

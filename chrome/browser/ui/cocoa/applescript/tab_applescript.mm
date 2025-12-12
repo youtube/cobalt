@@ -4,11 +4,10 @@
 
 #import "chrome/browser/ui/cocoa/applescript/tab_applescript.h"
 
+#include "base/apple/foundation_util.h"
 #include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
-#include "base/mac/foundation_util.h"
-#import "base/mac/scoped_nsobject.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
 #include "base/strings/sys_string_conversions.h"
@@ -32,9 +31,9 @@
 using content::NavigationController;
 using content::NavigationEntry;
 using content::OpenURLParams;
+using content::Referrer;
 using content::RenderFrameHost;
 using content::RenderViewHost;
-using content::Referrer;
 using content::WebContents;
 
 namespace {
@@ -47,8 +46,7 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
   NSAppleEventManager* manager = [NSAppleEventManager sharedAppleEventManager];
   NSAppleEventDescriptor* reply_event =
       [manager replyAppleEventForSuspensionID:suspension_id];
-  [reply_event setParamDescriptor:result_descriptor
-                       forKeyword:keyDirectObject];
+  [reply_event setParamDescriptor:result_descriptor forKeyword:keyDirectObject];
   [manager resumeWithSuspensionID:suspension_id];
 }
 
@@ -60,7 +58,7 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
 // specified like:
 //
 //   make new tab with properties {URL:"http://google.com"}
-@property (nonatomic, copy) NSString* tempURL;
+@property(nonatomic, copy) NSString* tempURL;
 
 - (bool)isJavaScriptEnabled;
 
@@ -97,14 +95,8 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
   return self;
 }
 
-- (void)dealloc {
-  [_tempURL release];
-  [super dealloc];
-}
-
 - (instancetype)initWithWebContents:(content::WebContents*)webContents {
   if (!webContents) {
-    [self release];
     return nil;
   }
 
@@ -175,7 +167,8 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
 
   _webContents->OpenURL(OpenURLParams(gurl, content::Referrer(),
                                       WindowOpenDisposition::CURRENT_TAB,
-                                      ui::PAGE_TRANSITION_TYPED, false));
+                                      ui::PAGE_TRANSITION_TYPED, false),
+                        /*navigation_handle_callback=*/{});
 }
 
 - (NSString*)title {
@@ -317,7 +310,7 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
     return;
   }
 
-  base::FilePath mainFile = base::mac::NSURLToFilePath(fileURL);
+  base::FilePath mainFile = base::apple::NSURLToFilePath(fileURL);
   // We create a directory path at the folder within which the file exists.
   // Eg.    if main_file = '/Users/Foo/Documents/Google.html'
   // then directory_path = '/Users/Foo/Documents/Google_files/'.
@@ -332,6 +325,8 @@ void ResumeAppleEventAndSendReply(NSAppleEventManagerSuspensionID suspension_id,
       savePageType = content::SAVE_PAGE_TYPE_AS_ONLY_HTML;
     } else if ([saveType isEqualToString:@"complete html"]) {
       savePageType = content::SAVE_PAGE_TYPE_AS_COMPLETE_HTML;
+    } else if ([saveType isEqualToString:@"single file"]) {
+      savePageType = content::SAVE_PAGE_TYPE_AS_MHTML;
     } else {
       AppleScript::SetError(AppleScript::Error::kInvalidSaveType);
       return;

@@ -9,16 +9,19 @@ import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
 
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.download.home.list.ListItem;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** A {@link RecyclerView.ViewHolder} that holds a {@link View} that is opaque to the holder. */
+@NullMarked
 public class CustomViewHolder extends ListItemViewHolder {
     /** Creates a new {@link CustomViewHolder} instance. */
     public CustomViewHolder(ViewGroup parent) {
         super(new FrameLayout(parent.getContext()));
-        itemView.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        itemView.setLayoutParams(
+                new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 
     // ListItemViewHolder implemenation.
@@ -35,7 +38,8 @@ public class CustomViewHolder extends ListItemViewHolder {
         if (parent instanceof ViewGroup) ((ViewGroup) parent).removeView(viewItem.customView);
 
         viewGroup.removeAllViews();
-        viewGroup.addView(viewItem.customView,
+        viewGroup.addView(
+                viewItem.customView,
                 new ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
     }

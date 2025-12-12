@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ui/webui/constrained_web_dialog_ui.h"
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/location.h"
@@ -10,11 +12,9 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
-#include "chrome/browser/ui/webui/constrained_web_dialog_ui.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
@@ -24,6 +24,8 @@
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "content/public/test/test_utils.h"
+#include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/widget/widget_delegate.h"
 #include "ui/web_dialogs/test/test_web_dialog_delegate.h"
 
 using content::WebContents;
@@ -32,7 +34,8 @@ using web_modal::WebContentsModalDialogManager;
 
 namespace {
 
-static const char kTestDataURL[] = "data:text/html,<!doctype html>"
+static const char kTestDataURL[] =
+    "data:text/html,<!doctype html>"
     "<body></body>"
     "<style>"
     "body { height: 150px; width: 150px; }"
@@ -44,8 +47,10 @@ bool IsEqualSizes(gfx::Size expected,
 }
 
 std::string GetChangeDimensionsScript(int dimension) {
-  return base::StringPrintf("window.document.body.style.width = %d + 'px';"
-      "window.document.body.style.height = %d + 'px';", dimension, dimension);
+  return base::StringPrintf(
+      "window.document.body.style.width = %d + 'px';"
+      "window.document.body.style.height = %d + 'px';",
+      dimension, dimension);
 }
 
 class AutoResizingTestWebDialogDelegate
@@ -53,7 +58,7 @@ class AutoResizingTestWebDialogDelegate
  public:
   explicit AutoResizingTestWebDialogDelegate(const GURL& url)
       : TestWebDialogDelegate(url) {}
-  ~AutoResizingTestWebDialogDelegate() override {}
+  ~AutoResizingTestWebDialogDelegate() override = default;
 
   // Dialog delegates for auto-resizing dialogs are expected not to set |size|.
   void GetDialogSize(gfx::Size* size) const override {}
@@ -63,7 +68,7 @@ class AutoResizingTestWebDialogDelegate
 
 class ConstrainedWebDialogBrowserTest : public InProcessBrowserTest {
  public:
-  ConstrainedWebDialogBrowserTest() {}
+  ConstrainedWebDialogBrowserTest() = default;
 
   // Runs the current MessageLoop until |condition| is true or timeout.
   bool RunLoopUntil(base::RepeatingCallback<bool()> condition) {
@@ -107,12 +112,13 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest, MAYBE_BasicTest) {
 
   ConstrainedWebDialogDelegate* dialog_delegate = ShowConstrainedWebDialog(
       browser()->profile(), std::move(delegate), web_contents);
+
   ASSERT_TRUE(dialog_delegate);
   EXPECT_TRUE(dialog_delegate->GetNativeDialog());
   EXPECT_TRUE(IsShowingWebContentsModalDialog(web_contents));
 }
 
-// TODO(https://crbug.com/1020038): Crashy on Linux
+// TODO(crbug.com/40656271): Crashy on Linux
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ReleaseWebContents DISABLED_ReleaseWebContents
 #else
@@ -148,7 +154,8 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
 // Tests that dialog autoresizes based on web contents when autoresizing
 // is enabled.
 // Flaky on CrOS: http://crbug.com/928924
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+// Flaky on Mac: http://crbug.com/1498848
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_CHROMEOS)
 #define MAYBE_ContentResizeInAutoResizingDialog \
   DISABLED_ContentResizeInAutoResizingDialog
 #else
@@ -206,20 +213,20 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
       &IsEqualSizes, gfx::Size(initial_size, initial_size), dialog_delegate)));
 
   // Resize to dimensions within expected bounds.
-  EXPECT_TRUE(ExecuteScript(dialog_delegate->GetWebContents(),
-      GetChangeDimensionsScript(175)));
+  EXPECT_TRUE(ExecJs(dialog_delegate->GetWebContents(),
+                     GetChangeDimensionsScript(175)));
   ASSERT_TRUE(RunLoopUntil(base::BindRepeating(
       &IsEqualSizes, gfx::Size(new_size, new_size), dialog_delegate)));
 
   // Resize to dimensions smaller than the minimum bounds.
-  EXPECT_TRUE(ExecuteScript(dialog_delegate->GetWebContents(),
-      GetChangeDimensionsScript(50)));
+  EXPECT_TRUE(
+      ExecJs(dialog_delegate->GetWebContents(), GetChangeDimensionsScript(50)));
   ASSERT_TRUE(RunLoopUntil(
       base::BindRepeating(&IsEqualSizes, min_size, dialog_delegate)));
 
   // Resize to dimensions greater than the maximum bounds.
-  EXPECT_TRUE(ExecuteScript(dialog_delegate->GetWebContents(),
-      GetChangeDimensionsScript(250)));
+  EXPECT_TRUE(ExecJs(dialog_delegate->GetWebContents(),
+                     GetChangeDimensionsScript(250)));
   ASSERT_TRUE(RunLoopUntil(
       base::BindRepeating(&IsEqualSizes, max_size, dialog_delegate)));
 }
@@ -251,14 +258,58 @@ IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest,
             dialog_delegate->GetConstrainedWebDialogPreferredSize());
 
   // Resize <body> to dimension smaller than dialog.
-  EXPECT_TRUE(ExecuteScript(dialog_delegate->GetWebContents(),
-      GetChangeDimensionsScript(100)));
+  EXPECT_TRUE(ExecJs(dialog_delegate->GetWebContents(),
+                     GetChangeDimensionsScript(100)));
   ASSERT_TRUE(RunLoopUntil(base::BindRepeating(
       &IsEqualSizes, initial_dialog_size, dialog_delegate)));
 
   // Resize <body> to dimension larger than dialog.
-  EXPECT_TRUE(ExecuteScript(dialog_delegate->GetWebContents(),
-      GetChangeDimensionsScript(500)));
+  EXPECT_TRUE(ExecJs(dialog_delegate->GetWebContents(),
+                     GetChangeDimensionsScript(500)));
   ASSERT_TRUE(RunLoopUntil(base::BindRepeating(
       &IsEqualSizes, initial_dialog_size, dialog_delegate)));
+}
+
+IN_PROC_BROWSER_TEST_F(ConstrainedWebDialogBrowserTest, RootViewAcessibleName) {
+  auto delegate =
+      std::make_unique<ui::test::TestWebDialogDelegate>(GURL(kTestDataURL));
+  auto* delegate_ptr = delegate.get();
+  WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  ASSERT_TRUE(web_contents);
+
+  views::WidgetDelegate* widget_delegate =
+      GetConstrainedWebDialogForAccessibilityTesting(
+          browser()->profile(), std::move(delegate), web_contents);
+
+  ui::AXNodeData root_view_data;
+  widget_delegate->GetWidget()
+      ->GetRootView()
+      ->GetViewAccessibility()
+      .GetAccessibleNodeData(&root_view_data);
+  EXPECT_EQ(
+      root_view_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+      widget_delegate->GetAccessibleWindowTitle());
+
+  root_view_data = ui::AXNodeData();
+  widget_delegate->GetWidget()
+      ->GetRootView()
+      ->GetViewAccessibility()
+      .GetAccessibleNodeData(&root_view_data);
+  EXPECT_EQ(u"Test", widget_delegate->GetAccessibleWindowTitle());
+  EXPECT_EQ(
+      root_view_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+      widget_delegate->GetAccessibleWindowTitle());
+
+  delegate_ptr->set_accessible_dialog_title(u"Acessible Dialog Title");
+  root_view_data = ui::AXNodeData();
+  widget_delegate->GetWidget()
+      ->GetRootView()
+      ->GetViewAccessibility()
+      .GetAccessibleNodeData(&root_view_data);
+  EXPECT_EQ(u"Acessible Dialog Title",
+            widget_delegate->GetAccessibleWindowTitle());
+  EXPECT_EQ(
+      root_view_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+      widget_delegate->GetAccessibleWindowTitle());
 }

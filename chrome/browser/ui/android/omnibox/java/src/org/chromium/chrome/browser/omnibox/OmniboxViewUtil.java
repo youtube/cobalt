@@ -3,11 +3,13 @@
 // found in the LICENSE file.
 
 package org.chromium.chrome.browser.omnibox;
-import org.chromium.base.annotations.NativeMethods;
 
-/**
- * Utilities for the Omnibox view component.
- */
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+
+/** Utilities for the Omnibox view component. */
+@NullMarked
 public class OmniboxViewUtil {
 
     /**

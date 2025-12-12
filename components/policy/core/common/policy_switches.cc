@@ -20,13 +20,21 @@ const char kEncryptedReportingUrl[] = "encrypted-reporting-url";
 // Set policy value by command line.
 const char kChromePolicy[] = "policy";
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+// Specifies the URL at which to communicate with File Storage Server
+// (go/crosman-file-storage-server) to upload log and support packet files.
+const char kFileStorageServerUploadUrl[] = "file-storage-server-upload-url";
+
+// Replace the original verification_key with the one provided by the command
+// line flag. Can be used only for unit tests or browser tests.
+const char kPolicyVerificationKey[] = "policy-verification-key";
+
+#if BUILDFLAG(IS_CHROMEOS)
 // Disables the verification of policy signing keys. It just works on Chrome OS
 // test images and crashes otherwise.
 // TODO(crbug.com/1225054): This flag might introduce security risks. Find a
 // better solution to enable policy tast test for Family Link account.
 const char kDisablePolicyKeyVerification[] = "disable-policy-key-verification";
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Specifies the base URL to contact the secure connect Api.
 const char kSecureConnectApiUrl[] = "secure-connect-api-url";

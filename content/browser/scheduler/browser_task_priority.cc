@@ -30,7 +30,6 @@ ProtoPriority ToProtoPriority(BrowserTaskPriority priority) {
       return ProtoPriority::BEST_EFFORT_PRIORITY;
     case BrowserTaskPriority::kPriorityCount:
       NOTREACHED();
-      return ProtoPriority::UNKNOWN;
   }
 }
 

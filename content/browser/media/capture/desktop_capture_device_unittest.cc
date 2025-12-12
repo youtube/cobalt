@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/browser/media/capture/desktop_capture_device.h"
 
 #include <stddef.h>
@@ -13,13 +18,15 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/functional/bind.h"
-#include "base/memory/raw_ptr_exclusion.h"
+#include "base/memory/raw_ptr.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/test/test_timeouts.h"
 #include "base/time/tick_clock.h"
@@ -32,9 +39,9 @@
 #include "third_party/webrtc/modules/desktop_capture/desktop_capturer.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_frame.h"
 #include "third_party/webrtc/modules/desktop_capture/desktop_geometry.h"
+#include "ui/base/ozone_buildflags.h"
 
 #if BUILDFLAG(IS_OZONE)
-#include "ui/ozone/buildflags.h"
 #include "ui/ozone/public/ozone_platform.h"
 #endif  // BUILDFLAG(IS_OZONE)
 
@@ -44,6 +51,7 @@ using ::testing::DoAll;
 using ::testing::Expectation;
 using ::testing::Invoke;
 using ::testing::InvokeWithoutArgs;
+using ::testing::NiceMock;
 using ::testing::SaveArg;
 using ::testing::WithArg;
 
@@ -72,6 +80,8 @@ const uint8_t kFakePixelValue = 1;
 // Use a special value for the first pixel to verify the result in the inverted
 // frame test.
 const uint8_t kFakePixelValueFirst = 2;
+
+const char kFrameIsRefresh[] = "WebRTC.DesktopCapture.FrameIsRefresh.Screen";
 
 // Creates a DesktopFrame that has the first pixel bytes set to
 // kFakePixelValueFirst, and the rest of the bytes set to kFakePixelValue, for
@@ -109,6 +119,7 @@ class InvertedDesktopFrame : public webrtc::DesktopFrame {
             frame->shared_memory()) {
     set_dpi(frame->dpi());
     set_capture_time_ms(frame->capture_time_ms());
+    set_device_scale_factor(frame->device_scale_factor());
     mutable_updated_region()->Swap(frame->mutable_updated_region());
     original_frame_ = std::move(frame);
   }
@@ -132,6 +143,7 @@ class UnpackedDesktopFrame : public webrtc::DesktopFrame {
             frame->stride() * 2,
             new uint8_t[frame->stride() * 2 * frame->size().height()],
             nullptr) {
+    set_device_scale_factor(frame->device_scale_factor());
     memset(data(), kFramePaddingValue, stride() * size().height());
     CopyPixelsFrom(*frame, webrtc::DesktopVector(),
                    webrtc::DesktopRect::MakeSize(size()));
@@ -184,6 +196,7 @@ class FakeScreenCapturer : public webrtc::DesktopCapturer {
     captured_frames_++;
 
     std::unique_ptr<webrtc::DesktopFrame> frame = CreateBasicFrame(size);
+    frame->set_device_scale_factor(2.0f);
     if (generate_non_updated_frames_ &&
         captured_frames_ % no_update_period_ == 0) {
       // Indicates that no region of the screen has been updated since the last
@@ -221,9 +234,7 @@ class FakeScreenCapturer : public webrtc::DesktopCapturer {
     callback_->OnCaptureResult(result, std::move(frame));
   }
 
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #constexpr-ctor-field-initializer
-  RAW_PTR_EXCLUSION Callback* callback_ = nullptr;
+  raw_ptr<Callback> callback_ = nullptr;
   int captured_frames_ = 0;
   bool generate_inverted_frames_ = false;
   bool generate_cropped_frames_ = false;
@@ -252,7 +263,6 @@ class FormatChecker {
       EXPECT_EQ(size_for_odd_frames_, format.frame_size);
     ++frame_count_;
     EXPECT_EQ(kFrameRate, format.frame_rate);
-    EXPECT_EQ(media::PIXEL_FORMAT_ARGB, format.pixel_format);
   }
 
  private:
@@ -279,51 +289,54 @@ class DesktopCaptureDeviceTest : public testing::Test {
                  bool /* flip_y */,
                  base::TimeTicks /* reference_time */,
                  base::TimeDelta /* timestamp */,
+                 std::optional<base::TimeTicks> /* capture_begin_time */,
+                 const std::optional<media::VideoFrameMetadata>& metadata,
                  int /* frame_feedback_id */) {
     ASSERT_TRUE(output_frame_);
     ASSERT_EQ(output_frame_->stride() * output_frame_->size().height(), size);
+    ASSERT_NE(metadata, std::nullopt);
+    ASSERT_NE(metadata->source_size, std::nullopt);
+    ASSERT_EQ(metadata->source_size->width(), output_frame_->size().width());
+    ASSERT_EQ(metadata->source_size->height(), output_frame_->size().height());
+    ASSERT_EQ(metadata->device_scale_factor, 2.0f);
     memcpy(output_frame_->data(), frame, size);
   }
 
  protected:
   std::unique_ptr<media::MockVideoCaptureDeviceClient>
   CreateMockVideoCaptureDeviceClient() {
-    auto result = std::make_unique<media::MockVideoCaptureDeviceClient>();
-    ON_CALL(*result, ReserveOutputBuffer(_, _, _, _))
+    auto result =
+        std::make_unique<NiceMock<media::MockVideoCaptureDeviceClient>>();
+    ON_CALL(*result, ReserveOutputBuffer(_, _, _, _, _, _))
         .WillByDefault(Invoke([](const gfx::Size&,
                                  media::VideoPixelFormat format, int,
-                                 media::VideoCaptureDevice::Client::Buffer*) {
+                                 media::VideoCaptureDevice::Client::Buffer*,
+                                 int*, int*) {
           EXPECT_TRUE(format == media::PIXEL_FORMAT_I420);
           return media::VideoCaptureDevice::Client::ReserveResult::kSucceeded;
         }));
     return result;
   }
 
+  base::HistogramTester histogram_tester_;
   std::unique_ptr<DesktopCaptureDevice> capture_device_;
   std::unique_ptr<webrtc::DesktopFrame> output_frame_;
 };
 
-#if BUILDFLAG(IS_FUCHSIA)
-// TODO(crbug.com/1424897) The test is currently broken on Fuchsia.
-#define MAYBE_Capture DISABLED_Capture
-#else
-#define MAYBE_Capture Capture
-#endif
-
-TEST_F(DesktopCaptureDeviceTest, MAYBE_Capture) {
+// Capturer implementation for Fuchsia is not fully functional.
+#if !BUILDFLAG(IS_FUCHSIA)
+TEST_F(DesktopCaptureDeviceTest, Capture) {
   std::unique_ptr<webrtc::DesktopCapturer> capturer(
       webrtc::DesktopCapturer::CreateScreenCapturer(
           webrtc::DesktopCaptureOptions::CreateDefault()));
 
-#if BUILDFLAG(IS_OZONE) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
-#if !BUILDFLAG(OZONE_PLATFORM_X11)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_OZONE_X11)
   // webrtc::DesktopCapturer is only supported on Ozone X11 by default.
   // TODO(webrtc/13429): Enable for Wayland.
   EXPECT_FALSE(capturer);
   GTEST_SKIP();
-#endif  // !BUILDFLAG(OZONE_PLATFORM_X11)
-#endif  // BUILDFLAG(IS_OZONE) && (BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS))
+#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) &&
+        // !BUILDFLAG(IS_OZONE_X11)
 
   EXPECT_TRUE(capturer);
 
@@ -337,9 +350,9 @@ TEST_F(DesktopCaptureDeviceTest, MAYBE_Capture) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .WillRepeatedly(
           DoAll(SaveArg<1>(&frame_size), SaveArg<2>(&format),
                 InvokeWithoutArgs(&done_event, &base::WaitableEvent::Signal)));
@@ -355,10 +368,10 @@ TEST_F(DesktopCaptureDeviceTest, MAYBE_Capture) {
   EXPECT_GT(format.frame_size.width(), 0);
   EXPECT_GT(format.frame_size.height(), 0);
   EXPECT_EQ(kFrameRate, format.frame_rate);
-  EXPECT_EQ(media::PIXEL_FORMAT_ARGB, format.pixel_format);
 
   EXPECT_EQ(format.frame_size.GetArea() * 4, frame_size);
 }
+#endif  // !BUILDFLAG(IS_FUCHSIA)
 
 // Test that screen capturer behaves correctly if the source frame size changes
 // but the caller cannot cope with variable resolution output.
@@ -376,9 +389,9 @@ TEST_F(DesktopCaptureDeviceTest, ScreenResolutionChangeConstantResolution) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .WillRepeatedly(
           DoAll(WithArg<2>(Invoke(&format_checker,
                                   &FormatChecker::ExpectAcceptableSize)),
@@ -422,9 +435,9 @@ TEST_F(DesktopCaptureDeviceTest, ScreenResolutionChangeFixedAspectRatio) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .WillRepeatedly(
           DoAll(WithArg<2>(Invoke(&format_checker,
                                   &FormatChecker::ExpectAcceptableSize)),
@@ -472,9 +485,9 @@ TEST_F(DesktopCaptureDeviceTest, ScreenResolutionChangeVariableResolution) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .WillRepeatedly(
           DoAll(WithArg<2>(Invoke(&format_checker,
                                   &FormatChecker::ExpectAcceptableSize)),
@@ -524,9 +537,9 @@ TEST_F(DesktopCaptureDeviceTest, UnpackedFrame) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .WillRepeatedly(
           DoAll(Invoke(this, &DesktopCaptureDeviceTest::CopyFrame),
                 SaveArg<1>(&frame_size),
@@ -573,9 +586,9 @@ TEST_F(DesktopCaptureDeviceTest, InvertedFrame) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .WillRepeatedly(
           DoAll(Invoke(this, &DesktopCaptureDeviceTest::CopyFrame),
                 SaveArg<1>(&frame_size),
@@ -618,12 +631,13 @@ TEST_F(DesktopCaptureDeviceTest, RequestRefreshFrameBeforeStart) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted()).Times(0);
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted).Times(0);
+  EXPECT_CALL(*client, OnIncomingCapturedData).Times(0);
+
   capture_device_->RequestRefreshFrame();
   capture_device_->StopAndDeAllocate();
+  histogram_tester_.ExpectTotalCount(kFrameIsRefresh, 0);
 }
 
 // This test verifies that calling RequestRefreshFrame() on the screen capturer
@@ -641,9 +655,9 @@ TEST_F(DesktopCaptureDeviceTest, RequestRefreshFrameAfterStop) {
 
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .Times(1)
       .WillRepeatedly(
           InvokeWithoutArgs(&done_event, &base::WaitableEvent::Signal));
@@ -661,37 +675,36 @@ TEST_F(DesktopCaptureDeviceTest, RequestRefreshFrameAfterStop) {
   EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
   done_event.Reset();
   capture_device_->StopAndDeAllocate();
+  histogram_tester_.ExpectBucketCount(kFrameIsRefresh, false, 1);
+  histogram_tester_.ExpectTotalCount(kFrameIsRefresh, 1);
   capture_device_->RequestRefreshFrame();
+  histogram_tester_.ExpectTotalCount(kFrameIsRefresh, 1);
 }
 
-// Verify that calling RequestRefreshFrame() results in a copy of the last
-// captured frame being sent to the client via OnIncomingCapturedData().
-TEST_F(DesktopCaptureDeviceTest, RequestRefreshFrameSendsLatestFrame) {
+// Verify that calling RequestRefreshFrame() results in an extra frame being
+// captured and sent to the client. The content should not be the same as for
+// the first default frame.
+TEST_F(DesktopCaptureDeviceTest, RequestRefreshFrameSendsExtraFrame) {
   FakeScreenCapturer* mock_capturer = new FakeScreenCapturer();
   CreateScreenCaptureDevice(
       std::unique_ptr<webrtc::DesktopCapturer>(mock_capturer));
 
-  media::VideoCaptureFormat format;
+  FormatChecker format_checker(gfx::Size(kTestFrameWidth1, kTestFrameHeight1),
+                               gfx::Size(kTestFrameWidth1, kTestFrameHeight1));
   base::WaitableEvent done_event(
       base::WaitableEvent::ResetPolicy::AUTOMATIC,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
 
-  int frame_size = 0;
-  output_frame_ = std::make_unique<webrtc::BasicDesktopFrame>(
-      webrtc::DesktopSize(kTestFrameWidth1, kTestFrameHeight1));
-
-  // Ensure that we receive two calls to OnIncomingCapturedData() even if only
-  // one frame is captured and that the received second frame (which is a
-  // result of calling RequestRefreshFrame) is a copy of the first frame.
+  // Ensure that we receive two calls to OnIncomingCapturedData().
   std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
       CreateMockVideoCaptureDeviceClient());
-  EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
-  EXPECT_CALL(*client, OnStarted());
-  EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnStarted);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
       .Times(2)
       .WillRepeatedly(
-          DoAll(Invoke(this, &DesktopCaptureDeviceTest::CopyFrame),
-                SaveArg<1>(&frame_size),
+          DoAll(WithArg<2>(Invoke(&format_checker,
+                                  &FormatChecker::ExpectAcceptableSize)),
                 InvokeWithoutArgs(&done_event, &base::WaitableEvent::Signal)));
 
   media::VideoCaptureParams capture_params;
@@ -701,21 +714,17 @@ TEST_F(DesktopCaptureDeviceTest, RequestRefreshFrameSendsLatestFrame) {
   capture_params.requested_format.pixel_format = media::PIXEL_FORMAT_I420;
 
   capture_device_->AllocateAndStart(capture_params, std::move(client));
-
-  EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
-  done_event.Reset();
-
   capture_device_->RequestRefreshFrame();
-  capture_device_->StopAndDeAllocate();
 
-  // Verifies that |output_frame_| has the same pixel values and size as the
-  // first (and only) captured frame.
-  std::unique_ptr<webrtc::BasicDesktopFrame> expected_frame = CreateBasicFrame(
-      webrtc::DesktopSize(kTestFrameWidth1, kTestFrameHeight1));
-  EXPECT_EQ(output_frame_->stride() * output_frame_->size().height(),
-            frame_size);
-  EXPECT_EQ(0,
-            memcmp(output_frame_->data(), expected_frame->data(), frame_size));
+  // Capture two frames; one default (the first) and one refresh (the second).
+  // The mock for OnIncomingCapturedData() will use FormatChecker to examine the
+  // format of each frame being delivered.
+  EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
+  histogram_tester_.ExpectBucketCount(kFrameIsRefresh, false, 1);
+  EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
+  capture_device_->StopAndDeAllocate();
+  histogram_tester_.ExpectBucketCount(kFrameIsRefresh, true, 1);
+  histogram_tester_.ExpectTotalCount(kFrameIsRefresh, 2);
 }
 
 // Verifies that only captured frames which contains updated regions are
@@ -732,10 +741,7 @@ TEST_F(DesktopCaptureDeviceTest,
   CreateScreenCaptureDevice(
       std::unique_ptr<webrtc::DesktopCapturer>(mock_capturer));
 
-  base::WaitableEvent done_event1(
-      base::WaitableEvent::ResetPolicy::AUTOMATIC,
-      base::WaitableEvent::InitialState::NOT_SIGNALED);
-  base::WaitableEvent done_event2(
+  base::WaitableEvent done_event(
       base::WaitableEvent::ResetPolicy::AUTOMATIC,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
 
@@ -747,8 +753,9 @@ TEST_F(DesktopCaptureDeviceTest,
   EXPECT_CALL(*client, OnError).Times(0);
   EXPECT_CALL(*client, OnFrameDropped).Times(0);
   EXPECT_CALL(*client, OnIncomingCapturedData)
-      .WillOnce(InvokeWithoutArgs(&done_event1, &base::WaitableEvent::Signal))
-      .WillOnce(InvokeWithoutArgs(&done_event2, &base::WaitableEvent::Signal));
+      .Times(2)
+      .WillRepeatedly(
+          InvokeWithoutArgs(&done_event, &base::WaitableEvent::Signal));
 
   media::VideoCaptureParams capture_params;
   capture_params.requested_format.frame_size.SetSize(kTestFrameWidth3,
@@ -760,9 +767,66 @@ TEST_F(DesktopCaptureDeviceTest,
 
   // Ensure that the client gets two captured frames but the capturer had to
   // capture three frames to do so since frame #2 is marked as "not updated".
-  EXPECT_TRUE(done_event1.TimedWait(TestTimeouts::action_max_timeout()));
-  EXPECT_TRUE(done_event2.TimedWait(TestTimeouts::action_max_timeout()));
+  EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
+  EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
   EXPECT_EQ(mock_capturer->captured_frames(), 3);
+
+  capture_device_->StopAndDeAllocate();
+}
+
+// Verifies that RequestRefreshFrame() forces a new captured frame even when the
+// content has not changed since the last frame. This is to ensure that the
+// client gets a new frame when explicitly asking for it.
+TEST_F(DesktopCaptureDeviceTest,
+       RequestRefreshFrameSendsFrameEvenIfNoRegionsAreUpdated) {
+  FakeScreenCapturer* mock_capturer = new FakeScreenCapturer();
+  // Marks captured frame #2, #4, etc. (first frame is #1) as not updated.
+  mock_capturer->set_generate_non_updated_frames(true, 2);
+  CreateScreenCaptureDevice(
+      std::unique_ptr<webrtc::DesktopCapturer>(mock_capturer));
+
+  base::WaitableEvent done_event(
+      base::WaitableEvent::ResetPolicy::AUTOMATIC,
+      base::WaitableEvent::InitialState::NOT_SIGNALED);
+
+  // Drive three frames to the registered client. A non-forwarded captured frame
+  // due to "no-change" is silently discarded by the VideoCaptureDevice but the
+  // rate of capturing new frames is not affected.
+  std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
+      CreateMockVideoCaptureDeviceClient());
+  EXPECT_CALL(*client, OnError).Times(0);
+  EXPECT_CALL(*client, OnFrameDropped).Times(0);
+  EXPECT_CALL(*client, OnIncomingCapturedData)
+      .Times(3)
+      .WillRepeatedly(
+          InvokeWithoutArgs(&done_event, &base::WaitableEvent::Signal));
+
+  media::VideoCaptureParams capture_params;
+  capture_params.requested_format.frame_size.SetSize(kTestFrameWidth3,
+                                                     kTestFrameHeight3);
+  capture_params.requested_format.frame_rate = kFrameRate;
+  capture_params.requested_format.pixel_format = media::PIXEL_FORMAT_I420;
+
+  capture_device_->AllocateAndStart(capture_params, std::move(client));
+
+  // Ensure that the client gets two captured frames but the capturer had to
+  // capture three frames to do so since frame #2 is marked as "not updated".
+  for (int i = 0; i < 2; ++i) {
+    EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
+  }
+  EXPECT_EQ(mock_capturer->captured_frames(), 3);
+  histogram_tester_.ExpectBucketCount(kFrameIsRefresh, false, 3);
+  histogram_tester_.ExpectTotalCount(kFrameIsRefresh, 3);
+
+  // Next frame is #4 and it will be marked as "not updated". Asking for a
+  // refresh at this point in time should override the default
+  // "0Hz functionality" and forward the new refresh frame.
+  capture_device_->RequestRefreshFrame();
+  EXPECT_TRUE(done_event.TimedWait(TestTimeouts::action_max_timeout()));
+  EXPECT_EQ(mock_capturer->captured_frames(), 4);
+  histogram_tester_.ExpectBucketCount(kFrameIsRefresh, true, 1);
+  histogram_tester_.ExpectBucketCount(kFrameIsRefresh, false, 3);
+  histogram_tester_.ExpectTotalCount(kFrameIsRefresh, 4);
 
   capture_device_->StopAndDeAllocate();
 }
@@ -791,9 +855,9 @@ class DesktopCaptureDeviceThrottledTest : public DesktopCaptureDeviceTest {
 
     std::unique_ptr<media::MockVideoCaptureDeviceClient> client(
         CreateMockVideoCaptureDeviceClient());
-    EXPECT_CALL(*client, OnError(_, _, _)).Times(0);
+    EXPECT_CALL(*client, OnError).Times(0);
     // On started is called from the capture thread.
-    EXPECT_CALL(*client, OnStarted())
+    EXPECT_CALL(*client, OnStarted)
         .WillOnce(InvokeWithoutArgs([this, &task_runner,
                                      &message_loop_task_runner] {
           message_loop_task_runner =
@@ -805,7 +869,7 @@ class DesktopCaptureDeviceThrottledTest : public DesktopCaptureDeviceTest {
               task_runner, task_runner->GetMockTickClock());
         }));
 
-    EXPECT_CALL(*client, OnIncomingCapturedData(_, _, _, _, _, _, _, _, _))
+    EXPECT_CALL(*client, OnIncomingCapturedData)
         .WillRepeatedly(DoAll(
             WithArg<2>(
                 Invoke(&format_checker, &FormatChecker::ExpectAcceptableSize)),
@@ -893,43 +957,6 @@ TEST_F(DesktopCaptureDeviceThrottledTest, ThrottledOn_Async) {
   // cpu is idle for at least 50% of the time, otherwise it will be throttled
   // to reach this idle duration.
   const int expected_framerate = kFrameRate / 2;
-
-  // The test succeeds if the actual framerate is near the expected_framerate.
-  EXPECT_GE(actual_framerate, expected_framerate);
-  EXPECT_LE(actual_framerate, expected_framerate + 0.1);
-}
-
-// The test verifies that the capture pipeline is not throttled when passing
-// --webrtc-max-cpu-consumption-percentage=100.
-TEST_F(DesktopCaptureDeviceThrottledTest, ThrottledOff) {
-  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-      "--webrtc-max-cpu-consumption-percentage", "100");
-
-  const double actual_framerate = CaptureFrames();
-
-  // Throttling is disabled so the test expects the configured framerate.
-  const int expected_framerate = kFrameRate;
-
-  // The test succeeds if the actual framerate is near the expected_framerate.
-  EXPECT_GE(actual_framerate, expected_framerate);
-  EXPECT_LE(actual_framerate, expected_framerate + 0.1);
-}
-
-// The test verifies that the capture pipeline is throttled when passing
-// --webrtc-max-cpu-consumption-percentage=80.
-TEST_F(DesktopCaptureDeviceThrottledTest, Throttled80) {
-  const int max_cpu_consumption_percentage = 80;
-
-  base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
-      "--webrtc-max-cpu-consumption-percentage",
-      base::NumberToString(max_cpu_consumption_percentage));
-
-  const double actual_framerate = CaptureFrames();
-
-  // The pipeline is throttled to ensure that the cpu is idle for at least
-  // N% of the time.
-  const int expected_framerate =
-      (kFrameRate * max_cpu_consumption_percentage) / 100;
 
   // The test succeeds if the actual framerate is near the expected_framerate.
   EXPECT_GE(actual_framerate, expected_framerate);

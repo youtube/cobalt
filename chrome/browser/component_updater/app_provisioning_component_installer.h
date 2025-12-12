@@ -30,7 +30,6 @@ class AppProvisioningComponentInstallerPolicy
       const AppProvisioningComponentInstallerPolicy&) = delete;
   AppProvisioningComponentInstallerPolicy& operator=(
       const AppProvisioningComponentInstallerPolicy&) = delete;
-  ~AppProvisioningComponentInstallerPolicy() override = default;
 
  private:
   // The following methods override ComponentInstallerPolicy.
@@ -51,8 +50,6 @@ class AppProvisioningComponentInstallerPolicy
   update_client::InstallerAttributes GetInstallerAttributes() const override;
 
   static base::FilePath GetAppWithLocaleInstalledPath(
-      const base::FilePath& base);
-  static base::FilePath GetDeduplicationInstalledPath(
       const base::FilePath& base);
 };
 

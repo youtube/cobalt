@@ -7,7 +7,6 @@
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
 #include "net/http/structured_headers.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy_feature.mojom.h"
 
 namespace blink {
 
@@ -45,22 +44,20 @@ net::structured_headers::Item PolicyValueToItem(const PolicyValue& value) {
       return net::structured_headers::Item{value.DoubleValue()};
     default:
       NOTREACHED();
-      return net::structured_headers::Item{
-          nullptr, net::structured_headers::Item::ItemType::kNullType};
   }
 }
 
 }  // namespace
 
 // static
-absl::optional<std::string> DocumentPolicy::Serialize(
+std::optional<std::string> DocumentPolicy::Serialize(
     const DocumentPolicyFeatureState& policy) {
   return DocumentPolicy::SerializeInternal(policy,
                                            GetDocumentPolicyFeatureInfoMap());
 }
 
 // static
-absl::optional<std::string> DocumentPolicy::SerializeInternal(
+std::optional<std::string> DocumentPolicy::SerializeInternal(
     const DocumentPolicyFeatureState& policy,
     const DocumentPolicyFeatureInfoMap& feature_info_map) {
   net::structured_headers::Dictionary root;
@@ -154,13 +151,13 @@ PolicyValue DocumentPolicy::GetFeatureValue(
   return internal_feature_state_[static_cast<size_t>(feature)];
 }
 
-const absl::optional<std::string> DocumentPolicy::GetFeatureEndpoint(
+const std::optional<std::string> DocumentPolicy::GetFeatureEndpoint(
     mojom::DocumentPolicyFeature feature) const {
   auto endpoint_it = endpoint_map_.find(feature);
   if (endpoint_it != endpoint_map_.end()) {
     return endpoint_it->second;
   } else {
-    return absl::nullopt;
+    return std::nullopt;
   }
 }
 

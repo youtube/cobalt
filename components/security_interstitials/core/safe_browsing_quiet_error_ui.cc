@@ -19,7 +19,6 @@ namespace security_interstitials {
 
 SafeBrowsingQuietErrorUI::SafeBrowsingQuietErrorUI(
     const GURL& request_url,
-    const GURL& main_frame_url,
     BaseSafeBrowsingErrorUI::SBInterstitialReason reason,
     const BaseSafeBrowsingErrorUI::SBErrorDisplayOptions& display_options,
     const std::string& app_locale,
@@ -27,13 +26,13 @@ SafeBrowsingQuietErrorUI::SafeBrowsingQuietErrorUI(
     ControllerClient* controller,
     const bool is_giant_webview)
     : BaseSafeBrowsingErrorUI(request_url,
-                              main_frame_url,
                               reason,
                               display_options,
                               app_locale,
                               time_triggered,
                               controller),
       is_giant_webview_(is_giant_webview) {
+  user_made_decision_ = false;
   controller->metrics_helper()->RecordUserDecision(MetricsHelper::SHOW);
   controller->metrics_helper()->RecordUserInteraction(
       MetricsHelper::TOTAL_VISITS);
@@ -72,10 +71,6 @@ void SafeBrowsingQuietErrorUI::PopulateStringsForHtml(
       PopulateBillingLoadTimeData(load_time_data);
       break;
   }
-
-  // Not used by this interstitial.
-  load_time_data.Set("recurrentErrorParagraph", "");
-  load_time_data.Set("show_recurrent_error_paragraph", false);
 }
 
 void SafeBrowsingQuietErrorUI::SetGiantWebViewForTesting(
@@ -88,6 +83,7 @@ void SafeBrowsingQuietErrorUI::HandleCommand(
   switch (command) {
     case CMD_PROCEED: {
       // User pressed on the button to proceed.
+      user_made_decision_ = true;
       if (!is_proceed_anyway_disabled()) {
         controller()->metrics_helper()->RecordUserDecision(
             MetricsHelper::PROCEED);
@@ -111,8 +107,10 @@ void SafeBrowsingQuietErrorUI::HandleCommand(
     case CMD_TEXT_FOUND:
     case CMD_TEXT_NOT_FOUND:
     case CMD_OPEN_ENHANCED_PROTECTION_SETTINGS:
+    case CMD_CLOSE_INTERSTITIAL_WITHOUT_UI:
+    case CMD_REQUEST_SITE_ACCESS_PERMISSION:
+    case CMD_OPEN_ANDROID_ADVANCED_PROTECTION_SETTINGS:
       NOTREACHED();
-      break;
   }
 }
 

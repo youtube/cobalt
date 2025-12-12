@@ -9,11 +9,11 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback_forward.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/scoped_multi_source_observation.h"
-#include "base/strings/string_piece_forward.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/interaction/element_tracker.h"
 #include "ui/views/view_utils.h"
@@ -50,17 +50,29 @@ class VIEWS_EXPORT ElementTrackerViews {
  public:
   using ViewList = std::vector<View*>;
 
+  // Returns the context to use for `primary_widget`, which will be a logical
+  // top-level widget, or null to use the default computation. Used e.g. to
+  // ensure that all system widgets on ChromeOS share a context.
+  using ContextOverrideCallback =
+      base::RepeatingCallback<ui::ElementContext(Widget* primary_widget)>;
+
+  // Changes the computation of contexts for some or all widgets. See
+  // `ContextOverrideCallback` for details.
+  static void SetContextOverrideCallback(ContextOverrideCallback callback);
+
   // Gets the global instance of the tracker for Views.
   static ElementTrackerViews* GetInstance();
 
   // Returns the context associated with a particular View. The context will be
   // the same across all Views associated with a root Widget (such as an
-  // application window).
+  // application window), or as specified by the current
+  // `ContextOverrideCallback` if one is set.
   static ui::ElementContext GetContextForView(View* view);
 
   // Returns the context associated with a particular Widget. The context will
   // be the same across all Widgets associated with a root Widget (such as an
-  // application window).
+  // application window), or as specified by the current
+  // `ContextOverrideCallback` if one is set.
   static ui::ElementContext GetContextForWidget(Widget* widget);
 
   // ----------
@@ -156,9 +168,12 @@ class VIEWS_EXPORT ElementTrackerViews {
   ElementTrackerViews();
   ~ElementTrackerViews();
 
+  // Returns the current `ContextOverrideCallback`, which may be null.
+  static ContextOverrideCallback& GetContextOverrideCallback();
+
   // We do not get notified at the View level if a view's widget has not yet
   // been shown. We need this notification to know when the view is actually
-  // visible to the user. So if a view is added to the trakcer or is added to
+  // visible to the user. So if a view is added to the tracker or is added to
   // a widget, and its widget is not visible, we watch it until it is (or it is
   // destroyed).
   void MaybeTrackWidget(Widget* widget);
@@ -179,8 +194,9 @@ template <class T>
 T* ElementTrackerViews::GetUniqueViewAs(ui::ElementIdentifier id,
                                         ui::ElementContext context) {
   views::View* const view = GetUniqueView(id, context);
-  if (!view)
+  if (!view) {
     return nullptr;
+  }
   T* const result = views::AsViewClass<T>(view);
   DCHECK(result);
   return result;
@@ -190,8 +206,9 @@ template <class T>
 T* ElementTrackerViews::GetFirstMatchingViewAs(ui::ElementIdentifier id,
                                                ui::ElementContext context) {
   views::View* const view = GetFirstMatchingView(id, context);
-  if (!view)
+  if (!view) {
     return nullptr;
+  }
   T* const result = views::AsViewClass<T>(view);
   DCHECK(result);
   return result;

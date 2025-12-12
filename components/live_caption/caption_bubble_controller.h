@@ -6,14 +6,13 @@
 #define COMPONENTS_LIVE_CAPTION_CAPTION_BUBBLE_CONTROLLER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
+#include "components/live_caption/caption_controller_base.h"
 #include "components/live_caption/views/caption_bubble.h"
 #include "media/mojo/mojom/speech_recognition.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/native_theme/caption_style.h"
-
-class PrefService;
 
 namespace content {
 class BrowserContext;
@@ -22,6 +21,8 @@ class BrowserContext;
 namespace captions {
 
 class CaptionBubbleContext;
+class CaptionBubbleSettings;
+class TranslationViewWrapperBase;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Caption Bubble Controller
@@ -32,38 +33,29 @@ class CaptionBubbleContext;
 //  showing the caption bubble when captions are received. There exists one
 //  caption bubble controller per profile.
 //
-class CaptionBubbleController {
+class CaptionBubbleController : public CaptionControllerBase::Listener {
  public:
   explicit CaptionBubbleController() = default;
-  virtual ~CaptionBubbleController() = default;
+  ~CaptionBubbleController() override = default;
   CaptionBubbleController(const CaptionBubbleController&) = delete;
   CaptionBubbleController& operator=(const CaptionBubbleController&) = delete;
 
   static std::unique_ptr<CaptionBubbleController> Create(
-      PrefService* profile_prefs,
-      const std::string& application_locale);
+      CaptionBubbleSettings* caption_bubble_settings,
+      const std::string& application_locale,
+      std::unique_ptr<TranslationViewWrapperBase> translation_view_wrapper);
 
-  // Called when a transcription is received from the service. Returns whether
-  // the transcription result was set on the caption bubble successfully.
-  // Transcriptions will halt if this returns false.
-  virtual bool OnTranscription(
-      CaptionBubbleContext* caption_bubble_context,
-      const media::SpeechRecognitionResult& result) = 0;
-
-  // Called when the speech service has an error.
+  // Called when the speech service has an error.  This should be part of
+  // `CaptionControllerBase::Listener`, but the callbacks make this tricky.
   virtual void OnError(
       CaptionBubbleContext* caption_bubble_context,
       CaptionBubbleErrorType error_type,
       OnErrorClickedCallback error_clicked_callback,
       OnDoNotShowAgainClickedCallback error_silenced_callback) = 0;
 
-  // Called when the audio stream has ended.
-  virtual void OnAudioStreamEnd(
-      CaptionBubbleContext* caption_bubble_context) = 0;
-
   // Called when the caption style changes.
   virtual void UpdateCaptionStyle(
-      absl::optional<ui::CaptionStyle> caption_style) = 0;
+      std::optional<ui::CaptionStyle> caption_style) = 0;
 
   virtual bool IsWidgetVisibleForTesting() = 0;
   virtual bool IsGenericErrorMessageVisibleForTesting() = 0;

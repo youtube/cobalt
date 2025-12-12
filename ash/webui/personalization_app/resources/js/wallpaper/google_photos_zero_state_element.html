@@ -14,15 +14,16 @@
     text-align: center;
   }
 
-  img {
-    margin-bottom: 16px;
-    width: 160px;
+  iron-icon[icon='personalization-illo:no-google-photos'] {
+    --iron-icon-width: 400px;
+    --iron-icon-height: 100%;
+    top: -10px;
   }
 </style>
 <iron-media-query query="(prefers-color-scheme: dark)"
     query-matches="{{isDarkModeActive_}}">
 </iron-media-query>
 <template is="dom-if" if="[[getMessageLabel_(tab)]]">
-  <img src="[[getImageSource_(isDarkModeActive_)]]" aria-hidden="true">
+  <iron-icon icon="personalization-illo:no-google-photos"></iron-icon>
   <localized-link id="message" localized-string="[[getMessage_(tab)]]"></localized-link>
 </template>

@@ -8,7 +8,7 @@ namespace autofill {
 
 // static
 AutofillErrorDialogContext
-AutofillErrorDialogContext::WithPermanentOrTemporaryError(
+AutofillErrorDialogContext::WithVirtualCardPermanentOrTemporaryError(
     bool is_permanent_error) {
   AutofillErrorDialogContext autofill_error_dialog_context;
   autofill_error_dialog_context.type =
@@ -17,14 +17,44 @@ AutofillErrorDialogContext::WithPermanentOrTemporaryError(
   return autofill_error_dialog_context;
 }
 
+AutofillErrorDialogContext
+AutofillErrorDialogContext::WithCardInfoRetrievalPermanentOrTemporaryError(
+    bool is_permanent_error) {
+  AutofillErrorDialogContext autofill_error_dialog_context;
+  autofill_error_dialog_context.type =
+      is_permanent_error
+          ? AutofillErrorDialogType::kCardInfoRetrievalPermanentError
+          : AutofillErrorDialogType::kCardInfoRetrievalTemporaryError;
+  return autofill_error_dialog_context;
+}
+
+AutofillErrorDialogContext
+AutofillErrorDialogContext::WithBnplPermanentOrTemporaryError(
+    bool is_permanent_error) {
+  AutofillErrorDialogContext autofill_error_dialog_context;
+  autofill_error_dialog_context.type =
+      is_permanent_error ? AutofillErrorDialogType::kBnplPermanentError
+                         : AutofillErrorDialogType::kBnplTemporaryError;
+  return autofill_error_dialog_context;
+}
+
 AutofillErrorDialogContext::AutofillErrorDialogContext() = default;
 
 AutofillErrorDialogContext::AutofillErrorDialogContext(
     const AutofillErrorDialogContext& other) = default;
 
+AutofillErrorDialogContext::AutofillErrorDialogContext(
+    AutofillErrorDialogContext&& other) = default;
+
 AutofillErrorDialogContext& AutofillErrorDialogContext::operator=(
     const AutofillErrorDialogContext&) = default;
 
+AutofillErrorDialogContext& AutofillErrorDialogContext::operator=(
+    AutofillErrorDialogContext&&) = default;
+
 AutofillErrorDialogContext::~AutofillErrorDialogContext() = default;
+
+bool AutofillErrorDialogContext::operator==(
+    const AutofillErrorDialogContext& other_context) const = default;
 
 }  // namespace autofill

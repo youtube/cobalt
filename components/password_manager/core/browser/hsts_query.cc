@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "components/password_manager/core/browser/hsts_query.h"
+
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
@@ -57,8 +58,12 @@ void PostHSTSQueryForHostAndNetworkContext(
 
   scoped_refptr<HSTSCallbackHelper> callback_helper =
       base::MakeRefCounted<HSTSCallbackHelper>(std::move(callback));
+
+  // HSTS only allows for upgrades for top-level navigations in order to prevent
+  // privacy leaks. Since our use is internal to the browser we don't need to
+  // worry about leaking state so we can set true for is_top_level_nav.
   network_context->IsHSTSActiveForHost(
-      origin.host(),
+      origin.host(), /*is_top_level_nav=*/true,
       mojo::WrapCallbackWithDropHandler(
           base::BindOnce(&HSTSCallbackHelper::ReportResult, callback_helper),
           base::BindOnce(&HSTSCallbackHelper::ReportError, callback_helper)));

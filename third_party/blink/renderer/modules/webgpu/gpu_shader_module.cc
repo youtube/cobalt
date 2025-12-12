@@ -4,119 +4,147 @@
 
 #include "third_party/blink/renderer/modules/webgpu/gpu_shader_module.h"
 
-#include <dawn/webgpu.h>
-
+#include "base/numerics/clamped_math.h"
 #include "gpu/command_buffer/client/webgpu_interface.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_usvstring_uint32array.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_gpu_shader_module_descriptor.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_compilation_info.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_compilation_message.h"
 #include "third_party/blink/renderer/modules/webgpu/gpu_device.h"
 #include "third_party/blink/renderer/modules/webgpu/string_utils.h"
-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/webgpu_callback.h"
+#include "third_party/blink/renderer/platform/graphics/gpu/webgpu_cpp.h"
 
 namespace blink {
 
 // static
 GPUShaderModule* GPUShaderModule::Create(
     GPUDevice* device,
-    const GPUShaderModuleDescriptor* webgpu_desc,
-    ExceptionState& exception_state) {
+    const GPUShaderModuleDescriptor* webgpu_desc) {
   DCHECK(device);
   DCHECK(webgpu_desc);
 
-  std::string wgsl_code;
-  WGPUShaderModuleWGSLDescriptor wgsl_desc = {};
-  WGPUShaderModuleSPIRVDescriptor spirv_desc = {};
-  std::string label;
-  WGPUShaderModuleDescriptor dawn_desc = {};
+  wgpu::ShaderSourceWGSL wgsl_desc = {};
+  const WTF::String& wtf_wgsl_code = webgpu_desc->code();
+  std::string wgsl_code = wtf_wgsl_code.Utf8();
+  wgsl_desc.code = wgsl_code.c_str();
 
-  const auto* wgsl_or_spirv = webgpu_desc->code();
-  switch (wgsl_or_spirv->GetContentType()) {
-    case V8UnionUSVStringOrUint32Array::ContentType::kUSVString: {
-      // `\0` is not allowed in WGSL but it is allowed in USVString
-      // By replacing `\0` with `\0xFFFD` we can safely pass this string
-      // to Dawn and it should generate an error.
-      wgsl_code = UTF8StringFromUSVStringWithNullReplacedByReplacementCodePoint(
-          wgsl_or_spirv->GetAsUSVString());
-      wgsl_desc.chain.sType = WGPUSType_ShaderModuleWGSLDescriptor;
-      wgsl_desc.source = wgsl_code.c_str();
-      dawn_desc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&wgsl_desc);
-      break;
-    }
-    case V8UnionUSVStringOrUint32Array::ContentType::kUint32Array: {
-      NotShared<DOMUint32Array> code = wgsl_or_spirv->GetAsUint32Array();
-      uint32_t length_words = 0;
-      if (!base::CheckedNumeric<uint32_t>(code->length())
-               .AssignIfValid(&length_words)) {
-        exception_state.ThrowRangeError(
-            "The provided ArrayBuffer exceeds the maximum supported size "
-            "(4294967295)");
-        return nullptr;
-      }
-      spirv_desc.chain.sType = WGPUSType_ShaderModuleSPIRVDescriptor;
-      spirv_desc.code = code->Data();
-      spirv_desc.codeSize = length_words;
-      dawn_desc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&spirv_desc);
-      break;
-    }
+  wgpu::ShaderModuleCompilationOptions compilation_options = {};
+  if (webgpu_desc->hasStrictMath() &&
+      device->GetHandle().HasFeature(
+          wgpu::FeatureName::ShaderModuleCompilationOptions)) {
+    compilation_options.strictMath = webgpu_desc->strictMath();
+    wgsl_desc.nextInChain = &compilation_options;
   }
 
-  if (webgpu_desc->hasLabel()) {
-    label = webgpu_desc->label().Utf8();
+  wgpu::ShaderModuleDescriptor dawn_desc = {};
+  dawn_desc.nextInChain = &wgsl_desc;
+
+  std::string label = webgpu_desc->label().Utf8();
+  if (!label.empty()) {
     dawn_desc.label = label.c_str();
   }
 
+  wgpu::ShaderModule shader_module;
+  bool has_null_character = (wtf_wgsl_code.find('\0') != WTF::kNotFound);
+  if (has_null_character) {
+    shader_module = device->GetHandle().CreateErrorShaderModule(
+        &dawn_desc, "The WGSL shader contains an illegal character '\\0'");
+  } else {
+    shader_module = device->GetHandle().CreateShaderModule(&dawn_desc);
+  }
+
   GPUShaderModule* shader = MakeGarbageCollected<GPUShaderModule>(
-      device, device->GetProcs().deviceCreateShaderModule(device->GetHandle(),
-                                                          &dawn_desc));
-  if (webgpu_desc->hasLabel())
-    shader->setLabel(webgpu_desc->label());
+      device, std::move(shader_module), webgpu_desc->label());
+
+  // Very roughly approximate how much memory Tint might need for this shader.
+  // Pessimizes if Tint actually holds less memory than this (including if the
+  // shader module ends up being invalid).
+  //
+  // The actual estimate (100x code size) is chosen by profiling: large enough
+  // to show some improvement in peak GPU process memory usage, small enough to
+  // not slow down shader conformance tests (which are much, much heavier on
+  // shader creation than normal workloads) more than a few percent.
+  //
+  // TODO(crbug.com/dawn/2367): Get a real memory estimate from Tint.
+  base::ClampedNumeric<int32_t> input_code_size = wgsl_code.size();
+  shader->tint_memory_estimate_.Set(v8::Isolate::GetCurrent(),
+                                    input_code_size * 100);
+
   return shader;
 }
 
 GPUShaderModule::GPUShaderModule(GPUDevice* device,
-                                 WGPUShaderModule shader_module)
-    : DawnObject<WGPUShaderModule>(device, shader_module) {}
+                                 wgpu::ShaderModule shader_module,
+                                 const String& label)
+    : DawnObject<wgpu::ShaderModule>(device, std::move(shader_module), label) {}
 
+// TODO(crbug.com/351564777): should be UNSAFE_BUFFER_USAGE
 void GPUShaderModule::OnCompilationInfoCallback(
-    ScriptPromiseResolver* resolver,
-    WGPUCompilationInfoRequestStatus status,
-    const WGPUCompilationInfo* info) {
-  if (status != WGPUCompilationInfoRequestStatus_Success || !info) {
-    resolver->Reject(
-        MakeGarbageCollected<DOMException>(DOMExceptionCode::kOperationError));
+    ScriptPromiseResolver<GPUCompilationInfo>* resolver,
+    wgpu::CompilationInfoRequestStatus status,
+    const wgpu::CompilationInfo* info) {
+  if (status != wgpu::CompilationInfoRequestStatus::Success || !info) {
+    const char* message = nullptr;
+    switch (status) {
+      case wgpu::CompilationInfoRequestStatus::Success:
+        NOTREACHED();
+      case wgpu::CompilationInfoRequestStatus::CallbackCancelled:
+        message = "Instance dropped error in getCompilationInfo";
+        break;
+    }
+    resolver->RejectWithDOMException(DOMExceptionCode::kOperationError,
+                                     message);
     return;
   }
 
   // Temporarily immediately create the CompilationInfo info and resolve the
   // promise.
   GPUCompilationInfo* result = MakeGarbageCollected<GPUCompilationInfo>();
-  for (uint32_t i = 0; i < info->messageCount; ++i) {
-    const WGPUCompilationMessage* message = &info->messages[i];
+  // SAFETY: Required from caller
+  const auto info_span =
+      UNSAFE_BUFFERS(base::span<const wgpu::CompilationMessage>(
+          info->messages, info->messageCount));
+  for (const auto& message : info_span) {
+    const wgpu::DawnCompilationMessageUtf16* utf16 = nullptr;
+    for (const auto* chain = message.nextInChain; chain != nullptr;
+         chain = chain->nextInChain) {
+      if (chain->sType == wgpu::SType::DawnCompilationMessageUtf16) {
+        utf16 =
+            reinterpret_cast<const wgpu::DawnCompilationMessageUtf16*>(chain);
+      }
+    }
+    uint64_t linePos = utf16 ? utf16->linePos : message.linePos;
+    uint64_t offset = utf16 ? utf16->offset : message.offset;
+    uint64_t length = utf16 ? utf16->length : message.length;
     result->AppendMessage(MakeGarbageCollected<GPUCompilationMessage>(
-        StringFromASCIIAndUTF8(message->message), message->type,
-        message->lineNum, message->utf16LinePos, message->utf16Offset,
-        message->utf16Length));
+        StringFromASCIIAndUTF8(message.message), message.type, message.lineNum,
+        linePos, offset, length));
   }
 
   resolver->Resolve(result);
 }
 
-ScriptPromise GPUShaderModule::getCompilationInfo(ScriptState* script_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
-  ScriptPromise promise = resolver->Promise();
+GPUShaderModule::~GPUShaderModule() {
+  tint_memory_estimate_.Clear(v8::Isolate::GetCurrent());
+}
+
+ScriptPromise<GPUCompilationInfo> GPUShaderModule::getCompilationInfo(
+    ScriptState* script_state) {
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<GPUCompilationInfo>>(
+          script_state);
+  auto promise = resolver->Promise();
 
   auto* callback =
-      BindWGPUOnceCallback(&GPUShaderModule::OnCompilationInfoCallback,
-                           WrapPersistent(this), WrapPersistent(resolver));
+      MakeWGPUOnceCallback(resolver->WrapCallbackInScriptScope(WTF::BindOnce(
+          &GPUShaderModule::OnCompilationInfoCallback, WrapPersistent(this))));
 
-  GetProcs().shaderModuleGetCompilationInfo(
-      GetHandle(), callback->UnboundCallback(), callback->AsUserdata());
+  GetHandle().GetCompilationInfo(wgpu::CallbackMode::AllowSpontaneous,
+                                 callback->UnboundCallback(),
+                                 callback->AsUserdata());
   // WebGPU guarantees that promises are resolved in finite time so we
   // need to ensure commands are flushed.
   EnsureFlush(ToEventLoop(script_state));

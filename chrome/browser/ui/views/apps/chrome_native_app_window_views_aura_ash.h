@@ -6,26 +6,33 @@
 #define CHROME_BROWSER_UI_VIEWS_APPS_CHROME_NATIVE_APP_WINDOW_VIEWS_AURA_ASH_H_
 
 #include <memory>
-#include <vector>
 
-#include "ash/public/cpp/tablet_mode_observer.h"
 #include "ash/wm/window_state.h"
 #include "ash/wm/window_state_observer.h"
 #include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
+#include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/views/apps/chrome_native_app_window_views_aura.h"
 #include "chrome/browser/ui/views/exclusive_access_bubble_views_context.h"
 #include "components/services/app_service/public/cpp/icon_types.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_observer.h"
 #include "ui/base/accelerators/accelerator.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/base/mojom/window_show_state.mojom-forward.h"
+#include "ui/display/display_observer.h"
 #include "ui/views/context_menu_controller.h"
+
+namespace display {
+enum class TabletState;
+}  // namespace display
 
 namespace gfx {
 class ImageSkia;
-}
+class RoundedCornersF;
+}  // namespace gfx
 
 namespace ui {
 class MenuModel;
@@ -37,13 +44,12 @@ class MenuRunner;
 
 class ChromeNativeAppWindowViewsAuraAshBrowserTest;
 class ExclusiveAccessBubbleViews;
-class ExclusiveAccessManager;
 
 // Ash-specific parts of ChromeNativeAppWindowViewsAura. This is used on CrOS.
 class ChromeNativeAppWindowViewsAuraAsh
     : public ChromeNativeAppWindowViewsAura,
       public views::ContextMenuController,
-      public ash::TabletModeObserver,
+      public display::DisplayObserver,
       public ui::AcceleratorProvider,
       public ExclusiveAccessContext,
       public ExclusiveAccessBubbleViewsContext,
@@ -60,12 +66,10 @@ class ChromeNativeAppWindowViewsAuraAsh
   ~ChromeNativeAppWindowViewsAuraAsh() override;
 
  protected:
-  // NativeAppWindowViews:
+  // ChromeNativeAppWindowViewsAura:
   void InitializeWindow(
       extensions::AppWindow* app_window,
       const extensions::AppWindow::CreateParams& create_params) override;
-
-  // ChromeNativeAppWindowViews:
   void OnBeforeWidgetInit(
       const extensions::AppWindow::CreateParams& create_params,
       views::Widget::InitParams* init_params,
@@ -74,29 +78,31 @@ class ChromeNativeAppWindowViewsAuraAsh
       override;
   bool ShouldRemoveStandardFrame() override;
   void EnsureAppIconCreated() override;
+  gfx::RoundedCornersF GetWindowRadii() const override;
 
   // ui::BaseWindow:
   gfx::Rect GetRestoredBounds() const override;
-  ui::WindowShowState GetRestoredState() const override;
+  ui::mojom::WindowShowState GetRestoredState() const override;
   ui::ZOrderLevel GetZOrderLevel() const override;
 
   // views::ContextMenuController:
-  void ShowContextMenuForViewImpl(views::View* source,
-                                  const gfx::Point& p,
-                                  ui::MenuSourceType source_type) override;
+  void ShowContextMenuForViewImpl(
+      views::View* source,
+      const gfx::Point& p,
+      ui::mojom::MenuSourceType source_type) override;
 
   // WidgetDelegate:
   std::unique_ptr<views::NonClientFrameView> CreateNonClientFrameView(
       views::Widget* widget) override;
+  views::ClientView* CreateClientView(views::Widget* widget) override;
   ui::ImageModel GetWindowIcon() override;
 
   // NativeAppWindow:
   void SetFullscreen(int fullscreen_types) override;
   void SetActivateOnPointer(bool activate_on_pointer) override;
 
-  // ash::TabletModeObserver:
-  void OnTabletModeStarted() override;
-  void OnTabletModeEnded() override;
+  // display::DisplayObserver:
+  void OnDisplayTabletStateChanged(display::TabletState state) override;
 
   // ui::AcceleratorProvider:
   bool GetAcceleratorForCommandId(int command_id,
@@ -105,32 +111,27 @@ class ChromeNativeAppWindowViewsAuraAsh
   // ExclusiveAccessContext:
   Profile* GetProfile() override;
   bool IsFullscreen() const override;
-  void EnterFullscreen(const GURL& url,
+  void EnterFullscreen(const url::Origin& origin,
                        ExclusiveAccessBubbleType bubble_type,
                        int64_t display_id) override;
   void ExitFullscreen() override;
-  void UpdateExclusiveAccessExitBubbleContent(
-      const GURL& url,
-      ExclusiveAccessBubbleType bubble_type,
-      ExclusiveAccessBubbleHideCallback bubble_first_hide_callback,
-      bool notify_download,
-      bool force_update) override;
+  void UpdateExclusiveAccessBubble(
+      const ExclusiveAccessBubbleParams& params,
+      ExclusiveAccessBubbleHideCallback first_hide_callback) override;
   bool IsExclusiveAccessBubbleDisplayed() const override;
   void OnExclusiveAccessUserInput() override;
-  content::WebContents* GetActiveWebContents() override;
+  content::WebContents* GetWebContentsForExclusiveAccess() override;
+  bool CanUserEnterFullscreen() const override;
   bool CanUserExitFullscreen() const override;
 
   // ExclusiveAccessBubbleViewsContext:
   ExclusiveAccessManager* GetExclusiveAccessManager() override;
-  views::Widget* GetBubbleAssociatedWidget() override;
   ui::AcceleratorProvider* GetAcceleratorProvider() override;
   gfx::NativeView GetBubbleParentView() const override;
-  gfx::Point GetCursorPointInParent() const override;
   gfx::Rect GetClientAreaBoundsInScreen() const override;
   bool IsImmersiveModeEnabled() const override;
   gfx::Rect GetTopContainerBoundsInScreen() override;
   void DestroyAnyExclusiveAccessBubble() override;
-  bool CanTriggerOnMouse() const override;
 
   // WidgetObserver:
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
@@ -152,18 +153,21 @@ class ChromeNativeAppWindowViewsAuraAsh
                            ImmersiveModeFullscreenRestoreType);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            NoImmersiveModeWhenForcedFullscreen);
-  FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
-                           PublicSessionNoImmersiveModeWhenFullscreen);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeNativeAppWindowViewsAuraPublicSessionAshBrowserTest,
+      PublicSessionNoImmersiveModeWhenFullscreen);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            RestoreImmersiveMode);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            NoImmersiveOrBubbleOutsidePublicSessionWindow);
   FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
                            NoImmersiveOrBubbleOutsidePublicSessionDom);
-  FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
-                           BubbleInsidePublicSessionWindow);
-  FRIEND_TEST_ALL_PREFIXES(ChromeNativeAppWindowViewsAuraAshBrowserTest,
-                           BubbleInsidePublicSessionDom);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeNativeAppWindowViewsAuraPublicSessionAshBrowserTest,
+      BubbleInsidePublicSessionWindow);
+  FRIEND_TEST_ALL_PREFIXES(
+      ChromeNativeAppWindowViewsAuraPublicSessionAshBrowserTest,
+      BubbleInsidePublicSessionDom);
   FRIEND_TEST_ALL_PREFIXES(ShapedAppWindowTargeterTest,
                            ResizeInsetsWithinBounds);
 
@@ -197,7 +201,8 @@ class ChromeNativeAppWindowViewsAuraAsh
   std::unique_ptr<views::MenuRunner> menu_runner_;
 
   // Used for displaying the toast with instructions on exiting fullscreen.
-  std::unique_ptr<ExclusiveAccessManager> exclusive_access_manager_;
+  std::unique_ptr<ExclusiveAccessManager> exclusive_access_manager_{
+      std::make_unique<ExclusiveAccessManager>(this)};
   std::unique_ptr<ExclusiveAccessBubbleViews> exclusive_access_bubble_;
 
   bool tablet_mode_enabled_ = false;
@@ -207,6 +212,7 @@ class ChromeNativeAppWindowViewsAuraAsh
       window_observation_{this};
   base::ScopedObservation<ash::WindowState, ash::WindowStateObserver>
       window_state_observation_{this};
+  display::ScopedDisplayObserver display_observer_{this};
 
   base::WeakPtrFactory<ChromeNativeAppWindowViewsAuraAsh> weak_ptr_factory_{
       this};

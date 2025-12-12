@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chromeos/process_proxy/process_proxy.h"
 
 #include <stddef.h>
@@ -15,16 +20,17 @@
 #include "base/file_descriptor_posix.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
-#include "base/guid.h"
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/process/kill.h"
 #include "base/process/launch.h"
 #include "base/process/process.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
+#include "base/uuid.h"
 #include "third_party/cros_system_api/switches/chrome_switches.h"
 
 namespace {
@@ -258,7 +264,8 @@ bool ProcessProxy::LaunchProcess(const base::CommandLine& cmdline,
     // We use the GUID API as it's trivial and works well enough.
     // We prepend the pid to avoid random number collisions.  It should be a
     // guaranteed unique id for the life of this Chrome session.
-    *id = std::to_string(process_.Pid()) + "-" + base::GenerateGUID();
+    *id = base::NumberToString(process_.Pid()) + "-" +
+          base::Uuid::GenerateRandomV4().AsLowercaseString();
   }
 
   // TODO(rvargas) crbug/417532: This is somewhat wrong but the interface of

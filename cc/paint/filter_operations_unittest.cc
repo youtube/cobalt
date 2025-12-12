@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+#include "base/test/scoped_feature_list.h"
+#include "cc/base/features.h"
 #include "cc/paint/filter_operation.h"
 #include "cc/paint/filter_operations.h"
 
@@ -48,6 +50,20 @@ TEST(FilterOperationsTest, MapRectReverseBlur) {
       ops.MapRectReverse(gfx::Rect(0, -10, 10, 10), SkMatrix::Scale(1, -1)));
 }
 
+TEST(FilterOperationsTest, MapRectLargeBlurReferenceFilter) {
+  FilterOperations ops;
+  ops.Append(FilterOperation::CreateReferenceFilter(
+      sk_make_sp<BlurPaintFilter>(10000, 10000, SkTileMode::kDecal, nullptr)));
+  gfx::Rect input(20000, 20000);
+  gfx::Rect result_unspecified_space = ops.MapRect(input);
+  // In unspecified space, the spread is always 3 * std_deviation.
+  EXPECT_EQ(gfx::Rect(-30000, -30000, 80000, 80000), result_unspecified_space);
+  // In device space, large blur is clamped.
+  gfx::Rect result_device_space = ops.MapRect(input, SkMatrix::I());
+  EXPECT_NE(result_unspecified_space, result_device_space);
+  EXPECT_TRUE(result_unspecified_space.Contains(result_device_space));
+}
+
 TEST(FilterOperationsTest, MapRectDropShadowReferenceFilter) {
   FilterOperations ops;
   ops.Append(
@@ -72,12 +88,14 @@ TEST(FilterOperationsTest, MapRectReverseDropShadowReferenceFilter) {
           SkIntToScalar(9), SkColors::kBlack,
           DropShadowPaintFilter::ShadowMode::kDrawShadowAndForeground,
           nullptr)));
-  EXPECT_EQ(gfx::Rect(-15, -35, 34, 64),
+
+  // DropShadow includes a 1px buffer for bilinear filtering.
+  EXPECT_EQ(gfx::Rect(-16, -36, 36, 66),
             ops.MapRectReverse(gfx::Rect(0, 0, 10, 10), SkMatrix::I()));
-  EXPECT_EQ(gfx::Rect(-30, -70, 68, 128),
+  EXPECT_EQ(gfx::Rect(-31, -71, 70, 130),
             ops.MapRectReverse(gfx::Rect(0, 0, 20, 20), SkMatrix::Scale(2, 2)));
   EXPECT_EQ(
-      gfx::Rect(-15, -29, 34, 64),
+      gfx::Rect(-16, -30, 36, 66),
       ops.MapRectReverse(gfx::Rect(0, -10, 10, 10), SkMatrix::Scale(1, -1)));
 }
 
@@ -984,32 +1002,99 @@ TEST(FilterOperationsTest, HasFilterOfType) {
   EXPECT_FALSE(filters.HasFilterOfType(FilterOperation::ZOOM));
 }
 
-TEST(FilterOperationsTest, MaximumPixelMovement) {
+std::string PostTestCaseName(const ::testing::TestParamInfo<bool>& info) {
+  return info.param ? "UseMapRect" : "RectExpansion";
+}
+
+class UseMapRectFilterOperationsTest
+    : public testing::Test,
+      public testing::WithParamInterface<bool> {
+ public:
+  UseMapRectFilterOperationsTest();
+  ~UseMapRectFilterOperationsTest() override = default;
+
+  gfx::Rect GetExpandedRect(const FilterOperations& filters,
+                            const gfx::Rect& in) const {
+    if (GetParam()) {
+      // Use MapRect() (preferred API to ExpandRectForPixelMovement) as it takes
+      // a device-space transform. However, ExpandRectForPixelMovement() always
+      // assumed an identity transform so use that for a rough equivalent.
+      return filters.MapRect(in, SkMatrix::I());
+    } else {
+      // ExpandRectForPixelMovement() can only be called when the UseMapRect
+      // feature is disabled.
+      return filters.ExpandRectForPixelMovement(in);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+UseMapRectFilterOperationsTest::UseMapRectFilterOperationsTest() {
+  if (GetParam()) {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kUseMapRectForPixelMovement);
+  } else {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kUseMapRectForPixelMovement);
+  }
+}
+
+TEST_P(UseMapRectFilterOperationsTest, ExpandRectForPixelMovement) {
+  constexpr gfx::Rect test_rect(0, 0, 100, 100);
   FilterOperations filters;
 
   filters.Append(FilterOperation::CreateBlurFilter(20));
-  EXPECT_FLOAT_EQ(20.f * 3, filters.MaximumPixelMovement());
+  EXPECT_EQ(gfx::Rect(-60, -60, 220, 220), GetExpandedRect(filters, test_rect));
 
   filters.Clear();
   filters.Append(FilterOperation::CreateDropShadowFilter(
       gfx::Point(3, -8), 20, SkColors::kTransparent));
-  float max_movement = fmax(std::abs(3), std::abs(-8)) + 20.f * 3;
-  EXPECT_FLOAT_EQ(max_movement, filters.MaximumPixelMovement());
+  if (GetParam()) {
+    // The shadow offset and the blur movement do not apply equally to all edges
+    EXPECT_EQ(gfx::Rect(-57, -68, 220, 220),
+              GetExpandedRect(filters, test_rect));
+  } else {
+    // max_movement = max(std::abs(3), std::abs(-8)) + 20 * 3;
+    EXPECT_EQ(gfx::Rect(-68, -68, 236, 236),
+              GetExpandedRect(filters, test_rect));
+  }
 
+  // The zoom filter is a pixel moving filter but it only moves pixels inside
+  // the filtered rect and doesn't expand the rect.
   filters.Clear();
   filters.Append(FilterOperation::CreateZoomFilter(2, 3));
-  // max movement = zoom_inset = 3
-  EXPECT_FLOAT_EQ(3.f, filters.MaximumPixelMovement());
+  if (GetParam()) {
+    EXPECT_EQ(test_rect, GetExpandedRect(filters, test_rect));
+  } else {
+    // max movement = zoom_inset = 3
+    EXPECT_EQ(gfx::Rect(-3, -3, 106, 106), GetExpandedRect(filters, test_rect));
+  }
 
   filters.Clear();
   filters.Append(FilterOperation::CreateOffsetFilter(gfx::Point(3, -4)));
-  EXPECT_FLOAT_EQ(4.0f, filters.MaximumPixelMovement());
+  if (GetParam()) {
+    EXPECT_EQ(gfx::Rect(3, -4, 100, 100), GetExpandedRect(filters, test_rect));
+  } else {
+    EXPECT_EQ(gfx::Rect(-4, -4, 108, 108), GetExpandedRect(filters, test_rect));
+  }
 
   filters.Clear();
-  filters.Append(FilterOperation::CreateReferenceFilter(
-      sk_make_sp<OffsetPaintFilter>(10, 10, nullptr)));
-  // max movement = 100.
-  EXPECT_FLOAT_EQ(100.f, filters.MaximumPixelMovement());
+  if (GetParam()) {
+    // MapRect() can follow references so this is equivalent to Offset above
+    filters.Append(FilterOperation::CreateReferenceFilter(
+        sk_make_sp<OffsetPaintFilter>(10, 8, nullptr)));
+    EXPECT_EQ(gfx::Rect(10, 8, 100, 100), GetExpandedRect(filters, test_rect));
+  } else {
+    // ExpandRectForPixelMovement doesn't know how to follow references and
+    // assumes a fixed 100.
+    filters.Append(FilterOperation::CreateReferenceFilter(
+        sk_make_sp<OffsetPaintFilter>(10, 10, nullptr)));
+    // max movement = 100.
+    EXPECT_EQ(gfx::Rect(-100, -100, 300, 300),
+              filters.ExpandRectForPixelMovement(test_rect));
+  }
 
   // For filters that don't move pixels. HasFilterThatMovesPixels() = false.
   filters.Clear();
@@ -1026,8 +1111,39 @@ TEST(FilterOperationsTest, MaximumPixelMovement) {
   filters.Append(FilterOperation::CreateContrastFilter(3.f));
   filters.Append(FilterOperation::CreateSaturatingBrightnessFilter(7.f));
 
-  EXPECT_FLOAT_EQ(0.f, filters.MaximumPixelMovement());
+  EXPECT_EQ(test_rect, GetExpandedRect(filters, test_rect));
 }
+
+TEST_P(UseMapRectFilterOperationsTest,
+       ExpandRectForPixelMovement_MultipleFilters) {
+  if (!GetParam()) {
+    // ExpandRectForPixelMovement() doesn't compose chained filter effects
+    // together correctly so skip these tests.
+    return;
+  }
+  constexpr gfx::Rect test_rect(0, 0, 100, 100);
+
+  FilterOperations filters;
+  filters.Append(FilterOperation::CreateBlurFilter(20));
+  filters.Append(FilterOperation::CreateDropShadowFilter(
+      gfx::Point(5, 10), 10, SkColors::kTransparent));
+
+  // Blur expand 60 all directions and drop shadow shifts (5, 10) and expands
+  // 30 all directions.
+  EXPECT_EQ(gfx::Rect(-85, -80, 280, 280), GetExpandedRect(filters, test_rect));
+
+  filters.Clear();
+  filters.Append(FilterOperation::CreateOffsetFilter(gfx::Point(-20, 50)));
+  filters.Append(FilterOperation::CreateBlurFilter(20));
+
+  // Offset shifts (-20, 50) and blur expands 60 all directions.
+  EXPECT_EQ(gfx::Rect(-80, -10, 220, 220), GetExpandedRect(filters, test_rect));
+}
+
+INSTANTIATE_TEST_SUITE_P(,
+                         UseMapRectFilterOperationsTest,
+                         testing::Bool(),
+                         &PostTestCaseName);
 
 }  // namespace
 }  // namespace cc

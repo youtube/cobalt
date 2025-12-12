@@ -11,13 +11,14 @@
 #include "components/named_mojo_ipc_server/named_mojo_ipc_server_client_util.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/system/invitation.h"
-#include "mojo/public/cpp/system/isolated_connection.h"
+#include "remoting/base/constants.h"
 #include "remoting/host/ipc_constants.h"
 #include "remoting/host/mojom/chromoting_host_services.mojom.h"
 
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
 
+#include "base/win/sid.h"
 #include "remoting/host/win/acl_util.h"
 #endif
 
@@ -28,8 +29,7 @@ namespace {
 bool g_initialized = false;
 
 mojo::PendingRemote<mojom::ChromotingHostServices> ConnectToServer(
-    mojo::IsolatedConnection& connection) {
-  auto server_name = GetChromotingHostServicesServerName();
+    const mojo::NamedPlatformChannel::ServerName& server_name) {
   auto endpoint = named_mojo_ipc_server::ConnectToServer(server_name);
   if (!endpoint.is_valid()) {
     LOG(WARNING) << "Cannot connect to IPC through server name " << server_name
@@ -50,31 +50,24 @@ mojo::PendingRemote<mojom::ChromotingHostServices> ConnectToServer(
         << peer_session_id;
     return {};
   }
-  // TODO(crbug.com/1378803): Make Windows hosts work with non-isolated
-  // connections.
-  auto message_pipe = connection.Connect(std::move(endpoint));
-#else
+#endif
   auto invitation = mojo::IncomingInvitation::Accept(std::move(endpoint));
   auto message_pipe =
       invitation.ExtractMessagePipe(kChromotingHostServicesMessagePipeId);
-#endif
   return mojo::PendingRemote<mojom::ChromotingHostServices>(
       std::move(message_pipe), /* version= */ 0);
 }
 
 }  // namespace
 
-#if BUILDFLAG(IS_LINUX)
-
-// static
-constexpr char
-    ChromotingHostServicesClient::kChromeRemoteDesktopSessionEnvVar[];
-
-#endif
-
 ChromotingHostServicesClient::ChromotingHostServicesClient()
-    : ChromotingHostServicesClient(base::Environment::Create(),
-                                   base::BindRepeating(&ConnectToServer)) {
+    : ChromotingHostServicesClient(GetChromotingHostServicesServerName()) {}
+
+ChromotingHostServicesClient::ChromotingHostServicesClient(
+    const mojo::NamedPlatformChannel::ServerName& server_name)
+    : ChromotingHostServicesClient(
+          base::Environment::Create(),
+          base::BindRepeating(&ConnectToServer, server_name)) {
   DCHECK(g_initialized)
       << "ChromotingHostServicesClient::Initialize() has not been called.";
 }
@@ -93,11 +86,12 @@ ChromotingHostServicesClient::~ChromotingHostServicesClient() {
 bool ChromotingHostServicesClient::Initialize() {
   DCHECK(!g_initialized);
 #if BUILDFLAG(IS_WIN)
-  // The ChromotingHostServices server runs under the LocalService account,
-  // which normally isn't allowed to query process info like session ID of a
-  // process running under a different account, so we add an ACL to allow it.
+  // The network process running under the LocalService account verifies the
+  // session ID of the client process, which normally isn't allowed since the
+  // network process has reduced trust level, so we add an ACL to allow it.
   g_initialized = AddProcessAccessRightForWellKnownSid(
-      WinLocalServiceSid, PROCESS_QUERY_LIMITED_INFORMATION);
+      base::win::WellKnownSid::kLocalService,
+      PROCESS_QUERY_LIMITED_INFORMATION);
 #else
   // Other platforms don't need initialization.
   g_initialized = true;
@@ -123,11 +117,9 @@ bool ChromotingHostServicesClient::EnsureConnection() {
     return true;
   }
 
-  connection_ = std::make_unique<mojo::IsolatedConnection>();
-  auto pending_remote = connect_to_server_.Run(*connection_);
+  auto pending_remote = connect_to_server_.Run();
   if (!pending_remote.is_valid()) {
     LOG(WARNING) << "Invalid message pipe.";
-    connection_.reset();
     return false;
   }
   remote_.Bind(std::move(pending_remote));
@@ -163,7 +155,6 @@ void ChromotingHostServicesClient::OnDisconnected() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   remote_.reset();
-  connection_.reset();
 }
 
 void ChromotingHostServicesClient::OnSessionDisconnected() {

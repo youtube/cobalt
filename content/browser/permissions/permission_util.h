@@ -19,7 +19,7 @@ class PermissionUtil {
  public:
   // Returns the authoritative `embedding origin`, as a GURL, to be used for
   // permission decisions in `render_frame_host`.
-  // TODO(crbug.com/1327384): Remove this method when possible.
+  // TODO(crbug.com/40226169): Remove this method when possible.
   CONTENT_EXPORT static GURL GetLastCommittedOriginAsURL(
       content::RenderFrameHost* render_frame_host);
 
@@ -44,7 +44,7 @@ class PermissionUtil {
   // mechanism is currently only used by one permission type, specifically
   // storage access requests on behalf of another domain.
   CONTENT_EXPORT static bool ValidateDomainOverride(
-      const std::vector<blink::PermissionType>& types,
+      const std::vector<blink::mojom::PermissionDescriptorPtr>& types,
       RenderFrameHost* rfh,
       const blink::mojom::PermissionDescriptorPtr& descriptor);
 };

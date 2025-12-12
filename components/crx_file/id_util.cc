@@ -6,12 +6,15 @@
 
 #include <stdint.h>
 
+#include <string_view>
+
 #include "base/files/file_path.h"
 #include "base/hash/sha1.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "build/build_config.h"
-#include "crypto/sha2.h"
+#include "crypto/hash.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 namespace {
 
@@ -22,7 +25,7 @@ namespace {
 static void ConvertHexadecimalToIDAlphabet(std::string* id) {
   for (auto& ch : *id) {
     int val;
-    if (base::HexStringToInt(base::StringPiece(&ch, 1), &val)) {
+    if (base::HexStringToInt(std::string_view(&ch, 1), &val)) {
       ch = 'a' + val;
     } else {
       ch = 'a';
@@ -37,15 +40,12 @@ namespace crx_file::id_util {
 // First 16 bytes of SHA256 hashed public key.
 const size_t kIdSize = 16;
 
-std::string GenerateId(base::StringPiece input) {
-  uint8_t hash[kIdSize];
-  crypto::SHA256HashString(input, hash, sizeof(hash));
-  return GenerateIdFromHash(hash, sizeof(hash));
+std::string GenerateId(std::string_view input) {
+  return GenerateIdFromHash(crypto::hash::Sha256(input));
 }
 
-std::string GenerateIdFromHash(const uint8_t* hash, size_t hash_size) {
-  CHECK_GE(hash_size, kIdSize);
-  std::string result = base::HexEncode(hash, kIdSize);
+std::string GenerateIdFromHash(base::span<const uint8_t> hash) {
+  std::string result = base::HexEncode(hash.first(kIdSize));
   ConvertHexadecimalToIDAlphabet(&result);
   return result;
 }
@@ -58,16 +58,14 @@ std::string GenerateIdFromHex(const std::string& input) {
 
 std::string GenerateIdForPath(const base::FilePath& path) {
   base::FilePath new_path = MaybeNormalizePath(path);
-  const base::StringPiece path_bytes(
+  const std::string_view path_bytes(
       reinterpret_cast<const char*>(new_path.value().data()),
       new_path.value().size() * sizeof(base::FilePath::CharType));
   return GenerateId(path_bytes);
 }
 
 std::string HashedIdInHex(const std::string& id) {
-  const std::string id_hash = base::SHA1HashString(id);
-  DCHECK_EQ(base::kSHA1Length, id_hash.length());
-  return base::HexEncode(id_hash.c_str(), id_hash.length());
+  return base::HexEncode(base::SHA1Hash(base::as_byte_span(id)));
 }
 
 base::FilePath MaybeNormalizePath(const base::FilePath& path) {
@@ -77,8 +75,9 @@ base::FilePath MaybeNormalizePath(const base::FilePath& path) {
   // comparisons simpler.
   base::FilePath::StringType path_str = path.value();
   if (path_str.size() >= 2 && path_str[0] >= L'a' && path_str[0] <= L'z' &&
-      path_str[1] == L':')
-    path_str[0] = towupper(path_str[0]);
+      path_str[1] == L':') {
+    path_str[0] = absl::ascii_toupper(static_cast<unsigned char>(path_str[0]));
+  }
 
   return base::FilePath(path_str);
 #else
@@ -86,15 +85,17 @@ base::FilePath MaybeNormalizePath(const base::FilePath& path) {
 #endif
 }
 
-bool IdIsValid(base::StringPiece id) {
+bool IdIsValid(std::string_view id) {
   // Verify that the id is legal.
-  if (id.size() != (crx_file::id_util::kIdSize * 2))
+  if (id.size() != (crx_file::id_util::kIdSize * 2)) {
     return false;
+  }
 
   for (char ch : id) {
     ch = base::ToLowerASCII(ch);
-    if (ch < 'a' || ch > 'p')
+    if (ch < 'a' || ch > 'p') {
       return false;
+    }
   }
 
   return true;

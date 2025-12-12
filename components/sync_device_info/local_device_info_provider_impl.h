@@ -12,10 +12,10 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
-#include "components/sync/base/model_type.h"
+#include "base/time/time.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/sync_device_info/local_device_info_provider.h"
-#include "components/version_info/version_info.h"
 
 namespace syncer {
 
@@ -34,15 +34,15 @@ class LocalDeviceInfoProviderImpl : public MutableLocalDeviceInfoProvider {
   ~LocalDeviceInfoProviderImpl() override;
 
   // MutableLocalDeviceInfoProvider implementation.
-  void Initialize(
-      const std::string& cache_guid,
-      const std::string& client_name,
-      const std::string& manufacturer_name,
-      const std::string& model_name,
-      const std::string& full_hardware_class,
-      std::unique_ptr<DeviceInfo> device_info_restored_from_store) override;
+  void Initialize(const std::string& cache_guid,
+                  const std::string& client_name,
+                  const std::string& manufacturer_name,
+                  const std::string& model_name,
+                  const std::string& full_hardware_class,
+                  const DeviceInfo* device_info_restored_from_store) override;
   void Clear() override;
   void UpdateClientName(const std::string& client_name) override;
+  void UpdateRecentSignInTime(base::Time time) override;
   version_info::Channel GetChannel() const override;
   const DeviceInfo* GetLocalDeviceInfo() const override;
   base::CallbackListSubscription RegisterOnInitializedCallback(

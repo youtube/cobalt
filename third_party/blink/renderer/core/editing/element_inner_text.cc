@@ -7,9 +7,9 @@
 #include <algorithm>
 
 #include "third_party/blink/renderer/core/display_lock/display_lock_utilities.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
 #include "third_party/blink/renderer/core/dom/node_traversal.h"
 #include "third_party/blink/renderer/core/dom/text.h"
+#include "third_party/blink/renderer/core/dom/text_visitor.h"
 #include "third_party/blink/renderer/core/editing/editing_utilities.h"
 #include "third_party/blink/renderer/core/editing/ephemeral_range.h"
 #include "third_party/blink/renderer/core/html/forms/html_opt_group_element.h"
@@ -17,13 +17,15 @@
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/html_br_element.h"
 #include "third_party/blink/renderer/core/html/html_paragraph_element.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_node.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_node_data.h"
+#include "third_party/blink/renderer/core/layout/inline/offset_mapping.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_node.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_node_data.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_offset_mapping.h"
-#include "third_party/blink/renderer/core/layout/ng/table/layout_ng_table_cell.h"
-#include "third_party/blink/renderer/core/layout/ng/table/layout_ng_table_row.h"
-#include "third_party/blink/renderer/core/layout/ng/table/layout_ng_table_section.h"
+#include "third_party/blink/renderer/core/layout/table/layout_table_cell.h"
+#include "third_party/blink/renderer/core/layout/table/layout_table_row.h"
+#include "third_party/blink/renderer/core/layout/table/layout_table_section.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_names.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
@@ -40,7 +42,8 @@ class ElementInnerTextCollector final {
   STACK_ALLOCATED();
 
  public:
-  ElementInnerTextCollector() = default;
+  explicit ElementInnerTextCollector(TextVisitor* visitor)
+      : visitor_(visitor) {}
   ElementInnerTextCollector(const ElementInnerTextCollector&) = delete;
   ElementInnerTextCollector& operator=(const ElementInnerTextCollector&) =
       delete;
@@ -56,40 +59,54 @@ class ElementInnerTextCollector final {
     Result& operator=(const Result&) = delete;
 
     void EmitNewline();
-    void EmitRequiredLineBreak(int count);
+    void EmitRequiredLineBreak(wtf_size_t count);
     void EmitTab();
     void EmitText(const StringView& text);
     String Finish();
+
+    unsigned length() const { return builder_.length(); }
 
    private:
     void FlushRequiredLineBreak();
 
     StringBuilder builder_;
-    int required_line_break_count_ = 0;
+    wtf_size_t required_line_break_count_ = 0;
   };
 
   static bool HasDisplayContentsStyle(const Node& node);
   static bool IsBeingRendered(const Node& node);
   // Returns true if used value of "display" is block-level.
   static bool IsDisplayBlockLevel(const Node&);
-  static bool ShouldEmitNewlineForTableRow(const LayoutNGTableRow& table_row);
+  static bool ShouldEmitNewlineForTableRow(const LayoutTableRow& table_row);
 
-  const NGOffsetMapping* GetOffsetMapping(const LayoutText& layout_text);
+  const OffsetMapping* GetOffsetMapping(const LayoutText& layout_text);
   void ProcessChildren(const Node& node);
-  void ProcessChildrenWithRequiredLineBreaks(const Node& node,
-                                             int required_line_break_count);
-  void ProcessLayoutText(const LayoutText& layout_text, const Text& text_node);
+  void ProcessChildrenWithRequiredLineBreaks(
+      const Node& node,
+      wtf_size_t required_line_break_count);
+  void ProcessLayoutText(const LayoutText& layout_text,
+                         const Text& text_node,
+                         const unsigned start_offset);
+  void ProcessTextFromOffsetMapping(const LayoutText& layout_text,
+                                    const Text& text_node);
+  unsigned ProcessFirstLineAndGetOffset(const LayoutText& layout_text);
   void ProcessNode(const Node& node);
   void ProcessOptionElement(const HTMLOptionElement& element);
+  void ProcessOptGroupElement(const HTMLOptGroupElement& element);
   void ProcessSelectElement(const HTMLSelectElement& element);
   void ProcessTextNode(const Text& node);
 
   // Result character buffer.
   Result result_;
+  TextVisitor* visitor_;
 };
 
 String ElementInnerTextCollector::RunOn(const Element& element) {
   DCHECK(!element.InActiveDocument() || !NeedsLayoutTreeUpdate(element));
+
+  if (visitor_) {
+    visitor_->WillVisit(element, result_.length());
+  }
 
   // 1. If this element is locked or a part of a locked subtree, then it is
   // hidden from view (and also possibly not laid out) and innerText should be
@@ -106,7 +123,7 @@ String ElementInnerTextCollector::RunOn(const Element& element) {
   // [1] https://github.com/whatwg/html/issues/1837
   if (!IsBeingRendered(element) && !HasDisplayContentsStyle(element)) {
     const bool convert_brs_to_newlines = false;
-    return element.textContent(convert_brs_to_newlines);
+    return element.textContent(convert_brs_to_newlines, visitor_);
   }
 
   // 3. Let results be a new empty list.
@@ -150,7 +167,7 @@ bool ElementInnerTextCollector::IsDisplayBlockLevel(const Node& node) {
   if (!layout_object)
     return false;
   if (layout_object->IsTableSection()) {
-    // Note: |LayoutNGTableSection::IsInline()| returns false, but it is not
+    // Note: |LayoutTableSection::IsInline()| returns false, but it is not
     // block-level.
     return false;
   }
@@ -165,34 +182,29 @@ bool ElementInnerTextCollector::IsDisplayBlockLevel(const Node& node) {
   // we should check at first.
   if (layout_object->IsAtomicInlineLevel())
     return false;
-  if (layout_object->IsRubyText()) {
-    // RT isn't consider as block-level.
-    // e.g. <ruby>abc<rt>def</rt>.innerText == "abcdef"
-    return false;
-  }
-  // Note: CAPTION is associated to |LayoutNGTableCaption| in LayoutNG or
+  // Note: CAPTION is associated to |LayoutTableCaption| in LayoutNG or
   // |LayoutBlockFlow| in legacy layout.
   return true;
 }
 
 // static
 bool ElementInnerTextCollector::ShouldEmitNewlineForTableRow(
-    const LayoutNGTableRow& table_row) {
-  const LayoutNGTable* const table = table_row.Table();
+    const LayoutTableRow& table_row) {
+  const LayoutTable* const table = table_row.Table();
   if (!table)
     return false;
   if (table_row.NextRow()) {
     return true;
   }
   // For TABLE contains TBODY, TFOOTER, THEAD.
-  const LayoutNGTableSection* table_section = table_row.Section();
+  const LayoutTableSection* table_section = table_row.Section();
   if (!table_section)
     return false;
-  // See |LayoutNGTable::NextSection()| and
-  // |PreviousSection()| for traversing |LayoutNGTableSection|.
+  // See |LayoutTable::NextSection()| and
+  // |PreviousSection()| for traversing |LayoutTableSection|.
   for (const LayoutObject* runner = table_section->NextSibling(); runner;
        runner = runner->NextSibling()) {
-    const auto* section = DynamicTo<LayoutNGTableSection>(runner);
+    const auto* section = DynamicTo<LayoutTableSection>(runner);
     if (section && section->NumRows() > 0) {
       return true;
     }
@@ -201,58 +213,113 @@ bool ElementInnerTextCollector::ShouldEmitNewlineForTableRow(
   return false;
 }
 
-const NGOffsetMapping* ElementInnerTextCollector::GetOffsetMapping(
+const OffsetMapping* ElementInnerTextCollector::GetOffsetMapping(
     const LayoutText& layout_text) {
   // TODO(editing-dev): We should handle "text-transform" in "::first-line".
   // In legacy layout, |InlineTextBox| holds original text and text box
   // paint does text transform.
   LayoutBlockFlow* const block_flow =
-      NGOffsetMapping::GetInlineFormattingContextOf(layout_text);
+      OffsetMapping::GetInlineFormattingContextOf(layout_text);
   DCHECK(block_flow) << layout_text;
-  return NGInlineNode::GetOffsetMapping(block_flow);
+  return InlineNode::GetOffsetMapping(block_flow);
 }
 
 void ElementInnerTextCollector::ProcessChildren(const Node& container) {
-  for (const Node& node : NodeTraversal::ChildrenOf(container))
+  for (const Node& node : NodeTraversal::ChildrenOf(container)) {
+    if (visitor_) {
+      visitor_->WillVisit(node, result_.length());
+    }
     ProcessNode(node);
+  }
 }
 
 void ElementInnerTextCollector::ProcessChildrenWithRequiredLineBreaks(
     const Node& node,
-    int required_line_break_count) {
-  DCHECK_GE(required_line_break_count, 1);
-  DCHECK_LE(required_line_break_count, 2);
+    wtf_size_t required_line_break_count) {
+  DCHECK_GE(required_line_break_count, 1u);
+  DCHECK_LE(required_line_break_count, 2u);
   result_.EmitRequiredLineBreak(required_line_break_count);
   ProcessChildren(node);
   result_.EmitRequiredLineBreak(required_line_break_count);
 }
 
 void ElementInnerTextCollector::ProcessLayoutText(const LayoutText& layout_text,
-                                                  const Text& text_node) {
-  if (layout_text.TextLength() == 0)
+                                                  const Text& text_node,
+                                                  const unsigned start_offset) {
+  if (layout_text.HasEmptyText()) {
     return;
+  }
   if (layout_text.Style()->Visibility() != EVisibility::kVisible) {
     // TODO(editing-dev): Once we make ::first-letter don't apply "visibility",
     // we should get rid of this if-statement. http://crbug.com/866744
     return;
   }
 
-  const NGOffsetMapping* const mapping = GetOffsetMapping(layout_text);
+  // LayoutText::PlainText() gives the rendered text after the application
+  // of white-space processing and text-transform rules
+  if (RuntimeEnabledFeatures::ElementInnerTextHandleFirstLineStyleEnabled()) {
+    const ComputedStyle* block_style = layout_text.Style();
+    const ComputedStyle* first_line_style = layout_text.FirstLineStyle();
+
+    // first_line_offset is the first character of the text that is not part of
+    // ::first_line
+    unsigned first_line_offset = 0;
+    if (block_style->TextTransform() != first_line_style->TextTransform()) {
+      first_line_offset = ProcessFirstLineAndGetOffset(layout_text);
+    }
+    const unsigned adjusted_offset =
+        first_line_offset ? first_line_offset : start_offset;
+    const String plain_text = layout_text.PlainText();
+    const unsigned text_length = plain_text.length();
+    if (adjusted_offset < text_length) {
+      result_.EmitText(StringView(plain_text, adjusted_offset,
+                                  text_length - adjusted_offset));
+    }
+  } else {
+    ProcessTextFromOffsetMapping(layout_text, text_node);
+  }
+}
+
+void ElementInnerTextCollector::ProcessTextFromOffsetMapping(
+    const LayoutText& layout_text,
+    const Text& text_node) {
+  const OffsetMapping* const mapping = GetOffsetMapping(layout_text);
   if (!mapping) {
-    // TODO(crbug.com/967995): There are certain cases where we fail to compute
-    // |NGOffsetMapping| due to failures in layout. As the root cause is hard to
-    // fix at the moment, we work around it here so that the production build
-    // doesn't crash.
-    NOTREACHED() << layout_text;
+    // TODO(crbug.com/967995): There are certain cases where we fail to
+    // compute |OffsetMapping| due to failures in layout. As the root cause is
+    // hard to fix at the moment, we work around it here so that the
+    // production build doesn't crash.
+    DUMP_WILL_BE_NOTREACHED() << layout_text;
     return;
   }
 
-  for (const NGOffsetMappingUnit& unit :
+  for (const OffsetMappingUnit& unit :
        mapping->GetMappingUnitsForNode(text_node)) {
     result_.EmitText(
         StringView(mapping->GetText(), unit.TextContentStart(),
                    unit.TextContentEnd() - unit.TextContentStart()));
   }
+}
+
+// Offset mappings don't have text offsets for ::first-line. Get the rendered
+// text for ::first-line from FragmentItems and return the length of
+// the ::first-line part as offset
+unsigned ElementInnerTextCollector::ProcessFirstLineAndGetOffset(
+    const LayoutText& layout_text) {
+  LayoutBlockFlow* const block_flow = layout_text.FragmentItemsContainer();
+  DCHECK(block_flow) << layout_text;
+  unsigned first_line_length = 0;
+  for (InlineCursor cursor(*block_flow);
+       cursor && cursor.Current().UsesFirstLineStyle(); cursor.MoveToNext()) {
+    if (!cursor.CurrentItem()->IsText()) {
+      continue;
+    }
+    if (To<LayoutText>(cursor.Current().GetLayoutObject()) == &layout_text) {
+      result_.EmitText(cursor.Current().Text(cursor));
+      first_line_length = cursor.Current().TextEndOffset();
+    }
+  }
+  return first_line_length;
 }
 
 // The "inner text collection steps".
@@ -268,9 +335,10 @@ void ElementInnerTextCollector::ProcessNode(const Node& node) {
 
   // 3. If node's computed value of 'visibility' is not 'visible', then return
   // items.
-  const ComputedStyle* style = node.GetComputedStyle();
-  if (style && style->Visibility() != EVisibility::kVisible)
+  const ComputedStyle* style = GetComputedStyleForElementOrLayoutObject(node);
+  if (style && style->Visibility() != EVisibility::kVisible) {
     return ProcessChildren(node);
+  }
 
   // 4. If node is not being rendered, then return items. For the purpose of
   // this step, the following elements must act as described if the computed
@@ -329,7 +397,7 @@ void ElementInnerTextCollector::ProcessNode(const Node& node) {
   if (style->Display() == EDisplay::kTableRow) {
     ProcessChildren(node);
     if (layout_object.IsTableRow() &&
-        ShouldEmitNewlineForTableRow(To<LayoutNGTableRow>(layout_object))) {
+        ShouldEmitNewlineForTableRow(To<LayoutTableRow>(layout_object))) {
       result_.EmitNewline();
     }
     return;
@@ -340,7 +408,7 @@ void ElementInnerTextCollector::ProcessNode(const Node& node) {
   if (IsA<HTMLParagraphElement>(node)) {
     // Note: <p style="display:contents>foo</p> doesn't generate layout object
     // for P.
-    ProcessChildrenWithRequiredLineBreaks(node, 2);
+    ProcessChildrenWithRequiredLineBreaks(node, 2u);
     return;
   }
 
@@ -348,7 +416,7 @@ void ElementInnerTextCollector::ProcessNode(const Node& node) {
   // then append 1 (a required line break count) at the beginning and end of
   // items.
   if (IsDisplayBlockLevel(node))
-    return ProcessChildrenWithRequiredLineBreaks(node, 1);
+    return ProcessChildrenWithRequiredLineBreaks(node, 1u);
 
   ProcessChildren(node);
 }
@@ -360,21 +428,80 @@ void ElementInnerTextCollector::ProcessOptionElement(
   result_.EmitRequiredLineBreak(1);
 }
 
+void ElementInnerTextCollector::ProcessOptGroupElement(
+    const HTMLOptGroupElement& optgroup) {
+  CHECK(HTMLSelectElement::SelectParserRelaxationEnabled(&optgroup));
+  // Note: We should emit newline for OPTGROUP even if it has no OPTION.
+  // e.g. <div>a<select><optgroup></select>b</div>.innerText == "a\nb"
+  result_.EmitRequiredLineBreak(1);
+  Element* descendant = ElementTraversal::FirstChild(optgroup);
+  while (descendant) {
+    if (visitor_) {
+      visitor_->WillVisit(*descendant, result_.length());
+    }
+    // TODO(crbug.com/389573453): Consider handling <hr> elements here.
+    if (auto* option = DynamicTo<HTMLOptionElement>(descendant)) {
+      ProcessOptionElement(*option);
+      descendant =
+          ElementTraversal::NextSkippingChildren(*descendant, &optgroup);
+    } else if (IsA<HTMLOptGroupElement>(descendant)) {
+      // TODO(crbug.com/389573453): Consider adding nested <optgroup>s here. For
+      // now we will skip them.
+      descendant =
+          ElementTraversal::NextSkippingChildren(*descendant, &optgroup);
+    } else {
+      descendant = ElementTraversal::Next(*descendant, &optgroup);
+    }
+  }
+  result_.EmitRequiredLineBreak(1);
+}
+
 void ElementInnerTextCollector::ProcessSelectElement(
     const HTMLSelectElement& select_element) {
+  if (HTMLSelectElement::SelectParserRelaxationEnabled(&select_element)) {
+    // TODO(crbug.com/40271842): Consider Handling display:none on various
+    // elements here, especially options.
+    Element* descendant = ElementTraversal::FirstChild(select_element);
+    while (descendant) {
+      if (visitor_) {
+        visitor_->WillVisit(*descendant, result_.length());
+      }
+      // TODO(crbug.com/389573453): Consider handling <hr> elements here.
+      if (auto* option = DynamicTo<HTMLOptionElement>(descendant)) {
+        ProcessOptionElement(*option);
+        descendant = ElementTraversal::NextSkippingChildren(*descendant,
+                                                            &select_element);
+      } else if (auto* optgroup = DynamicTo<HTMLOptGroupElement>(descendant)) {
+        ProcessOptGroupElement(*optgroup);
+        descendant = ElementTraversal::NextSkippingChildren(*descendant,
+                                                            &select_element);
+      } else {
+        descendant = ElementTraversal::Next(*descendant, &select_element);
+      }
+    }
+    return;
+  }
   for (const Node& child : NodeTraversal::ChildrenOf(select_element)) {
+    if (visitor_) {
+      visitor_->WillVisit(child, result_.length());
+    }
     if (auto* option_element = DynamicTo<HTMLOptionElement>(child)) {
       ProcessOptionElement(*option_element);
       continue;
     }
-    if (!IsA<HTMLOptGroupElement>(child))
+    if (!IsA<HTMLOptGroupElement>(child)) {
       continue;
+    }
     // Note: We should emit newline for OPTGROUP even if it has no OPTION.
     // e.g. <div>a<select><optgroup></select>b</div>.innerText == "a\nb"
     result_.EmitRequiredLineBreak(1);
     for (const Node& maybe_option : NodeTraversal::ChildrenOf(child)) {
-      if (auto* option_element = DynamicTo<HTMLOptionElement>(maybe_option))
+      if (visitor_) {
+        visitor_->WillVisit(maybe_option, result_.length());
+      }
+      if (auto* option_element = DynamicTo<HTMLOptionElement>(maybe_option)) {
         ProcessOptionElement(*option_element);
+      }
     }
     result_.EmitRequiredLineBreak(1);
   }
@@ -385,14 +512,17 @@ void ElementInnerTextCollector::ProcessTextNode(const Text& node) {
     return;
   const LayoutText& layout_text = *node.GetLayoutObject();
   if (LayoutText* first_letter_part = layout_text.GetFirstLetterPart()) {
-    if (layout_text.TextLength() == 0 ||
-        NGOffsetMapping::GetInlineFormattingContextOf(layout_text) !=
-            NGOffsetMapping::GetInlineFormattingContextOf(*first_letter_part)) {
+    if (layout_text.HasEmptyText() ||
+        OffsetMapping::GetInlineFormattingContextOf(layout_text) !=
+            OffsetMapping::GetInlineFormattingContextOf(*first_letter_part)) {
       // "::first-letter" with "float" reach here.
-      ProcessLayoutText(*first_letter_part, node);
+      ProcessLayoutText(*first_letter_part, node, 0);
+      unsigned first_letter_length = first_letter_part->PlainText().length();
+      ProcessLayoutText(layout_text, node, first_letter_length);
+      return;
     }
   }
-  ProcessLayoutText(layout_text, node);
+  ProcessLayoutText(layout_text, node, 0);
 }
 
 // ----
@@ -402,15 +532,15 @@ void ElementInnerTextCollector::Result::EmitNewline() {
   builder_.Append(kNewlineCharacter);
 }
 
-void ElementInnerTextCollector::Result::EmitRequiredLineBreak(int count) {
-  DCHECK_GE(count, 0);
-  DCHECK_LE(count, 2);
+void ElementInnerTextCollector::Result::EmitRequiredLineBreak(
+    wtf_size_t count) {
+  DCHECK_LE(count, 2u);
   if (count == 0)
     return;
   // 4. Remove any runs of consecutive required line break count items at the
   // start or end of results.
   if (builder_.empty()) {
-    DCHECK_EQ(required_line_break_count_, 0);
+    DCHECK_EQ(required_line_break_count_, 0u);
     return;
   }
   // 5. Replace each remaining run of consecutive required line break count
@@ -428,7 +558,7 @@ void ElementInnerTextCollector::Result::EmitText(const StringView& text) {
   if (text.empty())
     return;
   FlushRequiredLineBreak();
-  DCHECK_EQ(required_line_break_count_, 0);
+  DCHECK_EQ(required_line_break_count_, 0u);
   builder_.Append(text);
 }
 
@@ -437,24 +567,24 @@ String ElementInnerTextCollector::Result::Finish() {
 }
 
 void ElementInnerTextCollector::Result::FlushRequiredLineBreak() {
-  DCHECK_GE(required_line_break_count_, 0);
-  DCHECK_LE(required_line_break_count_, 2);
-  builder_.Append("\n\n", required_line_break_count_);
+  DCHECK_LE(required_line_break_count_, 2u);
+  builder_.Append(
+      base::byte_span_from_cstring("\n\n").first(required_line_break_count_));
   required_line_break_count_ = 0;
 }
 
 }  // anonymous namespace
 
-String Element::innerText() {
+String Element::innerText(TextVisitor* visitor) {
   // We need to update layout, since |ElementInnerTextCollector()| uses line
   // boxes in the layout tree.
   GetDocument().UpdateStyleAndLayoutForNode(this,
                                             DocumentUpdateReason::kJavaScript);
-  return GetInnerTextWithoutUpdate();
+  return GetInnerTextWithoutUpdate(visitor);
 }
 
 // Used for callers that must ensure no document lifecycle rewind.
-String Element::GetInnerTextWithoutUpdate() {
+String Element::GetInnerTextWithoutUpdate(TextVisitor* visitor) {
   // TODO(https:://crbug.com/1165850 https:://crbug.com/1166296) Layout should
   // always be clean here, but the lifecycle does not report the correctly
   // updated value unless servicing animations. Fix the UpdateStyleAndLayout()
@@ -464,7 +594,7 @@ String Element::GetInnerTextWithoutUpdate() {
   //        GetDocument().Lifecycle().GetState() >=
   //            DocumentLifecycle::kLayoutClean)
   //     << "Layout must be clean when GetInnerTextWithoutUpdate() is called.";
-  return ElementInnerTextCollector().RunOn(*this);
+  return ElementInnerTextCollector(visitor).RunOn(*this);
 }
 
 }  // namespace blink

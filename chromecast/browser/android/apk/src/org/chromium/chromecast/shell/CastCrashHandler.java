@@ -4,29 +4,45 @@
 
 package org.chromium.chromecast.shell;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-/**
- * JNI wrapper class for accessing CastCrashHandler.
- */
+/** JNI wrapper class for accessing CastCrashHandler. */
 @JNINamespace("chromecast")
 public final class CastCrashHandler {
     private static final String TAG = "CastCrashHandler";
 
     @CalledByNative
-    public static void uploadOnce(String crashDumpPath, String crashReportsPath, String uuid,
-            String applicationFeedback, boolean uploadCrashToStaging) {
-        CastCrashUploader uploader = CastCrashUploaderFactory.createCastCrashUploader(
-                crashDumpPath, crashReportsPath, uuid, applicationFeedback, uploadCrashToStaging);
+    public static void uploadOnce(
+            String crashDumpPath,
+            String crashReportsPath,
+            String uuid,
+            String applicationFeedback,
+            boolean uploadCrashToStaging) {
+        CastCrashUploader uploader =
+                CastCrashUploaderFactory.createCastCrashUploader(
+                        crashDumpPath,
+                        crashReportsPath,
+                        uuid,
+                        applicationFeedback,
+                        uploadCrashToStaging);
         uploader.uploadOnce();
     }
 
     @CalledByNative
-    public static void removeCrashDumps(String crashDumpPath, String crashReportsPath, String uuid,
-            String applicationFeedback, boolean uploadCrashToStaging) {
-        CastCrashUploader uploader = CastCrashUploaderFactory.createCastCrashUploader(
-                crashDumpPath, crashReportsPath, uuid, applicationFeedback, uploadCrashToStaging);
+    public static void removeCrashDumps(
+            String crashDumpPath,
+            String crashReportsPath,
+            String uuid,
+            String applicationFeedback,
+            boolean uploadCrashToStaging) {
+        CastCrashUploader uploader =
+                CastCrashUploaderFactory.createCastCrashUploader(
+                        crashDumpPath,
+                        crashReportsPath,
+                        uuid,
+                        applicationFeedback,
+                        uploadCrashToStaging);
         uploader.removeCrashDumps();
     }
 }

@@ -16,13 +16,12 @@ ReplayingBytesConsumer::ReplayingBytesConsumer(
 
 ReplayingBytesConsumer::~ReplayingBytesConsumer() {}
 
-BytesConsumer::Result ReplayingBytesConsumer::BeginRead(const char** buffer,
-                                                        size_t* available) {
+BytesConsumer::Result ReplayingBytesConsumer::BeginRead(
+    base::span<const char>& buffer) {
   DCHECK(!is_in_two_phase_read_);
   ++notification_token_;
   if (commands_.empty()) {
     switch (state_) {
-      case BytesConsumer::InternalState::kReadable:
       case BytesConsumer::InternalState::kWaiting:
         return Result::kShouldWait;
       case BytesConsumer::InternalState::kClosed:
@@ -36,8 +35,7 @@ BytesConsumer::Result ReplayingBytesConsumer::BeginRead(const char** buffer,
     case Command::kDataAndDone:
     case Command::kData:
       DCHECK_LE(offset_, command.Body().size());
-      *buffer = command.Body().data() + offset_;
-      *available = command.Body().size() - offset_;
+      buffer = base::span(command.Body()).subspan(offset_);
       is_in_two_phase_read_ = true;
       return Result::kOk;
     case Command::kDone:
@@ -45,7 +43,7 @@ BytesConsumer::Result ReplayingBytesConsumer::BeginRead(const char** buffer,
       Close();
       return Result::kDone;
     case Command::kError: {
-      Error e(String::FromUTF8(command.Body().data(), command.Body().size()));
+      Error e(String::FromUTF8(base::as_byte_span(command.Body())));
       commands_.pop_front();
       MakeErrored(std::move(e));
       return Result::kError;
@@ -59,7 +57,6 @@ BytesConsumer::Result ReplayingBytesConsumer::BeginRead(const char** buffer,
       return Result::kShouldWait;
   }
   NOTREACHED();
-  return Result::kError;
 }
 
 BytesConsumer::Result ReplayingBytesConsumer::EndRead(size_t read) {

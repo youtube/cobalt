@@ -12,11 +12,11 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "api/scoped_refptr.h"
 #include "api/video/i420_buffer.h"
@@ -33,7 +33,7 @@
 namespace webrtc {
 namespace {
 
-using ::webrtc::webrtc_pc_e2e::SampleMetadataKey;
+using webrtc_pc_e2e::SampleMetadataKey;
 
 constexpr TimeDelta kFreezeThreshold = TimeDelta::Millis(150);
 constexpr int kMaxActiveComparisons = 10;
@@ -187,7 +187,7 @@ FrameComparison ValidateFrameComparison(FrameComparison comparison) {
 
 void DefaultVideoQualityAnalyzerFramesComparator::Start(int max_threads_count) {
   for (int i = 0; i < max_threads_count; i++) {
-    thread_pool_.push_back(rtc::PlatformThread::SpawnJoinable(
+    thread_pool_.push_back(PlatformThread::SpawnJoinable(
         [this] { ProcessComparisons(); },
         "DefaultVideoQualityAnalyzerFramesComparator-" + std::to_string(i)));
   }
@@ -302,7 +302,7 @@ void DefaultVideoQualityAnalyzerFramesComparator::EnsureStatsForStream(
 }
 
 void DefaultVideoQualityAnalyzerFramesComparator::RegisterParticipantInCall(
-    rtc::ArrayView<std::pair<InternalStatsKey, Timestamp>> stream_started_time,
+    ArrayView<std::pair<InternalStatsKey, Timestamp>> stream_started_time,
     Timestamp start_time) {
   MutexLock lock(&mutex_);
   RTC_CHECK_EQ(state_, State::kActive)
@@ -317,8 +317,8 @@ void DefaultVideoQualityAnalyzerFramesComparator::RegisterParticipantInCall(
 
 void DefaultVideoQualityAnalyzerFramesComparator::AddComparison(
     InternalStatsKey stats_key,
-    absl::optional<VideoFrame> captured,
-    absl::optional<VideoFrame> rendered,
+    std::optional<VideoFrame> captured,
+    std::optional<VideoFrame> rendered,
     FrameComparisonType type,
     FrameStats frame_stats) {
   MutexLock lock(&mutex_);
@@ -331,8 +331,8 @@ void DefaultVideoQualityAnalyzerFramesComparator::AddComparison(
 void DefaultVideoQualityAnalyzerFramesComparator::AddComparison(
     InternalStatsKey stats_key,
     int skipped_between_rendered,
-    absl::optional<VideoFrame> captured,
-    absl::optional<VideoFrame> rendered,
+    std::optional<VideoFrame> captured,
+    std::optional<VideoFrame> rendered,
     FrameComparisonType type,
     FrameStats frame_stats) {
   MutexLock lock(&mutex_);
@@ -349,8 +349,8 @@ void DefaultVideoQualityAnalyzerFramesComparator::AddComparison(
 
 void DefaultVideoQualityAnalyzerFramesComparator::AddComparisonInternal(
     InternalStatsKey stats_key,
-    absl::optional<VideoFrame> captured,
-    absl::optional<VideoFrame> rendered,
+    std::optional<VideoFrame> captured,
+    std::optional<VideoFrame> rendered,
     FrameComparisonType type,
     FrameStats frame_stats) {
   cpu_measurer_.StartExcludingCpuThreadTime();
@@ -360,9 +360,9 @@ void DefaultVideoQualityAnalyzerFramesComparator::AddComparisonInternal(
   // frames itself to make future computations lighter.
   if (comparisons_.size() >= kMaxActiveComparisons) {
     comparisons_.emplace_back(ValidateFrameComparison(
-        FrameComparison(std::move(stats_key), /*captured=*/absl::nullopt,
-                        /*rendered=*/absl::nullopt, type,
-                        std::move(frame_stats), OverloadReason::kCpu)));
+        FrameComparison(std::move(stats_key), /*captured=*/std::nullopt,
+                        /*rendered=*/std::nullopt, type, std::move(frame_stats),
+                        OverloadReason::kCpu)));
   } else {
     OverloadReason overload_reason = OverloadReason::kNone;
     if (!captured && type == FrameComparisonType::kRegular) {
@@ -379,7 +379,7 @@ void DefaultVideoQualityAnalyzerFramesComparator::AddComparisonInternal(
 void DefaultVideoQualityAnalyzerFramesComparator::ProcessComparisons() {
   while (true) {
     // Try to pick next comparison to perform from the queue.
-    absl::optional<FrameComparison> comparison = absl::nullopt;
+    std::optional<FrameComparison> comparison = std::nullopt;
     bool more_new_comparisons_expected;
     {
       MutexLock lock(&mutex_);
@@ -418,9 +418,9 @@ void DefaultVideoQualityAnalyzerFramesComparator::ProcessComparison(
   double ssim = -1.0;
   if ((options_.compute_psnr || options_.compute_ssim) &&
       comparison.captured.has_value() && comparison.rendered.has_value()) {
-    rtc::scoped_refptr<I420BufferInterface> reference_buffer =
+    scoped_refptr<I420BufferInterface> reference_buffer =
         comparison.captured->video_frame_buffer()->ToI420();
-    rtc::scoped_refptr<I420BufferInterface> test_buffer =
+    scoped_refptr<I420BufferInterface> test_buffer =
         comparison.rendered->video_frame_buffer()->ToI420();
     if (options_.adjust_cropping_before_comparing_frames) {
       test_buffer = ScaleVideoFrameBuffer(
@@ -552,6 +552,14 @@ void DefaultVideoQualityAnalyzerFramesComparator::ProcessComparison(
           StatsSample(*comparison.frame_stats.decoded_frame_width *
                           *comparison.frame_stats.decoded_frame_height,
                       frame_stats.decode_end_time, metadata));
+      // TODO(webrtc:357636606): Add a check that the rendered QP is among the
+      // encoded spatial layer's QP. Can only do that if there are 1 and only 1
+      // QP value per spatial layer.
+      if (frame_stats.decoded_frame_qp.has_value()) {
+        stats->rendered_frame_qp.AddSample(
+            StatsSample(static_cast<double>(*frame_stats.decoded_frame_qp),
+                        frame_stats.decode_end_time, metadata));
+      }
     }
 
     if (frame_stats.prev_frame_rendered_time.has_value() &&

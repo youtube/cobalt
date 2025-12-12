@@ -8,9 +8,9 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/base/syncer_error.h"
-#include "components/sync/engine/model_type_registry.h"
+#include "components/sync/base/data_type.h"
+#include "components/sync/engine/data_type_registry.h"
+#include "components/sync/engine/syncer_error.h"
 
 namespace sync_pb {
 class GetUpdatesResponse;
@@ -41,29 +41,38 @@ class GetUpdatesProcessor {
 
   // Downloads and processes a batch of updates for the specified types.
   //
-  // Returns SYNCER_OK if the download succeeds, SERVER_MORE_TO_DOWNLOAD if the
-  // download succeeded but there are still some updates left to fetch on the
-  // server, or an appropriate error value in case of failure.
-  SyncerError DownloadUpdates(ModelTypeSet* request_types, SyncCycle* cycle);
+  // Returns SYNCER_OK if the download succeeds or an appropriate error value in
+  // case of failure.
+  SyncerError DownloadUpdates(DataTypeSet* request_types, SyncCycle* cycle);
 
   // Applies any downloaded and processed updates.
-  void ApplyUpdates(const ModelTypeSet& gu_types,
+  void ApplyUpdates(const DataTypeSet& gu_types,
+                    const DataTypeSet& data_types_with_failure,
                     StatusController* status_controller);
+
+  // Records a download failure for the updated types.
+  void RecordDownloadFailure(const DataTypeSet& gu_types,
+                             UpdateHandler::NudgedUpdateResult failure_result);
+
+  // Returns true if last DownloadUpdates() outcome indicated that there are
+  // more updates to download from the server, e.g. when GetUpdatesResponse has
+  // non-zero `changes_remaining`.
+  bool HasMoreUpdatesToDownload() const;
 
  private:
   // Populates a GetUpdates request message with per-type information.
-  void PrepareGetUpdates(const ModelTypeSet& gu_types,
+  void PrepareGetUpdates(const DataTypeSet& gu_types,
                          sync_pb::ClientToServerMessage* message);
 
   // Sends the specified message to the server and stores the response in a
-  // member of the |cycle|'s StatusController.
-  SyncerError ExecuteDownloadUpdates(ModelTypeSet* request_types,
+  // member of the `cycle`'s StatusController.
+  SyncerError ExecuteDownloadUpdates(DataTypeSet* request_types,
                                      SyncCycle* cycle,
                                      sync_pb::ClientToServerMessage* msg);
 
   // Processes a GetUpdates response for each type.
   SyncerError ProcessResponse(const sync_pb::GetUpdatesResponse& gu_response,
-                              const ModelTypeSet& gu_types,
+                              const DataTypeSet& gu_types,
                               StatusController* status_controller);
 
   FRIEND_TEST_ALL_PREFIXES(GetUpdatesProcessorTest, BookmarkNudge);
@@ -79,14 +88,14 @@ class GetUpdatesProcessor {
   FRIEND_TEST_ALL_PREFIXES(GetUpdatesProcessorTest, InvalidResponse);
   FRIEND_TEST_ALL_PREFIXES(GetUpdatesProcessorTest, MoreToDownloadResponse);
   FRIEND_TEST_ALL_PREFIXES(GetUpdatesProcessorTest, NormalResponseTest);
-  FRIEND_TEST_ALL_PREFIXES(DownloadUpdatesDebugInfoTest,
-                           VerifyCopyClientDebugInfo_Empty);
-  FRIEND_TEST_ALL_PREFIXES(DownloadUpdatesDebugInfoTest, VerifyCopyOverwrites);
 
   // A map of 'update handlers', one for each enabled type.
   // This must be kept in sync with the routing info.  Our temporary solution to
   // that problem is to initialize this map in set_routing_info().
-  raw_ptr<UpdateHandlerMap> update_handler_map_;
+  const raw_ptr<UpdateHandlerMap> update_handler_map_;
+
+  // Whether last GetUpdatesResponse has non-zero `changes_remaining`.
+  bool has_more_updates_to_download_ = false;
 
   const raw_ref<const GetUpdatesDelegate> delegate_;
 };

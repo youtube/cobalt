@@ -6,8 +6,24 @@
 
 namespace ui {
 
+BASE_FEATURE(kBlockTelephonyDevicePhoneMute,
+             "BlockTelephonyDevicePhoneMute",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableFastTouchpadClick,
+             "EnableFastTouchpadClick",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableHeatmapPalmDetection,
+             "EnableHeatmapPalmDetection",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kEnableHeuristicPalmDetectionFilter,
              "EnableHeuristicPalmDetectionFilter",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableKeyboardUsedPalmSuppression,
+             "EnableKeyboardUsedPalmSuppression",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kEnableNeuralPalmDetectionFilter,
@@ -20,10 +36,6 @@ BASE_FEATURE(kEnableNeuralPalmAdaptiveHold,
 
 BASE_FEATURE(kEnableEdgeDetection,
              "EnableEdgeDetection",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableNeuralStylusReportFilter,
-             "EnableNeuralStylusReportFilter",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // TODO(b/171249701): Remove this flag when we can support this in all cases.
@@ -39,6 +51,7 @@ BASE_FEATURE(kEnablePalmOnToolTypePalm,
              "EnablePalmOnToolTypePalm",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+/// Used for marking the whole screen as a palm when any palm is detected.
 BASE_FEATURE(kEnablePalmSuppression,
              "EnablePalmSuppression",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -50,6 +63,10 @@ BASE_FEATURE(kLibinputHandleTouchpad,
 
 BASE_FEATURE(kEnableFakeKeyboardHeuristic,
              "EnableFakeKeyboardHeuristic",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableFakeMouseHeuristic,
+             "EnableFakeMouseHeuristic",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 extern const base::FeatureParam<std::string> kNeuralPalmRadiusPolynomial{

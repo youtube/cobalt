@@ -9,15 +9,19 @@
 #import "base/check.h"
 #import "base/functional/callback.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+namespace {
 
 using CompletionBlock = TrustedVaultClientBackend::CompletionBlock;
 
+// Domain for fake trusted vault client backend errors.
+NSString* const kFakeTrustedVaultClientBackendErrorDomain =
+    @"FakeTrustedVaultClientBackendErrorDomain";
+
+}  // namespace
+
 @interface FakeTrustedVaultClientBackendViewController : UIViewController
 
-// Completion to call once the view controller is dismiss.
+// Completion to call once the view controller is dismissed.
 @property(nonatomic, copy) CompletionBlock completion;
 
 - (instancetype)initWithCompletion:(CompletionBlock)completion
@@ -64,74 +68,116 @@ FakeTrustedVaultClientBackend::FakeTrustedVaultClientBackend() = default;
 
 FakeTrustedVaultClientBackend::~FakeTrustedVaultClientBackend() = default;
 
-void FakeTrustedVaultClientBackend::AddObserver(Observer* observer) {
-  // Do nothing.
-}
-
-void FakeTrustedVaultClientBackend::RemoveObserver(Observer* observer) {
-  // Do nothing.
-}
-
 void FakeTrustedVaultClientBackend::
     SetDeviceRegistrationPublicKeyVerifierForUMA(VerifierCallback verifier) {
   // Do nothing.
 }
 
-void FakeTrustedVaultClientBackend::FetchKeys(id<SystemIdentity> identity,
-                                              KeyFetchedCallback callback) {
-  // Do nothing.
+void FakeTrustedVaultClientBackend::FetchKeys(
+    id<SystemIdentity> identity,
+    trusted_vault::SecurityDomainId security_domain_id,
+    KeysFetchedCallback completion) {
+  // Return the keys for passkeys domain, so the `UpdateGPMPinForAccount` can be
+  // tested.
+  if (security_domain_id == trusted_vault::SecurityDomainId::kPasskeys) {
+    std::move(completion).Run({{1, 2, 3}});
+  }
+
+  // Otherwise do nothing.
 }
 
 void FakeTrustedVaultClientBackend::MarkLocalKeysAsStale(
     id<SystemIdentity> identity,
-    base::OnceClosure callback) {
+    trusted_vault::SecurityDomainId security_domain_id,
+    base::OnceClosure completion) {
   // Do nothing.
 }
 
 void FakeTrustedVaultClientBackend::GetDegradedRecoverabilityStatus(
     id<SystemIdentity> identity,
-    base::OnceCallback<void(bool)> callback) {
-  // Do nothing.
+    trusted_vault::SecurityDomainId security_domain_id,
+    base::OnceCallback<void(bool)> completion) {
+  // Return the non-degraded status for passkeys domain, so the
+  // `UpdateGPMPinForAccount` can be tested.
+  if (security_domain_id == trusted_vault::SecurityDomainId::kPasskeys) {
+    std::move(completion).Run(false);
+  }
+
+  // Otherwise do nothing.
 }
 
-void FakeTrustedVaultClientBackend::Reauthentication(
+FakeTrustedVaultClientBackend::CancelDialogCallback
+FakeTrustedVaultClientBackend::Reauthentication(
     id<SystemIdentity> identity,
+    trusted_vault::SecurityDomainId security_domain_id,
     UIViewController* presenting_view_controller,
-    CompletionBlock callback) {
+    CompletionBlock completion) {
   DCHECK(!view_controller_);
   view_controller_ = [[FakeTrustedVaultClientBackendViewController alloc]
-      initWithCompletion:callback];
+      initWithCompletion:completion];
   [presenting_view_controller presentViewController:view_controller_
                                            animated:YES
                                          completion:nil];
+  base::WeakPtr<FakeTrustedVaultClientBackend> weak_ptr =
+      weak_ptr_factory_.GetWeakPtr();
+  return base::BindOnce(
+      [](base::WeakPtr<FakeTrustedVaultClientBackend> weak_ptr, bool animated,
+         ProceduralBlock cancel_done_callback) {
+        weak_ptr->InternalCancelDialog(animated, cancel_done_callback);
+      },
+      weak_ptr);
 }
 
-void FakeTrustedVaultClientBackend::FixDegradedRecoverability(
+FakeTrustedVaultClientBackend::CancelDialogCallback
+FakeTrustedVaultClientBackend::FixDegradedRecoverability(
     id<SystemIdentity> identity,
+    trusted_vault::SecurityDomainId security_domain_id,
     UIViewController* presenting_view_controller,
-    CompletionBlock callback) {
+    CompletionBlock completion) {
   // Do nothing.
+  return base::BindOnce(
+      [](bool animated, ProceduralBlock cancel_done_callback) {});
 }
 
-void FakeTrustedVaultClientBackend::CancelDialog(BOOL animated,
-                                                 ProceduralBlock callback) {
+void FakeTrustedVaultClientBackend::InternalCancelDialog(
+    BOOL animated,
+    ProceduralBlock completion) {
   DCHECK(view_controller_);
   [view_controller_.presentingViewController
       dismissViewControllerAnimated:animated
-                         completion:callback];
+                         completion:completion];
   view_controller_ = nil;
 }
 
 void FakeTrustedVaultClientBackend::ClearLocalData(
     id<SystemIdentity> identity,
-    base::OnceCallback<void(bool)> callback) {
+    trusted_vault::SecurityDomainId security_domain_id,
+    base::OnceCallback<void(bool)> completion) {
   // Do nothing.
 }
 
 void FakeTrustedVaultClientBackend::GetPublicKeyForIdentity(
     id<SystemIdentity> identity,
-    GetPublicKeyCallback callback) {
+    GetPublicKeyCallback completion) {
   // Do nothing.
+}
+
+void FakeTrustedVaultClientBackend::UpdateGPMPinForAccount(
+    id<SystemIdentity> identity,
+    trusted_vault::SecurityDomainId security_domain_id,
+    UINavigationController* navigationController,
+    UIView* brandedNavigationItemTitleView,
+    UpdateGPMPinCompletionCallback completion) {
+  CHECK_EQ(security_domain_id, trusted_vault::SecurityDomainId::kPasskeys);
+
+  // Since the real update view controller cannot be displayed, return an error.
+  // This should be handled on the caller side and can be tested.
+  // TODO(crbug.com/358342483): Add method to set what kind of error should be
+  // returned. Same for FetchKeys() and GetDegradedRecoverabilityStatus().
+  std::move(completion)
+      .Run([NSError errorWithDomain:kFakeTrustedVaultClientBackendErrorDomain
+                               code:1
+                           userInfo:nil]);
 }
 
 void FakeTrustedVaultClientBackend::SimulateUserCancel() {

@@ -6,7 +6,9 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <limits>
+#include <string_view>
 
 #include "base/check_op.h"
 #include "base/numerics/safe_math.h"
@@ -15,7 +17,9 @@ namespace base32 {
 
 namespace {
 
-constexpr char kEncoding[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+constexpr auto kEncoding =
+    std::to_array<const char>("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567");
+static_assert(kEncoding.size() == 33);  // 32 symbols + null terminator
 constexpr char kPaddingChar = '=';
 
 // Returns a 5 bit number between [0,31] matching the provided base 32 encoded
@@ -30,7 +34,8 @@ uint8_t ReverseMapping(char input_char) {
 
 }  // namespace
 
-std::string Base32Encode(base::StringPiece input, Base32EncodePolicy policy) {
+std::string Base32Encode(base::span<const uint8_t> input,
+                         Base32EncodePolicy policy) {
   if (input.empty())
     return std::string();
 
@@ -81,19 +86,20 @@ std::string Base32Encode(base::StringPiece input, Base32EncodePolicy policy) {
   return output;
 }
 
-std::string Base32Decode(base::StringPiece input) {
+std::vector<uint8_t> Base32Decode(std::string_view input) {
   // Remove padding, if any
   const size_t padding_index = input.find(kPaddingChar);
-  if (padding_index != base::StringPiece::npos)
+  if (padding_index != std::string_view::npos) {
     input.remove_suffix(input.size() - padding_index);
+  }
 
   if (input.empty())
-    return std::string();
+    return std::vector<uint8_t>();
 
   const size_t decoded_length =
       (base::MakeCheckedNum(input.size()) * 5 / 8).ValueOrDie();
 
-  std::string output;
+  std::vector<uint8_t> output;
   output.reserve(decoded_length);
 
   // A bit stream which will be read from the left and appended to from the
@@ -104,7 +110,7 @@ std::string Base32Decode(base::StringPiece input) {
     const uint8_t decoded_5bits = ReverseMapping(input_char);
     // If an invalid character is read from the input, then stop decoding.
     if (decoded_5bits >= 32)
-      return std::string();
+      return std::vector<uint8_t>();
 
     // Place the next decoded 5-bits in the stream.
     bit_stream |= decoded_5bits << (free_bits - 5);
@@ -113,7 +119,7 @@ std::string Base32Decode(base::StringPiece input) {
     // If the stream is filled with a byte, flush the stream of that byte and
     // append it to the output.
     if (free_bits <= 8) {
-      output.push_back(static_cast<char>(bit_stream >> 8));
+      output.push_back(static_cast<uint8_t>(bit_stream >> 8));
       bit_stream <<= 8;
       free_bits += 8;
     }

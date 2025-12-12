@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/linux/x64x11/system_get_property_impl.h"
+#include "starboard/system.h"
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
                          char* out_value,

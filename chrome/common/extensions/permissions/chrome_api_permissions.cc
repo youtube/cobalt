@@ -36,7 +36,6 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
      APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
     {APIPermissionID::kDeclarativeContent, "declarativeContent"},
     {APIPermissionID::kDesktopCapture, "desktopCapture"},
-    {APIPermissionID::kDesktopCapturePrivate, "desktopCapturePrivate"},
     {APIPermissionID::kDocumentScan, "documentScan"},
     {APIPermissionID::kDownloads, "downloads"},
     {APIPermissionID::kDownloadsOpen, "downloads.open"},
@@ -44,6 +43,8 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
     {APIPermissionID::kDownloadsUi, "downloads.ui"},
     {APIPermissionID::kExperimental, "experimental",
      APIPermissionInfo::kFlagCannotBeOptional},
+    {APIPermissionID::kExperimentalActor, "experimentalActor"},
+    {APIPermissionID::kExperimentalAiData, "experimentalAiData"},
     {APIPermissionID::kGcm, "gcm",
      APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
     {APIPermissionID::kGeolocation, "geolocation",
@@ -61,6 +62,8 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
     {APIPermissionID::kAccessibilityFeaturesRead, "accessibilityFeatures.read"},
     {APIPermissionID::kAccessibilityPrivate, "accessibilityPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
+    {APIPermissionID::kAccessibilityServicePrivate,
+     "accessibilityServicePrivate", APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kBookmark, "bookmarks"},
     {APIPermissionID::kBrailleDisplayPrivate, "brailleDisplayPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
@@ -77,6 +80,8 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
      APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
     {APIPermissionID::kEnterpriseHardwarePlatform,
      "enterprise.hardwarePlatform",
+     APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
+    {APIPermissionID::kEnterpriseKioskInput, "enterprise.kioskInput",
      APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
     {APIPermissionID::kEnterpriseNetworkingAttributes,
      "enterprise.networkingAttributes",
@@ -98,11 +103,14 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
     {APIPermissionID::kMDns, "mdns",
      APIPermissionInfo::kFlagCannotBeOptional |
          APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
+    {APIPermissionID::kOmniboxDirectInput, "omnibox.directInput",
+     APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
     {APIPermissionID::kPlatformKeys, "platformKeys",
      APIPermissionInfo::kFlagDoesNotRequireManagedSessionFullLoginWarning},
     {APIPermissionID::kPrivacy, "privacy"},
     {APIPermissionID::kProcesses, "processes",
      APIPermissionInfo::kFlagRequiresManagementUIWarning},
+    {APIPermissionID::kReadingList, "readingList"},
     {APIPermissionID::kScripting, "scripting",
      APIPermissionInfo::kFlagRequiresManagementUIWarning},
     {APIPermissionID::kSearch, "search",
@@ -152,7 +160,7 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
      "enterprise.reportingPrivate", APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kFileManagerPrivate, "fileManagerPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
-    {APIPermissionID::kIdentityPrivate, "identityPrivate",
+    {APIPermissionID::kImageLoaderPrivate, "imageLoaderPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kImageWriterPrivate, "imageWriterPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
@@ -166,8 +174,6 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
      APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kPdfViewerPrivate, "pdfViewerPrivate"},
     {APIPermissionID::kResourcesPrivate, "resourcesPrivate",
-     APIPermissionInfo::kFlagCannotBeOptional},
-    {APIPermissionID::kRtcPrivate, "rtcPrivate",
      APIPermissionInfo::kFlagCannotBeOptional},
     {APIPermissionID::kSafeBrowsingPrivate, "safeBrowsingPrivate"},
     {APIPermissionID::kSettingsPrivate, "settingsPrivate",
@@ -235,7 +241,7 @@ constexpr APIPermissionInfo::InitInfo permissions_to_register[] = {
 }  // namespace
 
 base::span<const APIPermissionInfo::InitInfo> GetPermissionInfos() {
-  return base::make_span(permissions_to_register);
+  return base::span(permissions_to_register);
 }
 
 base::span<const Alias> GetPermissionAliases() {
@@ -243,7 +249,7 @@ base::span<const Alias> GetPermissionAliases() {
   // real name. See also alias.h.
   static constexpr Alias aliases[] = {Alias("windows", "tabs")};
 
-  return base::make_span(aliases);
+  return base::span(aliases);
 }
 
 }  // namespace chrome_api_permissions

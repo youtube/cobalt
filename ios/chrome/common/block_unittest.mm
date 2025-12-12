@@ -3,14 +3,11 @@
 // found in the LICENSE file.
 
 #import <Foundation/Foundation.h>
+
 #import <vector>
 
 #import "base/memory/ref_counted.h"
 #import "testing/platform_test.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // This test verifies assumptions about the murky world of interaction between
 // C++ objects and blocks. Just to make sure.
@@ -33,8 +30,9 @@ class RefCountedObject : public base::RefCounted<RefCountedObject> {
       EXPECT_FALSE(check);
       ++count;
     }
-    for (int ii = 1; ii < count; ii++)
+    for (int ii = 1; ii < count; ii++) {
       base::subtle::RefCountedBase::AddRef();
+    }
     return count;
   }
 

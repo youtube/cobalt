@@ -4,6 +4,7 @@
 
 #include "chromeos/ash/services/bluetooth_config/device_operation_handler.h"
 
+#include "chromeos/ash/services/bluetooth_config/public/mojom/cros_bluetooth_config.mojom.h"
 #include "components/device_event_log/device_event_log.h"
 #include "device/bluetooth/bluetooth_common.h"
 #include "device/bluetooth/bluetooth_device.h"
@@ -85,9 +86,9 @@ void DeviceOperationHandler::HandleFinishedOperation(bool success) {
   ProcessQueue();
 }
 
-// TODO(gordonseto): Investigate whether we need to manually fail the current
-// operation occurring if Bluetooth disables. If we don't, we can remove this
-// observer.
+// TODO(crbug.com/390255587): Investigate whether we need to manually fail the
+// current operation occurring if Bluetooth disables. If we don't, we can remove
+// this observer.
 void DeviceOperationHandler::OnAdapterStateChanged() {
   if (current_operation_) {
     BLUETOOTH_LOG(DEBUG) << "Device with id: " << current_operation_->device_id

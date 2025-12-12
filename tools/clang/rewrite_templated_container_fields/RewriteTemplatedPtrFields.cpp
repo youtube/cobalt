@@ -40,6 +40,8 @@
 #include <vector>
 
 #include "RawPtrHelpers.h"
+#include "RawPtrManualPathsToIgnore.h"
+#include "SeparateRepositoryPaths.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
@@ -72,6 +74,8 @@ namespace {
 // Include path that needs to be added to all the files where raw_ptr<...>
 // replaces a raw pointer.
 const char kRawPtrIncludePath[] = "base/memory/raw_ptr.h";
+
+const char kOverrideExcludePathsParamName[] = "override-exclude-paths";
 
 // This iterates over function parameters and matches the ones that match
 // parm_var_decl_matcher.
@@ -214,13 +218,16 @@ class LocalVisitor
     if (const auto* ptr =
             BoundNodesView.getNodeAs<clang::FunctionDecl>("fct_decl")) {
       fct_decl_ = BoundNodesView.getNodeAs<clang::FunctionDecl>("fct_decl");
+      is_lambda_ = false;
     } else {
       const clang::LambdaExpr* lambda_expr =
           BoundNodesView.getNodeAs<clang::LambdaExpr>("lambda_expr");
       fct_decl_ = lambda_expr->getCallOperator();
+      is_lambda_ = true;
     }
   }
   const clang::FunctionDecl* fct_decl_;
+  bool is_lambda_;
 };
 
 // This is used to map arguments passed to std::make_unique to the underlying
@@ -297,12 +304,25 @@ AST_MATCHER_P2(clang::CallExpr,
       LocalVisitor l;
       arg_matches.visitMatches(&l);
       const auto* fct_decl = l.fct_decl_;
-      if (fct_decl->getNumParams() != num_args - 1) {
-        return false;
-      }
-      // i-1 because we start with second arg for Bind and first arg for
+
+      // start_index=1 when we start with second arg for Bind and first arg for
       // lambda/fct
-      const auto* param = fct_decl->getParamDecl(i - 1);
+      unsigned start_index = 1;
+      // start_index=2 when the second arg is a pointer to the object on which
+      // the function is to be invoked. This is done when the function pointer is
+      // not a static class function.
+      // isGlobal is true for free functions as well as static member functions,
+      // both of which don't need a pointer to the object on which they are
+      // invoked.
+      if (!l.is_lambda_ && !l.fct_decl_->isGlobal()) {
+        start_index = 2;
+        // Skip the second argument passed to BindOnce/BindRepeating as it is an
+        // object pointer unrelated to target function args.
+        if (i == 1) {
+          continue;
+        }
+      }
+      const auto* param = fct_decl->getParamDecl(i - start_index);
       clang::ast_matchers::internal::BoundNodesTreeBuilder
           parm_var_decl_matches(arg_matches);
       if (parm_var_decl_matcher.matches(*param, Finder,
@@ -656,15 +676,11 @@ class AffectedPtrExprRewriter : public MatchFinder::MatchCallback {
           replacement_text, replacement_range, source_manager, ast_context);
       lhs.include_directive = lhs.replacement;
 
-    } else if (const clang::MemberExpr* member_expr =
-                   result.Nodes.getNodeAs<clang::MemberExpr>(
+    } else if (const clang::CXXMemberCallExpr* member_expr =
+                   result.Nodes.getNodeAs<clang::CXXMemberCallExpr>(
                        "affectedMemberExpr")) {
-      clang::SourceLocation member_name_start = member_expr->getMemberLoc();
-      size_t member_name_length =
-          member_expr->getMemberDecl()->getName().size();
-      // +2 to skip trailing ()
       clang::SourceLocation insertion_loc =
-          member_name_start.getLocWithOffset(member_name_length + 2);
+          member_expr->getEndLoc().getLocWithOffset(1);
 
       clang::SourceRange replacement_range(insertion_loc, insertion_loc);
       std::string replacement_text = ".get()";
@@ -678,6 +694,27 @@ class AffectedPtrExprRewriter : public MatchFinder::MatchCallback {
           op_call_expr->getEndLoc().getLocWithOffset(1);
       clang::SourceRange replacement_range(insertion_loc, insertion_loc);
       std::string replacement_text = ".get()";
+      lhs.replacement = getReplacementDirective(
+          replacement_text, replacement_range, source_manager, ast_context);
+      lhs.include_directive = lhs.replacement;
+    } else if (const clang::ParmVarDecl* var_decl =
+                   result.Nodes.getNodeAs<clang::ParmVarDecl>(
+                       "lambda_parmVarDecl")) {
+      auto* type_loc =
+          result.Nodes.getNodeAs<clang::TypeLoc>("template_type_param_loc");
+
+      auto* md = result.Nodes.getNodeAs<clang::CXXMethodDecl>("md");
+
+      clang::SourceRange replacement_range(var_decl->getBeginLoc(),
+                                           type_loc->getEndLoc());
+
+      std::string replacement_text =
+          (md->getParamDecl(var_decl->getFunctionScopeIndex()))
+              ->getType()
+              ->getPointeeType()
+              .getAsString();
+
+      replacement_text = RemovePrefix(replacement_text);
       lhs.replacement = getReplacementDirective(
           replacement_text, replacement_range, source_manager, ast_context);
       lhs.include_directive = lhs.replacement;
@@ -736,116 +773,239 @@ class AffectedPtrExprRewriter : public MatchFinder::MatchCallback {
   OutputHelper& output_helper_;
 };
 
-class VectorRawPtrRewriter {
+class ExprVisitor
+    : public clang::ast_matchers::internal::BoundNodesTreeBuilder::Visitor {
  public:
-  explicit VectorRawPtrRewriter(
+  void visitMatch(
+      const clang::ast_matchers::BoundNodes& BoundNodesView) override {
+    expr_ = BoundNodesView.getNodeAs<clang::Expr>("expr");
+  }
+  const clang::Expr* expr_;
+};
+
+const clang::Expr* getExpr(
+    clang::ast_matchers::internal::BoundNodesTreeBuilder& matches) {
+  ExprVisitor v;
+  matches.visitMatches(&v);
+  return v.expr_;
+}
+
+// The goal of this matcher is to handle all possible combinations of matching
+// expressions. This works by unpacking the expression nodes recursively (in any
+// order they appear in) until we reach the matching lhs_expr/rhs_expr. This
+// allows to handle cases like the following:
+// std::map<int, std::vector<S*>> member;
+// std::vector<S*>::iterator it = member.begin()->second;
+AST_MATCHER_P(clang::Expr,
+              expr_variations,
+              clang::ast_matchers::internal::Matcher<clang::Expr>,
+              InnerMatcher) {
+  auto iterator = cxxMemberCallExpr(
+      callee(functionDecl(
+          anyOf(hasName("begin"), hasName("cbegin"), hasName("rbegin"),
+                hasName("crbegin"), hasName("end"), hasName("cend"),
+                hasName("rend"), hasName("crend"), hasName("find"),
+                hasName("upper_bound"), hasName("lower_bound"),
+                hasName("equal_range"), hasName("emplace"), hasName("Get")))),
+      has(memberExpr(has(expr().bind("expr")))));
+
+  auto search_calls = callExpr(callee(functionDecl(matchesName("find"))),
+                               hasArgument(0, expr().bind("expr")));
+
+  auto unary_op = unaryOperator(has(expr().bind("expr")));
+
+  auto reversed_expr = callExpr(callee(functionDecl(hasName("base::Reversed"))),
+                                hasArgument(0, expr().bind("expr")));
+
+  auto bracket_op_call = cxxOperatorCallExpr(
+      has(declRefExpr(to(cxxMethodDecl(hasName("operator[]"))))),
+      has(expr(unless(declRefExpr(to(cxxMethodDecl(hasName("operator[]"))))))
+              .bind("expr")));
+
+  auto arrow_op_call = cxxOperatorCallExpr(
+      has(declRefExpr(to(cxxMethodDecl(hasName("operator->"))))),
+      has(expr(unless(declRefExpr(to(cxxMethodDecl(hasName("operator->"))))))
+              .bind("expr")));
+
+  auto star_op_call = cxxOperatorCallExpr(
+      has(declRefExpr(to(cxxMethodDecl(hasName("operator*"))))),
+      has(expr(unless(declRefExpr(to(cxxMethodDecl(hasName("operator*"))))))
+              .bind("expr")));
+
+  auto second_member =
+      memberExpr(member(hasName("second")), has(expr().bind("expr")));
+
+  auto items = {iterator,        search_calls,  unary_op,     reversed_expr,
+                bracket_op_call, arrow_op_call, star_op_call, second_member};
+  clang::ast_matchers::internal::BoundNodesTreeBuilder matches;
+  const clang::Expr* n = nullptr;
+  std::any_of(items.begin(), items.end(), [&](auto& item) {
+    if (item.matches(Node, Finder, &matches)) {
+      n = getExpr(matches);
+      return true;
+    }
+    return false;
+  });
+
+  if (n) {
+    auto matcher = expr_variations(InnerMatcher);
+    return matcher.matches(*n, Finder, Builder);
+  }
+  return InnerMatcher.matches(Node, Finder, Builder);
+}
+
+class DeclVisitor
+    : public clang::ast_matchers::internal::BoundNodesTreeBuilder::Visitor {
+ public:
+  void visitMatch(
+      const clang::ast_matchers::BoundNodes& BoundNodesView) override {
+    decl_ = BoundNodesView.getNodeAs<clang::TypedefNameDecl>("decl");
+  }
+  const clang::TypedefNameDecl* decl_;
+};
+const clang::TypedefNameDecl* getDecl(
+    clang::ast_matchers::internal::BoundNodesTreeBuilder& matches) {
+  DeclVisitor v;
+  matches.visitMatches(&v);
+  return v.decl_;
+}
+// This allows us to unpack typedefs recursively until we reach the node
+// matching InnerMatcher.
+// Example:
+// using VECTOR = std::vector<S*>;
+// using MAP = std::map<int, VECTOR>;
+// MAP member; => this will lead to VECTOR being rewritten.
+AST_MATCHER_P(clang::TypedefNameDecl,
+              type_def_name_decl,
+              clang::ast_matchers::internal::Matcher<clang::TypedefNameDecl>,
+              InnerMatcher) {
+  auto type_def_matcher = typedefNameDecl(
+      hasDescendant(loc(qualType(hasDeclaration(
+          typedefNameDecl(unless(isExpansionInSystemHeader())).bind("decl"))))),
+      unless(isExpansionInSystemHeader()));
+
+  clang::ast_matchers::internal::BoundNodesTreeBuilder matches;
+  if (type_def_matcher.matches(Node, Finder, &matches)) {
+    const clang::TypedefNameDecl* n = getDecl(matches);
+    auto matcher = type_def_name_decl(InnerMatcher);
+    return matcher.matches(*n, Finder, Builder);
+  }
+  return InnerMatcher.matches(Node, Finder, Builder);
+}
+
+class ContainerRewriter {
+ public:
+  explicit ContainerRewriter(
       MatchFinder& finder,
       OutputHelper& output_helper,
       std::map<std::string, std::set<Node>>& sig_nodes,
-      std::vector<std::pair<std::string, std::string>>& sig_pairs)
+      std::vector<std::pair<std::string, std::string>>& sig_pairs,
+      const raw_ptr_plugin::FilterFile* excluded_paths)
       : match_finder_(finder),
         affected_ptr_expr_rewriter_(output_helper),
         potentail_nodes_(output_helper),
-        fct_sig_nodes_(sig_nodes, sig_pairs) {}
+        fct_sig_nodes_(sig_nodes, sig_pairs),
+        paths_to_exclude(excluded_paths) {}
 
   void addMatchers() {
-    // vectors of char pointers are usually used as char buffers, they are thus
-    // excluded from the rewrite.
-    auto exlude_char_types = unless(hasTemplateArgument(
-        0, refersToType(pointsTo(qualType(isAnyCharacter())))));
+    // Assume every container has the three following methods: begin, end, size
+    auto container_methods =
+        anyOf(allOf(hasMethod(hasName("push_back")),
+                    hasMethod(hasName("pop_back")), hasMethod(hasName("size"))),
+              allOf(hasMethod(hasName("insert")), hasMethod(hasName("erase")),
+                    hasMethod(hasName("size"))),
+              allOf(hasMethod(hasName("push")), hasMethod(hasName("pop")),
+                    hasMethod(hasName("size"))));
 
-    auto class_temp_spec_decl = classTemplateSpecializationDecl(
-        hasName("std::vector"),
-        hasTemplateArgument(0, refersToType(isAnyPointer())),
-        exlude_char_types);
+    // Exclude maps as they need special handling to be rewritten.
+    // TODO: handle rewriting maps.
+    auto excluded_containers = matchesName("map");
+
+    auto supported_containers = anyOf(
+        hasDeclaration(classTemplateSpecializationDecl(
+            container_methods, unless(excluded_containers))),
+        hasDeclaration(typeAliasTemplateDecl(has(typeAliasDecl(
+            hasType(qualType(hasDeclaration(classTemplateDecl(has(cxxRecordDecl(
+                container_methods, unless(excluded_containers))))))))))));
+
+    auto tst_type_loc = templateSpecializationTypeLoc(
+        loc(qualType(supported_containers)),
+        hasTemplateArgumentLoc(
+            0, hasTypeLoc(loc(qualType(allOf(
+                   raw_ptr_plugin::supported_pointer_type(),
+                   unless(raw_ptr_plugin::const_char_pointer_type(false))))))));
 
     auto lhs_location =
         templateSpecializationTypeLoc(
-            loc(qualType(hasDeclaration(classTemplateSpecializationDecl(
-                hasName("std::vector"), exlude_char_types)))),
+            tst_type_loc,
             hasTemplateArgumentLoc(
                 0, hasTypeLoc(pointerTypeLoc().bind("lhs_argPointerLoc"))))
             .bind("lhs_tst_loc");
 
     auto rhs_location =
         templateSpecializationTypeLoc(
-            loc(qualType(hasDeclaration(classTemplateSpecializationDecl(
-                hasName("std::vector"), exlude_char_types)))),
+            tst_type_loc,
             hasTemplateArgumentLoc(
                 0, hasTypeLoc(pointerTypeLoc().bind("rhs_argPointerLoc"))))
             .bind("rhs_tst_loc");
 
+    auto exclude_callbacks = anyOf(
+        hasType(typedefNameDecl(hasType(qualType(hasDeclaration(
+            recordDecl(anyOf(hasName("base::RepeatingCallback"),
+                             hasName("base::OnceCallback")))))))),
+        hasType(qualType(
+            hasDeclaration(recordDecl(anyOf(hasName("base::RepeatingCallback"),
+                                            hasName("base::OnceCallback")))))));
+
     auto field_exclusions =
-        anyOf(isExpansionInSystemHeader(), isInExternCContext(),
-              isInThirdPartyLocation(), isInGeneratedLocation(),
-              ImplicitFieldDeclaration());
+        anyOf(isExpansionInSystemHeader(), raw_ptr_plugin::isInExternCContext(),
+              raw_ptr_plugin::isInThirdPartyLocation(),
+              raw_ptr_plugin::isInGeneratedLocation(),
+              raw_ptr_plugin::ImplicitFieldDeclaration(), exclude_callbacks,
+              // Exclude fieldDecls in macros.
+              // `raw_ptr_plugin::isInMacroLocation()` is also true for fields
+              // annotated with RAW_PTR_EXCLUSION. The annotated fields are not
+              // included in `field_exclusions` as they are handled differently
+              // by the `excluded_field_decl` matcher.
+              allOf(raw_ptr_plugin::isInMacroLocation(),
+                    unless(raw_ptr_plugin::isRawPtrExclusionAnnotated())));
 
     // Supports typedefs as well.
     auto lhs_type_loc =
-        anyOf(hasDescendant(loc(qualType(hasDeclaration(
-                  typedefNameDecl(hasDescendant(lhs_location),
-                                  unless(isExpansionInSystemHeader())))))),
+        anyOf(hasDescendant(loc(qualType(hasDeclaration(typedefNameDecl(
+                  type_def_name_decl(hasDescendant(lhs_location))))))),
               hasDescendant(lhs_location));
 
     // Supports typedefs as well.
     auto rhs_type_loc =
-        anyOf(hasDescendant(loc(qualType(hasDeclaration(
-                  typedefNameDecl(hasDescendant(rhs_location),
-                                  unless(isExpansionInSystemHeader())))))),
+        anyOf(hasDescendant(loc(qualType(hasDeclaration(typedefNameDecl(
+                  type_def_name_decl(hasDescendant(rhs_location))))))),
               hasDescendant(rhs_location));
 
     auto lhs_field =
-        fieldDecl(hasExplicitFieldDecl(lhs_type_loc), unless(field_exclusions))
+        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(lhs_type_loc),
+                  unless(field_exclusions))
             .bind("lhs_field");
     auto rhs_field =
-        fieldDecl(hasExplicitFieldDecl(rhs_type_loc), unless(field_exclusions))
+        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(rhs_type_loc),
+                  unless(field_exclusions))
             .bind("rhs_field");
 
-    // To handle statements of the form:
-    // auto var = member/var/fct(); fct_call(var);
-    // We need to propagate the rewrite to fct_call signature.
-
-    auto lhs_type_def_name_decl = typedefNameDecl(
-        hasDescendant(lhs_location), unless(isExpansionInSystemHeader()));
-
-    auto lhs_type_def_var =
-        anyOf(varDecl(hasType(lhs_type_def_name_decl)),
-              varDecl(hasType(references(lhs_type_def_name_decl))),
-              varDecl(hasType(pointsTo(lhs_type_def_name_decl))));
-
-    auto rhs_type_def_name_decl = typedefNameDecl(
-        hasDescendant(rhs_location), unless(isExpansionInSystemHeader()));
-
-    auto rhs_type_def_var =
-        anyOf(varDecl(hasType(rhs_type_def_name_decl)),
-              varDecl(hasType(references(rhs_type_def_name_decl))),
-              varDecl(hasType(pointsTo(rhs_type_def_name_decl))));
-
-    auto v_decl_variations = varDecl(anyOf(
-        varDecl(hasType(class_temp_spec_decl)),
-        varDecl(hasType(references(class_temp_spec_decl))),
-        varDecl(hasType(pointsTo(class_temp_spec_decl))),
-        varDecl(hasType(decl(hasParent(class_temp_spec_decl)))),
-        varDecl(hasType(pointsTo(decl(hasParent(class_temp_spec_decl))))),
-        varDecl(hasType(references(decl(hasParent(class_temp_spec_decl)))))));
-
     auto lhs_var = anyOf(
-        varDecl(allOf(
-            anyOf(v_decl_variations, lhs_type_def_var),
-            hasDescendant(loc(qualType(autoType())).bind("lhs_auto_loc")))),
+        varDecl(hasDescendant(loc(qualType(autoType())).bind("lhs_auto_loc"))),
         varDecl(lhs_type_loc).bind("lhs_var"));
 
     auto rhs_var = anyOf(
-        varDecl(allOf(
-            anyOf(v_decl_variations, rhs_type_def_var),
-            hasDescendant(loc(qualType(autoType())).bind("rhs_auto_loc")))),
+        varDecl(hasDescendant(loc(qualType(autoType())).bind("rhs_auto_loc"))),
         varDecl(rhs_type_loc).bind("rhs_var"));
 
     auto lhs_param =
-        parmVarDecl(hasExplicitParmVarDecl(lhs_type_loc)).bind("lhs_param");
+        parmVarDecl(raw_ptr_plugin::hasExplicitParmVarDecl(lhs_type_loc))
+            .bind("lhs_param");
 
     auto rhs_param =
-        parmVarDecl(hasExplicitParmVarDecl(rhs_type_loc)).bind("rhs_param");
+        parmVarDecl(raw_ptr_plugin::hasExplicitParmVarDecl(rhs_type_loc))
+            .bind("rhs_param");
 
     auto rhs_call_expr =
         callExpr(callee(functionDecl(hasReturnTypeLoc(rhs_type_loc))));
@@ -864,20 +1024,24 @@ class VectorRawPtrRewriter {
     // To make sure we add all field decls to the graph.(Specifically those not
     // connected to other nodes)
     auto field_decl =
-        fieldDecl(hasExplicitFieldDecl(lhs_type_loc),
-                  unless(anyOf(field_exclusions, isRawPtrExclusionAnnotated())))
+        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(lhs_type_loc),
+                  unless(anyOf(field_exclusions,
+                               raw_ptr_plugin::isRawPtrExclusionAnnotated())))
             .bind("field_decl");
     match_finder_.addMatcher(field_decl, &potentail_nodes_);
 
-    // Fields annotated with RAW_PTR_EXCLUSION cannot be filtered using field
-    // exclusions. They need to appear in the graph so that we can properly
-    // propagate the exclusion to reachable nodes. For this reason, and in order
-    // to capture this information, RAW_PTR_EXCLUSION fields are added as single
-    // nodes to the list and then used as a starting point to propagate the
-    // exclusion before running dfs on the graph.
-    auto excluded_field_decl = fieldDecl(hasExplicitFieldDecl(lhs_type_loc),
-                                         isRawPtrExclusionAnnotated())
-                                   .bind("excluded_field_decl");
+    // Fields annotated with RAW_PTR_EXCLUSION (as well as fields in excluded
+    // paths) cannot be filtered using field exclusions. They need to appear in
+    // the graph so that we can properly propagate the exclusion to reachable
+    // nodes. For this reason, and in order to capture this information,
+    // RAW_PTR_EXCLUSION fields are added as single nodes to the list and then
+    // used as a starting point to propagate the exclusion before running dfs on
+    // the graph.
+    auto excluded_field_decl =
+        fieldDecl(raw_ptr_plugin::hasExplicitFieldDecl(lhs_type_loc),
+                  anyOf(raw_ptr_plugin::isRawPtrExclusionAnnotated(),
+                        isInLocationListedInFilterFile(paths_to_exclude)))
+            .bind("excluded_field_decl");
     match_finder_.addMatcher(excluded_field_decl, &potentail_nodes_);
 
     auto ref_cref_move =
@@ -890,21 +1054,6 @@ class VectorRawPtrRewriter {
     auto lhs_move_call =
         callExpr(callee(functionDecl(ref_cref_move)), hasArgument(0, lhs_expr));
 
-    // TODO: check vector<S*> it = get()[0];
-    auto rhs_iterator_call = cxxMemberCallExpr(
-        callee(functionDecl(anyOf(hasName("begin"), hasName("cbegin"),
-                                  hasName("rbegin"), hasName("crbegin"),
-                                  hasName("end"), hasName("cend"),
-                                  hasName("rend"), hasName("crend")))),
-        has(memberExpr(has(rhs_expr))));
-
-    auto lhs_iterator_call = cxxMemberCallExpr(
-        callee(functionDecl(anyOf(hasName("begin"), hasName("cbegin"),
-                                  hasName("rbegin"), hasName("crbegin"),
-                                  hasName("end"), hasName("cend"),
-                                  hasName("rend"), hasName("crend")))),
-        has(memberExpr(has(lhs_expr))));
-
     auto rhs_cxx_temp_expr = cxxTemporaryObjectExpr(rhs_type_loc);
 
     auto lhs_cxx_temp_expr = cxxTemporaryObjectExpr(lhs_type_loc);
@@ -914,17 +1063,21 @@ class VectorRawPtrRewriter {
     // as callExpr argument. Examples: rhs_expr, &rhs_expr, *rhs_expr,
     // fct_call(),*fct_call(), &fct_call(), std::move(), .begin();
     auto rhs_expr_variations =
-        anyOf(rhs_expr, unaryOperator(has(rhs_expr)), rhs_call_expr,
-              rhs_move_call, rhs_iterator_call, rhs_cxx_temp_expr);
+        expr_variations(anyOf(rhs_expr, rhs_move_call, rhs_cxx_temp_expr));
 
-    // needed for ternary operator expr: (cond) ? true_expr : false_expr;
-    // true_expr => lhs; false_expr => rhs;
     auto lhs_expr_variations =
-        anyOf(lhs_expr, unaryOperator(has(lhs_expr)), lhs_call_expr,
-              lhs_move_call, lhs_iterator_call, lhs_cxx_temp_expr);
+        expr_variations(anyOf(lhs_expr, lhs_move_call, lhs_cxx_temp_expr));
 
     // rewrite affected expressions
     {
+      // This is needed to handle container-like types that implement a begin()
+      // method. Range-based for loops over such types also need to be
+      // rewritten.
+      auto ctn_like_type =
+          expr(hasType(cxxRecordDecl(has(functionDecl(
+                   hasName("begin"), hasReturnTypeLoc(rhs_type_loc))))),
+               unless(isExpansionInSystemHeader()));
+
       auto reversed_expr =
           callExpr(callee(functionDecl(hasName("base::Reversed"))),
                    hasArgument(0, rhs_expr_variations));
@@ -937,7 +1090,8 @@ class VectorRawPtrRewriter {
               has(varDecl(hasDescendant(loc(qualType(pointsTo(autoType())))
                                             .bind("autoLoc")))
                       .bind("autoVarDecl")),
-              has(expr(anyOf(rhs_expr_variations, reversed_expr)))));
+              has(expr(
+                  anyOf(rhs_expr_variations, reversed_expr, ctn_like_type)))));
       match_finder_.addMatcher(auto_star_in_range_stmt,
                                &affected_ptr_expr_rewriter_);
 
@@ -945,10 +1099,14 @@ class VectorRawPtrRewriter {
       // This becomes: auto* var = member.front().get();
       auto affected_expr = traverse(
           clang::TK_IgnoreUnlessSpelledInSource,
-          declStmt(has(varDecl(hasType(pointsTo(autoType())),
-                               has(cxxMemberCallExpr(has(
-                                   memberExpr(has(expr(rhs_expr_variations)))
-                                       .bind("affectedMemberExpr"))))))));
+          declStmt(has(varDecl(
+              hasType(pointsTo(autoType())),
+              has(cxxMemberCallExpr(
+                      callee(
+                          functionDecl(anyOf(hasName("front"), hasName("back"),
+                                             hasName("at"), hasName("top")))),
+                      has(memberExpr(has(expr(rhs_expr_variations)))))
+                      .bind("affectedMemberExpr"))))));
       match_finder_.addMatcher(affected_expr, &affected_ptr_expr_rewriter_);
 
       // handles expressions of the form: auto* var = member[0];
@@ -960,8 +1118,37 @@ class VectorRawPtrRewriter {
                        has(cxxOperatorCallExpr(has(expr(rhs_expr_variations)))
                                .bind("affectedOpCall"))))));
       match_finder_.addMatcher(affected_op_call, &affected_ptr_expr_rewriter_);
+
+      // handles expressions of the form:
+      // std::ranges::any_of(view->children(), [](const auto* v) {
+      //     ...
+      //   });
+      // where auto* needs to be rewritten into type_name*.
+      auto range_exprs = callExpr(
+          callee(functionDecl(anyOf(
+              matchesName("find"), matchesName("any_of"), matchesName("all_of"),
+              matchesName("transform"), matchesName("copy"),
+              matchesName("accumulate"), matchesName("count")))),
+          hasArgument(0, traverse(clang::TK_IgnoreUnlessSpelledInSource,
+                                  expr(anyOf(rhs_expr_variations, reversed_expr,
+                                             ctn_like_type)))),
+          hasAnyArgument(expr(allOf(
+              traverse(
+                  clang::TK_IgnoreUnlessSpelledInSource,
+                  lambdaExpr(
+                      has(parmVarDecl(
+                              hasTypeLoc(loc(qualType(anything()))
+                                             .bind("template_type_param_loc")),
+                              hasType(pointsTo(templateTypeParmType())))
+                              .bind("lambda_parmVarDecl")))
+                      .bind("lambda_expr")),
+              lambdaExpr(has(cxxRecordDecl(has(functionTemplateDecl(has(
+                  cxxMethodDecl(isTemplateInstantiation()).bind("md")))))))))));
+      match_finder_.addMatcher(range_exprs, &affected_ptr_expr_rewriter_);
     }
 
+    // needed for ternary operator expr: (cond) ? true_expr : false_expr;
+    // true_expr => lhs; false_expr => rhs;
     // creates a link between false_expr and true_expr of a ternary conditional
     // operator;
     // handles:
@@ -1081,13 +1268,20 @@ class VectorRawPtrRewriter {
     // Handles: std::swap(member, temp); std::swap(temp, member);
     auto std_swap_call =
         traverse(clang::TK_IgnoreUnlessSpelledInSource,
-                 callExpr(anyOf(callee(functionDecl(hasName("std::swap"))),
-                                isExpandedFromMacro("EXPECT_EQ"),
-                                isExpandedFromMacro("ASSERT_EQ")),
+                 callExpr(callee(functionDecl(hasName("std::swap"))),
                           hasArgument(0, lhs_expr_variations),
                           hasArgument(1, rhs_expr_variations),
                           unless(isExpansionInSystemHeader())));
     match_finder_.addMatcher(std_swap_call, &potentail_nodes_);
+
+    auto assert_expect_eq =
+        traverse(clang::TK_IgnoreUnlessSpelledInSource,
+                 callExpr(anyOf(isExpandedFromMacro("EXPECT_EQ"),
+                                isExpandedFromMacro("ASSERT_EQ")),
+                          hasArgument(2, lhs_expr_variations),
+                          hasArgument(3, rhs_expr_variations),
+                          unless(isExpansionInSystemHeader())));
+    match_finder_.addMatcher(assert_expect_eq, &potentail_nodes_);
 
     // Supports:
     // std::vector<S*> temp;
@@ -1106,7 +1300,7 @@ class VectorRawPtrRewriter {
     // This creates a link between the expr and the underlying field.
     auto var_passed_in_initlistExpr = traverse(
         clang::TK_IgnoreUnlessSpelledInSource,
-        initListExpr(forEachInitExprWithFieldDecl(
+        initListExpr(raw_ptr_plugin::forEachInitExprWithFieldDecl(
             expr(anyOf(
                 rhs_expr_variations,
                 conditionalOperator(hasTrueExpression(rhs_expr_variations)))),
@@ -1128,6 +1322,18 @@ class VectorRawPtrRewriter {
                 lhs_param)));
     match_finder_.addMatcher(make_unique_call, &potentail_nodes_);
 
+    // This creates a link between lhs and an argument passed to emplace.
+    // Example:
+    // std::map<int, std::vector<S*>> m;
+    // m.emplace(index, o.member);
+    // where member has type std::vector<S*>;
+    auto emplace_call_with_arg =
+        traverse(clang::TK_IgnoreUnlessSpelledInSource,
+                 cxxMemberCallExpr(callee(functionDecl(hasName("emplace"))),
+                                   has(memberExpr(has(rhs_expr_variations))),
+                                   hasAnyArgument(lhs_expr_variations)));
+    match_finder_.addMatcher(emplace_call_with_arg, &potentail_nodes_);
+
     // Handle BindOnce/BindRepeating;
     auto first_arg = hasParent(callExpr(hasArgument(
         0, anyOf(lambdaExpr().bind("lambda_expr"),
@@ -1142,21 +1348,35 @@ class VectorRawPtrRewriter {
             forEachBindArg(expr(rhs_expr_variations, first_arg), lhs_param)));
     match_finder_.addMatcher(bind_args, &potentail_nodes_);
 
+    // This is useful to handle iteration over maps with vector as value.
+    // Example:
+    // std::vector<int, std::vector<S*>> m;
+    // for (auto& p : m){
+    // ...
+    // }
+    // This creates a link between p and m.
+    auto for_range_stmts = traverse(
+        clang::TK_IgnoreUnlessSpelledInSource,
+        cxxForRangeStmt(
+            hasLoopVariable(decl(lhs_var, unless(has(pointerTypeLoc())))),
+            hasRangeInit(rhs_expr_variations)));
+    match_finder_.addMatcher(for_range_stmts, &potentail_nodes_);
+
     // Map function declaration signature to function definition signature;
     // This is problematic in the case of callbacks defined in function.
     auto fct_decls_params = traverse(
         clang::TK_IgnoreUnlessSpelledInSource,
-        functionDecl(
-            forEachParmVarDecl(rhs_param),
-            unless(anyOf(isExpansionInSystemHeader(), isInMacroLocation())))
+        functionDecl(forEachParmVarDecl(rhs_param),
+                     unless(anyOf(isExpansionInSystemHeader(),
+                                  raw_ptr_plugin::isInMacroLocation())))
             .bind("fct_decl"));
     match_finder_.addMatcher(fct_decls_params, &fct_sig_nodes_);
 
     auto fct_decls_returns = traverse(
         clang::TK_IgnoreUnlessSpelledInSource,
-        functionDecl(
-            hasReturnTypeLoc(rhs_type_loc),
-            unless(anyOf(isExpansionInSystemHeader(), isInMacroLocation())))
+        functionDecl(hasReturnTypeLoc(rhs_type_loc),
+                     unless(anyOf(isExpansionInSystemHeader(),
+                                  raw_ptr_plugin::isInMacroLocation())))
             .bind("fct_decl"));
     match_finder_.addMatcher(fct_decls_returns, &fct_sig_nodes_);
 
@@ -1164,10 +1384,33 @@ class VectorRawPtrRewriter {
         clang::TK_IgnoreUnlessSpelledInSource,
         templateSpecializationTypeLoc(
             rhs_location,
-            hasAncestor(functionDecl(isInMacroLocation(),
-                                     unless(isExpansionInSystemHeader()))
-                            .bind("fct_decl")),
-            unless(hasAncestor(varDecl()))));
+            hasAncestor(
+                cxxMethodDecl(raw_ptr_plugin::isInMacroLocation(),
+                              anyOf(isExpandedFromMacro("MOCK_METHOD"),
+                                    isExpandedFromMacro("MOCK_METHOD0"),
+                                    isExpandedFromMacro("MOCK_METHOD1"),
+                                    isExpandedFromMacro("MOCK_METHOD2"),
+                                    isExpandedFromMacro("MOCK_METHOD3"),
+                                    isExpandedFromMacro("MOCK_METHOD4"),
+                                    isExpandedFromMacro("MOCK_METHOD5"),
+                                    isExpandedFromMacro("MOCK_METHOD6"),
+                                    isExpandedFromMacro("MOCK_METHOD7"),
+                                    isExpandedFromMacro("MOCK_METHOD8"),
+                                    isExpandedFromMacro("MOCK_METHOD9"),
+                                    isExpandedFromMacro("MOCK_METHOD10"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD0"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD1"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD2"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD3"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD4"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD5"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD6"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD7"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD8"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD9"),
+                                    isExpandedFromMacro("MOCK_CONST_METHOD10")),
+                              unless(isExpansionInSystemHeader()))
+                    .bind("fct_decl"))));
     match_finder_.addMatcher(macro_fct_signatures, &fct_sig_nodes_);
 
     // TODO: handle calls to templated functions
@@ -1178,6 +1421,7 @@ class VectorRawPtrRewriter {
   AffectedPtrExprRewriter affected_ptr_expr_rewriter_;
   PotentialNodes potentail_nodes_;
   FunctionSignatureNodes fct_sig_nodes_;
+  const raw_ptr_plugin::FilterFile* paths_to_exclude;
 };
 
 }  // namespace
@@ -1188,11 +1432,33 @@ int main(int argc, const char* argv[]) {
   llvm::cl::OptionCategory category(
       "rewrite_templated_container_fields: changes |vector<T*> field_| to "
       "|vector<raw_ptr<T>> field_|.");
+
+  llvm::cl::opt<std::string> override_exclude_paths_param(
+      kOverrideExcludePathsParamName, llvm::cl::value_desc("filepath"),
+      llvm::cl::desc(
+          "override file listing paths to be blocked (not rewritten)"));
   llvm::Expected<clang::tooling::CommonOptionsParser> options =
       clang::tooling::CommonOptionsParser::create(argc, argv, category);
   assert(static_cast<bool>(options));  // Should not return an error.
   clang::tooling::ClangTool tool(options->getCompilations(),
                                  options->getSourcePathList());
+
+  std::unique_ptr<raw_ptr_plugin::FilterFile> paths_to_exclude;
+  if (override_exclude_paths_param.getValue().empty()) {
+    std::vector<std::string> paths_to_exclude_lines;
+    for (auto* const line : kRawPtrManualPathsToIgnore) {
+      paths_to_exclude_lines.push_back(line);
+    }
+    for (auto* const line : kSeparateRepositoryPaths) {
+      paths_to_exclude_lines.push_back(line);
+    }
+    paths_to_exclude =
+        std::make_unique<raw_ptr_plugin::FilterFile>(paths_to_exclude_lines);
+  } else {
+    paths_to_exclude = std::make_unique<raw_ptr_plugin::FilterFile>(
+        override_exclude_paths_param,
+        override_exclude_paths_param.ArgStr.str());
+  }
 
   // Map a function signature, which is modeled as a string representing file
   // location, to it's graph nodes (RTNode and ParmVarDecl nodes).
@@ -1203,8 +1469,8 @@ int main(int argc, const char* argv[]) {
   std::vector<std::pair<std::string, std::string>> fct_sig_pairs;
   OutputHelper output_helper;
   MatchFinder match_finder;
-  VectorRawPtrRewriter rewriter(match_finder, output_helper, fct_sig_nodes,
-                                fct_sig_pairs);
+  ContainerRewriter rewriter(match_finder, output_helper, fct_sig_nodes,
+                             fct_sig_pairs, paths_to_exclude.get());
   rewriter.addMatchers();
 
   // Prepare and run the tool.

@@ -5,16 +5,18 @@
 #include "ui/events/devices/input_device_observer_android.h"
 
 #include "base/memory/singleton.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
 #include "ui/events/devices/ui_events_devices_jni_headers/InputDeviceObserver_jni.h"
 
-using base::android::AttachCurrentThread;
-using base::android::JavaParamRef;
+using jni_zero::AttachCurrentThread;
+using jni_zero::JavaParamRef;
 
 namespace ui {
 
-InputDeviceObserverAndroid::InputDeviceObserverAndroid() {}
+InputDeviceObserverAndroid::InputDeviceObserverAndroid() = default;
 
-InputDeviceObserverAndroid::~InputDeviceObserverAndroid() {}
+InputDeviceObserverAndroid::~InputDeviceObserverAndroid() = default;
 
 InputDeviceObserverAndroid* InputDeviceObserverAndroid::GetInstance() {
   return base::Singleton<
@@ -44,10 +46,10 @@ static void JNI_InputDeviceObserver_InputConfigurationChanged(
 }
 
 void InputDeviceObserverAndroid::NotifyObserversDeviceConfigurationChanged() {
-  for (ui::InputDeviceEventObserver& observer : observers_)
-    observer.OnInputDeviceConfigurationChanged(
-        InputDeviceEventObserver::kMouse | InputDeviceEventObserver::kKeyboard |
-        InputDeviceEventObserver::kTouchpad);
+  observers_.Notify(
+      &ui::InputDeviceEventObserver::OnInputDeviceConfigurationChanged,
+      InputDeviceEventObserver::kMouse | InputDeviceEventObserver::kKeyboard |
+          InputDeviceEventObserver::kTouchpad);
 }
 
 }  // namespace ui

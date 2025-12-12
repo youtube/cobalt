@@ -7,6 +7,7 @@
 
 #include <set>
 
+#include "base/memory/raw_ptr.h"
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/overlay.h"
 
@@ -28,16 +29,17 @@ class OverlayHandler : public DevToolsDomainHandler, public Overlay::Backend {
   void SetRenderer(int process_host_id,
                    RenderFrameHostImpl* frame_host) override;
 
-  Response SetInspectMode(
-      const String& in_mode,
-      Maybe<protocol::Overlay::HighlightConfig> in_highlightConfig) override;
-  Response SetPausedInDebuggerMessage(Maybe<String> in_message) override;
+  Response SetInspectMode(const String& in_mode,
+                          std::unique_ptr<protocol::Overlay::HighlightConfig>
+                              in_highlightConfig) override;
+  Response SetPausedInDebuggerMessage(
+      std::optional<String> in_message) override;
   Response Disable() override;
 
  private:
   void UpdateCaptureInputEvents();
 
-  RenderFrameHostImpl* host_ = nullptr;
+  raw_ptr<RenderFrameHostImpl> host_ = nullptr;
   std::string inspect_mode_;
   std::string paused_message_;
 };

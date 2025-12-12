@@ -4,17 +4,25 @@
 
 #include "chrome/browser/policy/chrome_browser_cloud_management_controller_desktop.h"
 
+#include <stdint.h>
+
+#include <set>
+#include <string>
 #include <utility>
 
+#include "base/check_is_test.h"
 #include "base/command_line.h"
+#include "base/containers/contains.h"
 #include "base/path_service.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/default_clock.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/device_identity/device_identity_provider.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service.h"
 #include "chrome/browser/device_identity/device_oauth2_token_service_factory.h"
+#include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/key_loader.h"
 #include "chrome/browser/enterprise/remote_commands/cbcm_remote_commands_factory.h"
 #include "chrome/browser/enterprise/reporting/reporting_delegate_factory_desktop.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
@@ -23,14 +31,18 @@
 #include "chrome/browser/policy/chrome_browser_policy_connector.h"
 #include "chrome/browser/policy/client_data_delegate_desktop.h"
 #include "chrome/browser/policy/cloud/cloud_policy_invalidator.h"
-#include "chrome/browser/policy/cloud/remote_commands_invalidator_impl.h"
+#include "chrome/browser/policy/cloud/fm_registration_token_uploader.h"
+#include "chrome/browser/policy/policy_util.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_paths.h"
 #include "components/gcm_driver/gcm_driver.h"
 #include "components/gcm_driver/instance_id/instance_id_driver.h"
-#include "components/invalidation/impl/fcm_invalidation_service.h"
-#include "components/invalidation/impl/fcm_network_handler.h"
+#include "components/invalidation/invalidation_factory.h"
+#include "components/invalidation/invalidation_listener.h"
+#include "components/invalidation/public/invalidation_service.h"
 #include "components/policy/core/common/cloud/machine_level_user_cloud_policy_manager.h"
+#include "components/policy/core/common/remote_commands/remote_commands_constants.h"
+#include "components/policy/core/common/remote_commands/remote_commands_invalidator_impl.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_service_instance.h"
@@ -58,24 +70,37 @@
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-#include "chrome/browser/enterprise/connectors/device_trust/device_trust_features.h"
+#include "chrome/browser/enterprise/client_certificates/browser_context_delegate.h"
+#include "chrome/browser/enterprise/client_certificates/cert_utils.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/device_trust_key_manager_impl.h"
 #include "chrome/browser/enterprise/connectors/device_trust/key_management/browser/key_rotation_launcher.h"
+#include "components/enterprise/client_certificates/core/browser_cloud_management_delegate.h"
+#include "components/enterprise/client_certificates/core/certificate_provisioning_service.h"
+#include "components/enterprise/client_certificates/core/dm_server_client.h"
+#include "components/enterprise/client_certificates/core/key_upload_client.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-
-#if BUILDFLAG(IS_FUCHSIA)
-#include "chrome/browser/policy/browser_dm_token_storage_fuchsia.h"
-#endif  // BUILDFLAG(IS_FUCHSIA)
 
 namespace policy {
 
 namespace {
 
 #if BUILDFLAG(IS_WIN) && BUILDFLAG(GOOGLE_CHROME_BRANDING)
-constexpr base::FilePath::StringPieceType kCachedPolicyDirname =
+constexpr base::FilePath::StringViewType kCachedPolicyDirname =
     FILE_PATH_LITERAL("Policies");
 #endif
 
+constexpr char kInvalidationListenerLogPrefix[] =
+    "ChromeBrowserCloudManagementControllerDesktop";
+
+// Returns a set of all project numbers that will be used by the browser.
+std::set<int64_t> GetAllInvalidationProjectNumbers() {
+  // Cannot be a static constant because project number is decided by feature,
+  // which is not available during static initialization.
+  return {policy::GetPolicyInvalidationProjectNumber(
+              PolicyInvalidationScope::kCBCM),
+          policy::GetRemoteCommandsInvalidationProjectNumber(
+              PolicyInvalidationScope::kCBCM)};
+}
 }  // namespace
 
 ChromeBrowserCloudManagementControllerDesktop::
@@ -94,8 +119,6 @@ void ChromeBrowserCloudManagementControllerDesktop::
   storage_delegate = std::make_unique<BrowserDMTokenStorageLinux>();
 #elif BUILDFLAG(IS_WIN)
   storage_delegate = std::make_unique<BrowserDMTokenStorageWin>();
-#elif BUILDFLAG(IS_FUCHSIA)
-  storage_delegate = std::make_unique<BrowserDMTokenStorageFuchsia>();
 #else
   NOTREACHED();
 #endif
@@ -185,10 +208,28 @@ void ChromeBrowserCloudManagementControllerDesktop::OnServiceAccountSet(
 }
 
 void ChromeBrowserCloudManagementControllerDesktop::ShutDown() {
-  if (policy_invalidator_)
+  if (policy_invalidator_) {
     policy_invalidator_->Shutdown();
-  if (commands_invalidator_)
+  }
+  if (commands_invalidator_) {
     commands_invalidator_->Shutdown();
+  }
+
+  policy_invalidator_.reset();
+  commands_invalidator_.reset();
+  fm_registration_token_uploaders_.clear();
+  invalidation_service_or_listener_per_project_.clear();
+  device_instance_id_driver_.reset();
+  identity_provider_.reset();
+
+  // In some tests, `DCHECK_CURRENTLY_ON(content::BrowserThread::UI)` fails.
+  // Such tests have not initialized device_oauth2_token_service anyway, so skip
+  // calling Shutdown() for the service.
+  if (!content::BrowserThread::CurrentlyOn(content::BrowserThread::UI)) {
+    CHECK_IS_TEST();
+    return;
+  }
+  DeviceOAuth2TokenServiceFactory::Shutdown();
 }
 
 MachineLevelUserCloudPolicyManager*
@@ -246,23 +287,59 @@ ChromeBrowserCloudManagementControllerDesktop::CreateClientDataDelegate() {
 std::unique_ptr<enterprise_connectors::DeviceTrustKeyManager>
 ChromeBrowserCloudManagementControllerDesktop::CreateDeviceTrustKeyManager() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
-  if (enterprise_connectors::IsDeviceTrustConnectorFeatureEnabled()) {
-    auto key_rotation_launcher =
-        enterprise_connectors::KeyRotationLauncher::Create(
-            BrowserDMTokenStorage::Get(), GetDeviceManagementService(),
-            GetSharedURLLoaderFactory());
-    return std::make_unique<enterprise_connectors::DeviceTrustKeyManagerImpl>(
-        std::move(key_rotation_launcher));
-  }
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+  auto* browser_dm_token_storage = BrowserDMTokenStorage::Get();
+  auto* device_management_service = GetDeviceManagementService();
+  auto shared_url_loader_factory = GetSharedURLLoaderFactory();
+
+  auto key_rotation_launcher =
+      enterprise_connectors::KeyRotationLauncher::Create(
+          browser_dm_token_storage, device_management_service,
+          shared_url_loader_factory);
+  auto key_loader = enterprise_connectors::KeyLoader::Create(
+      device_management_service, shared_url_loader_factory);
+
+  return std::make_unique<enterprise_connectors::DeviceTrustKeyManagerImpl>(
+      std::move(key_rotation_launcher), std::move(key_loader));
+#else
   return nullptr;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+}
+
+std::unique_ptr<client_certificates::CertificateProvisioningService>
+ChromeBrowserCloudManagementControllerDesktop::
+    CreateCertificateProvisioningService() {
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
+  if (!certificate_store_) {
+    certificate_store_ =
+        std::make_unique<client_certificates::PrefsCertificateStore>(
+            g_browser_process->local_state(),
+            client_certificates::CreatePrivateKeyFactory());
+  }
+
+  auto* device_management_service = GetDeviceManagementService();
+  auto url_loader_factory = GetSharedURLLoaderFactory();
+  if (!url_loader_factory || !device_management_service ||
+      !certificate_store_) {
+    return nullptr;
+  }
+
+  return client_certificates::CertificateProvisioningService::Create(
+      g_browser_process->local_state(), certificate_store_.get(),
+      std::make_unique<client_certificates::BrowserContextDelegate>(),
+      client_certificates::KeyUploadClient::Create(
+          std::make_unique<
+              enterprise_attestation::BrowserCloudManagementDelegate>(
+              enterprise_attestation::DMServerClient::Create(
+                  device_management_service, std::move(url_loader_factory)))));
+#else
+  return nullptr;
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC)
 }
 
 void ChromeBrowserCloudManagementControllerDesktop::StartInvalidations() {
-  if (invalidation_service_) {
+  if (IsInvalidationsServiceStarted()) {
     NOTREACHED() << "Trying to start an invalidation service when there's "
                     "already one. Please see crbug.com/1186159.";
-    return;
   }
 
   identity_provider_ = std::make_unique<DeviceIdentityProvider>(
@@ -270,44 +347,67 @@ void ChromeBrowserCloudManagementControllerDesktop::StartInvalidations() {
   device_instance_id_driver_ = std::make_unique<instance_id::InstanceIDDriver>(
       g_browser_process->gcm_driver());
 
-  invalidation_service_ =
-      std::make_unique<invalidation::FCMInvalidationService>(
-          identity_provider_.get(),
-          base::BindRepeating(&invalidation::FCMNetworkHandler::Create,
-                              g_browser_process->gcm_driver(),
-                              device_instance_id_driver_.get()),
-          base::BindRepeating(
-              &invalidation::PerUserTopicSubscriptionManager::Create,
-              identity_provider_.get(), g_browser_process->local_state(),
-              base::RetainedRef(
-                  g_browser_process->shared_url_loader_factory())),
-          device_instance_id_driver_.get(), g_browser_process->local_state(),
-          policy::kPolicyFCMInvalidationSenderID);
-  invalidation_service_->Init();
+  for (const auto& project_number : GetAllInvalidationProjectNumbers()) {
+    invalidation_service_or_listener_per_project_.emplace(
+        project_number,
+        invalidation::CreateInvalidationServiceOrListener(
+            identity_provider_.get(), g_browser_process->gcm_driver(),
+            device_instance_id_driver_.get(),
+            g_browser_process->shared_url_loader_factory(),
+            g_browser_process->local_state(), project_number,
+            kInvalidationListenerLogPrefix));
+  }
 
+  auto* core = g_browser_process->browser_policy_connector()
+                   ->machine_level_user_cloud_policy_manager()
+                   ->core();
+
+  const auto policy_project_number =
+      GetPolicyInvalidationProjectNumber(PolicyInvalidationScope::kCBCM);
+  CHECK(base::Contains(invalidation_service_or_listener_per_project_,
+                       policy_project_number))
+      << "Missing invalidation for project: " << policy_project_number;
   policy_invalidator_ = std::make_unique<CloudPolicyInvalidator>(
-      PolicyInvalidationScope::kCBCM,
-      g_browser_process->browser_policy_connector()
-          ->machine_level_user_cloud_policy_manager()
-          ->core(),
+      PolicyInvalidationScope::kCBCM, core,
       base::SingleThreadTaskRunner::GetCurrentDefault(),
       base::DefaultClock::GetInstance(),
       0 /* highest_handled_invalidation_version */);
-  policy_invalidator_->Initialize(invalidation_service_.get());
+  policy_invalidator_->Initialize(invalidation::UniquePointerVariantToPointer(
+      invalidation_service_or_listener_per_project_[policy_project_number]));
 
-  g_browser_process->browser_policy_connector()
-      ->machine_level_user_cloud_policy_manager()
-      ->core()
-      ->StartRemoteCommandsService(
-          std::make_unique<enterprise_commands::CBCMRemoteCommandsFactory>(),
-          PolicyInvalidationScope::kCBCM);
+  core->StartRemoteCommandsService(
+      std::make_unique<enterprise_commands::CBCMRemoteCommandsFactory>(),
+      PolicyInvalidationScope::kCBCM);
 
+  const auto remote_commands_project_number(
+      GetRemoteCommandsInvalidationProjectNumber(
+          PolicyInvalidationScope::kCBCM));
+  CHECK(base::Contains(invalidation_service_or_listener_per_project_,
+                       remote_commands_project_number))
+      << "Missing invalidation for project: "
+      << GetRemoteCommandsInvalidationProjectNumber(
+             PolicyInvalidationScope::kCBCM);
   commands_invalidator_ = std::make_unique<RemoteCommandsInvalidatorImpl>(
-      g_browser_process->browser_policy_connector()
-          ->machine_level_user_cloud_policy_manager()
-          ->core(),
-      base::DefaultClock::GetInstance(), PolicyInvalidationScope::kCBCM);
-  commands_invalidator_->Initialize(invalidation_service_.get());
+      core, base::DefaultClock::GetInstance(), PolicyInvalidationScope::kCBCM);
+  commands_invalidator_->Initialize(invalidation::UniquePointerVariantToPointer(
+      invalidation_service_or_listener_per_project_
+          [remote_commands_project_number]));
+
+  for (const auto& [project_number, invalidation_service_or_listener] :
+       invalidation_service_or_listener_per_project_) {
+    if (!std::holds_alternative<
+            std::unique_ptr<invalidation::InvalidationListener>>(
+            invalidation_service_or_listener)) {
+      continue;
+    }
+    fm_registration_token_uploaders_.emplace_back(
+        std::make_unique<FmRegistrationTokenUploader>(
+            PolicyInvalidationScope::kCBCM,
+            std::get<std::unique_ptr<invalidation::InvalidationListener>>(
+                invalidation_service_or_listener)
+                .get(),
+            core));
+  }
 }
 
 scoped_refptr<network::SharedURLLoaderFactory>
@@ -319,7 +419,7 @@ bool ChromeBrowserCloudManagementControllerDesktop::
     IsInvalidationsServiceStarted() const {
   // This object is created when StartInvalidations is called, and stays alive
   // thereafter.
-  return !!invalidation_service_;
+  return !invalidation_service_or_listener_per_project_.empty();
 }
 
 }  // namespace policy

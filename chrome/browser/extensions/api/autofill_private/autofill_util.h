@@ -7,44 +7,58 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 
+#include "base/functional/callback_forward.h"
 #include "chrome/common/extensions/api/autofill_private.h"
-#include "components/autofill/core/browser/personal_data_manager.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "components/device_reauth/device_authenticator.h"
 
-namespace extensions {
+namespace autofill {
+class AddressDataManager;
+class CreditCard;
+class PaymentsDataManager;
+}  // namespace autofill
 
-namespace autofill_util {
+namespace extensions::autofill_util {
 
 using AddressEntryList = std::vector<api::autofill_private::AddressEntry>;
 using CountryEntryList = std::vector<api::autofill_private::CountryEntry>;
 using CreditCardEntryList = std::vector<api::autofill_private::CreditCardEntry>;
 using IbanEntryList = std::vector<api::autofill_private::IbanEntry>;
+using PayOverTimeIssuerEntryList =
+    std::vector<api::autofill_private::PayOverTimeIssuerEntry>;
+using CallbackAfterSuccessfulUserAuth = base::OnceCallback<void(bool)>;
 
-// Uses |personal_data| to generate a list of up-to-date AddressEntry objects.
-AddressEntryList GenerateAddressList(
-    const autofill::PersonalDataManager& personal_data);
+// Uses `adm` to generate a list of up-to-date AddressEntry objects.
+AddressEntryList GenerateAddressList(const autofill::AddressDataManager& adm);
 
-// Uses |personal_data| to generate a list of up-to-date CountryEntry objects.
-CountryEntryList GenerateCountryList(
-    const autofill::PersonalDataManager& personal_data);
+// Generate a list of up-to-date `CountryEntry` objects that can be stored.
+CountryEntryList GenerateCountryList();
 
-// Uses |personal_data| to generate a list of up-to-date CreditCardEntry
+// Uses `paydm` to generate a list of up-to-date CreditCardEntry
 // objects.
 CreditCardEntryList GenerateCreditCardList(
-    const autofill::PersonalDataManager& personal_data);
+    const autofill::PaymentsDataManager& paydm);
 
-// Uses |personal_data| to generate a list of up-to-date IbanEntry
+// Uses `paydm` to generate a list of up-to-date IbanEntry
 // objects.
-IbanEntryList GenerateIbanList(
-    const autofill::PersonalDataManager& personal_data);
+IbanEntryList GenerateIbanList(const autofill::PaymentsDataManager& paydm);
 
-// Uses |personal_data| to get primary account info.
-absl::optional<api::autofill_private::AccountInfo> GetAccountInfo(
-    const autofill::PersonalDataManager& personal_data);
+// Uses `paydm` to generate a list of up-to-date PayOverTimeIssuerEntry
+// objects.
+PayOverTimeIssuerEntryList GeneratePayOverTimeIssuerList(
+    const autofill::PaymentsDataManager& paydm);
 
-}  // namespace autofill_util
+// Uses `adm` to get primary account info.
+std::optional<api::autofill_private::AccountInfo> GetAccountInfo(
+    const autofill::AddressDataManager& adm);
 
-}  // namespace extensions
+// Returns a `CreditCardEntry` object which is UI compatible.
+api::autofill_private::CreditCardEntry CreditCardToCreditCardEntry(
+    const autofill::CreditCard& credit_card,
+    const autofill::PaymentsDataManager& paydm,
+    bool mask_local_cards);
+
+}  // namespace extensions::autofill_util
 
 #endif  // CHROME_BROWSER_EXTENSIONS_API_AUTOFILL_PRIVATE_AUTOFILL_UTIL_H_

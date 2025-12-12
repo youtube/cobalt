@@ -20,7 +20,6 @@
 #include "build/build_config.h"
 #include "content/browser/background_sync/background_sync_metrics.h"
 #include "content/browser/background_sync/background_sync_network_observer.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/storage_partition_impl.h"
 #include "content/public/browser/background_sync_controller.h"
@@ -28,8 +27,10 @@
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/permission_controller.h"
+#include "content/public/browser/permission_descriptor_util.h"
 #include "content/public/browser/render_process_host.h"
 #include "third_party/blink/public/common/permissions/permission_utils.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/service_worker/service_worker_type_converters.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker.mojom.h"
@@ -48,7 +49,7 @@ using SyncAndNotificationPermissions =
 
 namespace content {
 
-// TODO(crbug.com/932591): Use blink::mojom::BackgroundSyncError
+// TODO(crbug.com/40614176): Use blink::mojom::BackgroundSyncError
 // directly and eliminate these checks.
 #define COMPILE_ASSERT_MATCHING_ENUM(mojo_name, manager_name) \
   static_assert(static_cast<int>(blink::mojo_name) ==         \
@@ -135,13 +136,18 @@ SyncAndNotificationPermissions GetBackgroundSyncPermission(
 
   // The requesting origin always matches the embedding origin.
   auto sync_permission = permission_controller->GetPermissionStatusForWorker(
-      sync_type == BackgroundSyncType::ONE_SHOT
-          ? blink::PermissionType::BACKGROUND_SYNC
-          : blink::PermissionType::PERIODIC_BACKGROUND_SYNC,
+      content::PermissionDescriptorUtil::
+          CreatePermissionDescriptorForPermissionType(
+              sync_type == BackgroundSyncType::ONE_SHOT
+                  ? blink::PermissionType::BACKGROUND_SYNC
+                  : blink::PermissionType::PERIODIC_BACKGROUND_SYNC),
       render_process_host, origin);
   auto notification_permission =
       permission_controller->GetPermissionStatusForWorker(
-          blink::PermissionType::NOTIFICATIONS, render_process_host, origin);
+          content::PermissionDescriptorUtil::
+              CreatePermissionDescriptorForPermissionType(
+                  blink::PermissionType::NOTIFICATIONS),
+          render_process_host, origin);
   return {sync_permission, notification_permission};
 }
 
@@ -316,7 +322,10 @@ std::string GetEventStatusString(blink::ServiceWorkerStatusCode status_code) {
     case blink::ServiceWorkerStatusCode::kErrorTimeout:
       return "timeout";
     default:
-      NOTREACHED();
+      SCOPED_CRASH_KEY_NUMBER("BGSM", "status_code",
+                              static_cast<int>(status_code));
+      DUMP_WILL_BE_NOTREACHED()
+          << "status_code " << static_cast<int>(status_code);
       return "unknown error";
   }
 }
@@ -375,11 +384,11 @@ BackgroundSyncManager::BackgroundSyncRegistrations::
 // static
 std::unique_ptr<BackgroundSyncManager> BackgroundSyncManager::Create(
     scoped_refptr<ServiceWorkerContextWrapper> service_worker_context,
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> devtools_context) {
+    DevToolsBackgroundServicesContextImpl& devtools_context) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   BackgroundSyncManager* sync_manager = new BackgroundSyncManager(
-      std::move(service_worker_context), std::move(devtools_context));
+      std::move(service_worker_context), devtools_context);
   sync_manager->Init();
   return base::WrapUnique(sync_manager);
 }
@@ -647,11 +656,11 @@ void BackgroundSyncManager::EmulateServiceWorkerOffline(
 
 BackgroundSyncManager::BackgroundSyncManager(
     scoped_refptr<ServiceWorkerContextWrapper> service_worker_context,
-    scoped_refptr<DevToolsBackgroundServicesContextImpl> devtools_context)
+    DevToolsBackgroundServicesContextImpl& devtools_context)
     : op_scheduler_(base::SingleThreadTaskRunner::GetCurrentDefault()),
       service_worker_context_(std::move(service_worker_context)),
       proxy_(std::make_unique<BackgroundSyncProxy>(service_worker_context_)),
-      devtools_context_(std::move(devtools_context)),
+      devtools_context_(&devtools_context),
       parameters_(std::make_unique<BackgroundSyncParameters>()),
       disabled_(false),
       num_firing_registrations_one_shot_(0),
@@ -981,7 +990,7 @@ void BackgroundSyncManager::RegisterDidAskForPermission(
   registration.set_origin(origin);
   *registration.options() = std::move(options);
 
-  // TODO(crbug.com/963487): This section below is really confusing. Add a
+  // TODO(crbug.com/40627578): This section below is really confusing. Add a
   // comment explaining what's going on here, or annotate permission_statuses.
   registration.set_max_attempts(
       permission_statuses.second == PermissionStatus::GRANTED
@@ -1379,7 +1388,8 @@ void BackgroundSyncManager::DispatchSyncEvent(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(active_version);
 
-  if (active_version->running_status() != EmbeddedWorkerStatus::RUNNING) {
+  if (active_version->running_status() !=
+      blink::EmbeddedWorkerStatus::kRunning) {
     active_version->RunAfterStartWorker(
         ServiceWorkerMetrics::EventType::SYNC,
         base::BindOnce(&DidStartWorkerForSyncEvent,
@@ -1421,7 +1431,8 @@ void BackgroundSyncManager::DispatchPeriodicSyncEvent(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(active_version);
 
-  if (active_version->running_status() != EmbeddedWorkerStatus::RUNNING) {
+  if (active_version->running_status() !=
+      blink::EmbeddedWorkerStatus::kRunning) {
     active_version->RunAfterStartWorker(
         ServiceWorkerMetrics::EventType::PERIODIC_SYNC,
         base::BindOnce(
@@ -1943,7 +1954,7 @@ void BackgroundSyncManager::FireReadyEventsImpl(
   }
 
   if (to_fire.empty()) {
-    // TODO(crbug.com/996166): Reschedule wakeup after a non-zero delay if
+    // TODO(crbug.com/40641360): Reschedule wakeup after a non-zero delay if
     // called from a wakeup task.
     if (reschedule)
       ScheduleOrCancelDelayedProcessing(sync_type);

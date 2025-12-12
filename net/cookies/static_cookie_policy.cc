@@ -23,7 +23,6 @@ int StaticCookiePolicy::CanAccessCookies(
       return ERR_ACCESS_DENIED;
     default:
       NOTREACHED();
-      return ERR_ACCESS_DENIED;
   }
 }
 

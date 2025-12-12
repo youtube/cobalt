@@ -5,47 +5,97 @@
 #include <iomanip>
 
 #include "ash/constants/ash_features.h"
+#include "base/check_is_test.h"
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
+#include "chrome/browser/ash/drive/file_system_util.h"
 #include "chrome/browser/ash/login/login_pref_names.h"
 #include "chrome/browser/ash/login/screens/drive_pinning_screen.h"
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/ash/login/drive_pinning_screen_handler.h"
+#include "chromeos/ash/components/drivefs/drivefs_pinning_manager.h"
+#include "components/drive/drive_pref_names.h"
 #include "ui/base/text/bytes_formatting.h"
 
 namespace ash {
 namespace {
 
-constexpr const char kUserActionDecline[] = "driveDecline";
-constexpr const char kUserActionAccept[] = "driveAccept";
-
+using drivefs::pinning::PinningManager;
 using drivefs::pinning::Progress;
 
-drivefs::pinning::PinManager* GetPinManager() {
-  Profile* profile = ProfileManager::GetActiveUserProfile();
-
-  drive::DriveIntegrationService* service =
-      drive::DriveIntegrationServiceFactory::FindForProfile(profile);
-
-  if (!service || !service->IsMounted() || !service->GetPinManager()) {
-    return nullptr;
+bool ShouldShowChoobeReturnButton(ChoobeFlowController* controller) {
+  if (!features::IsOobeChoobeEnabled() || !controller) {
+    return false;
   }
+  return controller->ShouldShowReturnButton(DrivePinningScreenView::kScreenId);
+}
 
-  return service->GetPinManager();
+void ReportScreenCompletedToChoobe(ChoobeFlowController* controller) {
+  if (!features::IsOobeChoobeEnabled() || !controller) {
+    return;
+  }
+  controller->OnScreenCompleted(
+      *ProfileManager::GetActiveUserProfile()->GetPrefs(),
+      DrivePinningScreenView::kScreenId);
+}
+
+PinningManager* GetPinningManager() {
+  drive::DriveIntegrationService* const service =
+      drive::DriveIntegrationServiceFactory::FindForProfile(
+          ProfileManager::GetActiveUserProfile());
+  return service && service->IsMounted() ? service->GetPinningManager()
+                                         : nullptr;
+}
+
+void RecordOOBEScreenSkippedMetric(drivefs::pinning::Stage stage) {
+  base::UmaHistogramEnumeration(
+      "FileBrowser.GoogleDrive.BulkPinning.CHOOBEScreenStage", stage);
+}
+
+void RecordCHOOBEScreenBulkPinningInitializations(int initializations) {
+  base::UmaHistogramCounts100(
+      "FileBrowser.GoogleDrive.BulkPinning.CHOOBEScreenInitializations",
+      initializations);
+}
+
+void RecordSettingChanged(bool initial, bool current) {
+  base::UmaHistogramBoolean("OOBE.CHOOBE.SettingChanged.Drive-pinning",
+                            initial != current);
+}
+
+void RecordUserSelection(bool option) {
+  base::UmaHistogramBoolean("OOBE.Drive-pinning.Enabled", option);
 }
 
 }  // namespace
 
 // static
 std::string DrivePinningScreen::GetResultString(Result result) {
+  // LINT.IfChange(UsageMetrics)
   switch (result) {
-    case Result::ACCEPT:
-      return "Accept";
-    case Result::DECLINE:
-      return "Decline";
+    case Result::NEXT:
+      return "Next";
     case Result::NOT_APPLICABLE:
       return BaseScreen::kNotApplicable;
   }
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
+}
+
+void DrivePinningScreen::ApplyDrivePinningPref(Profile* profile) {
+  auto* prefs = profile->GetPrefs();
+  if (!prefs->HasPrefPath(prefs::kOobeDrivePinningEnabledDeferred)) {
+    return;
+  }
+  bool drive_pinning =
+      profile->GetPrefs()->GetBoolean(prefs::kOobeDrivePinningEnabledDeferred);
+  profile->GetPrefs()->SetBoolean(drive::prefs::kDriveFsBulkPinningEnabled,
+                                  drive_pinning);
+  drivefs::pinning::RecordBulkPinningEnabledSource(
+      drivefs::pinning::BulkPinningEnabledSource::kChoobe);
+
+  RecordUserSelection(drive_pinning);
+  prefs->ClearPref(prefs::kOobeDrivePinningEnabledDeferred);
 }
 
 DrivePinningScreen::DrivePinningScreen(
@@ -53,6 +103,7 @@ DrivePinningScreen::DrivePinningScreen(
     const ScreenExitCallback& exit_callback)
     : BaseScreen(DrivePinningScreenView::kScreenId,
                  OobeScreenPriority::DEFAULT),
+      OobeMojoBinder(this),
       view_(std::move(view)),
       exit_callback_(exit_callback) {}
 
@@ -63,16 +114,25 @@ bool DrivePinningScreen::ShouldBeSkipped(const WizardContext& context) const {
     return true;
   }
 
+  RecordOOBEScreenSkippedMetric(drive_pinning_stage_);
+  if (drive_pinning_stage_ != drivefs::pinning::Stage::kSuccess) {
+    return true;
+  }
+
   if (features::IsOobeChoobeEnabled()) {
     auto* choobe_controller =
         WizardController::default_controller()->choobe_flow_controller();
-    if (choobe_controller) {
-      return choobe_controller->ShouldScreenBeSkipped(
-          DrivePinningScreenView::kScreenId);
+    if (!ignore_choobe_controller_state_for_tests_ && !choobe_controller) {
+      return true;
+    }
+
+    if (choobe_controller && choobe_controller->ShouldScreenBeSkipped(
+                                 DrivePinningScreenView::kScreenId)) {
+      return true;
     }
   }
 
-  return drive_pinning_available_;
+  return false;
 }
 
 bool DrivePinningScreen::MaybeSkip(WizardContext& context) {
@@ -84,33 +144,82 @@ bool DrivePinningScreen::MaybeSkip(WizardContext& context) {
   return false;
 }
 
-void DrivePinningScreen::CalculateRequiredSpace() {
-  auto* pin_manager = GetPinManager();
-
-  if (pin_manager) {
-    pin_manager->AddObserver(this);
-    pin_manager->CalculateRequiredSpace();
+void DrivePinningScreen::StartCalculatingRequiredSpace() {
+  if (started_calculating_space_) {
+    return;
   }
+  started_calculating_space_ = true;
+  CalculateRequiredSpace();
 }
 
-void DrivePinningScreen::OnProgress(const Progress& progress) {
+void DrivePinningScreen::CalculateRequiredSpace() {
+  drive::DriveIntegrationService* const service =
+      drive::DriveIntegrationServiceFactory::FindForProfile(
+          ProfileManager::GetActiveUserProfile());
+  if (!service) {
+    LOG(ERROR) << "No Drive integration service";
+    return;
+  }
+
+  Observe(service);
+
+  PinningManager* const pinning_manager = GetPinningManager();
+  if (!pinning_manager) {
+    VLOG(1) << "No bulk-pinning manager";
+    return;
+  }
+
+  if (bulk_pinning_initializations_ == 0) {
+    ++bulk_pinning_initializations_;
+  }
+
+  RecordCHOOBEScreenBulkPinningInitializations(bulk_pinning_initializations_);
+  LOG_IF(ERROR, !pinning_manager->CalculateRequiredSpace())
+      << "Cannot calculate required space";
+}
+
+void DrivePinningScreen::OnProgressForTest(
+    const drivefs::pinning::Progress& progress) {
+  CHECK_IS_TEST();
+  OnBulkPinProgress(progress);
+}
+
+void DrivePinningScreen::OnBulkPinProgress(
+    const drivefs::pinning::Progress& progress) {
+  drive_pinning_stage_ = progress.stage;
   if (progress.stage == drivefs::pinning::Stage::kSuccess) {
-    drive_pinning_available_ = true;
+    VLOG(1) << "Finished calculating required space";
     std::u16string free_space = ui::FormatBytes(progress.free_space);
     std::u16string required_space = ui::FormatBytes(progress.required_space);
-    view_->SetRequiredSpaceInfo(required_space, free_space);
+    SetRequiredSpaceInfo(required_space, free_space);
   }
 }
 
-void DrivePinningScreen::OnDecline() {
-  exit_callback_.Run(Result::DECLINE);
+void DrivePinningScreen::SetRequiredSpaceInfo(std::u16string required_space,
+                                              std::u16string free_space) {
+  if (GetRemote()->is_bound()) {
+    (*GetRemote())->SetRequiredSpaceInfo(required_space, free_space);
+  }
 }
 
-void DrivePinningScreen::OnAccept() {
+void DrivePinningScreen::OnBulkPinInitialized() {
+  VLOG_IF(1, !started_calculating_space_)
+      << "Bulk pinning initialized, but have not started calculating space";
+  if (started_calculating_space_) {
+    CalculateRequiredSpace();
+  } else {
+    ++bulk_pinning_initializations_;
+  }
+}
+
+void DrivePinningScreen::OnNext(bool drive_pinning) {
   Profile* profile = ProfileManager::GetActiveUserProfile();
+  bool old_value =
+      profile->GetPrefs()->GetBoolean(prefs::kOobeDrivePinningEnabledDeferred);
+  RecordSettingChanged(old_value, drive_pinning);
   profile->GetPrefs()->SetBoolean(prefs::kOobeDrivePinningEnabledDeferred,
-                                  true);
-  exit_callback_.Run(Result::ACCEPT);
+                                  drive_pinning);
+  exit_callback_.Run(Result::NEXT);
 }
 
 void DrivePinningScreen::ShowImpl() {
@@ -118,24 +227,59 @@ void DrivePinningScreen::ShowImpl() {
     return;
   }
 
-  view_->Show();
+  base::Value::Dict data;
+  data.Set(
+      "shouldShowReturn",
+      ShouldShowChoobeReturnButton(
+          WizardController::default_controller()->choobe_flow_controller()));
+  view_->Show(std::move(data));
 }
 
 void DrivePinningScreen::HideImpl() {}
 
-void DrivePinningScreen::OnUserAction(const base::Value::List& args) {
-  const std::string& action_id = args[0].GetString();
-  if (action_id == kUserActionDecline) {
-    OnDecline();
+void DrivePinningScreen::OnReturnClicked(bool enable_drive_pinning) {
+  if (is_hidden()) {
     return;
   }
+  ReportScreenCompletedToChoobe(
+      WizardController::default_controller()->choobe_flow_controller());
+  context()->return_to_choobe_screen = true;
+  OnNext(enable_drive_pinning);
+}
 
-  if (action_id == kUserActionAccept) {
-    OnAccept();
+void DrivePinningScreen::OnNextClicked(bool enable_drive_pinning) {
+  if (is_hidden()) {
     return;
   }
+  ReportScreenCompletedToChoobe(
+      WizardController::default_controller()->choobe_flow_controller());
+  OnNext(enable_drive_pinning);
+}
 
-  BaseScreen::OnUserAction(args);
+std::string DrivePinningScreen::RetrieveChoobeSubtitle() {
+  Profile* profile = ProfileManager::GetActiveUserProfile();
+  bool drive_pinning =
+      profile->GetPrefs()->GetBoolean(prefs::kOobeDrivePinningEnabledDeferred);
+  if (drive_pinning) {
+    return "choobeDevicePinningSubtitleEnabled";
+  }
+  return "choobeDevicePinningSubtitleDisabled";
+}
+
+ScreenSummary DrivePinningScreen::GetScreenSummary() {
+  ScreenSummary summary;
+  summary.screen_id = DrivePinningScreenView::kScreenId;
+  summary.icon_id = "oobe-40:drive-pinning-choobe";
+  summary.title_id = "choobeDrivePinningTitle";
+  summary.is_revisitable = true;
+  summary.is_synced = false;
+  if (WizardController::default_controller()
+          ->choobe_flow_controller()
+          ->IsScreenCompleted(DrivePinningScreenView::kScreenId)) {
+    summary.subtitle_resource = RetrieveChoobeSubtitle();
+  }
+
+  return summary;
 }
 
 }  // namespace ash

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "content/browser/byte_stream.h"
 
 #include <stddef.h>
@@ -36,8 +41,7 @@ class ByteStreamTest : public testing::Test {
   // contents of the created buffer will be kept, and can be validated
   // by ValidateIOBuffer.
   scoped_refptr<net::IOBuffer> NewIOBuffer(size_t buffer_size) {
-    scoped_refptr<net::IOBuffer> buffer =
-        base::MakeRefCounted<net::IOBuffer>(buffer_size);
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(buffer_size);
     char *bufferp = buffer->data();
     for (size_t i = 0; i < buffer_size; i++)
       bufferp[i] = (i + producing_seed_key_) % (1 << sizeof(char));

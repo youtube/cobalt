@@ -4,9 +4,10 @@
 
 package org.chromium.chrome.browser.download.dialogs;
 
-/**
- * Receives events from download location dialog.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** Receives events from download location dialog. */
+@NullMarked
 public interface DownloadLocationDialogController {
     /**
      * Called when the user finished download location selection flow.
@@ -14,8 +15,6 @@ public interface DownloadLocationDialogController {
      */
     void onDownloadLocationDialogComplete(String returnedPath);
 
-    /**
-     * Called when the user cancel or dismiss the download location dialog.
-     */
+    /** Called when the user cancel or dismiss the download location dialog. */
     void onDownloadLocationDialogCanceled();
 }

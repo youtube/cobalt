@@ -2,8 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <map>
+#include <optional>
+
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/metrics/field_trial.h"
+#include "base/metrics/field_trial_params.h"
 #include "base/metrics/user_metrics.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
@@ -12,26 +17,41 @@
 #include "base/version.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/metrics/chrome_metrics_service_accessor.h"
+#include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
+#include "chrome/browser/policy/policy_test_utils.h"
 #include "chrome/browser/prefs/incognito_mode_prefs.h"
-#include "chrome/browser/profiles/profile_impl.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/hats/hats_service.h"
+#include "chrome/browser/ui/hats/hats_service_desktop.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/plus_addresses/features.h"
+#include "components/plus_addresses/plus_address_hats_utils.h"
 #include "components/policy/core/common/policy_pref_names.h"
+#include "components/policy/policy_constants.h"
+#include "components/prefs/pref_service.h"
+#include "components/variations/service/google_groups_manager.h"
+#include "components/variations/service/google_groups_manager_prefs.h"
+#include "components/variations/variations_seed_processor.h"
 #include "components/version_info/version_info.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/isolated_world_ids.h"
 #include "content/public/test/browser_test.h"
 #include "net/dns/mock_host_resolver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace {
+
+constexpr char kRelevantGroupId[] = "1234";
+constexpr base::TimeDelta kCooldownOverride = base::Days(14);
 
 base::test::FeatureRefAndParams probability_zero{
     features::kHappinessTrackingSurveysForDesktopSettings,
@@ -41,6 +61,17 @@ base::test::FeatureRefAndParams probability_one{
     {{"probability", "1.000"},
      {"survey", kHatsSurveyTriggerSettings},
      {"en_site_id", "test_site_id"}}};
+base::test::FeatureRefAndParams cool_down_period_overriden{
+    autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey,
+    {{"probability", "1.000"},
+     {"survey", kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate},
+     {"cooldown-override-days", /*days=*/"14"}}};
+base::test::FeatureRefAndParams cool_down_period_overriden_and_group_controlled{
+    autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey,
+    {{variations::internal::kGoogleGroupFeatureParamName, kRelevantGroupId},
+     {"probability", "1.000"},
+     {"survey", kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate},
+     {"cooldown-override-days", /*days=*/"14"}}};
 
 class ScopedSetMetricsConsent {
  public:
@@ -62,7 +93,12 @@ class ScopedSetMetricsConsent {
   const bool consent_;
 };
 
-class HatsServiceBrowserTestBase : public InProcessBrowserTest {
+class HatsServiceBrowserTestBase : public policy::PolicyTest {
+ public:
+  HatsServiceBrowserTestBase(const HatsServiceBrowserTestBase&) = delete;
+  HatsServiceBrowserTestBase& operator=(const HatsServiceBrowserTestBase&) =
+      delete;
+
  protected:
   explicit HatsServiceBrowserTestBase(
       std::vector<base::test::FeatureRefAndParams> enabled_features)
@@ -71,16 +107,15 @@ class HatsServiceBrowserTestBase : public InProcessBrowserTest {
   }
 
   HatsServiceBrowserTestBase() = default;
-
-  HatsServiceBrowserTestBase(const HatsServiceBrowserTestBase&) = delete;
-  HatsServiceBrowserTestBase& operator=(const HatsServiceBrowserTestBase&) =
-      delete;
-
   ~HatsServiceBrowserTestBase() override = default;
 
-  HatsService* GetHatsService() {
-    HatsService* service =
-        HatsServiceFactory::GetForProfile(browser()->profile(), true);
+  Profile* profile() { return chrome_test_utils::GetProfile(this); }
+
+  HatsServiceDesktop* GetHatsService(Browser* browser = nullptr) {
+    Profile* profile =
+        browser ? browser->profile() : this->browser()->profile();
+    HatsServiceDesktop* service = static_cast<HatsServiceDesktop*>(
+        HatsServiceFactory::GetForProfile(profile, true));
     return service;
   }
 
@@ -88,12 +123,27 @@ class HatsServiceBrowserTestBase : public InProcessBrowserTest {
     scoped_metrics_consent_.emplace(consent);
   }
 
-  bool HatsNextDialogCreated() {
-    return GetHatsService()->hats_next_dialog_exists_for_testing();
+  bool HatsNextDialogCreated(Browser* browser = nullptr) {
+    return GetHatsService(browser)->hats_next_dialog_exists_for_testing();
+  }
+
+  // Mock a survey with a custom requested browser type. The `other_browser`
+  // param may be used to mock the survey in another browser too. Returns the
+  // trigger to use when launching the survey.
+  std::string MockSurveyWithRequestedBrowserType(
+      Browser* other_browser,
+      hats::SurveyConfig::RequestedBrowserType requested_browser_type) {
+    for (HatsServiceDesktop* service :
+         {GetHatsService(), GetHatsService(other_browser)}) {
+      service
+          ->GetSurveyConfigsByTriggersForTesting()[kHatsSurveyTriggerSettings]
+          .requested_browser_type = requested_browser_type;
+    }
+    return kHatsSurveyTriggerSettings;
   }
 
  private:
-  absl::optional<ScopedSetMetricsConsent> scoped_metrics_consent_;
+  std::optional<ScopedSetMetricsConsent> scoped_metrics_consent_;
 
   base::test::ScopedFeatureList scoped_feature_list_;
 
@@ -137,6 +187,51 @@ class HatsServiceProbabilityOne : public HatsServiceBrowserTestBase {
   }
 };
 
+class HatsServiceConfigCoolDownPeriodOverriden
+    : public HatsServiceBrowserTestBase {
+ public:
+  HatsServiceConfigCoolDownPeriodOverriden(
+      const HatsServiceConfigCoolDownPeriodOverriden&) = delete;
+  HatsServiceConfigCoolDownPeriodOverriden& operator=(
+      const HatsServiceConfigCoolDownPeriodOverriden&) = delete;
+
+ protected:
+  HatsServiceConfigCoolDownPeriodOverriden()
+      : HatsServiceBrowserTestBase({cool_down_period_overriden}) {}
+
+  ~HatsServiceConfigCoolDownPeriodOverriden() override = default;
+};
+
+class HatsServiceSurveyFeatureControlledByGroup
+    : public HatsServiceBrowserTestBase {
+ public:
+  HatsServiceSurveyFeatureControlledByGroup(
+      const HatsServiceSurveyFeatureControlledByGroup&) = delete;
+  HatsServiceSurveyFeatureControlledByGroup& operator=(
+      const HatsServiceSurveyFeatureControlledByGroup&) = delete;
+
+ protected:
+  HatsServiceSurveyFeatureControlledByGroup()
+      : HatsServiceBrowserTestBase(
+            {cool_down_period_overriden_and_group_controlled}) {}
+
+  ~HatsServiceSurveyFeatureControlledByGroup() override = default;
+
+  void AddProfileToGroup(const std::string& group) {
+    base::Value::List pref_groups_list;
+    base::Value::Dict group_dict;
+    group_dict.Set(variations::kDogfoodGroupsSyncPrefGaiaIdKey, group);
+    pref_groups_list.Append(std::move(group_dict));
+    profile()->GetPrefs()->SetList(
+#if BUILDFLAG(IS_CHROMEOS)
+        variations::kOsDogfoodGroupsSyncPrefName,
+#else
+        variations::kDogfoodGroupsSyncPrefName,
+#endif
+        std::move(pref_groups_list));
+  }
+};
+
 }  // namespace
 
 IN_PROC_BROWSER_TEST_F(HatsServiceBrowserTestBase, BubbleNotShownOnDefault) {
@@ -155,6 +250,10 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, NoShowConsentNotGiven) {
       g_browser_process->GetMetricsServicesManager()->IsMetricsConsentGiven());
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
   EXPECT_FALSE(HatsNextDialogCreated());
+
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  GetHatsService(incognito_browser)->LaunchSurvey(kHatsSurveyTriggerSettings);
+  EXPECT_FALSE(HatsNextDialogCreated(incognito_browser));
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, TriggerMismatchNoShow) {
@@ -173,6 +272,44 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, AlwaysShow) {
   EXPECT_TRUE(HatsNextDialogCreated());
 }
 
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       ShowWhenFeedbackSurveyPolicyEnabled) {
+  SetMetricsConsent(true);
+  policy::PolicyMap policies;
+  SetPolicy(&policies, policy::key::kFeedbackSurveysEnabled, base::Value(true));
+  UpdateProviderPolicy(policies);
+  GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
+  EXPECT_TRUE(HatsNextDialogCreated());
+}
+
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       NoShowWhenFeedbackSurveyPolicyDisabled) {
+  SetMetricsConsent(true);
+  policy::PolicyMap policies;
+  SetPolicy(&policies, policy::key::kFeedbackSurveysEnabled,
+            base::Value(false));
+  UpdateProviderPolicy(policies);
+  GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
+  EXPECT_FALSE(HatsNextDialogCreated());
+
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  auto trigger = MockSurveyWithRequestedBrowserType(
+      incognito_browser, hats::SurveyConfig::RequestedBrowserType::kIncognito);
+  GetHatsService(incognito_browser)->LaunchSurvey(trigger);
+  EXPECT_FALSE(HatsNextDialogCreated(incognito_browser));
+}
+
+IN_PROC_BROWSER_TEST_F(
+    HatsServiceProbabilityOne,
+    NeverShowWhenFeedbackSurveyPolicyEnabledWithoutMetricsConsent) {
+  SetMetricsConsent(false);
+  policy::PolicyMap policies;
+  SetPolicy(&policies, policy::key::kFeedbackSurveysEnabled, base::Value(true));
+  UpdateProviderPolicy(policies);
+  GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
+  EXPECT_FALSE(HatsNextDialogCreated());
+}
+
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, AlsoShowsSettingsSurvey) {
   SetMetricsConsent(true);
   ASSERT_TRUE(
@@ -184,20 +321,21 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, AlsoShowsSettingsSurvey) {
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SameMajorVersionNoShow) {
   SetMetricsConsent(true);
   base::HistogramTester histogram_tester;
-  HatsService::SurveyMetadata metadata;
+  HatsServiceDesktop::SurveyMetadata metadata;
   metadata.last_major_version = version_info::GetVersion().components()[0];
   GetHatsService()->SetSurveyMetadataForTesting(metadata);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
   histogram_tester.ExpectUniqueSample(
       kHatsShouldShowSurveyReasonHistogram,
-      HatsService::ShouldShowSurveyReasons::kNoReceivedSurveyInCurrentMilestone,
+      HatsServiceDesktop::ShouldShowSurveyReasons::
+          kNoReceivedSurveyInCurrentMilestone,
       1);
   EXPECT_FALSE(HatsNextDialogCreated());
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, DifferentMajorVersionShow) {
   SetMetricsConsent(true);
-  HatsService::SurveyMetadata metadata;
+  HatsServiceDesktop::SurveyMetadata metadata;
   metadata.last_major_version = 42;
   ASSERT_NE(42u, version_info::GetVersion().components()[0]);
   GetHatsService()->SetSurveyMetadataForTesting(metadata);
@@ -209,13 +347,13 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
                        SurveyStartedBeforeRequiredElapsedTimeNoShow) {
   SetMetricsConsent(true);
   base::HistogramTester histogram_tester;
-  HatsService::SurveyMetadata metadata;
+  HatsServiceDesktop::SurveyMetadata metadata;
   metadata.last_survey_started_time = base::Time::Now();
   GetHatsService()->SetSurveyMetadataForTesting(metadata);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
   histogram_tester.ExpectUniqueSample(
       kHatsShouldShowSurveyReasonHistogram,
-      HatsService::ShouldShowSurveyReasons::kNoLastSurveyTooRecent, 1);
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoLastSurveyTooRecent, 1);
   EXPECT_FALSE(HatsNextDialogCreated());
 }
 
@@ -223,36 +361,213 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
                        SurveyStartedBeforeElapsedTimeBetweenAnySurveys) {
   SetMetricsConsent(true);
   base::HistogramTester histogram_tester;
-  HatsService::SurveyMetadata metadata;
+  HatsServiceDesktop::SurveyMetadata metadata;
   metadata.any_last_survey_started_time = base::Time::Now();
   GetHatsService()->SetSurveyMetadataForTesting(metadata);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
   EXPECT_FALSE(HatsNextDialogCreated());
   histogram_tester.ExpectUniqueSample(
       kHatsShouldShowSurveyReasonHistogram,
-      HatsService::ShouldShowSurveyReasons::kNoAnyLastSurveyTooRecent, 1);
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoAnyLastSurveyTooRecent,
+      1);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    HatsServiceConfigCoolDownPeriodOverriden,
+    SurveyWithCoolddownOverride_FeatureNotGroupControlled_NoSurvey) {
+  base::HistogramTester histogram_tester;
+  SetMetricsConsent(true);
+  browser()->profile()->SetCreationTimeForTesting(base::Time::Now() -
+                                                  base::Days(31));
+
+  GoogleGroupsManager* groups_manager =
+      GoogleGroupsManagerFactory::GetForBrowserContext(profile());
+  EXPECT_FALSE(groups_manager->IsFeatureGroupControlled(
+      autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey));
+  EXPECT_TRUE(groups_manager->IsFeatureEnabledForProfile(
+      autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey));
+  // The cooldown override for the feature should be set to 14 days.
+  EXPECT_EQ(base::FeatureParam<int>(
+                &autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey,
+                plus_addresses::hats::kCooldownOverrideDays, 0)
+                .Get(),
+            14);
+
+  HatsServiceDesktop::SurveyMetadata metadata;
+  metadata.any_last_survey_started_time = base::Time::Now();
+  metadata.any_last_survey_with_cooldown_override_started_time =
+      base::Time::Now() - (kCooldownOverride + base::Days(1));
+  GetHatsService()->SetSurveyMetadataForTesting(metadata);
+  // kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate overrides the cool
+  // down period.
+  GetHatsService()->LaunchSurvey(
+      kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate,
+      /*success_callback=*/base::DoNothing(),
+      /*failure_callback=*/base::DoNothing(), /*product_specific_bits_data=*/{},
+      /*product_specific_string_data=*/
+      std::map<std::string, std::string>{
+          {plus_addresses::hats::kPlusAddressesCount, "0"},
+          {plus_addresses::hats::kFirstPlusAddressCreationTime, "0"},
+          {plus_addresses::hats::kLastPlusAddressFillingTime, "0"}});
+  EXPECT_FALSE(GetHatsService()->hats_next_dialog_exists_for_testing());
+  // Since the feature is not group controlled, the cooldown override has no
+  // effect. The default cooldown of 180 days is used, so the survey is on
+  // cooldown.
+  histogram_tester.ExpectUniqueSample(
+      kHatsShouldShowSurveyReasonHistogram,
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoAnyLastSurveyTooRecent,
+      1);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    HatsServiceSurveyFeatureControlledByGroup,
+    SurveyWithCoolddownOverride_FeatureIsOnCooldown_NoSurvey) {
+  base::HistogramTester histogram_tester;
+  // Add the profile to the group assigned in the field trial config.
+  // `GoogleGroupsManager::IsFeatureGroupControlled()` returns `false` without
+  // this call.
+  AddProfileToGroup(kRelevantGroupId);
+  SetMetricsConsent(true);
+  browser()->profile()->SetCreationTimeForTesting(base::Time::Now() -
+                                                  base::Days(31));
+
+  GoogleGroupsManager* groups_manager =
+      GoogleGroupsManagerFactory::GetForBrowserContext(profile());
+  EXPECT_TRUE(groups_manager->IsFeatureGroupControlled(
+      autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey));
+  EXPECT_TRUE(groups_manager->IsFeatureEnabledForProfile(
+      autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey));
+  // The cooldown override for the feature should be set to 14 days.
+  EXPECT_EQ(base::FeatureParam<int>(
+                &autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey,
+                plus_addresses::hats::kCooldownOverrideDays, 0)
+                .Get(),
+            14);
+
+  HatsServiceDesktop::SurveyMetadata metadata;
+  metadata.any_last_survey_started_time = base::Time::Now() - base::Days(365);
+  metadata.any_last_survey_with_cooldown_override_started_time =
+      base::Time::Now() - (kCooldownOverride - base::Days(1));
+  GetHatsService()->SetSurveyMetadataForTesting(metadata);
+  // kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate overrides the cool
+  // down period.
+  GetHatsService()->LaunchSurvey(
+      kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate,
+      /*success_callback=*/base::DoNothing(),
+      /*failure_callback=*/base::DoNothing(), /*product_specific_bits_data=*/{},
+      /*product_specific_string_data=*/
+      std::map<std::string, std::string>{
+          {plus_addresses::hats::kPlusAddressesCount, "0"},
+          {plus_addresses::hats::kFirstPlusAddressCreationTime, "0"},
+          {plus_addresses::hats::kLastPlusAddressFillingTime, "0"}});
+  EXPECT_FALSE(GetHatsService()->hats_next_dialog_exists_for_testing());
+  // Cooldown period is set, the feature is enabled for profile and group
+  // controlled. However, the last survey with cooldown override was shown just
+  // 2 days ago, so the survey is on cooldown.
+  histogram_tester.ExpectUniqueSample(
+      kHatsShouldShowSurveyReasonHistogram,
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoAnyLastSurveyTooRecent,
+      1);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    HatsServiceSurveyFeatureControlledByGroup,
+    SurveyWithCoolddownOverride_FeatureIsGroupControlled_StartsSurvey) {
+  // Add the profile to the group assigned in the field trial config.
+  // `GoogleGroupsManager::IsFeatureGroupControlled()` returns `false` without
+  // this call.
+  AddProfileToGroup(kRelevantGroupId);
+  SetMetricsConsent(true);
+  browser()->profile()->SetCreationTimeForTesting(base::Time::Now() -
+                                                  base::Days(31));
+
+  GoogleGroupsManager* groups_manager =
+      GoogleGroupsManagerFactory::GetForBrowserContext(profile());
+  EXPECT_TRUE(groups_manager->IsFeatureGroupControlled(
+      autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey));
+  EXPECT_TRUE(groups_manager->IsFeatureEnabledForProfile(
+      autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey));
+  // The cooldown override for the feature should be set to 14 days.
+  EXPECT_EQ(base::FeatureParam<int>(
+                &autofill::features::kPlusAddressAcceptedFirstTimeCreateSurvey,
+                plus_addresses::hats::kCooldownOverrideDays, 0)
+                .Get(),
+            14);
+
+  HatsServiceDesktop::SurveyMetadata metadata;
+  metadata.any_last_survey_started_time = base::Time::Now();
+  metadata.any_last_survey_with_cooldown_override_started_time =
+      base::Time::Now() - (kCooldownOverride + base::Days(1));
+  GetHatsService()->SetSurveyMetadataForTesting(metadata);
+  // kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate overrides the cool
+  // down period.
+  GetHatsService()->LaunchSurvey(
+      kHatsSurveyTriggerPlusAddressAcceptedFirstTimeCreate,
+      /*success_callback=*/base::DoNothing(),
+      /*failure_callback=*/base::DoNothing(), /*product_specific_bits_data=*/{},
+      /*product_specific_string_data=*/
+      std::map<std::string, std::string>{
+          {plus_addresses::hats::kPlusAddressesCount, "0"},
+          {plus_addresses::hats::kFirstPlusAddressCreationTime, "0"},
+          {plus_addresses::hats::kLastPlusAddressFillingTime, "0"}});
+  EXPECT_TRUE(GetHatsService()->hats_next_dialog_exists_for_testing());
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, ProfileTooYoungToShow) {
   SetMetricsConsent(true);
   base::HistogramTester histogram_tester;
   // Set creation time to only 15 days.
-  static_cast<ProfileImpl*>(browser()->profile())
-      ->SetCreationTimeForTesting(base::Time::Now() - base::Days(15));
+  browser()->profile()->SetCreationTimeForTesting(base::Time::Now() -
+                                                  base::Days(15));
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
   histogram_tester.ExpectUniqueSample(
       kHatsShouldShowSurveyReasonHistogram,
-      HatsService::ShouldShowSurveyReasons::kNoProfileTooNew, 1);
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoProfileTooNew, 1);
   EXPECT_FALSE(HatsNextDialogCreated());
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, ProfileOldEnoughToShow) {
   SetMetricsConsent(true);
   // Set creation time to 31 days. This is just past the threshold.
-  static_cast<ProfileImpl*>(browser()->profile())
-      ->SetCreationTimeForTesting(base::Time::Now() - base::Days(31));
+  browser()->profile()->SetCreationTimeForTesting(base::Time::Now() -
+                                                  base::Days(31));
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
   EXPECT_TRUE(HatsNextDialogCreated());
+}
+
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       RegularSurveyInIncognitoNoShow) {
+  SetMetricsConsent(true);
+  base::HistogramTester histogram_tester;
+
+  // A regular survey should not be shown in incognito
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  GetHatsService(incognito_browser)->LaunchSurvey(kHatsSurveyTriggerSettings);
+  histogram_tester.ExpectUniqueSample(
+      kHatsShouldShowSurveyReasonHistogram,
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoWrongBrowserType, 1);
+  EXPECT_FALSE(HatsNextDialogCreated(incognito_browser));
+}
+
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       IncognitoSurveyShownOnlyInIncognito) {
+  SetMetricsConsent(true);
+  base::HistogramTester histogram_tester;
+
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  auto trigger = MockSurveyWithRequestedBrowserType(
+      incognito_browser, hats::SurveyConfig::RequestedBrowserType::kIncognito);
+
+  // An incognito survey should not be shown in regular
+  GetHatsService()->LaunchSurvey(trigger);
+  histogram_tester.ExpectUniqueSample(
+      kHatsShouldShowSurveyReasonHistogram,
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoWrongBrowserType, 1);
+  EXPECT_FALSE(HatsNextDialogCreated());
+
+  // An incognito survey should be shown in incognito
+  GetHatsService(incognito_browser)->LaunchSurvey(trigger);
+  EXPECT_TRUE(HatsNextDialogCreated(incognito_browser));
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, IncognitoModeDisabledNoShow) {
@@ -271,16 +586,21 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, IncognitoModeDisabledNoShow) {
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, CheckedWithinADayNoShow) {
   SetMetricsConsent(true);
-  HatsService::SurveyMetadata metadata;
+  base::HistogramTester histogram_tester;
+  HatsServiceDesktop::SurveyMetadata metadata;
   metadata.last_survey_check_time = base::Time::Now() - base::Hours(23);
   GetHatsService()->SetSurveyMetadataForTesting(metadata);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
+  histogram_tester.ExpectUniqueSample(
+      kHatsShouldShowSurveyReasonHistogram,
+      HatsServiceDesktop::ShouldShowSurveyReasons::kNoLastSurveyCheckTooRecent,
+      1);
   EXPECT_FALSE(HatsNextDialogCreated());
 }
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, CheckedAfterADayToShow) {
   SetMetricsConsent(true);
-  HatsService::SurveyMetadata metadata;
+  HatsServiceDesktop::SurveyMetadata metadata;
   metadata.last_survey_check_time = base::Time::Now() - base::Days(1);
   GetHatsService()->SetSurveyMetadataForTesting(metadata);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
@@ -289,7 +609,7 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, CheckedAfterADayToShow) {
 
 IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SurveyAlreadyFullNoShow) {
   SetMetricsConsent(true);
-  HatsService::SurveyMetadata metadata;
+  HatsServiceDesktop::SurveyMetadata metadata;
   metadata.is_survey_full = true;
   GetHatsService()->SetSurveyMetadataForTesting(metadata);
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
@@ -395,7 +715,8 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
   // ensure it completes before the survey tries to run.
   GetHatsService()->LaunchDelayedSurveyForWebContents(
       kHatsSurveyTriggerSettings, web_contents, 10000, {}, {},
-      /*require_same_origin=*/true);
+      /*navigation_behaviour=*/
+      HatsService::NavigationBehaviour::REQUIRE_SAME_ORIGIN);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("b.test", "/empty.html")));
   base::RunLoop().RunUntilIdle();
@@ -417,13 +738,51 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
   EXPECT_FALSE(GetHatsService()->HasPendingTasks());
   GetHatsService()->LaunchDelayedSurveyForWebContents(
       kHatsSurveyTriggerSettings, web_contents, 10000, {}, {},
-      /*require_same_origin=*/false);
+      /*navigation_behaviour=*/
+      HatsService::NavigationBehaviour::ALLOW_ANY);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("b.test", "/empty.html")));
   base::RunLoop().RunUntilIdle();
 
   // The survey task should still be in the pending task queue.
   EXPECT_TRUE(GetHatsService()->HasPendingTasks());
+  EXPECT_FALSE(HatsNextDialogCreated());
+}
+
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       NavigatedWebContents_RequireSameDocument) {
+  SetMetricsConsent(true);
+  ASSERT_TRUE(embedded_test_server()->Start());
+
+  content::WebContents* web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  const GURL kTestUrl = embedded_test_server()->GetURL("a.test", "/empty.html");
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), kTestUrl));
+
+  // As navigating also occurs asynchronously, a long survey delay is use to
+  // ensure it completes before the survey tries to run.
+  GetHatsService()->LaunchDelayedSurveyForWebContents(
+      kHatsSurveyTriggerSettings, web_contents, 10000, {}, {},
+      /*navigation_behaviour=*/
+      HatsService::NavigationBehaviour::REQUIRE_SAME_DOCUMENT);
+
+  // Same-document navigation
+  web_contents->GetPrimaryMainFrame()->ExecuteJavaScriptForTests(
+      u"document.location='#';", base::NullCallback(),
+      content::ISOLATED_WORLD_ID_GLOBAL);
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_TRUE(GetHatsService()->HasPendingTasks());
+  EXPECT_FALSE(HatsNextDialogCreated());
+
+  // Same-origin navigation
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(),
+      embedded_test_server()->GetURL("a.test", "/empty_script.html")));
+
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_FALSE(GetHatsService()->HasPendingTasks());
   EXPECT_FALSE(HatsNextDialogCreated());
 }
 
@@ -439,7 +798,8 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SameOriginNavigation) {
   EXPECT_FALSE(GetHatsService()->HasPendingTasks());
   GetHatsService()->LaunchDelayedSurveyForWebContents(
       kHatsSurveyTriggerSettings, web_contents, 10000, {}, {},
-      /*require_same_origin=*/true);
+      /*navigation_behaviour=*/
+      HatsService::NavigationBehaviour::REQUIRE_SAME_ORIGIN);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), embedded_test_server()->GetURL("a.test", "/form.html")));
   base::RunLoop().RunUntilIdle();
@@ -480,7 +840,27 @@ IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne, SurveyCheckTimeRecorded) {
 
   GetHatsService()->LaunchSurvey(kHatsSurveyTriggerSettings);
 
-  HatsService::SurveyMetadata metadata;
+  HatsServiceDesktop::SurveyMetadata metadata;
+  GetHatsService()->GetSurveyMetadataForTesting(&metadata);
+  EXPECT_TRUE(metadata.last_survey_check_time.has_value());
+}
+
+// Check that launching a HaTS Next survey records a survey check time even if
+// triggered in incognito
+IN_PROC_BROWSER_TEST_F(HatsServiceProbabilityOne,
+                       SurveyCheckTimeRecordedIncognito) {
+  SetMetricsConsent(true);
+
+  // Clear any existing survey metadata.
+  GetHatsService()->SetSurveyMetadataForTesting({});
+
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  auto trigger = MockSurveyWithRequestedBrowserType(
+      incognito_browser, hats::SurveyConfig::RequestedBrowserType::kIncognito);
+
+  GetHatsService(incognito_browser)->LaunchSurvey(trigger);
+
+  HatsServiceDesktop::SurveyMetadata metadata;
   GetHatsService()->GetSurveyMetadataForTesting(&metadata);
   EXPECT_TRUE(metadata.last_survey_check_time.has_value());
 }

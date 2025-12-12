@@ -7,23 +7,38 @@
 #include <initializer_list>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <string>
 #include <utility>
 
+#include "ash/bubble/bubble_utils.h"
+#include "ash/public/cpp/shell_window_ids.h"
+#include "ash/style/pill_button.h"
 #include "ash/style/style_util.h"
+#include "ash/style/typography.h"
+#include "ash/user_education/user_education_help_bubble_controller.h"
+#include "ash/user_education/user_education_types.h"
+#include "ash/user_education/user_education_util.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/user_metrics.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "components/strings/grit/components_strings.h"
-#include "components/user_education/common/help_bubble_params.h"
+#include "components/user_education/common/help_bubble/help_bubble_params.h"
 #include "components/vector_icons/vector_icons.h"
+#include "third_party/skia/include/core/SkPath.h"
+#include "ui/aura/window.h"
+#include "ui/aura/window_targeter.h"
 #include "ui/base/interaction/element_identifier.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/mojom/dialog_button.mojom.h"
+#include "ui/base/ui_base_types.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/canvas.h"
@@ -31,7 +46,8 @@
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_f.h"
-#include "ui/gfx/paint_vector_icon.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
+#include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/gfx/vector_icon_types.h"
@@ -45,7 +61,6 @@
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/image_button_factory.h"
 #include "ui/views/controls/button/label_button.h"
-#include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/controls/dot_indicator.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -57,12 +72,14 @@
 #include "ui/views/layout/flex_layout_types.h"
 #include "ui/views/layout/layout_provider.h"
 #include "ui/views/layout/layout_types.h"
+#include "ui/views/metadata/view_factory.h"
 #include "ui/views/style/platform_style.h"
 #include "ui/views/style/typography.h"
 #include "ui/views/vector_icons.h"
 #include "ui/views/view_class_properties.h"
 #include "ui/views/view_tracker.h"
 #include "ui/views/view_utils.h"
+#include "ui/views/widget/widget.h"
 
 namespace ash {
 
@@ -75,6 +92,18 @@ constexpr int kBubbleMaxWidthDip = 340;
 
 // The insets from the bubble border to the text inside.
 constexpr auto kBubbleContentsInsets = gfx::Insets::VH(16, 20);
+
+// Corner radii for the help bubble. Note that when the help bubble is not
+// center aligned with its anchor, the corner closest to the anchor has a
+// smaller radius.
+constexpr int kBubbleCornerRadiusDefault = 24;
+constexpr int kBubbleCornerRadiusSmall = 2;
+
+// Margins for the help bubble.
+constexpr int kBubbleMargins = 8;
+
+// Shadow elevation for the help bubble.
+constexpr int kBubbleShadowElevation = 3;
 
 // Translates from HelpBubbleArrow to the Views equivalent.
 views::BubbleBorder::Arrow TranslateArrow(
@@ -109,79 +138,21 @@ views::BubbleBorder::Arrow TranslateArrow(
   }
 }
 
-class MdIPHBubbleButton : public views::MdTextButton {
- public:
-  METADATA_HEADER(MdIPHBubbleButton);
-
-  MdIPHBubbleButton(PressedCallback callback,
-                    const std::u16string& text,
-                    bool is_default_button)
-      : MdTextButton(callback, text), is_default_button_(is_default_button) {
-    // Prominent style gives a button hover highlight.
-    SetProminent(true);
-    GetViewAccessibility().OverrideIsLeaf(true);
-  }
-  MdIPHBubbleButton(const MdIPHBubbleButton&) = delete;
-  MdIPHBubbleButton& operator=(const MdIPHBubbleButton&) = delete;
-  ~MdIPHBubbleButton() override = default;
-
-  void UpdateBackgroundColor() override {
-    // Prominent MD button does not have a border.
-    // Override this method to draw a border.
-    // Adapted from MdTextButton::UpdateBackgroundColor()
-    const auto* color_provider = GetColorProvider();
-    if (!color_provider) {
-      return;
-    }
-    SkColor background_color = color_provider->GetColor(
-        is_default_button_ ? cros_tokens::kCrosSysPrimary
-                           : cros_tokens::kCrosSysPrimaryContainer);
-    if (GetState() == STATE_PRESSED) {
-      background_color =
-          GetNativeTheme()->GetSystemButtonPressedColor(background_color);
-    }
-    SetBackground(views::CreateRoundedRectBackground(background_color,
-                                                     GetCornerRadiusValue()));
-  }
-
-  void OnThemeChanged() override {
-    views::MdTextButton::OnThemeChanged();
-
-    const auto* color_provider = GetColorProvider();
-    views::FocusRing::Get(this)->SetColorId(
-        cros_tokens::kCrosSysDialogContainer);
-
-    const SkColor foreground_color = color_provider->GetColor(
-        is_default_button_ ? cros_tokens::kCrosSysOnPrimary
-                           : cros_tokens::kCrosSysOnPrimaryContainer);
-    SetEnabledTextColors(foreground_color);
-
-    // TODO(crbug/1112244): Temporary fix for Mac. Bubble shouldn't be in
-    // inactive style when the bubble loses focus.
-    SetTextColor(ButtonState::STATE_DISABLED, foreground_color);
-  }
-
- private:
-  bool is_default_button_;
-};
-
-BEGIN_METADATA(MdIPHBubbleButton, views::MdTextButton)
-END_METADATA
-
 // Displays a simple "X" close button that will close a promo bubble view.
 // The alt-text and button callback can be set based on the needs of the
 // specific bubble.
 class ClosePromoButton : public views::ImageButton {
+  METADATA_HEADER(ClosePromoButton, views::ImageButton)
+
  public:
-  METADATA_HEADER(ClosePromoButton);
-  ClosePromoButton(const std::u16string accessible_name,
+  ClosePromoButton(const std::u16string& accessible_name,
                    PressedCallback callback) {
-    SetCallback(callback);
+    SetCallback(std::move(callback));
     views::ConfigureVectorImageButton(this);
     views::HighlightPathGenerator::Install(
         this,
         std::make_unique<views::CircleHighlightPathGenerator>(gfx::Insets()));
-    SetAccessibleName(accessible_name);
+    GetViewAccessibility().SetName(accessible_name);
     SetTooltipText(accessible_name);
 
     constexpr int kIconSize = 16;
@@ -202,12 +173,13 @@ class ClosePromoButton : public views::ImageButton {
   }
 };
 
-BEGIN_METADATA(ClosePromoButton, views::ImageButton)
+BEGIN_METADATA(ClosePromoButton)
 END_METADATA
 
 class DotView : public views::View {
+  METADATA_HEADER(DotView, views::View)
+
  public:
-  METADATA_HEADER(DotView);
   DotView(gfx::Size size, bool should_fill)
       : size_(size), should_fill_(should_fill) {
     // In order to anti-alias properly, we'll grow by the stroke width and then
@@ -217,7 +189,8 @@ class DotView : public views::View {
   ~DotView() override = default;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override {
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override {
     gfx::Size size = size_;
     const gfx::Insets* const insets = GetProperty(views::kInternalPaddingKey);
     size.Enlarge(insets->width(), insets->height());
@@ -258,8 +231,34 @@ class DotView : public views::View {
 
 constexpr int DotView::kStrokeWidth;
 
-BEGIN_METADATA(DotView, views::View)
+BEGIN_METADATA(DotView)
 END_METADATA
+
+// An `aura::WindowTargeter` that restricts located events to those within the
+// area of the `gfx::Rect` given by `HelpBubbleViewAsh::GetHitRect()`.
+class HelpBubbleWindowTargeter : public aura::WindowTargeter {
+ public:
+  explicit HelpBubbleWindowTargeter(HelpBubbleViewAsh* view)
+      : view_tracker_(view) {}
+  HelpBubbleWindowTargeter(const HelpBubbleWindowTargeter&) = delete;
+  HelpBubbleWindowTargeter& operator=(const HelpBubbleWindowTargeter&) = delete;
+  ~HelpBubbleWindowTargeter() override = default;
+
+ private:
+  // aura::WindowTargeter:
+  std::unique_ptr<HitTestRects> GetExtraHitTestShapeRects(
+      aura::Window* target) const override {
+    if (!view_tracker_.view()) {
+      return nullptr;
+    }
+
+    return std::make_unique<HitTestRects>(std::initializer_list<gfx::Rect>(
+        {views::AsViewClass<const HelpBubbleViewAsh>(view_tracker_.view())
+             ->GetHitRect()}));
+  }
+
+  const views::ViewTracker view_tracker_;
+};
 
 }  // namespace
 
@@ -269,27 +268,28 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(HelpBubbleViewAsh,
                                       kDefaultButtonIdForTesting);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(HelpBubbleViewAsh,
                                       kFirstNonDefaultButtonIdForTesting);
-
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(HelpBubbleViewAsh, kBodyIconIdForTesting);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(HelpBubbleViewAsh, kBodyTextIdForTesting);
 
 // Explicitly don't use the default DIALOG_SHADOW as it will show a black
 // outline in dark mode on Mac. Use our own shadow instead. The shadow type is
 // the same for all other platforms.
 HelpBubbleViewAsh::HelpBubbleViewAsh(
+    HelpBubbleId id,
     const internal::HelpBubbleAnchorParams& anchor,
     user_education::HelpBubbleParams params)
     : BubbleDialogDelegateView(anchor.view,
                                TranslateArrow(params.arrow),
-                               views::BubbleBorder::STANDARD_SHADOW) {
-  if (anchor.rect.has_value()) {
-    SetForceAnchorRect(anchor.rect.value());
-  } else {
-    // When hosted within a `views::ScrollView`, the anchor view may be
-    // (partially) outside the viewport. Ensure that the anchor view is visible.
-    anchor.view->ScrollViewToVisible();
-  }
-  DCHECK(anchor.view)
-      << "A bubble that closes on blur must be initially focused.";
+                               views::BubbleBorder::STANDARD_SHADOW),
+      id_(id) {
+  SetBackgroundColor(cros_tokens::kCrosSysDialogContainer);
+  SetCanActivate(true);
+
+  // When hosted within a `views::ScrollView`, the anchor view may be
+  // (partially) outside the viewport. Ensure that the anchor view is visible.
+  CHECK(anchor.view);
+  anchor.view->ScrollViewToVisible();
+
   UseCompactMargins();
 
   // Default timeout depends on whether non-close buttons are present.
@@ -301,13 +301,37 @@ HelpBubbleViewAsh::HelpBubbleViewAsh(
   }
   SetCancelCallback(std::move(params.dismiss_callback));
 
-  accessible_name_ = params.title_text;
-  if (!accessible_name_.empty()) {
-    accessible_name_ += u". ";
+  // A body text provided from extended properties should take precedence
+  // over the default body text provided from help bubble `params` since
+  // extended properties are the ChromeOS-specific mechanism for overriding
+  // platform agnostic behaviors.
+  std::u16string body_text;
+  if (auto body_text_from_extended_properties =
+          user_education_util::GetHelpBubbleBodyText(
+              params.extended_properties)) {
+    body_text = base::UTF8ToUTF16(body_text_from_extended_properties.value());
+  } else {
+    body_text = params.body_text;
   }
-  accessible_name_ += params.screenreader_text.empty()
-                          ? params.body_text
-                          : params.screenreader_text;
+
+  // An accessible name provided from extended properties should take precedence
+  // over the default accessible name provided from help bubble `params` since
+  // extended properties are the ChromeOS-specific mechanism for overriding
+  // platform agnostic behaviors.
+  if (auto accessible_name_from_extended_properties =
+          user_education_util::GetHelpBubbleAccessibleName(
+              params.extended_properties)) {
+    accessible_name_ =
+        base::UTF8ToUTF16(accessible_name_from_extended_properties.value());
+  } else {
+    accessible_name_ = params.title_text;
+    if (!accessible_name_.empty()) {
+      accessible_name_ += u". ";
+    }
+    accessible_name_ +=
+        params.screenreader_text.empty() ? body_text : params.screenreader_text;
+  }
+
   screenreader_hint_text_ = params.keyboard_navigation_hint;
 
   // Since we don't have any controls for the user to interact with (we're just
@@ -339,9 +363,9 @@ HelpBubbleViewAsh::HelpBubbleViewAsh(
   // Add progress indicator (optional) and its container.
   if (params.progress) {
     DCHECK(params.progress->second);
-    // TODO(crbug.com/1197208): surface progress information in a11y tree
+    // TODO(crbug.com/40176811): surface progress information in a11y tree
     for (int i = 0; i < params.progress->second; ++i) {
-      // TODO(crbug.com/1197208): formalize dot size
+      // TODO(crbug.com/40176811): formalize dot size
       progress_container->AddChildView(std::make_unique<DotView>(
           gfx::Size(8, 8), i < params.progress->first));
     }
@@ -349,32 +373,46 @@ HelpBubbleViewAsh::HelpBubbleViewAsh(
     progress_container->SetVisible(false);
   }
 
+  // A body icon provided from extended properties should take precedence over a
+  // body icon provided from help bubble `params` since extended properties are
+  // the ChromeOS-specific mechanism for overriding platform agnostic behaviors.
+  const gfx::VectorIcon* body_icon = params.body_icon;
+  if (auto body_icon_from_extended_properties =
+          user_education_util::GetHelpBubbleBodyIcon(
+              params.extended_properties)) {
+    body_icon = &body_icon_from_extended_properties->get();
+  }
+
   // Add the body icon (optional).
   constexpr int kBodyIconSize = 20;
   constexpr int kBodyIconBackgroundSize = 24;
-  if (params.body_icon) {
+  if (body_icon && (body_icon != &gfx::VectorIcon::EmptyIcon())) {
     icon_view_ = top_text_container->AddChildViewAt(
-        std::make_unique<views::ImageView>(ui::ImageModel::FromVectorIcon(
-            *params.body_icon, cros_tokens::kCrosSysDialogContainer,
-            kBodyIconSize)),
+        views::Builder<views::ImageView>()
+            .SetAccessibleName(params.body_icon_alt_text)
+            .SetImage(ui::ImageModel::FromVectorIcon(
+                *body_icon, cros_tokens::kCrosSysDialogContainer,
+                kBodyIconSize))
+            .SetPreferredSize(
+                gfx::Size(kBodyIconBackgroundSize, kBodyIconBackgroundSize))
+            .SetProperty(views::kElementIdentifierKey, kBodyIconIdForTesting)
+            .Build(),
         0);
-    icon_view_->SetPreferredSize(
-        gfx::Size(kBodyIconBackgroundSize, kBodyIconBackgroundSize));
-    icon_view_->SetAccessibleName(params.body_icon_alt_text);
   }
 
   // Add title (optional) and body label.
   if (!params.title_text.empty()) {
-    labels_.push_back(top_text_container->AddChildView(
-        std::make_unique<views::Label>(params.title_text)));
-    views::Label* label =
-        AddChildViewAt(std::make_unique<views::Label>(params.body_text),
-                       GetIndexOf(button_container).value());
+    labels_.push_back(
+        top_text_container->AddChildView(bubble_utils::CreateLabel(
+            TypographyToken::kCrosBody1, params.title_text)));
+    views::Label* label = AddChildViewAt(
+        bubble_utils::CreateLabel(TypographyToken::kCrosBody1, body_text),
+        GetIndexOf(button_container).value());
     labels_.push_back(label);
     label->SetProperty(views::kElementIdentifierKey, kBodyTextIdForTesting);
   } else {
     views::Label* label = top_text_container->AddChildView(
-        std::make_unique<views::Label>(params.body_text));
+        bubble_utils::CreateLabel(TypographyToken::kCrosBody1, body_text));
     labels_.push_back(label);
     label->SetProperty(views::kElementIdentifierKey, kBodyTextIdForTesting);
   }
@@ -421,13 +459,15 @@ HelpBubbleViewAsh::HelpBubbleViewAsh(
 
     // We will hold the default button to add later, since where we add it in
     // the sequence depends on platform style.
-    std::unique_ptr<MdIPHBubbleButton> default_button;
+    std::unique_ptr<views::LabelButton> default_button;
     for (user_education::HelpBubbleButtonParams& button_params :
          params.buttons) {
-      auto button = std::make_unique<MdIPHBubbleButton>(
-          base::BindRepeating(run_callback_and_close, base::Unretained(this),
-                              base::Passed(std::move(button_params.callback))),
-          button_params.text, button_params.is_default);
+      auto button = std::make_unique<PillButton>(
+          base::BindOnce(run_callback_and_close, base::Unretained(this),
+                         std::move(button_params.callback)),
+          button_params.text,
+          button_params.is_default ? PillButton::Type::kPrimaryWithoutIcon
+                                   : PillButton::Type::kSecondaryWithoutIcon);
       button->SetMinSize(gfx::Size(0, 0));
       if (button_params.is_default) {
         DCHECK(!default_button);
@@ -591,37 +631,64 @@ HelpBubbleViewAsh::HelpBubbleViewAsh(
     SetInitiallyFocusedView(close_button_);
   }
 
+  SetModalType(
+      user_education_util::GetHelpBubbleModalType(params.extended_properties));
   SetProperty(views::kElementIdentifierKey, kHelpBubbleElementIdForTesting);
   set_margins(gfx::Insets());
   set_title_margins(gfx::Insets());
-  SetButtons(ui::DIALOG_BUTTON_NONE);
+  SetButtons(static_cast<int>(ui::mojom::DialogButton::kNone));
   set_close_on_deactivate(false);
   set_focus_traversable_from_anchor_view(false);
+  set_parent_window(
+      anchor_widget()->GetNativeWindow()->GetRootWindow()->GetChildById(
+          kShellWindowId_HelpBubbleContainer));
 
   views::Widget* widget = views::BubbleDialogDelegateView::CreateBubble(this);
 
-  // This gets reset to the platform default when we call CreateBubble(), so we
-  // have to change it afterwards:
+  // This gets reset to the platform default when we call `CreateBubble()`, so
+  // we have to change it afterwards. Note that rounded corners are updated
+  // *after* adjusting bounds since they are dependent on the help bubble's
+  // position relative to its anchor.
   set_adjust_if_offscreen(true);
-  auto* const frame_view = GetBubbleFrameView();
-  frame_view->SetCornerRadius(
-      views::LayoutProvider::Get()->GetCornerRadiusMetric(
-          views::Emphasis::kHigh));
-  frame_view->SetDisplayVisibleArrow(
-      anchor.show_arrow &&
-      params.arrow != user_education::HelpBubbleArrow::kNone);
   SizeToContents();
+  UpdateRoundedCorners();
 
-  widget->ShowInactive();
+  // Use a custom `aura::WindowTargeter` to avoid swallowing events from the
+  // area outside the contents.
+  // TODO(http://b/307780200): Possibly remove this after fixing the root issue
+  // in the default `aura::WindowTargeter`.
+  widget->GetNativeWindow()->SetEventTargeter(
+      std::make_unique<HelpBubbleWindowTargeter>(this));
+
+  if (widget->IsModal()) {
+    // If the help bubble widget is a system modal widget, then it should be the
+    // only interactive widget on the screen. Therefore, activate `widget`.
+    widget->Show();
+  } else {
+    widget->ShowInactive();
+  }
+
   auto* const anchor_bubble =
       anchor.view->GetWidget()->widget_delegate()->AsBubbleDialogDelegate();
   if (anchor_bubble) {
     anchor_pin_ = anchor_bubble->PreventCloseOnDeactivate();
   }
   MaybeStartAutoCloseTimer();
+
+  // NOTE: `controller` may be `nullptr` in testing.
+  if (auto* controller = UserEducationHelpBubbleController::Get()) {
+    controller->NotifyHelpBubbleShown(base::PassKey<HelpBubbleViewAsh>(),
+                                      /*help_bubble_view=*/this);
+  }
 }
 
-HelpBubbleViewAsh::~HelpBubbleViewAsh() = default;
+HelpBubbleViewAsh::~HelpBubbleViewAsh() {
+  // NOTE: `controller` may be `nullptr` in testing.
+  if (auto* controller = UserEducationHelpBubbleController::Get()) {
+    controller->NotifyHelpBubbleClosed(base::PassKey<HelpBubbleViewAsh>(),
+                                       /*help_bubble_view=*/this);
+  }
+}
 
 void HelpBubbleViewAsh::MaybeStartAutoCloseTimer() {
   if (timeout_.is_zero()) {
@@ -637,10 +704,24 @@ void HelpBubbleViewAsh::OnTimeout() {
   GetWidget()->Close();
 }
 
-bool HelpBubbleViewAsh::OnMousePressed(const ui::MouseEvent& event) {
-  base::RecordAction(
-      base::UserMetricsAction("InProductHelp.Promos.BubbleClicked"));
-  return false;
+std::unique_ptr<views::NonClientFrameView>
+HelpBubbleViewAsh::CreateNonClientFrameView(views::Widget* widget) {
+  auto frame = BubbleDialogDelegateView::CreateNonClientFrameView(widget);
+  auto* frame_ptr = static_cast<views::BubbleFrameView*>(frame.get());
+  frame_ptr->bubble_border()->set_md_shadow_elevation(kBubbleShadowElevation);
+  frame_ptr->set_use_anchor_window_bounds(false);
+  return frame;
+}
+
+void HelpBubbleViewAsh::OnAnchorBoundsChanged() {
+  views::BubbleDialogDelegateView::OnAnchorBoundsChanged();
+  UpdateRoundedCorners();
+
+  // NOTE: `controller` may be `nullptr` in testing.
+  if (auto* controller = UserEducationHelpBubbleController::Get()) {
+    controller->NotifyHelpBubbleAnchorBoundsChanged(
+        base::PassKey<HelpBubbleViewAsh>(), /*help_bubble_view=*/this);
+  }
 }
 
 std::u16string HelpBubbleViewAsh::GetAccessibleWindowTitle() const {
@@ -659,21 +740,24 @@ void HelpBubbleViewAsh::OnWidgetActivationChanged(views::Widget* widget,
   if (widget == GetWidget()) {
     if (active) {
       ++activate_count_;
-      auto_close_timer_.AbandonAndStop();
+      auto_close_timer_.Stop();
+      GetWidget()->UpdateAccessibleNameForRootView();
     } else {
       MaybeStartAutoCloseTimer();
     }
   }
 }
 
+void HelpBubbleViewAsh::OnWidgetBoundsChanged(views::Widget* widget,
+                                              const gfx::Rect& bounds) {
+  views::BubbleDialogDelegateView::OnWidgetBoundsChanged(widget, bounds);
+  UpdateRoundedCorners();
+}
+
 void HelpBubbleViewAsh::OnThemeChanged() {
   views::BubbleDialogDelegateView::OnThemeChanged();
 
   const auto* color_provider = GetColorProvider();
-  const SkColor background_color =
-      color_provider->GetColor(cros_tokens::kCrosSysDialogContainer);
-  set_color(background_color);
-
   const SkColor foreground_color =
       color_provider->GetColor(cros_tokens::kCrosSysOnSurface);
   if (icon_view_) {
@@ -681,19 +765,24 @@ void HelpBubbleViewAsh::OnThemeChanged() {
         foreground_color, icon_view_->GetPreferredSize().height() / 2));
   }
 
-  for (auto* label : labels_) {
+  const SkColor background_color =
+      color_provider->GetColor(cros_tokens::kCrosSysDialogContainer);
+  for (views::Label* label : labels_) {
     label->SetBackgroundColor(background_color);
     label->SetEnabledColor(foreground_color);
   }
 }
 
-gfx::Size HelpBubbleViewAsh::CalculatePreferredSize() const {
+gfx::Size HelpBubbleViewAsh::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
   const gfx::Size layout_manager_preferred_size =
-      View::CalculatePreferredSize();
+      View::CalculatePreferredSize(available_size);
 
   // Wrap if the width is larger than |kBubbleMaxWidthDip|.
   if (layout_manager_preferred_size.width() > kBubbleMaxWidthDip) {
-    return gfx::Size(kBubbleMaxWidthDip, GetHeightForWidth(kBubbleMaxWidthDip));
+    return gfx::Size(kBubbleMaxWidthDip,
+                     GetLayoutManager()->GetPreferredHeightForWidth(
+                         this, kBubbleMaxWidthDip));
   }
 
   if (layout_manager_preferred_size.width() < kBubbleMinWidthDip) {
@@ -705,27 +794,47 @@ gfx::Size HelpBubbleViewAsh::CalculatePreferredSize() const {
 }
 
 gfx::Rect HelpBubbleViewAsh::GetAnchorRect() const {
-  gfx::Rect default_anchor_rect = BubbleDialogDelegateView::GetAnchorRect();
-  if (!local_anchor_bounds_) {
-    return default_anchor_rect;
+  // Update `anchor_rect` to respect margins.
+  gfx::Rect anchor_rect = BubbleDialogDelegateView::GetAnchorRect();
+  anchor_rect.Outset(kBubbleMargins);
+
+  // Update `anchor_rect` so that the anchor view and help bubble view are
+  // corner-aligned instead of edge-aligned, as would be the default.
+  switch (GetBubbleFrameView()->bubble_border()->arrow()) {
+    case views::BubbleBorder::LEFT_TOP:
+    case views::BubbleBorder::TOP_LEFT:
+      anchor_rect = gfx::Rect(anchor_rect.bottom_right(), gfx::Size());
+      break;
+    case views::BubbleBorder::RIGHT_TOP:
+    case views::BubbleBorder::TOP_RIGHT:
+      anchor_rect = gfx::Rect(anchor_rect.bottom_left(), gfx::Size());
+      break;
+    case views::BubbleBorder::BOTTOM_LEFT:
+    case views::BubbleBorder::LEFT_BOTTOM:
+      anchor_rect = gfx::Rect(anchor_rect.top_right(), gfx::Size());
+      break;
+    case views::BubbleBorder::BOTTOM_RIGHT:
+    case views::BubbleBorder::RIGHT_BOTTOM:
+      anchor_rect = gfx::Rect(anchor_rect.origin(), gfx::Size());
+      break;
+    case views::BubbleBorder::BOTTOM_CENTER:
+    case views::BubbleBorder::LEFT_CENTER:
+    case views::BubbleBorder::RIGHT_CENTER:
+    case views::BubbleBorder::TOP_CENTER:
+    case views::BubbleBorder::NONE:
+    case views::BubbleBorder::FLOAT:
+      break;
   }
 
-  // Ensure that we are not trying to clamp the anchor bounds to a completely
-  // empty bounds.
-  gfx::Size size = default_anchor_rect.size();
-  size.SetToMax({1, 1});
+  return anchor_rect;
+}
 
-  // Clamp the local bounds to the size of the anchor view.
-  const int left = std::clamp(local_anchor_bounds_->x(), 0, size.width() - 1);
-  const int right = std::clamp(local_anchor_bounds_->right(), 1, size.width());
-  const int top = std::clamp(local_anchor_bounds_->y(), 0, size.height() - 1);
-  const int bottom =
-      std::clamp(local_anchor_bounds_->bottom(), 1, size.height());
-  gfx::Rect result(left, top, right - left, bottom - top);
+void HelpBubbleViewAsh::GetWidgetHitTestMask(SkPath* mask) const {
+  mask->addRect(gfx::RectToSkRect(GetHitRect()));
+}
 
-  // Translate back to screen coordinates.
-  result.Offset(default_anchor_rect.OffsetFromOrigin());
-  return result;
+bool HelpBubbleViewAsh::WidgetHasHitTestMask() const {
+  return true;
 }
 
 // static
@@ -762,13 +871,41 @@ views::LabelButton* HelpBubbleViewAsh::GetNonDefaultButtonForTesting(
   return non_default_buttons_[index];
 }
 
-void HelpBubbleViewAsh::SetForceAnchorRect(gfx::Rect force_anchor_rect) {
-  force_anchor_rect.Offset(
-      -views::BubbleDialogDelegateView::GetAnchorRect().OffsetFromOrigin());
-  local_anchor_bounds_ = force_anchor_rect;
+gfx::Rect HelpBubbleViewAsh::GetHitRect() const {
+  // NOTE: Mask to bubble frame view contents bounds to exclude shadows.
+  return GetBubbleFrameView()->GetContentsBounds();
 }
 
-BEGIN_METADATA(HelpBubbleViewAsh, views::BubbleDialogDelegateView)
+void HelpBubbleViewAsh::UpdateRoundedCorners() {
+  if (!GetWidget()) {
+    return;
+  }
+
+  // Alias constants to avoid line wrapping below.
+  constexpr float kDefault = kBubbleCornerRadiusDefault;
+  constexpr float kSmall = kBubbleCornerRadiusSmall;
+
+  // Cache anchor and help bubble bounds in screen coordinates.
+  const gfx::Rect anchor_rect = GetAnchorRect();
+  const gfx::Point anchor_center = anchor_rect.CenterPoint();
+  const gfx::Rect bounds_rect = GetBoundsInScreen();
+  const gfx::Point bounds_center = bounds_rect.CenterPoint();
+
+  // When the help bubble is not center aligned with its anchor, the corner
+  // closest to the anchor has a smaller radius.
+  const int dx = anchor_center.x() - bounds_center.x();
+  const int dy = anchor_center.y() - bounds_center.y();
+  const float upper_left = dx < 0 && dy < 0 ? kSmall : kDefault;
+  const float upper_right = dx > 0 && dy < 0 ? kSmall : kDefault;
+  const float lower_right = dx > 0 && dy > 0 ? kSmall : kDefault;
+  const float lower_left = dx < 0 && dy > 0 ? kSmall : kDefault;
+
+  // Update rounded corners.
+  GetBubbleFrameView()->SetRoundedCorners(
+      gfx::RoundedCornersF(upper_left, upper_right, lower_right, lower_left));
+}
+
+BEGIN_METADATA(HelpBubbleViewAsh)
 END_METADATA
 
 }  // namespace ash

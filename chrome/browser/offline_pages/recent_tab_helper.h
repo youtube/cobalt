@@ -8,13 +8,13 @@
 #include <memory>
 #include <vector>
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/offline_pages/core/offline_page_model.h"
 #include "components/offline_pages/core/snapshot_controller.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
-#include "url/gurl.h"
 
 namespace content {
 class NavigationHandle;
@@ -31,23 +31,6 @@ class RecentTabHelper
       public content::WebContentsUserData<RecentTabHelper>,
       public SnapshotController::Client {
  public:
-  // Possible values to be reported to the IsSavingSamePage histogram. Reflects
-  // the contents of the respective histogram enum and must be kept in sync with
-  // it.
-  enum class IsSavingSamePageEnum {
-    // The snapshot is for a new page.
-    kNewPage = 0,
-    // The snapshot is for a page that has already been saved but a better
-    // expected quality.
-    kSamePageBetterQuality = 1,
-    // The snapshot is for a page that has already been saved at the same
-    // expected quality.
-    kSamePageSameQuality = 2,
-    // Note: Always leave this item last. Update if the actual last item
-    // changes.
-    kMaxValue = kSamePageSameQuality,
-  };
-
   RecentTabHelper(const RecentTabHelper&) = delete;
   RecentTabHelper& operator=(const RecentTabHelper&) = delete;
 
@@ -72,7 +55,7 @@ class RecentTabHelper
   // Default implementation lives in .cc file, while tests provide an override.
   class Delegate {
    public:
-    virtual ~Delegate() {}
+    virtual ~Delegate() = default;
     virtual std::unique_ptr<OfflinePageArchiver> CreatePageArchiver(
         content::WebContents* web_contents) = 0;
     // There is no expectations that tab_id is always present.

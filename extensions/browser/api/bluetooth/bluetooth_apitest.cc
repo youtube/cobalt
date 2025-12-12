@@ -9,6 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "content/public/test/browser_test.h"
@@ -114,7 +115,8 @@ class BluetoothApiTest : public extensions::ExtensionApiTest {
   }
 
  protected:
-  raw_ptr<testing::StrictMock<MockBluetoothAdapter>, DanglingUntriaged>
+  raw_ptr<testing::StrictMock<MockBluetoothAdapter>,
+          AcrossTasksDanglingUntriaged>
       mock_adapter_;
   std::unique_ptr<testing::NiceMock<MockBluetoothDevice>> device1_;
   std::unique_ptr<testing::NiceMock<MockBluetoothDevice>> device2_;
@@ -150,18 +152,18 @@ IN_PROC_BROWSER_TEST_F(BluetoothApiTest, GetAdapterState) {
   scoped_refptr<api::BluetoothGetAdapterStateFunction> get_adapter_state;
   get_adapter_state = setupFunction(new api::BluetoothGetAdapterStateFunction);
 
-  absl::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
+  std::optional<base::Value> result = utils::RunFunctionAndReturnSingleResult(
       get_adapter_state.get(), "[]", browser()->profile());
   ASSERT_TRUE(result);
   ASSERT_TRUE(result->is_dict());
-  api::bluetooth::AdapterState state;
-  ASSERT_TRUE(api::bluetooth::AdapterState::Populate(result->GetDict(), state));
+  auto state = api::bluetooth::AdapterState::FromValue(result->GetDict());
+  ASSERT_TRUE(state);
 
-  EXPECT_FALSE(state.available);
-  EXPECT_TRUE(state.powered);
-  EXPECT_FALSE(state.discovering);
-  EXPECT_EQ(kName, state.name);
-  EXPECT_EQ(kAdapterAddress, state.address);
+  EXPECT_FALSE(state->available);
+  EXPECT_TRUE(state->powered);
+  EXPECT_FALSE(state->discovering);
+  EXPECT_EQ(kName, state->name);
+  EXPECT_EQ(kAdapterAddress, state->address);
 }
 
 IN_PROC_BROWSER_TEST_F(BluetoothApiTest, DeviceEvents) {
@@ -178,7 +180,7 @@ IN_PROC_BROWSER_TEST_F(BluetoothApiTest, DeviceEvents) {
 
   EXPECT_CALL(*device2_, GetName())
       .WillRepeatedly(
-          testing::Return(absl::optional<std::string>("the real d2")));
+          testing::Return(std::optional<std::string>("the real d2")));
   EXPECT_CALL(*device2_, GetNameForDisplay())
       .WillRepeatedly(testing::Return(u"the real d2"));
   event_router()->DeviceChanged(mock_adapter_, device2_.get());
@@ -407,7 +409,7 @@ IN_PROC_BROWSER_TEST_F(BluetoothApiTest, DeviceInfo) {
       .WillRepeatedly(testing::Return("A4:17:31:00:00:00"));
   EXPECT_CALL(*device1_, GetName())
       .WillRepeatedly(
-          testing::Return(absl::optional<std::string>("Chromebook Pixel")));
+          testing::Return(std::optional<std::string>("Chromebook Pixel")));
   EXPECT_CALL(*device1_, GetNameForDisplay())
       .WillRepeatedly(testing::Return(u"Chromebook Pixel"));
   EXPECT_CALL(*device1_, GetBluetoothClass())

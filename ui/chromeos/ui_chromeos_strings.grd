@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <grit base_dir="." latest_public_release="0" current_release="1"
-      output_all_resource_defines="false" source_lang_id="en" enc_check="möl">
+      source_lang_id="en" enc_check="möl">
   <outputs>
     <output filename="grit/ui_chromeos_strings.h" type="rc_header">
       <emit emit_type='prepend'></emit>
@@ -180,7 +180,7 @@
   </translations>
   <release seq="1">
     <messages fallback_to_english="true">
-      <!-- Files app strings. It's shared with ARC++ (//ash/components/arc). -->
+      <!-- Files app strings. It's shared with ARC++ (//chromeos/ash/experiences/arc). -->
       <part file="file_manager_strings.grdp" />
 
       <!-- Default user profile images. -->
@@ -635,6 +635,9 @@
       <!-- Input method strings. -->
       <message name="IDS_CHROMEOS_IME_INFOLIST_WINDOW_TITLE" desc="The title of the infolist window where the meanings and the usages of words are displayed.">
         Information
+      </message>
+      <message name="IDS_CHROMEOS_DIACRITIC_NUDGE_TEXT">
+      Want keys to repeat? Turn off accent marks in Keyboard Settings
       </message>
       <message name="IDS_CHROMEOS_IME_CHINESE_QUICK_SETTINGS_CHINESE" desc="It is the description of whether the current input method is Chinese.">
         Input language is Chinese
@@ -1319,6 +1322,11 @@
         Urdu
       </message>
 
+      <!-- Lobster Strings -->
+      <message name="IDS_CHROMEOS_LOBSTER_CONTAINS_PERSON_ERROR_RESPONSE" desc="The error message displayed when Lobster image candidates contain people and are filtered out.">
+        For now, results with people won't be shown. Try another prompt.
+      </message>
+
       <!-- Network error strings -->
       <message name="IDS_CHROMEOS_NETWORK_ERROR_UNKNOWN" desc="Network error details in notifications: UNKNOWN">
         Unknown network error
@@ -1394,9 +1402,21 @@
       </message>
       <message name="IDS_CHROMEOS_NETWORK_ERROR_NOT_REGISTERED" desc="Network error details in notifications: NOT_REGISTERED. Error when a connect attempt fails because the modem is not registered.">
         Modem not registered
+        </message>
+      <message name="IDS_CHROMEOS_NETWORK_ERROR_SUSPECT_INACTIVE_SIM" desc="Network error details in notifications: NOT_REGISTERED. Error when a connect attempt fails due to inactive SIM.">
+        Your SIM card or eSIM profile may be deactivated. Try replacing your SIM card or switching eSIM profiles.
+      </message>
+      <message name="IDS_CHROMEOS_NETWORK_ERROR_SUSPECT_SUBSCRIPTION_ERROR" desc="Network error details in notifications: NOT_REGISTERED. Error when a connect attempt fails due to subscription error.">
+        Your mobile data plan may be expired. Contact your carrier for support.
+      </message>
+      <message name="IDS_CHROMEOS_NETWORK_ERROR_SUSPECT_MODEM_DISALLOWED" desc="Network error details in notifications: NOT_REGISTERED. Error when a connect attempt fails because the modem is not allowed by carrier.">
+        Your modem isn’t allowed to connect by your carrier. Contact your carrier for more details.
       </message>
       <message name="IDS_CHROMEOS_NETWORK_ERROR_WRONG_STATE" desc="Network error details in notifications: NOT_REGISTERED. Error when a connect attempt fails because the modem is in a busy state.">
         Device is busy
+      </message>
+      <message name="IDS_CHROMEOS_NETWORK_ERROR_INVALID_APN" desc="Network error details in notifications: NOT_REGISTERED. Error when a connect attempt fails because of invalid APN.">
+        Check your APN configuration
       </message>
       <message name="IDS_CHROMEOS_NETWORK_ERROR_WEP_NOT_SUPPORTED" desc="Network error details in notifications: WEP_NOT_SUPPORTED. Error when a connect attempt fails because WEP networks are not supported.">
         WEP networks are not supported
@@ -1419,8 +1439,8 @@
       <message name="IDS_STATUSBAR_NETWORK_DEVICE_SIGNIN" desc="Settings > Network, text in network page when in captive portal state or proxy auth state.">
         Sign in to network
       </message>
-      <message name="IDS_STATUSBAR_NETWORK_DEVICE_CONNECTED_LIMITED" desc="The network device is connected but in a portal-suspected portal state. A portal is suspected but no redirect was found, therefore, there may be limited connectivity.">
-        Connected, limited connectivity
+      <message name="IDS_STATUSBAR_NETWORK_DEVICE_CELLULAR_SIGNIN" desc="Settings > Network, text in network page when in captive portal state or proxy auth state for cellular network.">
+        Sign in to your mobile network and confirm your mobile data plan is active
       </message>
       <message name="IDS_STATUSBAR_NETWORK_DEVICE_CONNECTED_NO_CONNECTIVITY" desc="The network device is connected but in a no-connectivity portal state, therefore, there is no connection to the internet.">
         Connected, no internet
@@ -1432,6 +1452,9 @@
       </message>
       <message name="IDS_NETWORK_LIST_UPDATED_CELLULAR_SIM_CARD_LOCKED" desc="Text in the network list element when a Cellular network's SIM card is locked. Used when updated cellular activation flag in on.">
         Locked
+      </message>
+      <message name="IDS_NETWORK_LIST_UPDATED_CELLULAR_SIM_CARD_CARRIER_LOCKED" desc="Text in the network list element when a Cellular network's SIM card is locked to a specific carrier. Used when updated cellular activation flag in on.">
+        Locked by another mobile provider
       </message>
       <message name="IDS_NETWORK_LIST_NOT_CONNECTED" desc="Text in the network list element when there is a network for the type, but it is not connected or connecting.">
         Not connected
@@ -1585,6 +1608,9 @@
       </message>
       <message name="IDS_NETWORK_LIST_SIM_CARD_LOCKED" desc="Text in the network list element when a Cellular network's SIM card is locked.">
         Your SIM is locked
+      </message>
+      <message name="IDS_NETWORK_LIST_SIM_CARD_CARRIER_LOCKED" desc="Text in the network list element when a Cellular network's SIM card is carrier locked.">
+        Mobile network provider is locked. Contact your provider for support.
       </message>
       <message name="IDS_WIFI_NETWORK_STATUS_SECURED" desc="a11y label used when a Wi-Fi network is secured.">
         Secured
@@ -1770,6 +1796,9 @@
       <message name="IDS_SETTINGS_INTERNET_NETWORK_SETTING_MANAGED_BY_ADMIN_TOOLTIP" desc="Text displayed in the controlled settings bubble when a setting's value is managed by policy.">
         This setting is managed by your administrator.
       </message>
+      <message name="IDS_SUPPRESS_TEXT_MESSAGES" desc="Text displayed for a toggle button allowing user to show or hide text messages">
+        Show text messages
+      </message>
 
       <!-- Settings > Internet > SIM lock/unlock dialog -->
       <message name="IDS_SETTINGS_INTERNET_NETWORK_SIM_CHANGE_PIN" desc="Settings > Internet > Network details > Lock/unlock SIM card: Label for buton to change the PIN.">
@@ -1816,6 +1845,9 @@
       </message>
       <message name="IDS_SETTINGS_INTERNET_NETWORK_SIM_LOCK_POLICY_ADMIN_SUBTITLE" desc="Settings > Internet > Network details > Unlock SIM card: Title for unlocking SIM locked dialog when restrict SIM PIN lock policy is on.">
         Your administrator has requested you to turn off the "Lock SIM" setting
+      </message>
+      <message name="IDS_SETTINGS_INTERNET_NETWORK_SIM_LOCKED_PIN_SUBTITLE" desc="Settings > Internet > Network details > Unlock SIM card: Subtitle for unlocking SIM locked SIM.">
+        Enter your SIM card PIN or the default PIN provided by your carrier. Contact your carrier for support.
       </message>
       <message name="IDS_SETTINGS_INTERNET_NETWORK_SIM_LOCKED_PUK_SUBTITLE" desc="Settings > Internet > Network details > Lock/unlock SIM card: Title informing the user to enter a PIN provided by the carrier in order unlock network.">
         An incorrect PIN was entered too many times. To set up a new PIN, enter the 8-digit Personal Unblocking Key (PUK) provided by your carrier.
@@ -1905,43 +1937,6 @@
       </message>
       <message name="IDS_NETWORK_EAP_DEFAULT_SERVER_CA_WITHOUT_SUBJECT_VERIFICATION" desc="Network error message shown when the EAP configuration uses the default server CA cert without configuring subject alt name or domain matches to validate the servers identity">
         Missing 'Subject alternative name match' or 'Domain suffix match' to validate the authentication server identity
-      </message>
-
-       <!-- Strings shown on the Incognito navigation blocked page when policy-configured mandatory extensions are not allowed by the user to run in Incognito -->
-      <message name="IDS_INCOGNITO_NAVIGATION_BLOCKED_PAGE_TITLE" desc="Title of the page shown when Incognito navigation is blocked">
-              {COUNT, plural,
-              =1 {To use Incognito, your organization requires an extension}
-              other {To use Incognito, your organization requires some extensions}}
-      </message>
-      <message name="IDS_INCOGNITO_NAVIGATION_MESSAGE" desc="Informational message shown when Incognito navigation is blocked">
-                    {COUNT, plural,
-              =1 {Turn on the following extension in Incognito:}
-              other {Turn on the following extensions in Incognito:}}
-      </message>
-      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS" desc="Instructions shown on the blocked navigation page on how to enable an extension">
-        Turn on an extension in Incognito:
-      </message>
-      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_1" desc="First step from the instruction to enable an extension in Incognito mode">
-        Type <ph name="BEGIN_BOLD">&lt;b&gt;</ph>chrome://extensions<ph name="END_BOLD">&lt;/b&gt;</ph> into your browser
-      </message>
-      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_2" desc="Second step from the instruction to enable an extension in Incognito mode">
-        Find the extension above
-      </message>
-      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_3" desc="Third step from the instruction to enable an extension in Incognito mode">
-        Click <ph name="BEGIN_BOLD">&lt;b&gt;</ph>Details<ph name="END_BOLD">&lt;/b&gt;</ph>
-      </message>
-      <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_4" desc="Forth step from the instruction to enable an extension in Incognito mode">
-        Turn on <ph name="BEGIN_BOLD">&lt;b&gt;</ph>Allow in Incognito<ph name="END_BOLD">&lt;/b&gt;</ph>
-      </message>
-        <message name="IDS_INCOGNITO_NAVIGATION_MISSING_TITLE" desc="Message shown when the admin has configures one or more extensions as mandatory for Incognito mode navigation but the extensions are not installed in the browser">
-        {COUNT, plural,
-              =1 {Can’t find extension}
-              other {Can’t find extensions}}
-      </message>
-      <message name="IDS_INCOGNITO_NAVIGATION_MISSING_EXTENSIONS" desc="Message shown when the admin has configures one or more extensions as mandatory for Incognito mode navigation but the extensions are not installed in the browser">
-        {COUNT, plural,
-              =1 {An extension with the ID <ph name="BEGIN_LIST">&lt;ul id="mising-extensions" &gt;</ph><ph name="END_LIST">&lt;/ul&gt;</ph> can’t be located. Contact your administrator.}
-              other {Extensions with the IDs <ph name="BEGIN_LIST">&lt;ul id="mising-extensions" &gt;</ph><ph name="END_LIST">&lt;/ul&gt;</ph> can’t be located. Contact your administrator.}}
       </message>
 
       <!-- Settings strings -->

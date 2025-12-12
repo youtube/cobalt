@@ -4,10 +4,13 @@
 
 #include "ash/quick_pair/repository/fast_pair_repository_impl.h"
 
+#include <optional>
+
 #include "ash/quick_pair/common/device.h"
 #include "ash/quick_pair/common/fast_pair/fast_pair_metrics.h"
 #include "ash/quick_pair/common/mock_quick_pair_browser_delegate.h"
 #include "ash/quick_pair/common/protocol.h"
+#include "ash/quick_pair/common/quick_pair_browser_delegate.h"
 #include "ash/quick_pair/repository/fake_device_metadata_http_fetcher.h"
 #include "ash/quick_pair/repository/fast_pair/device_address_map.h"
 #include "ash/quick_pair/repository/fast_pair/device_image_store.h"
@@ -18,6 +21,7 @@
 #include "ash/quick_pair/repository/fast_pair/pending_write_store.h"
 #include "ash/quick_pair/repository/fast_pair/proto_conversions.h"
 #include "ash/quick_pair/repository/fast_pair/saved_device_registry.h"
+#include "ash/quick_pair/repository/fast_pair_repository.h"
 #include "ash/shell.h"
 #include "ash/test/ash_test_base.h"
 #include "base/base64.h"
@@ -43,7 +47,6 @@
 #include "device/bluetooth/test/mock_bluetooth_device.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/image/image_unittest_util.h"
 
 namespace {
@@ -165,7 +168,7 @@ class FastPairRepositoryImplTest : public AshTestBase {
     image_decoder_ = image_decoder.get();
     test_image_ = gfx::test::CreateImage(100, 100);
     ON_CALL(*image_decoder_, DecodeImage(_, _, _))
-        .WillByDefault(RunOnceCallback<2>(test_image_));
+        .WillByDefault(base::test::RunOnceCallbackRepeatedly<2>(test_image_));
 
     auto device_address_map = std::make_unique<DeviceAddressMap>();
     device_address_map_ = device_address_map.get();
@@ -186,13 +189,7 @@ class FastPairRepositoryImplTest : public AshTestBase {
         std::move(footprints_fetcher), std::move(image_decoder),
         std::move(device_address_map), std::move(device_image_store),
         std::move(saved_device_registry), std::move(pending_write_store));
-
-    pref_service_ = std::make_unique<TestingPrefServiceSimple>();
-    ON_CALL(browser_delegate_, GetActivePrefService())
-        .WillByDefault(testing::Return(pref_service_.get()));
-    PendingWriteStore::RegisterProfilePrefs(pref_service_->registry());
-    SavedDeviceRegistry::RegisterProfilePrefs(pref_service_->registry());
-    DeviceAddressMap::RegisterLocalStatePrefs(pref_service_->registry());
+    FastPairRepository::SetInstanceForTesting(fast_pair_repository_.get());
   }
 
   void TearDown() override {
@@ -219,11 +216,11 @@ class FastPairRepositoryImplTest : public AshTestBase {
 
   void VerifyAccountKeyCheck(base::OnceClosure on_complete,
                              bool expected_result,
-                             absl::optional<PairingMetadata> pairing_metadata) {
+                             std::optional<PairingMetadata> pairing_metadata) {
     if (expected_result) {
-      EXPECT_NE(absl::nullopt, pairing_metadata);
+      EXPECT_NE(std::nullopt, pairing_metadata);
     } else {
-      EXPECT_EQ(absl::nullopt, pairing_metadata);
+      EXPECT_EQ(std::nullopt, pairing_metadata);
     }
     std::move(on_complete).Run();
   }
@@ -250,18 +247,16 @@ class FastPairRepositoryImplTest : public AshTestBase {
       &ble_bluetooth_device_, &classic_bluetooth_device_};
   scoped_refptr<Device> device_;
   gfx::Image test_image_;
-  std::unique_ptr<TestingPrefServiceSimple> pref_service_;
-  MockQuickPairBrowserDelegate browser_delegate_;
 
-  raw_ptr<DeviceMetadataFetcher, ExperimentalAsh> device_metadata_fetcher_;
-  raw_ptr<FakeDeviceMetadataHttpFetcher, ExperimentalAsh>
+  raw_ptr<DeviceMetadataFetcher, DanglingUntriaged> device_metadata_fetcher_;
+  raw_ptr<FakeDeviceMetadataHttpFetcher, DanglingUntriaged>
       metadata_http_fetcher_;
-  raw_ptr<FakeFootprintsFetcher, ExperimentalAsh> footprints_fetcher_;
-  raw_ptr<MockFastPairImageDecoder, ExperimentalAsh> image_decoder_;
-  raw_ptr<DeviceAddressMap, ExperimentalAsh> device_address_map_;
-  raw_ptr<DeviceImageStore, ExperimentalAsh> device_image_store_;
-  raw_ptr<PendingWriteStore, ExperimentalAsh> pending_write_store_;
-  raw_ptr<SavedDeviceRegistry, ExperimentalAsh> saved_device_registry_;
+  raw_ptr<FakeFootprintsFetcher, DanglingUntriaged> footprints_fetcher_;
+  raw_ptr<MockFastPairImageDecoder, DanglingUntriaged> image_decoder_;
+  raw_ptr<DeviceAddressMap, DanglingUntriaged> device_address_map_;
+  raw_ptr<DeviceImageStore, DanglingUntriaged> device_image_store_;
+  raw_ptr<PendingWriteStore, DanglingUntriaged> pending_write_store_;
+  raw_ptr<SavedDeviceRegistry, DanglingUntriaged> saved_device_registry_;
 
   base::WeakPtrFactory<FastPairRepositoryImplTest> weak_ptr_factory_{this};
 };
@@ -464,7 +459,7 @@ TEST_F(FastPairRepositoryImplTest, UseStaleCache) {
                                         base::DoNothing());
 
   // Set the response to replicate an error getting devices from the server.
-  footprints_fetcher_->SetGetUserDevicesResponse(absl::nullopt);
+  footprints_fetcher_->SetGetUserDevicesResponse(std::nullopt);
 
   // After >30 minutes, cache is stale but we will fail to get devices from
   // the server so we use the stale cache with the device still present.
@@ -890,7 +885,7 @@ TEST_F(FastPairRepositoryImplTest, RetriesForgetDevice_AfterNetworkAvailable) {
   ASSERT_EQ(0u, pending_write_store_->GetPendingDeletes().size());
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_RetriesForgetDevice_AlreadyDeleted \
   DISABLED_RetriesForgetDevice_AlreadyDeleted
@@ -1175,7 +1170,7 @@ TEST_F(FastPairRepositoryImplTest, EvictDeviceImages) {
   ASSERT_FALSE(device_image_store_->GetImagesForDeviceModel(kValidModelId));
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_UpdateOptInStatus_OptedIn DISABLED_UpdateOptInStatus_OptedIn
 #else
@@ -1211,7 +1206,7 @@ TEST_F(FastPairRepositoryImplTest, UpdateOptInStatus_OptedOut) {
   fast_pair_repository_->CheckOptInStatus(callback2.Get());
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_UpdateOptInStatus_StatusUnknown \
   DISABLED_UpdateOptInStatus_StatusUnknown
@@ -1234,7 +1229,7 @@ TEST_F(FastPairRepositoryImplTest, MAYBE_UpdateOptInStatus_StatusUnknown) {
 }
 
 TEST_F(FastPairRepositoryImplTest, UpdateOptInStatus_NoFootprintsResponse) {
-  footprints_fetcher_->SetGetUserDevicesResponse(absl::nullopt);
+  footprints_fetcher_->SetGetUserDevicesResponse(std::nullopt);
   base::MockCallback<base::OnceCallback<void(nearby::fastpair::OptInStatus)>>
       callback;
   EXPECT_CALL(callback,
@@ -1243,7 +1238,7 @@ TEST_F(FastPairRepositoryImplTest, UpdateOptInStatus_NoFootprintsResponse) {
   fast_pair_repository_->CheckOptInStatus(callback.Get());
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_UpdateOptInStatus_OptedInUpdateFailed \
   DISABLED_UpdateOptInStatus_OptedInUpdateFailed
@@ -1350,7 +1345,7 @@ TEST_F(FastPairRepositoryImplTest, GetSavedDevices_MissingResponse) {
                                        /*success=*/true, 0);
   histogram_tester().ExpectBucketCount(kSavedDeviceGetDevicesResultMetricName,
                                        /*success=*/false, 0);
-  footprints_fetcher_->SetGetUserDevicesResponse(absl::nullopt);
+  footprints_fetcher_->SetGetUserDevicesResponse(std::nullopt);
   fast_pair_repository_->GetSavedDevices(
       base::BindOnce(&FastPairRepositoryImplTest::GetSavedDevicesCallback,
                      weak_ptr_factory_.GetWeakPtr()));
@@ -1382,7 +1377,7 @@ TEST_F(FastPairRepositoryImplTest,
   EXPECT_FALSE(fast_pair_repository_->IsAccountKeyPairedLocally(kAccountKey2));
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_IsAccountKeyPairedLocally_PairedNotSavedLocally \
   DISABLED_IsAccountKeyPairedLocally_PairedNotSavedLocally
@@ -1465,7 +1460,7 @@ TEST_F(FastPairRepositoryImplTest,
   base::RunLoop().RunUntilIdle();
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_IsDeviceSavedToAccount_IgnoreForgetPattern \
   DISABLED_IsDeviceSavedToAccount_IgnoreForgetPattern
@@ -1518,7 +1513,7 @@ TEST_F(FastPairRepositoryImplTest, IsDeviceSavedToAccount_NoMatch) {
 }
 
 TEST_F(FastPairRepositoryImplTest, IsDeviceSavedToAccount_MissingResponse) {
-  footprints_fetcher_->SetGetUserDevicesResponse(absl::nullopt);
+  footprints_fetcher_->SetGetUserDevicesResponse(std::nullopt);
 
   base::MockCallback<base::OnceCallback<void(bool)>> callback;
   EXPECT_CALL(callback, Run(testing::Eq(false))).Times(1);
@@ -1547,7 +1542,7 @@ TEST_F(FastPairRepositoryImplTest, IsDeviceSavedToAccount_MissingAccountKey) {
   base::RunLoop().RunUntilIdle();
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_IsDeviceSavedToAccount_MissingSha \
   DISABLED_IsDeviceSavedToAccount_MissingSha
@@ -1623,7 +1618,7 @@ TEST_F(FastPairRepositoryImplTest,
   ASSERT_EQ(0u, pending_write_store_->GetPendingWrites().size());
 }
 
-// TODO(crbug.com/1434879): Re-enable this test
+// TODO(crbug.com/40264951): Re-enable this test
 #if defined(MEMORY_SANITIZER)
 #define MAYBE_RetriesWriteDevice_AfterNetworkAvailable \
   DISABLED_RetriesWriteDevice_AfterNetworkAvailable

@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -17,9 +18,13 @@
 #include "base/location.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/process/process.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/task_traits.h"
+#include "base/task/thread_pool.h"
+#include "base/threading/sequence_bound.h"
 #include "base/time/time.h"
 #include "base/values.h"
 #include "base/win/registry.h"
@@ -30,17 +35,23 @@
 #include "mojo/public/cpp/system/message_pipe.h"
 #include "remoting/base/auto_thread.h"
 #include "remoting/base/auto_thread_task_runner.h"
+#include "remoting/base/crash/crash_reporting_breakpad.h"
+#include "remoting/base/logging.h"
 #include "remoting/base/scoped_sc_handle_win.h"
 #include "remoting/host/base/host_exit_codes.h"
 #include "remoting/host/base/screen_resolution.h"
 #include "remoting/host/base/switches.h"
 #include "remoting/host/branding.h"
+#include "remoting/host/chromoting_host_services_server.h"
+#include "remoting/host/crash/minidump_handler.h"
 #include "remoting/host/desktop_session_win.h"
 #include "remoting/host/host_config.h"
 #include "remoting/host/host_main.h"
 #include "remoting/host/ipc_constants.h"
+#include "remoting/host/mojom/chromoting_host_services.mojom.h"
 #include "remoting/host/mojom/remoting_host.mojom.h"
 #include "remoting/host/pairing_registry_delegate_win.h"
+#include "remoting/host/usage_stats_consent.h"
 #include "remoting/host/win/etw_trace_consumer.h"
 #include "remoting/host/win/host_event_file_logger.h"
 #include "remoting/host/win/host_event_windows_event_logger.h"
@@ -48,7 +59,6 @@
 #include "remoting/host/win/security_descriptor.h"
 #include "remoting/host/win/unprivileged_process_delegate.h"
 #include "remoting/host/win/worker_process_launcher.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using base::win::ScopedHandle;
 
@@ -80,13 +90,13 @@ constexpr wchar_t kLoggingRegistryKeyName[] = L"SOFTWARE\\Chromoting\\logging";
 constexpr wchar_t kLogToFileRegistryValue[] = L"LogToFile";
 constexpr wchar_t kLogToEventLogRegistryValue[] = L"LogToEventLog";
 
+const char* const kCopiedSwitchNames[] = {switches::kV, switches::kVModule};
+
 }  // namespace
 
 namespace remoting {
 
 class WtsTerminalMonitor;
-
-const char* kCopiedSwitchNames[] = {switches::kV, switches::kVModule};
 
 class DaemonProcessWin : public DaemonProcess {
  public:
@@ -116,6 +126,10 @@ class DaemonProcessWin : public DaemonProcess {
   // via the registry.
   void ConfigureHostLogging();
 
+  // If the user has consented to crash reporting, this method will start a
+  // BreakpadServer instance to handle crashes from the network process.
+  void ConfigureCrashReporting();
+
  protected:
   // DaemonProcess implementation.
   std::unique_ptr<DesktopSession> DoCreateDesktopSession(
@@ -127,6 +141,7 @@ class DaemonProcessWin : public DaemonProcess {
   void SendHostConfigToNetworkProcess(
       const std::string& serialized_config) override;
   void SendTerminalDisconnected(int terminal_id) override;
+  void StartChromotingHostServices() override;
 
   // Changes the service start type to 'manual'.
   void DisableAutoStart();
@@ -138,6 +153,10 @@ class DaemonProcessWin : public DaemonProcess {
   bool OpenPairingRegistry();
 
  private:
+  void BindChromotingHostServices(
+      mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
+      base::ProcessId peer_pid);
+
   // Mojo keeps the task runner passed to it alive forever, so an
   // AutoThreadTaskRunner should not be passed to it. Otherwise, the process may
   // never shut down cleanly.
@@ -152,6 +171,10 @@ class DaemonProcessWin : public DaemonProcess {
   base::win::RegKey pairing_registry_unprivileged_key_;
 
   std::unique_ptr<EtwTraceConsumer> etw_trace_consumer_;
+
+  std::unique_ptr<ChromotingHostServicesServer> ipc_server_;
+
+  base::SequenceBound<MinidumpHandler> minidump_handler_;
 
   mojo::AssociatedRemote<mojom::DesktopSessionConnectionEvents>
       desktop_session_connection_events_;
@@ -201,12 +224,12 @@ void DaemonProcessWin::OnPermanentError(int exit_code) {
   DCHECK(kMinPermanentErrorExitCode <= exit_code &&
          exit_code <= kMaxPermanentErrorExitCode);
 
-  // Both kInvalidHostIdExitCode and kInvalidOauthCredentialsExitCode are
+  // Both kInvalidHostIdExitCode and kInvalidOAuthCredentialsExitCode are
   // errors that will never go away with the current config.
   // Disabling automatic service start until the host is re-enabled and config
   // updated.
   if (exit_code == kInvalidHostIdExitCode ||
-      exit_code == kInvalidOauthCredentialsExitCode) {
+      exit_code == kInvalidOAuthCredentialsExitCode) {
     DisableAutoStart();
   }
 
@@ -269,7 +292,7 @@ void DaemonProcessWin::LaunchNetworkProcess() {
   std::unique_ptr<base::CommandLine> target(new base::CommandLine(host_binary));
   target->AppendSwitchASCII(kProcessTypeSwitchName, kProcessTypeHost);
   target->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                           kCopiedSwitchNames, std::size(kCopiedSwitchNames));
+                           kCopiedSwitchNames);
 
   std::unique_ptr<UnprivilegedProcessDelegate> delegate(
       new UnprivilegedProcessDelegate(io_task_runner(), std::move(target)));
@@ -286,7 +309,7 @@ void DaemonProcessWin::SendHostConfigToNetworkProcess(
   LOG_IF(ERROR, !remoting_host_control_.is_connected())
       << "IPC channel not connected. HostConfig message will be dropped.";
 
-  absl::optional<base::Value::Dict> config(
+  std::optional<base::Value::Dict> config(
       HostConfigFromJson(serialized_config));
   if (!config.has_value()) {
     LOG(ERROR) << "Invalid host config, shutting down.";
@@ -303,6 +326,17 @@ void DaemonProcessWin::SendTerminalDisconnected(int terminal_id) {
   }
 }
 
+void DaemonProcessWin::StartChromotingHostServices() {
+  DCHECK(caller_task_runner()->BelongsToCurrentThread());
+  DCHECK(!ipc_server_);
+
+  ipc_server_ = std::make_unique<ChromotingHostServicesServer>(
+      base::BindRepeating(&DaemonProcessWin::BindChromotingHostServices,
+                          base::Unretained(this)));
+  ipc_server_->StartServer();
+  HOST_LOG << "ChromotingHostServices IPC server has been started.";
+}
+
 std::unique_ptr<DaemonProcess> DaemonProcess::Create(
     scoped_refptr<AutoThreadTaskRunner> caller_task_runner,
     scoped_refptr<AutoThreadTaskRunner> io_task_runner,
@@ -313,6 +347,10 @@ std::unique_ptr<DaemonProcess> DaemonProcess::Create(
   // Configure host logging first so we can capture subsequent events.
   daemon_process->ConfigureHostLogging();
 
+  // Initialize crash reporting before the network process is launched.
+  daemon_process->ConfigureCrashReporting();
+
+  // Finishes configuring the Daemon process and launches the network process.
   daemon_process->Initialize();
 
   return std::move(daemon_process);
@@ -468,6 +506,26 @@ bool DaemonProcessWin::OpenPairingRegistry() {
   pairing_registry_privileged_key_.Set(privileged.Take());
   pairing_registry_unprivileged_key_.Set(unprivileged.Take());
   return true;
+}
+
+void DaemonProcessWin::BindChromotingHostServices(
+    mojo::PendingReceiver<mojom::ChromotingHostServices> receiver,
+    base::ProcessId peer_pid) {
+  if (!remoting_host_control_.is_bound()) {
+    LOG(ERROR) << "Binding rejected. Network process is not ready.";
+    return;
+  }
+  remoting_host_control_->BindChromotingHostServices(std::move(receiver),
+                                                     peer_pid);
+}
+
+void DaemonProcessWin::ConfigureCrashReporting() {
+  if (IsUsageStatsAllowed()) {
+    InitializeOopCrashServer();
+
+    minidump_handler_.emplace(base::ThreadPool::CreateSingleThreadTaskRunner(
+        {base::MayBlock(), base::TaskPriority::BEST_EFFORT}));
+  }
 }
 
 void DaemonProcessWin::ConfigureHostLogging() {

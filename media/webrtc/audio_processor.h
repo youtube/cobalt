@@ -6,6 +6,8 @@
 #define MEDIA_WEBRTC_AUDIO_PROCESSOR_H_
 
 #include <memory>
+#include <optional>
+#include <string_view>
 
 #include "base/component_export.h"
 #include "base/files/file.h"
@@ -19,10 +21,9 @@
 #include "media/base/audio_push_fifo.h"
 #include "media/webrtc/audio_delay_stats_reporter.h"
 #include "media/webrtc/webrtc_features.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "third_party/webrtc/api/task_queue/task_queue_base.h"
 #include "third_party/webrtc/modules/audio_processing/include/audio_processing.h"
 #include "third_party/webrtc/modules/audio_processing/include/audio_processing_statistics.h"
-#include "third_party/webrtc/rtc_base/task_queue.h"
 
 namespace media {
 class AudioBus;
@@ -56,9 +57,9 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   using DeliverProcessedAudioCallback =
       base::RepeatingCallback<void(const media::AudioBus& audio_bus,
                                    base::TimeTicks audio_capture_time,
-                                   absl::optional<double> new_volume)>;
+                                   std::optional<double> new_volume)>;
 
-  using LogCallback = base::RepeatingCallback<void(base::StringPiece)>;
+  using LogCallback = base::RepeatingCallback<void(std::string_view)>;
 
   // |deliver_processed_audio_callback| is used to deliver frames of processed
   // capture audio, from ProcessCapturedAudio(), and has to be valid for as long
@@ -83,8 +84,7 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
       LogCallback log_callback,
       const media::AudioParameters& input_format,
       const media::AudioParameters& output_format,
-      rtc::scoped_refptr<webrtc::AudioProcessing> webrtc_audio_processing,
-      bool stereo_mirroring,
+      webrtc::scoped_refptr<webrtc::AudioProcessing> webrtc_audio_processing,
       bool needs_playout_reference);
 
   ~AudioProcessor();
@@ -107,8 +107,7 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   void ProcessCapturedAudio(const media::AudioBus& audio_source,
                             base::TimeTicks audio_capture_time,
                             int num_preferred_channels,
-                            double volume,
-                            bool key_pressed);
+                            double volume);
 
   // Analyzes playout audio for e.g. echo cancellation.
   // Must be called on the playout thread.
@@ -138,12 +137,12 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   // May be called on any thread.
   webrtc::AudioProcessingStats GetStats();
 
-  absl::optional<webrtc::AudioProcessing::Config>
+  std::optional<webrtc::AudioProcessing::Config>
   GetAudioProcessingModuleConfigForTesting() const {
     if (webrtc_audio_processing_) {
       return webrtc_audio_processing_->GetConfig();
     }
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // The format of audio input to and output from the processor; constant
@@ -154,7 +153,7 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   // Returns an input format compatible with the specified audio processing
   // settings and device parameters. Returns nullopt if no compatible format can
   // be produced.
-  static absl::optional<AudioParameters> ComputeInputFormat(
+  static std::optional<AudioParameters> ComputeInputFormat(
       const AudioParameters& device_format,
       const AudioProcessingSettings& settings);
 
@@ -181,13 +180,12 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   // to the highest observed value of num_preferred_channels as long as it does
   // not exceed the number of channels of the output format.
   // Called on the capture thread.
-  absl::optional<double> ProcessData(const float* const* process_ptrs,
-                                     int process_frames,
-                                     base::TimeDelta capture_delay,
-                                     double volume,
-                                     bool key_pressed,
-                                     int num_preferred_channels,
-                                     float* const* output_ptrs);
+  std::optional<double> ProcessData(const float* const* process_ptrs,
+                                    int process_frames,
+                                    base::TimeDelta capture_delay,
+                                    double volume,
+                                    int num_preferred_channels,
+                                    float* const* output_ptrs);
 
   // Used as callback from |playout_fifo_| in OnPlayoutData().
   // Called on the playout thread.
@@ -200,11 +198,7 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
 
   // The WebRTC audio processing module (APM). Performs the bulk of the audio
   // processing and resampling algorithms.
-  const rtc::scoped_refptr<webrtc::AudioProcessing> webrtc_audio_processing_;
-
-  // If true, then the audio processor should swap the left and right channel of
-  // captured stereo audio.
-  const bool stereo_mirroring_;
+  const webrtc::scoped_refptr<webrtc::AudioProcessing> webrtc_audio_processing_;
 
   // If true, `OnPlayoutData()` should be called.
   const bool needs_playout_reference_;
@@ -217,7 +211,7 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   // Low-priority task queue for doing AEC dump recordings. It has to
   // created/destroyed on the same sequence and it must outlive
   // any aecdump recording in |webrtc_audio_processing_|.
-  std::unique_ptr<rtc::TaskQueue> worker_queue_
+  std::unique_ptr<webrtc::TaskQueueBase, webrtc::TaskQueueDeleter> worker_queue_
       GUARDED_BY_CONTEXT(owning_sequence_);
 
   // Cached value for the playout delay latency. Updated on the playout thread
@@ -265,7 +259,7 @@ class COMPONENT_EXPORT(MEDIA_WEBRTC) AudioProcessor {
   base::TimeDelta unbuffered_playout_delay_ = base::TimeDelta();
 
   // The sample rate of incoming playout audio.
-  absl::optional<int> playout_sample_rate_hz_ = absl::nullopt;
+  std::optional<int> playout_sample_rate_hz_ = std::nullopt;
 
   // Counters to avoid excessively logging errors on a real-time thread.
   size_t apm_playout_error_code_log_count_ = 0;

@@ -37,10 +37,12 @@ features:
   per_profile: false
 owners:
 - ust@google.com
-- srad@google.com
+- ust@google.com
+- chromeos-commercial-printing@google.com
 schema:
   type: string
 supported_on:
 - chrome_os:111-
 tags: []
 type: string
+generate_device_proto: False

@@ -4,14 +4,16 @@
 
 package org.chromium.chrome.browser.omnibox.status;
 
+import android.view.View;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconResource;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor.ViewBinder;
 
-/**
- * StatusViewBinder observes StatusModel changes and triggers StatusView updates.
- */
+/** StatusViewBinder observes StatusModel changes and triggers StatusView updates. */
+@NullMarked
 class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, PropertyKey> {
     StatusViewBinder() {}
 
@@ -26,7 +28,15 @@ class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, Property
         } else if (StatusProperties.SEPARATOR_COLOR.equals(propertyKey)) {
             view.setSeparatorColor(model.get(StatusProperties.SEPARATOR_COLOR));
         } else if (StatusProperties.SHOW_STATUS_ICON.equals(propertyKey)) {
-            view.setStatusIconShown(model.get(StatusProperties.SHOW_STATUS_ICON));
+            applyStatusIconAndTooltipProperties(model, view);
+        } else if (StatusProperties.SHOW_STATUS_VIEW.equals(propertyKey)) {
+            int visibility =
+                    model.get(StatusProperties.SHOW_STATUS_VIEW) ? View.VISIBLE : View.GONE;
+            view.setVisibility(visibility);
+        } else if (StatusProperties.STATUS_VIEW_TOOLTIP_TEXT.equals(propertyKey)) {
+            applyStatusIconAndTooltipProperties(model, view);
+        } else if (StatusProperties.STATUS_VIEW_BACKGROUND.equals(propertyKey)) {
+            applyStatusIconAndTooltipProperties(model, view);
         } else if (StatusProperties.SHOW_STATUS_ICON_BACKGROUND.equals(propertyKey)) {
             view.setStatusIconBackgroundVisibility(
                     model.get(StatusProperties.SHOW_STATUS_ICON_BACKGROUND));
@@ -36,7 +46,7 @@ class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, Property
             view.setStatusAccessibilityToast(
                     model.get(StatusProperties.STATUS_ACCESSIBILITY_TOAST_RES));
         } else if (StatusProperties.STATUS_ACCESSIBILITY_DOUBLE_TAP_DESCRIPTION_RES.equals(
-                           propertyKey)) {
+                propertyKey)) {
             view.setStatusAccessibilityDoubleTapDescription(
                     model.get(StatusProperties.STATUS_ACCESSIBILITY_DOUBLE_TAP_DESCRIPTION_RES));
         } else if (StatusProperties.STATUS_ICON_ALPHA.equals(propertyKey)) {
@@ -49,8 +59,12 @@ class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, Property
                 view.setStatusIconResources(null, StatusView.IconTransitionType.CROSSFADE, null);
                 return;
             }
-            view.setStatusIconResources(res.getDrawable(view.getContext(), view.getResources()),
-                    res.getTransitionType(), res.getAnimationFinishedCallback());
+            view.setStatusIconResources(
+                    res.getDrawable(view.getContext(), view.getResources()),
+                    res.getTransitionType(),
+                    res.getAnimationFinishedCallback());
+        } else if (StatusProperties.TRANSLATION_X.equals(propertyKey)) {
+            view.setTranslationX(model.get(StatusProperties.TRANSLATION_X));
         } else if (StatusProperties.VERBOSE_STATUS_TEXT_COLOR.equals(propertyKey)) {
             view.setVerboseStatusTextColor(model.get(StatusProperties.VERBOSE_STATUS_TEXT_COLOR));
         } else if (StatusProperties.VERBOSE_STATUS_TEXT_STRING_RES.equals(propertyKey)) {
@@ -59,10 +73,17 @@ class StatusViewBinder implements ViewBinder<PropertyModel, StatusView, Property
         } else if (StatusProperties.VERBOSE_STATUS_TEXT_VISIBLE.equals(propertyKey)) {
             view.setVerboseStatusTextVisible(
                     model.get(StatusProperties.VERBOSE_STATUS_TEXT_VISIBLE));
+            applyStatusIconAndTooltipProperties(model, view);
         } else if (StatusProperties.VERBOSE_STATUS_TEXT_WIDTH.equals(propertyKey)) {
             view.setVerboseStatusTextWidth(model.get(StatusProperties.VERBOSE_STATUS_TEXT_WIDTH));
         } else {
             assert false : "Unhandled property update";
         }
+    }
+
+    static void applyStatusIconAndTooltipProperties(PropertyModel model, StatusView statusView) {
+        statusView.setStatusIconShown(model.get(StatusProperties.SHOW_STATUS_ICON));
+        statusView.setTooltipText(model.get(StatusProperties.STATUS_VIEW_TOOLTIP_TEXT));
+        statusView.maybeSetBackground(model.get(StatusProperties.STATUS_VIEW_BACKGROUND));
     }
 }

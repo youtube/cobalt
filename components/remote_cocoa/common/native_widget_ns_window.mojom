@@ -5,9 +5,11 @@
 module remote_cocoa.mojom;
 
 import "components/remote_cocoa/common/select_file_dialog.mojom";
+import "components/remote_cocoa/common/menu.mojom";
 import "mojo/public/mojom/base/string16.mojom";
 import "services/network/public/mojom/network_param.mojom";
 import "ui/base/cursor/mojom/cursor.mojom";
+import "ui/base/mojom/color_mode.mojom";
 import "ui/base/mojom/ui_base_types.mojom";
 import "ui/events/mojom/event_constants.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
@@ -22,6 +24,8 @@ enum WindowClass {
   kBrowser,
   // NativeWidgetMacFramelessNSWindow
   kFrameless,
+  // NativeWidgetMacOverlayNSWindow
+  kOverlay,
 };
 
 // Parameters used to described creation of an NSWindow.
@@ -53,7 +57,9 @@ enum WindowVisibilityState {
   kShowAndActivateWindow,
   // Shows with -[NSWindow orderWindow:..]. Orders the window above its parent
   // if it has one.
-  kShowInactive
+  kShowInactive,
+  // Miniaturizes with -[NSWindow miniaturize:].
+  kMiniaturizeWindow
 };
 
 // Window transitions to animate, mirrors views::Widget::VisibilityTransition.
@@ -135,7 +141,11 @@ interface NativeWidgetNSWindow {
 
   // Create the NSView to be the content view for the window. Use |ns_view_id|
   // to look up this NSView in other functions (e.g, to specify a parent view).
-  CreateContentView(uint64 ns_view_id, gfx.mojom.Rect bounds);
+  // If `corner_radius` is set, the content view clips sublayers to a rounded
+  // corner mask of the given radius.
+  CreateContentView(uint64 ns_view_id,
+                    gfx.mojom.Rect bounds,
+                    int32? corner_radius);
 
   // Destroy the content NSView for this window. Note that the window will
   // become blank once this has been called.
@@ -158,9 +168,17 @@ interface NativeWidgetNSWindow {
 
   // Specify new bounds for the window via |new_bounds| in screen coordinates.
   // The size of the window will be expanded so that the content size will be
-  // at least |minimum_content_size|.
+  // at least |minimum_content_size| and at most |maximum_content_size| (if
+  // provided).
   SetBounds(gfx.mojom.Rect new_bounds,
-            gfx.mojom.Size minimum_content_size);
+            gfx.mojom.Size minimum_content_size,
+            gfx.mojom.Size? maximum_content_size);
+
+  // Specify new size for the window via |new_size|. The top-left corner of the
+  // window will be kept in place. The size of the window will be expanded so
+  // that the content size will be at least |minimum_content_size|.
+  SetSize(gfx.mojom.Size new_size,
+          gfx.mojom.Size minimum_content_size);
 
   // Centers the window and sets its content size to |content_size|. The size of
   // the window will be expanded so that the content size will be at least
@@ -213,6 +231,18 @@ interface NativeWidgetNSWindow {
 
   // Set the window level of the NSWindow.
   SetWindowLevel(int32 level);
+
+  // Set or un-set the NSWindow as being "activation independent". This sets
+  // two properties:
+  //
+  // - If Chromium is hidden (from the Dock menu or programmatically), the
+  //   NSWindow is not forced to be hidden as well.
+  // - The NSWindow can be interacted with without causing Chromium to be
+  //   activated.
+  //
+  // To accomplish this, the activation independence state of all ancestor
+  // NSWindows is set as well.
+  SetActivationIndependence(bool independence);
 
   // Set the aspect ratio of the NSWindow. `aspect_ratio` must not be empty.
   // The aspect ratio refers to the client area only; system-drawn window
@@ -271,13 +301,9 @@ interface NativeWidgetNSWindow {
 
   // Enables immersive fullscreen. |fullscreen_overlay_widget_id| is the id of
   // the overlay widget which is hosting top chrome.
-  // |tab_widget_id| is provided when the ImmersiveFullscreenTabs feature is
-  // enabled. It holds the id of the tab hosting widget.
-  // The callback is run once the top chrome NSView has been reparented into the
-  // AppKit controlled fullscreen NSWindow, indicating the immersive transition
-  // has started.
+  // |tab_widget_id| holds the id of the tab hosting widget.
   EnableImmersiveFullscreen(uint64 fullscreen_overlay_widget_id,
-                            uint64 tab_widget_id) => ();
+                            uint64 tab_widget_id);
 
   // Rollback the immersive transition. The top chrome NSView is reparented into
   // the overlay widget.
@@ -306,4 +332,15 @@ interface NativeWidgetNSWindow {
 
   // Set whether can go forward to the following page.
   SetCanGoForward(bool can_go_forward);
+
+  // Displayed a context menu, anchored to this window.
+  DisplayContextMenu(ContextMenu menu,
+                     pending_remote<MenuHost> host,
+                     pending_receiver<Menu> receiver);
+
+  // Set whether the window should be included in screenshots or not.
+  SetAllowScreenshots(bool allow);
+
+  // Set the color mode of the window.
+  SetColorMode(ui.mojom.ColorMode color_mode);
 };

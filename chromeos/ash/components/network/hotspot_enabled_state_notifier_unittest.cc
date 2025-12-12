@@ -11,6 +11,7 @@
 #include "chromeos/ash/components/dbus/shill/shill_clients.h"
 #include "chromeos/ash/components/dbus/shill/shill_manager_client.h"
 #include "chromeos/ash/components/network/enterprise_managed_metadata_store.h"
+#include "chromeos/ash/components/network/hotspot_allowed_flag_handler.h"
 #include "chromeos/ash/components/network/hotspot_state_handler.h"
 #include "chromeos/ash/components/network/metrics/hotspot_feature_usage_metrics.h"
 #include "chromeos/ash/components/network/network_state_handler.h"
@@ -39,8 +40,11 @@ class HotspotEnabledStateNotifierTest : public ::testing::Test {
     hotspot_state_handler_->Init();
     hotspot_capabilities_provider_ =
         std::make_unique<HotspotCapabilitiesProvider>();
+    hotspot_allowed_flag_handler_ =
+        std::make_unique<HotspotAllowedFlagHandler>();
     hotspot_capabilities_provider_->Init(
-        network_state_test_helper_.network_state_handler());
+        network_state_test_helper_.network_state_handler(),
+        hotspot_allowed_flag_handler_.get());
     hotspot_feature_usage_metrics_ =
         std::make_unique<HotspotFeatureUsageMetrics>();
     hotspot_feature_usage_metrics_->Init(
@@ -63,22 +67,18 @@ class HotspotEnabledStateNotifierTest : public ::testing::Test {
   }
 
   void SetValidTetheringCapabilities() {
-    base::Value::Dict capabilities_dict;
-    base::Value::List upstream_list;
-    upstream_list.Append(shill::kTypeCellular);
-    capabilities_dict.Set(shill::kTetheringCapUpstreamProperty,
-                          std::move(upstream_list));
-    // Add WiFi to the downstream technology list in Shill
-    base::Value::List downstream_list;
-    downstream_list.Append(shill::kTypeWifi);
-    capabilities_dict.Set(shill::kTetheringCapDownstreamProperty,
-                          std::move(downstream_list));
-    // Add allowed WiFi security mode in Shill
-    base::Value::List security_list;
-    security_list.Append(shill::kSecurityWpa2);
-    security_list.Append(shill::kSecurityWpa3);
-    capabilities_dict.Set(shill::kTetheringCapSecurityProperty,
-                          std::move(security_list));
+    auto capabilities_dict =
+        base::Value::Dict()
+            .Set(shill::kTetheringCapUpstreamProperty,
+                 base::Value::List().Append(shill::kTypeCellular))
+            // Add WiFi to the downstream technology list in Shill
+            .Set(shill::kTetheringCapDownstreamProperty,
+                 base::Value::List().Append(shill::kTypeWifi))
+            // Add allowed WiFi security mode in Shill
+            .Set(shill::kTetheringCapSecurityProperty,
+                 base::Value::List()
+                     .Append(shill::kSecurityWpa2)
+                     .Append(shill::kSecurityWpa3));
     network_state_test_helper_.manager_test()->SetManagerProperty(
         shill::kTetheringCapabilitiesProperty,
         base::Value(std::move(capabilities_dict)));
@@ -102,8 +102,8 @@ class HotspotEnabledStateNotifierTest : public ::testing::Test {
   }
 
   void SetHotspotStateInShill(const std::string& state) {
-    base::Value::Dict status_dict;
-    status_dict.Set(shill::kTetheringStatusStateProperty, state);
+    auto status_dict =
+        base::Value::Dict().Set(shill::kTetheringStatusStateProperty, state);
     network_state_test_helper_.manager_test()->SetManagerProperty(
         shill::kTetheringStatusProperty, base::Value(std::move(status_dict)));
     base::RunLoop().RunUntilIdle();
@@ -162,6 +162,7 @@ class HotspotEnabledStateNotifierTest : public ::testing::Test {
   std::unique_ptr<EnterpriseManagedMetadataStore>
       enterprise_managed_metadata_store_;
   std::unique_ptr<HotspotStateHandler> hotspot_state_handler_;
+  std::unique_ptr<HotspotAllowedFlagHandler> hotspot_allowed_flag_handler_;
   std::unique_ptr<HotspotCapabilitiesProvider> hotspot_capabilities_provider_;
   std::unique_ptr<HotspotFeatureUsageMetrics> hotspot_feature_usage_metrics_;
   std::unique_ptr<TechnologyStateController> technology_state_controller_;
@@ -273,23 +274,48 @@ TEST_F(HotspotEnabledStateNotifierTest, DisabledBySystem) {
             hotspotStateObserver()->last_disable_reason());
 
   SetHotspotStateInShill(shill::kTetheringStateActive);
-
   status_dict.Set(shill::kTetheringStatusIdleReasonProperty,
-                  shill::kTetheringIdleReasonUserExit);
+                  shill::kTetheringIdleReasonUpstreamNoInternet);
   network_state_test_helper_.manager_test()->SetManagerProperty(
       shill::kTetheringStatusProperty, base::Value(status_dict.Clone()));
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(hotspot_config::mojom::DisableReason::kUserInitiated,
+  EXPECT_EQ(hotspot_config::mojom::DisableReason::kUpstreamNoInternet,
             hotspotStateObserver()->last_disable_reason());
 
   SetHotspotStateInShill(shill::kTetheringStateActive);
-
   status_dict.Set(shill::kTetheringStatusIdleReasonProperty,
-                  shill::kTetheringIdleReasonClientStop);
+                  shill::kTetheringIdleReasonDownstreamLinkDisconnect);
   network_state_test_helper_.manager_test()->SetManagerProperty(
       shill::kTetheringStatusProperty, base::Value(status_dict.Clone()));
   base::RunLoop().RunUntilIdle();
-  EXPECT_EQ(hotspot_config::mojom::DisableReason::kUserInitiated,
+  EXPECT_EQ(hotspot_config::mojom::DisableReason::kDownstreamLinkDisconnect,
+            hotspotStateObserver()->last_disable_reason());
+
+  SetHotspotStateInShill(shill::kTetheringStateActive);
+  status_dict.Set(shill::kTetheringStatusIdleReasonProperty,
+                  shill::kTetheringIdleReasonDownstreamNetworkDisconnect);
+  network_state_test_helper_.manager_test()->SetManagerProperty(
+      shill::kTetheringStatusProperty, base::Value(status_dict.Clone()));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(hotspot_config::mojom::DisableReason::kDownstreamNetworkDisconnect,
+            hotspotStateObserver()->last_disable_reason());
+
+  SetHotspotStateInShill(shill::kTetheringStateActive);
+  status_dict.Set(shill::kTetheringStatusIdleReasonProperty,
+                  shill::kTetheringIdleReasonUpstreamNotAvailable);
+  network_state_test_helper_.manager_test()->SetManagerProperty(
+      shill::kTetheringStatusProperty, base::Value(status_dict.Clone()));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(hotspot_config::mojom::DisableReason::kUpstreamNotAvailable,
+            hotspotStateObserver()->last_disable_reason());
+
+  SetHotspotStateInShill(shill::kTetheringStateActive);
+  status_dict.Set(shill::kTetheringStatusIdleReasonProperty,
+                  shill::kTetheringIdleReasonStartTimeout);
+  network_state_test_helper_.manager_test()->SetManagerProperty(
+      shill::kTetheringStatusProperty, base::Value(status_dict.Clone()));
+  base::RunLoop().RunUntilIdle();
+  EXPECT_EQ(hotspot_config::mojom::DisableReason::kStartTimeout,
             hotspotStateObserver()->last_disable_reason());
 }
 

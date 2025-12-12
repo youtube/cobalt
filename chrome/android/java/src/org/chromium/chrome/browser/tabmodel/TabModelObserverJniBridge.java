@@ -4,8 +4,10 @@
 
 package org.chromium.chrome.browser.tabmodel;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
 import org.chromium.chrome.browser.tab.TabLaunchType;
@@ -14,10 +16,11 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import java.util.List;
 
 /**
- * An implementation of TabModelObserver that forwards notifications over a JNI bridge
- * to a corresponding native implementation. Objects of this type are created and owned by
- * the native TabModelJniBridge implementation when native observers are added.
+ * An implementation of TabModelObserver that forwards notifications over a JNI bridge to a
+ * corresponding native implementation. Objects of this type are created and owned by the native
+ * TabModelJniBridge implementation when native observers are added.
  */
+@NullMarked
 class TabModelObserverJniBridge implements TabModelObserver {
     /** Native TabModelObserverJniBridge pointer, set by the constructor. */
     private long mNativeTabModelObserverJniBridge;
@@ -41,73 +44,110 @@ class TabModelObserverJniBridge implements TabModelObserver {
     @Override
     public final void didSelectTab(Tab tab, @TabSelectionType int type, int lastId) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().didSelectTab(mNativeTabModelObserverJniBridge,
-                TabModelObserverJniBridge.this, tab, type, lastId);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .didSelectTab(
+                        mNativeTabModelObserverJniBridge,
+                        TabModelObserverJniBridge.this,
+                        tab,
+                        type,
+                        lastId);
     }
 
     @Override
-    public final void willCloseTab(Tab tab, boolean animate, boolean didCloseAlone) {
+    public final void willCloseTab(Tab tab, boolean didCloseAlone) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().willCloseTab(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab, animate);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .willCloseTab(
+                        mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
     }
 
     @Override
     public final void onFinishingTabClosure(Tab tab) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().onFinishingTabClosure(mNativeTabModelObserverJniBridge,
-                TabModelObserverJniBridge.this, tab.getId(), tab.isIncognito());
+        TabModelObserverJniBridgeJni.get()
+                .onFinishingTabClosure(
+                        mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
     }
 
     @Override
-    public final void onFinishingMultipleTabClosure(List<Tab> tabs) {
+    public final void onFinishingMultipleTabClosure(List<Tab> tabs, boolean canRestore) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().onFinishingMultipleTabClosure(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this,
-                tabs.toArray(new Tab[0]));
+        TabModelObserverJniBridgeJni.get()
+                .onFinishingMultipleTabClosure(
+                        mNativeTabModelObserverJniBridge,
+                        TabModelObserverJniBridge.this,
+                        tabs.toArray(new Tab[0]),
+                        canRestore);
     }
 
     @Override
     public final void willAddTab(Tab tab, @TabLaunchType int type) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().willAddTab(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab, type);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .willAddTab(
+                        mNativeTabModelObserverJniBridge,
+                        TabModelObserverJniBridge.this,
+                        tab,
+                        type);
     }
 
     @Override
-    public final void didAddTab(Tab tab, @TabLaunchType int type,
-            @TabCreationState int creationState, boolean markedForSelection) {
+    public final void didAddTab(
+            Tab tab,
+            @TabLaunchType int type,
+            @TabCreationState int creationState,
+            boolean markedForSelection) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().didAddTab(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab, type);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .didAddTab(
+                        mNativeTabModelObserverJniBridge,
+                        TabModelObserverJniBridge.this,
+                        tab,
+                        type);
     }
 
     @Override
     public final void didMoveTab(Tab tab, int newIndex, int curIndex) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().didMoveTab(mNativeTabModelObserverJniBridge,
-                TabModelObserverJniBridge.this, tab, newIndex, curIndex);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .didMoveTab(
+                        mNativeTabModelObserverJniBridge,
+                        TabModelObserverJniBridge.this,
+                        tab,
+                        newIndex,
+                        curIndex);
     }
 
     @Override
     public final void tabPendingClosure(Tab tab) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().tabPendingClosure(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .tabPendingClosure(
+                        mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
     }
 
     @Override
     public final void tabClosureUndone(Tab tab) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().tabClosureUndone(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .tabClosureUndone(
+                        mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
     }
 
     @Override
     public final void tabClosureCommitted(Tab tab) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().tabClosureCommitted(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .tabClosureCommitted(
+                        mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
     }
 
     @Override
@@ -115,22 +155,37 @@ class TabModelObserverJniBridge implements TabModelObserver {
         // Convert the List to an array of objects. This makes the corresponding C++ code much
         // easier.
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().allTabsPendingClosure(mNativeTabModelObserverJniBridge,
-                TabModelObserverJniBridge.this, tabs.toArray(new Tab[0]));
+        TabModelObserverJniBridgeJni.get()
+                .allTabsPendingClosure(
+                        mNativeTabModelObserverJniBridge,
+                        TabModelObserverJniBridge.this,
+                        tabs.toArray(new Tab[0]));
+    }
+
+    @Override
+    public void onTabCloseUndone(List<Tab> tabs, boolean isAllTabs) {
+        assert mNativeTabModelObserverJniBridge != 0;
+        TabModelObserverJniBridgeJni.get()
+                .onTabCloseUndone(
+                        mNativeTabModelObserverJniBridge,
+                        TabModelObserverJniBridge.this,
+                        tabs.toArray(new Tab[0]));
     }
 
     @Override
     public final void allTabsClosureCommitted(boolean isIncognito) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().allTabsClosureCommitted(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this);
+        TabModelObserverJniBridgeJni.get()
+                .allTabsClosureCommitted(
+                        mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this);
     }
 
     @Override
     public final void tabRemoved(Tab tab) {
         assert mNativeTabModelObserverJniBridge != 0;
-        TabModelObserverJniBridgeJni.get().tabRemoved(
-                mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
+        assert tab.isInitialized();
+        TabModelObserverJniBridgeJni.get()
+                .tabRemoved(mNativeTabModelObserverJniBridge, TabModelObserverJniBridge.this, tab);
     }
 
     @Override
@@ -158,6 +213,7 @@ class TabModelObserverJniBridge implements TabModelObserver {
      * this prior to cleaning up its last reference to the Java endpoint so that it can be correctly
      * torn down.
      */
+    @SuppressWarnings("NullAway")
     @CalledByNative
     private void detachFromTabModel() {
         assert mNativeTabModelObserverJniBridge != 0;
@@ -171,31 +227,62 @@ class TabModelObserverJniBridge implements TabModelObserver {
     // browser/ui/android/tab_model/tab_model_observer_jni_bridge.*.
     @NativeMethods
     interface Natives {
-        void didSelectTab(long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller,
-                Tab tab, int type, int lastId);
+        void didSelectTab(
+                long nativeTabModelObserverJniBridge,
+                TabModelObserverJniBridge caller,
+                Tab tab,
+                int type,
+                int lastId);
 
-        void willCloseTab(long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller,
-                Tab tab, boolean animate);
-        void onFinishingTabClosure(long nativeTabModelObserverJniBridge,
-                TabModelObserverJniBridge caller, int tabId, boolean incognito);
+        void willCloseTab(
+                long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab tab);
+
+        void onFinishingTabClosure(
+                long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab tab);
+
         void onFinishingMultipleTabClosure(
-                long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab[] tabs);
-        void willAddTab(long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller,
-                Tab tab, int type);
-        void didAddTab(long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller,
-                Tab tab, int type);
-        void didMoveTab(long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller,
-                Tab tab, int newIndex, int curIndex);
+                long nativeTabModelObserverJniBridge,
+                TabModelObserverJniBridge caller,
+                Tab[] tabs,
+                boolean canRestore);
+
+        void willAddTab(
+                long nativeTabModelObserverJniBridge,
+                TabModelObserverJniBridge caller,
+                Tab tab,
+                int type);
+
+        void didAddTab(
+                long nativeTabModelObserverJniBridge,
+                TabModelObserverJniBridge caller,
+                Tab tab,
+                int type);
+
+        void didMoveTab(
+                long nativeTabModelObserverJniBridge,
+                TabModelObserverJniBridge caller,
+                Tab tab,
+                int newIndex,
+                int curIndex);
+
         void tabPendingClosure(
                 long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab tab);
+
         void tabClosureUndone(
                 long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab tab);
+
+        void onTabCloseUndone(
+                long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab[] tab);
+
         void tabClosureCommitted(
                 long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab tab);
+
         void allTabsPendingClosure(
                 long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab[] tabs);
+
         void allTabsClosureCommitted(
                 long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller);
+
         void tabRemoved(
                 long nativeTabModelObserverJniBridge, TabModelObserverJniBridge caller, Tab tab);
     }

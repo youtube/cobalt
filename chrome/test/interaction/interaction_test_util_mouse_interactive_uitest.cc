@@ -47,7 +47,7 @@ class InteractionTestUtilMouseUiTest
   std::unique_ptr<Mouse> mouse_;
 };
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 INSTANTIATE_TEST_SUITE_P(TouchMode,
                          InteractionTestUtilMouseUiTest,
                          testing::Bool());
@@ -68,7 +68,7 @@ IN_PROC_BROWSER_TEST_P(InteractionTestUtilMouseUiTest, MoveAndClick) {
           .SetCompletedCallback(completed.Get())
           // Find the app menu button.
           .AddStep(ui::InteractionSequence::StepBuilder()
-                       .SetElementID(kAppMenuButtonElementId)
+                       .SetElementID(kToolbarAppMenuButtonElementId)
                        .SetStartCallback(base::BindLambdaForTesting(
                            [this](ui::InteractionSequence* seq,
                                   ui::TrackedElement* el) {
@@ -81,7 +81,9 @@ IN_PROC_BROWSER_TEST_P(InteractionTestUtilMouseUiTest, MoveAndClick) {
                              // button
                              // - click the left mouse button
                              if (!mouse_->PerformGestures(
-                                     view->GetWidget()->GetNativeWindow(),
+                                     Mouse::GestureParams(
+                                         view->GetWidget()->GetNativeWindow(),
+                                         false),
                                      Mouse::MoveTo(pos),
                                      Mouse::Click(ui_controls::LEFT))) {
                                seq->FailForTesting();
@@ -110,7 +112,7 @@ IN_PROC_BROWSER_TEST_P(InteractionTestUtilMouseUiTest, GestureAborted) {
           .SetCompletedCallback(completed.Get())
           // Find the app menu button.
           .AddStep(ui::InteractionSequence::StepBuilder()
-                       .SetElementID(kAppMenuButtonElementId)
+                       .SetElementID(kToolbarAppMenuButtonElementId)
                        .SetStartCallback(base::BindLambdaForTesting(
                            [this, &cancel](ui::TrackedElement* el) {
                              auto* const view =
@@ -126,7 +128,9 @@ IN_PROC_BROWSER_TEST_P(InteractionTestUtilMouseUiTest, GestureAborted) {
                              // button
                              // - click the left mouse button
                              EXPECT_FALSE(mouse_->PerformGestures(
-                                 view->GetWidget()->GetNativeWindow(),
+                                 Mouse::GestureParams(
+                                     view->GetWidget()->GetNativeWindow(),
+                                     false),
                                  Mouse::MoveTo(pos),
                                  Mouse::Click(ui_controls::LEFT)));
                            })))
@@ -170,7 +174,9 @@ IN_PROC_BROWSER_TEST_P(InteractionTestUtilMouseUiTest, Drag) {
                                                    .CenterPoint();
                         // Drag the first tab into the second spot.
                         if (!mouse_->PerformGestures(
-                                tab_strip->GetWidget()->GetNativeWindow(),
+                                Mouse::GestureParams(
+                                    tab_strip->GetWidget()->GetNativeWindow(),
+                                    false),
                                 Mouse::MoveTo(start),
                                 Mouse::DragAndRelease(end))) {
                           seq->FailForTesting();

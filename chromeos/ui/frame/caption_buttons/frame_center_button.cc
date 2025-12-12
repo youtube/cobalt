@@ -5,10 +5,13 @@
 #include "chromeos/ui/frame/caption_buttons/frame_center_button.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/i18n/rtl.h"
 #include "base/numerics/safe_conversions.h"
+#include "chromeos/constants/chromeos_features.h"
 #include "chromeos/ui/vector_icons/vector_icons.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/aura/window.h"
 #include "ui/aura/window_tree_host.h"
 #include "ui/base/hit_test.h"
@@ -16,10 +19,15 @@
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "ui/gfx/canvas.h"
+#include "ui/gfx/color_utils.h"
+#include "ui/gfx/font_list.h"
+#include "ui/gfx/geometry/point_f.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/gfx/text_utils.h"
 #include "ui/strings/grit/ui_strings.h"
+#include "ui/views/accessibility/view_accessibility.h"
+#include "ui/views/animation/ink_drop.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/window/caption_button_layout_constants.h"
 #include "ui/views/window/custom_frame_view.h"
@@ -32,11 +40,22 @@ namespace {
 // The margin between the contents inside the button if several of them are set.
 constexpr int kMarginBetweenContents = 3;
 
+constexpr int kLeadingMargin = 12;
+constexpr int kLeadingMarginText = 8;
+constexpr int kLeadingMarginSubIcon = 6;
+constexpr int kTailingMargin = 10;
+
+constexpr float kDefaultHighlightOpacityForLight = 0.12f;
+constexpr float kDefaultHighlightOpacityForDark = 0.20f;
+
 }  // namespace
 
 FrameCenterButton::FrameCenterButton(PressedCallback callback)
-    : FrameCaptionButton(callback, views::CAPTION_BUTTON_ICON_CENTER, HTMENU) {
-  SetAccessibleName(l10n_util::GetStringUTF16(IDS_APP_ACCNAME_CENTER));
+    : FrameCaptionButton(std::move(callback),
+                         views::CAPTION_BUTTON_ICON_CENTER,
+                         HTMENU) {
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_APP_ACCNAME_CENTER));
   background_color_changed_subscription_ = AddBackgroundColorChangedCallback(
       base::BindRepeating(&FrameCenterButton::OnBackgroundColorChanged,
                           base::Unretained(this)));
@@ -45,14 +64,14 @@ FrameCenterButton::FrameCenterButton(PressedCallback callback)
 FrameCenterButton::~FrameCenterButton() = default;
 
 gfx::Size FrameCenterButton::GetMinimumSize() const {
-  gfx::Size size = GetPreferredSize();
+  gfx::Size size = GetPreferredSize({0, 0});
   // Similar to CalculatePreferredSize(), but allow the text width to be zero.
   size.set_width((sub_icon_image_
                       ? base::ClampCeil(icon_image().width() / 2.0f) +
                             kMarginBetweenContents +
                             base::ClampCeil(sub_icon_image_->width() / 2.0f)
                       : 0) +
-                 views::kCaptionButtonWidth);
+                 views::GetCaptionButtonWidth());
   return size;
 }
 
@@ -70,7 +89,7 @@ void FrameCenterButton::SetSubImage(const gfx::VectorIcon& icon_definition) {
     parent()->InvalidateLayout();
 }
 
-void FrameCenterButton::SetText(absl::optional<std::u16string> text) {
+void FrameCenterButton::SetText(std::optional<std::u16string> text) {
   if (text_ && text_->text() == text)
     return;
 
@@ -83,12 +102,14 @@ void FrameCenterButton::SetText(absl::optional<std::u16string> text) {
   if (!text_) {
     std::unique_ptr<gfx::RenderText> render_text =
         gfx::RenderText::CreateRenderText();
-    render_text->SetFontList(views::CustomFrameView::GetWindowTitleFontList());
+    render_text->SetFontList(gfx::FontList({"Google Sans", "Roboto"},
+                                           gfx::Font::FontStyle::NORMAL, 13,
+                                           gfx::Font::Weight::NORMAL));
     render_text->SetHorizontalAlignment(gfx::ALIGN_CENTER);
     render_text->SetVerticalAlignment(gfx::ALIGN_MIDDLE);
     text_ = std::move(render_text);
   }
-  text_->SetText(*text);
+  text_->SetText(*std::move(text));
 
   if (parent())
     parent()->InvalidateLayout();
@@ -106,17 +127,14 @@ void FrameCenterButton::SetText(absl::optional<std::u16string> text) {
 // (v) The margin between the text and the sub icon (kMarginBetweenContents)
 // (vi) The left semicircle of the sub icon (sub_icon_image_->width() / 2)
 // (vii) The right semicircle of the sub icon (views::kCaptionButtonWidth / 2)
-gfx::Size FrameCenterButton::CalculatePreferredSize() const {
-  gfx::Size size = views::View::CalculatePreferredSize();
+gfx::Size FrameCenterButton::CalculatePreferredSize(
+    const views::SizeBounds& available_size) const {
+  gfx::Size size = views::View::CalculatePreferredSize(available_size);
 
   size.set_width(
-      (text_ || sub_icon_image_ ? base::ClampCeil(icon_image().width() / 2.0f)
-                                : 0) +
-      (text_ ? kMarginBetweenContents + text_->GetStringSize().width() : 0) +
-      (sub_icon_image_ ? kMarginBetweenContents +
-                             base::ClampCeil(sub_icon_image_->width() / 2.0f)
-                       : 0) +
-      views::kCaptionButtonWidth);
+      (text_ ? text_->GetStringSize().width() + kLeadingMarginText : 0) +
+      (sub_icon_image_ ? sub_icon_image_->width() + kLeadingMarginSubIcon : 0) +
+      kLeadingMargin + kTailingMargin + icon_image().width());
   return size;
 }
 
@@ -136,67 +154,57 @@ void FrameCenterButton::DrawIconContents(gfx::Canvas* canvas,
                                          int x,
                                          int y,
                                          cc::PaintFlags flags) {
-  int full_content_width =
-      icon_image().width() +
-      (text_ ? kMarginBetweenContents + text_->GetStringSize().width() : 0) +
-      (sub_icon_image_ ? kMarginBetweenContents + sub_icon_image_->width() : 0);
-  // The width available is basically the same as width(), but we need to
-  // adjust the corner radius on both sides from views::kCaptionButtonWidth to
-  // the actual content radius.
-  int available_content_width =
-      width() - views::kCaptionButtonWidth +
-      base::ClampCeil(icon_image().width() / 2.0f) +
-      (sub_icon_image_ ? base::ClampCeil(sub_icon_image_->width() / 2.0f)
-                       : base::ClampCeil(icon_image().width() / 2.0f));
-  int content_width = std::min(full_content_width, available_content_width);
-  int current_offset = (width() - content_width) / 2;
-
-  absl::optional<gfx::ImageSkia> left_icon = icon_image();
-  absl::optional<gfx::ImageSkia> right_icon = sub_icon_image_;
-  if (base::i18n::IsRTL())
+  std::optional<gfx::ImageSkia> left_icon = icon_image();
+  std::optional<gfx::ImageSkia> right_icon = sub_icon_image_;
+  const bool is_rtl = base::i18n::IsRTL();
+  if (is_rtl) {
     std::swap(left_icon, right_icon);
+  }
 
+  // We want to have default highlight to make the button prominent.
+  cc::PaintFlags button_bg_flags;
+  button_bg_flags.setColor(views::InkDrop::Get(this)->GetBaseColor());
+  button_bg_flags.setAlphaf(color_utils::IsDark(GetBackgroundColor())
+                                ? kDefaultHighlightOpacityForDark
+                                : kDefaultHighlightOpacityForLight);
+  button_bg_flags.setAntiAlias(true);
+  DrawHighlight(canvas, button_bg_flags);
+
+  int offset = is_rtl ? kTailingMargin : kLeadingMargin;
   if (left_icon) {
-    canvas->DrawImageInt(*left_icon, current_offset,
+    canvas->DrawImageInt(*left_icon, offset,
                          (height() - left_icon->height()) / 2, flags);
-    current_offset += left_icon->width() + kMarginBetweenContents;
+    offset += left_icon->width();
   }
 
   if (text_) {
-    int available_text_width =
-        content_width - icon_image().width() - kMarginBetweenContents -
-        (sub_icon_image_ ? kMarginBetweenContents + sub_icon_image_->width()
+    offset += is_rtl ? kLeadingMarginSubIcon : kLeadingMarginText;
+    const int max_text_width =
+        width() - kLeadingMargin - kTailingMargin - icon_image().width() -
+        (sub_icon_image_ ? kLeadingMarginSubIcon + sub_icon_image_->width()
                          : 0);
-    gfx::Rect text_bounds = gfx::Rect(
-        current_offset, (height() - text_->GetStringSize().height()) / 2,
-        std::min(text_->GetStringSize().width(), available_text_width),
-        text_->GetStringSize().height());
+    const gfx::Rect text_bounds =
+        gfx::Rect(offset, (height() - text_->GetStringSize().height()) / 2,
+                  std::min(text_->GetStringSize().width(), max_text_width),
+                  text_->GetStringSize().height());
     text_->SetDisplayRect(text_bounds);
-    text_->SetColor(
-        SkColorSetA(GetButtonColor(GetBackgroundColor()), flags.getAlpha()));
+    text_->SetColor(SkColorSetA(GetButtonColor(GetBackgroundColor()),
+                                flags.getAlphaf() * SK_AlphaOPAQUE));
     text_->Draw(canvas);
-    current_offset += text_bounds.width() + kMarginBetweenContents;
+    offset += text_bounds.width();
   }
 
   if (right_icon) {
-    canvas->DrawImageInt(*right_icon, current_offset,
+    offset += is_rtl ? kLeadingMarginText : kLeadingMarginSubIcon;
+    canvas->DrawImageInt(*right_icon, offset,
                          (height() - right_icon->height()) / 2, flags);
   }
+
+  return;
 }
 
-// The width calculated here is the same as that of CalculatePreferredSize()
-// except that |ink_drop_corner_radius_| is used instead of
-// |views::kCaptionButtonWidth|.
-// See CalculatePreferredSize() for more details.
 gfx::Size FrameCenterButton::GetInkDropSize() const {
-  int full_width = 2 * GetInkDropCornerRadius();
-  if (text_ || sub_icon_image_)
-    full_width += icon_image().width() / 2;
-  if (text_)
-    full_width += kMarginBetweenContents + text_->GetStringSize().width();
-  if (sub_icon_image_)
-    full_width += kMarginBetweenContents + sub_icon_image_->width() / 2;
-  return gfx::Size(std::min(full_width, width()), 2 * GetInkDropCornerRadius());
+  return gfx::Size(width(), 2 * GetInkDropCornerRadius());
 }
 
 void FrameCenterButton::OnBackgroundColorChanged() {
@@ -206,7 +214,7 @@ void FrameCenterButton::OnBackgroundColorChanged() {
     text_->SetColor(GetButtonColor(GetBackgroundColor()));
 }
 
-BEGIN_METADATA(FrameCenterButton, views::FrameCaptionButton)
+BEGIN_METADATA(FrameCenterButton)
 END_METADATA
 
 }  // namespace chromeos

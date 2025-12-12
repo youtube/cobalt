@@ -4,12 +4,12 @@
 
 #include "quiche/quic/core/http/quic_receive_control_stream.h"
 
+#include <optional>
 #include <utility>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
@@ -137,7 +137,7 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
     spdy_session()->debug_visitor()->OnPriorityUpdateFrameReceived(frame);
   }
 
-  absl::optional<HttpStreamPriority> priority =
+  std::optional<HttpStreamPriority> priority =
       ParsePriorityFieldValue(frame.priority_field_value);
 
   if (!priority.has_value()) {
@@ -148,6 +148,22 @@ bool QuicReceiveControlStream::OnPriorityUpdateFrame(
 
   const QuicStreamId stream_id = frame.prioritized_element_id;
   return spdy_session_->OnPriorityUpdateForRequestStream(stream_id, *priority);
+}
+
+bool QuicReceiveControlStream::OnOriginFrameStart(
+    QuicByteCount /* header_length */) {
+  return ValidateFrameType(HttpFrameType::ORIGIN);
+}
+
+bool QuicReceiveControlStream::OnOriginFrame(const OriginFrame& frame) {
+  QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, spdy_session()->perspective());
+
+  if (spdy_session()->debug_visitor()) {
+    spdy_session()->debug_visitor()->OnOriginFrameReceived(frame);
+  }
+
+  spdy_session()->OnOriginFrame(frame);
+  return false;
 }
 
 bool QuicReceiveControlStream::OnAcceptChFrameStart(
@@ -170,6 +186,22 @@ void QuicReceiveControlStream::OnWebTransportStreamFrameType(
     QuicByteCount /*header_length*/, WebTransportSessionId /*session_id*/) {
   QUIC_BUG(WEBTRANSPORT_STREAM on Control Stream)
       << "Parsed WEBTRANSPORT_STREAM on a control stream.";
+}
+
+bool QuicReceiveControlStream::OnMetadataFrameStart(
+    QuicByteCount /*header_length*/, QuicByteCount /*payload_length*/) {
+  return ValidateFrameType(HttpFrameType::METADATA);
+}
+
+bool QuicReceiveControlStream::OnMetadataFramePayload(
+    absl::string_view /*payload*/) {
+  // Ignore METADATA frames.
+  return true;
+}
+
+bool QuicReceiveControlStream::OnMetadataFrameEnd() {
+  // Ignore METADATA frames.
+  return true;
 }
 
 bool QuicReceiveControlStream::OnUnknownFrameStart(
@@ -201,7 +233,9 @@ bool QuicReceiveControlStream::ValidateFrameType(HttpFrameType frame_type) {
       (spdy_session()->perspective() == Perspective::IS_CLIENT &&
        frame_type == HttpFrameType::MAX_PUSH_ID) ||
       (spdy_session()->perspective() == Perspective::IS_SERVER &&
-       frame_type == HttpFrameType::ACCEPT_CH)) {
+       ((GetQuicReloadableFlag(enable_h3_origin_frame) &&
+         frame_type == HttpFrameType::ORIGIN) ||
+        frame_type == HttpFrameType::ACCEPT_CH))) {
     stream_delegate()->OnStreamError(
         QUIC_HTTP_FRAME_UNEXPECTED_ON_CONTROL_STREAM,
         absl::StrCat("Invalid frame type ", static_cast<int>(frame_type),

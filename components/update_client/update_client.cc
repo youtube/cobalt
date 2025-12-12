@@ -17,6 +17,7 @@
 #include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "base/task/sequenced_task_runner.h"
@@ -25,9 +26,10 @@
 #include "components/update_client/crx_update_item.h"
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/ping_manager.h"
+#include "components/update_client/protocol_definition.h"
 #include "components/update_client/protocol_parser.h"
 #include "components/update_client/task_check_for_update.h"
-#include "components/update_client/task_send_uninstall_ping.h"
+#include "components/update_client/task_send_ping.h"
 #include "components/update_client/task_update.h"
 #include "components/update_client/update_checker.h"
 #include "components/update_client/update_client_errors.h"
@@ -66,14 +68,12 @@ UpdateClientImpl::UpdateClientImpl(
     scoped_refptr<Configurator> config,
     scoped_refptr<PingManager> ping_manager,
     UpdateChecker::Factory update_checker_factory)
-    : config_(config),
-      ping_manager_(ping_manager),
-      update_engine_(base::MakeRefCounted<UpdateEngine>(
-          config,
-          update_checker_factory,
-          ping_manager_.get(),
-          base::BindRepeating(&UpdateClientImpl::NotifyObservers,
-                              base::Unretained(this)))) {}
+    : config_(config), ping_manager_(ping_manager) {
+  update_engine_ = base::MakeRefCounted<UpdateEngine>(
+      config, update_checker_factory, ping_manager_.get(),
+      base::BindRepeating(&UpdateClientImpl::NotifyObservers,
+                          weak_ptr_factory_.GetWeakPtr()));
+}
 
 UpdateClientImpl::~UpdateClientImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
@@ -92,7 +92,9 @@ base::RepeatingClosure UpdateClientImpl::Install(
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (IsUpdating(id)) {
-    std::move(callback).Run(Error::UPDATE_IN_PROGRESS);
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(std::move(callback), Error::UPDATE_IN_PROGRESS));
     return base::DoNothing();
   }
 
@@ -163,8 +165,9 @@ void UpdateClientImpl::OnTaskComplete(Callback callback,
 
   tasks_.erase(task);
 
-  if (is_stopped_)
+  if (is_stopped_) {
     return;
+  }
 
   // Pick up a task from the queue if the queue has pending tasks and no other
   // task is running.
@@ -185,11 +188,11 @@ void UpdateClientImpl::RemoveObserver(Observer* observer) {
   observer_list_.RemoveObserver(observer);
 }
 
-void UpdateClientImpl::NotifyObservers(Observer::Events event,
-                                       const std::string& id) {
+void UpdateClientImpl::NotifyObservers(const CrxUpdateItem& item) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  for (auto& observer : observer_list_)
-    observer.OnEvent(event, id);
+  for (auto& observer : observer_list_) {
+    observer.OnEvent(item);
+  }
 }
 
 bool UpdateClientImpl::GetCrxUpdateState(const std::string& id,
@@ -242,13 +245,13 @@ void UpdateClientImpl::Stop() {
   }
 }
 
-void UpdateClientImpl::SendUninstallPing(const CrxComponent& crx_component,
-                                         int reason,
-                                         Callback callback) {
+void UpdateClientImpl::SendPing(const CrxComponent& crx_component,
+                                PingParams ping_params,
+                                Callback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  RunTask(base::MakeRefCounted<TaskSendUninstallPing>(
-      update_engine_.get(), crx_component, reason,
+  RunTask(base::MakeRefCounted<TaskSendPing>(
+      update_engine_.get(), crx_component, ping_params,
       base::BindOnce(&UpdateClientImpl::OnTaskComplete, this,
                      std::move(callback))));
 }
@@ -257,18 +260,18 @@ scoped_refptr<UpdateClient> UpdateClientFactory(
     scoped_refptr<Configurator> config) {
   return base::MakeRefCounted<UpdateClientImpl>(
       config, base::MakeRefCounted<PingManager>(config),
-      &UpdateChecker::Create);
+      base::BindRepeating(&UpdateChecker::Create));
 }
 
 void RegisterPrefs(PrefRegistrySimple* registry) {
-  PersistedData::RegisterPrefs(registry);
+  RegisterPersistedDataPrefs(registry);
 }
 
 // This function has the exact same implementation as RegisterPrefs. We have
 // this implementation here to make the intention more clear that is local user
 // profile access is needed.
 void RegisterProfilePrefs(PrefRegistrySimple* registry) {
-  PersistedData::RegisterPrefs(registry);
+  RegisterPersistedDataPrefs(registry);
 }
 
 }  // namespace update_client

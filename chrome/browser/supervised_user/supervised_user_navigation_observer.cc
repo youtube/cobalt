@@ -5,20 +5,21 @@
 #include "chrome/browser/supervised_user/supervised_user_navigation_observer.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 
+#include "base/check.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/favicon/large_icon_service_factory.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/supervised_user/classify_url_navigation_throttle.h"
 #include "chrome/browser/supervised_user/supervised_user_browser_utils.h"
-#include "chrome/browser/supervised_user/supervised_user_interstitial.h"
-#include "chrome/browser/supervised_user/supervised_user_navigation_throttle.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
 #include "chrome/browser/supervised_user/supervised_user_service_factory.h"
 #include "chrome/browser/tab_contents/tab_util.h"
 #include "components/favicon/core/large_icon_service.h"
@@ -26,6 +27,8 @@
 #include "components/history/core/browser/history_service.h"
 #include "components/history/core/browser/history_types.h"
 #include "components/sessions/content/content_serialized_navigation_builder.h"
+#include "components/supervised_user/core/browser/supervised_user_interstitial.h"
+#include "components/supervised_user/core/browser/supervised_user_service.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
 #include "components/supervised_user/core/browser/web_content_handler.h"
 #include "content/public/browser/browser_thread.h"
@@ -35,6 +38,9 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "services/metrics/public/cpp/metrics_utils.h"
+#include "services/metrics/public/cpp/ukm_builders.h"
+#include "services/metrics/public/cpp/ukm_recorder.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
@@ -51,7 +57,7 @@ std::unique_ptr<supervised_user::WebContentHandler> CreateWebContentHandler(
     content::WebContents* web_contents,
     GURL url,
     Profile* profile,
-    int frame_id,
+    content::FrameTreeNodeId frame_id,
     int navigation_id) {
 #if BUILDFLAG(IS_CHROMEOS)
   return std::make_unique<SupervisedUserWebContentHandlerImpl>(
@@ -110,7 +116,7 @@ void SupervisedUserNavigationObserver::OnRequestBlocked(
     const GURL& url,
     supervised_user::FilteringBehaviorReason reason,
     int64_t navigation_id,
-    int frame_id,
+    content::FrameTreeNodeId frame_id,
     const OnInterstitialResultCallback& callback) {
   SupervisedUserNavigationObserver* navigation_observer =
       SupervisedUserNavigationObserver::FromWebContents(web_contents);
@@ -118,8 +124,8 @@ void SupervisedUserNavigationObserver::OnRequestBlocked(
   // Cancel the navigation if there is no navigation observer.
   if (!navigation_observer) {
     callback.Run(
-        SupervisedUserNavigationThrottle::CallbackActions::kCancelNavigation,
-        /* already_requested_permission */ false, /* is_main_frame */ false);
+        supervised_user::InterstitialResultCallbackActions::kCancelNavigation,
+        /*already_requested_permission=*/false, /*is_main_frame=*/false);
     return;
   }
 
@@ -127,19 +133,12 @@ void SupervisedUserNavigationObserver::OnRequestBlocked(
                                                 frame_id, callback);
 }
 
-void SupervisedUserNavigationObserver::UpdateMainFrameFilteringStatus(
-    supervised_user::SupervisedUserURLFilter::FilteringBehavior behavior,
-    supervised_user::FilteringBehaviorReason reason) {
-  main_frame_filtering_behavior_ = behavior;
-  main_frame_filtering_behavior_reason_ = reason;
-}
-
 void SupervisedUserNavigationObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   if (!navigation_handle->HasCommitted())
     return;
 
-  int frame_id = navigation_handle->GetFrameTreeNodeId();
+  content::FrameTreeNodeId frame_id = navigation_handle->GetFrameTreeNodeId();
   int64_t navigation_id = navigation_handle->GetNavigationId();
 
   // If this is a different navigation than the one that triggered the
@@ -156,22 +155,23 @@ void SupervisedUserNavigationObserver::DidFinishNavigation(
   if (navigation_handle->IsSameDocument() &&
       navigation_handle->IsInPrimaryMainFrame()) {
     auto* render_frame_host = web_contents()->GetPrimaryMainFrame();
-    int process_id = render_frame_host->GetProcess()->GetID();
+    int process_id = render_frame_host->GetProcess()->GetDeprecatedID();
     int routing_id = render_frame_host->GetRoutingID();
     bool skip_manual_parent_filter =
         supervised_user::ShouldContentSkipParentAllowlistFiltering(
             web_contents());
-    url_filter_->GetFilteringBehaviorForURLWithAsyncChecks(
+    url_filter_->GetFilteringBehaviorWithAsyncChecks(
         web_contents()->GetLastCommittedURL(),
         base::BindOnce(
             &SupervisedUserNavigationObserver::URLFilterCheckCallback,
-            weak_ptr_factory_.GetWeakPtr(), navigation_handle->GetURL(),
-            process_id, routing_id),
-        skip_manual_parent_filter);
+            weak_ptr_factory_.GetWeakPtr(), process_id, routing_id),
+        skip_manual_parent_filter,
+        supervised_user::FilteringContext::kNavigationObserver);
   }
 }
 
-void SupervisedUserNavigationObserver::FrameDeleted(int frame_tree_node_id) {
+void SupervisedUserNavigationObserver::FrameDeleted(
+    content::FrameTreeNodeId frame_tree_node_id) {
   supervised_user_interstitials_.erase(frame_tree_node_id);
 }
 
@@ -183,33 +183,69 @@ void SupervisedUserNavigationObserver::DidFinishLoad(
         base::Contains(supervised_user_interstitials_,
                        render_frame_host->GetFrameTreeNodeId());
     int count = supervised_user_interstitials_.size();
-    if (main_frame_blocked)
+    if (main_frame_blocked) {
       count = 0;
+    }
 
     UMA_HISTOGRAM_COUNTS_1000("ManagedUsers.BlockedIframeCount", count);
+    RecordPageLoadUKM(render_frame_host);
   }
+}
 
-  if (base::Contains(supervised_user_interstitials_,
-                     render_frame_host->GetFrameTreeNodeId())) {
-    UMA_HISTOGRAM_COUNTS_1000("ManagedUsers.BlockedFrameDepth",
-                              render_frame_host->GetFrameDepth());
+void SupervisedUserNavigationObserver::RecordPageLoadUKM(
+    content::RenderFrameHost* render_frame_host) {
+  ukm::UkmRecorder* ukm_recorder = ukm::UkmRecorder::Get();
+  ukm::SourceId source_id = render_frame_host->GetPageUkmSourceId();
+
+  // To avoid the user potentially being identified based on parent-configured
+  // allow/block lists, only output a UKM for page loads that were blocked or
+  // partially blocked due to the aync checks (but not due to allow/block list
+  // configuration).
+  const content::FrameTreeNodeId main_frame_id =
+      render_frame_host->GetFrameTreeNodeId();
+  if (base::Contains(supervised_user_interstitials_, main_frame_id)) {
+    // The main frame was blocked.
+    if (supervised_user_interstitials_[main_frame_id]
+            ->filtering_behavior_reason() ==
+        supervised_user::FilteringBehaviorReason::ASYNC_CHECKER) {
+      ukm::builders::FamilyLinkUser_BlockedContent(source_id)
+          .SetMainFrameBlocked(true)
+          .SetNumBlockedIframes(ukm::GetExponentialBucketMinForCounts1000(0))
+          .Record(ukm_recorder);
+    }
+  } else {
+    // The main frame was not blocked. Check for any blocked iframes.
+    size_t blocked_frame_count = std::ranges::count_if(
+        supervised_user_interstitials_, [](const auto& entry) {
+          return entry.second->filtering_behavior_reason() ==
+                 supervised_user::FilteringBehaviorReason::ASYNC_CHECKER;
+        });
+
+    // If there were any blocked iframes, output a UKM.
+    if (blocked_frame_count > 0) {
+      ukm::builders::FamilyLinkUser_BlockedContent(source_id)
+          .SetMainFrameBlocked(false)
+          .SetNumBlockedIframes(
+              ukm::GetExponentialBucketMinForCounts1000(blocked_frame_count))
+          .Record(ukm_recorder);
+    }
   }
 }
 
 void SupervisedUserNavigationObserver::OnURLFilterChanged() {
   auto* main_frame = web_contents()->GetPrimaryMainFrame();
-  int main_frame_process_id = main_frame->GetProcess()->GetID();
+  int main_frame_process_id = main_frame->GetProcess()->GetDeprecatedID();
   int routing_id = main_frame->GetRoutingID();
   bool skip_manual_parent_filter =
       supervised_user::ShouldContentSkipParentAllowlistFiltering(
           web_contents());
-  url_filter_->GetFilteringBehaviorForURLWithAsyncChecks(
+  url_filter_->GetFilteringBehaviorWithAsyncChecks(
       web_contents()->GetLastCommittedURL(),
       base::BindOnce(&SupervisedUserNavigationObserver::URLFilterCheckCallback,
-                     weak_ptr_factory_.GetWeakPtr(),
-                     web_contents()->GetLastCommittedURL(),
-                     main_frame_process_id, routing_id),
-      skip_manual_parent_filter);
+                     weak_ptr_factory_.GetWeakPtr(), main_frame_process_id,
+                     routing_id),
+      skip_manual_parent_filter,
+      supervised_user::FilteringContext::kFamilyLinkSettingsUpdated);
 
   MaybeUpdateRequestedHosts();
 
@@ -220,7 +256,8 @@ void SupervisedUserNavigationObserver::OnURLFilterChanged() {
       });
 }
 
-void SupervisedUserNavigationObserver::OnInterstitialDone(int frame_id) {
+void SupervisedUserNavigationObserver::OnInterstitialDone(
+    content::FrameTreeNodeId frame_id) {
   supervised_user_interstitials_.erase(frame_id);
 }
 
@@ -228,7 +265,7 @@ void SupervisedUserNavigationObserver::OnRequestBlockedInternal(
     const GURL& url,
     supervised_user::FilteringBehaviorReason reason,
     int64_t navigation_id,
-    int frame_id,
+    content::FrameTreeNodeId frame_id,
     const OnInterstitialResultCallback& callback) {
   // TODO(bauerb): Use SaneTime when available.
   base::Time timestamp = base::Time::Now();
@@ -240,9 +277,16 @@ void SupervisedUserNavigationObserver::OnRequestBlockedInternal(
   // (where it gets via a different mechanism unrelated to history).
   history::HistoryAddPageArgs add_page_args(
       url, timestamp, history::ContextIDForWebContents(web_contents()),
-      /*nav_entry_id=*/0, /*referrer=*/url, history::RedirectList(),
-      ui::PAGE_TRANSITION_BLOCKED, /*hidden=*/false, history::SOURCE_BROWSED,
-      /*did_replace_entry=*/false, /*consider_for_ntp_most_visited=*/true);
+      /*nav_entry_id=*/0, /*local_navigation_id=*/std::nullopt,
+      /*referrer=*/url, history::RedirectList(), ui::PAGE_TRANSITION_BLOCKED,
+      /*hidden=*/false, history::SOURCE_BROWSED,
+      /*did_replace_entry=*/false, /*consider_for_ntp_most_visited=*/true,
+      /*is_ephemeral=*/false,
+      /*title=*/std::nullopt,
+      // TODO(crbug.com/40279734): Investigate whether we want to record blocked
+      // navigations in the VisitedLinkDatabase, and if so, populate
+      // top_level_url with a real value.
+      /*top_level_url=*/std::nullopt);
 
   // Add the entry to the history database.
   Profile* profile =
@@ -270,12 +314,9 @@ void SupervisedUserNavigationObserver::OnRequestBlockedInternal(
 }
 
 void SupervisedUserNavigationObserver::URLFilterCheckCallback(
-    const GURL& url,
     int render_frame_process_id,
     int render_frame_routing_id,
-    supervised_user::SupervisedUserURLFilter::FilteringBehavior behavior,
-    supervised_user::FilteringBehaviorReason reason,
-    bool uncertain) {
+    supervised_user::SupervisedUserURLFilter::Result result) {
   auto* render_frame_host = content::RenderFrameHost::FromID(
       render_frame_process_id, render_frame_routing_id);
 
@@ -286,12 +327,10 @@ void SupervisedUserNavigationObserver::URLFilterCheckCallback(
     return;
   }
 
-  int frame_id = render_frame_host->GetFrameTreeNodeId();
+  content::FrameTreeNodeId frame_id = render_frame_host->GetFrameTreeNodeId();
   bool is_showing_interstitial =
       base::Contains(supervised_user_interstitials_, frame_id);
-  bool should_show_interstitial =
-      behavior ==
-      supervised_user::SupervisedUserURLFilter::FilteringBehavior::BLOCK;
+  bool should_show_interstitial = result.IsBlocked();
 
   // If an interstitial is being shown where it shouldn't (for e.g. because a
   // parent just approved a request) reloading will clear it. On the other hand,
@@ -312,24 +351,26 @@ void SupervisedUserNavigationObserver::MaybeShowInterstitial(
     supervised_user::FilteringBehaviorReason reason,
     bool initial_page_load,
     int64_t navigation_id,
-    int frame_id,
+    content::FrameTreeNodeId frame_id,
     const OnInterstitialResultCallback& callback) {
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  CHECK(profile);
   auto web_content_handler = CreateWebContentHandler(
       web_contents(), url, profile, frame_id, navigation_id);
   CHECK(web_content_handler);
-  std::unique_ptr<SupervisedUserInterstitial> interstitial =
-      SupervisedUserInterstitial::Create(std::move(web_content_handler),
-                                         *supervised_user_service_, url,
-                                         reason);
+  std::unique_ptr<supervised_user::SupervisedUserInterstitial> interstitial =
+      supervised_user::SupervisedUserInterstitial::Create(
+          std::move(web_content_handler), *supervised_user_service_, url,
+          base::UTF8ToUTF16(supervised_user::GetAccountGivenName(*profile)),
+          reason);
   supervised_user_interstitials_[frame_id] = std::move(interstitial);
 
   bool already_requested = base::Contains(requested_hosts_, url.host());
   bool is_main_frame =
       frame_id == web_contents()->GetPrimaryMainFrame()->GetFrameTreeNodeId();
 
-  callback.Run(SupervisedUserNavigationThrottle::CallbackActions::
+  callback.Run(supervised_user::InterstitialResultCallbackActions::
                    kCancelWithInterstitial,
                already_requested, is_main_frame);
 }
@@ -345,12 +386,13 @@ void SupervisedUserNavigationObserver::FilterRenderFrame(
     return;
 
   const GURL& last_committed_url = render_frame_host->GetLastCommittedURL();
-  url_filter_->GetFilteringBehaviorForSubFrameURLWithAsyncChecks(
+  url_filter_->GetFilteringBehaviorForSubFrameWithAsyncChecks(
       last_committed_url, web_contents()->GetLastCommittedURL(),
       base::BindOnce(&SupervisedUserNavigationObserver::URLFilterCheckCallback,
-                     weak_ptr_factory_.GetWeakPtr(), last_committed_url,
-                     render_frame_host->GetProcess()->GetID(),
-                     render_frame_host->GetRoutingID()));
+                     weak_ptr_factory_.GetWeakPtr(),
+                     render_frame_host->GetProcess()->GetDeprecatedID(),
+                     render_frame_host->GetRoutingID()),
+      supervised_user::FilteringContext::kNavigationObserver);
 }
 
 void SupervisedUserNavigationObserver::GoBack() {
@@ -368,14 +410,14 @@ void SupervisedUserNavigationObserver::GoBack() {
 void SupervisedUserNavigationObserver::RequestUrlAccessRemote(
     RequestUrlAccessRemoteCallback callback) {
   auto* render_frame_host = receivers_.GetCurrentTargetFrame();
-  int id = render_frame_host->GetFrameTreeNodeId();
+  content::FrameTreeNodeId id = render_frame_host->GetFrameTreeNodeId();
 
   if (!base::Contains(supervised_user_interstitials_, id)) {
     DLOG(WARNING) << "Interstitial with id not found: " << id;
     return;
   }
 
-  SupervisedUserInterstitial* interstitial =
+  supervised_user::SupervisedUserInterstitial* interstitial =
       supervised_user_interstitials_[id].get();
   interstitial->RequestUrlAccessRemote(
       base::BindOnce(&SupervisedUserNavigationObserver::RequestCreated,
@@ -387,24 +429,16 @@ void SupervisedUserNavigationObserver::RequestUrlAccessLocal(
     RequestUrlAccessLocalCallback callback) {
   content::RenderFrameHost* render_frame_host =
       receivers_.GetCurrentTargetFrame();
-  int id = render_frame_host->GetFrameTreeNodeId();
+  content::FrameTreeNodeId id = render_frame_host->GetFrameTreeNodeId();
 
   if (!base::Contains(supervised_user_interstitials_, id)) {
     DLOG(WARNING) << "Interstitial with id not found: " << id;
     return;
   }
 
-  SupervisedUserInterstitial* interstitial =
+  supervised_user::SupervisedUserInterstitial* interstitial =
       supervised_user_interstitials_[id].get();
   interstitial->RequestUrlAccessLocal(std::move(callback));
-}
-
-void SupervisedUserNavigationObserver::Feedback() {
-  auto* render_frame_host = receivers_.GetCurrentTargetFrame();
-  int id = render_frame_host->GetFrameTreeNodeId();
-
-  if (base::Contains(supervised_user_interstitials_, id))
-    supervised_user_interstitials_[id]->ShowFeedback();
 }
 
 void SupervisedUserNavigationObserver::RequestCreated(
@@ -417,16 +451,11 @@ void SupervisedUserNavigationObserver::RequestCreated(
 }
 
 void SupervisedUserNavigationObserver::MaybeUpdateRequestedHosts() {
-  supervised_user::SupervisedUserURLFilter::FilteringBehavior
-      filtering_behavior;
-
   for (auto iter = requested_hosts_.begin(); iter != requested_hosts_.end();) {
-    bool is_manual = url_filter_->GetManualFilteringBehaviorForURL(
-        GURL(*iter), &filtering_behavior);
+    supervised_user::SupervisedUserURLFilter::Result result =
+        url_filter_->GetFilteringBehavior(GURL(*iter));
 
-    if (is_manual && filtering_behavior ==
-                         supervised_user::SupervisedUserURLFilter::
-                             FilteringBehavior::ALLOW) {
+    if (result.IsFromManualList() && result.IsAllowed()) {
       iter = requested_hosts_.erase(iter);
     } else {
       iter++;

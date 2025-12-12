@@ -31,7 +31,7 @@ class PwgRasterConverter {
   using ResultCallback =
       base::OnceCallback<void(base::ReadOnlySharedMemoryRegion /*region*/)>;
 
-  virtual ~PwgRasterConverter() {}
+  virtual ~PwgRasterConverter() = default;
 
   static std::unique_ptr<PwgRasterConverter> CreateDefault();
 
@@ -49,7 +49,8 @@ class PwgRasterConverter {
       const cloud_devices::CloudDeviceDescription& printer_capabilities,
       const cloud_devices::CloudDeviceDescription& ticket);
 
-  virtual void Start(const base::RefCountedMemory* data,
+  virtual void Start(const std::optional<bool>& use_skia,
+                     const base::RefCountedMemory* data,
                      const PdfRenderSettings& conversion_settings,
                      const PwgRasterSettings& bitmap_settings,
                      ResultCallback callback) = 0;

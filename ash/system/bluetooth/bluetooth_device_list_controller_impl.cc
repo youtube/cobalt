@@ -4,14 +4,12 @@
 
 #include "ash/system/bluetooth/bluetooth_device_list_controller_impl.h"
 
-#include "ash/constants/ash_features.h"
 #include "ash/strings/grit/ash_strings.h"
 #include "ash/system/bluetooth/bluetooth_detailed_view.h"
 #include "ash/system/bluetooth/bluetooth_device_list_item_view.h"
-#include "ash/system/tray/tray_popup_utils.h"
 #include "base/check.h"
-#include "ui/gfx/paint_vector_icon.h"
-#include "ui/views/controls/separator.h"
+#include "base/memory/raw_ptr.h"
+#include "ui/gfx/vector_icon_types.h"
 #include "ui/views/view.h"
 
 namespace ash {
@@ -23,7 +21,7 @@ using bluetooth_config::mojom::PairedBluetoothDevicePropertiesPtr;
 // Helper function to remove |*view| from its view hierarchy, delete the view,
 // and reset the value of |*view| to be |nullptr|.
 template <class T>
-void RemoveAndResetViewIfExists(T** view) {
+void RemoveAndResetViewIfExists(raw_ptr<T>* view) {
   DCHECK(view);
 
   if (!*view)
@@ -32,8 +30,7 @@ void RemoveAndResetViewIfExists(T** view) {
   views::View* parent = (*view)->parent();
 
   if (parent) {
-    parent->RemoveChildViewT(*view);
-    *view = nullptr;
+    parent->RemoveChildViewT(view->ExtractAsDangling());
   }
 }
 
@@ -50,7 +47,6 @@ void BluetoothDeviceListControllerImpl::UpdateBluetoothEnabledState(
     bool enabled) {
   if (is_bluetooth_enabled_ && !enabled) {
     device_id_to_view_map_.clear();
-    device_list_separator_ = nullptr;
     connected_sub_header_ = nullptr;
     no_device_connected_sub_header_ = nullptr;
     previously_connected_sub_header_ = nullptr;
@@ -70,8 +66,9 @@ void BluetoothDeviceListControllerImpl::UpdateDeviceList(
   // view from this map when the corresponding device is found in |connected| or
   // |previously_connected|. Before returning, any view remaining in
   // |previous_views| is no longer needed and is deleted.
-  base::flat_map<std::string, BluetoothDeviceListItemView*> previous_views =
-      std::move(device_id_to_view_map_);
+  base::flat_map<std::string,
+                 raw_ptr<BluetoothDeviceListItemView, CtnExperimental>>
+      previous_views = std::move(device_id_to_view_map_);
   device_id_to_view_map_.clear();
 
   // Since we re-use views when possible, we need to re-order them to match the
@@ -93,26 +90,6 @@ void BluetoothDeviceListControllerImpl::UpdateDeviceList(
     index = CreateViewsIfMissingAndReorder(connected, &previous_views, index);
   } else {
     RemoveAndResetViewIfExists(&connected_sub_header_);
-  }
-
-  // QsRevamp does not use a separator.
-  if (!features::IsQsRevampEnabled()) {
-    // The separator between the connected and previously connected devices.
-    if (!connected.empty() && !previously_connected.empty()) {
-      if (!device_list_separator_) {
-        device_list_separator_ =
-            bluetooth_detailed_view_->device_list()->AddChildView(
-                TrayPopupUtils::CreateListSubHeaderSeparator());
-      }
-      bluetooth_detailed_view_->device_list()->ReorderChildView(
-          device_list_separator_, index);
-
-      // Increment |index| since this position was taken by
-      // |device_list_separator_|.
-      index++;
-    } else {
-      RemoveAndResetViewIfExists(&device_list_separator_);
-    }
   }
 
   // The previously connected devices.
@@ -155,7 +132,7 @@ BluetoothDeviceListControllerImpl::CreateSubHeaderIfMissingAndReorder(
     size_t index) {
   if (!sub_header) {
     sub_header = bluetooth_detailed_view_->AddDeviceListSubHeader(
-        gfx::kNoneIcon, text_id);
+        gfx::VectorIcon::EmptyIcon(), text_id);
   }
   bluetooth_detailed_view_->device_list()->ReorderChildView(sub_header, index);
   return sub_header;
@@ -163,7 +140,9 @@ BluetoothDeviceListControllerImpl::CreateSubHeaderIfMissingAndReorder(
 
 size_t BluetoothDeviceListControllerImpl::CreateViewsIfMissingAndReorder(
     const PairedBluetoothDevicePropertiesPtrs& device_property_list,
-    base::flat_map<std::string, BluetoothDeviceListItemView*>* previous_views,
+    base::flat_map<std::string,
+                   raw_ptr<BluetoothDeviceListItemView, CtnExperimental>>*
+        previous_views,
     size_t index) {
   DCHECK(previous_views);
 

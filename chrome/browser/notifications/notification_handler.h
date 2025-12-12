@@ -6,10 +6,10 @@
 #define CHROME_BROWSER_NOTIFICATIONS_NOTIFICATION_HANDLER_H_
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "base/functional/callback_forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class GURL;
 class Profile;
@@ -61,8 +61,8 @@ class NotificationHandler {
   virtual void OnClick(Profile* profile,
                        const GURL& origin,
                        const std::string& notification_id,
-                       const absl::optional<int>& action_index,
-                       const absl::optional<std::u16string>& reply,
+                       const std::optional<int>& action_index,
+                       const std::optional<std::u16string>& reply,
                        base::OnceClosure completed_closure);
 
   // Called when notifications of the given origin have to be disabled.
@@ -70,6 +70,23 @@ class NotificationHandler {
 
   // Called when the settings page for the given origin has to be opened.
   virtual void OpenSettings(Profile* profile, const GURL& origin);
+
+  // Called when a user clicks to report a notification as safe.
+  virtual void ReportNotificationAsSafe(const std::string& notification_id,
+                                        const GURL& url,
+                                        Profile* profile);
+
+  // Called when a user clicks to report a warned notification as spam.
+  virtual void ReportWarnedNotificationAsSpam(
+      const std::string& notification_id,
+      const GURL& url,
+      Profile* profile);
+
+  // Called when a user clicks to report an unwarned notification as spam.
+  virtual void ReportUnwarnedNotificationAsSpam(
+      const std::string& notification_id,
+      const GURL& url,
+      Profile* profile);
 };
 
 #endif  // CHROME_BROWSER_NOTIFICATIONS_NOTIFICATION_HANDLER_H_

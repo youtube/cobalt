@@ -41,6 +41,17 @@ class TestingCursorManager : public wm::NativeCursorManager {
                      wm::NativeCursorManagerDelegate* delegate) override {
     delegate->CommitCursorSize(cursor_size);
   }
+
+  void SetLargeCursorSizeInDip(
+      int large_cursor_size_in_dip,
+      wm::NativeCursorManagerDelegate* delegate) override {
+    delegate->CommitLargeCursorSizeInDip(large_cursor_size_in_dip);
+  }
+
+  void SetCursorColor(SkColor color,
+                      wm::NativeCursorManagerDelegate* delegate) override {
+    NOTIMPLEMENTED();
+  }
 };
 
 }  // namespace
@@ -48,10 +59,8 @@ class TestingCursorManager : public wm::NativeCursorManager {
 class CursorManagerTest : public aura::test::AuraTestBase {
  protected:
   CursorManagerTest()
-      : delegate_(new TestingCursorManager),
-        cursor_manager_(base::WrapUnique(delegate_.get())) {}
+      : cursor_manager_(std::make_unique<TestingCursorManager>()) {}
 
-  raw_ptr<TestingCursorManager> delegate_;
   wm::CursorManager cursor_manager_;
 };
 

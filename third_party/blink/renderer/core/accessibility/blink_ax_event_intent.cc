@@ -73,6 +73,10 @@ BlinkAXEventIntent BlinkAXEventIntent::FromEditCommand(
       input_event_type =
           ax::mojom::blink::InputEventType::kInsertCompositionText;
       break;
+    case InputEvent::InputType::kInsertLink:
+      command = ax::mojom::blink::Command::kInsert;
+      input_event_type = ax::mojom::blink::InputEventType::kInsertLink;
+      break;
 
     // Deletion.
     case InputEvent::InputType::kDeleteWordBackward:
@@ -194,7 +198,6 @@ BlinkAXEventIntent BlinkAXEventIntent::FromEditCommand(
     case InputEvent::InputType::kNumberOfInputTypes:
       NOTREACHED()
           << "Should never be assigned as an input type to |edit_command|.";
-      return BlinkAXEventIntent();
   }
 
   return BlinkAXEventIntent(command, input_event_type);
@@ -257,7 +260,6 @@ BlinkAXEventIntent BlinkAXEventIntent::FromModifiedSelection(
       switch (move_direction) {
         case ax::mojom::blink::MoveDirection::kNone:
           NOTREACHED();
-          return BlinkAXEventIntent();
         case ax::mojom::blink::MoveDirection::kBackward:
           // All platforms behave the same when moving backward by word.
           text_boundary = ax::mojom::blink::TextBoundary::kWordStart;
@@ -299,7 +301,6 @@ BlinkAXEventIntent BlinkAXEventIntent::FromModifiedSelection(
       switch (move_direction) {
         case ax::mojom::blink::MoveDirection::kNone:
           NOTREACHED();
-          return BlinkAXEventIntent();
         case ax::mojom::blink::MoveDirection::kBackward:
           text_boundary = ax::mojom::blink::TextBoundary::kSentenceStart;
           break;
@@ -314,7 +315,6 @@ BlinkAXEventIntent BlinkAXEventIntent::FromModifiedSelection(
       switch (move_direction) {
         case ax::mojom::blink::MoveDirection::kNone:
           NOTREACHED();
-          return BlinkAXEventIntent();
         case ax::mojom::blink::MoveDirection::kBackward:
           text_boundary = ax::mojom::blink::TextBoundary::kLineStart;
           break;
@@ -329,7 +329,6 @@ BlinkAXEventIntent BlinkAXEventIntent::FromModifiedSelection(
       switch (move_direction) {
         case ax::mojom::blink::MoveDirection::kNone:
           NOTREACHED();
-          return BlinkAXEventIntent();
         case ax::mojom::blink::MoveDirection::kBackward:
           text_boundary = ax::mojom::blink::TextBoundary::kParagraphStart;
           break;

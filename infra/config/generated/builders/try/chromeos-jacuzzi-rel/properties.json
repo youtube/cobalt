@@ -1,16 +1,18 @@
 {
   "$build/chromium_tests_builder_config": {
     "builder_config": {
+      "additional_exclusions": [
+        "infra/config/generated/builders/try/chromeos-jacuzzi-rel/gn-args.json"
+      ],
       "builder_db": {
         "entries": [
           {
             "builder_id": {
               "bucket": "ci",
               "builder": "chromeos-jacuzzi-rel",
-              "project": "chromium-m114"
+              "project": "chromium-m138"
             },
             "builder_spec": {
-              "build_gs_bucket": "chromium-chromiumos-archive",
               "builder_group": "chromium.chromiumos",
               "execution_mode": "COMPILE_AND_TEST",
               "legacy_chromium_config": {
@@ -28,10 +30,13 @@
               },
               "legacy_gclient_config": {
                 "apply_configs": [
-                  "arm",
                   "chromeos"
                 ],
                 "config": "chromium"
+              },
+              "skylab_upload_location": {
+                "gs_bucket": "chromium-skylab-try",
+                "gs_extra": "ash"
               }
             }
           }
@@ -41,20 +46,26 @@
         {
           "bucket": "ci",
           "builder": "chromeos-jacuzzi-rel",
-          "project": "chromium-m114"
+          "project": "chromium-m138"
         }
-      ]
+      ],
+      "retry_failed_shards": false,
+      "targets_spec_directory": "src/infra/config/generated/builders/try/chromeos-jacuzzi-rel/targets"
     }
   },
-  "$build/goma": {
-    "enable_ats": true,
-    "rpc_extra_params": "?prod",
-    "server_host": "goma.chromium.org"
-  },
-  "$build/reclient": {
-    "instance": "rbe-chromium-untrusted",
-    "jobs": 150,
-    "metrics_project": "chromium-reclient-metrics"
+  "$build/siso": {
+    "configs": [
+      "builder",
+      "remote-link"
+    ],
+    "enable_cloud_monitoring": true,
+    "enable_cloud_profiler": true,
+    "enable_cloud_trace": true,
+    "experiments": [],
+    "metrics_project": "chromium-reclient-metrics",
+    "output_local_strategy": "minimum",
+    "project": "rbe-chromium-untrusted",
+    "remote_jobs": 150
   },
   "$recipe_engine/resultdb/test_presentation": {
     "column_keys": [],

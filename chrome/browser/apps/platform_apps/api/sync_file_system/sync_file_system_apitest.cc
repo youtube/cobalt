@@ -8,7 +8,9 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync_file_system/file_status_observer.h"
 #include "chrome/browser/sync_file_system/local_change_processor.h"
 #include "chrome/browser/sync_file_system/mock_remote_file_sync_service.h"
@@ -18,6 +20,7 @@
 #include "chrome/browser/sync_file_system/syncable_file_system_util.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/extension_function.h"
+#include "storage/browser/file_system/file_system_features.h"
 #include "storage/browser/file_system/file_system_url.h"
 #include "storage/browser/quota/quota_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -33,35 +36,36 @@ using ::testing::WithArg;
 
 namespace {
 
+enum class SyncActionMetrics {
+  kNone = 0,
+  kAdded = 1,
+  kUpdated = 2,
+  kDeleted = 3,
+  kMaxValue = kDeleted
+};
+
 class SyncFileSystemApiTest : public extensions::ExtensionApiTest {
  public:
-  SyncFileSystemApiTest()
-      : mock_remote_service_(nullptr), real_default_quota_(0) {}
-
-  void SetUpInProcessBrowserTestFixture() override {
-    extensions::ExtensionApiTest::SetUpInProcessBrowserTestFixture();
-
-    // TODO(calvinlo): Update test code after default quota is made const
-    // (http://crbug.com/155488).
-    real_default_quota_ =
-        storage::QuotaManager::kSyncableStorageDefaultStorageKeyQuota;
-    storage::QuotaManager::kSyncableStorageDefaultStorageKeyQuota = 123456;
-  }
-
-  void TearDownInProcessBrowserTestFixture() override {
-    storage::QuotaManager::kSyncableStorageDefaultStorageKeyQuota =
-        real_default_quota_;
-    extensions::ExtensionApiTest::TearDownInProcessBrowserTestFixture();
-  }
+  SyncFileSystemApiTest() = default;
 
   void SetUpOnMainThread() override {
-    // Must happen after the browser process is created because instantiating
-    // the factory will instantiate ExtensionSystemFactory which depends on
-    // ExtensionsBrowserClient setup in BrowserProcessImpl.
-    mock_remote_service_ = new ::testing::NiceMock<MockRemoteFileSyncService>;
-    SyncFileSystemServiceFactory::GetInstance()->set_mock_remote_file_service(
-        std::unique_ptr<RemoteFileSyncService>(mock_remote_service_));
     extensions::ExtensionApiTest::SetUpOnMainThread();
+
+    // Override factory to inject a mock RemoteFileSyncService.
+    // Must happen after the browser process is created because instantiating
+    // the factory will instantiate ChromeExtensionSystemFactory which depends
+    // on ExtensionsBrowserClient setup in BrowserProcessImpl.
+    SyncFileSystemServiceFactory::GetInstance()->SetTestingFactoryAndUse(
+        profile(),
+        base::BindLambdaForTesting([this](content::BrowserContext* context)
+                                       -> std::unique_ptr<KeyedService> {
+          auto remote_service = std::make_unique<
+              ::testing::NiceMock<MockRemoteFileSyncService>>();
+          mock_remote_service_ = remote_service.get();
+          return SyncFileSystemServiceFactory::
+              BuildWithRemoteFileSyncServiceForTest(context,
+                                                    std::move(remote_service));
+        }));
   }
 
   ::testing::NiceMock<MockRemoteFileSyncService>* mock_remote_service() {
@@ -70,8 +74,7 @@ class SyncFileSystemApiTest : public extensions::ExtensionApiTest {
 
  private:
   raw_ptr<::testing::NiceMock<MockRemoteFileSyncService>, DanglingUntriaged>
-      mock_remote_service_;
-  int64_t real_default_quota_;
+      mock_remote_service_ = nullptr;
 };
 
 ACTION_P2(UpdateRemoteChangeQueue, origin, mock_remote_service) {

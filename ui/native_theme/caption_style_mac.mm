@@ -2,19 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "ui/native_theme/caption_style.h"
+
 #include <AppKit/AppKit.h>
 #include <MediaAccessibility/MediaAccessibility.h>
 
-#include "base/mac/foundation_util.h"
-#include "base/mac/scoped_cftyperef.h"
-#include "base/mac/scoped_nsobject.h"
+#include "base/apple/foundation_util.h"
+#include "base/apple/scoped_cftyperef.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "skia/ext/skia_utils_mac.h"
 #include "third_party/skia/include/core/SkColor.h"
-#include "ui/base/ui_base_features.h"
 #include "ui/gfx/color_utils.h"
-#include "ui/native_theme/caption_style.h"
 
 namespace ui {
 
@@ -47,7 +46,7 @@ std::string MaybeAddCSSImportant(std::string css_string, bool important) {
 
 std::string GetMAForegroundColorAndOpacityAsCSSColor() {
   MACaptionAppearanceBehavior behavior;
-  base::ScopedCFTypeRef<CGColorRef> cg_color(
+  base::apple::ScopedCFTypeRef<CGColorRef> cg_color(
       MACaptionAppearanceCopyForegroundColor(kUserDomain, &behavior));
   bool important = behavior == kMACaptionAppearanceBehaviorUseValue;
   float opacity =
@@ -62,7 +61,7 @@ std::string GetMAForegroundColorAndOpacityAsCSSColor() {
 
 std::string GetMABackgroundColorAndOpacityAsCSSColor() {
   MACaptionAppearanceBehavior behavior;
-  base::ScopedCFTypeRef<CGColorRef> cg_color(
+  base::apple::ScopedCFTypeRef<CGColorRef> cg_color(
       MACaptionAppearanceCopyBackgroundColor(kUserDomain, &behavior));
   bool important = behavior == kMACaptionAppearanceBehaviorUseValue;
   float opacity =
@@ -128,26 +127,28 @@ std::string GetMATextEdgeStyleAsCSSShadow() {
 // each font face to be used in WebVTT captions, which is not implemented here.
 void GetMAFontAsCSSFontSpecifiers(std::string* font_family,
                                   std::string* font_variant) {
-  base::ScopedCFTypeRef<CTFontDescriptorRef> ct_font_desc(
+  base::apple::ScopedCFTypeRef<CTFontDescriptorRef> ct_font_desc(
       MACaptionAppearanceCopyFontDescriptorForStyle(
           kUserDomain, nullptr, kMACaptionAppearanceFontStyleDefault));
 
-  base::ScopedCFTypeRef<CFStringRef> ct_font_family_name(
-      base::mac::CFCast<CFStringRef>(CTFontDescriptorCopyAttribute(
-          ct_font_desc, kCTFontFamilyNameAttribute)));
-  if (ct_font_family_name)
-    *font_family = base::SysCFStringRefToUTF8(ct_font_family_name);
+  base::apple::ScopedCFTypeRef<CFStringRef> ct_font_family_name(
+      base::apple::CFCast<CFStringRef>(CTFontDescriptorCopyAttribute(
+          ct_font_desc.get(), kCTFontFamilyNameAttribute)));
+  if (ct_font_family_name) {
+    *font_family = base::SysCFStringRefToUTF8(ct_font_family_name.get());
+  }
 
-  base::ScopedCFTypeRef<CFStringRef> ct_font_face_name(
-      base::mac::CFCast<CFStringRef>(
-          CTFontDescriptorCopyAttribute(ct_font_desc, kCTFontNameAttribute)));
-  if (ct_font_face_name)
-    *font_variant = base::SysCFStringRefToUTF8(ct_font_face_name);
+  base::apple::ScopedCFTypeRef<CFStringRef> ct_font_face_name(
+      base::apple::CFCast<CFStringRef>(CTFontDescriptorCopyAttribute(
+          ct_font_desc.get(), kCTFontNameAttribute)));
+  if (ct_font_face_name) {
+    *font_variant = base::SysCFStringRefToUTF8(ct_font_face_name.get());
+  }
 }
 
 std::string GetMAWindowColorAsCSSColor() {
   MACaptionAppearanceBehavior behavior;
-  base::ScopedCFTypeRef<CGColorRef> cg_color(
+  base::apple::ScopedCFTypeRef<CGColorRef> cg_color(
       MACaptionAppearanceCopyWindowColor(kUserDomain, &behavior));
   bool important = behavior == kMACaptionAppearanceBehaviorUseValue;
   float opacity = MACaptionAppearanceGetWindowOpacity(kUserDomain, &behavior);
@@ -170,10 +171,7 @@ std::string GetMAWindowRadiusAsCSSNumberInPixels() {
 }  // namespace
 
 // static
-absl::optional<CaptionStyle> CaptionStyle::FromSystemSettings() {
-  if (!base::FeatureList::IsEnabled(features::kSystemCaptionStyle))
-    return absl::nullopt;
-
+std::optional<CaptionStyle> CaptionStyle::FromSystemSettings() {
   CaptionStyle style;
 
   style.text_color = GetMAForegroundColorAndOpacityAsCSSColor();

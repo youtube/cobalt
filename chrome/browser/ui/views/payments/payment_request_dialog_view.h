@@ -11,6 +11,8 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chrome/browser/picture_in_picture/picture_in_picture_occlusion_observer.h"
+#include "chrome/browser/picture_in_picture/scoped_picture_in_picture_occlusion_observation.h"
 #include "chrome/browser/ui/views/payments/view_stack.h"
 #include "components/payments/content/initialization_task.h"
 #include "components/payments/content/payment_request_dialog.h"
@@ -48,10 +50,11 @@ enum class BackNavigationType {
 class PaymentRequestDialogView : public views::DialogDelegateView,
                                  public PaymentRequestDialog,
                                  public PaymentRequestSpec::Observer,
-                                 public InitializationTask::Observer {
- public:
-  METADATA_HEADER(PaymentRequestDialogView);
+                                 public InitializationTask::Observer,
+                                 public PictureInPictureOcclusionObserver {
+  METADATA_HEADER(PaymentRequestDialogView, views::DialogDelegateView)
 
+ public:
   class ObserverForTest {
    public:
     virtual void OnDialogOpened() = 0;
@@ -199,14 +202,18 @@ class PaymentRequestDialogView : public views::DialogDelegateView,
   void ResizeDialogWindow();
 
   // views::View
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& /*available_size*/) const override;
   void ViewHierarchyChanged(
       const views::ViewHierarchyChangedDetails& details) override;
+
+  // PictureInPictureOcclusionObserver
+  void OnOcclusionStateChanged(bool occluded) override;
 
   // The PaymentRequest object that initiated this dialog.
   base::WeakPtr<PaymentRequest> request_;
   ControllerMap controller_map_;
-  raw_ptr<ViewStack, DanglingUntriaged> view_stack_;
+  raw_ptr<ViewStack, AcrossTasksDanglingUntriaged> view_stack_;
 
   // A full dialog overlay that shows a spinner and the "processing" label. It's
   // hidden until ShowProcessingSpinner is called.
@@ -222,13 +229,15 @@ class PaymentRequestDialogView : public views::DialogDelegateView,
   // The number of initialization tasks that are not yet initialized.
   size_t number_of_initialization_tasks_ = 0;
 
-  // True when payment handler screen is shown and the
-  // kPaymentHandlerPopUpSizeWindow runtime flag is set.
+  // True when payment handler screen is shown, as it is larger than the Payment
+  // Request sheet view.
   bool is_showing_large_payment_handler_window_ = false;
 
   // Calculated based on the browser content size at the time of opening payment
   // handler window.
   int payment_handler_window_height_ = 0;
+
+  ScopedPictureInPictureOcclusionObservation occlusion_observation_{this};
 
   base::WeakPtrFactory<PaymentRequestDialogView> weak_ptr_factory_{this};
 };

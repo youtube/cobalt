@@ -36,6 +36,7 @@ class WebUIIOSDataSourceImpl : public URLDataSourceIOSImpl,
   void EnableReplaceI18nInJS() override;
   bool ShouldReplaceI18nInJS() const override;
   void AddResourcePath(const std::string& path, int resource_id) override;
+  void AddResourcePaths(base::span<const webui::ResourcePath> paths) override;
   void SetDefaultResource(int resource_id) override;
   void DisableDenyXFrameOptions() override;
   const ui::TemplateReplacements* GetReplacements() const override;
@@ -86,6 +87,6 @@ class WebUIIOSDataSourceImpl : public URLDataSourceIOSImpl,
   bool should_replace_i18n_in_js_;
 };
 
-}  // web
+}  // namespace web
 
 #endif  // IOS_WEB_WEBUI_WEB_UI_IOS_DATA_SOURCE_IMPL_H_

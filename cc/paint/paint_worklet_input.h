@@ -5,32 +5,28 @@
 #ifndef CC_PAINT_PAINT_WORKLET_INPUT_H_
 #define CC_PAINT_PAINT_WORKLET_INPUT_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/containers/flat_map.h"
 #include "base/memory/ref_counted.h"
+#include "cc/paint/deferred_paint_record.h"
 #include "cc/paint/element_id.h"
-#include "cc/paint/paint_export.h"
 #include "cc/paint/paint_image.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/skia/include/core/SkColor.h"
-#include "third_party/skia/include/core/SkRefCnt.h"
-#include "ui/gfx/geometry/size_f.h"
+#include "cc/paint/paint_record.h"
 
 namespace cc {
 
-class PaintRecord;
-
-class CC_PAINT_EXPORT PaintWorkletInput
-    : public base::RefCountedThreadSafe<PaintWorkletInput> {
+class CC_PAINT_EXPORT PaintWorkletInput : public DeferredPaintRecord {
  public:
   enum class NativePropertyType {
     kBackgroundColor,
     kClipPath,
     kInvalid,
   };
+  bool IsPaintWorkletInput() const final;
   // Uniquely identifies a property from the animation system, so that a
   // PaintWorkletInput can specify the properties it depends on to be painted
   // (and for which it must be repainted if their values change).
@@ -49,14 +45,17 @@ class CC_PAINT_EXPORT PaintWorkletInput
     PropertyKey(const std::string& custom_property_name, ElementId element_id);
     PropertyKey(NativePropertyType native_property_type, ElementId element_id);
     PropertyKey(const PropertyKey&);
+    PropertyKey(PropertyKey&&);
+    PropertyKey& operator=(PropertyKey&&);
+    PropertyKey& operator=(const PropertyKey&);
     ~PropertyKey();
 
     bool operator==(const PropertyKey& other) const;
     bool operator!=(const PropertyKey& other) const;
     bool operator<(const PropertyKey&) const;
 
-    absl::optional<std::string> custom_property_name;
-    absl::optional<NativePropertyType> native_property_type;
+    std::optional<std::string> custom_property_name;
+    std::optional<NativePropertyType> native_property_type;
     ElementId element_id;
   };
 
@@ -70,15 +69,13 @@ class CC_PAINT_EXPORT PaintWorkletInput
     PropertyValue();
     explicit PropertyValue(float value);
     explicit PropertyValue(SkColor4f value);
-    PropertyValue(const PropertyValue&);
-    ~PropertyValue();
+
     bool has_value() const;
     void reset();
-    absl::optional<float> float_value;
-    absl::optional<SkColor4f> color_value;
-  };
 
-  virtual gfx::SizeF GetSize() const = 0;
+    std::optional<float> float_value;
+    std::optional<SkColor4f> color_value;
+  };
 
   virtual int WorkletId() const = 0;
 
@@ -88,15 +85,17 @@ class CC_PAINT_EXPORT PaintWorkletInput
   using PropertyKeys = std::vector<PropertyKey>;
   virtual const PropertyKeys& GetPropertyKeys() const = 0;
 
+  bool NeedsLayer() const override;
+
+  // Includes JavaScript and native paint worklets.
   virtual bool IsCSSPaintWorkletInput() const = 0;
 
-  // True if all the animated frames are opaque. Can be false only if animated
-  // frames are colors.
-  virtual bool KnownToBeOpaque() const;
+  virtual bool ValueChangeShouldCauseRepaint(const PropertyValue& val1,
+                                             const PropertyValue& val2) const;
 
  protected:
   friend class base::RefCountedThreadSafe<PaintWorkletInput>;
-  virtual ~PaintWorkletInput() = default;
+  ~PaintWorkletInput() override = default;
 };
 
 // PaintWorkletRecordMap ties the input for a PaintWorklet (PaintWorkletInput)
@@ -104,7 +103,7 @@ class CC_PAINT_EXPORT PaintWorkletInput
 // the PaintWorklet to enable efficient invalidation of dirty PaintWorklets.
 using PaintWorkletRecordMap =
     base::flat_map<scoped_refptr<const PaintWorkletInput>,
-                   std::pair<PaintImage::Id, absl::optional<PaintRecord>>>;
+                   std::pair<PaintImage::Id, std::optional<PaintRecord>>>;
 
 }  // namespace cc
 

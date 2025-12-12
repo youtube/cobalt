@@ -287,7 +287,7 @@ TEST(Abs32UtilsTest, Win32Read32) {
     Abs32ReaderWin32 reader(std::move(extractor), translator);
 
     // Loop over |expected_ref| to check element-by-element.
-    absl::optional<Reference> ref;
+    std::optional<Reference> ref;
     for (const auto& expected_ref : test_case.expected_refs) {
       ref = reader.GetNext();
       EXPECT_TRUE(ref.has_value());
@@ -322,7 +322,7 @@ TEST(Abs32UtilsTest, Win32Read64) {
   Abs32ReaderWin32 reader(std::move(extractor), translator);
 
   std::vector<Reference> refs;
-  absl::optional<Reference> ref;
+  std::optional<Reference> ref;
   for (ref = reader.GetNext(); ref.has_value(); ref = reader.GetNext())
     refs.push_back(ref.value());
   EXPECT_EQ(expected_refs, refs);
@@ -346,29 +346,39 @@ TEST(Abs32UtilsTest, Win32ReadFail) {
   // 32-bit tests.
   bitness = kBit32;
   try_make({8U, 24U}, 0U, 32U);
+#if GTEST_HAS_DEATH_TEST
   EXPECT_DEATH(try_make({4U, 24U}, 32U, 0U), "");  // |lo| > |hi|.
+#endif
   try_make({8U, 24U}, 0U, 12U);
   try_make({8U, 24U}, 0U, 28U);
   try_make({8U, 24U}, 8U, 32U);
   try_make({8U, 24U}, 24U, 32U);
+#if GTEST_HAS_DEATH_TEST
   EXPECT_DEATH(try_make({8U, 24U}, 0U, 11U), "");   // |hi| straddles.
   EXPECT_DEATH(try_make({8U, 24U}, 26U, 32U), "");  // |lo| straddles.
+#endif
   try_make({8U, 24U}, 12U, 24U);
 
   // 64-bit tests.
   bitness = kBit64;
   try_make({6U, 22U}, 0U, 32U);
+#if GTEST_HAS_DEATH_TEST
   // |lo| > |hi|.
   EXPECT_DEATH(try_make(std::deque<offset_t>(), 32U, 31U), "");
+#endif
   try_make({6U, 22U}, 0U, 14U);
   try_make({6U, 22U}, 0U, 30U);
   try_make({6U, 22U}, 6U, 32U);
   try_make({6U, 22U}, 22U, 32U);
+#if GTEST_HAS_DEATH_TEST
   EXPECT_DEATH(try_make({6U, 22U}, 0U, 29U), "");  // |hi| straddles.
   EXPECT_DEATH(try_make({6U, 22U}, 7U, 32U), "");  // |lo| straddles.
+#endif
   try_make({6U, 22U}, 14U, 20U);
   try_make({16U}, 16U, 24U);
+#if GTEST_HAS_DEATH_TEST
   EXPECT_DEATH(try_make({16U}, 18U, 18U), "");  // |lo|, |hi| straddle.
+#endif
 }
 
 TEST(Abs32UtilsTest, Win32Write32) {

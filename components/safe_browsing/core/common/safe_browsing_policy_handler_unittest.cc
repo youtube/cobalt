@@ -36,7 +36,6 @@ class SafeBrowsingPolicyHandlerTest
         return true;
       default:
         NOTREACHED();
-        return false;
     }
   }
 
@@ -50,7 +49,6 @@ class SafeBrowsingPolicyHandlerTest
         return true;
       default:
         NOTREACHED();
-        return false;
     }
   }
 };

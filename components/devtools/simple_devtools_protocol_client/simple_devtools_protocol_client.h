@@ -78,8 +78,10 @@ class SimpleDevToolsProtocolClient : public content::DevToolsAgentHostClient {
   base::WeakPtr<SimpleDevToolsProtocolClient> GetWeakPtr();
 
   const std::string session_id_;
-  base::raw_ptr<SimpleDevToolsProtocolClient> parent_client_ = nullptr;
-  base::flat_map<std::string, SimpleDevToolsProtocolClient*> sessions_;
+  raw_ptr<SimpleDevToolsProtocolClient> parent_client_ = nullptr;
+  base::flat_map<std::string,
+                 raw_ptr<SimpleDevToolsProtocolClient, CtnExperimental>>
+      sessions_;
 
   scoped_refptr<content::DevToolsAgentHost> agent_host_;
   base::flat_map<int, ResponseCallback> pending_response_map_;

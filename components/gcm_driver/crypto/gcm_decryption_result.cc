@@ -44,7 +44,6 @@ std::string ToGCMDecryptionResultDetailsString(GCMDecryptionResult result) {
   }
 
   NOTREACHED();
-  return "(invalid result)";
 }
 
 }  // namespace gcm

@@ -8,9 +8,7 @@
 
 #include <tuple>
 
-#include "base/metrics/histogram_functions.h"
 #include "net/cookies/cookie_util.h"
-#include "net/first_party_sets/same_party_context.h"
 
 namespace net {
 
@@ -29,18 +27,13 @@ CookieOptions::SameSiteCookieContext::MakeInclusiveForSet() {
 CookieOptions::SameSiteCookieContext::ContextType
 CookieOptions::SameSiteCookieContext::GetContextForCookieInclusion() const {
   DCHECK_LE(schemeful_context_, context_);
-
-  if (cookie_util::IsSchemefulSameSiteEnabled())
-    return schemeful_context_;
-
-  return context_;
+  return schemeful_context_;
 }
 
 const CookieOptions::SameSiteCookieContext::ContextMetadata&
 CookieOptions::SameSiteCookieContext::GetMetadataForCurrentSchemefulMode()
     const {
-  return cookie_util::IsSchemefulSameSiteEnabled() ? schemeful_metadata()
-                                                   : metadata();
+  return schemeful_metadata();
 }
 
 void CookieOptions::SameSiteCookieContext::SetContextTypesForTesting(
@@ -101,8 +94,6 @@ CookieOptions CookieOptions::MakeAllInclusive() {
   options.set_include_httponly();
   options.set_same_site_cookie_context(SameSiteCookieContext::MakeInclusive());
   options.set_do_not_update_access_time();
-  options.set_same_party_context(SamePartyContext::MakeInclusive());
-  options.set_is_in_nontrivial_first_party_set(true);
   return options;
 }
 

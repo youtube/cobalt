@@ -2,8 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/gwp_asan/crash_handler/crash_handler.h"
 
+#include <array>
 #include <map>
 #include <memory>
 #include <string>
@@ -22,8 +28,10 @@
 #include "base/test/test_timeouts.h"
 #include "build/build_config.h"
 #include "components/gwp_asan/client/guarded_page_allocator.h"
+#include "components/gwp_asan/client/gwp_asan.h"
+#include "components/gwp_asan/client/lightweight_detector/poison_metadata_recorder.h"
 #include "components/gwp_asan/common/crash_key_name.h"
-#include "components/gwp_asan/common/lightweight_detector.h"
+#include "components/gwp_asan/common/lightweight_detector_state.h"
 #include "components/gwp_asan/crash_handler/crash.pb.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
@@ -46,7 +54,9 @@ namespace {
 
 constexpr size_t kAllocationSize = 902;
 constexpr int kSuccess = 0;
-constexpr size_t kTotalPages = AllocatorState::kMaxRequestedSlots;
+
+static constexpr size_t kMaxMetadata = 2048;
+static constexpr size_t kTotalPages = 8192;
 
 #if !BUILDFLAG(IS_ANDROID)
 int HandlerMainAdaptor(int argc, char* argv[]) {
@@ -109,24 +119,27 @@ MULTIPROCESS_TEST_MAIN(CrashingProcess) {
     return kSuccess;
   }
 
-  LightweightDetector::State lightweight_detector_state =
-      LightweightDetector::State::kDisabled;
-  size_t num_lightweight_detector_metadata = 0;
-  if (cmd_line->HasSwitch("enable-lightweight-detector")) {
-    lightweight_detector_state = LightweightDetector::State::kEnabled;
-    num_lightweight_detector_metadata = 1;
-  }
-
   base::NoDestructor<GuardedPageAllocator> gpa;
-  gpa->Init(AllocatorState::kMaxMetadata, AllocatorState::kMaxMetadata,
-            kTotalPages, base::DoNothing(), allocator == "partitionalloc",
-            lightweight_detector_state, num_lightweight_detector_metadata);
+  CHECK(gpa->Init(
+      AllocatorSettings{
+          .max_allocated_pages = kMaxMetadata,
+          .num_metadata = kMaxMetadata,
+          .total_pages = kTotalPages,
+          .sampling_frequency = 0u,
+      },
+      base::DoNothing(), allocator == "partitionalloc"));
 
-  std::string gpa_addr = gpa->GetCrashKey();
-  static crashpad::Annotation gpa_annotation(
-      crashpad::Annotation::Type::kString, annotation_name,
-      const_cast<char*>(gpa_addr.c_str()));
-  gpa_annotation.SetSize(gpa_addr.size());
+  static crashpad::StringAnnotation<24> gpa_annotation(annotation_name);
+  gpa_annotation.Set(gpa->GetCrashKey());
+
+  if (cmd_line->HasSwitch("enable-lightweight-detector")) {
+    lud::PoisonMetadataRecorder::Init(LightweightDetectorMode::kBrpQuarantine,
+                                      1);
+    static crashpad::StringAnnotation<24> lightweight_detector_annotation(
+        kLightweightDetectorCrashKey);
+    lightweight_detector_annotation.Set(
+        lud::PoisonMetadataRecorder::Get()->GetCrashKey());
+  }
 
   base::FilePath metrics_dir(FILE_PATH_LITERAL(""));
   std::map<std::string, std::string> annotations;
@@ -137,6 +150,12 @@ MULTIPROCESS_TEST_MAIN(CrashingProcess) {
   static crashpad::SanitizationAllowedMemoryRanges allowed_memory_ranges;
   if (cmd_line->HasSwitch("sanitize")) {
     auto memory_ranges = gpa->GetInternalMemoryRegions();
+    if (cmd_line->HasSwitch("enable-lightweight-detector")) {
+      auto detector_memory_ranges =
+          lud::PoisonMetadataRecorder::Get()->GetInternalMemoryRegions();
+      memory_ranges.insert(memory_ranges.end(), detector_memory_ranges.begin(),
+                           detector_memory_ranges.end());
+    }
     auto* range_array =
         new crashpad::SanitizationAllowedMemoryRanges::Range[memory_ranges
                                                                  .size()];
@@ -182,8 +201,7 @@ MULTIPROCESS_TEST_MAIN(CrashingProcess) {
       modules.AppendASCII("libchrome_crashpad_handler.so");
 
   std::unique_ptr<base::Environment> env(base::Environment::Create());
-  std::string library_path;
-  env->GetVar("LD_LIBRARY_PATH", &library_path);
+  std::string library_path = env->GetVar("LD_LIBRARY_PATH").value_or("");
   env->SetVar("LD_LIBRARY_PATH", library_path + ":" + modules.value());
 
   bool handler = client->StartHandlerAtCrash(
@@ -214,12 +232,27 @@ MULTIPROCESS_TEST_MAIN(CrashingProcess) {
     gpa->Deallocate(ptr);
   } else if (test_name == "Underflow") {
     void* ptr = gpa->Allocate(kAllocationSize);
-    for (size_t i = 0; i < base::GetPageSize(); i++)
-      ((unsigned char*)ptr)[-i] = 0;
+    for (size_t i = 0; i < base::GetPageSize(); i++) {
+      // Cast to `ptrdiff_t` so that the offset is actually negative, rather
+      // than a very large unsigned value. With a very large unsigned value,
+      // UBSan flags the error without any information about allocation sizes,
+      // which impacts the crash handling.
+      //
+      // The compiler could also, in principle, see that `ptr[-size_t{1}]` is
+      // always UB because no allocation can be that large, and then optimize
+      // this code to assume `base::GetPageSize()` returns one, suppressing the
+      // crash. (Though, as of writing, it does not do this.)
+      //
+      // Avoid these issues by underflowing with an actual negative value. This
+      // is still UB (thus the crash), but requires knowledge of `ptr` to
+      // observe, so a non-ASan compiler does not interfere with it in practice.
+      ((unsigned char*)ptr)[-static_cast<ptrdiff_t>(i)] = 0;
+    }
   } else if (test_name == "Overflow") {
     void* ptr = gpa->Allocate(kAllocationSize);
-    for (size_t i = 0; i <= base::GetPageSize(); i++)
+    for (size_t i = 0; i <= base::GetPageSize(); i++) {
       ((unsigned char*)ptr)[i] = 0;
+    }
   } else if (test_name == "UnrelatedException") {
     __builtin_trap();
   } else if (test_name == "FreeInvalidAddress") {
@@ -228,9 +261,10 @@ MULTIPROCESS_TEST_MAIN(CrashingProcess) {
     gpa->Deallocate(reinterpret_cast<void*>(bad_address));
   } else if (test_name == "MissingMetadata") {
     // Consume all allocations/metadata
-    void* ptrs[AllocatorState::kMaxMetadata];
-    for (size_t i = 0; i < AllocatorState::kMaxMetadata; i++)
+    std::array<void*, kMaxMetadata> ptrs;
+    for (size_t i = 0; i < kMaxMetadata; i++) {
       ptrs[i] = gpa->Allocate(1);
+    }
 
     gpa->Deallocate(ptrs[0]);
 
@@ -247,7 +281,8 @@ MULTIPROCESS_TEST_MAIN(CrashingProcess) {
     *(uint8_t*)(ptrs[0]) = 0;
   } else if (test_name == "LightweightDetectorUseAfterFree") {
     uint8_t fake_alloc[kAllocationSize];
-    gpa->RecordLightweightDeallocation(&fake_alloc, sizeof(fake_alloc));
+    lud::PoisonMetadataRecorder::Get()->RecordAndZap(&fake_alloc,
+                                                     sizeof(fake_alloc));
     **(int**)fake_alloc = 0;
   } else {
     LOG(ERROR) << "Unknown test name " << test_name;
@@ -335,7 +370,7 @@ class BaseCrashHandlerTest : public base::MultiProcessTest,
     EXPECT_NE(exit_code, kSuccess);
     return (exit_code != kSuccess);
 #else
-    // TODO(https://crbug.com/976063): Android's implementation of
+    // TODO(crbug.com/40632533): Android's implementation of
     // WaitForMultiprocessTestChildExit can't detect child process crashes, this
     // can be fixed after minSdkVersion >= Q.
     for (int i = 0; i < TestTimeouts::action_max_timeout().InSeconds(); i++) {
@@ -384,9 +419,13 @@ class BaseCrashHandlerTest : public base::MultiProcessTest,
     }
   }
 
-  void checkProto(Crash_ErrorType error_type,
+  void checkProto(Crash_Mode mode,
+                  Crash_ErrorType error_type,
                   HasAllocation has_allocation,
                   HasDeallocation has_deallocation) {
+    EXPECT_TRUE(proto_.has_mode());
+    EXPECT_EQ(proto_.mode(), mode);
+
     EXPECT_TRUE(proto_.has_error_type());
     EXPECT_EQ(proto_.error_type(), error_type);
 
@@ -425,9 +464,11 @@ class BaseCrashHandlerTest : public base::MultiProcessTest,
       // depends on the PartitionAlloc metadata layout.
       EXPECT_GE(proto_.region_size(),
                 base::GetPageSize() * (2 * kTotalPages + 1));
-      EXPECT_LE(
-          proto_.region_size(),
-          base::GetPageSize() * (2 * AllocatorState::kMaxReservedSlots + 1));
+      // Upper bound for number of pages reserved when requesting kTotalPages
+      // worth of allocatable slots.
+      constexpr size_t kTotalPagesReserved = 2 * kTotalPages;
+      EXPECT_LE(proto_.region_size(),
+                base::GetPageSize() * (2 * kTotalPagesReserved + 1));
     }
 
     EXPECT_TRUE(proto_.has_missing_metadata());
@@ -458,32 +499,32 @@ class CrashHandlerTest : public BaseCrashHandlerTest {};
 
 TEST_P(CrashHandlerTest, MAYBE_DISABLED(UseAfterFree)) {
   ASSERT_TRUE(gwp_asan_found_);
-  checkProto(Crash_ErrorType_USE_AFTER_FREE, HasAllocation::kYes,
-             HasDeallocation::kYes);
+  checkProto(Crash_Mode_CLASSIC, Crash_ErrorType_USE_AFTER_FREE,
+             HasAllocation::kYes, HasDeallocation::kYes);
 }
 
 TEST_P(CrashHandlerTest, MAYBE_DISABLED(DoubleFree)) {
   ASSERT_TRUE(gwp_asan_found_);
-  checkProto(Crash_ErrorType_DOUBLE_FREE, HasAllocation::kYes,
-             HasDeallocation::kYes);
+  checkProto(Crash_Mode_CLASSIC, Crash_ErrorType_DOUBLE_FREE,
+             HasAllocation::kYes, HasDeallocation::kYes);
 }
 
 TEST_P(CrashHandlerTest, MAYBE_DISABLED(Underflow)) {
   ASSERT_TRUE(gwp_asan_found_);
-  checkProto(Crash_ErrorType_BUFFER_UNDERFLOW, HasAllocation::kYes,
-             HasDeallocation::kNo);
+  checkProto(Crash_Mode_CLASSIC, Crash_ErrorType_BUFFER_UNDERFLOW,
+             HasAllocation::kYes, HasDeallocation::kNo);
 }
 
 TEST_P(CrashHandlerTest, MAYBE_DISABLED(Overflow)) {
   ASSERT_TRUE(gwp_asan_found_);
-  checkProto(Crash_ErrorType_BUFFER_OVERFLOW, HasAllocation::kYes,
-             HasDeallocation::kNo);
+  checkProto(Crash_Mode_CLASSIC, Crash_ErrorType_BUFFER_OVERFLOW,
+             HasAllocation::kYes, HasDeallocation::kNo);
 }
 
 TEST_P(CrashHandlerTest, MAYBE_DISABLED(FreeInvalidAddress)) {
   ASSERT_TRUE(gwp_asan_found_);
-  checkProto(Crash_ErrorType_FREE_INVALID_ADDRESS, HasAllocation::kYes,
-             HasDeallocation::kNo);
+  checkProto(Crash_Mode_CLASSIC, Crash_ErrorType_FREE_INVALID_ADDRESS,
+             HasAllocation::kYes, HasDeallocation::kNo);
   EXPECT_TRUE(proto_.has_free_invalid_address());
 }
 
@@ -531,17 +572,23 @@ class LightweightDetectorCrashHandlerTest : public BaseCrashHandlerTest {};
 TEST_P(LightweightDetectorCrashHandlerTest, LightweightDetectorUseAfterFree) {
   ASSERT_TRUE(gwp_asan_found_);
 
-  checkProto(Crash_ErrorType_LIGHTWEIGHT_USE_AFTER_FREE, HasAllocation::kNo,
+  checkProto(Crash_Mode_LIGHTWEIGHT_DETECTOR_BRP,
+             Crash_ErrorType_USE_AFTER_FREE, HasAllocation::kNo,
              HasDeallocation::kYes);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    SingleValueSuite,
-    LightweightDetectorCrashHandlerTest,
-    testing::Values(TestParams("partitionalloc",
-                               ShouldSanitize::kNo,
-                               EnableLightweightDetector::kYes)));
+INSTANTIATE_TEST_SUITE_P(VarySanitization,
+                         LightweightDetectorCrashHandlerTest,
+                         testing::Values(
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+                             TestParams("partitionalloc",
+                                        ShouldSanitize::kYes,
+                                        EnableLightweightDetector::kYes),
 #endif
+                             TestParams("partitionalloc",
+                                        ShouldSanitize::kNo,
+                                        EnableLightweightDetector::kYes)));
+#endif  // !defined(ADDRESS_SANITIZER) && defined(ARCH_CPU_64_BITS)
 
 }  // namespace
 

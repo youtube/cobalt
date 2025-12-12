@@ -13,23 +13,22 @@
 #include "base/memory/raw_ref.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
-#include "components/keyed_service/core/keyed_service.h"
 #include "components/unexportable_keys/background_task_priority.h"
 #include "components/unexportable_keys/ref_counted_unexportable_signing_key.h"
 #include "components/unexportable_keys/service_error.h"
 #include "components/unexportable_keys/unexportable_key_id.h"
 #include "components/unexportable_keys/unexportable_key_service.h"
 #include "crypto/signature_verifier.h"
+#include "crypto/unexportable_key.h"
 
 namespace unexportable_keys {
 
-namespace {
 class MaybePendingUnexportableKeyId;
-}
 
 class UnexportableKeyTaskManager;
 
-class UnexportableKeyServiceImpl : public UnexportableKeyService {
+class COMPONENT_EXPORT(UNEXPORTABLE_KEYS) UnexportableKeyServiceImpl
+    : public UnexportableKeyService {
  public:
   // `task_manager` must outlive `UnexportableKeyServiceImpl`.
   explicit UnexportableKeyServiceImpl(UnexportableKeyTaskManager& task_manager);
@@ -39,7 +38,8 @@ class UnexportableKeyServiceImpl : public UnexportableKeyService {
   // Returns whether the current platform has a support for unexportable signing
   // keys. If this returns false, all service methods will return
   // `ServiceError::kNoKeyProvider`.
-  static bool IsUnexportableKeyProviderSupported();
+  static bool IsUnexportableKeyProviderSupported(
+      crypto::UnexportableKeyProvider::Config config);
 
   // UnexportableKeyService:
   void GenerateSigningKeySlowlyAsync(
@@ -57,6 +57,7 @@ class UnexportableKeyServiceImpl : public UnexportableKeyService {
       const UnexportableKeyId& key_id,
       base::span<const uint8_t> data,
       BackgroundTaskPriority priority,
+      size_t max_retries,
       base::OnceCallback<void(ServiceErrorOr<std::vector<uint8_t>>)> callback)
       override;
   ServiceErrorOr<std::vector<uint8_t>> GetSubjectPublicKeyInfo(
@@ -96,7 +97,7 @@ class UnexportableKeyServiceImpl : public UnexportableKeyService {
       ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>
           key_or_error);
 
-  const raw_ref<UnexportableKeyTaskManager> task_manager_;
+  const raw_ref<UnexportableKeyTaskManager, DanglingUntriaged> task_manager_;
 
   // Helps mapping multiple `FromWrappedSigningKeySlowlyAsync()` requests with
   // the same wrapped key into the same key ID.

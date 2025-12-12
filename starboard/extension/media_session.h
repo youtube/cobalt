@@ -15,8 +15,10 @@
 #ifndef STARBOARD_EXTENSION_MEDIA_SESSION_H_
 #define STARBOARD_EXTENSION_MEDIA_SESSION_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "starboard/configuration.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {

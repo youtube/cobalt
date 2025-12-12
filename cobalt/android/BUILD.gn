@@ -2,6 +2,7 @@ import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//starboard/build/buildflags.gni")
 import("//third_party/icu/config.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 
@@ -44,19 +45,33 @@ generate_jni("jni_headers") {
   }
 }
 
+generate_jni("browser_jni_headers") {
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+  ]
+}
+
+android_library("cobalt_browser_java") {
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+  ]
+  srcjar_deps = [ ":browser_jni_headers" ]
+  deps = [ "//third_party/jni_zero:jni_zero_java" ]
+}
+
 android_library("cobalt_main_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
-    ":jni_headers",
+    ":cobalt_browser_java",
     "//base:base_java",
-    "//base:jni_java",
     "//base:process_launcher_java",
+    "//base/version_info/android:version_constants_java",
     "//build/android:build_java",
     "//cobalt/shell/android:cobalt_shell_java",
     "//cobalt/shell/android:cobalt_shell_java_resources",
     "//cobalt/shell/android:cobalt_shell_jni_headers",
-    "//components/version_info/android:version_constants_java",
+    "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
@@ -69,6 +84,7 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_core_core_java",
     "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//url:gurl_java",
   ]
@@ -83,7 +99,10 @@ android_library("cobalt_main_java") {
     ]
   }
 
-  srcjar_deps = [ "//starboard/android/shared:java_enums" ]
+  srcjar_deps = [
+    ":jni_headers",
+    "//starboard/android/shared:java_enums",
+  ]
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
@@ -94,6 +113,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltConnectivityDetector.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
@@ -136,7 +156,6 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/Log.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
-    "apk/app/src/main/java/dev/cobalt/util/UsedByNative.java",
   ]
 
   if (!use_evergreen) {
@@ -144,17 +163,6 @@ android_library("cobalt_main_java") {
       "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFactory.java",
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
-    ]
-  }
-
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
-
-  if (build_with_exoplayer) {
-    deps += [
-      "//third_party/androidx:androidx_media3_media3_common_java",
-      "//third_party/androidx:androidx_media3_media3_datasource_java",
-      "//third_party/androidx:androidx_media3_media3_decoder_java",
-      "//third_party/androidx:androidx_media3_media3_exoplayer_java",
     ]
   }
 }
@@ -183,9 +191,8 @@ android_assets("coat_assets") {
   disable_compression = true
 }
 
-# Copied from target: libcontent_shell_content_view
-# TODO(b/376867565) rename this library, NO shell
-shared_library("libchrobalt") {
+# TODO(b/450024477): just a shared library once jni migration is complete
+shared_library_with_jni("libchrobalt") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
@@ -224,6 +231,7 @@ shared_library("libchrobalt") {
   if (is_official_build) {
     configs += [ "//build/config/compiler:strip_debug" ]
   }
+  java_targets = [ ":cobalt_apk" ]
 }
 
 android_apk("cobalt_apk") {
@@ -244,26 +252,33 @@ android_apk("cobalt_apk") {
     "//ui/android:ui_java",
   ]
   shared_libraries = [ ":libchrobalt" ]
+  srcjar_deps = [ ":libchrobalt__jni_registration" ]
   include_size_info = is_official_build
 }
 
 robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/CobaltServiceTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/MockShellManagerNatives.java",
     "apk/app/src/test/java/dev/cobalt/coat/ShellManagerTest.java",
   ]
   deps = [
     ":cobalt_apk_java",
+    ":cobalt_main_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
     "//cobalt/shell/android:cobalt_shell_java",
     "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
+    "//services/media_session/public/cpp/android:media_session_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",
     "//third_party/junit",
+    "//url:gurl_java",
   ]
 }

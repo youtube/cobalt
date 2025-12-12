@@ -10,6 +10,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -20,8 +21,8 @@
 #include "base/gtest_prod_util.h"
 #include "base/observer_list_threadsafe.h"
 #include "base/sequence_checker.h"
-#include "base/strings/string_piece.h"
 #include "base/synchronization/lock.h"
+#include "components/ukm/bitset.h"
 #include "components/ukm/ukm_consent_state.h"
 #include "components/ukm/ukm_entry_filter.h"
 #include "services/metrics/public/cpp/ukm_decode.h"
@@ -45,13 +46,35 @@ class UkmUtilsForTest;
 
 COMPONENT_EXPORT(UKM_RECORDER) BASE_DECLARE_FEATURE(kUkmSamplingRateFeature);
 
+// Field trial parameter name for web feature downsampling.
+const char kWebFeatureSamplingKeyword[] = "_webdx_features_sampling";
+
+// Convention for console debugging messages.
+// Example usage:
+// $ ./out/Default/chrome --force-enable-metrics-reporting
+// --metrics-upload-interval=60 \
+// --vmodule=*components/ukm*=3
+enum DebuggingLogLevel {
+  // Infrequent actions such as changes to user consent, or actions that
+  // typically occur once per reporting cycle, e.g. serialization of locally
+  // recorded event data into one report and uploading the report to the UKM
+  // server.
+  Rare = 1,
+  // Frequent and recurrent actions within each reporting period, such as an
+  // event being recorded, or a new browser navigation has occurred.
+  Medium = 2,
+  // Very frequent and possibly spammy actions or checks, such as events being
+  // dropped due to disabled recording.
+  Frequent = 3,
+};
+
 namespace debug {
 class UkmDebugDataExtractor;
 }
 
 class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
   using IsWebstoreExtensionCallback =
-      base::RepeatingCallback<bool(base::StringPiece id)>;
+      base::RepeatingCallback<bool(std::string_view id)>;
 
  public:
   UkmRecorderImpl();
@@ -68,6 +91,10 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
 
   // Controls sampling for testing purposes. Sampling is 1-in-N (N==rate).
   void SetSamplingForTesting(int rate) override;
+
+  // Controls web features sampling for testing purposes. Sampling is 1-in-N
+  // (N==rate).
+  void SetWebDXFeaturesSamplingForTesting(int rate);
 
   // True if sampling has been configured.
   bool IsSamplingConfigured() const;
@@ -156,9 +183,8 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
   // of sources exceeding the max threshold.
   int PruneData(std::set<SourceId>& source_ids_seen);
 
-  // Deletes Sources and Events with these source_ids.
-  void PurgeSourcesAndEventsBySourceIds(
-      const std::unordered_set<SourceId>& source_ids);
+  // Deletes Sources, Events and Web Features with these source_ids.
+  void PurgeDataBySourceIds(const std::unordered_set<SourceId>& source_ids);
 
   const std::map<SourceId, std::unique_ptr<UkmSource>>& sources() const {
     return recordings_.sources;
@@ -166,6 +192,14 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
 
   const std::vector<mojom::UkmEntryPtr>& entries() const {
     return recordings_.entries;
+  }
+
+  std::map<SourceId, BitSet>& webdx_features() {
+    return recordings_.webdx_features;
+  }
+
+  const std::map<SourceId, BitSet>& webdx_features() const {
+    return recordings_.webdx_features;
   }
 
   // Keep only newest |max_kept_sources| sources when the number of sources
@@ -177,6 +211,9 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
 
   // UkmRecorder:
   void AddEntry(mojom::UkmEntryPtr entry) override;
+  void RecordWebDXFeatures(SourceId source_id,
+                           const std::set<int32_t>& features,
+                           const size_t max_feature_value) override;
   void UpdateSourceURL(SourceId source_id, const GURL& url) override;
   void UpdateAppURL(SourceId source_id,
                     const GURL& url,
@@ -202,7 +239,6 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
  private:
   friend ::metrics::UkmBrowserTestBase;
   friend ::ukm::debug::UkmDebugDataExtractor;
-  friend ::ukm::UkmRecorderImplTest;
   friend ::ukm::UkmTestHelper;
   friend ::ukm::UkmUtilsForTest;
   FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest, IsSampledIn);
@@ -212,6 +248,10 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
   FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest, WebIdentityScopeUrl);
   FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest, ObserverNotifiedOnNewEntry);
   FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest, AddRemoveObserver);
+  FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest,
+                           ObserverNotifiedWhenNotRecording);
+  FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest, WebDXFeaturesConsent);
+  FRIEND_TEST_ALL_PREFIXES(UkmRecorderImplTest, WebDXFeaturesSampling);
 
   struct MetricAggregate {
     uint64_t total_count = 0;
@@ -238,16 +278,6 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
     uint64_t dropped_due_to_unconfigured = 0;
   };
 
-  // Result for ShouldRecordUrl() method.
-  enum class ShouldRecordUrlResult {
-    kOk = 0,        // URL will be recorded and observers will be notified.
-    kObserverOnly,  // The client has opted out from uploading UKM metrics.
-                    // As a result, observers will be notified but URL will not
-                    // be recorded.
-    kDropped,       // The URL is not allowed to be recorded and will be
-                    // dropped. Observers are not nofitied either.
-  };
-
   using MetricAggregateMap = std::map<uint64_t, MetricAggregate>;
 
   // Marks for deletion if the |source_id| is of a certain type.
@@ -260,8 +290,7 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
                               bool has_recorded_reason) const;
 
   // Returns the result whether |sanitized_url| should be recorded.
-  ShouldRecordUrlResult ShouldRecordUrl(SourceId source_id,
-                                        const GURL& sanitized_url) const;
+  bool ShouldRecordUrl(SourceId source_id, const GURL& sanitized_url) const;
 
   void RecordSource(std::unique_ptr<UkmSource> source);
 
@@ -279,12 +308,17 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
   void LoadExperimentSamplingParams(
       const std::map<std::string, std::string>& params);
 
+  // Stores the downsampling rate applied to web features in the report. At
+  // query time, this can be used as a multiplier to deduce the count of an
+  // event type, as if it were not downsampled.
+  void StoreWebDXFeaturesDownsamplingParameter(Report* report);
+
   // Called to notify interested observers about a newly added UKM entry.
   void NotifyObserversWithNewEntry(const mojom::UkmEntry& entry);
 
   // Helper method to notify all observers on UKM events.
   template <typename Method, typename... Params>
-  void NotifyAllObservers(Method m, Params&&... params);
+  void NotifyAllObservers(Method m, const Params&... params);
 
   // Whether recording new data is currently allowed.
   bool recording_enabled_ = false;
@@ -314,6 +348,7 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
 
   // Sampling configurations, loaded from a field-trial.
   int default_sampling_rate_ = -1;  // -1 == not yet loaded
+  int webdx_features_sampling_ = 1;  // by default, no downsampling
   base::flat_map<uint64_t, int> event_sampling_rates_;
 
   // If an event's sampling is "slaved" to another, the hashes of the slave
@@ -336,6 +371,9 @@ class COMPONENT_EXPORT(UKM_RECORDER) UkmRecorderImpl : public UkmRecorder {
     // Source ids that have been marked as no longer needed, to denote the
     // subset of |sources| that can be purged after next report.
     std::unordered_set<ukm::SourceId> obsolete_source_ids;
+
+    // Web features usage data (data captured by RecordWebDXFeatures()).
+    std::map<SourceId, BitSet> webdx_features;
 
     // URLs of sources that matched a allowlist url, but were not included in
     // the report generated by the last log rotation because we haven't seen any

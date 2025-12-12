@@ -30,10 +30,10 @@
 
 #include <atomic>
 
+#include "base/check_op.h"
 #include "base/logging.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "client/client_argv_handling.h"
 #include "third_party/lss/lss.h"
 #include "util/file/file_io.h"
@@ -172,6 +172,8 @@ std::vector<std::string> BuildArgsToLaunchWithLinker(
 
 #endif  // BUILDFLAG(IS_ANDROID)
 
+using LastChanceHandler = bool (*)(int, siginfo_t*, ucontext_t*);
+
 // A base class for Crashpad signal handler implementations.
 class SignalHandler {
  public:
@@ -193,6 +195,10 @@ class SignalHandler {
 
   void SetFirstChanceHandler(CrashpadClient::FirstChanceHandler handler) {
     first_chance_handler_ = handler;
+  }
+
+  void SetLastChanceExceptionHandler(LastChanceHandler handler) {
+    last_chance_handler_ = handler;
   }
 
   // The base implementation for all signal handlers, suitable for calling
@@ -273,6 +279,11 @@ class SignalHandler {
     if (!handler_->disabled_.test_and_set()) {
       handler_->HandleCrash(signo, siginfo, context);
       handler_->WakeThreads();
+      if (handler_->last_chance_handler_ &&
+          handler_->last_chance_handler_(
+              signo, siginfo, static_cast<ucontext_t*>(context))) {
+        return;
+      }
     } else {
       // Processes on Android normally have several chained signal handlers that
       // co-operate to report crashes. e.g. WebView will have this signal
@@ -315,6 +326,7 @@ class SignalHandler {
   Signals::OldActions old_actions_ = {};
   ExceptionInformation exception_information_ = {};
   CrashpadClient::FirstChanceHandler first_chance_handler_ = nullptr;
+  LastChanceHandler last_chance_handler_ = nullptr;
   int32_t dump_done_futex_ = kDumpNotDone;
 #if !defined(__cpp_lib_atomic_value_initialization) || \
     __cpp_lib_atomic_value_initialization < 201911L
@@ -510,7 +522,7 @@ class RequestCrashDumpHandler : public SignalHandler {
     ExceptionHandlerProtocol::ClientInformation info = {};
     info.exception_information_address =
         FromPointerCast<VMAddress>(&GetExceptionInfo());
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
     info.crash_loop_before_time = crash_loop_before_time_;
 #endif
 
@@ -518,7 +530,7 @@ class RequestCrashDumpHandler : public SignalHandler {
     client.RequestCrashDump(info);
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   void SetCrashLoopBefore(uint64_t crash_loop_before_time) {
     crash_loop_before_time_ = crash_loop_before_time;
   }
@@ -557,7 +569,7 @@ class RequestCrashDumpHandler : public SignalHandler {
   ScopedFileHandle sock_to_handler_;
   pid_t handler_pid_ = -1;
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // An optional UNIX timestamp passed to us from Chrome.
   // This will pass to crashpad_handler and then to Chrome OS crash_reporter.
   // This should really be a time_t, but it's basically an opaque value (we
@@ -810,11 +822,23 @@ bool CrashpadClient::StartHandlerAtCrash(
     const base::FilePath& database,
     const base::FilePath& metrics_dir,
     const std::string& url,
+#if BUILDFLAG(IS_STARBOARD)
+    const base::FilePath& ca_certificates_path,
+#endif
     const std::map<std::string, std::string>& annotations,
     const std::vector<std::string>& arguments,
     const std::vector<base::FilePath>& attachments) {
   std::vector<std::string> argv = BuildHandlerArgvStrings(
-      handler, database, metrics_dir, url, annotations, arguments, attachments);
+      handler,
+      database,
+      metrics_dir,
+      url,
+#if BUILDFLAG(IS_STARBOARD)
+      ca_certificates_path,
+#endif
+      annotations,
+      arguments,
+      attachments);
 
   auto signal_handler = LaunchAtCrashHandler::Get();
   return signal_handler->Initialize(&argv, nullptr, &unhandled_signals_);
@@ -873,12 +897,18 @@ void CrashpadClient::SetFirstChanceExceptionHandler(
   SignalHandler::Get()->SetFirstChanceHandler(handler);
 }
 
+// static
+void CrashpadClient::SetLastChanceExceptionHandler(LastChanceHandler handler) {
+  DCHECK(SignalHandler::Get());
+  SignalHandler::Get()->SetLastChanceExceptionHandler(handler);
+}
+
 void CrashpadClient::SetUnhandledSignals(const std::set<int>& signals) {
   DCHECK(!SignalHandler::Get());
   unhandled_signals_ = signals;
 }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 // static
 void CrashpadClient::SetCrashLoopBefore(uint64_t crash_loop_before_time) {
   auto request_crash_dump_handler = RequestCrashDumpHandler::Get();

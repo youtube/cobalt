@@ -4,6 +4,7 @@
 
 module ash.personalization_app.mojom;
 
+import "ash/style/mojom/color_scheme.mojom";
 import "mojo/public/mojom/base/big_buffer.mojom";
 import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/string16.mojom";
@@ -48,6 +49,8 @@ enum WallpaperType {
                            // album id.
   kOnceGooglePhotos = 11,  // WallpaperInfo.location contains the Google Photos
                            // photo id.
+  kOobe = 12,  // Wallpaper shown during OOBE if not overridden.
+  kSeaPen = 13,
 };
 
 // The image type specific to online wallpapers. This should be kept in sync
@@ -179,12 +182,19 @@ struct FetchGooglePhotosPhotosResponse {
     string? resume_token;
 };
 
-// Represents the currently selected wallpaper image.
-struct CurrentWallpaper {
+// Represents the attribution of the currently selected wallpaper image.
+struct CurrentAttribution {
   // Attribution text such as "Photo by John Doe" or the file name of the local
   // image.
   array<string> attribution;
 
+  // A unique identifier for the image. This is used to map the attribution to
+  // its image when a new attribution is cached to the local storage.
+  string key;
+};
+
+// Represents the currently selected wallpaper image.
+struct CurrentWallpaper {
   // The layout of the image.
   WallpaperLayout layout;
 
@@ -205,12 +215,21 @@ struct CurrentWallpaper {
   // `WallpaperType::{kDaily, kOnline}`.
   // May be empty string.
   string description_content;
+
+  // Extra description link about the image.
+  // Only set for `WallpaperType::{kDaily, kOnline}`.
+  url.mojom.Url? action_url;
 };
 
 // Receives updated wallpaper information whenever it is changed.
 interface WallpaperObserver {
   // Triggered by |WallpaperControllerObserver::OnWallpaperPreviewEnded|.
   OnWallpaperPreviewEnded();
+
+  // Triggered by |WallpaperControllerObserver::OnAttributionChanged|. Retrieves
+  // updated attribution of the current wallpaper and calls the observer.
+  // |attribution| will be null if there is an error retrieving attribution.
+  OnAttributionChanged(CurrentAttribution? attribution);
 
   // Triggered by |WallpaperControllerObserver::OnWallpaperChanged|. Retrieves
   // updated wallpaper information and calls the observer. |image| will be null
@@ -344,20 +363,15 @@ interface WallpaperProvider {
     // Cancels the wallpaper preview and reverts to the user wallpaper. Must be
     // called in preview mode.
     CancelPreviewWallpaper();
-};
 
-// Color scheme options used to generate the system UI's color palette.
-// These options are based off the user's wallpaper.
-enum ColorScheme {
-  kStatic = 0,
-  kTonalSpot = 1,
-  kNeutral = 2,
-  kExpressive = 3,
-  kVibrant = 4,
+    // Determines whether to show the time of day wallpaper dialog.
+    ShouldShowTimeOfDayWallpaperDialog() => (bool should_show_dialog);
 };
 
 // Static color options used to generate the system UI's color palette. These
 // options are not based off the user's wallpaper.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
 enum StaticColor {
   kUnknown = 0,
   kGoogleBlue = 1,
@@ -373,7 +387,7 @@ const uint32 kStaticColorLightPurple = 0xCBBFFF;
 
 // Samples of a color scheme for the tri-color scheme preview.
 struct SampleColorScheme {
-  ColorScheme scheme;
+  ash.style.mojom.ColorScheme scheme;
   skia.mojom.SkColor primary;
   skia.mojom.SkColor secondary;
   skia.mojom.SkColor tertiary;
@@ -390,13 +404,24 @@ interface ThemeObserver {
   OnColorModeAutoScheduleChanged(bool enabled);
 
   //Notifies the JS side about the current state of the color scheme.
-  OnColorSchemeChanged(ColorScheme color_scheme);
+  OnColorSchemeChanged(ash.style.mojom.ColorScheme color_scheme);
 
   // Notifies the JS side that the sample color schemes have changed.
   OnSampleColorSchemesChanged(array<SampleColorScheme> sample_color_schemes);
 
   // Notifies the JS side about the current state of the static color.
   OnStaticColorChanged(skia.mojom.SkColor? color);
+
+  // Notifies the JS side about the system geolocation permission change.
+  // `is_user_modifiable` parameter propagates the
+  // `Preference::IsUserModifiable()` property of the system geolocation pref.
+  OnGeolocationPermissionForSystemServicesChanged(bool enabled,
+                                                  bool is_user_modifiable);
+
+  // Notifies the JS side about the change in the daylight time.
+  // This happens when the timezone setting is changed.
+  OnDaylightTimeChanged(mojo_base.mojom.String16 sunrise_time,
+                        mojo_base.mojom.String16 sunset_time);
 };
 
 // Provides APIs to expose theme settings such dark/light color mode.
@@ -412,14 +437,17 @@ interface ThemeProvider {
 
   // Sets the color scheme for dynamic color.
   // @see //ash/style/color_palette_controller.h
-  SetColorScheme(ColorScheme colorScheme);
+  SetColorScheme(ash.style.mojom.ColorScheme colorScheme);
 
   // Sets the seed color for dynamic color.
   // @see //ash/style/color_palette_controller.h
   SetStaticColor(skia.mojom.SkColor static_color);
 
+  // Sets the system geolocation permission to "Only allowed for system".
+  EnableGeolocationForSystemServices();
+
   // Retrieves the color scheme for dynamic color.
-  GetColorScheme() => (ColorScheme color_scheme);
+  GetColorScheme() => (ash.style.mojom.ColorScheme color_scheme);
 
   // Retrieves the static seed color for dynamic color.
   GetStaticColor() => (skia.mojom.SkColor? static_color);
@@ -432,6 +460,14 @@ interface ThemeProvider {
 
   // Returns whether dark mode is enabled.
   IsDarkModeEnabled() => (bool dark_mode_enabled);
+
+  // Returns if the system geolocation permission is enabled for system
+  // services.
+  IsGeolocationEnabledForSystemServices() => (bool geolocation_enabled);
+
+  // Returns if the geolocation setting can be changed by the user.
+  // E.g. admins can force the value through a policy.
+  IsGeolocationUserModifiable() => (bool geolocation_is_user_modifiable);
 };
 
 // Contains information about the current user.
@@ -544,9 +580,12 @@ interface UserProvider {
   SelectLastExternalUserImage();
 };
 
-// The animation theme for screen saver. Should be kept in sync with
-// |ash::AmbientTheme|.
-enum AnimationTheme {
+// The ambient theme for screen saver. Each corresponds to a distinct UI in
+// ambient mode that can be selected by the user.
+//
+// These values are persisted in user pref storage and logs, so they should
+// never be renumbered or reused.
+enum AmbientTheme {
   kSlideshow = 0,
   kFeelTheBreeze = 1,
   kFloatOnBy = 2,
@@ -554,6 +593,11 @@ enum AnimationTheme {
 };
 
 // The source of the screensaver images come from.
+//
+// This enum needs to stay in sync with the enum |AmbientModeTopicSource| in
+// tools/metrics/histograms/metadata/ash/enums.xml.
+// These values are persisted in user pref storage and logs, so they should
+// never be renumbered or reused.
 enum TopicSource {
   // Google Photos.
   kGooglePhotos = 0,
@@ -578,7 +622,7 @@ enum TemperatureUnit {
 // Enumeration of UI visibility states.
 // This should be kept in sync with |ash:AmbientUiVisibility|.
 enum AmbientUiVisibility {
-  kShown = 0,
+  kShouldShow = 0,
   kPreview = 1,
   kHidden = 2,
   kClosed = 3,
@@ -612,8 +656,8 @@ interface AmbientObserver {
   // Retrieves information whether ambient mode is enabled.
   OnAmbientModeEnabledChanged(bool ambient_mode_enabled);
 
-  // Notifies the JS side the current state of AnimationTheme.
-  OnAnimationThemeChanged(AnimationTheme animation_theme);
+  // Notifies the JS side the current state of AmbientTheme.
+  OnAmbientThemeChanged(AmbientTheme ambient_theme);
 
   // Notifies the JS side about the current state of TopicSource.
   OnTopicSourceChanged(TopicSource topic_source);
@@ -634,6 +678,15 @@ interface AmbientObserver {
 
   // Notifies the JS side when ambient visibility is changed.
   OnAmbientUiVisibilityChanged(AmbientUiVisibility visibility);
+
+  // Notifies the JS side about the system geolocation permission change.
+  // TODO(b/319443587): Refactor out the Geolocation interfaces from Ambient*
+  // and Theme* intefaces.
+  OnGeolocationPermissionForSystemServicesChanged(bool enabled,
+                                                  bool is_user_modifiable);
+
+  // Notifies the JS side about the ambient theme preview images.
+  OnAmbientThemePreviewImagesChanged(map<AmbientTheme, url.mojom.Url> previews);
 };
 
 // Provides APIs to expose Ambient mode settings.
@@ -648,8 +701,8 @@ interface AmbientProvider {
   // Binds a listener to start receiving updates on ambient mode pref changes.
   SetAmbientObserver(pending_remote<AmbientObserver> observer);
 
-  // Sets the ambient animation theme.
-  SetAnimationTheme(AnimationTheme animation_theme);
+  // Sets the ambient theme.
+  SetAmbientTheme(AmbientTheme ambient_theme);
 
   // Sets the screen saver running duration before put into sleep.
   //
@@ -658,7 +711,7 @@ interface AmbientProvider {
 
   // Sets the ambient mode topic source.
   //
-  // SPECIAL NOTE: If |SetAnimationTheme(kVideo)| is called, the provider's
+  // SPECIAL NOTE: If |SetAmbientTheme(kVideo)| is called, the provider's
   // topic source is automatically set to |kVideo| internally. Calling
   // |SetTopicSource()| with a non-video |topic_source| afterwards is an error.
   SetTopicSource(TopicSource topic_source);
@@ -683,6 +736,17 @@ interface AmbientProvider {
 
   // Called when the time of day promo banner is dismissed.
   HandleTimeOfDayBannerDismissed();
+
+  // Returns if the system geolocation permission is enabled for system
+  // services.
+  IsGeolocationEnabledForSystemServices() => (bool geolocation_enabled);
+
+  // Returns if the geolocation setting can be changed by the user.
+  // E.g. admins can force the value through a policy.
+  IsGeolocationUserModifiable() => (bool geolocation_is_user_modifiable);
+
+  // Sets the system geolocation permission to "Only allowed for system".
+  EnableGeolocationForSystemServices();
 };
 
 // The supported preset colors for keyboard backlight.

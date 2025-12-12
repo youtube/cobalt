@@ -5,21 +5,25 @@
 #ifndef CHROME_BROWSER_ASH_NET_NETWORK_DIAGNOSTICS_TLS_PROBER_H_
 #define CHROME_BROWSER_ASH_NET_NETWORK_DIAGNOSTICS_TLS_PROBER_H_
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
-#include "chrome/browser/ash/net/network_diagnostics/host_resolver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/host_port_pair.h"
+#include "services/network/public/cpp/network_context_getter.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/network/public/mojom/tcp_socket.mojom.h"
 #include "services/network/public/mojom/tls_socket.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace ash {
-namespace network_diagnostics {
+namespace network {
+class SimpleHostResolver;
+}  // namespace network
+
+namespace ash::network_diagnostics {
 
 // Uses either a TCP or TLS socket to determine whether a socket connection to a
 // host can be established. No read or write functionality is exposed by this
@@ -35,10 +39,9 @@ class TlsProber {
     kMojoDisconnectFailure,
     kSuccess,
   };
-  using NetworkContextGetter =
-      base::RepeatingCallback<network::mojom::NetworkContext*()>;
-  using OnConnectCompleteOnUIThreadCallback = base::OnceCallback<
-      void(int result, const absl::optional<net::IPEndPoint>& peer_addr)>;
+  using OnConnectCompleteOnUIThreadCallback =
+      base::OnceCallback<void(int result,
+                              const std::optional<net::IPEndPoint>& peer_addr)>;
   using TlsProbeCompleteCallback =
       base::OnceCallback<void(int result, ProbeExitEnum probe_exit_enum)>;
 
@@ -49,7 +52,7 @@ class TlsProber {
   // before |callback| is invoked.  The TlsProber must be created on the UI
   // thread and will invoke |callback| on the UI thread.
   // |network_context_getter| will be invoked on the UI thread.
-  TlsProber(NetworkContextGetter network_context_getter,
+  TlsProber(network::NetworkContextGetter network_context_getter,
             net::HostPortPair host_port_pair,
             bool negotiate_tls,
             TlsProbeCompleteCallback callback);
@@ -59,7 +62,10 @@ class TlsProber {
 
   // Processes the results of the DNS resolution done by |host_resolver_|.
   void OnHostResolutionComplete(
-      HostResolver::ResolutionResult& resolution_result);
+      int result,
+      const net::ResolveErrorInfo&,
+      const std::optional<net::AddressList>& resolved_addresses,
+      const std::optional<net::HostResolverEndpointResults>&);
 
  protected:
   // Test-only constructor.
@@ -75,8 +81,8 @@ class TlsProber {
   // handling has not been set up, the streams should not be used and fall out
   // of scope when this method completes.
   void OnConnectComplete(int result,
-                         const absl::optional<net::IPEndPoint>& local_addr,
-                         const absl::optional<net::IPEndPoint>& peer_addr,
+                         const std::optional<net::IPEndPoint>& local_addr,
+                         const std::optional<net::IPEndPoint>& peer_addr,
                          mojo::ScopedDataPipeConsumerHandle receive_stream,
                          mojo::ScopedDataPipeProducerHandle send_stream);
 
@@ -88,7 +94,7 @@ class TlsProber {
   void OnTlsUpgrade(int result,
                     mojo::ScopedDataPipeConsumerHandle receive_stream,
                     mojo::ScopedDataPipeProducerHandle send_stream,
-                    const absl::optional<net::SSLInfo>& ssl_info);
+                    const std::optional<net::SSLInfo>& ssl_info);
 
   // Handles disconnects on the TCP connected and TLS client remotes.
   void OnDisconnect();
@@ -98,13 +104,13 @@ class TlsProber {
   void OnDone(int result, ProbeExitEnum probe_exit_enum);
 
   // Gets the active profile-specific network context.
-  const NetworkContextGetter network_context_getter_;
+  const network::NetworkContextGetter network_context_getter_;
   // Contains the hostname and port.
   const net::HostPortPair host_port_pair_;
   // Indicates whether TLS support must be added to the underlying socket.
   const bool negotiate_tls_;
   // Host resolver used for DNS lookup.
-  std::unique_ptr<HostResolver> host_resolver_;
+  std::unique_ptr<network::SimpleHostResolver> host_resolver_;
   // Holds socket if socket was connected via TCP.
   mojo::Remote<network::mojom::TCPConnectedSocket> tcp_connected_socket_remote_;
   // Holds socket if socket was upgraded to TLS.
@@ -116,7 +122,6 @@ class TlsProber {
   base::WeakPtrFactory<TlsProber> weak_factory_{this};
 };
 
-}  // namespace network_diagnostics
-}  // namespace ash
+}  // namespace ash::network_diagnostics
 
 #endif  // CHROME_BROWSER_ASH_NET_NETWORK_DIAGNOSTICS_TLS_PROBER_H_

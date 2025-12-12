@@ -7,30 +7,33 @@
 
 #include <stdint.h>
 
+#include <map>
 #include <memory>
+#include <optional>
+#include <string>
 
-#include "base/containers/flat_map.h"
+#include "base/containers/flat_set.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "content/browser/attribution_reporting/attribution_beacon_id.h"
+#include "components/attribution_reporting/data_host.mojom-forward.h"
+#include "content/browser/attribution_reporting/attribution_suitable_context.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/render_frame_host_receiver_set.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/public/mojom/conversions/attribution_data_host.mojom-forward.h"
+#include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/mojom/conversions/conversions.mojom.h"
 
-namespace attribution_reporting {
-class SuitableOrigin;
-}  // namespace attribution_reporting
+namespace url {
+class Origin;
+}  // namespace url
 
 namespace content {
 
 struct AttributionInputEvent;
 class RenderFrameHost;
-class RenderFrameHostImpl;
 class WebContents;
 
 #if BUILDFLAG(IS_ANDROID)
@@ -56,71 +59,68 @@ class CONTENT_EXPORT AttributionHost
       mojo::PendingAssociatedReceiver<blink::mojom::AttributionHost> receiver,
       RenderFrameHost* rfh);
 
+  AttributionInputEvent GetMostRecentNavigationInputEvent() const;
+
 #if BUILDFLAG(IS_ANDROID)
   AttributionInputEventTrackerAndroid* input_event_tracker() {
     return input_event_tracker_android_.get();
   }
 #endif
 
-  // This should be called when the fenced frame reporting beacon was initiated
-  // for reportEvent or for an automatic beacon. It may be cached and sent
-  // later. This should be called before the navigation committed for a
-  // navigation beacon.
-  // This function should only be invoked if Attribution Reporting API is
-  // enabled on the page.
-  // `navigation_id` will be set if this beacon is being sent as the result of a
-  // top navigation initiated by a fenced frame. This is used to track
-  // attributions that occur on a navigated page after the current page has been
-  // unloaded. Otherwise `absl::nullopt`.
-  void NotifyFencedFrameReportingBeaconStarted(
-      BeaconId beacon_id,
-      absl::optional<int64_t> navigation_id,
-      RenderFrameHostImpl* initiator_frame_host);
+  ukm::SourceId GetPageUkmSourceId() const {
+    return last_primary_frame_ukm_source_id_;
+  }
 
  private:
   friend class AttributionHostTestPeer;
   friend class WebContentsUserData<AttributionHost>;
 
+  struct PrimaryMainFrameData {
+    PrimaryMainFrameData();
+    PrimaryMainFrameData(const PrimaryMainFrameData&) = delete;
+    PrimaryMainFrameData& operator=(const PrimaryMainFrameData&) = delete;
+    PrimaryMainFrameData(PrimaryMainFrameData&&);
+    PrimaryMainFrameData& operator=(PrimaryMainFrameData&&);
+    ~PrimaryMainFrameData();
+
+    int num_data_hosts_registered = 0;
+    // This is used for DWA metrics.
+    std::map<url::Origin, int> num_data_hosts_registered_by_reporting_origin;
+    bool has_user_activation = false;
+    bool has_user_interaction = false;
+  };
+
   // blink::mojom::AttributionHost:
+  void NotifyNavigationWithBackgroundRegistrationsWillStart(
+      const blink::AttributionSrcToken& attribution_src_token,
+      uint32_t expected_registrations) override;
   void RegisterDataHost(
-      mojo::PendingReceiver<blink::mojom::AttributionDataHost>,
-      attribution_reporting::mojom::RegistrationType) override;
+      mojo::PendingReceiver<attribution_reporting::mojom::DataHost>,
+      attribution_reporting::mojom::RegistrationEligibility,
+      bool is_for_background_requests,
+      const std::vector<url::Origin>& reporting_origins) override;
   void RegisterNavigationDataHost(
-      mojo::PendingReceiver<blink::mojom::AttributionDataHost> data_host,
+      mojo::PendingReceiver<attribution_reporting::mojom::DataHost> data_host,
       const blink::AttributionSrcToken& attribution_src_token) override;
 
   // WebContentsObserver:
   void DidStartNavigation(NavigationHandle* navigation_handle) override;
   void DidRedirectNavigation(NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void FrameReceivedUserActivation(RenderFrameHost* render_frame_host) override;
+  void DidGetUserInteraction(const blink::WebInputEvent& event) override;
 
-  void NotifyNavigationRegistrationData(NavigationHandle* navigation_handle,
-                                        bool is_final_response);
+  void NotifyNavigationRegistrationData(NavigationHandle* navigation_handle);
 
-  // Returns the top frame origin corresponding to the current target frame.
-  // Returns `absl::nullopt` and reports a bad message if the top frame origin
-  // is not potentially trustworthy or the current target frame is not a secure
-  // context.
-  absl::optional<attribution_reporting::SuitableOrigin>
-  TopFrameOriginForSecureContext();
+  void MaybeLogClientBounce(NavigationHandle* navigation_handle) const;
 
-  AttributionInputEvent GetMostRecentNavigationInputEvent() const;
-
-  // Map which stores the top-frame origin an impression occurred on for all
-  // navigations with an associated impression, keyed by navigation ID.
-  // Initiator origins are stored at navigation start time to have the best
-  // chance of catching the initiating frame before it has a chance to go away.
-  // Storing the origins at navigation start also prevents cases where a frame
-  // initiates a navigation for itself, causing the frame to be correct but not
-  // representing the frame state at the time the navigation was initiated. They
-  // are stored until DidFinishNavigation, when they can be matched up with an
-  // impression.
-  //
-  // A flat_map is used as the number of ongoing impression navigations is
-  // expected to be very small in a given WebContents.
-  struct NavigationInfo;
-  using NavigationInfoMap = base::flat_map<int64_t, NavigationInfo>;
-  NavigationInfoMap navigation_info_map_;
+  // Keeps track of navigations for which we can register sources (i.e. All
+  // conditions were met in `DidStartNavigation` and
+  // `DataHostManager::NotifyNavigationRegistrationStarted` was called). This
+  // avoids making useless calls or checks when processing responses in
+  // `DidRedirectNavigation` and `DidFinishNavigation` for navigations for which
+  // we can't register sources.
+  base::flat_set<int64_t> ongoing_registration_eligible_navigations_;
 
   RenderFrameHostReceiverSet<blink::mojom::AttributionHost> receivers_;
 
@@ -128,6 +128,10 @@ class CONTENT_EXPORT AttributionHost
   std::unique_ptr<AttributionInputEventTrackerAndroid>
       input_event_tracker_android_;
 #endif
+
+  std::optional<base::Time> last_navigation_time_;
+  std::optional<PrimaryMainFrameData> primary_main_frame_data_;
+  ukm::SourceId last_primary_frame_ukm_source_id_ = ukm::kInvalidSourceId;
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

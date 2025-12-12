@@ -4,10 +4,16 @@
 
 #include "chrome/browser/ash/login/saml/password_sync_token_checkers_collection.h"
 
+#include <memory>
+#include <string>
+
 #include "base/containers/contains.h"
+#include "chrome/browser/ash/login/saml/password_sync_token_login_checker.h"
 #include "chrome/browser/browser_process.h"
 #include "components/user_manager/known_user.h"
+#include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
+#include "net/base/backoff_entry.h"
 
 namespace ash {
 
@@ -31,7 +37,7 @@ PasswordSyncTokenCheckersCollection::~PasswordSyncTokenCheckersCollection() =
 void PasswordSyncTokenCheckersCollection::StartPasswordSyncCheckers(
     const user_manager::UserList& users,
     PasswordSyncTokenLoginChecker::Observer* observer) {
-  for (auto* user : users) {
+  for (user_manager::User* user : users) {
     // Online login already enforced for the user - no further checks are
     // required.
     if (!user->using_saml() || user->force_online_signin())

@@ -4,169 +4,192 @@
 
 package org.chromium.chrome.browser.notifications.channels;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
 import android.app.NotificationManager;
-import android.os.Build;
 
-import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.notifications.NotificationChannelStatus;
 import org.chromium.chrome.browser.notifications.NotificationSettingsBridge.SiteChannel;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxy;
-import org.chromium.components.browser_ui.notifications.NotificationManagerProxyImpl;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxy;
+import org.chromium.components.browser_ui.notifications.BaseNotificationManagerProxyFactory;
 import org.chromium.components.browser_ui.site_settings.WebsiteAddress;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Creates/deletes and queries our notification channels for websites.
- */
-@RequiresApi(Build.VERSION_CODES.O)
+/** Creates/deletes and queries our notification channels for websites. */
+@NullMarked
 public class SiteChannelsManager {
     private static final String CHANNEL_ID_PREFIX_SITES = "web:";
     private static final String CHANNEL_ID_SEPARATOR = ";";
 
-    private final NotificationManagerProxy mNotificationManager;
+    private static @Nullable SiteChannelsManager sInstance;
+
+    private final BaseNotificationManagerProxy mNotificationManagerProxy;
 
     public static SiteChannelsManager getInstance() {
-        return LazyHolder.INSTANCE;
+        if (sInstance == null) {
+            sInstance = new SiteChannelsManager();
+        }
+        return sInstance;
     }
 
-    private static class LazyHolder {
-        public static final SiteChannelsManager INSTANCE = new SiteChannelsManager(
-                new NotificationManagerProxyImpl(ContextUtils.getApplicationContext()));
+    public static void setInstanceForTesting(SiteChannelsManager instance) {
+        var oldValue = sInstance;
+        sInstance = instance;
+        ResettersForTesting.register(() -> sInstance = oldValue);
     }
 
-    @VisibleForTesting
-    SiteChannelsManager(NotificationManagerProxy notificationManagerProxy) {
-        mNotificationManager = notificationManagerProxy;
+    private SiteChannelsManager() {
+        mNotificationManagerProxy = BaseNotificationManagerProxyFactory.create();
     }
 
     /**
-     * Creates a channel for the given origin, unless a channel for this origin
-     * already exists. The channel will appear within the Sites channel
-     * group, with default importance, or no importance if created as blocked.
+     * Creates a channel for the given origin. Don't call this if the channel for the origin already
+     * exists, as the returned SiteChannel might not have the same description or importance as
+     * expected. See:
+     * https://developer.android.com/reference/android/app/NotificationManager#createNotificationChannel(android.app.NotificationChannel).
+     * The newly created channel will appear within the Sites channel group, with default
+     * importance, or no importance if created as blocked.
+     *
      * @param origin The site origin, to be used as the channel's user-visible name.
      * @param creationTime A string representing the time of channel creation.
      * @param enabled Determines whether the channel will be created as enabled or blocked.
      * @return The channel created for the given origin.
      */
     public SiteChannel createSiteChannel(String origin, long creationTime, boolean enabled) {
-        SiteChannel preexistingChannel = getSiteChannelForOrigin(origin);
-        if (preexistingChannel != null) {
-            return preexistingChannel;
-        }
         // Channel group must be created before the channel.
         NotificationChannelGroup channelGroup =
-                ChromeChannelDefinitions.getInstance()
-                        .getChannelGroup(ChromeChannelDefinitions.ChannelGroupId.SITES)
+                assumeNonNull(
+                                ChromeChannelDefinitions.getInstance()
+                                        .getChannelGroup(
+                                                ChromeChannelDefinitions.ChannelGroupId.SITES))
                         .toNotificationChannelGroup(
                                 ContextUtils.getApplicationContext().getResources());
-        mNotificationManager.createNotificationChannelGroup(channelGroup);
-        SiteChannel siteChannel = new SiteChannel(createChannelId(origin, creationTime), origin,
-                creationTime,
-                enabled ? NotificationChannelStatus.ENABLED : NotificationChannelStatus.BLOCKED);
-        mNotificationManager.createNotificationChannel(siteChannel.toChannel());
+        mNotificationManagerProxy.createNotificationChannelGroup(channelGroup);
+        SiteChannel siteChannel =
+                new SiteChannel(
+                        createChannelId(origin, creationTime),
+                        origin,
+                        creationTime,
+                        enabled
+                                ? NotificationChannelStatus.ENABLED
+                                : NotificationChannelStatus.BLOCKED);
+        mNotificationManagerProxy.createNotificationChannel(siteChannel.toChannel());
         return siteChannel;
     }
 
-    private @Nullable SiteChannel getSiteChannelForOrigin(String origin) {
-        String normalizedOrigin = WebsiteAddress.create(origin).getOrigin();
-        for (SiteChannel channel : getSiteChannels()) {
-            if (channel.getOrigin().equals(normalizedOrigin)) {
-                return channel;
-            }
-        }
-        return null;
+    private void getSiteChannelForOrigin(String origin, Callback<@Nullable SiteChannel> callback) {
+        String normalizedOrigin = assumeNonNull(WebsiteAddress.create(origin)).getOrigin();
+        getSiteChannelsAsync(
+                (siteChannels) -> {
+                    for (SiteChannel channel : siteChannels) {
+                        if (channel.getOrigin().equals(normalizedOrigin)) {
+                            callback.onResult(channel);
+                            return;
+                        }
+                    }
+                    callback.onResult(null);
+                });
     }
 
-    /**
-     * Deletes all site channels.
-     */
+    /** Deletes all site channels. */
     public void deleteAllSiteChannels() {
-        List<NotificationChannel> channels = mNotificationManager.getNotificationChannels();
-        for (NotificationChannel channel : channels) {
-            String channelId = channel.getId();
-            if (isValidSiteChannelId(channelId)) {
-                mNotificationManager.deleteNotificationChannel(channelId);
-            }
-        }
+        mNotificationManagerProxy.deleteAllNotificationChannels(
+                channelId -> {
+                    return isValidSiteChannelId(channelId);
+                });
     }
 
-    /**
-     * Deletes the channel associated with this channel ID.
-     */
+    /** Deletes the channel associated with this channel ID. */
     public void deleteSiteChannel(String channelId) {
-        mNotificationManager.deleteNotificationChannel(channelId);
+        mNotificationManagerProxy.deleteNotificationChannel(channelId);
     }
 
     /**
      * Gets the status of the channel associated with this channelId.
-     * @return ALLOW, BLOCKED, or UNAVAILABLE (if the channel was never created or was deleted).
+     *
+     * @param channelId The ID of the notification channel to query
+     * @param callback Callback to run after getting the result. The result can be ALLOW, BLOCKED,
+     *     or UNAVAILABLE (if the channel was never created or was deleted).
      */
-    public @NotificationChannelStatus int getChannelStatus(String channelId) {
-        NotificationChannel channel = mNotificationManager.getNotificationChannel(channelId);
-        if (channel == null) return NotificationChannelStatus.UNAVAILABLE;
-        return toChannelStatus(channel.getImportance());
+    public void getChannelStatusAsync(String channelId, Callback<Integer> callback) {
+        mNotificationManagerProxy.getNotificationChannel(
+                channelId,
+                (channel) -> {
+                    if (channel == null) {
+                        callback.onResult(NotificationChannelStatus.UNAVAILABLE);
+                        return;
+                    }
+                    callback.onResult(toChannelStatus(channel.getImportance()));
+                });
     }
 
     /**
      * Gets an array of active site channels (i.e. they have been created on the notification
      * manager). This includes enabled and blocked channels.
      */
-    public SiteChannel[] getSiteChannels() {
-        List<NotificationChannel> channels = mNotificationManager.getNotificationChannels();
-        List<SiteChannel> siteChannels = new ArrayList<>();
-        for (NotificationChannel channel : channels) {
-            if (isValidSiteChannelId(channel.getId())) {
-                siteChannels.add(toSiteChannel(channel));
-            }
-        }
-        return siteChannels.toArray(new SiteChannel[siteChannels.size()]);
+    public void getSiteChannelsAsync(Callback<SiteChannel[]> callback) {
+        mNotificationManagerProxy.getNotificationChannels(
+                (channels) -> {
+                    List<SiteChannel> siteChannels = new ArrayList<>();
+                    for (NotificationChannel channel : channels) {
+                        if (isValidSiteChannelId(channel.getId())) {
+                            siteChannels.add(toSiteChannel(channel));
+                        }
+                    }
+                    callback.onResult(siteChannels.toArray(new SiteChannel[siteChannels.size()]));
+                });
     }
 
     private static SiteChannel toSiteChannel(NotificationChannel channel) {
         String originAndTimestamp = channel.getId().substring(CHANNEL_ID_PREFIX_SITES.length());
         String[] parts = originAndTimestamp.split(CHANNEL_ID_SEPARATOR);
         assert parts.length == 2;
-        return new SiteChannel(channel.getId(), parts[0], Long.parseLong(parts[1]),
+        return new SiteChannel(
+                channel.getId(),
+                parts[0],
+                Long.parseLong(parts[1]),
                 toChannelStatus(channel.getImportance()));
     }
 
     public static boolean isValidSiteChannelId(String channelId) {
         return channelId.startsWith(CHANNEL_ID_PREFIX_SITES)
-                && channelId.substring(CHANNEL_ID_PREFIX_SITES.length())
-                           .contains(CHANNEL_ID_SEPARATOR);
+                && channelId
+                        .substring(CHANNEL_ID_PREFIX_SITES.length())
+                        .contains(CHANNEL_ID_SEPARATOR);
     }
 
-    /**
-     * Converts a site's origin and creation timestamp to a canonical channel id.
-     */
+    /** Converts a site's origin and creation timestamp to a canonical channel id. */
     @VisibleForTesting
     public static String createChannelId(String origin, long creationTime) {
-        return CHANNEL_ID_PREFIX_SITES + WebsiteAddress.create(origin).getOrigin()
-                + CHANNEL_ID_SEPARATOR + creationTime;
+        return CHANNEL_ID_PREFIX_SITES
+                + assumeNonNull(WebsiteAddress.create(origin)).getOrigin()
+                + CHANNEL_ID_SEPARATOR
+                + creationTime;
     }
 
     /**
      * Converts the channel id of a notification channel to a site origin. This is only valid for
-     * site notification channels, i.e. channels with ids beginning with
-     * {@link CHANNEL_ID_PREFIX_SITES}.
+     * site notification channels, i.e. channels with ids beginning with {@link
+     * CHANNEL_ID_PREFIX_SITES}.
      */
     public static String toSiteOrigin(String channelId) {
         assert channelId.startsWith(CHANNEL_ID_PREFIX_SITES);
         return channelId.substring(CHANNEL_ID_PREFIX_SITES.length()).split(CHANNEL_ID_SEPARATOR)[0];
     }
 
-    /**
-     * Converts a notification channel's importance to ENABLED or BLOCKED.
-     */
+    /** Converts a notification channel's importance to ENABLED or BLOCKED. */
     private static @NotificationChannelStatus int toChannelStatus(int importance) {
         switch (importance) {
             case NotificationManager.IMPORTANCE_NONE:
@@ -176,14 +199,27 @@ public class SiteChannelsManager {
         }
     }
 
-    public String getChannelIdForOrigin(String origin) {
-        SiteChannel channel = getSiteChannelForOrigin(origin);
-        // Fall back to generic Sites channel if a channel for this origin doesn't exist.
-        // TODO(crbug.com/802380) Stop using this channel as a fallback and fully deprecate it.
-        boolean fallbackToSitesChannel = channel == null;
-        if (fallbackToSitesChannel) {
-            RecordHistogram.recordBooleanHistogram("Notifications.Android.SitesChannel", true);
-        }
-        return fallbackToSitesChannel ? ChromeChannelDefinitions.ChannelId.SITES : channel.getId();
+    /**
+     * Retrieves the notification channel ID for a given origin.
+     *
+     * @param origin The origin to be queried.
+     * @param callback A callback to return the channel ID once the call completes.
+     */
+    public void getChannelIdForOriginAsync(String origin, Callback<String> callback) {
+        getSiteChannelForOrigin(
+                origin,
+                (channel) -> {
+                    // Fall back to generic Sites channel if a channel for this origin doesn't
+                    // exist.
+                    // TODO(crbug.com/40558363) Stop using this channel as a fallback and fully
+                    // deprecate it.
+                    if (channel != null) {
+                        callback.onResult(channel.getId());
+                    } else {
+                        RecordHistogram.recordBooleanHistogram(
+                                "Notifications.Android.SitesChannel", true);
+                        callback.onResult(ChromeChannelDefinitions.ChannelId.SITES);
+                    }
+                });
     }
 }

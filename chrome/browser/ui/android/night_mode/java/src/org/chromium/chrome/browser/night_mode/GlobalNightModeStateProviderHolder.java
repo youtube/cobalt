@@ -4,33 +4,33 @@
 
 package org.chromium.chrome.browser.night_mode;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AppCompatDelegate;
 
 import org.chromium.base.CommandLine;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
-import org.chromium.chrome.browser.preferences.SharedPreferencesManager;
 
 /**
  * Holds an instance of {@link NightModeStateProvider} that provides night mode state for the entire
  * application.
  */
+@NullMarked
 public class GlobalNightModeStateProviderHolder {
-    private static NightModeStateProvider sInstance;
+    private static @Nullable NightModeStateProvider sInstance;
 
-    /**
-     * Created when night mode is not available or not supported.
-     */
-    private static class DummyNightModeStateProvider implements NightModeStateProvider {
+    /** Created when night mode is not available or not supported. */
+    private static class PlaceholderNightModeStateProvider implements NightModeStateProvider {
         final boolean mIsNightModeForceEnabled;
 
-        private DummyNightModeStateProvider() {
+        private PlaceholderNightModeStateProvider() {
             mIsNightModeForceEnabled =
                     CommandLine.getInstance().hasSwitch(ChromeSwitches.FORCE_ENABLE_NIGHT_MODE);
             // Always stay in night mode if night mode is force enabled, and always stay in light
             // mode if night mode is not available.
-            AppCompatDelegate.setDefaultNightMode(mIsNightModeForceEnabled
+            AppCompatDelegate.setDefaultNightMode(
+                    mIsNightModeForceEnabled
                             ? AppCompatDelegate.MODE_NIGHT_YES
                             : AppCompatDelegate.MODE_NIGHT_NO);
         }
@@ -41,10 +41,10 @@ public class GlobalNightModeStateProviderHolder {
         }
 
         @Override
-        public void addObserver(@NonNull Observer observer) {}
+        public void addObserver(Observer observer) {}
 
         @Override
-        public void removeObserver(@NonNull Observer observer) {}
+        public void removeObserver(Observer observer) {}
     }
 
     /**
@@ -57,18 +57,19 @@ public class GlobalNightModeStateProviderHolder {
         if (sInstance == null) {
             if (CommandLine.getInstance().hasSwitch(ChromeSwitches.FORCE_ENABLE_NIGHT_MODE)
                     || !NightModeUtils.isNightModeSupported()) {
-                sInstance = new DummyNightModeStateProvider();
+                sInstance = new PlaceholderNightModeStateProvider();
             } else {
-                sInstance = new GlobalNightModeStateController(SystemNightModeMonitor.getInstance(),
-                        PowerSavingModeMonitor.getInstance(),
-                        SharedPreferencesManager.getInstance());
+                sInstance =
+                        new GlobalNightModeStateController(PowerSavingModeMonitor.getInstance());
             }
+            // Do not cache the singleton between tests since the creation logic depends on flags.
+            ResettersForTesting.register(() -> sInstance = null);
         }
         return sInstance;
     }
 
-    @VisibleForTesting
     static void setInstanceForTesting(NightModeStateProvider instance) {
         sInstance = instance;
+        ResettersForTesting.register(() -> sInstance = null);
     }
 }

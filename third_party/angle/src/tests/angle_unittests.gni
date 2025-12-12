@@ -12,8 +12,10 @@ angle_unittests_sources = [
   "../common/FastVector_unittest.cpp",
   "../common/FixedQueue_unittest.cpp",
   "../common/FixedVector_unittest.cpp",
+  "../common/MemoryBuffer_unittest.cpp",
   "../common/Optional_unittest.cpp",
   "../common/PoolAlloc_unittest.cpp",
+  "../common/SimpleMutex_unittest.cpp",
   "../common/WorkerThread_unittest.cpp",
   "../common/aligned_memory_unittest.cpp",
   "../common/angleutils_unittest.cpp",
@@ -21,17 +23,21 @@ angle_unittests_sources = [
   "../common/hash_utils_unittest.cpp",
   "../common/mathutil_unittest.cpp",
   "../common/matrix_utils_unittest.cpp",
+  "../common/span_unittest.cpp",
   "../common/string_utils_unittest.cpp",
   "../common/system_utils_unittest.cpp",
   "../common/utilities_unittest.cpp",
   "../common/vector_utils_unittest.cpp",
-  "../compiler/translator/span_unittest.cpp",
   "../feature_support_util/feature_support_util_unittest.cpp",
   "../gpu_info_util/SystemInfo_unittest.cpp",
   "../image_util/AstcDecompressorTestUtils.h",
   "../image_util/AstcDecompressor_unittest.cpp",
+  "../image_util/LoadToNative_unittest.cpp",
+  "../libANGLE/BlendStateExt_unittest.cpp",
   "../libANGLE/BlobCache_unittest.cpp",
   "../libANGLE/Config_unittest.cpp",
+  "../libANGLE/ContextMutex_unittest.cpp",
+  "../libANGLE/Decompress_unittest.cpp",
   "../libANGLE/Fence_unittest.cpp",
   "../libANGLE/GlobalMutex_unittest.cpp",
   "../libANGLE/HandleAllocator_unittest.cpp",
@@ -44,9 +50,9 @@ angle_unittests_sources = [
   "../libANGLE/SizedMRUCache_unittest.cpp",
   "../libANGLE/Surface_unittest.cpp",
   "../libANGLE/TransformFeedback_unittest.cpp",
+  "../libANGLE/UnlockedTailCall_unittest.cpp",
   "../libANGLE/VaryingPacking_unittest.cpp",
   "../libANGLE/VertexArray_unittest.cpp",
-  "../libANGLE/angletypes_unittest.cpp",
   "../libANGLE/renderer/BufferImpl_mock.h",
   "../libANGLE/renderer/FramebufferImpl_mock.h",
   "../libANGLE/renderer/ImageImpl_mock.h",
@@ -113,6 +119,7 @@ angle_unittests_compiler_tests_sources = [
   "compiler_tests/GlFragDataNotModified_test.cpp",
   "compiler_tests/ImmutableString_test.cpp",
   "compiler_tests/InitOutputVariables_test.cpp",
+  "compiler_tests/InitializeUninitializedLocals_test.cpp",
   "compiler_tests/IntermNode_test.cpp",
   "compiler_tests/KHR_blend_equation_advanced_test.cpp",
   "compiler_tests/NV_draw_buffers_test.cpp",
@@ -122,8 +129,10 @@ angle_unittests_compiler_tests_sources = [
   "compiler_tests/OVR_multiview2_test.cpp",
   "compiler_tests/OVR_multiview_test.cpp",
   "compiler_tests/Pack_Unpack_test.cpp",
+  "compiler_tests/Parse_test.cpp",
   "compiler_tests/PruneEmptyCases_test.cpp",
   "compiler_tests/PruneEmptyDeclarations_test.cpp",
+  "compiler_tests/PruneNoOps_test.cpp",
   "compiler_tests/PrunePureLiteralStatements_test.cpp",
   "compiler_tests/PruneUnusedFunctions_test.cpp",
   "compiler_tests/QualificationOrderESSL31_test.cpp",
@@ -133,10 +142,12 @@ angle_unittests_compiler_tests_sources = [
   "compiler_tests/RemoveUnreferencedVariables_test.cpp",
   "compiler_tests/SamplerMultisample_test.cpp",
   "compiler_tests/SamplerVideoWEBGL_test.cpp",
+  "compiler_tests/SeparateDeclarations_test.cpp",
   "compiler_tests/ShCompile_test.cpp",
   "compiler_tests/ShaderImage_test.cpp",
   "compiler_tests/ShaderValidation_test.cpp",
   "compiler_tests/ShaderVariable_test.cpp",
+  "compiler_tests/SimplifyLoopConditions_test.cpp",
   "compiler_tests/TextureFunction_test.cpp",
   "compiler_tests/TypeTracking_test.cpp",
   "compiler_tests/Type_test.cpp",
@@ -162,15 +173,14 @@ angle_unittests_hlsl_sources = [
 angle_unittests_gl_sources =
     [ "../libANGLE/renderer/gl/DisplayGL_unittest.cpp" ]
 
-angle_unittests_msl_sources = [ "../tests/compiler_tests/MSLOutput_test.cpp" ]
+angle_unittests_msl_sources = [
+  "../common/apple/ObjCPtr_test.mm",
+  "../tests/compiler_tests/MSLOutput_test.cpp",
+]
 
-if (!angle_enable_desktop_glsl) {
-  angle_unittests_sources +=
-      [ "compiler_tests/ImmutableString_test_ESSL_autogen.cpp" ]
-} else {
-  angle_unittests_sources +=
-      [ "compiler_tests/ImmutableString_test_autogen.cpp" ]
-}
+angle_unittests_wgsl_sources = [ "../tests/compiler_tests/WGSLOutput_test.cpp" ]
+
+angle_unittests_sources += [ "compiler_tests/ImmutableString_test_autogen.cpp" ]
 
 if (!is_android && !is_fuchsia && !is_ios) {
   angle_unittests_sources += [ "test_utils/runner/TestSuite_unittest.cpp" ]

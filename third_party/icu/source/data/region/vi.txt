@@ -298,11 +298,15 @@ vi{
         ZW{"Zimbabwe"}
         ZZ{"Vùng không xác định"}
     }
+    Countries%chagos{
+        IO{"Quần đảo Chagos"}
+    }
     Countries%variant{
         CD{"Cộng hòa Dân chủ Congo"}
         CG{"Cộng hòa Congo"}
         CI{"Bờ Biển Ngà"}
         CZ{"Cộng hòa Séc"}
+        NZ{"Aotearoa New Zealand"}
         SZ{"Swaziland"}
         TL{"Đông Timor"}
     }

@@ -6,13 +6,15 @@
 #define ASH_CLIPBOARD_CLIPBOARD_HISTORY_MENU_MODEL_ADAPTER_H_
 
 #include <memory>
+#include <optional>
 
 #include "ash/ash_export.h"
 #include "ash/public/cpp/clipboard_history_controller.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/base/models/simple_menu_model.h"
+#include "chromeos/crosapi/mojom/clipboard_history.mojom.h"
+#include "ui/base/mojom/menu_source_type.mojom-forward.h"
+#include "ui/menus/simple_menu_model.h"
 #include "ui/views/controls/menu/menu_model_adapter.h"
 
 namespace gfx {
@@ -33,7 +35,6 @@ enum class Action;
 class ClipboardHistory;
 class ClipboardHistoryItem;
 class ClipboardHistoryItemView;
-class ClipboardHistoryResourceManager;
 
 // Used to show the clipboard history menu, which holds the last few things
 // copied.
@@ -45,8 +46,7 @@ class ASH_EXPORT ClipboardHistoryMenuModelAdapter
       ClipboardHistoryController::OnMenuClosingCallback
           on_menu_closing_callback,
       base::RepeatingClosure menu_closed_callback,
-      const ClipboardHistory* clipboard_history,
-      const ClipboardHistoryResourceManager* resource_manager);
+      const ClipboardHistory* clipboard_history);
 
   ClipboardHistoryMenuModelAdapter(const ClipboardHistoryMenuModelAdapter&) =
       delete;
@@ -54,10 +54,14 @@ class ASH_EXPORT ClipboardHistoryMenuModelAdapter
       const ClipboardHistoryMenuModelAdapter&) = delete;
   ~ClipboardHistoryMenuModelAdapter() override;
 
-  // Shows the menu anchored at `anchor_rect`, `source_type` indicates how the
-  // menu is triggered.
+  // Shows the menu anchored at `anchor_rect`. `source_type` and `show_source`
+  // indicate how the menu was triggered. `menu_last_time_shown` and
+  // `nudge_last_time_shown` indicate when the menu or any nudge was last shown.
   void Run(const gfx::Rect& anchor_rect,
-           ui::MenuSourceType source_type);
+           ui::mojom::MenuSourceType source_type,
+           crosapi::mojom::ClipboardHistoryControllerShowSource show_source,
+           const std::optional<base::Time>& menu_last_time_shown,
+           const std::optional<base::Time>& nudge_last_time_shown);
 
   // Returns if the menu is currently running.
   bool IsRunning() const;
@@ -66,9 +70,14 @@ class ASH_EXPORT ClipboardHistoryMenuModelAdapter
   // history item will be pasted after the menu is closed.
   void Cancel(bool will_paste_item);
 
+  // Returns the command of the menu's first clipboard history item. This
+  // differs from `clipboard_history_util::kFirstItemCommandId` when the menu's
+  // first item has been removed. If the menu is empty, the result is absent.
+  std::optional<int> GetFirstMenuItemCommand();
+
   // Returns the command of the currently selected menu item. If no menu item is
-  // currently selected, returns |absl::nullopt|.
-  absl::optional<int> GetSelectedMenuItemCommand() const;
+  // currently selected, returns |std::nullopt|.
+  std::optional<int> GetSelectedMenuItemCommand() const;
 
   // Returns the item mapped by `command_id` in `item_snapshots_`.
   const ClipboardHistoryItem& GetItemFromCommandId(int command_id) const;
@@ -97,17 +106,19 @@ class ASH_EXPORT ClipboardHistoryMenuModelAdapter
   const views::MenuItemView* GetMenuItemViewAtForTest(size_t index) const;
   views::MenuItemView* GetMenuItemViewAtForTest(size_t index);
 
+  const ui::SimpleMenuModel* GetModelForTest() const;
+
  private:
   class MenuModelWithWillCloseCallback;
   class ScopedA11yIgnore;
 
-  using ItemViewsByCommandId = std::map<int, ClipboardHistoryItemView*>;
+  using ItemViewsByCommandId =
+      std::map<int, raw_ptr<ClipboardHistoryItemView, CtnExperimental>>;
 
   ClipboardHistoryMenuModelAdapter(
       std::unique_ptr<MenuModelWithWillCloseCallback> model,
       base::RepeatingClosure menu_closed_callback,
-      const ClipboardHistory* clipboard_history,
-      const ClipboardHistoryResourceManager* resource_manager);
+      const ClipboardHistory* clipboard_history);
 
   // Advances the pseduo focus from the selected history item view (backward if
   // `reverse` is true).
@@ -128,15 +139,20 @@ class ASH_EXPORT ClipboardHistoryMenuModelAdapter
 
   // The model which holds the contents of the menu.
   std::unique_ptr<MenuModelWithWillCloseCallback> const model_;
-  // The root MenuItemView which contains all child MenuItemViews. Owned by
-  // |menu_runner_|.
-  raw_ptr<views::MenuItemView, DanglingUntriaged | ExperimentalAsh> root_view_ =
-      nullptr;
-  // Responsible for showing |root_view_|.
+
+  // Responsible for showing `root_view_`.
   std::unique_ptr<views::MenuRunner> menu_runner_;
+
+  // The root MenuItemView which contains all child MenuItemViews. Owned by
+  // `menu_runner_`.
+  raw_ptr<views::MenuItemView> root_view_ = nullptr;
 
   // The timestamp taken when the menu is opened. Used in metrics.
   base::TimeTicks menu_open_time_;
+
+  // The source which opened the menu, absent until the menu is `Run()`.
+  std::optional<crosapi::mojom::ClipboardHistoryControllerShowSource>
+      menu_show_source_;
 
   // The mapping between the command ids and items that are copied from
   // `clipboard_history_` when the menu is created. It is used to solve the
@@ -150,16 +166,17 @@ class ASH_EXPORT ClipboardHistoryMenuModelAdapter
   // It updates synchronously when a item is removed.
   ItemViewsByCommandId item_views_by_command_id_;
 
-  const raw_ptr<const ClipboardHistory, ExperimentalAsh> clipboard_history_;
-
-  // Resource manager used to fetch image models. Owned by
-  // ClipboardHistoryController.
-  const raw_ptr<const ClipboardHistoryResourceManager, ExperimentalAsh>
-      resource_manager_;
+  const raw_ptr<const ClipboardHistory> clipboard_history_;
 
   // Indicates the number of item deletion operations in progress. Note that
   // a `ClipboardHistoryItemView` instance is deleted asynchronously.
   int item_deletion_in_progress_count_ = 0;
+
+  // The index of the clipboard history menu header, if it exists.
+  std::optional<size_t> header_index_;
+
+  // The index of the clipboard history menu footer, if it exists.
+  std::optional<size_t> footer_index_;
 
   std::unique_ptr<ScopedA11yIgnore> scoped_ignore_;
 

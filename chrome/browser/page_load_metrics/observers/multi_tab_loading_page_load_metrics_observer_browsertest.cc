@@ -18,8 +18,8 @@
 
 class MultiTabLoadingPageLoadMetricsBrowserTest : public InProcessBrowserTest {
  public:
-  MultiTabLoadingPageLoadMetricsBrowserTest() {}
-  ~MultiTabLoadingPageLoadMetricsBrowserTest() override {}
+  MultiTabLoadingPageLoadMetricsBrowserTest() = default;
+  ~MultiTabLoadingPageLoadMetricsBrowserTest() override = default;
 
  protected:
   GURL GetTestURL() { return embedded_test_server()->GetURL("/simple.html"); }
@@ -27,7 +27,7 @@ class MultiTabLoadingPageLoadMetricsBrowserTest : public InProcessBrowserTest {
   void NavigateToURLWithoutWaiting(GURL url) {
     ui_test_utils::NavigateToURLWithDisposition(
         browser(), url, WindowOpenDisposition::CURRENT_TAB,
-        ui_test_utils::BROWSER_TEST_NONE);
+        ui_test_utils::BROWSER_TEST_NO_WAIT);
   }
 
   void SetUpOnMainThread() override {
@@ -57,7 +57,7 @@ IN_PROC_BROWSER_TEST_F(MultiTabLoadingPageLoadMetricsBrowserTest, SingleTab) {
       0);
 }
 
-// TODO(crbug.com/1310328): Test is flaky on Linux, lacros, Chrome OS, Mac.
+// TODO(crbug.com/40830313): Test is flaky on Linux, Chrome OS, Mac.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
 #define MAYBE_MultiTabForeground DISABLED_MultiTabForeground
 #else
@@ -101,7 +101,9 @@ IN_PROC_BROWSER_TEST_F(MultiTabLoadingPageLoadMetricsBrowserTest,
   TabStripModel* tab_strip_model = browser()->tab_strip_model();
   content::WebContentsDestroyedWatcher destroyed_watcher(
       tab_strip_model->GetWebContentsAt(0));
-  EXPECT_TRUE(tab_strip_model->CloseWebContentsAt(0, 0));
+  int previous_tab_count = tab_strip_model->count();
+  tab_strip_model->CloseWebContentsAt(0, 0);
+  EXPECT_EQ(previous_tab_count - 1, tab_strip_model->count());
   destroyed_watcher.Wait();
   // Now the background tab should have moved to the foreground.
 

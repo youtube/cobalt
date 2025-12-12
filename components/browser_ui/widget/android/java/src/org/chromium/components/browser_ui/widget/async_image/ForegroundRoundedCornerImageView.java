@@ -12,11 +12,14 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.ImageView;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.browser_ui.widget.R;
 import org.chromium.components.browser_ui.widget.RoundedCornerImageView;
 import org.chromium.ui.UiUtils;
 
 /** Helper class that adds foreground drawable support to {@code RoundedCornerImageView}. */
+@NullMarked
 public class ForegroundRoundedCornerImageView extends RoundedCornerImageView {
     private final ForegroundDrawableCompat mForegroundHelper;
 
@@ -31,29 +34,35 @@ public class ForegroundRoundedCornerImageView extends RoundedCornerImageView {
     }
 
     /** Creates an {@link ForegroundRoundedCornerImageView instance. */
-    public ForegroundRoundedCornerImageView(Context context, AttributeSet attrs, int defStyle) {
+    public ForegroundRoundedCornerImageView(
+            Context context, @Nullable AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
 
         mForegroundHelper = new ForegroundDrawableCompat(this);
 
-        TypedArray types = attrs == null
-                ? null
-                : context.obtainStyledAttributes(
-                        attrs, R.styleable.ForegroundRoundedCornerImageView, 0, 0);
+        TypedArray types =
+                attrs == null
+                        ? null
+                        : context.obtainStyledAttributes(
+                                attrs, R.styleable.ForegroundRoundedCornerImageView, 0, 0);
 
-        mForegroundHelper.setDrawable(AutoAnimatorDrawable.wrap(UiUtils.getDrawable(
-                context, types, R.styleable.ForegroundRoundedCornerImageView_foregroundCompat)));
+        mForegroundHelper.setDrawable(
+                AutoAnimatorDrawable.wrap(
+                        UiUtils.getDrawable(
+                                context,
+                                types,
+                                R.styleable.ForegroundRoundedCornerImageView_foregroundCompat)));
 
         if (types != null) types.recycle();
     }
 
     /** Sets the foreground drawable of this {@link View} to {@code drawable}. */
-    public void setForegroundDrawableCompat(Drawable drawable) {
+    public void setForegroundDrawableCompat(@Nullable Drawable drawable) {
         mForegroundHelper.setDrawable(drawable);
     }
 
     /** @return The current foreground {@link Drawable}. */
-    public Drawable getForegroundDrawableCompat() {
+    public @Nullable Drawable getForegroundDrawableCompat() {
         return mForegroundHelper.getDrawable();
     }
 

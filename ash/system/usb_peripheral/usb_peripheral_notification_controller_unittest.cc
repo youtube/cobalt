@@ -25,7 +25,8 @@ const char kUsbPeripheralInvalidTBTCableNotificationId[] =
     "cros_usb_peripheral_invalid_tbt_cable_notification_id";
 const char kUsbPeripheralSpeedLimitingCableNotificationId[] =
     "cros_usb_peripheral_speed_limiting_cable_notification_id";
-
+const char kUsbPeripheralDeviceOrEndpointLimitNotificationId[] =
+    "cros_usb_peripheral_device_or_endpoint_limit_notification_id";
 }  // namespace
 
 class UsbPeripheralNotificationControllerTest : public AshTestBase {
@@ -122,6 +123,22 @@ TEST_F(UsbPeripheralNotificationControllerTest,
 }
 
 TEST_F(UsbPeripheralNotificationControllerTest,
+       UsbDeviceOrEndpointLimitNotification) {
+  EXPECT_EQ(MessageCenter::Get()->NotificationCount(), 0u);
+  controller()->OnUsbDeviceOrEndpointLimit();
+  EXPECT_EQ(MessageCenter::Get()->NotificationCount(), 1u);
+
+  message_center::Notification* notification =
+      MessageCenter::Get()->FindVisibleNotificationById(
+          kUsbPeripheralDeviceOrEndpointLimitNotificationId);
+  ASSERT_TRUE(notification);
+
+  EXPECT_EQ(notification->buttons().size(), 0u);
+  controller()->OnUsbDeviceOrEndpointLimit();
+  EXPECT_EQ(MessageCenter::Get()->NotificationCount(), 1u);
+}
+
+TEST_F(UsbPeripheralNotificationControllerTest,
        SpeedLimitingCableNotificationWithClick) {
   EXPECT_EQ(MessageCenter::Get()->NotificationCount(), 0u);
   controller()->OnSpeedLimitingCableWarning();
@@ -133,7 +150,7 @@ TEST_F(UsbPeripheralNotificationControllerTest,
   ASSERT_TRUE(notification);
 
   // Click the notification to close it.
-  notification->delegate()->Click(absl::nullopt, absl::nullopt);
+  notification->delegate()->Click(std::nullopt, std::nullopt);
 
   // Resend the notification, but expect it not to show after being clicked.
   EXPECT_EQ(MessageCenter::Get()->NotificationCount(), 0u);

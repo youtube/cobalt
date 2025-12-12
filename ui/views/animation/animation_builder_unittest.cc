@@ -5,13 +5,13 @@
 #include "ui/views/animation/animation_builder.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/test/gtest_util.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/layer_animator.h"
 #include "ui/compositor/layer_owner.h"
@@ -91,8 +91,9 @@ class AnimationBuilderTest : public testing::Test {
     animator_controllers_.clear();
     AnimationBuilder::SetObserverDeletedCallbackForTesting(
         base::NullCallback());
-    if (expected_observers_deleted_)
+    if (expected_observers_deleted_) {
       EXPECT_EQ(expected_observers_deleted_.value(), deleted_observers_);
+    }
   }
 
   // Call this function to also ensure any implicitly created observers have
@@ -107,7 +108,7 @@ class AnimationBuilderTest : public testing::Test {
   std::vector<std::unique_ptr<ui::LayerAnimatorTestController>>
       animator_controllers_;
   base::TimeDelta elapsed_;
-  absl::optional<int> expected_observers_deleted_;
+  std::optional<int> expected_observers_deleted_;
   int deleted_observers_ = 0;
 };
 

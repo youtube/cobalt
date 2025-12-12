@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/audio/pulse/audio_manager_pulse.h"
 
 #include <algorithm>
@@ -11,9 +16,10 @@
 #include "base/environment.h"
 #include "base/logging.h"
 #include "base/nix/xdg_util.h"
-#include "build/chromeos_buildflags.h"
+#include "build/build_config.h"
 #include "media/audio/audio_device_description.h"
 #include "media/audio/pulse/pulse_input.h"
+#include "media/audio/pulse/pulse_loopback_manager.h"
 #include "media/audio/pulse/pulse_output.h"
 #include "media/audio/pulse/pulse_util.h"
 #include "media/base/audio_parameters.h"
@@ -133,7 +139,7 @@ AudioParameters AudioManagerPulse::GetInputStreamParameters(
                          buffer_size);
 }
 
-const char* AudioManagerPulse::GetName() {
+const std::string_view AudioManagerPulse::GetName() {
   return "PulseAudio";
 }
 
@@ -190,7 +196,7 @@ std::string AudioManagerPulse::GetDefaultOutputDeviceID() {
 
 std::string AudioManagerPulse::GetAssociatedOutputDeviceID(
     const std::string& input_device_id) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   return AudioManagerBase::GetAssociatedOutputDeviceID(input_device_id);
 #else
   DCHECK(AudioManager::Get()->GetTaskRunner()->BelongsToCurrentThread());
@@ -257,6 +263,26 @@ AudioInputStream* AudioManagerPulse::MakeInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     LogCallback log_callback) {
+  if (AudioDeviceDescription::IsLoopbackDevice(device_id)) {
+    // We need a loopback manager if we are opening a loopback device.
+    if (!loopback_manager_) {
+      // Unretained is safe as `this` outlives `loopback_manager_` and all
+      // streams. See ~AudioManagerBase.
+      loopback_manager_ = PulseLoopbackManager::Create(
+          base::BindRepeating(&AudioManagerBase::ReleaseInputStream,
+                              base::Unretained(this)),
+          input_context_, input_mainloop_);
+    }
+    bool should_mute_system_audio =
+        (device_id == AudioDeviceDescription::kLoopbackWithMuteDeviceId);
+    if (loopback_manager_) {
+      return loopback_manager_->MakeLoopbackStream(
+          params, std::move(log_callback), should_mute_system_audio);
+    }
+
+    return nullptr;
+  }
+
   return new PulseAudioInputStream(this, device_id, params, input_mainloop_,
                                    input_context_, std::move(log_callback));
 }

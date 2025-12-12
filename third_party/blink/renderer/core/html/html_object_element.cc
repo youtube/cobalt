@@ -35,6 +35,7 @@
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/local_frame_client.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
+#include "third_party/blink/renderer/core/html/html_embed_element.h"
 #include "third_party/blink/renderer/core/html/html_image_loader.h"
 #include "third_party/blink/renderer/core/html/html_meta_element.h"
 #include "third_party/blink/renderer/core/html/html_param_element.h"
@@ -42,7 +43,6 @@
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_object.h"
 #include "third_party/blink/renderer/platform/network/mime/mime_type_registry.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 
 namespace blink {
 
@@ -82,7 +82,7 @@ bool HTMLObjectElement::IsPresentationAttribute(
 void HTMLObjectElement::CollectStyleForPresentationAttribute(
     const QualifiedName& name,
     const AtomicString& value,
-    MutableCSSPropertyValueSet* style) {
+    HeapVector<CSSPropertyValue, 8>& style) {
   if (name == html_names::kBorderAttr)
     ApplyBorderAttributeToStyle(value, style);
   else
@@ -175,7 +175,6 @@ void HTMLObjectElement::ReloadPluginOnAttributeChange(
     needs_invalidation = true;
   } else {
     NOTREACHED();
-    needs_invalidation = false;
   }
   SetNeedsPluginUpdate(true);
   if (needs_invalidation)
@@ -221,6 +220,7 @@ void HTMLObjectElement::UpdatePluginInternal() {
       GetDocument().GetFrame()->Client()->OverrideFlashEmbedWithHTML(
           GetDocument().CompleteURL(url_));
   if (!overriden_url.IsEmpty()) {
+    UseCounter::Count(GetDocument(), WebFeature::kOverrideFlashEmbedwithHTML);
     url_ = overriden_url.GetString();
     SetServiceType("text/html");
   }
@@ -321,18 +321,12 @@ void HTMLObjectElement::RenderFallbackContent(
     }
   }
 
-  // TODO(dcheng): Detach the content frame here.
+  // To discard the nested browsing context, detach the content frame.
+  DisconnectContentFrame();
+
   UseCounter::Count(GetDocument(), WebFeature::kHTMLObjectElementFallback);
   use_fallback_content_ = true;
   ReattachFallbackContent();
-}
-
-// static
-bool HTMLObjectElement::IsClassOf(const FrameOwner& owner) {
-  auto* owner_element = DynamicTo<HTMLFrameOwnerElement>(owner);
-  if (!owner_element)
-    return false;
-  return IsA<HTMLObjectElement>(owner_element);
 }
 
 bool HTMLObjectElement::IsExposed() const {
@@ -380,6 +374,10 @@ HTMLFormElement* HTMLObjectElement::formOwner() const {
   return ListedElement::Form();
 }
 
+HTMLElement* HTMLObjectElement::formForBinding() const {
+  return ListedElement::RetargetedForm();
+}
+
 bool HTMLObjectElement::UseFallbackContent() const {
   return HTMLPlugInElement::UseFallbackContent() || use_fallback_content_;
 }
@@ -409,23 +407,6 @@ bool HTMLObjectElement::DidFinishLoading() const {
 
 int HTMLObjectElement::DefaultTabIndex() const {
   return 0;
-}
-
-const HTMLObjectElement* ToHTMLObjectElementFromListedElement(
-    const ListedElement* element) {
-  SECURITY_DCHECK(!element || !element->IsFormControlElement());
-  const HTMLObjectElement* object_element =
-      static_cast<const HTMLObjectElement*>(element);
-  // We need to assert after the cast because ListedElement doesn't
-  // have hasTagName.
-  SECURITY_DCHECK(!object_element ||
-                  object_element->HasTagName(html_names::kObjectTag));
-  return object_element;
-}
-
-const HTMLObjectElement& ToHTMLObjectElementFromListedElement(
-    const ListedElement& element) {
-  return *ToHTMLObjectElementFromListedElement(&element);
 }
 
 }  // namespace blink

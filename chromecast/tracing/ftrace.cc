@@ -8,10 +8,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <algorithm>
+#include <string_view>
+
 #include "base/files/file_util.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "chromecast/tracing/system_tracing_common.h"
@@ -70,27 +71,27 @@ const char* const kWorkqEvents[] = {
 void AddCategoryEvents(const std::string& category,
                        std::vector<std::string>* events) {
   if (category == "gfx") {
-    base::ranges::copy(kGfxEvents, std::back_inserter(*events));
+    std::ranges::copy(kGfxEvents, std::back_inserter(*events));
     return;
   }
   if (category == "input") {
-    base::ranges::copy(kInputEvents, std::back_inserter(*events));
+    std::ranges::copy(kInputEvents, std::back_inserter(*events));
     return;
   }
   if (category == TRACE_DISABLED_BY_DEFAULT("irq")) {
-    base::ranges::copy(kIrqEvents, std::back_inserter(*events));
+    std::ranges::copy(kIrqEvents, std::back_inserter(*events));
     return;
   }
   if (category == "power") {
-    base::ranges::copy(kPowerEvents, std::back_inserter(*events));
+    std::ranges::copy(kPowerEvents, std::back_inserter(*events));
     return;
   }
   if (category == "sched") {
-    base::ranges::copy(kSchedEvents, std::back_inserter(*events));
+    std::ranges::copy(kSchedEvents, std::back_inserter(*events));
     return;
   }
   if (category == "workq") {
-    base::ranges::copy(kWorkqEvents, std::back_inserter(*events));
+    std::ranges::copy(kWorkqEvents, std::back_inserter(*events));
     return;
   }
 
@@ -99,7 +100,7 @@ void AddCategoryEvents(const std::string& category,
 
 bool WriteTracingFile(const char* tracing_dir,
                       const char* trace_file,
-                      base::StringPiece contents) {
+                      std::string_view contents) {
   base::FilePath path = base::FilePath(tracing_dir).Append(trace_file);
 
   if (!base::WriteFile(path, contents)) {
@@ -110,7 +111,7 @@ bool WriteTracingFile(const char* tracing_dir,
   return true;
 }
 
-bool EnableTraceEvent(const char* tracing_dir, base::StringPiece event) {
+bool EnableTraceEvent(const char* tracing_dir, std::string_view event) {
   base::FilePath path = base::FilePath(tracing_dir).Append(kTraceFileSetEvent);
 
   // Enabling events returns EINVAL if the event does not exist. It is normal
@@ -132,11 +133,11 @@ const char* FindTracingDir() {
 
 }  // namespace
 
-bool IsValidCategory(base::StringPiece str) {
-  for (size_t i = 0; i < kCategoryCount; ++i) {
-    base::StringPiece category(kCategories[i]);
-    if (category == str)
+bool IsValidCategory(std::string_view str) {
+  for (std::string_view category : kCategories) {
+    if (category == str) {
       return true;
+    }
   }
 
   return false;

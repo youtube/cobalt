@@ -5,7 +5,7 @@
 #ifndef CC_LAYERS_TILE_SIZE_CALCULATOR_H_
 #define CC_LAYERS_TILE_SIZE_CALCULATOR_H_
 
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "cc/cc_export.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -19,7 +19,7 @@ class CC_EXPORT TileSizeCalculator {
  public:
   explicit TileSizeCalculator(PictureLayerImpl* layer_impl);
 
-  gfx::Size CalculateTileSize();
+  gfx::Size CalculateTileSize(gfx::Size content_bounds);
 
  private:
   struct AffectingParams {
@@ -31,16 +31,17 @@ class CC_EXPORT TileSizeCalculator {
     gfx::Size gpu_raster_max_texture_size;
     gfx::Size max_untiled_layer_size;
     gfx::Size default_tile_size;
-    gfx::Size layer_content_bounds;
+    gfx::Size content_bounds;
 
     bool operator==(const AffectingParams& other) const;
   };
 
   PictureLayerImpl* layer_impl() const { return layer_impl_; }
-  AffectingParams GetAffectingParams();
-  bool IsAffectingParamsChanged();
+  AffectingParams GetAffectingParams(gfx::Size content_bounds) const;
+  bool UpdateAffectingParams(gfx::Size content_bounds);
 
-  raw_ptr<PictureLayerImpl> layer_impl_;
+  // RAW_PTR_EXCLUSION: Performance reasons (based on analysis of speedometer3).
+  RAW_PTR_EXCLUSION PictureLayerImpl* layer_impl_ = nullptr;
   const bool is_using_raw_draw_;
   const double raw_draw_tile_size_factor_;
 

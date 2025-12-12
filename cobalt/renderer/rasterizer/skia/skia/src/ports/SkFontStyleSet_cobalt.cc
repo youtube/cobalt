@@ -147,8 +147,8 @@ SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
   // to 4 axes, and although OpenType font variations may have more, they tend
   // not to -- it's usually just weight, width, and slant. But just in case,
   // use a relatively high reservation.
-  computed_variation_position.reserve_back(16);
-  axis_definitions.reserve_back(16);
+  computed_variation_position.reserve(16);
+  axis_definitions.reserve(16);
 
   for (int i = 0; i < family_info.fonts.size(); ++i) {
     const FontFileInfo& font_file = family_info.fonts[i];

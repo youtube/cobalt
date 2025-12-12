@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/accessibility/platform/inspect/ax_inspect_utils_win.h"
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
 
-#include <uiautomation.h>
+#include "ui/accessibility/platform/inspect/ax_inspect_utils_win.h"
 
 #include <map>
 #include <string>
 
+#include "base/containers/heap_array.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/strings/pattern.h"
@@ -18,6 +22,8 @@
 #include "base/win/scoped_bstr.h"
 #include "third_party/iaccessible2/ia2_api_all.h"
 #include "ui/accessibility/platform/inspect/ax_inspect.h"
+
+#include <uiautomation.h>
 
 namespace ui {
 namespace {
@@ -726,7 +732,7 @@ BOOL CALLBACK MatchWindow(HWND hwnd, LPARAM lParam) {
     title.erase(actual_length);
 
   auto* info = reinterpret_cast<HWNDSearchInfo*>(lParam);
-  if (base::EndsWith(title, info->title) &&
+  if (title.ends_with(info->title) &&
       (info->pattern.empty() ||
        base::MatchPattern(base::AsStringPiece16(title),
                           base::AsStringPiece16(info->pattern)))) {
@@ -805,7 +811,7 @@ std::string RoleVariantToString(const base::win::ScopedVariant& role) {
 }
 
 COMPONENT_EXPORT(AX_PLATFORM)
-absl::optional<std::string> GetIAccessible2Attribute(
+std::optional<std::string> GetIAccessible2Attribute(
     Microsoft::WRL::ComPtr<IAccessible2> element,
     std::string attribute) {
   base::win::ScopedBstr bstr;
@@ -825,7 +831,7 @@ absl::optional<std::string> GetIAccessible2Attribute(
         return ia2_attribute[1];
     }
   }
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 COMPONENT_EXPORT(AX_PLATFORM)
@@ -834,7 +840,7 @@ std::string GetDOMId(Microsoft::WRL::ComPtr<IAccessible> element) {
   if (S_OK != IA2QueryInterface<IAccessible2>(element.Get(), &ia2))
     return "";
 
-  absl::optional<std::string> id = GetIAccessible2Attribute(ia2, "id");
+  std::optional<std::string> id = GetIAccessible2Attribute(ia2, "id");
   if (id) {
     return *id;
   }
@@ -845,7 +851,7 @@ COMPONENT_EXPORT(AX_PLATFORM)
 std::vector<Microsoft::WRL::ComPtr<IAccessible>> IAccessibleChildrenOf(
     Microsoft::WRL::ComPtr<IAccessible> parent) {
   auto children = std::vector<Microsoft::WRL::ComPtr<IAccessible>>();
-  for (const ui::MSAAChild& msaa_child : ui::MSAAChildren(parent)) {
+  for (const MSAAChild& msaa_child : MSAAChildren(parent)) {
     Microsoft::WRL::ComPtr<IAccessible> child = msaa_child.AsIAccessible();
     if (child) {
       children.emplace_back(child);
@@ -880,8 +886,8 @@ MSAAChildren::MSAAChildren(IAccessible* parent) {
   if (FAILED(parent->get_accChildCount(&count_)))
     return;
 
-  std::unique_ptr<VARIANT[]> children_variants(new VARIANT[count_]);
-  if (FAILED(AccessibleChildren(parent, 0, count_, children_variants.get(),
+  auto children_variants = base::HeapArray<VARIANT>::Uninit(count_);
+  if (FAILED(AccessibleChildren(parent, 0, count_, children_variants.data(),
                                 &count_))) {
     count_ = 0;
     return;

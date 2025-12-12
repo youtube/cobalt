@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "extensions/browser/api/web_request/web_request_permissions.h"
+
 #include <stddef.h>
 
 #include <memory>
@@ -14,13 +16,15 @@
 #include "content/public/test/browser_task_environment.h"
 #include "extensions/browser/api/web_request/permission_helper.h"
 #include "extensions/browser/api/web_request/web_request_info.h"
-#include "extensions/browser/api/web_request/web_request_permissions.h"
 #include "extensions/browser/extension_registry.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "ipc/ipc_message.h"
 #include "services/network/public/mojom/fetch_api.mojom-shared.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 using extension_test_util::LoadManifestUnchecked;
 using extensions::Extension;
@@ -149,7 +153,7 @@ TEST_F(ExtensionWebRequestHelpersTestWithThreadsTest,
                 permission_helper_, permissionless_extension_->id(), url,
                 -1,     // No tab id.
                 false,  // crosses_incognito
-                WebRequestPermissions::DO_NOT_CHECK_HOST, absl::nullopt,
+                WebRequestPermissions::DO_NOT_CHECK_HOST, std::nullopt,
                 kWebRequestType));
   EXPECT_EQ(PermissionsData::PageAccess::kDenied,
             WebRequestPermissions::CanExtensionAccessURL(
@@ -157,14 +161,14 @@ TEST_F(ExtensionWebRequestHelpersTestWithThreadsTest,
                 -1,     // No tab id.
                 false,  // crosses_incognito
                 WebRequestPermissions::REQUIRE_HOST_PERMISSION_FOR_URL,
-                absl::nullopt, kWebRequestType));
+                std::nullopt, kWebRequestType));
   EXPECT_EQ(PermissionsData::PageAccess::kAllowed,
             WebRequestPermissions::CanExtensionAccessURL(
                 permission_helper_, com_extension_->id(), url,
                 -1,     // No tab id.
                 false,  // crosses_incognito
                 WebRequestPermissions::REQUIRE_HOST_PERMISSION_FOR_URL,
-                absl::nullopt, kWebRequestType));
+                std::nullopt, kWebRequestType));
   EXPECT_EQ(
       PermissionsData::PageAccess::kAllowed,
       WebRequestPermissions::CanExtensionAccessURL(
@@ -172,16 +176,16 @@ TEST_F(ExtensionWebRequestHelpersTestWithThreadsTest,
           -1,     // No tab id.
           false,  // crosses_incognito
           WebRequestPermissions::REQUIRE_HOST_PERMISSION_FOR_URL_AND_INITIATOR,
-          absl::nullopt, kWebRequestType));
+          std::nullopt, kWebRequestType));
   EXPECT_EQ(PermissionsData::PageAccess::kDenied,
             WebRequestPermissions::CanExtensionAccessURL(
                 permission_helper_, com_extension_->id(), url,
                 -1,     // No tab id.
                 false,  // crosses_incognito
-                WebRequestPermissions::REQUIRE_ALL_URLS, absl::nullopt,
+                WebRequestPermissions::REQUIRE_ALL_URLS, std::nullopt,
                 kWebRequestType));
 
-  absl::optional<url::Origin> initiator(
+  std::optional<url::Origin> initiator(
       url::Origin::Create(GURL("http://www.example.org")));
 
   EXPECT_EQ(PermissionsData::PageAccess::kAllowed,
@@ -240,7 +244,7 @@ TEST_F(ExtensionWebRequestHelpersTestWithThreadsTest,
                 -1,     // No tab id.
                 false,  // crosses_incognito
                 WebRequestPermissions::REQUIRE_HOST_PERMISSION_FOR_URL,
-                absl::nullopt, kWebRequestType));
+                std::nullopt, kWebRequestType));
 
   // Make sure that chrome:// URLs cannot be accessed.
   const GURL chrome_url("chrome://version/");
@@ -250,5 +254,5 @@ TEST_F(ExtensionWebRequestHelpersTestWithThreadsTest,
                 -1,     // No tab id.
                 false,  // crosses_incognito
                 WebRequestPermissions::REQUIRE_HOST_PERMISSION_FOR_URL,
-                absl::nullopt, kWebRequestType));
+                std::nullopt, kWebRequestType));
 }

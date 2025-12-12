@@ -4,36 +4,26 @@
 
 #include "chrome/browser/google/google_brand.h"
 
+#include <algorithm>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/containers/contains.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/no_destructor.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/installer/util/google_update_settings.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_MAC)
-#include "chrome/browser/mac/keystone_glue.h"
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/google/google_brand_chromeos.h"
 #endif
 
-
-// Helpers --------------------------------------------------------------------
-
-namespace {
+namespace google_brand {
 
 const char* g_brand_for_testing = nullptr;
-
-}  // namespace
-
-
-namespace google_brand {
 
 // Global functions -----------------------------------------------------------
 
@@ -48,15 +38,17 @@ bool GetBrand(std::string* brand) {
   // Cache brand code value, since it is queried a lot and registry queries are
   // slow enough to actually affect top-level metrics like
   // Omnibox.CharTypedToRepaintLatency.
-  static const base::NoDestructor<absl::optional<std::string>> brand_code(
-      []() -> absl::optional<std::string> {
+  static const base::NoDestructor<std::optional<std::string>> brand_code(
+      []() -> std::optional<std::string> {
         std::wstring brandw;
-        if (!GoogleUpdateSettings::GetBrand(&brandw))
-          return absl::nullopt;
+        if (!GoogleUpdateSettings::GetBrand(&brandw)) {
+          return std::nullopt;
+        }
         return base::WideToASCII(brandw);
       }());
-  if (!brand_code->has_value())
+  if (!brand_code->has_value()) {
     return false;
+  }
   brand->assign(**brand_code);
   return true;
 }
@@ -64,12 +56,13 @@ bool GetBrand(std::string* brand) {
 bool GetReactivationBrand(std::string* brand) {
   std::wstring brandw;
   bool ret = GoogleUpdateSettings::GetReactivationBrand(&brandw);
-  if (ret)
+  if (ret) {
     brand->assign(base::WideToASCII(brandw));
+  }
   return ret;
 }
 
-#else
+#elif !BUILDFLAG(IS_MAC)
 
 bool GetBrand(std::string* brand) {
   if (g_brand_for_testing) {
@@ -77,9 +70,7 @@ bool GetBrand(std::string* brand) {
     return true;
   }
 
-#if BUILDFLAG(IS_MAC)
-  brand->assign(keystone_glue::BrandCode());
-#elif BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   brand->assign(google_brand::chromeos::GetBrand());
 #else
   brand->clear();
@@ -95,7 +86,7 @@ bool GetReactivationBrand(std::string* brand) {
 #endif
 
 bool GetRlzBrand(std::string* brand) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   brand->assign(google_brand::chromeos::GetRlzBrand());
   return true;
 #else
@@ -112,7 +103,7 @@ bool IsOrganic(const std::string& brand) {
     return true;
   }
 
-  constexpr auto kOrganicBrands = base::MakeFixedFlatSet<base::StringPiece>(
+  constexpr auto kOrganicBrands = base::MakeFixedFlatSet<std::string_view>(
       {"CHCA", "CHCB", "CHCG", "CHCH", "CHCI", "CHCJ", "CHCK", "CHCL", "CHFO",
        "CHFT", "CHHS", "CHHM", "CHMA", "CHMB", "CHME", "CHMF", "CHMG", "CHMH",
        "CHMI", "CHMQ", "CHMV", "CHNB", "CHNC", "CHNG", "CHNH", "CHNI", "CHOA",
@@ -125,8 +116,9 @@ bool IsOrganic(const std::string& brand) {
   }
 
   // The Chrome enterprise brand code is the only GGR* brand to be non-organic.
-  if (brand == "GGRV")
+  if (brand == "GGRV") {
     return false;
+  }
 
   return base::StartsWith(brand, "EUB", base::CompareCase::SENSITIVE) ||
          base::StartsWith(brand, "EUC", base::CompareCase::SENSITIVE) ||
@@ -145,8 +137,8 @@ bool IsOrganicFirstRun(const std::string& brand) {
 
 bool IsInternetCafeBrandCode(const std::string& brand) {
   const char* const kBrands[] = {
-    "CHIQ", "CHSG", "HLJY", "NTMO", "OOBA", "OOBB", "OOBC", "OOBD", "OOBE",
-    "OOBF", "OOBG", "OOBH", "OOBI", "OOBJ", "IDCM",
+      "CHIQ", "CHSG", "HLJY", "NTMO", "OOBA", "OOBB", "OOBC", "OOBD",
+      "OOBE", "OOBF", "OOBG", "OOBH", "OOBI", "OOBJ", "IDCM",
   };
   return base::Contains(kBrands, brand);
 }
@@ -158,10 +150,12 @@ bool IsEnterprise(const std::string& brand) {
   }
   const char* const kEnterpriseBrands[] = {
       "GCE", "GCF", "GCG", "GCH",  // CBE brands codes.
-      "GCC", "GCK", "GCL", "GCM"   // CBE+CBCM brand codes.
+      "GCO", "GCP", "GCQ", "GCS",
+      "GCC", "GCK", "GCL", "GCM",  // CBE+CBCM brand codes.
+      "GCT", "GCU", "GCV", "GCW",
   };
   return brand == "GGRV" ||
-         base::ranges::any_of(kEnterpriseBrands, [&brand](const char* br) {
+         std::ranges::any_of(kEnterpriseBrands, [&brand](const char* br) {
            return base::StartsWith(brand, br, base::CompareCase::SENSITIVE);
          });
 }
@@ -176,6 +170,5 @@ BrandForTesting::BrandForTesting(const std::string& brand) : brand_(brand) {
 BrandForTesting::~BrandForTesting() {
   g_brand_for_testing = nullptr;
 }
-
 
 }  // namespace google_brand

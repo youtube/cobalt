@@ -9,28 +9,16 @@
 
 #include "base/base_export.h"
 #include "base/files/file_path.h"
+#include "build/ios_buildflags.h"
 
 namespace base {
 namespace ios {
 
-// Returns whether the operating system is iOS 12 or later.
-// TODO(crbug.com/1129482): Remove once minimum supported version is at least 12
-BASE_EXPORT bool IsRunningOnIOS12OrLater();
-
-// Returns whether the operating system is iOS 13 or later.
-// TODO(crbug.com/1129483): Remove once minimum supported version is at least 13
-BASE_EXPORT bool IsRunningOnIOS13OrLater();
-
-// Returns whether the operating system is iOS 14 or later.
-// TODO(crbug.com/1129484): Remove once minimum supported version is at least 14
-BASE_EXPORT bool IsRunningOnIOS14OrLater();
-
-// Returns whether the operating system is iOS 15 or later.
-// TODO(crbug.com/1227419): Remove once minimum supported version is at least 15
-BASE_EXPORT bool IsRunningOnIOS15OrLater();
-
 // Returns whether the operating system is iOS 16 or later.
 BASE_EXPORT bool IsRunningOnIOS16OrLater();
+
+// Returns whether the operating system is iOS 17 or later.
+BASE_EXPORT bool IsRunningOnIOS17OrLater();
 
 // Returns whether the operating system is at the given version or later.
 BASE_EXPORT bool IsRunningOnOrLater(int32_t major,
@@ -52,18 +40,16 @@ BASE_EXPORT void OverridePathOfEmbeddedICU(const char* path);
 // returns invalid FilePath.
 BASE_EXPORT FilePath FilePathOfEmbeddedICU();
 
+#if !BUILDFLAG(IS_IOS_APP_EXTENSION)
 // Returns true iff multiple windows can be opened, i.e. when the multiwindow
 // build flag is on, the device is running on iOS 13+ and it's a compatible
 // iPad.
 BASE_EXPORT bool IsMultipleScenesSupported();
+#endif
 
 // iOS 15 introduced pre-warming, which launches and then pauses the app, to
 // speed up actual launch time.
 BASE_EXPORT bool IsApplicationPreWarmed();
-
-// The iPhone 14 Pro and Pro Max introduced a dynamic island. This should only
-// be called when working around UIKit bugs.
-BASE_EXPORT bool HasDynamicIsland();
 
 }  // namespace ios
 }  // namespace base

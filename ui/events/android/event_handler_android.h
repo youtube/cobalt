@@ -5,8 +5,9 @@
 #ifndef UI_EVENTS_ANDROID_EVENT_HANDLER_ANDROID_H_
 #define UI_EVENTS_ANDROID_EVENT_HANDLER_ANDROID_H_
 
+#include <optional>
+
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/events_export.h"
 
 namespace gfx {
@@ -35,9 +36,12 @@ class EVENTS_EXPORT EventHandlerAndroid {
   virtual bool OnGestureEvent(const GestureEventAndroid& event);
   virtual void OnSizeChanged();
   virtual void OnPhysicalBackingSizeChanged(
-      absl::optional<base::TimeDelta> deadline_override);
+      std::optional<base::TimeDelta> deadline_override);
   virtual void OnBrowserControlsHeightChanged();
   virtual void OnControlsResizeViewChanged();
+  // OnPointerLockRelease is only called on the view requesting pointer lock,
+  // not the entire view tree
+  virtual void OnPointerLockRelease();
 
   virtual bool OnGenericMotionEvent(const MotionEventAndroid& event);
   virtual bool OnKeyUp(const KeyEventAndroid& event);
@@ -45,6 +49,8 @@ class EVENTS_EXPORT EventHandlerAndroid {
   virtual bool ScrollBy(float delta_x, float delta_y);
   virtual bool ScrollTo(float x, float y);
   virtual void NotifyVirtualKeyboardOverlayRect(const gfx::Rect& keyboard_rect);
+  virtual void NotifyContextMenuInsetsObservers(const gfx::Rect&);
+  virtual void ShowInterestInElement(int);
 };
 
 }  // namespace ui

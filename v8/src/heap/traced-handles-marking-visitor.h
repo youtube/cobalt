@@ -8,7 +8,6 @@
 #include "src/handles/traced-handles.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/heap.h"
-#include "src/heap/mark-compact.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +33,7 @@ class ConservativeTracedHandlesMarkingVisitor final
   const TracedHandles::MarkMode mark_mode_;
 };
 
-#endif  // V8_HEAP_TRACED_HANDLES_MARKING_VISITOR_H_
-
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_HEAP_TRACED_HANDLES_MARKING_VISITOR_H_

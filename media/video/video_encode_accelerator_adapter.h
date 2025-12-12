@@ -6,6 +6,7 @@
 #define MEDIA_VIDEO_VIDEO_ENCODE_ACCELERATOR_ADAPTER_H_
 
 #include <memory>
+#include <optional>
 
 #include "base/containers/circular_deque.h"
 #include "base/containers/queue.h"
@@ -18,8 +19,9 @@
 #include "base/time/time.h"
 #include "media/base/media_export.h"
 #include "media/base/video_encoder.h"
+#include "media/base/video_frame_converter.h"
+#include "media/media_buildflags.h"
 #include "media/video/video_encode_accelerator.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/size.h"
 
@@ -92,10 +94,10 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
   class ReadOnlyRegionPool;
   enum class State {
     kNotInitialized,
-    kWaitingForFirstFrame,
     kInitializing,
     kReadyToEncode,
-    kFlushing
+    kFlushing,
+    kReconfiguring
   };
   struct PendingOp {
     PendingOp();
@@ -113,9 +115,8 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
                                      EncoderInfoCB info_cb,
                                      OutputCB output_cb,
                                      EncoderStatusCB done_cb);
-  void InitializeInternalOnAcceleratorThread();
   void EncodeOnAcceleratorThread(scoped_refptr<VideoFrame> frame,
-                                 const EncodeOptions& encode_options,
+                                 EncodeOptions encode_options,
                                  EncoderStatusCB done_cb);
   void FlushOnAcceleratorThread(EncoderStatusCB done_cb);
   void ChangeOptionsOnAcceleratorThread(const Options options,
@@ -159,7 +160,8 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
   // Color space associated w/ the last frame sent to accelerator for encoding.
   gfx::ColorSpace last_frame_color_space_;
 
-  std::unique_ptr<PendingOp> pending_flush_;
+  EncoderStatusCB pending_flush_callback_;
+  EncoderStatusCB pending_initialize_callback_;
 
   // For calling accelerator_ methods
   scoped_refptr<base::SequencedTaskRunner> accelerator_task_runner_;
@@ -168,8 +170,9 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
   // For calling user provided callbacks
   scoped_refptr<base::SequencedTaskRunner> callback_task_runner_;
 
-  State state_ = State::kNotInitialized;
-  absl::optional<bool> flush_support_;
+  State state_ GUARDED_BY_CONTEXT(accelerator_sequence_checker_) =
+      State::kNotInitialized;
+  std::optional<bool> flush_support_;
 
   // True if underlying instance of VEA can handle GPU backed frames with a
   // size different from what VEA was configured for.
@@ -178,21 +181,24 @@ class MEDIA_EXPORT VideoEncodeAcceleratorAdapter
   // These are encodes that have not been sent to the accelerator.
   std::vector<std::unique_ptr<PendingEncode>> pending_encodes_;
 
-  VideoPixelFormat format_;
   InputBufferKind input_buffer_preference_ = InputBufferKind::Any;
-  std::vector<uint8_t> resize_buf_;
+  VideoFrameConverter frame_converter_;
 
   VideoCodecProfile profile_ = VIDEO_CODEC_PROFILE_UNKNOWN;
   VideoEncodeAccelerator::SupportedRateControlMode supported_rc_modes_ =
       VideoEncodeAccelerator::kNoMode;
+  std::vector<VideoPixelFormat> gpu_supported_pixel_formats_;
   Options options_;
   EncoderInfoCB info_cb_;
   OutputCB output_cb_;
+  EncoderStatusCB reconfigure_cb_;
 
   gfx::Size input_coded_size_;
 
   VideoEncodeAccelerator::Config::EncoderType required_encoder_type_ =
       VideoEncodeAccelerator::Config::EncoderType::kHardware;
+  bool supports_frame_size_change_ = false;
+  bool supports_gpu_shared_images_ = false;
 };
 
 }  // namespace media

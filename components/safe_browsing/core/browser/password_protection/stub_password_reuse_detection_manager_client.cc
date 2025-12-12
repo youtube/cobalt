@@ -10,7 +10,8 @@ StubPasswordReuseDetectionManagerClient::
 StubPasswordReuseDetectionManagerClient::
     ~StubPasswordReuseDetectionManagerClient() = default;
 
-autofill::LogManager* StubPasswordReuseDetectionManagerClient::GetLogManager() {
+autofill::LogManager*
+StubPasswordReuseDetectionManagerClient::GetCurrentLogManager() {
   return &log_manager_;
 }
 
@@ -28,7 +29,7 @@ StubPasswordReuseDetectionManagerClient::GetPasswordReuseManager() const {
   return nullptr;
 }
 
-bool StubPasswordReuseDetectionManagerClient::IsSyncAccountEmail(
+bool StubPasswordReuseDetectionManagerClient::IsHistorySyncAccountEmail(
     const std::string& username) {
   return false;
 }

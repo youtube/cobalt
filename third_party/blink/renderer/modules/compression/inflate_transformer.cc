@@ -8,7 +8,10 @@
 #include <cstring>
 #include <limits>
 
+#include "base/compiler_specific.h"
+#include "base/trace_event/typed_macros.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_typedefs.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_arraybuffer_arraybufferview.h"
@@ -19,7 +22,6 @@
 #include "third_party/blink/renderer/modules/compression/compression_format.h"
 #include "third_party/blink/renderer/modules/compression/zlib_partition_alloc.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/bindings/to_v8.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "v8/include/v8.h"
@@ -29,7 +31,7 @@ namespace blink {
 InflateTransformer::InflateTransformer(ScriptState* script_state,
                                        CompressionFormat format)
     : script_state_(script_state), out_buffer_(kBufferSize) {
-  memset(&stream_, 0, sizeof(z_stream));
+  UNSAFE_TODO(memset(&stream_, 0, sizeof(z_stream)));
   ZlibPartitionAlloc::Configure(&stream_);
   constexpr int kWindowBits = 15;
   constexpr int kUseGzip = 16;
@@ -54,27 +56,27 @@ InflateTransformer::~InflateTransformer() {
   }
 }
 
-ScriptPromise InflateTransformer::Transform(
+ScriptPromise<IDLUndefined> InflateTransformer::Transform(
     v8::Local<v8::Value> chunk,
     TransformStreamDefaultController* controller,
     ExceptionState& exception_state) {
   auto* buffer_source = V8BufferSource::Create(script_state_->GetIsolate(),
                                                chunk, exception_state);
   if (exception_state.HadException())
-    return ScriptPromise();
+    return EmptyPromise();
   DOMArrayPiece array_piece(buffer_source);
   if (array_piece.ByteLength() > std::numeric_limits<wtf_size_t>::max()) {
     exception_state.ThrowRangeError(
         "Buffer size exceeds maximum heap object size.");
-    return ScriptPromise();
+    return EmptyPromise();
   }
   Inflate(array_piece.Bytes(),
           static_cast<wtf_size_t>(array_piece.ByteLength()), IsFinished(false),
           controller, exception_state);
-  return ScriptPromise::CastUndefined(script_state_);
+  return ToResolvedUndefinedPromise(script_state_.Get());
 }
 
-ScriptPromise InflateTransformer::Flush(
+ScriptPromise<IDLUndefined> InflateTransformer::Flush(
     TransformStreamDefaultController* controller,
     ExceptionState& exception_state) {
   DCHECK(!was_flush_called_);
@@ -84,14 +86,14 @@ ScriptPromise InflateTransformer::Flush(
   out_buffer_.clear();
 
   if (exception_state.HadException()) {
-    return ScriptPromise();
+    return EmptyPromise();
   }
 
   if (!reached_end_) {
     exception_state.ThrowTypeError("Compressed input was truncated.");
   }
 
-  return ScriptPromise::CastUndefined(script_state_);
+  return ToResolvedUndefinedPromise(script_state_.Get());
 }
 
 void InflateTransformer::Inflate(const uint8_t* start,
@@ -99,6 +101,7 @@ void InflateTransformer::Inflate(const uint8_t* start,
                                  IsFinished finished,
                                  TransformStreamDefaultController* controller,
                                  ExceptionState& exception_state) {
+  TRACE_EVENT("blink,devtools.timeline", "DecompressionStream Inflate");
   if (reached_end_ && length != 0) {
     // zlib will ignore data after the end of the stream, so we have to
     // explicitly throw an error.
@@ -137,7 +140,8 @@ void InflateTransformer::Inflate(const uint8_t* start,
 
     wtf_size_t bytes = out_buffer_.size() - stream_.avail_out;
     if (bytes) {
-      buffers.push_back(DOMUint8Array::Create(out_buffer_.data(), bytes));
+      buffers.push_back(
+          DOMUint8Array::Create(base::span(out_buffer_).first(bytes)));
     }
 
     if (err == Z_STREAM_END) {

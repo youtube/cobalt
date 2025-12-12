@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "base/observer_list.h"
-#include "chromeos/dbus/common/dbus_method_call_status.h"
+#include "chromeos/dbus/common/dbus_callback.h"
 #include "dbus/property.h"
 #include "third_party/cros_system_api/dbus/hermes/dbus-constants.h"
 
@@ -28,7 +28,7 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesManagerClient {
     // Adds a new Euicc object with given path and properties.
     virtual void AddEuicc(const dbus::ObjectPath& path,
                           const std::string& eid,
-                          bool is_actve,
+                          bool is_active,
                           uint32_t physical_slot) = 0;
 
     // Clears all Euicc objects and associated profiles.
@@ -42,6 +42,9 @@ class COMPONENT_EXPORT(HERMES_CLIENT) HermesManagerClient {
 
     // Called when a new Euicc objects are added or removed.
     virtual void OnAvailableEuiccListChanged() {}
+
+    // Called when the Hermes clients are being shut down.
+    virtual void OnShutdown() {}
   };
 
   // Adds an observer for carrier profile lists changes on Hermes manager.

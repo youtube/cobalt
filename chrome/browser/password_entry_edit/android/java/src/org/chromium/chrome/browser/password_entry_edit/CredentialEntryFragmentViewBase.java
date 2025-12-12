@@ -11,32 +11,32 @@ import android.view.MenuItem;
 
 import androidx.preference.PreferenceFragmentCompat;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.components.browser_ui.settings.EmbeddableSettingsPage;
+
 /**
  * Base structure to be shared by fragments displaying: saved credentials to be edited, saved
  * federated credentials and sites blocklisted for saving by the user.
  */
-public abstract class CredentialEntryFragmentViewBase extends PreferenceFragmentCompat {
-    ComponentStateDelegate mComponentStateDelegate;
-    UiActionHandler mUiActionHandler;
+@NullMarked
+public abstract class CredentialEntryFragmentViewBase extends PreferenceFragmentCompat
+        implements EmbeddableSettingsPage {
+    @Nullable ComponentStateDelegate mComponentStateDelegate;
+    @Nullable UiActionHandler mUiActionHandler;
 
     /**
      * To be implemented by classes which need to know about the fragment's state
-     * TODO(crbug.com/1178519): The coordinator should be made a LifecycleObserver instead.
+     * TODO(crbug.com/40749164): The coordinator should be made a LifecycleObserver instead.
      */
     interface ComponentStateDelegate {
-        /**
-         * Called when the fragment is started.
-         */
+        /** Called when the fragment is started. */
         void onStartFragment();
 
-        /**
-         * Called when the fragment is resumed.
-         */
+        /** Called when the fragment is resumed. */
         void onResumeFragment();
 
-        /**
-         * Signals that the component is no longer needed.
-         */
+        /** Signals that the component is no longer needed. */
         void onDestroy();
     }
 

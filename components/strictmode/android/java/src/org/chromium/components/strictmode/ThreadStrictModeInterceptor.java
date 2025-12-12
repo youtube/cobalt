@@ -8,7 +8,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.StrictMode.ThreadPolicy;
 
-import androidx.annotation.Nullable;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /** Installs a whitelist configuration for StrictMode's ThreadPolicy feature. */
+@NullMarked
 public interface ThreadStrictModeInterceptor {
     /**
      * Install this interceptor and it's whitelists.
@@ -47,15 +49,31 @@ public interface ThreadStrictModeInterceptor {
         private @Nullable Consumer<Violation> mCustomPenalty;
 
         /**
-         * Ignores all StrictMode violations for which the passed-in package is not part of the
+         * Ignores all StrictMode violations for which {@link filterPackageName} is not part of the
          * stack trace.
+         *
+         * Also ignores StrictMode violations where:
+         * 1) {@link filterPackageName} calls {@link blocklistCalleePackageName}
+         * AND
+         * 2) The violation is caused in code called by {@link blocklistCalleePackageName}.
+         *
+         * This scenario occurs when {@link blocklistCalleePackageName} registers an observer with
+         * {@link filterPackageName} and the strict mode violation is in the observer code.
          */
-        public Builder onlyDetectViolationsForPackage(final String filterPackageName) {
-            mWhitelistEntries.add(violation -> {
-                return doesStackTraceContainPackage(violation, filterPackageName)
-                        ? null
-                        : Violation.DETECT_ALL_KNOWN;
-            });
+        public Builder onlyDetectViolationsForPackage(
+                final String filterPackageName, final String blocklistCalleePackageName) {
+            mWhitelistEntries.add(
+                    violation -> {
+                        for (StackTraceElement frame : violation.stackTrace()) {
+                            if (frame.getClassName().startsWith(blocklistCalleePackageName)) {
+                                return Violation.DETECT_ALL_KNOWN;
+                            }
+                            if (frame.getClassName().startsWith(filterPackageName)) {
+                                return null;
+                            }
+                        }
+                        return Violation.DETECT_ALL_KNOWN;
+                    });
             return this;
         }
 
@@ -67,12 +85,15 @@ public interface ThreadStrictModeInterceptor {
          *     for example, "org.chromium.foo"
          */
         public Builder ignoreExternalPackage(int violationType, final String packageName) {
-            mWhitelistEntries.add(violation -> {
-                if ((violation.violationType() & violationType) == 0) {
-                    return null;
-                }
-                return doesStackTraceContainPackage(violation, packageName) ? violationType : null;
-            });
+            mWhitelistEntries.add(
+                    violation -> {
+                        if ((violation.violationType() & violationType) == 0) {
+                            return null;
+                        }
+                        return doesStackTraceContainPackage(violation, packageName)
+                                ? violationType
+                                : null;
+                    });
             return this;
         }
 
@@ -98,17 +119,18 @@ public interface ThreadStrictModeInterceptor {
          *     for example, "org.chromium.foo.ThreadStrictModeInterceptor"
          */
         public Builder ignoreExternalClass(int violationType, final String className) {
-            mWhitelistEntries.add(violation -> {
-                if ((violation.violationType() & violationType) == 0) {
-                    return null;
-                }
-                for (StackTraceElement frame : violation.stackTrace()) {
-                    if (frame.getClassName().equals(className)) {
-                        return violationType;
-                    }
-                }
-                return null;
-            });
+            mWhitelistEntries.add(
+                    violation -> {
+                        if ((violation.violationType() & violationType) == 0) {
+                            return null;
+                        }
+                        for (StackTraceElement frame : violation.stackTrace()) {
+                            if (frame.getClassName().equals(className)) {
+                                return violationType;
+                            }
+                        }
+                        return null;
+                    });
             return this;
         }
 
@@ -125,18 +147,19 @@ public interface ThreadStrictModeInterceptor {
             String[] parts = classNameWithMethod.split("#");
             String className = parts[0];
             String methodName = parts[1];
-            mWhitelistEntries.add(violation -> {
-                if ((violation.violationType() & violationType) == 0) {
-                    return null;
-                }
-                for (StackTraceElement frame : violation.stackTrace()) {
-                    if (frame.getClassName().equals(className)
-                            && frame.getMethodName().equals(methodName)) {
-                        return violationType;
-                    }
-                }
-                return null;
-            });
+            mWhitelistEntries.add(
+                    violation -> {
+                        if ((violation.violationType() & violationType) == 0) {
+                            return null;
+                        }
+                        for (StackTraceElement frame : violation.stackTrace()) {
+                            if (frame.getClassName().equals(className)
+                                    && frame.getMethodName().equals(methodName)) {
+                                return violationType;
+                            }
+                        }
+                        return null;
+                    });
             return this;
         }
 
@@ -169,11 +192,16 @@ public interface ThreadStrictModeInterceptor {
          * <p>Death is not guaranteed, since it relies on reflection to work.
          */
         public Builder replaceAllPenaltiesWithDeathPenalty() {
-            mCustomPenalty = info -> {
-                StrictModePolicyViolation toThrow = new StrictModePolicyViolation(info);
-                // Post task so that no one has a chance to catch the thrown exception.
-                new Handler(Looper.getMainLooper()).post(() -> { throw toThrow; });
-            };
+            mCustomPenalty =
+                    info -> {
+                        StrictModePolicyViolation toThrow = new StrictModePolicyViolation(info);
+                        // Post task so that no one has a chance to catch the thrown exception.
+                        new Handler(Looper.getMainLooper())
+                                .post(
+                                        () -> {
+                                            throw toThrow;
+                                        });
+                    };
             return this;
         }
 

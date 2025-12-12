@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "components/viz/service/display/display.h"
 
 #include <limits>
@@ -24,9 +25,11 @@
 #include "base/test/null_task_runner.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "cc/base/features.h"
 #include "cc/base/math_util.h"
 #include "cc/test/scheduler_test_common.h"
 #include "components/viz/common/features.h"
+#include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "components/viz/common/frame_sinks/begin_frame_source.h"
 #include "components/viz/common/frame_sinks/copy_output_request.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
@@ -49,7 +52,6 @@
 #include "components/viz/service/display/display_client.h"
 #include "components/viz/service/display/display_scheduler.h"
 #include "components/viz/service/display/overlay_processor_stub.h"
-#include "components/viz/service/display_embedder/server_shared_bitmap_manager.h"
 #include "components/viz/service/frame_sinks/compositor_frame_sink_support.h"
 #include "components/viz/service/frame_sinks/frame_sink_manager_impl.h"
 #include "components/viz/service/surfaces/surface.h"
@@ -64,11 +66,16 @@
 #include "components/viz/test/viz_test_suite.h"
 #include "gpu/GLES2/gl2extchromium.h"
 #include "gpu/command_buffer/common/swap_buffers_complete_params.h"
+#include "gpu/command_buffer/service/scheduler.h"
+#include "gpu/command_buffer/service/shared_image/shared_image_manager.h"
+#include "gpu/command_buffer/service/sync_point_manager.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkRect.h"
 #include "ui/gfx/delegated_ink_metadata.h"
 #include "ui/gfx/delegated_ink_point.h"
+#include "ui/gfx/geometry/skia_conversions.h"
 #include "ui/gfx/mojom/delegated_ink_point_renderer.mojom.h"
 #include "ui/gfx/overlay_transform.h"
 
@@ -151,20 +158,16 @@ gfx::SwapTimings GetTestSwapTimings() {
   return gfx::SwapTimings{now, now};
 }
 
-size_t NumVisibleRects(const QuadList& quads) {
-  size_t visible_rects = 0;
-  for (const auto* q : quads) {
-    if (!q->visible_rect.size().IsEmpty())
-      visible_rects++;
-  }
-  return visible_rects;
+std::string PostTestCaseName(const ::testing::TestParamInfo<bool>& info) {
+  return info.param ? "UseMapRect" : "RectExpansion";
 }
+
 }  // namespace
 
 class DisplayTest : public testing::Test {
  public:
   DisplayTest()
-      : manager_(FrameSinkManagerImpl::InitParams(&shared_bitmap_manager_)),
+      : manager_(FrameSinkManagerImpl::InitParams()),
         support_(
             std::make_unique<CompositorFrameSinkSupport>(nullptr,
                                                          &manager_,
@@ -173,7 +176,7 @@ class DisplayTest : public testing::Test {
         task_runner_(new base::NullTaskRunner),
         client_(std::make_unique<StubDisplayClient>()) {}
 
-  ~DisplayTest() override {}
+  ~DisplayTest() override = default;
 
   void SetUpSoftwareDisplay(const RendererSettings& settings) {
     std::unique_ptr<FakeSoftwareOutputSurface> output_surface;
@@ -225,8 +228,8 @@ class DisplayTest : public testing::Test {
     // well, so there is no need to pass in a real
     // DisplayCompositorMemoryAndTaskController.
     auto display = std::make_unique<Display>(
-        &shared_bitmap_manager_, settings, &debug_settings_, frame_sink_id,
-        nullptr /* DisplayCompositorMemoryAndTaskController */,
+        &shared_image_manager_, &gpu_scheduler_, settings, &debug_settings_,
+        frame_sink_id, nullptr /* DisplayCompositorMemoryAndTaskController */,
         std::move(output_surface), std::move(overlay_processor),
         std::move(scheduler), task_runner_);
     display->SetVisible(true);
@@ -235,7 +238,8 @@ class DisplayTest : public testing::Test {
 
   bool ShouldSendBeginFrame(CompositorFrameSinkSupport* support,
                             base::TimeTicks frame_time) {
-    return support->ShouldSendBeginFrame(frame_time);
+    return support->ShouldSendBeginFrame(BeginFrameId(999, 999), frame_time,
+                                         base::Seconds(0));
   }
 
   void UpdateBeginFrameTime(CompositorFrameSinkSupport* support,
@@ -272,7 +276,9 @@ class DisplayTest : public testing::Test {
   }
 
   DebugRendererSettings debug_settings_;
-  ServerSharedBitmapManager shared_bitmap_manager_;
+  gpu::SharedImageManager shared_image_manager_;
+  gpu::SyncPointManager sync_point_manager_;
+  gpu::Scheduler gpu_scheduler_{&sync_point_manager_};
   FrameSinkManagerImpl manager_;
   std::unique_ptr<CompositorFrameSinkSupport> support_;
   ParentLocalSurfaceIdAllocator id_allocator_;
@@ -750,7 +756,7 @@ TEST_F(DisplayTest, BackdropFilterTest) {
       bd_pass->SetAll(
           render_pass_id_generator.GenerateNextId(), sub_surface_rect,
           no_damage, gfx::Transform(), cc::FilterOperations(), backdrop_filters,
-          gfx::RRectF(gfx::RectF(sub_surface_rect), 0), SubtreeCaptureId(),
+          SkPath::Rect(gfx::RectToSkRect(sub_surface_rect)), SubtreeCaptureId(),
           sub_surface_rect.size(), ViewTransitionElementResourceId(), false,
           false, false, false, false);
       pass_list.push_back(std::move(bd_pass));
@@ -791,12 +797,13 @@ TEST_F(DisplayTest, BackdropFilterTest) {
           gfx::Transform(), /*quad_layer_rect=*/sub_surface_rect,
           /*visible_quad_layer_rect=*/sub_surface_rect,
           /*mask_filter_info=*/gfx::MaskFilterInfo(),
-          /*clip_rect=*/absl::nullopt, /*are_contents_opaque=*/true,
-          /*opacity=*/1.0f, SkBlendMode::kSrcOver, /*sorting_context_id=*/0);
+          /*clip=*/std::nullopt, /*contents_opaque=*/true,
+          /*opacity=*/1.0f, SkBlendMode::kSrcOver, /*sorting_context=*/0,
+          /*layer_id=*/0u, /*fast_rounded_corner=*/false);
       auto* quad1 = pass->quad_list.AllocateAndConstruct<SurfaceDrawQuad>();
       quad1->SetNew(shared_quad_state1, /*rect=*/sub_surface_rect,
                     /*visible_rect=*/sub_surface_rect,
-                    SurfaceRange(absl::nullopt, sub_surface_id1),
+                    SurfaceRange(std::nullopt, sub_surface_id1),
                     SkColors::kBlack,
                     /*stretch_content_to_fill_bounds=*/false);
       quad1->allow_merge = false;
@@ -804,17 +811,18 @@ TEST_F(DisplayTest, BackdropFilterTest) {
       // Embed sub surface 2, with damage.
       auto* shared_quad_state2 = pass->CreateAndAppendSharedQuadState();
       gfx::Rect rect1(display_size);
-      shared_quad_state2->SetAll(gfx::Transform(), /*quad_layer_rect=*/rect1,
-                                 /*visible_quad_layer_rect=*/rect1,
-                                 /*mask_filter_info=*/gfx::MaskFilterInfo(),
-                                 /*clip_rect=*/absl::nullopt,
-                                 /*are_contents_opaque=*/true, /*opacity=*/1.0f,
-                                 SkBlendMode::kSrcOver,
-                                 /*sorting_context_id=*/0);
+      shared_quad_state2->SetAll(
+          gfx::Transform(), /*quad_layer_rect=*/rect1,
+          /*visible_quad_layer_rect=*/rect1,
+          /*mask_filter_info=*/gfx::MaskFilterInfo(),
+          /*clip_rect=*/std::nullopt,
+          /*are_contents_opaque=*/true, /*opacity=*/1.0f, SkBlendMode::kSrcOver,
+          /*sorting_context=*/0,
+          /*layer_id=*/0u, /*fast_rounded_corner=*/false);
       auto* quad2 = pass->quad_list.AllocateAndConstruct<SurfaceDrawQuad>();
       quad2->SetNew(shared_quad_state2, /*rect=*/rect1,
                     /*visible_rect=*/rect1,
-                    SurfaceRange(absl::nullopt, sub_surface_id2),
+                    SurfaceRange(std::nullopt, sub_surface_id2),
                     SkColors::kBlack,
                     /*stretch_content_to_fill_bounds=*/false);
       quad2->allow_merge = false;
@@ -898,2513 +906,7 @@ TEST_F(DisplayTest, CompositorFrameDamagesCorrectDisplay) {
   manager_.UnregisterBeginFrameSource(begin_frame_source2.get());
 }
 
-// Quads that require blending should not be treated as occluders
-// regardless of full opacity.
-TEST_F(DisplayTest, DrawOcclusionWithBlending) {
-  RendererSettings settings;
-  settings.minimum_fragments_reduced = 0;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-  AggregatedFrame frame = MakeDefaultAggregatedFrame(/*num_render_passes=*/2);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-
-  auto src_rect = gfx::Rect(0, 0, 100, 100);
-  auto dest_rect = gfx::Rect(25, 25, 25, 25);
-
-  for (auto& render_pass : frame.render_pass_list) {
-    bool is_root_render_pass = render_pass == frame.render_pass_list.back();
-
-    auto* src_sqs = render_pass->CreateAndAppendSharedQuadState();
-    src_sqs->SetAll(
-        gfx::Transform(), src_rect, src_rect, gfx::MaskFilterInfo(),
-        absl::nullopt, are_contents_opaque, opacity,
-        is_root_render_pass ? SkBlendMode::kSrcOver : SkBlendMode::kSrcIn, 0);
-    auto* dest_sqs = render_pass->CreateAndAppendSharedQuadState();
-    dest_sqs->SetAll(
-        gfx::Transform(), dest_rect, dest_rect, gfx::MaskFilterInfo(),
-        absl::nullopt, are_contents_opaque, opacity,
-        is_root_render_pass ? SkBlendMode::kSrcOver : SkBlendMode::kDstIn, 0);
-    auto* src_quad =
-        render_pass->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    src_quad->SetNew(src_sqs, src_rect, src_rect, SkColors::kBlack, false);
-    auto* dest_quad =
-        render_pass->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    dest_quad->SetNew(dest_sqs, dest_rect, dest_rect, SkColors::kRed, false);
-  }
-
-  EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-  EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.back()->quad_list));
-
-  display_->RemoveOverdrawQuads(&frame);
-
-  EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-  EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.back()->quad_list));
-}
-
-// Quads that intersect backdrop filter render pass quads should not be
-// split because splitting may affect how the filter applies to an
-// underlying quad.
-TEST_F(DisplayTest, DrawOcclusionWithIntersectingBackdropFilter) {
-  RendererSettings settings;
-  settings.minimum_fragments_reduced = 0;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-  AggregatedFrame frame = MakeDefaultAggregatedFrame(/*num_render_passes=*/2);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-
-  // Rects, shared quad states and quads map 1:1:1
-  gfx::Rect rects[3] = {
-      gfx::Rect(75, 0, 50, 100),
-      gfx::Rect(0, 0, 50, 50),
-      gfx::Rect(0, 0, 100, 100),
-  };
-  SharedQuadState* shared_quad_states[3];
-  DrawQuad* quads[3];
-
-  // Set up the backdrop filter render pass
-  auto& bd_render_pass = frame.render_pass_list.at(0);
-  auto& root_render_pass = frame.render_pass_list.at(1);
-  auto bd_filter_rect = rects[0];
-
-  cc::FilterOperations backdrop_filters;
-  backdrop_filters.Append(cc::FilterOperation::CreateBlurFilter(5.0));
-  bd_render_pass->SetAll(
-      AggregatedRenderPassId{2}, bd_filter_rect, gfx::Rect(), gfx::Transform(),
-      cc::FilterOperations(), backdrop_filters,
-      gfx::RRectF(gfx::RectF(bd_filter_rect), 0), gfx::ContentColorUsage::kSRGB,
-      false, false, false, false);
-
-  // Add quads to root render pass
-  for (int i = 0; i < 3; i++) {
-    shared_quad_states[i] = root_render_pass->CreateAndAppendSharedQuadState();
-    shared_quad_states[i]->SetAll(
-        gfx::Transform(), rects[i], rects[i], gfx::MaskFilterInfo(),
-        absl::nullopt, are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    if (i == 0) {  // Backdrop filter quad
-      auto* new_quad =
-          root_render_pass->quad_list
-              .AllocateAndConstruct<AggregatedRenderPassDrawQuad>();
-      new_quad->SetNew(shared_quad_states[i], rects[i], rects[i],
-                       bd_render_pass->id, ResourceId(2), gfx::RectF(),
-                       gfx::Size(), gfx::Vector2dF(1, 1), gfx::PointF(),
-                       gfx::RectF(), false, 1.f);
-      quads[i] = new_quad;
-    } else {
-      auto* new_quad = root_render_pass->quad_list
-                           .AllocateAndConstruct<SolidColorDrawQuad>();
-      new_quad->SetNew(shared_quad_states[i], rects[i], rects[i],
-                       SkColors::kBlack, false);
-      quads[i] = new_quad;
-    }
-  }
-
-  // +---+-+-+-+
-  // | 1 | | . |
-  // +---+ | 0 |
-  // | 2   | . |
-  // +-----+---+
-  EXPECT_EQ(std::size(rects), root_render_pass->quad_list.size());
-  display_->RemoveOverdrawQuads(&frame);
-  ASSERT_EQ(std::size(rects), root_render_pass->quad_list.size());
-
-  for (int i = 0; i < 3; i++) {
-    EXPECT_EQ(rects[i], root_render_pass->quad_list.ElementAt(i)->visible_rect);
-  }
-}
-
-// Check if draw occlusion does not remove any DrawQuads when no quad is being
-// covered completely.
-TEST_F(DisplayTest, DrawOcclusionWithNonCoveringDrawQuad) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(50, 50, 100, 100);
-  gfx::Rect rect3(25, 25, 50, 100);
-  gfx::Rect rect4(150, 0, 50, 50);
-  gfx::Rect rect5(0, 0, 120, 120);
-  gfx::Rect rect6(25, 0, 50, 160);
-  gfx::Rect rect7(0, 20, 100, 100);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  // +----+
-  // |    |
-  // +----+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // This is a base case, the compositor frame contains only one
-    // DrawQuad, so the size of quad_list remains unchanged after calling
-    // RemoveOverdrawQuads.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  // +----+
-  // | +--|-+
-  // +----+ |
-  //   +----+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since |quad| (defined by rect1 (0, 0, 100x100)) cannot cover |quad2|
-    // (define by rect2 (50, 50, 100x100)), the |quad_list| size remains the
-    // same after calling RemoveOverdrawQuads. The visible region of |quad2| on
-    // screen is rect2 - rect1 U rect2 = (100, 50, 50x50 U 50, 100, 100x50),
-    // which cannot be represented by a smaller rect (its visible_rect stays
-    // the same).
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  // +------+                                +------+
-  // |      |                                |      |
-  // | +--+ |          show on screen        |      |
-  // +------+                =>              +------+
-  //   |  |                                    |  |
-  //   +--+                                    +--+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect3, rect3, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since |quad| (defined by rect1 (0, 0, 100x100)) cannot cover |quad2|
-    // (define by rect3 (25, 25, 50x100)), the |quad_list| size remains the same
-    // after calling RemoveOverdrawQuads. The visible region of |quad2| on
-    // screen is rect3 - rect1 U rect3 = (25, 100, 50x25), which updates its
-    // visible_rect accordingly.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(25, 100, 50, 25),
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  //  +--+                                        +--+
-  // +----+                                      +----+
-  // ||  ||             shown on screen          |    |
-  // +----+                                      +----+
-  //  +--+                                        +--+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect7, rect7, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect6, rect6, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect7, rect7, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect6, rect6, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-
-    // Since |quad| (defined by rect7 (0, 20, 100x100)) cannot cover |quad2|
-    // (define by rect6 (25, 0, 50x160)), the |quad_list| size remains the same
-    // after calling RemoveOverdrawQuads. The visible region of |quad2| on
-    // screen is rect6 - rect7 = (25, 0, 50x20 U 25, 120, 50x40), which
-    // cannot be represented by a smaller rect (its visible_rect stays the
-    // same).
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect7,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect6,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  // +----+   +--+
-  // |    |   +--+
-  // +----+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect4, rect4, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect4, rect4, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-
-    // Since |quad| (defined by rect1 (0, 0, 100x100)) cannot cover |quad2|
-    // (define by rect4 (150, 0, 50x50)), the |quad_list| size remains the same
-    // after calling RemoveOverdrawQuads. The visible region of |quad2| on
-    // screen is rect4 (150, 0, 50x50), its visible_rect stays the same.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect4,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-  // +-----++
-  // |     ||
-  // +-----+|
-  // +------+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect5, rect5, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect5, rect5, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-
-    // Since |quad| (defined by rect1 (0, 0, 100x100)) cannot cover |quad2|
-    // (define by rect5 (0, 0, 120x120)), the |quad_list| size remains the same
-    // after calling RemoveOverdrawQuads. The visible region of |quad2| on
-    // screen is rect5 - rect1 = (100, 0, 20x100 U 0, 100, 100x20),
-    // which cannot be represented by a smaller rect (its visible_rect stays the
-    // same).
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect5,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-}
-
-// Check if the draw occlusion removes a DrawQuad that is hidden behind
-// a smaller disjointed DrawQuad.
-// NOTE: this test will fail if RendererSettings.kMaximumOccluderComplexity is
-// reduced to 1, since |rects[1]| will become the only occluder, and the quad
-// defined by |rects[2]| will not be occluded (removed).
-TEST_F(DisplayTest, DrawOcclusionWithSingleOverlapBehindDisjointedDrawQuads) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-
-  std::vector<gfx::Rect> rects;
-  rects.emplace_back(0, 0, 100, 100);
-  rects.emplace_back(150, 0, 150, 150);
-  rects.emplace_back(25, 25, 50, 50);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-
-  for (const gfx::Rect& rect : rects) {
-    SharedQuadState* shared_quad_state =
-        frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-    auto* quad = frame.render_pass_list.front()
-                     ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-  }
-
-  //              +-------+
-  //  +-----+     |       |
-  //  | +-+ |     |       |
-  //  | +-+ |     |       |
-  //  +-----+     +-------+
-  {
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The third quad (defined by rects[2](25, 25, 50x50)) is completely
-    // occluded by the first quad (defined by rects[0](0, 0, 100x100)), so the
-    // third quad is removed from the |quad_list|, leaving the first and second
-    // (defined by rects[1](150, 0, 150x150); the largest) quads intact.
-    ASSERT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rects[0],
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rects[1],
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-}
-
-// Check if the draw occlusion removes DrawQuads that are hidden behind
-// two different sized disjointed DrawQuads.
-// NOTE: this test will fail if RendererSettings.kMaximumOccluderComplexity is
-// reduced to 1, since |rects[1]| will become the only occluder, and the quad
-// defined by |rects[2]| will not be occluded (removed).
-TEST_F(DisplayTest, DrawOcclusionWithMultipleOverlapBehindDisjointedDrawQuads) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  std::vector<gfx::Rect> rects;
-  rects.emplace_back(0, 0, 100, 100);
-  rects.emplace_back(150, 0, 150, 150);
-  rects.emplace_back(25, 25, 50, 50);
-  rects.emplace_back(150, 0, 100, 100);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-
-  for (const gfx::Rect& rect : rects) {
-    SharedQuadState* shared_quad_state =
-        frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-    auto* quad = frame.render_pass_list.front()
-                     ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-  }
-
-  //              +-------+
-  //  +-----+     +-----+ |
-  //  | +-+ |     |     | |
-  //  | +-+ |     |     | |
-  //  +-----+     +-----+-+
-  {
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The third (defined by rects[2](25, 25, 50x50)) and fourth (defined by
-    // rects[3](150, 0, 100x100)) quads are completely occluded by the first
-    // (defined by rects[0](0, 0, 100x100)) and second (defined by rects[1](150,
-    // 0, 150x150)) quads, respectively, so both are removed from the
-    // |quad_list|, leaving the first and and second quads intact.
-    ASSERT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rects[0],
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rects[1],
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-}
-
-// Check if draw occlusion removes DrawQuads that are not shown on screen.
-TEST_F(DisplayTest, CompositorFrameWithOverlapDrawQuad) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(25, 25, 50, 50);
-  gfx::Rect rect3(50, 50, 50, 25);
-  gfx::Rect rect4(0, 0, 50, 50);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  // completely overlapping: +-----+
-  //                         |     |
-  //                         +-----+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect1, rect1, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| overlaps |quad1|, so |quad2| is removed from the |quad_list|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-  //  +-----+
-  //  | +-+ |
-  //  | +-+ |
-  //  +-----+
-  {
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| is hiding behind |quad1|, so |quad2| is removed from the
-    // |quad_list|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  // +-----+
-  // |  +--|
-  // |  +--|
-  // +-----+
-  {
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| is behind |quad1| and aligns with the edge of |quad1|, so |quad2|
-    // is removed from the |quad_list|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  // +-----++
-  // |     ||
-  // +-----+|
-  // +------+
-  {
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect4, rect4, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect4, rect4, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| is covered by |quad 1|, so |quad2| is removed from the
-    // |quad_list|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-// Check if draw occlusion works well with scale change transformer.
-TEST_F(DisplayTest, CompositorFrameWithTransformer) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // Rect 2, 3, 4 are contained in rect 1 only after applying the half scale
-  // matrix. They are repetition of CompositorFrameWithOverlapDrawQuad.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(50, 50, 100, 100);
-  gfx::Rect rect3(100, 100, 100, 50);
-  gfx::Rect rect4(0, 0, 120, 120);
-
-  // Rect 5, 6, 7, 8, 9, 10 are not contained by rect 1 after applying the
-  // double scale matrix. They are repetition of
-  // DrawOcclusionWithNonCoveringDrawQuad.
-  gfx::Rect rect5(25, 25, 60, 60);
-  gfx::Rect rect6(12, 12, 25, 50);
-  gfx::Rect rect7(75, 0, 25, 25);
-  gfx::Rect rect8(0, 0, 60, 60);
-  gfx::Rect rect9(12, 0, 25, 80);
-  gfx::Rect rect10(0, 10, 50, 50);
-
-  gfx::Transform half_scale;
-  half_scale.Scale3d(0.5, 0.5, 0.5);
-  gfx::Transform double_scale;
-  double_scale.Scale(2, 2);
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(half_scale, rect2, rect2, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |rect2| becomes (12, 12, 50x50) after applying half scale transform,
-    // |quad2| is now covered by |quad|. So the size of |quad_list| is reduced
-    // by 1.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  {
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(half_scale, rect3, rect3, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |rect3| becomes (25, 25, 50x25) after applying half scale transform,
-    // |quad2| is now covered by |quad|. So the size of |quad_list| is reduced
-    // by 1.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  {
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(half_scale, rect4, rect4, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect4, rect4, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |rect4| becomes (0, 0, 60x60) after applying half scale transform,
-    // |quad2| is now covered by |quad1|. So the size of |quad_list| is reduced
-    // by 1.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(double_scale, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, are_contents_opaque, opacity,
-                              SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The compositor frame contains only one quad, so |quad_list| remains 1
-    // after calling RemoveOverdrawQuads.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  {
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        double_scale, rect5, rect5, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect5, rect5, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| (defined by |rect5|) becomes (50, 50, 120x120) after
-    // applying double scale transform, it is not covered by |quad| (defined by
-    // |rect1| (0, 0, 100x100)). So the size of |quad_list| is the same.
-    // Since visible region of |rect5| is not a rect, quad2::visible_rect stays
-    // the same.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect5,
-        frame.render_pass_list.front()->quad_list.ElementAt(4)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        double_scale, rect6, rect6, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect6, rect6, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| (defined by |rect6|) becomes (24, 24, 50x100) after
-    // applying double scale transform, it is not covered by |quad| (defined by
-    // |rect1| (0, 0, 100x100)). So the size of |quad_list| is the same.
-    // Since visible region of |rect5| is (12, 50, 25x12), quad2::visible_rect
-    // updates accordingly.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(12, 50, 25, 12),
-        frame.render_pass_list.front()->quad_list.ElementAt(4)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        double_scale, rect7, rect7, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect7, rect7, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| (defined by |rect7|) becomes (150, 0, 50x50) after
-    // applying double scale transform, it is not covered by |quad| (defined by
-    // |rect1| (0, 0, 100x100)). So the size of |quad_list| is the same.
-    // Since visible region of |rect7| is not a rect, quad2::visible_rect stays
-    // the same.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect7,
-        frame.render_pass_list.front()->quad_list.ElementAt(4)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        double_scale, rect8, rect8, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect8, rect8, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| (defined by |rect8|) becomes (0, 0, 120x120) after
-    // applying double scale transform, it is not covered by |quad1| (defined by
-    // |rect1| (0, 0, 100x100)). So the size of |quad_list| is the same.
-    // Since visible region of |rect8| is not a rect, quad2::visible_rect stays
-    // the same.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect8,
-        frame.render_pass_list.front()->quad_list.ElementAt(4)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        double_scale, rect10, rect10, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    shared_quad_state2->SetAll(
-        double_scale, rect9, rect9, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect10, rect10, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect9, rect9, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| (defined by |rect9|) becomes (24, 0, 50x160) after
-    // applying double scale transform, it is not covered by |quad| (defined by
-    // |rect10| (0, 20, 100x100)). So the size of |quad_list| is the same.
-    // Since visible region of |rect9| is not a rect, quad2::visible_rect stays
-    // the same
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect10,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect9,
-        frame.render_pass_list.front()->quad_list.ElementAt(4)->visible_rect);
-  }
-}
-
-// Check if draw occlusion works with transform at epsilon scale.
-TEST_F(DisplayTest, CompositorFrameWithEpsilonScaleTransform) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect(0, 0, 100, 100);
-
-  SkScalar epsilon = 0.000000001f;
-  SkScalar larger_than_epsilon = 0.00000001f;
-  gfx::Transform zero_scale;
-  zero_scale.Scale(0, 0);
-  gfx::Transform epsilon_scale;
-  epsilon_scale.Scale(epsilon, epsilon);
-  gfx::Transform larger_epsilon_scale;
-  larger_epsilon_scale.Scale(larger_than_epsilon, larger_than_epsilon);
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  gfx::Transform inverted;
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(zero_scale, rect, rect, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect, rect, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // zero matrix transform is non-invertible, so |quad2| is not removed from
-    // draw occlusion algorithm.
-    EXPECT_FALSE(zero_scale.GetInverse(&inverted));
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(epsilon_scale, rect, rect, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 1);
-
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect, rect, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // This test verifies that the draw occlusion algorithm does not break when
-    // the scale of the transform is very close to zero. |epsilon_scale|
-    // transform has the scale set to 10^-8. the quad is considering to be empty
-    // after the transform, so it fails to intersect the occlusion rect.
-    // |quad2| is not removed from draw occlusion.
-    EXPECT_TRUE(epsilon_scale.GetInverse(&inverted));
-    EXPECT_TRUE(cc::MathUtil::MapEnclosedRectWith2dAxisAlignedTransform(
-                    epsilon_scale, rect)
-                    .IsEmpty());
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        larger_epsilon_scale, rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect, rect, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // This test verifies that the draw occlusion algorithm works well with
-    // small scales that is just larger than the epsilon scale in the previous
-    // case. |larger_epsilon_scale| transform has the scale set to 10^-7.
-    // |quad2| will be transformed to a tiny rect that is covered by the
-    // occlusion rect, so |quad2| is removed.
-    EXPECT_TRUE(larger_epsilon_scale.GetInverse(&inverted));
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-// Check if draw occlusion works with transform at negative scale.
-TEST_F(DisplayTest, CompositorFrameWithNegativeScaleTransform) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect(0, 0, 100, 100);
-
-  gfx::Transform negative_scale;
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  {
-    negative_scale.Scale3d(-1, 1, 1);
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        negative_scale, rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect, rect, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since the x-axis is negated, |quad2| after applying transform does not
-    // intersect with |quad| any more, so no quad is removed.
-    // In target space:
-    //          |
-    //  q2 +----|----+ occlusion rect
-    //     |    |    |
-    // ---------+----------
-    //          |
-    //          |
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    negative_scale.MakeIdentity();
-    negative_scale.Scale3d(1, -1, 1);
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        negative_scale, rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect, rect, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since the y-axis is negated, |quad2| after applying transform does not
-    // intersect with |quad| any more, so no quad is removed.
-    // In target space:
-    //          |
-    //          |----+ occlusion rect
-    //          |    |
-    // ---------+----------
-    //          |    |
-    //          |----+
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    negative_scale.MakeIdentity();
-    negative_scale.Scale3d(1, 1, -1);
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        negative_scale, rect, rect, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect, rect, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect, rect, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since z-axis is missing in a 2d plane, negating the z-axis does not cause
-    // |q2| to move at all. So |quad2| overlaps with |quad| in target space.
-    // In target space:
-    //          |
-    //          |----+ occlusion rect
-    //          |    |   q2
-    // ---------+----------
-    //          |
-    //          |
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-// Check if draw occlusion works well with rotation transform.
-//
-//  +-----+                                  +----+
-//  |     |   rotation (by 45 on y-axis) ->  |    |     same height
-//  +-----+                                  +----+     reduced weight
-TEST_F(DisplayTest, CompositorFrameWithRotation) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // rect 2 is inside rect 1 initially.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(75, 75, 10, 10);
-
-  // rect 3 intersects with rect 1 initially
-  gfx::Rect rect3(50, 50, 25, 100);
-
-  gfx::Transform rotate;
-  rotate.RotateAboutYAxis(45);
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    // Apply rotation transform on |rect1| only.
-    shared_quad_state->SetAll(rotate, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, are_contents_opaque, opacity,
-                              SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // In target space, |quad| becomes (0, 0, 71x100) (after applying rotation
-    // transform) and |quad2| becomes (75, 75 10x10). So |quad2| does not
-    // intersect with |quad|. No changes in quads.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    // Apply rotation transform on |rect1| and |rect2|.
-    shared_quad_state->SetAll(rotate, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, are_contents_opaque, opacity,
-                              SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(rotate, rect2, rect2, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // In target space, |quad| becomes (0, 0, 70x100) and |quad2| becomes
-    // (53, 75 8x10) (after applying rotation transform). So |quad2| is behind
-    // |quad|. |quad2| is removed from |quad_list|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  {
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(rotate, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, are_contents_opaque, opacity,
-                              SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // In target space, |quad| becomes (0, 0, 71x100) (after applying rotation
-    // transform) and |quad2| becomes (50, 50, 25x100). So |quad2| does not
-    // intersect with |quad|. No changes in quads.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-  }
-
-  {
-    // Since we only support updating |visible_rect| of DrawQuad with scale
-    // or translation transform and rotation transform applies to quads,
-    // |visible_rect| of |quad2| should not be changed.
-    shared_quad_state->SetAll(rotate, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, are_contents_opaque, opacity,
-                              SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(rotate, rect3, rect3, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since both |quad| and |quad2| went through the same transform and |rect1|
-    // does not cover |rect3| initially, |quad| does not cover |quad2| in target
-    // space.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-  }
-}
-
-// Check if draw occlusion is handled correctly if the transform does not
-// preserves 2d axis alignment.
-TEST_F(DisplayTest, CompositorFrameWithPerspective) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // rect 2 is inside rect 1 initially.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(10, 10, 1, 1);
-
-  gfx::Transform perspective;
-  perspective.ApplyPerspectiveDepth(100);
-  perspective.RotateAboutYAxis(45);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    shared_quad_state->SetAll(perspective, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, are_contents_opaque, opacity,
-                              SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect1, rect1, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The transform used on |quad| is a combination of rotation and
-    // perspective matrix, so it does not preserve 2d axis. Since it takes too
-    // long to define a enclosed rect to describe the occlusion region,
-    // occlusion region is not defined and no changes in quads.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(perspective, rect2, rect2, gfx::MaskFilterInfo(),
-                               absl::nullopt, are_contents_opaque, opacity,
-                               SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The transform used on |quad2| is a combination of rotation and
-    // perspective matrix, so it does not preserve 2d axis. it's easy to find
-    // an enclosing rect to describe |quad2|. |quad2| is hiding behind |quad|,
-    // so it's removed from |quad_list|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-// Check if draw occlusion works with transparent DrawQuads.
-TEST_F(DisplayTest, CompositorFrameWithOpacityChange) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(25, 25, 10, 10);
-
-  bool are_contents_opaque = true;
-  float opacity1 = 1.f;
-  float opacityLess1 = 0.5f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacityLess1, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity1, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since the opacity of |rect2| is less than 1, |rect1| cannot occlude
-    // |rect2| even though |rect2| is inside |rect1|.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity1, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity1, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Repeat the above test and set the opacity of |rect1| to 1.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithOpaquenessChange) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(25, 25, 10, 10);
-
-  bool opaque_content = true;
-  bool transparent_content = false;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        transparent_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since the opaqueness of |rect2| is false, |rect1| cannot occlude
-    // |rect2| even though |rect2| is inside |rect1|.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Repeat the above test and set the opaqueness of |rect2| to true.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-// Test if draw occlusion skips 3d objects. https://crbug.com/833748
-TEST_F(DisplayTest, CompositorFrameZTranslate) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(0, 0, 200, 100);
-
-  gfx::Transform translate_back;
-  translate_back.Translate3d(0, 0, 100);
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  // 2 rects inside of 3d object is completely overlapping.
-  //                         +-----+
-  //                         |     |
-  //                         +-----+
-  {
-    shared_quad_state->SetAll(
-        translate_back, rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 1);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 1);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect1, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since both |quad| and |quad2| are inside of a 3d object, DrawOcclusion
-    // will not be applied to them.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(rect1,
-              frame.render_pass_list.front()->quad_list.ElementAt(0)->rect);
-    EXPECT_EQ(rect2,
-              frame.render_pass_list.front()->quad_list.ElementAt(1)->rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithTranslateTransformer) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // rect 2 and 3 are outside rect 1 initially.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(120, 120, 10, 10);
-  gfx::Rect rect3(100, 100, 100, 20);
-
-  bool opaque_content = true;
-  bool transparent_content = false;
-  float opacity = 1.f;
-  gfx::Transform translate_up;
-  translate_up.Translate(50, 50);
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    //
-    //   +----+
-    //   |    |
-    //   |    |
-    //   +----+
-    //           +-+
-    //           +-+
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        transparent_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |rect2| and |rect1| are disjoined as show in the first image. The size of
-    // |quad_list| remains 2.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    //   quad content space:                                      target space:
-    //   +----+
-    //   |    |               translation transform
-    //   |    |     (move the bigger rect (0, 0) -> (50, 50))         +-----+
-    //   +----+                       =>                              | +-+ |
-    //           +-+                                                  | +-+ |
-    //           +-+                                                  +-----+
-    shared_quad_state->SetAll(translate_up, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, opaque_content, opacity,
-                              SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Move |quad| defind by |rect1| over |quad2| defind by |rect2| by applying
-    // translation transform. |quad2| will be covered by |quad|, so |quad_list|
-    // size is reduced by 1.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  {
-    // After applying translation transform on rect1:
-    //   before                                                        after
-    //   +----+
-    //   |    |
-    //   |    |     (move the bigger rect (0, 0) -> (50, 50))          +----+
-    //   +----+                       =>                               |  +---+
-    //           +---+                                                 |  +---+
-    //           +---+                                                 +----+
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(translate_up, rect1, rect1, gfx::MaskFilterInfo(),
-                              absl::nullopt, opaque_content, opacity,
-                              SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Move |quad| defind by |rect1| over |quad2| defind by |rect3| by applying
-    // translation transform. In target space, |quad| is (50, 50, 100x100) and
-    // |quad2| is (100, 100, 100x20). So the visible region of |quad2| is
-    // (150, 100, 50x20).
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(150, 100, 50, 20),
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithCombinedSharedQuadState) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // rect 3 is inside of combined rect of rect 1 and rect 2.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(100, 0, 60, 60);
-  gfx::Rect rect3(10, 10, 120, 30);
-
-  // rect 4 and 5 intersect with the combined rect of 1 and 2.
-  gfx::Rect rect4(10, 10, 180, 30);
-  gfx::Rect rect5(10, 10, 120, 100);
-
-  bool opaque_content = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state3 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad3 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    //  rect1 & rect2                      rect 3 added
-    //   +----+----+                       +----+----+
-    //   |    |    |                       |____|___||
-    //   |    |----+             =>        |    |----+
-    //   +----+                            +----+
-    //
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state3->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    quad3->SetNew(shared_quad_state3, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The occlusion rect is enlarged horizontally after visiting |rect1| and
-    // |rect2|. |rect3| is covered by both |rect1| and |rect2|, so |rect3| is
-    // removed from |quad_list|.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-
-  {
-    //  rect1 & rect2                      rect 4 added
-    //   +----+----+                       +----+----+-+
-    //   |    |    |                       |____|____|_|
-    //   |    |----+           =>          |    |----+
-    //   +----+                            +----+
-    //
-    quad3 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state3->SetAll(
-        gfx::Transform(), rect4, rect4, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad3->SetNew(shared_quad_state3, rect4, rect4, SkColors::kBlack, false);
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The occlusion rect, which is enlarged horizontally after visiting |rect1|
-    // and |rect2|, is (0, 0, 160x60). Since visible region of rect 4 is
-    // (160, 10, 30x30), |visible_rect| of |quad3| is updated.
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(160, 10, 30, 30),
-        frame.render_pass_list.front()->quad_list.ElementAt(3)->visible_rect);
-  }
-
-  {
-    //  rect1 & rect2                      rect 5 added
-    //   +----+----+                       +----+----+
-    //   |    |    |                       | +--|--+ |
-    //   |    |----+           =>          | |  |--|-+
-    //   +----+                            +-|--+  |
-    //                                       +-----+
-    shared_quad_state3->SetAll(
-        gfx::Transform(), rect5, rect5, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad3->SetNew(shared_quad_state3, rect5, rect5, SkColors::kBlack, false);
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The occlusion rect, which is enlarged horizontally after visiting |rect1|
-    // and |rect2|, is (0, 0, 160x60). Since visible region of rect 5 is
-    // (10, 60, 120x50), |visible_rect| of |quad3| is updated.
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(10, 60, 120, 50),
-        frame.render_pass_list.front()->quad_list.ElementAt(3)->visible_rect);
-  }
-}
-
-// Remove overlapping quads in non-root render passes.
-TEST_F(DisplayTest, DrawOcclusionWithMultipleRenderPass) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame(/*num_render_passes=*/2);
-
-  // rect 3 is inside of combined rect of rect 1 and rect 2.
-  // rect 4 is identical to rect 3, but in a separate render pass.
-  gfx::Rect rects[4] = {
-      gfx::Rect(0, 0, 100, 100),
-      gfx::Rect(100, 0, 60, 60),
-      gfx::Rect(10, 10, 120, 30),
-      gfx::Rect(10, 10, 120, 30),
-  };
-
-  SharedQuadState* shared_quad_states[4];
-  SolidColorDrawQuad* quads[4];
-  for (int i = 0; i < 4; i++) {
-    // add all but quad 4 into non-root render pass.
-    auto& render_pass =
-        i == 3 ? frame.render_pass_list.back() : frame.render_pass_list.front();
-    shared_quad_states[i] = render_pass->CreateAndAppendSharedQuadState();
-    quads[i] =
-        render_pass->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_states[i]->SetAll(
-        gfx::Transform(), rects[i], rects[i], gfx::MaskFilterInfo(),
-        /*clip_rect=*/absl::nullopt, true /*are_contents_opaque*/,
-        1.f /*opacity*/, SkBlendMode::kSrcOver, 0 /*sorting_context_id*/);
-    quads[i]->SetNew(shared_quad_states[i], rects[i], rects[i],
-                     SkColors::kBlack, false /*force_anti_aliasing_off*/);
-  }
-
-  auto& render_pass = frame.render_pass_list.front();
-  auto& root_render_pass = frame.render_pass_list.back();
-  EXPECT_EQ(3u, NumVisibleRects(render_pass->quad_list));
-  EXPECT_EQ(1u, NumVisibleRects(root_render_pass->quad_list));
-  display_->RemoveOverdrawQuads(&frame);
-  EXPECT_EQ(2u, NumVisibleRects(render_pass->quad_list));
-  EXPECT_EQ(1u, NumVisibleRects(root_render_pass->quad_list));
-  EXPECT_EQ(rects[0], render_pass->quad_list.ElementAt(0)->visible_rect);
-  EXPECT_EQ(rects[1], render_pass->quad_list.ElementAt(1)->visible_rect);
-  EXPECT_EQ(rects[3], root_render_pass->quad_list.ElementAt(0)->visible_rect);
-}
-
-// Occlusion tracking should not persist across render passes.
-TEST_F(DisplayTest, CompositorFrameWithMultipleRenderPass) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // rect 3 is inside of combined rect of rect 1 and rect 2.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(100, 0, 60, 60);
-
-  auto render_pass2 = std::make_unique<AggregatedRenderPass>();
-  render_pass2->SetNew(AggregatedRenderPassId{1}, gfx::Rect(), gfx::Rect(),
-                       gfx::Transform());
-  frame.render_pass_list.push_back(std::move(render_pass2));
-  gfx::Rect rect3(10, 10, 120, 30);
-
-  bool opaque_content = true;
-  float opacity = 1.f;
-
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.at(1)->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.at(1)
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.at(1)->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.at(1)
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state3 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad3 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    // rect1 and rect2 are from first RenderPass and rect 3 is from the second
-    // RenderPass.
-    //  rect1 & rect2                      rect 3 added
-    //   +----+----+                       +----+----+
-    //   |    |    |                       |____|___||
-    //   |    |----+             =>        |    |----+
-    //   +----+                            +----+
-    //
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state3->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    quad3->SetNew(shared_quad_state3, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(2u, frame.render_pass_list.at(1)->quad_list.size());
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // The occlusion rect is enlarged horizontally after visiting |rect1| and
-    // |rect2|. |rect3| is covered by the unioned region of |rect1| and |rect2|.
-    // But |rect3| so |rect3| is to be removed from |quad_list|.
-    EXPECT_EQ(2u, frame.render_pass_list.at(1)->quad_list.size());
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.at(1)->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.at(1)->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        rect3,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithCoveredRenderPass) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // rect 3 is inside of combined rect of rect 1 and rect 2.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-
-  auto render_pass2 = std::make_unique<AggregatedRenderPass>();
-  render_pass2->SetNew(AggregatedRenderPassId{1}, gfx::Rect(), gfx::Rect(),
-                       gfx::Transform());
-  frame.render_pass_list.push_back(std::move(render_pass2));
-
-  bool opaque_content = true;
-  float opacity = 1.f;
-  AggregatedRenderPassId render_pass_id{1};
-  ResourceId mask_resource_id(2);
-
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.at(1)->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.at(1)
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.at(1)->CreateAndAppendSharedQuadState();
-  auto* quad1 =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<AggregatedRenderPassDrawQuad>();
-
-  {
-    // rect1 is a DrawQuad from SQS1 and which is also the RenderPass rect
-    // from SQS2. The AggregatedRenderPassDrawQuad should not be occluded.
-    //  rect1
-    //   +----+
-    //   |    |
-    //   |    |
-    //   +----+
-    //
-
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad1->SetNew(shared_quad_state2, rect1, rect1, render_pass_id,
-                  mask_resource_id, gfx::RectF(), gfx::Size(),
-                  gfx::Vector2dF(1, 1), gfx::PointF(), gfx::RectF(), false,
-                  1.0f);
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(1u, frame.render_pass_list.at(1)->quad_list.size());
-    display_->RemoveOverdrawQuads(&frame);
-    // |rect1| and |rect2| shares the same region where |rect1| is a draw
-    // quad and |rect2| RenderPass. |rect2| will be not removed from the
-    // |quad_list|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(1u, frame.render_pass_list.at(1)->quad_list.size());
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.at(1)->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithClip) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(50, 50, 25, 25);
-  gfx::Rect clip_rect(0, 0, 60, 60);
-  gfx::Rect rect3(50, 50, 20, 10);
-
-  bool opaque_content = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    //  rect1 & rect2
-    //   +------+
-    //   |      |
-    //   |   +-+|
-    //   |   | ||
-    //   +------+
-    //
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |rect1| covers |rect2| as shown in the figure above, So the size of
-    // |quad_list| is reduced by 1.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-
-  {
-    //  rect1 & rect2                             clip_rect & rect2
-    //   +------+                                     +----+
-    //   |      |                                     |    |
-    //   |   +-+|             =>                      +----+ +-+
-    //   +------+                                            +-+
-    //
-    quad2 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(gfx::Transform(), rect1, rect1,
-                              gfx::MaskFilterInfo(), clip_rect, opaque_content,
-                              opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // In the target space, a clip is applied on |quad| (defined by |clip_rect|,
-    // (0, 0, 60x60) |quad| and |quad2| (50, 50, 25x25) don't intersect in the
-    // target space. So no change is applied to quads.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-  }
-
-  {
-    //  rect1(non-clip) & rect2                rect1(clip) & rect3
-    //   +------+                                     +---+
-    //   |   +-+|                                     |  +|+
-    //   |   +-+|             =>                      +--+++
-    //   +------+
-    //
-    shared_quad_state->SetAll(gfx::Transform(), rect1, rect1,
-                              gfx::MaskFilterInfo(), clip_rect, opaque_content,
-                              opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect3, rect3, SkColors::kBlack, false);
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // In the target space, a clip is applied on |quad| (defined by |rect3|,
-    // (50, 50, 20x10)). |quad| intersects with |quad2| in the target space. The
-    // visible region of |quad2| is (60, 50, 10x10). So |quad2| is updated
-    // accordingly.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(60, 50, 10, 10),
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-  }
-}
-
-// Check if draw occlusion works with copy requests in root RenderPass only.
-TEST_F(DisplayTest, CompositorFrameWithCopyRequest) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(50, 50, 25, 25);
-
-  bool opaque_content = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    frame.render_pass_list.front()->copy_requests.push_back(
-        CopyOutputRequest::CreateStubForTesting());
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // root RenderPass contains |rect1|, |rect2| and copy_request (where
-    // |rect2| is in |rect1|). Since our current implementation only supports
-    // occlusion with copy_request on root RenderPass, |quad_list| reduces its
-    // size by 1 after calling remove overdraw.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithRenderPass) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(50, 0, 100, 100);
-  gfx::Rect rect3(0, 0, 25, 25);
-  gfx::Rect rect4(100, 0, 25, 25);
-  gfx::Rect rect5(0, 0, 50, 50);
-  gfx::Rect rect6(0, 75, 25, 25);
-  gfx::Rect rect7(0, 0, 10, 10);
-
-  bool opaque_content = true;
-  AggregatedRenderPassId render_pass_id{1};
-  ResourceId mask_resource_id(2);
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* R1 =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<AggregatedRenderPassDrawQuad>();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* R2 =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<AggregatedRenderPassDrawQuad>();
-  SharedQuadState* shared_quad_state3 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* D1 = frame.render_pass_list.front()
-                 ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state4 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* D2 = frame.render_pass_list.front()
-                 ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  {
-    // RenderPass r1 and r2 are intersecting to each other; however, the opaque
-    // regions D1 and D2 on R1 and R2 are not intersecting.
-    // +-------+---+--------+
-    // |_D1_|  |   |_D2_|   |
-    // |       |   |        |
-    // |   R1  |   |    R2  |
-    // +-------+---+--------+
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state3->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state4->SetAll(
-        gfx::Transform(), rect4, rect4, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    R1->SetNew(shared_quad_state, rect1, rect1, render_pass_id,
-               mask_resource_id, gfx::RectF(), gfx::Size(),
-               gfx::Vector2dF(1, 1), gfx::PointF(), gfx::RectF(), false, 1.0f);
-    R2->SetNew(shared_quad_state, rect2, rect2, render_pass_id,
-               mask_resource_id, gfx::RectF(), gfx::Size(),
-               gfx::Vector2dF(1, 1), gfx::PointF(), gfx::RectF(), false, 1.0f);
-    D1->SetNew(shared_quad_state3, rect3, rect3, SkColors::kBlack, false);
-    D2->SetNew(shared_quad_state4, rect4, rect4, SkColors::kBlack, false);
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // As shown in the image above, the opaque region |d1| and |d2| does not
-    // occlude each other. Since AggregatedRenderPassDrawQuad |r1| and |r2|
-    // cannot be removed to reduce overdraw, |quad_list| remains unchanged.
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        rect3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-    EXPECT_EQ(
-        rect4,
-        frame.render_pass_list.front()->quad_list.ElementAt(3)->visible_rect);
-  }
-
-  {
-    // RenderPass R2 is contained in R1, but the opaque region of the two
-    // RenderPasses are separated.
-    // +-------+-----------+
-    // |_D2_|  |      |_D1_|
-    // |       |           |
-    // |   R2  |       R1  |
-    // +-------+-----------+
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect5, rect5, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state3->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state4->SetAll(
-        gfx::Transform(), rect6, rect6, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    R1->SetNew(shared_quad_state, rect5, rect5, render_pass_id,
-               mask_resource_id, gfx::RectF(), gfx::Size(),
-               gfx::Vector2dF(1, 1), gfx::PointF(), gfx::RectF(), false, 1.0f);
-    R2->SetNew(shared_quad_state, rect1, rect1, render_pass_id,
-               mask_resource_id, gfx::RectF(), gfx::Size(),
-               gfx::Vector2dF(1, 1), gfx::PointF(), gfx::RectF(), false, 1.0f);
-    D1->SetNew(shared_quad_state3, rect3, rect3, SkColors::kBlack, false);
-    D2->SetNew(shared_quad_state4, rect6, rect6, SkColors::kBlack, false);
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // As shown in the image above, the opaque region |d1| and |d2| does not
-    // occlude each other. Since AggregatedRenderPassDrawQuad |r1| and |r2|
-    // cannot be removed to reduce overdraw, |quad_list| remains unchanged.
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect5,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        rect3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-    EXPECT_EQ(
-        rect6,
-        frame.render_pass_list.front()->quad_list.ElementAt(3)->visible_rect);
-  }
-
-  {
-    // RenderPass R2 is contained in R1, and opaque region of R2 in R1 as well.
-    // +-+---------+-------+
-    // |-+   |     |       |
-    // |-----+     |       |
-    // |   R2      |   R1  |
-    // +-----------+-------+
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect5, rect5, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state3->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state4->SetAll(
-        gfx::Transform(), rect7, rect7, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    R1->SetNew(shared_quad_state, rect5, rect5, render_pass_id,
-               mask_resource_id, gfx::RectF(), gfx::Size(),
-               gfx::Vector2dF(1, 1), gfx::PointF(), gfx::RectF(), false, 1.0f);
-    R2->SetNew(shared_quad_state, rect1, rect1, render_pass_id,
-               mask_resource_id, gfx::RectF(), gfx::Size(),
-               gfx::Vector2dF(1, 1), gfx::PointF(), gfx::RectF(), false, 1.0f);
-    D1->SetNew(shared_quad_state3, rect3, rect3, SkColors::kBlack, false);
-    D2->SetNew(shared_quad_state4, rect7, rect7, SkColors::kBlack, false);
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // As shown in the image above, the opaque region |d2| is contained in |d1|
-    // Since AggregatedRenderPassDrawQuad |r1| and |r2| cannot be removed to
-    // reduce overdraw, |quad_list| is reduced by 1.
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect5,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        rect3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithMultipleDrawQuadInSharedQuadState) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect1_1(0, 0, 50, 50);
-  gfx::Rect rect1_2(50, 0, 50, 50);
-  gfx::Rect rect1_3(0, 50, 50, 50);
-  gfx::Rect rect1_4(50, 50, 50, 50);
-  gfx::Rect rect_in_rect1(0, 0, 60, 40);
-  gfx::Rect rect_intersects_rect1(80, 0, 50, 30);
-
-  gfx::Rect rect2(20, 0, 100, 100);
-  gfx::Rect rect2_1(20, 0, 50, 50);
-  gfx::Rect rect2_2(70, 0, 50, 50);
-  gfx::Rect rect2_3(20, 50, 50, 50);
-  gfx::Rect rect2_4(70, 50, 50, 50);
-  gfx::Rect rect3(0, 0, 140, 60);
-  gfx::Rect rect3_1(0, 0, 70, 30);
-  gfx::Rect rect3_2(70, 0, 70, 30);
-
-  bool opaque_content = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad1 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* quad3 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* quad4 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* quad5 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  {
-    // A Shared quad states contains 4 drawquads and it covers another draw
-    // quad from different shared quad state.
-    // +--+--+
-    // +--|+ |
-    // +--+--+
-    // |  |  |
-    // +--+--+
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect_in_rect1, rect_in_rect1, gfx::MaskFilterInfo(),
-        absl::nullopt, opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad1->SetNew(shared_quad_state, rect1_1, rect1_1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state, rect1_2, rect1_2, SkColors::kBlack, false);
-    quad3->SetNew(shared_quad_state, rect1_3, rect1_3, SkColors::kBlack, false);
-    quad4->SetNew(shared_quad_state, rect1_4, rect1_4, SkColors::kBlack, false);
-    quad5->SetNew(shared_quad_state2, rect_in_rect1, rect_in_rect1,
-                  SkColors::kBlack, false);
-    EXPECT_EQ(5u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |visible_rect| of |shared_quad_state| is formed by 4 DrawQuads and it
-    // covers the visible region of |shared_quad_state2|.
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1_1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect1_2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        rect1_3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-    EXPECT_EQ(
-        rect1_4,
-        frame.render_pass_list.front()->quad_list.ElementAt(3)->visible_rect);
-  }
-
-  {
-    // A Shared quad states that contains 4 drawquads that intersect with
-    // another shared quad state that contains 1 drawquad.
-    // +--+-++--+
-    // |  | +|--+
-    // +--+--+
-    // |  |  |
-    // +--+--+
-    quad5 = frame.render_pass_list.front()
-                ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state2->SetAll(gfx::Transform(), rect_intersects_rect1,
-                               rect_intersects_rect1, gfx::MaskFilterInfo(),
-                               absl::nullopt, opaque_content, opacity,
-                               SkBlendMode::kSrcOver, 0);
-    quad5->SetNew(shared_quad_state2, rect_intersects_rect1,
-                  rect_intersects_rect1, SkColors::kBlack, false);
-    EXPECT_EQ(5u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |visible_rect| of |shared_quad_state| is formed by 4 DrawQuads and it
-    // partially covers the visible region of |shared_quad_state2|. The
-    // |visible_rect| of |quad5| is updated.
-    EXPECT_EQ(5u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1_1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect1_2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        rect1_3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-    EXPECT_EQ(
-        rect1_4,
-        frame.render_pass_list.front()->quad_list.ElementAt(3)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(100, 0, 30, 30),
-        frame.render_pass_list.front()->quad_list.ElementAt(5)->visible_rect);
-  }
-
-  {
-    // A Shared quad states that contains 4 DrawQuads that intersects with
-    // another shared quad state that contains 2 DrawQuads.
-    // +-+--+--+-+
-    // +-|--|--|-+
-    //   +--+--+
-    //   |  |  |
-    //   +--+--+
-
-    auto* quad6 = frame.render_pass_list.front()
-                      ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect2, rect2, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad1->SetNew(shared_quad_state, rect2_1, rect2_1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state, rect2_2, rect2_2, SkColors::kBlack, false);
-    quad3->SetNew(shared_quad_state, rect2_3, rect2_3, SkColors::kBlack, false);
-    quad4->SetNew(shared_quad_state, rect2_4, rect2_4, SkColors::kBlack, false);
-    quad5->SetNew(shared_quad_state2, rect3_1, rect3_1, SkColors::kBlack,
-                  false);
-    quad6->SetNew(shared_quad_state2, rect3_2, rect3_2, SkColors::kBlack,
-                  false);
-    EXPECT_EQ(6u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |visible_rect| of |shared_quad_state| is formed by 4 DrawQuads and it
-    // partially covers the visible region of |shared_quad_state2|. So the
-    // |visible_rect| of DrawQuads in |share_quad_state2| are updated to the
-    // region shown on screen.
-    EXPECT_EQ(6u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect2_1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect2_2,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(
-        rect2_3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-    EXPECT_EQ(
-        rect2_4,
-        frame.render_pass_list.front()->quad_list.ElementAt(3)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(0, 0, 20, 30),
-        frame.render_pass_list.front()->quad_list.ElementAt(5)->visible_rect);
-    EXPECT_EQ(
-        gfx::Rect(120, 0, 20, 30),
-        frame.render_pass_list.front()->quad_list.ElementAt(6)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, CompositorFrameWithNonInvertibleTransform) {
-  RendererSettings settings;
-  SetUpGpuDisplay(settings);
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect rect1(0, 0, 100, 100);
-  gfx::Rect rect2(10, 10, 50, 50);
-  gfx::Rect rect3(0, 0, 10, 10);
-
-  gfx::Transform invertible;
-  auto non_invertible = gfx::Transform::RowMajor(10, 10, 0, 0,  // row 1
-                                                 10, 10, 0, 0,  // row 2
-                                                 0, 0, 1, 0,    // row 3
-                                                 0, 0, 0, 1);   // row 4
-  gfx::Transform non_invertible_miss_z;
-  non_invertible_miss_z.Scale3d(1, 1, 0);
-  bool opaque_content = true;
-  float opacity = 1.f;
-  auto* quad1 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* quad2 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* quad3 = frame.render_pass_list.front()
-                    ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  SharedQuadState* shared_quad_state1 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SharedQuadState* shared_quad_state2 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SharedQuadState* shared_quad_state3 =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-
-  {
-    // in quad content space:        in target space:
-    // +-+---------+                 +-----------+----+
-    // +-+   q1    |                 |        q1 | q3 |
-    // | +----+    |                 | +----+    |    |
-    // | | q2 |    |                 | | q2 |    |    |
-    // | +----+    |                 | +----+    |    |
-    // |           |                 |           |    |
-    // +-----------+                 +-----------+    |
-    //                               |                |
-    //                               +----------------+
-    // |quad1| forms an occlusion rect; |quad2| follows a invertible transform
-    // and is hiding behind quad1; |quad3| follows a non-invertible transform
-    // and it is not covered by the occlusion rect.
-    shared_quad_state1->SetAll(invertible, rect1, rect1, gfx::MaskFilterInfo(),
-                               absl::nullopt, opaque_content, opacity,
-                               SkBlendMode::kSrcOver, 0);
-    shared_quad_state2->SetAll(invertible, rect2, rect2, gfx::MaskFilterInfo(),
-                               absl::nullopt, opaque_content, opacity,
-                               SkBlendMode::kSrcOver, 0);
-    shared_quad_state3->SetAll(
-        non_invertible, rect3, rect3, gfx::MaskFilterInfo(), absl::nullopt,
-        opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad1->SetNew(shared_quad_state1, rect1, rect1, SkColors::kBlack, false);
-    quad2->SetNew(shared_quad_state2, rect2, rect2, SkColors::kBlack, false);
-    quad3->SetNew(shared_quad_state3, rect3, rect3, SkColors::kBlack, false);
-
-    EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad2| is removed because it is not shown on screen in the target space.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        rect3,
-        frame.render_pass_list.front()->quad_list.ElementAt(2)->visible_rect);
-  }
-
-  {
-    // in quad content space:     in target space:
-    // +--------+                 +--------+
-    // | |      |                 | |      |
-    // |-+      |                 |-+      |
-    // |        |                 |        |
-    // +--------+                 +--------+
-    // Verify if draw occlusion can occlude quad with non-invertible
-    // transform.
-    shared_quad_state1->SetAll(invertible, rect1, rect1, gfx::MaskFilterInfo(),
-                               absl::nullopt, opaque_content, opacity,
-                               SkBlendMode::kSrcOver, 0);
-    shared_quad_state3->SetAll(
-        non_invertible_miss_z, rect3, rect3, gfx::MaskFilterInfo(),
-        absl::nullopt, opaque_content, opacity, SkBlendMode::kSrcOver, 0);
-    quad1->SetNew(shared_quad_state1, rect1, rect1, SkColors::kBlack, false);
-    quad3->SetNew(shared_quad_state3, rect3, rect3, SkColors::kBlack, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // |quad3| follows an non-invertible transform and it's covered by the
-    // occlusion rect. So |quad3| is removed from the |frame|.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-// Check if draw occlusion works with very large DrawQuad. crbug.com/824528.
-TEST_F(DisplayTest, DrawOcclusionWithLargeDrawQuad) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  // The size of this DrawQuad will be 237790x237790 > 2^32 (uint32_t.max())
-  // which caused the integer overflow in the bug.
-  gfx::Rect rect1(237790, 237790);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  auto* quad = frame.render_pass_list.front()
-                   ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  // +----+
-  // |    |
-  // +----+
-  {
-    shared_quad_state->SetAll(
-        gfx::Transform(), rect1, rect1, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-
-    quad->SetNew(shared_quad_state, rect1, rect1, SkColors::kBlack, false);
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // This is a base case, the compositor frame contains only one
-    // DrawQuad, so the size of quad_list remains unchanged after calling
-    // RemoveOverdrawQuads.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        rect1,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-// Supports testing features::OnBeginFrameAcks, which changes the expectations
-// of what IPCs are sent to the CompositorFrameSinkClient. When enabled
-// OnBeginFrame also handles ReturnResources as well as
-// DidReceiveCompositorFrameAck.
-class OnBeginFrameAcksDisplayTest : public DisplayTest,
-                                    public testing::WithParamInterface<bool> {
- public:
-  OnBeginFrameAcksDisplayTest();
-  ~OnBeginFrameAcksDisplayTest() override = default;
-
-  bool BeginFrameAcksEnabled() const { return GetParam(); }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-OnBeginFrameAcksDisplayTest::OnBeginFrameAcksDisplayTest() {
-  if (BeginFrameAcksEnabled()) {
-    scoped_feature_list_.InitAndEnableFeature(features::kOnBeginFrameAcks);
-  } else {
-    scoped_feature_list_.InitAndDisableFeature(features::kOnBeginFrameAcks);
-  }
-}
-
-TEST_P(OnBeginFrameAcksDisplayTest, CompositorFrameWithPresentationToken) {
+TEST_F(DisplayTest, CompositorFrameWithPresentationToken) {
   RendererSettings settings;
   id_allocator_.GenerateId();
   const LocalSurfaceId local_surface_id(
@@ -3424,23 +926,20 @@ TEST_P(OnBeginFrameAcksDisplayTest, CompositorFrameWithPresentationToken) {
 
   auto sub_support = std::make_unique<CompositorFrameSinkSupport>(
       &sub_client, &manager_, kAnotherFrameSinkId, false /* is_root */);
-  if (BeginFrameAcksEnabled()) {
-    sub_support->SetWantsBeginFrameAcks();
-  }
 
   const gfx::Size display_size(100, 100);
   display_->Resize(display_size);
   const gfx::Size sub_surface_size(32, 32);
 
-  uint32_t frame_token_1 = 0, frame_token_2 = 0;
+  uint32_t frame_token_1 = kInvalidFrameToken;
+  uint32_t frame_token_2 = kInvalidFrameToken;
   {
     CompositorFrame frame =
         CompositorFrameBuilder()
             .AddRenderPass(gfx::Rect(sub_surface_size), gfx::Rect())
             .SetBeginFrameSourceId(kBeginFrameSourceId)
             .Build();
-    EXPECT_CALL(sub_client, DidReceiveCompositorFrameAck(_))
-        .Times(BeginFrameAcksEnabled() ? 0 : 1);
+    EXPECT_CALL(sub_client, DidReceiveCompositorFrameAck(_));
     frame_token_1 = frame.metadata.frame_token;
     sub_support->SubmitCompositorFrame(sub_local_surface_id, std::move(frame));
   }
@@ -3455,12 +954,13 @@ TEST_P(OnBeginFrameAcksDisplayTest, CompositorFrameWithPresentationToken) {
 
     auto* shared_quad_state1 = pass->CreateAndAppendSharedQuadState();
     gfx::Rect rect1(display_size);
-    shared_quad_state1->SetAll(
-        gfx::Transform(), rect1 /* quad_layer_rect */,
-        rect1 /* visible_quad_layer_rect */,
-        gfx::MaskFilterInfo() /* mask_filter_info */,
-        absl::nullopt /*clip_rect */, false /* are_contents_opaque */,
-        0.5f /* opacity */, SkBlendMode::kSrcOver, 0 /* sorting_context_id */);
+    shared_quad_state1->SetAll(gfx::Transform(), /*quad_layer_rect=*/rect1,
+                               /*visible_quad_layer_rect=*/rect1,
+                               /*mask_filter_info=*/gfx::MaskFilterInfo(),
+                               /*clip=*/std::nullopt, /*contents_opaque=*/false,
+                               /*opacity_f=*/0.5f, SkBlendMode::kSrcOver,
+                               /*sorting_context=*/0,
+                               /*layer_id=*/0u, /*fast_rounded_corner=*/false);
     auto* quad1 = pass->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
     quad1->SetNew(shared_quad_state1, rect1 /* rect */,
                   rect1 /* visible_rect */, SkColors::kBlack,
@@ -3468,16 +968,17 @@ TEST_P(OnBeginFrameAcksDisplayTest, CompositorFrameWithPresentationToken) {
 
     auto* shared_quad_state2 = pass->CreateAndAppendSharedQuadState();
     gfx::Rect rect2(gfx::Point(20, 20), sub_surface_size);
-    shared_quad_state2->SetAll(
-        gfx::Transform(), rect2 /* quad_layer_rect */,
-        rect2 /* visible_quad_layer_rect */,
-        gfx::MaskFilterInfo() /* mask_filter_info */,
-        absl::nullopt /*clip_rect */, true /* are_contents_opaque */,
-        1.0f /* opacity */, SkBlendMode::kSrcOver, 0 /* sorting_context_id */);
+    shared_quad_state2->SetAll(gfx::Transform(), /*quad_layer_rect=*/rect2,
+                               /*visible_quad_layer_rect=*/rect2,
+                               /*mask_filter_info=*/gfx::MaskFilterInfo(),
+                               /*clip=*/std::nullopt, /*contents_opaque=*/false,
+                               /*opacity_f=*/1.f, SkBlendMode::kSrcOver,
+                               /*sorting_context=*/0,
+                               /*layer_id=*/0u, /*fast_rounded_corner=*/false);
     auto* quad2 = pass->quad_list.AllocateAndConstruct<SurfaceDrawQuad>();
     quad2->SetNew(shared_quad_state2, rect2 /* rect */,
                   rect2 /* visible_rect */,
-                  SurfaceRange(absl::nullopt, sub_surface_id), SkColors::kBlack,
+                  SurfaceRange(std::nullopt, sub_surface_id), SkColors::kBlack,
                   false /* stretch_content_to_fill_bounds */);
 
     pass_list.push_back(std::move(pass));
@@ -3494,8 +995,7 @@ TEST_P(OnBeginFrameAcksDisplayTest, CompositorFrameWithPresentationToken) {
                                 .Build();
     frame_token_2 = frame.metadata.frame_token;
 
-    EXPECT_CALL(sub_client, DidReceiveCompositorFrameAck(_))
-        .Times(BeginFrameAcksEnabled() ? 0 : 1);
+    EXPECT_CALL(sub_client, DidReceiveCompositorFrameAck(_));
     sub_support->SubmitCompositorFrame(sub_local_surface_id, std::move(frame));
 
     display_->DrawAndSwap({base::TimeTicks::Now(), base::TimeTicks::Now()});
@@ -3514,22 +1014,13 @@ TEST_P(OnBeginFrameAcksDisplayTest, CompositorFrameWithPresentationToken) {
             .SetBeginFrameSourceId(kBeginFrameSourceId)
             .Build();
 
-    EXPECT_CALL(sub_client, DidReceiveCompositorFrameAck(_))
-        .Times(BeginFrameAcksEnabled() ? 0 : 1);
+    EXPECT_CALL(sub_client, DidReceiveCompositorFrameAck(_));
     sub_support->SubmitCompositorFrame(sub_local_surface_id, std::move(frame));
 
     display_->DrawAndSwap({base::TimeTicks::Now(), base::TimeTicks::Now()});
     RunUntilIdle();
   }
 }
-
-INSTANTIATE_TEST_SUITE_P(,
-                         OnBeginFrameAcksDisplayTest,
-                         testing::Bool(),
-                         [](auto& info) {
-                           return info.param ? "BeginFrameAcks"
-                                             : "CompositoFrameAcks";
-                         });
 
 TEST_F(DisplayTest, BeginFrameThrottling) {
   id_allocator_.GenerateId();
@@ -3559,9 +1050,12 @@ TEST_F(DisplayTest, BeginFrameThrottling) {
     EXPECT_TRUE(ShouldSendBeginFrame(support_.get(), frame_time));
     UpdateBeginFrameTime(support_.get(), frame_time);
     submit_frame();
-    // Immediately after submitting frame, because there is presentation
-    // feedback queued up, ShouldSendBeginFrame should always return true.
-    EXPECT_TRUE(ShouldSendBeginFrame(support_.get(), frame_time));
+    // Until we reach throttling we should return true.
+    if (i < CompositorFrameSinkSupport::kUndrawnFrameLimit) {
+      EXPECT_TRUE(ShouldSendBeginFrame(support_.get(), frame_time));
+    } else {
+      EXPECT_FALSE(ShouldSendBeginFrame(support_.get(), frame_time));
+    }
     // Clear the presentation feedbacks.
     UpdateBeginFrameTime(support_.get(), frame_time);
   }
@@ -3584,9 +1078,12 @@ TEST_F(DisplayTest, BeginFrameThrottling) {
     EXPECT_TRUE(ShouldSendBeginFrame(support_.get(), frame_time));
     UpdateBeginFrameTime(support_.get(), frame_time);
     submit_frame();
-    // Immediately after submitting frame, because there is presentation
-    // feedback queued up, ShouldSendBeginFrame should always return true.
-    EXPECT_TRUE(ShouldSendBeginFrame(support_.get(), frame_time));
+    // Until we reach throttling we should return true.
+    if (i < CompositorFrameSinkSupport::kUndrawnFrameLimit) {
+      EXPECT_TRUE(ShouldSendBeginFrame(support_.get(), frame_time));
+    } else {
+      EXPECT_FALSE(ShouldSendBeginFrame(support_.get(), frame_time));
+    }
     // Clear the presentation feedbacks.
     UpdateBeginFrameTime(support_.get(), frame_time);
   }
@@ -3697,9 +1194,12 @@ TEST_F(DisplayTest, DontThrottleWhenParentBlocked) {
     UpdateBeginFrameTime(sub_support.get(), frame_time);
     sub_support->SubmitCompositorFrame(sub_local_surface_id,
                                        MakeDefaultCompositorFrame());
-    // Immediately after submitting frame, because there is presentation
-    // feedback queued up, ShouldSendBeginFrame should always return true.
-    EXPECT_TRUE(ShouldSendBeginFrame(sub_support.get(), frame_time));
+    // Until we reach throttling we should return true.
+    if (i < CompositorFrameSinkSupport::kUndrawnFrameLimit) {
+      EXPECT_TRUE(ShouldSendBeginFrame(sub_support.get(), frame_time));
+    } else {
+      EXPECT_FALSE(ShouldSendBeginFrame(sub_support.get(), frame_time));
+    }
     // Clear the presentation feedbacks.
     UpdateBeginFrameTime(sub_support.get(), frame_time);
   }
@@ -3745,461 +1245,6 @@ TEST_F(DisplayTest, DontThrottleWhenParentBlocked) {
   UpdateBeginFrameTime(sub_support.get(), frame_time);
 }
 
-TEST_F(DisplayTest, DrawOcclusionWithRoundedCornerDoesNotOcclude) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-
-  // The quad with rounded corner does not completely cover the quad below it.
-  // The corners of the below quad are visiblg through the clipped corners.
-  gfx::Rect quad_rect(10, 10, 100, 100);
-  gfx::MaskFilterInfo mask_filter_info(
-      gfx::RRectF(gfx::RectF(quad_rect), 10.f));
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state_with_rrect =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SharedQuadState* shared_quad_state_occluded =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-
-  auto* rounded_corner_quad =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* occluded_quad =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  {
-    shared_quad_state_occluded->SetAll(
-        gfx::Transform(), quad_rect, quad_rect, gfx::MaskFilterInfo(),
-        absl::nullopt, are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    occluded_quad->SetNew(shared_quad_state_occluded, quad_rect, quad_rect,
-                          SkColors::kRed, false);
-
-    shared_quad_state_with_rrect->SetAll(
-        gfx::Transform(), quad_rect, quad_rect, mask_filter_info, absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    rounded_corner_quad->SetNew(shared_quad_state_with_rrect, quad_rect,
-                                quad_rect, SkColors::kBlue, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-
-    // Since none of the quads are culled, there should be 2 quads.
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        quad_rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-    EXPECT_EQ(
-        quad_rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(1)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, DrawOcclusionWithRoundedCornerDoesOcclude) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // The quad with rounded corner completely covers the quad below it.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-  gfx::Rect quad_rect(10, 10, 1000, 1000);
-  gfx::Rect occluded_quad_rect(13, 13, 994, 994);
-  gfx::MaskFilterInfo mask_filter_info(
-      gfx::RRectF(gfx::RectF(quad_rect), 10.f));
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state_with_rrect =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SharedQuadState* shared_quad_state_occluded =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-
-  auto* rounded_corner_quad =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* occluded_quad =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  {
-    shared_quad_state_occluded->SetAll(
-        gfx::Transform(), occluded_quad_rect, occluded_quad_rect,
-        gfx::MaskFilterInfo(), absl::nullopt, are_contents_opaque, opacity,
-        SkBlendMode::kSrcOver, 0);
-    occluded_quad->SetNew(shared_quad_state_occluded, occluded_quad_rect,
-                          occluded_quad_rect, SkColors::kRed, false);
-
-    shared_quad_state_with_rrect->SetAll(
-        gfx::Transform(), quad_rect, quad_rect, mask_filter_info, absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    rounded_corner_quad->SetNew(shared_quad_state_with_rrect, quad_rect,
-                                quad_rect, SkColors::kBlue, false);
-
-    EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since the quad with rounded corner completely covers the quad with
-    // no rounded corner, the later quad is culled. We should only have 1 quad
-    // in the final list now.
-    EXPECT_EQ(1u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        quad_rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-  }
-}
-
-TEST_F(DisplayTest, DrawOcclusionSplit) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // The two partially occluded quads will be split into two additional quads,
-  // preserving only the visible regions.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-
-  //  +--------------------------------+
-  //  |***+----------------------+ <- Large occluding Rect
-  //  +---|-  -   -  - +  -  -  -|-----+
-  //  |***|            .         |*****|
-  //  |***+----------------------+*****|
-  //  |****************|***************|
-  //  +----------------+---------------+
-  //
-  // * -> Visible rect for the quads.
-
-  const gfx::Rect occluding_rect(10, 10, 1000, 490);
-  const gfx::Rect quad_rects[3] = {
-      gfx::Rect(0, 0, 1200, 20),
-      gfx::Rect(0, 20, 600, 490),
-      gfx::Rect(600, 20, 600, 490),
-  };
-  gfx::Rect occluded_sqs_rect(0, 0, 1200, 510);
-
-  const bool are_contents_opaque = true;
-  const float opacity = 1.f;
-  SharedQuadState* shared_quad_state_occluder =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SharedQuadState* shared_quad_state_occluded =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-
-  SolidColorDrawQuad* quads[4];
-  for (auto*& quad : quads) {
-    quad = frame.render_pass_list.front()
-               ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  }
-
-  {
-    shared_quad_state_occluder->SetAll(
-        gfx::Transform(), occluding_rect, occluding_rect, gfx::MaskFilterInfo(),
-        absl::nullopt, are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    quads[0]->SetNew(shared_quad_state_occluder, occluding_rect, occluding_rect,
-                     SkColors::kRed, false);
-
-    shared_quad_state_occluded->SetAll(gfx::Transform(), occluded_sqs_rect,
-                                       occluded_sqs_rect, gfx::MaskFilterInfo(),
-                                       absl::nullopt, are_contents_opaque,
-                                       opacity, SkBlendMode::kSrcOver, 0);
-    for (int i = 1; i < 4; i++) {
-      quads[i]->SetNew(shared_quad_state_occluded, quad_rects[i - 1],
-                       quad_rects[i - 1], SkColors::kRed, false);
-    }
-
-    EXPECT_EQ(4u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    ASSERT_EQ(6u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        occluding_rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-
-    // Computed the expected quads
-    //  +--------------------------------+
-    //  |                1               |
-    //  +---+----------------------+-----+
-    //  | 2 |                      |  3  |
-    //  +---+------------+---------+-----+
-    //  |        4       |        5      |
-    //  +----------------+---------------+
-    const gfx::Rect expected_visible_rects[5]{
-        // The occluded region of rest one is small, so we do not split the
-        // quad.
-        quad_rects[0],
-        gfx::Rect(0, 20, 10, 480),
-        gfx::Rect(0, 500, 600, 10),
-        gfx::Rect(1010, 20, 190, 480),
-        gfx::Rect(600, 500, 600, 10),
-    };
-
-    const QuadList& quad_list = frame.render_pass_list.front()->quad_list;
-    for (int i = 0; i < 5; i++) {
-      EXPECT_EQ(expected_visible_rects[i],
-                quad_list.ElementAt(i + 1)->visible_rect);
-    }
-  }
-}
-
-// Tests cases in which occlusion culling splits are performed due to first pass
-// complexity reduction in visible regions. For more details, see:
-// https://tinyurl.com/RegionComplexityReduction#heading=h.fg95k5w5t791
-TEST_F(DisplayTest, FirstPassVisibleComplexityReduction) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-
-  const bool are_contents_opaque = true;
-  const float opacity = 1.f;
-
-  //  +---------+-------+--------------+
-  //  |*********|       |**************|
-  //  |*********|       +------+*******|
-  //  |*********|       |      |*******|
-  //  |*********|       +------+*******|
-  //  |*********|       |**************|
-  //  +---------+-------+--------------+
-  //
-  //  *--> occluded quad
-  //
-  // This configuration will produce the following visible region for the
-  // occluded quad.
-  //  +---------+       +--------------+
-  //  |    1    |       |      2       |
-  //  |---------+       +------+-------|
-  //  |    3    |              |   4   |
-  //  |---------+       +------+-------|
-  //  |    5    |       |      6       |
-  //  +---------+       +--------------+
-  //
-  // The above split is unnecessarily complex. Rectangles 1, 3, and 5 should be
-  // merged:
-  //  +---------+       +--------------+
-  //  |         |       |      2       |
-  //  |         |       +------+-------|
-  //  |    1    |              |   3   |
-  //  |         |       +------+-------|
-  //  |         |       |      4       |
-  //  +---------+       +--------------+
-  //
-  // If the merge is not done, this visible region will be discarded and the
-  // quad will not be split.
-
-  const gfx::Rect occluding_rects[2] = {
-      gfx::Rect(300, 0, 550, 270),
-      gfx::Rect(850, 50, 150, 150),
-  };
-  for (const auto& r : occluding_rects) {
-    SharedQuadState* shared_quad_state_occluder =
-        frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-    shared_quad_state_occluder->SetAll(
-        gfx::Transform(), r, r, gfx::MaskFilterInfo(), absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    SolidColorDrawQuad* quad =
-        frame.render_pass_list.front()
-            ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    quad->SetNew(shared_quad_state_occluder, r, r, SkColors::kRed, false);
-  }
-
-  const gfx::Rect occluded_rect(0, 0, 1350, 270);
-  {
-    SharedQuadState* shared_quad_state_occluded =
-        frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-    shared_quad_state_occluded->SetAll(
-        gfx::Transform(), occluded_rect, occluded_rect, gfx::MaskFilterInfo(),
-        absl::nullopt, are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    SolidColorDrawQuad* occluded_quad =
-        frame.render_pass_list.front()
-            ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-    occluded_quad->SetNew(shared_quad_state_occluded, occluded_rect,
-                          occluded_rect, SkColors::kRed, false);
-  }
-
-  EXPECT_EQ(3u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-  display_->RemoveOverdrawQuads(&frame);
-  ASSERT_EQ(6u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-
-  //  Expected visible quads:
-  //  +---------+-------+--------------+
-  //  |*********|       |******4*******|
-  //  |*********|       +------+-------|
-  //  |****3****|   1   |   2  |***5***|
-  //  |*********|       +------+-------|
-  //  |*********|       |******6*******|
-  //  +---------+-------+--------------+
-  //
-  // * -> Visible rect for the quads.
-
-  const gfx::Rect expected_visible_rects[6] = {
-      occluding_rects[0],
-      occluding_rects[1],
-      gfx::Rect(0, 0, 300, 270),
-      gfx::Rect(850, 0, 500, 50),
-      gfx::Rect(1000, 50, 350, 150),
-      gfx::Rect(850, 200, 500, 70),
-  };
-
-  for (size_t i = 0; i < std::size(expected_visible_rects); ++i) {
-    EXPECT_EQ(
-        expected_visible_rects[i],
-        frame.render_pass_list.front()->quad_list.ElementAt(i)->visible_rect);
-  }
-}
-
-// Test that the threshold we use to determine if it's worth splitting a quad or
-// not takes into account the device scale factor. In particular, this test
-// would not pass if we had a display scale factor equal to 1.f instead of 1.5f
-// since the number of saved fragments would only be 100x100 which is lower than
-// our threshold 128x128.
-TEST_F(DisplayTest, DrawOcclusionSplitDeviceScaleFactorFractional) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-  display_->SetLocalSurfaceId(id_allocator_.GetCurrentLocalSurfaceId(), 1.5f);
-  display_->Resize(gfx::Size(1000, 1000));
-
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-
-  const bool are_contents_opaque = true;
-  const float opacity = 1.f;
-
-  // Occluder quad.
-  const gfx::Rect occluding_rect(10, 10, 100, 100);
-  SharedQuadState* shared_quad_state_occluding =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SolidColorDrawQuad* occluding_quad =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  shared_quad_state_occluding->SetAll(
-      gfx::Transform(), occluding_rect, occluding_rect, gfx::MaskFilterInfo(),
-      absl::nullopt, are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-  occluding_quad->SetNew(shared_quad_state_occluding, occluding_rect,
-                         occluding_rect, SkColors::kRed, false);
-  // Occluded quad.
-  const gfx::Rect occluded_rect = gfx::Rect(0, 0, 1000, 1000);
-  SharedQuadState* shared_quad_state_occluded =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SolidColorDrawQuad* occluded_quad =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  shared_quad_state_occluded->SetAll(
-      gfx::Transform(), occluded_rect, occluded_rect, gfx::MaskFilterInfo(),
-      absl::nullopt, are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-  occluded_quad->SetNew(shared_quad_state_occluded, occluded_rect,
-                        occluded_rect, SkColors::kRed, false);
-
-  EXPECT_EQ(2u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-  display_->RemoveOverdrawQuads(&frame);
-  EXPECT_EQ(5u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-}
-
-TEST_F(DisplayTest, DrawOcclusionWithRoundedCornerPartialOcclude) {
-  SetUpGpuDisplay(RendererSettings());
-  display_->Initialize(client_.get(), manager_.surface_manager());
-
-  // The quad with rounded corner completely covers the quad below it.
-  AggregatedFrame frame = MakeDefaultAggregatedFrame();
-
-  //      +----------------------+
-  //      |                      | <- Large occluding Rect
-  //  +---|-  -  -  -  +  -  -  -|-------+
-  //  |***|            .         |*******|
-  //  |***|            .         |*******|
-  //  |***|            .         |*******|
-  //  +---|-  -  -  -  +  -  -  -|-------+
-  //  |***|            .         |*******|
-  //  |***|            .         |*******|
-  //  |***|            .         |*******|
-  //  +---|-  -  -  -  +  -  -  -|-------+
-  //      |                      |
-  //      +----------------------+
-  //
-  // * -> Visible rect for the quads.
-  gfx::Rect quad_rect(10, 10, 1000, 1000);
-  gfx::MaskFilterInfo mask_filter_info(
-      gfx::RRectF(gfx::RectF(quad_rect), 10.f));
-  gfx::Rect occluded_quad_rect_1(0, 20, 600, 490);
-  gfx::Rect occluded_quad_rect_2(600, 20, 600, 490);
-  gfx::Rect occluded_quad_rect_3(0, 510, 600, 490);
-  gfx::Rect occluded_quad_rect_4(600, 510, 600, 490);
-  gfx::Rect occluded_sqs_rect;
-  occluded_sqs_rect.Union(occluded_quad_rect_1);
-  occluded_sqs_rect.Union(occluded_quad_rect_2);
-  occluded_sqs_rect.Union(occluded_quad_rect_3);
-  occluded_sqs_rect.Union(occluded_quad_rect_4);
-
-  bool are_contents_opaque = true;
-  float opacity = 1.f;
-  SharedQuadState* shared_quad_state_with_rrect =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-  SharedQuadState* shared_quad_state_occluded =
-      frame.render_pass_list.front()->CreateAndAppendSharedQuadState();
-
-  auto* rounded_corner_quad =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* occluded_quad_1 =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* occluded_quad_2 =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* occluded_quad_3 =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-  auto* occluded_quad_4 =
-      frame.render_pass_list.front()
-          ->quad_list.AllocateAndConstruct<SolidColorDrawQuad>();
-
-  {
-    shared_quad_state_occluded->SetAll(gfx::Transform(), occluded_sqs_rect,
-                                       occluded_sqs_rect, gfx::MaskFilterInfo(),
-                                       absl::nullopt, are_contents_opaque,
-                                       opacity, SkBlendMode::kSrcOver, 0);
-    occluded_quad_1->SetNew(shared_quad_state_occluded, occluded_quad_rect_1,
-                            occluded_quad_rect_1, SkColors::kRed, false);
-    occluded_quad_2->SetNew(shared_quad_state_occluded, occluded_quad_rect_2,
-                            occluded_quad_rect_2, SkColors::kRed, false);
-    occluded_quad_3->SetNew(shared_quad_state_occluded, occluded_quad_rect_3,
-                            occluded_quad_rect_3, SkColors::kRed, false);
-    occluded_quad_4->SetNew(shared_quad_state_occluded, occluded_quad_rect_4,
-                            occluded_quad_rect_4, SkColors::kRed, false);
-
-    shared_quad_state_with_rrect->SetAll(
-        gfx::Transform(), quad_rect, quad_rect, mask_filter_info, absl::nullopt,
-        are_contents_opaque, opacity, SkBlendMode::kSrcOver, 0);
-    rounded_corner_quad->SetNew(shared_quad_state_with_rrect, quad_rect,
-                                quad_rect, SkColors::kBlue, false);
-
-    EXPECT_EQ(5u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    display_->RemoveOverdrawQuads(&frame);
-    // Since the quad with rounded corner completely covers the quad with
-    // no rounded corner, the later quad is culled. We should only have 1 quad
-    // in the final list now.
-    EXPECT_EQ(5u, NumVisibleRects(frame.render_pass_list.front()->quad_list));
-    EXPECT_EQ(
-        quad_rect,
-        frame.render_pass_list.front()->quad_list.ElementAt(0)->visible_rect);
-
-    // For rounded rect of bounds (10, 10, 1000, 1000) and corner radius of 10,
-    // the occluding rect for it would be (13, 13, 994, 994).
-    const gfx::Rect occluding_rect(13, 13, 994, 994);
-
-    // Computed the expe
-    gfx::Rect expected_visible_rect_1 = occluded_quad_rect_1;
-    expected_visible_rect_1.Subtract(occluding_rect);
-    gfx::Rect expected_visible_rect_2 = occluded_quad_rect_2;
-    expected_visible_rect_2.Subtract(occluding_rect);
-    gfx::Rect expected_visible_rect_3 = occluded_quad_rect_3;
-    expected_visible_rect_3.Subtract(occluding_rect);
-    gfx::Rect expected_visible_rect_4 = occluded_quad_rect_4;
-    expected_visible_rect_4.Subtract(occluding_rect);
-
-    const QuadList& quad_list = frame.render_pass_list.front()->quad_list;
-
-    EXPECT_EQ(expected_visible_rect_1, quad_list.ElementAt(1)->visible_rect);
-    EXPECT_EQ(expected_visible_rect_2, quad_list.ElementAt(2)->visible_rect);
-    EXPECT_EQ(expected_visible_rect_3, quad_list.ElementAt(3)->visible_rect);
-    EXPECT_EQ(expected_visible_rect_4, quad_list.ElementAt(4)->visible_rect);
-  }
-}
-
 TEST_F(DisplayTest, DisplayTransformHint) {
   SetUpSoftwareDisplay(RendererSettings());
   display_->Initialize(client_.get(), manager_.surface_manager());
@@ -4222,16 +1267,16 @@ TEST_F(DisplayTest, DisplayTransformHint) {
       // Output size is always the display size when output surface does not
       // support display transform hint.
       {false, gfx::OVERLAY_TRANSFORM_NONE, kSize},
-      {false, gfx::OVERLAY_TRANSFORM_ROTATE_90, kSize},
-      {false, gfx::OVERLAY_TRANSFORM_ROTATE_180, kSize},
-      {false, gfx::OVERLAY_TRANSFORM_ROTATE_270, kSize},
+      {false, gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_90, kSize},
+      {false, gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_180, kSize},
+      {false, gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_270, kSize},
 
       // Output size is transposed on 90/270 degree rotation when output surface
       // supports display transform hint.
       {true, gfx::OVERLAY_TRANSFORM_NONE, kSize},
-      {true, gfx::OVERLAY_TRANSFORM_ROTATE_90, kTransposedSize},
-      {true, gfx::OVERLAY_TRANSFORM_ROTATE_180, kSize},
-      {true, gfx::OVERLAY_TRANSFORM_ROTATE_270, kTransposedSize},
+      {true, gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_90, kTransposedSize},
+      {true, gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_180, kSize},
+      {true, gfx::OVERLAY_TRANSFORM_ROTATE_CLOCKWISE_270, kTransposedSize},
   };
 
   size_t expected_frame_sent = 0u;
@@ -4306,7 +1351,27 @@ TEST_F(DisplayTest, DisplaySizeMismatch) {
   }
 }
 
-TEST_F(DisplayTest, PixelMovingForegroundFilterTest) {
+class UseMapRectDisplayTest : public DisplayTest,
+                              public testing::WithParamInterface<bool> {
+ public:
+  UseMapRectDisplayTest();
+  ~UseMapRectDisplayTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+UseMapRectDisplayTest::UseMapRectDisplayTest() {
+  if (GetParam()) {
+    scoped_feature_list_.InitAndEnableFeature(
+        features::kUseMapRectForPixelMovement);
+  } else {
+    scoped_feature_list_.InitAndDisableFeature(
+        features::kUseMapRectForPixelMovement);
+  }
+}
+
+TEST_P(UseMapRectDisplayTest, PixelMovingForegroundFilterTest) {
   RendererSettings settings;
   settings.partial_swap_enabled = true;
   id_allocator_.GenerateId();
@@ -4353,12 +1418,13 @@ TEST_F(DisplayTest, PixelMovingForegroundFilterTest) {
       cc::FilterOperations foreground_filters;
       foreground_filters.Append(cc::FilterOperation::CreateDropShadowFilter(
           gfx::Point(5, 10), 2.f, SkColors::kTransparent));
-      bd_pass->SetAll(
-          render_pass_id_generator.GenerateNextId(), sub_surface_rect,
-          no_damage, gfx::Transform(), foreground_filters,
-          cc::FilterOperations(), gfx::RRectF(gfx::RectF(sub_surface_rect), 0),
-          SubtreeCaptureId(), sub_surface_rect.size(),
-          ViewTransitionElementResourceId(), false, false, false, false, false);
+      bd_pass->SetAll(render_pass_id_generator.GenerateNextId(),
+                      sub_surface_rect, no_damage, gfx::Transform(),
+                      foreground_filters, cc::FilterOperations(),
+                      SkPath::Rect(gfx::RectToSkRect(sub_surface_rect)),
+                      SubtreeCaptureId(), sub_surface_rect.size(),
+                      ViewTransitionElementResourceId(), false, false, false,
+                      false, false);
       pass_list.push_back(std::move(bd_pass));
 
       CompositorFrame frame = CompositorFrameBuilder()
@@ -4390,11 +1456,11 @@ TEST_F(DisplayTest, PixelMovingForegroundFilterTest) {
                            RenderPassBuilder(display_size)
                                .AddSurfaceQuad(
                                    sub_surface_rect,
-                                   SurfaceRange(absl::nullopt, sub_surface_id1),
+                                   SurfaceRange(std::nullopt, sub_surface_id1),
                                    {.allow_merge = false})
                                .AddSurfaceQuad(
                                    gfx::Rect(display_size),
-                                   SurfaceRange(absl::nullopt, sub_surface_id2),
+                                   SurfaceRange(std::nullopt, sub_surface_id2),
                                    {.allow_merge = false})
                                .SetDamageRect(damage_rect))
                        .Build();
@@ -4411,8 +1477,9 @@ TEST_F(DisplayTest, PixelMovingForegroundFilterTest) {
       EXPECT_EQ(expected_damage, software_output_device_->damage_rect());
       // The scissor rect is expanded by direct_renderer to include the
       // overlapping pixel-moving foreground filter surface.
-      auto expected_scissor_rect =
-          first_frame ? gfx::Rect(display_size) : gfx::Rect(0, 0, 60, 60);
+      auto expected_scissor_rect = first_frame  ? gfx::Rect(display_size)
+                                   : GetParam() ? gfx::Rect(4, 5, 56, 55)
+                                                : gfx::Rect(0, 0, 60, 60);
       EXPECT_EQ(
           expected_scissor_rect,
           display_->renderer_for_testing()->GetLastRootScissorRectForTesting());
@@ -4476,7 +1543,7 @@ TEST_F(DisplayTest, CanSkipRenderPass) {
           CompositorFrameBuilder()
               .AddRenderPass(RenderPassBuilder(display_size)
                                  .AddSurfaceQuad(sub_surface_rect,
-                                                 SurfaceRange(absl::nullopt,
+                                                 SurfaceRange(std::nullopt,
                                                               sub_surface_id1),
                                                  {.allow_merge = false})
                                  .SetDamageRect(root_damage_rect))
@@ -4509,7 +1576,13 @@ TEST_F(DisplayTest, CanSkipRenderPass) {
 
 class SkiaDelegatedInkRendererTest : public DisplayTest {
  public:
-  void SetUp() override { EnablePrediction(); }
+  ~SkiaDelegatedInkRendererTest() override {
+    // Reset `client_` in `display_` to avoid accessing DisplayClient after
+    // `client_` is destructed. Without this, `display_` which is declared in
+    // DisplayTest class is destructed after `client_` which is declared in this
+    // class.
+    display_->ResetDisplayClientForTesting(&client_);
+  }
 
   void SetUpRenderers() {
     SetUpGpuDisplay(RendererSettings());
@@ -4521,16 +1594,6 @@ class SkiaDelegatedInkRendererTest : public DisplayTest {
     ink_renderer_ = renderer.get();
     display_->renderer_for_testing()->SetDelegatedInkPointRendererSkiaForTest(
         std::move(renderer));
-  }
-
-  void EnablePrediction() {
-    base::FieldTrialParams params;
-    params["predicted_points"] = ::features::kDraw1Point12Ms;
-    base::test::FeatureRefAndParams prediction_params = {
-        features::kDrawPredictedInkPoint, params};
-
-    feature_list_.Reset();
-    feature_list_.InitWithFeaturesAndParameters({prediction_params}, {});
   }
 
   DelegatedInkPointRendererBase* ink_renderer() {
@@ -4547,8 +1610,8 @@ class SkiaDelegatedInkRendererTest : public DisplayTest {
     return GetPointsForPointerId(pointer_id).size();
   }
 
-  const std::map<base::TimeTicks, gfx::PointF>& GetPointsForPointerId(
-      int32_t pointer_id) {
+  const std::map<base::TimeTicks, gfx::DelegatedInkPoint>&
+  GetPointsForPointerId(int32_t pointer_id) {
     DCHECK(ink_renderer()->GetPointsMapForTest().find(pointer_id) !=
            ink_renderer()->GetPointsMapForTest().end());
     return ink_renderer()
@@ -4612,12 +1675,12 @@ class SkiaDelegatedInkRendererTest : public DisplayTest {
     EXPECT_GE(index, 0);
     EXPECT_LT(index, ink_points_size(pointer_id));
 
-    // TODO(crbug.com/1308932): gfx::DelegatedInkMetadata to SkColor4f
+    // TODO(crbug.com/40219248): gfx::DelegatedInkMetadata to SkColor4f
     gfx::DelegatedInkMetadata metadata(
         ink_points_[pointer_id][index].point(), diameter, color.toSkColor(),
         ink_points_[pointer_id][index].timestamp(), presentation_area,
         base::TimeTicks::Now(),
-        /*hovering*/ false);
+        /*hovering*/ false, /*render_pass_id=*/0);
     SendMetadata(metadata);
     return metadata;
   }
@@ -4645,16 +1708,13 @@ class SkiaDelegatedInkRendererTest : public DisplayTest {
         "Renderer.DelegatedInkTrail.LatencyImprovement.Skia.WithoutPrediction");
     HistogramCheck(
         histograms, expected_bucket_with_prediction,
-        base::StrCat({"Renderer.DelegatedInkTrail."
-                      "LatencyImprovementWithPrediction.Experiment",
-                      base::NumberToString(PredictionConfig::k1Point12Ms)})
-            .c_str());
+        "Renderer.DelegatedInkTrail.LatencyImprovement.Skia.WithPrediction");
   }
 
   void DrawDelegatedInkTrail() {
     SkCanvas canvas;
     static_cast<DelegatedInkPointRendererSkia*>(ink_renderer())
-        ->DrawDelegatedInkTrail(&canvas);
+        ->DrawDelegatedInkTrail(&canvas, gfx::Transform());
   }
 
   int GetPathPointCount() { return ink_renderer()->GetPathPointCountForTest(); }
@@ -4691,6 +1751,14 @@ class SkiaDelegatedInkRendererTest : public DisplayTest {
     return ink_points_[pointer_id].size();
   }
 
+  int points_to_predict() const { return kPointsToPredict; }
+
+  const base::TimeDelta time_into_the_future() const {
+    return base::Milliseconds(
+        (kMillisecondsIntoFuturePerPoint - kResampleLatency) *
+        kPointsToPredict);
+  }
+
  protected:
   raw_ptr<DelegatedInkPointRendererSkiaForTest> ink_renderer_ = nullptr;
 
@@ -4701,6 +1769,12 @@ class SkiaDelegatedInkRendererTest : public DisplayTest {
 
  private:
   std::unordered_map<int32_t, std::vector<gfx::DelegatedInkPoint>> ink_points_;
+
+  // Values used to configure the points predictor. Needs to match the values
+  // in `DelegatedInkTrailData`;
+  static const int kPointsToPredict = 2;
+  static const int kMillisecondsIntoFuturePerPoint = 6;
+  static const int kResampleLatency = 5;
 };
 
 // Testing filtering points in the the delegated ink renderer when the skia
@@ -4726,14 +1800,6 @@ TEST_F(SkiaDelegatedInkRendererTest, SkiaDelegatedInkRendererFilteringPoints) {
   EXPECT_EQ(1, UniqueStoredPointerIds());
   EXPECT_EQ(kInitialDelegatedPoints, StoredPointsForPointerId(kPointerId));
 
-  // No metadata has been provided yet, so filtering shouldn't occur and all
-  // points should still exist after a FinalizePath() call.
-  FinalizePathAndCheckHistograms(base::TimeDelta::Min(),
-                                 base::TimeDelta::Min());
-
-  EXPECT_EQ(1, UniqueStoredPointerIds());
-  EXPECT_EQ(kInitialDelegatedPoints, StoredPointsForPointerId(kPointerId));
-
   // Now provide metadata with a timestamp matching one of the points to
   // confirm that earlier points are removed and later points remain.
   const int kInkPointForMetadata = 1;
@@ -4742,21 +1808,21 @@ TEST_F(SkiaDelegatedInkRendererTest, SkiaDelegatedInkRendererFilteringPoints) {
       kInkPointForMetadata, kDiameter, SkColors::kBlack, gfx::RectF());
 
   // The histogram should count one in the bucket that is the difference between
-  // the latest point stored and the metadata. No prediction should occur with
-  // 3 provided points, so the *WithoutPrediction histogram should count
-  // the difference between the last point and the metadata, while the
-  // *WithPrediction* histogram should count 1 in the 0 bucket.
+  // the latest point stored and the metadata. The *WithoutPrediction histogram
+  // should count the difference between the last point and the metadata, while
+  // the *WithPrediction* histogram should count 1 in the 7ms bucket because
+  // prediction can occer with linear resampling and 2 input points.
   base::TimeDelta bucket_without_prediction =
       last_ink_point(kPointerId).timestamp() - metadata.timestamp();
   FinalizePathAndCheckHistograms(bucket_without_prediction,
-                                 base::Milliseconds(0));
+                                 base::Milliseconds(7));
 
   EXPECT_EQ(kInitialDelegatedPoints - kInkPointForMetadata,
             StoredPointsForPointerId(kPointerId));
   EXPECT_EQ(metadata.point(),
-            GetPointsForPointerId(kPointerId).begin()->second);
+            GetPointsForPointerId(kPointerId).begin()->second.point());
   EXPECT_EQ(last_ink_point(kPointerId).point(),
-            GetPointsForPointerId(kPointerId).rbegin()->second);
+            GetPointsForPointerId(kPointerId).rbegin()->second.point());
   EXPECT_EQ(ink_point(0).pointer_id(), kPointerId);
 
   // Confirm that the metadata is cleared when DrawDelegatedInkTrail() is
@@ -4775,9 +1841,9 @@ TEST_F(SkiaDelegatedInkRendererTest, SkiaDelegatedInkRendererFilteringPoints) {
   EXPECT_EQ(gfx::kMaximumNumberOfDelegatedInkPoints,
             StoredPointsForPointerId(kPointerId));
   EXPECT_EQ(ink_point(kPointsBeyondMaxAllowed).point(),
-            GetPointsForPointerId(kPointerId).begin()->second);
+            GetPointsForPointerId(kPointerId).begin()->second.point());
   EXPECT_EQ(last_ink_point(kPointerId).point(),
-            GetPointsForPointerId(kPointerId).rbegin()->second);
+            GetPointsForPointerId(kPointerId).rbegin()->second.point());
   EXPECT_EQ(last_ink_point(kPointerId).pointer_id(), kPointerId);
 
   // Now send metadata with a timestamp before all of the points that are
@@ -4846,20 +1912,16 @@ TEST_F(SkiaDelegatedInkRendererTest,
       last_ink_point(kPointerIds[0]).timestamp() - metadata.timestamp();
   FinalizePathAndCheckHistograms(
       bucket_without_prediction,
-      bucket_without_prediction +
-          base::Milliseconds(kPredictionConfigs[PredictionConfig::k1Point12Ms]
-                                 .milliseconds_into_future_per_point *
-                             kPredictionConfigs[PredictionConfig::k1Point12Ms]
-                                 .points_to_predict));
+      bucket_without_prediction + time_into_the_future());
 
   // Confirm the size, first, and last points of the first pointer ID are what
   // we expect.
   EXPECT_EQ(kNumPointsForPointerId0 - kInkPointForMetadata,
             StoredPointsForPointerId(kPointerIds[0]));
   EXPECT_EQ(metadata.point(),
-            GetPointsForPointerId(kPointerIds[0]).begin()->second);
+            GetPointsForPointerId(kPointerIds[0]).begin()->second.point());
   EXPECT_EQ(last_ink_point(kPointerIds[0]).point(),
-            GetPointsForPointerId(kPointerIds[0]).rbegin()->second);
+            GetPointsForPointerId(kPointerIds[0]).rbegin()->second.point());
 
   // Confirm that neither of the other pointer ids were impacted.
   for (uint64_t i = 1; i < kPointerIds.size(); ++i) {
@@ -4873,7 +1935,8 @@ TEST_F(SkiaDelegatedInkRendererTest,
   // *WithPrediction* shouldn't record anything due to no valid pointer id.
   SendMetadata(gfx::DelegatedInkMetadata(
       gfx::PointF(100, 100), 5.6f, SK_ColorBLACK, base::TimeTicks::Min(),
-      gfx::RectF(), base::TimeTicks::Min(), /*hovering*/ false));
+      gfx::RectF(), base::TimeTicks::Min(), /*hovering*/ false,
+      /*render_pass_id=*/0));
   FinalizePathAndCheckHistograms(base::Milliseconds(0), base::TimeDelta::Min());
   EXPECT_EQ(kNumPointsForPointerId0 - kInkPointForMetadata,
             StoredPointsForPointerId(kPointerIds[0]));
@@ -4888,7 +1951,7 @@ TEST_F(SkiaDelegatedInkRendererTest,
   SendMetadata(gfx::DelegatedInkMetadata(
       gfx::PointF(100, 100), 5.6f, SK_ColorBLACK,
       base::TimeTicks::Now() + base::Milliseconds(1000), gfx::RectF(),
-      base::TimeTicks::Now(), /*hovering*/ false));
+      base::TimeTicks::Now(), /*hovering*/ false, /*render_pass_id=*/0));
   FinalizePathAndCheckHistograms(base::Milliseconds(0), base::TimeDelta::Min());
   for (int i : kPointerIds)
     EXPECT_EQ(0, StoredPointsForPointerId(i));
@@ -4928,11 +1991,7 @@ TEST_F(SkiaDelegatedInkRendererTest, LatencyHistograms) {
   base::TimeDelta bucket_without_prediction = base::Milliseconds(24);
   FinalizePathAndCheckHistograms(
       bucket_without_prediction,
-      bucket_without_prediction +
-          base::Milliseconds(kPredictionConfigs[PredictionConfig::k1Point12Ms]
-                                 .milliseconds_into_future_per_point *
-                             kPredictionConfigs[PredictionConfig::k1Point12Ms]
-                                 .points_to_predict));
+      bucket_without_prediction + time_into_the_future());
 
   // Now provide metadata that matches the final ink point provided, so that
   // everything earlier is filtered out. Then the *WithoutPrediction histogram
@@ -4941,12 +2000,8 @@ TEST_F(SkiaDelegatedInkRendererTest, LatencyHistograms) {
   MakeAndSendMetadataFromStoredInkPoint(/*index*/ 3, kDiameter,
                                         SkColors::kBlack, gfx::RectF());
   bucket_without_prediction = base::Milliseconds(0);
-  FinalizePathAndCheckHistograms(
-      bucket_without_prediction,
-      base::Milliseconds(
-          kPredictionConfigs[PredictionConfig::k1Point12Ms]
-              .milliseconds_into_future_per_point *
-          kPredictionConfigs[PredictionConfig::k1Point12Ms].points_to_predict));
+  FinalizePathAndCheckHistograms(bucket_without_prediction,
+                                 time_into_the_future());
 
   // DrawDelegatedInkTrail should clear the metadata, so finalizing the path
   // shouldn't record anything in the histograms.
@@ -4984,28 +2039,172 @@ TEST_F(SkiaDelegatedInkRendererTest, DrawTrailWhenMetadataIsCloseEnough) {
       gfx::PointF(80.f, 70.f), timestamp2 + base::Milliseconds(8), kPointerId);
 
   gfx::DelegatedInkMetadata metadata(
-      gfx::PointF(point.x() - 0.03f, point.y() + 0.03f), 45.f, SK_ColorBLACK,
+      gfx::PointF(point.x() - 1.0f, point.y() - 1.0f), 45.f, SK_ColorBLACK,
       timestamp, gfx::RectF(0, 0, 100, 100), base::TimeTicks::Now(),
-      /*hovering*/ false);
+      /*hovering*/ false, /*render_pass_id=*/0);
   SendMetadata(metadata);
 
   // If the metadata was close enough, then a trail should be drawn with all
   // three points.
   ink_renderer()->FinalizePathForDraw();
-  EXPECT_EQ(GetPathPointCount(), 3);
+  EXPECT_EQ(GetPathPointCount(), 3 + points_to_predict());
 
   // Now send a metadata with a point that is slightly further away from the
   // second point, such that the distance between them is greater than the
   // kEpsilon value to confirm that if it gets too far away we won't use it for
   // drawing.
   metadata = gfx::DelegatedInkMetadata(
-      gfx::PointF(point2.x() - 0.03f, point2.y() + 0.04f), 45.f, SK_ColorBLACK,
+      gfx::PointF(point2.x() - 1.01f, point2.y() - 1.0f), 45.f, SK_ColorBLACK,
       timestamp2, gfx::RectF(0, 0, 100, 100), base::TimeTicks::Now(),
-      /*hovering*/ false);
+      /*hovering*/ false, /*render_pass_id=*/0);
   SendMetadata(metadata);
 
   ink_renderer()->FinalizePathForDraw();
   EXPECT_EQ(GetPathPointCount(), 0);
+}
+
+// Tests that the OutstandingPointsToDraw histogram is fired correctly.
+TEST_F(SkiaDelegatedInkRendererTest, SkiaDelegatedInkOutstandingPointsToDraw) {
+  const std::string kHistogramName =
+      "Renderer.DelegatedInkTrail.Skia.OutstandingPointsToDraw";
+  const base::HistogramTester histogram_tester;
+  const int32_t kPointerId = 17;
+  SetUpRenderers();
+
+  ink_renderer()->ReportPointsDrawn();
+  // No histogram should be fired when there are no points to draw.
+  histogram_tester.ExpectTotalCount(kHistogramName, 0);
+
+  // Add one point, a histogram with a count of one should be fired.
+  const base::TimeTicks timestamp = base::TimeTicks::Now();
+  const gfx::PointF point(45.f, 78.f);
+  CreateAndStoreDelegatedInkPoint(point, timestamp, kPointerId);
+  SendMetadata(gfx::DelegatedInkMetadata(
+      gfx::PointF(point.x(), point.y()), 45.f, SK_ColorBLACK, timestamp,
+      gfx::RectF(0, 0, 100, 100), base::TimeTicks::Now(),
+      /*hovering=*/false, /*render_pass_id=*/0));
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectUniqueSample(kHistogramName, 1, 1);
+
+  // Add two point, a histogram with a count of two and three should be fired.
+  CreateAndStoreDelegatedInkPoint(point + gfx::Vector2d(1, 1),
+                                  timestamp + base::Milliseconds(10),
+                                  kPointerId);
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectTotalCount(kHistogramName, 2);
+  histogram_tester.ExpectBucketCount(kHistogramName, 2, 1);
+  CreateAndStoreDelegatedInkPoint(point + gfx::Vector2d(2, 2),
+                                  timestamp + base::Milliseconds(20),
+                                  kPointerId);
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectBucketCount(kHistogramName, 3, 1);
+  histogram_tester.ExpectTotalCount(kHistogramName, 3);
+}
+
+// Tests that the TimeToDrawMillis histogram is fired correctly.
+TEST_F(SkiaDelegatedInkRendererTest, SkiaDelegatedInkTimeToDrawMillis) {
+  const std::string kHistogramName =
+      "Renderer.DelegatedInkTrail.Skia.TimeToDrawPointsMillis";
+  const base::HistogramTester histogram_tester;
+  constexpr int32_t kPointerId = 1u;
+  SetUpRenderers();
+
+  ink_renderer()->ReportPointsDrawn();
+  // No histogram should be fired when there are no points to draw.
+  histogram_tester.ExpectTotalCount(kHistogramName, 0);
+
+  // Add one point to the trail and ensure one histogram instance is fired.
+  const base::TimeTicks timestamp = base::TimeTicks::Now();
+  const gfx::PointF point(45.f, 78.f);
+  CreateAndStoreDelegatedInkPoint(point, timestamp, kPointerId);
+  SendMetadata(gfx::DelegatedInkMetadata(
+      gfx::PointF(point.x(), point.y()), 45.f, SK_ColorBLACK, timestamp,
+      gfx::RectF(0, 0, 100, 100), base::TimeTicks::Now(),
+      /*hovering=*/false, /*render_pass_id=*/0));
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectTotalCount(kHistogramName, 1);
+
+  // Add two points to the trail and ensure that the histogram is fired three
+  // times (three points, four total histogram fires accounting for the
+  // previous).
+  CreateAndStoreDelegatedInkPoint(point + gfx::Vector2d(1, 1),
+                                  timestamp + base::Milliseconds(1),
+                                  kPointerId);
+  CreateAndStoreDelegatedInkPoint(point + gfx::Vector2d(2, 2),
+                                  timestamp + base::Milliseconds(2),
+                                  kPointerId);
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectTotalCount(kHistogramName, 4);
+}
+
+TEST_F(SkiaDelegatedInkRendererTest,
+       SkiaDelegatedInkTimeFromDelegatedInkToApiPaint) {
+  const std::string kHistogramName =
+      "Renderer.DelegatedInkTrail.Skia.TimeFromDelegatedInkToApiPaint";
+  const base::HistogramTester histogram_tester;
+  constexpr int32_t kPointerId = 1u;
+  const auto create_metadata = [](gfx::PointF& p, base::TimeTicks& t) {
+    return gfx::DelegatedInkMetadata(p, /*diameter=*/45.f, SK_ColorBLACK, t,
+                                     gfx::RectF(0, 0, 100, 100), t,
+                                     /*hovering=*/false, /*render_pass_id=*/0);
+  };
+  SetUpRenderers();
+
+  ink_renderer()->ReportPointsDrawn();
+  // No histogram should be fired when `metadata_paint_time_` is not set.
+  histogram_tester.ExpectTotalCount(kHistogramName, 0);
+
+  // Original timestamp and coordinates to be advanced for subsequent points
+  // sent.
+  base::TimeTicks timestamp = base::TimeTicks::Now();
+  gfx::PointF point(45.f, 78.f);
+  const auto advance_point = [&]() {
+    timestamp += base::Milliseconds(10);
+    point += gfx::Vector2d(3.f, 3.f);
+  };
+
+  // Set up a trail, create a point and a metadata and call ReportPointsDrawn.
+  CreateAndStoreDelegatedInkPoint(point, timestamp, kPointerId);
+  SendMetadata(create_metadata(point, timestamp));
+  ink_renderer()->ReportPointsDrawn();
+  EXPECT_NE(std::nullopt, GetPointsForPointerId(kPointerId)
+                              .find(timestamp)
+                              ->second.paint_timestamp());
+  ink_renderer()->ReportPointsDrawn();
+
+  // Add two delegated ink points to the trail and paint them.
+  advance_point();
+  CreateAndStoreDelegatedInkPoint(point, timestamp, kPointerId);
+  advance_point();
+  CreateAndStoreDelegatedInkPoint(point, timestamp, kPointerId);
+  ink_renderer()->ReportPointsDrawn();
+  // After drawing the points, all of them should have a `paint_timestamp_` set.
+  for (auto& [_, p] : GetPointsForPointerId(kPointerId)) {
+    EXPECT_NE(std::nullopt, p.paint_timestamp());
+  }
+
+  // Send a metadata that matches the last painted point.
+  SendMetadata(create_metadata(point, timestamp));
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectTotalCount(kHistogramName, 1);
+
+  // The histogram should not be fired when the metadata has not been updated.
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectTotalCount(kHistogramName, 1);
+  // Send same metadata as before and report drawing. The histogram should not
+  // be fired.
+  SendMetadata(create_metadata(point, timestamp));
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectTotalCount(kHistogramName, 1);
+
+  // Send a new point, draw, a new metadata that matches the new point, draw
+  // again and ensure that a new histogram is fired.
+  advance_point();
+  CreateAndStoreDelegatedInkPoint(point, timestamp, kPointerId);
+  ink_renderer()->ReportPointsDrawn();
+  SendMetadata(create_metadata(point, timestamp));
+  ink_renderer()->ReportPointsDrawn();
+  histogram_tester.ExpectTotalCount(kHistogramName, 2);
 }
 
 enum class DelegatedInkType { kPlatformInk, kSkiaInk };
@@ -5032,9 +2231,6 @@ class DelegatedInkDisplayTest
     if (GetParam() == DelegatedInkType::kSkiaInk) {
       SetUpRenderers();
     } else {
-      scoped_feature_list_.InitAndEnableFeature(
-          features::kUsePlatformDelegatedInk);
-
       // Set up the display to use the Skia renderer.
       SetUpGpuDisplaySkiaWithPlatformInk(RendererSettings());
 
@@ -5058,9 +2254,6 @@ class DelegatedInkDisplayTest
   const gfx::DelegatedInkMetadata* GetMetadataFromTestRenderer() {
     return ink_renderer_->last_metadata();
   }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 struct DelegatedInkDisplayTestPassToString {
@@ -5096,7 +2289,8 @@ TEST_P(DelegatedInkDisplayTest, MetadataOnlySentToSkiaRendererOrOutputSurface) {
 
   gfx::DelegatedInkMetadata metadata(
       gfx::PointF(5, 5), 3.5f, SK_ColorBLACK, base::TimeTicks::Now(),
-      gfx::RectF(0, 0, 20, 20), base::TimeTicks::Now(), false);
+      gfx::RectF(0, 0, 20, 20), base::TimeTicks::Now(), false,
+      /*render_pass_id=*/0);
 
   SubmitCompositorFrameWithInkMetadata(
       &pass_list, id_allocator_.GetCurrentLocalSurfaceId(), metadata);
@@ -5164,5 +2358,10 @@ TEST_F(UnsupportedRendererDelegatedInkTest,
   display_->InitDelegatedInkPointRendererReceiver(
       ink_renderer_remote.BindNewPipeAndPassReceiver());
 }
+
+INSTANTIATE_TEST_SUITE_P(,
+                         UseMapRectDisplayTest,
+                         testing::Bool(),
+                         &PostTestCaseName);
 
 }  // namespace viz

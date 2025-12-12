@@ -7,8 +7,10 @@
 #include <fontconfig/fontconfig.h>
 
 #include <memory>
+#include <set>
 
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/location.h"
 #include "base/notreached.h"
 #include "base/sequence_checker.h"
@@ -45,7 +47,7 @@ FcFontSet* ListFonts(FcObjectSet* object_set) {
         FcFontList(nullptr, format_pattern.get(), object_set),
         FcFontSetDestroy);
     for (int j = 0; j < fontset->nfont; ++j) {
-      FcPattern* font = fontset->fonts[j];
+      FcPattern* font = UNSAFE_TODO(fontset->fonts[j]);
       // Increments the refcount for the font.
       FcPatternReference(font);
       FcBool result = FcFontSetAdd(output, font);
@@ -87,15 +89,15 @@ blink::FontEnumerationTable FontEnumerationDataSourceLinux::GetFonts(
 
   for (int i = 0; i < fontset->nfont; ++i) {
     char* postscript_name = nullptr;
-    if (FcPatternGetString(fontset->fonts[i], FC_POSTSCRIPT_NAME, 0,
-                           reinterpret_cast<FcChar8**>(&postscript_name)) !=
+    if (FcPatternGetString(UNSAFE_TODO(fontset->fonts[i]), FC_POSTSCRIPT_NAME,
+                           0, reinterpret_cast<FcChar8**>(&postscript_name)) !=
         FcResultMatch) {
       // Skip incomplete or malformed font.
       continue;
     }
 
     char* full_name = nullptr;
-    if (FcPatternGetString(fontset->fonts[i], FC_FULLNAME, 0,
+    if (FcPatternGetString(UNSAFE_TODO(fontset->fonts[i]), FC_FULLNAME, 0,
                            reinterpret_cast<FcChar8**>(&full_name)) !=
         FcResultMatch) {
       // Skip incomplete or malformed font.
@@ -103,7 +105,7 @@ blink::FontEnumerationTable FontEnumerationDataSourceLinux::GetFonts(
     }
 
     char* family = nullptr;
-    if (FcPatternGetString(fontset->fonts[i], FC_FAMILY, 0,
+    if (FcPatternGetString(UNSAFE_TODO(fontset->fonts[i]), FC_FAMILY, 0,
                            reinterpret_cast<FcChar8**>(&family)) !=
         FcResultMatch) {
       // Skip incomplete or malformed font.
@@ -111,7 +113,7 @@ blink::FontEnumerationTable FontEnumerationDataSourceLinux::GetFonts(
     }
 
     char* style = nullptr;
-    if (FcPatternGetString(fontset->fonts[i], FC_STYLE, 0,
+    if (FcPatternGetString(UNSAFE_TODO(fontset->fonts[i]), FC_STYLE, 0,
                            reinterpret_cast<FcChar8**>(&style)) !=
         FcResultMatch) {
       // Skip incomplete or malformed font.

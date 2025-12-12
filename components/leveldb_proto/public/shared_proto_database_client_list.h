@@ -7,6 +7,7 @@
 
 #include <stddef.h>
 
+#include <array>
 #include <string>
 
 #include "base/component_export.h"
@@ -69,19 +70,26 @@ enum class ProtoDbType {
   PAGE_ENTITY_METADATA_STORE = 42,
   WEBRTC_VIDEO_STATS_DB = 43,
   PERSISTENT_ORIGIN_TRIALS = 44,
+  NEARBY_PRESENCE_LOCAL_PUBLIC_CREDENTIAL_DATABASE = 45,
+  NEARBY_PRESENCE_PRIVATE_CREDENTIAL_DATABASE = 46,
+  NEARBY_PRESENCE_REMOTE_PUBLIC_CREDENTIAL_DATABASE = 47,
+  DISCOUNTS_DATABASE = 48,
+  COMMERCE_PARCEL_TRACKING_DATABASE = 49,
+  CLIENT_CERTIFICATES_DATABASE = 50,
+  AUTOFILL_AI_MODEL_CACHE = 51,
   LAST,
 };
 
 // List of databases that need to keep using unique db instances. New databases
 // shouldn't be here unless they have a good reason.
-constexpr ProtoDbType kBlocklistedDbForSharedImpl[]{
+constexpr auto kBlocklistedDbForSharedImpl = std::to_array<ProtoDbType>({
     // DB is not tied to a profile, will always be unique.
     ProtoDbType::GCM_KEY_STORE,
     // DB Used by shared database, will always be unique.
     ProtoDbType::SHARED_DB_METADATA,
     // Marks the end of list.
     ProtoDbType::LAST,
-};
+});
 
 // Add any obsolete databases in this list so that, if the data is no longer
 // needed.
@@ -90,6 +98,7 @@ constexpr ProtoDbType kObsoleteSharedProtoDbTypeClients[] = {
     ProtoDbType::FEED_CONTENT_DATABASE,
     ProtoDbType::FEED_JOURNAL_DATABASE,
     ProtoDbType::VIDEO_TUTORIALS_DATABASE,
+    ProtoDbType::VIDEO_TUTORIALS_V2_DATABASE,
     ProtoDbType::LAST,  // Marks the end of list.
 };
 

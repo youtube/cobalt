@@ -2,11 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/services/storage/dom_storage/session_storage_metadata.h"
+
+#include <string_view>
 
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "components/services/storage/dom_storage/async_dom_storage_database.h"
 #include "third_party/blink/public/common/dom_storage/session_storage_namespace_id.h"
@@ -46,13 +52,13 @@ constexpr const size_t kPrefixBeforeStorageKeyLength =
     kNamespacePrefixLength + blink::kSessionStorageNamespaceIdLength +
     kNamespaceStorageKeySeperatorLength;
 
-base::StringPiece Uint8VectorToStringPiece(const std::vector<uint8_t>& bytes) {
-  return base::StringPiece(reinterpret_cast<const char*>(bytes.data()),
-                           bytes.size());
+std::string_view Uint8VectorToStringView(const std::vector<uint8_t>& bytes) {
+  return std::string_view(reinterpret_cast<const char*>(bytes.data()),
+                          bytes.size());
 }
 
 bool ValueToNumber(const std::vector<uint8_t>& value, int64_t* out) {
-  return base::StringToInt64(Uint8VectorToStringPiece(value), out);
+  return base::StringToInt64(Uint8VectorToStringView(value), out);
 }
 
 std::vector<uint8_t> NumberToValue(int64_t map_number) {
@@ -78,9 +84,9 @@ SessionStorageMetadata::MapData::MapData(int64_t map_number,
       storage_key_(std::move(storage_key)) {}
 SessionStorageMetadata::MapData::~MapData() = default;
 
-SessionStorageMetadata::SessionStorageMetadata() {}
+SessionStorageMetadata::SessionStorageMetadata() = default;
 
-SessionStorageMetadata::~SessionStorageMetadata() {}
+SessionStorageMetadata::~SessionStorageMetadata() = default;
 
 std::vector<AsyncDomStorageDatabase::BatchDatabaseTask>
 SessionStorageMetadata::SetupNewDatabase() {
@@ -92,10 +98,9 @@ SessionStorageMetadata::SetupNewDatabase() {
   tasks.push_back(base::BindOnce(
       [](int64_t next_map_id, leveldb::WriteBatch* batch,
          const DomStorageDatabase& db) {
-        batch->Put(
-            leveldb_env::MakeSlice(base::make_span(kDatabaseVersionBytes)),
-            leveldb_env::MakeSlice(LatestDatabaseVersionAsVector()));
-        batch->Put(leveldb_env::MakeSlice(base::make_span(kNextMapIdKeyBytes)),
+        batch->Put(leveldb_env::MakeSlice(base::span(kDatabaseVersionBytes)),
+                   leveldb_env::MakeSlice(LatestDatabaseVersionAsVector()));
+        batch->Put(leveldb_env::MakeSlice(base::span(kNextMapIdKeyBytes)),
                    leveldb_env::MakeSlice(NumberToValue(next_map_id)));
       },
       next_map_id_));
@@ -103,7 +108,7 @@ SessionStorageMetadata::SetupNewDatabase() {
 }
 
 bool SessionStorageMetadata::ParseDatabaseVersion(
-    absl::optional<std::vector<uint8_t>> value,
+    std::optional<std::vector<uint8_t>> value,
     std::vector<AsyncDomStorageDatabase::BatchDatabaseTask>* upgrade_tasks) {
   if (!value) {
     initial_database_version_from_disk_ = 0;
@@ -123,11 +128,11 @@ bool SessionStorageMetadata::ParseDatabaseVersion(
   }
   if (initial_database_version_from_disk_ < kMinSessionStorageSchemaVersion)
     return false;
-  upgrade_tasks->push_back(base::BindOnce([](leveldb::WriteBatch* batch,
-                                             const DomStorageDatabase& db) {
-    batch->Put(leveldb_env::MakeSlice(base::make_span(kDatabaseVersionBytes)),
-               leveldb_env::MakeSlice(LatestDatabaseVersionAsVector()));
-  }));
+  upgrade_tasks->push_back(base::BindOnce(
+      [](leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
+        batch->Put(leveldb_env::MakeSlice(base::span(kDatabaseVersionBytes)),
+                   leveldb_env::MakeSlice(LatestDatabaseVersionAsVector()));
+      }));
   return true;
 }
 
@@ -145,7 +150,7 @@ bool SessionStorageMetadata::ParseNamespaces(
   for (const DomStorageDatabase::KeyValuePair& key_value : values) {
     size_t key_size = key_value.key.size();
 
-    base::StringPiece key_as_string = Uint8VectorToStringPiece(key_value.key);
+    std::string_view key_as_string = Uint8VectorToStringView(key_value.key);
 
     if (key_size < kNamespacePrefixLength) {
       LOG(ERROR) << "Key size is less than prefix length: " << key_as_string;
@@ -155,9 +160,9 @@ bool SessionStorageMetadata::ParseNamespaces(
 
     // The key must start with 'namespace-'.
     if (!base::StartsWith(key_as_string,
-                          base::StringPiece(reinterpret_cast<const char*>(
-                                                kNamespacePrefixBytes),
-                                            kNamespacePrefixLength))) {
+                          std::string_view(reinterpret_cast<const char*>(
+                                               kNamespacePrefixBytes),
+                                           kNamespacePrefixLength))) {
       LOG(ERROR) << "Key must start with 'namespace-': " << key_as_string;
       error = true;
       break;
@@ -180,24 +185,24 @@ bool SessionStorageMetadata::ParseNamespaces(
     if (key_size == kPrefixBeforeStorageKeyLength)
       continue;
 
-    base::StringPiece namespace_id = key_as_string.substr(
+    std::string_view namespace_id = key_as_string.substr(
         kNamespacePrefixLength, blink::kSessionStorageNamespaceIdLength);
 
-    base::StringPiece storage_key_str =
+    std::string_view storage_key_str =
         key_as_string.substr(kPrefixBeforeStorageKeyLength);
 
     int64_t map_number;
     if (!ValueToNumber(key_value.value, &map_number)) {
       error = true;
       LOG(ERROR) << "Could not parse map number "
-                 << Uint8VectorToStringPiece(key_value.value);
+                 << Uint8VectorToStringView(key_value.value);
       break;
     }
 
     if (map_number >= next_map_id_from_namespaces_)
       next_map_id_from_namespaces_ = map_number + 1;
 
-    absl::optional<blink::StorageKey> storage_key =
+    std::optional<blink::StorageKey> storage_key =
         blink::StorageKey::Deserialize(storage_key_str);
     if (!storage_key) {
       LOG(ERROR) << "Invalid StorageKey " << storage_key_str;
@@ -243,7 +248,7 @@ bool SessionStorageMetadata::ParseNamespaces(
         [](std::vector<DomStorageDatabase::Key> prefix_keys_to_delete,
            leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
           batch->Delete(
-              leveldb_env::MakeSlice(base::make_span(kNamespacePrefixBytes)));
+              leveldb_env::MakeSlice(base::span(kNamespacePrefixBytes)));
           // Remove all the refcount storage.
           for (const auto& key : prefix_keys_to_delete)
             batch->Delete(leveldb_env::MakeSlice(key));
@@ -297,7 +302,7 @@ SessionStorageMetadata::RegisterNewMap(
       [](int64_t new_map_id, DomStorageDatabase::Key storage_key_key,
          DomStorageDatabase::Value storage_key_map_number,
          leveldb::WriteBatch* batch, const DomStorageDatabase& db) {
-        batch->Put(leveldb_env::MakeSlice(base::make_span(kNextMapIdKeyBytes)),
+        batch->Put(leveldb_env::MakeSlice(base::span(kNextMapIdKeyBytes)),
                    leveldb_env::MakeSlice(NumberToValue(new_map_id)));
         batch->Put(leveldb_env::MakeSlice(storage_key_key),
                    leveldb_env::MakeSlice(storage_key_map_number));

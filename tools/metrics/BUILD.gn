@@ -2,14 +2,26 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-action("histograms_xml") {
-  script = "histograms/merge_xml.py"
-  output = "$root_out_dir/histograms.xml"
-  outputs = [ output ]
-  args = [
-    "--output",
-    rebase_path(output, root_build_dir),
-  ]
+import("//build/config/gclient_args.gni")
+import("//tools/json_to_struct/json_to_struct.gni")
+import("//tools/metrics/histograms/histograms_xml_files.gni")
+
+# Only include histograms_xml if we have access to dirmd data, which
+# is used to populate ownership information. This is only set to false
+# for non-git checkouts.
+# TODO(crbug.com/329080012): Remove this once dirmd works in non-git
+# checkouts.
+if (generate_location_tags) {
+  action("histograms_xml") {
+    script = "histograms/merge_xml.py"
+    output = "$root_out_dir/histograms.xml"
+    outputs = [ output ]
+    inputs = histograms_xml_files
+    args = [
+      "--output",
+      rebase_path(output, root_build_dir),
+    ]
+  }
 }
 
 copy("actions_xml") {
@@ -25,9 +37,17 @@ copy("ukm_xml") {
 group("metrics_metadata") {
   deps = [
     ":actions_xml",
-    ":histograms_xml",
     ":ukm_xml",
   ]
+
+  # Only include histograms_xml if we have access to dirmd data, which
+  # is used to populate ownership information. This is only set to false
+  # for non-git checkouts.
+  # TODO(crbug.com/329080012): Remove this once dirmd works in non-git
+  # checkouts.
+  if (generate_location_tags) {
+    deps += [ ":histograms_xml" ]
+  }
 }
 
 # This group defines the isolate files needed to run metrics_python_tests.py on
@@ -52,11 +72,6 @@ group("metrics_python_tests") {
     "//tools/json_comment_eater/json_comment_eater_test.py",
     "//tools/json_comment_eater/everything.json",
     "//tools/json_comment_eater/everything_expected.json",
-    "//tools/json_to_struct/element_generator.py",
-    "//tools/json_to_struct/element_generator_test.py",
-    "//tools/json_to_struct/json_to_struct.py",
-    "//tools/json_to_struct/struct_generator.py",
-    "//tools/json_to_struct/struct_generator_test.py",
 
     # The metrics_python_tests.py runner and its dependencies.
     "//tools/metrics/metrics_python_tests.py",
@@ -67,12 +82,26 @@ group("metrics_python_tests") {
     "//tools/metrics/actions/extract_actions.py",
     "//tools/metrics/actions/extract_actions_test.py",
 
+    "//tools/metrics/common/codegen_shared_test.py",
+    "//tools/metrics/common/codegen_shared.py",
     "//tools/metrics/common/diff_util.py",
+    "//tools/metrics/common/model_shared.py",
     "//tools/metrics/common/models.py",
     "//tools/metrics/common/path_util.py",
     "//tools/metrics/common/presubmit_util.py",
     "//tools/metrics/common/pretty_print_xml.py",
     "//tools/metrics/common/etree_util.py",
+
+    "//tools/metrics/dwa/builders_template.py",
+    "//tools/metrics/dwa/decode_template.py",
+    "//tools/metrics/dwa/dwa.xml",
+    "//tools/metrics/dwa/codegen.py",
+    "//tools/metrics/dwa/dwa_model.py",
+    "//tools/metrics/dwa/dwa_model_test.py",
+    "//tools/metrics/dwa/dwa_xml_validations.py",
+    "//tools/metrics/dwa/dwa_xml_validations_test.py",
+    "//tools/metrics/dwa/gen_builders.py",
+    "//tools/metrics/dwa/gen_builders_test.py",
 
     "//tools/metrics/histograms/test_data/enums.xml",
     "//tools/metrics/histograms/test_data/histograms.xml",
@@ -84,10 +113,11 @@ group("metrics_python_tests") {
     "//tools/metrics/histograms/extract_histograms_test.py",
     "//tools/metrics/histograms/generate_expired_histograms_array.py",
     "//tools/metrics/histograms/generate_expired_histograms_array_unittest.py",
+    "//tools/metrics/histograms/generate_allowlist_from_histograms_file.py",
+    "//tools/metrics/histograms/generate_allowlist_from_histograms_file_unittest.py",
     "//tools/metrics/histograms/generate_flag_enums.py",
     "//tools/metrics/histograms/generate_flag_enums_test.py",
     "//tools/metrics/histograms/histogram_ownership.py",
-    "//tools/metrics/histograms/histograms.xml",
     "//tools/metrics/histograms/histogram_configuration_model.py",
     "//tools/metrics/histograms/histogram_configuration_model_test_enums.py",
     "//tools/metrics/histograms/histogram_configuration_model_test_histograms.py",
@@ -95,15 +125,17 @@ group("metrics_python_tests") {
     "//tools/metrics/histograms/merge_xml.py",
     "//tools/metrics/histograms/merge_xml_test.py",
     "//tools/metrics/histograms/populate_enums.py",
+    "//tools/metrics/histograms/PRESUBMIT_test.py",
     "//tools/metrics/histograms/pretty_print.py",
     "//tools/metrics/histograms/pretty_print_test.py",
+    "//tools/metrics/histograms/validate_token.py",
+    "//tools/metrics/histograms/validate_token_test.py",
 
     "//tools/metrics/structured/codegen_unittest.py",
-    "//tools/metrics/structured/model_unittest.py",
+    "//tools/metrics/structured/sync/model_unittest.py",
 
     "//tools/metrics/ukm/ukm.xml",
     "//tools/metrics/ukm/codegen.py",
-    "//tools/metrics/ukm/codegen_test.py",
     "//tools/metrics/ukm/builders_template.py",
     "//tools/metrics/ukm/decode_template.py",
     "//tools/metrics/ukm/gen_builders.py",
@@ -130,21 +162,27 @@ group("metrics_python_tests") {
     "//components/variations/service/generate_ui_string_overrider_unittest.py",
   ]
 
+  data += JSON_TO_STRUCT_FILES + JSON_TO_STRUCT_TEST_FILES
+
   # Add platform-specific dependencies for dirmd.
   if (is_win) {
     data += [
       "//third_party/depot_tools/dirmd.bat",
-      "//third_party/depot_tools/.cipd_bin/dirmd.exe",
       "//third_party/depot_tools/cipd_bin_setup.bat",
       "//third_party/depot_tools/cipd_manifest.txt",
     ]
+    if (host_os == "win") {
+      data += [ "//third_party/depot_tools/.cipd_bin/dirmd.exe" ]
+    }
   } else {
     data += [
       "//third_party/depot_tools/dirmd",
-      "//third_party/depot_tools/.cipd_bin/dirmd",
       "//third_party/depot_tools/cipd_bin_setup.sh",
       "//third_party/depot_tools/cipd_manifest.txt",
     ]
+    if (host_os != "win") {
+      data += [ "//third_party/depot_tools/.cipd_bin/dirmd" ]
+    }
   }
 
   data_deps = [ "//testing:test_scripts_shared" ]

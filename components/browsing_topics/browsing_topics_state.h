@@ -7,6 +7,7 @@
 
 #include "base/containers/queue.h"
 #include "base/files/important_file_writer.h"
+#include "base/gtest_prod_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "components/browsing_topics/common/common_types.h"
@@ -69,21 +70,26 @@ class BrowsingTopicsState
   // remove the entry from `epochs_`.
   void ClearOneEpoch(size_t epoch_index);
 
-  // Clear the topic and observing domains data for `topic` and
-  // `taxonomy_version`.
-  void ClearTopic(Topic topic, int taxonomy_version);
+  // Clear the topic and observing domains data for `topic`.
+  void ClearTopic(Topic topic);
 
   // Clear the observing domains data in `epochs_`  that match
   // `hashed_context_domain`.
   void ClearContextDomain(const HashedDomain& hashed_context_domain);
 
   // Append `epoch_topics` to `epochs_`. This is invoked at the end of each
-  // epoch calculation.
-  void AddEpoch(EpochTopics epoch_topics);
+  // epoch calculation. If an old EpochTopics is removed as a result, return it.
+  std::optional<EpochTopics> AddEpoch(EpochTopics epoch_topics);
 
-  // Set `next_scheduled_calculation_time_` to one epoch later from
-  // base::Time::Now(). This is invoked at the end of each epoch calculation.
-  void UpdateNextScheduledCalculationTime();
+  // Remove expired epochs synchronously. For unexpired epochs, let each one
+  // schedule its own expiration task. Upon expiration of each epoch,
+  // `OnEpochExpired` will be called to remove it from `epochs_`.
+  void ScheduleEpochsExpiration();
+
+  // Calculates the new scheduled time by adding the provided `delay`
+  // to the current time (`base::Time::Now()`), and stores the result to
+  // `next_scheduled_calculation_time_`.
+  void UpdateNextScheduledCalculationTime(base::TimeDelta delay);
 
   // Calculate the candidate epochs to derive the topics from on `top_domain`.
   // The caller (i.e. BrowsingTopicsServiceImpl, which also holds `this`) is
@@ -111,12 +117,33 @@ class BrowsingTopicsState
 
  private:
   FRIEND_TEST_ALL_PREFIXES(BrowsingTopicsStateTest,
-                           EpochsForSite_OneEpoch_SwitchTimeNotArrived);
+                           EpochsForSite_OneEpoch_IntroductionTime);
   FRIEND_TEST_ALL_PREFIXES(BrowsingTopicsStateTest,
-                           EpochsForSite_OneEpoch_SwitchTimeArrived);
+                           EpochsForSite_OneEpoch_IntroductionTime2);
+  FRIEND_TEST_ALL_PREFIXES(BrowsingTopicsStateTest,
+                           EpochsForSite_ThreeEpochs_IntroductionTime);
+  FRIEND_TEST_ALL_PREFIXES(BrowsingTopicsStateTest,
+                           EpochsForSite_OneEpoch_ManuallyTriggered);
+  FRIEND_TEST_ALL_PREFIXES(BrowsingTopicsStateTest, EpochsForSite_PhaseOutTime);
 
-  base::TimeDelta CalculateSiteStickyTimeDelta(
+  // Calculate the delay between the calculation of the latest epoch and when a
+  // site starts seeing that epoch's topics. The site transitions to the latest
+  // epoch at a per-site, per-epoch random time within
+  // [calculation time, calculation time + max delay).
+  base::TimeDelta CalculateSiteStickyIntroductionDelay(
       const std::string& top_domain) const;
+
+  // Calculate the time offset between when a site stops seeing an epoch's
+  // topics and when the epoch is actually deleted. The site transitions away
+  // from the epoch at a per-site, per-epoch random time within
+  // [deletion time - max offset, deletion time].
+  //
+  // Note: The actual phase-out time can be influenced by the
+  // 'kBrowsingTopicsNumberOfEpochsToExpose' setting. If this setting enforces a
+  // more restrictive phase-out, that will take precedence.
+  base::TimeDelta CalculateSiteStickyPhaseOutTimeOffset(
+      const std::string& top_domain,
+      const EpochTopics& epoch) const;
 
   // ImportantFileWriter::BackgroundDataSerializer implementation.
   base::ImportantFileWriter::BackgroundDataProducerCallback
@@ -128,6 +155,8 @@ class BrowsingTopicsState
 
   void DidLoadFile(base::OnceClosure loaded_callback,
                    std::unique_ptr<LoadResult> load_result);
+
+  void OnEpochExpired(base::Time calculation_time);
 
   // Parse `value` and populate the state member variables.
   ParseResult ParseValue(const base::Value& value);

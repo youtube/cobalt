@@ -9,7 +9,9 @@
 #include <string>
 
 #include "base/dcheck_is_on.h"
+#include "base/memory/raw_ptr.h"
 #include "components/keyed_service/core/dependency_graph.h"
+#include "components/keyed_service/core/features_buildflags.h"
 #include "components/keyed_service/core/keyed_service_export.h"
 
 class KeyedServiceBaseFactory;
@@ -50,7 +52,7 @@ class KEYED_SERVICE_EXPORT DependencyManager {
   // appropriate `EnsureBrowserContextKeyedServiceFactoriesBuilt()` function.
   // `registration_function_name` param is used to display the right
   // registration method in the error message.
-  void DoNotAllowKeyedServiceFactoryRegistration(
+  void DisallowKeyedServiceFactoryRegistration(
       const std::string& registration_function_name_error_message);
 
  protected:
@@ -86,7 +88,7 @@ class KEYED_SERVICE_EXPORT DependencyManager {
   void DestroyContextServices(void* context);
 
   // Runtime assertion called as a part of GetServiceForContext() to check if
-  // |context| is considered stale. This will CHECK(false) to avoid a potential
+  // |context| is considered stale. This will NOTREACHED() to avoid a potential
   // use-after-free from services created after context destruction.
   void AssertContextWasntDestroyed(void* context) const;
 
@@ -112,16 +114,31 @@ class KEYED_SERVICE_EXPORT DependencyManager {
  private:
   friend class KeyedServiceBaseFactory;
 
+  // An ordered container of pointers to KeyedServiceBaseFactory. The order
+  // depends on the operation to perform (initialisation, destruction, ...).
+  using OrderedFactories =
+      std::vector<raw_ptr<KeyedServiceBaseFactory, VectorExperimental>>;
+
 #ifndef NDEBUG
   // Hook for subclass to dump the dependency graph of service for |context|.
   virtual void DumpContextDependencies(void* context) const = 0;
 #endif  // NDEBUG
 
-  std::vector<DependencyNode*> GetDestructionOrder();
+  // Returns the list of factories in the order they should be initialised.
+  OrderedFactories GetConstructionOrder();
+
+  // Returns the list of factories in the order they should be destroyed.
+  OrderedFactories GetDestructionOrder();
+
+  // Invokes `ContextShutdown(context)` for all factories in the order
+  // specified by `factories`.
   static void ShutdownFactoriesInOrder(void* context,
-                                       std::vector<DependencyNode*>& order);
+                                       const OrderedFactories& factories);
+
+  // Invokes `ContextDestroyed(context)` for all factories in the order
+  // specified by `factories`.
   static void DestroyFactoriesInOrder(void* context,
-                                      std::vector<DependencyNode*>& order);
+                                      const OrderedFactories& factories);
 
   DependencyGraph dependency_graph_;
 
@@ -129,12 +146,23 @@ class KEYED_SERVICE_EXPORT DependencyManager {
   // These pointers are most likely invalid, but we keep track of their
   // locations in memory so we can nicely assert if we're asked to do anything
   // with them.
-  std::set<void*> dead_context_pointers_;
+  std::set<raw_ptr<void, SetExperimental>> dead_context_pointers_;
 
 #if DCHECK_IS_ON()
-  bool context_services_created_ = false;
+#if BUILDFLAG(KEYED_SERVICE_HAS_TIGHT_REGISTRATION)
+  // Used to count the number of `context` that have been created. This is used
+  // to prevent registering KeyedServiceFactories while any context exist, while
+  // still allowing to register/unregister factories during unit tests.
+  size_t context_created_count_ = 0;
+#else
+  // Used to record whether any `context` has been created. This is used
+  // to prevent registering KeyedServiceFactories after the creation of
+  // a context.
+  bool any_context_created_ = false;
 #endif
-  bool do_not_allow_factory_registration_ = false;
+#endif
+
+  bool disallow_factory_registration_ = false;
   std::string registration_function_name_error_message_;
 };
 

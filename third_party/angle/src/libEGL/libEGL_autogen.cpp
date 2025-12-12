@@ -480,6 +480,32 @@ EGLBoolean EGLAPIENTRY eglReleaseDeviceANGLE(EGLDeviceEXT device)
     return EGL_ReleaseDeviceANGLE(device);
 }
 
+// EGL_ANGLE_device_vulkan
+void EGLAPIENTRY eglLockVulkanQueueANGLE(EGLDisplay dpy)
+{
+    EnsureEGLLoaded();
+    return EGL_LockVulkanQueueANGLE(dpy);
+}
+
+void EGLAPIENTRY eglUnlockVulkanQueueANGLE(EGLDisplay dpy)
+{
+    EnsureEGLLoaded();
+    return EGL_UnlockVulkanQueueANGLE(dpy);
+}
+
+// EGL_ANGLE_external_context_and_surface
+void EGLAPIENTRY eglAcquireExternalContextANGLE(EGLDisplay dpy, EGLSurface drawAndRead)
+{
+    EnsureEGLLoaded();
+    return EGL_AcquireExternalContextANGLE(dpy, drawAndRead);
+}
+
+void EGLAPIENTRY eglReleaseExternalContextANGLE(EGLDisplay dpy)
+{
+    EnsureEGLLoaded();
+    return EGL_ReleaseExternalContextANGLE(dpy);
+}
+
 // EGL_ANGLE_feature_control
 const char *EGLAPIENTRY eglQueryStringiANGLE(EGLDisplay dpy, EGLint name, EGLint index)
 {
@@ -500,6 +526,13 @@ void *EGLAPIENTRY eglCopyMetalSharedEventANGLE(EGLDisplay dpy, EGLSyncKHR sync)
 {
     EnsureEGLLoaded();
     return EGL_CopyMetalSharedEventANGLE(dpy, sync);
+}
+
+// EGL_ANGLE_no_error
+void EGLAPIENTRY eglSetValidationEnabledANGLE(EGLBoolean validationState)
+{
+    EnsureEGLLoaded();
+    return EGL_SetValidationEnabledANGLE(validationState);
 }
 
 // EGL_ANGLE_power_preference
@@ -596,14 +629,6 @@ EGLBoolean EGLAPIENTRY eglStreamPostD3DTextureANGLE(EGLDisplay dpy,
     return EGL_StreamPostD3DTextureANGLE(dpy, stream, texture, attrib_list);
 }
 
-// EGL_ANGLE_swap_with_frame_token
-EGLBoolean EGLAPIENTRY eglSwapBuffersWithFrameTokenANGLE(EGLDisplay dpy,
-                                                         EGLSurface surface,
-                                                         EGLFrameTokenANGLE frametoken)
-{
-    EnsureEGLLoaded();
-    return EGL_SwapBuffersWithFrameTokenANGLE(dpy, surface, frametoken);
-}
 
 // EGL_ANGLE_sync_control_rate
 EGLBoolean EGLAPIENTRY eglGetMscRateANGLE(EGLDisplay dpy,
@@ -711,6 +736,19 @@ EGLDisplay EGLAPIENTRY eglGetPlatformDisplayEXT(EGLenum platform,
 {
     EnsureEGLLoaded();
     return EGL_GetPlatformDisplayEXT(platform, native_display, attrib_list);
+}
+
+// EGL_EXT_surface_compression
+EGLBoolean EGLAPIENTRY eglQuerySupportedCompressionRatesEXT(EGLDisplay dpy,
+                                                            EGLConfig config,
+                                                            const EGLAttrib *attrib_list,
+                                                            EGLint *rates,
+                                                            EGLint rate_size,
+                                                            EGLint *num_rates)
+{
+    EnsureEGLLoaded();
+    return EGL_QuerySupportedCompressionRatesEXT(dpy, config, attrib_list, rates, rate_size,
+                                                 num_rates);
 }
 
 // EGL_KHR_debug

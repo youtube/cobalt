@@ -193,4 +193,6 @@ class SkFontMgr_Cobalt : public SkFontMgr {
   mutable SkMutex family_mutex_;
 };
 
+SK_API sk_sp<SkFontMgr> SkFontMgr_New_Cobalt();
+
 #endif  // COBALT_RENDERER_RASTERIZER_SKIA_SKIA_SRC_PORTS_SKFONTMGR_COBALT_H_

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 #include "ash/multi_user/multi_user_window_manager_impl.h"
-#include "base/memory/raw_ptr.h"
 
 #include <set>
 #include <vector>
@@ -17,9 +16,13 @@
 #include "ash/wm/desks/desks_util.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "base/auto_reset.h"
+#include "base/containers/contains.h"
+#include "base/memory/raw_ptr.h"
 #include "ui/aura/client/aura_constants.h"
 #include "ui/aura/window.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/base/ui_base_types.h"
+#include "ui/display/tablet_state.h"
 #include "ui/events/event.h"
 #include "ui/wm/core/transient_window_manager.h"
 #include "ui/wm/core/window_animations.h"
@@ -82,7 +85,7 @@ class AnimationSetter {
 
  private:
   // The window which gets used.
-  raw_ptr<aura::Window, ExperimentalAsh> window_;
+  raw_ptr<aura::Window> window_;
 
   // Previous animation type.
   const int previous_animation_type_;
@@ -103,7 +106,6 @@ MultiUserWindowManagerImpl::MultiUserWindowManagerImpl(
     : delegate_(delegate), current_account_id_(account_id) {
   DCHECK(delegate_);
   g_instance = this;
-  Shell::Get()->tablet_mode_controller()->AddObserver(this);
   Shell::Get()->session_controller()->AddObserver(this);
 }
 
@@ -124,7 +126,6 @@ MultiUserWindowManagerImpl::~MultiUserWindowManagerImpl() {
   }
 
   Shell::Get()->session_controller()->RemoveObserver(this);
-  Shell::Get()->tablet_mode_controller()->RemoveObserver(this);
   g_instance = nullptr;
 }
 
@@ -355,7 +356,12 @@ void MultiUserWindowManagerImpl::OnTransientChildRemoved(
   }
 }
 
-void MultiUserWindowManagerImpl::OnTabletModeStarted() {
+void MultiUserWindowManagerImpl::OnDisplayTabletStateChanged(
+    display::TabletState state) {
+  if (state != display::TabletState::kInTabletMode) {
+    return;
+  }
+
   for (auto& entry : window_to_entry_)
     Shell::Get()->tablet_mode_controller()->AddWindow(entry.first);
 }
@@ -383,7 +389,8 @@ bool MultiUserWindowManagerImpl::ShowWindowForUserIntern(
       (owner == account_id && IsWindowOnDesktopOfUser(window, account_id)))
     return false;
 
-  bool minimized = wm::WindowStateIs(window, ui::SHOW_STATE_MINIMIZED);
+  bool minimized =
+      wm::WindowStateIs(window, ui::mojom::WindowShowState::kMinimized);
   // Check that we are not trying to transfer ownership of a minimized window.
   if (account_id != owner && minimized)
     return false;
@@ -482,8 +489,7 @@ void MultiUserWindowManagerImpl::AddTransientOwnerRecursive(
     return;
 
   // Remember the current visibility.
-  DCHECK(transient_window_to_visibility_.find(window) ==
-         transient_window_to_visibility_.end());
+  DCHECK(!base::Contains(transient_window_to_visibility_, window));
   transient_window_to_visibility_[window] = window->IsVisible();
 
   // Add observers to track state changes.

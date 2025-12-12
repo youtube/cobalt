@@ -19,9 +19,11 @@ namespace ash {
 
 namespace {
 
+constexpr char lensHost[] = "lens.google.com";
+
 void IsFileURLBrowserWritable(
     MediaAppPageHandler::IsFileBrowserWritableCallback callback,
-    absl::optional<storage::FileSystemURL> url) {
+    std::optional<storage::FileSystemURL> url) {
   if (!url.has_value()) {
     std::move(callback).Run(false);
     return;
@@ -80,6 +82,20 @@ void MediaAppPageHandler::EditInPhotos(
     EditInPhotosCallback callback) {
   media_app_ui_->delegate()->EditInPhotos(std::move(token), mime_type,
                                           std::move(callback));
+}
+
+void MediaAppPageHandler::SubmitForm(const GURL& url,
+                                     const std::vector<int8_t>& payload,
+                                     const std::string& header,
+                                     SubmitFormCallback callback) {
+  // We only intend for this API to be used with lens, so crash if used for
+  // something else.
+  if (url.host() != lensHost) {
+    mojo::ReportBadMessage(
+        base::StrCat({"SubmitForm API only works with ", lensHost}));
+  }
+  media_app_ui_->delegate()->SubmitForm(url, payload, header);
+  std::move(callback).Run();
 }
 
 }  // namespace ash

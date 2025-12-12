@@ -11,30 +11,20 @@
 #ifndef P2P_BASE_TRANSPORT_DESCRIPTION_H_
 #define P2P_BASE_TRANSPORT_DESCRIPTION_H_
 
+#include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "absl/algorithm/container.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "api/rtc_error.h"
-#include "p2p/base/p2p_constants.h"
+#include "p2p/base/p2p_constants.h"  // IWYU pragma: keep
 #include "rtc_base/ssl_fingerprint.h"
 #include "rtc_base/system/rtc_export.h"
 
-namespace cricket {
-
-// SEC_ENABLED and SEC_REQUIRED should only be used if the session
-// was negotiated over TLS, to protect the inline crypto material
-// exchange.
-// SEC_DISABLED: No crypto in outgoing offer, ignore any supplied crypto.
-// SEC_ENABLED:  Crypto in outgoing offer and answer (if supplied in offer).
-// SEC_REQUIRED: Crypto in outgoing offer and answer. Fail any offer with absent
-//               or unsupported crypto.
-// TODO(deadbeef): Remove this or rename it to something more appropriate, like
-// SdesPolicy.
-enum SecurePolicy { SEC_DISABLED, SEC_ENABLED, SEC_REQUIRED };
+namespace webrtc {
 
 // Whether our side of the call is driving the negotiation, or the other side.
 enum IceRole { ICEROLE_CONTROLLING = 0, ICEROLE_CONTROLLED, ICEROLE_UNKNOWN };
@@ -61,9 +51,8 @@ enum ConnectionRole {
 struct IceParameters {
   // Constructs an IceParameters from a user-provided ufrag/pwd combination.
   // Returns a SyntaxError if the ufrag or pwd are malformed.
-  static RTC_EXPORT webrtc::RTCErrorOr<IceParameters> Parse(
-      absl::string_view raw_ufrag,
-      absl::string_view raw_pwd);
+  static RTC_EXPORT RTCErrorOr<IceParameters> Parse(absl::string_view raw_ufrag,
+                                                    absl::string_view raw_pwd);
 
   // TODO(honghaiz): Include ICE mode in this structure to match the ORTC
   // struct:
@@ -87,18 +76,13 @@ struct IceParameters {
 
   // Validate IceParameters, returns a SyntaxError if the ufrag or pwd are
   // malformed.
-  webrtc::RTCError Validate() const;
+  RTCError Validate() const;
 };
-
-extern const char CONNECTIONROLE_ACTIVE_STR[];
-extern const char CONNECTIONROLE_PASSIVE_STR[];
-extern const char CONNECTIONROLE_ACTPASS_STR[];
-extern const char CONNECTIONROLE_HOLDCONN_STR[];
 
 constexpr auto* ICE_OPTION_TRICKLE = "trickle";
 constexpr auto* ICE_OPTION_RENOMINATION = "renomination";
 
-absl::optional<ConnectionRole> StringToConnectionRole(
+std::optional<ConnectionRole> StringToConnectionRole(
     absl::string_view role_str);
 bool ConnectionRoleToString(const ConnectionRole& role, std::string* role_str);
 
@@ -109,7 +93,7 @@ struct TransportDescription {
                        absl::string_view ice_pwd,
                        IceMode ice_mode,
                        ConnectionRole role,
-                       const rtc::SSLFingerprint* identity_fingerprint);
+                       const SSLFingerprint* identity_fingerprint);
   TransportDescription(absl::string_view ice_ufrag, absl::string_view ice_pwd);
   TransportDescription(const TransportDescription& from);
   ~TransportDescription();
@@ -130,11 +114,11 @@ struct TransportDescription {
                          HasOption(ICE_OPTION_RENOMINATION));
   }
 
-  static rtc::SSLFingerprint* CopyFingerprint(const rtc::SSLFingerprint* from) {
+  static SSLFingerprint* CopyFingerprint(const SSLFingerprint* from) {
     if (!from)
       return NULL;
 
-    return new rtc::SSLFingerprint(*from);
+    return new SSLFingerprint(*from);
   }
 
   // These are actually ICE options (appearing in the ice-options attribute in
@@ -146,9 +130,35 @@ struct TransportDescription {
   IceMode ice_mode;
   ConnectionRole connection_role;
 
-  std::unique_ptr<rtc::SSLFingerprint> identity_fingerprint;
+  std::unique_ptr<SSLFingerprint> identity_fingerprint;
 };
 
+}  //  namespace webrtc
+
+// Re-export symbols from the webrtc namespace for backwards compatibility.
+// TODO(bugs.webrtc.org/4222596): Remove once all references are updated.
+#ifdef WEBRTC_ALLOW_DEPRECATED_NAMESPACES
+namespace cricket {
+using ::webrtc::ConnectionRole;
+using ::webrtc::CONNECTIONROLE_ACTIVE;
+using ::webrtc::CONNECTIONROLE_ACTPASS;
+using ::webrtc::CONNECTIONROLE_HOLDCONN;
+using ::webrtc::CONNECTIONROLE_NONE;
+using ::webrtc::CONNECTIONROLE_PASSIVE;
+using ::webrtc::ConnectionRoleToString;
+using ::webrtc::ICE_OPTION_RENOMINATION;
+using ::webrtc::ICE_OPTION_TRICKLE;
+using ::webrtc::IceMode;
+using ::webrtc::ICEMODE_FULL;
+using ::webrtc::ICEMODE_LITE;
+using ::webrtc::IceParameters;
+using ::webrtc::IceRole;
+using ::webrtc::ICEROLE_CONTROLLED;
+using ::webrtc::ICEROLE_CONTROLLING;
+using ::webrtc::ICEROLE_UNKNOWN;
+using ::webrtc::StringToConnectionRole;
+using ::webrtc::TransportDescription;
 }  // namespace cricket
+#endif  // WEBRTC_ALLOW_DEPRECATED_NAMESPACES
 
 #endif  // P2P_BASE_TRANSPORT_DESCRIPTION_H_

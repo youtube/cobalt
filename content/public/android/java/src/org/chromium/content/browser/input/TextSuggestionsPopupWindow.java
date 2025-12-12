@@ -10,6 +10,9 @@ import android.text.Spanned;
 import android.text.style.TextAppearanceSpan;
 import android.view.View;
 
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content.R;
 import org.chromium.ui.base.WindowAndroid;
 
@@ -17,10 +20,12 @@ import org.chromium.ui.base.WindowAndroid;
  * A subclass of SuggestionsPopupWindow to be used for showing suggestions from one or more
  * SuggestionSpans.
  */
+@NullMarked
 public class TextSuggestionsPopupWindow extends SuggestionsPopupWindow {
     private SuggestionInfo[] mSuggestionInfos;
-    private TextAppearanceSpan mPrefixSpan;
-    private TextAppearanceSpan mSuffixSpan;
+
+    private final TextAppearanceSpan mPrefixSpan;
+    private final TextAppearanceSpan mSuffixSpan;
 
     /**
      * @param context Android context to use.
@@ -28,8 +33,11 @@ public class TextSuggestionsPopupWindow extends SuggestionsPopupWindow {
      * @param windowAndroid The current WindowAndroid instance.
      * @param parentView The view used to attach the PopupWindow.
      */
-    public TextSuggestionsPopupWindow(Context context, TextSuggestionHost textSuggestionHost,
-            WindowAndroid windowAndroid, View parentView) {
+    public TextSuggestionsPopupWindow(
+            Context context,
+            TextSuggestionHost textSuggestionHost,
+            @Nullable WindowAndroid windowAndroid,
+            View parentView) {
         super(context, textSuggestionHost, windowAndroid, parentView);
 
         mPrefixSpan =
@@ -38,10 +46,12 @@ public class TextSuggestionsPopupWindow extends SuggestionsPopupWindow {
                 new TextAppearanceSpan(context, R.style.TextAppearance_SuggestionPrefixOrSuffix);
     }
 
-    /**
-     * Shows the text suggestion menu at the specified coordinates (relative to the viewport).
-     */
-    public void show(double caretX, double caretY, String highlightedText,
+    /** Shows the text suggestion menu at the specified coordinates (relative to the viewport). */
+    @Initializer
+    public void show(
+            double caretX,
+            double caretY,
+            String highlightedText,
             SuggestionInfo[] suggestionInfos) {
         mSuggestionInfos = suggestionInfos.clone();
 
@@ -71,17 +81,25 @@ public class TextSuggestionsPopupWindow extends SuggestionsPopupWindow {
     protected SpannableString getSuggestionText(int position) {
         final SuggestionInfo suggestionInfo = mSuggestionInfos[position];
 
-        SpannableString suggestionText = new SpannableString(suggestionInfo.getPrefix()
-                + suggestionInfo.getSuggestion() + suggestionInfo.getSuffix());
+        SpannableString suggestionText =
+                new SpannableString(
+                        suggestionInfo.getPrefix()
+                                + suggestionInfo.getSuggestion()
+                                + suggestionInfo.getSuffix());
 
         // Gray out prefix text (if any).
-        suggestionText.setSpan(mPrefixSpan, 0, suggestionInfo.getPrefix().length(),
+        suggestionText.setSpan(
+                mPrefixSpan,
+                0,
+                suggestionInfo.getPrefix().length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         // Gray out suffix text (if any).
-        suggestionText.setSpan(mSuffixSpan,
+        suggestionText.setSpan(
+                mSuffixSpan,
                 suggestionInfo.getPrefix().length() + suggestionInfo.getSuggestion().length(),
-                suggestionInfo.getPrefix().length() + suggestionInfo.getSuggestion().length()
+                suggestionInfo.getPrefix().length()
+                        + suggestionInfo.getSuggestion().length()
                         + suggestionInfo.getSuffix().length(),
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 

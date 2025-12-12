@@ -17,21 +17,27 @@
 #ifndef SRC_TRACE_PROCESSOR_SQLITE_SQL_STATS_TABLE_H_
 #define SRC_TRACE_PROCESSOR_SQLITE_SQL_STATS_TABLE_H_
 
-#include <limits>
-#include <memory>
+#include <cstddef>
 
-#include "src/trace_processor/sqlite/sqlite_table.h"
+#include "src/trace_processor/sqlite/bindings/sqlite_module.h"
 
-namespace perfetto {
-namespace trace_processor {
+namespace perfetto::trace_processor {
 
 class QueryConstraints;
 class TraceStorage;
 
 // A virtual table that allows to introspect performances of the SQL engine
 // for the kMaxLogEntries queries.
-class SqlStatsTable : public SqliteTable {
- public:
+struct SqlStatsModule : sqlite::Module<SqlStatsModule> {
+  using Context = TraceStorage;
+  struct Vtab : sqlite::Module<SqlStatsModule>::Vtab {
+    TraceStorage* storage = nullptr;
+  };
+  struct Cursor : sqlite::Module<SqlStatsModule>::Cursor {
+    const TraceStorage* storage = nullptr;
+    size_t row = 0;
+    size_t num_rows = 0;
+  };
   enum Column {
     kQuery = 0,
     kTimeStarted = 1,
@@ -39,47 +45,38 @@ class SqlStatsTable : public SqliteTable {
     kTimeEnded = 3,
   };
 
-  // Implementation of the SQLite cursor interface.
-  class Cursor : public SqliteTable::Cursor {
-   public:
-    Cursor(SqlStatsTable* storage);
-    ~Cursor() override;
+  static constexpr auto kType = kEponymousOnly;
+  static constexpr bool kSupportsWrites = false;
+  static constexpr bool kDoesOverloadFunctions = false;
 
-    // Implementation of SqliteTable::Cursor.
-    int Filter(const QueryConstraints&,
-               sqlite3_value**,
-               FilterHistory) override;
-    int Next() override;
-    int Eof() override;
-    int Column(sqlite3_context*, int N) override;
+  static int Connect(sqlite3*,
+                     void*,
+                     int,
+                     const char* const*,
+                     sqlite3_vtab**,
+                     char**);
+  static int Disconnect(sqlite3_vtab*);
 
-   private:
-    Cursor(Cursor&) = delete;
-    Cursor& operator=(const Cursor&) = delete;
+  static int BestIndex(sqlite3_vtab*, sqlite3_index_info*);
 
-    Cursor(Cursor&&) noexcept = default;
-    Cursor& operator=(Cursor&&) = default;
+  static int Open(sqlite3_vtab*, sqlite3_vtab_cursor**);
+  static int Close(sqlite3_vtab_cursor*);
 
-    size_t row_ = 0;
-    size_t num_rows_ = 0;
-    const TraceStorage* storage_ = nullptr;
-    SqlStatsTable* table_ = nullptr;
-  };
+  static int Filter(sqlite3_vtab_cursor*,
+                    int,
+                    const char*,
+                    int,
+                    sqlite3_value**);
+  static int Next(sqlite3_vtab_cursor*);
+  static int Eof(sqlite3_vtab_cursor*);
+  static int Column(sqlite3_vtab_cursor*, sqlite3_context*, int);
+  static int Rowid(sqlite3_vtab_cursor*, sqlite_int64*);
 
-  SqlStatsTable(sqlite3*, const TraceStorage* storage);
-
-  static void RegisterTable(sqlite3* db, const TraceStorage* storage);
-
-  // Table implementation.
-  base::Status Init(int, const char* const*, Schema*) override;
-  std::unique_ptr<SqliteTable::Cursor> CreateCursor() override;
-  int BestIndex(const QueryConstraints&, BestIndexInfo*) override;
-
- private:
-  const TraceStorage* const storage_;
+  // This needs to happen at the end as it depends on the functions
+  // defined above.
+  static constexpr sqlite3_module kModule = CreateModule();
 };
 
-}  // namespace trace_processor
-}  // namespace perfetto
+}  // namespace perfetto::trace_processor
 
 #endif  // SRC_TRACE_PROCESSOR_SQLITE_SQL_STATS_TABLE_H_

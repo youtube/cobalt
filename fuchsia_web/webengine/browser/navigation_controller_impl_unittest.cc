@@ -4,7 +4,8 @@
 
 #include "fuchsia_web/webengine/browser/navigation_controller_impl.h"
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
 #include "base/test/gtest_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -18,7 +19,7 @@ const char kTitle2[] = "title2";
 
 fuchsia::web::NavigationState CreateNavigationState(
     const GURL& url,
-    base::StringPiece title,
+    std::string_view title,
     fuchsia::web::PageType page_type,
     bool can_go_back,
     bool can_go_forward,
@@ -52,7 +53,7 @@ TEST(DiffNavigationEntriesTest, NoChange) {
 
 // Differencing from an empty to non-empty state should return a diff equivalent
 // to the non-empty state. Differencing to an empty state is not supported and
-// should DCHECK.
+// should CHECK.
 TEST(DiffNavigationEntriesTest, EmptyAndNonEmpty) {
   fuchsia::web::NavigationState difference;
   fuchsia::web::NavigationState empty_state;
@@ -68,7 +69,7 @@ TEST(DiffNavigationEntriesTest, EmptyAndNonEmpty) {
   EXPECT_EQ(difference.url(), kUrl1);
 
   difference = {};
-  EXPECT_DCHECK_DEATH(
+  EXPECT_CHECK_DEATH(
       DiffNavigationEntriesForTest(state, empty_state, &difference));
 }
 
@@ -173,8 +174,8 @@ TEST(FrameImplUnitTest, DiffNavigationEntriesFromInitial) {
   DiffNavigationEntriesForTest(state1, state2, &difference);
   EXPECT_FALSE(difference.IsEmpty());
 
-  // Transitions from non-empty to empty (initial) state are DCHECK'd.
-  EXPECT_DCHECK_DEATH(
+  // Transitions from non-empty to empty (initial) state are CHECK'd.
+  EXPECT_CHECK_DEATH(
       { DiffNavigationEntriesForTest(state2, state1, &difference); });
 }
 

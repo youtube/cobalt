@@ -39,6 +39,8 @@ const char kFastPairAssociateAccountNotificationId[] =
     "cros_fast_pair_associate_account_notification_id";
 const char kFastPairDiscoverySubsequentNotificationId[] =
     "cros_fast_pair_discovery_subsequent_notification_id";
+const char kFastPairDisplayPasskeyNotificationId[] =
+    "cros_fast_pair_display_passkey_notification_id";
 
 constexpr base::TimeDelta kNotificationShortTimeDuration = base::Seconds(5);
 constexpr base::TimeDelta kNotificationTimeout = base::Seconds(12);
@@ -52,11 +54,18 @@ class TestMessageCenter : public message_center::FakeMessageCenter {
 
   ~TestMessageCenter() override = default;
 
+  void SetAddNotificationCallback(base::OnceClosure add_notification_callback) {
+    add_notification_callback_ = std::move(add_notification_callback);
+  }
+
   // message_center::FakeMessageCenter:
   void AddNotification(
       std::unique_ptr<message_center::Notification> notification) override {
     EXPECT_FALSE(notification_);
     notification_ = std::move(notification);
+    if (add_notification_callback_) {
+      std::move(add_notification_callback_).Run();
+    }
   }
 
   void RemoveNotification(const std::string& id, bool by_user) override {
@@ -85,11 +94,12 @@ class TestMessageCenter : public message_center::FakeMessageCenter {
     EXPECT_EQ(id, notification_->id());
 
     notification_->delegate()->Click(/*button_index=*/button_index,
-                                     /*reply=*/absl::nullopt);
+                                     /*reply=*/std::nullopt);
   }
 
  private:
   std::unique_ptr<message_center::Notification> notification_;
+  base::OnceClosure add_notification_callback_;
 };
 
 }  // namespace
@@ -1022,6 +1032,18 @@ TEST_F(FastPairNotificationControllerTest,
   base::RunLoop().RunUntilIdle();
   EXPECT_TRUE(test_message_center_.FindVisibleNotificationById(
       kFastPairDiscoverySubsequentNotificationId));
+}
+
+TEST_F(FastPairNotificationControllerTest, ShowPasskey) {
+  EXPECT_FALSE(test_message_center_.FindVisibleNotificationById(
+      kFastPairDisplayPasskeyNotificationId));
+
+  fast_pair_notification_controller_->ShowPasskey(
+      /*device name=*/std::u16string(), /*passkey=*/0);
+  base::RunLoop().RunUntilIdle();
+
+  EXPECT_TRUE(test_message_center_.FindVisibleNotificationById(
+      kFastPairDisplayPasskeyNotificationId));
 }
 
 }  // namespace quick_pair

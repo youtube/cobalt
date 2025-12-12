@@ -12,12 +12,13 @@
 #include "base/cancelable_callback.h"
 #include "base/compiler_specific.h"
 #include "base/functional/callback.h"
-#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/sequence_checker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "base/timer/wall_clock_timer.h"
+#include "base/types/strong_alias.h"
 #include "components/sync/engine/cycle/nudge_tracker.h"
 #include "components/sync/engine/cycle/sync_cycle.h"
 #include "components/sync/engine/cycle/sync_cycle_context.h"
@@ -31,9 +32,10 @@ namespace syncer {
 class BackoffDelayProvider;
 struct ModelNeutralState;
 
+// Lives on the sync sequence.
 class SyncSchedulerImpl : public SyncScheduler {
  public:
-  // |name| is a display string to identify the syncer thread.
+  // `name` is a display string to identify the sync sequence.
   SyncSchedulerImpl(const std::string& name,
                     std::unique_ptr<BackoffDelayProvider> delay_provider,
                     SyncCycleContext* context,
@@ -48,15 +50,15 @@ class SyncSchedulerImpl : public SyncScheduler {
 
   void Start(Mode mode, base::Time last_poll_time) override;
   void ScheduleConfiguration(sync_pb::SyncEnums::GetUpdatesOrigin origin,
-                             ModelTypeSet types_to_download,
+                             DataTypeSet types_to_download,
                              base::OnceClosure ready_task) override;
   void Stop() override;
-  void ScheduleLocalNudge(ModelType type) override;
-  void ScheduleLocalRefreshRequest(ModelTypeSet types) override;
-  void ScheduleInvalidationNudge(ModelType type) override;
-  void ScheduleInitialSyncNudge(ModelType model_type) override;
+  void ScheduleLocalNudge(DataType type) override;
+  void ScheduleLocalRefreshRequest(DataTypeSet types) override;
+  void ScheduleInvalidationNudge(DataType type) override;
+  void ScheduleInitialSyncNudge(DataType data_type) override;
   void SetNotificationsEnabled(bool notifications_enabled) override;
-  void SetHasPendingInvalidations(ModelType type,
+  void SetHasPendingInvalidations(DataType type,
                                   bool has_invalidations) override;
 
   void OnCredentialsUpdated() override;
@@ -64,22 +66,21 @@ class SyncSchedulerImpl : public SyncScheduler {
 
   // SyncCycle::Delegate implementation.
   void OnThrottled(const base::TimeDelta& throttle_duration) override;
-  void OnTypesThrottled(ModelTypeSet types,
+  void OnTypesThrottled(DataTypeSet types,
                         const base::TimeDelta& throttle_duration) override;
-  void OnTypesBackedOff(ModelTypeSet types) override;
+  void OnTypesBackedOff(DataTypeSet types) override;
   bool IsAnyThrottleOrBackoff() override;
   void OnReceivedPollIntervalUpdate(
       const base::TimeDelta& new_interval) override;
   void OnReceivedCustomNudgeDelays(
-      const std::map<ModelType, base::TimeDelta>& nudge_delays) override;
+      const std::map<DataType, base::TimeDelta>& nudge_delays) override;
   void OnSyncProtocolError(
       const SyncProtocolError& sync_protocol_error) override;
-  void OnReceivedGuRetryDelay(const base::TimeDelta& delay) override;
-  void OnReceivedMigrationRequest(ModelTypeSet types) override;
+  void OnReceivedMigrationRequest(DataTypeSet types) override;
   void OnReceivedQuotaParamsForExtensionTypes(
-      absl::optional<int> max_tokens,
-      absl::optional<base::TimeDelta> refill_interval,
-      absl::optional<base::TimeDelta> depleted_quota_nudge_delay) override;
+      std::optional<int> max_tokens,
+      std::optional<base::TimeDelta> refill_interval,
+      std::optional<base::TimeDelta> depleted_quota_nudge_delay) override;
 
   bool IsGlobalThrottle() const;
   bool IsGlobalBackoff() const;
@@ -92,7 +93,7 @@ class SyncSchedulerImpl : public SyncScheduler {
  private:
   struct ConfigurationParams {
     ConfigurationParams(sync_pb::SyncEnums::GetUpdatesOrigin origin,
-                        ModelTypeSet types_to_download,
+                        DataTypeSet types_to_download,
                         base::OnceClosure ready_task);
     ~ConfigurationParams();
 
@@ -100,17 +101,17 @@ class SyncSchedulerImpl : public SyncScheduler {
     ConfigurationParams& operator=(const ConfigurationParams&) = delete;
 
     const sync_pb::SyncEnums::GetUpdatesOrigin origin;
-    const ModelTypeSet types_to_download;
+    const DataTypeSet types_to_download;
     // Callback to invoke on configuration completion.
     base::OnceClosure ready_task;
   };
 
-  enum JobPriority {
-    // Non-canary jobs respect exponential backoff.
-    NORMAL_PRIORITY,
-    // Canary jobs bypass exponential backoff, so use with extreme caution.
-    CANARY_PRIORITY
-  };
+  // Used as a parameter when triggering sync cycle jobs. Determines whether to
+  // respect or ignore any global backoff. (In the usual case where the client
+  // is NOT backed off, this makes no difference. It also doesn't affect
+  // per-data-type backoff.)
+  using RespectGlobalBackoff =
+      base::StrongAlias<class RespectGlobalBackoffTag, bool>;
 
   enum PollAdjustType {
     // Restart the poll interval.
@@ -120,26 +121,14 @@ class SyncSchedulerImpl : public SyncScheduler {
   };
 
   friend class SyncSchedulerImplTest;
-  friend class SyncerTest;
-
-  FRIEND_TEST_ALL_PREFIXES(SyncSchedulerTest, TransientPollFailure);
-  FRIEND_TEST_ALL_PREFIXES(SyncSchedulerTest,
-                           ServerConnectionChangeDuringBackoff);
-  FRIEND_TEST_ALL_PREFIXES(SyncSchedulerTest,
-                           ConnectionChangeCanaryPreemptedByNudge);
-  FRIEND_TEST_ALL_PREFIXES(BackoffTriggersSyncSchedulerTest,
-                           FailGetEncryptionKey);
-  FRIEND_TEST_ALL_PREFIXES(SyncSchedulerTest, SuccessfulRetry);
-  FRIEND_TEST_ALL_PREFIXES(SyncSchedulerTest, FailedRetry);
-  FRIEND_TEST_ALL_PREFIXES(SyncSchedulerTest, ReceiveNewRetryDelay);
 
   static const char* GetModeString(Mode mode);
 
   // Invoke the syncer to perform a nudge job.
-  void DoNudgeSyncCycleJob(JobPriority priority);
+  void DoNudgeSyncCycleJob();
 
   // Invoke the syncer to perform a configuration job.
-  void DoConfigurationSyncCycleJob(JobPriority priority);
+  void DoConfigurationSyncCycleJob(RespectGlobalBackoff respect_backoff);
 
   // Helper function for Do{Nudge,Configuration,Poll}SyncCycleJob.
   void HandleSuccess();
@@ -159,7 +148,7 @@ class SyncSchedulerImpl : public SyncScheduler {
 
   // Helper to restart pending_wakeup_timer_.
   // This function need to be called in 3 conditions, backoff/throttling
-  // happens, unbackoff/unthrottling happens and after |PerformDelayedNudge|
+  // happens, unbackoff/unthrottling happens and after `PerformDelayedNudge`
   // runs.
   // This function is for scheduling unbackoff/unthrottling jobs, and the
   // poriority is, global unbackoff/unthrottling job first, if there is no
@@ -168,10 +157,10 @@ class SyncSchedulerImpl : public SyncScheduler {
   void RestartWaiting();
 
   // Determines if we're allowed to contact the server right now.
-  bool CanRunJobNow(JobPriority priority);
+  bool CanRunJobNow(RespectGlobalBackoff respect_backoff);
 
   // Determines if we're allowed to contact the server right now.
-  bool CanRunNudgeJobNow(JobPriority priority);
+  bool CanRunNudgeJobNow(RespectGlobalBackoff respect_backoff);
 
   // If the scheduler's current state supports it, this will create a job based
   // on the passed in parameters and coalesce it with any other pending jobs,
@@ -185,17 +174,13 @@ class SyncSchedulerImpl : public SyncScheduler {
   // Helper to signal listeners about changed throttled or backed off types.
   void NotifyBlockedTypesChanged();
 
-  // Looks for pending work and, if it finds any, run this work at "canary"
-  // priority.
-  void TryCanaryJob();
+  // Looks for pending work and, if it finds any, runs it. TrySyncCycleJob just
+  // posts a call to TrySyncCycleJobImpl on the current sequence.
+  void TrySyncCycleJob(RespectGlobalBackoff respect_backoff);
+  void TrySyncCycleJobImpl(RespectGlobalBackoff respect_backoff);
 
-  // At the moment TrySyncCycleJob just posts call to TrySyncCycleJobImpl on
-  // current thread. In the future it will request access token here.
-  void TrySyncCycleJob();
-  void TrySyncCycleJobImpl();
-
-  // Transitions out of the THROTTLED WaitInterval then calls TryCanaryJob().
-  // This function is for global throttling.
+  // Transitions out of the THROTTLED WaitInterval then triggers a job which
+  // ignores global backoff. This is used for global throttling.
   void Unthrottle();
 
   // Called when a per-type throttling or backing off interval expires.
@@ -204,8 +189,8 @@ class SyncSchedulerImpl : public SyncScheduler {
   // Runs a normal nudge job when the scheduled timer expires.
   void PerformDelayedNudge();
 
-  // Attempts to exit EXPONENTIAL_BACKOFF by calling TryCanaryJob().
-  // This function is for global backoff.
+  // Attempts to exit global backoff (BlockingMode::kExponentialBackoff) by
+  // triggering a job which ignores global backoff.
   void ExponentialBackoffRetry();
 
   // Called when the root cause of the current connection error is fixed.
@@ -214,12 +199,9 @@ class SyncSchedulerImpl : public SyncScheduler {
   // Creates a cycle for a poll and performs the sync.
   void PollTimerCallback();
 
-  // Creates a cycle for a retry and performs the sync.
-  void RetryTimerCallback();
-
   // Returns the set of types that are enabled and not currently throttled and
   // backed off.
-  ModelTypeSet GetEnabledAndUnblockedTypes();
+  DataTypeSet GetEnabledAndUnblockedTypes();
 
   // Called as we are started to broadcast an initial cycle snapshot
   // containing data like initial_sync_ended.  Important when the client starts
@@ -228,39 +210,35 @@ class SyncSchedulerImpl : public SyncScheduler {
 
   bool IsEarlierThanCurrentPendingJob(const base::TimeDelta& delay);
 
-  // Computes the last poll time the system should assume on start-up.
-  static base::Time ComputeLastPollOnStart(base::Time last_poll,
-                                           base::TimeDelta poll_interval,
-                                           base::Time now);
-
   // Used for logging.
   const std::string name_;
 
   // Set in Start(), unset in Stop().
-  bool started_;
+  bool started_ = false;
 
-  // Modifiable versions of kDefaultPollIntervalSeconds which can be
-  // updated by the server.
-  base::TimeDelta syncer_poll_interval_seconds_;
+  // The interval between poll requests. Can be updated by the server.
+  base::TimeDelta syncer_poll_interval_;
 
   // Timer for polling. Restarted on each successful poll, and when entering
   // normal sync mode or exiting an error state. Not active in configuration
   // mode.
-  base::OneShotTimer poll_timer_;
+  // Note that this is a WallClockTimer (as opposed to a regular OneShotTimer)
+  // so that it continues counting even if the device is suspended.
+  base::WallClockTimer poll_timer_;
 
   // The mode of operation.
-  Mode mode_;
+  Mode mode_ = CONFIGURATION_MODE;
 
   // Current wait state.  Null if we're not in backoff and not throttled.
   std::unique_ptr<WaitInterval> wait_interval_;
 
   std::unique_ptr<BackoffDelayProvider> delay_provider_;
 
-  // TODO(gangwu): http://crbug.com/714868 too many timers in this class, try to
-  // reduce them.
-  // The event that will wake us up.
-  // When the whole client got throttling or backoff, we will delay this timer
-  // as well.
+  // The timer for the next pending task (except for polling, which has its own
+  // timer). This can be a delayed nudge (standard case), or throttling/backoff
+  // (either global or for some data type(s)).
+  // TODO(crbug.com/40939309): Maybe use a WallClockTimer, so that
+  // throttling/backoff continue counting even if the device is suspended?
   base::OneShotTimer pending_wakeup_timer_;
 
   // Storage for variables related to an in-progress configure request.  Note
@@ -273,26 +251,14 @@ class SyncSchedulerImpl : public SyncScheduler {
   // Invoked to run through the sync cycle.
   const std::unique_ptr<Syncer> syncer_;
 
-  raw_ptr<SyncCycleContext> cycle_context_;
+  const raw_ptr<SyncCycleContext> cycle_context_;
 
-  // TryJob might get called for multiple reasons. It should only call
-  // DoPollSyncCycleJob after some time since the last attempt.
-  // last_poll_reset_ keeps track of when was last attempt.
-  base::TimeTicks last_poll_reset_;
-
-  // next_sync_cycle_job_priority_ defines which priority will be used next
-  // time TrySyncCycleJobImpl is called. CANARY_PRIORITY allows syncer to run
-  // even if scheduler is in exponential backoff. This is needed for events that
-  // have chance of resolving previous error (e.g. network connection change
-  // after NETWORK_UNAVAILABLE error).
-  // It is reset back to NORMAL_PRIORITY on every call to TrySyncCycleJobImpl.
-  JobPriority next_sync_cycle_job_priority_;
-
-  // One-shot timer for scheduling GU retry according to delay set by server.
-  base::OneShotTimer retry_timer_;
+  // The time when the last poll request finished. Used for computing the next
+  // poll time.
+  base::Time last_poll_reset_time_;
 
   // Dictates if the scheduler should wait for authentication to happen or not.
-  bool ignore_auth_credentials_;
+  const bool ignore_auth_credentials_;
 
   // Used to prevent changing nudge delays by the server in integration tests.
   bool force_short_nudge_delay_for_test_ = false;

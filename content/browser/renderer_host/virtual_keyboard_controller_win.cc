@@ -5,6 +5,7 @@
 #include "content/browser/renderer_host/virtual_keyboard_controller_win.h"
 
 #include "base/trace_event/trace_event.h"
+#include "content/browser/renderer_host/render_widget_host_impl.h"
 #include "content/browser/renderer_host/render_widget_host_view_aura.h"
 #include "ui/base/ime/input_method.h"
 #include "ui/base/ime/mojom/text_input_state.mojom.h"
@@ -75,7 +76,7 @@ void VirtualKeyboardControllerWin::OnKeyboardHidden() {
 
 void VirtualKeyboardControllerWin::ShowVirtualKeyboard() {
   TRACE_EVENT0("vk", "VirtualKeyboardControllerWin::ShowVirtualKeyboard");
-  if (auto* controller = input_method_->GetVirtualKeyboardController()) {
+  if (input_method_->GetVirtualKeyboardController()) {
     if (!virtual_keyboard_shown_) {
       virtual_keyboard_shown_ = true;
       input_method_->SetVirtualKeyboardVisibilityIfEnabled(true);

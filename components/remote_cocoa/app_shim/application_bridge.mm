@@ -9,9 +9,9 @@
 #include "base/functional/bind.h"
 #include "base/no_destructor.h"
 #include "components/remote_cocoa/app_shim/alert.h"
-#include "components/remote_cocoa/app_shim/color_panel_bridge.h"
 #include "components/remote_cocoa/app_shim/native_widget_ns_window_bridge.h"
 #include "components/remote_cocoa/app_shim/native_widget_ns_window_host_helper.h"
+#include "components/system_media_controls/mac/remote_cocoa/system_media_controls_bridge.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "ui/accelerated_widget_mac/window_resize_helper_mac.h"
@@ -45,14 +45,14 @@ class NativeWidgetBridgeOwner : public NativeWidgetNSWindowHostHelper {
   }
 
  private:
-  ~NativeWidgetBridgeOwner() override {}
+  ~NativeWidgetBridgeOwner() override = default;
 
   void OnMojoDisconnect() { delete this; }
 
   // NativeWidgetNSWindowHostHelper:
   id GetNativeViewAccessible() override {
     if (!remote_accessibility_element_) {
-      int64_t browser_pid = 0;
+      base::ProcessId browser_pid = base::kNullProcessId;
       std::vector<uint8_t> element_token;
       host_remote_->GetRootViewAccessibilityToken(&browser_pid, &element_token);
       [NSAccessibilityRemoteUIElement
@@ -60,7 +60,7 @@ class NativeWidgetBridgeOwner : public NativeWidgetNSWindowHostHelper {
       remote_accessibility_element_ =
           ui::RemoteAccessibility::GetRemoteElementFromToken(element_token);
     }
-    return remote_accessibility_element_.get();
+    return remote_accessibility_element_;
   }
   void DispatchKeyEvent(ui::KeyEvent* event) override {
     bool event_handled = false;
@@ -99,8 +99,7 @@ class NativeWidgetBridgeOwner : public NativeWidgetNSWindowHostHelper {
   mojo::AssociatedRemote<mojom::TextInputHost> text_input_host_remote_;
 
   std::unique_ptr<NativeWidgetNSWindowBridge> bridge_;
-  base::scoped_nsobject<NSAccessibilityRemoteUIElement>
-      remote_accessibility_element_;
+  NSAccessibilityRemoteUIElement* __strong remote_accessibility_element_;
 };
 
 }  // namespace
@@ -119,22 +118,15 @@ void ApplicationBridge::BindReceiver(
 
 void ApplicationBridge::SetContentNSViewCreateCallbacks(
     RenderWidgetHostNSViewCreateCallback render_widget_host_create_callback,
-    WebContentsNSViewCreateCallback web_conents_create_callback) {
+    WebContentsNSViewCreateCallback web_contents_create_callback) {
   render_widget_host_create_callback_ = render_widget_host_create_callback;
-  web_conents_create_callback_ = web_conents_create_callback;
+  web_contents_create_callback_ = web_contents_create_callback;
 }
 
 void ApplicationBridge::CreateAlert(
     mojo::PendingReceiver<mojom::AlertBridge> bridge_receiver) {
   // The resulting object manages its own lifetime.
   std::ignore = new AlertBridge(std::move(bridge_receiver));
-}
-
-void ApplicationBridge::ShowColorPanel(
-    mojo::PendingReceiver<mojom::ColorPanel> receiver,
-    mojo::PendingRemote<mojom::ColorPanelHost> host) {
-  mojo::MakeSelfOwnedReceiver(
-      std::make_unique<ColorPanelBridge>(std::move(host)), std::move(receiver));
 }
 
 void ApplicationBridge::CreateNativeWidgetNSWindow(
@@ -159,14 +151,34 @@ void ApplicationBridge::CreateRenderWidgetHostNSView(
                                           view_receiver.PassHandle());
 }
 
+void ApplicationBridge::CreateSystemMediaControlsBridge(
+    mojo::PendingReceiver<system_media_controls::mojom::SystemMediaControls>
+        receiver,
+    mojo::PendingRemote<
+        system_media_controls::mojom::SystemMediaControlsObserver> host) {
+  if (!system_media_controls_bridge_) {
+    system_media_controls_bridge_ =
+        std::make_unique<system_media_controls::SystemMediaControlsBridge>(
+            std::move(receiver), std::move(host));
+  } else {
+    // It's possible that ApplicationBridge is asked to make an SMCBridge for an
+    // App when one has already been made. This is the case for duplicate PWAs,
+    // ie. when a user has 2 of the same PWA open, and plays audio in both.
+    // In that case, we just need to rebind the mojo connections.
+    system_media_controls_bridge_->BindMojoConnections(std::move(receiver),
+                                                       std::move(host));
+  }
+}
+
 void ApplicationBridge::CreateWebContentsNSView(
     uint64_t view_id,
     mojo::PendingAssociatedRemote<mojom::StubInterface> host,
     mojo::PendingAssociatedReceiver<mojom::StubInterface> view_receiver) {
-  if (!web_conents_create_callback_)
+  if (!web_contents_create_callback_) {
     return;
-  web_conents_create_callback_.Run(view_id, host.PassHandle(),
-                                   view_receiver.PassHandle());
+  }
+  web_contents_create_callback_.Run(view_id, host.PassHandle(),
+                                    view_receiver.PassHandle());
 }
 
 void ApplicationBridge::ForwardCutCopyPaste(

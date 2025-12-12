@@ -30,7 +30,7 @@ class BitSetIteratorPerfTest : public ANGLEPerfTest
 
 template <typename T>
 BitSetIteratorPerfTest<T>::BitSetIteratorPerfTest()
-    : ANGLEPerfTest(::testing::UnitTest::GetInstance()->current_test_case()->name(), "", "_run", 1)
+    : ANGLEPerfTest(::testing::UnitTest::GetInstance()->current_test_suite()->name(), "", "_run", 1)
 {}
 
 template <typename T>
@@ -50,10 +50,11 @@ using TestTypes = Types<angle::BitSet32<32>,
                         angle::BitSet64<32>,
                         angle::BitSet64<64>,
                         angle::BitSet<96>,
-                        angle::BitSetArray<96>>;
+                        angle::BitSetArray<96>,
+                        angle::BitSetArray<300>>;
 
-constexpr char kTestTypeNames[][100] = {"BitSet32_32", "BitSet64_32", "BitSet64_64", "BitSet_96",
-                                        "BitSetArray_96"};
+constexpr char kTestTypeNames[][100] = {"BitSet32_32", "BitSet64_32",    "BitSet64_64",
+                                        "BitSet_96",   "BitSetArray_96", "BitSetArray_300"};
 
 class BitSetIteratorTypeNames
 {

@@ -15,10 +15,11 @@
 #include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "crypto/nss_util.h"
 #include "crypto/scoped_test_nss_db.h"
-#include "net/cert/pem.h"
+#include "net/base/features.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util_nss.h"
 #include "net/ssl/client_cert_identity_test_util.h"
@@ -29,6 +30,7 @@
 #include "net/test/cert_test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/boringssl/src/include/openssl/ssl.h"
+#include "third_party/boringssl/src/pki/pem.h"
 
 namespace net {
 
@@ -52,6 +54,10 @@ void SavePrivateKeyAndQuitCallback(scoped_refptr<net::SSLPrivateKey>* out_key,
 
 class ClientCertStoreNSSTestDelegate {
  public:
+  explicit ClientCertStoreNSSTestDelegate(bool use_new_impl) {
+    scoped_feature_list_.InitWithFeatureState(
+        net::features::kNewClientCertPathBuilding, use_new_impl);
+  }
   ClientCertStoreNSSTestDelegate() = default;
 
   bool SelectClientCerts(const CertificateList& input_certs,
@@ -67,15 +73,45 @@ class ClientCertStoreNSSTestDelegate {
                                                   cert_request_info);
     return true;
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-INSTANTIATE_TYPED_TEST_SUITE_P(NSS,
+class ClientCertStoreNSSTestDelegateOld
+    : public ClientCertStoreNSSTestDelegate {
+ public:
+  ClientCertStoreNSSTestDelegateOld() : ClientCertStoreNSSTestDelegate(false) {}
+};
+
+class ClientCertStoreNSSTestDelegateNew
+    : public ClientCertStoreNSSTestDelegate {
+ public:
+  ClientCertStoreNSSTestDelegateNew() : ClientCertStoreNSSTestDelegate(true) {}
+};
+
+INSTANTIATE_TYPED_TEST_SUITE_P(NSSOld,
                                ClientCertStoreTest,
-                               ClientCertStoreNSSTestDelegate);
+                               ClientCertStoreNSSTestDelegateOld);
+
+INSTANTIATE_TYPED_TEST_SUITE_P(NSSNew,
+                               ClientCertStoreTest,
+                               ClientCertStoreNSSTestDelegateNew);
+
+class ClientCertStoreNSSTest : public testing::TestWithParam<bool> {
+ public:
+  ClientCertStoreNSSTest() {
+    scoped_feature_list_.InitWithFeatureState(
+        net::features::kNewClientCertPathBuilding, GetParam());
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
 
 // Tests that ClientCertStoreNSS attempts to build a certificate chain by
 // querying NSS before return a certificate.
-TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
+TEST_P(ClientCertStoreNSSTest, BuildsCertificateChain) {
   base::test::TaskEnvironment task_environment;
 
   // Set up a test DB and import client_1.pem and client_1_ca.pem.
@@ -107,9 +143,8 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
     ClientCertIdentityList selected_identities;
     base::RunLoop loop;
     store->GetClientCerts(
-        *request.get(),
-        base::BindOnce(SaveIdentitiesAndQuitCallback, &selected_identities,
-                       loop.QuitClosure()));
+        request, base::BindOnce(SaveIdentitiesAndQuitCallback,
+                                &selected_identities, loop.QuitClosure()));
     loop.Run();
 
     // The result be |client_1| with no intermediates.
@@ -142,9 +177,8 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
     ClientCertIdentityList selected_identities;
     base::RunLoop loop;
     store->GetClientCerts(
-        *request.get(),
-        base::BindOnce(SaveIdentitiesAndQuitCallback, &selected_identities,
-                       loop.QuitClosure()));
+        request, base::BindOnce(SaveIdentitiesAndQuitCallback,
+                                &selected_identities, loop.QuitClosure()));
     loop.Run();
 
     // The result be |client_1| with |client_1_ca| as an intermediate.
@@ -170,7 +204,7 @@ TEST(ClientCertStoreNSSTest, BuildsCertificateChain) {
   }
 }
 
-TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
+TEST_P(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
   base::test::TaskEnvironment task_environment;
 
   crypto::ScopedTestNSSDB test_db;
@@ -189,13 +223,13 @@ TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
           "subject_printable_string_containing_utf8_client_cert.pem"),
       &file_data));
 
-  net::PEMTokenizer pem_tokenizer(file_data, {"CERTIFICATE"});
+  bssl::PEMTokenizer pem_tokenizer(file_data, {"CERTIFICATE"});
   ASSERT_TRUE(pem_tokenizer.GetNext());
   std::string cert_der(pem_tokenizer.data());
   ASSERT_FALSE(pem_tokenizer.GetNext());
 
-  ScopedCERTCertificate cert(x509_util::CreateCERTCertificateFromBytes(
-      reinterpret_cast<const uint8_t*>(cert_der.data()), cert_der.size()));
+  ScopedCERTCertificate cert(
+      x509_util::CreateCERTCertificateFromBytes(base::as_byte_span(cert_der)));
   ASSERT_TRUE(cert);
 
   ASSERT_TRUE(ImportClientCertToSlot(cert.get(), test_db.slot()));
@@ -221,8 +255,8 @@ TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
   ClientCertIdentityList selected_identities;
   base::RunLoop loop;
   store->GetClientCerts(
-      *request.get(), base::BindOnce(SaveIdentitiesAndQuitCallback,
-                                     &selected_identities, loop.QuitClosure()));
+      request, base::BindOnce(SaveIdentitiesAndQuitCallback,
+                              &selected_identities, loop.QuitClosure()));
   loop.Run();
 
   // The result be |cert| with no intermediates.
@@ -242,6 +276,8 @@ TEST(ClientCertStoreNSSTest, SubjectPrintableStringContainingUTF8) {
   EXPECT_EQ(expected, ssl_private_key->GetAlgorithmPreferences());
   TestSSLPrivateKeyMatches(ssl_private_key.get(), pkcs8_key);
 }
+
+INSTANTIATE_TEST_SUITE_P(, ClientCertStoreNSSTest, testing::Bool());
 
 // TODO(mattm): is it possible to unittest slot unlocking?
 

@@ -6,8 +6,11 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "base/functional/bind.h"
@@ -17,6 +20,8 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/process/process_handle.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/strings/string_util.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/task/thread_pool.h"
@@ -29,6 +34,7 @@
 #include "content/browser/devtools/protocol/devtools_mhtml_helper.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
 #include "content/browser/devtools/protocol/handler_helpers.h"
+#include "content/browser/devtools/protocol/page.h"
 #include "content/browser/manifest/manifest_manager_host.h"
 #include "content/browser/preloading/prerender/prerender_final_status.h"
 #include "content/browser/renderer_host/back_forward_cache_can_store_document_result.h"
@@ -52,24 +58,31 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/common/referrer.h"
 #include "content/public/common/result_codes.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/common/url_utils.h"
 #include "net/base/filename_util.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
+#include "third_party/blink/public/mojom/back_forward_cache_not_restored_reasons.mojom.h"
+#include "third_party/blink/public/mojom/frame/back_forward_cache_controller.mojom.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
+#include "third_party/blink/public/mojom/script_source_location.mojom.h"
 #include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/gfx/codec/jpeg_codec.h"
 #include "ui/gfx/codec/png_codec.h"
 #include "ui/gfx/codec/webp_codec.h"
+#include "ui/gfx/color_utils.h"
+#include "ui/gfx/geometry/size.h"
 #include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/skbitmap_operations.h"
 #include "ui/snapshot/snapshot.h"
+#include "url/gurl.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "content/browser/renderer_host/compositor_impl_android.h"
@@ -89,39 +102,40 @@ constexpr char kErrorNotAttached[] = "Not attached to a page";
 constexpr char kErrorInactivePage[] = "Not attached to an active page";
 
 using BitmapEncoder =
-    base::RepeatingCallback<bool(const SkBitmap& bitmap,
-                                 std::vector<uint8_t>& output)>;
+    base::RepeatingCallback<std::optional<std::vector<uint8_t>>(
+        const SkBitmap& bitmap)>;
 
-bool EncodeBitmapAsPngSlow(const SkBitmap& bitmap,
-                           std::vector<uint8_t>& output) {
+std::optional<std::vector<uint8_t>> EncodeBitmapAsPngSlow(
+    const SkBitmap& bitmap) {
   TRACE_EVENT0("devtools", "EncodeBitmapAsPngSlow");
-  return gfx::PNGCodec::EncodeBGRASkBitmap(bitmap, false, &output);
+  return gfx::PNGCodec::EncodeBGRASkBitmap(bitmap,
+                                           /*discard_transparency=*/false);
 }
 
-bool EncodeBitmapAsPngFast(const SkBitmap& bitmap,
-                           std::vector<uint8_t>& output) {
+std::optional<std::vector<uint8_t>> EncodeBitmapAsPngFast(
+    const SkBitmap& bitmap) {
   TRACE_EVENT0("devtools", "EncodeBitmapAsPngFast");
-  return gfx::PNGCodec::FastEncodeBGRASkBitmap(bitmap, false, &output);
+  return gfx::PNGCodec::FastEncodeBGRASkBitmap(bitmap,
+                                               /*discard_transparency=*/false);
 }
 
-bool EncodeBitmapAsJpeg(int quality,
-                        const SkBitmap& bitmap,
-                        std::vector<uint8_t>& output) {
+std::optional<std::vector<uint8_t>> EncodeBitmapAsJpeg(int quality,
+                                                       const SkBitmap& bitmap) {
   TRACE_EVENT0("devtools", "EncodeBitmapAsJpeg");
-  return gfx::JPEGCodec::Encode(bitmap, quality, &output);
+  return gfx::JPEGCodec::Encode(bitmap, quality);
 }
 
-bool EncodeBitmapAsWebp(int quality,
-                        const SkBitmap& bitmap,
-                        std::vector<uint8_t>& output) {
+std::optional<std::vector<uint8_t>> EncodeBitmapAsWebp(int quality,
+                                                       const SkBitmap& bitmap) {
   TRACE_EVENT0("devtools", "EncodeBitmapAsWebp");
-  return gfx::WebpCodec::Encode(bitmap, quality, &output);
+  return gfx::WebpCodec::Encode(bitmap, quality);
 }
 
-absl::variant<protocol::Response, BitmapEncoder>
+std::variant<protocol::Response, BitmapEncoder>
 GetEncoder(const std::string& format, int quality, bool optimize_for_speed) {
-  if (quality < 0 || quality > 100)
+  if (quality < 0 || quality > 100) {
     quality = kDefaultScreenshotQuality;
+  }
 
   if (format == protocol::Page::CaptureScreenshot::FormatEnum::Png) {
     return base::BindRepeating(optimize_for_speed ? EncodeBitmapAsPngFast
@@ -157,7 +171,7 @@ std::unique_ptr<Page::ScreencastFrameMetadata> BuildScreencastFrameMetadata(
           .SetDeviceHeight(content_size_dip.height())
           .SetScrollOffsetX(root_scroll_offset_dip.x())
           .SetScrollOffsetY(root_scroll_offset_dip.y())
-          .SetTimestamp(base::Time::Now().ToDoubleT())
+          .SetTimestamp(base::Time::Now().InSecondsFSinceUnixEpoch())
           .Build();
   return page_metadata;
 }
@@ -206,15 +220,287 @@ bool CanExecuteGlobalCommands(
   return false;
 }
 
+void GotManifest(std::optional<std::string> manifest_id,
+                 std::unique_ptr<PageHandler::GetAppManifestCallback> callback,
+                 const GURL& manifest_url,
+                 ::blink::mojom::ManifestPtr input_manifest,
+                 blink::mojom::ManifestDebugInfoPtr debug_info) {
+  if (manifest_id &&
+      manifest_id.value() != input_manifest->id.possibly_invalid_spec()) {
+    std::move(callback)->sendFailure(protocol::Response::InvalidParams(
+        std::string("Page manifest id ") +
+        input_manifest->id.possibly_invalid_spec() +
+        " does not match the input " + manifest_id.value()));
+    return;
+  }
+
+  auto errors = std::make_unique<protocol::Array<Page::AppManifestError>>();
+  bool failed = true;
+  if (debug_info) {
+    failed = false;
+    for (const auto& error : debug_info->errors) {
+      errors->emplace_back(Page::AppManifestError::Create()
+                               .SetMessage(error->message)
+                               .SetCritical(error->critical)
+                               .SetLine(error->line)
+                               .SetColumn(error->column)
+                               .Build());
+      if (error->critical) {
+        failed = true;
+      }
+    }
+  }
+
+  auto convert_icon = [](const blink::Manifest::ImageResource& input_icon)
+      -> std::unique_ptr<Page::ImageResource> {
+    auto icon = Page::ImageResource::Create();
+    std::vector<std::string> size_strings;
+    std::ranges::transform(input_icon.sizes, std::back_inserter(size_strings),
+                           &gfx::Size::ToString);
+    icon.SetSizes(base::JoinString(size_strings, " "));
+    icon.SetType(base::UTF16ToUTF8(input_icon.type));
+    return icon.SetUrl(input_icon.src.possibly_invalid_spec()).Build();
+  };
+
+  auto convert_icons =
+      [convert_icon](
+          const std::vector<blink::Manifest::ImageResource>& input_icons)
+      -> std::unique_ptr<protocol::Array<Page::ImageResource>> {
+    auto icons = std::make_unique<protocol::Array<Page::ImageResource>>();
+    for (const auto& input_icon : input_icons) {
+      icons->push_back(convert_icon(input_icon));
+    }
+    return icons;
+  };
+
+  auto manifest = Page::WebAppManifest::Create();
+  if (input_manifest->has_background_color) {
+    manifest.SetBackgroundColor(color_utils::SkColorToRgbaString(
+        static_cast<SkColor>(input_manifest->background_color)));
+  }
+  if (input_manifest->description) {
+    manifest.SetDescription(
+        base::UTF16ToUTF8(input_manifest->description.value()));
+  }
+  // TODO(crbug.com/331214986): Fill the WebAppManifest.dir (direction).
+  manifest.SetDisplay(base::ToString(input_manifest->display));
+  if (!input_manifest->display_override.empty()) {
+    auto display_overrides = std::make_unique<protocol::Array<std::string>>();
+    for (const auto& display_override : input_manifest->display_override) {
+      display_overrides->push_back(base::ToString(display_override));
+    }
+    manifest.SetDisplayOverrides(std::move(display_overrides));
+  }
+  if (!input_manifest->file_handlers.empty()) {
+    auto file_handlers = std::make_unique<protocol::Array<Page::FileHandler>>();
+    for (const auto& input_file_handler : input_manifest->file_handlers) {
+      auto file_handler = Page::FileHandler::Create();
+      if (!input_file_handler->icons.empty()) {
+        file_handler.SetIcons(convert_icons(input_file_handler->icons));
+      }
+      if (!input_file_handler->accept.empty()) {
+        auto accepts = std::make_unique<protocol::Array<Page::FileFilter>>();
+        for (const auto& input_accept : input_file_handler->accept) {
+          auto accept = Page::FileFilter::Create();
+          accept.SetName(base::UTF16ToUTF8(input_accept.first));
+          if (!input_accept.second.empty()) {
+            auto accept_strs = std::make_unique<protocol::Array<std::string>>();
+            for (const auto& accept_str : input_accept.second) {
+              accept_strs->push_back(base::UTF16ToUTF8(accept_str));
+            }
+            accept.SetAccepts(std::move(accept_strs));
+          }
+          accepts->push_back(accept.Build());
+        }
+        file_handler.SetAccepts(std::move(accepts));
+      }
+      file_handlers->push_back(
+          file_handler
+              .SetAction(input_file_handler->action.possibly_invalid_spec())
+              .SetName(base::UTF16ToUTF8(input_file_handler->name))
+              .SetLaunchType(base::ToString(input_file_handler->launch_type))
+              .Build());
+    }
+  }
+  if (!input_manifest->icons.empty()) {
+    manifest.SetIcons(convert_icons(input_manifest->icons));
+  }
+  manifest.SetId(input_manifest->id.possibly_invalid_spec());
+  // TODO(crbug.com/331214986): Fill the WebAppManifest.lang.
+  if (input_manifest->launch_handler) {
+    manifest.SetLaunchHandler(
+        Page::LaunchHandler::Create()
+            .SetClientMode(base::ToString(
+                input_manifest->launch_handler.value().parsed_client_mode()))
+            .Build());
+  }
+  if (input_manifest->name) {
+    manifest.SetName(base::UTF16ToUTF8(input_manifest->name.value()));
+  }
+  manifest.SetOrientation(base::ToString(input_manifest->orientation));
+  manifest.SetPreferRelatedApplications(
+      input_manifest->prefer_related_applications);
+  if (!input_manifest->protocol_handlers.empty()) {
+    auto protocol_handlers =
+        std::make_unique<protocol::Array<Page::ProtocolHandler>>();
+    for (const auto& input_protocol_handler :
+         input_manifest->protocol_handlers) {
+      protocol_handlers->push_back(
+          Page::ProtocolHandler::Create()
+              .SetProtocol(base::UTF16ToUTF8(input_protocol_handler->protocol))
+              .SetUrl(input_protocol_handler->url.possibly_invalid_spec())
+              .Build());
+    }
+    manifest.SetProtocolHandlers(std::move(protocol_handlers));
+  }
+  if (!input_manifest->scope_extensions.empty()) {
+    auto scope_extensions =
+        std::make_unique<protocol::Array<Page::ScopeExtension>>();
+    for (const auto& input_scope_extension : input_manifest->scope_extensions) {
+      scope_extensions->push_back(
+          Page::ScopeExtension::Create()
+              .SetOrigin(input_scope_extension->origin.Serialize())
+              .SetHasOriginWildcard(input_scope_extension->has_origin_wildcard)
+              .Build());
+    }
+    manifest.SetScopeExtensions(std::move(scope_extensions));
+  }
+  if (!input_manifest->screenshots.empty()) {
+    auto screenshots = std::make_unique<protocol::Array<Page::Screenshot>>();
+    for (const auto& input_screenshot : input_manifest->screenshots) {
+      auto screenshot = Page::Screenshot::Create();
+      if (input_screenshot->label) {
+        screenshot.SetLabel(base::UTF16ToUTF8(input_screenshot->label.value()));
+      }
+      screenshots->push_back(
+          screenshot.SetImage(convert_icon(input_screenshot->image))
+              .SetFormFactor(base::ToString(input_screenshot->form_factor))
+              .Build());
+    }
+    manifest.SetScreenshots(std::move(screenshots));
+  }
+  if (input_manifest->share_target) {
+    const auto& input_share_target = input_manifest->share_target.value();
+    auto share_target = Page::ShareTarget::Create();
+    if (input_share_target.params.title) {
+      share_target.SetTitle(
+          base::UTF16ToUTF8(input_share_target.params.title.value()));
+    }
+    if (input_share_target.params.text) {
+      share_target.SetTitle(
+          base::UTF16ToUTF8(input_share_target.params.text.value()));
+    }
+    if (input_share_target.params.url) {
+      share_target.SetTitle(
+          base::UTF16ToUTF8(input_share_target.params.url.value()));
+    }
+    manifest.SetShareTarget(
+        share_target
+            .SetAction(
+                input_manifest->share_target->action.possibly_invalid_spec())
+            .SetMethod(base::ToString(input_manifest->share_target->method))
+            .SetEnctype(base::ToString(input_manifest->share_target->action))
+            .Build());
+  }
+  if (!input_manifest->related_applications.empty()) {
+    auto related_apps =
+        std::make_unique<protocol::Array<Page::RelatedApplication>>();
+    for (const auto& input_related_app : input_manifest->related_applications) {
+      auto related_app = Page::RelatedApplication::Create();
+      if (input_related_app.id) {
+        related_app.SetId(base::UTF16ToUTF8(input_related_app.id.value()));
+      }
+      related_apps->push_back(
+          related_app.SetUrl(input_related_app.url.possibly_invalid_spec())
+              .Build());
+    }
+    manifest.SetRelatedApplications(std::move(related_apps));
+  }
+  manifest.SetScope(input_manifest->scope.possibly_invalid_spec());
+  if (!input_manifest->shortcuts.empty()) {
+    auto shortcuts = std::make_unique<protocol::Array<Page::Shortcut>>();
+    for (const auto& input_shortcut : input_manifest->shortcuts) {
+      shortcuts->push_back(
+          Page::Shortcut::Create()
+              .SetName(base::UTF16ToUTF8(input_shortcut.name))
+              .SetUrl(input_shortcut.url.possibly_invalid_spec())
+              .Build());
+    }
+    manifest.SetShortcuts(std::move(shortcuts));
+  }
+  manifest.SetStartUrl(input_manifest->start_url.possibly_invalid_spec());
+  if (input_manifest->has_theme_color) {
+    manifest.SetThemeColor(color_utils::SkColorToRgbaString(
+        static_cast<SkColor>(input_manifest->theme_color)));
+  }
+
+  std::unique_ptr<Page::AppManifestParsedProperties> parsed;
+  if (!blink::IsEmptyManifest(input_manifest)) {
+    parsed = Page::AppManifestParsedProperties::Create()
+                 .SetScope(input_manifest->scope.possibly_invalid_spec())
+                 .Build();
+  }
+
+  std::move(callback)->sendSuccess(
+      manifest_url.possibly_invalid_spec(), std::move(errors),
+      failed ? std::optional<std::string>() : debug_info->raw_manifest,
+      std::move(parsed), manifest.Build());
+}
+
+std::string GetFrameStartedNavigatingNavigationTypeString(
+    const blink::mojom::NavigationType& navigation_type) {
+  switch (navigation_type) {
+    case blink::mojom::NavigationType::RELOAD:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::Reload;
+    case blink::mojom::NavigationType::RELOAD_BYPASSING_CACHE:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::
+          ReloadBypassingCache;
+    case blink::mojom::NavigationType::RESTORE:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::Restore;
+    case blink::mojom::NavigationType::RESTORE_WITH_POST:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::RestoreWithPost;
+    case blink::mojom::NavigationType::HISTORY_SAME_DOCUMENT:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::
+          HistorySameDocument;
+    case blink::mojom::NavigationType::HISTORY_DIFFERENT_DOCUMENT:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::
+          HistoryDifferentDocument;
+    case blink::mojom::NavigationType::SAME_DOCUMENT:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::SameDocument;
+    case blink::mojom::NavigationType::DIFFERENT_DOCUMENT:
+      return Page::FrameStartedNavigating::NavigationTypeEnum::
+          DifferentDocument;
+    default:
+      NOTREACHED();
+  }
+}
 }  // namespace
+
+struct PageHandler::PendingScreenshotRequest {
+  PendingScreenshotRequest(base::ScopedClosureRunner capturer_handle,
+                           PageHandler::BitmapEncoder encoder,
+                           std::unique_ptr<CaptureScreenshotCallback> callback)
+      : capturer_handle(std::move(capturer_handle)),
+        encoder(std::move(encoder)),
+        callback(std::move(callback)) {}
+
+  base::ScopedClosureRunner capturer_handle;
+  PageHandler::BitmapEncoder encoder;
+  std::unique_ptr<CaptureScreenshotCallback> callback;
+  blink::DeviceEmulationParams original_emulation_params;
+  std::optional<blink::web_pref::WebPreferences> original_web_prefs;
+  gfx::Size original_view_size;
+  gfx::Size requested_image_size;
+};
 
 PageHandler::PageHandler(
     EmulationHandler* emulation_handler,
     BrowserHandler* browser_handler,
     bool allow_unsafe_operations,
     bool is_trusted,
-    absl::optional<url::Origin> navigation_initiator_origin,
-    bool may_read_local_files)
+    std::optional<url::Origin> navigation_initiator_origin,
+    bool may_read_local_files,
+    base::RepeatingCallback<void(std::string)> prepare_for_reload_callback)
     : DevToolsDomainHandler(Page::Metainfo::domainName),
       allow_unsafe_operations_(allow_unsafe_operations),
       is_trusted_(is_trusted),
@@ -229,7 +515,8 @@ PageHandler::PageHandler(
       frames_in_flight_(0),
       host_(nullptr),
       emulation_handler_(emulation_handler),
-      browser_handler_(browser_handler) {
+      browser_handler_(browser_handler),
+      prepare_for_reload_callback_(std::move(prepare_for_reload_callback)) {
 #if BUILDFLAG(IS_ANDROID)
   constexpr auto kScreencastPixelFormat = media::PIXEL_FORMAT_I420;
 #else
@@ -317,13 +604,15 @@ void PageHandler::DidDetachInterstitialPage() {
 }
 
 void PageHandler::DidRunJavaScriptDialog(const GURL& url,
+                                         const base::UnguessableToken& frame_id,
                                          const std::u16string& message,
                                          const std::u16string& default_prompt,
                                          JavaScriptDialogType dialog_type,
                                          bool has_non_devtools_handlers,
                                          JavaScriptDialogCallback callback) {
-  if (!enabled_)
+  if (!enabled_) {
     return;
+  }
   DCHECK(pending_dialog_.is_null());
   pending_dialog_ = std::move(callback);
   std::string type = Page::DialogTypeEnum::Alert;
@@ -331,32 +620,59 @@ void PageHandler::DidRunJavaScriptDialog(const GURL& url,
     type = Page::DialogTypeEnum::Confirm;
   if (dialog_type == JAVASCRIPT_DIALOG_TYPE_PROMPT)
     type = Page::DialogTypeEnum::Prompt;
-  frontend_->JavascriptDialogOpening(url.spec(), base::UTF16ToUTF8(message),
-                                     type, has_non_devtools_handlers,
-                                     base::UTF16ToUTF8(default_prompt));
+  frontend_->JavascriptDialogOpening(
+      url.spec(), frame_id.ToString(), base::UTF16ToUTF8(message), type,
+      has_non_devtools_handlers, base::UTF16ToUTF8(default_prompt));
 }
 
-void PageHandler::DidRunBeforeUnloadConfirm(const GURL& url,
-                                            bool has_non_devtools_handlers,
-                                            JavaScriptDialogCallback callback) {
-  if (!enabled_)
+void PageHandler::DidRunBeforeUnloadConfirm(
+    const GURL& url,
+    const base::UnguessableToken& frame_id,
+    bool has_non_devtools_handlers,
+    JavaScriptDialogCallback callback) {
+  if (!enabled_) {
     return;
+  }
   DCHECK(pending_dialog_.is_null());
   pending_dialog_ = std::move(callback);
-  frontend_->JavascriptDialogOpening(url.spec(), std::string(),
+  frontend_->JavascriptDialogOpening(url.spec(), frame_id.ToString(),
+                                     std::string(),
                                      Page::DialogTypeEnum::Beforeunload,
                                      has_non_devtools_handlers, std::string());
 }
 
-void PageHandler::DidCloseJavaScriptDialog(bool success,
-                                           const std::u16string& user_input) {
-  if (!enabled_)
+void PageHandler::DidCloseJavaScriptDialog(
+    const base::UnguessableToken& frame_id,
+    bool success,
+    const std::u16string& user_input) {
+  if (!enabled_) {
     return;
+  }
   pending_dialog_.Reset();
-  frontend_->JavascriptDialogClosed(success, base::UTF16ToUTF8(user_input));
+  frontend_->JavascriptDialogClosed(frame_id.ToString(), success,
+                                    base::UTF16ToUTF8(user_input));
 }
 
-Response PageHandler::Enable() {
+Response PageHandler::Enable(
+    std::optional<bool> enable_file_chooser_opened_event) {
+  if (!enabled_ && !host_->GetParentOrOuterDocument() &&
+      host_->frame_tree_node() &&
+      host_->frame_tree_node()->navigation_request()) {
+    // If the Page domain was not enabled, the page is the top level frame, and
+    // there is a penging navigation, emit `FrameStartedNavigating` event.
+    FrameTreeNode* frame_tree_node = host_->frame_tree_node();
+    NavigationRequest* navigation_request =
+        host_->frame_tree_node()->navigation_request();
+    frontend_->FrameStartedNavigating(
+        frame_tree_node->current_frame_host()
+            ->devtools_frame_token()
+            .ToString(),
+        navigation_request->common_params().url.spec(),
+        navigation_request->devtools_navigation_token().ToString(),
+        GetFrameStartedNavigatingNavigationTypeString(
+            navigation_request->common_params().navigation_type));
+  }
+
   enabled_ = true;
   return Response::FallThrough();
 }
@@ -370,8 +686,8 @@ Response PageHandler::Disable() {
   if (!pending_dialog_.is_null()) {
     ResponseOrWebContents result = GetWebContentsForTopLevelActiveFrame();
     // Only a top level frame can have a dialog.
-    DCHECK(absl::holds_alternative<WebContentsImpl*>(result));
-    WebContentsImpl* web_contents = absl::get<WebContentsImpl*>(result);
+    DCHECK(std::holds_alternative<WebContentsImpl*>(result));
+    WebContentsImpl* web_contents = std::get<WebContentsImpl*>(result);
     // Leave dialog hanging if there is a manager that can take care of it,
     // cancel and send ack otherwise.
     bool has_dialog_manager =
@@ -382,10 +698,13 @@ Response PageHandler::Disable() {
     pending_dialog_.Reset();
   }
 
-  for (auto* item : pending_downloads_)
+  for (download::DownloadItem* item : pending_downloads_) {
     item->RemoveObserver(this);
+  }
   pending_downloads_.clear();
   navigate_callbacks_.clear();
+  SetPrerenderingAllowed(true);
+
   return Response::FallThrough();
 }
 
@@ -411,8 +730,9 @@ Response PageHandler::Close() {
   return Response::Success();
 }
 
-void PageHandler::Reload(Maybe<bool> bypassCache,
-                         Maybe<std::string> script_to_evaluate_on_load,
+void PageHandler::Reload(std::optional<bool> bypassCache,
+                         std::optional<std::string> script_to_evaluate_on_load,
+                         std::optional<std::string> loader_id,
                          std::unique_ptr<ReloadCallback> callback) {
   Response response = AssureTopLevelActiveFrame();
   if (response.IsError()) {
@@ -426,13 +746,37 @@ void PageHandler::Reload(Maybe<bool> bypassCache,
   RenderFrameHostImpl* outermost_main_frame =
       host_->GetOutermostMainFrameOrEmbedder();
 
-  // It is important to fallback before triggering reload, so that
-  // renderer could prepare beforehand.
-  callback->fallThrough();
-  outermost_main_frame->frame_tree()->controller().Reload(
-      bypassCache.fromMaybe(false) ? ReloadType::BYPASSING_CACHE
-                                   : ReloadType::NORMAL,
-      false);
+  if (loader_id.has_value()) {
+    auto navigation_token = outermost_main_frame->GetDevToolsNavigationToken();
+    if (!navigation_token.has_value() ||
+        *loader_id != navigation_token->ToString()) {
+      callback->sendFailure(Response::InvalidParams(
+          "Reload was discarded because the page already navigated"));
+      return;
+    }
+  }
+
+  const auto reload_type = bypassCache.value_or(false)
+                               ? ReloadType::BYPASSING_CACHE
+                               : ReloadType::NORMAL;
+  NavigationController& navigation_controller =
+      outermost_main_frame->frame_tree()->controller();
+  // For RenderDocument, the path is different: we don't fall through to the
+  // renderer and process `scriptToEvaluateOnLoad` in the browser instead.
+  const bool handle_reload_on_browser_side =
+      outermost_main_frame->ShouldChangeRenderFrameHostOnSameSiteNavigation();
+  if (handle_reload_on_browser_side) {
+    have_pending_reload_ = true;
+    pending_script_to_evaluate_on_load_ =
+        script_to_evaluate_on_load.value_or("");
+    navigation_controller.Reload(reload_type, false);
+    callback->sendSuccess();
+  } else {
+    // It is important to fallback before triggering reload, so that
+    // renderer could prepare beforehand.
+    callback->fallThrough();
+    navigation_controller.Reload(reload_type, false);
+  }
 }
 
 static network::mojom::ReferrerPolicy ParsePolicyFromString(
@@ -472,16 +816,16 @@ void DispatchNavigateCallback(
   // started, in which case it is not marked as aborted. We report this as an
   // abort to DevTools anyway.
   if (!request->IsNavigationStarted()) {
-    callback->sendSuccess(frame_id, Maybe<std::string>(),
+    callback->sendSuccess(frame_id, std::nullopt,
                           net::ErrorToString(net::ERR_ABORTED));
     return;
   }
-  Maybe<std::string> opt_error;
+  std::optional<std::string> opt_error;
   if (request->GetNetErrorCode() != net::OK)
     opt_error = net::ErrorToString(request->GetNetErrorCode());
-  Maybe<std::string> loader_id =
+  std::optional<std::string> loader_id =
       request->IsSameDocument()
-          ? Maybe<std::string>()
+          ? std::optional<std::string>()
           : request->devtools_navigation_token().ToString();
   callback->sendSuccess(frame_id, std::move(loader_id), std::move(opt_error));
 }
@@ -489,10 +833,10 @@ void DispatchNavigateCallback(
 }  // namespace
 
 void PageHandler::Navigate(const std::string& url,
-                           Maybe<std::string> referrer,
-                           Maybe<std::string> maybe_transition_type,
-                           Maybe<std::string> frame_id,
-                           Maybe<std::string> referrer_policy,
+                           std::optional<std::string> referrer,
+                           std::optional<std::string> maybe_transition_type,
+                           std::optional<std::string> frame_id,
+                           std::optional<std::string> referrer_policy,
                            std::unique_ptr<NavigateCallback> callback) {
   GURL gurl(url);
   if (!gurl.is_valid()) {
@@ -521,7 +865,7 @@ void PageHandler::Navigate(const std::string& url,
 
   ui::PageTransition type;
   std::string transition_type =
-      maybe_transition_type.fromMaybe(Page::TransitionTypeEnum::Typed);
+      maybe_transition_type.value_or(Page::TransitionTypeEnum::Typed);
   if (transition_type == Page::TransitionTypeEnum::Link)
     type = ui::PAGE_TRANSITION_LINK;
   else if (transition_type == Page::TransitionTypeEnum::Typed)
@@ -549,8 +893,10 @@ void PageHandler::Navigate(const std::string& url,
   else
     type = ui::PAGE_TRANSITION_TYPED;
 
+  type = ui::PageTransitionFromInt(type | ui::PAGE_TRANSITION_FROM_API);
+
   std::string out_frame_id =
-      frame_id.fromMaybe(host_->devtools_frame_token().ToString());
+      frame_id.value_or(host_->devtools_frame_token().ToString());
   FrameTreeNode* frame_tree_node = FrameTreeNodeFromDevToolsFrameToken(
       host_->frame_tree_node(), out_frame_id);
 
@@ -562,8 +908,8 @@ void PageHandler::Navigate(const std::string& url,
 
   NavigationController::LoadURLParams params(gurl);
   network::mojom::ReferrerPolicy policy =
-      ParsePolicyFromString(referrer_policy.fromMaybe(""));
-  params.referrer = Referrer(GURL(referrer.fromMaybe("")), policy);
+      ParsePolicyFromString(referrer_policy.value_or(""));
+  params.referrer = Referrer(GURL(referrer.value_or("")), policy);
   params.transition_type = type;
   params.frame_tree_node_id = frame_tree_node->frame_tree_node_id();
   if (navigation_initiator_origin_.has_value()) {
@@ -584,7 +930,7 @@ void PageHandler::Navigate(const std::string& url,
   if (!weak_self)
     return;
   if (!navigation_handle) {
-    callback->sendSuccess(out_frame_id, Maybe<std::string>(),
+    callback->sendSuccess(out_frame_id, std::nullopt,
                           net::ErrorToString(net::ERR_ABORTED));
     return;
   }
@@ -638,10 +984,39 @@ void PageHandler::DownloadWillBegin(FrameTreeNode* ftn,
   pending_downloads_.insert(item);
 }
 
+void PageHandler::DidStartNavigating(
+    FrameTreeNode& ftn,
+    const GURL& url,
+    const base::UnguessableToken& loader_id,
+    const blink::mojom::NavigationType& navigation_type) {
+  if (!enabled_) {
+    return;
+  }
+
+  frontend_->FrameStartedNavigating(
+      ftn.current_frame_host()->devtools_frame_token().ToString(),
+      url.spec(),
+      loader_id.ToString(),
+      GetFrameStartedNavigatingNavigationTypeString(navigation_type));
+}
+
 void PageHandler::OnFrameDetached(const base::UnguessableToken& frame_id) {
   if (!enabled_)
     return;
   frontend_->FrameDetached(frame_id.ToString(), "remove");
+}
+
+void PageHandler::DidChangeFrameLoadingState(const FrameTreeNode& ftn) {
+  if (!enabled_) {
+    return;
+  }
+  const std::string& frame_id =
+      ftn.current_frame_host()->devtools_frame_token().ToString();
+  if (ftn.IsLoading()) {
+    frontend_->FrameStartedLoading(frame_id);
+  } else {
+    frontend_->FrameStoppedLoading(frame_id);
+  }
 }
 
 void PageHandler::OnDownloadDestroyed(download::DownloadItem* item) {
@@ -754,16 +1129,20 @@ Response PageHandler::ResetNavigationHistory() {
     return response;
 
   NavigationController& controller = host_->frame_tree()->controller();
-  controller.DeleteNavigationEntries(base::BindRepeating(&ReturnTrue));
-  return Response::Success();
+  if (controller.CanPruneAllButLastCommitted()) {
+    controller.DeleteNavigationEntries(base::BindRepeating(&ReturnTrue));
+    return Response::Success();
+  } else {
+    return Response::ServerError("History cannot be pruned");
+  }
 }
 
 void PageHandler::CaptureSnapshot(
-    Maybe<std::string> format,
+    std::optional<std::string> format,
     std::unique_ptr<CaptureSnapshotCallback> callback) {
   if (!CanExecuteGlobalCommands(this, callback))
     return;
-  std::string snapshot_format = format.fromMaybe(kMhtml);
+  std::string snapshot_format = format.value_or(kMhtml);
   if (snapshot_format != kMhtml) {
     callback->sendFailure(Response::ServerError("Unsupported snapshot format"));
     return;
@@ -778,12 +1157,12 @@ void PageHandler::CaptureSnapshot(
 
 // Sets a clip with full page dimensions. Calls CaptureScreenshot with updated
 // value to proceed with capturing the full page screenshot.
-// TODO(crbug.com/1363574): at the point this method is called, the page could
+// TODO(crbug.com/40238745): at the point this method is called, the page could
 // have changed its size.
 void PageHandler::CaptureFullPageScreenshot(
-    Maybe<std::string> format,
-    Maybe<int> quality,
-    Maybe<bool> optimize_for_speed,
+    std::optional<std::string> format,
+    std::optional<int> quality,
+    std::optional<bool> optimize_for_speed,
     std::unique_ptr<CaptureScreenshotCallback> callback,
     const gfx::Size& full_page_size) {
   // check width and height for validity
@@ -808,12 +1187,12 @@ void PageHandler::CaptureFullPageScreenshot(
 }
 
 void PageHandler::CaptureScreenshot(
-    Maybe<std::string> format,
-    Maybe<int> quality,
-    Maybe<Page::Viewport> clip,
-    Maybe<bool> from_surface,
-    Maybe<bool> capture_beyond_viewport,
-    Maybe<bool> optimize_for_speed,
+    std::optional<std::string> format,
+    std::optional<int> quality,
+    std::unique_ptr<Page::Viewport> clip,
+    std::optional<bool> from_surface,
+    std::optional<bool> capture_beyond_viewport,
+    std::optional<bool> optimize_for_speed,
     std::unique_ptr<CaptureScreenshotCallback> callback) {
   if (!host_ || !host_->GetRenderWidgetHost() ||
       !host_->GetRenderWidgetHost()->GetView()) {
@@ -824,8 +1203,8 @@ void PageHandler::CaptureScreenshot(
     return;
 
   // Check if full page screenshot is expected and get dimensions accordingly.
-  if (from_surface.fromMaybe(true) &&
-      capture_beyond_viewport.fromMaybe(false) && !clip.isJust()) {
+  if (from_surface.value_or(true) && capture_beyond_viewport.value_or(false) &&
+      !clip) {
     blink::mojom::LocalMainFrame* main_frame =
         host_->GetAssociatedLocalMainFrame();
     main_frame->GetFullPageSize(base::BindOnce(
@@ -834,13 +1213,13 @@ void PageHandler::CaptureScreenshot(
         std::move(callback)));
     return;
   }
-  if (clip.isJust()) {
-    if (clip.fromJust()->GetWidth() == 0) {
+  if (clip) {
+    if (clip->GetWidth() == 0) {
       callback->sendFailure(
           Response::ServerError("Cannot take screenshot with 0 width."));
       return;
     }
-    if (clip.fromJust()->GetHeight() == 0) {
+    if (clip->GetHeight() == 0) {
       callback->sendFailure(
           Response::ServerError("Cannot take screenshot with 0 height."));
       return;
@@ -849,27 +1228,37 @@ void PageHandler::CaptureScreenshot(
 
   RenderWidgetHostImpl* widget_host = host_->GetRenderWidgetHost();
   auto encoder =
-      GetEncoder(format.fromMaybe(Page::CaptureScreenshot::FormatEnum::Png),
-                 quality.fromMaybe(kDefaultScreenshotQuality),
-                 optimize_for_speed.fromMaybe(false));
-  if (absl::holds_alternative<Response>(encoder)) {
-    callback->sendFailure(absl::get<Response>(encoder));
+      GetEncoder(format.value_or(Page::CaptureScreenshot::FormatEnum::Png),
+                 quality.value_or(kDefaultScreenshotQuality),
+                 optimize_for_speed.value_or(false));
+  if (std::holds_alternative<Response>(encoder)) {
+    callback->sendFailure(std::get<Response>(encoder));
     return;
   }
 
+  base::ScopedClosureRunner capturer_handle;
+  if (auto* wc = WebContents::FromRenderFrameHost(host_)) {
+    // Tell page it needs to produce frames even if it doesn't want to (e.g. is
+    // not currently visible).
+    capturer_handle =
+        wc->IncrementCapturerCount(gfx::Size(), /*stay_hidden=*/true,
+                                   /*stay_awake=*/true, /*is_activity=*/false);
+  }
+
+  auto pending_request = std::make_unique<PendingScreenshotRequest>(
+      std::move(capturer_handle), std::move(std::get<BitmapEncoder>(encoder)),
+      std::move(callback));
+
   // We don't support clip/emulation when capturing from window, bail out.
-  if (!from_surface.fromMaybe(true)) {
+  if (!from_surface.value_or(true)) {
     if (!is_trusted_) {
-      callback->sendFailure(
+      pending_request->callback->sendFailure(
           Response::ServerError("Only screenshots from surface are allowed."));
       return;
     }
     widget_host->GetSnapshotFromBrowser(
         base::BindOnce(&PageHandler::ScreenshotCaptured,
-                       weak_factory_.GetWeakPtr(), std::move(callback),
-                       std::move(absl::get<BitmapEncoder>(encoder)),
-                       gfx::Size(), gfx::Size(), blink::DeviceEmulationParams(),
-                       absl::nullopt),
+                       weak_factory_.GetWeakPtr(), std::move(pending_request)),
         false);
     return;
   }
@@ -877,16 +1266,18 @@ void PageHandler::CaptureScreenshot(
   // Welcome to the neural net of capturing screenshot while emulating device
   // metrics!
   bool emulation_enabled = emulation_handler_->device_emulation_enabled();
-  blink::DeviceEmulationParams original_params =
+  pending_request->original_emulation_params =
       emulation_handler_->GetDeviceEmulationParams();
+  const blink::DeviceEmulationParams& original_params =
+      pending_request->original_emulation_params;
   blink::DeviceEmulationParams modified_params = original_params;
 
   // Capture original view size if we know we are going to destroy it. We use
   // it in ScreenshotCaptured to restore.
-  gfx::Size original_view_size =
-      emulation_enabled || clip.isJust()
-          ? widget_host->GetView()->GetViewBounds().size()
-          : gfx::Size();
+  const gfx::Size original_view_size =
+      emulation_enabled || clip ? widget_host->GetView()->GetViewBounds().size()
+                                : gfx::Size();
+  pending_request->original_view_size = original_view_size;
   gfx::Size emulated_view_size = modified_params.view_size;
 
   double dpfactor = 1;
@@ -912,9 +1303,9 @@ void PageHandler::CaptureScreenshot(
                    : 1;
     // When clip is specified, we scale viewport via clip, otherwise we use
     // scale.
-    modified_params.scale = clip.isJust() ? 1 : dpfactor;
+    modified_params.scale = clip ? 1 : dpfactor;
     modified_params.view_size = emulated_view_size;
-  } else if (clip.isJust()) {
+  } else if (clip) {
     // When not emulating, still need to emulate the page size.
     modified_params.view_size = original_view_size;
     modified_params.screen_size = gfx::Size();
@@ -923,20 +1314,20 @@ void PageHandler::CaptureScreenshot(
   }
 
   // Set up viewport in renderer.
-  if (clip.isJust()) {
-    modified_params.viewport_offset.SetPoint(clip.fromJust()->GetX(),
-                                             clip.fromJust()->GetY());
-    modified_params.viewport_scale = clip.fromJust()->GetScale() * dpfactor;
+  if (clip) {
+    modified_params.viewport_offset.SetPoint(clip->GetX(), clip->GetY());
+    modified_params.viewport_scale = clip->GetScale() * dpfactor;
     modified_params.viewport_offset.Scale(widget_host_device_scale_factor);
   }
 
-  absl::optional<blink::web_pref::WebPreferences> maybe_original_web_prefs;
-  if (capture_beyond_viewport.fromMaybe(false)) {
-    blink::web_pref::WebPreferences original_web_prefs =
-        host_->render_view_host()->GetDelegate()->GetOrCreateWebPreferences();
-    maybe_original_web_prefs = original_web_prefs;
-
+  if (capture_beyond_viewport.value_or(false)) {
+    pending_request->original_web_prefs =
+        host_->render_view_host()->GetDelegate()->GetOrCreateWebPreferences(
+            host_->render_view_host());
+    const blink::web_pref::WebPreferences& original_web_prefs =
+        *pending_request->original_web_prefs;
     blink::web_pref::WebPreferences modified_web_prefs = original_web_prefs;
+
     // Hiding scrollbar is needed to avoid scrollbar artefacts on the
     // screenshot. Details: https://crbug.com/1003629.
     modified_web_prefs.hide_scrollbars = true;
@@ -945,7 +1336,7 @@ void PageHandler::CaptureScreenshot(
         modified_web_prefs);
 
     {
-      // TODO(crbug.com/1141835): Remove the bug is fixed.
+      // TODO(crbug.com/40727379): Remove the bug is fixed.
       // Walkaround for the bug. Emulated `view_size` has to be set twice,
       // otherwise the scrollbar will be on the screenshot present.
       blink::DeviceEmulationParams tmp_params = modified_params;
@@ -958,43 +1349,49 @@ void PageHandler::CaptureScreenshot(
   emulation_handler_->SetDeviceEmulationParams(modified_params);
 
   // Set view size for the screenshot right after emulating.
-  if (clip.isJust()) {
-    double scale = dpfactor * clip.fromJust()->GetScale();
+  if (clip) {
+    double scale = dpfactor * clip->GetScale();
     widget_host->GetView()->SetSize(
-        gfx::Size(base::ClampRound(clip.fromJust()->GetWidth() * scale),
-                  base::ClampRound(clip.fromJust()->GetHeight() * scale)));
+        gfx::Size(base::ClampRound(clip->GetWidth() * scale),
+                  base::ClampRound(clip->GetHeight() * scale)));
   } else if (emulation_enabled) {
     widget_host->GetView()->SetSize(
         gfx::ScaleToFlooredSize(emulated_view_size, dpfactor));
   }
-  gfx::Size requested_image_size = gfx::Size();
-  if (emulation_enabled || clip.isJust()) {
-    if (clip.isJust()) {
-      requested_image_size =
-          gfx::Size(clip.fromJust()->GetWidth(), clip.fromJust()->GetHeight());
-    } else {
-      requested_image_size = emulated_view_size;
-    }
+  if (emulation_enabled || clip) {
+    const gfx::Size requested_image_size =
+        clip ? gfx::Size(clip->GetWidth(), clip->GetHeight())
+             : emulated_view_size;
     double scale = widget_host_device_scale_factor * dpfactor;
-    if (clip.isJust())
-      scale *= clip.fromJust()->GetScale();
-    requested_image_size = gfx::ScaleToRoundedSize(requested_image_size, scale);
+    if (clip) {
+      scale *= clip->GetScale();
+    }
+    pending_request->requested_image_size =
+        gfx::ScaleToRoundedSize(requested_image_size, scale);
+  }
+
+  // TODO(crbug.com/377715191): this should check RenderWidgetHostViewBase
+  // instead, but there is no easy way to do this today. Once that's possible,
+  // this check should move inside RenderWidetHostImpl::GetSnapshotFromBrowser.
+  if (base::FeatureList::IsEnabled(features::kCDPScreenshotNewSurface)) {
+    if (auto* wc = WebContentsImpl::FromRenderFrameHostImpl(host_)) {
+      // When view is completely hidden, capturing a surface snapshot
+      // will stall because the surface is never presented.
+      CHECK(wc->GetPageVisibilityState() != PageVisibilityState::kHidden);
+    }
   }
 
   widget_host->GetSnapshotFromBrowser(
       base::BindOnce(&PageHandler::ScreenshotCaptured,
-                     weak_factory_.GetWeakPtr(), std::move(callback),
-                     std::move(absl::get<BitmapEncoder>(encoder)),
-                     original_view_size, requested_image_size, original_params,
-                     maybe_original_web_prefs),
+                     weak_factory_.GetWeakPtr(), std::move(pending_request)),
       true);
 }
 
-Response PageHandler::StartScreencast(Maybe<std::string> format,
-                                      Maybe<int> quality,
-                                      Maybe<int> max_width,
-                                      Maybe<int> max_height,
-                                      Maybe<int> every_nth_frame) {
+Response PageHandler::StartScreencast(std::optional<std::string> format,
+                                      std::optional<int> quality,
+                                      std::optional<int> max_width,
+                                      std::optional<int> max_height,
+                                      std::optional<int> every_nth_frame) {
   Response response = AssureTopLevelActiveFrame();
   if (response.IsError())
     return response;
@@ -1003,20 +1400,21 @@ Response PageHandler::StartScreencast(Maybe<std::string> format,
     return Response::InternalError();
 
   auto encoder =
-      GetEncoder(format.fromMaybe(Page::CaptureScreenshot::FormatEnum::Png),
-                 quality.fromMaybe(kDefaultScreenshotQuality),
+      GetEncoder(format.value_or(Page::CaptureScreenshot::FormatEnum::Png),
+                 quality.value_or(kDefaultScreenshotQuality),
                  /* optimize_for_speed= */ true);
-  if (absl::holds_alternative<Response>(encoder))
-    return absl::get<Response>(encoder);
+  if (std::holds_alternative<Response>(encoder)) {
+    return std::get<Response>(encoder);
+  }
 
-  screencast_encoder_ = absl::get<BitmapEncoder>(encoder);
+  screencast_encoder_ = std::get<BitmapEncoder>(encoder);
 
-  screencast_max_width_ = max_width.fromMaybe(-1);
-  screencast_max_height_ = max_height.fromMaybe(-1);
+  screencast_max_width_ = max_width.value_or(-1);
+  screencast_max_height_ = max_height.value_or(-1);
   ++session_id_;
   frame_counter_ = 0;
   frames_in_flight_ = 0;
-  capture_every_nth_frame_ = every_nth_frame.fromMaybe(1);
+  capture_every_nth_frame_ = every_nth_frame.value_or(1);
   bool visible = !widget_host->is_hidden();
   NotifyScreencastVisibility(visible);
 
@@ -1051,29 +1449,32 @@ Response PageHandler::ScreencastFrameAck(int session_id) {
   return Response::Success();
 }
 
-Response PageHandler::HandleJavaScriptDialog(bool accept,
-                                             Maybe<std::string> prompt_text) {
+Response PageHandler::HandleJavaScriptDialog(
+    bool accept,
+    std::optional<std::string> prompt_text) {
   ResponseOrWebContents result = GetWebContentsForTopLevelActiveFrame();
-  if (absl::holds_alternative<Response>(result))
-    return absl::get<Response>(result);
+  if (std::holds_alternative<Response>(result)) {
+    return std::get<Response>(result);
+  }
 
   if (pending_dialog_.is_null())
     return Response::InvalidParams("No dialog is showing");
 
   std::u16string prompt_override;
-  if (prompt_text.isJust())
-    prompt_override = base::UTF8ToUTF16(prompt_text.fromJust());
+  if (prompt_text.has_value()) {
+    prompt_override = base::UTF8ToUTF16(prompt_text.value());
+  }
   std::move(pending_dialog_).Run(accept, prompt_override);
 
   // Clean up the dialog UI if any.
-  WebContentsImpl* web_contents = absl::get<WebContentsImpl*>(result);
+  WebContentsImpl* web_contents = std::get<WebContentsImpl*>(result);
   if (web_contents->GetDelegate()) {
     JavaScriptDialogManager* manager =
         web_contents->GetDelegate()->GetJavaScriptDialogManager(web_contents);
     if (manager) {
       manager->HandleJavaScriptDialog(
           web_contents, accept,
-          prompt_text.isJust() ? &prompt_override : nullptr);
+          prompt_text.has_value() ? &prompt_override : nullptr);
     }
   }
 
@@ -1081,18 +1482,27 @@ Response PageHandler::HandleJavaScriptDialog(bool accept,
 }
 
 Response PageHandler::BringToFront() {
-  ResponseOrWebContents result = GetWebContentsForTopLevelActiveFrame();
-  if (absl::holds_alternative<Response>(result))
-    return absl::get<Response>(result);
+  // Not using AssureTopLevelActiveFrame here because
+  // we allow bringing WebContents to front that might have ongoing
+  // lifecycle updates.
+  if (!host_) {
+    return Response::ServerError(kErrorNotAttached);
+  }
 
-  WebContentsImpl* web_contents = absl::get<WebContentsImpl*>(result);
+  if (host_->GetParentOrOuterDocument()) {
+    return Response::ServerError(kCommandIsOnlyAvailableAtTopTarget);
+  }
+
+  WebContentsImpl* web_contents =
+      static_cast<WebContentsImpl*>(WebContents::FromRenderFrameHost(host_));
   web_contents->Activate();
-  web_contents->Focus();
+  web_contents->GetOutermostWebContents()->Focus();
   return Response::Success();
 }
 
-Response PageHandler::SetDownloadBehavior(const std::string& behavior,
-                                          Maybe<std::string> download_path) {
+Response PageHandler::SetDownloadBehavior(
+    const std::string& behavior,
+    std::optional<std::string> download_path) {
   BrowserContext* browser_context =
       host_ ? host_->GetProcess()->GetBrowserContext() : nullptr;
   if (!browser_context)
@@ -1108,13 +1518,13 @@ Response PageHandler::SetDownloadBehavior(const std::string& behavior,
 }
 
 void PageHandler::GetAppManifest(
+    std::optional<std::string> manifest_id,
     std::unique_ptr<GetAppManifestCallback> callback) {
   if (!CanExecuteGlobalCommands(this, callback))
     return;
   ManifestManagerHost::GetOrCreateForPage(host_->GetPage())
-      ->RequestManifestDebugInfo(base::BindOnce(&PageHandler::GotManifest,
-                                                weak_factory_.GetWeakPtr(),
-                                                std::move(callback)));
+      ->RequestManifestDebugInfo(base::BindOnce(
+          GotManifest, std::move(manifest_id), std::move(callback)));
 }
 
 PageHandler::ResponseOrWebContents
@@ -1190,10 +1600,8 @@ void PageHandler::ScreencastFrameCaptured(
       FROM_HERE, {base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN},
       base::BindOnce(
           [](const SkBitmap& bitmap,
-             BitmapEncoder encoder) -> std::vector<uint8_t> {
-            std::vector<uint8_t> result;
-            encoder.Run(bitmap, result);
-            return result;
+             BitmapEncoder encoder) -> std::optional<std::vector<uint8_t>> {
+            return encoder.Run(bitmap);
           },
           bitmap, screencast_encoder_),
       base::BindOnce(&PageHandler::ScreencastFrameEncoded,
@@ -1202,99 +1610,68 @@ void PageHandler::ScreencastFrameCaptured(
 
 void PageHandler::ScreencastFrameEncoded(
     std::unique_ptr<Page::ScreencastFrameMetadata> page_metadata,
-    std::vector<uint8_t> data) {
-  if (data.empty()) {
+    std::optional<std::vector<uint8_t>> data) {
+  if (!data) {
     --frames_in_flight_;
     return;  // Encode failed.
   }
 
-  frontend_->ScreencastFrame(Binary::fromVector(std::move(data)),
+  frontend_->ScreencastFrame(Binary::fromVector(std::move(data).value()),
                              std::move(page_metadata), session_id_);
 }
 
 void PageHandler::ScreenshotCaptured(
-    std::unique_ptr<CaptureScreenshotCallback> callback,
-    BitmapEncoder encoder,
-    const gfx::Size& original_view_size,
-    const gfx::Size& requested_image_size,
-    const blink::DeviceEmulationParams& original_emulation_params,
-    const absl::optional<blink::web_pref::WebPreferences>&
-        maybe_original_web_prefs,
+    std::unique_ptr<PendingScreenshotRequest> request,
     const gfx::Image& image) {
-  if (original_view_size.width()) {
+  if (request->original_view_size.width()) {
     RenderWidgetHostImpl* widget_host = host_->GetRenderWidgetHost();
-    widget_host->GetView()->SetSize(original_view_size);
-    emulation_handler_->SetDeviceEmulationParams(original_emulation_params);
+    widget_host->GetView()->SetSize(request->original_view_size);
+    emulation_handler_->SetDeviceEmulationParams(
+        request->original_emulation_params);
   }
 
-  if (maybe_original_web_prefs) {
+  if (request->original_web_prefs) {
     host_->render_view_host()->GetDelegate()->SetWebPreferences(
-        maybe_original_web_prefs.value());
+        *request->original_web_prefs);
   }
 
   if (image.IsEmpty()) {
-    callback->sendFailure(
+    request->callback->sendFailure(
         Response::ServerError("Unable to capture screenshot"));
     return;
   }
 
-  std::vector<uint8_t> encoded_bitmap;
+  std::optional<std::vector<uint8_t>> encoded_bitmap;
   const SkBitmap& bitmap = *image.ToSkBitmap();
 
-  if (!requested_image_size.IsEmpty() &&
-      (image.Width() != requested_image_size.width() ||
-       image.Height() != requested_image_size.height())) {
+  if (!request->requested_image_size.IsEmpty() &&
+      (image.Width() != request->requested_image_size.width() ||
+       image.Height() != request->requested_image_size.height())) {
     SkBitmap cropped = SkBitmapOperations::CreateTiledBitmap(
-        bitmap, 0, 0, requested_image_size.width(),
-        requested_image_size.height());
-    encoder.Run(cropped, encoded_bitmap);
+        bitmap, 0, 0, request->requested_image_size.width(),
+        request->requested_image_size.height());
+    encoded_bitmap = request->encoder.Run(cropped);
   } else {
-    encoder.Run(bitmap, encoded_bitmap);
+    encoded_bitmap = request->encoder.Run(bitmap);
+  }
+
+  if (encoded_bitmap) {
+    request->callback->sendSuccess(
+        Binary::fromVector(std::move(encoded_bitmap).value()));
+    return;
   }
   // TODO(caseq): send failure if we fail to encode?
-  callback->sendSuccess(Binary::fromVector(std::move(encoded_bitmap)));
-}
-
-void PageHandler::GotManifest(std::unique_ptr<GetAppManifestCallback> callback,
-                              const GURL& manifest_url,
-                              ::blink::mojom::ManifestPtr parsed_manifest,
-                              blink::mojom::ManifestDebugInfoPtr debug_info) {
-  auto errors = std::make_unique<protocol::Array<Page::AppManifestError>>();
-  bool failed = true;
-  if (debug_info) {
-    failed = false;
-    for (const auto& error : debug_info->errors) {
-      errors->emplace_back(Page::AppManifestError::Create()
-                               .SetMessage(error->message)
-                               .SetCritical(error->critical)
-                               .SetLine(error->line)
-                               .SetColumn(error->column)
-                               .Build());
-      if (error->critical)
-        failed = true;
-    }
-  }
-
-  std::unique_ptr<Page::AppManifestParsedProperties> parsed;
-  if (!blink::IsEmptyManifest(parsed_manifest)) {
-    parsed = Page::AppManifestParsedProperties::Create()
-                 .SetScope(parsed_manifest->scope.possibly_invalid_spec())
-                 .Build();
-  }
-
-  callback->sendSuccess(
-      manifest_url.possibly_invalid_spec(), std::move(errors),
-      failed ? Maybe<std::string>() : debug_info->raw_manifest,
-      std::move(parsed));
+  request->callback->sendSuccess(Binary());
 }
 
 Response PageHandler::StopLoading() {
   ResponseOrWebContents result = GetWebContentsForTopLevelActiveFrame();
 
-  if (absl::holds_alternative<Response>(result))
-    return absl::get<Response>(result);
+  if (std::holds_alternative<Response>(result)) {
+    return std::get<Response>(result);
+  }
 
-  WebContentsImpl* web_contents = absl::get<WebContentsImpl*>(result);
+  WebContentsImpl* web_contents = std::get<WebContentsImpl*>(result);
   web_contents->Stop();
   return Response::Success();
 }
@@ -1303,10 +1680,11 @@ Response PageHandler::SetWebLifecycleState(const std::string& state) {
   // Inactive pages(e.g., a prerendered or back-forward cached page) should not
   // affect the state.
   ResponseOrWebContents result = GetWebContentsForTopLevelActiveFrame();
-  if (absl::holds_alternative<Response>(result))
-    return absl::get<Response>(result);
+  if (std::holds_alternative<Response>(result)) {
+    return std::get<Response>(result);
+  }
 
-  WebContentsImpl* web_contents = absl::get<WebContentsImpl*>(result);
+  WebContentsImpl* web_contents = std::get<WebContentsImpl*>(result);
   if (state == Page::SetWebLifecycleState::StateEnum::Frozen) {
     // TODO(fmeawad): Instead of forcing a visibility change, only allow
     // freezing a page if it was already hidden.
@@ -1334,14 +1712,13 @@ void PageHandler::GetManifestIcons(
     std::unique_ptr<GetManifestIconsCallback> callback) {
   // TODO: Use InstallableManager once it moves into content/.
   // Until then, this code is only used to return no image data in the tests.
-  callback->sendSuccess(Maybe<Binary>());
+  callback->sendSuccess(std::nullopt);
 }
 
 void PageHandler::GetAppId(std::unique_ptr<GetAppIdCallback> callback) {
   // TODO: Use InstallableManager once it moves into content/.
   // Until then, this code is only used to return no image data in the tests.
-  callback->sendSuccess(protocol::Maybe<protocol::String>(),
-                        protocol::Maybe<protocol::String>());
+  callback->sendSuccess(std::nullopt, std::nullopt);
 }
 
 Response PageHandler::SetBypassCSP(bool enabled) {
@@ -1367,8 +1744,6 @@ Page::BackForwardCacheNotRestoredReason NotRestoredReasonToProtocol(
       return Page::BackForwardCacheNotRestoredReasonEnum::SchemeNotHTTPOrHTTPS;
     case Reason::kLoading:
       return Page::BackForwardCacheNotRestoredReasonEnum::Loading;
-    case Reason::kWasGrantedMediaAccess:
-      return Page::BackForwardCacheNotRestoredReasonEnum::WasGrantedMediaAccess;
     case Reason::kDisableForRenderFrameHostCalled:
       return Page::BackForwardCacheNotRestoredReasonEnum::
           DisableForRenderFrameHostCalled;
@@ -1405,9 +1780,6 @@ Page::BackForwardCacheNotRestoredReason NotRestoredReasonToProtocol(
     case Reason::kEnteredBackForwardCacheBeforeServiceWorkerHostAdded:
       return Page::BackForwardCacheNotRestoredReasonEnum::
           EnteredBackForwardCacheBeforeServiceWorkerHostAdded;
-    case Reason::kNotMostRecentNavigationEntry:
-      return Page::BackForwardCacheNotRestoredReasonEnum::
-          NotMostRecentNavigationEntry;
     case Reason::kServiceWorkerClaim:
       return Page::BackForwardCacheNotRestoredReasonEnum::ServiceWorkerClaim;
     case Reason::kIgnoreEventAndEvict:
@@ -1464,19 +1836,47 @@ Page::BackForwardCacheNotRestoredReason NotRestoredReasonToProtocol(
     case Reason::kCacheControlNoStoreHTTPOnlyCookieModified:
       return Page::BackForwardCacheNotRestoredReasonEnum::
           CacheControlNoStoreHTTPOnlyCookieModified;
-    case Reason::kNoResponseHead:
-      return Page::BackForwardCacheNotRestoredReasonEnum::NoResponseHead;
     case Reason::kErrorDocument:
       return Page::BackForwardCacheNotRestoredReasonEnum::ErrorDocument;
-    case Reason::kFencedFramesEmbedder:
-      return Page::BackForwardCacheNotRestoredReasonEnum::FencedFramesEmbedder;
+    case Reason::kCookieDisabled:
+      return Page::BackForwardCacheNotRestoredReasonEnum::CookieDisabled;
+    case Reason::kHTTPAuthRequired:
+      return Page::BackForwardCacheNotRestoredReasonEnum::HTTPAuthRequired;
+    case Reason::kCookieFlushed:
+      return Page::BackForwardCacheNotRestoredReasonEnum::CookieFlushed;
+    case Reason::kBroadcastChannelOnMessage:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          BroadcastChannelOnMessage;
+    case Reason::kWebViewSettingsChanged:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          WebViewSettingsChanged;
+    case Reason::kWebViewJavaScriptObjectChanged:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          WebViewJavaScriptObjectChanged;
+    case Reason::kWebViewMessageListenerInjected:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          WebViewMessageListenerInjected;
+    case Reason::kWebViewSafeBrowsingAllowlistChanged:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          WebViewSafeBrowsingAllowlistChanged;
+    case Reason::kWebViewDocumentStartJavascriptChanged:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          WebViewDocumentStartJavascriptChanged;
+    case Reason::kCacheLimitPrunedOnModerateMemoryPressure:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          CacheLimitPrunedOnModerateMemoryPressure;
+    case Reason::kCacheLimitPrunedOnCriticalMemoryPressure:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          CacheLimitPrunedOnCriticalMemoryPressure;
     case Reason::kBlocklistedFeatures:
       // Blocklisted features should be handled separately and be broken down
       // into sub reasons.
       NOTREACHED();
-      return Page::BackForwardCacheNotRestoredReasonEnum::Unknown;
     case Reason::kUnknown:
       return Page::BackForwardCacheNotRestoredReasonEnum::Unknown;
+    case Reason::kCacheControlNoStoreDeviceBoundSessionTerminated:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          CacheControlNoStoreDeviceBoundSessionTerminated;
   }
 }
 
@@ -1486,10 +1886,16 @@ Page::BackForwardCacheNotRestoredReason BlocklistedFeatureToProtocol(
   switch (feature) {
     case WebSchedulerTrackedFeature::kWebSocket:
       return Page::BackForwardCacheNotRestoredReasonEnum::WebSocket;
+    case WebSchedulerTrackedFeature::kWebSocketSticky:
+      return Page::BackForwardCacheNotRestoredReasonEnum::WebSocketSticky;
     case WebSchedulerTrackedFeature::kWebTransport:
       return Page::BackForwardCacheNotRestoredReasonEnum::WebTransport;
+    case WebSchedulerTrackedFeature::kWebTransportSticky:
+      return Page::BackForwardCacheNotRestoredReasonEnum::WebTransportSticky;
     case WebSchedulerTrackedFeature::kWebRTC:
       return Page::BackForwardCacheNotRestoredReasonEnum::WebRTC;
+    case WebSchedulerTrackedFeature::kWebRTCSticky:
+      return Page::BackForwardCacheNotRestoredReasonEnum::WebRTCSticky;
     case WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoCache:
       return Page::BackForwardCacheNotRestoredReasonEnum::
           MainResourceHasCacheControlNoCache;
@@ -1506,15 +1912,9 @@ Page::BackForwardCacheNotRestoredReason BlocklistedFeatureToProtocol(
       return Page::BackForwardCacheNotRestoredReasonEnum::ContainsPlugins;
     case WebSchedulerTrackedFeature::kDocumentLoaded:
       return Page::BackForwardCacheNotRestoredReasonEnum::DocumentLoaded;
-    case WebSchedulerTrackedFeature::kDedicatedWorkerOrWorklet:
-      return Page::BackForwardCacheNotRestoredReasonEnum::
-          DedicatedWorkerOrWorklet;
     case WebSchedulerTrackedFeature::kOutstandingNetworkRequestOthers:
       return Page::BackForwardCacheNotRestoredReasonEnum::
           OutstandingNetworkRequestOthers;
-    case WebSchedulerTrackedFeature::kOutstandingIndexedDBTransaction:
-      return Page::BackForwardCacheNotRestoredReasonEnum::
-          OutstandingIndexedDBTransaction;
     case WebSchedulerTrackedFeature::kRequestedMIDIPermission:
       return Page::BackForwardCacheNotRestoredReasonEnum::
           RequestedMIDIPermission;
@@ -1532,8 +1932,6 @@ Page::BackForwardCacheNotRestoredReason BlocklistedFeatureToProtocol(
           RequestedBackgroundWorkPermission;
     case WebSchedulerTrackedFeature::kBroadcastChannel:
       return Page::BackForwardCacheNotRestoredReasonEnum::BroadcastChannel;
-    case WebSchedulerTrackedFeature::kIndexedDBConnection:
-      return Page::BackForwardCacheNotRestoredReasonEnum::IndexedDBConnection;
     case WebSchedulerTrackedFeature::kWebXR:
       return Page::BackForwardCacheNotRestoredReasonEnum::WebXR;
     case WebSchedulerTrackedFeature::kSharedWorker:
@@ -1557,20 +1955,14 @@ Page::BackForwardCacheNotRestoredReason BlocklistedFeatureToProtocol(
           OutstandingNetworkRequestXHR;
     case WebSchedulerTrackedFeature::kPrinting:
       return Page::BackForwardCacheNotRestoredReasonEnum::Printing;
-    case WebSchedulerTrackedFeature::kWebDatabase:
-      return Page::BackForwardCacheNotRestoredReasonEnum::WebDatabase;
     case WebSchedulerTrackedFeature::kPictureInPicture:
       return Page::BackForwardCacheNotRestoredReasonEnum::PictureInPicture;
-    case WebSchedulerTrackedFeature::kPortal:
-      return Page::BackForwardCacheNotRestoredReasonEnum::Portal;
     case WebSchedulerTrackedFeature::kSpeechRecognizer:
       return Page::BackForwardCacheNotRestoredReasonEnum::SpeechRecognizer;
     case WebSchedulerTrackedFeature::kIdleManager:
       return Page::BackForwardCacheNotRestoredReasonEnum::IdleManager;
     case WebSchedulerTrackedFeature::kPaymentManager:
       return Page::BackForwardCacheNotRestoredReasonEnum::PaymentManager;
-    case WebSchedulerTrackedFeature::kSpeechSynthesis:
-      return Page::BackForwardCacheNotRestoredReasonEnum::SpeechSynthesis;
     case WebSchedulerTrackedFeature::kKeyboardLock:
       return Page::BackForwardCacheNotRestoredReasonEnum::KeyboardLock;
     case WebSchedulerTrackedFeature::kWebOTPService:
@@ -1589,10 +1981,42 @@ Page::BackForwardCacheNotRestoredReason BlocklistedFeatureToProtocol(
     case WebSchedulerTrackedFeature::kDummy:
       // This is a test only reason and should never be called.
       NOTREACHED();
-      return Page::BackForwardCacheNotRestoredReasonEnum::Dummy;
-    case WebSchedulerTrackedFeature::kAuthorizationHeader:
-      return Page::BackForwardCacheNotRestoredReasonEnum::AuthorizationHeader;
+    case WebSchedulerTrackedFeature::
+        kJsNetworkRequestReceivedCacheControlNoStoreResource:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          JsNetworkRequestReceivedCacheControlNoStoreResource;
+    case WebSchedulerTrackedFeature::kWebSerial:
+    case WebSchedulerTrackedFeature::kWebBluetooth:
+      // These features only disable aggressive throttling.
+      NOTREACHED();
+    case WebSchedulerTrackedFeature::kSmartCard:
+      return Page::BackForwardCacheNotRestoredReasonEnum::SmartCard;
+    case WebSchedulerTrackedFeature::kLiveMediaStreamTrack:
+      return Page::BackForwardCacheNotRestoredReasonEnum::LiveMediaStreamTrack;
+    case WebSchedulerTrackedFeature::kUnloadHandler:
+      return Page::BackForwardCacheNotRestoredReasonEnum::UnloadHandler;
+    case WebSchedulerTrackedFeature::kParserAborted:
+      return Page::BackForwardCacheNotRestoredReasonEnum::ParserAborted;
+    case WebSchedulerTrackedFeature::kWebAuthentication:
+      return Page::BackForwardCacheNotRestoredReasonEnum::
+          ContentWebAuthenticationAPI;
   }
+}
+
+std::unique_ptr<Page::BackForwardCacheBlockingDetails> SourceLocationToProtocol(
+    const blink::mojom::ScriptSourceLocationPtr& source) {
+  auto blocking_details = Page::BackForwardCacheBlockingDetails::Create();
+  if (!source->url.is_empty()) {
+    blocking_details.SetUrl(source->url.spec());
+  }
+  if (!source->function_name.empty()) {
+    blocking_details.SetFunction(source->function_name);
+  }
+  CHECK(source->line_number > 0);
+  CHECK(source->column_number > 0);
+  return blocking_details.SetLineNumber(source->line_number - 1)
+      .SetColumnNumber(source->column_number - 1)
+      .Build();
 }
 
 Page::BackForwardCacheNotRestoredReason
@@ -1601,10 +2025,8 @@ DisableForRenderFrameHostReasonToProtocol(
   switch (reason.source) {
     case BackForwardCache::DisabledSource::kLegacy:
       NOTREACHED();
-      return Page::BackForwardCacheNotRestoredReasonEnum::Unknown;
     case BackForwardCache::DisabledSource::kTesting:
       NOTREACHED();
-      return Page::BackForwardCacheNotRestoredReasonEnum::Unknown;
     case BackForwardCache::DisabledSource::kContent:
       switch (
           static_cast<BackForwardCacheDisable::DisabledReasonId>(reason.id)) {
@@ -1621,9 +2043,6 @@ DisableForRenderFrameHostReasonToProtocol(
               ContentFileChooser;
         case BackForwardCacheDisable::DisabledReasonId::kSerial:
           return Page::BackForwardCacheNotRestoredReasonEnum::ContentSerial;
-        case BackForwardCacheDisable::DisabledReasonId::kFileSystemAccess:
-          return Page::BackForwardCacheNotRestoredReasonEnum::
-              ContentFileSystemAccess;
         case BackForwardCacheDisable::DisabledReasonId::
             kMediaDevicesDispatcherHost:
           return Page::BackForwardCacheNotRestoredReasonEnum::
@@ -1636,9 +2055,11 @@ DisableForRenderFrameHostReasonToProtocol(
         case BackForwardCacheDisable::DisabledReasonId::kMediaSessionService:
           return Page::BackForwardCacheNotRestoredReasonEnum::
               ContentMediaSessionService;
-        case BackForwardCacheDisable::DisabledReasonId::kScreenReader:
+        case BackForwardCacheDisable::DisabledReasonId::kExtendedProperties:
           return Page::BackForwardCacheNotRestoredReasonEnum::
               ContentScreenReader;
+        case BackForwardCacheDisable::DisabledReasonId::kDiscarded:
+          return Page::BackForwardCacheNotRestoredReasonEnum::ContentDiscarded;
       }
     case BackForwardCache::DisabledSource::kEmbedder:
       switch (static_cast<back_forward_cache::DisabledReasonId>(reason.id)) {
@@ -1677,20 +2098,19 @@ DisableForRenderFrameHostReasonToProtocol(
         case back_forward_cache::DisabledReasonId::kModalDialog:
           return Page::BackForwardCacheNotRestoredReasonEnum::
               EmbedderModalDialog;
-        case back_forward_cache::DisabledReasonId::kExtensions:
-          return Page::BackForwardCacheNotRestoredReasonEnum::
-              EmbedderExtensions;
         case back_forward_cache::DisabledReasonId::kExtensionMessaging:
           return Page::BackForwardCacheNotRestoredReasonEnum::
               EmbedderExtensionMessaging;
         case back_forward_cache::DisabledReasonId::
-            kExtensionMessagingForOpenPort:
-          return Page::BackForwardCacheNotRestoredReasonEnum::
-              EmbedderExtensionMessagingForOpenPort;
-        case back_forward_cache::DisabledReasonId::
             kExtensionSentMessageToCachedFrame:
           return Page::BackForwardCacheNotRestoredReasonEnum::
               EmbedderExtensionSentMessageToCachedFrame;
+        case back_forward_cache::DisabledReasonId::kRequestedByWebViewClient:
+          return Page::BackForwardCacheNotRestoredReasonEnum::
+              RequestedByWebViewClient;
+        case back_forward_cache::DisabledReasonId::kPostMessageByWebViewClient:
+          return Page::BackForwardCacheNotRestoredReasonEnum::
+              PostMessageByWebViewClient;
       }
   }
 }
@@ -1705,7 +2125,6 @@ Page::BackForwardCacheNotRestoredReasonType MapNotRestoredReasonToType(
     case Reason::kHTTPStatusNotOK:
     case Reason::kSchemeNotHTTPOrHTTPS:
     case Reason::kLoading:
-    case Reason::kWasGrantedMediaAccess:
     case Reason::kDisableForRenderFrameHostCalled:
     case Reason::kDomainNotAllowed:
     case Reason::kHTTPMethodNotGET:
@@ -1721,7 +2140,6 @@ Page::BackForwardCacheNotRestoredReasonType MapNotRestoredReasonToType(
     case Reason::kSessionRestored:
     case Reason::kServiceWorkerPostMessage:
     case Reason::kEnteredBackForwardCacheBeforeServiceWorkerHostAdded:
-    case Reason::kNotMostRecentNavigationEntry:
     case Reason::kServiceWorkerClaim:
     case Reason::kIgnoreEventAndEvict:
     case Reason::kHaveInnerContents:
@@ -1737,22 +2155,31 @@ Page::BackForwardCacheNotRestoredReasonType MapNotRestoredReasonToType(
     case Reason::kBrowsingInstanceNotSwapped:
     case Reason::kBackForwardCacheDisabledForDelegate:
     case Reason::kServiceWorkerUnregistration:
-    case Reason::kNoResponseHead:
     case Reason::kErrorDocument:
-    case Reason::kFencedFramesEmbedder:
+    case Reason::kCookieDisabled:
+    case Reason::kHTTPAuthRequired:
+    case Reason::kCookieFlushed:
+    case Reason::kBroadcastChannelOnMessage:
+    case Reason::kWebViewSettingsChanged:
+    case Reason::kWebViewJavaScriptObjectChanged:
+    case Reason::kWebViewMessageListenerInjected:
+    case Reason::kWebViewSafeBrowsingAllowlistChanged:
+    case Reason::kWebViewDocumentStartJavascriptChanged:
+    case Reason::kCacheLimitPrunedOnModerateMemoryPressure:
+    case Reason::kCacheLimitPrunedOnCriticalMemoryPressure:
       return Page::BackForwardCacheNotRestoredReasonTypeEnum::Circumstantial;
     case Reason::kCacheControlNoStore:
     case Reason::kCacheControlNoStoreCookieModified:
     case Reason::kCacheControlNoStoreHTTPOnlyCookieModified:
     case Reason::kUnloadHandlerExistsInMainFrame:
     case Reason::kUnloadHandlerExistsInSubFrame:
+    case Reason::kCacheControlNoStoreDeviceBoundSessionTerminated:
       return Page::BackForwardCacheNotRestoredReasonTypeEnum::PageSupportNeeded;
     case Reason::kNetworkRequestDatapipeDrainedAsBytesConsumer:
     case Reason::kUnknown:
       return Page::BackForwardCacheNotRestoredReasonTypeEnum::SupportPending;
     case Reason::kBlocklistedFeatures:
       NOTREACHED();
-      return Page::BackForwardCacheNotRestoredReasonTypeEnum::PageSupportNeeded;
   }
 }
 
@@ -1761,14 +2188,11 @@ Page::BackForwardCacheNotRestoredReasonType MapBlocklistedFeatureToType(
   switch (feature) {
     case WebSchedulerTrackedFeature::kWebRTC:
     case WebSchedulerTrackedFeature::kOutstandingNetworkRequestOthers:
-    case WebSchedulerTrackedFeature::kOutstandingIndexedDBTransaction:
     case WebSchedulerTrackedFeature::kBroadcastChannel:
-    case WebSchedulerTrackedFeature::kIndexedDBConnection:
     case WebSchedulerTrackedFeature::kWebXR:
     case WebSchedulerTrackedFeature::kSharedWorker:
     case WebSchedulerTrackedFeature::kWebHID:
     case WebSchedulerTrackedFeature::kWebShare:
-    case WebSchedulerTrackedFeature::kWebDatabase:
     case WebSchedulerTrackedFeature::kPaymentManager:
     case WebSchedulerTrackedFeature::kKeyboardLock:
     case WebSchedulerTrackedFeature::kWebOTPService:
@@ -1777,8 +2201,11 @@ Page::BackForwardCacheNotRestoredReasonType MapBlocklistedFeatureToType(
     case WebSchedulerTrackedFeature::kOutstandingNetworkRequestXHR:
     case WebSchedulerTrackedFeature::kWebTransport:
     case WebSchedulerTrackedFeature::kIndexedDBEvent:
+    case WebSchedulerTrackedFeature::kSmartCard:
+    case WebSchedulerTrackedFeature::kLiveMediaStreamTrack:
+    case WebSchedulerTrackedFeature::kUnloadHandler:
+    case WebSchedulerTrackedFeature::kParserAborted:
       return Page::BackForwardCacheNotRestoredReasonTypeEnum::PageSupportNeeded;
-    case WebSchedulerTrackedFeature::kPortal:
     case WebSchedulerTrackedFeature::kWebNfc:
     case WebSchedulerTrackedFeature::kRequestedStorageAccessGrant:
     case WebSchedulerTrackedFeature::kRequestedMIDIPermission:
@@ -1793,9 +2220,8 @@ Page::BackForwardCacheNotRestoredReasonType MapBlocklistedFeatureToType(
     case WebSchedulerTrackedFeature::kPictureInPicture:
     case WebSchedulerTrackedFeature::kWebLocks:
     case WebSchedulerTrackedFeature::kWebSocket:
-    case WebSchedulerTrackedFeature::kDedicatedWorkerOrWorklet:
-    case WebSchedulerTrackedFeature::kSpeechSynthesis:
     case WebSchedulerTrackedFeature::kKeepaliveRequest:
+    case WebSchedulerTrackedFeature::kWebAuthentication:
       return Page::BackForwardCacheNotRestoredReasonTypeEnum::SupportPending;
     case WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoStore:
     case WebSchedulerTrackedFeature::kMainResourceHasCacheControlNoCache:
@@ -1805,8 +2231,15 @@ Page::BackForwardCacheNotRestoredReasonType MapBlocklistedFeatureToType(
     case WebSchedulerTrackedFeature::kInjectedJavascript:
     case WebSchedulerTrackedFeature::kDocumentLoaded:
     case WebSchedulerTrackedFeature::kDummy:
-    case WebSchedulerTrackedFeature::kAuthorizationHeader:
+    case WebSchedulerTrackedFeature::
+        kJsNetworkRequestReceivedCacheControlNoStoreResource:
+    case WebSchedulerTrackedFeature::kWebRTCSticky:
+    case WebSchedulerTrackedFeature::kWebTransportSticky:
+    case WebSchedulerTrackedFeature::kWebSocketSticky:
       return Page::BackForwardCacheNotRestoredReasonTypeEnum::Circumstantial;
+    case WebSchedulerTrackedFeature::kWebSerial:
+    case WebSchedulerTrackedFeature::kWebBluetooth:
+      NOTREACHED();
   }
 }
 
@@ -1816,13 +2249,18 @@ MapDisableForRenderFrameHostReasonToType(
   return Page::BackForwardCacheNotRestoredReasonTypeEnum::SupportPending;
 }
 
+using BlockingDetailsMap =
+    std::map<blink::scheduler::WebSchedulerTrackedFeature,
+             std::vector<blink::mojom::BlockingDetailsPtr>>;
+
 std::unique_ptr<protocol::Array<Page::BackForwardCacheNotRestoredExplanation>>
 CreateNotRestoredExplanation(
     const BackForwardCacheCanStoreDocumentResult::NotRestoredReasons
         not_restored_reasons,
     const blink::scheduler::WebSchedulerTrackedFeatures blocklisted_features,
     const BackForwardCacheCanStoreDocumentResult::DisabledReasonsMap&
-        disabled_reasons) {
+        disabled_reasons,
+    const BlockingDetailsMap& details) {
   auto reasons = std::make_unique<
       protocol::Array<Page::BackForwardCacheNotRestoredExplanation>>();
 
@@ -1830,14 +2268,30 @@ CreateNotRestoredExplanation(
        not_restored_reasons) {
     if (not_restored_reason ==
         BackForwardCacheMetrics::NotRestoredReason::kBlocklistedFeatures) {
-      DCHECK(!blocklisted_features.Empty());
+      DCHECK(!blocklisted_features.empty());
       for (blink::scheduler::WebSchedulerTrackedFeature feature :
            blocklisted_features) {
-        reasons->emplace_back(
+        // Details are not always present for blocklisted features, because the
+        // number of details reported is limited.
+        auto details_list = std::make_unique<
+            protocol::Array<Page::BackForwardCacheBlockingDetails>>();
+        CHECK(details.contains(feature));
+        for (const auto& detail : details.at(feature)) {
+          if (detail->source) {
+            details_list->push_back(SourceLocationToProtocol(detail->source));
+          }
+        }
+        auto explanation =
             Page::BackForwardCacheNotRestoredExplanation::Create()
                 .SetType(MapBlocklistedFeatureToType(feature))
                 .SetReason(BlocklistedFeatureToProtocol(feature))
-                .Build());
+                .Build();
+
+        if (!details_list->empty()) {
+          explanation->SetDetails(std::move(details_list));
+        }
+
+        reasons->emplace_back(std::move(explanation));
       }
     } else if (not_restored_reason ==
                BackForwardCacheMetrics::NotRestoredReason::
@@ -1871,7 +2325,8 @@ CreateNotRestoredExplanationTree(
   auto explanation = CreateNotRestoredExplanation(
       tree_result.GetDocumentResult().not_restored_reasons(),
       tree_result.GetDocumentResult().blocklisted_features(),
-      tree_result.GetDocumentResult().disabled_reasons());
+      tree_result.GetDocumentResult().disabled_reasons(),
+      tree_result.GetDocumentResult().blocking_details_map());
 
   auto children_array = std::make_unique<
       protocol::Array<Page::BackForwardCacheNotRestoredExplanationTree>>();
@@ -1893,6 +2348,35 @@ Response PageHandler::AddCompilationCache(const std::string& url,
   if (allow_unsafe_operations_)
     return Response::FallThrough();
   return Response::ServerError("Permission denied");
+}
+
+void PageHandler::IsPrerenderingAllowed(bool& is_allowed) {
+  is_allowed &= is_prerendering_allowed_;
+}
+
+void PageHandler::ReadyToCommitNavigation(
+    NavigationRequest* navigation_request) {
+  if (navigation_request->GetReloadType() == ReloadType::NONE) {
+    // Disregard pending reload if the navigation being committed is not a
+    // reload.
+    have_pending_reload_ = false;
+    pending_script_to_evaluate_on_load_.clear();
+  } else if (have_pending_reload_) {
+    prepare_for_reload_callback_.Run(
+        std::move(pending_script_to_evaluate_on_load_));
+    have_pending_reload_ = false;
+  }
+}
+
+Response PageHandler::SetPrerenderingAllowed(bool is_allowed) {
+  Response response = AssureTopLevelActiveFrame();
+  if (response.IsError()) {
+    return response;
+  }
+
+  is_prerendering_allowed_ = is_allowed;
+
+  return Response::Success();
 }
 
 Response PageHandler::AssureTopLevelActiveFrame() {
@@ -1923,9 +2407,9 @@ void PageHandler::BackForwardCacheNotUsed(
 
   auto explanation = CreateNotRestoredExplanation(
       result->not_restored_reasons(), result->blocklisted_features(),
-      result->disabled_reasons());
+      result->disabled_reasons(), result->blocking_details_map());
 
-  // TODO(crbug.com/1281855): |tree_result| should not be nullptr when |result|
+  // TODO(crbug.com/40812472): |tree_result| should not be nullptr when |result|
   // has the reasons.
   std::unique_ptr<Page::BackForwardCacheNotRestoredExplanationTree>
       explanation_tree =

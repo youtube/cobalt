@@ -2,21 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quick_start_requests.h"
-#include "base/json/json_reader.h"
+#include "chromeos/ash/components/quick_start/quick_start_requests.h"
+
 #include "components/cbor/reader.h"
+#include "crypto/hash.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "url/gurl.h"
-#include "url/origin.h"
 
 using ash::quick_start::requests::CBOREncodeGetAssertionRequest;
-using ash::quick_start::requests::CreateFidoClientDataJson;
 using ash::quick_start::requests::GenerateGetAssertionRequest;
 
 namespace {
-const char kChallengeBase64Url[] = "testchallenge";
-const char kTestOrigin[] = "https://google.com";
-const char kCtapRequestType[] = "webauthn.get";
+// Used as a dummy client data hash when constructing test requests.
+const std::array<uint8_t, crypto::hash::kSha256Size> kTestClientDataHash = {
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+    0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+    0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+};
 }  // namespace
 
 class QuickStartRequestTest : public testing::Test {
@@ -30,28 +31,17 @@ class QuickStartRequestTest : public testing::Test {
   void SetUp() override {}
 };
 
-TEST_F(QuickStartRequestTest, CreateFidoClientDataJson) {
-  url::Origin test_origin = url::Origin::Create(GURL(kTestOrigin));
-  std::string client_data_json =
-      CreateFidoClientDataJson(test_origin, kChallengeBase64Url);
-  absl::optional<base::Value> parsed_json =
-      base::JSONReader::Read(client_data_json);
-  ASSERT_TRUE(parsed_json);
-  ASSERT_TRUE(parsed_json->is_dict());
-  base::Value::Dict& parsed_json_dict = parsed_json.value().GetDict();
-  EXPECT_EQ(*parsed_json_dict.FindString("type"), kCtapRequestType);
-  EXPECT_EQ(*parsed_json_dict.FindString("challenge"), kChallengeBase64Url);
-  EXPECT_EQ(*parsed_json_dict.FindString("origin"), kTestOrigin);
-  EXPECT_FALSE(parsed_json_dict.FindBool("crossOrigin").value());
-}
-
 TEST_F(QuickStartRequestTest, GenerateGetAssertionRequest_ValidChallenge) {
-  cbor::Value request = GenerateGetAssertionRequest(kChallengeBase64Url);
+  cbor::Value request = GenerateGetAssertionRequest(kTestClientDataHash);
   ASSERT_TRUE(request.is_map());
   const cbor::Value::MapValue& request_map = request.GetMap();
   // CBOR Index 0x01 stores the relying_party_id for the GetAssertionRequest.
   EXPECT_EQ(request_map.find(cbor::Value(0x01))->second.GetString(),
             "google.com");
+  // CBOR Index 0x02 stores the client data hash.
+  EXPECT_EQ(base::as_byte_span(
+                request_map.find(cbor::Value(0x02))->second.GetBytestring()),
+            kTestClientDataHash);
   // CBOR Index 0x05 stores the options for the GetAssertionRequest.
   const cbor::Value::MapValue& options_map =
       request_map.find(cbor::Value(0x05))->second.GetMap();
@@ -59,18 +49,18 @@ TEST_F(QuickStartRequestTest, GenerateGetAssertionRequest_ValidChallenge) {
   EXPECT_TRUE(options_map.find(cbor::Value("uv"))->second.GetBool());
   // CBOR key "up" stores the userPresence bit for the options.
   EXPECT_TRUE(options_map.find(cbor::Value("up"))->second.GetBool());
-  EXPECT_TRUE(
-      request_map.find(cbor::Value(0x02))->second.GetBytestring().size() > 0);
+  EXPECT_GT(request_map.find(cbor::Value(0x02))->second.GetBytestring().size(),
+            0UL);
 }
 
 TEST_F(QuickStartRequestTest, CBOREncodeGetAssertionRequest) {
-  cbor::Value request = GenerateGetAssertionRequest(kChallengeBase64Url);
+  cbor::Value request = GenerateGetAssertionRequest(kTestClientDataHash);
   std::vector<uint8_t> cbor_encoded_request =
       CBOREncodeGetAssertionRequest(std::move(request));
-  absl::optional<cbor::Value> cbor;
+  std::optional<cbor::Value> cbor;
   const base::span<const uint8_t> ctap_request_span =
-      base::make_span(cbor_encoded_request);
-  cbor = cbor::Reader::Read(ctap_request_span.subspan(1));
+      base::span(cbor_encoded_request);
+  cbor = cbor::Reader::Read(ctap_request_span.subspan<1>());
   ASSERT_TRUE(cbor);
   ASSERT_TRUE(cbor->is_map());
   const cbor::Value::MapValue& cbor_map = cbor->GetMap();

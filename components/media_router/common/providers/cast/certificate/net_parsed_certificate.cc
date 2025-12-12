@@ -2,28 +2,34 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/media_router/common/providers/cast/certificate/net_parsed_certificate.h"
 
 #include "base/containers/contains.h"
-#include "net/cert/pki/parse_name.h"
+#include "net/cert/time_conversions.h"
 #include "net/cert/x509_util.h"
-#include "net/der/encode_values.h"
-#include "net/der/input.h"
-#include "net/der/parse_values.h"
 #include "third_party/boringssl/src/include/openssl/bytestring.h"
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
+#include "third_party/boringssl/src/pki/input.h"
+#include "third_party/boringssl/src/pki/parse_name.h"
+#include "third_party/boringssl/src/pki/parse_values.h"
+#include "third_party/openscreen/src/platform/base/span.h"
 
 namespace openscreen::cast {
 
 // static
 ErrorOr<std::unique_ptr<ParsedCertificate>> ParsedCertificate::ParseFromDER(
-    const std::vector<uint8_t>& der_cert) {
-  std::shared_ptr<const net::ParsedCertificate> cert =
-      net::ParsedCertificate::Create(net::x509_util::CreateCryptoBuffer(
-                                         base::span<const uint8_t>(der_cert)),
-                                     cast_certificate::GetCertParsingOptions(),
-                                     nullptr);
+    openscreen::ByteView der_cert) {
+  std::shared_ptr<const bssl::ParsedCertificate> cert =
+      bssl::ParsedCertificate::Create(
+          net::x509_util::CreateCryptoBuffer(
+              base::span<const uint8_t>(der_cert.cbegin(), der_cert.cend())),
+          cast_certificate::GetCertParsingOptions(), nullptr);
   if (!cert) {
     return Error::Code::kErrCertsParse;
   }
@@ -46,17 +52,18 @@ namespace {
 // Helper that extracts the Common Name from a certificate's subject field. On
 // success |common_name| contains the text for the attribute (UTF-8, but for
 // Cast device certs it should be ASCII).
-bool GetCommonNameFromSubject(const net::der::Input& subject_tlv,
+bool GetCommonNameFromSubject(const bssl::der::Input& subject_tlv,
                               std::string* common_name) {
-  net::RDNSequence rdn_sequence;
-  if (!net::ParseName(subject_tlv, &rdn_sequence))
+  bssl::RDNSequence rdn_sequence;
+  if (!bssl::ParseName(subject_tlv, &rdn_sequence)) {
     return false;
+  }
 
-  for (const net::RelativeDistinguishedName& relative_distinguished_name :
+  for (const bssl::RelativeDistinguishedName& relative_distinguished_name :
        rdn_sequence) {
     for (const auto& attribute_type_value : relative_distinguished_name) {
       if (attribute_type_value.type ==
-          net::der::Input(net::kTypeCommonNameOid)) {
+          bssl::der::Input(bssl::kTypeCommonNameOid)) {
         return attribute_type_value.ValueAsString(common_name);
       }
     }
@@ -66,8 +73,8 @@ bool GetCommonNameFromSubject(const net::der::Input& subject_tlv,
 
 }  // namespace
 
-net::ParseCertificateOptions GetCertParsingOptions() {
-  net::ParseCertificateOptions options;
+bssl::ParseCertificateOptions GetCertParsingOptions() {
+  bssl::ParseCertificateOptions options;
 
   // Some cast intermediate certificates contain serial numbers that are
   // 21 octets long, and might also not use valid DER encoding for an
@@ -83,7 +90,7 @@ net::ParseCertificateOptions GetCertParsingOptions() {
 }
 
 NetParsedCertificate::NetParsedCertificate(
-    std::shared_ptr<const net::ParsedCertificate> cert)
+    std::shared_ptr<const bssl::ParsedCertificate> cert)
     : cert_(std::move(cert)) {}
 
 NetParsedCertificate::~NetParsedCertificate() = default;
@@ -91,7 +98,7 @@ NetParsedCertificate::~NetParsedCertificate() = default;
 ErrorOr<std::vector<uint8_t>> NetParsedCertificate::SerializeToDER(
     int front_spacing) const {
   std::vector<uint8_t> result;
-  base::span<const uint8_t> der_buffer = cert_->der_cert().AsSpan();
+  base::span<const uint8_t> der_buffer = cert_->der_cert();
   result.reserve(front_spacing + der_buffer.size());
   result.resize(front_spacing);
   result.insert(result.end(), der_buffer.begin(), der_buffer.end());
@@ -99,7 +106,7 @@ ErrorOr<std::vector<uint8_t>> NetParsedCertificate::SerializeToDER(
 }
 
 ErrorOr<DateTime> NetParsedCertificate::GetNotBeforeTime() const {
-  const net::der::GeneralizedTime& t = cert_->tbs().validity_not_before;
+  const bssl::der::GeneralizedTime& t = cert_->tbs().validity_not_before;
   DateTime result;
   result.year = t.year;
   result.month = t.month;
@@ -111,7 +118,7 @@ ErrorOr<DateTime> NetParsedCertificate::GetNotBeforeTime() const {
 }
 
 ErrorOr<DateTime> NetParsedCertificate::GetNotAfterTime() const {
-  const net::der::GeneralizedTime& t = cert_->tbs().validity_not_after;
+  const bssl::der::GeneralizedTime& t = cert_->tbs().validity_not_after;
   DateTime result;
   result.year = t.year;
   result.month = t.month;
@@ -137,7 +144,7 @@ std::string NetParsedCertificate::GetSpkiTlv() const {
 
 ErrorOr<uint64_t> NetParsedCertificate::GetSerialNumber() const {
   uint64_t serial_number;
-  if (!net::der::ParseUint64(cert_->tbs().serial_number, &serial_number)) {
+  if (!bssl::der::ParseUint64(cert_->tbs().serial_number, &serial_number)) {
     return openscreen::Error::Code::kErrCertsParse;
   }
   return serial_number;
@@ -151,8 +158,7 @@ bool NetParsedCertificate::VerifySignedData(
   // which is already exported as GetSpkiTlv(). Remove this method altogether
   // and move this into openscreen.
   CBS spki;
-  CBS_init(&spki, cert_->tbs().spki_tlv.UnsafeData(),
-           cert_->tbs().spki_tlv.Length());
+  CBS_init(&spki, cert_->tbs().spki_tlv.data(), cert_->tbs().spki_tlv.size());
   bssl::UniquePtr<EVP_PKEY> pubkey(EVP_parse_public_key(&spki));
   if (!pubkey || CBS_len(&spki) != 0) {
     return false;
@@ -186,24 +192,23 @@ bool NetParsedCertificate::VerifySignedData(
 }
 
 bool NetParsedCertificate::HasPolicyOid(const openscreen::ByteView& oid) const {
-  net::der::Input net_oid(oid.data(), oid.size());
   if (!cert_->has_policy_oids()) {
     return false;
   }
-  const std::vector<net::der::Input>& policies = cert_->policy_oids();
-  return base::Contains(policies, net_oid);
+  const std::vector<bssl::der::Input>& policies = cert_->policy_oids();
+  return base::Contains(policies, bssl::der::Input(oid));
 }
 
 void NetParsedCertificate::SetNotBeforeTimeForTesting(time_t not_before) {
-  CHECK(net::der::EncodeTimeAsGeneralizedTime(
-      base::Time::FromTimeT(not_before),
-      const_cast<net::der::GeneralizedTime*>(
-          &cert_->tbs().validity_not_before)));
+  CHECK(
+      net::EncodeTimeAsGeneralizedTime(base::Time::FromTimeT(not_before),
+                                       const_cast<bssl::der::GeneralizedTime*>(
+                                           &cert_->tbs().validity_not_before)));
 }
 
 void NetParsedCertificate::SetNotAfterTimeForTesting(time_t not_after) {
-  CHECK(net::der::EncodeTimeAsGeneralizedTime(
-      base::Time::FromTimeT(not_after), const_cast<net::der::GeneralizedTime*>(
+  CHECK(net::EncodeTimeAsGeneralizedTime(
+      base::Time::FromTimeT(not_after), const_cast<bssl::der::GeneralizedTime*>(
                                             &cert_->tbs().validity_not_after)));
 }
 

@@ -76,7 +76,7 @@ std::string GenerateSetCallbackErrorCodeScript(int code) {
 // correctly.
 class TranslateScriptBrowserTest : public ChromeRenderViewTest {
  public:
-  TranslateScriptBrowserTest() {}
+  TranslateScriptBrowserTest() = default;
 
   TranslateScriptBrowserTest(const TranslateScriptBrowserTest&) = delete;
   TranslateScriptBrowserTest& operator=(const TranslateScriptBrowserTest&) =
@@ -118,10 +118,9 @@ class TranslateScriptBrowserTest : public ChromeRenderViewTest {
     v8::Local<v8::Value> result =
         GetMainFrame()->ExecuteScriptAndReturnValue(source);
     if (result.IsEmpty() || !result->IsNumber()) {
-      NOTREACHED();
       // TODO(toyoshim): Return NaN here and the real implementation in
       // TranslateAgent::ExecuteScriptAndGetDoubleResult().
-      return 0.0;
+      NOTREACHED();
     }
     return result.As<v8::Number>()->Value();
   }
@@ -135,7 +134,6 @@ class TranslateScriptBrowserTest : public ChromeRenderViewTest {
         GetMainFrame()->ExecuteScriptAndReturnValue(source);
     if (result.IsEmpty() || !result->IsBoolean()) {
       NOTREACHED();
-      return false;
     }
     return result.As<v8::Boolean>()->Value();
   }

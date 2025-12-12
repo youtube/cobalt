@@ -3,19 +3,48 @@
 // found in the LICENSE file.
 
 #include "cc/test/paint_op_helper.h"
+
+#include <array>
+
 #include "cc/paint/paint_canvas.h"
+#include "cc/paint/paint_filter.h"
+#include "cc/paint/paint_flags.h"
+#include "cc/paint/paint_op.h"
 #include "cc/paint/paint_op_buffer.h"
 #include "cc/test/skia_common.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkTextBlob.h"
+#include "third_party/skia/include/core/SkTileMode.h"
 #include "third_party/skia/include/effects/SkLumaColorFilter.h"
-#include "third_party/skia/include/private/chromium/GrSlug.h"
+#include "third_party/skia/include/private/chromium/Slug.h"
 
 namespace cc {
 namespace {
 
+TEST(PaintOpHelper, PaintRecordEmptyToString) {
+  PaintOpBuffer buffer;
+  EXPECT_EQ(PaintOpHelper::ToString(buffer.ReleaseAsRecord()),
+            "<PaintRecord>[]");
+}
+
+TEST(PaintOpHelper, PaintRecordOneOpToString) {
+  PaintOpBuffer buffer;
+  buffer.push<SaveOp>();
+  EXPECT_EQ(PaintOpHelper::ToString(buffer.ReleaseAsRecord()),
+            "<PaintRecord>[SaveOp()]");
+}
+
+TEST(PaintOpHelper, PaintRecordMultipleOpsToString) {
+  PaintOpBuffer buffer;
+  buffer.push<SaveOp>();
+  buffer.push<RotateOp>(360.0f);
+  EXPECT_EQ(PaintOpHelper::ToString(buffer.ReleaseAsRecord()),
+            "<PaintRecord>[SaveOp(), RotateOp(degrees=360.000)]");
+}
+
 TEST(PaintOpHelper, AnnotateToString) {
-  AnnotateOp op(PaintCanvas::AnnotationType::URL, SkRect::MakeXYWH(1, 2, 3, 4),
+  AnnotateOp op(PaintCanvas::AnnotationType::kUrl, SkRect::MakeXYWH(1, 2, 3, 4),
                 nullptr);
   std::string str = PaintOpHelper::ToString(op);
   EXPECT_EQ(str,
@@ -79,7 +108,7 @@ TEST(PaintOpHelper, DrawDRRectToString) {
       "filterQuality=kNone_SkFilterQuality, "
       "strokeWidth=0.000, strokeMiter=4.000, strokeCap=kButt_Cap, "
       "strokeJoin=kMiter_Join, colorFilter=(nil), "
-      "maskFilter=(nil), shader=(nil), hasShader=false, shaderIsOpaque=false, "
+      "shader=(nil), hasShader=false, shaderIsOpaque=false, "
       "pathEffect=(nil), imageFilter=(nil), drawLooper=(nil), "
       "supportsFoldingAlpha=true, isValid=true, hasDiscardableImages=false])");
 }
@@ -93,7 +122,7 @@ TEST(PaintOpHelper, DrawImageToString) {
       "flags=[color=rgba(0, 0, 0, 255), blendMode=kSrcOver, isAntiAlias=false, "
       "isDither=false, filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
       "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-      "colorFilter=(nil), maskFilter=(nil), shader=(nil), "
+      "colorFilter=(nil), shader=(nil), "
       "hasShader=false, shaderIsOpaque=false, pathEffect=(nil), "
       "imageFilter=(nil), drawLooper=(nil), supportsFoldingAlpha=true, "
       "isValid=true, hasDiscardableImages=false])");
@@ -111,7 +140,7 @@ TEST(PaintOpHelper, DrawImageRectToString) {
       "flags=[color=rgba(0, 0, 0, 255), blendMode=kSrcOver, isAntiAlias=false, "
       "isDither=false, filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
       "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-      "colorFilter=(nil), maskFilter=(nil), shader=(nil), "
+      "colorFilter=(nil), shader=(nil), "
       "hasShader=false, shaderIsOpaque=false, pathEffect=(nil), "
       "imageFilter=(nil), drawLooper=(nil), supportsFoldingAlpha=true, "
       "isValid=true, hasDiscardableImages=false])");
@@ -125,7 +154,7 @@ TEST(PaintOpHelper, DrawIRectToString) {
             "blendMode=kSrcOver, isAntiAlias=false, isDither=false, "
             "filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
             "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-            "colorFilter=(nil), maskFilter=(nil), "
+            "colorFilter=(nil), "
             "shader=(nil), hasShader=false, shaderIsOpaque=false, "
             "pathEffect=(nil), imageFilter=(nil), drawLooper=(nil), "
             "supportsFoldingAlpha=true, isValid=true, "
@@ -141,7 +170,7 @@ TEST(PaintOpHelper, DrawLineToString) {
       "0, 0, 255), blendMode=kSrcOver, isAntiAlias=false, isDither=false, "
       "filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
       "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-      "colorFilter=(nil), maskFilter=(nil), shader=(nil), "
+      "colorFilter=(nil), shader=(nil), "
       "hasShader=false, shaderIsOpaque=false, pathEffect=(nil), "
       "imageFilter=(nil), drawLooper=(nil), supportsFoldingAlpha=true, "
       "isValid=true, hasDiscardableImages=false])");
@@ -156,7 +185,7 @@ TEST(PaintOpHelper, DrawOvalToString) {
       "0, 0, 255), blendMode=kSrcOver, isAntiAlias=false, isDither=false, "
       "filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
       "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-      "colorFilter=(nil), maskFilter=(nil), shader=(nil), "
+      "colorFilter=(nil), shader=(nil), "
       "hasShader=false, shaderIsOpaque=false, pathEffect=(nil), "
       "imageFilter=(nil), drawLooper=(nil), supportsFoldingAlpha=true, "
       "isValid=true, hasDiscardableImages=false])");
@@ -171,7 +200,7 @@ TEST(PaintOpHelper, DrawPathToString) {
             "blendMode=kSrcOver, isAntiAlias=false, isDither=false, "
             "filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
             "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-            "colorFilter=(nil), maskFilter=(nil), "
+            "colorFilter=(nil), "
             "shader=(nil), hasShader=false, shaderIsOpaque=false, "
             "pathEffect=(nil), imageFilter=(nil), drawLooper=(nil), "
             "supportsFoldingAlpha=true, isValid=true, "
@@ -181,7 +210,7 @@ TEST(PaintOpHelper, DrawPathToString) {
 TEST(PaintOpHelper, DrawRecordToString) {
   DrawRecordOp op((PaintRecord()));
   std::string str = PaintOpHelper::ToString(op);
-  EXPECT_EQ(str, "DrawRecordOp(record=(empty))");
+  EXPECT_EQ(str, "DrawRecordOp(record=<PaintRecord>[])");
 }
 
 TEST(PaintOpHelper, DrawRectToString) {
@@ -194,7 +223,7 @@ TEST(PaintOpHelper, DrawRectToString) {
       "isDither=false, filterQuality=kNone_SkFilterQuality, "
       "strokeWidth=0.000, strokeMiter=4.000, strokeCap=kButt_Cap, "
       "strokeJoin=kMiter_Join, colorFilter=(nil), "
-      "maskFilter=(nil), shader=(nil), hasShader=false, shaderIsOpaque=false, "
+      "shader=(nil), hasShader=false, shaderIsOpaque=false, "
       "pathEffect=(nil), imageFilter=(nil), drawLooper=(nil), "
       "supportsFoldingAlpha=true, isValid=true, hasDiscardableImages=false])");
 }
@@ -209,7 +238,7 @@ TEST(PaintOpHelper, DrawRRectToString) {
       "flags=[color=rgba(0, 0, 0, 255), blendMode=kSrcOver, isAntiAlias=false, "
       "isDither=false, filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
       "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-      "colorFilter=(nil), maskFilter=(nil), shader=(nil), "
+      "colorFilter=(nil), shader=(nil), "
       "hasShader=false, shaderIsOpaque=false, pathEffect=(nil), "
       "imageFilter=(nil), drawLooper=(nil), supportsFoldingAlpha=true, "
       "isValid=true, hasDiscardableImages=false])");
@@ -223,7 +252,7 @@ TEST(PaintOpHelper, DrawSlugToString) {
       "DrawSlugOp(flags=[color=rgba(0, 0, 0, 255), blendMode=kSrcOver, "
       "isAntiAlias=false, isDither=false, filterQuality=kNone_SkFilterQuality, "
       "strokeWidth=0.000, strokeMiter=4.000, strokeCap=kButt_Cap, "
-      "strokeJoin=kMiter_Join, colorFilter=(nil), maskFilter=(nil), "
+      "strokeJoin=kMiter_Join, colorFilter=(nil), "
       "shader=(nil), "
       "hasShader=false, shaderIsOpaque=false, pathEffect=(nil), "
       "imageFilter=(nil), drawLooper=(nil), supportsFoldingAlpha=true, "
@@ -239,10 +268,31 @@ TEST(PaintOpHelper, DrawTextBlobToString) {
       "0, 0, 255), blendMode=kSrcOver, isAntiAlias=false, isDither=false, "
       "filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
       "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
-      "colorFilter=(nil), maskFilter=(nil), shader=(nil), "
+      "colorFilter=(nil), shader=(nil), "
       "hasShader=false, shaderIsOpaque=false, pathEffect=(nil), "
       "imageFilter=(nil), drawLooper=(nil), supportsFoldingAlpha=true, "
       "isValid=true, hasDiscardableImages=false])");
+}
+
+TEST(PaintOpHelper, DrawVerticesToString) {
+  auto verts = base::MakeRefCounted<RefCountedBuffer<SkPoint>>(
+      std::vector<SkPoint>{{100, 100}});
+  auto uvs = base::MakeRefCounted<RefCountedBuffer<SkPoint>>(
+      std::vector<SkPoint>{{1, 1}});
+  auto indices = base::MakeRefCounted<RefCountedBuffer<uint16_t>>(
+      std::vector<uint16_t>{0, 0, 0});
+
+  DrawVerticesOp op(verts, uvs, indices, PaintFlags());
+  EXPECT_EQ(
+      PaintOpHelper::ToString(op),
+      "DrawVerticesOp(flags=[color=rgba(0, 0, 0, 255), blendMode=kSrcOver, "
+      "isAntiAlias=false, isDither=false, "
+      "filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
+      "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
+      "colorFilter=(nil), shader=(nil), hasShader=false, "
+      "shaderIsOpaque=false, pathEffect=(nil), imageFilter=(nil), "
+      "drawLooper=(nil), supportsFoldingAlpha=true, isValid=true, "
+      "hasDiscardableImages=false])");
 }
 
 TEST(PaintOpHelper, NoopToString) {
@@ -279,7 +329,7 @@ TEST(PaintOpHelper, SaveLayerToString) {
       "filterQuality=kNone_SkFilterQuality, "
       "strokeWidth=0.000, strokeMiter=4.000, strokeCap=kButt_Cap, "
       "strokeJoin=kMiter_Join, colorFilter=(nil), "
-      "maskFilter=(nil), shader=(nil), hasShader=false, shaderIsOpaque=false, "
+      "shader=(nil), hasShader=false, shaderIsOpaque=false, "
       "pathEffect=(nil), imageFilter=(nil), drawLooper=(nil), "
       "supportsFoldingAlpha=true, isValid=true, hasDiscardableImages=false])");
 }
@@ -298,7 +348,7 @@ TEST(PaintOpHelper, SaveLayerWithFilterToString) {
       "filterQuality=kNone_SkFilterQuality, "
       "strokeWidth=0.000, strokeMiter=4.000, strokeCap=kButt_Cap, "
       "strokeJoin=kMiter_Join, colorFilter=(nil), "
-      "maskFilter=(nil), shader=(nil), hasShader=false, shaderIsOpaque=false, "
+      "shader=(nil), hasShader=false, shaderIsOpaque=false, "
       "pathEffect=(nil), imageFilter=DropShadowPaintFilter(dx=0.000, dy=0.000, "
       "sigma_x=0.000, sigma_y=0.000, color=rgba(0.000000, 0.000000, 0.000000, "
       "0.000000), shadow_mode=kDrawShadowAndForeground, input=(nil), "
@@ -311,6 +361,27 @@ TEST(PaintOpHelper, SaveLayerAlphaToString) {
   std::string str = PaintOpHelper::ToString(op);
   EXPECT_EQ(str,
             "SaveLayerAlphaOp(bounds=[1.000,2.000 3.000x4.000], alpha=1.000)");
+}
+
+TEST(PaintOpHelper, SaveLayerFiltersToString) {
+  PaintFlags flags;
+  SaveLayerFiltersOp op(
+      std::array<sk_sp<PaintFilter>, 2>{
+          sk_make_sp<BlurPaintFilter>(1.0f, 2.0f, SkTileMode::kRepeat,
+                                      /*input=*/nullptr),
+          nullptr},
+      flags);
+  EXPECT_EQ(PaintOpHelper::ToString(op),
+            "SaveLayerFiltersOp(flags=[color=rgba(0, 0, 0, 255), "
+            "blendMode=kSrcOver, isAntiAlias=false, isDither=false, "
+            "filterQuality=kNone_SkFilterQuality, strokeWidth=0.000, "
+            "strokeMiter=4.000, strokeCap=kButt_Cap, strokeJoin=kMiter_Join, "
+            "colorFilter=(nil), shader=(nil), hasShader=false, "
+            "shaderIsOpaque=false, pathEffect=(nil), imageFilter=(nil), "
+            "drawLooper=(nil), supportsFoldingAlpha=true, isValid=true, "
+            "hasDiscardableImages=false], "
+            "filters={BlurPaintFilter(sigma_x=1.000, sigma_y=2.000, "
+            "tile_mode=kRepeat, input=(nil), crop_rect=(nil)), (nil)})");
 }
 
 TEST(PaintOpHelper, ScaleToString) {
@@ -336,10 +407,10 @@ TEST(PaintOpHelper, TranslateToString) {
 
 TEST(PaintOpHelperFilters, ColorFilterPaintFilter) {
   PaintFilter::CropRect crop_rect(SkRect::MakeWH(100.f, 100.f));
-  ColorFilterPaintFilter filter(SkLumaColorFilter::Make(),
+  ColorFilterPaintFilter filter(ColorFilter::MakeLuma(),
                                 /*input=*/nullptr, &crop_rect);
   EXPECT_EQ(PaintOpHelper::ToString(filter),
-            "ColorFilterPaintFilter(color_filter=SkColorFilter, input=(nil), "
+            "ColorFilterPaintFilter(color_filter=ColorFilter, input=(nil), "
             "crop_rect=[0.000,0.000 100.000x100.000])");
 }
 
@@ -367,11 +438,11 @@ TEST(PaintOpHelperFilters, DropShadowPaintFilter) {
 
 TEST(PaintOpHelperFilters, MagnifierPaintFilter) {
   PaintFilter::CropRect crop_rect(SkRect::MakeWH(100.f, 100.f));
-  MagnifierPaintFilter filter(SkRect::MakeWH(100.f, 100.f), /*inset=*/0.1f,
-                              /*input=*/nullptr, &crop_rect);
+  MagnifierPaintFilter filter(SkRect::MakeWH(100.f, 100.f), /*zoom_amount=*/2.f,
+                              /*inset=*/0.1f, /*input=*/nullptr, &crop_rect);
   EXPECT_EQ(PaintOpHelper::ToString(filter),
-            "MagnifierPaintFilter(src_rect=[0.000,0.000 100.000x100.000], "
-            "inset=0.100, input=(nil), "
+            "MagnifierPaintFilter(lens_bounds=[0.000,0.000 100.000x100.000], "
+            "zoom_amount=2.000, inset=0.100, input=(nil), "
             "crop_rect=[0.000,0.000 100.000x100.000])");
 }
 
@@ -387,12 +458,10 @@ TEST(PaintOpHelperFilters, ComposePaintFilter) {
 TEST(PaintOpHelperFilters, AlphaThresholdPaintFilter) {
   PaintFilter::CropRect crop_rect(SkRect::MakeWH(100.f, 100.f));
   AlphaThresholdPaintFilter filter(SkRegion(SkIRect::MakeWH(100, 100)),
-                                   /*inner_min=*/0.1f, /*outer_max=*/0.2f,
                                    /*input=*/nullptr, &crop_rect);
   EXPECT_EQ(PaintOpHelper::ToString(filter),
             "AlphaThresholdPaintFilter(region=[0,0 100x100], "
-            "inner_min=0.100, outer_max=0.200, input=(nil), "
-            "crop_rect=[0.000,0.000 100.000x100.000])");
+            "input=(nil), crop_rect=[0.000,0.000 100.000x100.000])");
 }
 
 TEST(PaintOpHelperFilters, XfermodePaintFilter) {
@@ -466,7 +535,7 @@ TEST(PaintOpHelperFilters, RecordPaintFilter) {
                            /*raster_scale=*/{0.5f, 0.8f},
                            RecordPaintFilter::ScalingBehavior::kFixedScale);
   EXPECT_EQ(PaintOpHelper::ToString(filter),
-            "RecordPaintFilter(record=<paint record>, "
+            "RecordPaintFilter(record=<PaintRecord>[SaveOp()], "
             "record_bounds=[0.000,0.000 100.000x100.000], "
             "raster_scale=[0.5x0.8], scaling_behavior=kFixedScale, "
             "crop_rect=(nil))");
@@ -480,7 +549,7 @@ TEST(PaintOpHelperFilters, MergePaintFilter) {
           SkRect::MakeWH(100.f, 100.f), SkRect::MakeWH(100.f, 100.f),
           PaintFlags::FilterQuality::kNone),
       nullptr};
-  MergePaintFilter filter(filters, 2, &crop_rect);
+  MergePaintFilter filter(filters, &crop_rect);
   EXPECT_EQ(PaintOpHelper::ToString(filter),
             "MergePaintFilter(input_count=2, input=[ImagePaintFilter("
             "image=<paint image>, "

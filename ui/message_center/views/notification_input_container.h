@@ -6,9 +6,11 @@
 #define UI_MESSAGE_CENTER_VIEWS_NOTIFICATION_INPUT_CONTAINER_H_
 
 #include "base/memory/raw_ptr.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/message_center/message_center_export.h"
 #include "ui/views/controls/textfield/textfield_controller.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/layout/delegating_layout_manager.h"
 #include "ui/views/view.h"
 
 namespace ui {
@@ -34,7 +36,10 @@ class MESSAGE_CENTER_EXPORT NotificationInputDelegate {
 // A view which shows a textfield with a send button for notifications.
 class MESSAGE_CENTER_EXPORT NotificationInputContainer
     : public views::View,
-      public views::TextfieldController {
+      public views::TextfieldController,
+      public views::LayoutDelegate {
+  METADATA_HEADER(NotificationInputContainer, views::View)
+
  public:
   explicit NotificationInputContainer(
       NotificationInputDelegate* delegate = nullptr);
@@ -54,7 +59,7 @@ class MESSAGE_CENTER_EXPORT NotificationInputContainer
 
   // Sets `textfield_`'s placeholder string to `placeholder` or the default if
   // not supplied.
-  void SetPlaceholderText(const absl::optional<std::u16string>& placeholder);
+  void SetPlaceholderText(const std::optional<std::u16string>& placeholder);
 
   // Animates the background, if one exists.
   void AnimateBackground(const ui::Event& event);
@@ -63,12 +68,15 @@ class MESSAGE_CENTER_EXPORT NotificationInputContainer
   void AddLayerToRegion(ui::Layer* layer, views::LayerRegion region) override;
   void RemoveLayerFromRegions(ui::Layer* layer) override;
   void OnThemeChanged() override;
-  void Layout() override;
 
   // views::TextfieldController:
   bool HandleKeyEvent(views::Textfield* sender,
                       const ui::KeyEvent& key_event) override;
   void OnAfterUserAction(views::Textfield* sender) override;
+
+  // Overridden from views::LayoutDelegate:
+  views::ProposedLayout CalculateProposedLayout(
+      const views::SizeBounds& size_bounds) const override;
 
   views::Textfield* textfield() const { return textfield_; }
   views::ImageButton* button() const { return button_; }
@@ -92,6 +100,9 @@ class MESSAGE_CENTER_EXPORT NotificationInputContainer
 
   // Gets the id for the default placeholder string for `textfield_`.
   virtual int GetDefaultPlaceholderStringId() const;
+
+  // Gets the id for the default accessible name string for `button_`.
+  virtual int GetDefaultAccessibleNameStringId() const;
 
   // Sets the visible background of `textfield_`.
   virtual void StyleTextfield();

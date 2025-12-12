@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/cancelable_task_tracker.h"
 #include "components/favicon_base/favicon_types.h"
-#include "ui/gfx/image/image_skia.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "url/gurl.h"
 
 namespace favicon {
@@ -55,7 +55,7 @@ class SupervisedUserFaviconRequestHandler {
   // fetched, then a monogram fallback icon is constructed. This method is not
   // thread-safe, therefore only the creator of this request handler should get
   // the favicon through this method.
-  gfx::ImageSkia GetFaviconOrFallback();
+  SkBitmap GetFaviconOrFallback();
 
  private:
   // Attempts to fetch the favicon from the cache. If the favicon is not
@@ -64,16 +64,16 @@ class SupervisedUserFaviconRequestHandler {
 
   // Callbacks for favicon fetches.
   void OnGetFaviconFromCacheFinished(
-      const favicon_base::LargeIconImageResult& result);
+      const favicon_base::LargeIconResult& result);
   void OnGetFaviconFromGoogleServerFinished(
       favicon_base::GoogleFaviconServerRequestStatus status);
 
   // The page that the favicon is being fetched for.
   GURL page_url_;
 
-  // Stores the fetched favicon. May be an empty image if the favicon fetch task
-  // has not finished or fails.
-  gfx::ImageSkia favicon_;
+  // Stores the fetched favicon. May be an empty bitmap if the favicon fetch
+  // task has not finished or fails.
+  SkBitmap favicon_;
 
   // True if a network request has already been made to fetch the favicon.
   bool network_request_completed_ = false;
@@ -82,8 +82,7 @@ class SupervisedUserFaviconRequestHandler {
   // via a network request.
   base::OnceClosure on_fetched_callback_;
 
-  raw_ptr<favicon::LargeIconService, ExperimentalAsh> large_icon_service_ =
-      nullptr;
+  raw_ptr<favicon::LargeIconService> large_icon_service_ = nullptr;
   base::CancelableTaskTracker favicon_task_tracker_;
 
   base::WeakPtrFactory<SupervisedUserFaviconRequestHandler> weak_ptr_factory_{

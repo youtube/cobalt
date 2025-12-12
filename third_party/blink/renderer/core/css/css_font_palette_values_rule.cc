@@ -4,12 +4,14 @@
 
 #include "third_party/blink/renderer/core/css/css_font_palette_values_rule.h"
 
+#include "third_party/blink/renderer/core/css/css_markup.h"
 #include "third_party/blink/renderer/core/css/css_style_sheet.h"
 #include "third_party/blink/renderer/core/css/parser/at_rule_descriptor_parser.h"
 #include "third_party/blink/renderer/core/css/parser/css_parser_context.h"
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
 #include "third_party/blink/renderer/core/css/properties/css_parsing_utils.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
+#include "third_party/blink/renderer/core/css/style_rule_css_style_declaration.h"
 #include "third_party/blink/renderer/core/css/style_rule_font_palette_values.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
@@ -26,7 +28,7 @@ CSSFontPaletteValuesRule::~CSSFontPaletteValuesRule() = default;
 String CSSFontPaletteValuesRule::cssText() const {
   StringBuilder result;
   result.Append("@font-palette-values ");
-  result.Append(name());
+  SerializeIdentifier(name(), result);
   result.Append(" {");
 
   String font_family = fontFamily();
@@ -84,8 +86,23 @@ String CSSFontPaletteValuesRule::overrideColors() const {
   return String();
 }
 
+StyleRuleFontPaletteValues* CSSFontPaletteValuesRule::FontPaletteValues()
+    const {
+  return font_palette_values_rule_.Get();
+}
+
+CSSStyleDeclaration* CSSFontPaletteValuesRule::Style() {
+  if (!font_palette_values_cssom_wrapper_) {
+    font_palette_values_cssom_wrapper_ =
+        MakeGarbageCollected<StyleRuleCSSStyleDeclaration>(
+            font_palette_values_rule_->MutableProperties(), this);
+  }
+  return font_palette_values_cssom_wrapper_.Get();
+}
+
 void CSSFontPaletteValuesRule::Trace(Visitor* visitor) const {
   visitor->Trace(font_palette_values_rule_);
+  visitor->Trace(font_palette_values_cssom_wrapper_);
   CSSRule::Trace(visitor);
 }
 

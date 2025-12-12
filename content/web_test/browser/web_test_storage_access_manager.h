@@ -13,7 +13,7 @@
 #include "base/synchronization/lock.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
-#include "third_party/blink/public/mojom/storage_access/storage_access_automation.mojom.h"
+#include "third_party/blink/public/test/mojom/storage_access/storage_access_automation.test-mojom.h"
 
 namespace content {
 
@@ -42,7 +42,7 @@ class WebTestStorageAccessManager
                 receiver);
 
  private:
-  raw_ptr<BrowserContext> browser_context_;
+  raw_ref<BrowserContext> browser_context_;
 
   mojo::ReceiverSet<blink::test::mojom::StorageAccessAutomation> receivers_;
 };

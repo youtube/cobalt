@@ -14,30 +14,32 @@
 
 #include "rtc_base/checks.h"
 #include "sdk/android/generated_video_jni/NV12Buffer_jni.h"
+#include "third_party/jni_zero/jni_zero.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/scale.h"
 
 namespace webrtc {
 namespace jni {
 
-static void JNI_NV12Buffer_CropAndScale(JNIEnv* jni,
-                                        jint crop_x,
-                                        jint crop_y,
-                                        jint crop_width,
-                                        jint crop_height,
-                                        jint scale_width,
-                                        jint scale_height,
-                                        const JavaParamRef<jobject>& j_src,
-                                        jint src_width,
-                                        jint src_height,
-                                        jint src_stride,
-                                        jint src_slice_height,
-                                        const JavaParamRef<jobject>& j_dst_y,
-                                        jint dst_stride_y,
-                                        const JavaParamRef<jobject>& j_dst_u,
-                                        jint dst_stride_u,
-                                        const JavaParamRef<jobject>& j_dst_v,
-                                        jint dst_stride_v) {
+static void JNI_NV12Buffer_CropAndScale(
+    JNIEnv* jni,
+    jint crop_x,
+    jint crop_y,
+    jint crop_width,
+    jint crop_height,
+    jint scale_width,
+    jint scale_height,
+    const jni_zero::JavaParamRef<jobject>& j_src,
+    jint src_width,
+    jint src_height,
+    jint src_stride,
+    jint src_slice_height,
+    const jni_zero::JavaParamRef<jobject>& j_dst_y,
+    jint dst_stride_y,
+    const jni_zero::JavaParamRef<jobject>& j_dst_u,
+    jint dst_stride_u,
+    const jni_zero::JavaParamRef<jobject>& j_dst_v,
+    jint dst_stride_v) {
   const int src_stride_y = src_stride;
   const int src_stride_uv = src_stride;
   const int crop_chroma_x = crop_x / 2;

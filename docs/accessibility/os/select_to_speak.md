@@ -52,7 +52,7 @@ chrome/browser/resources/chromeos/accessibility/select_to_speak/
 - Floating panel, system/accessibility/select_to_speak_menu_bubble_controller.h
 
 In addition, there are settings for STS in
-chrome/browser/resources/settings/a11y_page/manage_a11y_subpage.*
+chrome/browser/resources/ash/settings/os_a11y_page/select_to_speak_subpage.*
 
 ### Tests
 
@@ -303,7 +303,7 @@ enhanced network voices are enabled, Select-to-speak passes the user's selected
 natural voice name to `chrome.tts.speak`. The TTS request is handled by the
 [Enhanced Network TTS engine](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/resources/chromeos/accessibility/enhanced_network_tts/).
 The TTS engine then passes the request to native code
-([ EnhancedNetworkTts](https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/ash/enhanced_network_tts/enhanced_network_tts_impl.h)),
+([ EnhancedNetworkTts](https://source.chromium.org/chromium/chromium/src/+/main:chromeos/ash/components/enhanced_network_tts/enhanced_network_tts_impl.h)),
 which in turn sends a network request to the ReadAloud API, which produces
 synthesized audio.
 

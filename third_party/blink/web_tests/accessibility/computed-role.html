@@ -38,8 +38,6 @@
       <div role="dialog">This is a dialog</div>
       <dialog data-role="dialog">This is a dialog</dialog>
 
-      <div role="directory">This is a directory</div>
-
       <div role="grid">
         <div role="row">
           <div role="columnheader">
@@ -68,7 +66,10 @@
 
       <div role="document">This is a document</div>
 
-      <div role="form">This is a form</div>
+      <div role="form" aria-label="Named form">This is a form</div>
+      <form data-role="form" id="form1" aria-label="A named section is a form">This is a form</form>
+      <form data-role="form" aria-labelledby="form1">This is a form</form>
+      <form data-role="form" title="A named is a form">This is a form</form>
 
       <div role="generic" tabindex="0">This is a generic element</div>
       <div aria-live="polite" data-role="generic"></div>
@@ -95,8 +96,8 @@
       <div role="link">This is a link</div>
       <a href="#" data-role="link">This is a link</a>
 
-      <div role="img">This is an image</div>
-      <img src="bullet.png" data-role="img" usemap="#map">
+      <div role="image">This is an image</div>
+      <img src="bullet.png" data-role="image" usemap="#map">
       <map name="map">
         <area shape=rect coords="0, 0, 10, 10" href="#" data-role="link">
       </map>

@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "cc/trees/throttle_decider.h"
+
 #include "components/viz/common/quads/compositor_render_pass_draw_quad.h"
 #include "components/viz/common/quads/surface_draw_quad.h"
 #include "components/viz/common/surfaces/local_surface_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/geometry/skia_conversions.h"
 
 namespace cc {
 
@@ -61,7 +64,7 @@ TEST_F(ThrottleDeciderTest, BackdropFilter) {
   surface_quad->shared_quad_state = &sqs2;
   surface_quad->material = viz::DrawQuad::Material::kSurfaceContent;
   surface_quad->surface_range = viz::SurfaceRange(
-      absl::nullopt,
+      std::nullopt,
       viz::SurfaceId(frame_sink_id, viz::LocalSurfaceId(
                                         1u, base::UnguessableToken::Create())));
   surface_quad->rect = quad_rect;
@@ -74,8 +77,8 @@ TEST_F(ThrottleDeciderTest, BackdropFilter) {
   EXPECT_EQ(GetFrameSinksToThrottle(), expected_frame_sinks);
 
   // Put the backdrop filter within bounds (0,10 50x50).
-  render_passes[0]->backdrop_filter_bounds =
-      absl::optional<gfx::RRectF>(gfx::RRectF(0.0f, 10.0f, 50.0f, 50.0f, 1.0f));
+  render_passes[0]->backdrop_filter_bounds = SkPath::RRect(
+      SkRRect::MakeRectXY(SkRect::MakeXYWH(0.0f, 10.0f, 50.0f, 50.0f), 1, 1));
   // The surface quad (0,0 100x100) is partially behind the backdrop filter on
   // the rpdq (0,10 50x50) so it should not be throttled.
   RunThrottleDecider(render_passes);
@@ -92,8 +95,7 @@ TEST_F(ThrottleDeciderTest, BackdropFilter) {
   EXPECT_EQ(GetFrameSinksToThrottle(), expected_frame_sinks);
 
   // Add a mask to the backdrop filter.
-  rpdq->resources.ids[viz::RenderPassDrawQuadInternal::kMaskResourceIdIndex] =
-      viz::ResourceId::FromUnsafeValue(1u);
+  rpdq->resource_id = viz::ResourceId::FromUnsafeValue(1u);
 
   // As the mask would make the backdrop filter to be ignored, the surface
   // should not be throttled.

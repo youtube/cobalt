@@ -117,6 +117,14 @@
         ]
       },
       {
+        "name": "openFileUrl",
+        "type": "function",
+        "description": "Open file: URLs for tests.",
+        "parameters": [
+          {"type": "string", "name": "url"}
+        ]
+      },
+      {
         "name": "sendMessage",
         "type": "function",
         "description": "Sends a string message to the browser process, generating a Notification that C++ test code can wait for.",
@@ -215,7 +223,6 @@
         "name": "checkDeepEq",
         "type": "function",
         "nocompile": true,
-        "allowAmbiguousOptionalArguments": true,
         "parameters": [
           // These need to be optional because they can be null.
           {"type": "any", "name": "expected", "optional": true},
@@ -226,7 +233,6 @@
         "name": "assertEq",
         "type": "function",
         "nocompile": true,
-        "allowAmbiguousOptionalArguments": true,
         "parameters": [
           // These need to be optional because they can be null.
           {"type": "any", "name": "expected", "optional": true},
@@ -238,7 +244,6 @@
         "name": "assertNe",
         "type": "function",
         "nocompile": true,
-        "allowAmbiguousOptionalArguments": true,
         "parameters": [
           // These need to be optional because they can be null.
           {"type": "any", "name": "expected", "optional": true},
@@ -449,17 +454,6 @@
             ]
           }
         ]
-      },
-      {
-        "name": "getWakeEventPage",
-        "type": "function",
-        "description": "Returns the wake-event-page API function, which can be called to wake up the extension's event page.",
-        "nocompile": true,
-        "parameters": [],
-        "returns": {
-          "type": "function",
-          "description": "The API function which wakes the extension's event page"
-        }
       }
     ],
     "events": [

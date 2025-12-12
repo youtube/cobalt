@@ -8,22 +8,19 @@
 #include <string>
 #include <utility>
 
-#include "ash/components/arc/arc_features.h"
-#include "ash/components/arc/mojom/file_system.mojom.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/test/connection_holder_util.h"
-#include "ash/components/arc/test/fake_file_system_instance.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ash/arc/fileapi/arc_documents_provider_util.h"
 #include "chrome/browser/ash/arc/fileapi/arc_file_system_operation_runner.h"
 #include "chrome/test/base/testing_profile.h"
+#include "chromeos/ash/experiences/arc/mojom/file_system.mojom.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/test/connection_holder_util.h"
+#include "chromeos/ash/experiences/arc/test/fake_file_system_instance.h"
 #include "components/keyed_service/content/browser_context_keyed_service_factory.h"
 #include "content/public/test/browser_task_environment.h"
-#include "storage/browser/file_system/file_system_operation.h"
 #include "storage/browser/file_system/watcher_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -72,8 +69,6 @@ struct RootSpec {
 //     music.bin     audio/mp3   music-id
 //     no-delete.jpg image/jpeg  no-delete-id  // Non-deletable file
 //     no-rename.jpg image/jpeg  no-rename-id  // Non-renamable file
-//     size-file.jpg image/jpeg  size-file-id  // File with unknown size
-//     size-pipe.jpg image/jpeg  size-pipe-id  // Pipe with unknown size
 //   dups/           dir         dups-id
 //     dup.mp4       video/mp4   dup1-id
 //     dup.mp4       video/mp4   dup2-id
@@ -130,26 +125,6 @@ constexpr DocumentSpec kNoRenameSpec{"no-rename-id",
                                      false,
                                      true,
                                      true};
-constexpr DocumentSpec kUnknownSizeFileSpec{"size-file-id",
-                                            kDirSpec.document_id,
-                                            "size-file.jpg",
-                                            "image/jpeg",
-                                            -1,
-                                            46,
-                                            true,
-                                            true,
-                                            true,
-                                            true};
-constexpr DocumentSpec kUnknownSizePipeSpec{"size-pipe-id",
-                                            kDirSpec.document_id,
-                                            "size-pipe.jpg",
-                                            "image/jpeg",
-                                            -1,
-                                            46,
-                                            true,
-                                            true,
-                                            true,
-                                            true};
 constexpr DocumentSpec kDupsSpec{"dups-id", kRootSpec.document_id,
                                  "dups",    kAndroidDirectoryMimeType,
                                  -1,        55,
@@ -180,10 +155,10 @@ constexpr DocumentSpec kRoDirSpec{"ro-dir-id", kRootSpec.document_id,
                                   -1,          56,
                                   false,       false,
                                   false,       false};
-constexpr int kAllMetadataFields =
-    storage::FileSystemOperation::GET_METADATA_FIELD_IS_DIRECTORY |
-    storage::FileSystemOperation::GET_METADATA_FIELD_SIZE |
-    storage::FileSystemOperation::GET_METADATA_FIELD_LAST_MODIFIED;
+constexpr storage::FileSystemOperation::GetMetadataFieldSet kAllMetadataFields =
+    {storage::FileSystemOperation::GetMetadataField::kIsDirectory,
+     storage::FileSystemOperation::GetMetadataField::kSize,
+     storage::FileSystemOperation::GetMetadataField::kLastModified};
 
 // RootSpecs
 constexpr RootSpec kRegularRootSpec{"root", kRootSpec.document_id, "root1", 100,
@@ -205,8 +180,6 @@ constexpr DocumentSpec kAllDocumentSpecs[] = {kRootSpec,
                                               kNoDeleteSpec,
                                               kNoLastModifiedDateSpec,
                                               kNoRenameSpec,
-                                              kUnknownSizeFileSpec,
-                                              kUnknownSizePipeSpec,
                                               kDupsSpec,
                                               kDup2Spec,
                                               kDup1Spec,
@@ -229,15 +202,6 @@ FakeRoot ToRoot(const RootSpec& spec) {
                   spec.available_bytes, spec.capacity_bytes);
 }
 
-std::vector<FakeFile> AllFiles() {
-  return {
-      FakeFile("content://org.chromium.test/document/size-file-id", "01234",
-               "image/jpeg", FakeFile::Seekable::YES, -1),
-      FakeFile("content://org.chromium.test/document/size-pipe-id", "01234",
-               "image/jpeg", FakeFile::Seekable::NO, -1),
-  };
-}
-
 void ExpectMatchesSpec(const base::File::Info& info, const DocumentSpec& spec) {
   EXPECT_EQ(spec.size, info.size);
   if (spec.mime_type == kAndroidDirectoryMimeType) {
@@ -246,12 +210,15 @@ void ExpectMatchesSpec(const base::File::Info& info, const DocumentSpec& spec) {
     EXPECT_FALSE(info.is_directory);
   }
   EXPECT_FALSE(info.is_symbolic_link);
-  EXPECT_EQ(spec.last_modified,
-            static_cast<uint64_t>(info.last_modified.ToJavaTime()));
-  EXPECT_EQ(spec.last_modified,
-            static_cast<uint64_t>(info.last_accessed.ToJavaTime()));
-  EXPECT_EQ(spec.last_modified,
-            static_cast<uint64_t>(info.creation_time.ToJavaTime()));
+  EXPECT_EQ(
+      spec.last_modified,
+      static_cast<uint64_t>(info.last_modified.InMillisecondsSinceUnixEpoch()));
+  EXPECT_EQ(
+      spec.last_modified,
+      static_cast<uint64_t>(info.last_accessed.InMillisecondsSinceUnixEpoch()));
+  EXPECT_EQ(
+      spec.last_modified,
+      static_cast<uint64_t>(info.creation_time.InMillisecondsSinceUnixEpoch()));
 }
 
 std::unique_ptr<KeyedService> CreateFileSystemOperationRunnerForTesting(
@@ -273,9 +240,6 @@ class ArcDocumentsProviderRootTest : public testing::Test {
   void SetUp() override {
     for (auto spec : kAllDocumentSpecs) {
       fake_file_system_.AddDocument(ToDocument(spec));
-    }
-    for (auto file : AllFiles()) {
-      fake_file_system_.AddFile(file);
     }
     for (auto spec : kAllRootSpecs) {
       fake_file_system_.AddRoot(ToRoot(spec));
@@ -323,6 +287,10 @@ class ArcDocumentsProviderRootTest : public testing::Test {
 
     // Run all pending tasks before destroying testing profile.
     base::RunLoop().RunUntilIdle();
+
+    // Reset BrowserContext after all pneding tasks are completed and before
+    // destroying testing profile.
+    arc_service_manager_->set_browser_context(nullptr);
   }
 
  protected:
@@ -477,44 +445,6 @@ TEST_F(ArcDocumentsProviderRootTest, GetFileInfoWithCacheExpired) {
   EXPECT_EQ(last_count + 2, fake_file_system_.get_child_documents_count());
 }
 
-TEST_F(ArcDocumentsProviderRootTest, GetFileInfoUnknownSizeFile) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {arc::kDocumentsProviderUnknownSizeFeature}, {});
-  base::RunLoop run_loop;
-  root_->GetFileInfo(base::FilePath(FILE_PATH_LITERAL("dir/size-file.jpg")),
-                     kAllMetadataFields,
-                     base::BindOnce(
-                         [](base::RunLoop* run_loop, base::File::Error error,
-                            const base::File::Info& info) {
-                           run_loop->Quit();
-                           EXPECT_EQ(base::File::FILE_OK, error);
-                           auto expected_spec = kUnknownSizeFileSpec;
-                           // size of file content in AllFiles()
-                           expected_spec.size = 5;
-                           ExpectMatchesSpec(info, expected_spec);
-                         },
-                         &run_loop));
-  run_loop.Run();
-}
-
-TEST_F(ArcDocumentsProviderRootTest, GetFileInfoUnknownSizePipe) {
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitWithFeatures(
-      {arc::kDocumentsProviderUnknownSizeFeature}, {});
-  base::RunLoop run_loop;
-  root_->GetFileInfo(base::FilePath(FILE_PATH_LITERAL("dir/size-pipe.jpg")),
-                     kAllMetadataFields,
-                     base::BindOnce(
-                         [](base::RunLoop* run_loop, base::File::Error error,
-                            const base::File::Info& info) {
-                           run_loop->Quit();
-                           EXPECT_EQ(base::File::FILE_ERROR_FAILED, error);
-                         },
-                         &run_loop));
-  run_loop.Run();
-}
-
 TEST_F(ArcDocumentsProviderRootTest, ReadDirectory) {
   base::RunLoop run_loop;
   root_->ReadDirectory(
@@ -524,36 +454,32 @@ TEST_F(ArcDocumentsProviderRootTest, ReadDirectory) {
              std::vector<ArcDocumentsProviderRoot::ThinFileInfo> file_list) {
             run_loop->Quit();
             EXPECT_EQ(base::File::FILE_OK, error);
-            ASSERT_EQ(7u, file_list.size());
+            ASSERT_EQ(5u, file_list.size());
             EXPECT_EQ(FILE_PATH_LITERAL("music.bin.mp3"), file_list[0].name);
             EXPECT_EQ("music-id", file_list[0].document_id);
             EXPECT_FALSE(file_list[0].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(44), file_list[0].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(44),
+                      file_list[0].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("no-delete.jpg"), file_list[1].name);
             EXPECT_EQ("no-delete-id", file_list[1].document_id);
             EXPECT_FALSE(file_list[1].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(45), file_list[1].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(45),
+                      file_list[1].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("no-last-modified-date.jpg"),
                       file_list[2].name);
             EXPECT_EQ("no-last-modified-date-id", file_list[2].document_id);
             EXPECT_FALSE(file_list[2].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(0), file_list[2].last_modified);
+            EXPECT_EQ(base::Time::UnixEpoch(), file_list[2].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("no-rename.jpg"), file_list[3].name);
             EXPECT_EQ("no-rename-id", file_list[3].document_id);
             EXPECT_FALSE(file_list[3].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(46), file_list[3].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(46),
+                      file_list[3].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("photo.jpg"), file_list[4].name);
             EXPECT_EQ("photo-id", file_list[4].document_id);
             EXPECT_FALSE(file_list[4].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(33), file_list[4].last_modified);
-            EXPECT_EQ(FILE_PATH_LITERAL("size-file.jpg"), file_list[5].name);
-            EXPECT_EQ("size-file-id", file_list[5].document_id);
-            EXPECT_FALSE(file_list[5].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(46), file_list[5].last_modified);
-            EXPECT_EQ(FILE_PATH_LITERAL("size-pipe.jpg"), file_list[6].name);
-            EXPECT_EQ("size-pipe-id", file_list[6].document_id);
-            EXPECT_FALSE(file_list[5].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(46), file_list[6].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(33),
+                      file_list[4].last_modified);
           },
           &run_loop));
   run_loop.Run();
@@ -572,15 +498,18 @@ TEST_F(ArcDocumentsProviderRootTest, ReadDirectoryRoot) {
             EXPECT_EQ(FILE_PATH_LITERAL("dir"), file_list[0].name);
             EXPECT_EQ("dir-id", file_list[0].document_id);
             EXPECT_TRUE(file_list[0].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(22), file_list[0].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(22),
+                      file_list[0].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("dups"), file_list[1].name);
             EXPECT_EQ("dups-id", file_list[1].document_id);
             EXPECT_TRUE(file_list[1].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(55), file_list[1].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(55),
+                      file_list[1].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("ro-dir"), file_list[2].name);
             EXPECT_EQ("ro-dir-id", file_list[2].document_id);
             EXPECT_TRUE(file_list[2].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(56), file_list[2].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(56),
+                      file_list[2].last_modified);
           },
           &run_loop));
   run_loop.Run();
@@ -615,19 +544,23 @@ TEST_F(ArcDocumentsProviderRootTest, ReadDirectoryDups) {
             EXPECT_EQ(FILE_PATH_LITERAL("dup (1).mp4"), file_list[0].name);
             EXPECT_EQ("dup2-id", file_list[0].document_id);
             EXPECT_FALSE(file_list[0].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(77), file_list[0].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(77),
+                      file_list[0].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("dup (2).mp4"), file_list[1].name);
             EXPECT_EQ("dup3-id", file_list[1].document_id);
             EXPECT_FALSE(file_list[1].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(88), file_list[1].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(88),
+                      file_list[1].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("dup (3).mp4"), file_list[2].name);
             EXPECT_EQ("dup4-id", file_list[2].document_id);
             EXPECT_FALSE(file_list[2].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(99), file_list[2].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(99),
+                      file_list[2].last_modified);
             EXPECT_EQ(FILE_PATH_LITERAL("dup.mp4"), file_list[3].name);
             EXPECT_EQ("dup1-id", file_list[3].document_id);
             EXPECT_FALSE(file_list[3].is_directory);
-            EXPECT_EQ(base::Time::FromJavaTime(66), file_list[3].last_modified);
+            EXPECT_EQ(base::Time::FromMillisecondsSinceUnixEpoch(66),
+                      file_list[3].last_modified);
           },
           &run_loop));
   run_loop.Run();
@@ -756,6 +689,40 @@ TEST_F(ArcDocumentsProviderRootTest, DeleteFile) {
   EXPECT_FALSE(fake_file_system_.DocumentExists(
       kAuthority, kRootSpec.document_id,
       base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg"))));
+}
+
+TEST_F(ArcDocumentsProviderRootTest, DeleteFileThenGetMetadataClearsCache) {
+  // Make sure that dir/photo.jpg exists.
+  ASSERT_TRUE(fake_file_system_.DocumentExists(
+      kAuthority, kRootSpec.document_id,
+      base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg"))));
+
+  {
+    base::RunLoop run_loop;
+    root_->DeleteFile(base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+                      base::BindOnce(
+                          [](base::RunLoop* run_loop, base::File::Error error) {
+                            run_loop->Quit();
+                            EXPECT_EQ(base::File::FILE_OK, error);
+                          },
+                          &run_loop));
+    run_loop.Run();
+  }
+
+  // dir/photo.jpg should have been removed.
+  {
+    base::RunLoop run_loop;
+    root_->GetExtraFileMetadata(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error,
+               const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
 }
 
 TEST_F(ArcDocumentsProviderRootTest, DeleteFileNonExist) {
@@ -1083,6 +1050,52 @@ TEST_F(ArcDocumentsProviderRootTest, CopyFile) {
       base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg"))));
 }
 
+TEST_F(ArcDocumentsProviderRootTest, CopyFileThenGetMetadataClearsCache) {
+  {
+    base::RunLoop run_loop;
+    root_->CopyFileLocal(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+        base::FilePath(FILE_PATH_LITERAL("dir/photo2.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_OK, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+
+  // dir/photo2.jpg should be created by the copy.
+  {
+    base::RunLoop run_loop;
+    root_->GetExtraFileMetadata(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo2.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error,
+               const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_OK, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+
+  // The source file should still be there.
+  {
+    base::RunLoop run_loop;
+    root_->GetExtraFileMetadata(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error,
+               const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_OK, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+}
+
 TEST_F(ArcDocumentsProviderRootTest, CopyFileToDifferentDirectory) {
   base::RunLoop run_loop;
   root_->CopyFileLocal(
@@ -1186,6 +1199,52 @@ TEST_F(ArcDocumentsProviderRootTest, RenameFile) {
           .document_id);
 }
 
+TEST_F(ArcDocumentsProviderRootTest, RenameFileThenGetMetadataClearsCache) {
+  {
+    base::RunLoop run_loop;
+    root_->MoveFileLocal(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+        base::FilePath(FILE_PATH_LITERAL("dir/photo2.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_OK, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+
+  // There should be dir/photo2.jpg which was renamed from dir/photo.jpg.
+  {
+    base::RunLoop run_loop;
+    root_->GetExtraFileMetadata(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo2.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error,
+               const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_OK, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+
+  // The source file should be gone by rename.
+  {
+    base::RunLoop run_loop;
+    root_->GetExtraFileMetadata(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error,
+               const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+}
+
 TEST_F(ArcDocumentsProviderRootTest, RenameFileNotRenamable) {
   base::RunLoop run_loop;
   root_->MoveFileLocal(
@@ -1262,6 +1321,52 @@ TEST_F(ArcDocumentsProviderRootTest, MoveFile) {
                 .GetDocument(kAuthority, kRootSpec.document_id,
                              base::FilePath(FILE_PATH_LITERAL("photo.jpg")))
                 .document_id);
+}
+
+TEST_F(ArcDocumentsProviderRootTest, MoveFileThenGetMetadataClearsCache) {
+  {
+    base::RunLoop run_loop;
+    root_->MoveFileLocal(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+        base::FilePath(FILE_PATH_LITERAL("photo.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_OK, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+
+  // There should be photo.jpg which was moved from dir/photo.jpg.
+  {
+    base::RunLoop run_loop;
+    root_->GetExtraFileMetadata(
+        base::FilePath(FILE_PATH_LITERAL("photo.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error,
+               const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_OK, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
+
+  // The source file should be gone by move.
+  {
+    base::RunLoop run_loop;
+    root_->GetExtraFileMetadata(
+        base::FilePath(FILE_PATH_LITERAL("dir/photo.jpg")),
+        base::BindOnce(
+            [](base::RunLoop* run_loop, base::File::Error error,
+               const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
+              run_loop->Quit();
+              EXPECT_EQ(base::File::FILE_ERROR_NOT_FOUND, error);
+            },
+            &run_loop));
+    run_loop.Run();
+  }
 }
 
 TEST_F(ArcDocumentsProviderRootTest, MoveFileWithDifferentName) {
@@ -1370,7 +1475,7 @@ TEST_F(ArcDocumentsProviderRootTest, WatchChanged) {
   // make installation finish we run the message loop until idle. This depends
   // on the behavior of FakeFileSystemInstance.
   //
-  // TODO(crbug.com/698624): Remove the hack to make AddWatcher() return
+  // TODO(crbug.com/40509383): Remove the hack to make AddWatcher() return
   // immediately.
   base::RunLoop().RunUntilIdle();
 
@@ -1420,7 +1525,7 @@ TEST_F(ArcDocumentsProviderRootTest, WatchDeleted) {
   // make installation finish we run the message loop until idle. This depends
   // on the behavior of FakeFileSystemInstance.
   //
-  // TODO(crbug.com/698624): Remove the hack to make AddWatcher() return
+  // TODO(crbug.com/40509383): Remove the hack to make AddWatcher() return
   // immediately.
   base::RunLoop().RunUntilIdle();
 
@@ -1519,7 +1624,8 @@ TEST_F(ArcDocumentsProviderRootTest, GetExtraMetadataFromDocument) {
           [](base::RunLoop* run_loop, base::File::Error error,
              const ArcDocumentsProviderRoot::ExtraFileMetadata& metadata) {
             run_loop->Quit();
-            EXPECT_EQ(metadata.last_modified, base::Time::FromJavaTime(33));
+            EXPECT_EQ(metadata.last_modified,
+                      base::Time::FromMillisecondsSinceUnixEpoch(33));
           },
           &run_loop));
   run_loop.Run();
@@ -1539,7 +1645,8 @@ TEST_F(ArcDocumentsProviderRootTest, GetMetadataNonDeletable) {
             EXPECT_TRUE(metadata.dir_supports_create);
             EXPECT_TRUE(metadata.supports_thumbnail);
             EXPECT_EQ(metadata.size, 3);
-            EXPECT_EQ(metadata.last_modified, base::Time::FromJavaTime(45));
+            EXPECT_EQ(metadata.last_modified,
+                      base::Time::FromMillisecondsSinceUnixEpoch(45));
           },
           &run_loop));
   run_loop.Run();
@@ -1559,7 +1666,8 @@ TEST_F(ArcDocumentsProviderRootTest, GetMetadataNonRenamable) {
             EXPECT_TRUE(metadata.dir_supports_create);
             EXPECT_TRUE(metadata.supports_thumbnail);
             EXPECT_EQ(metadata.size, 3);
-            EXPECT_EQ(metadata.last_modified, base::Time::FromJavaTime(46));
+            EXPECT_EQ(metadata.last_modified,
+                      base::Time::FromMillisecondsSinceUnixEpoch(46));
           },
           &run_loop));
   run_loop.Run();
@@ -1579,7 +1687,8 @@ TEST_F(ArcDocumentsProviderRootTest, GetMetadataReadOnlyDirectory) {
             EXPECT_FALSE(metadata.dir_supports_create);
             EXPECT_FALSE(metadata.supports_thumbnail);
             EXPECT_EQ(metadata.size, -1);
-            EXPECT_EQ(metadata.last_modified, base::Time::FromJavaTime(56));
+            EXPECT_EQ(metadata.last_modified,
+                      base::Time::FromMillisecondsSinceUnixEpoch(56));
           },
           &run_loop));
   run_loop.Run();

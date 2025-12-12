@@ -7,6 +7,7 @@
 
 #include <cstdint>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -25,14 +26,9 @@ class QuicDataReader;
 
 // A class for decoding the HTTP frames that are exchanged in an HTTP over QUIC
 // session.
-class QUIC_EXPORT_PRIVATE HttpDecoder {
+class QUICHE_EXPORT HttpDecoder {
  public:
-  struct QUIC_EXPORT_PRIVATE Options {
-    // Indicates that WEBTRANSPORT_STREAM should be parsed.
-    bool allow_web_transport_stream = false;
-  };
-
-  class QUIC_EXPORT_PRIVATE Visitor {
+  class QUICHE_EXPORT Visitor {
    public:
     virtual ~Visitor() {}
 
@@ -87,6 +83,13 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // Called when a PRIORITY_UPDATE frame has been successfully parsed.
     virtual bool OnPriorityUpdateFrame(const PriorityUpdateFrame& frame) = 0;
 
+    // Called when an ORIGIN frame has been received.
+    // |header_length| contains ORIGIN frame length and payload length.
+    virtual bool OnOriginFrameStart(QuicByteCount header_length) = 0;
+
+    // Called when an ORIGIN frame has been successfully parsed.
+    virtual bool OnOriginFrame(const OriginFrame& frame) = 0;
+
     // Called when an ACCEPT_CH frame has been received.
     // |header_length| contains ACCEPT_CH frame length and payload length.
     virtual bool OnAcceptChFrameStart(QuicByteCount header_length) = 0;
@@ -101,6 +104,20 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
     // process to cease.
     virtual void OnWebTransportStreamFrameType(
         QuicByteCount header_length, WebTransportSessionId session_id) = 0;
+
+    // Called when a METADATA frame has been received.
+    // |header_length| and |payload_length| are the length of the frame header
+    // and payload, respectively.
+    virtual bool OnMetadataFrameStart(QuicByteCount header_length,
+                                      QuicByteCount payload_length) = 0;
+
+    // Called when part of the payload of the METADATA frame has been read.  May
+    // be called multiple times for a single frame.  |payload| is guaranteed to
+    // be non-empty.
+    virtual bool OnMetadataFramePayload(absl::string_view payload) = 0;
+
+    // Called when the METADATA frame has been completely processed.
+    virtual bool OnMetadataFrameEnd() = 0;
 
     // Called when a frame of unknown type |frame_type| has been received.
     // Frame type might be reserved, Visitor must make sure to ignore.
@@ -118,8 +135,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   };
 
   // |visitor| must be non-null, and must outlive HttpDecoder.
-  explicit HttpDecoder(Visitor* visitor);
-  explicit HttpDecoder(Visitor* visitor, Options options);
+  explicit HttpDecoder(Visitor* /*absl_nonnull*/ visitor);
 
   ~HttpDecoder();
 
@@ -146,6 +162,13 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Returns true if input data processed so far ends on a frame boundary.
   bool AtFrameBoundary() const { return state_ == STATE_READING_FRAME_TYPE; }
 
+  // Indicates that WEBTRANSPORT_STREAM should be parsed.
+  void EnableWebTransportStreamParsing() { allow_web_transport_stream_ = true; }
+
+  const std::vector<uint64_t>& decoded_frame_types() const {
+    return decoded_frame_types_;
+  }
+
   std::string DebugString() const;
 
  private:
@@ -171,11 +194,11 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // if there are any errors.  Also calls OnDataFrameStart() or
   // OnHeadersFrameStart() for appropriate frame types. Returns whether the
   // processing should continue.
-  bool ReadFrameType(QuicDataReader* reader);
+  bool ReadFrameType(QuicDataReader& reader);
 
   // Reads the length of a frame from |reader|. Sets error_ and error_detail_
   // if there are any errors.  Returns whether processing should continue.
-  bool ReadFrameLength(QuicDataReader* reader);
+  bool ReadFrameLength(QuicDataReader& reader);
 
   // Returns whether the current frame is of a buffered type.
   // The payload of buffered frames is buffered by HttpDecoder, and parsed by
@@ -188,7 +211,7 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // For buffered frame types, calls BufferOrParsePayload().  For other frame
   // types, reads the payload of the current frame from |reader| and calls
   // visitor methods.  Returns whether processing should continue.
-  bool ReadFramePayload(QuicDataReader* reader);
+  bool ReadFramePayload(QuicDataReader& reader);
 
   // For buffered frame types, this method is only called if frame payload is
   // empty, and it calls BufferOrParsePayload().  For other frame types, this
@@ -202,41 +225,44 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   // Read payload of unknown frame from |reader| and call
   // Visitor::OnUnknownFramePayload().  Returns true decoding should continue,
   // false if it should be paused.
-  bool HandleUnknownFramePayload(QuicDataReader* reader);
+  bool HandleUnknownFramePayload(QuicDataReader& reader);
 
   // Buffers any remaining frame payload from |*reader| into |buffer_| if
   // necessary.  Parses the frame payload if complete.  Parses out of |*reader|
   // without unnecessary copy if |*reader| contains entire payload.
   // Returns whether processing should continue.
   // Must only be called when current frame type is buffered.
-  bool BufferOrParsePayload(QuicDataReader* reader);
+  bool BufferOrParsePayload(QuicDataReader& reader);
 
   // Parses the entire payload of certain kinds of frames that are parsed in a
   // single pass.  |reader| must have at least |current_frame_length_| bytes.
   // Returns whether processing should continue.
   // Must only be called when current frame type is buffered.
-  bool ParseEntirePayload(QuicDataReader* reader);
+  bool ParseEntirePayload(QuicDataReader& reader);
 
   // Buffers any remaining frame length field from |reader| into
   // |length_buffer_|.
-  void BufferFrameLength(QuicDataReader* reader);
+  void BufferFrameLength(QuicDataReader& reader);
 
   // Buffers any remaining frame type field from |reader| into |type_buffer_|.
-  void BufferFrameType(QuicDataReader* reader);
+  void BufferFrameType(QuicDataReader& reader);
 
   // Sets |error_| and |error_detail_| accordingly.
   void RaiseError(QuicErrorCode error, std::string error_detail);
 
   // Parses the payload of a SETTINGS frame from |reader| into |frame|.
-  bool ParseSettingsFrame(QuicDataReader* reader, SettingsFrame* frame);
+  bool ParseSettingsFrame(QuicDataReader& reader, SettingsFrame& frame);
 
   // Parses the payload of a PRIORITY_UPDATE frame (draft-02, type 0xf0700)
   // from |reader| into |frame|.
-  bool ParsePriorityUpdateFrame(QuicDataReader* reader,
-                                PriorityUpdateFrame* frame);
+  bool ParsePriorityUpdateFrame(QuicDataReader& reader,
+                                PriorityUpdateFrame& frame);
+
+  // Parses the payload of an ORIGIN frame from |reader| into |frame|.
+  bool ParseOriginFrame(QuicDataReader& reader, OriginFrame& frame);
 
   // Parses the payload of an ACCEPT_CH frame from |reader| into |frame|.
-  bool ParseAcceptChFrame(QuicDataReader* reader, AcceptChFrame* frame);
+  bool ParseAcceptChFrame(QuicDataReader& reader, AcceptChFrame& frame);
 
   // Returns the max frame size of a given |frame_type|.
   QuicByteCount MaxFrameLength(uint64_t frame_type);
@@ -271,6 +297,12 @@ class QUIC_EXPORT_PRIVATE HttpDecoder {
   std::array<char, sizeof(uint64_t)> length_buffer_;
   // Remaining unparsed type field data.
   std::array<char, sizeof(uint64_t)> type_buffer_;
+  // Latched value of reloadable flag enable_h3_origin_frame.
+  bool enable_origin_frame_;
+
+  // Stores the frame types of the first 10 decoded frames.
+  // TODO(b/355662721): Remove this when debugging is complete.
+  std::vector<uint64_t> decoded_frame_types_;
 };
 
 }  // namespace quic

@@ -4,10 +4,10 @@
 
 #include "device/bluetooth/bluez/bluetooth_local_gatt_service_bluez.h"
 
-#include "base/guid.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "base/strings/string_util.h"
+#include "base/uuid.h"
 #include "dbus/object_path.h"
 #include "device/bluetooth/bluez/bluetooth_adapter_bluez.h"
 
@@ -82,6 +82,15 @@ BluetoothLocalGattServiceBlueZ::GetCharacteristic(
   return service == characteristics_.end() ? nullptr : service->second.get();
 }
 
+base::WeakPtr<device::BluetoothLocalGattCharacteristic>
+BluetoothLocalGattServiceBlueZ::CreateCharacteristic(
+    const device::BluetoothUUID& uuid,
+    device::BluetoothGattCharacteristic::Properties properties,
+    device::BluetoothGattCharacteristic::Permissions permissions) {
+  return bluez::BluetoothLocalGattCharacteristicBlueZ::Create(
+      uuid, properties, permissions, /*service=*/this);
+}
+
 const std::map<dbus::ObjectPath,
                std::unique_ptr<BluetoothLocalGattCharacteristicBlueZ>>&
 BluetoothLocalGattServiceBlueZ::GetCharacteristics() const {
@@ -91,7 +100,7 @@ BluetoothLocalGattServiceBlueZ::GetCharacteristics() const {
 // static
 dbus::ObjectPath BluetoothLocalGattServiceBlueZ::AddGuidToObjectPath(
     const std::string& path) {
-  std::string GuidString = base::GenerateGUID();
+  std::string GuidString = base::Uuid::GenerateRandomV4().AsLowercaseString();
   base::RemoveChars(GuidString, "-", &GuidString);
 
   return dbus::ObjectPath(path + GuidString);

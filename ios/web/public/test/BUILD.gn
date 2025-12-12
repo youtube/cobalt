@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 source_set("test") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   public_deps = [
@@ -17,16 +16,18 @@ source_set("test") {
     "//base",
     "//base/test:test_support",
     "//ios/web",
-    "//ios/web/common:features",
     "//ios/web/js_messaging",
     "//ios/web/js_messaging:java_script_feature",
     "//ios/web/navigation",
     "//ios/web/navigation:wk_navigation_util",
-    "//ios/web/public/deprecated",
+    "//ios/web/public/session",
+    "//ios/web/public/session/proto",
+    "//ios/web/public/session/proto:proto_util",
     "//ios/web/test:js_test_util_internal",
     "//ios/web/test:test_support",
     "//ios/web/web_state:web_state_impl_header",
     "//ios/web/web_state/ui:web_controller_header",
+    "//ios/web/web_state/ui:wk_web_view_configuration_provider_header",
     "//ui/base",
   ]
 
@@ -59,17 +60,16 @@ source_set("download_test_utils") {
   ]
 
   frameworks = [ "Foundation.framework" ]
-
-  configs += [ "//build/config/compiler:enable_arc" ]
 }
 
 source_set("javascript_test") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   deps = [
     ":util",
     "//base",
+    "//base/test:test_support",
+    "//net",
     "//testing/gtest",
   ]
 
@@ -83,12 +83,11 @@ source_set("javascript_test") {
 
 # Those fixtures *must* not be used directly from //ios/chrome code as they
 # create web::BrowserState* as the BrowserState which violates one important
-# invariant of //ios/chrome code (the invariant that all BrowserStates are of
-# a sub-class of ChromeBrowserState). This is why the classes are defined in
+# invariant of //ios/chrome code (the invariant that all Profiles are of
+# a sub-class of ProfileIOS). This is why the classes are defined in
 # a target that limits its visibility to //ios/web, //components and to the
 # targets in //ios/chrome that safely wraps those fixtures.
 source_set("test_fixture") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   visibility = [
@@ -112,25 +111,24 @@ source_set("test_fixture") {
 
   deps = [
     "//base/test:test_support",
-    "//ios/web",
     "//ios/web/common:features",
     "//ios/web/js_messaging:java_script_feature",
     "//ios/web/navigation",
     "//ios/web/navigation:core",
     "//ios/web/navigation:wk_navigation_util",
-    "//ios/web/public/deprecated",
     "//ios/web/public/test:util",
     "//ios/web/public/test/fakes",
     "//ios/web/test:js_test_util_internal",
+    "//ios/web/web_state",
     "//ios/web/web_state:web_state_impl_header",
     "//ios/web/web_state/ui:web_controller_header",
+    "//ios/web/web_state/ui:wk_web_view_configuration_provider_header",
     "//ui/base",
     "//url",
   ]
 }
 
 source_set("element_selector") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   sources = [
@@ -142,7 +140,6 @@ source_set("element_selector") {
 }
 
 source_set("util") {
-  configs += [ "//build/config/compiler:enable_arc" ]
   testonly = true
 
   deps = [
@@ -153,18 +150,21 @@ source_set("util") {
     "//ios/web/find_in_page",
     "//ios/web/js_messaging",
     "//ios/web/js_messaging:java_script_feature",
+    "//ios/web/js_messaging:web_view_js_utils",
     "//ios/web/public",
     "//ios/web/public/js_messaging",
+    "//ios/web/public/js_messaging:web_view_js_utils",
     "//ios/web/test:js_test_util_internal",
+    "//ios/web/util",
+    "//ios/web/util",
     "//ios/web/web_state:web_state_impl_header",
     "//ios/web/web_state/ui",
     "//ios/web/web_state/ui:wk_web_view_configuration_provider_header",
-    "//ios/web/web_view:util",
     "//net",
     "//testing/gtest",
   ]
 
-  # TODO(crbug.com/922813): Remove this once internal targets depend directly
+  # TODO(crbug.com/40609912): Remove this once internal targets depend directly
   # on ":element_selector".
   public_deps = [ "//ios/web/public/test:element_selector" ]
 
@@ -198,5 +198,4 @@ source_set("fuzzer_support") {
     "//ios/web/public",
     "//ios/web/public/test/fakes",
   ]
-  configs += [ "//build/config/compiler:enable_arc" ]
 }

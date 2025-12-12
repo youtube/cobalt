@@ -14,6 +14,7 @@
 #include "components/nacl/common/buildflags.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/public/common/content_switches.h"
+#include "content/shell/common/shell_paths.h"
 #include "content/shell/common/shell_switches.h"
 #include "extensions/common/extension_paths.h"
 #include "extensions/shell/browser/default_shell_browser_main_delegate.h"
@@ -23,11 +24,8 @@
 #include "ui/base/resource/resource_bundle.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
-#include "chromeos/dbus/constants/dbus_paths.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "ash/constants/ash_paths.h"
+#include "chromeos/dbus/constants/dbus_paths.h"
 #endif
 
 #if BUILDFLAG(ENABLE_NACL)
@@ -35,13 +33,14 @@
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "components/nacl/common/nacl_paths.h"  // nogncheck
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_ZYGOTE)
 #include "components/nacl/zygote/nacl_fork_delegate_linux.h"
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(USE_ZYGOTE)
 #endif  // BUILDFLAG(ENABLE_NACL)
 
 #if BUILDFLAG(IS_WIN)
 #include "base/base_paths_win.h"
+#include "base/process/process_info.h"
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "base/nix/xdg_util.h"
 #elif BUILDFLAG(IS_MAC)
@@ -57,8 +56,9 @@ base::FilePath GetDataPath() {
   // earlier, instead of reading the switch both here and in
   // ShellBrowserContext::InitWhileIOAllowed().
   base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
-  if (cmd_line->HasSwitch(switches::kContentShellDataPath))
-    return cmd_line->GetSwitchValuePath(switches::kContentShellDataPath);
+  if (cmd_line->HasSwitch(switches::kContentShellUserDataDir)) {
+    return cmd_line->GetSwitchValuePath(switches::kContentShellUserDataDir);
+  }
 
   base::FilePath data_dir;
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -79,17 +79,24 @@ base::FilePath GetDataPath() {
 }
 
 void InitLogging() {
+  uint32_t logging_dest = logging::LOG_TO_ALL;
   base::FilePath log_path;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kLogFile)) {
     log_path = base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
         switches::kLogFile);
+#if BUILDFLAG(IS_WIN)
+  } else if (base::IsCurrentProcessInAppContainer()) {
+    // Sandboxed appcontainer processes are unable to resolve the default log
+    // file path without asserting.
+    logging_dest = (logging_dest & ~logging::LOG_TO_FILE);
+#endif
   } else {
     log_path = GetDataPath().Append(FILE_PATH_LITERAL("app_shell.log"));
   }
 
   // Set up log initialization settings.
   logging::LoggingSettings settings;
-  settings.logging_dest = logging::LOG_TO_ALL;
+  settings.logging_dest = logging_dest;
   settings.log_file_path = log_path.value().c_str();
 
   // Replace the old log file if this is the first process.
@@ -123,20 +130,19 @@ ShellMainDelegate::ShellMainDelegate() {
 ShellMainDelegate::~ShellMainDelegate() {
 }
 
-absl::optional<int> ShellMainDelegate::BasicStartupComplete() {
+std::optional<int> ShellMainDelegate::BasicStartupComplete() {
   InitLogging();
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::RegisterPathProvider();
-#endif
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_ASH)
   chromeos::dbus_paths::RegisterPathProvider();
 #endif
 #if BUILDFLAG(ENABLE_NACL) && (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
   nacl::RegisterPathProvider();
 #endif
   extensions::RegisterPathProvider();
-  return absl::nullopt;
+  content::RegisterShellPathProvider();
+  return std::nullopt;
 }
 
 void ShellMainDelegate::PreSandboxStartup() {
@@ -169,14 +175,14 @@ void ShellMainDelegate::ProcessExiting(const std::string& process_type) {
   logging::CloseLogFile();
 }
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_ZYGOTE)
 void ShellMainDelegate::ZygoteStarting(
     std::vector<std::unique_ptr<content::ZygoteForkDelegate>>* delegates) {
 #if BUILDFLAG(ENABLE_NACL)
   nacl::AddNaClZygoteForkDelegates(delegates);
 #endif  // BUILDFLAG(ENABLE_NACL)
 }
-#endif  // BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_MAC) && !BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(USE_ZYGOTE)
 
 // static
 bool ShellMainDelegate::ProcessNeedsResourceBundle(

@@ -2,10 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "cc/paint/display_item_list.h"
 
 #include <stddef.h>
 
+#include <array>
 #include <vector>
 
 #include "base/logging.h"
@@ -22,10 +28,12 @@
 #include "cc/test/pixel_test_utils.h"
 #include "cc/test/skia_common.h"
 #include "cc/test/test_skcanvas.h"
+#include "skia/ext/font_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
+#include "third_party/skia/include/core/SkFont.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkTextBlob.h"
 #include "ui/gfx/geometry/rect.h"
@@ -125,7 +133,7 @@ TEST_F(DisplayItemListTest, TraceEmptyVisualRect) {
   EXPECT_TRACED_RECT(0, 0, 0, 0, visual_rect);
   name = item_dict->FindString("name");
   ASSERT_NE(nullptr, name);
-  EXPECT_EQ("DrawRect", *name);
+  EXPECT_EQ("DrawRectOp", *name);
 
   item_dict = ((*items)[1]).GetIfDict();
   ASSERT_NE(nullptr, item_dict);
@@ -134,7 +142,7 @@ TEST_F(DisplayItemListTest, TraceEmptyVisualRect) {
   EXPECT_TRACED_RECT(8, 9, 10, 10, visual_rect);
   name = item_dict->FindString("name");
   ASSERT_NE(nullptr, name);
-  EXPECT_EQ("DrawRect", *name);
+  EXPECT_EQ("DrawRectOp", *name);
 }
 
 TEST_F(DisplayItemListTest, SingleUnpairedRange) {
@@ -143,7 +151,7 @@ TEST_F(DisplayItemListTest, SingleUnpairedRange) {
   blue_flags.setColor(SK_ColorBLUE);
   PaintFlags red_paint;
   red_paint.setColor(SK_ColorRED);
-  unsigned char pixels[4 * 100 * 100] = {0};
+  unsigned char pixels[4 * 100 * 100] = {};
   auto list = base::MakeRefCounted<DisplayItemList>();
 
   gfx::Point offset(8, 9);
@@ -160,7 +168,7 @@ TEST_F(DisplayItemListTest, SingleUnpairedRange) {
   DrawDisplayList(pixels, layer_rect, list);
 
   SkBitmap expected_bitmap;
-  unsigned char expected_pixels[4 * 100 * 100] = {0};
+  unsigned char expected_pixels[4 * 100 * 100] = {};
   SkImageInfo info =
       SkImageInfo::MakeN32Premul(layer_rect.width(), layer_rect.height());
   expected_bitmap.installPixels(info, expected_pixels, info.minRowBytes());
@@ -205,7 +213,7 @@ TEST_F(DisplayItemListTest, ClipPairedRange) {
   blue_flags.setColor(SK_ColorBLUE);
   PaintFlags red_paint;
   red_paint.setColor(SK_ColorRED);
-  unsigned char pixels[4 * 100 * 100] = {0};
+  unsigned char pixels[4 * 100 * 100] = {};
   auto list = base::MakeRefCounted<DisplayItemList>();
 
   gfx::Point first_offset(8, 9);
@@ -254,7 +262,7 @@ TEST_F(DisplayItemListTest, ClipPairedRange) {
   DrawDisplayList(pixels, layer_rect, list);
 
   SkBitmap expected_bitmap;
-  unsigned char expected_pixels[4 * 100 * 100] = {0};
+  unsigned char expected_pixels[4 * 100 * 100] = {};
   SkImageInfo info =
       SkImageInfo::MakeN32Premul(layer_rect.width(), layer_rect.height());
   expected_bitmap.installPixels(info, expected_pixels, info.minRowBytes());
@@ -279,7 +287,7 @@ TEST_F(DisplayItemListTest, TransformPairedRange) {
   blue_flags.setColor(SK_ColorBLUE);
   PaintFlags red_paint;
   red_paint.setColor(SK_ColorRED);
-  unsigned char pixels[4 * 100 * 100] = {0};
+  unsigned char pixels[4 * 100 * 100] = {};
   auto list = base::MakeRefCounted<DisplayItemList>();
 
   gfx::Point first_offset(8, 9);
@@ -326,7 +334,7 @@ TEST_F(DisplayItemListTest, TransformPairedRange) {
   DrawDisplayList(pixels, layer_rect, list);
 
   SkBitmap expected_bitmap;
-  unsigned char expected_pixels[4 * 100 * 100] = {0};
+  unsigned char expected_pixels[4 * 100 * 100] = {};
   SkImageInfo info =
       SkImageInfo::MakeN32Premul(layer_rect.width(), layer_rect.height());
   expected_bitmap.installPixels(info, expected_pixels, info.minRowBytes());
@@ -348,10 +356,11 @@ TEST_F(DisplayItemListTest, TransformPairedRange) {
 TEST_F(DisplayItemListTest, FilterPairedRange) {
   gfx::Rect layer_rect(100, 100);
   FilterOperations filters;
-  unsigned char pixels[4 * 100 * 100] = {0};
+  unsigned char pixels[4 * 100 * 100] = {};
   auto list = base::MakeRefCounted<DisplayItemList>();
 
-  sk_sp<SkSurface> source_surface = SkSurface::MakeRasterN32Premul(50, 50);
+  sk_sp<SkSurface> source_surface =
+      SkSurfaces::Raster(SkImageInfo::MakeN32Premul(50, 50));
   SkCanvas* source_canvas = source_surface->getCanvas();
   source_canvas->clear(SkColorSetRGB(128, 128, 128));
   PaintImage source_image = PaintImageBuilder::WithDefault()
@@ -383,8 +392,7 @@ TEST_F(DisplayItemListTest, FilterPairedRange) {
     list->push<TranslateOp>(filter_bounds.x(), filter_bounds.y());
 
     PaintFlags flags;
-    flags.setImageFilter(
-        RenderSurfaceFilters::BuildImageFilter(filters, filter_bounds.size()));
+    flags.setImageFilter(RenderSurfaceFilters::BuildImageFilter(filters));
 
     SkRect layer_bounds = gfx::RectFToSkRect(filter_bounds);
     layer_bounds.offset(-filter_bounds.x(), -filter_bounds.y());
@@ -421,7 +429,7 @@ TEST_F(DisplayItemListTest, FilterPairedRange) {
   DrawDisplayList(pixels, layer_rect, list);
 
   SkBitmap expected_bitmap;
-  unsigned char expected_pixels[4 * 100 * 100] = {0};
+  unsigned char expected_pixels[4 * 100 * 100] = {};
   PaintFlags paint;
   paint.setColor(SkColorSetRGB(64, 64, 64));
   SkImageInfo info =
@@ -568,10 +576,24 @@ TEST_F(DisplayItemListTest, AsValueWithOps) {
       ASSERT_NE(nullptr, items);
       ASSERT_EQ(7u, items->size());
 
-      const char* expected_names[] = {"Save",      "Concat",   "SaveLayer",
-                                      "Translate", "DrawRect", "Restore",
-                                      "Restore"};
-      bool expected_has_skp[] = {false, true, true, true, true, false, false};
+      auto expected_names = std::to_array<const char*>({
+          "SaveOp",
+          "ConcatOp",
+          "SaveLayerOp",
+          "TranslateOp",
+          "DrawRectOp",
+          "RestoreOp",
+          "RestoreOp",
+      });
+      auto expected_has_skp = std::to_array<bool>({
+          false,
+          true,
+          true,
+          true,
+          true,
+          false,
+          false,
+      });
 
       for (int i = 0; i < 7; ++i) {
         const base::Value& item_value = (*items)[i];
@@ -1139,7 +1161,7 @@ TEST_F(DisplayItemListTest, TotalOpCount) {
   list->StartPaint();
   list->push<SaveOp>();
   list->push<TranslateOp>(10.f, 20.f);
-  list->push<DrawRecordOp>(sub_list->FinalizeAndReleaseAsRecord());
+  list->push<DrawRecordOp>(sub_list->FinalizeAndReleaseAsRecordForTesting());
   list->push<RestoreOp>();
   list->EndPaintOfUnpaired(gfx::Rect());
   EXPECT_EQ(8u, list->TotalOpCount());
@@ -1147,21 +1169,20 @@ TEST_F(DisplayItemListTest, TotalOpCount) {
 
 TEST_F(DisplayItemListTest, AreaOfDrawText) {
   auto list = base::MakeRefCounted<DisplayItemList>();
-  auto sub_list = base::MakeRefCounted<DisplayItemList>();
 
-  auto text_blob1 = SkTextBlob::MakeFromString("ABCD", SkFont());
+  SkFont font = skia::DefaultFont();
+  auto text_blob1 = SkTextBlob::MakeFromString("ABCD", font);
   gfx::Size text_blob1_size(ceilf(text_blob1->bounds().width()),
                             ceilf(text_blob1->bounds().height()));
   auto text_blob1_area = text_blob1_size.width() * text_blob1_size.height();
-  auto text_blob2 = SkTextBlob::MakeFromString("EFG", SkFont());
+  auto text_blob2 = SkTextBlob::MakeFromString("EFG", font);
   gfx::Size text_blob2_size(ceilf(text_blob2->bounds().width()),
                             ceilf(text_blob2->bounds().height()));
   auto text_blob2_area = text_blob2_size.width() * text_blob2_size.height();
 
-  sub_list->StartPaint();
-  sub_list->push<DrawTextBlobOp>(text_blob1, 0.0f, 0.0f, PaintFlags());
-  sub_list->EndPaintOfUnpaired(gfx::Rect());
-  auto record = sub_list->FinalizeAndReleaseAsRecord();
+  PaintOpBuffer sub_buffer;
+  sub_buffer.push<DrawTextBlobOp>(text_blob1, 0.0f, 0.0f, PaintFlags());
+  auto record = sub_buffer.ReleaseAsRecord();
 
   list->StartPaint();
   list->push<SaveOp>();

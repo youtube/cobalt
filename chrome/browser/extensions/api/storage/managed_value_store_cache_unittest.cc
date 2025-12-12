@@ -18,10 +18,14 @@
 #include "content/public/test/browser_task_environment.h"
 #include "content/public/test/test_utils.h"
 #include "extensions/browser/api/storage/backend_task_runner.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "extensions/common/extension_builder.h"
+#include "extensions/common/extension_id.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 namespace {
@@ -35,7 +39,7 @@ constexpr auto kAnotherPolicyDomain =
 
 base::Value::Dict CreateDict(const std::string& json) {
   auto dict = base::JSONReader::Read(json);
-  EXPECT_NE(dict, absl::nullopt) << "Invalid json: '" << json << "'";
+  EXPECT_NE(dict, std::nullopt) << "Invalid json: '" << json << "'";
   return std::move(dict.value()).TakeDict();
 }
 
@@ -97,9 +101,11 @@ class FakeSettingsObserver {
   FakeSettingsObserver& operator=(const FakeSettingsObserver&) = delete;
   ~FakeSettingsObserver() = default;
 
-  void OnSettingsChanged(const std::string& extension_id,
-                         StorageAreaNamespace storage_area,
-                         base::Value changes) {
+  void OnSettingsChanged(
+      const ExtensionId& extension_id,
+      StorageAreaNamespace storage_area,
+      std::optional<api::storage::AccessLevel> session_access_level,
+      base::Value changes) {
     future_.AddValue(extension_id);
   }
 
@@ -172,7 +178,7 @@ class ManagedValueStoreCacheTest : public testing::Test {
     InitializeCache();
   }
 
-  scoped_refptr<const Extension> CreateExtension(const std::string& id) {
+  scoped_refptr<const Extension> CreateExtension(const ExtensionId& id) {
     return ExtensionBuilder(id).Build();
   }
 
@@ -260,7 +266,7 @@ TEST_F(ManagedValueStoreCacheTest,
           .AddMandatoryPolicy(extension, "color", "blue")
           .Build());
 
-  std::string extension_id = observer().WaitForPolicyUpdate();
+  ExtensionId extension_id = observer().WaitForPolicyUpdate();
   EXPECT_EQ(extension_id, extension->id());
 }
 

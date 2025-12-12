@@ -2,29 +2,37 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {openTab} from '/_test_resources/test_util/tabs_util.js';
-
-function getInjectedElementIds() {
-  let childIds = [];
-  for (const child of document.body.children)
-    childIds.push(child.id);
-  return childIds.sort();
-};
+import {getInjectedElementIds, openTab} from '/_test_resources/test_util/tabs_util.js';
 
 // For the first session, register one persistent script and one session script.
 async function runFirstSession() {
   let scripts = [
     {
-      id: 'inject_element',
+      // A set of the minimal required properties, verifying defaults are
+      // properly set and retrieved.
+      id: 'minimal_script',
       matches: ['*://*/*'],
       js: ['inject_element.js'],
-      runAt: 'document_end',
-      world: chrome.scripting.ExecutionWorld.MAIN
     },
     {
-      id: 'inject_element_2',
+      // A set of all possible properties, verifying all fields are persisted
+      // and retrieved. Note we explicitly set values to non-defaults here to
+      // verify the storage.
+      id: 'maximal_script',
       matches: ['*://*/*'],
+      excludeMatches: ['http://example.com/*'],
+      css: ['style.css'],
       js: ['inject_element_2.js'],
+      allFrames: true,
+      matchOriginAsFallback: true,
+      runAt: 'document_end',
+      world: chrome.scripting.ExecutionWorld.MAIN,
+    },
+    {
+      // A non-persistent script.
+      id: 'non_persistent',
+      matches: ['*://*/*'],
+      js: ['inject_element_3.js'],
       runAt: 'document_end',
       persistAcrossSessions: false
     }
@@ -36,11 +44,9 @@ async function runFirstSession() {
   const url = `http://hostperms.com:${config.testServer.port}/simple.html`;
 
   let tab = await openTab(url);
-  let results = await chrome.scripting.executeScript(
-      {target: {tabId: tab.id}, func: getInjectedElementIds});
-
-  chrome.test.assertEq(1, results.length);
-  chrome.test.assertEq(['injected', 'injected_2'], results[0].result);
+  chrome.test.assertEq(
+      ['injected', 'injected_2', 'injected_3'],
+      await getInjectedElementIds(tab.id));
 
   chrome.test.succeed();
 }
@@ -51,16 +57,30 @@ async function runFirstSession() {
 async function runSecondSession() {
   let scripts = await chrome.scripting.getRegisteredContentScripts();
 
-  const expectedScripts = [{
-    id: 'inject_element',
-    matches: ['*://*/*'],
-    js: ['inject_element.js'],
-    allFrames: false,
-    runAt: 'document_end',
-    matchOriginAsFallback: false,
-    persistAcrossSessions: true,
-    world: chrome.scripting.ExecutionWorld.MAIN
-  }];
+  const expectedScripts = [
+    {
+      id: 'minimal_script',
+      matches: ['*://*/*'],
+      js: ['inject_element.js'],
+      allFrames: false,
+      matchOriginAsFallback: false,
+      persistAcrossSessions: true,
+      runAt: 'document_idle',
+      world: chrome.scripting.ExecutionWorld.ISOLATED,
+    },
+    {
+      id: 'maximal_script',
+      matches: ['*://*/*'],
+      excludeMatches: ['http://example.com/*'],
+      css: ['style.css'],
+      js: ['inject_element_2.js'],
+      allFrames: true,
+      matchOriginAsFallback: true,
+      runAt: 'document_end',
+      persistAcrossSessions: true,
+      world: chrome.scripting.ExecutionWorld.MAIN,
+    },
+  ];
 
   chrome.test.assertEq(expectedScripts, scripts);
 
@@ -68,30 +88,33 @@ async function runSecondSession() {
   const url = `http://hostperms.com:${config.testServer.port}/simple.html`;
 
   let tab = await openTab(url);
-  let results = await chrome.scripting.executeScript(
-      {target: {tabId: tab.id}, func: getInjectedElementIds});
-
-  chrome.test.assertEq(1, results.length);
-  chrome.test.assertEq(['injected'], results[0].result);
+  chrome.test.assertEq(
+      ['injected', 'injected_2'], await getInjectedElementIds(tab.id));
 
   await chrome.scripting.unregisterContentScripts();
 
+  // Add two new scripts, and then flip their persistence. The IDs indicate
+  // the eventual persistent property.
   scripts = [
     {
-      id: 'inject_element_2',
+      id: 'new_script_persistent',
       matches: ['*://*/*'],
-      js: ['inject_element_2.js'],
+      js: ['inject_element_3.js'],
       runAt: 'document_end',
       persistAcrossSessions: false
     },
-    {id: 'inject_element_3', matches: ['*://*/*'], js: ['inject_element.js']}
+    {
+      id: 'new_script_not_persistent',
+      matches: ['*://*/*'],
+      js: ['inject_element_4.js']
+    },
   ];
 
   await chrome.scripting.registerContentScripts(scripts);
 
   const updates = [
-    {id: 'inject_element_2', persistAcrossSessions: true},
-    {id: 'inject_element_3', persistAcrossSessions: false}
+    {id: 'new_script_persistent', persistAcrossSessions: true},
+    {id: 'new_script_not_persistent', persistAcrossSessions: false}
   ];
 
   await chrome.scripting.updateContentScripts(updates);
@@ -104,27 +127,25 @@ async function runSecondSession() {
 async function runThirdSession() {
   let scripts = await chrome.scripting.getRegisteredContentScripts();
 
-  const expectedScripts = [{
-    id: 'inject_element_2',
-    matches: ['*://*/*'],
-    js: ['inject_element_2.js'],
-    allFrames: false,
-    runAt: 'document_end',
-    matchOriginAsFallback: false,
-    persistAcrossSessions: true,
-    world: chrome.scripting.ExecutionWorld.ISOLATED
-  }];
+  const expectedScripts = [
+    {
+      id: 'new_script_persistent',
+      matches: ['*://*/*'],
+      js: ['inject_element_3.js'],
+      allFrames: false,
+      matchOriginAsFallback: false,
+      persistAcrossSessions: true,
+      runAt: 'document_end',
+      world: chrome.scripting.ExecutionWorld.ISOLATED,
+    },
+  ];
 
   chrome.test.assertEq(expectedScripts, scripts);
 
   const config = await chrome.test.getConfig();
   const url = `http://hostperms.com:${config.testServer.port}/simple.html`;
   let tab = await openTab(url);
-  let results = await chrome.scripting.executeScript(
-      {target: {tabId: tab.id}, func: getInjectedElementIds});
-
-  chrome.test.assertEq(1, results.length);
-  chrome.test.assertEq(['injected_2'], results[0].result);
+  chrome.test.assertEq(['injected_3'], await getInjectedElementIds(tab.id));
 
   chrome.test.succeed();
 }

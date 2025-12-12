@@ -8,13 +8,15 @@
 #include "media/gpu/buildflags.h"
 #include "media/media_buildflags.h"
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
+// These includes are used for non-ChromeOS platforms as well.
 #include "media/gpu/chromeos/generic_dmabuf_video_frame_mapper.h"
 #include "media/gpu/chromeos/gpu_memory_buffer_video_frame_mapper.h"
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif
 
 #if BUILDFLAG(USE_VAAPI)
 #include "media/gpu/vaapi/vaapi_dmabuf_video_frame_mapper.h"
+#include "media/gpu/vaapi/vaapi_wrapper.h"
 #endif  // BUILDFLAG(USE_VAAPI)
 
 namespace media {
@@ -34,14 +36,14 @@ std::unique_ptr<VideoFrameMapper> VideoFrameMapperFactory::CreateMapper(
 std::unique_ptr<VideoFrameMapper> VideoFrameMapperFactory::CreateMapper(
     VideoPixelFormat format,
     VideoFrame::StorageType storage_type,
-    bool linear_buffer_mapper) {
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
-  if (storage_type == VideoFrame::STORAGE_GPU_MEMORY_BUFFER)
+    bool force_linear_buffer_mapper) {
+  if (storage_type == VideoFrame::STORAGE_GPU_MEMORY_BUFFER) {
     return GpuMemoryBufferVideoFrameMapper::Create(format);
+  }
 
-  if (linear_buffer_mapper)
+  if (force_linear_buffer_mapper) {
     return GenericDmaBufVideoFrameMapper::Create(format);
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+  }
 
 #if BUILDFLAG(USE_VAAPI)
   return VaapiDmaBufVideoFrameMapper::Create(format);

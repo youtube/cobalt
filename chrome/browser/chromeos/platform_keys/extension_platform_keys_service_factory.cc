@@ -11,18 +11,14 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/memory/singleton.h"
 #include "base/memory/weak_ptr.h"
-#include "build/chromeos_buildflags.h"
+#include "base/no_destructor.h"
+#include "chrome/browser/ash/crosapi/keystore_service_factory_ash.h"
 #include "chrome/browser/chromeos/platform_keys/extension_platform_keys_service.h"
 #include "chrome/browser/ui/platform_keys_certificate_selector_chromeos.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/common/extension.h"
 #include "net/cert/x509_certificate.h"
-
-#if BUILDFLAG(IS_CHROMEOS_ASH)
-#include "chrome/browser/ash/crosapi/keystore_service_factory_ash.h"
-#endif
 
 namespace chromeos {
 namespace {
@@ -32,10 +28,10 @@ namespace {
 class DefaultSelectDelegate
     : public chromeos::ExtensionPlatformKeysService::SelectDelegate {
  public:
-  DefaultSelectDelegate() {}
+  DefaultSelectDelegate() = default;
   DefaultSelectDelegate(const DefaultSelectDelegate&) = delete;
   auto operator=(const DefaultSelectDelegate&) = delete;
-  ~DefaultSelectDelegate() override {}
+  ~DefaultSelectDelegate() override = default;
 
   void Select(const std::string& extension_id,
               const net::CertificateList& certs,
@@ -44,8 +40,9 @@ class DefaultSelectDelegate
               content::BrowserContext* context) override {
     CHECK(web_contents);
     const extensions::Extension* const extension =
-        extensions::ExtensionRegistry::Get(context)->GetExtensionById(
-            extension_id, extensions::ExtensionRegistry::ENABLED);
+        extensions::ExtensionRegistry::Get(context)
+            ->enabled_extensions()
+            .GetByID(extension_id);
     if (!extension) {
       std::move(callback).Run(nullptr /* no certificate selected */);
       return;
@@ -81,24 +78,33 @@ ExtensionPlatformKeysServiceFactory::GetForBrowserContext(
 // static
 ExtensionPlatformKeysServiceFactory*
 ExtensionPlatformKeysServiceFactory::GetInstance() {
-  return base::Singleton<ExtensionPlatformKeysServiceFactory>::get();
+  static base::NoDestructor<ExtensionPlatformKeysServiceFactory> instance;
+  return instance.get();
 }
 
 ExtensionPlatformKeysServiceFactory::ExtensionPlatformKeysServiceFactory()
     : ProfileKeyedServiceFactory(
           "ExtensionPlatformKeysService",
-          ProfileSelections::BuildRedirectedInIncognito()) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/40257657): Check if this service is needed in
+              // Guest mode.
+              .WithGuest(ProfileSelection::kRedirectedToOriginal)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kRedirectedToOriginal)
+              .Build()) {
   DependsOn(crosapi::KeystoreServiceFactoryAsh::GetInstance());
-#endif
 }
 
-ExtensionPlatformKeysServiceFactory::~ExtensionPlatformKeysServiceFactory() {}
+ExtensionPlatformKeysServiceFactory::~ExtensionPlatformKeysServiceFactory() =
+    default;
 
-KeyedService* ExtensionPlatformKeysServiceFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+ExtensionPlatformKeysServiceFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* context) const {
-  ExtensionPlatformKeysService* const service =
-      new ExtensionPlatformKeysService(context);
+  std::unique_ptr<ExtensionPlatformKeysService> service =
+      std::make_unique<ExtensionPlatformKeysService>(context);
 
   service->SetSelectDelegate(std::make_unique<DefaultSelectDelegate>());
   return service;

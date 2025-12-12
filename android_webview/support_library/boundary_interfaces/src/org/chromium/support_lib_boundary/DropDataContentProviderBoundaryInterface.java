@@ -10,24 +10,35 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 
 import java.io.FileNotFoundException;
 
-/**
- * Boundary interface for DropDataProvider.
- */
+/** Boundary interface for DropDataProvider. */
+@NullMarked
 public interface DropDataContentProviderBoundaryInterface {
     boolean onCreate();
-    String[] getStreamTypes(@NonNull Uri uri, @NonNull String mimeTypeFilter);
-    ParcelFileDescriptor openFile(@NonNull ContentProvider providerWrapper, @NonNull Uri uri)
+
+    String @Nullable [] getStreamTypes(Uri uri, String mimeTypeFilter);
+
+    @Nullable ParcelFileDescriptor openFile(ContentProvider providerWrapper, Uri uri)
             throws FileNotFoundException;
-    Cursor query(@NonNull Uri uri, @Nullable String[] projection, @Nullable String selection,
-            @Nullable String[] selectionArgs, @Nullable String sortOrder);
-    String getType(@NonNull Uri uri);
+
+    Cursor query(
+            Uri uri,
+            String @Nullable [] projection,
+            @Nullable String selection,
+            String @Nullable [] selectionArgs,
+            @Nullable String sortOrder);
+
+    @Nullable String getType(@Nullable Uri uri);
+
     Uri cache(byte[] imageBytes, String encodingFormat, String filename);
+
     void setClearCachedDataIntervalMs(int milliseconds);
+
     void onDragEnd(boolean imageInUse);
-    Bundle call(@NonNull String method, @Nullable String arg, @Nullable Bundle extras);
+
+    @Nullable Bundle call(String method, @Nullable String arg, @Nullable Bundle extras);
 }

@@ -8,19 +8,24 @@
 #include <memory>
 #include <string>
 #include <vector>
+
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "components/keyed_service/core/keyed_service.h"
 #include "components/reading_list/core/reading_list_entry.h"
-#include "google_apis/gaia/core_account_id.h"
+#include "google_apis/gaia/gaia_id.h"
 
 class GURL;
 class ReadingListModelObserver;
 
+namespace base {
+class Location;
+}  // namespace base
+
 namespace syncer {
-class ModelTypeControllerDelegate;
+class DataTypeControllerDelegate;
 }  // namespace syncer
 
 // The reading list model contains two list of entries: one of unread urls, the
@@ -44,12 +49,12 @@ class ReadingListModel : public KeyedService {
   // Returns the delegate responsible for integrating with sync. This
   // corresponds to the regular sync mode, rather than transport-only sync (i.e.
   // the user opted into sync-the-feature).
-  virtual base::WeakPtr<syncer::ModelTypeControllerDelegate>
+  virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetSyncControllerDelegate() = 0;
 
   // Same as above, but specifically for sync-the-transport (i.e. the user is
   // signed in but didn't opt into sync-the-feature).
-  virtual base::WeakPtr<syncer::ModelTypeControllerDelegate>
+  virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetSyncControllerDelegateForTransportMode() = 0;
 
   // Returns true if the model is performing batch updates right now.
@@ -80,8 +85,8 @@ class ReadingListModel : public KeyedService {
   virtual void MarkAllSeen() = 0;
 
   // Delete all the Reading List entries. Return true if entries where indeed
-  // deleted.
-  virtual bool DeleteAllEntries() = 0;
+  // deleted. |location| is used for logging purposes and investigations.
+  virtual bool DeleteAllEntries(const base::Location& location) = 0;
 
   // Returns a specific entry. Returns null if the entry does not exist.
   // Please note that the value saved to the account may not be identical to the
@@ -98,11 +103,16 @@ class ReadingListModel : public KeyedService {
   // If an account exists that syncs the entry which has the given `url`, that
   // account will be returned. Otherwise, the entry may be saved locally on the
   // device or may not exist, in that case an empty account will be returned.
-  virtual CoreAccountId GetAccountWhereEntryIsSavedTo(const GURL& url) = 0;
+  virtual GaiaId GetAccountWhereEntryIsSavedTo(const GURL& url) = 0;
 
   // Returns true if the entry with `url` requires explicit user action to
   // upload to sync servers.
   virtual bool NeedsExplicitUploadToSyncServer(const GURL& url) const = 0;
+
+  // Uploads all entries (if any) that required explicit upload to sync servers.
+  // The upload itself may take long to complete (depending on network
+  // connectivity any many other factors).
+  virtual void MarkAllForUploadToSyncServerIfNeeded() = 0;
 
   // Adds |url| at the top of the unread entries, and removes entries with the
   // same |url| from everywhere else if they exist. The entry title will be a
@@ -118,8 +128,9 @@ class ReadingListModel : public KeyedService {
       base::TimeDelta estimated_read_time) = 0;
 
   // Removes an entry. The removal may be asynchronous, and not happen
-  // immediately.
-  virtual void RemoveEntryByURL(const GURL& url) = 0;
+  // immediately. |location| is used for logging purposes and investigations.
+  virtual void RemoveEntryByURL(const GURL& url,
+                                const base::Location& location) = 0;
 
   // If the |url| is in the reading list and entry(|url|).read != |read|, sets
   // the read state of the URL to read. This will also update the update time of
@@ -154,6 +165,8 @@ class ReadingListModel : public KeyedService {
   // destruction automatically.
   virtual void AddObserver(ReadingListModelObserver* observer) = 0;
   virtual void RemoveObserver(ReadingListModelObserver* observer) = 0;
+
+  virtual void RecordCountMetricsOnUMAUpload() const = 0;
 
   // Helper class that is used to scope batch updates.
   class ScopedReadingListBatchUpdate {

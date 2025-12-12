@@ -4,11 +4,12 @@
 
 package org.chromium.chrome.browser.ntp;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.util.Date;
 
-/**
- * Represents a recently closed entry from TabRestoreService.
- */
+/** Represents a recently closed entry from TabRestoreService. */
+@NullMarked
 public class RecentlyClosedEntry {
     private final int mSessionId;
     private final Date mDate;

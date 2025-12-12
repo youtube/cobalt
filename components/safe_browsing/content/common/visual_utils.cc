@@ -17,11 +17,10 @@
 #include "components/safe_browsing/core/common/proto/client_model.pb.h"
 #include "components/safe_browsing/core/common/proto/csd.pb.h"
 #include "skia/ext/image_operations.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkBitmap.h"
-#include "third_party/skia/include/core/SkColorPriv.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkPixmap.h"
+#include "third_party/skia/include/private/chromium/SkPMColor.h"
 #include "ui/gfx/color_utils.h"
 
 namespace safe_browsing::visual_utils {
@@ -168,7 +167,7 @@ std::unique_ptr<SkBitmap> BlockMeanAverage(const SkBitmap& image,
       int b_mean = b_total / sample_count;
 
       *target->getAddr32(block_x, block_y) =
-          SkPackARGB32(255, r_mean, g_mean, b_mean);
+          SkPMColorSetARGB(255, r_mean, g_mean, b_mean);
     }
   }
 
@@ -176,31 +175,32 @@ std::unique_ptr<SkBitmap> BlockMeanAverage(const SkBitmap& image,
 }
 
 #if BUILDFLAG(IS_ANDROID)
-bool CanExtractVisualFeatures(bool is_extended_reporting,
-                              bool is_off_the_record,
-                              gfx::Size size) {
+CanExtractVisualFeaturesResult CanExtractVisualFeatures(bool is_user_opted_in,
+                                                        bool is_off_the_record,
+                                                        gfx::Size size) {
 #else
-bool CanExtractVisualFeatures(bool is_extended_reporting,
-                              bool is_off_the_record,
-                              gfx::Size size,
-                              double zoom_level) {
+CanExtractVisualFeaturesResult CanExtractVisualFeatures(bool is_user_opted_in,
+                                                        bool is_off_the_record,
+                                                        gfx::Size size,
+                                                        double zoom_level) {
 #endif
-  if (!is_extended_reporting)
-    return false;
+  if (!is_user_opted_in) {
+    return CanExtractVisualFeaturesResult::kUserNotOptedIn;
+  }
 
   if (is_off_the_record)
-    return false;
+    return CanExtractVisualFeaturesResult::kOffTheRecord;
 
   if (size.width() < GetMinWidthForVisualFeatures() ||
       size.height() < GetMinHeightForVisualFeatures())
-    return false;
+    return CanExtractVisualFeaturesResult::kBelowMinFrame;
 
 #if !BUILDFLAG(IS_ANDROID)
   if (zoom_level > kMaxZoomForVisualFeatures) {
-    return false;
+    return CanExtractVisualFeaturesResult::kAboveZoomLevel;
   }
 #endif
-  return true;
+  return CanExtractVisualFeaturesResult::kCanExtractVisualFeatures;
 }
 
 std::unique_ptr<VisualFeatures> ExtractVisualFeatures(

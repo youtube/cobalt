@@ -4,14 +4,14 @@
 
 #include "ash/constants/ash_switches.h"
 #include "base/values.h"
-#include "chrome/browser/ash/login/test/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/ash/login/test/session_manager_state_waiter.h"
 #include "chrome/browser/ash/policy/core/device_policy_cros_browser_test.h"
-#include "chrome/browser/ash/settings/cros_settings.h"
+#include "chrome/browser/ash/policy/test_support/embedded_policy_test_server_mixin.h"
 #include "chrome/browser/policy/profile_policy_connector.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/webui/certificates_handler.h"
+#include "chromeos/ash/components/settings/cros_settings.h"
 #include "components/policy/core/common/policy_bundle.h"
 #include "components/policy/core/common/policy_map.h"
 #include "components/policy/core/common/policy_namespace.h"
@@ -154,8 +154,9 @@ class RestrictedMGSPolicyProviderAshBrowserTest
   ash::EmbeddedPolicyTestServerMixin policy_test_server_mixin_{&mixin_host_};
 };
 
+// TODO(crbug.com/387568360): Re-enable flaky test.
 IN_PROC_BROWSER_TEST_F(RestrictedMGSPolicyProviderAshBrowserTest,
-                       DeviceRestrictedManagedGuestSessionDisabled) {
+                       DISABLED_DeviceRestrictedManagedGuestSessionDisabled) {
   SetUpPolicy(/*restricted=*/false);
   ash::SessionStateWaiter(session_manager::SessionState::ACTIVE).Wait();
 
@@ -165,8 +166,9 @@ IN_PROC_BROWSER_TEST_F(RestrictedMGSPolicyProviderAshBrowserTest,
   EXPECT_TRUE(expected_policy_map_.Equals(current_policy_map));
 }
 
+// TODO(crbug.com/387568360): Re-enable flaky test.
 IN_PROC_BROWSER_TEST_F(RestrictedMGSPolicyProviderAshBrowserTest,
-                       DeviceRestrictedManagedGuestSessionEnabled) {
+                       DISABLED_DeviceRestrictedManagedGuestSessionEnabled) {
   SetUpPolicy(/*restricted=*/true);
   ash::SessionStateWaiter(session_manager::SessionState::ACTIVE).Wait();
 

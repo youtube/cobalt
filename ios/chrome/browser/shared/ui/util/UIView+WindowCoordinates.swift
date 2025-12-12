@@ -35,11 +35,11 @@ extension UIView {
   /// closure, otherwise the view will leak and never get deinitialized.
   @objc public var cr_onWindowCoordinatesChanged: ((UIView) -> Void)? {
     get {
-      objc_getAssociatedObject(self, &UIView.OnWindowCoordinatesChangedKey) as? (UIView) -> Void
+      objc_getAssociatedObject(self, UIView.OnWindowCoordinatesChangedKey) as? (UIView) -> Void
     }
     set {
       objc_setAssociatedObject(
-        self, &UIView.OnWindowCoordinatesChangedKey, newValue, .OBJC_ASSOCIATION_COPY)
+        self, UIView.OnWindowCoordinatesChangedKey, newValue, .OBJC_ASSOCIATION_COPY)
       if newValue != nil {
         // Make sure UIView supports window observing.
         Self.cr_supportsWindowObserving = true
@@ -59,16 +59,36 @@ extension UIView {
     }
   }
 
+  /// Whether to notify of layout changes synchronously vs
+  /// asynchronously (the default). Default value is false.
+  ///
+  /// Sometimes, there are timing issues if the execution is asynchronous,
+  /// so it provides an ability to execute simultaneously.
+  /// For example, when switching between horizontal and vertical screens,
+  /// view B synchronously relies on the position change of view A to update
+  /// its constraints and perform the screen rotation animation.
+  /// If A updates the layout asynchronously, B cannot perform the screen
+  /// rotation animation correctly.
+  @objc public var cr_forcesSynchronousLayoutUpdates: Bool {
+    get {
+      (objc_getAssociatedObject(self, UIView.ForcesSynchronousLayoutUpdatesKey) as? NSNumber)?.boolValue ?? false
+    }
+    set {
+      objc_setAssociatedObject(
+        self, UIView.ForcesSynchronousLayoutUpdatesKey, NSNumber.init(value: newValue), .OBJC_ASSOCIATION_COPY)
+    }
+  }
+
   /// MARK: Private
 
   /// The currently set observation of the window property.
   private var observation: NSKeyValueObservation? {
     get {
-      objc_getAssociatedObject(self, &UIView.ObservationKey) as? NSKeyValueObservation
+      objc_getAssociatedObject(self, UIView.ObservationKey) as? NSKeyValueObservation
     }
     set {
       objc_setAssociatedObject(
-        self, &UIView.ObservationKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        self, UIView.ObservationKey, newValue, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
   }
 
@@ -81,12 +101,17 @@ extension UIView {
     mirrorViewInWindow.isUserInteractionEnabled = false
     mirrorViewInWindow.translatesAutoresizingMaskIntoConstraints = false
     mirrorViewInWindow.onLayoutChanged = { [weak self] _ in
-      // Callback on the next turn of the run loop to wait for AutoLayout to have updated the entire
-      // hierarchy. (It can happen that AutoLayout updates the mirror view before the mirrored
-      // view.)
-      DispatchQueue.main.async {
-        guard let self = self else { return }
+      guard let self = self else { return }
+      if self.cr_forcesSynchronousLayoutUpdates == true {
         self.cr_onWindowCoordinatesChanged?(self)
+      } else {
+        // Callback on the next turn of the run loop to wait for AutoLayout to have updated the
+        // entire hierarchy. (It can happen that AutoLayout updates the mirror view before the
+        // mirrored view.)
+        DispatchQueue.main.async { [weak self] in
+          guard let self = self else { return }
+          self.cr_onWindowCoordinatesChanged?(self)
+        }
       }
     }
 
@@ -112,11 +137,11 @@ extension UIView {
   /// The currently set mirror view.
   private var mirrorViewInWindow: NotifyingView? {
     get {
-      objc_getAssociatedObject(self, &UIView.MirrorViewInWindowKey) as? NotifyingView
+      objc_getAssociatedObject(self, UIView.MirrorViewInWindowKey) as? NotifyingView
     }
     set {
       objc_setAssociatedObject(
-        self, &UIView.MirrorViewInWindowKey, newValue, .OBJC_ASSOCIATION_ASSIGN)
+        self, UIView.MirrorViewInWindowKey, newValue, .OBJC_ASSOCIATION_ASSIGN)
     }
   }
 
@@ -138,7 +163,26 @@ extension UIView {
   }
 
   /// Keys for storing associated objects.
-  private static var OnWindowCoordinatesChangedKey = ""
-  private static var ObservationKey = ""
-  private static var MirrorViewInWindowKey = ""
+  @UniqueAddress private static var OnWindowCoordinatesChangedKey
+  @UniqueAddress private static var ObservationKey
+  @UniqueAddress private static var MirrorViewInWindowKey
+  @UniqueAddress private static var ForcesSynchronousLayoutUpdatesKey
+}
+
+/// A property wrapper to more safely support associated object keys.
+/// https://github.com/atrick/swift-evolution/blob/diagnose-implicit-raw-bitwise/proposals/nnnn-implicit-raw-bitwise-conversion.md#associated-object-string-keys
+@propertyWrapper
+struct UniqueAddress {
+  private var _placeholder: Int8 = 0
+
+  var wrappedValue: UnsafeRawPointer {
+    mutating get {
+      // This is "ok" only as long as the wrapped property appears inside of something with a stable
+      // address (a global/static variable or class property) and the pointer is never read or
+      // written through, only used for its unique value.
+      return withUnsafeBytes(of: &self) {
+        return $0.baseAddress.unsafelyUnwrapped
+      }
+    }
+  }
 }

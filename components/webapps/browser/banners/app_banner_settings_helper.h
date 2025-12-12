@@ -5,11 +5,11 @@
 #ifndef COMPONENTS_WEBAPPS_BROWSER_BANNERS_APP_BANNER_SETTINGS_HELPER_H_
 #define COMPONENTS_WEBAPPS_BROWSER_BANNERS_APP_BANNER_SETTINGS_HELPER_H_
 
+#include <optional>
 #include <set>
 #include <string>
 
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace content {
 class BrowserContext;
@@ -19,6 +19,7 @@ class WebContents;
 class GURL;
 
 namespace webapps {
+struct InstallBannerConfig;
 
 // Utility class to record banner events for the given package or start url.
 //
@@ -47,7 +48,8 @@ class AppBannerSettingsHelper {
     APP_MENU_OPTION_MIN = APP_MENU_OPTION_UNKNOWN,
     APP_MENU_OPTION_ADD_TO_HOMESCREEN = 1,
     APP_MENU_OPTION_INSTALL = 2,
-    APP_MENU_OPTION_MAX = APP_MENU_OPTION_INSTALL,
+    APP_MENU_OPTION_UNIVERSAL_INSTALL = 3,
+    APP_MENU_OPTION_MAX = APP_MENU_OPTION_UNIVERSAL_INSTALL,
   };
 
   // The various types of banner events recorded as timestamps in the app banner
@@ -65,11 +67,6 @@ class AppBannerSettingsHelper {
     // Records the latest time a banner was dismissed by the user. Used to
     // suppress the banner for some time if the user explicitly didn't want it.
     APP_BANNER_EVENT_DID_BLOCK,
-    // Records the latest time the user added a site to the homescreen from a
-    // banner, or launched that site from homescreen. Used to ensure banners are
-    // not shown for sites which were added, and to determine if sites were
-    // launched recently.
-    APP_BANNER_EVENT_DID_ADD_TO_HOMESCREEN,
     // Records when a site met the conditions to show an ambient badge.
     // Used to suppress the ambient badge from being shown too often.
     APP_BANNER_EVENT_COULD_SHOW_AMBIENT_BADGE,
@@ -102,8 +99,12 @@ class AppBannerSettingsHelper {
 
   // Record a banner event specified by |event|.
   static void RecordBannerEvent(content::WebContents* web_contents,
-                                const GURL& origin_url,
-                                const std::string& package_name_or_start_url,
+                                const GURL& url,
+                                const std::string& identifier,
+                                AppBannerEvent event,
+                                base::Time time);
+  static void RecordBannerEvent(content::WebContents* web_contents,
+                                const InstallBannerConfig& config,
                                 AppBannerEvent event,
                                 base::Time time);
 
@@ -125,23 +126,13 @@ class AppBannerSettingsHelper {
       const std::string& package_name_or_start_url,
       base::Time now);
 
-  // Returns whether the supplied app has ever been installed from |origin_url|.
-  static bool HasBeenInstalled(content::WebContents* web_contents,
-                               const GURL& origin_url,
-                               const std::string& package_name_or_start_url);
-
   // Get the time that |event| was recorded, or a nullopt if it no dict to
   // record yet(such as exceed max num per site) . Exposed for testing.
-  static absl::optional<base::Time> GetSingleBannerEvent(
+  static std::optional<base::Time> GetSingleBannerEvent(
       content::WebContents* web_contents,
       const GURL& origin_url,
       const std::string& package_name_or_start_url,
       AppBannerEvent event);
-
-  // Returns true if |total_engagement| is sufficiently high to warrant
-  // triggering a banner, or if the command-line flag to bypass engagement
-  // checking is true.
-  static bool HasSufficientEngagement(double total_engagement);
 
   // Record a UMA statistic measuring the minutes between the first visit to the
   // site and the first showing of the banner.
@@ -151,28 +142,10 @@ class AppBannerSettingsHelper {
       const std::string& package_name_or_start_url,
       base::Time time);
 
-  // Returns true if any site under |origin| was launched from homescreen in the
-  // last ten days. This allows services outside app banners to utilise the
-  // content setting that ensures app banners are not shown for sites which ave
-  // already been added to homescreen.
-  static bool WasLaunchedRecently(content::BrowserContext* browser_context,
-                                  const GURL& origin_url,
-                                  base::Time now);
-
   // Set the number of days which dismissing/ignoring the banner should prevent
   // a banner from showing.
   static void SetDaysAfterDismissAndIgnoreToTrigger(unsigned int dismiss_days,
                                                     unsigned int ignore_days);
-
-  // Set the total engagement weight required to trigger a banner.
-  static void SetTotalEngagementToTrigger(double total_engagement);
-
-  // Resets the engagement weights, minimum minutes, and total engagement to
-  // trigger to their default values.
-  static void SetDefaultParameters();
-
-  // Updates all values from field trial.
-  static void UpdateFromFieldTrial();
 
   // Returns whether we are out of |scope|'s animation suppression period and
   // can show an animation.

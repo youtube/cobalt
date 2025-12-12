@@ -35,7 +35,9 @@ enum SelectionMode { "select", "start", "end", "preserve" };
     [ImplementedAs=checkedForBinding] attribute boolean checked;
     [CEReactions, Reflect] attribute DOMString dirName;
     [CEReactions, Reflect] attribute boolean disabled;
-    [ImplementedAs=formOwner] readonly attribute HTMLFormElement? form;
+    // Until ReferenceTarget is enabled, this will only ever return HTMLFormElement.
+    // https://github.com/whatwg/html/pull/10995
+    [ImplementedAs=formForBinding] readonly attribute HTMLElement? form;
     // The 'files' attribute is intentionally not readonly.
     // https://www.w3.org/Bugs/Public/show_bug.cgi?id=22682
     attribute FileList? files;
@@ -46,7 +48,7 @@ enum SelectionMode { "select", "start", "end", "preserve" };
     [CEReactions, Reflect] attribute DOMString formTarget;
     [CEReactions] attribute unsigned long height;
     attribute boolean indeterminate;
-    readonly attribute HTMLElement? list;
+    [ImplementedAs=listForBinding] readonly attribute HTMLElement? list;
     [CEReactions, Reflect] attribute DOMString max;
     [CEReactions, RaisesException=Setter] attribute long maxLength;
     [CEReactions, Reflect] attribute DOMString min;
@@ -62,7 +64,7 @@ enum SelectionMode { "select", "start", "end", "preserve" };
     [CEReactions, Reflect] attribute DOMString step;
     [CEReactions] attribute DOMString type;
     [CEReactions, Reflect=value] attribute DOMString defaultValue;
-    [CEReactions, ImplementedAs=valueForBinding, RaisesException=Setter] attribute [TreatNullAs=EmptyString] DOMString value;
+    [CEReactions, ImplementedAs=valueForBinding, RaisesException=Setter] attribute [LegacyNullToEmptyString] DOMString value;
     [CEReactions, RaisesException=Setter, CallWith=ScriptState] attribute object? valueAsDate;
     [RaisesException=Setter] attribute unrestricted double valueAsNumber;
     // Note: The spec has valueLow and valueHigh for two-valued range controls.

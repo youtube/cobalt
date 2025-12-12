@@ -5,6 +5,7 @@
 #ifndef ASH_SYSTEM_ACCESSIBILITY_SWITCH_ACCESS_SWITCH_ACCESS_MENU_BUTTON_H_
 #define ASH_SYSTEM_ACCESSIBILITY_SWITCH_ACCESS_SWITCH_ACCESS_MENU_BUTTON_H_
 
+#include "base/memory/raw_ptr.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/button/button.h"
 #include "ui/views/metadata/view_factory.h"
@@ -21,9 +22,9 @@ class Label;
 namespace ash {
 
 class SwitchAccessMenuButton : public views::Button {
- public:
-  METADATA_HEADER(SwitchAccessMenuButton);
+  METADATA_HEADER(SwitchAccessMenuButton, views::Button)
 
+ public:
   SwitchAccessMenuButton(std::string action_name,
                          const gfx::VectorIcon& icon,
                          int accessible_name_id);
@@ -34,19 +35,14 @@ class SwitchAccessMenuButton : public views::Button {
 
   static constexpr int kWidthDip = 80;
 
-  // views::View:
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
-
  private:
   friend class SwitchAccessMenuBubbleControllerTest;
 
   void OnButtonPressed();
 
-  std::string action_name_;
-
   // Owned by the views hierarchy.
-  views::ImageView* image_view_;
-  views::Label* label_;
+  raw_ptr<views::ImageView> image_view_;
+  raw_ptr<views::Label> label_;
 };
 
 BEGIN_VIEW_BUILDER(/* no export */, SwitchAccessMenuButton, views::Button)

@@ -8,13 +8,12 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <string>
-#include <vector>
+#include <string_view>
 
 #include "base/gtest_prod_util.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class FilePath;
@@ -34,7 +33,7 @@ namespace subtle {
 
 // Helpers shared with unit-tests.
 
-// Appends a dictionary {'key': 'value'} to |list|.
+// Appends a dictionary {'key': 'value'} to `list`.
 void AppendKeyValuePair(const char* key,
                         base::Value value,
                         base::Value::List& list);
@@ -56,13 +55,13 @@ class UploadDataPresenter {
   UploadDataPresenter& operator=(const UploadDataPresenter&) = delete;
 
   virtual ~UploadDataPresenter();
-  virtual void FeedBytes(base::StringPiece bytes) = 0;
+  virtual void FeedBytes(std::string_view bytes) = 0;
   virtual void FeedFile(const base::FilePath& path) = 0;
   virtual bool Succeeded() = 0;
-  virtual absl::optional<base::Value> TakeResult() = 0;
+  virtual std::optional<base::Value> TakeResult() = 0;
 
  protected:
-  UploadDataPresenter() {}
+  UploadDataPresenter() = default;
 };
 
 // This class passes all the bytes from bytes elements as a BinaryValue for each
@@ -78,13 +77,13 @@ class RawDataPresenter : public UploadDataPresenter {
   ~RawDataPresenter() override;
 
   // Implementation of UploadDataPresenter.
-  void FeedBytes(base::StringPiece bytes) override;
+  void FeedBytes(std::string_view bytes) override;
   void FeedFile(const base::FilePath& path) override;
   bool Succeeded() override;
-  absl::optional<base::Value> TakeResult() override;
+  std::optional<base::Value> TakeResult() override;
 
  private:
-  void FeedNextBytes(const char* bytes, size_t size);
+  void FeedNextBytes(base::span<const uint8_t> bytes);
   void FeedNextFile(const std::string& filename);
   FRIEND_TEST_ALL_PREFIXES(WebRequestUploadDataPresenterTest, RawData);
 
@@ -110,10 +109,10 @@ class ParsedDataPresenter : public UploadDataPresenter {
   ~ParsedDataPresenter() override;
 
   // Implementation of UploadDataPresenter.
-  void FeedBytes(base::StringPiece bytes) override;
+  void FeedBytes(std::string_view bytes) override;
   void FeedFile(const base::FilePath& path) override;
   bool Succeeded() override;
-  absl::optional<base::Value> TakeResult() override;
+  std::optional<base::Value> TakeResult() override;
 
   // Allows to create ParsedDataPresenter without request headers. Uses the
   // parser for "application/x-www-form-urlencoded" form encoding. Only use this
@@ -129,7 +128,7 @@ class ParsedDataPresenter : public UploadDataPresenter {
 
   std::unique_ptr<FormDataParser> parser_;
   bool success_;
-  absl::optional<base::Value::Dict> dictionary_;
+  std::optional<base::Value::Dict> dictionary_;
 };
 
 }  // namespace extensions

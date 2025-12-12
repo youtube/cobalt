@@ -4,10 +4,13 @@
 
 #include "content/browser/file_system_access/file_system_chooser.h"
 
+#include <utility>
+#include <vector>
+
+#include "base/check.h"
 #include "base/files/file_path.h"
 #include "base/i18n/file_util_icu.h"
 #include "base/i18n/rtl.h"
-#include "base/metrics/histogram_functions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -17,9 +20,14 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "net/base/mime_util.h"
+#include "ui/gfx/native_widget_types.h"
 #include "ui/gfx/text_elider.h"
 #include "ui/shell_dialogs/select_file_policy.h"
 #include "ui/shell_dialogs/selected_file_info.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include <set>
+#endif
 
 namespace content {
 
@@ -35,28 +43,6 @@ constexpr int kMaxDescriptionLength = 64;
 // allowed to be. Any longer extensions will be stripped. This value should be
 // kept in sync with the extension length checks in the renderer.
 constexpr int kMaxExtensionLength = 16;
-
-std::string TypeToString(ui::SelectFileDialog::Type type) {
-  switch (type) {
-    case ui::SelectFileDialog::SELECT_OPEN_FILE:
-      return "OpenFile";
-    case ui::SelectFileDialog::SELECT_OPEN_MULTI_FILE:
-      return "OpenMultipleFiles";
-    case ui::SelectFileDialog::SELECT_SAVEAS_FILE:
-      return "SaveFile";
-    case ui::SelectFileDialog::SELECT_FOLDER:
-      return "OpenDirectory";
-    default:
-      NOTREACHED();
-      return std::string();
-  }
-}
-
-void RecordFileSelectionResult(ui::SelectFileDialog::Type type, int count) {
-  base::UmaHistogramCounts1000("NativeFileSystemAPI.FileChooserResult", count);
-  base::UmaHistogramCounts1000(
-      "NativeFileSystemAPI.FileChooserResult." + TypeToString(type), count);
-}
 
 // Similar to base::FilePath::FinalExtension, but operates with the
 // understanding that the StringType passed in is an extension, not a path.
@@ -78,6 +64,30 @@ bool IsInvalidExtension(base::FilePath::StringType& extension) {
   return !base::i18n::IsFilenameLegal(extension16) ||
          FileSystemChooser::IsShellIntegratedExtension(extension);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+// Gets the list of all mime_types in all options from accepts and extensions.
+std::vector<std::u16string> ConvertAcceptsToMimeTypesList(
+    const blink::mojom::AcceptsTypesInfoPtr& accepts_types_info) {
+  std::set<std::u16string> mime_types;
+  for (const auto& option : accepts_types_info->accepts) {
+    // Add listed mime types.
+    for (const std::string& mime_type : option->mime_types) {
+      mime_types.insert(base::UTF8ToUTF16(mime_type));
+    }
+
+    // Lookup mime types from extensions.
+    for (const std::string& ext : option->extensions) {
+      std::string mime_type;
+      if (net::GetWellKnownMimeTypeFromExtension(ext, &mime_type)) {
+        mime_types.insert(base::UTF8ToUTF16(mime_type));
+      }
+    }
+  }
+
+  return std::vector<std::u16string>(mime_types.begin(), mime_types.end());
+}
+#endif
 
 // Converts the accepted mime types and extensions from `option` into a list
 // of just extensions to be passed to the file dialog implementation.
@@ -171,17 +181,32 @@ ui::SelectFileDialog::FileTypeInfo ConvertAcceptsToFileTypeInfo(
   return file_types;
 }
 
-ui::SelectFileDialog::Type ValidateType(ui::SelectFileDialog::Type type) {
+bool IsValidFileDialogType(ui::SelectFileDialog::Type type) {
   switch (type) {
     case ui::SelectFileDialog::SELECT_OPEN_FILE:
     case ui::SelectFileDialog::SELECT_OPEN_MULTI_FILE:
     case ui::SelectFileDialog::SELECT_SAVEAS_FILE:
     case ui::SelectFileDialog::SELECT_FOLDER:
-      return type;
+      return true;
     default:
-      NOTREACHED();
-      return ui::SelectFileDialog::SELECT_NONE;
+      return false;
   }
+}
+
+PathInfo FileInfoToPathInfo(const ui::SelectedFileInfo& file) {
+  if (file.virtual_path.has_value()) {
+    base::FilePath display_name = !file.display_name.empty()
+                                      ? base::FilePath(file.display_name)
+                                      : file.virtual_path->BaseName();
+    return {PathType::kExternal, *file.virtual_path,
+            display_name.AsUTF8Unsafe()};
+  }
+  base::FilePath path =
+      !file.local_path.empty() ? file.local_path : file.file_path;
+  base::FilePath display_name = !file.display_name.empty()
+                                    ? base::FilePath(file.display_name)
+                                    : path.BaseName();
+  return {PathType::kLocal, std::move(path), display_name.AsUTF8Unsafe()};
 }
 
 }  // namespace
@@ -192,18 +217,30 @@ FileSystemChooser::Options::Options(
     std::u16string title,
     base::FilePath default_directory,
     base::FilePath suggested_name)
-    : type_(ValidateType(type)),
+    : type_(type),
       file_types_(ConvertAcceptsToFileTypeInfo(accepts_types_info)),
       // Set `default_file_type_index_` to a reasonable default value.
       // This value will be updated if the extension of `suggested_name`
       // matches an extension in `accepts_types_info->accepts`.
       default_file_type_index_(file_types_.extensions.empty() ? 0 : 1),
+#if BUILDFLAG(IS_ANDROID)
+      mime_types_(ConvertAcceptsToMimeTypesList(accepts_types_info)),
+#endif
       title_(std::move(title)),
       default_path_(default_directory.Append(
           ResolveSuggestedNameExtension(std::move(suggested_name),
-                                        file_types_))) {}
+                                        file_types_))) {
+  CHECK(IsValidFileDialogType(type_));
+  // If suggested_name is empty, then ensure default path ends with a separator
+  // so it can be parsed back into default_directory and suggested_name.
+  if (!default_path_.empty() && default_path_ == default_directory) {
+    default_path_ = default_path_.AsEndingWithSeparator();
+  }
+}
 
 FileSystemChooser::Options::Options(const Options& other) = default;
+
+FileSystemChooser::Options::~Options() = default;
 
 base::FilePath FileSystemChooser::Options::ResolveSuggestedNameExtension(
     base::FilePath suggested_name,
@@ -229,7 +266,7 @@ base::FilePath FileSystemChooser::Options::ResolveSuggestedNameExtension(
 
   // Check if the suggested extension is an accepted extension.
   for (auto i = 0u; i < file_types.extensions.size(); ++i) {
-    auto it = base::ranges::find(file_types.extensions[i], suggested_extension);
+    auto it = std::ranges::find(file_types.extensions[i], suggested_extension);
     if (it != file_types.extensions[i].end()) {
       // The suggested extension is an accepted extension. All is harmonious.
       default_file_type_index_ = i + 1;  // NOTE: 1-based index.
@@ -259,16 +296,20 @@ void FileSystemChooser::CreateAndShow(
   // In content_shell --run-web-tests, there might be no dialog available. In
   // that case just abort.
   if (!listener->dialog_) {
-    listener->FileSelectionCanceled(nullptr);
+    listener->FileSelectionCanceled();
     return;
   }
 
+#if BUILDFLAG(IS_ANDROID)
+  listener->dialog_->SetAcceptTypes(options.mime_types());
+  listener->dialog_->SetOpenWritable(true);
+#endif
   listener->dialog_->SelectFile(
       options.type(), options.title(), options.default_path(),
       &options.file_type_info(), options.default_file_type_index(),
       /*default_extension=*/base::FilePath::StringType(),
-      web_contents ? web_contents->GetTopLevelNativeWindow() : nullptr,
-      /*params=*/nullptr,
+      web_contents ? web_contents->GetTopLevelNativeWindow()
+                   : gfx::NativeWindow(),
       /*caller=*/
       web_contents ? &web_contents->GetPrimaryMainFrame()->GetLastCommittedURL()
                    : nullptr);
@@ -277,7 +318,7 @@ void FileSystemChooser::CreateAndShow(
 // static
 bool FileSystemChooser::IsShellIntegratedExtension(
     const base::FilePath::StringType& extension) {
-  // TODO(https://crbug.com/1154757): Figure out some way to unify this with
+  // TODO(crbug.com/40159607): Figure out some way to unify this with
   // net::IsSafePortablePathComponent, with the result probably ending up in
   // base/i18n/file_util_icu.h.
   // - For the sake of consistency across platforms, we sanitize '.lnk' and
@@ -313,63 +354,41 @@ bool FileSystemChooser::IsShellIntegratedExtension(
 FileSystemChooser::FileSystemChooser(ui::SelectFileDialog::Type type,
                                      ResultCallback callback,
                                      base::ScopedClosureRunner fullscreen_block)
-    : callback_(std::move(callback)),
-      type_(ValidateType(type)),
-      fullscreen_block_(std::move(fullscreen_block)) {}
+    : type_(type),
+      callback_(std::move(callback)),
+      fullscreen_block_(std::move(fullscreen_block)) {
+  CHECK(IsValidFileDialogType(type_));
+}
 
 FileSystemChooser::~FileSystemChooser() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  if (dialog_)
+  if (dialog_) {
     dialog_->ListenerDestroyed();
+  }
 }
 
-void FileSystemChooser::FileSelected(const base::FilePath& path,
-                                     int index,
-                                     void* params) {
+void FileSystemChooser::FileSelected(const ui::SelectedFileInfo& file,
+                                     int index) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  MultiFilesSelected({path}, params);
+  std::move(callback_).Run(file_system_access_error::Ok(),
+                           std::vector<PathInfo>{FileInfoToPathInfo(file)});
+  delete this;
 }
 
 void FileSystemChooser::MultiFilesSelected(
-    const std::vector<base::FilePath>& files,
-    void* params) {
+    const std::vector<ui::SelectedFileInfo>& files) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  MultiFilesSelectedWithExtraInfo(ui::FilePathListToSelectedFileInfoList(files),
-                                  params);
-}
-
-void FileSystemChooser::FileSelectedWithExtraInfo(
-    const ui::SelectedFileInfo& file,
-    int index,
-    void* params) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  MultiFilesSelectedWithExtraInfo({file}, params);
-}
-
-void FileSystemChooser::MultiFilesSelectedWithExtraInfo(
-    const std::vector<ui::SelectedFileInfo>& files,
-    void* params) {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  std::vector<ResultEntry> result;
-
+  std::vector<PathInfo> result;
+  result.reserve(files.size());
   for (const ui::SelectedFileInfo& file : files) {
-    if (file.virtual_path.has_value()) {
-      result.push_back({PathType::kExternal, *file.virtual_path});
-    } else {
-      result.push_back({PathType::kLocal, file.local_path.empty()
-                                              ? file.file_path
-                                              : file.local_path});
-    }
+    result.push_back(FileInfoToPathInfo(file));
   }
-
-  RecordFileSelectionResult(type_, result.size());
   std::move(callback_).Run(file_system_access_error::Ok(), std::move(result));
   delete this;
 }
 
-void FileSystemChooser::FileSelectionCanceled(void* params) {
+void FileSystemChooser::FileSelectionCanceled() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  RecordFileSelectionResult(type_, 0);
   std::move(callback_).Run(
       file_system_access_error::FromStatus(
           blink::mojom::FileSystemAccessStatus::kOperationAborted),

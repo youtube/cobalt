@@ -4,15 +4,20 @@
 
 #include "ash/system/phonehub/app_stream_launcher_item.h"
 
+#include <utility>
+
 #include "ash/strings/grit/ash_strings.h"
+#include "base/functional/callback.h"
 #include "base/hash/hash.h"
-#include "base/strings/string_piece_forward.h"
 #include "base/strings/utf_string_conversions.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/insets.h"
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_skia_operations.h"
 #include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/label.h"
@@ -28,7 +33,7 @@ constexpr gfx::Size kEcheAppItemSize(kEcheAppItemWidth, kEcheAppItemHeight);
 constexpr int kEcheAppItemSpacing = 4;
 constexpr int kEcheAppNameLabelLineHeight = 14;
 constexpr int kEcheAppNameLabelFontSize = 11;
-constexpr double kAlphaValueForInhibitedIconOpacity = 0.3;
+constexpr double kAlphaValueForInhibitedIconOpacity = 0.38;
 
 void ConfigureLabel(views::Label* label, int line_height, int font_size) {
   label->SetLineHeight(line_height);
@@ -43,6 +48,8 @@ void ConfigureLabel(views::Label* label, int line_height, int font_size) {
 }
 
 class AppNameLabel : public views::LabelButton {
+  METADATA_HEADER(AppNameLabel, views::LabelButton)
+
  public:
   explicit AppNameLabel(PressedCallback callback = PressedCallback(),
                         const std::u16string& text = std::u16string())
@@ -58,10 +65,13 @@ class AppNameLabel : public views::LabelButton {
   AppNameLabel operator=(AppNameLabel&) = delete;
 };
 
+BEGIN_METADATA(AppNameLabel)
+END_METADATA
+
 }  // namespace
 
 AppStreamLauncherItem::AppStreamLauncherItem(
-    views::ImageButton::PressedCallback callback,
+    base::RepeatingClosure callback,
     const phonehub::Notification::AppMetadata& app_metadata) {
   SetPreferredSize(kEcheAppItemSize);
   auto* layout = SetLayoutManager(std::make_unique<views::BoxLayout>(
@@ -75,8 +85,6 @@ AppStreamLauncherItem::AppStreamLauncherItem(
   gfx::Image image = app_metadata.color_icon;
   if (!enabled) {
     // Fade the image in order to make it look like grayed out.
-    // TODO(b/261916553): Make grayed out icons "gray" in
-    // addition to 30% transparent.
     image = gfx::Image(gfx::ImageSkiaOperations::CreateTransparentImage(
         image.AsImageSkia(), kAlphaValueForInhibitedIconOpacity));
   }
@@ -98,14 +106,14 @@ AppStreamLauncherItem::AppStreamLauncherItem(
   }
   recent_app_button_ = AddChildView(std::make_unique<PhoneHubRecentAppButton>(
       image, app_metadata.visible_app_name, callback));
-  recent_app_button_->SetAccessibleName(accessible_name);
+  recent_app_button_->GetViewAccessibility().SetName(accessible_name);
   recent_app_button_->SetTooltipText(accessible_name);
   recent_app_button_->SetEnabled(enabled);
 
-  label_ = AddChildView(
-      std::make_unique<AppNameLabel>(callback, app_metadata.visible_app_name));
+  label_ = AddChildView(std::make_unique<AppNameLabel>(
+      std::move(callback), app_metadata.visible_app_name));
   label_->SetEnabled(enabled);
-  label_->SetAccessibleName(accessible_name);
+  label_->GetViewAccessibility().SetName(accessible_name);
   label_->SetTooltipText(accessible_name);
 }
 
@@ -119,15 +127,14 @@ void AppStreamLauncherItem::RequestFocus() {
   recent_app_button_->RequestFocus();
 }
 
-const char* AppStreamLauncherItem::GetClassName() const {
-  return "AppStreamLauncherItem";
-}
-
 views::LabelButton* AppStreamLauncherItem::GetLabelForTest() {
   return label_;
 }
 PhoneHubRecentAppButton* AppStreamLauncherItem::GetIconForTest() {
   return recent_app_button_;
 }
+
+BEGIN_METADATA(AppStreamLauncherItem)
+END_METADATA
 
 }  // namespace ash

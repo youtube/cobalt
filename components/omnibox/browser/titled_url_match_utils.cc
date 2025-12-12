@@ -5,6 +5,7 @@
 #include "components/omnibox/browser/titled_url_match_utils.h"
 
 #include <numeric>
+#include <string_view>
 #include <vector>
 
 #include "base/metrics/field_trial_params.h"
@@ -19,22 +20,22 @@
 #include "components/omnibox/browser/url_prefix.h"
 #include "components/query_parser/snippet.h"
 #include "components/url_formatter/url_formatter.h"
-#include "third_party/metrics_proto/omnibox_event.pb.h"
+#include "third_party/metrics_proto/omnibox_scoring_signals.pb.h"
 
 namespace bookmarks {
 namespace {
 
-using ScoringSignals = ::metrics::OmniboxEventProto::Suggestion::ScoringSignals;
+using ScoringSignals = ::metrics::OmniboxScoringSignals;
 
 // Concatenates |ancestors| in reverse order and using '/' as the delimiter.
 std::u16string ConcatAncestorsTitles(
-    std::vector<base::StringPiece16> ancestors) {
+    std::vector<std::u16string_view> ancestors) {
   return ancestors.empty()
              ? std::u16string()
              : std::accumulate(
                    std::next(ancestors.rbegin()), ancestors.rend(),
                    std::u16string(*ancestors.rbegin()),
-                   [](const std::u16string& a, const base::StringPiece16& b) {
+                   [](const std::u16string& a, std::u16string_view b) {
                      return a + u"/" + std::u16string(b);
                    });
 }
@@ -135,7 +136,7 @@ AutocompleteMatch TitledUrlMatchToAutocompleteMatch(
                                    &inline_autocomplete_offset),
           scheme_classifier, &inline_autocomplete_offset);
 
-  if (match.TryRichAutocompletion(match.contents, match.description, input)) {
+  if (match.TryRichAutocompletion(input, match.contents, match.description)) {
     // If rich autocompletion applies, we skip trying the alternatives below.
   } else if (inline_autocomplete_offset != std::u16string::npos) {
     match.inline_autocompletion =
@@ -143,13 +144,13 @@ AutocompleteMatch TitledUrlMatchToAutocompleteMatch(
     match.SetAllowedToBeDefault(input);
   }
 
-  if (provider->InKeywordMode(input)) {
+  if (input.InKeywordMode()) {
     match.from_keyword = true;
   }
 
-  if (OmniboxFieldTrial::IsLogUrlScoringSignalsEnabled() &&
-      AutocompleteScoringSignalsAnnotator::IsEligibleMatch(match)) {
-    match.scoring_signals = absl::make_optional<ScoringSignals>();
+  if (OmniboxFieldTrial::IsPopulatingUrlScoringSignalsEnabled() &&
+      match.IsMlSignalLoggingEligible()) {
+    match.scoring_signals = std::make_optional<ScoringSignals>();
     // Populate ACMatches with signals for ML model scoring and training.
     if (!titled_url_match.title_match_positions.empty())
       match.scoring_signals->set_first_bookmark_title_match_position(

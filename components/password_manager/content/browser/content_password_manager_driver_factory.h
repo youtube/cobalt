@@ -7,17 +7,14 @@
 
 #include <map>
 
-#include "base/compiler_specific.h"
 #include "base/memory/raw_ptr.h"
+#include "base/types/pass_key.h"
 #include "components/autofill/content/common/mojom/autofill_driver.mojom.h"
-#include "components/password_manager/core/browser/password_autofill_manager.h"
 #include "components/password_manager/core/browser/password_generation_frame_helper.h"
 #include "components/password_manager/core/browser/password_manager.h"
-#include "components/password_manager/core/browser/password_manager_driver.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "mojo/public/cpp/bindings/pending_associated_receiver.h"
-#include "services/service_manager/public/cpp/bind_source_info.h"
 
 namespace content {
 class WebContents;
@@ -48,7 +45,10 @@ class ContentPasswordManagerDriverFactory
   // Note that this may return null if the RenderFrameHost does not have a
   // live RenderFrame (e.g. it represents a crashed RenderFrameHost).
   ContentPasswordManagerDriver* GetDriverForFrame(
-      content::RenderFrameHost* render_frame_host);
+      content::RenderFrameHost* render_frame_host,
+      base::PassKey<ContentPasswordManagerDriver>) {
+    return GetDriverForFrame(render_frame_host);
+  }
 
   // Requests all drivers to inform their renderers whether
   // chrome://password-manager-internals is available.
@@ -59,21 +59,22 @@ class ContentPasswordManagerDriverFactory
       ContentPasswordManagerDriverFactory>;
   friend class ContentPasswordManagerDriverFactoryTestApi;
 
-  ContentPasswordManagerDriverFactory(
-      content::WebContents* web_contents,
-      PasswordManagerClient* client,
-      autofill::AutofillClient* autofill_client);
+  ContentPasswordManagerDriverFactory(content::WebContents* web_contents,
+                                      PasswordManagerClient* client);
+
+  ContentPasswordManagerDriver* GetDriverForFrame(
+      content::RenderFrameHost* render_frame_host);
 
   // content::WebContentsObserver:
-  void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
+  void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
+  void WebContentsDestroyed() override;
 
   std::map<content::RenderFrameHost*, ContentPasswordManagerDriver>
       frame_driver_map_;
 
-  raw_ptr<PasswordManagerClient, DanglingUntriaged> password_client_;
-  raw_ptr<autofill::AutofillClient, DanglingUntriaged> autofill_client_;
+  const raw_ptr<PasswordManagerClient> password_client_;
 
   WEB_CONTENTS_USER_DATA_KEY_DECL();
 };

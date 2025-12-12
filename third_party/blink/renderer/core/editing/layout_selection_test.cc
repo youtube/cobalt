@@ -9,10 +9,11 @@
 #include "third_party/blink/renderer/core/editing/frame_selection.h"
 #include "third_party/blink/renderer/core/editing/selection_template.h"
 #include "third_party/blink/renderer/core/editing/testing/editing_test_base.h"
+#include "third_party/blink/renderer/core/html/html_style_element.h"
+#include "third_party/blink/renderer/core/layout/inline/inline_cursor.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
 #include "third_party/blink/renderer/core/layout/layout_text_fragment.h"
-#include "third_party/blink/renderer/core/layout/ng/inline/ng_inline_cursor.h"
 #include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -36,7 +37,7 @@ class LayoutSelectionTestBase : public EditingTestBase {
                                   const LayoutText& layout_text,
                                   SelectionState state) {
     if (layout_text.IsInLayoutNGInlineFormattingContext()) {
-      NGInlineCursor cursor(*layout_text.FragmentItemsContainer());
+      InlineCursor cursor(*layout_text.FragmentItemsContainer());
       cursor.MoveTo(layout_text);
       if (!cursor)
         return;
@@ -146,10 +147,10 @@ class LayoutSelectionTest : public LayoutSelectionTestBase {
 
 TEST_F(LayoutSelectionTest, TraverseLayoutObject) {
   SetBodyContent("foo<br>bar");
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .SelectAllChildren(*GetDocument().body())
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SelectAllChildren(*GetDocument().body())
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -164,10 +165,10 @@ TEST_F(LayoutSelectionTest, TraverseLayoutObjectTruncateVisibilityHidden) {
       "<span style='visibility:hidden;'>before</span>"
       "foo"
       "<span style='visibility:hidden;'>after</span>");
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .SelectAllChildren(*GetDocument().body())
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SelectAllChildren(*GetDocument().body())
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -181,10 +182,10 @@ TEST_F(LayoutSelectionTest, TraverseLayoutObjectTruncateVisibilityHidden) {
 
 TEST_F(LayoutSelectionTest, TraverseLayoutObjectBRs) {
   SetBodyContent("<br><br>foo<br><br>");
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .SelectAllChildren(*GetDocument().body())
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SelectAllChildren(*GetDocument().body())
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -202,10 +203,10 @@ TEST_F(LayoutSelectionTest, TraverseLayoutObjectListStyleImage) {
       "image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs=)}"
       "</style>"
       "<ul><li>foo<li>bar</ul>");
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .SelectAllChildren(*GetDocument().body())
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SelectAllChildren(*GetDocument().body())
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -219,15 +220,17 @@ TEST_F(LayoutSelectionTest, TraverseLayoutObjectListStyleImage) {
 }
 
 TEST_F(LayoutSelectionTest, TraverseLayoutObjectCrossingShadowBoundary) {
-  Selection().SetSelectionAndEndTyping(SetSelectionTextToBody(
-      "^foo"
-      "<div>"
-      "<template data-mode=open>"
-      "Foo<slot name=s2></slot><slot name=s1></slot>"
-      "</template>"
-      // Set selection at SPAN@0 instead of "bar1"@0
-      "<span slot=s1><!--|-->bar1</span><span slot=s2>bar2</span>"
-      "</div>"));
+  Selection().SetSelection(
+      SetSelectionTextToBody(
+          "^foo"
+          "<div>"
+          "<template data-mode=open>"
+          "Foo<slot name=s2></slot><slot name=s1></slot>"
+          "</template>"
+          // Set selection at SPAN@0 instead of "bar1"@0
+          "<span slot=s1><!--|-->bar1</span><span slot=s2>bar2</span>"
+          "</div>"),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -249,12 +252,13 @@ TEST_F(LayoutSelectionTest,
        InvalidationShouldNotChangeRefferedLayoutObjectState) {
   SetBodyContent(
       "<div id='d1'>div1</div><div id='d2'>foo<span>bar</span>baz</div>");
-  Node* span = GetDocument().QuerySelector("span");
-  Selection().SetSelectionAndEndTyping(
+  Node* span = QuerySelector("span");
+  Selection().SetSelection(
       SelectionInDOMTree::Builder()
           .SetBaseAndExtent(Position(span->firstChild(), 0),
                             Position(span->firstChild(), 3))
-          .Build());
+          .Build(),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -267,12 +271,13 @@ TEST_F(LayoutSelectionTest,
       "    'baz', None, NotInvalidate ",
       DumpSelectionInfo());
 
-  Node* d1 = GetDocument().QuerySelector("#d1");
-  Node* d2 = GetDocument().QuerySelector("#d2");
-  Selection().SetSelectionAndEndTyping(
+  Node* d1 = QuerySelector("#d1");
+  Node* d2 = QuerySelector("#d2");
+  Selection().SetSelection(
       SelectionInDOMTree::Builder()
           .SetBaseAndExtent(Position(d1, 0), Position(d2, 0))
-          .Build());
+          .Build(),
+      SetSelectionOptions());
   // This commit should not crash.
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
@@ -289,10 +294,10 @@ TEST_F(LayoutSelectionTest,
 
 TEST_F(LayoutSelectionTest, TraverseLayoutObjectLineWrap) {
   SetBodyContent("bar\n");
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .SelectAllChildren(*GetDocument().body())
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SelectAllChildren(*GetDocument().body())
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -304,10 +309,10 @@ TEST_F(LayoutSelectionTest, FirstLetter) {
   SetBodyContent(
       "<style>::first-letter { color: red; }</style>"
       "<span>foo</span>");
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .SelectAllChildren(*GetDocument().body())
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SelectAllChildren(*GetDocument().body())
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -319,9 +324,10 @@ TEST_F(LayoutSelectionTest, FirstLetter) {
 }
 
 TEST_F(LayoutSelectionTest, FirstLetterMultiple) {
-  Selection().SetSelectionAndEndTyping(
+  Selection().SetSelection(
       SetSelectionTextToBody("<style>::first-letter { color: red; }</style>"
-                             "<span> [^f]o|o</span>"));
+                             "<span> [^f]o|o</span>"),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -334,8 +340,8 @@ TEST_F(LayoutSelectionTest, FirstLetterMultiple) {
 
 TEST_F(LayoutSelectionTest, FirstLetterClearSeletion) {
   InsertStyleElement("div::first-letter { color: red; }");
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("fo^o<div>bar</div>b|az"));
+  Selection().SetSelection(SetSelectionTextToBody("fo^o<div>bar</div>b|az"),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -370,9 +376,10 @@ TEST_F(LayoutSelectionTest, FirstLetterUpdateSeletion) {
                         ->nextSibling()
                         ->nextSibling();
   // <div>fo^o</div><div>bar</div>b|az
-  Selection().SetSelectionAndEndTyping(SelectionInDOMTree::Builder()
-                                           .SetBaseAndExtent({foo, 2}, {baz, 1})
-                                           .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SetBaseAndExtent({foo, 2}, {baz, 1})
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -396,9 +403,10 @@ TEST_F(LayoutSelectionTest, FirstLetterUpdateSeletion) {
   UpdateAllLifecyclePhasesForTest();
 
   // <div>foo</div><div>bar</div>ba^z|
-  Selection().SetSelectionAndEndTyping(SelectionInDOMTree::Builder()
-                                           .SetBaseAndExtent({baz, 2}, {baz, 3})
-                                           .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SetBaseAndExtent({baz, 2}, {baz, 3})
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -412,19 +420,21 @@ TEST_F(LayoutSelectionTest, FirstLetterUpdateSeletion) {
 }
 
 TEST_F(LayoutSelectionTest, CommitAppearanceIfNeededNotCrash) {
-  Selection().SetSelectionAndEndTyping(SetSelectionTextToBody(
-      "<div>"
-      "<template data-mode=open>foo</template>"
-      "<span>|bar<span>"  // <span> is not appeared in flat tree.
-      "</div>"
-      "<div>baz^</div>"));
+  Selection().SetSelection(
+      SetSelectionTextToBody(
+          "<div>"
+          "<template data-mode=open>foo</template>"
+          "<span>|bar<span>"  // <span> is not appeared in flat tree.
+          "</div>"
+          "<div>baz^</div>"),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
 }
 
 TEST_F(LayoutSelectionTest, SelectImage) {
   const SelectionInDOMTree& selection =
       SetSelectionTextToBody("^<img style=\"width:100px; height:100px\"/>|");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -435,7 +445,7 @@ TEST_F(LayoutSelectionTest, SelectImage) {
 TEST_F(LayoutSelectionTest, MoveOnSameNode_Start) {
   const SelectionInDOMTree& selection =
       SetSelectionTextToBody("f^oo<span>b|ar</span>");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -454,11 +464,12 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_Start) {
       DumpSelectionInfo());
 
   // "fo^o<span>b|ar</span>"
-  Selection().SetSelectionAndEndTyping(
+  Selection().SetSelection(
       SelectionInDOMTree::Builder()
-          .SetBaseAndExtent({selection.Base().AnchorNode(), 2},
-                            selection.Extent())
-          .Build());
+          .SetBaseAndExtent({selection.Anchor().AnchorNode(), 2},
+                            selection.Focus())
+          .Build(),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   // Only "foo" should be invalidated.
   EXPECT_EQ(
@@ -472,7 +483,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_Start) {
 TEST_F(LayoutSelectionTest, MoveOnSameNode_End) {
   const SelectionInDOMTree& selection =
       SetSelectionTextToBody("f^oo<span>b|ar</span>");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -491,11 +502,12 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_End) {
       DumpSelectionInfo());
 
   // "fo^o<span>ba|r</span>"
-  Selection().SetSelectionAndEndTyping(
+  Selection().SetSelection(
       SelectionInDOMTree::Builder()
-          .SetBaseAndExtent(selection.Base(),
-                            {selection.Extent().AnchorNode(), 2})
-          .Build());
+          .SetBaseAndExtent(selection.Anchor(),
+                            {selection.Focus().AnchorNode(), 2})
+          .Build(),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   // Only "bar" should be invalidated.
   EXPECT_EQ(
@@ -508,7 +520,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_End) {
 
 TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd) {
   const SelectionInDOMTree& selection = SetSelectionTextToBody("f^oob|ar");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -523,11 +535,12 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd) {
       DumpSelectionInfo());
 
   // "f^ooba|r"
-  Selection().SetSelectionAndEndTyping(
+  Selection().SetSelection(
       SelectionInDOMTree::Builder()
-          .SetBaseAndExtent(selection.Base(),
-                            {selection.Extent().AnchorNode(), 5})
-          .Build());
+          .SetBaseAndExtent(selection.Anchor(),
+                            {selection.Focus().AnchorNode(), 5})
+          .Build(),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   // "foobar" should be invalidated.
   EXPECT_EQ(
@@ -538,7 +551,7 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd) {
 
 TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd_Collapse) {
   const SelectionInDOMTree& selection = SetSelectionTextToBody("f^oob|ar");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -553,10 +566,10 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd_Collapse) {
       DumpSelectionInfo());
 
   // "foo^|bar"
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .Collapse({selection.Base().AnchorNode(), 3})
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .Collapse({selection.Anchor().AnchorNode(), 3})
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   // "foobar" should be invalidated.
   EXPECT_EQ(
@@ -567,10 +580,10 @@ TEST_F(LayoutSelectionTest, MoveOnSameNode_StartAndEnd_Collapse) {
 
 TEST_F(LayoutSelectionTest, ContentEditableButton) {
   SetBodyContent("<input type=button value=foo contenteditable>");
-  Selection().SetSelectionAndEndTyping(
-      SelectionInDOMTree::Builder()
-          .SelectAllChildren(*GetDocument().body())
-          .Build());
+  Selection().SetSelection(SelectionInDOMTree::Builder()
+                               .SelectAllChildren(*GetDocument().body())
+                               .Build(),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -581,8 +594,8 @@ TEST_F(LayoutSelectionTest, ContentEditableButton) {
 }
 
 TEST_F(LayoutSelectionTest, ClearSelection) {
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("<div>f^o|o</div>"));
+  Selection().SetSelection(SetSelectionTextToBody("<div>f^o|o</div>"),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -609,7 +622,7 @@ TEST_F(LayoutSelectionTest, ClearSelection) {
 TEST_F(LayoutSelectionTest, SVG) {
   const SelectionInDOMTree& selection =
       SetSelectionTextToBody("<svg><text x=10 y=10>fo^o|bar</text></svg>");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   // LayoutSVGText should be invalidate though it is kContain.
   EXPECT_EQ(
@@ -627,11 +640,12 @@ TEST_F(LayoutSelectionTest, SVG) {
       "      'foobar', StartAndEnd(2,3), NotInvalidate ",
       DumpSelectionInfo());
 
-  Selection().SetSelectionAndEndTyping(
+  Selection().SetSelection(
       SelectionInDOMTree::Builder()
-          .SetBaseAndExtent(selection.Base(),
-                            {selection.Extent().AnchorNode(), 4})
-          .Build());
+          .SetBaseAndExtent(selection.Anchor(),
+                            {selection.Focus().AnchorNode(), 4})
+          .Build(),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -645,7 +659,7 @@ TEST_F(LayoutSelectionTest, SVG) {
 TEST_F(LayoutSelectionTest, SVGAncestor) {
   const SelectionInDOMTree& selection = SetSelectionTextToBody(
       "<svg><text x=10 y=10><tspan>fo^o|bar</tspan></text></svg>");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   // LayoutSVGText should be invalidated.
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
@@ -665,11 +679,12 @@ TEST_F(LayoutSelectionTest, SVGAncestor) {
       "        'foobar', StartAndEnd(2,3), NotInvalidate ",
       DumpSelectionInfo());
 
-  Selection().SetSelectionAndEndTyping(
+  Selection().SetSelection(
       SelectionInDOMTree::Builder()
-          .SetBaseAndExtent(selection.Base(),
-                            {selection.Extent().AnchorNode(), 4})
-          .Build());
+          .SetBaseAndExtent(selection.Anchor(),
+                            {selection.Focus().AnchorNode(), 4})
+          .Build(),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -681,8 +696,9 @@ TEST_F(LayoutSelectionTest, SVGAncestor) {
 }
 
 TEST_F(LayoutSelectionTest, Embed) {
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("^<embed type=foobar></embed>|"));
+  Selection().SetSelection(
+      SetSelectionTextToBody("^<embed type=foobar></embed>|"),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -694,8 +710,9 @@ TEST_F(LayoutSelectionTest, Embed) {
 
 // http:/crbug.com/843144
 TEST_F(LayoutSelectionTest, Ruby) {
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("^<ruby>foo<rt>bar</rt></ruby>|"));
+  Selection().SetSelection(
+      SetSelectionTextToBody("^<ruby>foo<rt>bar</rt></ruby>|"),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -726,8 +743,8 @@ TEST_F(LayoutSelectionTest, Ruby) {
 }
 
 TEST_F(LayoutSelectionTest, ClearByRemoveNode) {
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("^foo<span>bar</span>baz|"));
+  Selection().SetSelection(SetSelectionTextToBody("^foo<span>bar</span>baz|"),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -758,8 +775,9 @@ TEST_F(LayoutSelectionTest, ClearByRemoveNode) {
 }
 
 TEST_F(LayoutSelectionTest, ClearByRemoveLayoutObject) {
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("^foo<span>bar</span><span>baz</span>|"));
+  Selection().SetSelection(
+      SetSelectionTextToBody("^foo<span>bar</span><span>baz</span>|"),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -794,13 +812,13 @@ TEST_F(LayoutSelectionTest, ClearByRemoveLayoutObject) {
 }
 
 TEST_F(LayoutSelectionTest, ClearBySlotChange) {
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("<div>"
-                             "<template data-mode=open>"
-                             "^Foo<slot name=s1></slot>|"
-                             "</template>"
-                             "baz<span slot=s1>bar</span>"
-                             "</div>"));
+  Selection().SetSelection(SetSelectionTextToBody("<div>"
+                                                  "<template data-mode=open>"
+                                                  "^Foo<slot name=s1></slot>|"
+                                                  "</template>"
+                                                  "baz<span slot=s1>bar</span>"
+                                                  "</div>"),
+                           SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -814,8 +832,8 @@ TEST_F(LayoutSelectionTest, ClearBySlotChange) {
       DumpSelectionInfo());
   Element* slot =
       GetDocument().body()->firstChild()->GetShadowRoot()->QuerySelector(
-          "slot");
-  slot->setAttribute("name", "s2");
+          AtomicString("slot"));
+  slot->setAttribute(html_names::kNameAttr, AtomicString("s2"));
   GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
@@ -843,8 +861,10 @@ TEST_F(LayoutSelectionTest, ClearBySlotChange) {
 }
 
 TEST_F(LayoutSelectionTest, MoveNode) {
-  Selection().SetSelectionAndEndTyping(SetSelectionTextToBody(
-      "<div id='div1'></div><div id='div2'>^foo<b>ba|r</b></div>"));
+  Selection().SetSelection(
+      SetSelectionTextToBody(
+          "<div id='div1'></div><div id='div2'>^foo<b>ba|r</b></div>"),
+      SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -854,8 +874,8 @@ TEST_F(LayoutSelectionTest, MoveNode) {
       "    B, Contain, NotInvalidate \n"
       "      'bar', End(0,2), ShouldInvalidate ",
       DumpSelectionInfo());
-  Node* div1 = GetDocument().QuerySelector("#div1");
-  Node* div2 = GetDocument().QuerySelector("#div2");
+  Node* div1 = QuerySelector("#div1");
+  Node* div2 = QuerySelector("#div2");
   div1->appendChild(div2);
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -879,13 +899,13 @@ TEST_F(LayoutSelectionTest, MoveNode) {
 
 // http://crbug.com/870734
 TEST_F(LayoutSelectionTest, InvalidateSlot) {
-  Selection().SetSelectionAndEndTyping(
-      SetSelectionTextToBody("^<div>"
-                             "<template data-mode=open>"
-                             "<slot></slot>"
-                             "</template>"
-                             "foo"
-                             "</div>|"));
+  Selection().SetSelection(SetSelectionTextToBody("^<div>"
+                                                  "<template data-mode=open>"
+                                                  "<slot></slot>"
+                                                  "</template>"
+                                                  "foo"
+                                                  "</div>|"),
+                           SetSelectionOptions());
   UpdateAllLifecyclePhasesForTest();
   EXPECT_EQ(
       "BODY, Contain, NotInvalidate \n"
@@ -919,7 +939,6 @@ class NGLayoutSelectionTest
         return text_node;
     }
     NOTREACHED();
-    return nullptr;
   }
 
   bool IsFirstTextLineBreak(const std::string& selection_text) {
@@ -937,7 +956,7 @@ class NGLayoutSelectionTest
   LayoutSelectionStatus ComputeLayoutSelectionStatus(
       const LayoutObject& layout_object) const {
     DCHECK(layout_object.IsText());
-    NGInlineCursor cursor(*layout_object.FragmentItemsContainer());
+    InlineCursor cursor(*layout_object.FragmentItemsContainer());
     cursor.MoveTo(layout_object);
     return Selection().ComputeLayoutSelectionStatus(cursor);
   }
@@ -945,7 +964,7 @@ class NGLayoutSelectionTest
   SelectionState ComputePaintingSelectionStateForCursor(
       const LayoutObject& layout_object) const {
     DCHECK(layout_object.IsText());
-    NGInlineCursor cursor;
+    InlineCursor cursor;
     cursor.MoveTo(layout_object);
     return Selection().ComputePaintingSelectionStateForCursor(cursor.Current());
   }
@@ -953,7 +972,7 @@ class NGLayoutSelectionTest
   void SetSelectionAndUpdateLayoutSelection(const std::string& selection_text) {
     const SelectionInDOMTree& selection =
         SetSelectionTextToBody(selection_text);
-    Selection().SetSelectionAndEndTyping(selection);
+    Selection().SetSelection(selection, SetSelectionOptions());
     Selection().CommitAppearanceIfNeeded();
   }
 };
@@ -1059,7 +1078,7 @@ TEST_F(NGLayoutSelectionTest, StartAndEndMultilineState) {
   LayoutObject* const div_text =
       GetDocument().body()->firstChild()->firstChild()->GetLayoutObject();
 
-  NGInlineCursor cursor(*(div_text->FragmentItemsContainer()));
+  InlineCursor cursor(*(div_text->FragmentItemsContainer()));
   cursor.MoveTo(*div_text);
   EXPECT_EQ(LayoutSelectionStatus(1u, 3u, SelectSoftLineBreak::kNotSelected),
             Selection().ComputeLayoutSelectionStatus(cursor));
@@ -1094,7 +1113,7 @@ TEST_F(NGLayoutSelectionTest, BeforeStartAndAfterEndMultilineState) {
       "style='white-space:pre'>ba|z\nquu</div>");
   LayoutObject* const div_text =
       GetDocument().body()->firstChild()->firstChild()->GetLayoutObject();
-  NGInlineCursor cursor(*(div_text->FragmentItemsContainer()));
+  InlineCursor cursor(*(div_text->FragmentItemsContainer()));
   cursor.MoveTo(*div_text);
   EXPECT_EQ(LayoutSelectionStatus(3u, 3u, SelectSoftLineBreak::kNotSelected),
             Selection().ComputeLayoutSelectionStatus(cursor));
@@ -1114,7 +1133,7 @@ TEST_F(NGLayoutSelectionTest, BeforeStartAndAfterEndMultilineState) {
 
   LayoutObject* const second_div_text =
       GetDocument().body()->lastChild()->firstChild()->GetLayoutObject();
-  NGInlineCursor second_cursor(*(second_div_text->FragmentItemsContainer()));
+  InlineCursor second_cursor(*(second_div_text->FragmentItemsContainer()));
   second_cursor.MoveTo(*second_div_text);
   EXPECT_EQ(LayoutSelectionStatus(0u, 2u, SelectSoftLineBreak::kNotSelected),
             Selection().ComputeLayoutSelectionStatus(second_cursor));
@@ -1218,10 +1237,9 @@ TEST_F(NGLayoutSelectionTest, LineBreakImage) {
 TEST_F(NGLayoutSelectionTest, BRStatus) {
   const SelectionInDOMTree& selection =
       SetSelectionTextToBody("<div>foo<!--^--><br><!--|-->bar</div>");
-  Selection().SetSelectionAndEndTyping(selection);
+  Selection().SetSelection(selection, SetSelectionOptions());
   Selection().CommitAppearanceIfNeeded();
-  LayoutObject* const layout_br =
-      GetDocument().QuerySelector("br")->GetLayoutObject();
+  LayoutObject* const layout_br = QuerySelector("br")->GetLayoutObject();
   CHECK(layout_br->IsBR());
   EXPECT_EQ(LayoutSelectionStatus(3u, 4u, SelectSoftLineBreak::kNotSelected),
             ComputeLayoutSelectionStatus(*layout_br));
@@ -1233,8 +1251,7 @@ TEST_F(NGLayoutSelectionTest, BRStatus) {
 TEST_F(NGLayoutSelectionTest, WBRStatus) {
   SetSelectionAndUpdateLayoutSelection(
       "<div style=\"width:0\">^foo<wbr>bar|</div>");
-  const LayoutObject* layout_wbr =
-      GetDocument().QuerySelector("wbr")->GetLayoutObject();
+  const LayoutObject* layout_wbr = QuerySelector("wbr")->GetLayoutObject();
   EXPECT_EQ(LayoutSelectionStatus(3u, 4u, SelectSoftLineBreak::kSelected),
             ComputeLayoutSelectionStatus(*layout_wbr));
   EXPECT_EQ(SelectionState::kInside,
@@ -1246,7 +1263,7 @@ TEST_F(NGLayoutSelectionTest, SoftHyphen0to1) {
       "<div id='container' style='width:3ch'>^0|123&shy;456</div>");
   auto* element = GetElementById("container");
   auto* block_flow = To<LayoutBlockFlow>(element->GetLayoutObject());
-  NGInlineCursor cursor(*block_flow);
+  InlineCursor cursor(*block_flow);
   while (!cursor.Current()->IsLayoutGeneratedText())
     cursor.MoveToNext();
   auto status = Selection().ComputeLayoutSelectionStatus(cursor);
@@ -1258,7 +1275,7 @@ TEST_F(NGLayoutSelectionTest, SoftHyphen0to4) {
       "<div id='container' style='width:3ch'>^0123|&shy;456</div>");
   auto* element = GetElementById("container");
   auto* block_flow = To<LayoutBlockFlow>(element->GetLayoutObject());
-  NGInlineCursor cursor(*block_flow);
+  InlineCursor cursor(*block_flow);
   while (!cursor.Current()->IsLayoutGeneratedText())
     cursor.MoveToNext();
   auto status = Selection().ComputeLayoutSelectionStatus(cursor);
@@ -1270,7 +1287,7 @@ TEST_F(NGLayoutSelectionTest, SoftHyphen1to5) {
       "<div id='container' style='width:3ch'>0^123&shy;|456</div>");
   auto* element = GetElementById("container");
   auto* block_flow = To<LayoutBlockFlow>(element->GetLayoutObject());
-  NGInlineCursor cursor(*block_flow);
+  InlineCursor cursor(*block_flow);
   while (!cursor.Current()->IsLayoutGeneratedText())
     cursor.MoveToNext();
   auto status = Selection().ComputeLayoutSelectionStatus(cursor);

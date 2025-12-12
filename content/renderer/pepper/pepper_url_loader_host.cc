@@ -129,21 +129,18 @@ bool PepperURLLoaderHost::WillFollowRedirect(
     const WebURL& new_url,
     const WebURLResponse& redirect_response) {
   DCHECK(out_of_order_replies_.empty());
-  if (base::FeatureList::IsEnabled(
-          features::kPepperCrossOriginRedirectRestriction)) {
-    // Follows the Firefox approach
-    // (https://bugzilla.mozilla.org/show_bug.cgi?id=1436241) to disallow
-    // cross-origin 307/308 POST redirects for requests from plugins. But we try
-    // allowing only GET and HEAD methods rather than disallowing POST.
-    // See http://crbug.com/332023 for details.
-    int status = redirect_response.HttpStatusCode();
-    if ((status == 307 || status == 308)) {
-      std::string method = base::ToUpperASCII(request_data_.method);
-      // method can be an empty string for default behavior, GET.
-      if (!method.empty() && method != net::HttpRequestHeaders::kGetMethod &&
-          method != net::HttpRequestHeaders::kHeadMethod) {
-        return false;
-      }
+  // Follows the Firefox approach
+  // (https://bugzilla.mozilla.org/show_bug.cgi?id=1436241) to disallow
+  // cross-origin 307/308 POST redirects for requests from plugins. But we try
+  // allowing only GET and HEAD methods rather than disallowing POST.
+  // See http://crbug.com/332023 for details.
+  int status = redirect_response.HttpStatusCode();
+  if ((status == 307 || status == 308)) {
+    std::string method = base::ToUpperASCII(request_data_.method);
+    // method can be an empty string for default behavior, GET.
+    if (!method.empty() && method != net::HttpRequestHeaders::kGetMethod &&
+        method != net::HttpRequestHeaders::kHeadMethod) {
+      return false;
     }
   }
 
@@ -178,13 +175,13 @@ void PepperURLLoaderHost::DidDownloadData(uint64_t data_length) {
   UpdateProgress();
 }
 
-void PepperURLLoaderHost::DidReceiveData(const char* data, int data_length) {
+void PepperURLLoaderHost::DidReceiveData(base::span<const char> data) {
   // Note that |loader| will be NULL for document loads.
-  bytes_received_ += data_length;
+  bytes_received_ += data.size();
   UpdateProgress();
 
   auto message = std::make_unique<PpapiPluginMsg_URLLoader_SendData>();
-  message->WriteData(data, base::checked_cast<size_t>(data_length));
+  message->WriteData(data.data(), data.size());
   SendUpdateToPlugin(std::move(message));
 }
 

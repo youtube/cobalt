@@ -277,11 +277,6 @@ Size StarboardBridge::GetDeviceResolution(JNIEnv* env) {
   return {Java_Size_getWidth(env, j_size), Java_Size_getHeight(env, j_size)};
 }
 
-bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
-  SB_DCHECK(env);
-  return Java_StarboardBridge_isNetworkConnected(env, j_starboard_bridge_);
-}
-
 void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
@@ -381,6 +376,11 @@ bool StarboardBridge::HasCobaltService(JNIEnv* env, const char* service_name) {
   SB_CHECK(env);
   return Java_StarboardBridge_hasCobaltService(
       env, j_starboard_bridge_, ConvertUTF8ToJavaString(env, service_name));
+}
+
+void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
+  SB_DCHECK(env);
+  Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
 }
 
 }  // namespace starboard

@@ -2,9 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/ash/app_list/app_service/app_service_app_item.h"
+
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/model/app_list_item.h"
 #include "ash/constants/ash_features.h"
+#include "ash/constants/web_app_id_constants.h"
 #include "ash/public/cpp/accelerators.h"
 #include "ash/public/cpp/app_list/app_list_types.h"
 #include "ash/public/cpp/shelf_types.h"
@@ -18,25 +21,23 @@
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/platform_apps/app_browsertest_util.h"
 #include "chrome/browser/ash/app_list/app_list_client_impl.h"
-#include "chrome/browser/ash/app_list/app_service/app_service_app_item.h"
+#include "chrome/browser/ash/app_list/apps_collections_util.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/web_applications/web_app_launch_process.h"
-#include "chrome/browser/web_applications/test/with_crosapi_param.h"
-#include "chrome/browser/web_applications/web_app_id.h"
-#include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/account_id/account_id.h"
 #include "components/services/app_service/public/cpp/app_types.h"
 #include "components/services/app_service/public/cpp/app_update.h"
+#include "components/webapps/common/web_app_id.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_utils.h"
+#include "ui/display/screen.h"
 #include "ui/events/event_constants.h"
-
-using web_app::test::CrosapiParam;
-using web_app::test::WithCrosapiParam;
 
 namespace {
 
@@ -52,25 +53,23 @@ void UpdateAppRegistryCache(Profile* profile,
 
   std::vector<apps::AppPtr> apps;
   apps.push_back(std::move(app));
-  apps::AppServiceProxyFactory::GetForProfile(profile)
-      ->AppRegistryCache()
-      .OnApps(std::move(apps), apps::AppType::kChromeApp,
-              false /* should_notify_initialized */);
+  apps::AppServiceProxyFactory::GetForProfile(profile)->OnApps(
+      std::move(apps), apps::AppType::kChromeApp,
+      false /* should_notify_initialized */);
 }
 
-void UpdateAppNameInRegistryCache(Profile* profile,
-                                  const std::string& app_id,
-                                  const std::string& app_name) {
+void UpdateShortNameInRegistryCache(Profile* profile,
+                                    const std::string& app_id,
+                                    const std::string& short_name) {
   apps::AppPtr app =
       std::make_unique<apps::App>(apps::AppType::kChromeApp, app_id);
-  app->name = app_name;
+  app->short_name = short_name;
 
   std::vector<apps::AppPtr> apps;
   apps.push_back(std::move(app));
-  apps::AppServiceProxyFactory::GetForProfile(profile)
-      ->AppRegistryCache()
-      .OnApps(std::move(apps), apps::AppType::kChromeApp,
-              false /* should_notify_initialized */);
+  apps::AppServiceProxyFactory::GetForProfile(profile)->OnApps(
+      std::move(apps), apps::AppType::kChromeApp,
+      false /* should_notify_initialized */);
 }
 
 ash::AppListItem* GetAppListItem(const std::string& id) {
@@ -197,11 +196,12 @@ IN_PROC_BROWSER_TEST_F(AppServiceAppItemBrowserTest, UpdateAppNameInLauncher) {
   ASSERT_TRUE(extension_app);
 
   ash::AcceleratorController::Get()->PerformActionIfEnabled(
-      ash::TOGGLE_APP_LIST, {});
+      ash::AcceleratorAction::kToggleAppList, {});
   ash::AppListTestApi app_list_test_api;
   app_list_test_api.WaitForBubbleWindow(/*wait_for_opening_animation=*/false);
 
-  UpdateAppNameInRegistryCache(profile(), extension_app->id(), "Updated Name");
+  UpdateShortNameInRegistryCache(profile(), extension_app->id(),
+                                 "Updated Name");
 
   EXPECT_EQ(u"Updated Name",
             app_list_test_api.GetAppListItemViewName(extension_app->id()));
@@ -211,7 +211,7 @@ IN_PROC_BROWSER_TEST_F(AppServiceAppItemBrowserTest,
                        ActivateAppRecordsNewInstallHistogram) {
   base::HistogramTester histograms;
   {
-    ASSERT_FALSE(ash::TabletMode::Get()->InTabletMode());
+    ASSERT_FALSE(display::Screen::GetScreen()->InTabletMode());
 
     // Simulate a user-installed chrome app item.
     std::unique_ptr<AppServiceAppItem> app_item =
@@ -242,14 +242,32 @@ IN_PROC_BROWSER_TEST_F(AppServiceAppItemBrowserTest,
   }
 }
 
-class AppServiceSystemWebAppItemBrowserTest
-    : public AppServiceAppItemBrowserTest,
-      public WithCrosapiParam {};
+// Test app collection name is set for item in the launcher.
+IN_PROC_BROWSER_TEST_F(AppServiceAppItemBrowserTest,
+                       AppCollectionIsPassedToLauncher) {
+  apps::AppPtr app = std::make_unique<apps::App>(
+      apps::AppType::kUnknown, apps_util::kTestAppIdWithCollection);
+  app->readiness = apps::Readiness::kReady;
+  app->show_in_launcher = true;
 
-IN_PROC_BROWSER_TEST_P(AppServiceSystemWebAppItemBrowserTest, Activate) {
+  std::vector<apps::AppPtr> apps;
+  apps.push_back(std::move(app));
+  apps::AppServiceProxyFactory::GetForProfile(profile())->OnApps(
+      std::move(apps), apps::AppType::kUnknown,
+      false /* should_notify_initialized */);
+
+  ash::AppListItem* item = GetAppListItem(apps_util::kTestAppIdWithCollection);
+  ASSERT_TRUE(item);
+
+  EXPECT_EQ(item->collection_id(), ash::AppCollection::kEssentials);
+}
+
+using AppServiceSystemWebAppItemBrowserTest = AppServiceAppItemBrowserTest;
+
+IN_PROC_BROWSER_TEST_F(AppServiceSystemWebAppItemBrowserTest, Activate) {
   Profile* const profile = browser()->profile();
   ash::SystemWebAppManager::GetForTest(profile)->InstallSystemAppsForTesting();
-  const web_app::AppId app_id = web_app::kHelpAppId;
+  const webapps::AppId app_id = ash::kHelpAppId;
 
   auto help_app = std::make_unique<apps::App>(apps::AppType::kWeb, app_id);
   apps::AppUpdate app_update(/*state=*/nullptr, /*delta=*/help_app.get(),
@@ -266,16 +284,7 @@ IN_PROC_BROWSER_TEST_P(AppServiceSystemWebAppItemBrowserTest, Activate) {
   // Verify that a launch no longer occurs.
   web_app::WebAppLaunchProcess::SetOpenApplicationCallbackForTesting(
       base::BindLambdaForTesting(
-          [](apps::AppLaunchParams&& params) -> content::WebContents* {
-            NOTREACHED();
-            return nullptr;
-          }));
+          [](apps::AppLaunchParams params) { NOTREACHED(); }));
 
   app_item.PerformActivate(ui::EF_NONE);
 }
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         AppServiceSystemWebAppItemBrowserTest,
-                         ::testing::Values(CrosapiParam::kDisabled,
-                                           CrosapiParam::kEnabled),
-                         WithCrosapiParam::ParamToString);

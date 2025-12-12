@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "crypto/rsa_private_key.h"
 
 #include <stdint.h>
@@ -353,7 +358,7 @@ TEST(RSAPrivateKeyUnitTest, ShortIntegers) {
 
 TEST(RSAPrivateKeyUnitTest, CreateFromKeyTest) {
   std::unique_ptr<crypto::RSAPrivateKey> key_pair(
-      crypto::RSAPrivateKey::Create(512));
+      crypto::RSAPrivateKey::Create(2048));
   ASSERT_TRUE(key_pair.get());
 
   std::unique_ptr<crypto::RSAPrivateKey> key_copy(

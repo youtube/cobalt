@@ -4,7 +4,10 @@
 
 #include "ui/base/clipboard/file_info.h"
 
+#include <string_view>
+
 #include "base/strings/escape.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -19,7 +22,7 @@ constexpr char kURIListSeparator[] = "\r\n";
 
 // Returns true if path starts with a letter, followed by a colon, followed
 // by a path separator.
-bool StartsWithDriveLetter(base::StringPiece path) {
+bool StartsWithDriveLetter(std::string_view path) {
   return path.length() > 2 && base::IsAsciiAlpha(path[0]) && path[1] == ':' &&
          base::FilePath::IsSeparator(path[2]);
 }
@@ -41,11 +44,10 @@ bool StartsWithDriveLetter(base::StringPiece path) {
 // (file:///C:/path), the path is assumed to be windows path 'C:/path', but
 // without the slash (file:///C:path), the path is assumed to posix '/C:path'
 // rather than windows relative path 'C:path'.
-base::FilePath URLToPath(base::StringPiece url) {
+base::FilePath URLToPath(std::string_view url) {
   // Must start with 'file://' with at least 1 more char.
   std::string prefix(kFileUrlPrefix);
-  if (url.size() <= prefix.size() ||
-      !base::StartsWith(url, prefix, base::CompareCase::SENSITIVE)) {
+  if (url.size() <= prefix.size() || !url.starts_with(prefix)) {
     return base::FilePath();
   }
 
@@ -86,12 +88,12 @@ bool FileInfo::operator==(const FileInfo& other) const {
   return path == other.path && display_name == other.display_name;
 }
 
-std::vector<FileInfo> URIListToFileInfos(const base::StringPiece& uri_list) {
+std::vector<FileInfo> URIListToFileInfos(std::string_view uri_list) {
   std::vector<FileInfo> result;
-  std::vector<base::StringPiece> lines =
+  std::vector<std::string_view> lines =
       base::SplitStringPiece(uri_list, kURIListSeparator, base::TRIM_WHITESPACE,
                              base::SPLIT_WANT_NONEMPTY);
-  for (const base::StringPiece& line : lines) {
+  for (std::string_view line : lines) {
     base::FilePath path = URLToPath(line);
     if (!path.empty()) {
       result.push_back(FileInfo(path, base::FilePath()));
@@ -138,11 +140,8 @@ std::string FilePathToFileURL(const base::FilePath& file_path) {
 #endif
         // Encode space and all control chars.
         c <= ' ') {
-      static const char kHexChars[] = "0123456789ABCDEF";
       url += '%';
-      url += kHexChars[(c >> 4) & 0xf];
-      url += kHexChars[c & 0xf];
-
+      base::AppendHexEncodedByte(static_cast<uint8_t>(c), url);
 #if BUILDFLAG(IS_WIN)
     } else if (c == '\\') {
       // Backslash is converted to slash on windows.

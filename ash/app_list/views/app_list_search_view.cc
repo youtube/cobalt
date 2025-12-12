@@ -7,12 +7,14 @@
 #include <algorithm>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "ash/app_list/app_list_model_provider.h"
 #include "ash/app_list/app_list_util.h"
 #include "ash/app_list/app_list_view_delegate.h"
+#include "ash/app_list/views/app_list_toast_view.h"
 #include "ash/app_list/views/result_selection_controller.h"
 #include "ash/app_list/views/search_box_view.h"
 #include "ash/app_list/views/search_result_image_list_view.h"
@@ -24,11 +26,11 @@
 #include "ash/strings/grit/ash_strings.h"
 #include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "ui/accessibility/platform/ax_unique_id.h"
+#include "components/vector_icons/vector_icons.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/gfx/geometry/rect.h"
@@ -37,6 +39,8 @@
 #include "ui/views/controls/scroll_view.h"
 #include "ui/views/controls/textfield/textfield.h"
 #include "ui/views/layout/box_layout.h"
+#include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 
 using views::BoxLayout;
 
@@ -75,13 +79,13 @@ AppListSearchView::AppListSearchView(
   scroll_view_->SetDrawOverflowIndicator(false);
 
   // Don't paint a background. The bubble already has one.
-  scroll_view_->SetBackgroundColor(absl::nullopt);
+  scroll_view_->SetBackgroundColor(std::nullopt);
 
   // Set up scroll bars.
   scroll_view_->SetHorizontalScrollBarMode(
       views::ScrollView::ScrollBarMode::kDisabled);
-  auto vertical_scroll =
-      std::make_unique<RoundedScrollBar>(/*horizontal=*/false);
+  auto vertical_scroll = std::make_unique<RoundedScrollBar>(
+      views::ScrollBar::Orientation::kVertical);
   vertical_scroll->SetInsets(kVerticalScrollInsets);
   scroll_view_->SetVerticalScrollBar(std::move(vertical_scroll));
 
@@ -108,8 +112,7 @@ AppListSearchView::AppListSearchView(
   auto* answer_card_container =
       scroll_contents->AddChildView(std::make_unique<SearchResultListView>(
           view_delegate, dialog_controller_,
-          SearchResultView::SearchResultViewType::kAnswerCard,
-          /*animates_result_updates=*/true, absl::nullopt));
+          SearchResultView::SearchResultViewType::kAnswerCard, std::nullopt));
   answer_card_container->SetListType(
       SearchResultListView::SearchResultListType::kAnswerCard);
   add_result_container(answer_card_container);
@@ -118,24 +121,22 @@ AppListSearchView::AppListSearchView(
   auto* best_match_container =
       scroll_contents->AddChildView(std::make_unique<SearchResultListView>(
           view_delegate, dialog_controller_,
-          SearchResultView::SearchResultViewType::kDefault,
-          /*animated_result_updates=*/true, absl::nullopt));
+          SearchResultView::SearchResultViewType::kDefault, std::nullopt));
   best_match_container->SetListType(
       SearchResultListView::SearchResultListType::kBestMatch);
   add_result_container(best_match_container);
 
   // Launcher image search container is always the third view shown.
   if (features::IsProductivityLauncherImageSearchEnabled()) {
-    auto* image_search_container = scroll_contents->AddChildView(
+    image_search_container_ = scroll_contents->AddChildView(
         std::make_unique<SearchResultImageListView>(view_delegate));
-    add_result_container(image_search_container);
+    add_result_container(image_search_container_);
   }
 
   // SearchResultListViews are aware of their relative position in the
-  // Productivity launcher search view. SearchResultListViews with mutable
-  // positions are passed their productivity_launcher_search_view_position to
-  // update their own category type. kAnswerCard and kBestMatch have already
-  // been constructed.
+  // AppListSearchView. SearchResultListViews with mutable positions are passed
+  // their search_view_position to update their own category type. kAnswerCard
+  // and kBestMatch have already been constructed.
   const size_t category_count =
       SearchResultListView::GetAllListTypesForCategoricalSearch().size() -
       result_container_views_.size();
@@ -143,8 +144,7 @@ AppListSearchView::AppListSearchView(
     auto* result_container =
         scroll_contents->AddChildView(std::make_unique<SearchResultListView>(
             view_delegate, dialog_controller_,
-            SearchResultView::SearchResultViewType::kDefault,
-            /*animates_result_updates=*/true, i));
+            SearchResultView::SearchResultViewType::kDefault, i));
     add_result_container(result_container);
   }
 
@@ -152,6 +152,13 @@ AppListSearchView::AppListSearchView(
 
   AppListModelProvider* const model_provider = AppListModelProvider::Get();
   model_provider->AddObserver(this);
+
+  // Set the role of AppListSearchView to ListBox.
+  GetViewAccessibility().SetRole(ax::mojom::Role::kListBox);
+  UpdateAccessibleValue();
+  search_box_view_->SetQueryChangedCallback(
+      base::BindRepeating(&AppListSearchView::UpdateAccessibleValue,
+                          weak_ptr_factory_.GetWeakPtr()));
 }
 
 AppListSearchView::~AppListSearchView() {
@@ -223,7 +230,7 @@ void AppListSearchView::OnSearchResultContainerResultsChanged() {
         first_animated_result_view_index;
 
     for (SearchResultContainerView* view : result_container_views_) {
-      absl::optional<AnimationInfo> container_animation_info =
+      std::optional<AnimationInfo> container_animation_info =
           view->ScheduleResultAnimations(aggregate_animation_info);
       if (container_animation_info) {
         aggregate_animation_info.total_views +=
@@ -249,12 +256,10 @@ void AppListSearchView::OnSearchResultContainerResultsChanged() {
     base::UmaHistogramBoolean("Ash.SearchResultUpdateAnimationShortened",
                               aggregate_animation_info.use_short_animations);
   }
-  Layout();
+  DeprecatedLayoutImmediately();
 
   last_search_result_count_ = result_count;
   last_result_metadata_.swap(search_result_metadata);
-
-  ScheduleResultsChangedA11yNotification();
 
   // Reset selection to first when things change. The first result is set as
   // as the default result.
@@ -268,57 +273,30 @@ void AppListSearchView::OnSearchResultContainerResultsChanged() {
   } else {
     search_box_view_->ClearAutocompleteText();
   }
+
+  ScheduleResultsChangedA11yNotification();
 }
 
 void AppListSearchView::VisibilityChanged(View* starting_from,
                                           bool is_visible) {
   if (!is_visible) {
     result_selection_controller_->ClearSelection();
-    for (auto* container : result_container_views_) {
+    for (ash::SearchResultContainerView* container : result_container_views_) {
       container->ResetAndHide();
     }
   }
 }
 
-void AppListSearchView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  if (!GetVisible()) {
-    return;
-  }
-
-  node_data->role = ax::mojom::Role::kListBox;
-
-  std::u16string value;
-  const std::u16string& query = search_box_view_->current_query();
-  if (!query.empty()) {
-    if (last_search_result_count_ == 1) {
-      value = l10n_util::GetStringFUTF16(
-          IDS_APP_LIST_SEARCHBOX_RESULTS_ACCESSIBILITY_ANNOUNCEMENT_SINGLE_RESULT,
-          query);
-    } else {
-      value = l10n_util::GetStringFUTF16(
-          IDS_APP_LIST_SEARCHBOX_RESULTS_ACCESSIBILITY_ANNOUNCEMENT,
-          base::NumberToString16(last_search_result_count_), query);
-    }
-  } else {
-    // TODO(crbug.com/1204551): New(?) accessibility announcement. We used to
-    // have a zero state A11Y announcement but zero state is removed for the
-    // bubble launcher.
-    value = std::u16string();
-  }
-
-  node_data->SetValue(value);
-}
-
 void AppListSearchView::OnActiveAppListModelsChanged(
     AppListModel* model,
     SearchModel* search_model) {
-  for (auto* container : result_container_views_) {
+  for (ash::SearchResultContainerView* container : result_container_views_) {
     container->SetResults(search_model->results());
   }
 }
 
 void AppListSearchView::UpdateForNewSearch(bool search_active) {
-  for (auto* container : result_container_views_) {
+  for (ash::SearchResultContainerView* container : result_container_views_) {
     container->SetActive(search_active);
   }
 
@@ -334,6 +312,12 @@ void AppListSearchView::UpdateForNewSearch(bool search_active) {
     } else {
       search_result_fast_update_time_.reset();
     }
+  }
+}
+
+void AppListSearchView::OnBoundsChanged(const gfx::Rect& old_bounds) {
+  if (image_search_container_ && width() != old_bounds.width()) {
+    image_search_container_->ConfigureLayoutForAvailableWidth(width());
   }
 }
 
@@ -375,7 +359,7 @@ void AppListSearchView::ScheduleResultsChangedA11yNotification() {
 void AppListSearchView::NotifyA11yResultsChanged() {
   SetIgnoreResultChangesForA11y(false);
 
-  NotifyAccessibilityEvent(ax::mojom::Event::kValueChanged, true);
+  UpdateAccessibleValue();
   MaybeNotifySelectedResultChanged();
 }
 
@@ -385,19 +369,19 @@ void AppListSearchView::MaybeNotifySelectedResultChanged() {
   }
 
   if (!result_selection_controller_->selected_result()) {
-    search_box_view_->SetA11yActiveDescendant(absl::nullopt);
+    search_box_view_->SetA11yActiveDescendant(std::nullopt);
     return;
   }
 
   views::View* selected_view =
       result_selection_controller_->selected_result()->GetSelectedView();
   if (!selected_view) {
-    search_box_view_->SetA11yActiveDescendant(absl::nullopt);
+    search_box_view_->SetA11yActiveDescendant(std::nullopt);
     return;
   }
 
   search_box_view_->SetA11yActiveDescendant(
-      selected_view->GetViewAccessibility().GetUniqueId().Get());
+      selected_view->GetViewAccessibility().GetUniqueId());
 }
 
 bool AppListSearchView::CanSelectSearchResults() {
@@ -421,7 +405,37 @@ ui::Layer* AppListSearchView::GetPageAnimationLayer() const {
   return scroll_view_->contents()->layer();
 }
 
-BEGIN_METADATA(AppListSearchView, views::View)
+void AppListSearchView::UpdateAccessibleValue() {
+  if (!GetVisible()) {
+    GetViewAccessibility().RemoveValue();
+    return;
+  }
+
+  // Notify value change to "interject" the node announcement before the search
+  // result is announced.
+  std::u16string value;
+  const std::u16string& query = search_box_view_->current_query();
+  if (!query.empty()) {
+    if (last_search_result_count_ == 1) {
+      value = l10n_util::GetStringFUTF16(
+          IDS_APP_LIST_SEARCHBOX_RESULTS_ACCESSIBILITY_ANNOUNCEMENT_SINGLE_RESULT,
+          query);
+    } else {
+      value = l10n_util::GetStringFUTF16(
+          IDS_APP_LIST_SEARCHBOX_RESULTS_ACCESSIBILITY_ANNOUNCEMENT,
+          base::NumberToString16(last_search_result_count_), query);
+    }
+  } else {
+    // TODO(crbug.com/40180065): New(?) accessibility announcement. We used to
+    // have a zero state A11Y announcement but zero state is removed for the
+    // bubble launcher.
+    value = std::u16string();
+  }
+
+  GetViewAccessibility().SetValue(value);
+}
+
+BEGIN_METADATA(AppListSearchView)
 END_METADATA
 
 }  // namespace ash

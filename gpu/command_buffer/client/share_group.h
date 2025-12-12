@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #ifndef GPU_COMMAND_BUFFER_CLIENT_SHARE_GROUP_H_
 #define GPU_COMMAND_BUFFER_CLIENT_SHARE_GROUP_H_
 
 #include <GLES2/gl2.h>
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 
 #include "base/synchronization/lock.h"
@@ -175,10 +181,12 @@ class GLES2_IMPL_EXPORT ShareGroup
   // Install a new program info manager. Used for testing only;
   void SetProgramInfoManagerForTesting(ProgramInfoManager* manager);
 
-  std::unique_ptr<IdHandlerInterface> id_handlers_[static_cast<int>(
-      SharedIdNamespaces::kNumSharedIdNamespaces)];
-  std::unique_ptr<RangeIdHandlerInterface>
-      range_id_handlers_[id_namespaces::kNumRangeIdNamespaces];
+  std::array<std::unique_ptr<IdHandlerInterface>,
+             static_cast<int>(SharedIdNamespaces::kNumSharedIdNamespaces)>
+      id_handlers_;
+  std::array<std::unique_ptr<RangeIdHandlerInterface>,
+             id_namespaces::kNumRangeIdNamespaces>
+      range_id_handlers_;
   std::unique_ptr<ProgramInfoManager> program_info_manager_;
   ClientDiscardableTextureManager discardable_texture_manager_;
 
@@ -186,7 +194,7 @@ class GLES2_IMPL_EXPORT ShareGroup
   uint64_t tracing_guid_;
 
   mutable base::Lock lost_lock_;
-  bool lost_ = false;
+  bool lost_ GUARDED_BY(lost_lock_) = false;
 };
 
 }  // namespace gles2

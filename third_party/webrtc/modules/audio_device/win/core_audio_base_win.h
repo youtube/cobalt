@@ -14,10 +14,10 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "absl/types/optional.h"
 #include "api/sequence_checker.h"
 #include "modules/audio_device/win/core_audio_utility_win.h"
 #include "rtc_base/platform_thread.h"
@@ -140,7 +140,7 @@ class CoreAudioBase : public IAudioSessionEvents {
   bool is_active_ = false;
   int64_t num_data_callbacks_ = 0;
   int latency_ms_ = 0;
-  absl::optional<uint32_t> sample_rate_;
+  std::optional<uint32_t> sample_rate_;
 
  private:
   const Direction direction_;
@@ -159,7 +159,7 @@ class CoreAudioBase : public IAudioSessionEvents {
   // Set when restart process starts and cleared when restart stops
   // successfully. Accessed atomically.
   std::atomic<bool> is_restarting_;
-  rtc::PlatformThread audio_thread_;
+  webrtc::PlatformThread audio_thread_;
   Microsoft::WRL::ComPtr<IAudioSessionControl> audio_session_control_;
 
   void StopThread();

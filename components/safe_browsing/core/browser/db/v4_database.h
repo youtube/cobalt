@@ -48,7 +48,7 @@ using DatabaseUpdatedCallback = base::RepeatingClosure;
 // Maps the ListIdentifiers to their corresponding in-memory stores, which
 // contain the hash prefixes for that ListIdentifier as well as manage their
 // storage on disk.
-using StoreMap = std::unordered_map<ListIdentifier, std::unique_ptr<V4Store>>;
+using StoreMap = std::unordered_map<ListIdentifier, V4StorePtr>;
 
 // Associates metadata for a list with its ListIdentifier.
 class ListInfo {
@@ -89,7 +89,7 @@ using ListInfos = std::vector<ListInfo>;
 // databases for testing.
 class V4DatabaseFactory {
  public:
-  virtual ~V4DatabaseFactory() {}
+  virtual ~V4DatabaseFactory() = default;
   virtual std::unique_ptr<V4Database, base::OnTaskRunnerDeleter> Create(
       const scoped_refptr<base::SequencedTaskRunner>& db_task_runner,
       std::unique_ptr<StoreMap> store_map);
@@ -109,20 +109,18 @@ class V4Database {
   // the database creation is complete, it runs the NewDatabaseReadyCallback on
   // the same thread as it was called.
   // NOTE: Within |new_db_callback| the client should invoke
-  // V4Database::InitializeOnIOSequence() on the IO thread.
+  // V4Database::InitializeOnUIThread() on the UI thread.
   static void Create(
       const scoped_refptr<base::SequencedTaskRunner>& db_task_runner,
       const base::FilePath& base_path,
       const ListInfos& list_infos,
       NewDatabaseReadyCallback new_db_callback);
 
-  // Initialize state that lives on the IO thread or UI thread if
-  // kSafeBrowsingOnUIThread is enabled.
-  void InitializeOnSBThread();
+  // Initialize state that lives on the UI thread.
+  void InitializeOnUIThread();
 
-  // Destroy state that lives on the IO thread or UI thread if
-  // kSafeBrowsingOnUIThread is enabled.
-  void StopOnSBThread();
+  // Destroy state that lives on the UI thread.
+  void StopOnUIThread();
 
   V4Database(const V4Database&) = delete;
   V4Database& operator=(const V4Database&) = delete;
@@ -150,13 +148,14 @@ class V4Database {
   virtual bool AreAnyStoresAvailable(
       const StoresToCheck& stores_to_check) const;
 
-  // Searches for a hash prefix matching the |full_hash| in stores in the
-  // database, filtered by |stores_to_check|, and returns the identifier of the
-  // store along with the matching hash prefix in |matched_hash_prefix_map|.
+  // Searches for hash prefixes matching the |full_hashes| in stores in the
+  // database, filtered by |stores_to_check|. The callback is run
+  // asynchronously, with the identifier of the stores along with the matching
+  // hash prefixes.
   virtual void GetStoresMatchingFullHash(
-      const FullHashStr& full_hash,
+      const std::vector<FullHashStr>& full_hashes,
       const StoresToCheck& stores_to_check,
-      StoreAndHashPrefixes* matched_store_and_full_hashes);
+      base::OnceCallback<void(FullHashToStoreAndHashPrefixesMap)> callback);
 
   // Returns the file size of the store in bytes. Returns 0 if the store is not
   // found.
@@ -230,8 +229,7 @@ class V4Database {
   // Callback called when a new store has been created and is ready to be used.
   // This method updates the store_map_ to point to the new store, which causes
   // the old store to get deleted.
-  void UpdatedStoreReady(ListIdentifier identifier,
-                         std::unique_ptr<V4Store> store);
+  void UpdatedStoreReady(ListIdentifier identifier, V4StorePtr store);
 
   // See |VerifyChecksum|.
   void OnChecksumVerified(
@@ -243,9 +241,8 @@ class V4Database {
   // Log the difference in time between database updates in a UMA histogram.
   void RecordDatabaseUpdateLatency();
 
-  // Used to verify that certain methods are called on the client-designated SB
-  // sequence (see InitializeOnSBThread()).
-  SEQUENCE_CHECKER(sb_sequence_checker_);
+  // Used to verify that certain methods are called on the UI thread.
+  SEQUENCE_CHECKER(sequence_checker_);
 
   const scoped_refptr<base::SequencedTaskRunner> db_task_runner_;
 

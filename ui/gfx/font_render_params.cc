@@ -25,7 +25,6 @@ SkPixelGeometry FontRenderParams::SubpixelRenderingToSkiaPixelGeometry(
   }
 
   NOTREACHED();
-  return kRGB_H_SkPixelGeometry;
 }
 
 FontRenderParamsQuery::FontRenderParamsQuery()

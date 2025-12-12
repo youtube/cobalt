@@ -192,7 +192,9 @@ angle::Result IndexDataManager::prepareIndexData(const gl::Context *context,
 
     if (staticBufferInitialized && !staticBufferUsable)
     {
-        buffer->invalidateStaticData(context);
+        BufferFeedback feedback;
+        buffer->invalidateStaticData(context, &feedback);
+        glBuffer->applyImplFeedback(context, feedback);
         staticBuffer = nullptr;
     }
 
@@ -204,7 +206,9 @@ angle::Result IndexDataManager::prepareIndexData(const gl::Context *context,
 
         ANGLE_TRY(streamIndexData(context, bufferData + offset, count, srcType, dstType,
                                   primitiveRestartFixedIndexEnabled, translated));
-        buffer->promoteStaticUsage(context, count << srcTypeShift);
+        BufferFeedback feedback;
+        buffer->promoteStaticUsage(context, count << srcTypeShift, &feedback);
+        glBuffer->applyImplFeedback(context, feedback);
     }
     else
     {
@@ -301,8 +305,9 @@ angle::Result GetIndexTranslationDestType(const gl::Context *context,
 
         gl::IndexRange indexRange;
         ANGLE_TRY(context->getState().getVertexArray()->getIndexRange(
-            context, indexType, indexCount, indices, &indexRange));
-        if (indexRange.end == gl::GetPrimitiveRestartIndex(indexType))
+            context, indexType, indexCount, indices,
+            context->getState().isPrimitiveRestartEnabled(), &indexRange));
+        if (indexRange.end() == gl::GetPrimitiveRestartIndex(indexType))
         {
             *destTypeOut = gl::DrawElementsType::UnsignedInt;
             return angle::Result::Continue;

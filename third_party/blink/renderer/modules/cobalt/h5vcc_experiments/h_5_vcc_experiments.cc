@@ -14,14 +14,14 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
 
+#include "base/metrics/field_trial_params.h"
 #include "base/values.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_long_string.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_union_boolean_double_long_string.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h"
-#include "third_party/blink/renderer/bindings/modules/v8/v8_override_state.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/experiments_utils.h"
 
@@ -33,11 +33,11 @@ H5vccExperiments::H5vccExperiments(LocalDOMWindow& window)
 
 void H5vccExperiments::ContextDestroyed() {}
 
-ScriptPromise H5vccExperiments::setExperimentState(
+ScriptPromise<IDLUndefined> H5vccExperiments::setExperimentState(
     ScriptState* script_state,
     const ExperimentConfiguration* experiment_configuration,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
@@ -62,10 +62,10 @@ ScriptPromise H5vccExperiments::setExperimentState(
   return promise;
 }
 
-ScriptPromise H5vccExperiments::resetExperimentState(
+ScriptPromise<IDLUndefined> H5vccExperiments::resetExperimentState(
     ScriptState* script_state,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -78,51 +78,169 @@ ScriptPromise H5vccExperiments::resetExperimentState(
   return resolver->Promise();
 }
 
-WTF::Vector<uint32_t> H5vccExperiments::activeExperimentIds() {
+ScriptPromise<V8OverrideState> H5vccExperiments::getFeature(
+    ScriptState* script_state,
+    const String& feature_name,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<V8OverrideState>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
   EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetActiveExperimentIds(&active_experiment_ids_);
-  return active_experiment_ids_;
-}
 
-String H5vccExperiments::getFeature(const String& feature_name) {
-  EnsureReceiverIsBound();
-  h5vcc_experiments::mojom::blink::OverrideState feature_state;
-  remote_h5vcc_experiments_->GetFeature(feature_name, &feature_state);
-  switch (feature_state) {
-    case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
-      return V8OverrideState(V8OverrideState::Enum::kDEFAULT);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_ENABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kENABLED);
-    case h5vcc_experiments::mojom::blink::OverrideState::
-        OVERRIDE_DISABLE_FEATURE:
-      return V8OverrideState(V8OverrideState::Enum::kDISABLED);
-  }
-  NOTREACHED_NORETURN() << "Invalid feature OverrideState for feature "
-                        << feature_name;
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_experiments_->GetFeature(
+      feature_name,
+      WTF::BindOnce(&H5vccExperiments::OnGetFeature, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+  return promise;
 }
 
 const String& H5vccExperiments::getFeatureParam(
     const String& feature_param_name) {
-  EnsureReceiverIsBound();
-  remote_h5vcc_experiments_->GetFeatureParam(feature_param_name,
-                                             &feature_param_value_);
+  feature_param_value_ = String::FromUTF8(base::GetFieldTrialParamValue(
+      cobalt::kCobaltExperimentName, feature_param_name.Utf8()));
   return feature_param_value_;
 }
 
-void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {
+ScriptPromise<IDLString> H5vccExperiments::getActiveExperimentConfigData(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_experiments_->GetActiveExperimentConfigData(
+      WTF::BindOnce(&H5vccExperiments::OnGetActiveExperimentConfigData,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+  return resolver->Promise();
+}
+
+ScriptPromise<IDLString> H5vccExperiments::getLatestExperimentConfigHashData(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_experiments_->GetLatestExperimentConfigHashData(
+      WTF::BindOnce(&H5vccExperiments::OnGetLatestExperimentConfigHashData,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+  return resolver->Promise();
+}
+
+ScriptPromise<IDLUndefined> H5vccExperiments::setLatestExperimentConfigHashData(
+    ScriptState* script_state,
+    const String& hash_data,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_experiments_->SetLatestExperimentConfigHashData(
+      hash_data,
+      WTF::BindOnce(&H5vccExperiments::OnSetLatestExperimentConfigHashData,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+ScriptPromise<IDLUndefined> H5vccExperiments::setFinchParameters(
+    ScriptState* script_state,
+    const HeapVector<
+        std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&
+        settings,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+      script_state, exception_state.GetContext());
+  auto promise = resolver->Promise();
+
+  EnsureReceiverIsBound();
+
+  std::optional<base::Value::Dict> settings_dict =
+      ParseSettingsToDictionary(settings);
+
+  if (!settings_dict.has_value()) {
+    resolver->RejectWithDOMException(DOMExceptionCode::kInvalidStateError,
+                                     "Unable to parse settings.");
+    return promise;
+  }
+
+  ongoing_requests_.insert(resolver);
+  remote_h5vcc_experiments_->SetFinchParameters(
+      std::move(settings_dict.value()),
+      WTF::BindOnce(&H5vccExperiments::OnSetFinchParameters,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return promise;
+}
+
+void H5vccExperiments::OnGetActiveExperimentConfigData(
+    ScriptPromiseResolver<IDLString>* resolver,
+    const String& result) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve(result);
+}
+
+void H5vccExperiments::OnGetLatestExperimentConfigHashData(
+    ScriptPromiseResolver<IDLString>* resolver,
+    const String& result) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve(result);
+}
+
+void H5vccExperiments::OnSetExperimentState(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
 
-void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
+void H5vccExperiments::OnSetFinchParameters(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   ongoing_requests_.erase(resolver);
   resolver->Resolve();
+}
+
+void H5vccExperiments::OnSetLatestExperimentConfigHashData(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve();
+}
+
+void H5vccExperiments::OnResetExperimentState(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
+  ongoing_requests_.erase(resolver);
+  resolver->Resolve();
+}
+
+void H5vccExperiments::OnGetFeature(
+    ScriptPromiseResolver<V8OverrideState>* resolver,
+    h5vcc_experiments::mojom::blink::OverrideState feature_state) {
+  ongoing_requests_.erase(resolver);
+  switch (feature_state) {
+    case h5vcc_experiments::mojom::blink::OverrideState::OVERRIDE_USE_DEFAULT:
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDEFAULT));
+      return;
+    case h5vcc_experiments::mojom::blink::OverrideState::
+        OVERRIDE_ENABLE_FEATURE:
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kENABLED));
+      return;
+    case h5vcc_experiments::mojom::blink::OverrideState::
+        OVERRIDE_DISABLE_FEATURE:
+      resolver->Resolve(V8OverrideState(V8OverrideState::Enum::kDISABLED));
+      return;
+  }
+  NOTREACHED() << "Invalid feature OverrideState for feature";
 }
 
 void H5vccExperiments::OnConnectionError() {
   remote_h5vcc_experiments_.reset();
-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_experiments_promises;
+  HeapHashSet<Member<ScriptPromiseResolverBase>> h5vcc_experiments_promises;
   // Script may execute during a call to Resolve(). Swap these sets to prevent
   // concurrent modification.
   ongoing_requests_.swap(h5vcc_experiments_promises);

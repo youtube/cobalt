@@ -17,8 +17,7 @@ namespace extensions {
 namespace errors = manifest_errors;
 namespace keys = manifest_keys;
 
-class AppLaunchManifestTest : public ChromeManifestTest {
-};
+using AppLaunchManifestTest = ChromeManifestTest;
 
 TEST_F(AppLaunchManifestTest, AppLaunchContainer) {
   scoped_refptr<Extension> extension = LoadAndExpectSuccess("launch_tab.json");
@@ -39,70 +38,57 @@ TEST_F(AppLaunchManifestTest, AppLaunchContainer) {
   extension = LoadAndExpectSuccess("launch_height.json");
   EXPECT_EQ(480, AppLaunchInfo::GetLaunchHeight(extension.get()));
 
-  Testcase testcases[] = {
-    Testcase("launch_window.json", errors::kInvalidLaunchContainer),
-    Testcase("launch_container_invalid_type.json",
-             errors::kInvalidLaunchContainer),
-    Testcase("launch_container_invalid_value.json",
-             errors::kInvalidLaunchContainer),
-    Testcase("launch_container_without_launch_url.json",
-             errors::kLaunchURLRequired),
-    Testcase("launch_width_invalid.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValueContainer,
-                 keys::kLaunchWidth)),
-    Testcase("launch_width_negative.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchWidth)),
-    Testcase("launch_height_invalid.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValueContainer,
-                 keys::kLaunchHeight)),
-    Testcase("launch_height_negative.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchHeight))
-  };
-  RunTestcases(testcases, std::size(testcases), EXPECT_TYPE_ERROR);
+  const Testcase testcases[] = {
+      Testcase("launch_window.json", errors::kInvalidLaunchContainer),
+      Testcase("launch_container_invalid_type.json",
+               errors::kInvalidLaunchContainer),
+      Testcase("launch_container_invalid_value.json",
+               errors::kInvalidLaunchContainer),
+      Testcase("launch_container_without_launch_url.json",
+               errors::kLaunchURLRequired),
+      Testcase("launch_width_invalid.json",
+               ErrorUtils::FormatErrorMessage(
+                   errors::kInvalidLaunchValueContainer, keys::kLaunchWidth)),
+      Testcase("launch_width_negative.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchWidth)),
+      Testcase("launch_height_invalid.json",
+               ErrorUtils::FormatErrorMessage(
+                   errors::kInvalidLaunchValueContainer, keys::kLaunchHeight)),
+      Testcase("launch_height_negative.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchHeight))};
+  RunTestcases(testcases, EXPECT_TYPE_ERROR);
 }
 
 TEST_F(AppLaunchManifestTest, AppLaunchURL) {
-  Testcase testcases[] = {
-    Testcase("launch_path_and_url.json",
-             errors::kLaunchPathAndURLAreExclusive),
-    Testcase("launch_path_and_extent.json",
-             errors::kLaunchPathAndExtentAreExclusive),
-    Testcase("launch_path_invalid_type.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchLocalPath)),
-    Testcase("launch_path_invalid_value.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchLocalPath)),
-    Testcase("launch_path_invalid_localized.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchLocalPath)),
-    Testcase("launch_url_invalid_type_1.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchWebURL)),
-    Testcase("launch_url_invalid_type_2.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchWebURL)),
-    Testcase("launch_url_invalid_type_3.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchWebURL)),
-    Testcase("launch_url_invalid_localized.json",
-             ErrorUtils::FormatErrorMessage(
-                 errors::kInvalidLaunchValue,
-                 keys::kLaunchWebURL))
-  };
-  RunTestcases(testcases, std::size(testcases), EXPECT_TYPE_ERROR);
+  const Testcase testcases[] = {
+      Testcase("launch_path_and_url.json",
+               errors::kLaunchPathAndURLAreExclusive),
+      Testcase("launch_path_and_extent.json",
+               errors::kLaunchPathAndExtentAreExclusive),
+      Testcase("launch_path_invalid_type.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchLocalPath)),
+      Testcase("launch_path_invalid_value.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchLocalPath)),
+      Testcase("launch_path_invalid_localized.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchLocalPath)),
+      Testcase("launch_url_invalid_type_1.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchWebURL)),
+      Testcase("launch_url_invalid_type_2.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchWebURL)),
+      Testcase("launch_url_invalid_type_3.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchWebURL)),
+      Testcase("launch_url_invalid_localized.json",
+               ErrorUtils::FormatErrorMessage(errors::kInvalidLaunchValue,
+                                              keys::kLaunchWebURL))};
+  RunTestcases(testcases, EXPECT_TYPE_ERROR);
 
   scoped_refptr<Extension> extension =
       LoadAndExpectSuccess("launch_local_path.json");

@@ -36,7 +36,6 @@ struct EnumTraits<printing::mojom::PdfRenderSettings_Mode,
 #endif
     }
     NOTREACHED() << "Unknown mode " << static_cast<int>(mode);
-    return printing::mojom::PdfRenderSettings_Mode::NORMAL;
   }
 
   static bool FromMojom(printing::mojom::PdfRenderSettings_Mode input,
@@ -67,7 +66,6 @@ struct EnumTraits<printing::mojom::PdfRenderSettings_Mode,
 #endif
     }
     NOTREACHED() << "Unknown mode " << static_cast<int>(input);
-    return false;
   }
 };
 

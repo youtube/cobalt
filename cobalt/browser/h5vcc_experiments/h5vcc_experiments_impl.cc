@@ -22,6 +22,11 @@
 #include "build/build_config.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/version.h"
+#include "components/metrics/clean_exit_beacon.h"
+#include "components/metrics/metrics_state_manager.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
 
@@ -69,8 +74,26 @@ void H5vccExperimentsImpl::SetExperimentState(
   // Note: It's important to clear the crash streak. Crashes that occur after a
   // successful config fetch do not prevent updating to a new update, and
   // therefore do not necessitate falling back to a safe config.
-  experiment_config_ptr->SetInteger(variations::prefs::kVariationsCrashStreak,
-                                    0);
+  global_features->metrics_local_state()->SetInteger(
+      variations::prefs::kVariationsCrashStreak, 0);
+  // At this point, have set the crash streak to 0 in the metrics_local_state
+  // file. Do the same for the Variations beacon file to keep them in sync by
+  // calling WriteBeaconValue(true). This eventually leads to the read
+  // of the 0 value we just set in metrics_local_state and updates the
+  // beacon file accordingly.
+  //
+  // WriteBeaconValue(true) also means we're saying the current session
+  // exited cleanly, or that we're in a "clean state". This solves an edge
+  // case where we recieve a new config, reset kVariationsCrashStreak to 0
+  // here, and then crash in the same session. Without WriteBeaconValue(true),
+  // we increment the crash streak from 0 to 1 on next startup, indicating
+  // that the crash is associated with the newly recieved and applied config.
+  // We should maintain a crash streak of 0 after recieving and applying a
+  // new config on next startup.
+  global_features->metrics_services_manager_client()
+      ->GetMetricsStateManager()
+      ->clean_exit_beacon()
+      ->WriteBeaconValue(true);
 
   experiment_config_ptr->SetInt64(variations::prefs::kVariationsLastFetchTime,
                                   base::Time::Now().ToInternalValue());
@@ -82,10 +105,21 @@ void H5vccExperimentsImpl::SetExperimentState(
       cobalt::kExperimentConfigFeatureParams,
       std::move(experiment_config.Find(cobalt::kExperimentConfigFeatureParams)
                     ->GetDict()));
-  experiment_config_ptr->SetList(
-      cobalt::kExperimentConfigExpIds,
+  experiment_config_ptr->SetString(
+      cobalt::kExperimentConfigActiveConfigData,
       std::move(
-          experiment_config.Find(cobalt::kExperimentConfigExpIds)->GetList()));
+          experiment_config.Find(cobalt::kExperimentConfigActiveConfigData)
+              ->GetString()));
+  experiment_config_ptr->SetString(cobalt::kExperimentConfigMinVersion,
+                                   COBALT_VERSION);
+  experiment_config_ptr->SetString(
+      cobalt::kLatestConfigHash,
+      std::move(
+          experiment_config.Find(cobalt::kLatestConfigHash)->GetString()));
+  // TODO: b/442825834 - Remove CommitPendingWrite to decrease storage writes
+  // TODO: b/456583508 - Without CommitPendingWrite, we should still write to
+  // storage if we shutdown early
+  global_features->metrics_local_state()->CommitPendingWrite();
   experiment_config_ptr->CommitPendingWrite();
   std::move(callback).Run();
 }
@@ -95,14 +129,17 @@ void H5vccExperimentsImpl::ResetExperimentState(
   PrefService* experiment_config =
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
   experiment_config->ClearPref(cobalt::kExperimentConfig);
+  // TODO: b/442825834 - Remove CommitPendingWrite to decrease storage writes
+  // TODO: b/456583508 - Without CommitPendingWrite, we should still write to
+  // storage if we shutdown early
   experiment_config->CommitPendingWrite();
   std::move(callback).Run();
 }
 
-void H5vccExperimentsImpl::GetActiveExperimentIds(
-    GetActiveExperimentIdsCallback callback) {
+void H5vccExperimentsImpl::GetActiveExperimentConfigData(
+    GetActiveExperimentConfigDataCallback callback) {
   std::move(callback).Run(
-      cobalt::GlobalFeatures::GetInstance()->active_experiment_ids());
+      cobalt::GlobalFeatures::GetInstance()->active_config_data());
 }
 
 void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
@@ -110,12 +147,28 @@ void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
   std::move(callback).Run(GetFeatureInternal(feature_name));
 }
 
-void H5vccExperimentsImpl::GetFeatureParam(
-    const std::string& feature_param_name,
-    GetFeatureParamCallback callback) {
-  std::string param_value = base::GetFieldTrialParamValue(
-      cobalt::kCobaltExperimentName, feature_param_name);
-  std::move(callback).Run(param_value);
+void H5vccExperimentsImpl::GetLatestExperimentConfigHashData(
+    GetLatestExperimentConfigHashDataCallback callback) {
+  std::move(callback).Run(
+      cobalt::GlobalFeatures::GetInstance()->latest_config_hash());
+}
+
+void H5vccExperimentsImpl::SetLatestExperimentConfigHashData(
+    const std::string& hash_data,
+    SetLatestExperimentConfigHashDataCallback callback) {
+  cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetString(
+      cobalt::kLatestConfigHash, hash_data);
+  // CommitPendingWrite not called here due to the same reason as above.
+  std::move(callback).Run();
+}
+
+void H5vccExperimentsImpl::SetFinchParameters(
+    base::Value::Dict settings,
+    SetFinchParametersCallback callback) {
+  cobalt::GlobalFeatures::GetInstance()->experiment_config()->SetDict(
+      cobalt::kFinchParameters, std::move(settings));
+  // CommitPendingWrite not called here due to the same reason as above.
+  std::move(callback).Run();
 }
 
 }  // namespace h5vcc_experiments

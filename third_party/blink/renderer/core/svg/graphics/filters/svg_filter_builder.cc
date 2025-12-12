@@ -19,8 +19,8 @@
 
 #include "third_party/blink/renderer/core/svg/graphics/filters/svg_filter_builder.h"
 
+#include "third_party/blink/renderer/core/css/css_identifier_value_mappings.h"
 #include "third_party/blink/renderer/core/css/css_primitive_value.h"
-#include "third_party/blink/renderer/core/css/css_primitive_value_mappings.h"
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/dom/element_traversal.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
@@ -213,11 +213,11 @@ FilterEffect* SVGFilterBuilder::GetEffectById(const AtomicString& id) const {
   if (!id.empty()) {
     auto builtin_it = builtin_effects_.find(id);
     if (builtin_it != builtin_effects_.end())
-      return builtin_it->value;
+      return builtin_it->value.Get();
 
     auto named_it = named_effects_.find(id);
     if (named_it != named_effects_.end())
-      return named_it->value;
+      return named_it->value.Get();
   }
 
   if (last_effect_)

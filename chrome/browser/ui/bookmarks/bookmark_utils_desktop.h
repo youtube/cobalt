@@ -8,27 +8,34 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/bookmarks/bookmark_editor.h"
-#include "chrome/browser/ui/simple_message_box.h"
-#include "chrome/browser/ui/tabs/tab_group.h"
+#include "chrome/browser/ui/bookmarks/bookmark_stats.h"
+#include "components/page_load_metrics/browser/navigation_handle_user_data.h"
+#include "components/tab_groups/tab_group_id.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/gfx/native_widget_types.h"
 
 class Browser;
 struct NavigateParams;
 
-namespace bookmarks {
-class BookmarkNode;
-}
-
 namespace content {
 class BrowserContext;
-class PageNavigator;
 class NavigationHandle;
-}
+}  // namespace content
+
+namespace bookmarks {
+class BookmarkNode;
+
+enum OpenAllBookmarksContext {
+  kNone = 0,     // Open all bookmarks as separate tabs.
+  kInGroup = 1,  // Open all bookmarks in a tab group.
+  kInSplit = 2,  // Open all bookmarks in a split tab.
+  kMaxValue = kInSplit,
+};
+}  // namespace bookmarks
 
 namespace chrome {
-
 // Wraps bookmark navigations to support view testing.
 class BookmarkNavigationWrapper {
  public:
@@ -43,7 +50,7 @@ class BookmarkNavigationWrapper {
 };
 
 using TabGroupData =
-    std::pair<absl::optional<tab_groups::TabGroupId>, std::u16string>;
+    std::pair<std::optional<tab_groups::TabGroupId>, std::u16string>;
 
 // Number of bookmarks we'll open before prompting the user to see if they
 // really want to open all.
@@ -52,36 +59,34 @@ using TabGroupData =
 // value.
 extern size_t kNumBookmarkUrlsBeforePrompting;
 
-// Tries to open all bookmarks in |nodes|. If there are many, prompts
+// Tries to open all bookmarks in `nodes`. If there are many, prompts
 // the user first. Returns immediately, opening the bookmarks
-// asynchronously if prompting the user. |browser| is the browser from
+// asynchronously if prompting the user. `browser` is the browser from
 // which the bookmarks were opened. Its window is used as the anchor for
-// the dialog (if shown). |get_navigator| is used to fetch the
-// PageNavigator used for opening the bookmarks. It may be called
-// arbitrarily later as long as |browser| is alive. If it is not
-// callable or returns null, this will fail gracefully.
-void OpenAllIfAllowed(Browser* browser,
-                      const std::vector<const bookmarks::BookmarkNode*>& nodes,
-                      WindowOpenDisposition initial_disposition,
-                      bool add_to_group);
-
-// Opens all the bookmarks in |nodes| that are of type url and all the child
-// bookmarks that are of type url for folders in |nodes|. |initial_disposition|
-// dictates how the first URL is opened, all subsequent URLs are opened as
-// background tabs.
-//
-// This does not prompt the user. It will open an arbitrary number of
-// bookmarks immediately.
-void OpenAllNow(Browser* browser,
-                const std::vector<const bookmarks::BookmarkNode*>& nodes,
-                WindowOpenDisposition initial_disposition,
-                content::BrowserContext* browser_context);
+// the dialog (if shown). `context` can optionally open the bookmarks into a
+// tab group or split view.
+// `launch_action` represents the location and time of the bookmark launch
+// action for callsites that support it.
+// TODO(crbug.com/40914589): This should be made non-optional once all callsites
+// have all the information needed to correctly construct the `launch_action`.
+void OpenAllIfAllowed(
+    Browser* browser,
+    const std::vector<
+        raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>>& nodes,
+    WindowOpenDisposition initial_disposition,
+    bookmarks::OpenAllBookmarksContext context =
+        bookmarks::OpenAllBookmarksContext::kNone,
+    page_load_metrics::NavigationHandleUserData::InitiatorLocation
+        navigation_type = page_load_metrics::NavigationHandleUserData::
+            InitiatorLocation::kOther,
+    std::optional<BookmarkLaunchAction> launch_action = std::nullopt);
 
 // Returns the count of bookmarks that would be opened by OpenAll. If
 // |incognito_context| is set, the function will use it to check if the URLs
 // can be opened in incognito mode, which may affect the count.
 int OpenCount(gfx::NativeWindow parent,
-              const std::vector<const bookmarks::BookmarkNode*>& nodes,
+              const std::vector<raw_ptr<const bookmarks::BookmarkNode,
+                                        VectorExperimental>>& nodes,
               content::BrowserContext* incognito_context = nullptr);
 
 // Convenience for OpenCount() with a single BookmarkNode.
@@ -98,14 +103,14 @@ void ShowBookmarkAllTabsDialog(Browser* browser);
 
 // Returns true if OpenAll() can open at least one bookmark of type url
 // in |selection|.
-bool HasBookmarkURLs(
-    const std::vector<const bookmarks::BookmarkNode*>& selection);
+bool HasBookmarkURLs(const std::vector<raw_ptr<const bookmarks::BookmarkNode,
+                                               VectorExperimental>>& selection);
 
 // Returns true if OpenAll() can open at least one bookmark of type url
 // in |selection| with incognito mode.
 bool HasBookmarkURLsAllowedInIncognitoMode(
-    const std::vector<const bookmarks::BookmarkNode*>& selection,
-    content::BrowserContext* browser_context);
+    const std::vector<
+        raw_ptr<const bookmarks::BookmarkNode, VectorExperimental>>& selection);
 
 // Populates |folder_data| with all tab items and sub-folders for any open tab
 // groups.

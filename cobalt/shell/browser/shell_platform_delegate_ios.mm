@@ -22,12 +22,12 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_file_select_helper.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #include "ui/display/screen.h"
+#include "ui/gfx/native_widget_types.h"
 
 #if !defined(__has_feature) || !__has_feature(objc_arc)
 #error "This file requires ARC support."
@@ -294,7 +294,7 @@ static const char kAllTracingCategories[] = "*";
                        constant:-16.0],
     [_field.heightAnchor constraintEqualToConstant:32.0],
   ]];
-  UIView* web_contents_view = _shell->web_contents()->GetNativeView();
+  UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
   [_contentView addSubview:web_contents_view];
 }
 
@@ -560,7 +560,7 @@ gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  return shell_data.window;
+  return gfx::NativeWindow(shell_data.window);
 }
 
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
@@ -638,14 +638,6 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
 
   [shell_data.window resignKeyWindow];
   return true;  // The performClose() will do the destruction of Shell.
-}
-
-void ShellPlatformDelegate::RunFileChooser(
-    RenderFrameHost* render_frame_host,
-    scoped_refptr<FileSelectListener> listener,
-    const blink::mojom::FileChooserParams& params) {
-  ShellFileSelectHelper::RunFileChooser(render_frame_host, std::move(listener),
-                                        params);
 }
 
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(

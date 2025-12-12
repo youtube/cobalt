@@ -5,13 +5,13 @@
 #include "components/safe_search_api/safe_search_util.h"
 
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "base/check.h"
 #include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "components/google/core/common/google_util.h"
@@ -24,11 +24,11 @@ namespace {
 // Returns whether a URL parameter, |first_parameter| (e.g. foo=bar), has the
 // same key as the the |second_parameter| (e.g. foo=baz). Both parameters
 // must be in key=value form.
-bool HasSameParameterKey(base::StringPiece first_parameter,
-                         base::StringPiece second_parameter) {
+bool HasSameParameterKey(std::string_view first_parameter,
+                         std::string_view second_parameter) {
   DCHECK(second_parameter.find("=") != std::string::npos);
   // Prefix for "foo=bar" is "foo=".
-  base::StringPiece parameter_prefix =
+  std::string_view parameter_prefix =
       second_parameter.substr(0, second_parameter.find("=") + 1);
   return base::StartsWith(first_parameter, parameter_prefix,
                           base::CompareCase::INSENSITIVE_ASCII);
@@ -38,11 +38,11 @@ bool HasSameParameterKey(base::StringPiece first_parameter,
 // so that SafeSearch is active. |query| is the string to examine and the
 // return value is the |query| string modified such that SafeSearch is active.
 std::string AddSafeSearchParameters(const std::string& query) {
-  std::vector<base::StringPiece> new_parameters;
+  std::vector<std::string_view> new_parameters;
   std::string safe_parameter = safe_search_api::kSafeSearchSafeParameter;
   std::string ssui_parameter = safe_search_api::kSafeSearchSsuiParameter;
 
-  for (const base::StringPiece& param : base::SplitStringPiece(
+  for (std::string_view param : base::SplitStringPiece(
            query, "&", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL)) {
     if (!HasSameParameterKey(param, safe_parameter) &&
         !HasSameParameterKey(param, ssui_parameter)) {
@@ -53,6 +53,16 @@ std::string AddSafeSearchParameters(const std::string& query) {
   new_parameters.push_back(safe_parameter);
   new_parameters.push_back(ssui_parameter);
   return base::JoinString(new_parameters, "&");
+}
+
+bool IsSafeSearchSettingUrl(const GURL& url) {
+  if (!google_util::IsGoogleDomainUrl(
+          url, google_util::ALLOW_SUBDOMAIN,
+          google_util::DISALLOW_NON_STANDARD_PORTS)) {
+    return false;
+  }
+
+  return url.path_piece() == "/safesearch";
 }
 
 }  // namespace
@@ -71,7 +81,7 @@ const char kGoogleAppsAllowedDomains[] = "X-GoogApps-Allowed-Domains";
 // Sets the query part of |new_url| with the new value of the parameters.
 void ForceGoogleSafeSearch(const GURL& url, GURL* new_url) {
   if (!google_util::IsGoogleSearchUrl(url) &&
-      !google_util::IsGoogleHomePageUrl(url)) {
+      !google_util::IsGoogleHomePageUrl(url) && !IsSafeSearchSettingUrl(url)) {
     return;
   }
 
@@ -99,7 +109,6 @@ void ForceYouTubeRestrict(const GURL& url,
     case YOUTUBE_RESTRICT_OFF:
     case YOUTUBE_RESTRICT_COUNT:
       NOTREACHED();
-      break;
 
     case YOUTUBE_RESTRICT_MODERATE:
       headers->SetHeader(kYouTubeRestrictHeaderName,

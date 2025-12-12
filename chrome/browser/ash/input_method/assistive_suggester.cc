@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 #include "chrome/browser/ash/input_method/assistive_suggester.h"
+
 #include <string>
 
 #include "ash/clipboard/clipboard_history_controller_impl.h"
@@ -30,8 +31,11 @@
 #include "ui/base/ime/ash/ime_bridge.h"
 #include "ui/base/ime/ash/input_method_ukm.h"
 #include "ui/base/ime/ash/text_input_target.h"
+#include "ui/base/ime/text_input_client.h"
+#include "ui/base/mojom/menu_source_type.mojom.h"
 #include "ui/events/event_constants.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
+#include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
 namespace ash::input_method {
@@ -41,6 +45,7 @@ namespace {
 using ime::AssistiveSuggestion;
 using ime::AssistiveSuggestionMode;
 using ime::AssistiveSuggestionType;
+using ime::SuggestionsTextContext;
 
 constexpr int kModifierKeysMask = ui::EF_SHIFT_DOWN | ui::EF_CONTROL_DOWN |
                                   ui::EF_ALT_DOWN | ui::EF_COMMAND_DOWN |
@@ -62,8 +67,9 @@ void RecordAssistiveMatch(AssistiveType type) {
   base::UmaHistogramEnumeration("InputMethod.Assistive.Match", type);
 
   TextInputTarget* input_context = IMEBridge::Get()->GetInputContextHandler();
-  if (!input_context)
+  if (!input_context) {
     return;
+  }
 
   auto sourceId = input_context->GetClientSourceForMetrics();
   if (sourceId != ukm::kInvalidSourceId) {
@@ -117,20 +123,23 @@ void RecordLongPressDiacriticAutoRepeatSuppressedMetric() {
 }
 
 bool IsTopResultMultiWord(const std::vector<AssistiveSuggestion>& suggestions) {
-  if (suggestions.empty())
+  if (suggestions.empty()) {
     return false;
+  }
   // There should only ever be one multi word suggestion given if any.
   return suggestions[0].type == AssistiveSuggestionType::kMultiWord;
 }
 
 void RecordSuggestionsMatch(
     const std::vector<AssistiveSuggestion>& suggestions) {
-  if (suggestions.empty())
+  if (suggestions.empty()) {
     return;
+  }
 
   auto top_result = suggestions[0];
-  if (top_result.type != AssistiveSuggestionType::kMultiWord)
+  if (top_result.type != AssistiveSuggestionType::kMultiWord) {
     return;
+  }
 
   switch (top_result.mode) {
     case AssistiveSuggestionMode::kCompletion:
@@ -161,6 +170,24 @@ bool IsLongpressEnabledControlV(const ui::KeyEvent& event) {
          (event.flags() & kModifierKeysMask) == ui::EF_CONTROL_DOWN;
 }
 
+// Returns the location to which the clipboard history menu should anchor. When
+// possible, this anchor is where a clipboard history item would be pasted if
+// the user made a selection; otherwise, this function returns a point at (0,0).
+gfx::Rect GetClipboardHistoryMenuAnchor() {
+  TextInputTarget* input_context = IMEBridge::Get()->GetInputContextHandler();
+  if (!input_context) {
+    return gfx::Rect();
+  }
+
+  ui::TextInputClient* input_client =
+      input_context->GetInputMethod()->GetTextInputClient();
+  if (!input_client) {
+    return gfx::Rect();
+  }
+
+  return input_client->GetCaretBounds();
+}
+
 void RecordMultiWordTextInputState(
     PrefService* pref_service,
     const std::string& engine_id,
@@ -176,7 +203,7 @@ void RecordMultiWordTextInputState(
     return;
   }
 
-  if (!IsPredictiveWritingPrefEnabled(pref_service, engine_id)) {
+  if (!IsPredictiveWritingPrefEnabled(*pref_service, engine_id)) {
     RecordTextInputStateMetric(
         AssistiveTextInputState::kFeatureBlockedByPreference);
     return;
@@ -196,7 +223,8 @@ AssistiveSuggester::AssistiveSuggester(
       multi_word_suggester_(suggestion_handler, profile),
       longpress_diacritics_suggester_(suggestion_handler),
       longpress_control_v_suggester_(suggestion_handler),
-      suggester_switch_(std::move(suggester_switch)) {
+      suggester_switch_(std::move(suggester_switch)),
+      context_(TextInputMethod::InputContext(ui::TEXT_INPUT_TYPE_NONE)) {
   RecordAssistiveUserPrefForEmoji(
       profile_->GetPrefs()->GetBoolean(prefs::kEmojiSuggestionEnabled));
 }
@@ -205,14 +233,13 @@ AssistiveSuggester::~AssistiveSuggester() = default;
 
 bool AssistiveSuggester::IsAssistiveFeatureEnabled() {
   return IsEmojiSuggestAdditionEnabled() || IsMultiWordSuggestEnabled() ||
-         IsEnhancedEmojiSuggestEnabled() ||
          IsDiacriticsOnPhysicalKeyboardLongpressEnabled() ||
          features::IsClipboardHistoryLongpressEnabled();
 }
 
 void AssistiveSuggester::FetchEnabledSuggestionsFromBrowserContextThen(
     AssistiveSuggesterSwitch::FetchEnabledSuggestionsCallback callback) {
-  suggester_switch_->FetchEnabledSuggestionsThen(std::move(callback));
+  suggester_switch_->FetchEnabledSuggestionsThen(std::move(callback), context_);
 }
 
 bool AssistiveSuggester::IsEmojiSuggestAdditionEnabled() {
@@ -221,26 +248,14 @@ bool AssistiveSuggester::IsEmojiSuggestAdditionEnabled() {
          profile_->GetPrefs()->GetBoolean(prefs::kEmojiSuggestionEnabled);
 }
 
-bool AssistiveSuggester::IsEnhancedEmojiSuggestEnabled() {
-  return IsEmojiSuggestAdditionEnabled() &&
-         base::FeatureList::IsEnabled(features::kAssistEmojiEnhanced);
-}
-
 bool AssistiveSuggester::IsMultiWordSuggestEnabled() {
-  return features::IsAssistiveMultiWordEnabled() &&
-         IsPredictiveWritingPrefEnabled(profile_->GetPrefs(),
+  return base::FeatureList::IsEnabled(features::kAssistMultiWord) &&
+         IsPredictiveWritingPrefEnabled(*profile_->GetPrefs(),
                                         active_engine_id_);
 }
 
-bool AssistiveSuggester::IsExpandedMultiWordSuggestEnabled() {
-  return IsMultiWordSuggestEnabled() &&
-         base::FeatureList::IsEnabled(features::kAssistMultiWordExpanded);
-}
-
 bool AssistiveSuggester::IsDiacriticsOnPhysicalKeyboardLongpressEnabled() {
-  return base::FeatureList::IsEnabled(
-             features::kDiacriticsOnPhysicalKeyboardLongpress) &&
-         IsUsEnglishEngine(active_engine_id_) &&
+  return IsUsEnglishEngine(active_engine_id_) &&
          IsDiacriticsOnLongpressPrefEnabled(profile_->GetPrefs(),
                                             active_engine_id_);
 }
@@ -262,7 +277,7 @@ DisabledReason AssistiveSuggester::GetDisabledReasonForEmoji(
 
 DisabledReason AssistiveSuggester::GetDisabledReasonForMultiWord(
     const AssistiveSuggesterSwitch::EnabledSuggestions& enabled_suggestions) {
-  if (!features::IsAssistiveMultiWordEnabled()) {
+  if (!base::FeatureList::IsEnabled(features::kAssistMultiWord)) {
     return DisabledReason::kFeatureFlagOff;
   }
   if (!profile_->GetPrefs()->GetBoolean(
@@ -322,20 +337,23 @@ bool AssistiveSuggester::IsAssistiveTypeAllowedInBrowserContext(
   }
 }
 
-void AssistiveSuggester::OnFocus(int context_id) {
+void AssistiveSuggester::OnFocus(int context_id,
+                                 const TextInputMethod::InputContext& context) {
   // Some parts of the code reserve negative/zero context_id for unfocused
   // context. As a result we should make sure it is not being errornously set to
   // a negative number, and cause unexpected behaviour.
+  context_ = context;
   DCHECK(context_id > 0);
   focused_context_id_ = context_id;
   emoji_suggester_.OnFocus(context_id);
   multi_word_suggester_.OnFocus(context_id);
   longpress_diacritics_suggester_.OnFocus(context_id);
   longpress_control_v_suggester_.OnFocus(context_id);
-  enabled_suggestions_from_last_onfocus_ = absl::nullopt;
+  enabled_suggestions_from_last_onfocus_ = std::nullopt;
   suggester_switch_->FetchEnabledSuggestionsThen(
       base::BindOnce(&AssistiveSuggester::HandleEnabledSuggestionsOnFocus,
-                     weak_ptr_factory_.GetWeakPtr()));
+                     weak_ptr_factory_.GetWeakPtr()),
+      context);
 }
 
 void AssistiveSuggester::HandleEnabledSuggestionsOnFocus(
@@ -345,17 +363,19 @@ void AssistiveSuggester::HandleEnabledSuggestionsOnFocus(
 }
 
 void AssistiveSuggester::OnBlur() {
-  focused_context_id_ = absl::nullopt;
-  enabled_suggestions_from_last_onfocus_ = absl::nullopt;
+  focused_context_id_ = std::nullopt;
+  enabled_suggestions_from_last_onfocus_ = std::nullopt;
   emoji_suggester_.OnBlur();
   multi_word_suggester_.OnBlur();
   longpress_diacritics_suggester_.OnBlur();
   longpress_control_v_suggester_.OnBlur();
 }
 
-bool AssistiveSuggester::OnKeyEvent(const ui::KeyEvent& event) {
-  if (!focused_context_id_.has_value())
-    return false;
+AssistiveSuggesterKeyResult AssistiveSuggester::OnKeyEvent(
+    const ui::KeyEvent& event) {
+  if (!focused_context_id_.has_value()) {
+    return AssistiveSuggesterKeyResult::kNotHandled;
+  }
 
   // Auto repeat resets whenever a key is pressed/released as long as its not a
   // repeat event.
@@ -367,7 +387,7 @@ bool AssistiveSuggester::OnKeyEvent(const ui::KeyEvent& event) {
   // surrounding text change, which is triggered by a keydown event. As a
   // result, the next key event after suggesting would be a keyup event of the
   // same key, and that event is meaningless to us.
-  if (IsSuggestionShown() && event.type() == ui::ET_KEY_PRESSED &&
+  if (IsSuggestionShown() && event.type() == ui::EventType::kKeyPressed &&
       !event.IsControlDown() && !event.IsAltDown() && !event.IsShiftDown()) {
     SuggestionStatus status = current_suggester_->HandleKeyEvent(event);
     switch (status) {
@@ -382,12 +402,12 @@ bool AssistiveSuggester::OnKeyEvent(const ui::KeyEvent& event) {
           RecordAssistiveSuccess(current_suggester_->GetProposeActionType());
         }
         current_suggester_ = nullptr;
-        return true;
+        return AssistiveSuggesterKeyResult::kHandled;
       case SuggestionStatus::kDismiss:
         current_suggester_ = nullptr;
-        return true;
+        return AssistiveSuggesterKeyResult::kHandled;
       case SuggestionStatus::kBrowsing:
-        return true;
+        return AssistiveSuggesterKeyResult::kHandled;
       default:
         break;
     }
@@ -396,7 +416,7 @@ bool AssistiveSuggester::OnKeyEvent(const ui::KeyEvent& event) {
   return AssistiveSuggester::HandleLongpressEnabledKeyEvent(event);
 }
 
-bool AssistiveSuggester::HandleLongpressEnabledKeyEvent(
+AssistiveSuggesterKeyResult AssistiveSuggester::HandleLongpressEnabledKeyEvent(
     const ui::KeyEvent& event) {
   const bool is_enabled_diacritic_long_press =
       IsDiacriticsOnPhysicalKeyboardLongpressEnabled() &&
@@ -404,7 +424,7 @@ bool AssistiveSuggester::HandleLongpressEnabledKeyEvent(
       enabled_suggestions_from_last_onfocus_->diacritic_suggestions &&
       kDefaultLongpressEnabledKeys.contains(event.GetCharacter());
   if (!is_enabled_diacritic_long_press && !IsLongpressEnabledControlV(event)) {
-    return false;
+    return AssistiveSuggesterKeyResult::kNotHandled;
   }
 
   // Longpress diacritics behaviour overrides the longpress to repeat key
@@ -421,12 +441,12 @@ bool AssistiveSuggester::HandleLongpressEnabledKeyEvent(
       auto_repeat_suppress_metric_emitted_ = true;
       RecordLongPressDiacriticAutoRepeatSuppressedMetric();
     }
-    return true;  // Do not propagate this event.
+    return AssistiveSuggesterKeyResult::kHandled;
   }
 
   // Process longpress keydown event.
-  if (current_longpress_keydown_ == absl::nullopt &&
-      event.type() == ui::EventType::ET_KEY_PRESSED) {
+  if (current_longpress_keydown_ == std::nullopt &&
+      event.type() == ui::EventType::kKeyPressed) {
     current_longpress_keydown_ = event;
 
     if (IsLongpressEnabledControlV(event)) {
@@ -437,18 +457,18 @@ bool AssistiveSuggester::HandleLongpressEnabledKeyEvent(
         FROM_HERE, kLongpressActivationDelay,
         base::BindOnce(&AssistiveSuggester::OnLongpressDetected,
                        weak_ptr_factory_.GetWeakPtr()));
-    return false;
+    return AssistiveSuggesterKeyResult::kNotHandledSuppressAutoRepeat;
   }
 
   // Process longpress interrupted event (key press up before timer callback
   // fired)
   if (current_longpress_keydown_.has_value() &&
-      event.type() == ui::EventType::ET_KEY_RELEASED &&
+      event.type() == ui::EventType::kKeyReleased &&
       current_longpress_keydown_->code() == event.code()) {
-    current_longpress_keydown_ = absl::nullopt;
+    current_longpress_keydown_ = std::nullopt;
     longpress_timer_.Stop();
   }
-  return false;
+  return AssistiveSuggesterKeyResult::kNotHandled;
 }
 
 void AssistiveSuggester::OnLongpressDetected() {
@@ -458,10 +478,9 @@ void AssistiveSuggester::OnLongpressDetected() {
   }
 
   if (IsLongpressEnabledControlV(current_longpress_keydown_.value())) {
-    const auto anchor_rect =
-        IMEBridge::Get()->GetInputContextHandler()->GetTextFieldBounds();
     if (Shell::Get()->clipboard_history_controller()->ShowMenu(
-            anchor_rect, ui::MenuSourceType::MENU_SOURCE_KEYBOARD,
+            GetClipboardHistoryMenuAnchor(),
+            ui::mojom::MenuSourceType::kKeyboard,
             crosapi::mojom::ClipboardHistoryControllerShowSource::
                 kControlVLongpress,
             base::BindOnce(&AssistiveSuggester::OnClipboardHistoryMenuClosing,
@@ -473,7 +492,7 @@ void AssistiveSuggester::OnLongpressDetected() {
                  current_longpress_keydown_->GetCharacter())) {
     current_suggester_ = &longpress_diacritics_suggester_;
   }
-  current_longpress_keydown_ = absl::nullopt;
+  current_longpress_keydown_ = std::nullopt;
 }
 
 void AssistiveSuggester::OnClipboardHistoryMenuClosing(bool will_paste_item) {
@@ -487,43 +506,52 @@ void AssistiveSuggester::OnClipboardHistoryMenuClosing(bool will_paste_item) {
 }
 
 void AssistiveSuggester::OnExternalSuggestionsUpdated(
-    const std::vector<AssistiveSuggestion>& suggestions) {
-  if (!IsMultiWordSuggestEnabled())
+    const std::vector<AssistiveSuggestion>& suggestions,
+    const std::optional<SuggestionsTextContext>& context) {
+  if (!IsMultiWordSuggestEnabled()) {
     return;
+  }
 
   suggester_switch_->FetchEnabledSuggestionsThen(
       base::BindOnce(&AssistiveSuggester::ProcessExternalSuggestions,
-                     weak_ptr_factory_.GetWeakPtr(), suggestions));
+                     weak_ptr_factory_.GetWeakPtr(), suggestions, context),
+      context_);
 }
 
 void AssistiveSuggester::ProcessExternalSuggestions(
     const std::vector<AssistiveSuggestion>& suggestions,
+    const std::optional<SuggestionsTextContext>& context,
     const AssistiveSuggesterSwitch::EnabledSuggestions& enabled_suggestions) {
   RecordSuggestionsMatch(suggestions);
 
-  if (!enabled_suggestions.multi_word_suggestions &&
-      !IsExpandedMultiWordSuggestEnabled()) {
-    if (IsTopResultMultiWord(suggestions))
+  if (!enabled_suggestions.multi_word_suggestions) {
+    if (IsTopResultMultiWord(suggestions)) {
       RecordAssistiveDisabledReasonForMultiWord(
           GetDisabledReasonForMultiWord(enabled_suggestions));
+    }
     return;
   }
 
   if (current_suggester_) {
-    current_suggester_->OnExternalSuggestionsUpdated(suggestions);
+    current_suggester_->OnExternalSuggestionsUpdated(suggestions, context);
     return;
   }
 
   if (IsTopResultMultiWord(suggestions)) {
     current_suggester_ = &multi_word_suggester_;
-    current_suggester_->OnExternalSuggestionsUpdated(suggestions);
-    RecordAssistiveCoverage(current_suggester_->GetProposeActionType());
+    current_suggester_->OnExternalSuggestionsUpdated(suggestions, context);
+    // The multi word suggester may not show the suggestions we pass to it. The
+    // suggestions received here may be stale and not valid given the current
+    // internal state of the multi word suggester.
+    if (current_suggester_->HasSuggestions()) {
+      RecordAssistiveCoverage(current_suggester_->GetProposeActionType());
+    }
   }
 }
 
 void AssistiveSuggester::RecordTextInputStateMetrics(
     const AssistiveSuggesterSwitch::EnabledSuggestions& enabled_suggestions) {
-  if (features::IsAssistiveMultiWordEnabled()) {
+  if (base::FeatureList::IsEnabled(features::kAssistMultiWord)) {
     RecordMultiWordTextInputState(profile_->GetPrefs(), active_engine_id_,
                                   enabled_suggestions);
   }
@@ -566,13 +594,14 @@ void AssistiveSuggester::RecordAssistiveMatchMetrics(
 
 bool AssistiveSuggester::WithinGrammarFragment() {
   TextInputTarget* input_context = IMEBridge::Get()->GetInputContextHandler();
-  if (!input_context)
+  if (!input_context) {
     return false;
+  }
 
-  absl::optional<ui::GrammarFragment> grammar_fragment_opt =
+  std::optional<ui::GrammarFragment> grammar_fragment_opt =
       input_context->GetGrammarFragmentAtCursor();
 
-  return grammar_fragment_opt != absl::nullopt;
+  return grammar_fragment_opt != std::nullopt;
 }
 
 void AssistiveSuggester::OnSurroundingTextChanged(
@@ -582,7 +611,8 @@ void AssistiveSuggester::OnSurroundingTextChanged(
   last_cursor_pos_ = selection_range.end();
   suggester_switch_->FetchEnabledSuggestionsThen(
       base::BindOnce(&AssistiveSuggester::ProcessOnSurroundingTextChanged,
-                     weak_ptr_factory_.GetWeakPtr(), text, selection_range));
+                     weak_ptr_factory_.GetWeakPtr(), text, selection_range),
+      context_);
 }
 
 void AssistiveSuggester::ProcessOnSurroundingTextChanged(
@@ -590,8 +620,9 @@ void AssistiveSuggester::ProcessOnSurroundingTextChanged(
     const gfx::Range selection_range,
     const AssistiveSuggesterSwitch::EnabledSuggestions& enabled_suggestions) {
   RecordAssistiveMatchMetrics(text, selection_range, enabled_suggestions);
-  if (!IsAssistiveFeatureEnabled() || !focused_context_id_.has_value())
+  if (!IsAssistiveFeatureEnabled() || !focused_context_id_.has_value()) {
     return;
+  }
 
   if (IsMultiWordSuggestEnabled() &&
       enabled_suggestions.multi_word_suggestions) {
@@ -615,7 +646,7 @@ bool AssistiveSuggester::TrySuggestWithSurroundingText(
     return current_suggester_->TrySuggestWithSurroundingText(text,
                                                              selection_range);
   }
-  if (IsEmojiSuggestAdditionEnabled() && !IsEnhancedEmojiSuggestEnabled() &&
+  if (IsEmojiSuggestAdditionEnabled() &&
       enabled_suggestions.emoji_suggestions &&
       emoji_suggester_.TrySuggestWithSurroundingText(text, selection_range)) {
     current_suggester_ = &emoji_suggester_;
@@ -641,8 +672,9 @@ void AssistiveSuggester::AcceptSuggestion(size_t index) {
 }
 
 void AssistiveSuggester::DismissSuggestion() {
-  if (current_suggester_)
+  if (current_suggester_) {
     current_suggester_->DismissSuggestion();
+  }
   current_suggester_ = nullptr;
 }
 
@@ -651,8 +683,9 @@ bool AssistiveSuggester::IsSuggestionShown() {
 }
 
 std::vector<ime::AssistiveSuggestion> AssistiveSuggester::GetSuggestions() {
-  if (IsSuggestionShown())
+  if (IsSuggestionShown()) {
     return current_suggester_->GetSuggestions();
+  }
   return {};
 }
 
@@ -660,13 +693,11 @@ void AssistiveSuggester::OnActivate(const std::string& engine_id) {
   active_engine_id_ = engine_id;
   longpress_diacritics_suggester_.SetEngineId(engine_id);
 
-  if (features::IsAssistiveMultiWordEnabled()) {
+  if (base::FeatureList::IsEnabled(features::kAssistMultiWord)) {
     RecordAssistiveUserPrefForMultiWord(
-        IsPredictiveWritingPrefEnabled(profile_->GetPrefs(), engine_id));
+        IsPredictiveWritingPrefEnabled(*profile_->GetPrefs(), engine_id));
   }
-  if (base::FeatureList::IsEnabled(
-          features::kDiacriticsOnPhysicalKeyboardLongpress) &&
-      IsUsEnglishEngine(active_engine_id_)) {
+  if (IsUsEnglishEngine(active_engine_id_)) {
     RecordAssistiveUserPrefForDiacriticsOnLongpress(
         IsDiacriticsOnLongpressPrefEnabled(profile_->GetPrefs(), engine_id));
   }

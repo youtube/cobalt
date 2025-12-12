@@ -44,16 +44,19 @@ CalculationValue::~CalculationValue() {
     data_.value.~PixelsAndPercent();
 }
 
-float CalculationValue::Evaluate(
-    float max_value,
-    const Length::AnchorEvaluator* anchor_evaluator) const {
+float CalculationValue::Evaluate(float max_value,
+                                 const EvaluationInput& input) const {
   float value = ClampTo<float>(
-      is_expression_ ? data_.expression->Evaluate(max_value, anchor_evaluator)
+      is_expression_ ? data_.expression->Evaluate(max_value, input)
                      : Pixels() + Percent() / 100 * max_value);
   return (IsNonNegative() && value < 0) ? 0 : value;
 }
 
 bool CalculationValue::operator==(const CalculationValue& other) const {
+  if (IsNonNegative() != other.IsNonNegative()) {
+    return false;
+  }
+
   if (IsExpression())
     return other.IsExpression() && *data_.expression == *other.data_.expression;
   return !other.IsExpression() && Pixels() == other.Pixels() &&
@@ -79,7 +82,13 @@ scoped_refptr<const CalculationValue> CalculationValue::Blend(
                                       to_pixels_and_percent.pixels, progress);
     const float percent = blink::Blend(from_pixels_and_percent.percent,
                                        to_pixels_and_percent.percent, progress);
-    return Create(PixelsAndPercent(pixels, percent), range);
+    bool has_explicit_pixels = from_pixels_and_percent.has_explicit_pixels |
+                               to_pixels_and_percent.has_explicit_pixels;
+    bool has_explicit_percent = from_pixels_and_percent.has_explicit_percent |
+                                to_pixels_and_percent.has_explicit_percent;
+    return Create(PixelsAndPercent(pixels, percent, has_explicit_pixels,
+                                   has_explicit_percent),
+                  range);
   }
 
   auto blended_from = CalculationExpressionOperationNode::CreateSimplified(
@@ -102,12 +111,13 @@ scoped_refptr<const CalculationValue> CalculationValue::Blend(
 scoped_refptr<const CalculationValue>
 CalculationValue::SubtractFromOneHundredPercent() const {
   if (!IsExpression()) {
-    PixelsAndPercent result(-Pixels(), 100 - Percent());
+    PixelsAndPercent result(-Pixels(), 100 - Percent(), HasExplicitPixels(),
+                            /*has_explicit_percent=*/true);
     return Create(result, Length::ValueRange::kAll);
   }
   auto hundred_percent =
       base::MakeRefCounted<CalculationExpressionPixelsAndPercentNode>(
-          PixelsAndPercent(0, 100));
+          PixelsAndPercent(0, 100, false, true));
   auto result_expression = CalculationExpressionOperationNode::CreateSimplified(
       CalculationExpressionOperationNode::Children(
           {std::move(hundred_percent), GetOrCreateExpression()}),
@@ -116,17 +126,87 @@ CalculationValue::SubtractFromOneHundredPercent() const {
                           Length::ValueRange::kAll);
 }
 
+scoped_refptr<const CalculationValue> CalculationValue::Add(
+    const CalculationValue& other) const {
+  auto result_expression = CalculationExpressionOperationNode::CreateSimplified(
+      {GetOrCreateExpression(), other.GetOrCreateExpression()},
+      CalculationOperator::kAdd);
+  return CreateSimplified(result_expression, Length::ValueRange::kAll);
+}
+
 scoped_refptr<const CalculationValue> CalculationValue::Zoom(
     double factor) const {
   if (!IsExpression()) {
-    PixelsAndPercent result(Pixels() * factor, Percent());
+    PixelsAndPercent result(Pixels() * factor, Percent(), HasExplicitPixels(),
+                            HasExplicitPercent());
     return Create(result, GetValueRange());
   }
   return CreateSimplified(data_.expression->Zoom(factor), GetValueRange());
 }
 
-bool CalculationValue::HasAnchorQueries() const {
-  return IsExpression() && data_.expression->HasAnchorQueries();
+bool CalculationValue::HasAuto() const {
+  return IsExpression() && data_.expression->HasAuto();
+}
+
+bool CalculationValue::HasContentOrIntrinsicSize() const {
+  return IsExpression() && data_.expression->HasContentOrIntrinsicSize();
+}
+
+bool CalculationValue::HasAutoOrContentOrIntrinsicSize() const {
+  return IsExpression() && data_.expression->HasAutoOrContentOrIntrinsicSize();
+}
+
+bool CalculationValue::HasPercent() const {
+  if (!IsExpression()) {
+    return HasExplicitPercent();
+  }
+  return data_.expression->HasPercent();
+}
+
+bool CalculationValue::HasPercentOrStretch() const {
+  if (!IsExpression()) {
+    return HasExplicitPercent();
+  }
+  return data_.expression->HasPercentOrStretch();
+}
+
+bool CalculationValue::HasStretch() const {
+  if (!IsExpression()) {
+    return false;
+  }
+  return data_.expression->HasStretch();
+}
+
+bool CalculationValue::HasMinContent() const {
+  if (!IsExpression()) {
+    return false;
+  }
+  return data_.expression->HasContentOrIntrinsicSize() &&
+         data_.expression->HasMinContent();
+}
+
+bool CalculationValue::HasMaxContent() const {
+  if (!IsExpression()) {
+    return false;
+  }
+  return data_.expression->HasContentOrIntrinsicSize() &&
+         data_.expression->HasMaxContent();
+}
+
+bool CalculationValue::HasFitContent() const {
+  if (!IsExpression()) {
+    return false;
+  }
+  return data_.expression->HasContentOrIntrinsicSize() &&
+         data_.expression->HasFitContent();
+}
+
+bool CalculationValue::HasOnlyFixedAndPercent() const {
+  if (!IsExpression()) {
+    return true;
+  }
+  return !data_.expression->HasAutoOrContentOrIntrinsicSize() &&
+         !data_.expression->HasStretch();
 }
 
 }  // namespace blink

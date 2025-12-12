@@ -52,7 +52,7 @@ void ProximityAuthSystem::Stop() {
 void ProximityAuthSystem::SetRemoteDevicesForUser(
     const AccountId& account_id,
     const ash::multidevice::RemoteDeviceRefList& remote_devices,
-    absl::optional<ash::multidevice::RemoteDeviceRef> local_device) {
+    std::optional<ash::multidevice::RemoteDeviceRef> local_device) {
   PA_LOG(VERBOSE) << "Setting devices for user " << account_id.Serialize()
                   << ". Remote device count: " << remote_devices.size()
                   << ", Local device: ["
@@ -76,9 +76,11 @@ void ProximityAuthSystem::SetRemoteDevicesForUser(
 ash::multidevice::RemoteDeviceRefList
 ProximityAuthSystem::GetRemoteDevicesForUser(
     const AccountId& account_id) const {
-  if (remote_devices_map_.find(account_id) == remote_devices_map_.end())
+  auto it = remote_devices_map_.find(account_id);
+  if (it == remote_devices_map_.end()) {
     return ash::multidevice::RemoteDeviceRefList();
-  return remote_devices_map_.at(account_id);
+  }
+  return it->second;
 }
 
 void ProximityAuthSystem::OnAuthAttempted() {
@@ -114,21 +116,19 @@ void ProximityAuthSystem::CancelConnectionAttempt() {
 std::unique_ptr<RemoteDeviceLifeCycle>
 ProximityAuthSystem::CreateRemoteDeviceLifeCycle(
     ash::multidevice::RemoteDeviceRef remote_device,
-    absl::optional<ash::multidevice::RemoteDeviceRef> local_device) {
+    std::optional<ash::multidevice::RemoteDeviceRef> local_device) {
   return std::make_unique<RemoteDeviceLifeCycleImpl>(
       remote_device, local_device, secure_channel_client_);
 }
 
-void ProximityAuthSystem::OnScreenDidLock(
-    ScreenlockBridge::LockHandler::ScreenType screen_type) {
+void ProximityAuthSystem::OnScreenDidLock() {
   const AccountId& focused_account_id =
       ScreenlockBridge::Get()->focused_account_id();
   if (focused_account_id.is_valid())
     OnFocusedUserChanged(focused_account_id);
 }
 
-void ProximityAuthSystem::OnScreenDidUnlock(
-    ScreenlockBridge::LockHandler::ScreenType screen_type) {
+void ProximityAuthSystem::OnScreenDidUnlock() {
   unlock_manager_->SetRemoteDeviceLifeCycle(nullptr);
   remote_device_life_cycle_.reset();
 }
@@ -148,13 +148,15 @@ void ProximityAuthSystem::OnFocusedUserChanged(const AccountId& account_id) {
     }
   }
 
-  if (remote_devices_map_.find(account_id) == remote_devices_map_.end() ||
-      remote_devices_map_[account_id].size() == 0) {
+  auto remote_devices_it = remote_devices_map_.find(account_id);
+  if (remote_devices_it == remote_devices_map_.end() ||
+      remote_devices_it->second.empty()) {
     PA_LOG(INFO) << "User " << account_id.Serialize()
                  << " does not have a Smart Lock host device.";
     return;
   }
-  if (local_device_map_.find(account_id) == local_device_map_.end()) {
+  auto local_device_it = local_device_map_.find(account_id);
+  if (local_device_it == local_device_map_.end()) {
     PA_LOG(INFO) << "User " << account_id.Serialize()
                  << " does not have a local device.";
     return;
@@ -163,10 +165,10 @@ void ProximityAuthSystem::OnFocusedUserChanged(const AccountId& account_id) {
   // TODO(tengs): We currently assume each user has only one RemoteDevice, so we
   // can simply take the first item in the list.
   ash::multidevice::RemoteDeviceRef remote_device =
-      remote_devices_map_[account_id][0];
+      remote_devices_it->second[0];
 
-  absl::optional<ash::multidevice::RemoteDeviceRef> local_device;
-  local_device = local_device_map_.at(account_id);
+  std::optional<ash::multidevice::RemoteDeviceRef> local_device;
+  local_device = local_device_it->second;
 
   if (!suspended_) {
     PA_LOG(INFO) << "Creating RemoteDeviceLifeCycle for focused user: "

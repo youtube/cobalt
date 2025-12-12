@@ -31,13 +31,16 @@
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/sessions/core/session_id.h"
 #include "components/signin/public/identity_manager/account_info.h"
-#include "components/signin/public/identity_manager/identity_manager.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/protobuf/src/google/protobuf/repeated_field.h"
 #include "ui/gfx/geometry/size.h"
 
 class GURL;
+
+namespace signin {
+class IdentityManager;
+}
 
 namespace safe_browsing {
 
@@ -115,21 +118,16 @@ class PasswordProtectionServiceBase : public history::HistoryServiceObserver {
       const std::string& verdict_token,
       ReusedPasswordAccountType password_type) = 0;
 
-// The following functions are disabled on Android, because enterprise reporting
-// extension is not supported.
-#if !BUILDFLAG(IS_ANDROID)
   // Triggers the safeBrowsingPrivate.OnPolicySpecifiedPasswordReuseDetected.
-  virtual void MaybeReportPasswordReuseDetected(
-      PasswordProtectionRequest* request,
-      const std::string& username,
-      PasswordType password_type,
-      bool is_phishing_url,
-      bool warning_shown) = 0;
+  virtual void MaybeReportPasswordReuseDetected(const GURL& main_frame_url,
+                                                const std::string& username,
+                                                PasswordType password_type,
+                                                bool is_phishing_url,
+                                                bool warning_shown) = 0;
 
   // Called when a protected password change is detected. Must be called on
   // UI thread.
   virtual void ReportPasswordChanged() = 0;
-#endif
 
   scoped_refptr<SafeBrowsingDatabaseManager> database_manager();
 
@@ -246,10 +244,6 @@ class PasswordProtectionServiceBase : public history::HistoryServiceObserver {
   // Returns the URL where PasswordProtectionRequest instances send requests.
   static GURL GetPasswordProtectionRequestUrl();
 
-  // Gets the UserPopulation value for this profile.
-  virtual ChromeUserPopulation::UserPopulation GetUserPopulationPref()
-      const = 0;
-
   std::set<scoped_refptr<PasswordProtectionRequest>>&
   get_pending_requests_for_testing() {
     return pending_requests_;
@@ -266,10 +260,6 @@ class PasswordProtectionServiceBase : public history::HistoryServiceObserver {
   bool CanSendPing(LoginReputationClientRequest::TriggerType trigger_type,
                    const GURL& main_frame_url,
                    ReusedPasswordAccountType password_type);
-
-  // If ReusedPasswordAccountType is GMAIL and syncing.
-  bool IsSyncingGMAILPasswordWithSignedInProtectionEnabled(
-      ReusedPasswordAccountType password_type) const;
 
   // Called by a PasswordProtectionRequest instance when it finishes to remove
   // itself from |requests_|.
@@ -324,15 +314,14 @@ class PasswordProtectionServiceBase : public history::HistoryServiceObserver {
       LoginReputationClientRequest::TriggerType trigger_type,
       ReusedPasswordAccountType password_type) = 0;
 
-  // If primary account is syncing.
-  virtual bool IsPrimaryAccountSyncing() const = 0;
+  // If primary account is syncing history.
+  virtual bool IsPrimaryAccountSyncingHistory() const = 0;
 
   // If primary account is signed in.
   virtual bool IsPrimaryAccountSignedIn() const = 0;
 
-  // If the domain for the account is equal to |kNoHostedDomainFound|,
-  // this means that the account is a Gmail account.
-  virtual bool IsAccountGmail(const std::string& username) const = 0;
+  // If |username| maps to a consumer account (vs. an enterprise account).
+  virtual bool IsAccountConsumer(const std::string& username) const = 0;
 
   // Gets the account based off of the username from a list of signed in
   // accounts.
@@ -346,13 +335,6 @@ class PasswordProtectionServiceBase : public history::HistoryServiceObserver {
   // the reused |password_type| and the |main_frame_url|.
   virtual bool CanShowInterstitial(ReusedPasswordAccountType password_type,
                                    const GURL& main_frame_url) = 0;
-
-  void CheckCsdAllowlistOnIOThread(const GURL& url, bool* check_result);
-
-  // Gets the type of sync account associated with current profile or
-  // |NOT_SIGNED_IN|.
-  virtual LoginReputationClientRequest::PasswordReuseEvent::SyncAccountType
-  GetSyncAccountType() const = 0;
 
   // Get information about Delayed Warnings and Omnibox URL display experiments.
   // This information is sent in PhishGuard pings.
@@ -412,8 +394,8 @@ class PasswordProtectionServiceBase : public history::HistoryServiceObserver {
                            NoSendPingPrivateIpHostname);
 
   // Overridden from history::HistoryServiceObserver.
-  void OnURLsDeleted(history::HistoryService* history_service,
-                     const history::DeletionInfo& deletion_info) override;
+  void OnHistoryDeletions(history::HistoryService* history_service,
+                          const history::DeletionInfo& deletion_info) override;
 
   void HistoryServiceBeingDeleted(
       history::HistoryService* history_service) override;

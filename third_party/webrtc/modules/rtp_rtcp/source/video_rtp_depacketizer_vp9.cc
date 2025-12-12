@@ -12,12 +12,21 @@
 
 #include <string.h>
 
+#include <cstdint>
+#include <optional>
+#include <utility>
+
+#include "api/array_view.h"
 #include "api/video/video_codec_constants.h"
-#include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
+#include "api/video/video_codec_type.h"
+#include "api/video/video_frame_type.h"
+#include "modules/rtp_rtcp/source/rtp_video_header.h"
+#include "modules/rtp_rtcp/source/video_rtp_depacketizer.h"
 #include "modules/video_coding/codecs/interface/common_constants.h"
+#include "modules/video_coding/codecs/vp9/include/vp9_globals.h"
 #include "rtc_base/bitstream_reader.h"
 #include "rtc_base/checks.h"
-#include "rtc_base/logging.h"
+#include "rtc_base/copy_on_write_buffer.h"
 
 namespace webrtc {
 namespace {
@@ -146,12 +155,12 @@ void ParseSsData(BitstreamReader& parser, RTPVideoHeaderVP9* vp9) {
 }
 }  // namespace
 
-absl::optional<VideoRtpDepacketizer::ParsedRtpPayload>
-VideoRtpDepacketizerVp9::Parse(rtc::CopyOnWriteBuffer rtp_payload) {
-  absl::optional<ParsedRtpPayload> result(absl::in_place);
+std::optional<VideoRtpDepacketizer::ParsedRtpPayload>
+VideoRtpDepacketizerVp9::Parse(CopyOnWriteBuffer rtp_payload) {
+  std::optional<ParsedRtpPayload> result(std::in_place);
   int offset = ParseRtpPayload(rtp_payload, &result->video_header);
   if (offset == 0)
-    return absl::nullopt;
+    return std::nullopt;
   RTC_DCHECK_LT(offset, rtp_payload.size());
   result->video_payload =
       rtp_payload.Slice(offset, rtp_payload.size() - offset);
@@ -159,7 +168,7 @@ VideoRtpDepacketizerVp9::Parse(rtc::CopyOnWriteBuffer rtp_payload) {
 }
 
 int VideoRtpDepacketizerVp9::ParseRtpPayload(
-    rtc::ArrayView<const uint8_t> rtp_payload,
+    ArrayView<const uint8_t> rtp_payload,
     RTPVideoHeader* video_header) {
   RTC_DCHECK(video_header);
   // Parse mandatory first byte of payload descriptor.
@@ -179,9 +188,6 @@ int VideoRtpDepacketizerVp9::ParseRtpPayload(
   video_header->height = 0;
   video_header->simulcastIdx = 0;
   video_header->codec = kVideoCodecVP9;
-
-  video_header->frame_type =
-      p_bit ? VideoFrameType::kVideoFrameDelta : VideoFrameType::kVideoFrameKey;
 
   auto& vp9_header =
       video_header->video_type_header.emplace<RTPVideoHeaderVP9>();
@@ -211,6 +217,9 @@ int VideoRtpDepacketizerVp9::ParseRtpPayload(
       video_header->height = vp9_header.height[0];
     }
   }
+  video_header->frame_type = p_bit || vp9_header.inter_layer_predicted
+                                 ? VideoFrameType::kVideoFrameDelta
+                                 : VideoFrameType::kVideoFrameKey;
   video_header->is_first_packet_in_frame = b_bit;
   video_header->is_last_packet_in_frame = e_bit;
 

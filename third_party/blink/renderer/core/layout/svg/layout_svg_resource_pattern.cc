@@ -138,10 +138,9 @@ std::unique_ptr<PatternData> LayoutSVGResourcePattern::BuildPatternData(
     return pattern_data;
 
   // Compute tile metrics.
-  gfx::RectF tile_bounds = SVGLengthContext::ResolveRectangle(
-      GetElement(), attributes.PatternUnits(), object_bounding_box,
-      *attributes.X(), *attributes.Y(), *attributes.Width(),
-      *attributes.Height());
+  gfx::RectF tile_bounds = ResolveRectangle(
+      attributes.PatternUnits(), object_bounding_box, *attributes.X(),
+      *attributes.Y(), *attributes.Width(), *attributes.Height());
   if (tile_bounds.IsEmpty())
     return pattern_data;
 
@@ -160,6 +159,10 @@ std::unique_ptr<PatternData> LayoutSVGResourcePattern::BuildPatternData(
       tile_transform.Scale(object_bounding_box.width(),
                            object_bounding_box.height());
     }
+  }
+
+  if (!attributes.PatternTransform().IsInvertible()) {
+    return pattern_data;
   }
 
   pattern_data->pattern = Pattern::CreatePaintRecordPattern(
@@ -192,8 +195,7 @@ bool LayoutSVGResourcePattern::ApplyShader(
   AffineTransform transform = pattern_data->transform;
   if (additional_transform)
     transform = *additional_transform * transform;
-  pattern_data->pattern->ApplyToFlags(flags,
-                                      AffineTransformToSkMatrix(transform));
+  pattern_data->pattern->ApplyToFlags(flags, transform.ToSkMatrix());
   flags.setFilterQuality(cc::PaintFlags::FilterQuality::kLow);
   return true;
 }
@@ -222,13 +224,14 @@ PaintRecord LayoutSVGResourcePattern::AsPaintRecord(
 
   SubtreeContentTransformScope content_transform_scope(tile_transform);
 
-  auto* builder = MakeGarbageCollected<PaintRecordBuilder>();
+  PaintRecordBuilder builder;
   for (LayoutObject* child = pattern_layout_object->FirstChild(); child;
-       child = child->NextSibling())
-    SVGObjectPainter(*child).PaintResourceSubtree(builder->Context());
+       child = child->NextSibling()) {
+    SVGObjectPainter(*child, nullptr).PaintResourceSubtree(builder.Context());
+  }
   canvas->save();
-  canvas->concat(AffineTransformToSkM44(tile_transform));
-  builder->EndRecording(*canvas);
+  canvas->concat(tile_transform.ToSkM44());
+  builder.EndRecording(*canvas);
   canvas->restore();
   return paint_recorder.finishRecordingAsPicture();
 }

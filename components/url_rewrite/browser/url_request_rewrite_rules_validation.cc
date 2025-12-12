@@ -4,7 +4,9 @@
 
 #include "components/url_rewrite/browser/url_request_rewrite_rules_validation.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+#include <string_view>
+
 #include "base/strings/strcat.h"
 #include "net/http/http_util.h"
 #include "url/url_constants.h"
@@ -12,7 +14,7 @@
 namespace url_rewrite {
 namespace {
 
-bool IsValidUrlHost(base::StringPiece host) {
+bool IsValidUrlHost(std::string_view host) {
   return GURL(base::StrCat({url::kHttpScheme, "://", host})).is_valid();
 }
 
@@ -22,7 +24,7 @@ bool ValidateAddHeaders(
     LOG(ERROR) << "Add headers is missing";
     return false;
   }
-  return base::ranges::all_of(
+  return std::ranges::all_of(
       add_headers->headers, [](const mojom::UrlHeaderPtr& header) {
         if (!net::HttpUtil::IsValidHeaderName(header->name)) {
           LOG(ERROR) << "Invalid header name: " << header->name;
@@ -114,7 +116,7 @@ bool ValidateRewrite(const mojom::UrlRequestActionPtr& action) {
 }  // namespace
 
 bool ValidateRules(const mojom::UrlRequestRewriteRules* rules) {
-  static constexpr base::StringPiece kWildcard("*.");
+  static constexpr std::string_view kWildcard("*.");
   if (!rules)
     return false;
   for (const auto& rule : rules->rules) {
@@ -125,7 +127,7 @@ bool ValidateRules(const mojom::UrlRequestRewriteRules* rules) {
         LOG(ERROR) << "Hosts filter is empty";
         return false;
       }
-      for (const base::StringPiece host : *rule->hosts_filter) {
+      for (const std::string_view host : *rule->hosts_filter) {
         if (base::StartsWith(host, kWildcard, base::CompareCase::SENSITIVE)) {
           if (!IsValidUrlHost(host.substr(2))) {
             LOG(ERROR) << "Host filter is not valid: " << host;

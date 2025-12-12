@@ -36,7 +36,8 @@ class TestImageController : public ImageController {
   // the ImageController is over-ridden here.
   TestImageController()
       : ImageController(base::SingleThreadTaskRunner::GetCurrentDefault().get(),
-                        base::SingleThreadTaskRunner::GetCurrentDefault()) {
+                        base::SingleThreadTaskRunner::GetCurrentDefault(),
+                        base::DoNothing()) {
     SetMaxImageCacheLimitBytesForTesting(kMaxImageCacheSizeBytes);
   }
 
@@ -55,9 +56,9 @@ class TestImageController : public ImageController {
     locked_images_.erase(id);
   }
 
-  ImageDecodeRequestId QueueImageDecode(
-      const DrawImage& image,
-      ImageDecodedCallback callback) override {
+  ImageDecodeRequestId QueueImageDecode(const DrawImage& image,
+                                        ImageDecodedCallback callback,
+                                        bool speculative) override {
     ImageDecodeRequestId request_id = next_image_request_id_++;
 
     decoded_images_.push_back(image);
@@ -101,9 +102,9 @@ class CheckerImageTrackerTest : public testing::Test,
 
   DrawImage CreateImage(
       ImageType image_type,
-      PaintImage::AnimationType animation = PaintImage::AnimationType::STATIC,
+      PaintImage::AnimationType animation = PaintImage::AnimationType::kStatic,
       PaintImage::CompletionState completion =
-          PaintImage::CompletionState::DONE,
+          PaintImage::CompletionState::kDone,
       bool is_multipart = false) {
     int dimension = 0;
     switch (image_type) {
@@ -423,12 +424,12 @@ TEST_F(CheckerImageTrackerTest, CheckersOnlyStaticCompletedImages) {
 
   DrawImage static_image = CreateImage(ImageType::CHECKERABLE);
   DrawImage animated_image =
-      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::ANIMATED);
+      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::kAnimated);
   DrawImage partial_image =
-      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::STATIC,
-                  PaintImage::CompletionState::PARTIALLY_DONE);
+      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::kStatic,
+                  PaintImage::CompletionState::kPartiallyDone);
   DrawImage video_image =
-      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::VIDEO);
+      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::kVideo);
   std::vector<DrawImage> draw_images = {static_image, animated_image,
                                         partial_image, video_image};
 
@@ -500,8 +501,8 @@ TEST_F(CheckerImageTrackerTest, DontCheckerMultiPartImages) {
   DrawImage image = CreateImage(ImageType::CHECKERABLE);
   EXPECT_FALSE(image.paint_image().is_multipart());
   DrawImage multi_part_image =
-      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::STATIC,
-                  PaintImage::CompletionState::DONE, true);
+      CreateImage(ImageType::CHECKERABLE, PaintImage::AnimationType::kStatic,
+                  PaintImage::CompletionState::kDone, true);
   EXPECT_TRUE(multi_part_image.paint_image().is_multipart());
 
   EXPECT_TRUE(ShouldCheckerImage(image, WhichTree::PENDING_TREE));

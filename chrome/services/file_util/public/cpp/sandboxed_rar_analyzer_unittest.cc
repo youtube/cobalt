@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/services/file_util/public/cpp/sandboxed_rar_analyzer.h"
 
 #include <string>
@@ -54,12 +59,19 @@ class SandboxedRarAnalyzerTest : public testing::Test {
 
   void AnalyzeFile(const base::FilePath& path,
                    safe_browsing::ArchiveAnalyzerResults* results) {
+    AnalyzeFile(path, /*password=*/std::nullopt, results);
+  }
+
+  void AnalyzeFile(const base::FilePath& path,
+                   std::optional<const std::string> password,
+                   safe_browsing::ArchiveAnalyzerResults* results) {
     mojo::PendingRemote<chrome::mojom::FileUtilService> remote;
     FileUtilService service(remote.InitWithNewPipeAndPassReceiver());
     base::RunLoop run_loop;
     ResultsGetter results_getter(run_loop.QuitClosure(), results);
     std::unique_ptr<SandboxedRarAnalyzer, base::OnTaskRunnerDeleter> analyzer =
-        SandboxedRarAnalyzer::CreateAnalyzer(path, results_getter.GetCallback(),
+        SandboxedRarAnalyzer::CreateAnalyzer(path, /*password=*/password,
+                                             results_getter.GetCallback(),
                                              std::move(remote));
     analyzer->Start();
     run_loop.Run();
@@ -91,11 +103,9 @@ class SandboxedRarAnalyzerTest : public testing::Test {
     ASSERT_EQ(data.has_image_headers, binary.has_image_headers());
   }
 
-  static const uint8_t kEmptyZipSignature[];
   static const uint8_t kNotARarSignature[];
   static const uint8_t kSignedExeSignature[];
 
-  static const BinaryData kEmptyZip;
   static const BinaryData kNotARar;
   static const BinaryData kSignedExe;
 
@@ -129,11 +139,6 @@ class SandboxedRarAnalyzerTest : public testing::Test {
 };
 
 // static
-const SandboxedRarAnalyzerTest::BinaryData SandboxedRarAnalyzerTest::kEmptyZip =
-    {
-        "empty.zip", CDRDT(ARCHIVE), kEmptyZipSignature, false, false, 22,
-};
-
 const SandboxedRarAnalyzerTest::BinaryData SandboxedRarAnalyzerTest::kNotARar =
     {
         "not_a_rar.rar", CDRDT(ARCHIVE), kNotARarSignature, false, false, 18,
@@ -155,11 +160,6 @@ const SandboxedRarAnalyzerTest::BinaryData
 };
 
 // static
-const uint8_t SandboxedRarAnalyzerTest::kEmptyZipSignature[] = {
-    0x87, 0x39, 0xc7, 0x6e, 0x68, 0x1f, 0x90, 0x09, 0x23, 0xb9, 0x00,
-    0xc9, 0xdf, 0x0e, 0xf7, 0x5c, 0xf4, 0x21, 0xd3, 0x9c, 0xab, 0xb5,
-    0x46, 0x50, 0xc4, 0xb9, 0xad, 0x19, 0xb6, 0xa7, 0x6d, 0x85};
-
 const uint8_t SandboxedRarAnalyzerTest::kNotARarSignature[] = {
     0x11, 0x76, 0x44, 0x5c, 0x05, 0x7b, 0x65, 0xb7, 0x06, 0x90, 0xa1,
     0xc1, 0xa7, 0xdf, 0x08, 0x46, 0x96, 0x10, 0xfe, 0xb5, 0x59, 0xfe,
@@ -186,40 +186,87 @@ TEST_F(SandboxedRarAnalyzerTest, AnalyzeBenignRar) {
   EXPECT_TRUE(results.archived_archive_filenames.empty());
 }
 
-TEST_F(SandboxedRarAnalyzerTest, AnalyzeRarWithPassword) {
+TEST_F(SandboxedRarAnalyzerTest, AnalyzeEncryptedRar) {
   // Can list files inside an archive that has password protected data.
-  // passwd.rar contains 1 file: file1.txt
+  // passwd1234.rar contains 1 file: signed.exe
   base::FilePath path;
-  ASSERT_NO_FATAL_FAILURE(path = GetFilePath("passwd.rar"));
+  ASSERT_NO_FATAL_FAILURE(path = GetFilePath("passwd1234.rar"));
 
   safe_browsing::ArchiveAnalyzerResults results;
   AnalyzeFile(path, &results);
 
   ASSERT_TRUE(results.success);
-  EXPECT_FALSE(results.has_executable);
+  EXPECT_TRUE(results.has_executable);
   ASSERT_EQ(results.archived_binary.size(), 1);
-  EXPECT_EQ(results.archived_binary[0].file_path(), "file1.txt");
-  EXPECT_FALSE(results.archived_binary[0].is_executable());
+  EXPECT_EQ(results.archived_binary[0].file_path(), "signed.exe");
+  EXPECT_TRUE(results.archived_binary[0].is_executable());
   EXPECT_FALSE(results.archived_binary[0].is_archive());
   EXPECT_TRUE(results.archived_archive_filenames.empty());
 }
 
+TEST_F(SandboxedRarAnalyzerTest, AnalyzeEncryptedRarWithCorrectPassword) {
+  // Can list files inside an archive that has password protected data.
+  // passwd1234.rar contains 1 file: signed.exe
+  base::FilePath path;
+  ASSERT_NO_FATAL_FAILURE(path = GetFilePath("passwd1234.rar"));
+
+  safe_browsing::ArchiveAnalyzerResults results;
+  AnalyzeFile(path, /*password=*/"1234", &results);
+
+  ASSERT_TRUE(results.success);
+  EXPECT_TRUE(results.has_executable);
+  ASSERT_EQ(results.archived_binary.size(), 1);
+  EXPECT_EQ(results.archived_binary[0].file_path(), "signed.exe");
+  ExpectBinary(kSignedExe, results.archived_binary.Get(0));
+  EXPECT_TRUE(results.archived_binary[0].is_executable());
+  EXPECT_FALSE(results.archived_binary[0].is_archive());
+  EXPECT_TRUE(results.archived_archive_filenames.empty());
+
+  EXPECT_TRUE(results.encryption_info.is_encrypted);
+  EXPECT_TRUE(results.encryption_info.is_top_level_encrypted);
+  EXPECT_EQ(results.encryption_info.password_status,
+            EncryptionInfo::kKnownCorrect);
+}
+
+TEST_F(SandboxedRarAnalyzerTest, AnalyzeEncryptedRarWithIncorrectPassword) {
+  // Can list files inside an archive that has password protected data.
+  // passwd1234.rar contains 1 file: signed.exe
+  base::FilePath path;
+  ASSERT_NO_FATAL_FAILURE(path = GetFilePath("passwd1234.rar"));
+
+  safe_browsing::ArchiveAnalyzerResults results;
+  AnalyzeFile(path, /*password=*/"5678", &results);
+
+  ASSERT_TRUE(results.success);
+  EXPECT_TRUE(results.has_executable);
+  ASSERT_EQ(results.archived_binary.size(), 1);
+  EXPECT_EQ(results.archived_binary[0].file_path(), "signed.exe");
+  EXPECT_TRUE(results.archived_binary[0].is_executable());
+  EXPECT_FALSE(results.archived_binary[0].is_archive());
+  EXPECT_TRUE(results.archived_archive_filenames.empty());
+
+  EXPECT_TRUE(results.encryption_info.is_encrypted);
+  EXPECT_TRUE(results.encryption_info.is_top_level_encrypted);
+  EXPECT_EQ(results.encryption_info.password_status,
+            EncryptionInfo::kKnownIncorrect);
+}
+
 TEST_F(SandboxedRarAnalyzerTest, AnalyzeRarWithPasswordMultipleFiles) {
   // Can list files inside an archive that has password protected data.
-  // passwd_two_fiels.rar contains 2 files: file1.txt and file2.txt
+  // passwd1234_two_files.rar contains 2 files: signed.exe and text.txt
   base::FilePath path;
-  ASSERT_NO_FATAL_FAILURE(path = GetFilePath("passwd_two_files.rar"));
+  ASSERT_NO_FATAL_FAILURE(path = GetFilePath("passwd1234_two_files.rar"));
 
   safe_browsing::ArchiveAnalyzerResults results;
   AnalyzeFile(path, &results);
 
   ASSERT_TRUE(results.success);
-  EXPECT_FALSE(results.has_executable);
+  EXPECT_TRUE(results.has_executable);
   ASSERT_EQ(results.archived_binary.size(), 2);
-  EXPECT_EQ(results.archived_binary[0].file_path(), "file1.txt");
-  EXPECT_FALSE(results.archived_binary[0].is_executable());
+  EXPECT_EQ(results.archived_binary[0].file_path(), "signed.exe");
+  EXPECT_TRUE(results.archived_binary[0].is_executable());
   EXPECT_FALSE(results.archived_binary[0].is_archive());
-  EXPECT_EQ(results.archived_binary[1].file_path(), "file2.txt");
+  EXPECT_EQ(results.archived_binary[1].file_path(), "text.txt");
   EXPECT_FALSE(results.archived_binary[1].is_executable());
   EXPECT_FALSE(results.archived_binary[1].is_archive());
   EXPECT_TRUE(results.archived_archive_filenames.empty());
@@ -266,9 +313,8 @@ TEST_F(SandboxedRarAnalyzerTest, AnalyzeRarContainingArchive) {
 
   ASSERT_TRUE(results.success);
   EXPECT_FALSE(results.has_executable);
-  EXPECT_EQ(1, results.archived_binary.size());
-  EXPECT_EQ(1u, results.archived_archive_filenames.size());
-  ExpectBinary(kEmptyZip, results.archived_binary.Get(0));
+  EXPECT_EQ(0, results.archived_binary.size());
+  EXPECT_EQ(0u, results.archived_archive_filenames.size());
 }
 
 TEST_F(SandboxedRarAnalyzerTest, AnalyzeRarContainingAssortmentOfFiles) {
@@ -283,19 +329,17 @@ TEST_F(SandboxedRarAnalyzerTest, AnalyzeRarContainingAssortmentOfFiles) {
 
   ASSERT_TRUE(results.success);
   EXPECT_TRUE(results.has_executable);
-  EXPECT_EQ(4, results.archived_binary.size());
+  EXPECT_EQ(3, results.archived_binary.size());
   ExpectBinary(kSignedExe, results.archived_binary.Get(0));
   ExpectBinary(kNotARar, results.archived_binary.Get(1));
   EXPECT_EQ(results.archived_binary[2].file_path(), "text.txt");
   EXPECT_FALSE(results.archived_binary[2].is_executable());
   EXPECT_FALSE(results.archived_binary[2].is_archive());
-  ExpectBinary(kEmptyZip, results.archived_binary.Get(3));
-  EXPECT_EQ(2u, results.archived_archive_filenames.size());
+  EXPECT_EQ(1u, results.archived_archive_filenames.size());
 
   EXPECT_THAT(
       results.archived_archive_filenames,
-      UnorderedElementsAre(base::FilePath(FILE_PATH_LITERAL("not_a_rar.rar")),
-                           base::FilePath(FILE_PATH_LITERAL("empty.zip"))));
+      UnorderedElementsAre(base::FilePath(FILE_PATH_LITERAL("not_a_rar.rar"))));
 }
 
 TEST_F(SandboxedRarAnalyzerTest,
@@ -375,8 +419,9 @@ TEST_F(SandboxedRarAnalyzerTest, CanDeleteDuringExecution) {
   base::RunLoop run_loop;
 
   FakeFileUtilService service(remote.InitWithNewPipeAndPassReceiver());
-  EXPECT_CALL(service.GetSafeArchiveAnalyzer(), AnalyzeRarFile(_, _, _))
+  EXPECT_CALL(service.GetSafeArchiveAnalyzer(), AnalyzeRarFile(_, _, _, _))
       .WillOnce([&](base::File rar_file,
+                    const std::optional<std::string>& password,
                     mojo::PendingRemote<chrome::mojom::TemporaryFileGetter>
                         temp_file_getter,
                     chrome::mojom::SafeArchiveAnalyzer::AnalyzeRarFileCallback
@@ -386,7 +431,8 @@ TEST_F(SandboxedRarAnalyzerTest, CanDeleteDuringExecution) {
         run_loop.Quit();
       });
   std::unique_ptr<SandboxedRarAnalyzer, base::OnTaskRunnerDeleter> analyzer =
-      SandboxedRarAnalyzer::CreateAnalyzer(temp_path, base::DoNothing(),
+      SandboxedRarAnalyzer::CreateAnalyzer(temp_path, /*password=*/std::nullopt,
+                                           base::DoNothing(),
                                            std::move(remote));
   analyzer->Start();
   run_loop.Run();
@@ -400,6 +446,65 @@ TEST_F(SandboxedRarAnalyzerTest, InvalidPath) {
   EXPECT_FALSE(results.success);
   EXPECT_EQ(results.analysis_result,
             safe_browsing::ArchiveAnalysisResult::kFailedToOpen);
+}
+
+TEST_F(SandboxedRarAnalyzerTest, HeaderEncryptionCorrectPassword) {
+  base::FilePath path;
+  ASSERT_NO_FATAL_FAILURE(path =
+                              GetFilePath("header_encryption_passwd1234.rar"));
+
+  safe_browsing::ArchiveAnalyzerResults results;
+  AnalyzeFile(path, /*password=*/"1234", &results);
+
+  ASSERT_TRUE(results.success);
+  EXPECT_TRUE(results.has_executable);
+  ASSERT_EQ(results.archived_binary.size(), 1);
+  EXPECT_EQ(results.archived_binary[0].file_path(), "signed.exe");
+  ExpectBinary(kSignedExe, results.archived_binary.Get(0));
+  EXPECT_TRUE(results.archived_binary[0].is_executable());
+  EXPECT_FALSE(results.archived_binary[0].is_archive());
+  EXPECT_TRUE(results.archived_archive_filenames.empty());
+
+  EXPECT_TRUE(results.encryption_info.is_encrypted);
+  EXPECT_TRUE(results.encryption_info.is_top_level_encrypted);
+  EXPECT_EQ(results.encryption_info.password_status,
+            EncryptionInfo::kKnownCorrect);
+}
+
+TEST_F(SandboxedRarAnalyzerTest, HeaderEncryptionIncorrectPassword) {
+  base::FilePath path;
+  ASSERT_NO_FATAL_FAILURE(path =
+                              GetFilePath("header_encryption_passwd1234.rar"));
+
+  safe_browsing::ArchiveAnalyzerResults results;
+  AnalyzeFile(path, /*password=*/"5678", &results);
+
+  ASSERT_FALSE(results.success);
+  EXPECT_FALSE(results.has_executable);
+  ASSERT_EQ(results.archived_binary.size(), 0);
+
+  EXPECT_TRUE(results.encryption_info.is_encrypted);
+  EXPECT_TRUE(results.encryption_info.is_top_level_encrypted);
+  EXPECT_EQ(results.encryption_info.password_status,
+            EncryptionInfo::kKnownIncorrect);
+}
+
+TEST_F(SandboxedRarAnalyzerTest, HeaderEncryptionNoPassword) {
+  base::FilePath path;
+  ASSERT_NO_FATAL_FAILURE(path =
+                              GetFilePath("header_encryption_passwd1234.rar"));
+
+  safe_browsing::ArchiveAnalyzerResults results;
+  AnalyzeFile(path, /*password=*/std::nullopt, &results);
+
+  ASSERT_FALSE(results.success);
+  EXPECT_FALSE(results.has_executable);
+  ASSERT_EQ(results.archived_binary.size(), 0);
+
+  EXPECT_TRUE(results.encryption_info.is_encrypted);
+  EXPECT_TRUE(results.encryption_info.is_top_level_encrypted);
+  EXPECT_EQ(results.encryption_info.password_status,
+            EncryptionInfo::kKnownIncorrect);
 }
 
 }  // namespace

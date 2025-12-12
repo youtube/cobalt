@@ -56,16 +56,24 @@ class BookmarkUpdateManagerTest : public testing::Test {
 
   void TearDown() override { update_manager_->CancelUpdates(); }
 
-  // Generates a large number of product bookmarks and returns the IDs for those
-  // bookmarks.
-  std::vector<int64_t> AddProductBookmarks(size_t count) {
-    std::vector<int64_t> ids;
+  // Generates a large number of product bookmarks and returns them in a list.
+  std::vector<const bookmarks::BookmarkNode*> AddProductBookmarks(
+      size_t count) {
+    std::vector<const bookmarks::BookmarkNode*> bookmarks;
     for (size_t i = 0; i < count; i++) {
-      ids.push_back(AddProductBookmark(
-                        bookmark_model_.get(), u"Title",
-                        GURL("http://example.com/" + base::NumberToString(i)),
-                        i)
-                        ->id());
+      bookmarks.push_back(AddProductBookmark(
+          bookmark_model_.get(), u"Title",
+          GURL("http://example.com/" + base::NumberToString(i)), i));
+    }
+    return bookmarks;
+  }
+
+  // Get a list of IDs from the provided list of bookmarks (in the same order).
+  std::vector<int64_t> GetIdsFromBookmarks(
+      const std::vector<const bookmarks::BookmarkNode*>& bookmarks) {
+    std::vector<int64_t> ids;
+    for (size_t i = 0; i < bookmarks.size(); i++) {
+      ids.push_back(bookmarks[i]->id());
     }
     return ids;
   }
@@ -156,6 +164,8 @@ TEST_F(BookmarkUpdateManagerTest, RunScheduledTask) {
   test_features_.InitWithFeatures(
       {kShoppingList, kCommerceAllowOnDemandBookmarkUpdates}, {});
 
+  shopping_service_->SetIsShoppingListEligible(true);
+
   const int64_t cluster_id = 123L;
   const bookmarks::BookmarkNode* bookmark = AddProductBookmark(
       bookmark_model_.get(), u"Title", GURL("http://example.com"), cluster_id);
@@ -169,6 +179,8 @@ TEST_F(BookmarkUpdateManagerTest, RunScheduledTask) {
   info_map[bookmark->id()] = new_info;
   shopping_service_->SetResponsesForGetUpdatedProductInfoForBookmarks(
       std::move(info_map));
+
+  shopping_service_->SetGetAllShoppingBookmarksValue({bookmark});
 
   update_manager_->ScheduleUpdate();
   task_environment_.FastForwardBy(base::Days(1));
@@ -205,6 +217,8 @@ TEST_F(BookmarkUpdateManagerTest, RunScheduledTask_BlockedByFeatureCheck) {
   shopping_service_->SetResponsesForGetUpdatedProductInfoForBookmarks(
       std::move(info_map));
 
+  shopping_service_->SetGetAllShoppingBookmarksValue({bookmark});
+
   update_manager_->ScheduleUpdate();
   task_environment_.FastForwardBy(base::Hours(6));
   base::RunLoop().RunUntilIdle();
@@ -226,9 +240,12 @@ TEST_F(BookmarkUpdateManagerTest, RunScheduledTask_BlockedByFeatureCheck) {
 // batches are sent.
 TEST_F(BookmarkUpdateManagerTest, RunBatchedUpdate) {
   test_features_.InitWithFeatures(
-      {kShoppingList, kCommerceAllowOnDemandBookmarkUpdates,
-       kCommerceAllowOnDemandBookmarkBatchUpdates},
+      {kShoppingList, kCommerceAllowOnDemandBookmarkUpdates},
       {});
+
+  shopping_service_->SetIsShoppingListEligible(true);
+  ON_CALL(*shopping_service_, GetMaxProductBookmarkUpdatesPerBatch)
+      .WillByDefault(testing::Return(30));
 
   const size_t bookmark_count = 50;
   ASSERT_LT(shopping_service_->GetMaxProductBookmarkUpdatesPerBatch(),
@@ -237,7 +254,10 @@ TEST_F(BookmarkUpdateManagerTest, RunBatchedUpdate) {
   const size_t expected_update_calls =
       ceil(static_cast<float>(bookmark_count) /
            shopping_service_->GetMaxProductBookmarkUpdatesPerBatch());
-  std::vector<int64_t> ids = AddProductBookmarks(bookmark_count);
+  std::vector<const bookmarks::BookmarkNode*> bookmarks =
+      AddProductBookmarks(bookmark_count);
+  std::vector<int64_t> ids = GetIdsFromBookmarks(bookmarks);
+  shopping_service_->SetGetAllShoppingBookmarksValue(bookmarks);
   std::map<int64_t, ProductInfo> info_map = BuildOnDemandMapForIds(ids);
 
   shopping_service_->SetResponsesForGetUpdatedProductInfoForBookmarks(info_map);
@@ -262,21 +282,26 @@ TEST_F(BookmarkUpdateManagerTest, RunBatchedUpdate) {
 // allowed updatable bookmarks, we stop updating.
 TEST_F(BookmarkUpdateManagerTest, RunBatchedUpdate_OverMaxAllowed) {
   test_features_.InitWithFeatures(
-      {kShoppingList, kCommerceAllowOnDemandBookmarkUpdates,
-       kCommerceAllowOnDemandBookmarkBatchUpdates},
+      {kShoppingList, kCommerceAllowOnDemandBookmarkUpdates},
       {});
 
-  const size_t bookmark_count =
-      kShoppingListBookmarkpdateBatchMaxParam.Get() + 10;
+  shopping_service_->SetIsShoppingListEligible(true);
+  ON_CALL(*shopping_service_, GetMaxProductBookmarkUpdatesPerBatch)
+      .WillByDefault(testing::Return(10));
+
+  const size_t bookmark_count = kShoppingListBookmarkUpdateBatchMaxParam + 10;
   const size_t expected_update_calls =
-      ceil(static_cast<float>(kShoppingListBookmarkpdateBatchMaxParam.Get()) /
+      ceil(static_cast<float>(kShoppingListBookmarkUpdateBatchMaxParam) /
            shopping_service_->GetMaxProductBookmarkUpdatesPerBatch());
   const size_t ungated_update_calls =
       ceil(static_cast<float>(bookmark_count) /
            shopping_service_->GetMaxProductBookmarkUpdatesPerBatch());
   ASSERT_GT(ungated_update_calls, expected_update_calls);
 
-  std::vector<int64_t> ids = AddProductBookmarks(bookmark_count);
+  std::vector<const bookmarks::BookmarkNode*> bookmarks =
+      AddProductBookmarks(bookmark_count);
+  std::vector<int64_t> ids = GetIdsFromBookmarks(bookmarks);
+  shopping_service_->SetGetAllShoppingBookmarksValue(bookmarks);
   std::map<int64_t, ProductInfo> info_map = BuildOnDemandMapForIds(ids);
 
   shopping_service_->SetResponsesForGetUpdatedProductInfoForBookmarks(info_map);
@@ -284,36 +309,6 @@ TEST_F(BookmarkUpdateManagerTest, RunBatchedUpdate_OverMaxAllowed) {
   EXPECT_CALL(*shopping_service_,
               GetUpdatedProductInfoForBookmarks(testing::_, testing::_))
       .Times(expected_update_calls);
-
-  update_manager_->ScheduleUpdate();
-  base::RunLoop().RunUntilIdle();
-
-  // Ensure the preference for last updated time was also set.
-  base::TimeDelta time_since_last =
-      base::Time::Now() -
-      pref_service_->GetTime(kShoppingListBookmarkLastUpdateTime);
-  EXPECT_TRUE(time_since_last < base::Minutes(1));
-}
-
-TEST_F(BookmarkUpdateManagerTest, RunBatchedUpdate_BatchingDisabled) {
-  test_features_.InitWithFeatures(
-      {kShoppingList, kCommerceAllowOnDemandBookmarkUpdates},
-      {kCommerceAllowOnDemandBookmarkBatchUpdates});
-
-  const size_t bookmark_count = 50;
-  ASSERT_LT(shopping_service_->GetMaxProductBookmarkUpdatesPerBatch(),
-            bookmark_count);
-
-  std::vector<int64_t> ids = AddProductBookmarks(bookmark_count);
-  std::map<int64_t, ProductInfo> info_map = BuildOnDemandMapForIds(ids);
-
-  shopping_service_->SetResponsesForGetUpdatedProductInfoForBookmarks(info_map);
-
-  // Even though the user has more than one batch of bookmarks to request
-  // updates for, we should only do one since the flag is disabled.
-  EXPECT_CALL(*shopping_service_,
-              GetUpdatedProductInfoForBookmarks(testing::_, testing::_))
-      .Times(1);
 
   update_manager_->ScheduleUpdate();
   base::RunLoop().RunUntilIdle();

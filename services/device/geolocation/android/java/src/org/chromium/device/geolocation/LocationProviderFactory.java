@@ -6,16 +6,18 @@ package org.chromium.device.geolocation;
 
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-/**
- * Factory to create a LocationProvider to allow us to inject a mock for tests.
- */
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
+/** Factory to create a LocationProvider to allow us to inject a mock for tests. */
 @JNINamespace("device")
+@NullMarked
 public class LocationProviderFactory {
-    private static LocationProvider sProviderImpl;
+    private static @Nullable LocationProvider sProviderImpl;
     private static boolean sUseGmsCoreLocationProvider;
 
     private LocationProviderFactory() {}
@@ -35,7 +37,7 @@ public class LocationProviderFactory {
 
         if (sUseGmsCoreLocationProvider
                 && LocationProviderGmsCore.isGooglePlayServicesAvailable(
-                           ContextUtils.getApplicationContext())) {
+                        ContextUtils.getApplicationContext())) {
             sProviderImpl = new LocationProviderGmsCore(ContextUtils.getApplicationContext());
         } else {
             sProviderImpl = new LocationProviderAndroid();

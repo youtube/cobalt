@@ -4,20 +4,21 @@
 
 /** @fileoverview Wallpaper related utility functions in personalization app */
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
+import {isNonEmptyArray, isNonEmptyFilePath} from 'chrome://resources/ash/common/sea_pen/sea_pen_utils.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {FilePath} from 'chrome://resources/mojo/mojo/public/mojom/base/file_path.mojom-webui.js';
 
-import {CurrentWallpaper, GooglePhotosAlbum, GooglePhotosPhoto, WallpaperImage, WallpaperLayout, WallpaperType} from '../../personalization_app.mojom-webui.js';
-import {getNumberOfGridItemsPerRow, isNonEmptyArray, isNonEmptyString} from '../utils.js';
+import type {CurrentAttribution, CurrentWallpaper, GooglePhotosAlbum, GooglePhotosPhoto, WallpaperImage} from '../../personalization_app.mojom-webui.js';
+import {WallpaperLayout, WallpaperType} from '../../personalization_app.mojom-webui.js';
+import {getNumberOfGridItemsPerRow, isNonEmptyString} from '../utils.js';
 
-import {DefaultImageSymbol, DisplayableImage, kDefaultImageSymbol} from './constants.js';
+import type {DefaultImageSymbol, DisplayableImage} from './constants.js';
+import {kDefaultImageSymbol} from './constants.js';
+import type {DailyRefreshState} from './wallpaper_state.js';
 
 export function isWallpaperImage(obj: any): obj is WallpaperImage {
   return !!obj && typeof obj.unitId === 'bigint';
-}
-
-export function isFilePath(obj: any): obj is FilePath {
-  return !!obj && typeof obj.path === 'string' && obj.path;
 }
 
 export function isDefaultImage(obj: any): obj is DefaultImageSymbol {
@@ -38,7 +39,7 @@ export function isImageAMatchForKey(
   if (isDefaultImage(image)) {
     return key === kDefaultImageSymbol;
   }
-  if (isFilePath(image)) {
+  if (isNonEmptyFilePath(image)) {
     return key === image.path;
   }
   assert(isGooglePhotosPhoto(image));
@@ -70,7 +71,7 @@ export function isImageEqualToSelected(
  */
 export function getPathOrSymbol(image: FilePath|DefaultImageSymbol): string|
     DefaultImageSymbol {
-  if (isFilePath(image)) {
+  if (isNonEmptyFilePath(image)) {
     return image.path;
   }
   assert(image === kDefaultImageSymbol, 'only one symbol should be present');
@@ -104,7 +105,7 @@ export function getLoadingPlaceholderAnimationDelay(index: number): string {
  */
 export function getLoadingPlaceholders<T>(factory: () => T): T[] {
   const x = getNumberOfGridItemsPerRow();
-  const y = Math.floor(window.innerHeight / /*tileHeightPx=*/ 136);
+  const y = Math.max(Math.floor(window.innerHeight / /*tileHeightPx=*/ 136), 2);
   return Array.from({length: x * y}, factory);
 }
 
@@ -120,6 +121,49 @@ export function getLocalStorageAttribution(key: string): string[] {
     console.warn('Unable to get attribution from local storage.', key);
   }
   return attribution;
+}
+
+/**
+ * Get the aria label of the currently selected wallpaper.
+ */
+export function getWallpaperAriaLabel(
+    image: CurrentWallpaper|null, attribution: CurrentAttribution|null,
+    dailyRefreshState: DailyRefreshState|null): string {
+  if (!image || !attribution || image.key !== attribution.key) {
+    return `${loadTimeData.getString('currentlySet')} ${
+        loadTimeData.getString('unknownImageAttribution')}`;
+  }
+  if (image.type === WallpaperType.kDefault) {
+    return `${loadTimeData.getString('currentlySet')} ${
+        loadTimeData.getString('defaultWallpaper')}`;
+  }
+  const isDailyRefreshActive = !!dailyRefreshState;
+  if (isNonEmptyArray(attribution.attribution)) {
+    return isDailyRefreshActive ?
+        [
+          loadTimeData.getString('currentlySet'),
+          loadTimeData.getString('dailyRefresh'),
+          ...attribution.attribution,
+        ].join(' ') :
+        [
+          loadTimeData.getString('currentlySet'),
+          ...attribution.attribution,
+        ].join(' ');
+  }
+  // Fallback to cached attribution.
+  const cachedAttribution = getLocalStorageAttribution(image.key);
+  if (isNonEmptyArray(cachedAttribution)) {
+    return isDailyRefreshActive ?
+        [
+          loadTimeData.getString('currentlySet'),
+          loadTimeData.getString('dailyRefresh'),
+          ...attribution.attribution,
+        ].join(' ') :
+        [loadTimeData.getString('currentlySet'), ...cachedAttribution].join(
+            ' ');
+  }
+  return `${loadTimeData.getString('currentlySet')} ${
+      loadTimeData.getString('unknownImageAttribution')}`;
 }
 
 /**

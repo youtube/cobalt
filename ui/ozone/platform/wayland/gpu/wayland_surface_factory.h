@@ -12,6 +12,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/ozone/platform/wayland/common/wayland_util.h"
+#include "ui/ozone/public/drm_modifiers_filter.h"
 #include "ui/ozone/public/surface_factory_ozone.h"
 
 namespace ui {
@@ -45,7 +46,7 @@ class WaylandSurfaceFactory : public SurfaceFactoryOzone {
       gfx::Size size,
       gfx::BufferFormat format,
       gfx::BufferUsage usage,
-      absl::optional<gfx::Size> framebuffer_size = absl::nullopt) override;
+      std::optional<gfx::Size> framebuffer_size = std::nullopt) override;
   void CreateNativePixmapAsync(gfx::AcceleratedWidget widget,
                                gpu::VulkanDeviceQueue* device_queue,
                                gfx::Size size,
@@ -57,8 +58,11 @@ class WaylandSurfaceFactory : public SurfaceFactoryOzone {
       gfx::Size size,
       gfx::BufferFormat format,
       gfx::NativePixmapHandle handle) override;
-  absl::optional<gfx::BufferFormat> GetPreferredFormatForSolidColor()
+  std::optional<gfx::BufferFormat> GetPreferredFormatForSolidColor()
       const override;
+  bool SupportsDrmModifiersFilter() const override;
+  void SetDrmModifiersFilter(
+      std::unique_ptr<DrmModifiersFilter> filter) override;
 
   bool SupportsNativePixmaps() const;
 
@@ -66,8 +70,9 @@ class WaylandSurfaceFactory : public SurfaceFactoryOzone {
       const override;
 
  private:
-  const raw_ptr<WaylandConnection> connection_;
-  const raw_ptr<WaylandBufferManagerGpu> buffer_manager_;
+  const raw_ptr<WaylandConnection, AcrossTasksDanglingUntriaged> connection_;
+  const raw_ptr<WaylandBufferManagerGpu, AcrossTasksDanglingUntriaged>
+      buffer_manager_;
   std::unique_ptr<GLOzone> egl_implementation_;
 };
 

@@ -30,14 +30,16 @@
 namespace base {
 class FilePath;
 
-namespace mac {
+namespace apple {
 class ScopedObjCClassSwizzler;
-}  // namespace mac
+}  // namespace apple
 }  // namespace base
 
 namespace gfx {
 class Point;
+#if BUILDFLAG(IS_MAC)
 class Range;
+#endif
 class Rect;
 }  // namespace gfx
 
@@ -55,7 +57,7 @@ class EmbeddedTestServer;
 namespace content {
 class RenderFrameHost;
 class RenderWidgetHost;
-class Shell;
+class TestShell;
 class ToRenderFrameHost;
 class WebContents;
 
@@ -87,14 +89,14 @@ GURL GetTestUrl(const char* dir, const char* file);
 // version below which also takes the expected commit URL.  If the navigation
 // will not result in a commit, such as a download or a 204 response, use
 // NavigateToURLAndExpectNoCommit() instead.
-[[nodiscard]] bool NavigateToURL(Shell* window, const GURL& url);
+[[nodiscard]] bool NavigateToURL(TestShell* window, const GURL& url);
 
 // Same as above, but takes in an additional URL, |expected_commit_url|, to
 // which the navigation should eventually commit.  This is useful for cases
 // like redirects, where navigation starts on one URL but ends up committing a
 // different URL.  This function will return true if navigating to |url|
 // results in a successful commit to |expected_commit_url|.
-[[nodiscard]] bool NavigateToURL(Shell* window,
+[[nodiscard]] bool NavigateToURL(TestShell* window,
                                  const GURL& url,
                                  const GURL& expected_commit_url);
 
@@ -102,7 +104,7 @@ GURL GetTestUrl(const char* dir, const char* file);
 // finishes. If |ignore_uncommitted_navigations| is true, then an aborted
 // navigation also counts toward |number_of_navigations| being complete.
 void NavigateToURLBlockUntilNavigationsComplete(
-    Shell* window,
+    TestShell* window,
     const GURL& url,
     int number_of_navigations,
     bool ignore_uncommitted_navigations = true);
@@ -110,17 +112,17 @@ void NavigateToURLBlockUntilNavigationsComplete(
 // Navigates |window| to |url|, blocks until the navigation finishes, and
 // checks that the navigation did not commit (e.g., due to a crash or
 // download).
-[[nodiscard]] bool NavigateToURLAndExpectNoCommit(Shell* window,
+[[nodiscard]] bool NavigateToURLAndExpectNoCommit(TestShell* window,
                                                   const GURL& url);
 
 // Reloads |window|, blocking until the given number of navigations finishes.
-void ReloadBlockUntilNavigationsComplete(Shell* window,
+void ReloadBlockUntilNavigationsComplete(TestShell* window,
                                          int number_of_navigations);
 
 // Reloads |window| with bypassing cache flag, and blocks until the given number
 // of navigations finishes.
 void ReloadBypassingCacheBlockUntilNavigationsComplete(
-    Shell* window,
+    TestShell* window,
     int number_of_navigations);
 
 // A class to help with waiting for at least one javascript dialog to be
@@ -135,7 +137,7 @@ void ReloadBypassingCacheBlockUntilNavigationsComplete(
 // that could request a modal dialog.
 class AppModalDialogWaiter {
  public:
-  explicit AppModalDialogWaiter(Shell* shell);
+  explicit AppModalDialogWaiter(TestShell* shell);
   void Restart();
   void Wait();
 
@@ -146,11 +148,11 @@ class AppModalDialogWaiter {
  private:
   void EarlyCallback();
   bool was_dialog_request_callback_called_ = false;
-  raw_ptr<Shell> shell_;
+  raw_ptr<TestShell> shell_;
 };
 
 // Extends the ToRenderFrameHost mechanism to content::Shells.
-RenderFrameHost* ConvertToRenderFrameHost(Shell* shell);
+RenderFrameHost* ConvertToRenderFrameHost(TestShell* shell);
 
 // Writes an entry with the name and id of the first camera to the logs or
 // an entry indicating that no camera is available. This must be invoked from
@@ -171,12 +173,12 @@ class ShellAddedObserver {
 
   // Will run a message loop to wait for the new window if it hasn't been
   // created since the constructor.
-  Shell* GetShell();
+  TestShell* GetShell();
 
  private:
-  void ShellCreated(Shell* shell);
+  void ShellCreated(TestShell* shell);
 
-  raw_ptr<Shell, DanglingUntriaged> shell_ = nullptr;
+  raw_ptr<TestShell, AcrossTasksDanglingUntriaged> shell_ = nullptr;
   std::unique_ptr<base::RunLoop> runner_;
 };
 
@@ -185,14 +187,12 @@ class ShellAddedObserver {
 // corresponding to the page.
 class RenderWidgetHostViewCocoaObserver {
  public:
-  // The method name for 'didAddSubview'.
-  static constexpr char kDidAddSubview[] = "didAddSubview:";
   static constexpr char kShowDefinitionForAttributedString[] =
       "showDefinitionForAttributedString:atPoint:";
 
   // Returns the method swizzler for the given |method_name|. This is useful
   // when the original implementation of the method is needed.
-  static base::mac::ScopedObjCClassSwizzler* GetSwizzler(
+  static base::apple::ScopedObjCClassSwizzler* GetSwizzler(
       const std::string& method_name);
 
   // Returns the unique RenderWidgetHostViewCocoaObserver instance (if any) for
@@ -210,12 +210,12 @@ class RenderWidgetHostViewCocoaObserver {
 
   virtual ~RenderWidgetHostViewCocoaObserver();
 
-  // Called when a new NSView is added as a subview of RWHVCocoa.
-  // |rect_in_root_view| represents the bounds of the NSView in RWHVCocoa
-  // coordinates. The view will be dismissed shortly after this call.
-  virtual void DidAddSubviewWillBeDismissed(
-      const gfx::Rect& rect_in_root_view) {}
-  // Called when RenderWidgeHostViewCocoa is asked to show definition of
+  // Called when a popup was attempted to be displayed, conveying the bounds of
+  // the popup rectangle (in the RenderWidgetHostViewCocoa coordinate system)
+  // and the initially-selected item. The popup will not actually be triggered.
+  virtual void DidAttemptToShowPopup(const gfx::Rect& bounds,
+                                     int selected_item) {}
+  // Called when RenderWidgetHostViewCocoa is asked to show definition of
   // |for_word| using Mac's dictionary popup.
   virtual void OnShowDefinitionForAttributedString(
       const std::string& for_word) {}
@@ -226,7 +226,7 @@ class RenderWidgetHostViewCocoaObserver {
   static void SetUpSwizzlers();
 
   static std::map<std::string,
-                  std::unique_ptr<base::mac::ScopedObjCClassSwizzler>>
+                  std::unique_ptr<base::apple::ScopedObjCClassSwizzler>>
       rwhvcocoa_swizzlers_;
   static std::map<WebContents*, RenderWidgetHostViewCocoaObserver*> observers_;
 
@@ -282,6 +282,11 @@ void SetMockCursorPositionForTesting(WebContents* web_contents,
                                      const gfx::Point& position);
 
 #endif  // BUILDFLAG(IS_WIN)
+
+// Blocks the current execution until the renderer main thread in the main frame
+// is in a steady state, so the caller can issue an `viz::CopyOutputRequest`
+// against the current `WebContents`.
+void WaitForCopyableView(WebContents* web_contents);
 
 }  // namespace content
 

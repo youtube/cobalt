@@ -9,7 +9,7 @@
 """
 from __future__ import print_function
 import abc
-import imp
+from importlib import util as imp_util
 import optparse
 import os
 import re
@@ -68,7 +68,11 @@ class GoogleProtobufModuleImporter:
       raise ImportError(fullname)
 
     filepath = self._fullname_to_filepath(fullname)
-    return imp.load_source(fullname, filepath)
+    spec = imp_util.spec_from_file_location(fullname, filepath)
+    loaded = imp_util.module_from_spec(spec)
+    spec.loader.exec_module(loaded)
+
+    return loaded
 
 class BinaryProtoGenerator:
 
@@ -153,7 +157,7 @@ class BinaryProtoGenerator:
 
   def Run(self):
     parser = optparse.OptionParser()
-    # TODO(crbug.com/614082): Remove this once the bug is fixed.
+    # TODO(crbug.com/41255210): Remove this once the bug is fixed.
     parser.add_option('-w', '--wrap', action="store_true", default=False,
                       help='Wrap this script in another python '
                       'execution to disable site-packages.  This is a '

@@ -15,9 +15,9 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "components/offline_pages/buildflags/buildflags.h"
-#include "content/browser/service_worker/embedded_worker_status.h"
+#include "content/browser/loader/response_head_update_params.h"
 #include "content/browser/service_worker/embedded_worker_test_helper.h"
-#include "content/browser/service_worker/service_worker_container_host.h"
+#include "content/browser/service_worker/service_worker_client.h"
 #include "content/browser/service_worker/service_worker_context_core.h"
 #include "content/browser/service_worker/service_worker_context_wrapper.h"
 #include "content/browser/service_worker/service_worker_host.h"
@@ -34,6 +34,7 @@
 #include "net/url_request/url_request_test_util.h"
 #include "services/network/public/cpp/resource_request_body.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/service_worker/embedded_worker_status.h"
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom.h"
 #include "third_party/blink/public/mojom/service_worker/service_worker_registration.mojom.h"
@@ -42,6 +43,28 @@
 
 namespace content {
 namespace service_worker_controllee_request_handler_unittest {
+
+namespace {
+
+class DeleteAndStartOverWaiter : public ServiceWorkerContextCoreObserver {
+ public:
+  explicit DeleteAndStartOverWaiter(
+      ServiceWorkerContextWrapper& service_worker_context_wrapper)
+      : service_worker_context_wrapper_(service_worker_context_wrapper) {
+    service_worker_context_wrapper_->AddObserver(this);
+  }
+  void OnDeleteAndStartOver() override { run_loop_.Quit(); }
+  void Wait() {
+    run_loop_.Run();
+    service_worker_context_wrapper_->RemoveObserver(this);
+  }
+
+ private:
+  raw_ref<ServiceWorkerContextWrapper> service_worker_context_wrapper_;
+  base::RunLoop run_loop_;
+};
+
+}  // namespace
 
 class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
  public:
@@ -61,11 +84,11 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
               TRAFFIC_ANNOTATION_FOR_TESTS)),
           handler_(std::make_unique<ServiceWorkerControlleeRequestHandler>(
               test->context()->AsWeakPtr(),
-              test->container_host_,
-              destination,
+              /*fetch_event_client_id=*/"",
+              test->service_worker_client_,
               /*skip_service_worker=*/false,
-              /*frame_tree_node_id=*/RenderFrameHost::kNoFrameTreeNodeId,
-              base::DoNothing())) {}
+              base::DoNothing())),
+          service_worker_client_(test->service_worker_client_) {}
 
     void MaybeCreateLoader() {
       network::ResourceRequest resource_request;
@@ -73,18 +96,20 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
       resource_request.destination = destination_;
       resource_request.headers = request()->extra_request_headers();
       DCHECK(!loader_loop_.AnyQuitCalled());
-      handler_->MaybeCreateLoader(
-          resource_request,
+      service_worker_client_->UpdateUrls(
+          resource_request.url, url::Origin::Create(resource_request.url),
           blink::StorageKey::CreateFirstParty(
-              url::Origin::Create(resource_request.url)),
-          nullptr,
+              url::Origin::Create(resource_request.url)));
+      handler_->MaybeCreateLoader(
+          resource_request, nullptr,
           base::BindOnce(
               [](base::OnceClosure closure,
-                 scoped_refptr<network::SharedURLLoaderFactory>) {
-                std::move(closure).Run();
-              },
+                 std::optional<NavigationLoaderInterceptor::Result>
+                     interceptor_result) { std::move(closure).Run(); },
               loader_loop_.QuitClosure()),
-          base::DoNothing());
+          base::BindOnce([](ResponseHeadUpdateParams) {
+            return static_cast<network::mojom::URLLoaderFactory*>(nullptr);
+          }));
     }
 
     void WaitLoader() { loader_loop_.Run(); }
@@ -104,6 +129,7 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
     const network::mojom::RequestDestination destination_;
     std::unique_ptr<net::URLRequest> request_;
     std::unique_ptr<ServiceWorkerControlleeRequestHandler> handler_;
+    base::WeakPtr<ServiceWorkerClient> service_worker_client_;
     base::RunLoop loader_loop_;
   };
 
@@ -124,7 +150,8 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
       host()->OnScriptEvaluationStart();
       host()->OnStarted(
           blink::mojom::ServiceWorkerStartStatus::kNormalCompletion,
-          fetch_handler_type_, helper()->GetNextThreadId(),
+          fetch_handler_type_, /*has_hid_event_handlers=*/false,
+          /*has_usb_event_handlers=*/false, helper()->GetNextThreadId(),
           blink::mojom::EmbeddedWorkerStartTiming::New());
     }
 
@@ -160,7 +187,7 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
     script_url_ = GURL("https://host/script.js");
     blink::mojom::ServiceWorkerRegistrationOptions options;
     options.scope = scope_;
-    registration_ = new ServiceWorkerRegistration(
+    registration_ = ServiceWorkerRegistration::Create(
         options,
         blink::StorageKey::CreateFirstParty(url::Origin::Create(scope_)), 1L,
         context()->AsWeakPtr(), blink::mojom::AncestorFrameType::kNormalFrame);
@@ -168,7 +195,7 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
         registration_.get(), script_url_, blink::mojom::ScriptType::kClassic,
         1L, mojo::PendingRemote<storage::mojom::ServiceWorkerLiveVersionRef>(),
         context()->AsWeakPtr());
-    version_->set_policy_container_host(
+    version_->SetPolicyContainerHost(
         base::MakeRefCounted<PolicyContainerHost>(PolicyContainerPolicies()));
 
     std::vector<storage::mojom::ServiceWorkerResourceRecordPtr> records;
@@ -180,12 +207,13 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
         EmbeddedWorkerTestHelper::CreateMainScriptResponse());
 
     // An empty host.
-    remote_endpoints_.emplace_back();
-    container_host_ = CreateContainerHostForWindow(
-        GlobalRenderFrameHostId(helper_->mock_render_process_id(),
-                                /*mock frame_routing_id=*/1),
-        is_parent_frame_secure, helper_->context()->AsWeakPtr(),
-        &remote_endpoints_.back());
+    ScopedServiceWorkerClient service_worker_client =
+        helper_->context()
+            ->service_worker_client_owner()
+            .CreateServiceWorkerClientForWindow(is_parent_frame_secure,
+                                                FrameTreeNodeId(1));
+    service_worker_client_ = service_worker_client.AsWeakPtr();
+    service_worker_clients_.push_back(std::move(service_worker_client));
   }
 
   void TearDown() override {
@@ -196,22 +224,19 @@ class ServiceWorkerControlleeRequestHandlerTest : public testing::Test {
 
   ServiceWorkerContextCore* context() const { return helper_->context(); }
 
-  void CloseRemotes() {
-    for (auto& remote_endpoint : remote_endpoints_)
-      remote_endpoint.host_remote()->reset();
-  }
+  void CloseRemotes() { service_worker_clients_.clear(); }
 
  protected:
   BrowserTaskEnvironment task_environment_;
   std::unique_ptr<EmbeddedWorkerTestHelper> helper_;
   scoped_refptr<ServiceWorkerRegistration> registration_;
   scoped_refptr<ServiceWorkerVersion> version_;
-  base::WeakPtr<ServiceWorkerContainerHost> container_host_;
+  base::WeakPtr<ServiceWorkerClient> service_worker_client_;
   std::unique_ptr<net::URLRequestContext> url_request_context_;
   net::TestDelegate url_request_delegate_;
   GURL scope_;
   GURL script_url_;
-  std::vector<ServiceWorkerRemoteContainerEndpoint> remote_endpoints_;
+  std::vector<ScopedServiceWorkerClient> service_worker_clients_;
 };
 
 class ServiceWorkerTestContentBrowserClient : public TestContentBrowserClient {
@@ -220,7 +245,8 @@ class ServiceWorkerTestContentBrowserClient : public TestContentBrowserClient {
   AllowServiceWorkerResult AllowServiceWorker(
       const GURL& scope,
       const net::SiteForCookies& site_for_cookies,
-      const absl::optional<url::Origin>& top_frame_origin,
+      const std::optional<url::Origin>& top_frame_origin,
+      const blink::StorageKey& storage_key,
       const GURL& script_url,
       content::BrowserContext* context) override {
     return AllowServiceWorkerResult::No();
@@ -413,8 +439,8 @@ TEST_F(ServiceWorkerControlleeRequestHandlerTest, InstallingRegistration) {
   // claim().
   EXPECT_FALSE(test_resources.loader());
   EXPECT_FALSE(version_->HasControllee());
-  EXPECT_FALSE(container_host_->controller());
-  EXPECT_EQ(registration_.get(), container_host_->MatchRegistration());
+  EXPECT_FALSE(service_worker_client_->controller());
+  EXPECT_EQ(registration_.get(), service_worker_client_->MatchRegistration());
 }
 
 // Test to not regress crbug/414118.
@@ -445,7 +471,7 @@ TEST_F(ServiceWorkerControlleeRequestHandlerTest, DeletedContainerHost) {
   // the database lookup.
   CloseRemotes();
   base::RunLoop().RunUntilIdle();
-  EXPECT_FALSE(container_host_);
+  EXPECT_FALSE(service_worker_client_);
   EXPECT_FALSE(test_resources.loader());
 }
 
@@ -468,11 +494,9 @@ TEST_F(ServiceWorkerControlleeRequestHandlerTest, SkipServiceWorker) {
       network::mojom::RequestDestination::kDocument);
   test_resources.SetHandler(
       std::make_unique<ServiceWorkerControlleeRequestHandler>(
-          context()->AsWeakPtr(), container_host_,
-          network::mojom::RequestDestination::kDocument,
-          /*skip_service_worker=*/true,
-          /*frame_tree_node_id=*/RenderFrameHost::kNoFrameTreeNodeId,
-          base::DoNothing()));
+          context()->AsWeakPtr(),
+          /*fetch_event_client_id=*/"", service_worker_client_,
+          /*skip_service_worker=*/true, base::DoNothing()));
 
   // Conduct a main resource load.
   test_resources.MaybeCreateLoader();
@@ -485,12 +509,12 @@ TEST_F(ServiceWorkerControlleeRequestHandlerTest, SkipServiceWorker) {
   EXPECT_FALSE(version_->HasControllee());
 
   // The host should still have the correct URL.
-  EXPECT_EQ(GURL("https://host/scope/doc"), container_host_->url());
+  EXPECT_EQ(GURL("https://host/scope/doc"), service_worker_client_->url());
 }
 
 // Tests interception after the context core has been destroyed and the provider
 // host is transferred to a new context.
-// TODO(crbug.com/877356): Remove this test when transferring contexts is
+// TODO(crbug.com/41409843): Remove this test when transferring contexts is
 // removed.
 TEST_F(ServiceWorkerControlleeRequestHandlerTest, NullContext) {
   // Store an activated worker.
@@ -511,15 +535,15 @@ TEST_F(ServiceWorkerControlleeRequestHandlerTest, NullContext) {
       network::mojom::RequestDestination::kDocument);
   test_resources.SetHandler(
       std::make_unique<ServiceWorkerControlleeRequestHandler>(
-          context()->AsWeakPtr(), container_host_,
-          network::mojom::RequestDestination::kDocument,
-          /*skip_service_worker=*/false,
-          /*frame_tree_node_id=*/RenderFrameHost::kNoFrameTreeNodeId,
+          context()->AsWeakPtr(), /*fetch_event_client_id=*/"",
+          service_worker_client_, /*skip_service_worker=*/false,
           base::DoNothing()));
 
   // Destroy the context and make a new one.
+  DeleteAndStartOverWaiter delete_and_start_over_waiter(
+      *helper_->context_wrapper());
   helper_->context_wrapper()->DeleteAndStartOver();
-  base::RunLoop().RunUntilIdle();
+  delete_and_start_over_waiter.Wait();
 
   // Conduct a main resource load. The loader won't be created because the
   // interceptor's context is now null.
@@ -535,7 +559,7 @@ TEST_F(ServiceWorkerControlleeRequestHandlerTest, NullContext) {
   EXPECT_FALSE(version_->HasControllee());
 
   // The host should still have the correct URL.
-  EXPECT_EQ(GURL("https://host/scope/doc"), container_host_->url());
+  EXPECT_EQ(GURL("https://host/scope/doc"), service_worker_client_->url());
 }
 
 #if BUILDFLAG(ENABLE_OFFLINE_PAGES)

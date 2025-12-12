@@ -6,6 +6,7 @@
 #define COMPONENTS_FEED_CORE_V2_PROTOCOL_TRANSLATOR_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/time/time.h"
@@ -16,7 +17,6 @@
 #include "components/feed/core/v2/public/types.h"
 #include "components/feed/core/v2/scheduling.h"
 #include "components/feed/core/v2/types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace feed {
 
@@ -65,17 +65,20 @@ struct RefreshResponseData {
   std::unique_ptr<StreamModelUpdateRequest> model_update_request;
 
   // Server-defined request schedule, if provided.
-  absl::optional<RequestSchedule> request_schedule;
+  std::optional<RequestSchedule> request_schedule;
 
   // Server-defined content lifetime, if provided.
-  absl::optional<feedstore::Metadata::StreamMetadata::ContentLifetime>
+  std::optional<feedstore::Metadata::StreamMetadata::ContentLifetime>
       content_lifetime;
 
   // Server-defined session id token, if provided.
-  absl::optional<std::string> session_id;
+  std::optional<std::string> session_id;
 
   // List of experiments from the server, if provided.
-  absl::optional<Experiments> experiments;
+  std::optional<Experiments> experiments;
+
+  // Serialized server-provided feed launch CUI metadata.
+  std::optional<std::string> feed_launch_cui_metadata;
 
   // Server-reported network timestamps. They can be compared to
   // each other but not to client timestamps.
@@ -89,7 +92,7 @@ struct RefreshResponseData {
   bool discover_personalization_enabled = false;
 };
 
-absl::optional<feedstore::DataOperation> TranslateDataOperation(
+std::optional<feedstore::DataOperation> TranslateDataOperation(
     base::Time current_time,
     feedwire::DataOperation wire_operation);
 

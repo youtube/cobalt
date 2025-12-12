@@ -4,13 +4,13 @@
 
 #include "base/task/sequence_manager/task_order.h"
 
+#include <optional>
+
 #include "base/task/sequence_manager/enqueue_order.h"
 #include "base/time/time.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-namespace base {
-namespace sequence_manager {
+namespace base::sequence_manager {
 
 class TaskOrderTest : public testing::Test {
  protected:
@@ -125,5 +125,4 @@ TEST_F(TaskOrderTest, DelayedTasksEqual) {
   ExpectEqual(order1, order2);
 }
 
-}  // namespace sequence_manager
-}  // namespace base
+}  // namespace base::sequence_manager

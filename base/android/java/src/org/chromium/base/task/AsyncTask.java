@@ -5,6 +5,7 @@
 package org.chromium.base.task;
 
 import android.os.Binder;
+import android.os.Process;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.MainThread;
@@ -15,6 +16,8 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.DoNotInline;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -32,10 +35,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * A Chromium version of android.os.AsyncTask.
  *
- * The API is quite close to Android's Oreo version, but with a number of things removed.
+ * <p>The API is quite close to Android's Oreo version, but with a number of things removed.
+ *
  * @param <Result> Return type of the background task.
  */
-public abstract class AsyncTask<Result> {
+@NullMarked
+public abstract class AsyncTask<Result extends @Nullable Object> {
     private static final String TAG = "AsyncTask";
 
     private static final String GET_STATUS_UMA_HISTOGRAM =
@@ -64,12 +69,23 @@ public abstract class AsyncTask<Result> {
 
     private final AtomicBoolean mCancelled = new AtomicBoolean();
     private final AtomicBoolean mTaskInvoked = new AtomicBoolean();
-    private int mIterationIdForTesting = PostTask.sTestIterationForTesting;
+    private final int mIterationIdForTesting = PostTask.sTestIterationForTesting;
 
     private static class StealRunnableHandler implements RejectedExecutionHandler {
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-            THREAD_POOL_EXECUTOR.execute(r);
+            THREAD_POOL_EXECUTOR.execute(
+                    () -> {
+                        // The Runnable may (and sometimes does) change the thread priority. Make
+                        // sure that it doesn't persist beyond it. See crbug.com/374157901 for
+                        // details.
+                        int priority = Process.getThreadPriority(Process.myTid());
+                        try {
+                            r.run();
+                        } finally {
+                            Process.setThreadPriority(Process.myTid(), priority);
+                        }
+                    });
         }
     }
 
@@ -82,69 +98,67 @@ public abstract class AsyncTask<Result> {
     @IntDef({Status.PENDING, Status.RUNNING, Status.FINISHED})
     @Retention(RetentionPolicy.SOURCE)
     public @interface Status {
-        /**
-         * Indicates that the task has not been executed yet.
-         */
+        /** Indicates that the task has not been executed yet. */
         int PENDING = 0;
-        /**
-         * Indicates that the task is running.
-         */
+
+        /** Indicates that the task is running. */
         int RUNNING = 1;
-        /**
-         * Indicates that {@link AsyncTask#onPostExecute} has finished.
-         */
+
+        /** Indicates that {@link AsyncTask#onPostExecute} has finished. */
         int FINISHED = 2;
-        /**
-         * Just used for reporting this status to UMA.
-         */
+
+        /** Just used for reporting this status to UMA. */
         int NUM_ENTRIES = 3;
     }
 
     @SuppressWarnings("NoAndroidAsyncTaskCheck")
     public static void takeOverAndroidThreadPool() {
         ThreadPoolExecutor exec = (ThreadPoolExecutor) android.os.AsyncTask.THREAD_POOL_EXECUTOR;
+        if (exec.isShutdown()) {
+            assert exec.getRejectedExecutionHandler() == STEAL_RUNNABLE_HANDLER;
+            return;
+        }
         exec.setRejectedExecutionHandler(STEAL_RUNNABLE_HANDLER);
         exec.shutdown();
     }
 
-    /**
-     * Creates a new asynchronous task. This constructor must be invoked on the UI thread.
-     */
+    /** Creates a new asynchronous task. This constructor must be invoked on the UI thread. */
     public AsyncTask() {
-        mWorker = new Callable<Result>() {
-            @Override
-            public Result call() throws Exception {
-                mTaskInvoked.set(true);
-                Result result = null;
-                try {
-                    result = doInBackground();
-                    Binder.flushPendingCommands();
-                } catch (Throwable tr) {
-                    mCancelled.set(true);
-                    throw tr;
-                } finally {
-                    postResult(result);
-                }
-                return result;
-            }
-        };
+        mWorker =
+                () -> {
+                    mTaskInvoked.set(true);
+                    Result result = null;
+                    try {
+                        result = doInBackground();
+                        Binder.flushPendingCommands();
+                    } catch (Throwable tr) {
+                        mCancelled.set(true);
+                        throw tr;
+                    } finally {
+                        postResult(result);
+                    }
+                    return result;
+                };
 
         mFuture = new NamedFutureTask(mWorker);
     }
 
-    private void postResultIfNotInvoked(Result result) {
+    private void postResultIfNotInvoked(@Nullable Result result) {
         final boolean wasTaskInvoked = mTaskInvoked.get();
         if (!wasTaskInvoked) {
             postResult(result);
         }
     }
 
-    private void postResult(Result result) {
+    private void postResult(@Nullable Result result) {
         // We check if this task is of a type which does not require post-execution.
         if (this instanceof BackgroundOnlyAsyncTask) {
             mStatus = Status.FINISHED;
         } else if (mIterationIdForTesting == PostTask.sTestIterationForTesting) {
-            ThreadUtils.postOnUiThread(() -> { finish(result); });
+            ThreadUtils.postOnUiThread(
+                    () -> {
+                        finish(result);
+                    });
         }
     }
 
@@ -175,7 +189,6 @@ public abstract class AsyncTask<Result> {
      * Override this method to perform a computation on a background thread.
      *
      * @return A result, defined by the subclass of this task.
-     *
      * @see #onPreExecute()
      * @see #onPostExecute
      */
@@ -192,16 +205,15 @@ public abstract class AsyncTask<Result> {
     protected void onPreExecute() {}
 
     /**
-     * <p>Runs on the UI thread after {@link #doInBackground}. The
-     * specified result is the value returned by {@link #doInBackground}.</p>
+     * Runs on the UI thread after {@link #doInBackground}. The specified result is the value
+     * returned by {@link #doInBackground}.
      *
-     * <p>This method won't be invoked if the task was cancelled.</p>
+     * <p>This method won't be invoked if the task was cancelled.
      *
-     * <p> Must be overridden by subclasses. If a subclass doesn't need
-     * post-execution, is should extend BackgroundOnlyAsyncTask instead.
+     * <p>Must be overridden by subclasses. If a subclass doesn't need post-execution, is should
+     * extend BackgroundOnlyAsyncTask instead.
      *
      * @param result The result of the operation computed by {@link #doInBackground}.
-     *
      * @see #onPreExecute
      * @see #doInBackground
      * @see #onCancelled(Object)
@@ -211,22 +223,19 @@ public abstract class AsyncTask<Result> {
     protected abstract void onPostExecute(Result result);
 
     /**
-     * <p>Runs on the UI thread after {@link #cancel(boolean)} is invoked and
-     * {@link #doInBackground()} has finished.</p>
+     * Runs on the UI thread after {@link #cancel(boolean)} is invoked and {@link #doInBackground()}
+     * has finished.
      *
-     * <p>The default implementation simply invokes {@link #onCancelled()} and
-     * ignores the result. If you write your own implementation, do not call
-     * <code>super.onCancelled(result)</code>.</p>
+     * <p>The default implementation simply invokes {@link #onCancelled()} and ignores the result.
+     * If you write your own implementation, do not call <code>super.onCancelled(result)</code>.
      *
-     * @param result The result, if any, computed in
-     *               {@link #doInBackground()}, can be null
-     *
+     * @param result The result, if any, computed in {@link #doInBackground()}, can be null
      * @see #cancel(boolean)
      * @see #isCancelled()
      */
     @SuppressWarnings({"UnusedParameters"})
     @MainThread
-    protected void onCancelled(Result result) {
+    protected void onCancelled(@Nullable Result result) {
         onCancelled();
     }
 
@@ -370,12 +379,13 @@ public abstract class AsyncTask<Result> {
         if (mStatus != Status.PENDING) {
             switch (mStatus) {
                 case Status.RUNNING:
-                    throw new IllegalStateException("Cannot execute task:"
-                            + " the task is already running.");
+                    throw new IllegalStateException(
+                            "Cannot execute task:" + " the task is already running.");
                 case Status.FINISHED:
-                    throw new IllegalStateException("Cannot execute task:"
-                            + " the task has already been executed "
-                            + "(a task can be executed only once)");
+                    throw new IllegalStateException(
+                            "Cannot execute task:"
+                                    + " the task has already been executed "
+                                    + "(a task can be executed only once)");
             }
         }
 
@@ -430,7 +440,7 @@ public abstract class AsyncTask<Result> {
     @MainThread
     public final AsyncTask<Result> executeOnTaskRunner(TaskRunner taskRunner) {
         executionPreamble();
-        taskRunner.postTask(mFuture);
+        taskRunner.execute(mFuture);
         return this;
     }
 
@@ -448,7 +458,8 @@ public abstract class AsyncTask<Result> {
         return this;
     }
 
-    private void finish(Result result) {
+    @SuppressWarnings("NullAway") // onPostExecute is non-null when <Result> is non-null.
+    private void finish(@Nullable Result result) {
         if (isCancelled()) {
             onCancelled(result);
         } else {
@@ -469,9 +480,20 @@ public abstract class AsyncTask<Result> {
         @Override
         @SuppressWarnings("NoDynamicStringsInTraceEventCheck")
         public void run() {
-            try (TraceEvent e = TraceEvent.scoped(
-                         "AsyncTask.run: " + mFuture.getBlamedClass().getName())) {
+            try (TraceEvent e =
+                    TraceEvent.scoped("AsyncTask.run: " + mFuture.getBlamedClass().getName())) {
                 super.run();
+            } finally {
+                // Clear the interrupt on this background thread, if there is one, as it likely
+                // came from cancelling the FutureTask. It is possible this was already cleared
+                // in run() if something was listening for an interrupt; however, if it wasn't
+                // then the interrupt may still be around. By clearing it here the thread is in
+                // a clean state for the next task. See: crbug/1473731.
+
+                // This is safe and prevents future leaks because the state of the FutureTask
+                // should now be >= COMPLETING. Any future calls to cancel() will not trigger
+                // an interrupt.
+                Thread.interrupted();
             }
         }
 

@@ -7,26 +7,27 @@
 #import <AppKit/AppKit.h>
 #include <CoreFoundation/CoreFoundation.h>
 
+#include <optional>
 #include <set>
 
+#include "base/apple/bridging.h"
+#include "base/apple/foundation_util.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
-#include "base/mac/foundation_util.h"
 #include "base/strings/sys_string_conversions.h"
 #include "chrome/common/chrome_constants.h"
 #include "chrome/common/mac/app_mode_common.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace app_mode {
 
 namespace {
 
 struct PathAndStructure {
-  NSString* framework_dylib_path;  // weak
+  NSString* __strong framework_dylib_path;
   bool is_new_app_structure;
 };
 
-absl::optional<PathAndStructure> GetFrameworkDylibPathAndStructure(
+std::optional<PathAndStructure> GetFrameworkDylibPathAndStructure(
     NSString* bundle_path,
     NSString* version) {
   // NEW STYLE:
@@ -37,8 +38,9 @@ absl::optional<PathAndStructure> GetFrameworkDylibPathAndStructure(
     @"Versions", version, @(chrome::kFrameworkExecutableName)
   ]];
 
-  if ([[NSFileManager defaultManager] fileExistsAtPath:path])
+  if ([NSFileManager.defaultManager fileExistsAtPath:path]) {
     return PathAndStructure{path, true};
+  }
 
   // OLD STYLE:
   // Chromium.app/Contents/Versions/<version>/Chromium Framework.framework/
@@ -48,10 +50,11 @@ absl::optional<PathAndStructure> GetFrameworkDylibPathAndStructure(
     @"Versions", @"A", @(chrome::kFrameworkExecutableName)
   ]];
 
-  if ([[NSFileManager defaultManager] fileExistsAtPath:path])
+  if ([NSFileManager.defaultManager fileExistsAtPath:path]) {
     return PathAndStructure{path, false};
+  }
 
-  return absl::nullopt;
+  return std::nullopt;
 }
 
 bool IsPathValidForBundle(const base::FilePath& bundle_path,
@@ -64,7 +67,7 @@ bool IsPathValidForBundle(const base::FilePath& bundle_path,
 
   NSString* ns_bundle_path = base::SysUTF8ToNSString(bundle_path.value());
   NSBundle* bundle = [NSBundle bundleWithPath:ns_bundle_path];
-  if (!bundle || ![bundle_id isEqualToString:[bundle bundleIdentifier]]) {
+  if (!bundle || ![bundle_id isEqualToString:bundle.bundleIdentifier]) {
     return false;
   }
 
@@ -77,14 +80,11 @@ bool FindChromeBundle(NSString* bundle_id, base::FilePath* out_bundle) {
   // Retrieve the last-run Chrome bundle location.
   base::FilePath last_run_bundle_path;
   {
-    using base::mac::CFToNSCast;
-    using base::mac::CFCastStrict;
-    using base::mac::NSToCFCast;
-    NSString* cr_bundle_path_ns =
-        [CFToNSCast(CFCastStrict<CFStringRef>(CFPreferencesCopyAppValue(
-            NSToCFCast(app_mode::kLastRunAppBundlePathPrefsKey),
-            NSToCFCast(bundle_id)))) autorelease];
-    last_run_bundle_path = base::mac::NSStringToFilePath(cr_bundle_path_ns);
+    NSString* cr_bundle_path_ns = base::apple::CFToNSOwnershipCast(
+        base::apple::CFCastStrict<CFStringRef>(CFPreferencesCopyAppValue(
+            base::apple::NSToCFPtrCast(app_mode::kLastRunAppBundlePathPrefsKey),
+            base::apple::NSToCFPtrCast(bundle_id))));
+    last_run_bundle_path = base::apple::NSStringToFilePath(cr_bundle_path_ns);
   }
 
   // Look up running instances of the specified bundle ID.
@@ -97,7 +97,7 @@ bool FindChromeBundle(NSString* bundle_id, base::FilePath* out_bundle) {
         runningApplicationsWithBundleIdentifier:bundle_id];
     for (NSRunningApplication* running_application : running_applications) {
       base::FilePath bundle_path =
-          base::mac::NSURLToFilePath([running_application bundleURL]);
+          base::apple::NSURLToFilePath(running_application.bundleURL);
       DCHECK(!bundle_path.empty());
       running_bundle_paths.insert(bundle_path);
     }
@@ -109,7 +109,7 @@ bool FindChromeBundle(NSString* bundle_id, base::FilePath* out_bundle) {
     }
 
     // Otherwise, select a running bundle path arbitrarily.
-    // TODO(https://crbug.com/1278425): This choice should not be made
+    // TODO(crbug.com/40208159): This choice should not be made
     // arbitrarily.
     if (!running_bundle_paths.empty()) {
       *out_bundle = *running_bundle_paths.begin();
@@ -131,7 +131,7 @@ bool FindChromeBundle(NSString* bundle_id, base::FilePath* out_bundle) {
     NSURL* url = [NSWorkspace.sharedWorkspace
         URLForApplicationWithBundleIdentifier:bundle_id];
     if (url) {
-      *out_bundle = base::mac::NSURLToFilePath(url);
+      *out_bundle = base::apple::NSURLToFilePath(url);
       return true;
     }
   }
@@ -143,13 +143,13 @@ bool GetChromeBundleInfo(const base::FilePath& chrome_bundle,
                          base::FilePath* executable_path,
                          base::FilePath* framework_path,
                          base::FilePath* framework_dylib_path) {
-  NSString* cr_bundle_path = base::mac::FilePathToNSString(chrome_bundle);
+  NSString* cr_bundle_path = base::apple::FilePathToNSString(chrome_bundle);
   NSBundle* cr_bundle = [NSBundle bundleWithPath:cr_bundle_path];
   if (!cr_bundle)
     return false;
 
   // Try to get the version requested, if present.
-  absl::optional<PathAndStructure> framework_path_and_structure;
+  std::optional<PathAndStructure> framework_path_and_structure;
   if (!version_str.empty()) {
     framework_path_and_structure = GetFrameworkDylibPathAndStructure(
         cr_bundle_path, base::SysUTF8ToNSString(version_str));
@@ -179,7 +179,7 @@ bool GetChromeBundleInfo(const base::FilePath& chrome_bundle,
   // rather broken new-style bundle). Try explicitly specifying the version of
   // the framework matching the outer bundle version.
   if (!framework_path_and_structure) {
-    NSString* cr_version = base::mac::ObjCCast<NSString>([cr_bundle
+    NSString* cr_version = base::apple::ObjCCast<NSString>([cr_bundle
         objectForInfoDictionaryKey:app_mode::kCFBundleShortVersionStringKey]);
     if (cr_version) {
       framework_path_and_structure =
@@ -192,7 +192,7 @@ bool GetChromeBundleInfo(const base::FilePath& chrome_bundle,
 
   // A few sanity checks.
   BOOL is_directory;
-  BOOL exists = [[NSFileManager defaultManager]
+  BOOL exists = [NSFileManager.defaultManager
       fileExistsAtPath:framework_path_and_structure->framework_dylib_path
            isDirectory:&is_directory];
   if (!exists || is_directory)
@@ -217,9 +217,9 @@ bool GetChromeBundleInfo(const base::FilePath& chrome_bundle,
   }
 
   // Everything is OK; copy the output parameters.
-  *executable_path = base::mac::NSStringToFilePath([cr_bundle executablePath]);
-  *framework_path = base::mac::NSStringToFilePath(cr_framework_path);
-  *framework_dylib_path = base::mac::NSStringToFilePath(
+  *executable_path = base::apple::NSStringToFilePath(cr_bundle.executablePath);
+  *framework_path = base::apple::NSStringToFilePath(cr_framework_path);
+  *framework_dylib_path = base::apple::NSStringToFilePath(
       framework_path_and_structure->framework_dylib_path);
   return true;
 }

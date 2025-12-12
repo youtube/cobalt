@@ -29,11 +29,17 @@
 #include "third_party/blink/renderer/core/css/css_property_value_set.h"
 #include "third_party/blink/renderer/core/css/css_value_list.h"
 
+namespace WTF {
+class StringBuilder;
+}  // namespace WTF
+
 namespace blink {
 
 class CSSPropertyName;
 class CSSPropertyValueSet;
 class StylePropertyShorthand;
+
+enum class CSSGapDecorationPropertyDirection : int;
 
 class CORE_EXPORT StylePropertySerializer {
   STACK_ALLOCATED();
@@ -44,9 +50,6 @@ class CORE_EXPORT StylePropertySerializer {
   String AsText() const;
   String SerializeShorthand(CSSPropertyID) const;
 
-  static bool IsValidToggleShorthand(const CSSValue* toggle_root,
-                                     const CSSValue* toggle_trigger);
-
  private:
   String GetCommonValue(const StylePropertyShorthand&) const;
   String BorderPropertyValue(const StylePropertyShorthand&,
@@ -54,31 +57,52 @@ class CORE_EXPORT StylePropertySerializer {
                              const StylePropertyShorthand&) const;
   String BorderImagePropertyValue() const;
   String BorderRadiusValue() const;
+  String CornerShapeValue() const;
   String GetLayeredShorthandValue(const StylePropertyShorthand&) const;
   String Get2Values(const StylePropertyShorthand&) const;
   String Get4Values(const StylePropertyShorthand&) const;
   String PageBreakPropertyValue(const StylePropertyShorthand&) const;
   String GetShorthandValue(const StylePropertyShorthand&,
                            String separator = " ") const;
+  String GetShorthandValueForRule(const StylePropertyShorthand&,
+                                  const StylePropertyShorthand&) const;
+  String GetShorthandValueForBidirectionalGapRules(
+      const StylePropertyShorthand&) const;
+  String GetShorthandValueForGapDecorationsRule(
+      const StylePropertyShorthand&,
+      CSSGapDecorationPropertyDirection direction) const;
+  String GetShorthandValueForColumnRule(const StylePropertyShorthand&) const;
   String GetShorthandValueForColumns(const StylePropertyShorthand&) const;
+  // foo || bar || ... || baz
+  // https://drafts.csswg.org/css-values-4/#component-combinators
+  String GetShorthandValueForDoubleBarCombinator(
+      const StylePropertyShorthand&) const;
   String GetShorthandValueForGrid(const StylePropertyShorthand&) const;
+  String GetShorthandValueForGridArea(const StylePropertyShorthand&) const;
+  String GetShorthandValueForGridLine(const StylePropertyShorthand&) const;
   String GetShorthandValueForGridTemplate(const StylePropertyShorthand&) const;
+  String GetShorthandValueForMasonryTrack() const;
   String ContainerValue() const;
   String TimelineValue(const StylePropertyShorthand&) const;
   String ScrollTimelineValue() const;
   String ViewTimelineValue() const;
-  String AnimationDelayShorthandValue() const;
   String AnimationRangeShorthandValue() const;
+  String AnimationTriggerRangeShorthandValue() const;
+  String AnimationTriggerExitRangeShorthandValue() const;
   String FontValue() const;
   String FontSynthesisValue() const;
   String FontVariantValue() const;
   bool AppendFontLonghandValueIfNotNormal(const CSSProperty&,
-                                          StringBuilder& result) const;
+                                          WTF::StringBuilder& result) const;
   String OffsetValue() const;
+  String TextBoxValue() const;
   String TextDecorationValue() const;
-  String BackgroundRepeatPropertyValue() const;
+  String TextSpacingValue() const;
+  String TextWrapValue() const;
   String ContainIntrinsicSizeValue() const;
   String WhiteSpaceValue() const;
+  String ScrollStartValue() const;
+  String PositionTryValue(const StylePropertyShorthand&) const;
   String GetPropertyText(const CSSPropertyName&,
                          const String& value,
                          bool is_important,
@@ -86,7 +110,7 @@ class CORE_EXPORT StylePropertySerializer {
   bool IsPropertyShorthandAvailable(const StylePropertyShorthand&) const;
   bool ShorthandHasOnlyInitialOrInheritedValue(
       const StylePropertyShorthand&) const;
-  void AppendBackgroundPropertyAsText(StringBuilder& result,
+  void AppendBackgroundPropertyAsText(WTF::StringBuilder& result,
                                       unsigned& num_decls) const;
 
   // This function does checks common to all shorthands, and returns:
@@ -102,8 +126,7 @@ class CORE_EXPORT StylePropertySerializer {
     STACK_ALLOCATED();
 
    public:
-    explicit PropertyValueForSerializer(
-        CSSPropertyValueSet::PropertyReference property)
+    explicit PropertyValueForSerializer(const CSSPropertyValue& property)
         : value_(&property.Value()),
           name_(property.Name()),
           is_important_(property.IsImportant()) {}
@@ -148,7 +171,36 @@ class CORE_EXPORT StylePropertySerializer {
       return HasAllProperty() && need_to_expand_all_;
     }
     bool HasAllProperty() const { return all_index_ != -1; }
-
+    bool IsIndexInPropertySet(unsigned index) const {
+      return index < property_set_->PropertyCount();
+    }
+    CSSPropertyID IndexToPropertyID(unsigned index) const {
+      // Iterating over "all"-expanded longhands is done using indices greater
+      // than, or equal to, the property set size. Map the index to the property
+      // ID based on the property set size.
+      //
+      // For this property set:
+      //
+      // div {
+      //   --foo: bar;
+      //   all: initial;
+      //   background-color: green;
+      // }
+      //
+      // We end up with indices (This method is supposed to do the mapping from
+      // index to property ID for the enumerated properties from color and
+      // onwards):
+      //
+      // 0: --foo
+      // 1: all
+      // 2: background-color
+      // 3: color (this is kIntFirstCSSProperty)
+      // 4: ...
+      //
+      DCHECK_GE(index, property_set_->PropertyCount());
+      return static_cast<CSSPropertyID>(index - property_set_->PropertyCount() +
+                                        kIntFirstCSSProperty);
+    }
     Member<const CSSPropertyValueSet> property_set_;
     int all_index_;
     std::bitset<kNumCSSProperties> longhand_property_used_;

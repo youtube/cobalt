@@ -12,12 +12,15 @@
 #include "ash/app_list/quick_app_access_model.h"
 #include "ash/ash_export.h"
 #include "ash/public/cpp/app_list/app_list_controller_observer.h"
+#include "ash/public/cpp/shelf_config.h"
 #include "ash/shelf/home_button_controller.h"
 #include "ash/shelf/shelf_button_delegate.h"
 #include "ash/shelf/shelf_control_button.h"
 #include "ash/shell_observer.h"
 #include "base/memory/raw_ptr.h"
 #include "base/scoped_observation.h"
+#include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/events/devices/input_device_event_observer.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/transform.h"
 #include "ui/views/view_targeter_delegate.h"
@@ -47,12 +50,19 @@ class Shell;
 //
 // If Assistant is enabled, the button is filled in; long-pressing it will
 // launch Assistant.
+//
+// If Sunfish/Scanner is enabled, long-pressing the button will start a
+// Sunfish-behaviour capture mode session instead.
 class ASH_EXPORT HomeButton : public ShelfControlButton,
                               public ShelfButtonDelegate,
                               public views::ViewTargeterDelegate,
                               public ShellObserver,
+                              public ShelfConfig::Observer,
                               public AppListModelProvider::Observer,
-                              public QuickAppAccessModel::Observer {
+                              public QuickAppAccessModel::Observer,
+                              public ui::InputDeviceEventObserver {
+  METADATA_HEADER(HomeButton, ShelfControlButton)
+
  public:
   class ScopedNoClipRect {
    public:
@@ -62,8 +72,7 @@ class ASH_EXPORT HomeButton : public ShelfControlButton,
     ~ScopedNoClipRect();
 
    private:
-    const raw_ptr<ShelfNavigationWidget, ExperimentalAsh>
-        shelf_navigation_widget_;
+    const raw_ptr<ShelfNavigationWidget> shelf_navigation_widget_;
     const gfx::Rect clip_rect_;
   };
 
@@ -84,8 +93,6 @@ class ASH_EXPORT HomeButton : public ShelfControlButton,
     virtual void NudgeLabelShown(HomeButton* home_button) = 0;
   };
 
-  static const char kViewClassName[];
-
   explicit HomeButton(Shelf* shelf);
 
   HomeButton(const HomeButton&) = delete;
@@ -94,13 +101,13 @@ class ASH_EXPORT HomeButton : public ShelfControlButton,
   ~HomeButton() override;
 
   // views::View:
-  gfx::Size CalculatePreferredSize() const override;
-  void Layout() override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
+  void Layout(PassKey) override;
+  void AddedToWidget() override;
 
   // views::Button:
   void OnGestureEvent(ui::GestureEvent* event) override;
-  const char* GetClassName() const override;
-  std::u16string GetTooltipText(const gfx::Point& p) const override;
 
   // ShelfButtonDelegate:
   void OnShelfButtonAboutToRequestFocusFromTabTraversal(ShelfButton* button,
@@ -109,9 +116,16 @@ class ASH_EXPORT HomeButton : public ShelfControlButton,
                      const ui::Event& event,
                      views::InkDrop* ink_drop) override;
 
+  // ShelfConfig::Observer:
+  void OnShelfConfigUpdated() override;
+
+  // ui::InputDeviceEventObserver:
+  void OnInputDeviceConfigurationChanged(uint8_t input_device_types) override;
+  void OnDeviceListsComplete() override;
+
   // Called when the availability of a long-press gesture may have changed, e.g.
   // when Assistant becomes enabled.
-  void OnAssistantAvailabilityChanged();
+  void OnIconUpdated();
 
   // True if the app list is shown for the display containing this button.
   bool IsShowingAppList() const;
@@ -136,6 +150,10 @@ class ASH_EXPORT HomeButton : public ShelfControlButton,
   // Starts the launcher nudge animation.
   void StartNudgeAnimation();
 
+  // Sets the button's "toggled" state - the button is toggled when the bubble
+  // launcher is shown.
+  void SetToggled(bool toggled);
+
   void AddNudgeAnimationObserverForTest(NudgeAnimationObserver* observer);
   void RemoveNudgeAnimationObserverForTest(NudgeAnimationObserver* observer);
 
@@ -149,12 +167,15 @@ class ASH_EXPORT HomeButton : public ShelfControlButton,
     return quick_app_button_;
   }
 
+  void UpdateTooltipText();
+
  protected:
   // views::Button:
-  void PaintButtonContents(gfx::Canvas* canvas) override;
   void OnThemeChanged() override;
 
  private:
+  class ButtonImageView;
+
   // Creates `nudge_label_` for launcher nudge.
   void CreateNudgeLabel();
 
@@ -228,35 +249,39 @@ class ASH_EXPORT HomeButton : public ShelfControlButton,
   base::ScopedObservation<AppListModelProvider, AppListModelProvider::Observer>
       app_list_model_observation_{this};
 
-  const raw_ptr<Shelf, ExperimentalAsh> shelf_;
+  const raw_ptr<Shelf> shelf_;
+
+  // The view that paints the home button content. In its own view to ensure
+  // the background is stacked above `expandable_container_`.
+  raw_ptr<ButtonImageView> button_image_view_ = nullptr;
+
+  // The container of `nudge_label_` or `quick_app_button_`. This is also
+  // responsible for painting the background of the contents. This container can
+  // expand visually by animation.
+  raw_ptr<views::View> expandable_container_ = nullptr;
+
+  // The app button which is shown next to the home button. Only shown when
+  // set by SetQuickApp().
+  raw_ptr<views::ImageButton> quick_app_button_ = nullptr;
 
   // The controller used to determine the button's behavior.
   HomeButtonController controller_;
+
+  // The delegate used by |nudge_ripple_layer_|. Only exists during the
+  // nudge animation.
+  std::unique_ptr<views::CircleLayerDelegate> ripple_layer_delegate_;
 
   // The ripple layer in the launcher nudge animation. Only exists during the
   // nudge animation.
   ui::LayerOwner nudge_ripple_layer_;
 
   // The label view and for launcher nudge animation.
-  raw_ptr<views::Label, ExperimentalAsh> nudge_label_ = nullptr;
-
-  // The container of `nudge_label_` or `quick_app_button_`. This is also
-  // responsible for painting the background of the contents. This container can
-  // expand visually by animation.
-  raw_ptr<views::View, ExperimentalAsh> expandable_container_ = nullptr;
+  raw_ptr<views::Label> nudge_label_ = nullptr;
 
   // The timer that counts down to hide the nudge_label_ from showing state.
   base::OneShotTimer label_nudge_timer_;
 
-  // The delegate used by |nudge_ripple_layer_|. Only exists during the
-  // nudge animation.
-  std::unique_ptr<views::CircleLayerDelegate> ripple_layer_delegate_;
-
   std::unique_ptr<ScopedNoClipRect> scoped_no_clip_rect_;
-
-  // The app button which is shown next to the home button. Only shown when
-  // set by SetQuickApp().
-  raw_ptr<views::ImageButton, ExperimentalAsh> quick_app_button_ = nullptr;
 
   base::ObserverList<NudgeAnimationObserver> observers_;
 

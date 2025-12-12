@@ -4,14 +4,20 @@
 
 #include "content/public/browser/webui_config.h"
 
+#include <string_view>
+
 namespace content {
 
-WebUIConfig::WebUIConfig(base::StringPiece scheme, base::StringPiece host)
+WebUIConfig::WebUIConfig(std::string_view scheme, std::string_view host)
     : scheme_(scheme), host_(host) {}
 
 WebUIConfig::~WebUIConfig() = default;
 
 bool WebUIConfig::IsWebUIEnabled(BrowserContext* browser_context) {
+  return true;
+}
+
+bool WebUIConfig::ShouldHandleURL(const GURL& url) {
   return true;
 }
 

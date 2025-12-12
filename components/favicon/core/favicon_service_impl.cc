@@ -35,7 +35,6 @@ void FaviconServiceImpl::RunFaviconImageCallbackWithBitmapResults(
   image_result.image = favicon_base::SelectFaviconFramesFromPNGs(
       favicon_bitmap_results, favicon_base::GetFaviconScales(),
       desired_size_in_dip);
-  favicon_base::SetFaviconColorSpace(&image_result.image);
 
   image_result.icon_url = image_result.image.IsEmpty()
                               ? GURL()
@@ -48,11 +47,11 @@ FaviconServiceImpl::FaviconServiceImpl(
     history::HistoryService* history_service)
     : favicon_client_(std::move(favicon_client)),
       history_service_(history_service) {
-  // TODO(https://crbug.com/1024959): convert to DCHECK once crash is resolved.
+  // TODO(crbug.com/40658964): convert to DCHECK once crash is resolved.
   CHECK(history_service_);
 }
 
-FaviconServiceImpl::~FaviconServiceImpl() {}
+FaviconServiceImpl::~FaviconServiceImpl() = default;
 
 base::CancelableTaskTracker::TaskId FaviconServiceImpl::GetFaviconImage(
     const GURL& icon_url,
@@ -198,7 +197,7 @@ FaviconServiceImpl::GetLargestRawFaviconForID(
     favicon_base::FaviconRawBitmapCallback callback,
     base::CancelableTaskTracker* tracker) {
   TRACE_EVENT0("browser", "FaviconServiceImpl::GetLargestRawFaviconForID");
-  // Use 0 as |desired_size| to get the largest bitmap for |favicon_id| without
+  // Use 0 as `desired_size` to get the largest bitmap for `favicon_id` without
   // any resizing.
   int desired_size = 0;
   favicon_base::FaviconResultsCallback callback_runner =

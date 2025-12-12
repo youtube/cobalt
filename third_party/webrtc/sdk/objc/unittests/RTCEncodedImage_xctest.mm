@@ -18,34 +18,38 @@
 @implementation RTCEncodedImageTests
 
 - (void)testInitializedWithNativeEncodedImage {
-  const auto encoded_data = webrtc::EncodedImageBuffer::Create();
+  const auto encoded_data = webrtc::EncodedImageBuffer::Create(1);
   webrtc::EncodedImage encoded_image;
   encoded_image.SetEncodedData(encoded_data);
 
   RTC_OBJC_TYPE(RTCEncodedImage) *encodedImage =
-      [[RTC_OBJC_TYPE(RTCEncodedImage) alloc] initWithNativeEncodedImage:encoded_image];
+      [[RTC_OBJC_TYPE(RTCEncodedImage) alloc]
+          initWithNativeEncodedImage:encoded_image];
 
-  XCTAssertEqual([encodedImage nativeEncodedImage].GetEncodedData(), encoded_data);
+  XCTAssertEqual([encodedImage nativeEncodedImage].GetEncodedData(),
+                 encoded_data);
 }
 
 - (void)testInitWithNSData {
   NSData *bufferData = [NSData data];
-  RTC_OBJC_TYPE(RTCEncodedImage) *encodedImage = [[RTC_OBJC_TYPE(RTCEncodedImage) alloc] init];
+  RTC_OBJC_TYPE(RTCEncodedImage) *encodedImage =
+      [[RTC_OBJC_TYPE(RTCEncodedImage) alloc] init];
   encodedImage.buffer = bufferData;
 
   webrtc::EncodedImage result_encoded_image = [encodedImage nativeEncodedImage];
   XCTAssertTrue(result_encoded_image.GetEncodedData() != nullptr);
-  XCTAssertEqual(result_encoded_image.GetEncodedData()->data(), bufferData.bytes);
+  XCTAssertEqual(result_encoded_image.GetEncodedData()->data(),
+                 bufferData.bytes);
 }
 
 - (void)testRetainsNativeEncodedImage {
   RTC_OBJC_TYPE(RTCEncodedImage) * encodedImage;
   {
-    const auto encoded_data = webrtc::EncodedImageBuffer::Create();
+    const auto encoded_data = webrtc::EncodedImageBuffer::Create(1);
     webrtc::EncodedImage encoded_image;
     encoded_image.SetEncodedData(encoded_data);
-    encodedImage =
-        [[RTC_OBJC_TYPE(RTCEncodedImage) alloc] initWithNativeEncodedImage:encoded_image];
+    encodedImage = [[RTC_OBJC_TYPE(RTCEncodedImage) alloc]
+        initWithNativeEncodedImage:encoded_image];
   }
   webrtc::EncodedImage result_encoded_image = [encodedImage nativeEncodedImage];
   XCTAssertTrue(result_encoded_image.GetEncodedData() != nullptr);

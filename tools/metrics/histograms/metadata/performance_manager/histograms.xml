@@ -14,8 +14,178 @@ each histogram.
 
 <histograms>
 
+<variants name="CoreType">
+  <variant name="Balanced"/>
+  <variant name="Efficiency"/>
+  <variant name="Performance"/>
+</variants>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskMigrated" enum="Boolean"
+    expires_after="2025-03-10">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    True if the CPU estimation task was running on a different CPU at the end of
+    the assembly loop than it was at the beginning.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskQueuedTime.{CoreType}"
+    units="microseconds" expires_after="2025-07-13">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The time in microseconds during which the CPU estimation task was queued
+    before running.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskThreadTime.{CoreType}"
+    units="microseconds" expires_after="2025-05-11">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The thread time in microseconds it took to fully execute the CPU estimation
+    task.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskTotalTime.{CoreType}"
+    units="microseconds" expires_after="2025-05-11">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The time in microseconds it took to fully execute the CPU estimation task,
+    that is its queued time + the wall time elapsed before the task finished.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationTaskWallTime.{CoreType}"
+    units="microseconds" expires_after="2025-05-11">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The wall time in microseconds it took to fully execute the CPU estimation
+    task.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only. Reported only on devices using the high resolution clock.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.CpuEstimationThreadTimePercent.{CoreType}"
+    units="%" expires_after="2025-11-16">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The ratio of thread time vs wall time of the CPU estimation task's
+    &quot;running&quot; portion, i.e. the thread time of the assembly loop
+    divided by its wall time.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram
+    name="CPU.Experimental.EstimatedFrequencyAsPercentOfLimit.{CoreType}"
+    units="%" expires_after="2025-09-28">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The CPU frequency as a percentage of the estimated current frequency (see
+    base::EstimateCpuFrequency) over the max frequency of the fastest CPU, as
+    reported by base::GetCpuMhzLimit.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram name="CPU.Experimental.EstimatedFrequencyAsPercentOfMax.{CoreType}"
+    units="%" expires_after="2025-09-21">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>catan-team@chromium.org</owner>
+  <summary>
+    The CPU frequency as a percentage of the estimated current frequency (see
+    base::EstimateCpuFrequency) over the max frequency of the fastest CPU, as
+    reported by base::GetCpuMaxMhz.
+
+    Recorded when the CPU estimation task runs (every 5 minutes). Windows x86
+    only.
+  </summary>
+  <token key="CoreType" variants="CoreType"/>
+</histogram>
+
+<histogram
+    name="PerformanceManager.CPUMonitorMemoryUse.{ResourceContextType}.{ResourceContextState}"
+    units="KB" expires_after="2025-09-07">
+  <owner>joenotcharles@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The estimated size of CPUMeasurementMonitor's result cache. Recorded at the
+    same time as the Memory.Browser.PrivateMemoryFootprint. This slice is the
+    memory used to store {ResourceContextType} that are {ResourceContextState}.
+  </summary>
+  <token key="ResourceContextType">
+    <variant name="AllContexts" summary="all ResourceContexts"/>
+    <variant name="FrameContexts"/>
+    <variant name="OriginInBrowsingInstanceContext"/>
+    <variant name="PageContexts"/>
+    <variant name="ProcessContexts"/>
+    <variant name="WorkerContexts"/>
+  </token>
+  <token key="ResourceContextState">
+    <variant name="Dead"
+        summary="associated with a resource that no longer exists"/>
+    <variant name="Live" summary="associated with an existing resource"/>
+    <variant name="Total" summary="in any state"/>
+  </token>
+</histogram>
+
+<histogram name="PerformanceManager.DiskStats.UserDataDirFreeSpaceMb"
+    units="MB" expires_after="2025-08-24">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The amount of available space in megabytes on the disk that hosts the
+    current user data directory as reported by
+    SysInfo::AmountOfFreeDiskSpace(user_data_dir). Warning: this histogram was
+    expired from 2025-02-16 to 2025-03-20; data may be missing.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.DiskStats.UserDataDirFreeSpacePercent"
+    units="%" expires_after="2025-10-26">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The percentage of available space on the disk that hosts the current user
+    data directory as reported by SysInfo::AmountOfFreeDiskSpace(user_data_dir)
+    / capacity.
+  </summary>
+</histogram>
+
 <histogram name="PerformanceManager.Experimental.AccessibilityModeFlag"
-    enum="AccessibilityModeFlagEnum" expires_after="2023-10-21">
+    enum="AccessibilityModeFlagEnum" expires_after="2025-11-16">
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -25,7 +195,7 @@ each histogram.
 </histogram>
 
 <histogram name="PerformanceManager.Experimental.HasAccessibilityModeFlag"
-    enum="Boolean" expires_after="2023-10-21">
+    enum="Boolean" expires_after="2025-11-16">
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -34,8 +204,86 @@ each histogram.
   </summary>
 </histogram>
 
+<histogram name="PerformanceManager.InputScenarioChanges{InputScenario}"
+    enum="InputScenarioUpdateReason" expires_after="2026-04-07">
+  <owner>kraskevich@google.com</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Logged whenever the Performance Manager input scenario changes away from
+    {InputScenario}, with the reason for the change.
+  </summary>
+<!-- LINT.IfChange(InputScenarioSuffix) -->
+
+  <token key="InputScenario">
+    <variant name="" summary="all scenarios"/>
+    <variant name=".NoInput" summary="InputScenario::kNoInput"/>
+    <variant name=".Scroll" summary="InputScenario::kScroll"/>
+    <variant name=".Tap" summary="InputScenario::kTap"/>
+    <variant name=".Typing" summary="InputScenario::kTyping"/>
+  </token>
+<!-- LINT.ThenChange(/components/performance_manager/decorators/frame_input_state_decorator.cc:InputScenarioSuffix) -->
+
+</histogram>
+
+<histogram
+    name="PerformanceManager.RegistryStats.FrontEndHeapDebugOptionsOutcome"
+    enum="FrontEndHeapDebugOptionsOutcome" expires_after="2025-09-30">
+  <owner>fdoray@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The outcome of attempting to read the value of the HKEY_LOCAL_MACHINE :
+    Software\Microsoft\Windows NT\CurrentVersion\Image File :
+    FrontEndHeapDebugOptions registry key. Emitted when UMA requests information
+    about the current session (see
+    metrics::MetricsProvider::ProvideCurrentSessionData).
+  </summary>
+</histogram>
+
+<histogram
+    name="PerformanceManager.RegistryStats.FrontEndHeapDebugOptionsValue"
+    units="bitfield" expires_after="2025-09-30">
+  <owner>fdoray@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    The value of the HKEY_LOCAL_MACHINE : Software\Microsoft\Windows
+    NT\CurrentVersion\Image File : FrontEndHeapDebugOptions registry key.
+    Emitted every time kSuccess is reported to
+    PerformanceManager.RegistryStats.FrontEndHeapDebugOptionsOutcome.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.TabRevisitTracker.TimeToClose2"
+    units="seconds" expires_after="2025-02-16">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Logged everytime a background tab is closed. Records the time in seconds
+    that the tab has spent in the background since it was last active.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.TabRevisitTracker.TimeToRevisit2"
+    units="seconds" expires_after="2025-04-20">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Logged everytime a background tab is revisited. Records the time in seconds
+    that the tab has spent in the background since it was last active.
+  </summary>
+</histogram>
+
+<histogram name="PerformanceManager.UserTuning.BatterySaverModeEnabledPercent"
+    units="%" expires_after="2025-10-12">
+  <owner>anthonyvd@chromium.org</owner>
+  <owner>chrome-catan@google.com</owner>
+  <summary>
+    Recorded every UMA upload, this histogram represents the percentage of the
+    interval since the last upload that was spent with Battery Saver enabled.
+  </summary>
+</histogram>
+
 <histogram name="PerformanceManager.UserTuning.EfficiencyMode"
-    enum="EfficiencyMode" expires_after="2023-09-10">
+    enum="EfficiencyMode" expires_after="2025-09-28">
   <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
@@ -48,30 +296,14 @@ each histogram.
   </summary>
 </histogram>
 
-<histogram
-    name="PerformanceManager.V8DetailedMemory.{Destination}.MeasurementMode"
-    enum="V8DetailedMemoryMeasurementMode" expires_after="2023-05-23">
-  <owner>joenotcharles@google.com</owner>
+<histogram name="PerformanceManager.UserTuning.MemorySaverModeEnabledPercent"
+    units="%" expires_after="2025-10-12">
+  <owner>anthonyvd@chromium.org</owner>
   <owner>chrome-catan@google.com</owner>
   <summary>
-    Logged every time V8DetailedMemoryReporter.GetV8MemoryUsage is sent to a
-    renderer, with the measurement mode. This can be used to find the volume of
-    measurement requests to track their performance overhead.
-
-    {Destination}
+    Recorded every UMA upload, this histogram represents the percentage of the
+    interval since the last upload that was spent with Memory Saver enabled.
   </summary>
-  <token key="Destination">
-    <variant name="AllRenderers"
-        summary="This metric records measurement requests stemming from
-                 V8DetailedMemoryRequest::StartMeasurement, which are sent to
-                 all renderer processes. Scale all counts by the number of
-                 renderer processes when comparing between subpopulations."/>
-    <variant name="SingleRenderer"
-        summary="This metric records measurement requests stemming from
-                 V8DetailedMemoryRequest::StartMeasurementForProcess, which
-                 are sent to a single renderer process. Counts don't need to
-                 be scaled."/>
-  </token>
 </histogram>
 
 </histograms>

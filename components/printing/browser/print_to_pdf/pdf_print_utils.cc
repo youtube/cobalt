@@ -4,12 +4,16 @@
 
 #include "components/printing/browser/print_to_pdf/pdf_print_utils.h"
 
+#include <string_view>
+#include <variant>
+
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/printing/browser/print_manager_utils.h"
+#include "components/printing/common/print_params.h"
 #include "printing/print_settings.h"
 #include "printing/units.h"
 #include "ui/gfx/geometry/size.h"
@@ -33,14 +37,14 @@ static constexpr double kDefaultMarginInInches =
 
 }  // namespace
 
-absl::variant<printing::PageRanges, PdfPrintResult> TextPageRangesToPageRanges(
-    base::StringPiece page_range_text) {
+std::variant<printing::PageRanges, PdfPrintResult> TextPageRangesToPageRanges(
+    std::string_view page_range_text) {
   printing::PageRanges page_ranges;
   for (const auto& range_string :
        base::SplitStringPiece(page_range_text, ",", base::TRIM_WHITESPACE,
                               base::SPLIT_WANT_NONEMPTY)) {
     printing::PageRange range;
-    if (range_string.find("-") == base::StringPiece::npos) {
+    if (range_string.find("-") == std::string_view::npos) {
       if (!base::StringToUint(range_string, &range.from))
         return PdfPrintResult::kPageRangeSyntaxError;
       range.to = range.from;
@@ -81,21 +85,23 @@ absl::variant<printing::PageRanges, PdfPrintResult> TextPageRangesToPageRanges(
   return page_ranges;
 }
 
-absl::variant<printing::mojom::PrintPagesParamsPtr, std::string>
+std::variant<printing::mojom::PrintPagesParamsPtr, std::string>
 GetPrintPagesParams(const GURL& page_url,
-                    absl::optional<bool> landscape,
-                    absl::optional<bool> display_header_footer,
-                    absl::optional<bool> print_background,
-                    absl::optional<double> scale,
-                    absl::optional<double> paper_width,
-                    absl::optional<double> paper_height,
-                    absl::optional<double> margin_top,
-                    absl::optional<double> margin_bottom,
-                    absl::optional<double> margin_left,
-                    absl::optional<double> margin_right,
-                    absl::optional<std::string> header_template,
-                    absl::optional<std::string> footer_template,
-                    absl::optional<bool> prefer_css_page_size) {
+                    std::optional<bool> landscape,
+                    std::optional<bool> display_header_footer,
+                    std::optional<bool> print_background,
+                    std::optional<double> scale,
+                    std::optional<double> paper_width,
+                    std::optional<double> paper_height,
+                    std::optional<double> margin_top,
+                    std::optional<double> margin_bottom,
+                    std::optional<double> margin_left,
+                    std::optional<double> margin_right,
+                    std::optional<std::string> header_template,
+                    std::optional<std::string> footer_template,
+                    std::optional<bool> prefer_css_page_size,
+                    std::optional<bool> generate_tagged_pdf,
+                    std::optional<bool> generate_document_outline) {
   printing::PrintSettings print_settings;
   print_settings.set_dpi(printing::kPointsPerInch);
   print_settings.SetOrientation(landscape.value_or(false));
@@ -132,16 +138,21 @@ GetPrintPagesParams(const GURL& page_url,
   if (margin_bottom_in_inches < 0)
     return "bottom margin is negative";
 
-  printing::PageMargins margins_in_points;
-  margins_in_points.left =
-      base::ClampFloor(margin_left_in_inches * printing::kPointsPerInch);
-  margins_in_points.right =
-      base::ClampFloor(margin_right_in_inches * printing::kPointsPerInch);
-  margins_in_points.top =
-      base::ClampFloor(margin_top_in_inches * printing::kPointsPerInch);
-  margins_in_points.bottom =
-      base::ClampFloor(margin_bottom_in_inches * printing::kPointsPerInch);
-  print_settings.SetCustomMargins(margins_in_points);
+  printing::PageMargins margins_in_microns;
+  margins_in_microns.left = printing::ConvertUnit(
+      base::ClampFloor(margin_left_in_inches * printing::kPointsPerInch),
+      printing::kPointsPerInch, printing::kMicronsPerInch);
+  margins_in_microns.right = printing::ConvertUnit(
+      base::ClampFloor(margin_right_in_inches * printing::kPointsPerInch),
+      printing::kPointsPerInch, printing::kMicronsPerInch);
+  margins_in_microns.top = printing::ConvertUnit(
+      base::ClampFloor(margin_top_in_inches * printing::kPointsPerInch),
+      printing::kPointsPerInch, printing::kMicronsPerInch);
+  margins_in_microns.bottom = printing::ConvertUnit(
+      base::ClampFloor(margin_bottom_in_inches * printing::kPointsPerInch),
+      printing::kPointsPerInch, printing::kMicronsPerInch);
+
+  print_settings.SetCustomMargins(margins_in_microns);
 
   double paper_width_in_inches =
       paper_width.value_or(printing::kLetterWidthInch);
@@ -153,7 +164,7 @@ GetPrintPagesParams(const GURL& page_url,
   if (paper_height_in_inches <= 0)
     return "paper height is zero or negative";
 
-  gfx::Size paper_size_in_points = gfx::ToRoundedSize(
+  gfx::Size paper_size_in_points = gfx::ToCeiledSize(
       gfx::SizeF(paper_width_in_inches * printing::kPointsPerInch,
                  paper_height_in_inches * printing::kPointsPerInch));
   gfx::Rect printable_area_device_units(paper_size_in_points);
@@ -173,6 +184,27 @@ GetPrintPagesParams(const GURL& page_url,
       base::UTF8ToUTF16(footer_template.value_or(""));
   print_pages_params->params->prefer_css_page_size =
       prefer_css_page_size.value_or(false);
+  print_pages_params->params->generate_tagged_pdf = generate_tagged_pdf;
+  using GenerateDocumentOutline = printing::mojom::GenerateDocumentOutline;
+  print_pages_params->params->generate_document_outline =
+      generate_document_outline.value_or(false)
+          ? GenerateDocumentOutline::kFromAccessibilityTreeHeaders
+          : GenerateDocumentOutline::kNone;
+
+  CHECK(!print_pages_params->params->page_size.IsEmpty())
+      << print_pages_params->params->page_size.ToString();
+
+  if (print_pages_params->params->printable_area.IsEmpty()) {
+    return "invalid print parameters: printable area is empty";
+  }
+
+  if (print_pages_params->params->content_size.IsEmpty()) {
+    return "invalid print parameters: content area is empty";
+  }
+
+  if (!printing::PrintMsgPrintParamsIsValid(*print_pages_params->params)) {
+    return "invalid print parameters";
+  }
 
   return print_pages_params;
 }

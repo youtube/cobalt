@@ -1,12 +1,14 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "chrome/browser/ash/accessibility/service/automation_client_impl.h"
-#include "chrome/browser/accessibility/service/accessibility_service_router.h"
+
 #include "chrome/browser/ui/aura/accessibility/automation_manager_aura.h"
 #include "extensions/browser/api/automation_internal/automation_event_router.h"
 #include "extensions/browser/api/automation_internal/automation_internal_api.h"
+#include "mojo/public/cpp/bindings/pending_associated_remote.h"
+#include "ui/accessibility/ax_location_and_scroll_updates.h"
 
 namespace ash {
 
@@ -20,9 +22,8 @@ AutomationClientImpl::~AutomationClientImpl() {
       nullptr);
 }
 
-void AutomationClientImpl::Bind(
-    mojo::PendingRemote<ax::mojom::Automation> automation,
-    mojo::PendingReceiver<ax::mojom::AutomationClient> automation_client) {
+void AutomationClientImpl::BindAutomation(
+    mojo::PendingAssociatedRemote<ax::mojom::Automation> automation) {
   // Launches the service if it wasn't running yet.
   // Development note (crbug.com/1355633): Using the remote router means
   // extensions don't get a11y events when AutomationClientImpl is bound, so
@@ -34,14 +35,18 @@ void AutomationClientImpl::Bind(
         this);
   }
   automation_remotes_.Add(std::move(automation));
+}
+
+void AutomationClientImpl::BindAutomationClient(
+    mojo::PendingReceiver<ax::mojom::AutomationClient> automation_client) {
   automation_client_receivers_.Add(this, std::move(automation_client));
 }
 
 void AutomationClientImpl::DispatchAccessibilityEvents(
     const ui::AXTreeID& tree_id,
-    std::vector<ui::AXTreeUpdate> updates,
+    const std::vector<ui::AXTreeUpdate>& updates,
     const gfx::Point& mouse_location,
-    std::vector<ui::AXEvent> events) {
+    const std::vector<ui::AXEvent>& events) {
   DCHECK(tree_id != ui::AXTreeIDUnknown());
   if (tree_id == ui::AXTreeIDUnknown())
     return;
@@ -52,15 +57,28 @@ void AutomationClientImpl::DispatchAccessibilityEvents(
 }
 
 void AutomationClientImpl::DispatchAccessibilityLocationChange(
-    const ExtensionMsg_AccessibilityLocationChangeParams& params) {
-  ui::AXTreeID tree_id = params.tree_id;
+    const ui::AXTreeID& tree_id,
+    const ui::AXLocationChange& details) {
   if (tree_id == ui::AXTreeIDUnknown())
     return;
   for (auto& remote : automation_remotes_) {
-    remote->DispatchAccessibilityLocationChange(tree_id, params.id,
-                                                params.new_location);
+    remote->DispatchAccessibilityLocationChange(tree_id, details.id,
+                                                details.new_location);
   }
 }
+
+void AutomationClientImpl::DispatchAccessibilityScrollChange(
+    const ui::AXTreeID& tree_id,
+    const ui::AXScrollChange& details) {
+  if (tree_id == ui::AXTreeIDUnknown()) {
+    return;
+  }
+  for (auto& remote : automation_remotes_) {
+    remote->DispatchAccessibilityScrollChange(
+        tree_id, details.id, details.scroll_x, details.scroll_y);
+  }
+}
+
 void AutomationClientImpl::DispatchTreeDestroyedEvent(ui::AXTreeID tree_id) {
   if (tree_id == ui::AXTreeIDUnknown())
     return;
@@ -82,7 +100,7 @@ void AutomationClientImpl::DispatchActionResult(
 
 void AutomationClientImpl::DispatchGetTextLocationDataResult(
     const ui::AXActionData& data,
-    const absl::optional<gfx::Rect>& rect) {
+    const std::optional<gfx::Rect>& rect) {
   // TODO(crbug.com/1355633): Send to AccessibilityService.
   // for (auto& remote : automation_remotes_) {
   //   remote->DispatchGetTextLocationDataResult(data, rect);
@@ -100,7 +118,7 @@ void AutomationClientImpl::Disable() {
   AutomationManagerAura::GetInstance()->Disable();
 }
 
-void AutomationClientImpl::EnableTree(const ui::AXTreeID& tree_id) {
+void AutomationClientImpl::EnableChildTree(const ui::AXTreeID& tree_id) {
   // TODO(crbug.com/1355633): Refactor logic from extensions namespace to a
   // common location.
   extensions::AutomationInternalEnableTreeFunction::EnableTree(

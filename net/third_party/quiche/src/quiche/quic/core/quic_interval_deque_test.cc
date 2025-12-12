@@ -357,5 +357,44 @@ TEST_F(QuicIntervalDequeTest, IteratorEmpty) {
   EXPECT_EQ(it, qid.DataEnd());
 }
 
+// Test various iterator methods.
+TEST_F(QuicIntervalDequeTest, IteratorMethods) {
+  auto it1 = qid_.DataBegin();
+  auto it2 = qid_.DataBegin();
+
+  EXPECT_EQ(it1, it2);
+  EXPECT_TRUE(it1 == it2);
+  EXPECT_FALSE(it1 != it2);
+
+  EXPECT_EQ(it1++, it2);
+  EXPECT_NE(it1, it2);
+  EXPECT_FALSE(it1 == it2);
+  EXPECT_TRUE(it1 != it2);
+
+  it2++;
+  EXPECT_EQ(it1, it2);
+
+  EXPECT_NE(++it1, it2);
+
+  it1++;
+  it2 += 2;
+  EXPECT_EQ(it1, it2);
+
+  EXPECT_EQ(it1--, it2);
+  EXPECT_EQ(it1, --it2);
+
+  it1 += 24;
+  it1 -= 2;
+  it2 -= 1;
+  it2 += 23;
+  EXPECT_EQ(it1, it2);
+
+  it1 = qid_.DataBegin();
+  EXPECT_QUIC_BUG(it1--, "Iterator out of bounds.");
+
+  it2 = qid_.DataEnd();
+  EXPECT_QUIC_BUG(it2++, "Iterator out of bounds.");
+}
+
 }  // namespace test
 }  // namespace quic

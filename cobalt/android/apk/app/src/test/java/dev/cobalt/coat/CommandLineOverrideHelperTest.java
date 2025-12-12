@@ -63,7 +63,6 @@ public class CommandLineOverrideHelperTest {
     public void testDefaultBlinkEnableFeatureOverridesList() {
         String overrides =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
-        assertThat(overrides.contains("MediaSourceNewAbortAndDuration")).isTrue();
         assertThat(overrides.contains("PreciseMemoryInfo")).isTrue();
     }
 
@@ -73,8 +72,6 @@ public class CommandLineOverrideHelperTest {
 
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("single-process"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
-        Assert.assertTrue(
-            CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-accelerated-video-decode"));

@@ -9,24 +9,11 @@
 #include "content/public/browser/web_contents.h"
 
 namespace autofill {
-namespace {
-
-bool g_is_download_manager_disabled_for_testing = false;
-}  // namespace
 
 WEB_CONTENTS_USER_DATA_KEY_IMPL(AutofillProvider);
 
-bool AutofillProvider::is_download_manager_disabled_for_testing() {
-  return g_is_download_manager_disabled_for_testing;
-}
-
-void AutofillProvider::set_is_download_manager_disabled_for_testing() {
-  g_is_download_manager_disabled_for_testing = true;
-}
-
 AutofillProvider::AutofillProvider(content::WebContents* web_contents)
     : content::WebContentsUserData<AutofillProvider>(*web_contents) {
-  web_contents->SetUserData(UserDataKey(), base::WrapUnique(this));
 }
 
 AutofillProvider::~AutofillProvider() = default;
@@ -35,7 +22,7 @@ void AutofillProvider::FillOrPreviewForm(AndroidAutofillManager* manager,
                                          const FormData& form_data,
                                          FieldTypeGroup field_type_group,
                                          const url::Origin& triggered_origin) {
-  manager->FillOrPreviewForm(mojom::RendererFormDataAction::kFill, form_data,
+  manager->FillOrPreviewForm(mojom::ActionPersistence::kFill, form_data,
                              field_type_group, triggered_origin);
 }
 
@@ -43,7 +30,7 @@ void AutofillProvider::RendererShouldAcceptDataListSuggestion(
     AndroidAutofillManager* manager,
     const FieldGlobalId& field_id,
     const std::u16string& value) {
-  manager->driver()->RendererShouldAcceptDataListSuggestion(field_id, value);
+  manager->driver().RendererShouldAcceptDataListSuggestion(field_id, value);
 }
 
 }  // namespace autofill

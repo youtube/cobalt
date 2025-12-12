@@ -3,11 +3,15 @@
 // found in the LICENSE file.
 
 #include "components/feed/core/v2/tasks/wait_for_store_initialize_task.h"
+
+#include <vector>
+
 #include "components/feed/core/proto/v2/store.pb.h"
 #include "components/feed/core/v2/feed_store.h"
 #include "components/feed/core/v2/feed_stream.h"
 #include "components/feed/core/v2/feedstore_util.h"
 #include "components/feed/core/v2/test/proto_printer.h"
+#include "google_apis/gaia/gaia_id.h"
 
 namespace feed {
 
@@ -19,40 +23,35 @@ WaitForStoreInitializeTask::WaitForStoreInitializeTask(
 WaitForStoreInitializeTask::~WaitForStoreInitializeTask() = default;
 
 void WaitForStoreInitializeTask::Run() {
-  // |this| stays alive as long as the |store_|, so Unretained is safe.
-  store_->Initialize(base::BindOnce(
-      &WaitForStoreInitializeTask::OnStoreInitialized, base::Unretained(this)));
+  store_->Initialize(
+      base::BindOnce(&WaitForStoreInitializeTask::OnStoreInitialized,
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void WaitForStoreInitializeTask::OnStoreInitialized() {
   store_->ReadStartupData(
       base::BindOnce(&WaitForStoreInitializeTask::ReadStartupDataDone,
-                     base::Unretained(this)));
+                     weak_ptr_factory_.GetWeakPtr()));
   store_->ReadWebFeedStartupData(
       base::BindOnce(&WaitForStoreInitializeTask::WebFeedStartupDataDone,
-                     base::Unretained(this)));
+                     weak_ptr_factory_.GetWeakPtr()));
 }
 
 void WaitForStoreInitializeTask::ReadStartupDataDone(
     FeedStore::StartupData startup_data) {
   if (startup_data.metadata &&
-      startup_data.metadata->gaia() != stream_->GetAccountInfo().gaia) {
+      GaiaId(startup_data.metadata->gaia()) != stream_->GetAccountInfo().gaia) {
     store_->ClearAll(base::BindOnce(&WaitForStoreInitializeTask::ClearAllDone,
-                                    base::Unretained(this)));
+                                    weak_ptr_factory_.GetWeakPtr()));
     return;
   }
   // Single Web Feed Data is actively pruned and does not need to persist across
   // startups, and is being removed proactively here in the case that there
   // wasn't a chance to clean it up before the previous shutdown.
   const auto orig_size = startup_data.stream_data.size();
-  startup_data.stream_data.erase(
-      std::remove_if(startup_data.stream_data.begin(),
-                     startup_data.stream_data.end(),
-                     [&](const feedstore::StreamData& e) {
-                       return feedstore::StreamTypeFromKey(e.stream_key())
-                           .IsSingleWebFeed();
-                     }),
-      startup_data.stream_data.end());
+  std::erase_if(startup_data.stream_data, [&](const feedstore::StreamData& e) {
+    return feedstore::StreamTypeFromKey(e.stream_key()).IsSingleWebFeed();
+  });
 
   result_.startup_data = std::move(startup_data);
 
@@ -60,7 +59,7 @@ void WaitForStoreInitializeTask::ReadStartupDataDone(
     store_->ClearAllStreamData(
         StreamKind::kSingleWebFeed,
         base::BindOnce(&WaitForStoreInitializeTask::ClearAllDone,
-                       base::Unretained(this)));
+                       weak_ptr_factory_.GetWeakPtr()));
   } else {
     MaybeUpgradeStreamSchema();
   }
@@ -80,12 +79,12 @@ void WaitForStoreInitializeTask::MaybeUpgradeStreamSchema() {
   if (metadata.stream_schema_version() != 1) {
     result_.startup_data.stream_data.clear();
     if (metadata.gaia().empty()) {
-      metadata.set_gaia(stream_->GetAccountInfo().gaia);
+      metadata.set_gaia(stream_->GetAccountInfo().gaia.ToString());
     }
     store_->UpgradeFromStreamSchemaV0(
         std::move(metadata),
         base::BindOnce(&WaitForStoreInitializeTask::UpgradeDone,
-                       base::Unretained(this)));
+                       weak_ptr_factory_.GetWeakPtr()));
     return;
   }
   Done();

@@ -60,7 +60,8 @@ LocationBarBubbleDelegateView::WebContentMouseHandler::WebContentMouseHandler(
   DCHECK(web_contents_);
   event_monitor_ = views::EventMonitor::CreateWindowMonitor(
       this, web_contents_->GetTopLevelNativeWindow(),
-      {ui::ET_MOUSE_PRESSED, ui::ET_KEY_PRESSED, ui::ET_TOUCH_PRESSED});
+      {ui::EventType::kMousePressed, ui::EventType::kKeyPressed,
+       ui::EventType::kTouchPressed});
 }
 
 LocationBarBubbleDelegateView::WebContentMouseHandler::
@@ -78,12 +79,16 @@ void LocationBarBubbleDelegateView::WebContentMouseHandler::OnEvent(
 
 LocationBarBubbleDelegateView::LocationBarBubbleDelegateView(
     views::View* anchor_view,
-    content::WebContents* web_contents)
-    : BubbleDialogDelegateView(anchor_view, views::BubbleBorder::TOP_RIGHT),
+    content::WebContents* web_contents,
+    bool autosize)
+    : BubbleDialogDelegateView(anchor_view,
+                               views::BubbleBorder::TOP_RIGHT,
+                               views::BubbleBorder::DIALOG_SHADOW,
+                               autosize),
       WebContentsObserver(web_contents) {
   // Add observer to close the bubble if the fullscreen state changes.
   if (web_contents) {
-    Browser* browser = chrome::FindBrowserWithWebContents(web_contents);
+    Browser* browser = chrome::FindBrowserWithTab(web_contents);
     // |browser| can be null in tests.
     if (browser) {
       fullscreen_observation_.Observe(
@@ -130,7 +135,7 @@ void LocationBarBubbleDelegateView::ShowForReason(DisplayReason reason,
     if (allow_refocus_alert) {
       // Since this will show as inactive, add a description for how to get to
       // it.
-      GetWidget()->GetRootView()->GetViewAccessibility().OverrideDescription(
+      GetWidget()->GetRootView()->GetViewAccessibility().SetDescription(
           l10n_util::GetStringUTF8(IDS_SHOW_BUBBLE_INACTIVE_DESCRIPTION));
     }
     GetWidget()->ShowInactive();
@@ -144,8 +149,9 @@ void LocationBarBubbleDelegateView::OnFullscreenStateChanged() {
 
 void LocationBarBubbleDelegateView::OnVisibilityChanged(
     content::Visibility visibility) {
-  if (visibility == content::Visibility::HIDDEN)
+  if (visibility == content::Visibility::HIDDEN) {
     CloseBubble();
+  }
 }
 
 void LocationBarBubbleDelegateView::WebContentsDestroyed() {
@@ -177,8 +183,9 @@ gfx::Rect LocationBarBubbleDelegateView::GetAnchorBoundsInScreen() const {
 
 void LocationBarBubbleDelegateView::AdjustForFullscreen(
     const gfx::Rect& screen_bounds) {
-  if (GetAnchorView())
+  if (GetAnchorView()) {
     return;
+  }
 
   const int kBubblePaddingFromScreenEdge = 20;
   int horizontal_offset = width() / 2 + kBubblePaddingFromScreenEdge;
@@ -189,7 +196,9 @@ void LocationBarBubbleDelegateView::AdjustForFullscreen(
 }
 
 void LocationBarBubbleDelegateView::CloseBubble() {
-  GetWidget()->Close();
+  if (auto* const widget = GetWidget()) {
+    widget->Close();
+  }
 }
 
 void LocationBarBubbleDelegateView::SetCloseOnMainFrameOriginNavigation(
@@ -202,6 +211,6 @@ bool LocationBarBubbleDelegateView::GetCloseOnMainFrameOriginNavigation()
   return close_on_main_frame_origin_navigation_;
 }
 
-BEGIN_METADATA(LocationBarBubbleDelegateView, views::BubbleDialogDelegateView)
+BEGIN_METADATA(LocationBarBubbleDelegateView)
 ADD_READONLY_PROPERTY_METADATA(bool, CloseOnMainFrameOriginNavigation)
 END_METADATA

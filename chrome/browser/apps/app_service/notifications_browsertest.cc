@@ -4,13 +4,6 @@
 
 #include <memory>
 
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/session/connection_holder.h"
-#include "ash/components/arc/test/arc_util_test_support.h"
-#include "ash/components/arc/test/connection_holder_util.h"
-#include "ash/components/arc/test/fake_app_instance.h"
-#include "ash/public/cpp/external_arc/message_center/arc_notification_manager.h"
 #include "ash/public/cpp/message_center/arc_notification_manager_delegate.h"
 #include "ash/public/cpp/message_center/arc_notifications_host_initializer.h"
 #include "base/memory/raw_ptr.h"
@@ -18,7 +11,6 @@
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "base/test/metrics/histogram_tester.h"
 #include "base/test/simple_test_clock.h"
 #include "base/time/default_clock.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
@@ -35,13 +27,22 @@
 #include "chrome/browser/extensions/api/notifications/extension_notification_handler.h"
 #include "chrome/browser/extensions/api/notifications/notifications_api.h"
 #include "chrome/browser/extensions/extension_apitest.h"
+#include "chrome/browser/notifications/notification_display_service_factory.h"
 #include "chrome/browser/notifications/notification_display_service_tester.h"
 #include "chrome/browser/notifications/profile_notification.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
+#include "chromeos/ash/experiences/arc/message_center/arc_notification_manager.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/session/connection_holder.h"
+#include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
+#include "chromeos/ash/experiences/arc/test/connection_holder_util.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
 #include "components/ukm/test_ukm_recorder.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/test_navigation_observer.h"
@@ -92,9 +93,9 @@ std::vector<arc::mojom::AppInfoPtr> GetTestAppsList() {
   return apps;
 }
 
-absl::optional<bool> HasBadge(Profile* profile, const std::string& app_id) {
+std::optional<bool> HasBadge(Profile* profile, const std::string& app_id) {
   auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile);
-  absl::optional<bool> has_badge;
+  std::optional<bool> has_badge;
   proxy->AppRegistryCache().ForOneApp(
       app_id, [&has_badge](const apps::AppUpdate& update) {
         has_badge = update.HasBadge();
@@ -128,8 +129,8 @@ class ScopedBadgingClockOverride {
   }
 
  private:
-  const raw_ptr<badging::BadgeManager, ExperimentalAsh> badge_manager_;
-  raw_ptr<const base::Clock, ExperimentalAsh> previous_clock_;
+  const raw_ptr<badging::BadgeManager> badge_manager_;
+  raw_ptr<const base::Clock> previous_clock_;
 };
 
 }  // namespace
@@ -175,8 +176,9 @@ class AppNotificationsExtensionApiTest : public extensions::ExtensionApiTest {
 
     std::set<std::string> notifications =
         GetDisplayHelper()->GetNotificationIdsForExtension(extension->url());
-    if (notifications.size() != 1)
+    if (notifications.size() != 1) {
       return nullptr;
+    }
 
     return GetDisplayHelper()->GetByNotificationId(*notifications.begin());
   }
@@ -267,8 +269,8 @@ class AppNotificationsWebNotificationTest
   }
 
   std::string CreateWebApp(const GURL& url, const GURL& scope) const {
-    auto web_app_info = std::make_unique<WebAppInstallInfo>();
-    web_app_info->start_url = url;
+    auto web_app_info =
+        web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(url);
     web_app_info->scope = scope;
     std::string app_id = web_app::test::InstallWebApp(browser()->profile(),
                                                       std::move(web_app_info));
@@ -335,13 +337,13 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   auto metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = GetScope1();
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_PERSISTENT, *notification,
       std::move(metadata));
   ASSERT_TRUE(HasBadge(profile(), app_id1).value());
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
 
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id);
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
@@ -351,19 +353,19 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = GetScope2();
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_PERSISTENT, *notification,
       std::move(metadata));
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
   ASSERT_TRUE(HasBadge(profile(), app_id2).value());
 
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id);
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
 }
 
-// TODO(crbug.com/1334960): Disabled AppNotificationsWebNotificationTest.
+// TODO(crbug.com/40846781): Disabled AppNotificationsWebNotificationTest.
 // PersistentNotificationWhenInstallAndUninstallApp on chromeos and linux,
 // because it is failing on linux-chromeos-dbg.
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
@@ -383,7 +385,7 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   auto metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = GetScope2();
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_PERSISTENT, *notification,
       std::move(metadata));
 
@@ -394,7 +396,7 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
 
   // Remove the notification. It should not affect the notification badge.
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id);
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
@@ -406,7 +408,7 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = GetScope2();
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_PERSISTENT, *notification,
       std::move(metadata));
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
@@ -421,7 +423,7 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
 
   // Remove the notification.
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id);
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
@@ -433,7 +435,7 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = GetScope1();
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_PERSISTENT, *notification,
       std::move(metadata));
 
@@ -446,7 +448,7 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = GetScope2();
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_PERSISTENT, *notification,
       std::move(metadata));
 
@@ -454,13 +456,13 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   ASSERT_TRUE(HasBadge(profile(), app_id2).value());
 
   // Remove notifications.
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id1);
 
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
   ASSERT_TRUE(HasBadge(profile(), app_id2).value());
 
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id2);
 
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
@@ -469,8 +471,6 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
 
 IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
                        AddAndRemoveNonPersistentNotificationForOneApp) {
-  base::HistogramTester histogram_tester;
-
   const GURL origin = GetOrigin();
   std::string app_id1 = CreateWebApp(GetUrl1(), GetScope1());
   std::string app_id3 = CreateWebApp(GetUrl3(), GetScope3());
@@ -481,14 +481,11 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   const std::string notification_id = "notification-id";
   auto notification = CreateNotification(notification_id, origin);
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_NON_PERSISTENT, *notification,
       /*metadata=*/nullptr);
   ASSERT_TRUE(HasBadge(profile(), app_id1).value());
   ASSERT_FALSE(HasBadge(profile(), app_id3).value());
-
-  histogram_tester.ExpectUniqueSample(
-      "ChromeOS.Apps.NumberOfAppsForNotification", false, 1);
 
   RemoveNotification(profile(), notification_id);
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
@@ -497,8 +494,6 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
 
 IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
                        AddAndRemoveNonPersistentNotification) {
-  base::HistogramTester histogram_tester;
-
   const GURL origin = GetOrigin();
   std::string app_id1 = CreateWebApp(GetUrl1(), GetScope1());
   std::string app_id2 = CreateWebApp(GetUrl2(), GetScope2());
@@ -511,15 +506,12 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   const std::string notification_id = "notification-id";
   auto notification = CreateNotification(notification_id, origin);
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_NON_PERSISTENT, *notification,
       /*metadata=*/nullptr);
   ASSERT_TRUE(HasBadge(profile(), app_id1).value());
   ASSERT_TRUE(HasBadge(profile(), app_id2).value());
   ASSERT_FALSE(HasBadge(profile(), app_id3).value());
-
-  histogram_tester.ExpectUniqueSample(
-      "ChromeOS.Apps.NumberOfAppsForNotification", true, 1);
 
   RemoveNotification(profile(), notification_id);
   ASSERT_FALSE(HasBadge(profile(), app_id1).value());
@@ -529,14 +521,12 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
 
 IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
                        NonPersistentNotificationWhenInstallAndUninstallApp) {
-  base::HistogramTester histogram_tester;
-
   // Send the notification 1 before installing apps.
   const GURL origin = GetOrigin();
   const std::string notification_id1 = "notification-id1";
   auto notification = CreateNotification(notification_id1, origin);
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_NON_PERSISTENT, *notification,
       /*metadata=*/nullptr);
 
@@ -549,23 +539,17 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   ASSERT_FALSE(HasBadge(profile(), app_id2).value());
   ASSERT_FALSE(HasBadge(profile(), app_id3).value());
 
-  histogram_tester.ExpectTotalCount("ChromeOS.Apps.NumberOfAppsForNotification",
-                                    0);
-
   // Send the notification 2.
   const std::string notification_id2 = "notification-id2";
   notification = CreateNotification(notification_id2, origin);
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_NON_PERSISTENT, *notification,
       /*metadata=*/nullptr);
 
   ASSERT_TRUE(HasBadge(profile(), app_id1).value());
   ASSERT_TRUE(HasBadge(profile(), app_id2).value());
   ASSERT_FALSE(HasBadge(profile(), app_id3).value());
-
-  histogram_tester.ExpectUniqueSample(
-      "ChromeOS.Apps.NumberOfAppsForNotification", true, 1);
 
   // Uninstall the app 1. The notification badge for app 2 and app 3 should not
   // be affected.
@@ -583,15 +567,12 @@ IN_PROC_BROWSER_TEST_F(AppNotificationsWebNotificationTest,
   const std::string notification_id3 = "notification-id3";
   notification = CreateNotification(notification_id3, origin);
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_NON_PERSISTENT, *notification,
       /*metadata=*/nullptr);
   ASSERT_TRUE(HasBadge(profile(), app_id1).value());
   ASSERT_TRUE(HasBadge(profile(), app_id2).value());
   ASSERT_FALSE(HasBadge(profile(), app_id3).value());
-
-  histogram_tester.ExpectUniqueSample(
-      "ChromeOS.Apps.NumberOfAppsForNotification", true, 2);
 
   // Remove the notification 3
   RemoveNotification(profile(), notification_id3);
@@ -651,7 +632,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingTest,
   auto metadata = std::make_unique<PersistentNotificationMetadata>();
   metadata->service_worker_scope = GetScope1();
 
-  NotificationDisplayService::GetForProfile(profile())->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
       NotificationHandler::Type::WEB_PERSISTENT, *notification,
       std::move(metadata));
   ASSERT_TRUE(HasBadge(profile(), app_id).value());
@@ -659,7 +640,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingTest,
   badge_manager_->ClearBadgeForTesting(app_id, &test_recorder);
   ASSERT_FALSE(HasBadge(profile(), app_id).value());
 
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id);
   ASSERT_FALSE(HasBadge(profile(), app_id).value());
 }
@@ -681,7 +662,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingTest, NotificationBeforeClearBadge) {
   {
     auto metadata = std::make_unique<PersistentNotificationMetadata>();
     metadata->service_worker_scope = GetScope1();
-    NotificationDisplayService::GetForProfile(profile())->Display(
+    NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
         NotificationHandler::Type::WEB_PERSISTENT, *notification,
         std::move(metadata));
   }
@@ -700,7 +681,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingTest, NotificationBeforeClearBadge) {
   {
     auto metadata = std::make_unique<PersistentNotificationMetadata>();
     metadata->service_worker_scope = GetScope1();
-    NotificationDisplayService::GetForProfile(profile())->Display(
+    NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
         NotificationHandler::Type::WEB_PERSISTENT, *notification,
         std::move(metadata));
   }
@@ -732,7 +713,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingTest, NotificationAfterClearBadge) {
   {
     auto metadata = std::make_unique<PersistentNotificationMetadata>();
     metadata->service_worker_scope = GetScope1();
-    NotificationDisplayService::GetForProfile(profile())->Display(
+    NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
         NotificationHandler::Type::WEB_PERSISTENT, *notification,
         std::move(metadata));
   }
@@ -744,7 +725,7 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingTest, NotificationAfterClearBadge) {
   {
     auto metadata = std::make_unique<PersistentNotificationMetadata>();
     metadata->service_worker_scope = GetScope1();
-    NotificationDisplayService::GetForProfile(profile())->Display(
+    NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
         NotificationHandler::Type::WEB_PERSISTENT, *notification,
         std::move(metadata));
   }
@@ -780,14 +761,14 @@ IN_PROC_BROWSER_TEST_F(WebAppBadgingTest, NotificationAfterShowBadge) {
   {
     auto metadata = std::make_unique<PersistentNotificationMetadata>();
     metadata->service_worker_scope = GetScope1();
-    NotificationDisplayService::GetForProfile(profile())->Display(
+    NotificationDisplayServiceFactory::GetForProfile(profile())->Display(
         NotificationHandler::Type::WEB_PERSISTENT, *notification,
         std::move(metadata));
   }
 
   ASSERT_TRUE(HasBadge(profile(), app_id).value());
 
-  NotificationDisplayService::GetForProfile(profile())->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile())->Close(
       NotificationHandler::Type::WEB_PERSISTENT, notification_id);
 
   ASSERT_FALSE(HasBadge(profile(), app_id).value());
@@ -800,7 +781,7 @@ class FakeArcNotificationManagerDelegate
   ~FakeArcNotificationManagerDelegate() override = default;
 
   // ArcNotificationManagerDelegate:
-  bool IsPublicSessionOrKiosk() const override { return false; }
+  bool IsManagedGuestSessionOrKiosk() const override { return false; }
   void ShowMessageCenter() override {}
   void HideMessageCenter() override {}
 };
@@ -878,8 +859,9 @@ class AppNotificationsArcNotificationTest
   }
 
   void StopInstance() {
-    if (app_instance_)
+    if (app_instance_) {
       arc_bridge_service()->app()->CloseInstance(app_instance_.get());
+    }
     arc_session_manager()->Shutdown();
   }
 

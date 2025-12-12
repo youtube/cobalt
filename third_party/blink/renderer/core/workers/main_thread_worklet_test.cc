@@ -37,7 +37,7 @@ class MainThreadWorkletReportingProxyForTest final
   }
 
  private:
-  std::bitset<static_cast<size_t>(WebFeature::kNumberOfFeatures)>
+  std::bitset<static_cast<size_t>(WebFeature::kMaxValue) + 1>
       reported_features_;
 };
 
@@ -82,13 +82,15 @@ class MainThreadWorkletTest : public PageTestBase {
         nullptr /* parent_permissions_policy */, window->GetAgentClusterID(),
         ukm::kInvalidSourceId, window->GetExecutionContextToken());
     global_scope_ = MakeGarbageCollected<FakeWorkletGlobalScope>(
-        std::move(creation_params), *reporting_proxy_, &GetFrame(),
-        false /* create_microtask_queue */);
+        std::move(creation_params), *reporting_proxy_, &GetFrame());
     EXPECT_TRUE(global_scope_->IsMainThreadWorkletGlobalScope());
     EXPECT_FALSE(global_scope_->IsThreadedWorkletGlobalScope());
   }
 
-  void TearDown() override { global_scope_->Dispose(); }
+  void TearDown() override {
+    global_scope_->Dispose();
+    global_scope_->NotifyContextDestroyed();
+  }
 
  protected:
   std::unique_ptr<MainThreadWorkletReportingProxyForTest> reporting_proxy_;

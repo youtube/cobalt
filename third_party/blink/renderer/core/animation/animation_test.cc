@@ -30,14 +30,16 @@
 
 #include "third_party/blink/renderer/core/animation/animation.h"
 
+#include <bit>
 #include <memory>
 #include <tuple>
 
-#include "base/bits.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "cc/trees/target_property.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_animation_play_state.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_optional_effect_timing.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_scroll_timeline_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_double.h"
@@ -68,19 +70,21 @@
 #include "third_party/blink/renderer/core/testing/core_unit_test_helper.h"
 #include "third_party/blink/renderer/platform/animation/compositor_animation.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
+#include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/scheduler/public/event_loop.h"
-#include "third_party/blink/renderer/platform/testing/histogram_tester.h"
 #include "third_party/blink/renderer/platform/testing/paint_test_configurations.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 
 namespace blink {
+namespace {
 
 void ExpectRelativeErrorWithinEpsilon(double expected, double observed) {
   EXPECT_NEAR(1.0, observed / expected, std::numeric_limits<double>::epsilon());
 }
+
+}  // namespace
 
 class AnimationAnimationTestNoCompositing : public PaintTestConfigurations,
                                             public RenderingTest {
@@ -109,11 +113,13 @@ class AnimationAnimationTestNoCompositing : public PaintTestConfigurations,
 
   KeyframeEffectModelBase* MakeSimpleEffectModel() {
     PropertyHandle PropertyHandleOpacity(GetCSSPropertyOpacity());
-    static CSSNumberInterpolationType opacity_type(PropertyHandleOpacity);
+    CSSNumberInterpolationType* opacity_type(
+        MakeGarbageCollected<CSSNumberInterpolationType>(
+            PropertyHandleOpacity));
     TransitionKeyframe* start_keyframe =
         MakeGarbageCollected<TransitionKeyframe>(PropertyHandleOpacity);
-    start_keyframe->SetValue(std::make_unique<TypedInterpolationValue>(
-        opacity_type, std::make_unique<InterpolableNumber>(1.0)));
+    start_keyframe->SetValue(MakeGarbageCollected<TypedInterpolationValue>(
+        opacity_type, MakeGarbageCollected<InterpolableNumber>(1.0)));
     start_keyframe->SetOffset(0.0);
     // Egregious hack: Sideload the compositor value.
     // This is usually set in a part of the rendering process SimulateFrame
@@ -122,8 +128,8 @@ class AnimationAnimationTestNoCompositing : public PaintTestConfigurations,
         MakeGarbageCollected<CompositorKeyframeDouble>(1.0));
     TransitionKeyframe* end_keyframe =
         MakeGarbageCollected<TransitionKeyframe>(PropertyHandleOpacity);
-    end_keyframe->SetValue(std::make_unique<TypedInterpolationValue>(
-        opacity_type, std::make_unique<InterpolableNumber>(0.0)));
+    end_keyframe->SetValue(MakeGarbageCollected<TypedInterpolationValue>(
+        opacity_type, MakeGarbageCollected<InterpolableNumber>(0.0)));
     end_keyframe->SetOffset(1.0);
     // Egregious hack: Sideload the compositor value.
     end_keyframe->SetCompositorValue(
@@ -195,7 +201,7 @@ class AnimationAnimationTestNoCompositing : public PaintTestConfigurations,
                                                 timing);
   }
 
-  bool SimulateFrame(double time_ms) {
+  void SimulateFrame(double time_ms) {
     if (animation->pending()) {
       animation->NotifyReady(
           ANIMATION_TIME_DELTA_FROM_MILLISECONDS(last_frame_time));
@@ -207,11 +213,12 @@ class AnimationAnimationTestNoCompositing : public PaintTestConfigurations,
         GetDocument().GetFrame()->View()->GetPaintArtifactCompositor();
     GetDocument().GetAnimationClock().UpdateTime(base::TimeTicks() +
                                                  base::Milliseconds(time_ms));
-    GetDocument().GetPendingAnimations().Update(paint_artifact_compositor,
-                                                false);
+
     // The timeline does not know about our animation, so we have to explicitly
     // call update().
-    return animation->Update(kTimingUpdateForAnimationFrame);
+    animation->Update(kTimingUpdateForAnimationFrame);
+    GetDocument().GetPendingAnimations().Update(paint_artifact_compositor,
+                                                false);
   }
 
   void SimulateAwaitReady() { SimulateFrame(last_frame_time); }
@@ -254,6 +261,16 @@ class AnimationAnimationTestNoCompositing : public PaintTestConfigurations,
         ->GetAsCSSNumericValue()
         ->to(CSSPrimitiveValue::UnitType::kPercentage)
         ->value();
+  }
+
+  bool UsesCompositedScrolling(const LayoutBox& box) const {
+    auto* pac = GetDocument().GetFrame()->View()->GetPaintArtifactCompositor();
+    auto* property_trees =
+        pac->RootLayer()->layer_tree_host()->property_trees();
+    const auto* cc_scroll = property_trees->scroll_tree().Node(
+        box.FirstFragment().PaintProperties()->Scroll()->CcNodeId(
+            property_trees->sequence_number()));
+    return cc_scroll && cc_scroll->is_composited;
   }
 
 #define EXPECT_TIME(expected, observed) \
@@ -317,7 +334,7 @@ TEST_P(AnimationAnimationTestNoCompositing, InitialState) {
   EXPECT_FALSE(StartTimeIsSet(animation));
 
   StartTimeline();
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TIME(0, timeline->CurrentTimeMilliseconds().value());
   EXPECT_TIME(0, GetCurrentTimeMs(animation));
   EXPECT_FALSE(animation->Paused());
@@ -340,21 +357,21 @@ TEST_P(AnimationAnimationTestNoCompositing, CurrentTimeDoesNotSetOutdated) {
 }
 
 TEST_P(AnimationAnimationTestNoCompositing, SetCurrentTime) {
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(10000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(10000, GetCurrentTimeMs(animation));
 
   SimulateFrame(10000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(20000, GetCurrentTimeMs(animation));
 }
 
 TEST_P(AnimationAnimationTestNoCompositing, SetCurrentTimeNegative) {
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(-10000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(-10000, GetCurrentTimeMs(animation));
 
   SimulateFrame(20000);
@@ -362,14 +379,14 @@ TEST_P(AnimationAnimationTestNoCompositing, SetCurrentTimeNegative) {
   animation->setPlaybackRate(-2);
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(-10000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   // A seek can set current time outside the range [0, EffectEnd()].
   EXPECT_TIME(-10000, GetCurrentTimeMs(animation));
 
   SimulateFrame(40000);
   // Hold current time even though outside normal range for the animation.
   EXPECT_FALSE(animation->pending());
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TIME(-10000, GetCurrentTimeMs(animation));
 }
 
@@ -377,43 +394,43 @@ TEST_P(AnimationAnimationTestNoCompositing,
        SetCurrentTimeNegativeWithoutSimultaneousPlaybackRateChange) {
   SimulateFrame(20000);
   EXPECT_TIME(20000, GetCurrentTimeMs(animation));
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
 
   // Reversing the direction preserves current time.
   animation->setPlaybackRate(-1);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(20000, GetCurrentTimeMs(animation));
   SimulateAwaitReady();
 
   SimulateFrame(30000);
   EXPECT_TIME(10000, GetCurrentTimeMs(animation));
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
 
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(-10000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing, SetCurrentTimePastContentEnd) {
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(50000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TIME(50000, GetCurrentTimeMs(animation));
 
   SimulateFrame(20000);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TIME(50000, GetCurrentTimeMs(animation));
   // Reversing the play direction changes the play state from finished to
   // running.
   animation->setPlaybackRate(-2);
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(50000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(50000, GetCurrentTimeMs(animation));
   SimulateAwaitReady();
 
   SimulateFrame(40000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(10000, GetCurrentTimeMs(animation));
 }
 
@@ -461,12 +478,12 @@ TEST_P(AnimationAnimationTestNoCompositing, SetCurrentTimeSetsStartTime) {
 
 TEST_P(AnimationAnimationTestNoCompositing, SetStartTime) {
   SimulateFrame(20000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(0, GetStartTimeMs(animation));
   EXPECT_TIME(20000, GetCurrentTimeMs(animation));
   animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(10000),
                           ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(10000, GetStartTimeMs(animation));
   EXPECT_TIME(10000, GetCurrentTimeMs(animation));
 
@@ -475,7 +492,7 @@ TEST_P(AnimationAnimationTestNoCompositing, SetStartTime) {
   EXPECT_TIME(20000, GetCurrentTimeMs(animation));
   animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(-20000),
                           ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing, SetStartTimeLimitsAnimation) {
@@ -483,14 +500,14 @@ TEST_P(AnimationAnimationTestNoCompositing, SetStartTimeLimitsAnimation) {
   // normal limits on the animation.
   animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(-50000),
                           ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TRUE(animation->Limited());
   EXPECT_TIME(50000, GetCurrentTimeMs(animation));
   animation->setPlaybackRate(-1);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(-100000),
                           ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TIME(-100000, GetCurrentTimeMs(animation));
   EXPECT_TRUE(animation->Limited());
 }
@@ -501,7 +518,7 @@ TEST_P(AnimationAnimationTestNoCompositing, SetStartTimeOnLimitedAnimation) {
   SimulateFrame(30000);
   animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(-10000),
                           ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TIME(40000, GetCurrentTimeMs(animation));
   EXPECT_TRUE(animation->Limited());
 
@@ -511,7 +528,7 @@ TEST_P(AnimationAnimationTestNoCompositing, SetStartTimeOnLimitedAnimation) {
   animation->setStartTime(MakeGarbageCollected<V8CSSNumberish>(-40000),
                           ASSERT_NO_EXCEPTION);
   EXPECT_TIME(70000, GetCurrentTimeMs(animation));
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TRUE(animation->Limited());
 }
 
@@ -524,7 +541,7 @@ TEST_P(AnimationAnimationTestNoCompositing, StartTimePauseFinish) {
   EXPECT_FALSE(animation->pending());
   EXPECT_FALSE(StartTimeIsSet(animation));
   animation->finish(exception_state);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_FALSE(animation->pending());
   EXPECT_TIME(-30000, GetStartTimeMs(animation));
 }
@@ -539,7 +556,7 @@ TEST_P(AnimationAnimationTestNoCompositing, FinishWhenPaused) {
   EXPECT_EQ("paused", animation->playState());
   EXPECT_FALSE(animation->pending());
   animation->finish(exception_state);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing, StartTimeFinishPause) {
@@ -556,12 +573,12 @@ TEST_P(AnimationAnimationTestNoCompositing, StartTimeFinishPause) {
 
 TEST_P(AnimationAnimationTestNoCompositing, StartTimeWithZeroPlaybackRate) {
   animation->setPlaybackRate(0);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   SimulateAwaitReady();
   EXPECT_TRUE(StartTimeIsSet(animation));
 
   SimulateFrame(10000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(0, GetCurrentTimeMs(animation));
 }
 
@@ -579,7 +596,7 @@ TEST_P(AnimationAnimationTestNoCompositing, PausePlay) {
   EXPECT_FALSE(animation->pending());
   EXPECT_TIME(10000, GetCurrentTimeMs(animation));
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   SimulateAwaitReady();
   EXPECT_FALSE(animation->pending());
@@ -601,7 +618,7 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayRewindsToStart) {
                             ASSERT_NO_EXCEPTION);
   animation->play();
   EXPECT_TIME(0, GetCurrentTimeMs(animation));
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
 
   // Snap to start of the animation if playing in forward direction starting
@@ -610,14 +627,14 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayRewindsToStart) {
   EXPECT_FALSE(animation->pending());
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(-10000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_FALSE(animation->pending());
   animation->play();
   EXPECT_TIME(0, GetCurrentTimeMs(animation));
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   SimulateAwaitReady();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_FALSE(animation->pending());
 }
 
@@ -630,14 +647,14 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayRewindsToEnd) {
   // Snap to end if playing a reversed animation starting past the upper limit.
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(40000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   animation->play();
   EXPECT_TIME(30000, GetCurrentTimeMs(animation));
   EXPECT_TRUE(animation->pending());
 
   SimulateFrame(10000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_FALSE(animation->pending());
 
   // Snap to the end if playing a reversed animation starting with a negative
@@ -646,11 +663,11 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayRewindsToEnd) {
                             ASSERT_NO_EXCEPTION);
   animation->play();
   EXPECT_TIME(30000, GetCurrentTimeMs(animation));
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
 
   SimulateFrame(20000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_FALSE(animation->pending());
 }
 
@@ -681,7 +698,7 @@ TEST_P(AnimationAnimationTestNoCompositing,
   SimulateFrame(1000);
   EXPECT_EQ("paused", animation->playState());
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
 }
 
@@ -690,7 +707,7 @@ TEST_P(AnimationAnimationTestNoCompositing, Reverse) {
                             ASSERT_NO_EXCEPTION);
   animation->pause();
   animation->reverse();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   // Effective playback rate does not kick in until the animation is ready.
   EXPECT_EQ(1, animation->playbackRate());
@@ -710,7 +727,7 @@ TEST_P(AnimationAnimationTestNoCompositing,
   animation->pause();
   animation->reverse();
   SimulateAwaitReady();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_EQ(0, animation->playbackRate());
   EXPECT_TIME(10000, GetCurrentTimeMs(animation));
 
@@ -738,14 +755,14 @@ TEST_P(AnimationAnimationTestNoCompositing, ReverseBeyondLimit) {
                             ASSERT_NO_EXCEPTION);
   animation->setPlaybackRate(-1);
   animation->reverse();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   EXPECT_TIME(0, GetCurrentTimeMs(animation));
 
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(-10000),
                             ASSERT_NO_EXCEPTION);
   animation->reverse();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   EXPECT_TIME(30000, GetCurrentTimeMs(animation));
 }
@@ -755,14 +772,14 @@ TEST_P(AnimationAnimationTestNoCompositing, Finish) {
   animation->finish(exception_state);
   // Finished snaps to the end of the animation.
   EXPECT_TIME(30000, GetCurrentTimeMs(animation));
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   // Finished is a synchronous operation.
   EXPECT_FALSE(animation->pending());
 
   animation->setPlaybackRate(-1);
   animation->finish(exception_state);
   EXPECT_TIME(0, GetCurrentTimeMs(animation));
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_FALSE(animation->pending());
 }
 
@@ -1016,10 +1033,10 @@ TEST_P(AnimationAnimationTestNoCompositing, SetEffectUnlimitsAnimation) {
 TEST_P(AnimationAnimationTestNoCompositing, EmptyAnimationsDontUpdateEffects) {
   animation = timeline->Play(nullptr);
   animation->Update(kTimingUpdateOnDemand);
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 
   SimulateFrame(1234);
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing, AnimationsDisassociateFromEffect) {
@@ -1072,7 +1089,7 @@ TEST_P(AnimationAnimationTestNoCompositing, AnimationsReturnTimeToNextEffect) {
 
   // Still in effect if fillmode = forward|both.
   SimulateFrame(3000);
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 
   // Reset to start of animation. Next effect at the end of the start delay.
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(0),
@@ -1090,7 +1107,7 @@ TEST_P(AnimationAnimationTestNoCompositing, AnimationsReturnTimeToNextEffect) {
   // Effectively a paused animation.
   animation->setPlaybackRate(0);
   animation->Update(kTimingUpdateOnDemand);
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 
   // Reversed animation from end time. Next effect after end delay.
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(3000),
@@ -1118,7 +1135,7 @@ TEST_P(AnimationAnimationTestNoCompositing, TimeToNextEffectWhenPaused) {
   SimulateAwaitReady();
   EXPECT_FALSE(animation->pending());
   animation->Update(kTimingUpdateOnDemand);
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing,
@@ -1128,14 +1145,14 @@ TEST_P(AnimationAnimationTestNoCompositing,
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(-8000),
                             ASSERT_NO_EXCEPTION);
   animation->setPlaybackRate(2);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   animation->cancel();
   EXPECT_EQ("idle", animation->playState());
   EXPECT_FALSE(animation->pending());
   animation->Update(kTimingUpdateOnDemand);
   // This frame will fire the finish event event though no start time has been
   // received from the compositor yet, as cancel() nukes start times.
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing,
@@ -1145,29 +1162,30 @@ TEST_P(AnimationAnimationTestNoCompositing,
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(9000),
                             ASSERT_NO_EXCEPTION);
   animation->setPlaybackRate(-3);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   animation->cancel();
   EXPECT_EQ("idle", animation->playState());
   EXPECT_FALSE(animation->pending());
   animation->Update(kTimingUpdateOnDemand);
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing,
        TimeToNextEffectSimpleCancelledBeforeStart) {
   EXPECT_TIMEDELTA(AnimationTimeDelta(),
                    animation->TimeToEffectChange().value());
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   animation->cancel();
   EXPECT_EQ("idle", animation->playState());
   EXPECT_FALSE(animation->pending());
   animation->Update(kTimingUpdateOnDemand);
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 }
 
 TEST_P(AnimationAnimationTestNoCompositing, AttachedAnimations) {
   // Prevent |element| from being collected by |CollectAllGarbageForTesting|.
-  Persistent<Element> element = GetDocument().CreateElementForBinding("foo");
+  Persistent<Element> element =
+      GetDocument().CreateElementForBinding(AtomicString("foo"));
 
   Timing timing;
   auto* keyframe_effect = MakeGarbageCollected<KeyframeEffect>(
@@ -1196,7 +1214,7 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayAfterCancel) {
   EXPECT_FALSE(CurrentTimeIsSet(animation));
   EXPECT_FALSE(StartTimeIsSet(animation));
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   EXPECT_TIME(0, GetCurrentTimeMs(animation));
   EXPECT_FALSE(StartTimeIsSet(animation));
@@ -1206,7 +1224,7 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayAfterCancel) {
   EXPECT_TIME(0, GetStartTimeMs(animation));
 
   SimulateFrame(10000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(10000, GetCurrentTimeMs(animation));
   EXPECT_TIME(0, GetStartTimeMs(animation));
 }
@@ -1223,7 +1241,7 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayBackwardsAfterCancel) {
 
   // Snap to the end of the animation.
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   EXPECT_TIME(30000, GetCurrentTimeMs(animation));
   EXPECT_FALSE(StartTimeIsSet(animation));
@@ -1232,7 +1250,7 @@ TEST_P(AnimationAnimationTestNoCompositing, PlayBackwardsAfterCancel) {
   EXPECT_TIME(30000, GetStartTimeMs(animation));
 
   SimulateFrame(10000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(20000, GetCurrentTimeMs(animation));
   EXPECT_TIME(30000, GetStartTimeMs(animation));
 }
@@ -1246,7 +1264,7 @@ TEST_P(AnimationAnimationTestNoCompositing, ReverseAfterCancel) {
 
   // Reverse snaps to the end of the animation.
   animation->reverse();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->pending());
   EXPECT_TIME(30000, GetCurrentTimeMs(animation));
   EXPECT_FALSE(StartTimeIsSet(animation));
@@ -1255,7 +1273,7 @@ TEST_P(AnimationAnimationTestNoCompositing, ReverseAfterCancel) {
   EXPECT_TIME(30000, GetStartTimeMs(animation));
 
   SimulateFrame(10000);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TIME(20000, GetCurrentTimeMs(animation));
   EXPECT_TIME(30000, GetStartTimeMs(animation));
 }
@@ -1268,7 +1286,7 @@ TEST_P(AnimationAnimationTestNoCompositing, FinishAfterCancel) {
   EXPECT_FALSE(StartTimeIsSet(animation));
 
   animation->finish(exception_state);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_TIME(30000, GetCurrentTimeMs(animation));
   EXPECT_TIME(-30000, GetStartTimeMs(animation));
 }
@@ -1294,13 +1312,13 @@ TEST_P(AnimationAnimationTestNoCompositing, SetPlaybackRateAfterFinish) {
   animation->setEffect(MakeAnimation(30, Timing::FillMode::FORWARDS));
   animation->finish();
   animation->Update(kTimingUpdateOnDemand);
-  EXPECT_EQ("finished", animation->playState());
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 
   // Reversing a finished animation marks the animation as outdated. Required
   // to recompute the time to next interval.
   animation->setPlaybackRate(-1);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_EQ(animation->playbackRate(), -1);
   EXPECT_TRUE(animation->Outdated());
   animation->Update(kTimingUpdateOnDemand);
@@ -1313,15 +1331,15 @@ TEST_P(AnimationAnimationTestNoCompositing, UpdatePlaybackRateAfterFinish) {
   animation->setEffect(MakeAnimation(30, Timing::FillMode::FORWARDS));
   animation->finish();
   animation->Update(kTimingUpdateOnDemand);
-  EXPECT_EQ("finished", animation->playState());
-  EXPECT_EQ(absl::nullopt, animation->TimeToEffectChange());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
+  EXPECT_EQ(std::nullopt, animation->TimeToEffectChange());
 
   // Reversing a finished animation marks the animation as outdated. Required
   // to recompute the time to next interval. The pending playback rate is
   // immediately applied when updatePlaybackRate is called on a non-running
   // animation.
   animation->updatePlaybackRate(-1);
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_EQ(animation->playbackRate(), -1);
   EXPECT_TRUE(animation->Outdated());
   animation->Update(kTimingUpdateOnDemand);
@@ -1396,19 +1414,81 @@ TEST_P(AnimationAnimationTestCompositing, PreCommitWithUnresolvedStartTimes) {
   // synced, no update is pending.
   EXPECT_FALSE(animation->CompositorPending());
 
-  // At this point, a call to PreCommit should bail out and tell us to wait for
-  // next commit because there are no resolved start times.
-  EXPECT_FALSE(animation->PreCommit(0, nullptr, true));
+  int initial_compositor_group = animation->CompositorGroup();
+  int next_compositor_group = initial_compositor_group + 1;
+
+  // The animation is missing a start time, but does not require a restart.
+  //  * PreCommit returns false to defer the animation.
+  //  * Update returns true signalling that we need to service animations on the
+  //    next frame.
+  EXPECT_FALSE(animation->PreCommit(next_compositor_group++, nullptr, true));
+  EXPECT_TRUE(GetDocument().GetPendingAnimations().Update(nullptr, true));
+  EXPECT_EQ(initial_compositor_group, animation->CompositorGroup());
+  EXPECT_FALSE(animation->CompositorPending());
+  EXPECT_TRUE(animation->pending());
+  EXPECT_FALSE(animation->StartTimeInternal());
+
+  // Introduce a change that does not invalidate the pending start time, but
+  // forces a restart to pick up revised keyframes. After restarting, the
+  // animation has the same compositor group to avoid a stuttered start.
+  animation->SetCompositorPending(
+      Animation::CompositorPendingReason::kPendingEffectChange);
+  EXPECT_TRUE(animation->CompositorPending());
+  EXPECT_TRUE(animation->PreCommit(next_compositor_group++, nullptr, true));
+  EXPECT_TRUE(GetDocument().GetPendingAnimations().Update(nullptr, true));
+  EXPECT_TRUE(animation->CompositorPending());
+  EXPECT_FALSE(animation->StartTimeInternal());
+  EXPECT_TRUE(animation->pending());
+  EXPECT_EQ(initial_compositor_group, animation->CompositorGroup());
+
+  // Introduce a change that invalidates the pending start time. PreCommit
+  // cancels and restarts the animation.
+  animation->SetCurrentTimeInternal(ANIMATION_TIME_DELTA_FROM_SECONDS(0.2));
+  animation->SetCompositorPending(
+      Animation::CompositorPendingReason::kPendingUpdate);
+  EXPECT_TRUE(animation->CompositorPending());
+  EXPECT_TRUE(animation->PreCommit(next_compositor_group++, nullptr, true));
+  EXPECT_TRUE(GetDocument().GetPendingAnimations().Update(nullptr, true));
+  EXPECT_TRUE(animation->CompositorPending());
+  EXPECT_FALSE(animation->StartTimeInternal());
+  EXPECT_TRUE(animation->pending());
+  EXPECT_NE(initial_compositor_group, animation->CompositorGroup());
+
+  // Still waiting on start time, but no change the the animation.
+  // Defer the animation.
+  EXPECT_FALSE(animation->PreCommit(next_compositor_group++, nullptr, true));
+  EXPECT_TRUE(GetDocument().GetPendingAnimations().Update(nullptr, true));
+  EXPECT_TRUE(animation->CompositorPending());
+  EXPECT_FALSE(animation->StartTimeInternal());
+  EXPECT_TRUE(animation->pending());
+
+  // crbug.com/396115932: Call PreCommit/Update with start_on_compositor=false.
+  // Animation can no longer be deferred.
+  EXPECT_TRUE(animation->PreCommit(next_compositor_group++, nullptr, false));
+  EXPECT_FALSE(GetDocument().GetPendingAnimations().Update(nullptr, false));
+  EXPECT_FALSE(animation->CompositorPending());
+  EXPECT_TRUE(animation->StartTimeInternal());
+  EXPECT_FALSE(animation->pending());
 }
 
-TEST_P(AnimationAnimationTestCompositing, SynchronousCancel) {
+// Cancel is synchronous on the main thread, but asynchronously deferred on the
+// compositor to reduce thread contention.
+TEST_P(AnimationAnimationTestCompositing, AsynchronousCancel) {
   // Start with a composited animation.
   ResetWithCompositedAnimation();
   ASSERT_TRUE(animation->HasActiveAnimationsOnCompositor());
 
   animation->cancel();
-  ASSERT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_TRUE(animation->CompositorPending());
+  EXPECT_TRUE(animation->CompositorPendingCancel());
+
+  // Do not need to service animations on the next frame since the pending
+  // animation has been cancelled.
+  EXPECT_FALSE(GetDocument().GetPendingAnimations().Update(nullptr, false));
   EXPECT_FALSE(animation->CompositorPending());
+  EXPECT_FALSE(animation->CompositorPendingCancel());
+  EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
 }
 
 namespace {
@@ -1419,7 +1499,7 @@ int GenerateHistogramValue(CompositorAnimations::FailureReason reason) {
   // as 0 and recorded as 0.
   if (reason == CompositorAnimations::kNoFailure)
     return CompositorAnimations::kNoFailure;
-  return base::bits::CountTrailingZeroBits(static_cast<uint32_t>(reason)) + 1;
+  return std::countr_zero(static_cast<uint32_t>(reason)) + 1;
 }
 }  // namespace
 
@@ -1429,7 +1509,7 @@ TEST_P(AnimationAnimationTestCompositing, PreCommitRecordsHistograms) {
 
   // Initially the animation in this test has no target, so it is invalid.
   {
-    HistogramTester histogram;
+    base::HistogramTester histogram;
     ASSERT_TRUE(animation->PreCommit(0, nullptr, true));
     histogram.ExpectBucketCount(
         histogram_name,
@@ -1439,7 +1519,7 @@ TEST_P(AnimationAnimationTestCompositing, PreCommitRecordsHistograms) {
 
   // Restart the animation with a target and compositing state.
   {
-    HistogramTester histogram;
+    base::HistogramTester histogram;
     ResetWithCompositedAnimation();
     histogram.ExpectBucketCount(
         histogram_name,
@@ -1451,7 +1531,7 @@ TEST_P(AnimationAnimationTestCompositing, PreCommitRecordsHistograms) {
   animation->setPlaybackRate(0);
   animation->NotifyReady(ANIMATION_TIME_DELTA_FROM_SECONDS(100));
   {
-    HistogramTester histogram;
+    base::HistogramTester histogram;
     ASSERT_TRUE(animation->PreCommit(0, nullptr, true));
     histogram.ExpectBucketCount(
         histogram_name,
@@ -1478,7 +1558,7 @@ TEST_P(AnimationAnimationTestCompositing, PreCommitRecordsHistograms) {
       ->SetKeyframes({start_keyframe, end_keyframe});
   UpdateAllLifecyclePhasesForTest();
   {
-    HistogramTester histogram;
+    base::HistogramTester histogram;
     ASSERT_TRUE(animation->PreCommit(0, nullptr, true));
     histogram.ExpectBucketCount(
         histogram_name,
@@ -1601,19 +1681,26 @@ TEST_P(AnimationAnimationTestCompositing,
   keyframe_effect->UpdateBoxSizeAndCheckTransformAxisAlignment(
       gfx::SizeF(100, 200));
   EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(animation->CompositorPendingCancel());
 
   // Restart animation on a width change.
   keyframe_effect->UpdateBoxSizeAndCheckTransformAxisAlignment(
       gfx::SizeF(200, 200));
+  // Cancel is deferred to PreCommit.
+  EXPECT_TRUE(animation->CompositorPendingCancel());
   EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
-
   GetDocument().GetPendingAnimations().Update(nullptr, true);
   EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(animation->CompositorPendingCancel());
 
   // Restart animation on a height change.
   keyframe_effect->UpdateBoxSizeAndCheckTransformAxisAlignment(
       gfx::SizeF(200, 300));
+  EXPECT_TRUE(animation->CompositorPendingCancel());
   EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  GetDocument().GetPendingAnimations().Update(nullptr, true);
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(animation->CompositorPendingCancel());
 }
 
 // crbug.com/1149012
@@ -1649,11 +1736,16 @@ TEST_P(AnimationAnimationTestCompositing,
   keyframe_effect->UpdateBoxSizeAndCheckTransformAxisAlignment(
       gfx::SizeF(100, 300));
   EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(animation->CompositorPendingCancel());
 
   // Width change forces a restart.
   keyframe_effect->UpdateBoxSizeAndCheckTransformAxisAlignment(
       gfx::SizeF(200, 300));
+  EXPECT_TRUE(animation->CompositorPendingCancel());
   EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  GetDocument().GetPendingAnimations().Update(nullptr, true);
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(animation->CompositorPendingCancel());
 }
 
 // crbug.com/1149012
@@ -1694,6 +1786,13 @@ TEST_P(AnimationAnimationTestCompositing,
   keyframe_effect->UpdateBoxSizeAndCheckTransformAxisAlignment(
       gfx::SizeF(300, 400));
   EXPECT_FALSE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_TRUE(animation->CompositorPending());
+  EXPECT_TRUE(animation->CompositorPendingCancel());
+
+  GetDocument().GetPendingAnimations().Update(nullptr, true);
+  EXPECT_TRUE(animation->HasActiveAnimationsOnCompositor());
+  EXPECT_FALSE(animation->CompositorPending());
+  EXPECT_FALSE(animation->CompositorPendingCancel());
 }
 
 TEST_P(AnimationAnimationTestCompositing,
@@ -1757,6 +1856,13 @@ TEST_P(AnimationAnimationTestCompositing,
 
   UpdateAllLifecyclePhasesForTest();
   scroll_animation->play();
+
+  EXPECT_FALSE(GetDocument().GetPendingAnimations().Update(nullptr, true));
+  EXPECT_FALSE(scroll_animation->CompositorPending());
+  EXPECT_TRUE(scroll_animation->pending());
+  EXPECT_FALSE(scroll_animation->StartTimeInternal());
+
+  scroll_animation->SetDeferredStartTimeForTesting();
   EXPECT_EQ(scroll_animation->CheckCanStartAnimationOnCompositor(nullptr),
             CompositorAnimations::kNoFailure);
 }
@@ -1824,11 +1930,11 @@ TEST_P(AnimationAnimationTestCompositing,
 
   UpdateAllLifecyclePhasesForTest();
   const double TEST_START_PERCENT = 10;
+  scroll_animation->play();
   scroll_animation->setStartTime(
       MakeGarbageCollected<V8CSSNumberish>(
           CSSUnitValues::percent(TEST_START_PERCENT)),
       ASSERT_NO_EXCEPTION);
-  scroll_animation->play();
   EXPECT_EQ(scroll_animation->CheckCanStartAnimationOnCompositor(nullptr),
             CompositorAnimations::kNoFailure);
   UpdateAllLifecyclePhasesForTest();
@@ -1840,8 +1946,13 @@ TEST_P(AnimationAnimationTestCompositing,
           ->GetCompositorAnimation()
           ->CcAnimation()
           ->GetKeyframeModel(cc::TargetProperty::OPACITY);
-  EXPECT_EQ(keyframe_model->start_time() - base::TimeTicks(),
-            base::Seconds(TEST_START_PERCENT));
+
+  double timeline_duration_ms =
+      scroll_timeline->GetDuration()->InMillisecondsF();
+  double start_time_ms =
+      (keyframe_model->start_time() - base::TimeTicks()).InMillisecondsF();
+  double progress_percent = (start_time_ms / timeline_duration_ms) * 100;
+  EXPECT_NEAR(progress_percent, TEST_START_PERCENT, 1e-3);
   EXPECT_EQ(keyframe_model->time_offset(), base::TimeDelta());
 }
 
@@ -1879,8 +1990,8 @@ TEST_P(AnimationAnimationTestNoCompositing, ScrollLinkedAnimationCreation) {
   scroll_animation->play();
 
   // Verify start and current times in Pending state.
-  EXPECT_TIME(0, GetStartTimePercent(scroll_animation));
-  EXPECT_TIME(20, GetCurrentTimePercent(scroll_animation));
+  EXPECT_FALSE(StartTimeIsSet(scroll_animation));
+  EXPECT_FALSE(CurrentTimeIsSet(scroll_animation));
 
   UpdateAllLifecyclePhasesForTest();
   // Verify start and current times in Playing state.
@@ -1911,11 +2022,8 @@ TEST_P(AnimationAnimationTestCompositing,
     </div>
   )HTML");
 
-  auto* scroller =
-      To<LayoutBoxModelObject>(GetLayoutObjectByElementId("scroller"));
-  if (!RuntimeEnabledFeatures::CompositeScrollAfterPaintEnabled()) {
-    ASSERT_TRUE(scroller->UsesCompositedScrolling());
-  }
+  auto* scroller = GetLayoutBoxByElementId("scroller");
+  ASSERT_TRUE(UsesCompositedScrolling(*scroller));
 
   // Create ScrollTimeline
   ScrollTimelineOptions* options = ScrollTimelineOptions::Create();
@@ -1954,17 +2062,19 @@ TEST_P(AnimationAnimationTestCompositing,
   UpdateAllLifecyclePhasesForTest();
 
   scroll_animation->play();
-  EXPECT_EQ(scroll_animation->playState(), "running");
+  EXPECT_EQ(scroll_animation->playState(),
+            V8AnimationPlayState::Enum::kRunning);
   UpdateAllLifecyclePhasesForTest();
   GetDocument().GetPendingAnimations().Update(nullptr, true);
   EXPECT_TRUE(scroll_animation->HasActiveAnimationsOnCompositor());
 
-  // Advances the animation to "finished" state. The composited animation will
-  // be destroyed accordingly.
+  // Advances the animation to V8AnimationPlayState::Enum::kFinished state. The
+  // composited animation will be destroyed accordingly.
   scroll_animation->setCurrentTime(
       MakeGarbageCollected<V8CSSNumberish>(CSSUnitValues::percent(100)),
       ASSERT_NO_EXCEPTION);
-  EXPECT_EQ(scroll_animation->playState(), "finished");
+  EXPECT_EQ(scroll_animation->playState(),
+            V8AnimationPlayState::Enum::kFinished);
   scroll_animation->Update(kTimingUpdateForAnimationFrame);
   GetDocument().GetPendingAnimations().Update(nullptr, true);
   EXPECT_FALSE(scroll_animation->HasActiveAnimationsOnCompositor());
@@ -1974,7 +2084,8 @@ TEST_P(AnimationAnimationTestCompositing,
       MakeGarbageCollected<V8CSSNumberish>(CSSUnitValues::percent(50)),
       ASSERT_NO_EXCEPTION);
   UpdateAllLifecyclePhasesForTest();
-  EXPECT_EQ(scroll_animation->playState(), "running");
+  EXPECT_EQ(scroll_animation->playState(),
+            V8AnimationPlayState::Enum::kRunning);
   scroll_animation->Update(kTimingUpdateForAnimationFrame);
   GetDocument().GetPendingAnimations().Update(nullptr, true);
   EXPECT_TRUE(scroll_animation->HasActiveAnimationsOnCompositor());
@@ -1982,7 +2093,7 @@ TEST_P(AnimationAnimationTestCompositing,
 
 TEST_P(AnimationAnimationTestNoCompositing,
        RemoveCanceledAnimationFromActiveSet) {
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->Update(kTimingUpdateForAnimationFrame));
   SimulateFrame(1000);
   EXPECT_TRUE(animation->Update(kTimingUpdateForAnimationFrame));
@@ -1993,25 +2104,25 @@ TEST_P(AnimationAnimationTestNoCompositing,
 
 TEST_P(AnimationAnimationTestNoCompositing,
        RemoveFinishedAnimationFromActiveSet) {
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->Update(kTimingUpdateForAnimationFrame));
   SimulateFrame(1000);
   EXPECT_TRUE(animation->Update(kTimingUpdateForAnimationFrame));
 
   // Synchronous completion.
   animation->finish();
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_FALSE(animation->Update(kTimingUpdateForAnimationFrame));
 
   // Play creates a new pending finished promise.
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_TRUE(animation->Update(kTimingUpdateForAnimationFrame));
 
   // Asynchronous completion.
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(50000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_FALSE(animation->Update(kTimingUpdateForAnimationFrame));
 }
 
@@ -2019,7 +2130,7 @@ TEST_P(AnimationAnimationTestNoCompositing,
        PendingActivityWithFinishedPromise) {
   // No pending activity even when running if there is no finished promise
   // or event listener.
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   SimulateFrame(1000);
   EXPECT_FALSE(animation->HasPendingActivity());
 
@@ -2032,7 +2143,7 @@ TEST_P(AnimationAnimationTestNoCompositing,
   // Resolving the finished promise clears the pending activity.
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(50000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   SimulateMicrotask();
   EXPECT_FALSE(animation->Update(kTimingUpdateForAnimationFrame));
   EXPECT_FALSE(animation->HasPendingActivity());
@@ -2040,15 +2151,17 @@ TEST_P(AnimationAnimationTestNoCompositing,
   // Playing an already finished animation creates a new pending finished
   // promise.
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   SimulateFrame(2000);
   EXPECT_TRUE(animation->HasPendingActivity());
   // Cancel rejects the finished promise and creates a new pending finished
-  // promise.
-  // TODO(crbug.com/960944): Investigate if this should return false to prevent
-  // holding onto the animation indefinitely.
+  // promise. Though the new finished promise is not resolved, it should not
+  // indicate that we have pending activity as a canceled animation will never
+  // finish. Playing or pausing the cancelled animation will trigger having
+  // pending activity. If cancel were to trigger pending activity we would
+  // have a memory leak.
   animation->cancel();
-  EXPECT_TRUE(animation->HasPendingActivity());
+  EXPECT_FALSE(animation->HasPendingActivity());
 }
 
 class MockEventListener final : public NativeEventListener {
@@ -2058,7 +2171,7 @@ class MockEventListener final : public NativeEventListener {
 
 TEST_P(AnimationAnimationTestNoCompositing,
        PendingActivityWithFinishedEventListener) {
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   EXPECT_FALSE(animation->HasPendingActivity());
 
   // Attaching a listener for the finished event indicates pending activity.
@@ -2068,7 +2181,7 @@ TEST_P(AnimationAnimationTestNoCompositing,
 
   // Synchronous finish clears pending activity.
   animation->finish();
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   EXPECT_FALSE(animation->Update(kTimingUpdateForAnimationFrame));
   EXPECT_TRUE(animation->HasPendingActivity());
   animation->pending_finished_event_ = nullptr;
@@ -2076,14 +2189,14 @@ TEST_P(AnimationAnimationTestNoCompositing,
 
   // Playing an already finished animation resets the finished state.
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   SimulateFrame(2000);
   EXPECT_TRUE(animation->HasPendingActivity());
 
   // Finishing the animation asynchronously clears the pending activity.
   animation->setCurrentTime(MakeGarbageCollected<V8CSSNumberish>(50000),
                             ASSERT_NO_EXCEPTION);
-  EXPECT_EQ("finished", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kFinished, animation->playState());
   SimulateMicrotask();
   EXPECT_FALSE(animation->Update(kTimingUpdateForAnimationFrame));
   EXPECT_TRUE(animation->HasPendingActivity());
@@ -2092,12 +2205,122 @@ TEST_P(AnimationAnimationTestNoCompositing,
 
   // Canceling an animation clears the pending activity.
   animation->play();
-  EXPECT_EQ("running", animation->playState());
+  EXPECT_EQ(V8AnimationPlayState::Enum::kRunning, animation->playState());
   SimulateFrame(2000);
   animation->cancel();
   EXPECT_EQ("idle", animation->playState());
   EXPECT_FALSE(animation->Update(kTimingUpdateForAnimationFrame));
   EXPECT_FALSE(animation->HasPendingActivity());
+}
+
+TEST_P(AnimationAnimationTestNoCompositing, PendingActivityWithOnceTrigger) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        animation: myAnim linear 0.5s none;
+        animation-trigger: scroll() once 50px 100px;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="scroller" class="scroller">
+      <div id="space"></div>
+      <div id="target" class="subject"></div>
+      <div id="space"></div>
+    </div>
+  )HTML");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  ElementAnimations* animations = target->GetElementAnimations();
+  animation = (*animations->Animations().begin()).key;
+
+  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kIdle);
+  EXPECT_TRUE(animation->HasPendingActivity());
+
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
+
+  scroller->scrollTo(0, 75);
+  UpdateAllLifecyclePhasesForTest();
+
+  animation->trigger()->ActionAnimation(animation);
+
+  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
+  // Finish the animation.
+  animation->finish();
+
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
+  EXPECT_FALSE(animation->HasPendingActivity());
+}
+
+TEST_P(AnimationAnimationTestNoCompositing, PendingActivityWithRepeatTrigger) {
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      @keyframes myAnim {
+        from { transform: scaleX(1); }
+        to { transform: scaleX(5); }
+      }
+      .subject {
+        height: 50px;
+        width: 50px;
+        animation: myAnim linear 0.5s none;
+        animation-trigger: scroll() repeat 50px 100px;
+      }
+     .scroller {
+        overflow-y: scroll;
+        height: 500px;
+        width: 500px;
+        border: solid 1px;
+        position: relative;
+      }
+      #space {
+        width: 50px;
+        height: 600px;
+      }
+    </style>
+    <div id="scroller" class="scroller">
+      <div id="space"></div>
+      <div id="target" class="subject"></div>
+      <div id="space"></div>
+    </div>
+  )HTML");
+  Element* target = GetDocument().getElementById(AtomicString("target"));
+  ElementAnimations* animations = target->GetElementAnimations();
+  animation = (*animations->Animations().begin()).key;
+
+  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kIdle);
+  EXPECT_TRUE(animation->HasPendingActivity());
+
+  Element* scroller = GetDocument().getElementById(AtomicString("scroller"));
+
+  scroller->scrollTo(0, 75);
+  UpdateAllLifecyclePhasesForTest();
+
+  animation->trigger()->ActionAnimation(animation);
+
+  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
+  // Finish the animation.
+  animation->finish();
+
+  UpdateAllLifecyclePhasesForTest();
+
+  EXPECT_EQ(animation->GetTriggerState(), AnimationTriggerState::kPrimary);
+  EXPECT_TRUE(animation->HasPendingActivity());
 }
 
 TEST_P(AnimationAnimationTestCompositing, InvalidExecutionContext) {
@@ -2257,7 +2480,7 @@ TEST_P(AnimationPendingAnimationsTest,
 }
 
 TEST_P(AnimationAnimationTestCompositing,
-       ScrollLinkedAnimationNotCompositedIfSourceIsNotComposited) {
+       ScrollLinkedAnimationCompositedEvenIfSourceIsNotComposited) {
   SetPreferCompositingToLCDText(false);
   SetBodyInnerHTML(R"HTML(
     <style>
@@ -2274,10 +2497,9 @@ TEST_P(AnimationAnimationTestCompositing,
   )HTML");
 
   // Create ScrollTimeline
-  auto* scroller =
-      To<LayoutBoxModelObject>(GetLayoutObjectByElementId("scroller"));
+  auto* scroller = GetLayoutBoxByElementId("scroller");
   PaintLayerScrollableArea* scrollable_area = scroller->GetScrollableArea();
-  ASSERT_FALSE(scroller->UsesCompositedScrolling());
+  ASSERT_FALSE(UsesCompositedScrolling(*scroller));
   scrollable_area->SetScrollOffset(ScrollOffset(0, 20),
                                    mojom::blink::ScrollType::kProgrammatic);
   ScrollTimelineOptions* options = ScrollTimelineOptions::Create();
@@ -2316,8 +2538,9 @@ TEST_P(AnimationAnimationTestCompositing,
 
   UpdateAllLifecyclePhasesForTest();
   scroll_animation->play();
+  scroll_animation->SetDeferredStartTimeForTesting();
   EXPECT_EQ(scroll_animation->CheckCanStartAnimationOnCompositor(nullptr),
-            CompositorAnimations::kTimelineSourceHasInvalidCompositingState);
+            CompositorAnimations::kNoFailure);
 }
 
 #if BUILDFLAG(IS_MAC) && defined(ARCH_CPU_ARM64)
@@ -2368,21 +2591,24 @@ TEST_P(AnimationAnimationTestCompositing, MAYBE_ContentVisibleDisplayLockTest) {
   ASSERT_TRUE(!!animation);
   EXPECT_FALSE(animation->IsInDisplayLockedSubtree());
 
-  inner->setAttribute(html_names::kStyleAttr, "content-visibility: hidden");
+  inner->setAttribute(html_names::kStyleAttr,
+                      AtomicString("content-visibility: hidden"));
   RunDocumentLifecycle();
   EXPECT_TRUE(animation->IsInDisplayLockedSubtree());
 
-  inner->setAttribute(html_names::kStyleAttr, "content-visibility: visible");
+  inner->setAttribute(html_names::kStyleAttr,
+                      AtomicString("content-visibility: visible"));
   RunDocumentLifecycle();
   EXPECT_FALSE(animation->IsInDisplayLockedSubtree());
 
-  outer->setAttribute(html_names::kStyleAttr, "content-visibility: hidden");
+  outer->setAttribute(html_names::kStyleAttr,
+                      AtomicString("content-visibility: hidden"));
   RunDocumentLifecycle();
   EXPECT_TRUE(animation->IsInDisplayLockedSubtree());
 
   // Ensure that the animation has not been canceled even though display locked.
   EXPECT_EQ(1u, target->GetElementAnimations()->Animations().size());
-  EXPECT_EQ(animation->playState(), "running");
+  EXPECT_EQ(animation->playState(), V8AnimationPlayState::Enum::kRunning);
 }
 
 TEST_P(AnimationAnimationTestCompositing, HiddenAnimationsDoNotTick) {
@@ -2415,10 +2641,10 @@ TEST_P(AnimationAnimationTestCompositing, HiddenAnimationsDoNotTick) {
       GetDocument().View()->GetPaintArtifactCompositor();
   ASSERT_TRUE(paint_artifact_compositor);
 
-  // The animation should run on main because compositor properties are missing.
+  // The animation should be optimized out since no visible change.
   EXPECT_EQ(
       animation->CheckCanStartAnimationOnCompositor(paint_artifact_compositor),
-      CompositorAnimations::kCompositorPropertyAnimationsHaveNoEffect);
+      CompositorAnimations::kAnimationHasNoVisibleChange);
   EXPECT_TRUE(animation->CompositorPropertyAnimationsHaveNoEffectForTesting());
   EXPECT_TRUE(animation->AnimationHasNoEffect());
 
@@ -2458,16 +2684,16 @@ TEST_P(AnimationAnimationTestCompositing, HiddenAnimationsTickWhenVisible) {
       GetDocument().View()->GetPaintArtifactCompositor();
   ASSERT_TRUE(paint_artifact_compositor);
 
-  // The animation should run on main because compositor properties are missing.
+  // The animation should be optimized out since no visible change.
   EXPECT_EQ(
       animation->CheckCanStartAnimationOnCompositor(paint_artifact_compositor),
-      CompositorAnimations::kCompositorPropertyAnimationsHaveNoEffect);
+      CompositorAnimations::kAnimationHasNoVisibleChange);
   EXPECT_TRUE(animation->CompositorPropertyAnimationsHaveNoEffectForTesting());
   EXPECT_TRUE(animation->AnimationHasNoEffect());
 
   // The no-effect animation doesn't count. The one animation is
   // AnimationAnimationTestCompositing::animation_.
-  EXPECT_EQ(1u, animation->timeline()->AnimationsNeedingUpdateCount());
+  EXPECT_EQ(1u, animation->TimelineInternal()->AnimationsNeedingUpdateCount());
 
   // The next effect change should be at the end because the animation does not
   // tick while hidden.
@@ -2475,7 +2701,8 @@ TEST_P(AnimationAnimationTestCompositing, HiddenAnimationsTickWhenVisible) {
                    animation->TimeToEffectChange().value());
 
   Element* visibility = GetElementById("visibility");
-  visibility->setAttribute(html_names::kStyleAttr, "visibility: visible;");
+  visibility->setAttribute(html_names::kStyleAttr,
+                           AtomicString("visibility: visible;"));
   RunDocumentLifecycle();
 
   // The animation should run on the compositor after the properties are
@@ -2485,7 +2712,7 @@ TEST_P(AnimationAnimationTestCompositing, HiddenAnimationsTickWhenVisible) {
       CompositorAnimations::kNoFailure);
   EXPECT_FALSE(animation->CompositorPropertyAnimationsHaveNoEffectForTesting());
   EXPECT_FALSE(animation->AnimationHasNoEffect());
-  EXPECT_EQ(2u, animation->timeline()->AnimationsNeedingUpdateCount());
+  EXPECT_EQ(2u, animation->TimelineInternal()->AnimationsNeedingUpdateCount());
 
   // The next effect change should be at the end because the animation is
   // running on the compositor.

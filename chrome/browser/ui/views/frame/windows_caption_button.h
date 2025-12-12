@@ -17,8 +17,9 @@
 class BrowserFrameViewWin;
 
 class WindowsCaptionButton : public views::Button {
+  METADATA_HEADER(WindowsCaptionButton, views::Button)
+
  public:
-  METADATA_HEADER(WindowsCaptionButton);
   WindowsCaptionButton(PressedCallback callback,
                        BrowserFrameViewWin* frame_view,
                        ViewID button_type,
@@ -28,7 +29,8 @@ class WindowsCaptionButton : public views::Button {
   ~WindowsCaptionButton() override;
 
   // views::Button:
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void OnPaintBackground(gfx::Canvas* canvas) override;
   void PaintButtonContents(gfx::Canvas* canvas) override;
 

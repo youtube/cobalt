@@ -11,15 +11,15 @@
 #ifndef MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_EGL_DMABUF_H_
 #define MODULES_DESKTOP_CAPTURE_LINUX_WAYLAND_EGL_DMABUF_H_
 
-#include <epoxy/egl.h>
-#include <epoxy/gl.h>
+#include <EGL/egl.h>
+#include <GL/gl.h>
 #include <gbm.h>
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
-#include "absl/types/optional.h"
 #include "modules/desktop_capture/desktop_geometry.h"
 
 namespace webrtc {
@@ -66,7 +66,7 @@ class EglDmaBuf {
   GLuint texture_ = 0;
   EGLStruct egl_;
 
-  absl::optional<std::string> GetRenderNode();
+  std::optional<std::string> GetRenderNode();
 };
 
 }  // namespace webrtc

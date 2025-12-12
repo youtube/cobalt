@@ -6,10 +6,12 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
 #include "components/reporting/metrics/collector_base.h"
@@ -20,7 +22,6 @@
 #include "components/reporting/proto/synced/metric_data.pb.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 using ::testing::_;
 using ::testing::Eq;
@@ -45,7 +46,7 @@ class MockCollector : public CollectorBase {
  protected:
   MOCK_METHOD(void,
               OnMetricDataCollected,
-              (bool, absl::optional<MetricData>),
+              (bool, std::optional<MetricData>),
               (override));
 
   MOCK_METHOD(bool, CanCollect, (), (const override));
@@ -72,7 +73,7 @@ class MetricEventObserverManagerTest : public ::testing::Test {
 };
 
 TEST_F(MetricEventObserverManagerTest, InitiallyEnabled) {
-  settings_->SetBoolean(kEventEnableSettingPath, true);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, true);
   auto* event_observer_ptr = event_observer_.get();
 
   MetricEventObserverManager event_manager(
@@ -96,7 +97,7 @@ TEST_F(MetricEventObserverManagerTest, InitiallyEnabled) {
 
   // Setting disabled, no more data should be reported even if the callback is
   // called.
-  settings_->SetBoolean(kEventEnableSettingPath, false);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, false);
 
   event_observer_ptr->RunCallback(metric_data);
 
@@ -105,7 +106,7 @@ TEST_F(MetricEventObserverManagerTest, InitiallyEnabled) {
 }
 
 TEST_F(MetricEventObserverManagerTest, InitiallyEnabled_Delayed) {
-  settings_->SetBoolean(kEventEnableSettingPath, true);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, true);
   auto* event_observer_ptr = event_observer_.get();
 
   MetricEventObserverManager event_manager(
@@ -134,7 +135,7 @@ TEST_F(MetricEventObserverManagerTest, InitiallyEnabled_Delayed) {
 
   // Setting disabled, no more data should be reported even if the callback is
   // called.
-  settings_->SetBoolean(kEventEnableSettingPath, false);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, false);
 
   event_observer_ptr->RunCallback(metric_data);
 
@@ -143,7 +144,7 @@ TEST_F(MetricEventObserverManagerTest, InitiallyEnabled_Delayed) {
 }
 
 TEST_F(MetricEventObserverManagerTest, InitiallyDisabled_Delayed) {
-  settings_->SetBoolean(kEventEnableSettingPath, false);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, false);
   auto* event_observer_ptr = event_observer_.get();
 
   MetricEventObserverManager event_manager(
@@ -159,7 +160,7 @@ TEST_F(MetricEventObserverManagerTest, InitiallyDisabled_Delayed) {
   event_observer_ptr->RunCallback(metric_data);
   ASSERT_TRUE(metric_report_queue_->IsEmpty());
 
-  settings_->SetBoolean(kEventEnableSettingPath, true);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, true);
 
   task_environment_.FastForwardBy(init_delay / 2);
 
@@ -178,7 +179,7 @@ TEST_F(MetricEventObserverManagerTest, InitiallyDisabled_Delayed) {
 }
 
 TEST_F(MetricEventObserverManagerTest, InitiallyDisabled) {
-  settings_->SetBoolean(kEventEnableSettingPath, false);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, false);
   auto* event_observer_ptr = event_observer_.get();
 
   MetricEventObserverManager event_manager(
@@ -194,7 +195,7 @@ TEST_F(MetricEventObserverManagerTest, InitiallyDisabled) {
   ASSERT_FALSE(event_observer_ptr->GetReportingEnabled());
   EXPECT_TRUE(metric_report_queue_->IsEmpty());
 
-  settings_->SetBoolean(kEventEnableSettingPath, true);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, true);
 
   event_observer_ptr->RunCallback(metric_data);
 
@@ -244,7 +245,7 @@ TEST_F(MetricEventObserverManagerTest, DefaultDisabled) {
 }
 
 TEST_F(MetricEventObserverManagerTest, EventDrivenTelemetry) {
-  settings_->SetBoolean(kEventEnableSettingPath, true);
+  settings_->SetReportingEnabled(kEventEnableSettingPath, true);
   auto* event_observer_ptr = event_observer_.get();
   MetricEventType network_event = MetricEventType::WIFI_SIGNAL_STRENGTH_LOW;
 
@@ -283,6 +284,39 @@ TEST_F(MetricEventObserverManagerTest, EventDrivenTelemetry) {
   EXPECT_TRUE(metric_data_reported.has_event_data());
   EXPECT_THAT(metric_data_reported.event_data().type(), Eq(network_event));
   EXPECT_TRUE(metric_report_queue_->IsEmpty());
+}
+
+TEST_F(MetricEventObserverManagerTest, ReportsEnqueuedEventsToUMA) {
+  settings_->SetReportingEnabled(kEventEnableSettingPath, true);
+
+  auto* const event_observer_ptr = event_observer_.get();
+  MetricEventObserverManager event_manager(
+      std::move(event_observer_), metric_report_queue_.get(), settings_.get(),
+      kEventEnableSettingPath, /*setting_enabled_default_value=*/false,
+      /*collector_pool=*/nullptr);
+  ASSERT_TRUE(event_observer_ptr->GetReportingEnabled());
+
+  static constexpr MetricEventType kEventType = MetricEventType::FATAL_CRASH;
+  MetricData metric_data;
+  metric_data.mutable_event_data()->set_type(kEventType);
+
+  const base::HistogramTester histogram_tester;
+  static constexpr size_t kTotalRecordCount = 2;
+  for (size_t record_count = 1; record_count <= kTotalRecordCount;
+       ++record_count) {
+    event_observer_ptr->RunCallback(metric_data);
+    const MetricData metric_data_reported =
+        metric_report_queue_->GetMetricDataReported();
+    EXPECT_TRUE(metric_data_reported.has_timestamp_ms());
+    ASSERT_TRUE(metric_data_reported.has_event_data());
+    EXPECT_THAT(metric_data_reported.event_data().type(), Eq(kEventType));
+    histogram_tester.ExpectBucketCount(
+        MetricEventObserverManager::kEventMetricEnqueuedMetricsName, kEventType,
+        record_count);
+    histogram_tester.ExpectTotalCount(
+        MetricEventObserverManager::kEventMetricEnqueuedMetricsName,
+        record_count);
+  }
 }
 
 }  // namespace

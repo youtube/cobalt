@@ -12,15 +12,16 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
+#include "base/scoped_observation.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "build/chromeos_buildflags.h"
 #include "components/content_settings/core/browser/content_settings_observer.h"
 #include "components/content_settings/core/common/content_settings_pattern.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/prefs/pref_change_registrar.h"
 #include "components/signin/core/browser/account_reconcilor_delegate.h"
 #include "components/signin/core/browser/account_reconcilor_throttler.h"
 #include "components/signin/core/browser/signin_header_helper.h"
@@ -33,14 +34,11 @@
 #include "components/account_manager_core/account_manager_facade.h"
 #endif
 
+class PrefRegistrySimple;
+
 namespace signin {
 class AccountReconcilorDelegate;
 enum class SetAccountsInCookieResult;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-class ConsistencyCookieManager;
-class ConsistencyCookieManagerTest;
-#endif
 }  // namespace signin
 
 class SigninClient;
@@ -69,22 +67,6 @@ class AccountReconcilor
    private:
     base::WeakPtr<AccountReconcilor> reconcilor_;
     THREAD_CHECKER(thread_checker_);
-  };
-
-  // Helper class to indicate that synced data is being deleted. The object
-  // must be destroyed when the data deletion is complete.
-  class ScopedSyncedDataDeletion {
-   public:
-    ScopedSyncedDataDeletion(const ScopedSyncedDataDeletion&) = delete;
-    ScopedSyncedDataDeletion& operator=(const ScopedSyncedDataDeletion&) =
-        delete;
-
-    ~ScopedSyncedDataDeletion();
-
-   private:
-    friend class AccountReconcilor;
-    explicit ScopedSyncedDataDeletion(AccountReconcilor* reconcilor);
-    base::WeakPtr<AccountReconcilor> reconcilor_;
   };
 
   class Observer {
@@ -127,6 +109,8 @@ class AccountReconcilor
 
   ~AccountReconcilor() override;
 
+  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
+
   // Initializes the account reconcilor. Should be called once after
   // construction.
   void Initialize(bool start_reconcile_if_tokens_available);
@@ -151,11 +135,6 @@ class AccountReconcilor
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
 
-  // ScopedSyncedDataDeletion can be created when synced data is being removed
-  // and destroyed when the deletion is complete. It prevents the Sync account
-  // from being invalidated during the deletion.
-  std::unique_ptr<ScopedSyncedDataDeletion> GetScopedSyncDataDeletion();
-
   // Returns true if reconcilor is blocked.
   bool IsReconcileBlocked() const;
 
@@ -164,12 +143,6 @@ class AccountReconcilor
   // If the last reconciliation attempt was successful, this will be
   // `GoogleServiceAuthError::State::NONE`.
   GoogleServiceAuthError GetReconcileError() const;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  // Gets the ConsistencyCookieManager, which updates the
-  // "CHROME_ID_CONSISTENCY_STATE" cookie.
-  signin::ConsistencyCookieManager* GetConsistencyCookieManager();
-#endif
 
  protected:
   void OnSetAccountsInCookieCompleted(
@@ -183,10 +156,6 @@ class AccountReconcilor
   friend class AccountReconcilorThrottlerTest;
   friend class BaseAccountReconcilorTestTable;
   friend class DiceBrowserTest;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  friend class signin::ConsistencyCookieManagerTest;
-#endif
 
 #if BUILDFLAG(ENABLE_MIRROR)
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTest,
@@ -234,7 +203,17 @@ class AccountReconcilor
                            HandleSigninDuringReconcile);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
                            DiceReconcileReuseGaiaFirstAccount);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
+                           DeleteCookieForNonSyncingSupervisedUsers);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
+                           DeleteCookieForSyncingSupervisedUsers);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest, DeleteCookie);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
+                           DeleteCookieForSignedInUser);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
+                           DeleteCookieForSyncingUser);
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorDiceTest,
+                           PendingStateThenClearPrimaryAccount);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorMirrorTest, TokensNotLoaded);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorMirrorTest,
                            StartReconcileCookiesDisabled);
@@ -298,11 +277,13 @@ class AccountReconcilor
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTestForceDiceMigration,
                            TableRowTest);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTestActiveDirectory,
-                           TableRowTestMergeSession);
-  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTestActiveDirectory,
                            TableRowTestMultilogin);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTest, ReconcileAfterShutdown);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTest, UnlockAfterShutdown);
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  FRIEND_TEST_ALL_PREFIXES(AccountReconcilorTest,
+                           OnAccountsInCookieUpdatedLogoutInProgress);
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorThrottlerTest, RefillOneRequest);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorThrottlerTest, RefillFiveRequests);
   FRIEND_TEST_ALL_PREFIXES(AccountReconcilorThrottlerTest,
@@ -324,6 +305,8 @@ class AccountReconcilor
   // Event triggering a call to StartReconcile().
   // These values are persisted to logs. Entries should not be renumbered and
   // numeric values should never be reused.
+  //
+  // LINT.IfChange(Trigger)
   enum class Trigger {
     kInitialized = 0,
     kTokensLoaded = 1,
@@ -334,9 +317,11 @@ class AccountReconcilor
     kCookieChange = 6,
     kCookieSettingChange = 7,
     kForcedReconcile = 8,
+    kPrimaryAccountChanged = 9,
 
-    kMaxValue = kForcedReconcile
+    kMaxValue = kPrimaryAccountChanged
   };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/signin/enums.xml:SigninReconcilerTrigger)
 
   void set_timer_for_testing(std::unique_ptr<base::OneShotTimer> timer);
 
@@ -396,15 +381,21 @@ class AccountReconcilor
       ContentSettingsTypeSet content_type_set) override;
 
   // Overridden from signin::IdentityManager::Observer.
+  void OnPrimaryAccountChanged(
+      const signin::PrimaryAccountChangeEvent& event_details) override;
   void OnEndBatchOfRefreshTokenStateChanges() override;
   void OnRefreshTokensLoaded() override;
   void OnErrorStateOfRefreshTokenUpdatedForAccount(
       const CoreAccountInfo& account_info,
-      const GoogleServiceAuthError& error) override;
+      const GoogleServiceAuthError& error,
+      signin_metrics::SourceForRefreshTokenOperation token_operation_source)
+      override;
   void OnAccountsInCookieUpdated(
       const signin::AccountsInCookieJarInfo& accounts_in_cookie_jar_info,
       const GoogleServiceAuthError& error) override;
   void OnAccountsCookieDeletedByUserAction() override;
+  void OnIdentityManagerShutdown(
+      signin::IdentityManager* identity_manager) override;
 
   void FinishReconcileWithMultiloginEndpoint(
       const CoreAccountId& primary_account,
@@ -456,9 +447,16 @@ class AccountReconcilor
 
   // The IdentityManager associated with this reconcilor.
   raw_ptr<signin::IdentityManager> identity_manager_;
+  base::ScopedObservation<signin::IdentityManager,
+                          signin::IdentityManager::Observer>
+      identity_manager_observer_{this};
 
   // The SigninClient associated with this reconcilor.
   raw_ptr<SigninClient> client_;
+
+#if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  PrefChangeRegistrar pref_observer_;
+#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
 #if BUILDFLAG(IS_CHROMEOS)
   // On Ash, this is a pointer to `AccountManagerFacadeImpl`.
@@ -501,8 +499,8 @@ class AccountReconcilor
   bool reconcile_is_noop_ = true;
 
   // Used during reconcile action.
-  bool set_accounts_in_progress_ = false;     // Progress of SetAccounts calls.
-  bool log_out_in_progress_ = false;          // Progress of LogOut calls.
+  bool set_accounts_in_progress_ = false;  // Progress of SetAccounts calls.
+  bool log_out_in_progress_ = false;       // Progress of LogOut calls.
   bool chrome_accounts_changed_ = false;
 
   // Used for the Lock.
@@ -525,10 +523,6 @@ class AccountReconcilor
       std::make_unique<base::OneShotTimer>();
   base::TimeDelta timeout_;
 
-  // Greater than 0 when synced data is being deleted, and it is important to
-  // not invalidate the primary token while this is happening.
-  int synced_data_deletion_in_progress_count_ = 0;
-
   // Note: when the reconcilor is blocked with `BlockReconcile()` the state is
   // set to kScheduled rather than kInactive as this is only used to temporarily
   // suspend the reconcilor.
@@ -537,10 +531,6 @@ class AccountReconcilor
 
   // Set to true when Shutdown() is called.
   bool was_shut_down_ = false;
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-  std::unique_ptr<signin::ConsistencyCookieManager> consistency_cookie_manager_;
-#endif
 
   base::WeakPtrFactory<AccountReconcilor> weak_factory_{this};
 };

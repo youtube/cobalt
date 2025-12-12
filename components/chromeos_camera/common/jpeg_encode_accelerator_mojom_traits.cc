@@ -30,7 +30,6 @@ EnumTraits<chromeos_camera::mojom::EncodeStatus,
       return chromeos_camera::mojom::EncodeStatus::PLATFORM_FAILURE;
   }
   NOTREACHED();
-  return chromeos_camera::mojom::EncodeStatus::ENCODE_OK;
 }
 
 // static
@@ -65,7 +64,6 @@ bool EnumTraits<chromeos_camera::mojom::EncodeStatus,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

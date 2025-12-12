@@ -5,19 +5,28 @@
 #ifndef QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 #define QUICHE_QUIC_CORE_CRYPTO_TLS_SERVER_CONNECTION_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/crypto/tls_connection.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
 // TlsServerConnection receives calls for client-specific BoringSSL callbacks
 // and calls its Delegate for the implementation of those callbacks.
-class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
+class QUICHE_EXPORT TlsServerConnection : public TlsConnection {
  public:
   // A TlsServerConnection::Delegate implement the server-specific methods that
   // are set as callbacks for an SSL object.
-  class QUIC_EXPORT_PRIVATE Delegate {
+  class QUICHE_EXPORT Delegate {
    public:
     virtual ~Delegate() {}
 
@@ -120,7 +129,16 @@ class QUIC_EXPORT_PRIVATE TlsServerConnection : public TlsConnection {
   // Creates and configures an SSL_CTX that is appropriate for servers to use.
   static bssl::UniquePtr<SSL_CTX> CreateSslCtx(ProofSource* proof_source);
 
-  void SetCertChain(const std::vector<CRYPTO_BUFFER*>& cert_chain);
+  // Invoke |configure_ssl| to configure the SSL object.
+  absl::Status ConfigureSSL(
+      ProofSourceHandleCallback::ConfigureSSLFunc configure_ssl);
+
+  // If |trust_anchor_id| is non-empty, it will be configured as the
+  // trust anchor ID for |cert_chain|, and BoringSSL will be
+  // configured to enforce issuer matching on this certificate. See
+  // https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#section-4.1.
+  void SetCertChain(const std::vector<CRYPTO_BUFFER*>& cert_chain,
+                    const std::string& trust_anchor_id);
 
   // Set the client cert mode to be used on this connection. This should be
   // called right after cert selection at the latest, otherwise it is too late

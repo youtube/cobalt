@@ -8,16 +8,18 @@ import android.content.Context;
 import android.text.format.DateUtils;
 
 import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
 import org.chromium.components.browser_ui.util.R;
 
 import java.util.Calendar;
 import java.util.Date;
 
 /** Helper methods to deal with converting dates to various strings. */
+@NullMarked
 public class StringUtils {
     private static final class LazyHolder {
-        private static Calendar sCalendar1 = CalendarFactory.get();
-        private static Calendar sCalendar2 = CalendarFactory.get();
+        private static final Calendar sCalendar1 = CalendarFactory.get();
+        private static final Calendar sCalendar2 = CalendarFactory.get();
     }
 
     private StringUtils() {}
@@ -43,9 +45,13 @@ public class StringUtils {
             }
         }
 
-        builder.append(DateUtils.formatDateTime(context, date.getTime(),
-                DateUtils.FORMAT_ABBREV_WEEKDAY | DateUtils.FORMAT_ABBREV_MONTH
-                        | DateUtils.FORMAT_SHOW_YEAR));
+        builder.append(
+                DateUtils.formatDateTime(
+                        context,
+                        date.getTime(),
+                        DateUtils.FORMAT_ABBREV_WEEKDAY
+                                | DateUtils.FORMAT_ABBREV_MONTH
+                                | DateUtils.FORMAT_SHOW_YEAR));
 
         return builder;
     }

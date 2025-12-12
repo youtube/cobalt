@@ -8,7 +8,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Proxy;
+import android.os.Build;
 
+import androidx.annotation.RequiresApi;
+
+import org.chromium.build.annotations.NullMarked;
+
+@NullMarked
 final class ProxyBroadcastReceiver extends BroadcastReceiver {
     private final ProxyChangeListener mListener;
 
@@ -17,8 +23,9 @@ final class ProxyBroadcastReceiver extends BroadcastReceiver {
     }
 
     @Override
+    @RequiresApi(Build.VERSION_CODES.M)
     public void onReceive(Context context, final Intent intent) {
-        if (intent.getAction().equals(Proxy.PROXY_CHANGE_ACTION)) {
+        if (Proxy.PROXY_CHANGE_ACTION.equals(intent.getAction())) {
             mListener.updateProxyConfigFromConnectivityManager(intent);
         }
     }

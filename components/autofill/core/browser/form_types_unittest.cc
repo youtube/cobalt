@@ -4,27 +4,25 @@
 
 #include "components/autofill/core/browser/form_types.h"
 
-#include "components/autofill/core/browser/autofill_form_test_utils.h"
-#include "components/autofill/core/browser/autofill_test_utils.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/form_structure_test_api.h"
+#include "components/autofill/core/browser/test_utils/autofill_form_test_utils.h"
+#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace autofill {
-
-using autofill::ServerFieldType;
-using std::string;
+namespace {
 
 struct FormTypesTestCase {
-  std::vector<ServerFieldType> field_types;
+  std::vector<FieldType> field_types;
   std::vector<std::u16string> field_values;
   bool expected_result;
 };
 
-autofill::FormFieldData CreateFieldWithValue(std::u16string value) {
+FormFieldData CreateFieldWithValue(std::u16string value) {
   FormFieldData field;
-  field.value = value;
+  field.set_value(value);
   return field;
 }
 
@@ -36,12 +34,14 @@ class FormTypesTest : public testing::TestWithParam<FormTypesTestCase> {
 TEST_P(FormTypesTest, FormHasFillableCreditCardFields) {
   FormTypesTestCase test_case = GetParam();
 
-  FormData form;
+  std::vector<FormFieldData> fields;
   for (const auto& value : test_case.field_values) {
-    form.fields.emplace_back(CreateFieldWithValue(value));
+    fields.push_back(CreateFieldWithValue(value));
   }
+  FormData form;
+  form.set_fields(std::move(fields));
   FormStructure form_structure(form);
-  FormStructureTestApi(&form_structure).SetFieldTypes(test_case.field_types);
+  test_api(form_structure).SetFieldTypes(test_case.field_types);
 
   EXPECT_THAT(FormHasAllCreditCardFields(form_structure),
               testing::Eq(test_case.expected_result));
@@ -57,4 +57,5 @@ INSTANTIATE_TEST_SUITE_P(
                                       true},
                     FormTypesTestCase{{CREDIT_CARD_NUMBER}, {u""}, false}));
 
+}  // namespace
 }  // namespace autofill

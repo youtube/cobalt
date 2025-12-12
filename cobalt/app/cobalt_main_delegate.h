@@ -15,6 +15,8 @@
 #ifndef COBALT_APP_COBALT_MAIN_DELEGATE_H_
 #define COBALT_APP_COBALT_MAIN_DELEGATE_H_
 
+#include <optional>
+
 #include "build/build_config.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
@@ -22,29 +24,28 @@
 #include "cobalt/shell/app/shell_main_delegate.h"
 #include "cobalt/utility/cobalt_content_utility_client.h"
 #include "content/public/browser/browser_main_runner.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 
 class CobaltMainDelegate : public content::ShellMainDelegate {
  public:
-  explicit CobaltMainDelegate(bool is_content_browsertests = false);
+  explicit CobaltMainDelegate();
 
   CobaltMainDelegate(const CobaltMainDelegate&) = delete;
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
 
   // ContentMainDelegate implementation:
-  absl::optional<int> BasicStartupComplete() override;
+  std::optional<int> BasicStartupComplete() override;
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   content::ContentGpuClient* CreateContentGpuClient() override;
   content::ContentRendererClient* CreateContentRendererClient() override;
   content::ContentUtilityClient* CreateContentUtilityClient() override;
-  absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
+  std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 
   // Override the RunProcess method to store the  reference to
   // BrowserMainRunner instead of leaking it. The reference would
   // be used for proper shutdown and cleanup.
-  absl::variant<int, content::MainFunctionParams> RunProcess(
+  std::variant<int, content::MainFunctionParams> RunProcess(
       const std::string& process_type,
       content::MainFunctionParams main_function_params) override;
 

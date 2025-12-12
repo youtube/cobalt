@@ -13,69 +13,65 @@
 #include <memory>
 #include <utility>
 
-#include "api/call/call_factory_interface.h"
+#include "api/audio/audio_device.h"
+#include "api/audio/audio_mixer.h"
+#include "api/audio/audio_processing.h"
+#include "api/audio/builtin_audio_processing_builder.h"
+#include "api/audio_codecs/audio_decoder_factory.h"
+#include "api/audio_codecs/audio_encoder_factory.h"
+#include "api/enable_media.h"
+#include "api/environment/environment_factory.h"
+#include "api/field_trials_view.h"
 #include "api/peer_connection_interface.h"
 #include "api/rtc_event_log/rtc_event_log_factory.h"
 #include "api/scoped_refptr.h"
-#include "api/task_queue/default_task_queue_factory.h"
-#include "api/transport/field_trial_based_config.h"
-#include "media/base/media_engine.h"
-#include "media/engine/webrtc_media_engine.h"
-#include "modules/audio_device/include/audio_device.h"
-#include "modules/audio_processing/include/audio_processing.h"
+#include "api/video_codecs/video_decoder_factory.h"
+#include "api/video_codecs/video_encoder_factory.h"
 #include "rtc_base/thread.h"
 
 namespace webrtc {
 
-rtc::scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
-    rtc::Thread* network_thread,
-    rtc::Thread* worker_thread,
-    rtc::Thread* signaling_thread,
-    rtc::scoped_refptr<AudioDeviceModule> default_adm,
-    rtc::scoped_refptr<AudioEncoderFactory> audio_encoder_factory,
-    rtc::scoped_refptr<AudioDecoderFactory> audio_decoder_factory,
+scoped_refptr<PeerConnectionFactoryInterface> CreatePeerConnectionFactory(
+    Thread* network_thread,
+    Thread* worker_thread,
+    Thread* signaling_thread,
+    scoped_refptr<AudioDeviceModule> default_adm,
+    scoped_refptr<AudioEncoderFactory> audio_encoder_factory,
+    scoped_refptr<AudioDecoderFactory> audio_decoder_factory,
     std::unique_ptr<VideoEncoderFactory> video_encoder_factory,
     std::unique_ptr<VideoDecoderFactory> video_decoder_factory,
-    rtc::scoped_refptr<AudioMixer> audio_mixer,
-    rtc::scoped_refptr<AudioProcessing> audio_processing,
-    AudioFrameProcessor* audio_frame_processor,
+    scoped_refptr<AudioMixer> audio_mixer,
+    scoped_refptr<AudioProcessing> audio_processing,
+    std::unique_ptr<AudioFrameProcessor> audio_frame_processor,
     std::unique_ptr<FieldTrialsView> field_trials) {
-  if (!field_trials) {
-    field_trials = std::make_unique<webrtc::FieldTrialBasedConfig>();
-  }
-
   PeerConnectionFactoryDependencies dependencies;
   dependencies.network_thread = network_thread;
   dependencies.worker_thread = worker_thread;
   dependencies.signaling_thread = signaling_thread;
-  dependencies.task_queue_factory =
-      CreateDefaultTaskQueueFactory(field_trials.get());
-  dependencies.call_factory = CreateCallFactory();
-  dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>(
-      dependencies.task_queue_factory.get());
-  dependencies.trials = std::move(field_trials);
+  dependencies.event_log_factory = std::make_unique<RtcEventLogFactory>();
+  dependencies.env = CreateEnvironment(std::move(field_trials));
 
   if (network_thread) {
-    // TODO(bugs.webrtc.org/13145): Add an rtc::SocketFactory* argument.
+    // TODO(bugs.webrtc.org/13145): Add an webrtc::SocketFactory* argument.
     dependencies.socket_factory = network_thread->socketserver();
   }
-  cricket::MediaEngineDependencies media_dependencies;
-  media_dependencies.task_queue_factory = dependencies.task_queue_factory.get();
-  media_dependencies.adm = std::move(default_adm);
-  media_dependencies.audio_encoder_factory = std::move(audio_encoder_factory);
-  media_dependencies.audio_decoder_factory = std::move(audio_decoder_factory);
-  media_dependencies.audio_frame_processor = audio_frame_processor;
-  if (audio_processing) {
-    media_dependencies.audio_processing = std::move(audio_processing);
+  dependencies.adm = std::move(default_adm);
+  dependencies.audio_encoder_factory = std::move(audio_encoder_factory);
+  dependencies.audio_decoder_factory = std::move(audio_decoder_factory);
+  dependencies.audio_frame_processor = std::move(audio_frame_processor);
+  if (audio_processing != nullptr) {
+    dependencies.audio_processing_builder =
+        CustomAudioProcessing(std::move(audio_processing));
   } else {
-    media_dependencies.audio_processing = AudioProcessingBuilder().Create();
+#ifndef WEBRTC_EXCLUDE_AUDIO_PROCESSING_MODULE
+    dependencies.audio_processing_builder =
+        std::make_unique<BuiltinAudioProcessingBuilder>();
+#endif
   }
-  media_dependencies.audio_mixer = std::move(audio_mixer);
-  media_dependencies.video_encoder_factory = std::move(video_encoder_factory);
-  media_dependencies.video_decoder_factory = std::move(video_decoder_factory);
-  media_dependencies.trials = dependencies.trials.get();
-  dependencies.media_engine =
-      cricket::CreateMediaEngine(std::move(media_dependencies));
+  dependencies.audio_mixer = std::move(audio_mixer);
+  dependencies.video_encoder_factory = std::move(video_encoder_factory);
+  dependencies.video_decoder_factory = std::move(video_decoder_factory);
+  EnableMedia(dependencies);
 
   return CreateModularPeerConnectionFactory(std::move(dependencies));
 }

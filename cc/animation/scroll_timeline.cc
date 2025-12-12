@@ -29,9 +29,9 @@ bool IsReverse(ScrollTimeline::ScrollDirection direction) {
 
 }  // namespace
 
-ScrollTimeline::ScrollTimeline(absl::optional<ElementId> scroller_id,
+ScrollTimeline::ScrollTimeline(std::optional<ElementId> scroller_id,
                                ScrollDirection direction,
-                               absl::optional<ScrollOffsets> scroll_offsets,
+                               std::optional<ScrollOffsets> scroll_offsets,
                                int animation_timeline_id)
     : AnimationTimeline(animation_timeline_id, /* is_impl_only */ false),
       pending_id_(scroller_id),
@@ -41,9 +41,9 @@ ScrollTimeline::ScrollTimeline(absl::optional<ElementId> scroller_id,
 ScrollTimeline::~ScrollTimeline() = default;
 
 scoped_refptr<ScrollTimeline> ScrollTimeline::Create(
-    absl::optional<ElementId> scroller_id,
+    std::optional<ElementId> scroller_id,
     ScrollTimeline::ScrollDirection direction,
-    absl::optional<ScrollOffsets> scroll_offsets) {
+    std::optional<ScrollOffsets> scroll_offsets) {
   return base::WrapRefCounted(
       new ScrollTimeline(scroller_id, direction, scroll_offsets,
                          AnimationIdProvider::NextTimelineId()));
@@ -76,14 +76,14 @@ bool ScrollTimeline::IsActive(const ScrollTree& scroll_tree,
 }
 
 // https://drafts.csswg.org/scroll-animations-1/#current-time-algorithm
-absl::optional<base::TimeTicks> ScrollTimeline::CurrentTime(
+std::optional<base::TimeTicks> ScrollTimeline::CurrentTime(
     const ScrollTree& scroll_tree,
     bool is_active_tree) const {
   // If the timeline is not active return unresolved value by the spec.
   // https://github.com/WICG/scroll-animations/issues/31
   // https://wicg.github.io/scroll-animations/#current-time-algorithm
   if (!IsActive(scroll_tree, is_active_tree)) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   ElementId scroller_id =
@@ -91,7 +91,8 @@ absl::optional<base::TimeTicks> ScrollTimeline::CurrentTime(
   const ScrollNode* scroll_node =
       scroll_tree.FindNodeFromElementId(scroller_id);
 
-  gfx::PointF offset = scroll_tree.GetPixelSnappedScrollOffset(scroll_node->id);
+  gfx::PointF offset =
+      scroll_tree.GetScrollOffsetForScrollTimeline(*scroll_node);
   DCHECK_GE(offset.x(), 0);
   DCHECK_GE(offset.y(), 0);
 
@@ -108,6 +109,23 @@ absl::optional<base::TimeTicks> ScrollTimeline::CurrentTime(
   DCHECK_GE(current_offset, 0);
 
   double start_offset = 0;
+  if (is_active_tree) {
+    DCHECK(active_offsets());
+    start_offset = active_offsets()->start;
+  } else {
+    DCHECK(pending_offsets());
+    start_offset = pending_offsets()->start;
+  }
+
+  int64_t progress_us = base::ClampRound((current_offset - start_offset) *
+                                         kScrollTimelineMicrosecondsPerPixel);
+  return base::TimeTicks() + base::Microseconds(progress_us);
+}
+
+std::optional<base::TimeTicks> ScrollTimeline::Duration(
+    const ScrollTree& scroll_tree,
+    bool is_active_tree) const {
+  double start_offset = 0;
   double end_offset = 0;
   if (is_active_tree) {
     DCHECK(active_offsets());
@@ -118,15 +136,9 @@ absl::optional<base::TimeTicks> ScrollTimeline::CurrentTime(
     start_offset = pending_offsets()->start;
     end_offset = pending_offsets()->end;
   }
-
-  // TODO(crbug.com/1338167): Update once
-  // github.com/w3c/csswg-drafts/issues/7401 is resolved.
-  double progress =
-      end_offset == start_offset
-          ? 1
-          : (current_offset - start_offset) / (end_offset - start_offset);
-  return base::TimeTicks() +
-         base::Milliseconds(progress * kScrollTimelineDurationMs);
+  int64_t duration_us = base::ClampRound((end_offset - start_offset) *
+                                         kScrollTimelineMicrosecondsPerPixel);
+  return base::TimeTicks() + base::Microseconds(duration_us);
 }
 
 void ScrollTimeline::PushPropertiesTo(AnimationTimeline* impl_timeline) {
@@ -151,7 +163,7 @@ bool ScrollTimeline::TickScrollLinkedAnimations(
     const std::vector<scoped_refptr<Animation>>& ticking_animations,
     const ScrollTree& scroll_tree,
     bool is_active_tree) {
-  absl::optional<base::TimeTicks> tick_time =
+  std::optional<base::TimeTicks> tick_time =
       CurrentTime(scroll_tree, is_active_tree);
   if (!tick_time)
     return false;
@@ -180,8 +192,8 @@ bool ScrollTimeline::TickScrollLinkedAnimations(
 }
 
 void ScrollTimeline::UpdateScrollerIdAndScrollOffsets(
-    absl::optional<ElementId> pending_id,
-    absl::optional<ScrollOffsets> pending_offsets) {
+    std::optional<ElementId> pending_id,
+    std::optional<ScrollOffsets> pending_offsets) {
   if (pending_id_.Read(*this) == pending_id &&
       pending_offsets_.Read(*this) == pending_offsets) {
     return;

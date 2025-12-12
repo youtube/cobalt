@@ -37,14 +37,14 @@ class BertModelExecutorTest : public testing::Test {
         optimization_guide_model_provider_.get(),
         task_environment_.GetMainThreadTaskRunner(),
         proto::OPTIMIZATION_TARGET_PAINFUL_PAGE_LOAD,
-        /*model_metadata=*/absl::nullopt);
+        /*model_metadata=*/std::nullopt);
   }
 
   void PushModelFileToModelExecutor(bool is_valid) {
     DCHECK(model_handler_);
 
     base::FilePath source_root_dir;
-    base::PathService::Get(base::DIR_SOURCE_ROOT, &source_root_dir);
+    base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &source_root_dir);
     base::FilePath model_file_path = source_root_dir.AppendASCII("components")
                                          .AppendASCII("test")
                                          .AppendASCII("data")
@@ -70,7 +70,7 @@ class BertModelExecutorTest : public testing::Test {
   std::unique_ptr<BertModelHandler> model_handler_;
 };
 
-// TODO(crbug.com/1337687): Running the model is slow and times out tests on
+// TODO(crbug.com/40848529): Running the model is slow and times out tests on
 // many platforms. Ideally, we can schedule this to run infrequently but for
 // now we will only load the model.
 TEST_F(BertModelExecutorTest, ValidBertModel) {
@@ -91,7 +91,7 @@ TEST_F(BertModelExecutorTest, InvalidBertModel) {
   model_handler()->ExecuteModelWithInput(
       base::BindOnce(
           [](base::RunLoop* run_loop,
-             const absl::optional<std::vector<tflite::task::core::Category>>&
+             const std::optional<std::vector<tflite::task::core::Category>>&
                  output) {
             EXPECT_FALSE(output.has_value());
             run_loop->Quit();

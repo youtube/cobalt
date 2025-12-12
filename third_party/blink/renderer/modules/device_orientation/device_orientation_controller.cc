@@ -5,10 +5,13 @@
 #include "third_party/blink/renderer/modules/device_orientation/device_orientation_controller.h"
 
 #include "base/notreached.h"
+#include "services/network/public/mojom/permissions_policy/permissions_policy_feature.mojom-blink.h"
+#include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
 #include "third_party/blink/public/mojom/permissions/permission_status.mojom-blink.h"
-#include "third_party/blink/public/mojom/permissions_policy/permissions_policy.mojom-blink.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_permission_state.h"
+#include "third_party/blink/renderer/core/frame/dactyloscoper.h"
 #include "third_party/blink/renderer/core/frame/frame_console.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -75,6 +78,8 @@ void DeviceOrientationController::DidAddEventListener(
     return;
 
   UseCounter::Count(GetWindow(), WebFeature::kDeviceOrientationSecureOrigin);
+  Dactyloscoper::RecordDirectSurface(
+      &GetWindow(), WebFeature::kDeviceOrientationSecureOrigin, String());
 
   if (!has_requested_permission_) {
     UseCounter::Count(
@@ -84,8 +89,8 @@ void DeviceOrientationController::DidAddEventListener(
 
   if (!has_event_listener_) {
     if (!CheckPolicyFeatures(
-            {mojom::blink::PermissionsPolicyFeature::kAccelerometer,
-             mojom::blink::PermissionsPolicyFeature::kGyroscope})) {
+            {network::mojom::PermissionsPolicyFeature::kAccelerometer,
+             network::mojom::PermissionsPolicyFeature::kGyroscope})) {
       LogToConsolePolicyFeaturesDisabled(*GetWindow().GetFrame(),
                                          EventTypeName());
       return;
@@ -144,6 +149,20 @@ void DeviceOrientationController::ClearOverride() {
     DidUpdateData();
 }
 
+void DeviceOrientationController::RestartPumpIfNeeded() {
+  if (!orientation_event_pump_ || !has_event_listener_) {
+    return;
+  }
+  // We do this to make sure that existing connections to
+  // device::mojom::blink::Sensor instances are dropped and GetSensor() is
+  // called again, so that e.g. the virtual sensors are used when added, or the
+  // real ones are used again when the virtual sensors are removed.
+  StopUpdating();
+  set_needs_checking_null_events(/*enabled=*/true);
+  orientation_event_pump_.Clear();
+  StartUpdating();
+}
+
 void DeviceOrientationController::Trace(Visitor* visitor) const {
   visitor->Trace(override_orientation_data_);
   visitor->Trace(orientation_event_pump_);
@@ -161,7 +180,7 @@ void DeviceOrientationController::RegisterWithOrientationEventPump(
   orientation_event_pump_->SetController(this);
 }
 
-ScriptPromise DeviceOrientationController::RequestPermission(
+ScriptPromise<V8PermissionState> DeviceOrientationController::RequestPermission(
     ScriptState* script_state) {
   ExecutionContext* context = GetSupplementable();
   DCHECK_EQ(context, ExecutionContext::From(script_state));
@@ -174,18 +193,20 @@ ScriptPromise DeviceOrientationController::RequestPermission(
                                    context->GetTaskRunner(TaskType::kSensor)));
   }
 
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
-  ScriptPromise promise = resolver->Promise();
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<V8PermissionState>>(
+          script_state);
+  auto promise = resolver->Promise();
 
   permission_service_->HasPermission(
       CreatePermissionDescriptor(mojom::blink::PermissionName::SENSORS),
       resolver->WrapCallbackInScriptScope(
-          WTF::BindOnce([](ScriptPromiseResolver* resolver,
+          WTF::BindOnce([](ScriptPromiseResolver<V8PermissionState>* resolver,
                            mojom::blink::PermissionStatus status) {
             switch (status) {
               case mojom::blink::PermissionStatus::GRANTED:
               case mojom::blink::PermissionStatus::DENIED:
-                resolver->Resolve(PermissionStatusToString(status));
+                resolver->Resolve(ToV8PermissionState(status));
                 break;
               case mojom::blink::PermissionStatus::ASK:
                 // At the moment, this state is not reachable because there
@@ -193,7 +214,6 @@ ScriptPromise DeviceOrientationController::RequestPermission(
                 // permissions UI for sensors, so HasPermissionStatus() will
                 // always return GRANTED or DENIED.
                 NOTREACHED();
-                break;
             }
           })));
 

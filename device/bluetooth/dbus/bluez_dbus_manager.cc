@@ -61,17 +61,11 @@ BluezDBusManager::BluezDBusManager(dbus::Bus* bus,
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   if (!use_dbus_fakes) {
-    // Make sure that Floss manager daemon is in agreement with Chrome about the
-    // state of Floss enable/disable.
-    dbus::MethodCall floss_method_call(dbus::kObjectManagerInterface,
-                                       dbus::kObjectManagerGetManagedObjects);
+    // Wait for the Floss Manager to be available
     GetSystemBus()
         ->GetObjectProxy(floss::kManagerService, dbus::ObjectPath("/"))
-        ->CallMethodWithErrorCallback(
-            &floss_method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
-            base::BindOnce(&BluezDBusManager::OnFlossObjectManagerSupported,
-                           weak_ptr_factory_.GetWeakPtr()),
-            base::BindOnce(&BluezDBusManager::OnFlossObjectManagerNotSupported,
+        ->WaitForServiceToBeAvailable(
+            base::BindOnce(&BluezDBusManager::OnFlossManagerServiceAvailable,
                            weak_ptr_factory_.GetWeakPtr()));
   }
 
@@ -235,11 +229,33 @@ void BluezDBusManager::OnObjectManagerNotSupported(
     std::move(object_manager_support_known_callback_).Run();
 }
 
+void BluezDBusManager::OnFlossManagerServiceAvailable(bool is_available) {
+  if (!is_available) {
+    LOG(WARNING) << "Floss manager service not available, cannot set Floss "
+                    "enable/disable.";
+    return;
+  }
+
+  // Make sure that Floss manager daemon is in agreement with Chrome about the
+  // state of Floss enable/disable.
+  dbus::MethodCall floss_method_call(dbus::kObjectManagerInterface,
+                                     dbus::kObjectManagerGetManagedObjects);
+  GetSystemBus()
+      ->GetObjectProxy(floss::kManagerService, dbus::ObjectPath("/"))
+      ->CallMethodWithErrorCallback(
+          &floss_method_call, dbus::ObjectProxy::TIMEOUT_USE_DEFAULT,
+          base::BindOnce(&BluezDBusManager::OnFlossObjectManagerSupported,
+                         weak_ptr_factory_.GetWeakPtr()),
+          base::BindOnce(&BluezDBusManager::OnFlossObjectManagerNotSupported,
+                         weak_ptr_factory_.GetWeakPtr()));
+}
+
 void BluezDBusManager::OnFlossObjectManagerSupported(dbus::Response* response) {
   DVLOG(1) << "Floss manager present. Making sure Floss is enabled/disabled.";
   floss_manager_client_ = floss::FlossManagerClient::Create();
   floss_manager_client_->Init(GetSystemBus(), floss::kManagerInterface,
-                              /*adapter_index=*/0, base::DoNothing());
+                              /*adapter_index=*/0, base::Version(),
+                              base::DoNothing());
 }
 
 void BluezDBusManager::OnFlossObjectManagerNotSupported(

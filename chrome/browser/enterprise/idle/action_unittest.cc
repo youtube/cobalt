@@ -10,7 +10,7 @@
 
 namespace enterprise_idle {
 
-// TODO(crbug.com/1316551): Enable this when Android supports >1 Action.
+// TODO(crbug.com/40222234): Enable this when Android supports >1 Action.
 #if !BUILDFLAG(IS_ANDROID)
 TEST(IdleActionTest, Build) {
   auto* factory = ActionFactory::GetInstance();
@@ -18,29 +18,35 @@ TEST(IdleActionTest, Build) {
   auto queue = factory->Build(
       nullptr, {ActionType::kCloseBrowsers, ActionType::kShowProfilePicker});
   EXPECT_EQ(2u, queue.size());
-  EXPECT_EQ(0, queue.top()->priority());  // CloseBrowsersAction
+  EXPECT_EQ(static_cast<int>(ActionType::kCloseBrowsers),
+            queue.top()->priority());
   queue.pop();
-  EXPECT_EQ(1, queue.top()->priority());  // ShowProfilePickerAction
+  EXPECT_EQ(static_cast<int>(ActionType::kShowProfilePicker),
+            queue.top()->priority());
 
   queue = factory->Build(nullptr, {ActionType::kCloseBrowsers});
   EXPECT_EQ(1u, queue.size());
-  EXPECT_EQ(0, queue.top()->priority());  // CloseBrowsersAction
+  EXPECT_EQ(static_cast<int>(ActionType::kCloseBrowsers),
+            queue.top()->priority());
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 TEST(IdleActionTest, ClearBrowsingDataIsSingleAction) {
   auto* factory = ActionFactory::GetInstance();
 
-  auto queue = factory->Build(
-      nullptr,
-      {ActionType::kClearBrowsingHistory, ActionType::kClearDownloadHistory,
-       ActionType::kClearCookiesAndOtherSiteData,
-       ActionType::kClearCachedImagesAndFiles,
-       ActionType::kClearCachedImagesAndFiles, ActionType::kClearPasswordSignin,
-       ActionType::kClearAutofill, ActionType::kClearSiteSettings,
-       ActionType::kClearHostedAppData});
+  auto queue = factory->Build(nullptr, {
+#if !BUILDFLAG(IS_ANDROID)
+    ActionType::kClearDownloadHistory, ActionType::kClearHostedAppData,
+#endif  // !BUILDFLAG(IS_ANDROID)
+        ActionType::kClearBrowsingHistory,
+        ActionType::kClearCookiesAndOtherSiteData,
+        ActionType::kClearCachedImagesAndFiles,
+        ActionType::kClearPasswordSignin, ActionType::kClearAutofill,
+        ActionType::kClearSiteSettings
+  });
   EXPECT_EQ(1u, queue.size());
-  EXPECT_EQ(2, queue.top()->priority());  // ClearBrowsingDataAction
+  EXPECT_EQ(static_cast<int>(ActionType::kClearBrowsingHistory),
+            queue.top()->priority());
 }
 
 }  // namespace enterprise_idle

@@ -12,12 +12,17 @@
 #define PC_TEST_FRAME_GENERATOR_CAPTURER_VIDEO_TRACK_SOURCE_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
+#include "api/media_stream_interface.h"
 #include "api/task_queue/default_task_queue_factory.h"
 #include "api/task_queue/task_queue_factory.h"
 #include "api/test/create_frame_generator.h"
+#include "api/video/video_frame.h"
+#include "api/video/video_source_interface.h"
 #include "pc/video_track_source.h"
+#include "system_wrappers/include/clock.h"
 #include "test/frame_generator_capturer.h"
 
 namespace webrtc {
@@ -49,7 +54,7 @@ class FrameGeneratorCapturerVideoTrackSource : public VideoTrackSource {
     video_capturer_ = std::make_unique<test::FrameGeneratorCapturer>(
         clock,
         test::CreateSquareFrameGenerator(config.width, config.height,
-                                         absl::nullopt,
+                                         std::nullopt,
                                          config.num_squares_generated),
         config.frames_per_second, *task_queue_factory_);
     video_capturer_->Init();
@@ -64,14 +69,20 @@ class FrameGeneratorCapturerVideoTrackSource : public VideoTrackSource {
 
   ~FrameGeneratorCapturerVideoTrackSource() = default;
 
-  void Start() { SetState(kLive); }
+  void Start() {
+    SetState(kLive);
+    video_capturer_->Start();
+  }
 
-  void Stop() { SetState(kMuted); }
+  void Stop() {
+    SetState(kMuted);
+    video_capturer_->Stop();
+  }
 
   bool is_screencast() const override { return is_screencast_; }
 
  protected:
-  rtc::VideoSourceInterface<VideoFrame>* source() override {
+  VideoSourceInterface<VideoFrame>* source() override {
     return video_capturer_.get();
   }
 

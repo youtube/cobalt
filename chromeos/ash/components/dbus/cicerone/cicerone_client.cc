@@ -90,10 +90,6 @@ class CiceroneClientImpl : public CiceroneClient {
     return is_lxd_container_starting_signal_connected_;
   }
 
-  bool IsLxdContainerStoppingSignalConnected() override {
-    return is_lxd_container_stopping_signal_connected_;
-  }
-
   bool IsExportLxdContainerProgressSignalConnected() override {
     return is_export_lxd_container_progress_signal_connected_;
   }
@@ -148,7 +144,7 @@ class CiceroneClientImpl : public CiceroneClient {
       LOG(ERROR)
           << "Failed to encode LaunchContainerApplicationRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
 
       return;
     }
@@ -173,7 +169,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode ContainerAppIonRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -195,7 +191,7 @@ class CiceroneClientImpl : public CiceroneClient {
 
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode LinuxPackageInfoRequest protobuf";
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
 
@@ -218,7 +214,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode InstallLinuxPackageRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -243,7 +239,7 @@ class CiceroneClientImpl : public CiceroneClient {
       LOG(ERROR)
           << "Failed to encode UninstallPackageOwningFileRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -266,7 +262,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode CreateLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -288,7 +284,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode DeleteLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -310,7 +306,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode StartLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -332,7 +328,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode StopLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -356,7 +352,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode GetLxdContainerUsernameRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -380,7 +376,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode SetUpLxdContainerUserRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -402,7 +398,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode ExportLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -424,7 +420,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode ImportLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -448,7 +444,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode CancelExportLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -473,7 +469,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode CancelImportLxdContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -497,7 +493,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode ApplyAnsiblePlaybookRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -521,7 +517,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode ConfigureForArcSideloadRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -543,7 +539,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode UpgradeContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -567,7 +563,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode CancelUpgradeContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -589,7 +585,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode StartLxdRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -611,7 +607,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode AddFileWatchRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -633,7 +629,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode RemoveFileWatchRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -655,7 +651,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode GetVshSessionRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -678,7 +674,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode AttachUsbToContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -702,7 +698,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode DetachUsbFromContainerRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -741,7 +737,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode GetVshSessionRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -764,7 +760,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode GetVshSessionRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -788,7 +784,7 @@ class CiceroneClientImpl : public CiceroneClient {
     if (!writer.AppendProtoAsArrayOfBytes(request)) {
       LOG(ERROR) << "Failed to encode UpdateContainerDevicesRequest protobuf";
       base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-          FROM_HERE, base::BindOnce(std::move(callback), absl::nullopt));
+          FROM_HERE, base::BindOnce(std::move(callback), std::nullopt));
       return;
     }
 
@@ -884,13 +880,6 @@ class CiceroneClientImpl : public CiceroneClient {
                        weak_ptr_factory_.GetWeakPtr()));
     cicerone_proxy_->ConnectToSignal(
         vm_tools::cicerone::kVmCiceroneInterface,
-        vm_tools::cicerone::kLxdContainerStoppingSignal,
-        base::BindRepeating(&CiceroneClientImpl::OnLxdContainerStoppingSignal,
-                            weak_ptr_factory_.GetWeakPtr()),
-        base::BindOnce(&CiceroneClientImpl::OnSignalConnected,
-                       weak_ptr_factory_.GetWeakPtr()));
-    cicerone_proxy_->ConnectToSignal(
-        vm_tools::cicerone::kVmCiceroneInterface,
         vm_tools::cicerone::kExportLxdContainerProgressSignal,
         base::BindRepeating(
             &CiceroneClientImpl::OnExportLxdContainerProgressSignal,
@@ -976,14 +965,14 @@ class CiceroneClientImpl : public CiceroneClient {
   void OnDBusProtoResponse(chromeos::DBusMethodCallback<ResponseProto> callback,
                            dbus::Response* dbus_response) {
     if (!dbus_response) {
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     ResponseProto reponse_proto;
     dbus::MessageReader reader(dbus_response);
     if (!reader.PopArrayOfBytesAsProto(&reponse_proto)) {
       LOG(ERROR) << "Failed to parse proto from DBus Response.";
-      std::move(callback).Run(absl::nullopt);
+      std::move(callback).Run(std::nullopt);
       return;
     }
     std::move(callback).Run(std::move(reponse_proto));
@@ -1108,18 +1097,6 @@ class CiceroneClientImpl : public CiceroneClient {
     }
     for (auto& observer : observer_list_) {
       observer.OnLxdContainerStarting(proto);
-    }
-  }
-
-  void OnLxdContainerStoppingSignal(dbus::Signal* signal) {
-    vm_tools::cicerone::LxdContainerStoppingSignal proto;
-    dbus::MessageReader reader(signal);
-    if (!reader.PopArrayOfBytesAsProto(&proto)) {
-      LOG(ERROR) << "Failed to parse proto from DBus Signal";
-      return;
-    }
-    for (auto& observer : observer_list_) {
-      observer.OnLxdContainerStopping(proto);
     }
   }
 
@@ -1272,8 +1249,6 @@ class CiceroneClientImpl : public CiceroneClient {
       is_tremplin_started_signal_connected_ = is_connected;
     } else if (signal_name == vm_tools::cicerone::kLxdContainerStartingSignal) {
       is_lxd_container_starting_signal_connected_ = is_connected;
-    } else if (signal_name == vm_tools::cicerone::kLxdContainerStoppingSignal) {
-      is_lxd_container_stopping_signal_connected_ = is_connected;
     } else if (signal_name ==
                vm_tools::cicerone::kExportLxdContainerProgressSignal) {
       is_export_lxd_container_progress_signal_connected_ = is_connected;
@@ -1305,7 +1280,7 @@ class CiceroneClientImpl : public CiceroneClient {
     }
   }
 
-  raw_ptr<dbus::ObjectProxy, ExperimentalAsh> cicerone_proxy_ = nullptr;
+  raw_ptr<dbus::ObjectProxy> cicerone_proxy_ = nullptr;
 
   base::ObserverList<Observer>::Unchecked observer_list_;
 
@@ -1318,7 +1293,6 @@ class CiceroneClientImpl : public CiceroneClient {
   bool is_lxd_container_downloading_signal_connected_ = false;
   bool is_tremplin_started_signal_connected_ = false;
   bool is_lxd_container_starting_signal_connected_ = false;
-  bool is_lxd_container_stopping_signal_connected_ = false;
   bool is_export_lxd_container_progress_signal_connected_ = false;
   bool is_import_lxd_container_progress_signal_connected_ = false;
   bool is_pending_app_list_updates_signal_connected_ = false;
@@ -1355,8 +1329,9 @@ void CiceroneClient::Initialize(dbus::Bus* bus) {
 void CiceroneClient::InitializeFake() {
   // Do not create a new fake if it was initialized early in a browser test to
   // allow the test to set its own client.
-  if (!FakeCiceroneClient::Get())
+  if (!FakeCiceroneClient::Get()) {
     new FakeCiceroneClient();
+  }
 }
 
 // static

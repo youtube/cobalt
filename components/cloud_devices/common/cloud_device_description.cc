@@ -4,6 +4,7 @@
 
 #include "components/cloud_devices/common/cloud_device_description.h"
 
+#include <string_view>
 #include <utility>
 
 #include "base/json/json_reader.h"
@@ -29,12 +30,12 @@ CloudDeviceDescription::CloudDeviceDescription() {
 CloudDeviceDescription::~CloudDeviceDescription() = default;
 
 bool CloudDeviceDescription::InitFromString(const std::string& json) {
-  absl::optional<base::Value> value = base::JSONReader::Read(json);
-  if (!value || !value->is_dict()) {
+  std::optional<base::Value::Dict> value = base::JSONReader::ReadDict(json);
+  if (!value) {
     return false;
   }
 
-  return InitFromValue(std::move(*value).TakeDict());
+  return InitFromValue(std::move(*value));
 }
 
 bool CloudDeviceDescription::InitFromValue(base::Value::Dict ticket) {
@@ -54,25 +55,23 @@ base::Value CloudDeviceDescription::ToValue() && {
 }
 
 const base::Value::Dict* CloudDeviceDescription::GetDictItem(
-    base::StringPiece path) const {
+    std::string_view path) const {
   return root_.FindDictByDottedPath(path);
 }
 
 const base::Value::List* CloudDeviceDescription::GetListItem(
-    base::StringPiece path) const {
+    std::string_view path) const {
   return root_.FindListByDottedPath(path);
 }
 
-base::Value::Dict* CloudDeviceDescription::CreateDictItem(
-    base::StringPiece path) {
-  base::Value* result = root_.SetByDottedPath(path, base::Value::Dict());
-  return result ? &result->GetDict() : nullptr;
+bool CloudDeviceDescription::SetDictItem(std::string_view path,
+                                         base::Value::Dict dict) {
+  return root_.SetByDottedPath(path, std::move(dict));
 }
 
-base::Value::List* CloudDeviceDescription::CreateListItem(
-    base::StringPiece path) {
-  base::Value* result = root_.SetByDottedPath(path, base::Value::List());
-  return result ? &result->GetList() : nullptr;
+bool CloudDeviceDescription::SetListItem(std::string_view path,
+                                         base::Value::List list) {
+  return root_.SetByDottedPath(path, std::move(list));
 }
 
 }  // namespace cloud_devices

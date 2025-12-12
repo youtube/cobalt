@@ -29,18 +29,6 @@ using testing::_;
 
 namespace {
 
-constexpr char kFakeActiveDirectoryPrefix[] = "fake-prefix";
-constexpr char kFakeFederationUrl[] = "http://example.com/adfs/ls/awesome.aspx";
-
-class MockAuthDelegateNonStrict : public ArcSupportHost::AuthDelegate {
- public:
-  MOCK_METHOD0(OnAuthSucceeded, void());
-  MOCK_METHOD1(OnAuthFailed, void(const std::string& error_msg));
-  MOCK_METHOD0(OnAuthRetryClicked, void());
-};
-
-using MockAuthDelegate = StrictMock<MockAuthDelegateNonStrict>;
-
 class MockTermsOfServiceDelegateNonStrict
     : public ArcSupportHost::TermsOfServiceDelegate {
  public:
@@ -50,6 +38,7 @@ class MockTermsOfServiceDelegateNonStrict
                     bool is_location_service_enabled));
   MOCK_METHOD0(OnTermsRejected, void());
   MOCK_METHOD0(OnTermsRetryClicked, void());
+  MOCK_METHOD1(OnTermsLoadResult, void(bool success));
 };
 
 using MockTermsOfServiceDelegate =
@@ -61,6 +50,7 @@ class MockErrorDelegateNonStrict : public ArcSupportHost::ErrorDelegate {
   MOCK_METHOD0(OnRetryClicked, void());
   MOCK_METHOD0(OnSendFeedbackClicked, void());
   MOCK_METHOD0(OnRunNetworkTestsClicked, void());
+  MOCK_METHOD1(OnErrorPageShown, void(bool network_tests_shown));
 };
 
 using MockErrorDelegate = StrictMock<MockErrorDelegateNonStrict>;
@@ -78,8 +68,7 @@ class ArcSupportHostTest : public BrowserWithTestWindowTest {
 
   void SetUp() override {
     BrowserWithTestWindowTest::SetUp();
-    user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-        std::make_unique<ash::FakeChromeUserManager>());
+    fake_user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
     identity_test_env_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile());
     // The code under test should not be tied to browser sync consent.
@@ -92,26 +81,19 @@ class ArcSupportHostTest : public BrowserWithTestWindowTest {
   }
 
   void TearDown() override {
-    support_host_->SetAuthDelegate(nullptr);
     support_host_->SetTermsOfServiceDelegate(nullptr);
     support_host_->SetErrorDelegate(nullptr);
 
     fake_arc_support_.reset();
     support_host_.reset();
     identity_test_env_adaptor_.reset();
-    user_manager_enabler_.reset();
+    fake_user_manager_.Reset();
 
     BrowserWithTestWindowTest::TearDown();
   }
 
   ArcSupportHost* support_host() { return support_host_.get(); }
   FakeArcSupport* fake_arc_support() { return fake_arc_support_.get(); }
-
-  MockAuthDelegate* CreateMockAuthDelegate() {
-    auth_delegate_ = std::make_unique<MockAuthDelegate>();
-    support_host_->SetAuthDelegate(auth_delegate_.get());
-    return auth_delegate_.get();
-  }
 
   MockTermsOfServiceDelegate* CreateMockTermsOfServiceDelegate() {
     tos_delegate_ = std::make_unique<MockTermsOfServiceDelegate>();
@@ -125,13 +107,6 @@ class ArcSupportHostTest : public BrowserWithTestWindowTest {
     return error_delegate_.get();
   }
 
-  void ShowAuthPage() {
-    // Currently there is only Active Directory sign-in that provides an
-    // authorization inside the OptIn flow.
-    support_host()->ShowActiveDirectoryAuth(GURL(kFakeFederationUrl),
-                                            kFakeActiveDirectoryPrefix);
-  }
-
   consent_auditor::FakeConsentAuditor* consent_auditor() {
     return static_cast<consent_auditor::FakeConsentAuditor*>(
         ConsentAuditorFactory::GetForProfile(profile()));
@@ -139,66 +114,26 @@ class ArcSupportHostTest : public BrowserWithTestWindowTest {
 
   // BrowserWithTestWindowTest:
   TestingProfile::TestingFactories GetTestingFactories() override {
-    TestingProfile::TestingFactories factories = {
-        {ConsentAuditorFactory::GetInstance(),
-         base::BindRepeating(&BuildFakeConsentAuditor)}};
-    IdentityTestEnvironmentProfileAdaptor::
-        AppendIdentityTestEnvironmentFactories(&factories);
-    return factories;
+    return IdentityTestEnvironmentProfileAdaptor::
+        GetIdentityTestEnvironmentFactoriesWithAppendedFactories(
+            {TestingProfile::TestingFactory{
+                ConsentAuditorFactory::GetInstance(),
+                base::BindRepeating(&BuildFakeConsentAuditor)}});
   }
 
  private:
+  user_manager::TypedScopedUserManager<ash::FakeChromeUserManager>
+      fake_user_manager_;
   std::unique_ptr<ArcSupportHost> support_host_;
   std::unique_ptr<FakeArcSupport> fake_arc_support_;
-  std::unique_ptr<user_manager::ScopedUserManager> user_manager_enabler_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_adaptor_;
 
-  std::unique_ptr<MockAuthDelegate> auth_delegate_;
   std::unique_ptr<MockTermsOfServiceDelegate> tos_delegate_;
   std::unique_ptr<MockErrorDelegate> error_delegate_;
 };
 
 namespace {
-
-TEST_F(ArcSupportHostTest, AuthSucceeded) {
-  MockAuthDelegate* auth_delegate = CreateMockAuthDelegate();
-  support_host()->SetAuthDelegate(auth_delegate);
-
-  ShowAuthPage();
-
-  EXPECT_CALL(*auth_delegate, OnAuthSucceeded());
-  fake_arc_support()->EmulateAuthSuccess();
-}
-
-TEST_F(ArcSupportHostTest, AuthFailed) {
-  constexpr char kFakeError[] = "fake_error";
-  MockAuthDelegate* auth_delegate = CreateMockAuthDelegate();
-  support_host()->SetAuthDelegate(auth_delegate);
-
-  ShowAuthPage();
-
-  EXPECT_CALL(*auth_delegate, OnAuthFailed(kFakeError));
-  fake_arc_support()->EmulateAuthFailure(kFakeError);
-}
-
-TEST_F(ArcSupportHostTest, AuthRetryOnError) {
-  // Auth error can only happen after terms accepted.
-  MockAuthDelegate* auth_delegate = CreateMockAuthDelegate();
-  support_host()->SetAuthDelegate(auth_delegate);
-  MockErrorDelegate* error_delegate = CreateMockErrorDelegate();
-  support_host()->SetErrorDelegate(error_delegate);
-
-  support_host()->ShowError(
-      ArcSupportHost::ErrorInfo(
-          ArcSupportHost::Error::NETWORK_UNAVAILABLE_ERROR),
-      false /* should_show_send_feedback */,
-      true /* should_show_run_network_tests */);
-
-  EXPECT_CALL(*auth_delegate, OnAuthRetryClicked());
-  EXPECT_CALL(*error_delegate, OnWindowClosed()).Times(0);
-  fake_arc_support()->ClickRetryButton();
-}
 
 TEST_F(ArcSupportHostTest, TermsOfServiceAccept) {
   consent_auditor::FakeConsentAuditor* ca = consent_auditor();
@@ -238,6 +173,7 @@ TEST_F(ArcSupportHostTest, TermsOfServiceRetryOnError) {
   MockErrorDelegate* error_delegate = CreateMockErrorDelegate();
   support_host()->SetErrorDelegate(error_delegate);
 
+  EXPECT_CALL(*error_delegate, OnErrorPageShown(true));
   support_host()->ShowError(
       ArcSupportHost::ErrorInfo(
           ArcSupportHost::Error::NETWORK_UNAVAILABLE_ERROR),
@@ -249,20 +185,7 @@ TEST_F(ArcSupportHostTest, TermsOfServiceRetryOnError) {
   fake_arc_support()->ClickRetryButton();
 }
 
-TEST_F(ArcSupportHostTest, CloseWindowDuringManualAuth) {
-  // No TermsOfServiceDelegate since it is not ongoing.
-  MockErrorDelegate* error_delegate = CreateMockErrorDelegate();
-  support_host()->SetErrorDelegate(error_delegate);
-  MockAuthDelegate* auth_delegate = CreateMockAuthDelegate();
-  support_host()->SetAuthDelegate(auth_delegate);
-
-  support_host()->ShowArcLoading();
-
-  EXPECT_CALL(*error_delegate, OnWindowClosed());
-  fake_arc_support()->Close();
-}
-
-TEST_F(ArcSupportHostTest, CloseWindowWithoutTermsOfServiceOrAuthOnging) {
+TEST_F(ArcSupportHostTest, CloseWindowWithoutTermsOfServiceOrAuthOngoing) {
   // No TermsOfServiceDelegate since it is not ongoing.
   MockErrorDelegate* error_delegate = CreateMockErrorDelegate();
   support_host()->SetErrorDelegate(error_delegate);
@@ -278,6 +201,7 @@ TEST_F(ArcSupportHostTest, RetryOnGeneralError) {
   MockErrorDelegate* error_delegate = CreateMockErrorDelegate();
   support_host()->SetErrorDelegate(error_delegate);
 
+  EXPECT_CALL(*error_delegate, OnErrorPageShown(true));
   support_host()->ShowError(
       ArcSupportHost::ErrorInfo(
           ArcSupportHost::Error::NETWORK_UNAVAILABLE_ERROR),
@@ -292,6 +216,7 @@ TEST_F(ArcSupportHostTest, SendFeedbackOnError) {
   MockErrorDelegate* error_delegate = CreateMockErrorDelegate();
   support_host()->SetErrorDelegate(error_delegate);
 
+  EXPECT_CALL(*error_delegate, OnErrorPageShown(true));
   support_host()->ShowError(
       ArcSupportHost::ErrorInfo(
           ArcSupportHost::Error::NETWORK_UNAVAILABLE_ERROR),
@@ -306,6 +231,7 @@ TEST_F(ArcSupportHostTest, RunNetworkTestsOnError) {
   MockErrorDelegate* error_delegate = CreateMockErrorDelegate();
   support_host()->SetErrorDelegate(error_delegate);
 
+  EXPECT_CALL(*error_delegate, OnErrorPageShown(true));
   support_host()->ShowError(
       ArcSupportHost::ErrorInfo(
           ArcSupportHost::Error::NETWORK_UNAVAILABLE_ERROR),
@@ -315,4 +241,15 @@ TEST_F(ArcSupportHostTest, RunNetworkTestsOnError) {
   EXPECT_CALL(*error_delegate, OnRunNetworkTestsClicked());
   fake_arc_support()->ClickRunNetworkTestsButton();
 }
+
+TEST_F(ArcSupportHostTest, TosLoadResult) {
+  MockTermsOfServiceDelegate* tos_delegate = CreateMockTermsOfServiceDelegate();
+  support_host()->SetTermsOfServiceDelegate(tos_delegate);
+
+  support_host()->ShowTermsOfService();
+
+  EXPECT_CALL(*tos_delegate, OnTermsLoadResult(true));
+  fake_arc_support()->TosLoadResult(true);
+}
+
 }  // namespace

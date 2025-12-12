@@ -11,7 +11,7 @@
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "components/history/core/test/fake_web_history_service.h"
-#include "components/sync/base/model_type.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/test/test_sync_service.h"
 #include "components/version_info/version_info.h"
 #include "net/http/http_status_code.h"
@@ -22,7 +22,7 @@ namespace browsing_data {
 
 class HistoryNoticeUtilsTest : public ::testing::Test {
  public:
-  HistoryNoticeUtilsTest() {}
+  HistoryNoticeUtilsTest() = default;
 
   void SetUp() override {
     sync_service_ = std::make_unique<syncer::TestSyncService>();
@@ -82,8 +82,7 @@ TEST_F(HistoryNoticeUtilsTest, SyncingWithWrongParameters) {
   // ...or even if there's no custom passphrase, but we're not syncing history.
   sync_service()->GetUserSettings()->SetSelectedTypes(
       /*sync_everything=*/false,
-      /*types=*/syncer::UserSelectableTypeSet(
-          syncer::UserSelectableType::kPasswords));
+      /*types=*/{syncer::UserSelectableType::kPasswords});
   sync_service()->SetIsUsingExplicitPassphrase(false);
   ExpectShouldPopupDialogAboutOtherFormsOfBrowsingHistoryWithResult(false);
 }

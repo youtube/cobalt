@@ -14,8 +14,11 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/mock_navigation_handle.h"
 #include "content/public/test/test_renderer_host.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/extension.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -37,7 +40,7 @@ class TestPredicate : public ContentPredicate {
   }
 
  private:
-  raw_ptr<ContentPredicateEvaluator> evaluator_;
+  raw_ptr<ContentPredicateEvaluator, DanglingUntriaged> evaluator_;
 };
 
 class TestPredicateEvaluator : public ContentPredicateEvaluator {
@@ -100,7 +103,7 @@ class TestPredicateEvaluator : public ContentPredicateEvaluator {
   void RequestImmediateEvaluation(content::WebContents* contents,
                                   bool evaluation_result) {
     next_evaluation_result_ = evaluation_result;
-    delegate_->RequestEvaluation(contents);
+    delegate_->NotifyPredicateStateUpdated(contents);
   }
 
   void RequestEvaluationOnNextOperation(content::WebContents* contents,
@@ -111,8 +114,10 @@ class TestPredicateEvaluator : public ContentPredicateEvaluator {
 
  private:
   void RequestEvaluationIfSpecified() {
-    if (contents_for_next_operation_evaluation_)
-      delegate_->RequestEvaluation(contents_for_next_operation_evaluation_);
+    if (contents_for_next_operation_evaluation_) {
+      delegate_->NotifyPredicateStateUpdated(
+          contents_for_next_operation_evaluation_);
+    }
     contents_for_next_operation_evaluation_ = nullptr;
   }
 
@@ -135,7 +140,7 @@ std::vector<std::unique_ptr<ContentPredicateEvaluator>> CreateTestEvaluator(
 
 class DeclarativeChromeContentRulesRegistryTest : public testing::Test {
  public:
-  DeclarativeChromeContentRulesRegistryTest() {}
+  DeclarativeChromeContentRulesRegistryTest() = default;
 
   DeclarativeChromeContentRulesRegistryTest(
       const DeclarativeChromeContentRulesRegistryTest&) = delete;
@@ -170,8 +175,7 @@ TEST_F(DeclarativeChromeContentRulesRegistryTest, ActiveRulesDoesntGrow) {
   EXPECT_EQ(0u, registry->GetActiveRulesCountForTesting());
 
   // Add a rule.
-  api::events::Rule rule;
-  api::events::Rule::Populate(base::test::ParseJsonDict(R"({
+  auto rule = api::events::Rule::FromValue(base::test::ParseJsonDict(R"({
           "id": "rule1",
           "priority": 100,
           "conditions": [
@@ -182,9 +186,9 @@ TEST_F(DeclarativeChromeContentRulesRegistryTest, ActiveRulesDoesntGrow) {
           "actions": [
             {"instanceType": "declarativeContent.ShowAction"}
           ]
-      })"),
-                              rule);
-  std::vector<const api::events::Rule*> rules({&rule});
+      })"));
+  ASSERT_TRUE(rule.has_value());
+  std::vector<const api::events::Rule*> rules({&rule.value()});
 
   const Extension* extension =
       env()->MakeExtension(base::test::ParseJsonDict("{\"page_action\": {}}"));

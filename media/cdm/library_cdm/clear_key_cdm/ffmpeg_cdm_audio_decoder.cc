@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/cdm/library_cdm/clear_key_cdm/ffmpeg_cdm_audio_decoder.h"
 
 #include <stddef.h>
@@ -47,7 +52,6 @@ AVCodecID CdmAudioCodecToCodecID(cdm::AudioCodec audio_codec) {
     case cdm::kUnknownAudioCodec:
     default:
       NOTREACHED() << "Unsupported cdm::AudioCodec: " << audio_codec;
-      return AV_CODEC_ID_NONE;
   }
 }
 
@@ -85,7 +89,7 @@ void CdmAudioDecoderConfigToAVCodecContext(
     memset(codec_context->extradata + config.extra_data_size, '\0',
            AV_INPUT_BUFFER_PADDING_SIZE);
   } else {
-    codec_context->extradata = NULL;
+    codec_context->extradata = nullptr;
     codec_context->extradata_size = 0;
   }
 }
@@ -134,7 +138,6 @@ void CopySamples(cdm::AudioFormat cdm_format,
     }
     default:
       NOTREACHED() << "Unsupported CDM Audio Format!";
-      memset(output_buffer, 0, decoded_audio_size);
   }
 }
 
@@ -161,7 +164,7 @@ bool FFmpegCdmAudioDecoder::Initialize(
   }
 
   // Initialize AVCodecContext structure.
-  codec_context_.reset(avcodec_alloc_context3(NULL));
+  codec_context_.reset(avcodec_alloc_context3(nullptr));
   CdmAudioDecoderConfigToAVCodecContext(config, codec_context_.get());
 
   // MP3 decodes to S16P which we don't support, tell it to use S16 instead.
@@ -169,7 +172,7 @@ bool FFmpegCdmAudioDecoder::Initialize(
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
 
   const AVCodec* codec = avcodec_find_decoder(codec_context_->codec_id);
-  if (!codec || avcodec_open2(codec_context_.get(), codec, NULL) < 0) {
+  if (!codec || avcodec_open2(codec_context_.get(), codec, nullptr) < 0) {
     DLOG(ERROR) << "Could not initialize audio decoder: "
                 << codec_context_->codec_id;
     return false;
@@ -249,7 +252,6 @@ cdm::Status FFmpegCdmAudioDecoder::DecodeBuffer(
       return cdm::kDecodeError;
     case FFmpegDecodingLoop::DecodeStatus::kFrameProcessingFailed:
       NOTREACHED();
-      [[fallthrough]];
     case FFmpegDecodingLoop::DecodeStatus::kDecodeFrameFailed:
       DLOG(WARNING) << " failed to decode an audio buffer: "
                     << timestamp.InMicroseconds();
@@ -258,8 +260,7 @@ cdm::Status FFmpegCdmAudioDecoder::DecodeBuffer(
       break;
   }
 
-  if (output_timestamp_helper_->base_timestamp() == kNoTimestamp &&
-      !is_end_of_stream) {
+  if (!output_timestamp_helper_->base_timestamp() && !is_end_of_stream) {
     DCHECK(timestamp != kNoTimestamp);
     output_timestamp_helper_->SetBaseTimestamp(timestamp);
   }
@@ -331,7 +332,7 @@ bool FFmpegCdmAudioDecoder::OnNewFrame(
 }
 
 void FFmpegCdmAudioDecoder::ResetTimestampState() {
-  output_timestamp_helper_->SetBaseTimestamp(kNoTimestamp);
+  output_timestamp_helper_->Reset();
   last_input_timestamp_ = kNoTimestamp;
 }
 

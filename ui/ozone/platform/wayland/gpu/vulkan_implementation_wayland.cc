@@ -88,38 +88,17 @@ VulkanImplementationWayland::GetOptionalDeviceExtensions() {
 VkFence VulkanImplementationWayland::CreateVkFenceForGpuFence(
     VkDevice vk_device) {
   NOTREACHED();
-  return VK_NULL_HANDLE;
 }
 
 std::unique_ptr<gfx::GpuFence>
 VulkanImplementationWayland::ExportVkFenceToGpuFence(VkDevice vk_device,
                                                      VkFence vk_fence) {
   NOTREACHED();
-  return nullptr;
 }
 
-VkSemaphore VulkanImplementationWayland::CreateExternalSemaphore(
-    VkDevice vk_device) {
-  return gpu::CreateExternalVkSemaphore(
-      vk_device, VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);
-}
-
-VkSemaphore VulkanImplementationWayland::ImportSemaphoreHandle(
-    VkDevice vk_device,
-    gpu::SemaphoreHandle sync_handle) {
-  return gpu::ImportVkSemaphoreHandle(vk_device, std::move(sync_handle));
-}
-
-gpu::SemaphoreHandle VulkanImplementationWayland::GetSemaphoreHandle(
-    VkDevice vk_device,
-    VkSemaphore vk_semaphore) {
-  return gpu::GetVkSemaphoreHandle(
-      vk_device, vk_semaphore, VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT);
-}
-
-VkExternalMemoryHandleTypeFlagBits
-VulkanImplementationWayland::GetExternalImageHandleType() {
-  return VK_EXTERNAL_MEMORY_HANDLE_TYPE_DMA_BUF_BIT_EXT;
+VkExternalSemaphoreHandleTypeFlagBits
+VulkanImplementationWayland::GetExternalSemaphoreHandleType() {
+  return VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT;
 }
 
 bool VulkanImplementationWayland::CanImportGpuMemoryBuffer(
@@ -143,7 +122,7 @@ VulkanImplementationWayland::CreateImageFromGpuMemoryHandle(
   constexpr auto kUsage =
       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
       VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-  auto tiling = gmb_handle.native_pixmap_handle.modifier ==
+  auto tiling = gmb_handle.native_pixmap_handle().modifier ==
                         gfx::NativePixmapHandle::kNoModifier
                     ? VK_IMAGE_TILING_OPTIMAL
                     : VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT;

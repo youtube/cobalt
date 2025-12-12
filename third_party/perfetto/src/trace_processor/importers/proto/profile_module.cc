@@ -15,32 +15,30 @@
  */
 
 #include "src/trace_processor/importers/proto/profile_module.h"
-#include <string>
+#include <optional>
 
 #include "perfetto/base/logging.h"
-#include "perfetto/ext/base/flat_hash_map.h"
-#include "perfetto/ext/base/string_utils.h"
+#include "perfetto/ext/base/string_view.h"
 #include "src/trace_processor/importers/common/args_translation_table.h"
 #include "src/trace_processor/importers/common/clock_tracker.h"
-#include "src/trace_processor/importers/common/deobfuscation_mapping_table.h"
 #include "src/trace_processor/importers/common/event_tracker.h"
+#include "src/trace_processor/importers/common/mapping_tracker.h"
+#include "src/trace_processor/importers/common/parser_types.h"
 #include "src/trace_processor/importers/common/process_tracker.h"
-#include "src/trace_processor/importers/proto/heap_profile_tracker.h"
-#include "src/trace_processor/importers/proto/packet_sequence_state.h"
+#include "src/trace_processor/importers/common/stack_profile_tracker.h"
+#include "src/trace_processor/importers/proto/packet_sequence_state_generation.h"
 #include "src/trace_processor/importers/proto/perf_sample_tracker.h"
+#include "src/trace_processor/importers/proto/profile_packet_sequence_state.h"
 #include "src/trace_processor/importers/proto/profile_packet_utils.h"
-#include "src/trace_processor/importers/proto/profiler_util.h"
-#include "src/trace_processor/importers/proto/stack_profile_tracker.h"
+#include "src/trace_processor/importers/proto/stack_profile_sequence_state.h"
 #include "src/trace_processor/sorter/trace_sorter.h"
 #include "src/trace_processor/storage/stats.h"
 #include "src/trace_processor/storage/trace_storage.h"
 #include "src/trace_processor/tables/profiler_tables_py.h"
 #include "src/trace_processor/types/trace_processor_context.h"
-#include "src/trace_processor/util/stack_traces_util.h"
+#include "src/trace_processor/util/build_id.h"
 
 #include "protos/perfetto/common/builtin_clock.pbzero.h"
-#include "protos/perfetto/common/perf_events.pbzero.h"
-#include "protos/perfetto/trace/profiling/deobfuscation.pbzero.h"
 #include "protos/perfetto/trace/profiling/profile_common.pbzero.h"
 #include "protos/perfetto/trace/profiling/profile_packet.pbzero.h"
 #include "protos/perfetto/trace/profiling/smaps.pbzero.h"
@@ -57,21 +55,20 @@ ProfileModule::ProfileModule(TraceProcessorContext* context)
   RegisterForField(TracePacket::kPerfSampleFieldNumber, context);
   RegisterForField(TracePacket::kProfilePacketFieldNumber, context);
   RegisterForField(TracePacket::kModuleSymbolsFieldNumber, context);
-  // note: deobfuscation mappings also handled by HeapGraphModule.
-  RegisterForField(TracePacket::kDeobfuscationMappingFieldNumber, context);
   RegisterForField(TracePacket::kSmapsPacketFieldNumber, context);
 }
 
 ProfileModule::~ProfileModule() = default;
 
-ModuleResult ProfileModule::TokenizePacket(const TracePacket::Decoder& decoder,
-                                           TraceBlobView* packet,
-                                           int64_t /*packet_timestamp*/,
-                                           PacketSequenceState* state,
-                                           uint32_t field_id) {
+ModuleResult ProfileModule::TokenizePacket(
+    const TracePacket::Decoder& decoder,
+    TraceBlobView* packet,
+    int64_t /*packet_timestamp*/,
+    RefPtr<PacketSequenceStateGeneration> state,
+    uint32_t field_id) {
   switch (field_id) {
     case TracePacket::kStreamingProfilePacketFieldNumber:
-      return TokenizeStreamingProfilePacket(state, packet,
+      return TokenizeStreamingProfilePacket(std::move(state), packet,
                                             decoder.streaming_profile_packet());
   }
   return ModuleResult::Ignored();
@@ -92,16 +89,10 @@ void ProfileModule::ParseTracePacketData(
       return;
     case TracePacket::kProfilePacketFieldNumber:
       ParseProfilePacket(ts, data.sequence_state.get(),
-                         decoder.trusted_packet_sequence_id(),
                          decoder.profile_packet());
       return;
     case TracePacket::kModuleSymbolsFieldNumber:
       ParseModuleSymbols(decoder.module_symbols());
-      return;
-    case TracePacket::kDeobfuscationMappingFieldNumber:
-      ParseDeobfuscationMapping(ts, data.sequence_state.get(),
-                                decoder.trusted_packet_sequence_id(),
-                                decoder.deobfuscation_mapping());
       return;
     case TracePacket::kSmapsPacketFieldNumber:
       ParseSmapsPacket(ts, decoder.smaps_packet());
@@ -110,7 +101,7 @@ void ProfileModule::ParseTracePacketData(
 }
 
 ModuleResult ProfileModule::TokenizeStreamingProfilePacket(
-    PacketSequenceState* sequence_state,
+    RefPtr<PacketSequenceStateGeneration> sequence_state,
     TraceBlobView* packet,
     ConstBytes streaming_profile_packet) {
   protos::pbzero::StreamingProfilePacket::Decoder decoder(
@@ -138,8 +129,8 @@ ModuleResult ProfileModule::TokenizeStreamingProfilePacket(
     sequence_state->IncrementAndGetTrackEventTimeNs(*timestamp_it * 1000);
   }
 
-  context_->sorter->PushTracePacket(
-      packet_ts, sequence_state->current_generation(), std::move(*packet));
+  context_->sorter->PushTracePacket(packet_ts, std::move(sequence_state),
+                                    std::move(*packet), context_->machine_id());
   return ModuleResult::Handled();
 }
 
@@ -152,13 +143,13 @@ void ProfileModule::ParseStreamingProfilePacket(
 
   ProcessTracker* procs = context_->process_tracker.get();
   TraceStorage* storage = context_->storage.get();
-  SequenceStackProfileTracker& sequence_stack_profile_tracker =
-      sequence_state->state()->sequence_stack_profile_tracker();
-  ProfilePacketInternLookup intern_lookup(sequence_state);
+  StackProfileSequenceState& stack_profile_sequence_state =
+      *sequence_state->GetCustomState<StackProfileSequenceState>();
 
-  uint32_t pid = static_cast<uint32_t>(sequence_state->state()->pid());
-  uint32_t tid = static_cast<uint32_t>(sequence_state->state()->tid());
-  UniqueTid utid = procs->UpdateThread(tid, pid);
+  uint32_t pid = static_cast<uint32_t>(sequence_state->pid());
+  uint32_t tid = static_cast<uint32_t>(sequence_state->tid());
+  const UniqueTid utid = procs->UpdateThread(tid, pid);
+  const UniquePid upid = procs->GetOrCreateProcess(pid);
 
   // Iterate through timestamps and callstacks simultaneously.
   auto timestamp_it = packet.timestamp_delta_us();
@@ -171,8 +162,8 @@ void ProfileModule::ParseStreamingProfilePacket(
       break;
     }
 
-    auto opt_cs_id = sequence_stack_profile_tracker.FindOrInsertCallstack(
-        *callstack_it, &intern_lookup);
+    auto opt_cs_id =
+        stack_profile_sequence_state.FindOrInsertCallstack(upid, *callstack_it);
     if (!opt_cs_id) {
       context_->storage->IncrementStats(stats::stackprofile_parser_error);
       continue;
@@ -211,20 +202,6 @@ void ProfileModule::ParsePerfSample(
     return;
   }
 
-  // Sample that looked relevant for the tracing session, but had to be skipped.
-  // Either we failed to look up the procfs file descriptors necessary for
-  // remote stack unwinding (not unexpected in most cases), or the unwind queue
-  // was out of capacity (producer lost data on its own).
-  if (sample.has_sample_skipped_reason()) {
-    context_->storage->IncrementStats(stats::perf_samples_skipped);
-
-    if (sample.sample_skipped_reason() ==
-        PerfSample::PROFILER_SKIP_UNWIND_ENQUEUE)
-      context_->storage->IncrementStats(stats::perf_samples_skipped_dataloss);
-
-    return;
-  }
-
   // Not a sample, but an event from the producer.
   // TODO(rsavitski): this stat is indexed by the session id, but the older
   // stats (see above) aren't. The indexing is relevant if a trace contains more
@@ -236,47 +213,59 @@ void ProfileModule::ParsePerfSample(
         PerfSample::ProducerEvent::PROFILER_STOP_GUARDRAIL) {
       context_->storage->SetIndexedStats(
           stats::perf_guardrail_stop_ts,
-          static_cast<int>(sampling_stream.perf_session_id), ts);
+          static_cast<int>(sampling_stream.perf_session_id.value), ts);
     }
     return;
   }
 
-  // Proper sample, populate the |perf_sample| table with everything except the
-  // recorded counter values, which go to |counter|.
+  // Sample has incomplete stack sampling payload (not necessarily an error).
+  if (sample.has_sample_skipped_reason()) {
+    switch (sample.sample_skipped_reason()) {
+      case (PerfSample::PROFILER_SKIP_NOT_IN_SCOPE):
+        // WAI, we're recording per-cpu but the sampled process was not in
+        // config's scope. The counter part of the sample is still relevant.
+        break;
+      case (PerfSample::PROFILER_SKIP_READ_STAGE):
+      case (PerfSample::PROFILER_SKIP_UNWIND_STAGE):
+        context_->storage->IncrementStats(stats::perf_samples_skipped);
+        break;
+      case (PerfSample::PROFILER_SKIP_UNWIND_ENQUEUE):
+        context_->storage->IncrementStats(stats::perf_samples_skipped_dataloss);
+        break;
+      default:
+        break;
+    }
+  }
+
+  // Populate the |perf_sample| table with everything except the recorded
+  // counter values, which go to |counter|.
   context_->event_tracker->PushCounter(
       ts, static_cast<double>(sample.timebase_count()),
       sampling_stream.timebase_track_id);
 
-  SequenceStackProfileTracker& stack_tracker =
-      sequence_state->state()->sequence_stack_profile_tracker();
-  ProfilePacketInternLookup intern_lookup(sequence_state);
-  uint64_t callstack_iid = sample.callstack_iid();
-  std::optional<CallsiteId> cs_id =
-      stack_tracker.FindOrInsertCallstack(callstack_iid, &intern_lookup);
-
-  // A failed lookup of the interned callstack can mean either:
-  // (a) This is a counter-only profile without callstacks. Due to an
-  //     implementation quirk, these packets still set callstack_iid
-  //     corresponding to a callstack with no frames. To reliably identify this
-  //     case (without resorting to config parsing) we further need to rely on
-  //     the fact that the implementation (callstack_trie.h) always assigns this
-  //     callstack the id "1". Such callstacks should not occur outside of
-  //     counter-only profiles, as there should always be at least a synthetic
-  //     error frame if the unwinding completely failed.
-  // (b) This is a ring-buffer profile where some of the referenced internings
-  //     have been overwritten, and the build predates perf_sample_defaults and
-  //     SEQ_NEEDS_INCREMENTAL_STATE sequence flag in perf_sample packets.
-  //     Such packets should be discarded.
-  if (!cs_id && callstack_iid != 1) {
-    PERFETTO_DLOG("Discarding perf_sample since callstack_iid [%" PRIu64
-                  "] references a missing/partially lost interning according "
-                  "to stack_profile_tracker",
-                  callstack_iid);
-    return;
+  if (sample.has_follower_counts()) {
+    auto track_it = sampling_stream.follower_track_ids.begin();
+    auto track_end = sampling_stream.follower_track_ids.end();
+    for (auto it = sample.follower_counts(); it && track_it != track_end;
+         ++it, ++track_it) {
+      context_->event_tracker->PushCounter(ts, static_cast<double>(*it),
+                                           *track_it);
+    }
   }
 
-  UniqueTid utid =
+  const UniqueTid utid =
       context_->process_tracker->UpdateThread(sample.tid(), sample.pid());
+  const UniquePid upid =
+      context_->process_tracker->GetOrCreateProcess(sample.pid());
+
+  std::optional<CallsiteId> cs_id;
+  StackProfileSequenceState& stack_profile_sequence_state =
+      *sequence_state->GetCustomState<StackProfileSequenceState>();
+  if (sample.has_callstack_iid()) {
+    uint64_t callstack_iid = sample.callstack_iid();
+    cs_id =
+        stack_profile_sequence_state.FindOrInsertCallstack(upid, callstack_iid);
+  }
 
   using protos::pbzero::Profiling;
   TraceStorage* storage = context_->storage.get();
@@ -301,42 +290,35 @@ void ProfileModule::ParsePerfSample(
 void ProfileModule::ParseProfilePacket(
     int64_t ts,
     PacketSequenceStateGeneration* sequence_state,
-    uint32_t seq_id,
     ConstBytes blob) {
+  ProfilePacketSequenceState& profile_packet_sequence_state =
+      *sequence_state->GetCustomState<ProfilePacketSequenceState>();
   protos::pbzero::ProfilePacket::Decoder packet(blob.data, blob.size);
-  context_->heap_profile_tracker->SetProfilePacketIndex(seq_id, packet.index());
+  profile_packet_sequence_state.SetProfilePacketIndex(packet.index());
 
   for (auto it = packet.strings(); it; ++it) {
     protos::pbzero::InternedString::Decoder entry(*it);
-
     const char* str = reinterpret_cast<const char*>(entry.str().data);
     auto str_view = base::StringView(str, entry.str().size);
-    sequence_state->state()->sequence_stack_profile_tracker().AddString(
-        entry.iid(), str_view);
+    profile_packet_sequence_state.AddString(entry.iid(), str_view);
   }
 
   for (auto it = packet.mappings(); it; ++it) {
     protos::pbzero::Mapping::Decoder entry(*it);
-    SequenceStackProfileTracker::SourceMapping src_mapping =
-        ProfilePacketUtils::MakeSourceMapping(entry);
-    sequence_state->state()->sequence_stack_profile_tracker().AddMapping(
-        entry.iid(), src_mapping);
+    profile_packet_sequence_state.AddMapping(
+        entry.iid(), ProfilePacketUtils::MakeSourceMapping(entry));
   }
 
   for (auto it = packet.frames(); it; ++it) {
     protos::pbzero::Frame::Decoder entry(*it);
-    SequenceStackProfileTracker::SourceFrame src_frame =
-        ProfilePacketUtils::MakeSourceFrame(entry);
-    sequence_state->state()->sequence_stack_profile_tracker().AddFrame(
-        entry.iid(), src_frame);
+    profile_packet_sequence_state.AddFrame(
+        entry.iid(), ProfilePacketUtils::MakeSourceFrame(entry));
   }
 
   for (auto it = packet.callstacks(); it; ++it) {
     protos::pbzero::Callstack::Decoder entry(*it);
-    SequenceStackProfileTracker::SourceCallstack src_callstack =
-        ProfilePacketUtils::MakeSourceCallstack(entry);
-    sequence_state->state()->sequence_stack_profile_tracker().AddCallstack(
-        entry.iid(), src_callstack);
+    profile_packet_sequence_state.AddCallstack(
+        entry.iid(), ProfilePacketUtils::MakeSourceCallstack(entry));
   }
 
   for (auto it = packet.process_dumps(); it; ++it) {
@@ -406,13 +388,16 @@ void ProfileModule::ParseProfilePacket(
     for (auto sample_it = entry.samples(); sample_it; ++sample_it) {
       protos::pbzero::ProfilePacket::HeapSample::Decoder sample(*sample_it);
 
-      HeapProfileTracker::SourceAllocation src_allocation;
+      ProfilePacketSequenceState::SourceAllocation src_allocation;
       src_allocation.pid = entry.pid();
       if (entry.heap_name().size != 0) {
         src_allocation.heap_name =
             context_->storage->InternString(entry.heap_name());
       } else {
-        src_allocation.heap_name = context_->storage->InternString("malloc");
+        // After aosp/1348782 there should be a heap name associated with all
+        // allocations - absence of one is likely a bug (for traces captured
+        // in older builds, this was the native heap profiler (libc.malloc)).
+        src_allocation.heap_name = context_->storage->InternString("unknown");
       }
       src_allocation.timestamp = timestamp;
       src_allocation.callstack_id = sample.callstack_id();
@@ -427,33 +412,21 @@ void ProfileModule::ParseProfilePacket(
         src_allocation.free_count = sample.free_count();
       }
 
-      context_->heap_profile_tracker->StoreAllocation(seq_id, src_allocation);
+      profile_packet_sequence_state.StoreAllocation(src_allocation);
     }
   }
   if (!packet.continued()) {
-    PERFETTO_CHECK(sequence_state);
-    ProfilePacketInternLookup intern_lookup(sequence_state);
-    context_->heap_profile_tracker->FinalizeProfile(
-        seq_id, &sequence_state->state()->sequence_stack_profile_tracker(),
-        &intern_lookup);
+    profile_packet_sequence_state.FinalizeProfile();
   }
 }
 
 void ProfileModule::ParseModuleSymbols(ConstBytes blob) {
   protos::pbzero::ModuleSymbols::Decoder module_symbols(blob.data, blob.size);
-  StringId build_id;
-  // TODO(b/148109467): Remove workaround once all active Chrome versions
-  // write raw bytes instead of a string as build_id.
-  if (util::IsHexModuleId(module_symbols.build_id())) {
-    build_id = context_->storage->InternString(module_symbols.build_id());
-  } else {
-    build_id = context_->storage->InternString(base::StringView(base::ToHex(
-        module_symbols.build_id().data, module_symbols.build_id().size)));
-  }
+  BuildId build_id = BuildId::FromRaw(module_symbols.build_id());
 
-  auto mapping_ids = context_->global_stack_profile_tracker->FindMappingRow(
-      context_->storage->InternString(module_symbols.path()), build_id);
-  if (mapping_ids.empty()) {
+  auto mappings =
+      context_->mapping_tracker->FindMappings(module_symbols.path(), build_id);
+  if (mappings.empty()) {
     context_->storage->IncrementStats(stats::stackprofile_invalid_mapping_id);
     return;
   }
@@ -467,30 +440,33 @@ void ProfileModule::ParseModuleSymbols(ConstBytes blob) {
     ArgsTranslationTable::SourceLocation last_location;
     for (auto line_it = address_symbols.lines(); line_it; ++line_it) {
       protos::pbzero::Line::Decoder line(*line_it);
+      auto file_name = line.source_file_name();
       context_->storage->mutable_symbol_table()->Insert(
           {symbol_set_id, context_->storage->InternString(line.function_name()),
-           context_->storage->InternString(line.source_file_name()),
-           line.line_number()});
+           file_name.size == 0 ? kNullStringId
+                               : context_->storage->InternString(file_name),
+           line.has_line_number() && file_name.size != 0
+               ? std::make_optional(line.line_number())
+               : std::nullopt});
       last_location = ArgsTranslationTable::SourceLocation{
-          line.source_file_name().ToStdString(),
-          line.function_name().ToStdString(), line.line_number()};
+          file_name.ToStdString(), line.function_name().ToStdString(),
+          line.line_number()};
       has_lines = true;
     }
     if (!has_lines) {
       continue;
     }
     bool frame_found = false;
-    for (MappingId mapping_id : mapping_ids) {
+    for (VirtualMemoryMapping* mapping : mappings) {
       context_->args_translation_table->AddNativeSymbolTranslationRule(
-          mapping_id, address_symbols.address(), last_location);
+          mapping->mapping_id(), address_symbols.address(), last_location);
       std::vector<FrameId> frame_ids =
-          context_->global_stack_profile_tracker->FindFrameIds(
-              mapping_id, address_symbols.address());
+          mapping->FindFrameIds(address_symbols.address());
 
       for (const FrameId frame_id : frame_ids) {
         auto* frames = context_->storage->mutable_stack_profile_frame_table();
-        uint32_t frame_row = *frames->id().IndexOf(frame_id);
-        frames->mutable_symbol_set_id()->Set(frame_row, symbol_set_id);
+        auto rr = *frames->FindById(frame_id);
+        rr.set_symbol_set_id(symbol_set_id);
         frame_found = true;
       }
     }
@@ -500,82 +476,6 @@ void ProfileModule::ParseModuleSymbols(ConstBytes blob) {
       continue;
     }
   }
-}
-
-void ProfileModule::ParseDeobfuscationMapping(int64_t,
-                                              PacketSequenceStateGeneration*,
-                                              uint32_t /* seq_id */,
-                                              ConstBytes blob) {
-  DeobfuscationMappingTable deobfuscation_mapping_table;
-  protos::pbzero::DeobfuscationMapping::Decoder deobfuscation_mapping(
-      blob.data, blob.size);
-  if (deobfuscation_mapping.package_name().size == 0)
-    return;
-
-  auto opt_package_name_id = context_->storage->string_pool().GetId(
-      deobfuscation_mapping.package_name());
-  auto opt_memfd_id = context_->storage->string_pool().GetId("memfd");
-  if (!opt_package_name_id && !opt_memfd_id)
-    return;
-
-  for (auto class_it = deobfuscation_mapping.obfuscated_classes(); class_it;
-       ++class_it) {
-    protos::pbzero::ObfuscatedClass::Decoder cls(*class_it);
-    base::FlatHashMap<StringId, StringId> obfuscated_to_deobfuscated_members;
-    for (auto member_it = cls.obfuscated_methods(); member_it; ++member_it) {
-      protos::pbzero::ObfuscatedMember::Decoder member(*member_it);
-      std::string merged_obfuscated = cls.obfuscated_name().ToStdString() +
-                                      "." +
-                                      member.obfuscated_name().ToStdString();
-      auto merged_obfuscated_id = context_->storage->string_pool().GetId(
-          base::StringView(merged_obfuscated));
-      if (!merged_obfuscated_id)
-        continue;
-      std::string merged_deobfuscated =
-          FullyQualifiedDeobfuscatedName(cls, member);
-
-      std::vector<tables::StackProfileFrameTable::Id> frames;
-      if (opt_package_name_id) {
-        const std::vector<tables::StackProfileFrameTable::Id>* pkg_frames =
-            context_->global_stack_profile_tracker->JavaFramesForName(
-                {*merged_obfuscated_id, *opt_package_name_id});
-        if (pkg_frames) {
-          frames.insert(frames.end(), pkg_frames->begin(), pkg_frames->end());
-        }
-      }
-      if (opt_memfd_id) {
-        const std::vector<tables::StackProfileFrameTable::Id>* memfd_frames =
-            context_->global_stack_profile_tracker->JavaFramesForName(
-                {*merged_obfuscated_id, *opt_memfd_id});
-        if (memfd_frames) {
-          frames.insert(frames.end(), memfd_frames->begin(),
-                        memfd_frames->end());
-        }
-      }
-
-      for (tables::StackProfileFrameTable::Id frame_id : frames) {
-        auto* frames_tbl =
-            context_->storage->mutable_stack_profile_frame_table();
-        frames_tbl->mutable_deobfuscated_name()->Set(
-            *frames_tbl->id().IndexOf(frame_id),
-            context_->storage->InternString(
-                base::StringView(merged_deobfuscated)));
-      }
-      obfuscated_to_deobfuscated_members[context_->storage->InternString(
-          member.obfuscated_name())] =
-          context_->storage->InternString(member.deobfuscated_name());
-    }
-    // Members can contain a class name (e.g "ClassA.FunctionF")
-    deobfuscation_mapping_table.AddClassTranslation(
-        DeobfuscationMappingTable::PackageId{
-            deobfuscation_mapping.package_name().ToStdString(),
-            deobfuscation_mapping.version_code()},
-        context_->storage->InternString(cls.obfuscated_name()),
-        context_->storage->InternString(cls.deobfuscated_name()),
-        std::move(obfuscated_to_deobfuscated_members));
-  }
-  context_->args_translation_table->AddDeobfuscationMappingTable(
-      std::move(deobfuscation_mapping_table));
 }
 
 void ProfileModule::ParseSmapsPacket(int64_t ts, ConstBytes blob) {

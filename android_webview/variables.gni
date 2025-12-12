@@ -4,7 +4,6 @@
 
 import("//build/config/android/channel.gni")
 import("//build/config/android/config.gni")
-import("//weblayer/variables.gni")
 
 declare_args() {
   # Show a launcher icon to open WebView developer UI. This is enabled by
@@ -18,9 +17,5 @@ upstream_only_webview_deps = [
   "//android_webview:platform_service_bridge_upstream_implementation_java",
   "//android_webview/nonembedded:icon_resources",
 ]
-
-if (webview_includes_weblayer) {
-  upstream_only_webview_deps += [ "//weblayer/browser/java:upstream_java" ]
-}
 
 webview_product_config_java_package = "org.chromium.android_webview"

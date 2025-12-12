@@ -2,19 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/web/public/web_state_delegate_bridge.h"
-
 #import "ios/web/public/test/scoped_testing_web_client.h"
 #import "ios/web/public/ui/context_menu_params.h"
+#import "ios/web/public/web_state_delegate_bridge.h"
 #import "ios/web/test/web_test_with_web_controller.h"
-#import "net/base/mac/url_conversions.h"
+#import "net/base/apple/url_conversions.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
 
 // A fake of CRWWebStateDelegate to test if the methods in the delegate
 // bridge are called normally. Uses BOOLs below to record the calls.

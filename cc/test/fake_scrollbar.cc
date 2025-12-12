@@ -30,6 +30,19 @@ bool FakeScrollbar::IsSolidColor() const {
 
 bool FakeScrollbar::IsOverlay() const { return is_overlay_; }
 
+bool FakeScrollbar::IsRunningWebTest() const {
+  return true;
+}
+
+bool FakeScrollbar::IsFluentOverlayScrollbarMinimalMode() const {
+  return false;
+}
+
+gfx::Rect FakeScrollbar::ShrinkMainThreadedMinimalModeThumbRect(
+    gfx::Rect& rect) const {
+  return rect;
+}
+
 bool FakeScrollbar::HasThumb() const { return has_thumb_; }
 
 gfx::Rect FakeScrollbar::ThumbRect() const {
@@ -61,10 +74,16 @@ float FakeScrollbar::Opacity() const {
   return thumb_opacity_;
 }
 
-bool FakeScrollbar::NeedsRepaintPart(ScrollbarPart part) const {
-  if (part == ScrollbarPart::THUMB)
-    return needs_repaint_thumb_;
-  return needs_repaint_track_;
+bool FakeScrollbar::ThumbNeedsRepaint() const {
+  return thumb_needs_repaint_;
+}
+
+void FakeScrollbar::ClearThumbNeedsRepaint() {
+  set_thumb_needs_repaint(false);
+}
+
+bool FakeScrollbar::TrackAndButtonsNeedRepaint() const {
+  return track_and_buttons_need_repaint_;
 }
 
 bool FakeScrollbar::NeedsUpdateDisplay() const {
@@ -79,9 +98,16 @@ bool FakeScrollbar::HasTickmarks() const {
   return has_tickmarks_;
 }
 
-void FakeScrollbar::PaintPart(PaintCanvas* canvas,
-                              ScrollbarPart part,
-                              const gfx::Rect& rect) {
+void FakeScrollbar::PaintThumb(PaintCanvas& canvas, const gfx::Rect& rect) {
+  Paint(canvas, rect);
+}
+
+void FakeScrollbar::PaintTrackAndButtons(PaintCanvas& canvas,
+                                         const gfx::Rect& rect) {
+  Paint(canvas, rect);
+}
+
+void FakeScrollbar::Paint(PaintCanvas& canvas, const gfx::Rect& rect) {
   if (!should_paint_)
     return;
 
@@ -91,7 +117,11 @@ void FakeScrollbar::PaintPart(PaintCanvas* canvas,
   flags.setAntiAlias(false);
   flags.setColor(paint_fill_color());
   flags.setStyle(PaintFlags::kFill_Style);
-  canvas->drawRect(RectToSkRect(rect), flags);
+  canvas.drawRect(RectToSkRect(rect), flags);
+}
+
+SkColor4f FakeScrollbar::ThumbColor() const {
+  return thumb_color_;
 }
 
 bool FakeScrollbar::UsesNinePatchThumbResource() const {
@@ -104,6 +134,38 @@ gfx::Size FakeScrollbar::NinePatchThumbCanvasSize() const {
 
 gfx::Rect FakeScrollbar::NinePatchThumbAperture() const {
   return uses_nine_patch_thumb_resource_ ? gfx::Rect(0, 0, 5, 5) : gfx::Rect();
+}
+
+bool FakeScrollbar::UsesSolidColorThumb() const {
+  return uses_solid_color_thumb_;
+}
+
+gfx::Insets FakeScrollbar::SolidColorThumbInsets() const {
+  return gfx::Insets();
+}
+
+bool FakeScrollbar::UsesNinePatchTrackAndButtonsResource() const {
+  return uses_nine_patch_track_and_buttons_resource_;
+}
+
+gfx::Size FakeScrollbar::NinePatchTrackAndButtonsCanvasSize(float scale) const {
+  return uses_nine_patch_track_and_buttons_resource_ ? gfx::Size(5, 5)
+                                                     : gfx::Size();
+}
+
+gfx::Rect FakeScrollbar::NinePatchTrackAndButtonsAperture(float scale) const {
+  if (uses_nine_patch_track_and_buttons_resource_) {
+    const gfx::Size canvas_size = NinePatchTrackAndButtonsCanvasSize(scale);
+    if (Orientation() == ScrollbarOrientation::kHorizontal) {
+      return gfx::Rect(canvas_size.width() / 2, 0, 1, canvas_size.height());
+    }
+    return gfx::Rect(0, canvas_size.height() / 2, canvas_size.width(), 1);
+  }
+  return gfx::Rect();
+}
+
+bool FakeScrollbar::IsOpaque() const {
+  return !is_overlay_ && is_opaque_;
 }
 
 }  // namespace cc

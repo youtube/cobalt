@@ -3,7 +3,11 @@
 # found in the LICENSE file.
 
 import("//build/config/compiler/compiler.gni")
+import("//mojo/features.gni")
 import("//testing/test.gni")
+
+# Only legacy Mojo Core and its tests can depend on targets here.
+assert(mojo_support_legacy_core)
 
 component("ports") {
   output_name = "mojo_core_ports"
@@ -29,6 +33,8 @@ component("ports") {
     "user_message.cc",
     "user_message.h",
   ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
   defines = [ "IS_MOJO_CORE_PORTS_IMPL" ]
 

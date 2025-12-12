@@ -4,9 +4,15 @@
 
 #include "content/common/webid/identity_url_loader_throttle.h"
 
-#include "base/metrics/field_trial_params.h"
+#include <string_view>
+
+#include "base/containers/contains.h"
+#include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_split.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "content/common/features.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
 #include "net/http/http_response_headers.h"
@@ -19,24 +25,10 @@
 using blink::mojom::IdpSigninStatus;
 
 namespace {
-// See the comment in HandleResponseOrRedirect for why we are checking for
-// Google-specific headers.
-static constexpr char kGoogleSigninHeader[] = "Google-Accounts-SignIn";
-static constexpr char kGoogleSignoutHeader[] = "Google-Accounts-SignOut";
-static constexpr char kIdpSigninStatusHeader[] = "IdP-SignIn-Status";
+static constexpr char kSetLoginHeader[] = "Set-Login";
 
-static constexpr char kIdpHeaderValueSignin[] = "action=signin";
-static constexpr char kIdpHeaderValueSignout[] = "action=signout-all";
-
-bool IsFedCmIdpSigninStatusThrottleEnabled() {
-  return GetFieldTrialParamByFeatureAsBool(
-             features::kFedCm,
-             features::kFedCmIdpSigninStatusFieldTrialParamName, false) ||
-         GetFieldTrialParamByFeatureAsBool(
-             features::kFedCm,
-             features::kFedCmIdpSigninStatusMetricsOnlyFieldTrialParamName,
-             true);
-}
+static constexpr char kSetLoginHeaderValueLoggedIn[] = "logged-in";
+static constexpr char kSetLoginHeaderValueLoggedOut[] = "logged-out";
 
 }  // namespace
 
@@ -44,8 +36,6 @@ namespace content {
 
 std::unique_ptr<blink::URLLoaderThrottle> MaybeCreateIdentityUrlLoaderThrottle(
     SetIdpStatusCallback cb) {
-  if (!IsFedCmIdpSigninStatusThrottleEnabled())
-    return nullptr;
   return std::make_unique<IdentityUrlLoaderThrottle>(std::move(cb));
 }
 
@@ -54,7 +44,17 @@ IdentityUrlLoaderThrottle::IdentityUrlLoaderThrottle(SetIdpStatusCallback cb)
 
 IdentityUrlLoaderThrottle::~IdentityUrlLoaderThrottle() = default;
 
-void IdentityUrlLoaderThrottle::DetachFromCurrentSequence() {}
+void IdentityUrlLoaderThrottle::DetachFromCurrentSequence() {
+  set_idp_status_cb_ = base::BindRepeating(
+      [](scoped_refptr<base::SequencedTaskRunner> task_runner,
+         SetIdpStatusCallback original_cb, const url::Origin& origin,
+         blink::mojom::IdpSigninStatus status) {
+        task_runner->PostTask(
+            FROM_HERE, base::BindOnce(std::move(original_cb), origin, status));
+      },
+      base::SequencedTaskRunner::GetCurrentDefault(),
+      std::move(set_idp_status_cb_));
+}
 
 void IdentityUrlLoaderThrottle::WillStartRequest(
     network::ResourceRequest* request,
@@ -91,7 +91,7 @@ void IdentityUrlLoaderThrottle::HandleResponseOrRedirect(
   if (!network::IsOriginPotentiallyTrustworthy(origin))
     return;
 
-  // TODO(crbug.com/1357790):
+  // TODO(crbug.com/40236764):
   // - Limit to toplevel frames
   // - Decide whether to limit to same-origin
   // - Decide the right behavior with respect to user gestures.
@@ -100,27 +100,38 @@ void IdentityUrlLoaderThrottle::HandleResponseOrRedirect(
   if (!headers)
     return;
 
-  // We are checking two versions of the header -- a standardized one and a
-  // legacy one. The legacy one is primarily used so we can gather metrics
-  // from existing deployments.
-  // TODO(https://crbug.com/1381501): Remove the Google headers once we can.
   std::string header;
-  if (headers->GetNormalizedHeader(kGoogleSigninHeader, &header) ||
-      headers->HasHeaderValue(kIdpSigninStatusHeader, kIdpHeaderValueSignin)) {
+  if (HeaderHasToken(*headers, kSetLoginHeader, kSetLoginHeaderValueLoggedIn)) {
     // Mark IDP as logged in
     VLOG(1) << "IDP signed in: " << response_url.spec();
     UMA_HISTOGRAM_BOOLEAN("Blink.FedCm.IdpSigninRequestInitiatedByUser",
                           has_user_gesture_);
     set_idp_status_cb_.Run(origin, IdpSigninStatus::kSignedIn);
-  } else if (headers->GetNormalizedHeader(kGoogleSignoutHeader, &header) ||
-             headers->HasHeaderValue(kIdpSigninStatusHeader,
-                                     kIdpHeaderValueSignout)) {
+  } else if (HeaderHasToken(*headers, kSetLoginHeader,
+                            kSetLoginHeaderValueLoggedOut)) {
     // Mark IDP as logged out
     VLOG(1) << "IDP signed out: " << response_url.spec();
     UMA_HISTOGRAM_BOOLEAN("Blink.FedCm.IdpSignoutRequestInitiatedByUser",
                           has_user_gesture_);
     set_idp_status_cb_.Run(origin, IdpSigninStatus::kSignedOut);
   }
+}
+
+// static
+bool IdentityUrlLoaderThrottle::HeaderHasToken(
+    const net::HttpResponseHeaders& headers,
+    std::string_view header_name,
+    std::string_view token) {
+  if (!headers.HasHeader(header_name)) {
+    return false;
+  }
+
+  std::string value =
+      headers.GetNormalizedHeader(header_name).value_or(std::string());
+
+  std::vector<std::string_view> tokens = base::SplitStringPiece(
+      value, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  return base::Contains(tokens, token);
 }
 
 }  // namespace content

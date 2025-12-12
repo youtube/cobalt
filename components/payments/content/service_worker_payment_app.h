@@ -65,11 +65,8 @@ class ServiceWorkerPaymentApp : public PaymentApp {
   ~ServiceWorkerPaymentApp() override;
 
   // The callback for ValidateCanMakePayment.
-  // The first return value is a pointer point to the corresponding
-  // ServiceWorkerPaymentApp of the result. The second return value is
-  // the result.
   using ValidateCanMakePaymentCallback =
-      base::OnceCallback<void(ServiceWorkerPaymentApp*, bool)>;
+      base::OnceCallback<void(base::WeakPtr<ServiceWorkerPaymentApp>)>;
 
   // Validates whether this payment app can be used for this payment request. It
   // fires CanMakePaymentEvent to the payment app to do validation. The result
@@ -85,7 +82,6 @@ class ServiceWorkerPaymentApp : public PaymentApp {
   bool CanPreselect() const override;
   std::u16string GetMissingInfoLabel() const override;
   bool HasEnrolledInstrument() const override;
-  void RecordUse() override;
   bool NeedsInstallation() const override;
   std::string GetId() const override;
   std::u16string GetLabel() const override;
@@ -119,6 +115,8 @@ class ServiceWorkerPaymentApp : public PaymentApp {
   void OnCanMakePaymentEventResponded(
       ValidateCanMakePaymentCallback callback,
       mojom::CanMakePaymentResponsePtr response);
+  void CallValidateCanMakePaymentCallback(
+      ValidateCanMakePaymentCallback callback);
 
   // Called from two places:
   // 1) From PaymentAppProvider after a just-in-time installable payment handler

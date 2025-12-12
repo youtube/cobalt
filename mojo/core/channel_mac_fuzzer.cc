@@ -4,14 +4,15 @@
 
 #include <list>
 
+#include "base/apple/mach_logging.h"
 #include "base/logging.h"
-#include "base/mac/mach_logging.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/single_thread_task_runner.h"
 #include "mojo/core/channel.h"
 #include "mojo/core/entrypoints.h"
+#include "mojo/core/ipcz_driver/envelope.h"
 #include "mojo/core/test/data/channel_mac/channel_mac.pb.h"
 #include "mojo/public/cpp/platform/platform_channel.h"
 #include "testing/libfuzzer/fuzzers/mach/mach_message_converter.h"
@@ -24,7 +25,7 @@ class ChannelMacFuzzer {
   ChannelMacFuzzer() {
     mojo::core::InitializeCore();
 
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
   }
 
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner() {
@@ -40,9 +41,11 @@ class FakeChannelDelegate : public mojo::core::Channel::Delegate {
   FakeChannelDelegate() = default;
   ~FakeChannelDelegate() override = default;
 
-  void OnChannelMessage(const void* payload,
-                        size_t payload_size,
-                        std::vector<mojo::PlatformHandle> handles) override {}
+  void OnChannelMessage(
+      const void* payload,
+      size_t payload_size,
+      std::vector<mojo::PlatformHandle> handles,
+      scoped_refptr<mojo::core::ipcz_driver::Envelope> envelope) override {}
   void OnChannelError(mojo::core::Channel::Error error) override {}
 };
 

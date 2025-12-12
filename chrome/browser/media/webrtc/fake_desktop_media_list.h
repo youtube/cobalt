@@ -45,11 +45,12 @@ class FakeDesktopMediaList : public DesktopMediaList {
   const Source& GetSource(int index) const override;
   DesktopMediaList::Type GetMediaListType() const override;
   void SetPreviewedSource(
-      const absl::optional<content::DesktopMediaID>& id) override;
+      const std::optional<content::DesktopMediaID>& id) override;
   bool IsSourceListDelegated() const override;
   void ClearDelegatedSourceListSelection() override;
   void FocusList() override;
   void HideList() override;
+  void ShowDelegatedList() override;
 
  private:
   std::vector<Source> sources_;

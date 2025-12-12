@@ -13,6 +13,7 @@
 #include "base/numerics/clamped_math.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/time/clock.h"
+#include "components/cross_device/logging/logging.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "content/public/browser/network_service_instance.h"
@@ -38,12 +39,14 @@ NearbySchedulerBase::NearbySchedulerBase(bool retry_failures,
                                          const std::string& pref_name,
                                          PrefService* pref_service,
                                          OnRequestCallback callback,
+                                         Feature logging_feature,
                                          const base::Clock* clock)
     : NearbyScheduler(std::move(callback)),
       retry_failures_(retry_failures),
       require_connectivity_(require_connectivity),
       pref_name_(pref_name),
       pref_service_(pref_service),
+      logging_feature_(logging_feature),
       clock_(clock) {
   DCHECK(pref_service_);
 
@@ -71,8 +74,9 @@ void NearbySchedulerBase::HandleResult(bool success) {
   base::Time now = clock_->Now();
   SetLastAttemptTime(now);
 
-  // TODO (b/274978630): Re-add logging once CD_LOG is implemented
-  // (see go/np-plumbing).
+  CD_LOG(VERBOSE, logging_feature_)
+      << "NearbyScheduler \"" << pref_name_ << "\" latest attempt "
+      << (success ? "succeeded" : "failed");
 
   if (success) {
     SetLastSuccessTime(now);
@@ -93,7 +97,7 @@ void NearbySchedulerBase::Reschedule() {
 
   timer_.Stop();
 
-  absl::optional<base::TimeDelta> delay = GetTimeUntilNextRequest();
+  std::optional<base::TimeDelta> delay = GetTimeUntilNextRequest();
   if (!delay) {
     return;
   }
@@ -103,15 +107,15 @@ void NearbySchedulerBase::Reschedule() {
                               base::Unretained(this)));
 }
 
-absl::optional<base::Time> NearbySchedulerBase::GetLastSuccessTime() const {
+std::optional<base::Time> NearbySchedulerBase::GetLastSuccessTime() const {
   return base::ValueToTime(
       pref_service_->GetDict(pref_name_).Find(kLastSuccessTimeKeyName));
 }
 
-absl::optional<base::TimeDelta> NearbySchedulerBase::GetTimeUntilNextRequest()
+std::optional<base::TimeDelta> NearbySchedulerBase::GetTimeUntilNextRequest()
     const {
   if (!is_running() || IsWaitingForResult()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   if (HasPendingImmediateRequest()) {
@@ -121,7 +125,7 @@ absl::optional<base::TimeDelta> NearbySchedulerBase::GetTimeUntilNextRequest()
   base::Time now = clock_->Now();
 
   // Recover from failures using exponential backoff strategy if necessary.
-  absl::optional<base::TimeDelta> time_until_retry = TimeUntilRetry(now);
+  std::optional<base::TimeDelta> time_until_retry = TimeUntilRetry(now);
   if (time_until_retry) {
     return time_until_retry;
   }
@@ -153,8 +157,8 @@ size_t NearbySchedulerBase::GetNumConsecutiveFailures() const {
 
 void NearbySchedulerBase::OnStart() {
   Reschedule();
-  // TODO (b/274978630): Re-add logging once CD_LOG is implemented
-  // (see go/np-plumbing).
+  CD_LOG(VERBOSE, logging_feature_)
+      << "Starting NearbyScheduler \"" << pref_name_ << "\"";
   PrintSchedulerState();
 }
 
@@ -171,7 +175,7 @@ void NearbySchedulerBase::OnConnectionChanged(
   Reschedule();
 }
 
-absl::optional<base::Time> NearbySchedulerBase::GetLastAttemptTime() const {
+std::optional<base::Time> NearbySchedulerBase::GetLastAttemptTime() const {
   return base::ValueToTime(
       pref_service_->GetDict(pref_name_).Find(kLastAttemptTimeKeyName));
 }
@@ -215,15 +219,15 @@ void NearbySchedulerBase::InitializePersistedRequest() {
   }
 }
 
-absl::optional<base::TimeDelta> NearbySchedulerBase::TimeUntilRetry(
+std::optional<base::TimeDelta> NearbySchedulerBase::TimeUntilRetry(
     base::Time now) const {
   if (!retry_failures_) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   size_t num_failures = GetNumConsecutiveFailures();
   if (num_failures == 0) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // The exponential back off is
@@ -252,14 +256,14 @@ void NearbySchedulerBase::OnTimerFired() {
 }
 
 void NearbySchedulerBase::PrintSchedulerState() const {
-  absl::optional<base::Time> last_attempt_time = GetLastAttemptTime();
-  absl::optional<base::Time> last_success_time = GetLastSuccessTime();
-  absl::optional<base::TimeDelta> time_until_next_request =
+  std::optional<base::Time> last_attempt_time = GetLastAttemptTime();
+  std::optional<base::Time> last_success_time = GetLastSuccessTime();
+  std::optional<base::TimeDelta> time_until_next_request =
       GetTimeUntilNextRequest();
 
   std::stringstream ss;
-  ss << "State of Nearby Share scheduler \"" << pref_name_ << "\":"
-     << "\n  Last attempt time: ";
+  ss << "State of NearbyScheduler scheduler \"" << pref_name_
+     << "\":" << "\n  Last attempt time: ";
   if (last_attempt_time) {
     ss << base::TimeFormatShortDateAndTimeWithTimeZone(*last_attempt_time);
   } else {
@@ -291,8 +295,7 @@ void NearbySchedulerBase::PrintSchedulerState() const {
      << (HasPendingImmediateRequest() ? "Yes" : "No");
   ss << "\n  Num consecutive failures: " << GetNumConsecutiveFailures();
 
-  // TODO (b/274978630): Re-add logging once CD_LOG is implemented
-  // (see go/np-plumbing).
+  CD_LOG(VERBOSE, logging_feature_) << ss.str();
 }
 
 }  // namespace ash::nearby

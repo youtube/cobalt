@@ -49,7 +49,6 @@ std::unique_ptr<Panner> Panner::Create(PanningModel model,
                                           database_loader);
   }
   NOTREACHED();
-  return nullptr;
 }
 
 }  // namespace blink

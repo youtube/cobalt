@@ -45,6 +45,20 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
 }
 }  // namespace
 
+class MinRequiredFramesTester::TesterThread : public Thread {
+ public:
+  explicit TesterThread(MinRequiredFramesTester* tester)
+      : Thread("min_frames_test"), tester_(tester) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityLowest);
+    tester_->TesterThreadFunc();
+  }
+
+ private:
+  MinRequiredFramesTester* tester_;
+};
+
 MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
                                                  int required_frames_increment,
                                                  int min_stable_played_frames)
@@ -54,12 +68,12 @@ MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
       destroying_(false) {}
 
 MinRequiredFramesTester::~MinRequiredFramesTester() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   destroying_.store(true);
   if (tester_thread_) {
     test_complete_cv_.notify_one();
-    pthread_join(*tester_thread_, nullptr);
-    tester_thread_ = std::nullopt;
+    tester_thread_->Join();
+    tester_thread_.reset();
   }
 }
 
@@ -69,7 +83,7 @@ void MinRequiredFramesTester::AddTest(
     int sample_rate,
     const OnMinRequiredFramesReceivedCallback& received_cb,
     int default_required_frames) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester doesn't support to add test after starts.
   SB_DCHECK(!tester_thread_);
 
@@ -78,28 +92,12 @@ void MinRequiredFramesTester::AddTest(
 }
 
 void MinRequiredFramesTester::Start() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_CHECK(thread_checker_.CalledOnValidThread());
   // MinRequiredFramesTester only supports to start once.
   SB_DCHECK(!tester_thread_);
 
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, nullptr, &MinRequiredFramesTester::TesterThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
-  tester_thread_ = thread;
-}
-
-// static
-void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
-  SbThreadSetPriority(kSbThreadPriorityLowest);
-
-  pthread_setname_np(pthread_self(), "audio_track_tester");
-
-  SB_DCHECK(context);
-  MinRequiredFramesTester* tester =
-      static_cast<MinRequiredFramesTester*>(context);
-  tester->TesterThreadFunc();
-  return NULL;
+  tester_thread_ = std::make_unique<TesterThread>(this);
+  tester_thread_->Start();
 }
 
 void MinRequiredFramesTester::TesterThreadFunc() {

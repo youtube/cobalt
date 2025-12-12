@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "device/bluetooth/bluetooth_remote_gatt_characteristic_mac.h"
 
 #include "base/functional/bind.h"
@@ -74,13 +79,13 @@ BluetoothRemoteGattCharacteristicMac::BluetoothRemoteGattCharacteristicMac(
     : is_discovery_complete_(false),
       discovery_pending_count_(0),
       gatt_service_(gatt_service),
-      cb_characteristic_(cb_characteristic, base::scoped_policy::RETAIN),
+      cb_characteristic_(cb_characteristic),
       weak_ptr_factory_(this) {
   uuid_ = BluetoothLowEnergyAdapterApple::BluetoothUUIDWithCBUUID(
       [cb_characteristic_ UUID]);
   identifier_ = base::SysNSStringToUTF8(
       [NSString stringWithFormat:@"%s-%p", uuid_.canonical_value().c_str(),
-                                 cb_characteristic_.get()]);
+                                 cb_characteristic_]);
 }
 
 BluetoothRemoteGattCharacteristicMac::~BluetoothRemoteGattCharacteristicMac() {
@@ -156,7 +161,7 @@ void BluetoothRemoteGattCharacteristicMac::ReadRemoteCharacteristic(
 }
 
 void BluetoothRemoteGattCharacteristicMac::WriteRemoteCharacteristic(
-    const std::vector<uint8_t>& value,
+    base::span<const uint8_t> value,
     WriteType write_type,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
@@ -171,8 +176,8 @@ void BluetoothRemoteGattCharacteristicMac::WriteRemoteCharacteristic(
   DVLOG(1) << *this << ": Write characteristic.";
   write_characteristic_value_callbacks_ =
       std::make_pair(std::move(callback), std::move(error_callback));
-  base::scoped_nsobject<NSData> nsdata_value(
-      [[NSData alloc] initWithBytes:value.data() length:value.size()]);
+  NSData* nsdata_value = [[NSData alloc] initWithBytes:value.data()
+                                                length:value.size()];
 
   CBCharacteristicWriteType cb_write_type;
   switch (write_type) {
@@ -196,7 +201,7 @@ void BluetoothRemoteGattCharacteristicMac::WriteRemoteCharacteristic(
 }
 
 void BluetoothRemoteGattCharacteristicMac::DeprecatedWriteRemoteCharacteristic(
-    const std::vector<uint8_t>& value,
+    base::span<const uint8_t> value,
     base::OnceClosure callback,
     ErrorCallback error_callback) {
   if (!IsWritable()) {
@@ -218,8 +223,8 @@ void BluetoothRemoteGattCharacteristicMac::DeprecatedWriteRemoteCharacteristic(
   DVLOG(1) << *this << ": Write characteristic.";
   write_characteristic_value_callbacks_ =
       std::make_pair(std::move(callback), std::move(error_callback));
-  base::scoped_nsobject<NSData> nsdata_value(
-      [[NSData alloc] initWithBytes:value.data() length:value.size()]);
+  NSData* nsdata_value = [[NSData alloc] initWithBytes:value.data()
+                                                length:value.size()];
   CBCharacteristicWriteType write_type = GetCBWriteType();
   [GetCBPeripheral() writeValue:nsdata_value
               forCharacteristic:cb_characteristic_
@@ -288,7 +293,7 @@ void BluetoothRemoteGattCharacteristicMac::DidUpdateValue(NSError* error) {
     }
     DVLOG(1) << *this << ": Read request arrived.";
     UpdateValue();
-    std::move(read_callback).Run(/*error_code=*/absl::nullopt, value_);
+    std::move(read_callback).Run(/*error_code=*/std::nullopt, value_);
   } else if (IsNotifying()) {
     DVLOG(1) << *this << ": Notification arrived.";
     UpdateValue();
@@ -314,7 +319,7 @@ void BluetoothRemoteGattCharacteristicMac::DidWriteValue(NSError* error) {
   // We could have called cancelPeripheralConnection, which causes
   // [CBPeripheral state] to be CBPeripheralStateDisconnected, before or during
   // a write without response callback so we flush all pending writes.
-  // TODO(crbug.com/726534): Remove once we can avoid calling DidWriteValue
+  // TODO(crbug.com/41321574): Remove once we can avoid calling DidWriteValue
   // when we disconnect before or during a write without response call.
   if (HasPendingWrite() &&
       GetCBPeripheral().state != CBPeripheralStateConnected) {

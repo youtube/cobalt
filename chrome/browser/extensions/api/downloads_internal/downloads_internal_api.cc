@@ -11,17 +11,17 @@
 namespace extensions {
 
 DownloadsInternalDetermineFilenameFunction::
-    DownloadsInternalDetermineFilenameFunction() {}
+    DownloadsInternalDetermineFilenameFunction() = default;
 
 DownloadsInternalDetermineFilenameFunction::
-    ~DownloadsInternalDetermineFilenameFunction() {}
+    ~DownloadsInternalDetermineFilenameFunction() = default;
 
 typedef extensions::api::downloads_internal::DetermineFilename::Params
     DetermineFilenameParams;
 
 ExtensionFunction::ResponseAction
 DownloadsInternalDetermineFilenameFunction::Run() {
-  absl::optional<DetermineFilenameParams> params =
+  std::optional<DetermineFilenameParams> params =
       DetermineFilenameParams::Create(args());
   EXTENSION_FUNCTION_VALIDATE(params);
   EXTENSION_FUNCTION_VALIDATE(args().size() >= 2);

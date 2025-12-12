@@ -11,6 +11,9 @@ declare_args() {
   # If true, it assumes that //third_party/abseil-cpp is an available
   # dependency for googletest.
   gtest_enable_absl_printers = false
+
+  # Set to default here so that it can be set via gn args
+  use_cxx17 = false
 }
 
 if (host_os == "mac" && use_system_xcode == "") {
@@ -54,7 +57,7 @@ if (is_win) {
   # concerns for standalone ANGLE builds are not relevant on Windows.
   enable_safe_libcxx = true
 } else if (is_linux) {
-  # https://anglebug.com/8040: turning off safe_libcxx breaks TSAN
+  # https://anglebug.com/40096878: turning off safe_libcxx breaks TSAN
   enable_safe_libcxx = true
 } else {
   enable_safe_libcxx = false

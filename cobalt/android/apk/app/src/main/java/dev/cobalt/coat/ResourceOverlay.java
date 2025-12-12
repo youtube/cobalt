@@ -15,7 +15,7 @@
 package dev.cobalt.coat;
 
 import android.content.Context;
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
 
 /**
  * A class for managing the resource overlays of Cobalt. Client can turn on certain feature by
@@ -24,34 +24,34 @@ import org.chromium.base.annotations.CalledByNative;
 public class ResourceOverlay {
   // To facilitate maintenance, these member names should match what is in the
   // resource XML file.
-  private final boolean supports_spherical_videos;
+  private final boolean mSupportsSphericalVideos;
 
-  private final int max_video_buffer_budget;
+  private final int mMaxVideoBufferBudget;
 
-  private final int min_audio_sink_buffer_size_in_frames;
+  private final int mMinAudioSinkBufferSizeInFrames;
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
-    this.supports_spherical_videos =
+    mSupportsSphericalVideos =
         context.getResources().getBoolean(R.bool.supports_spherical_videos);
-    this.max_video_buffer_budget =
+    mMaxVideoBufferBudget =
         context.getResources().getInteger(R.integer.max_video_buffer_budget);
-    this.min_audio_sink_buffer_size_in_frames =
+    mMinAudioSinkBufferSizeInFrames =
         context.getResources().getInteger(R.integer.min_audio_sink_buffer_size_in_frames);
   }
 
   @CalledByNative
   public boolean getSupportsSphericalVideos() {
-    return supports_spherical_videos;
+    return mSupportsSphericalVideos;
   }
 
   @CalledByNative
   public int getMaxVideoBufferBudget() {
-    return max_video_buffer_budget;
+    return mMaxVideoBufferBudget;
   }
 
   @CalledByNative
   public int getMinAudioSinkBufferSizeInFrames() {
-    return min_audio_sink_buffer_size_in_frames;
+    return mMinAudioSinkBufferSizeInFrames;
   }
 }

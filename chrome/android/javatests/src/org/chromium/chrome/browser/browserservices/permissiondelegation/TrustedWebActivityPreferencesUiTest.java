@@ -4,9 +4,9 @@
 
 package org.chromium.chrome.browser.browserservices.permissiondelegation;
 
-import static org.chromium.content_public.browser.test.util.TestThreadUtils.runOnUiThreadBlocking;
+import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Assert;
@@ -19,12 +19,12 @@ import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
-import org.chromium.chrome.browser.ChromeApplicationImpl;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.settings.SettingsActivity;
 import org.chromium.chrome.browser.site_settings.SiteSettingsTestUtils;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
-import org.chromium.chrome.test.ChromeTabbedActivityTestRule;
+import org.chromium.chrome.test.transit.ChromeTransitTestRules;
+import org.chromium.chrome.test.transit.FreshCtaTransitTestRule;
 import org.chromium.components.browser_ui.settings.ChromeImageViewPreference;
 import org.chromium.components.browser_ui.settings.ExpandablePreferenceGroup;
 import org.chromium.components.browser_ui.site_settings.SingleCategorySettings;
@@ -36,32 +36,28 @@ import org.chromium.components.content_settings.ContentSettingValues;
 import org.chromium.components.content_settings.ContentSettingsType;
 import org.chromium.components.embedder_support.util.Origin;
 
-/**
- * Tests for TrustedWebActivity functionality under Settings > Site Settings.
- */
+/** Tests for TrustedWebActivity functionality under Settings > Site Settings. */
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({
-        ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
+    ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
 })
 public class TrustedWebActivityPreferencesUiTest {
     @Rule
-    public ChromeTabbedActivityTestRule mActivityTestRule = new ChromeTabbedActivityTestRule();
+    public FreshCtaTransitTestRule mActivityTestRule =
+            ChromeTransitTestRules.freshChromeTabbedActivityRule();
 
     private String mPackage;
-    private InstalledWebappPermissionManager mPermissionMananger;
 
     @Before
     public void setUp() throws Exception {
-        mActivityTestRule.startMainActivityOnBlankPage();
+        mActivityTestRule.startOnBlankPage();
 
-        mPackage = InstrumentationRegistry.getTargetContext().getPackageName();
-        mPermissionMananger = ChromeApplicationImpl.getComponent().resolvePermissionManager();
+        mPackage = ApplicationProvider.getApplicationContext().getPackageName();
     }
 
     /**
      * Tests that the 'Managed by' section appears correctly and that it contains our registered
      * website.
-     * @throws Exception
      */
     @Test
     @SmallTest
@@ -71,41 +67,53 @@ public class TrustedWebActivityPreferencesUiTest {
         final String site = "http://example.com";
         final Origin origin = Origin.create(site);
 
-        runOnUiThreadBlocking(() -> mPermissionMananger.updatePermission(origin, mPackage,
-                ContentSettingsType.NOTIFICATIONS, ContentSettingValues.ALLOW));
+        runOnUiThreadBlocking(
+                () ->
+                        InstalledWebappPermissionManager.updatePermission(
+                                origin,
+                                mPackage,
+                                ContentSettingsType.NOTIFICATIONS,
+                                ContentSettingValues.ALLOW));
 
-        SettingsActivity settingsActivity = SiteSettingsTestUtils.startSiteSettingsCategory(
-                SiteSettingsCategory.Type.NOTIFICATIONS);
+        SettingsActivity settingsActivity =
+                SiteSettingsTestUtils.startSiteSettingsCategory(
+                        SiteSettingsCategory.Type.NOTIFICATIONS);
         final String groupName = "managed_group";
 
         final SingleCategorySettings websitePreferences =
-                runOnUiThreadBlocking(() -> {
-                    final SingleCategorySettings preferences =
-                            (SingleCategorySettings) settingsActivity.getMainFragment();
+                runOnUiThreadBlocking(
+                        () -> {
+                            final SingleCategorySettings preferences =
+                                    (SingleCategorySettings) settingsActivity.getMainFragment();
+                            final ExpandablePreferenceGroup group =
+                                    (ExpandablePreferenceGroup)
+                                            preferences.findPreference(groupName);
+                            preferences.onPreferenceClick(group);
+                            return preferences;
+                        });
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    // The preference group gets recreated in onPreferenceClick, so we need to find
+                    // it again.
                     final ExpandablePreferenceGroup group =
-                            (ExpandablePreferenceGroup) preferences.findPreference(groupName);
-                    preferences.onPreferenceClick(group);
-                    return preferences;
+                            (ExpandablePreferenceGroup)
+                                    websitePreferences.findPreference(groupName);
+                    return group.isExpanded();
                 });
 
-        CriteriaHelper.pollUiThread(() -> {
-            // The preference group gets recreated in onPreferenceClick, so we need to find it
-            // again.
-            final ExpandablePreferenceGroup group =
-                    (ExpandablePreferenceGroup) websitePreferences.findPreference(groupName);
-            return group.isExpanded();
-        });
+        runOnUiThreadBlocking(
+                () -> {
+                    final ExpandablePreferenceGroup group =
+                            (ExpandablePreferenceGroup)
+                                    websitePreferences.findPreference(groupName);
+                    Assert.assertEquals(1, group.getPreferenceCount());
+                    androidx.preference.Preference preference = group.getPreference(0);
+                    CharSequence title = preference.getTitle();
+                    Assert.assertEquals("example.com", title.toString());
+                });
 
-        runOnUiThreadBlocking(() -> {
-            final ExpandablePreferenceGroup group =
-                    (ExpandablePreferenceGroup) websitePreferences.findPreference(groupName);
-            Assert.assertEquals(1, group.getPreferenceCount());
-            androidx.preference.Preference preference = group.getPreference(0);
-            CharSequence title = preference.getTitle();
-            Assert.assertEquals("example.com", title.toString());
-        });
-
-        runOnUiThreadBlocking(() -> mPermissionMananger.unregister(origin));
+        runOnUiThreadBlocking(() -> InstalledWebappPermissionManager.unregister(origin));
 
         settingsActivity.finish();
     }
@@ -121,25 +129,31 @@ public class TrustedWebActivityPreferencesUiTest {
         final String site = "http://example.com";
         final Origin origin = Origin.create(site);
 
-        runOnUiThreadBlocking(() -> mPermissionMananger.updatePermission(origin, mPackage,
-                ContentSettingsType.NOTIFICATIONS, ContentSettingValues.ALLOW));
+        runOnUiThreadBlocking(
+                () ->
+                        InstalledWebappPermissionManager.updatePermission(
+                                origin,
+                                mPackage,
+                                ContentSettingsType.NOTIFICATIONS,
+                                ContentSettingValues.ALLOW));
 
         WebsiteAddress address = WebsiteAddress.create(site);
         Website website = new Website(address, address);
         final SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSingleWebsitePreferences(website);
 
-        runOnUiThreadBlocking(() -> {
-            final SingleWebsiteSettings websitePreferences =
-                    (SingleWebsiteSettings) settingsActivity.getMainFragment();
-            final ChromeImageViewPreference notificationPreference =
-                    (ChromeImageViewPreference) websitePreferences.findPreference(
-                            "push_notifications_list");
-            CharSequence summary = notificationPreference.getSummary();
-            Assert.assertTrue(summary.toString().startsWith("Managed by "));
-        });
+        runOnUiThreadBlocking(
+                () -> {
+                    final SingleWebsiteSettings websitePreferences =
+                            (SingleWebsiteSettings) settingsActivity.getMainFragment();
+                    final ChromeImageViewPreference notificationPreference =
+                            (ChromeImageViewPreference)
+                                    websitePreferences.findPreference("push_notifications_list");
+                    CharSequence summary = notificationPreference.getSummary();
+                    Assert.assertTrue(summary.toString().startsWith("Managed by "));
+                });
 
-        runOnUiThreadBlocking(() -> mPermissionMananger.unregister(origin));
+        runOnUiThreadBlocking(() -> InstalledWebappPermissionManager.unregister(origin));
 
         settingsActivity.finish();
     }

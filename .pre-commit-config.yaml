@@ -38,20 +38,41 @@ repos:
     -   id: trailing-whitespace
 -   repo: local
     hooks:
-    -   id: chromium-pre-commit # To test: pre-commit run --hook-stage manual chromium-pre-commit
+    -   id: chromium-pre-commit
         name: Chromium presubmit bridge
         entry: ./third_party/depot_tools/vpython3 --vpython-spec=./third_party/depot_tools/.vpython3 ./cobalt/precommit/run_chromium_presubmits.py
         language: system
         types: [file]
         files: ^.*$ # Apply to all file paths
-        stages: [manual] # Require manual run for testing
     -   id: clang-format
         name: clang-format
         entry: clang-format
         language: python
         types: [c++]
         args: [-i, -style=file]
-        additional_dependencies: ['clang-format==17.0.1']
+        exclude: |
+            (?x)(
+                ^cobalt/shell/app/resource.h$|
+                ^starboard/shared/uikit/accessibility_extension.cc$|
+                ^starboard/shared/uikit/player_configuration.cc$
+            )
+        additional_dependencies: ['clang-format==21.1.0']
+    -   id: cpplint
+        name: cpplint
+        entry: cpplint
+        language: python
+        types: [c++]
+        args: [--verbose=5, --quiet]
+        exclude: |
+            (?x)(
+                ^cobalt/bindings/(templates|generated)/|
+                ^cobalt/common/features/starboard_features_initialization.cc$|
+                ^cobalt/shell/app/resource.h$|
+                ^starboard/shared/uikit/.*\.h$|
+                ^starboard/shared/starboard/starboard_feature_test.cc$|
+                ^starboard/shared/starboard/link_receiver.cc$
+            )
+        additional_dependencies: ['cpplint==2.0.2']
     -   id: yapf
         name: yapf
         entry: yapf
@@ -77,6 +98,13 @@ repos:
         language: python
         types: [java]
         args: [-i]
+        # (TODO:b/454687024) Re-enable. Temporarily disabled post m138 merge
+        # due to unintended update of java code formatting rules
+        exclude: |
+            (?x)^(
+                starboard/|
+                cobalt/
+            )
     -   id: gcheckstyle
         name: gcheckstyle
         entry: python3 ./cobalt/precommit/gcheckstyle_wrapper.py

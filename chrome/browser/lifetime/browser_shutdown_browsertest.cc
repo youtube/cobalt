@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/lifetime/browser_shutdown.h"
+
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/app/chrome_command_ids.h"
-#include "chrome/browser/lifetime/browser_shutdown.h"
 #include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
@@ -21,7 +21,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/events/test/event_generator.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "ui/aura/window.h"
 #endif
 
@@ -30,13 +30,13 @@ using testing::AtLeast;
 
 class BrowserShutdownBrowserTest : public InProcessBrowserTest {
  public:
-  BrowserShutdownBrowserTest() {}
+  BrowserShutdownBrowserTest() = default;
 
   BrowserShutdownBrowserTest(const BrowserShutdownBrowserTest&) = delete;
   BrowserShutdownBrowserTest& operator=(const BrowserShutdownBrowserTest&) =
       delete;
 
-  ~BrowserShutdownBrowserTest() override {}
+  ~BrowserShutdownBrowserTest() override = default;
 
  protected:
   base::HistogramTester histogram_tester_;
@@ -44,7 +44,7 @@ class BrowserShutdownBrowserTest : public InProcessBrowserTest {
 
 class BrowserClosingObserver : public BrowserListObserver {
  public:
-  BrowserClosingObserver() {}
+  BrowserClosingObserver() = default;
 
   BrowserClosingObserver(const BrowserClosingObserver&) = delete;
   BrowserClosingObserver& operator=(const BrowserClosingObserver&) = delete;
@@ -54,9 +54,43 @@ class BrowserClosingObserver : public BrowserListObserver {
 
 // ChromeOS has the different shutdown flow on user initiated exit process.
 // See the comment for chrome::AttemptUserExit() function declaration.
-#if !BUILDFLAG(IS_CHROMEOS_ASH)
+#if !BUILDFLAG(IS_CHROMEOS)
+// Mac browser shutdown is flaky: https://crbug.com/1259913
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_ClosingShutdownHistograms DISABLED_ClosingShutdownHistograms
+#else
+#define MAYBE_ClosingShutdownHistograms ClosingShutdownHistograms
+#endif
 IN_PROC_BROWSER_TEST_F(BrowserShutdownBrowserTest,
-                       PRE_TwoBrowsersClosingShutdownHistograms) {
+                       MAYBE_ClosingShutdownHistograms) {
+  ASSERT_TRUE(
+      ui_test_utils::NavigateToURL(browser(), GURL("browser://version")));
+  CloseBrowserSynchronously(browser());
+  // RecordShutdownMetrics() is called in the ChromeMainDelegate destructor.
+  browser_shutdown::RecordShutdownMetrics();
+
+  EXPECT_TRUE(browser_shutdown::IsTryingToQuit());
+  EXPECT_TRUE(BrowserList::GetInstance()->empty());
+  EXPECT_EQ(browser_shutdown::GetShutdownType(),
+            browser_shutdown::ShutdownType::kWindowClose);
+
+  histogram_tester_.ExpectUniqueSample(
+      "Shutdown.ShutdownType2",
+      static_cast<int>(browser_shutdown::ShutdownType::kWindowClose), 1);
+  histogram_tester_.ExpectTotalCount("Shutdown.WindowClose.Time2", 1);
+  histogram_tester_.ExpectTotalCount("Shutdown.Renderers.Total2", 1);
+}
+
+// Flakes on Mac12.0: https://crbug.com/1259913
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_TwoBrowsersClosingShutdownHistograms \
+  DISABLED_TwoBrowsersClosingShutdownHistograms
+#else
+#define MAYBE_TwoBrowsersClosingShutdownHistograms \
+  TwoBrowsersClosingShutdownHistograms
+#endif
+IN_PROC_BROWSER_TEST_F(BrowserShutdownBrowserTest,
+                       MAYBE_TwoBrowsersClosingShutdownHistograms) {
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser(), GURL("browser://version")));
   Browser* browser2 = CreateBrowser(browser()->profile());
@@ -77,23 +111,15 @@ IN_PROC_BROWSER_TEST_F(BrowserShutdownBrowserTest,
   EXPECT_EQ(browser_shutdown::GetShutdownType(),
             browser_shutdown::ShutdownType::kWindowClose);
   BrowserList::RemoveObserver(&closing_observer);
-}
 
-// Flakes on Mac12.0: https://crbug.com/1259913
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_TwoBrowsersClosingShutdownHistograms \
-  DISABLED_TwoBrowsersClosingShutdownHistograms
-#else
-#define MAYBE_TwoBrowsersClosingShutdownHistograms \
-  TwoBrowsersClosingShutdownHistograms
-#endif
-IN_PROC_BROWSER_TEST_F(BrowserShutdownBrowserTest,
-                       MAYBE_TwoBrowsersClosingShutdownHistograms) {
+  // RecordShutdownMetrics() is called in the ChromeMainDelegate destructor.
+  browser_shutdown::RecordShutdownMetrics();
+
   histogram_tester_.ExpectUniqueSample(
-      "Shutdown.ShutdownType",
+      "Shutdown.ShutdownType2",
       static_cast<int>(browser_shutdown::ShutdownType::kWindowClose), 1);
-  histogram_tester_.ExpectTotalCount("Shutdown.Renderers.Total", 1);
-  histogram_tester_.ExpectTotalCount("Shutdown.WindowClose.Time", 1);
+  histogram_tester_.ExpectTotalCount("Shutdown.WindowClose.Time2", 1);
+  histogram_tester_.ExpectTotalCount("Shutdown.Renderers.Total2", 1);
 }
 #else
 // On Chrome OS, the shutdown accelerator is handled by Ash and requires
@@ -112,4 +138,4 @@ IN_PROC_BROWSER_TEST_F(BrowserShutdownBrowserTest, ShutdownConfirmation) {
 
   EXPECT_FALSE(browser_shutdown::IsTryingToQuit());
 }
-#endif  // !BUILDFLAG(IS_CHROMEOS_ASH)
+#endif  // !BUILDFLAG(IS_CHROMEOS)

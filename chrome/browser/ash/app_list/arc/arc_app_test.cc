@@ -4,24 +4,19 @@
 
 #include "chrome/browser/ash/app_list/arc/arc_app_test.h"
 
-#include "ash/components/arc/arc_util.h"
-#include "ash/components/arc/mojom/app.mojom-shared.h"
-#include "ash/components/arc/session/arc_bridge_service.h"
-#include "ash/components/arc/session/arc_service_manager.h"
-#include "ash/components/arc/session/arc_session_runner.h"
-#include "ash/components/arc/test/arc_util_test_support.h"
-#include "ash/components/arc/test/connection_holder_util.h"
-#include "ash/components/arc/test/fake_app_instance.h"
-#include "ash/components/arc/test/fake_arc_session.h"
-#include "ash/components/arc/test/fake_compatibility_mode_instance.h"
+#include <algorithm>
+#include <vector>
+
+#include "ash/constants/ash_features.h"
 #include "base/command_line.h"
 #include "base/containers/contains.h"
-#include "base/containers/cxx20_erase.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
+#include "chrome/browser/apps/app_service/app_service_proxy.h"
+#include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
+#include "chrome/browser/apps/app_service/promise_apps/promise_app_service.h"
 #include "chrome/browser/apps/app_service/publishers/arc_apps_factory.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs.h"
 #include "chrome/browser/ash/app_list/arc/arc_app_list_prefs_factory.h"
@@ -29,14 +24,24 @@
 #include "chrome/browser/ash/arc/session/arc_play_store_enabled_preference_handler.h"
 #include "chrome/browser/ash/arc/session/arc_session_manager.h"
 #include "chrome/browser/ash/arc/test/test_arc_session_manager.h"
-#include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chromeos/ash/components/dbus/concierge/concierge_client.h"
-#include "components/arc/intent_helper/arc_intent_helper_bridge.h"
-#include "components/arc/test/fake_intent_helper_host.h"
-#include "components/arc/test/fake_intent_helper_instance.h"
+#include "chromeos/ash/experiences/arc/arc_util.h"
+#include "chromeos/ash/experiences/arc/intent_helper/arc_intent_helper_bridge.h"
+#include "chromeos/ash/experiences/arc/mojom/app.mojom-shared.h"
+#include "chromeos/ash/experiences/arc/session/arc_bridge_service.h"
+#include "chromeos/ash/experiences/arc/session/arc_service_manager.h"
+#include "chromeos/ash/experiences/arc/session/arc_session_runner.h"
+#include "chromeos/ash/experiences/arc/test/arc_util_test_support.h"
+#include "chromeos/ash/experiences/arc/test/connection_holder_util.h"
+#include "chromeos/ash/experiences/arc/test/fake_app_instance.h"
+#include "chromeos/ash/experiences/arc/test/fake_arc_session.h"
+#include "chromeos/ash/experiences/arc/test/fake_compatibility_mode_instance.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_host.h"
+#include "chromeos/ash/experiences/arc/test/fake_intent_helper_instance.h"
 #include "components/user_manager/scoped_user_manager.h"
+#include "google_apis/gaia/gaia_id.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
@@ -45,11 +50,15 @@ constexpr char kPackageName1[] = "fake.package.name1";
 constexpr char kPackageName2[] = "fake.package.name2";
 constexpr char kPackageName3[] = "fake.package.name3";
 constexpr char kPackageName4[] = "fake.package.name4";
+constexpr char kPackageName5[] = "fake.package.name5";
 
 constexpr char kWebAppInfoTitle4[] = "package4";
 constexpr char kWebAppInfoStartURL4[] = "https://example.com/app?start";
 constexpr char kWebAppInfoScope4[] = "https://example.com/app";
 constexpr char kWebAppInfoCertificateFingerprint4[] = "abc";
+
+const std::vector<std::string> kSupportedLocales5 = {"en-US", "ja"};
+constexpr char kSelectedLocale5[] = "en-US";
 
 }  // namespace
 
@@ -81,18 +90,14 @@ std::vector<arc::mojom::AppInfoPtr> ArcAppTest::CloneApps(
   return result;
 }
 
-ArcAppTest::ArcAppTest() {
-  user_manager_enabler_ = std::make_unique<user_manager::ScopedUserManager>(
-      std::make_unique<ash::FakeChromeUserManager>());
+ArcAppTest::ArcAppTest(UserManagerMode user_manager_mode)
+    : fake_user_manager_(user_manager_mode == UserManagerMode::kDoNothing
+                             ? nullptr
+                             : std::make_unique<ash::FakeChromeUserManager>()) {
   CreateFakeAppsAndPackages();
 }
 
 ArcAppTest::~ArcAppTest() = default;
-
-ash::FakeChromeUserManager* ArcAppTest::GetUserManager() {
-  return static_cast<ash::FakeChromeUserManager*>(
-      user_manager::UserManager::Get());
-}
 
 void ArcAppTest::SetUp(Profile* profile) {
   if (!ash::ConciergeClient::Get()) {
@@ -104,14 +109,21 @@ void ArcAppTest::SetUp(Profile* profile) {
   DCHECK(!profile_);
   profile_ = profile;
 
+  if (!session_manager::SessionManager::Get()) {
+    session_manager_ = std::make_unique<session_manager::SessionManager>();
+  }
+
   arc::ResetArcAllowedCheckForTesting(profile_);
 
-  const user_manager::User* user = CreateUserAndLogin();
+  if (fake_user_manager_.Get()) {
+    const user_manager::User* user = CreateUserAndLogin();
 
-  // If for any reason the garbage collector kicks in while we are waiting for
-  // an icon, have the user-to-profile mapping ready to avoid using the real
-  // profile manager (which is null).
-  ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(user, profile_);
+    // If for any reason the garbage collector kicks in while we are waiting for
+    // an icon, have the user-to-profile mapping ready to avoid using the real
+    // profile manager (which is null).
+    ash::ProfileHelper::Get()->SetUserToProfileMappingForTesting(user,
+                                                                 profile_);
+  }
 
   // A valid |arc_app_list_prefs_| is needed for the ARC bridge service and the
   // ARC auth service.
@@ -147,6 +159,12 @@ void ArcAppTest::SetUp(Profile* profile) {
   if (wait_default_apps_)
     WaitForDefaultApps();
   WaitForRemoveAllApps();
+
+  if (ash::features::ArePromiseIconsEnabled()) {
+    apps::AppServiceProxyFactory::GetForProfile(profile_)
+        ->PromiseAppService()
+        ->SetSkipAlmanacForTesting(true);
+  }
 
   // Check initial conditions.
   if (activate_arc_on_start_) {
@@ -201,10 +219,10 @@ void ArcAppTest::WaitForRemoveAllApps() {
 void ArcAppTest::CreateFakeAppsAndPackages() {
   arc::mojom::AppInfo app;
   // Make sure we have enough data for test.
-  for (int i = 0; i < 3; ++i) {
+  for (int i = 1; i <= 5; ++i) {
     arc::mojom::AppInfoPtr app_info = arc::mojom::AppInfo::New(
         base::StringPrintf("Fake App %d", i),
-        base::StringPrintf("fake.app.%d", i),
+        base::StringPrintf("fake.package.name%d", i),
         base::StringPrintf("fake.app.%d.activity", i), false /* sticky */);
     app_info->app_category = arc::mojom::AppCategory::kUndefined;
     fake_apps_.emplace_back(std::move(app_info));
@@ -228,8 +246,8 @@ void ArcAppTest::CreateFakeAppsAndPackages() {
       kPackageName1 /* package_name */, 1 /* package_version */,
       1 /* last_backup_android_id */, 1 /* last_backup_time */,
       false /* sync */, false /* system */, false /* vpn_provider */,
-      nullptr /* web_app_info */, absl::nullopt, std::move(permissions1),
-      absl::nullopt /* version_name */, false /* preinstalled */));
+      nullptr /* web_app_info */, std::nullopt, std::move(permissions1),
+      std::nullopt /* version_name */, false /* preinstalled */));
 
   base::flat_map<arc::mojom::AppPermission, arc::mojom::PermissionStatePtr>
       permissions2;
@@ -243,7 +261,7 @@ void ArcAppTest::CreateFakeAppsAndPackages() {
       kPackageName2 /* package_name */, 2 /* package_version */,
       2 /* last_backup_android_id */, 2 /* last_backup_time */, true /* sync */,
       false /* system */, false /* vpn_provider */, nullptr /* web_app_info */,
-      absl::nullopt, std::move(permissions2), absl::nullopt /* version_name */,
+      std::nullopt, std::move(permissions2), std::nullopt /* version_name */,
       false /* preinstalled */));
 
   base::flat_map<arc::mojom::AppPermission, arc::mojom::PermissionStatePtr>
@@ -261,8 +279,8 @@ void ArcAppTest::CreateFakeAppsAndPackages() {
       kPackageName3 /* package_name */, 3 /* package_version */,
       3 /* last_backup_android_id */, 3 /* last_backup_time */,
       false /* sync */, false /* system */, false /* vpn_provider */,
-      nullptr /* web_app_info */, absl::nullopt, std::move(permissions3),
-      absl::nullopt /* version_name */, false /* preinstalled */));
+      nullptr /* web_app_info */, std::nullopt, std::move(permissions3),
+      std::nullopt /* version_name */, false /* preinstalled */));
 
   base::flat_map<arc::mojom::AppPermission, arc::mojom::PermissionStatePtr>
       permissions4;
@@ -279,12 +297,24 @@ void ArcAppTest::CreateFakeAppsAndPackages() {
                                   kWebAppInfoScope4,
                                   /*theme_color=*/0, /*is_web_only_twa=*/true,
                                   kWebAppInfoCertificateFingerprint4),
-      /*deprecated_permissions=*/absl::nullopt,
+      /*deprecated_permissions=*/std::nullopt,
       /*permission_states=*/std::move(permissions4),
-      /*version_name=*/absl::nullopt,
+      /*version_name=*/std::nullopt,
       /*preinstalled=*/false));
 
-  for (int i = 0; i < 3; ++i) {
+  base::flat_map<arc::mojom::AppPermission, arc::mojom::PermissionStatePtr>
+      permissions5;
+  fake_packages_.emplace_back(arc::mojom::ArcPackageInfo::New(
+      kPackageName5 /* package_name */, 5 /* package_version */,
+      5 /* last_backup_android_id */, 5 /* last_backup_time */,
+      false /* sync */, false /* system */, false /* vpn_provider */,
+      nullptr /* web_app_info */, std::nullopt, std::move(permissions5),
+      std::nullopt /* version_name */, false /* preinstalled */,
+      arc::mojom::InstallPriority::kUndefined /* priority */,
+      arc::mojom::PackageLocaleInfo::New(kSupportedLocales5,
+                                         kSelectedLocale5)));
+
+  for (int i = 1; i <= 5; ++i) {
     arc::mojom::ShortcutInfo shortcut_info;
     shortcut_info.name = base::StringPrintf("Fake Shortcut %d", i);
     shortcut_info.package_name = base::StringPrintf("fake.shortcut.%d", i);
@@ -324,6 +354,7 @@ void ArcAppTest::TearDown() {
     concierge_client_initialized_ = false;
   }
   profile_ = nullptr;
+  session_manager_.reset();
 }
 
 void ArcAppTest::StopArcInstance() {
@@ -352,9 +383,9 @@ void ArcAppTest::SetUpIntentHelper() {
 
 const user_manager::User* ArcAppTest::CreateUserAndLogin() {
   const AccountId account_id(AccountId::FromUserEmailGaiaId(
-      profile_->GetProfileUserName(), "1234567890"));
-  const user_manager::User* user = GetUserManager()->AddUser(account_id);
-  GetUserManager()->LoginUser(account_id);
+      profile_->GetProfileUserName(), GaiaId("1234567890")));
+  const user_manager::User* user = fake_user_manager_->AddUser(account_id);
+  fake_user_manager_->LoginUser(account_id);
   return user;
 }
 
@@ -365,15 +396,15 @@ void ArcAppTest::AddPackage(arc::mojom::ArcPackageInfoPtr package) {
 }
 
 void ArcAppTest::UpdatePackage(arc::mojom::ArcPackageInfoPtr updated_package) {
-  auto it = base::ranges::find(fake_packages_, updated_package->package_name,
-                               &arc::mojom::ArcPackageInfo::package_name);
+  auto it = std::ranges::find(fake_packages_, updated_package->package_name,
+                              &arc::mojom::ArcPackageInfo::package_name);
   if (it != fake_packages_.end()) {
     *it = std::move(updated_package);
   }
 }
 
 void ArcAppTest::RemovePackage(const std::string& package_name) {
-  base::EraseIf(fake_packages_, [package_name](const auto& package) {
+  std::erase_if(fake_packages_, [package_name](const auto& package) {
     return package->package_name == package_name;
   });
 }

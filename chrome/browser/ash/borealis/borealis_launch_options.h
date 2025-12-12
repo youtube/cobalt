@@ -5,9 +5,10 @@
 #ifndef CHROME_BROWSER_ASH_BOREALIS_BOREALIS_LAUNCH_OPTIONS_H_
 #define CHROME_BROWSER_ASH_BOREALIS_BOREALIS_LAUNCH_OPTIONS_H_
 
+#include <optional>
+
 #include "base/files/file_path.h"
 #include "base/functional/callback_forward.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 class Profile;
 
@@ -34,11 +35,9 @@ class BorealisLaunchOptions {
     Options(const Options&);
     ~Options();
 
-    absl::optional<base::FilePath> extra_disk = absl::nullopt;
+    std::optional<base::FilePath> extra_disk = std::nullopt;
 
     bool auto_shutdown = true;
-
-    bool feedback_forms = true;
   };
 
   explicit BorealisLaunchOptions(Profile* profile);

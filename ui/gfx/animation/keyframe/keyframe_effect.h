@@ -29,8 +29,8 @@ using TargetProperties = std::bitset<kMaxTargetPropertyId>;
 // For background on the name of this class, please refer to the WebAnimations
 // spec: https://www.w3.org/TR/web-animations-1/#the-keyframeeffect-interface
 //
-// TODO(crbug.com/747185): Make cc::KeyframeEffect a subclass of KeyframeEffect
-// and share common code.
+// TODO(crbug.com/40531111): Make cc::KeyframeEffect a subclass of
+// KeyframeEffect and share common code.
 class GFX_KEYFRAME_ANIMATION_EXPORT KeyframeEffect {
  public:
   static int GetNextKeyframeModelId();
@@ -50,7 +50,7 @@ class GFX_KEYFRAME_ANIMATION_EXPORT KeyframeEffect {
   void RemoveKeyframeModel(int keyframe_model_id);
   void RemoveKeyframeModels(int target_property);
 
-  virtual void Tick(base::TimeTicks monotonic_time);
+  virtual bool Tick(base::TimeTicks monotonic_time);
 
   // This ticks all keyframe models until they are complete.
   void FinishAll();
@@ -116,7 +116,7 @@ class GFX_KEYFRAME_ANIMATION_EXPORT KeyframeEffect {
                          KeyframeModel* keyframe_model);
 
  private:
-  void TickInternal(base::TimeTicks monotonic_time,
+  bool TickInternal(base::TimeTicks monotonic_time,
                     bool include_infinite_animations);
   void StartKeyframeModels(base::TimeTicks monotonic_time,
                            bool include_infinite_animations);

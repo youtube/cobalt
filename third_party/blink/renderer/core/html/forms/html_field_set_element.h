@@ -45,14 +45,15 @@ class CORE_EXPORT HTMLFieldSetElement final : public HTMLFormControlElement {
  protected:
   void DisabledAttributeChanged() override;
   void AncestorDisabledStateWasChanged() override;
+  void DidMoveToNewDocument(Document& old_document) override;
 
  private:
   bool IsEnumeratable() const override { return true; }
-  bool SupportsFocus() const override;
+  FocusableState SupportsFocus(UpdateBehavior update_behavior) const override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
-  LayoutBox* GetLayoutBoxForScrolling() const override;
   void DidRecalcStyle(const StyleRecalcChange change) override;
-  const AtomicString& FormControlType() const override;
+  mojom::blink::FormControlType FormControlType() const override;
+  const AtomicString& FormControlTypeAsString() const override;
   bool RecalcWillValidate() const override { return false; }
   bool MatchesValidityPseudoClasses() const final;
   bool IsValidElement() final;
@@ -60,6 +61,7 @@ class CORE_EXPORT HTMLFieldSetElement final : public HTMLFormControlElement {
   bool AreAuthorShadowsAllowed() const override { return false; }
   bool IsSubmittableElement() override;
   bool AlwaysCreateUserAgentShadowRoot() const override { return false; }
+  bool MatchesEnabledPseudoClass() const final;
 
   Element* InvalidateDescendantDisabledStateAndFindFocusedOne(Element& base);
 };

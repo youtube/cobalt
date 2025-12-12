@@ -2,13 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "ui/accessibility/ax_tree.h"
 #include "ui/accessibility/ax_tree_observer.h"
 
 class EmptyAXTreeObserver : public ui::AXTreeObserver {
  public:
-  EmptyAXTreeObserver() {}
-  ~EmptyAXTreeObserver() override {}
+  EmptyAXTreeObserver() = default;
+  ~EmptyAXTreeObserver() override = default;
 };
 
 // Entry point for LibFuzzer.
@@ -42,7 +47,6 @@ extern "C" int LLVMFuzzerTestOneInput(const unsigned char* data, size_t size) {
 
   EmptyAXTreeObserver observer;
   ui::AXTree tree;
-  tree.DisallowFailFastForFuzzing();
   tree.AddObserver(&observer);
   tree.Unserialize(initial_state);
   tree.RemoveObserver(&observer);

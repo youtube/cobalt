@@ -4,11 +4,11 @@
 
 #include "components/cast_receiver/browser/streaming_receiver_session_client.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "base/containers/contains.h"
 #include "base/logging.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "components/cast/message_port/platform_message_port.h"
@@ -23,7 +23,7 @@ constexpr base::TimeDelta
 
 StreamingReceiverSessionClient::StreamingReceiverSessionClient(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
-    cast_streaming::NetworkContextGetter network_context_getter,
+    network::NetworkContextGetter network_context_getter,
     std::unique_ptr<cast_api_bindings::MessagePort> message_port,
     content::WebContents* web_contents,
     Handler* handler,
@@ -42,7 +42,7 @@ StreamingReceiverSessionClient::StreamingReceiverSessionClient(
 
 StreamingReceiverSessionClient::StreamingReceiverSessionClient(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
-    cast_streaming::NetworkContextGetter network_context_getter,
+    network::NetworkContextGetter network_context_getter,
     std::unique_ptr<StreamingController> streaming_controller,
     Handler* handler,
     cast_receiver::StreamingConfigManager* config_manager,

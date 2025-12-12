@@ -7,12 +7,12 @@
 
 #include <string>
 
-
 namespace translate {
+enum class LanguageVerificationType;
 
 // Given a detected language and whether that detection is reliable, returns the
 // ISO 639 language code of |utf8_text|. Returns
-// |translate::kUnknownLanguageCode|
+// |language_detection::kUnknownLanguageCode|
 //  for unreliable, "unknown", and xx-Latn predictions that are currently not
 // supported.
 std::string FilterDetectedLanguage(const std::string& utf8_text,
@@ -20,15 +20,22 @@ std::string FilterDetectedLanguage(const std::string& utf8_text,
                                    bool is_detection_reliable);
 
 // Returns the ISO 639 language code of the specified |utf8_text|, or
-// |translate::kUnknownLanguageCode| if it failed. |is_model_reliable| will be
-// set as true if CLD says the detection is reliable and
+// |language_detection::kUnknownLanguageCode| if it failed. |is_model_reliable|
+// will be set as true if CLD says the detection is reliable and
 // |model_reliability_score| will contain the model's confidence in that
 // detection.
 std::string DetermineTextLanguage(const std::string& utf8_text,
                                   bool* is_model_reliable,
                                   float& model_reliability_score);
 
-// Determines content page language from Content-Language code and contents.
+// Determines page language from content header and html lang when no model is
+// available.
+std::string DeterminePageLanguageNoModel(
+    const std::string& content_lang,
+    const std::string& html_lang,
+    translate::LanguageVerificationType language_verification_type);
+
+// Determines page language from content header, html lang and contents.
 // Returns the contents language results in |model_detected_language| and
 // |is_model_reliable| and the model's confidence it its detection language
 // in |model_reliability_score|.

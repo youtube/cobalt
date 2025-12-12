@@ -15,8 +15,7 @@
 
 using content::BrowserThread;
 
-namespace ash {
-namespace file_system_provider {
+namespace ash::file_system_provider {
 
 namespace {
 
@@ -56,7 +55,7 @@ void AddWatcherOnUIThread(const storage::FileSystemURL& url,
   }
 
   parser.file_system()->AddWatcher(url.origin().GetURL(), parser.file_path(),
-                                   recursive, false /* persistent */,
+                                   recursive, /*persistent=*/false,
                                    std::move(callback),
                                    std::move(notification_callback));
 }
@@ -110,5 +109,4 @@ void WatcherManager::RemoveWatcher(const storage::FileSystemURL& url,
                                                std::move(callback))));
 }
 
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider

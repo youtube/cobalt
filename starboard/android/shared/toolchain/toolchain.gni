@@ -18,7 +18,6 @@ declare_args() {
   android_sdk_path = getenv("ANDROID_HOME")
   android_ndk_path = ""
   sb_android_ndk_version = "25.2.9519653"
-  android_ndk_api_level = 24
 }
 
 _home = getenv("HOME")

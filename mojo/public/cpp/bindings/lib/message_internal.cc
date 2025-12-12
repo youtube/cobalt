@@ -10,35 +10,26 @@
 namespace mojo {
 namespace internal {
 
-namespace {
-
-size_t ComputeHeaderSize(uint32_t flags, size_t payload_interface_id_count) {
-  if (payload_interface_id_count > 0) {
-    // Version 2
-    return sizeof(MessageHeaderV2);
-  } else if (flags &
-             (Message::kFlagExpectsResponse | Message::kFlagIsResponse)) {
-    // Version 1
-    return sizeof(MessageHeaderV1);
-  } else {
-    // Version 0
-    return sizeof(MessageHeader);
-  }
-}
-
-}  // namespace
-
-size_t ComputeSerializedMessageSize(uint32_t flags,
-                                    size_t payload_size,
+size_t ComputeSerializedMessageSize(size_t payload_size,
                                     size_t payload_interface_id_count) {
-  const size_t header_size =
-      ComputeHeaderSize(flags, payload_interface_id_count);
+  const size_t header_size = sizeof(MessageHeaderV3);
   if (payload_interface_id_count > 0) {
     return Align(header_size + Align(payload_size) +
                  ArrayDataTraits<uint32_t>::GetStorageSize(
                      static_cast<uint32_t>(payload_interface_id_count)));
   }
   return internal::Align(header_size + payload_size);
+}
+
+size_t EstimateSerializedMessageSize(uint32_t message_name,
+                                     size_t payload_size,
+                                     size_t total_size,
+                                     size_t estimated_payload_size) {
+  if (estimated_payload_size > payload_size) {
+    const size_t extra_payload_size = estimated_payload_size - payload_size;
+    return internal::Align(total_size + extra_payload_size);
+  }
+  return total_size;
 }
 
 }  // namespace internal

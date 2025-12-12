@@ -2,22 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import "base/strings/sys_string_conversions.h"
+#import "components/autofill/core/browser/data_model/payments/credit_card.h"
+#import "ios/web_view/internal/app/application_context.h"
 #import "ios/web_view/internal/autofill/cwv_credit_card_internal.h"
-
-#include "base/strings/sys_string_conversions.h"
-#include "components/autofill/core/browser/data_model/credit_card.h"
-#include "ios/web_view/internal/app/application_context.h"
 #import "ios/web_view/internal/utils/nsobject_description_utils.h"
-#include "ui/base/resource/resource_bundle.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "ui/base/resource/resource_bundle.h"
 
 @interface CWVCreditCard ()
 
 // Gets |value| for |type| from |_internalCard|.
-- (NSString*)valueForType:(autofill::ServerFieldType)type;
+- (NSString*)valueForType:(autofill::FieldType)type;
 
 @end
 
@@ -83,7 +78,7 @@
 
 #pragma mark - Private Methods
 
-- (NSString*)valueForType:(autofill::ServerFieldType)type {
+- (NSString*)valueForType:(autofill::FieldType)type {
   const std::string& locale =
       ios_web_view::ApplicationContext::GetInstance()->GetApplicationLocale();
   return base::SysUTF16ToNSString(_internalCard.GetInfo(type, locale));

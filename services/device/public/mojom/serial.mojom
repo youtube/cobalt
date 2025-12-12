@@ -4,6 +4,7 @@
 
 module device.mojom;
 
+import "device/bluetooth/public/mojom/uuid.mojom";
 import "mojo/public/mojom/base/file_path.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 
@@ -11,9 +12,8 @@ struct SerialPortInfo {
   mojo_base.mojom.UnguessableToken token;
   mojo_base.mojom.FilePath path;
 
-  // This member is used to identify whether the SerialPortInfo object is
-  // converted from a Bluetooth serial device.
-  DeviceType type = PLATFORM_SERIAL;
+  // The backend implementation for the serial port.
+  SerialPortType type = PLATFORM_SERIAL;
 
   // On macOS a serial device may have two paths, one for the call-out device
   // and one for the dial-in device. The call-out device is preferred. If
@@ -35,13 +35,30 @@ struct SerialPortInfo {
   uint16 product_id;
   bool has_product_id = false;
 
+  // The Bluetooth service class ID of the port if the port is from a Bluetooth
+  // device. It is a 128-bit canonical UUID.
+  bluetooth.mojom.UUID? bluetooth_service_class_id;
+
   // A string suitable for display to the user for describing this device. May
   // be, for example, the USB device product name string.
+  // If no display_name is provided, the path will be displayed to the user
+  // instead.
   string? display_name;
 
   // The USB device serial number.
   // Note: This field is not populated on Windows nor for non-USB devices.
   string? serial_number;
+
+  // True if the port was connected when the SerialPortInfo was returned from
+  // the SerialPortManager. SerialPortManagerClients are notified on port
+  // connected state changes.
+  //
+  // A wired serial port is considered connected if it is physically attached
+  // to the system.
+  //
+  // A wireless serial port is considered connected if the wireless device
+  // hosting the port has any active connections to the system.
+  bool connected = true;
 };
 
 enum SerialSendError {
@@ -95,11 +112,11 @@ enum SerialPortFlushMode {
   kTransmit,
 };
 
-enum DeviceType {
-  // The SerialPortInfo object is created from a serial device.
+enum SerialPortType {
+  // The serial port is implemented using the platform's serial device API.
   PLATFORM_SERIAL,
-  // The SerialPortInfo object is created from a Bluetooth SPP device.
-  SPP_DEVICE,
+  // The serial port is implemented using the Bluetooth classic RFCOMM protocol.
+  BLUETOOTH_CLASSIC_RFCOMM,
 };
 
 struct SerialConnectionOptions {
@@ -167,6 +184,10 @@ interface SerialPortManagerClient {
 
   // This message indicates that a port has been removed from the host.
   OnPortRemoved(SerialPortInfo port_info);
+
+  // This message indicates that the connected state of a port has changed. No
+  // message is sent if the port is added or removed.
+  OnPortConnectedStateChanged(SerialPortInfo port_info);
 };
 
 // Performs asynchronous I/O on serial devices.

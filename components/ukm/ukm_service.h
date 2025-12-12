@@ -73,8 +73,7 @@ class UkmService : public UkmRecorderImpl {
   UkmService(PrefService* pref_service,
              metrics::MetricsServiceClient* client,
              std::unique_ptr<metrics::UkmDemographicMetricsProvider>
-                 demographics_provider,
-             uint64_t external_client_id = 0);
+                 demographics_provider);
 
   UkmService(const UkmService&) = delete;
   UkmService& operator=(const UkmService&) = delete;
@@ -132,8 +131,6 @@ class UkmService : public UkmRecorderImpl {
 
   int32_t report_count() const { return report_count_; }
 
-  uint64_t client_id() const { return client_id_; }
-
   ukm::UkmReportingService& reporting_service_for_testing() {
     return reporting_service_;
   }
@@ -157,8 +154,12 @@ class UkmService : public UkmRecorderImpl {
                            TestRegisterUkmProvidersWhenUKMFeatureEnabled);
   FRIEND_TEST_ALL_PREFIXES(UkmServiceTest,
                            PurgeExtensionDataFromUnsentLogStore);
+  FRIEND_TEST_ALL_PREFIXES(
+      UkmServiceTest,
+      PurgeExtensionDataFromUnsentLogStoreWithVersionChange);
   FRIEND_TEST_ALL_PREFIXES(UkmServiceTest, PurgeAppDataFromUnsentLogStore);
   FRIEND_TEST_ALL_PREFIXES(UkmServiceTest, PurgeMsbbDataFromUnsentLogStore);
+  FRIEND_TEST_ALL_PREFIXES(UkmServiceTest, PurgeAppDataLogMetadataUpdate);
 
   // Updates the |recorder_client_registry_| about the changes in
   // UkmRecorderParameters. Thread-safe.
@@ -206,10 +207,6 @@ class UkmService : public UkmRecorderImpl {
 
   // The UKM client id stored in prefs.
   uint64_t client_id_ = 0;
-
-  // External client id. If specified client_id will be set to this
-  // instead of generated. This is currently only used in Lacros.
-  uint64_t external_client_id_ = 0;
 
   // The UKM session id stored in prefs.
   int32_t session_id_ = 0;

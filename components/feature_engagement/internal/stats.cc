@@ -47,7 +47,6 @@ std::string ToDbHistogramSuffix(StoreType type) {
       return std::string(kAvailabilityStoreSuffix);
     default:
       NOTREACHED();
-      return std::string();
   }
 }
 
@@ -221,11 +220,6 @@ void RecordAvailabilityDbLoadEvent(bool success) {
       "InProductHelp.Db.Load." +
       ToDbHistogramSuffix(StoreType::AVAILABILITY_STORE);
   base::UmaHistogramBoolean(histogram_name, success);
-}
-
-void RecordConfigParsingEvent(ConfigParsingEvent event) {
-  UMA_HISTOGRAM_ENUMERATION("InProductHelp.Config.ParsingEvent", event,
-                            ConfigParsingEvent::COUNT);
 }
 
 }  // namespace stats

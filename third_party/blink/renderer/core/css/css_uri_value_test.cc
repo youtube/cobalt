@@ -7,13 +7,16 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
+#include "third_party/blink/renderer/platform/wtf/text/text_encoding.h"
 
 namespace blink {
 namespace {
 
 TEST(CSSURIValueTest, ComputedCSSValue) {
   cssvalue::CSSURIValue* rel = MakeGarbageCollected<cssvalue::CSSURIValue>(
-      "a", KURL("http://foo.com/a"));
+      *MakeGarbageCollected<CSSUrlData>(
+          AtomicString("a"), KURL("http://foo.com/a"), Referrer(),
+          /*origin_clean=*/true, /*is_ad_related=*/false));
   cssvalue::CSSURIValue* abs =
       rel->ComputedCSSValue(KURL("http://bar.com"), WTF::TextEncoding());
   EXPECT_EQ("url(\"http://bar.com/a\")", abs->CssText());
@@ -21,10 +24,32 @@ TEST(CSSURIValueTest, ComputedCSSValue) {
 
 TEST(CSSURIValueTest, AlreadyComputedCSSValue) {
   cssvalue::CSSURIValue* rel = MakeGarbageCollected<cssvalue::CSSURIValue>(
-      "http://baz.com/a", KURL("http://baz.com/a"));
+      *MakeGarbageCollected<CSSUrlData>(
+          AtomicString("http://baz.com/a"), KURL("http://baz.com/a"),
+          Referrer(), /*origin_clean=*/true, /*is_ad_related=*/false));
   cssvalue::CSSURIValue* abs =
       rel->ComputedCSSValue(KURL("http://bar.com"), WTF::TextEncoding());
   EXPECT_EQ("url(\"http://baz.com/a\")", abs->CssText());
+}
+
+TEST(CSSURIValueTest, LocalComputedCSSValue) {
+  cssvalue::CSSURIValue* rel = MakeGarbageCollected<cssvalue::CSSURIValue>(
+      *MakeGarbageCollected<CSSUrlData>(
+          AtomicString("#a"), KURL("http://baz.com/a"), Referrer(),
+          /*origin_clean=*/true, /*is_ad_related=*/false));
+  cssvalue::CSSURIValue* abs =
+      rel->ComputedCSSValue(KURL("http://bar.com"), WTF::TextEncoding());
+  EXPECT_EQ("url(\"#a\")", abs->CssText());
+}
+
+TEST(CSSURIValueTest, EmptyComputedCSSValue) {
+  cssvalue::CSSURIValue* rel = MakeGarbageCollected<cssvalue::CSSURIValue>(
+      *MakeGarbageCollected<CSSUrlData>(g_empty_atom, KURL(), Referrer(),
+                                        /*origin_clean=*/true,
+                                        /*is_ad_related=*/false));
+  cssvalue::CSSURIValue* abs =
+      rel->ComputedCSSValue(KURL("http://bar.com"), WTF::TextEncoding());
+  EXPECT_EQ("url(\"\")", abs->CssText());
 }
 
 }  // namespace

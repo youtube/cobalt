@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <stdint.h>
 #include <string.h>
 
@@ -334,8 +339,7 @@ DEFINE_TEST_CLIENT_TEST_WITH_PIPE(HandlePingPong, MessagePipeTest, h) {
   EXPECT_EQ(MOJO_RESULT_OK, MojoClose(h));
 }
 
-// This test is flaky: http://crbug.com/585784
-TEST_F(MessagePipeTest, DISABLED_DataPipeConsumerHandlePingPong) {
+TEST_F(MessagePipeTest, DataPipeConsumerHandlePingPong) {
   MojoHandle p, c[kPingPongHandlesPerIteration];
   for (size_t i = 0; i < kPingPongHandlesPerIteration; ++i) {
     EXPECT_EQ(MOJO_RESULT_OK, MojoCreateDataPipe(nullptr, &p, &c[i]));
@@ -353,8 +357,7 @@ TEST_F(MessagePipeTest, DISABLED_DataPipeConsumerHandlePingPong) {
     MojoClose(c[i]);
 }
 
-// This test is flaky: http://crbug.com/585784
-TEST_F(MessagePipeTest, DISABLED_DataPipeProducerHandlePingPong) {
+TEST_F(MessagePipeTest, DataPipeProducerHandlePingPong) {
   MojoHandle p[kPingPongHandlesPerIteration], c;
   for (size_t i = 0; i < kPingPongHandlesPerIteration; ++i) {
     EXPECT_EQ(MOJO_RESULT_OK, MojoCreateDataPipe(nullptr, &p[i], &c));
@@ -373,7 +376,7 @@ TEST_F(MessagePipeTest, DISABLED_DataPipeProducerHandlePingPong) {
 }
 
 #if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
-// TODO(crbug.com/1418597): Test currently fails on iOS.
+// TODO(crbug.com/40257752): Test currently fails on iOS.
 #define MAYBE_SharedBufferHandlePingPong DISABLED_SharedBufferHandlePingPong
 #else
 #define MAYBE_SharedBufferHandlePingPong SharedBufferHandlePingPong

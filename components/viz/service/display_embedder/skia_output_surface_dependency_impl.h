@@ -40,27 +40,24 @@ class VIZ_SERVICE_EXPORT SkiaOutputSurfaceDependencyImpl
   scoped_refptr<gpu::SharedContextState> GetSharedContextState() override;
   gpu::raster::GrShaderCache* GetGrShaderCache() override;
   VulkanContextProvider* GetVulkanContextProvider() override;
-  DawnContextProvider* GetDawnContextProvider() override;
+  gpu::DawnContextProvider* GetDawnContextProvider() override;
   const gpu::GpuPreferences& GetGpuPreferences() const override;
   const gpu::GpuFeatureInfo& GetGpuFeatureInfo() override;
-  gpu::MailboxManager* GetMailboxManager() override;
   bool IsOffscreen() override;
   gpu::SurfaceHandle GetSurfaceHandle() override;
   scoped_refptr<gl::GLSurface> CreateGLSurface(
-      base::WeakPtr<gpu::ImageTransportSurfaceDelegate> stub,
       gl::GLSurfaceFormat format) override;
-  scoped_refptr<gl::Presenter> CreatePresenter(
-      base::WeakPtr<gpu::ImageTransportSurfaceDelegate> stub,
-      gl::GLSurfaceFormat format) override;
+  scoped_refptr<gl::Presenter> CreatePresenter() override;
+#if BUILDFLAG(IS_ANDROID)
   base::ScopedClosureRunner CachePresenter(gl::Presenter* presenter) override;
   base::ScopedClosureRunner CacheGLSurface(gl::GLSurface* surface) override;
-  scoped_refptr<base::TaskRunner> GetClientTaskRunner() override;
+#endif
+  scoped_refptr<base::SingleThreadTaskRunner> GetClientTaskRunner() override;
   void ScheduleGrContextCleanup() override;
   void ScheduleDelayedGPUTaskFromGPUThread(base::OnceClosure task) override;
   void DidLoseContext(gpu::error::ContextLostReason reason,
                       const GURL& active_url) override;
 
-  base::TimeDelta GetGpuBlockedTimeSinceLastSwap() override;
   bool NeedsSupportForExternalStencil() override;
   bool IsUsingCompositorGpuThread() override;
 

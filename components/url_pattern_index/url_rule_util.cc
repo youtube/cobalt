@@ -22,7 +22,6 @@ std::string AnchorToString(url_pattern_index::flat::AnchorType anchor_type) {
       return "|";
   }
   NOTREACHED();
-  return std::string();
 }
 
 // Class that aids in appending options to a pretty-printed rule.

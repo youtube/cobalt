@@ -8,27 +8,27 @@
 #include <utility>
 
 #include "base/containers/contains.h"
-#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/strings/to_string.h"
 #include "base/trace_event/trace_event.h"
+#include "base/types/pass_key.h"
 #include "media/base/cdm_factory.h"
 #include "media/base/cdm_key_information.h"
 #include "media/base/cdm_promise.h"
 #include "media/base/key_systems.h"
 #include "media/cdm/cdm_context_ref_impl.h"
+#include "third_party/blink/renderer/platform/media/create_cdm_uma_helper.h"
 #include "third_party/blink/renderer/platform/media/web_content_decryption_module_session_impl.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
-namespace {
-const char kMediaEME[] = "Media.EME.";
-const char kDot[] = ".";
-const char kCreateCdmUMAName[] = "CreateCdm";
-const char kTimeToCreateCdmUMAName[] = "CreateCdmTime";
-}  // namespace
 
-CdmSessionAdapter::CdmSessionAdapter() : trace_id_(0) {}
+CdmSessionAdapter::CdmSessionAdapter(media::KeySystems* key_systems)
+    : key_systems_(key_systems), trace_id_(0) {
+  DCHECK(key_systems_);
+}
 
 CdmSessionAdapter::~CdmSessionAdapter() = default;
 
@@ -50,13 +50,13 @@ void CdmSessionAdapter::CreateCdm(media::CdmFactory* cdm_factory,
 
   cdm_factory->Create(
       cdm_config,
-      base::BindRepeating(&CdmSessionAdapter::OnSessionMessage, weak_this),
-      base::BindRepeating(&CdmSessionAdapter::OnSessionClosed, weak_this),
-      base::BindRepeating(&CdmSessionAdapter::OnSessionKeysChange, weak_this),
-      base::BindRepeating(&CdmSessionAdapter::OnSessionExpirationUpdate,
-                          weak_this),
-      base::BindOnce(&CdmSessionAdapter::OnCdmCreated, this, cdm_config,
-                     start_time));
+      WTF::BindRepeating(&CdmSessionAdapter::OnSessionMessage, weak_this),
+      WTF::BindRepeating(&CdmSessionAdapter::OnSessionClosed, weak_this),
+      WTF::BindRepeating(&CdmSessionAdapter::OnSessionKeysChange, weak_this),
+      WTF::BindRepeating(&CdmSessionAdapter::OnSessionExpirationUpdate,
+                         weak_this),
+      WTF::BindOnce(&CdmSessionAdapter::OnCdmCreated, WTF::RetainedRef(this),
+                    cdm_config, start_time));
 }
 
 void CdmSessionAdapter::SetServerCertificate(
@@ -73,8 +73,8 @@ void CdmSessionAdapter::GetStatusForPolicy(
 
 std::unique_ptr<WebContentDecryptionModuleSessionImpl>
 CdmSessionAdapter::CreateSession(WebEncryptedMediaSessionType session_type) {
-  return std::make_unique<WebContentDecryptionModuleSessionImpl>(this,
-                                                                 session_type);
+  return std::make_unique<WebContentDecryptionModuleSessionImpl>(
+      this, session_type, key_systems_);
 }
 
 bool CdmSessionAdapter::RegisterSession(
@@ -137,7 +137,6 @@ std::unique_ptr<media::CdmContextRef> CdmSessionAdapter::GetCdmContextRef() {
 
   if (!cdm_->GetCdmContext()) {
     NOTREACHED() << "All CDMs should support CdmContext.";
-    return nullptr;
   }
 
   return std::make_unique<media::CdmContextRefImpl>(cdm_);
@@ -161,38 +160,37 @@ void CdmSessionAdapter::OnCdmCreated(
     const media::CdmConfig& cdm_config,
     base::TimeTicks start_time,
     const scoped_refptr<media::ContentDecryptionModule>& cdm,
-    const std::string& error_message) {
+    media::CreateCdmStatus status) {
   DVLOG(1) << __func__ << ": "
-           << (cdm ? "success" : "failure (" + error_message + ")");
+           << (cdm ? "success" : "failure (" + base::ToString(status) + ")");
   DCHECK(!cdm_);
 
-  TRACE_EVENT_NESTABLE_ASYNC_END2(
-      "media", "CdmSessionAdapter::CreateCdm", trace_id_, "success",
-      (cdm ? "true" : "false"), "error_message", error_message);
+  TRACE_EVENT_NESTABLE_ASYNC_END2("media", "CdmSessionAdapter::CreateCdm",
+                                  trace_id_, "success", base::ToString(cdm),
+                                  "status", status);
 
-  auto key_system_name_for_uma = media::GetKeySystemNameForUMA(
-      cdm_config.key_system, cdm_config.use_hw_secure_codecs);
-  auto key_system_uma_prefix = kMediaEME + key_system_name_for_uma + kDot;
-  base::UmaHistogramBoolean(key_system_uma_prefix + kCreateCdmUMAName,
-                            cdm ? true : false);
+  auto key_system_uma_prefix = GetUMAPrefixForCdm(cdm_config);
+  ReportCreateCdmStatusUMA(key_system_uma_prefix, cdm != nullptr, status);
 
   if (!cdm) {
-    std::move(web_cdm_created_cb_).Run(nullptr, error_message);
+    std::move(web_cdm_created_cb_).Run(nullptr, status);
     return;
   }
 
   key_system_uma_prefix_ = std::move(key_system_uma_prefix);
 
   // Only report time for successful CDM creation.
-  base::UmaHistogramTimes(key_system_uma_prefix_ + kTimeToCreateCdmUMAName,
-                          base::TimeTicks::Now() - start_time);
+  ReportCreateCdmTimeUMA(key_system_uma_prefix_,
+                         base::TimeTicks::Now() - start_time);
 
   cdm_config_ = cdm_config;
 
   cdm_ = cdm;
 
   std::move(web_cdm_created_cb_)
-      .Run(new WebContentDecryptionModuleImpl(this), "");
+      .Run(std::make_unique<WebContentDecryptionModuleImpl>(
+               base::PassKey<CdmSessionAdapter>(), this, key_systems_),
+           media::CreateCdmStatus::kSuccess);
 }
 
 void CdmSessionAdapter::OnSessionMessage(const std::string& session_id,

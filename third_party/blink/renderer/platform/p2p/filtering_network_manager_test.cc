@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/p2p/filtering_network_manager.h"
 
 #include <stddef.h>
@@ -11,6 +16,7 @@
 #include <vector>
 
 #include "base/check.h"
+#include "base/memory/raw_ptr_exclusion.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/notreached.h"
@@ -58,17 +64,17 @@ struct TestEntry {
 
 class EmptyMdnsResponder : public webrtc::MdnsResponderInterface {
  public:
-  void CreateNameForAddress(const rtc::IPAddress& addr,
+  void CreateNameForAddress(const webrtc::IPAddress& addr,
                             NameCreatedCallback callback) override {
     NOTREACHED();
   }
-  void RemoveNameForAddress(const rtc::IPAddress& addr,
+  void RemoveNameForAddress(const webrtc::IPAddress& addr,
                             NameRemovedCallback callback) override {
     NOTREACHED();
   }
 };
 
-class MockNetworkManager : public rtc::NetworkManagerBase {
+class MockNetworkManager : public webrtc::NetworkManagerBase {
  public:
   MockNetworkManager() : mdns_responder_(new EmptyMdnsResponder()) {}
   // Mimic the current behavior that once the first signal is sent, any future
@@ -79,7 +85,7 @@ class MockNetworkManager : public rtc::NetworkManagerBase {
   }
   void StopUpdating() override {}
 
-  std::vector<const rtc::Network*> GetNetworks() const override {
+  std::vector<const webrtc::Network*> GetNetworks() const override {
     return {network_.get()};
   }
 
@@ -92,8 +98,8 @@ class MockNetworkManager : public rtc::NetworkManagerBase {
     return mdns_responder_.get();
   }
 
-  void CopyAndSetNetwork(const rtc::Network& network) {
-    network_ = std::make_unique<rtc::Network>(network);
+  void CopyAndSetNetwork(const webrtc::Network& network) {
+    network_ = std::make_unique<webrtc::Network>(network);
     network_->AddIP(network_->GetBestIP());
   }
 
@@ -103,15 +109,15 @@ class MockNetworkManager : public rtc::NetworkManagerBase {
 
  private:
   bool sent_first_update_ = false;
-  std::unique_ptr<rtc::Network> network_;
+  std::unique_ptr<webrtc::Network> network_;
   std::unique_ptr<EmptyMdnsResponder> mdns_responder_;
   base::WeakPtrFactory<MockNetworkManager> weak_factory_{this};
 };
 
 class MockMediaPermission : public media::MediaPermission {
  public:
-  MockMediaPermission() {}
-  ~MockMediaPermission() override {}
+  MockMediaPermission() = default;
+  ~MockMediaPermission() override = default;
 
   void RequestPermission(Type type,
                          PermissionStatusCB permission_status_cb) override {
@@ -120,17 +126,24 @@ class MockMediaPermission : public media::MediaPermission {
 
   void HasPermission(Type type,
                      PermissionStatusCB permission_status_cb) override {
-    if (type == MediaPermission::AUDIO_CAPTURE) {
+    if (type == MediaPermission::Type::kAudioCapture) {
       DCHECK(mic_callback_.is_null());
       mic_callback_ = std::move(permission_status_cb);
     } else {
-      DCHECK(type == MediaPermission::VIDEO_CAPTURE);
+      DCHECK(type == MediaPermission::Type::kVideoCapture);
       DCHECK(camera_callback_.is_null());
       camera_callback_ = std::move(permission_status_cb);
     }
   }
 
   bool IsEncryptedMediaEnabled() override { return true; }
+
+#if BUILDFLAG(IS_WIN)
+  void IsHardwareSecureDecryptionAllowed(
+      IsHardwareSecureDecryptionAllowedCB cb) override {
+    std::move(cb).Run(true);
+  }
+#endif  // BUILDFLAG(IS_WIN)
 
   void SetMicPermission(bool granted) {
     if (!mic_callback_)
@@ -163,13 +176,13 @@ class FilteringNetworkManagerTest : public testing::Test,
         task_runner_(new base::TestSimpleTaskRunner()),
         task_runner_current_default_handle_(task_runner_) {
     networks_.emplace_back("test_eth0", "Test Network Adapter 1",
-                           rtc::IPAddress(0x12345600U), 24,
-                           rtc::ADAPTER_TYPE_ETHERNET),
-        networks_.back().AddIP(rtc::IPAddress(0x12345678));
+                           webrtc::IPAddress(0x12345600U), 24,
+                           webrtc::ADAPTER_TYPE_ETHERNET),
+        networks_.back().AddIP(webrtc::IPAddress(0x12345678));
     networks_.emplace_back("test_eth1", "Test Network Adapter 2",
-                           rtc::IPAddress(0x87654300U), 24,
-                           rtc::ADAPTER_TYPE_ETHERNET),
-        networks_.back().AddIP(rtc::IPAddress(0x87654321));
+                           webrtc::IPAddress(0x87654300U), 24,
+                           webrtc::ADAPTER_TYPE_ETHERNET),
+        networks_.back().AddIP(webrtc::IPAddress(0x87654321));
   }
 
   void SetupNetworkManager(bool multiple_routes_requested) {
@@ -232,7 +245,7 @@ class FilteringNetworkManagerTest : public testing::Test,
       return kNoSignal;
 
     if (network_manager_->enumeration_permission() ==
-        rtc::NetworkManager::ENUMERATION_BLOCKED) {
+        webrtc::NetworkManager::ENUMERATION_BLOCKED) {
       EXPECT_EQ(0u, GetP2PNetworkList().size());
       return kSignalEnumerationBlocked;
     }
@@ -241,7 +254,7 @@ class FilteringNetworkManagerTest : public testing::Test,
   }
 
  protected:
-  const std::vector<const rtc::Network*>& GetP2PNetworkList() {
+  const std::vector<const webrtc::Network*>& GetP2PNetworkList() {
     network_list_ = network_manager_->GetNetworks();
     return network_list_;
   }
@@ -251,16 +264,18 @@ class FilteringNetworkManagerTest : public testing::Test,
   void set_allow_mdns_obfuscation(bool val) { allow_mdns_obfuscation_ = val; }
 
   bool callback_called_ = false;
-  std::unique_ptr<rtc::NetworkManager> network_manager_;
+  std::unique_ptr<webrtc::NetworkManager> network_manager_;
   std::unique_ptr<MockNetworkManager> base_network_manager_;
 
   std::unique_ptr<MockMediaPermission> media_permission_;
   bool allow_mdns_obfuscation_ = true;
 
-  std::vector<rtc::Network> networks_;
+  std::vector<webrtc::Network> networks_;
   int next_new_network_id_ = 0;
 
-  std::vector<const rtc::Network*> network_list_;
+  // This field is not vector<raw_ptr<...>> due to interaction with third_party
+  // api.
+  RAW_PTR_EXCLUSION std::vector<const webrtc::Network*> network_list_;
   scoped_refptr<base::TestSimpleTaskRunner> task_runner_;
   base::SingleThreadTaskRunner::CurrentDefaultHandle
       task_runner_current_default_handle_;
@@ -460,15 +475,16 @@ TEST_F(FilteringNetworkManagerTest, NullMdnsResponderAfterPermissionGranted) {
   };
   RunTests(setup_steps, std::size(setup_steps));
 
-  std::vector<const rtc::Network*> networks = network_manager_->GetNetworks();
+  std::vector<const webrtc::Network*> networks =
+      network_manager_->GetNetworks();
   EXPECT_THAT(networks, SizeIs(1u));
-  for (const rtc::Network* network : networks) {
+  for (const webrtc::Network* network : networks) {
     EXPECT_EQ(nullptr, network->GetMdnsResponder());
   }
 
   networks = network_manager_->GetAnyAddressNetworks();
   EXPECT_THAT(networks, SizeIs(2u));
-  for (const rtc::Network* network : networks) {
+  for (const webrtc::Network* network : networks) {
     EXPECT_EQ(nullptr, network->GetMdnsResponder());
   }
 }
@@ -480,16 +496,17 @@ TEST_F(FilteringNetworkManagerTest,
        ProvideMdnsResponderForDefaultRouteAfterPermissionDenied) {
   SetupNetworkManager(true);
   // By default, the enumeration is blocked if we provide |media_permission_|;
-  EXPECT_EQ(rtc::NetworkManager::ENUMERATION_BLOCKED,
+  EXPECT_EQ(webrtc::NetworkManager::ENUMERATION_BLOCKED,
             network_manager_->enumeration_permission());
 
-  std::vector<const rtc::Network*> networks = network_manager_->GetNetworks();
+  std::vector<const webrtc::Network*> networks =
+      network_manager_->GetNetworks();
   EXPECT_TRUE(networks.empty());
 
   networks = network_manager_->GetAnyAddressNetworks();
   EXPECT_THAT(networks, SizeIs(2u));
   EXPECT_NE(nullptr, network_manager_->GetMdnsResponder());
-  for (const rtc::Network* network : networks) {
+  for (const webrtc::Network* network : networks) {
     EXPECT_EQ(network_manager_->GetMdnsResponder(),
               network->GetMdnsResponder());
   }
@@ -503,15 +520,16 @@ TEST_F(FilteringNetworkManagerTest,
   set_allow_mdns_obfuscation(false);
   SetupNetworkManager(true);
   // By default, the enumeration is blocked if we provide |media_permission_|;
-  EXPECT_EQ(rtc::NetworkManager::ENUMERATION_BLOCKED,
+  EXPECT_EQ(webrtc::NetworkManager::ENUMERATION_BLOCKED,
             network_manager_->enumeration_permission());
 
-  std::vector<const rtc::Network*> networks = network_manager_->GetNetworks();
+  std::vector<const webrtc::Network*> networks =
+      network_manager_->GetNetworks();
   EXPECT_TRUE(networks.empty());
 
   networks = network_manager_->GetAnyAddressNetworks();
   EXPECT_THAT(networks, SizeIs(2u));
-  for (const rtc::Network* network : networks) {
+  for (const webrtc::Network* network : networks) {
     EXPECT_EQ(nullptr, network->GetMdnsResponder());
   }
 }

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/ash/shelf/app_window_base.h"
 
 #include "chrome/browser/ui/ash/shelf/app_window_shelf_item_controller.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 #include "ui/views/widget/widget.h"
 
 AppWindowBase::AppWindowBase(const ash::ShelfID& shelf_id,
@@ -12,14 +13,16 @@ AppWindowBase::AppWindowBase(const ash::ShelfID& shelf_id,
     : shelf_id_(shelf_id), widget_(widget) {}
 
 AppWindowBase::~AppWindowBase() {
-  if (controller_)
+  if (controller_) {
     controller_->RemoveWindow(this);
+  }
 }
 
 void AppWindowBase::SetController(AppWindowShelfItemController* controller) {
   DCHECK(!controller_ || !controller);
-  if (!controller && controller_)
+  if (!controller && controller_) {
     controller_->RemoveWindow(this);
+  }
   controller_ = controller;
 }
 
@@ -29,17 +32,14 @@ bool AppWindowBase::IsActive() const {
 
 bool AppWindowBase::IsMaximized() const {
   NOTREACHED();
-  return false;
 }
 
 bool AppWindowBase::IsMinimized() const {
   NOTREACHED();
-  return false;
 }
 
 bool AppWindowBase::IsFullscreen() const {
   NOTREACHED();
-  return false;
 }
 
 gfx::NativeWindow AppWindowBase::GetNativeWindow() const {
@@ -48,17 +48,14 @@ gfx::NativeWindow AppWindowBase::GetNativeWindow() const {
 
 gfx::Rect AppWindowBase::GetRestoredBounds() const {
   NOTREACHED();
-  return gfx::Rect();
 }
 
-ui::WindowShowState AppWindowBase::GetRestoredState() const {
+ui::mojom::WindowShowState AppWindowBase::GetRestoredState() const {
   NOTREACHED();
-  return ui::SHOW_STATE_NORMAL;
 }
 
 gfx::Rect AppWindowBase::GetBounds() const {
   NOTREACHED();
-  return gfx::Rect();
 }
 
 void AppWindowBase::Show() {
@@ -75,7 +72,6 @@ void AppWindowBase::Hide() {
 
 bool AppWindowBase::IsVisible() const {
   NOTREACHED();
-  return true;
 }
 
 void AppWindowBase::Close() {
@@ -112,7 +108,6 @@ void AppWindowBase::FlashFrame(bool flash) {
 
 ui::ZOrderLevel AppWindowBase::GetZOrderLevel() const {
   NOTREACHED();
-  return ui::ZOrderLevel::kNormal;
 }
 
 void AppWindowBase::SetZOrderLevel(ui::ZOrderLevel level) {

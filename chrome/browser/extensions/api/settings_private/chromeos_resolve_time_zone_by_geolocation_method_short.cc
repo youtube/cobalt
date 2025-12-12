@@ -9,8 +9,8 @@
 #include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/extensions/api/settings_private/generated_pref.h"
 #include "chrome/browser/extensions/api/settings_private/generated_time_zone_pref_base.h"
+#include "chrome/browser/extensions/profile_util.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/common/extensions/api/settings_private.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -53,7 +53,7 @@ GeneratedResolveTimezoneByGeolocationMethodShort::GetPrefObject() const {
   settings_api::PrefObject pref_object;
 
   pref_object.key = pref_name_;
-  pref_object.type = settings_api::PREF_TYPE_NUMBER;
+  pref_object.type = settings_api::PrefType::kNumber;
   pref_object.value = base::Value(static_cast<int>(
       g_browser_process->platform_part()
           ->GetTimezoneResolverManager()
@@ -71,7 +71,7 @@ SetPrefResult GeneratedResolveTimezoneByGeolocationMethodShort::SetPref(
   // Check if preference is policy or primary-user controlled.
   if (ash::system::TimeZoneResolverManager::
           IsTimeZoneResolutionPolicyControlled() ||
-      !profile_->IsSameOrParent(ProfileManager::GetPrimaryUserProfile())) {
+      !profile_->IsSameOrParent(profile_util::GetPrimaryUserProfile())) {
     return SetPrefResult::PREF_NOT_MODIFIABLE;
   }
 
@@ -79,7 +79,7 @@ SetPrefResult GeneratedResolveTimezoneByGeolocationMethodShort::SetPref(
   // (kResolveTimezoneByGeolocationOnOff must be modified first.)
   if (!g_browser_process->platform_part()
            ->GetTimezoneResolverManager()
-           ->TimeZoneResolverShouldBeRunning()) {
+           ->TimeZoneResolverAllowedByTimeZoneConfigData()) {
     return SetPrefResult::PREF_NOT_MODIFIABLE;
   }
 

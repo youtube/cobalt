@@ -12,17 +12,12 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/mac/mac_util.h"
-#include "base/mac/scoped_nsobject.h"
 #include "base/strings/sys_string_conversions.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
-#include "content/browser/renderer_host/render_widget_host_impl.h"
+#include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/renderer.mojom.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
 #include "content/public/browser/render_process_host.h"
-#include "content/public/browser/render_view_host.h"
-#include "content/public/browser/render_widget_host_iterator.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "ui/gfx/scoped_ns_graphics_context_save_gstate_mac.h"
@@ -37,7 +32,7 @@ void FillScrollbarThemeParams(
     content::mojom::UpdateScrollbarThemeParams* params) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
   [defaults synchronize];
 
   // NSScrollerButtonDelay and NSScrollerButtonPeriod are no longer initialized
@@ -65,7 +60,7 @@ void FillScrollbarThemeParams(
 void SendSystemColorsChangedMessage(content::mojom::Renderer* renderer) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
+  NSUserDefaults* defaults = NSUserDefaults.standardUserDefaults;
   [defaults synchronize];
 
   renderer->OnSystemColorsChanged(
@@ -74,7 +69,7 @@ void SendSystemColorsChangedMessage(content::mojom::Renderer* renderer) {
 
 SkColor NSColorToSkColor(NSColor* color) {
   NSColor* color_in_color_space =
-      [color colorUsingColorSpace:[NSColorSpace sRGBColorSpace]];
+      [color colorUsingColorSpace:NSColorSpace.sRGBColorSpace];
   if (color_in_color_space) {
     // Use nextafter() to avoid rounding colors in a way that could be off-by-
     // one. See https://bugs.webkit.org/show_bug.cgi?id=6129.
@@ -91,7 +86,7 @@ SkColor NSColorToSkColor(NSColor* color) {
   // repeating pattern not just a solid color. To work around this we simply
   // draw a 1x1 image of the color and use that pixel's color. It might be
   // better to use an average of the colors in the pattern instead.
-  base::scoped_nsobject<NSBitmapImageRep> offscreen_rep(
+  NSBitmapImageRep* offscreen_rep =
       [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:nil
                                               pixelsWide:1
                                               pixelsHigh:1
@@ -101,13 +96,12 @@ SkColor NSColorToSkColor(NSColor* color) {
                                                 isPlanar:NO
                                           colorSpaceName:NSDeviceRGBColorSpace
                                              bytesPerRow:4
-                                            bitsPerPixel:32]);
+                                            bitsPerPixel:32];
 
   {
     gfx::ScopedNSGraphicsContextSaveGState gstate;
-    [NSGraphicsContext
-        setCurrentContext:[NSGraphicsContext
-                              graphicsContextWithBitmapImageRep:offscreen_rep]];
+    NSGraphicsContext.currentContext =
+        [NSGraphicsContext graphicsContextWithBitmapImageRep:offscreen_rep];
     [color set];
     NSRectFill(NSMakeRect(0, 0, 1, 1));
   }
@@ -147,7 +141,7 @@ SkColor NSColorToSkColor(NSColor* color) {
   _colorsChangedCallback = std::move(colorsChangedCallback);
 
   NSDistributedNotificationCenter* distributedCenter =
-      [NSDistributedNotificationCenter defaultCenter];
+      NSDistributedNotificationCenter.defaultCenter;
   [distributedCenter addObserver:self
                         selector:@selector(appearancePrefsChanged:)
                             name:@"AppleAquaScrollBarVariantChanged"
@@ -202,8 +196,7 @@ SkColor NSColorToSkColor(NSColor* color) {
 }
 
 - (void)dealloc {
-  [[NSDistributedNotificationCenter defaultCenter] removeObserver:self];
-  [super dealloc];
+  [NSDistributedNotificationCenter.defaultCenter removeObserver:self];
 }
 
 - (void)appearancePrefsChanged:(NSNotification*)notification {
@@ -239,14 +232,9 @@ SkColor NSColorToSkColor(NSColor* color) {
         std::move(params));
   }
 
-  std::unique_ptr<content::RenderWidgetHostIterator> all_widgets(
-      content::RenderWidgetHostImpl::GetAllRenderWidgetHosts());
-  while (content::RenderWidgetHost* widget = all_widgets->GetNextHost()) {
-    content::RenderViewHost* rvh = content::RenderViewHost::From(widget);
-    if (!rvh)
-      continue;
-
-    content::WebContents::FromRenderViewHost(rvh)->OnWebPreferencesChanged();
+  for (content::WebContentsImpl* web_contents :
+       content::WebContentsImpl::GetAllWebContents()) {
+    web_contents->OnWebPreferencesChanged();
   }
 }
 
@@ -256,7 +244,7 @@ namespace content {
 
 struct ThemeHelperMac::ObjCStorage {
   // ObjC object that observes notifications from the system.
-  base::scoped_nsobject<SystemThemeObserver> theme_observer_;
+  SystemThemeObserver* __strong theme_observer;
 };
 
 // static
@@ -286,10 +274,10 @@ ThemeHelperMac::ThemeHelperMac()
   LoadSystemColors();
 
   // Start observing for changes.
-  objc_storage_->theme_observer_.reset([[SystemThemeObserver alloc]
+  objc_storage_->theme_observer = [[SystemThemeObserver alloc]
       initWithColorsChangedCallback:base::BindRepeating(
                                         &ThemeHelperMac::LoadSystemColors,
-                                        base::Unretained(this))]);
+                                        base::Unretained(this))];
 }
 
 ThemeHelperMac::~ThemeHelperMac() = default;
@@ -313,31 +301,20 @@ void ThemeHelperMac::LoadSystemColorsForCurrentAppearance(
         break;
       }
       case blink::MacSystemColorID::kControlAccentColor:
-        if (@available(macOS 10.14, *)) {
-          values[i] = NSColorToSkColor(NSColor.controlAccentColor);
-        } else {
-          // controlAccentColor property is not available before macOS 10.14,
-          // so keyboardFocusIndicatorColor is used instead.
-          values[i] = NSColorToSkColor(NSColor.keyboardFocusIndicatorColor);
-        }
+        values[i] = NSColorToSkColor(NSColor.controlAccentColor);
         break;
       case blink::MacSystemColorID::kKeyboardFocusIndicator:
         values[i] = NSColorToSkColor(NSColor.keyboardFocusIndicatorColor);
         break;
       case blink::MacSystemColorID::kSecondarySelectedControl:
-        if (@available(macOS 10.14, *)) {
-          values[i] = NSColorToSkColor(
-              NSColor.unemphasizedSelectedContentBackgroundColor);
-        } else {
-          values[i] = NSColorToSkColor(NSColor.secondarySelectedControlColor);
-        }
+        values[i] = NSColorToSkColor(
+            NSColor.unemphasizedSelectedContentBackgroundColor);
         break;
       case blink::MacSystemColorID::kSelectedTextBackground:
         values[i] = NSColorToSkColor(NSColor.selectedTextBackgroundColor);
         break;
       case blink::MacSystemColorID::kCount:
         NOTREACHED();
-        break;
     }
   }
 }
@@ -348,37 +325,17 @@ void ThemeHelperMac::LoadSystemColors() {
   base::span<SkColor> values = writable_color_map_.GetMemoryAsSpan<SkColor>(
       blink::kMacSystemColorIDCount * blink::kMacSystemColorSchemeCount);
 
-  if (@available(macOS 11, *)) {
-    [[NSAppearance appearanceNamed:NSAppearanceNameAqua]
-        performAsCurrentDrawingAppearance:^{
-          LoadSystemColorsForCurrentAppearance(values.subspan(
-              0, static_cast<size_t>(blink::MacSystemColorID::kCount)));
-        }];
-    [[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]
-        performAsCurrentDrawingAppearance:^{
-          LoadSystemColorsForCurrentAppearance(values.subspan(
-              static_cast<size_t>(blink::MacSystemColorID::kCount),
-              static_cast<size_t>(blink::MacSystemColorID::kCount)));
-        }];
-  } else if (@available(macOS 10.14, *)) {
-    NSAppearance* saved_appearance = NSAppearance.currentAppearance;
-    NSAppearance.currentAppearance =
-        [NSAppearance appearanceNamed:NSAppearanceNameAqua];
-    LoadSystemColorsForCurrentAppearance(values.subspan(
-        0, static_cast<size_t>(blink::MacSystemColorID::kCount)));
-    NSAppearance.currentAppearance =
-        [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
-    LoadSystemColorsForCurrentAppearance(
-        values.subspan(static_cast<size_t>(blink::MacSystemColorID::kCount),
-                       static_cast<size_t>(blink::MacSystemColorID::kCount)));
-    NSAppearance.currentAppearance = saved_appearance;
-  } else {
-    LoadSystemColorsForCurrentAppearance(values.subspan(
-        0, static_cast<size_t>(blink::MacSystemColorID::kCount)));
-    LoadSystemColorsForCurrentAppearance(
-        values.subspan(static_cast<size_t>(blink::MacSystemColorID::kCount),
-                       static_cast<size_t>(blink::MacSystemColorID::kCount)));
-  }
+  [[NSAppearance appearanceNamed:NSAppearanceNameAqua]
+      performAsCurrentDrawingAppearance:^{
+        LoadSystemColorsForCurrentAppearance(
+            values.first<blink::kMacSystemColorIDCount>());
+      }];
+  [[NSAppearance appearanceNamed:NSAppearanceNameDarkAqua]
+      performAsCurrentDrawingAppearance:^{
+        LoadSystemColorsForCurrentAppearance(
+            values.subspan<blink::kMacSystemColorIDCount,
+                           blink::kMacSystemColorIDCount>());
+      }];
 }
 
 void ThemeHelperMac::OnRenderProcessHostCreated(
@@ -395,6 +352,13 @@ void ThemeHelperMac::OnRenderProcessHostCreated(
   content::mojom::Renderer* renderer = process_host->GetRendererInterface();
   renderer->UpdateScrollbarTheme(std::move(params));
   SendSystemColorsChangedMessage(renderer);
+}
+
+void ThemeHelperMac::SetAccentColorForTesting(SkColor accent_color) {
+  auto values = writable_color_map_.GetMemoryAsSpan<SkColor>(
+      blink::kMacSystemColorIDCount * blink::kMacSystemColorSchemeCount);
+  values[static_cast<size_t>(blink::MacSystemColorID::kControlAccentColor)] =
+      accent_color;
 }
 
 }  // namespace content

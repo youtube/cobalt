@@ -9,32 +9,14 @@
 #include "base/strings/sys_string_conversions.h"
 
 extern "C" {
-bool CGFontRenderingGetFontSmoothingDisabled(void) API_AVAILABLE(macos(10.14));
+bool CGFontRenderingGetFontSmoothingDisabled(void);
 }
 
 namespace content {
 
-void SystemColorsDidChange(int aqua_color_variant) {
-  NSUserDefaults* defaults = [NSUserDefaults standardUserDefaults];
-
-  // Register the defaults in the NSArgumentDomain, which is considered
-  // volatile. Registering in the normal application domain fails from within
-  // the sandbox.
-  [defaults removeVolatileDomainForName:NSArgumentDomain];
-
-  // LayoutThemeMac reads AppleAquaColorVariant on macOS versions before 10.14.
-  NSDictionary* domain_values = @{
-    @"AppleAquaColorVariant" : @(aqua_color_variant),
-  };
-  [defaults setVolatileDomain:domain_values forName:NSArgumentDomain];
-}
-
 bool IsSubpixelAntialiasingAvailable() {
-  if (__builtin_available(macOS 10.14, *)) {
-    // See https://trac.webkit.org/changeset/239306/webkit for more info.
-    return !CGFontRenderingGetFontSmoothingDisabled();
-  }
-  return true;
+  // See https://trac.webkit.org/changeset/239306/webkit for more info.
+  return !CGFontRenderingGetFontSmoothingDisabled();
 }
 
 }  // namespace content

@@ -4,7 +4,11 @@
 
 #include "components/password_manager/core/browser/hash_password_manager.h"
 
+#include "base/base64.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
+#include "components/os_crypt/sync/os_crypt.h"
 #include "components/os_crypt/sync/os_crypt_mocker.h"
 #include "components/password_manager/core/browser/password_hash_data.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
@@ -16,17 +20,52 @@
 namespace password_manager {
 namespace {
 
+// Packs |salt| and |password_length| to a string.
+std::string LengthAndSaltToString(const std::string& salt,
+                                  size_t password_length) {
+  return base::NumberToString(password_length) + "." + salt;
+}
+
+std::string EncryptString(const std::string& plain_text) {
+  std::string encrypted_text;
+  OSCrypt::EncryptString(plain_text, &encrypted_text);
+  return base::Base64Encode(encrypted_text);
+}
+
+// Saves encrypted PasswordHashData to a preference.
+void EncryptAndSave(const PasswordHashData& password_hash_data,
+                    PrefService* pref,
+                    const std::string& pref_path) {
+  std::string encrypted_username = EncryptString(CanonicalizeUsername(
+      password_hash_data.username, password_hash_data.is_gaia_password));
+  std::string encrypted_hash =
+      EncryptString(base::NumberToString(password_hash_data.hash));
+  std::string encrypted_length_and_salt = EncryptString(LengthAndSaltToString(
+      password_hash_data.salt, password_hash_data.length));
+  std::string encrypted_is_gaia_value =
+      EncryptString(base::ToString(password_hash_data.is_gaia_password));
+
+  base::Value::Dict encrypted_password_hash_entry;
+  encrypted_password_hash_entry.Set("username", encrypted_username);
+  encrypted_password_hash_entry.Set("hash", encrypted_hash);
+  encrypted_password_hash_entry.Set("salt_length", encrypted_length_and_salt);
+  encrypted_password_hash_entry.Set("is_gaia", encrypted_is_gaia_value);
+  encrypted_password_hash_entry.Set(
+      "last_signin", base::Time::Now().InSecondsFSinceUnixEpoch());
+  std::unique_ptr<ScopedListPrefUpdate> update =
+      std::make_unique<ScopedListPrefUpdate>(pref, pref_path);
+
+  base::Value::List& update_list = update->Get();
+  update_list.Append(std::move(encrypted_password_hash_entry));
+}
+
 class HashPasswordManagerTest : public testing::Test {
  public:
   HashPasswordManagerTest() {
-    prefs_.registry()->RegisterStringPref(prefs::kSyncPasswordHash,
-                                          std::string(),
-                                          PrefRegistry::NO_REGISTRATION_FLAGS);
-    prefs_.registry()->RegisterStringPref(prefs::kSyncPasswordLengthAndHashSalt,
-                                          std::string(),
-                                          PrefRegistry::NO_REGISTRATION_FLAGS);
     prefs_.registry()->RegisterListPref(prefs::kPasswordHashDataList,
                                         PrefRegistry::NO_REGISTRATION_FLAGS);
+    local_prefs_.registry()->RegisterListPref(
+        prefs::kLocalPasswordHashDataList, PrefRegistry::NO_REGISTRATION_FLAGS);
     // Mock OSCrypt. There is a call to OSCrypt on initializling
     // PasswordReuseDetector, so it should be mocked.
     OSCryptMocker::SetUp();
@@ -36,6 +75,7 @@ class HashPasswordManagerTest : public testing::Test {
 
  protected:
   TestingPrefServiceSimple prefs_;
+  TestingPrefServiceSimple local_prefs_;
 };
 
 TEST_F(HashPasswordManagerTest, SavingPasswordHashData) {
@@ -52,12 +92,12 @@ TEST_F(HashPasswordManagerTest, SavingPasswordHashData) {
   EXPECT_TRUE(prefs_.HasPrefPath(prefs::kPasswordHashDataList));
 
   // Saves the same password again won't change password hash, length or salt.
-  absl::optional<PasswordHashData> current_password_hash_data =
+  std::optional<PasswordHashData> current_password_hash_data =
       hash_password_manager.RetrievePasswordHash(username,
                                                  /*is_gaia_password=*/true);
   hash_password_manager.SavePasswordHash(username, password,
                                          /*is_gaia_password=*/true);
-  absl::optional<PasswordHashData> existing_password_data =
+  std::optional<PasswordHashData> existing_password_data =
       hash_password_manager.RetrievePasswordHash(username,
                                                  /*is_gaia_password=*/true);
   EXPECT_EQ(current_password_hash_data->hash, existing_password_data->hash);
@@ -99,12 +139,12 @@ TEST_F(HashPasswordManagerTest, SavingPasswordHashDataNotCanonicalized) {
 
   // Saves the same password with not canonicalized username should not change
   // password hash.
-  absl::optional<PasswordHashData> current_password_hash_data =
+  std::optional<PasswordHashData> current_password_hash_data =
       hash_password_manager.RetrievePasswordHash(username,
                                                  /*is_gaia_password=*/true);
   hash_password_manager.SavePasswordHash(username, password,
                                          /*is_gaia_password=*/true);
-  absl::optional<PasswordHashData> existing_password_data =
+  std::optional<PasswordHashData> existing_password_data =
       hash_password_manager.RetrievePasswordHash(username,
                                                  /*is_gaia_password=*/true);
   EXPECT_EQ(current_password_hash_data->hash, existing_password_data->hash);
@@ -141,6 +181,7 @@ TEST_F(HashPasswordManagerTest, SavingGaiaPasswordAndNonGaiaPassword) {
   ASSERT_FALSE(prefs_.HasPrefPath(prefs::kPasswordHashDataList));
   HashPasswordManager hash_password_manager;
   hash_password_manager.set_prefs(&prefs_);
+  hash_password_manager.set_local_prefs(&local_prefs_);
   std::u16string password(u"password");
   std::string username("user@example.com");
 
@@ -161,6 +202,7 @@ TEST_F(HashPasswordManagerTest, SavingMultipleHashesAndRetrieveAll) {
   ASSERT_FALSE(prefs_.HasPrefPath(prefs::kPasswordHashDataList));
   HashPasswordManager hash_password_manager;
   hash_password_manager.set_prefs(&prefs_);
+  hash_password_manager.set_local_prefs(&local_prefs_);
   std::u16string password(u"password");
 
   // Save password hash for 6 different users.
@@ -180,14 +222,15 @@ TEST_F(HashPasswordManagerTest, SavingMultipleHashesAndRetrieveAll) {
                                          /*is_gaia_password=*/false);
 
   // Since kMaxPasswordHashDataDictSize is set to 5, we will only save 5
-  // password hashes that were most recently signed in.
-  EXPECT_EQ(5u, hash_password_manager.RetrieveAllPasswordHashes().size());
+  // gaia password hashes that were most recently signed in. We will also
+  // save 1 enterprise password hash for a total of 6 saved password hashes.
+  EXPECT_EQ(6u, hash_password_manager.RetrieveAllPasswordHashes().size());
   EXPECT_FALSE(hash_password_manager.HasPasswordHash(
       "username1", /*is_gaia_password=*/true));
   EXPECT_FALSE(hash_password_manager.HasPasswordHash(
       "username1", /*is_gaia_password=*/false));
-  EXPECT_FALSE(hash_password_manager.HasPasswordHash(
-      "username2", /*is_gaia_password=*/true));
+  EXPECT_TRUE(hash_password_manager.HasPasswordHash("username2",
+                                                    /*is_gaia_password=*/true));
   EXPECT_FALSE(hash_password_manager.HasPasswordHash(
       "username2", /*is_gaia_password=*/false));
   EXPECT_TRUE(hash_password_manager.HasPasswordHash("username3",
@@ -212,6 +255,7 @@ TEST_F(HashPasswordManagerTest, ClearingPasswordHashData) {
   ASSERT_FALSE(prefs_.HasPrefPath(prefs::kPasswordHashDataList));
   HashPasswordManager hash_password_manager;
   hash_password_manager.set_prefs(&prefs_);
+  hash_password_manager.set_local_prefs(&local_prefs_);
   hash_password_manager.SavePasswordHash("username1", u"sync_password",
                                          /*is_gaia_password=*/true);
   hash_password_manager.SavePasswordHash("username2", u"sync_password",
@@ -243,11 +287,12 @@ TEST_F(HashPasswordManagerTest, RetrievingPasswordHashData) {
   ASSERT_FALSE(prefs_.HasPrefPath(prefs::kPasswordHashDataList));
   HashPasswordManager hash_password_manager;
   hash_password_manager.set_prefs(&prefs_);
+  hash_password_manager.set_local_prefs(&local_prefs_);
   hash_password_manager.SavePasswordHash("username@gmail.com", u"password",
                                          /*is_gaia_password=*/true);
   EXPECT_EQ(1u, hash_password_manager.RetrieveAllPasswordHashes().size());
 
-  absl::optional<PasswordHashData> password_hash_data =
+  std::optional<PasswordHashData> password_hash_data =
       hash_password_manager.RetrievePasswordHash("username@gmail.com",
                                                  /*is_gaia_password=*/false);
   ASSERT_FALSE(password_hash_data);
@@ -269,9 +314,54 @@ TEST_F(HashPasswordManagerTest, RetrievingPasswordHashData) {
       hash_password_manager.RetrievePasswordHash("USER.NAME@gmail.com",
                                                  /*is_gaia_password=*/true));
 
-  absl::optional<PasswordHashData> non_existing_data =
+  std::optional<PasswordHashData> non_existing_data =
       hash_password_manager.RetrievePasswordHash("non_existing_user", true);
   ASSERT_FALSE(non_existing_data);
+}
+
+TEST_F(HashPasswordManagerTest,
+       EnterprisePasswordHashesAreMigratedToLocalState) {
+  HashPasswordManager hash_password_manager;
+  hash_password_manager.set_prefs(&prefs_);
+  hash_password_manager.set_local_prefs(&local_prefs_);
+
+  std::u16string password(u"password");
+  PasswordHashData phd1("user1", password, /*force_update=*/true);
+  PasswordHashData phd2("user2", password, /*force_update=*/true,
+                        /*is_gaia_password=*/false);
+  PasswordHashData phd3("user3", password, /*force_update=*/true);
+  PasswordHashData phd4("user4", password, /*force_update=*/true,
+                        /*is_gaia_password=*/false);
+  EncryptAndSave(phd1, &prefs_, prefs::kPasswordHashDataList);
+  EncryptAndSave(phd2, &prefs_, prefs::kPasswordHashDataList);
+  EncryptAndSave(phd3, &prefs_, prefs::kPasswordHashDataList);
+  EncryptAndSave(phd4, &prefs_, prefs::kPasswordHashDataList);
+
+  // Verify that all password hashes are saved under the profile pref.
+  EXPECT_EQ(4u, prefs_.GetList(prefs::kPasswordHashDataList).size());
+  // Migrate enterprise password hashes to the local state pref.
+  hash_password_manager.MigrateEnterprisePasswordHashes();
+  // Verify that enterprise password hashes have been moved.
+  EXPECT_EQ(2u, prefs_.GetList(prefs::kPasswordHashDataList).size());
+  EXPECT_EQ(2u, local_prefs_.GetList(prefs::kLocalPasswordHashDataList).size());
+  hash_password_manager.ClearAllPasswordHash(/*is_gaia_password=*/false);
+  EXPECT_EQ(0u, local_prefs_.GetList(prefs::kLocalPasswordHashDataList).size());
+}
+
+TEST_F(HashPasswordManagerTest, QueryingDefaultEmptyPrefListDoesNotCrash) {
+  HashPasswordManager hash_password_manager;
+  hash_password_manager.set_prefs(&prefs_);
+  hash_password_manager.set_local_prefs(&local_prefs_);
+  std::string username("user@example.com");
+  EXPECT_EQ(0u, hash_password_manager.RetrieveAllPasswordHashes().size());
+  EXPECT_TRUE(std::nullopt == hash_password_manager.RetrievePasswordHash(
+                                  username, /*is_gaia_password=*/true));
+  EXPECT_TRUE(std::nullopt == hash_password_manager.RetrievePasswordHash(
+                                  username, /*is_gaia_password=*/false));
+  EXPECT_FALSE(hash_password_manager.HasPasswordHash(
+      username, /*is_gaia_password=*/true));
+  EXPECT_FALSE(hash_password_manager.HasPasswordHash(
+      username, /*is_gaia_password=*/false));
 }
 
 }  // namespace

@@ -60,7 +60,7 @@ bool AVCParser::Prepend(scoped_refptr<AvcAccessUnit> au,
   }
   if (au->GetType() == DemuxerStream::VIDEO) {
     if (au->AddPrepend()) {
-      if (buffer->data_size() <= video_prepend_size_) {
+      if (buffer->size() <= video_prepend_size_) {
         NOTREACHED() << "empty/undersized buffer to Prepend()";
         return false;
       }
@@ -71,7 +71,7 @@ bool AVCParser::Prepend(scoped_refptr<AvcAccessUnit> au,
       // valid ADTS header not available
       return false;
     }
-    if (buffer->data_size() <= audio_prepend_.size()) {
+    if (buffer->size() <= audio_prepend_.size()) {
       NOTREACHED() << "empty/undersized buffer to Prepend()";
       return false;
     }
@@ -81,7 +81,8 @@ bool AVCParser::Prepend(scoped_refptr<AvcAccessUnit> au,
     if (buffer_size & 0xffffe000) {
       return false;
     }
-    std::vector<uint8_t> audio_prepend(audio_prepend_);
+    std::vector<uint8_t> audio_prepend(audio_prepend_.as_span().begin(),
+                                       audio_prepend_.as_span().end());
     // OR size into buffer, byte 3 gets 2 MSb of 13-bit size
     audio_prepend[3] |= (uint8_t)((buffer_size & 0x00001800) >> 11);
     // byte 4 gets bits 10-3 of size
@@ -461,11 +462,10 @@ void AVCParser::ParseAudioSpecificConfig(uint8_t b0, uint8_t b1) {
 
   aac_config[0] = b0;
   aac_config[1] = b1;
-  audio_prepend_.clear();
+  int adts_header_size = 0;
+  audio_prepend_ = aac.CreateAdtsFromEsds({}, &adts_header_size);
 
-  int adts_header_size;
-  if (!aac.Parse(aac_config, media_log_) ||
-      !aac.ConvertEsdsToADTS(&audio_prepend_, &adts_header_size)) {
+  if (!aac.Parse(aac_config, media_log_) || audio_prepend_.empty()) {
     LOG(WARNING) << "Error in parsing AudioSpecificConfig.";
     return;
   }
@@ -481,7 +481,6 @@ void AVCParser::ParseAudioSpecificConfig(uint8_t b0, uint8_t b1) {
       AudioCodec::kAAC, kSampleFormatS16, aac.GetChannelLayout(kSbrInMimetype),
       aac.GetOutputSamplesPerSecond(kSbrInMimetype), aac.codec_specific_data(),
       EncryptionScheme::kUnencrypted, base::TimeDelta(), 0);
-  audio_config_.set_aac_extra_data(aac.codec_specific_data());
 }
 
 size_t AVCParser::CalculatePrependSize(DemuxerStream::Type type,

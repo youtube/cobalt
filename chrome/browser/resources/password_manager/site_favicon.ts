@@ -1,4 +1,4 @@
-// Copyright 2022 The Chromium Authors. All rights reserved.
+// Copyright 2022 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -55,9 +55,9 @@ export class SiteFaviconElement extends PolymerElement {
     };
   }
 
-  domain: string;
-  url: string;
-  private showDownloadedIcon_: boolean;
+  declare domain: string;
+  declare url: string;
+  declare private showDownloadedIcon_: boolean;
 
   override ready() {
     super.ready();

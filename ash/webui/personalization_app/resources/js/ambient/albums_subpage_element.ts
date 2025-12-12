@@ -7,31 +7,33 @@
  * Google Photos or categories in Art gallery.
  */
 
-import 'chrome://resources/cr_components/localized_link/localized_link.js';
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
+import 'chrome://resources/ash/common/personalization/common.css.js';
+import 'chrome://resources/ash/common/cr_elements/localized_link/localized_link.js';
+import 'chrome://resources/ash/common/cr_elements/cr_shared_style.css.js';
+import 'chrome://resources/ash/common/cr_elements/cr_shared_vars.css.js';
 import './album_list_element.js';
 import './art_album_dialog_element.js';
-import '../../css/common.css.js';
 
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {isNonEmptyArray} from 'chrome://resources/ash/common/sea_pen/sea_pen_utils.js';
+import {assert} from 'chrome://resources/js/assert.js';
 
-import {AmbientModeAlbum, TopicSource} from '../../personalization_app.mojom-webui.js';
-import {PersonalizationRouter} from '../personalization_router_element.js';
+import type {AmbientModeAlbum} from '../../personalization_app.mojom-webui.js';
+import {TopicSource} from '../../personalization_app.mojom-webui.js';
+import {logAmbientModeLinkToGooglePhotosClick} from '../personalization_metrics_logger.js';
+import {PersonalizationRouterElement} from '../personalization_router_element.js';
 import {WithPersonalizationStore} from '../personalization_store.js';
-import {getNumberOfGridItemsPerRow, isNonEmptyArray} from '../utils.js';
+import {getNumberOfGridItemsPerRow} from '../utils.js';
 
-import {AlbumSelectedChangedEvent} from './album_list_element.js';
+import type {AlbumSelectedChangedEvent} from './album_list_element.js';
 import {getTemplate} from './albums_subpage_element.html.js';
 import {setAlbumSelected} from './ambient_controller.js';
 import {getAmbientProvider} from './ambient_interface_provider.js';
 import {AmbientObserver} from './ambient_observer.js';
-import {getZerosArray} from './utils.js';
 
 /** Height in pixels of a tile. */
 const kTileHeightPx = 136;
 
-export class AlbumsSubpage extends WithPersonalizationStore {
+export class AlbumsSubpageElement extends WithPersonalizationStore {
   static get is() {
     return 'albums-subpage';
   }
@@ -75,7 +77,7 @@ export class AlbumsSubpage extends WithPersonalizationStore {
   override connectedCallback() {
     super.connectedCallback();
     AmbientObserver.initAmbientObserverIfNeeded();
-    this.watch<AlbumsSubpage['ambientModeEnabled_']>(
+    this.watch<AlbumsSubpageElement['ambientModeEnabled_']>(
         'ambientModeEnabled_', state => state.ambient.ambientModeEnabled);
     this.updateFromStore();
     getAmbientProvider().fetchSettingsAndAlbums();
@@ -102,7 +104,7 @@ export class AlbumsSubpage extends WithPersonalizationStore {
   private getLoadingTiles_(): number[] {
     const x = getNumberOfGridItemsPerRow();
     const y = Math.floor(this.offsetHeight / kTileHeightPx);
-    return getZerosArray(x * y);
+    return new Array(x * y).fill(0);
   }
 
   private loadingAlbums_(): boolean {
@@ -140,15 +142,20 @@ export class AlbumsSubpage extends WithPersonalizationStore {
 
   private onAmbientModeEnabledChanged_(ambientModeEnabled: boolean|null) {
     if (ambientModeEnabled !== null && !ambientModeEnabled) {
-      PersonalizationRouter.reloadAtAmbient();
+      PersonalizationRouterElement.reloadAtAmbient();
     }
+  }
+
+  private onGooglePhotosLinkClicked_(event: Event) {
+    event.stopPropagation();
+    logAmbientModeLinkToGooglePhotosClick();
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'albums-subpage': AlbumsSubpage;
+    'albums-subpage': AlbumsSubpageElement;
   }
 }
 
-customElements.define(AlbumsSubpage.is, AlbumsSubpage);
+customElements.define(AlbumsSubpageElement.is, AlbumsSubpageElement);

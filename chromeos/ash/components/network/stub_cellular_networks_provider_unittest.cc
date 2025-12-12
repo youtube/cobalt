@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "ash/constants/ash_pref_names.h"
 #include "base/run_loop.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/task_environment.h"
@@ -13,6 +14,7 @@
 #include "chromeos/ash/components/network/cellular_utils.h"
 #include "chromeos/ash/components/network/managed_cellular_pref_handler.h"
 #include "chromeos/ash/components/network/network_state_test_helper.h"
+#include "chromeos/ash/components/network/policy_util.h"
 #include "chromeos/ash/components/network/technology_state_controller.h"
 #include "chromeos/ash/components/network/test_cellular_esim_profile_handler.h"
 #include "components/prefs/testing_pref_service.h"
@@ -97,12 +99,11 @@ class StubCellularNetworksProviderTest : public testing::Test {
   }
 
   void SetPSimSlotInfo(const std::string& iccid) {
-    base::Value::List sim_slot_infos;
-    base::Value::Dict slot_info_item;
-    slot_info_item.Set(shill::kSIMSlotInfoEID, std::string());
-    slot_info_item.Set(shill::kSIMSlotInfoICCID, iccid);
-    slot_info_item.Set(shill::kSIMSlotInfoPrimary, true);
-    sim_slot_infos.Append(std::move(slot_info_item));
+    auto sim_slot_infos = base::Value::List().Append(
+        base::Value::Dict()
+            .Set(shill::kSIMSlotInfoEID, std::string())
+            .Set(shill::kSIMSlotInfoICCID, iccid)
+            .Set(shill::kSIMSlotInfoPrimary, true));
 
     helper_.device_test()->SetDeviceProperty(
         kDefaultCellularDevicePath, shill::kSIMSlotInfoProperty,
@@ -125,7 +126,8 @@ class StubCellularNetworksProviderTest : public testing::Test {
     }
 
     EXPECT_TRUE(exists);
-    EXPECT_EQ(GenerateStubCellularServicePath(iccid), service_path);
+    EXPECT_EQ(cellular_utils::GenerateStubCellularServicePath(iccid),
+              service_path);
   }
 
   void DisableCellularTechnology() {
@@ -135,13 +137,10 @@ class StubCellularNetworksProviderTest : public testing::Test {
     base::RunLoop().RunUntilIdle();
   }
 
-  void AddIccidSmdpPairToPref(const std::string& iccid,
-                              const std::string& smdp_address) {
-    managed_cellular_pref_handler_.AddIccidSmdpPair(iccid, smdp_address);
-  }
+  TestingPrefServiceSimple* device_prefs() { return &device_prefs_; }
 
-  void RemoveIccidSmdpPairFromPref(const std::string& iccid) {
-    managed_cellular_pref_handler_.RemovePairWithIccid(iccid);
+  ManagedCellularPrefHandler* managed_cellular_pref_handler() {
+    return &managed_cellular_pref_handler_;
   }
 
  private:
@@ -186,7 +185,11 @@ TEST_F(StubCellularNetworksProviderTest, AddOrRemoveStubCellularNetworks) {
 
   // Verify that stub services are created for eSIM profiles and pSIM iccids
   // on sim slot info.
-  AddIccidSmdpPairToPref(profile3_properties->iccid().value(), "smdp_address");
+  managed_cellular_pref_handler()->AddESimMetadata(
+      profile3_properties->iccid().value(), "name",
+      policy_util::SmdxActivationCode(
+          policy_util::SmdxActivationCode::Type::SMDP,
+          "activation_code_value"));
   AddOrRemoveStubCellularNetworks(network_list, new_stub_networks);
   EXPECT_EQ(3u, new_stub_networks.size());
   NetworkState* network1 = new_stub_networks[0]->AsNetworkState();
@@ -203,18 +206,31 @@ TEST_F(StubCellularNetworksProviderTest, AddOrRemoveStubCellularNetworks) {
 
   // Verify the stub networks becomes unmanaged once the iccid and smdp address
   // pair is removed from pref.
+  network_list = std::move(new_stub_networks);
   new_stub_networks.clear();
-  RemoveIccidSmdpPairFromPref(profile3_properties->iccid().value());
+
+  // Manually reach into the device prefs and mark the eSIM profile as no longer
+  // being actively managed. We modify the prefs directly so that we can test
+  // `AddOrRemoveStubCellularNetworks()` directly and not rely on
+  // `ManagedCellularPrefHandler` notifying pref changes.
+  const std::string& iccid = profile3_properties->iccid().value();
+  base::Value::Dict prefs =
+      device_prefs()->GetDict(prefs::kManagedCellularESimMetadata).Clone();
+  ASSERT_TRUE(prefs.contains(iccid));
+  base::Value::Dict* esim_metadata = prefs.FindDict(iccid);
+  esim_metadata->Set("PolicyMissing", true);
+  device_prefs()->SetDict(prefs::kManagedCellularESimMetadata,
+                          std::move(prefs));
+
   AddOrRemoveStubCellularNetworks(network_list, new_stub_networks);
-  EXPECT_EQ(3u, new_stub_networks.size());
-  network2 = new_stub_networks[1]->AsNetworkState();
+  EXPECT_EQ(3u, network_list.size());
+  EXPECT_EQ(0u, new_stub_networks.size());
+  network2 = network_list[1]->AsNetworkState();
   EXPECT_EQ(network2->iccid(), profile3_properties->iccid().value());
   EXPECT_FALSE(network2->IsManagedByPolicy());
 
   // Verify the stub networks are removed when corresponding slot is no longer
   // present. e.g. SIM removed.
-  network_list = std::move(new_stub_networks);
-  new_stub_networks.clear();
   SetPSimSlotInfo(/*iccid=*/std::string());
   base::RunLoop().RunUntilIdle();
   AddOrRemoveStubCellularNetworks(network_list, new_stub_networks);

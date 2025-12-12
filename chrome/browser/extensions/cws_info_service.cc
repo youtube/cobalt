@@ -4,6 +4,8 @@
 
 #include "chrome/browser/extensions/cws_info_service.h"
 
+#include <string_view>
+
 #include "base/containers/contains.h"
 #include "base/containers/fixed_flat_map.h"
 #include "base/containers/queue.h"
@@ -11,33 +13,49 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
+#include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_tokenizer.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
+#include "chrome/browser/extensions/cws_info_service_factory.h"
 #include "chrome/browser/extensions/cws_item_service.pb.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "extensions/browser/extension_prefs.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/pref_names.h"
+#include "google_apis/common/api_key_request_util.h"
+#include "google_apis/google_api_keys.h"
+#include "net/base/load_flags.h"
+#include "net/http/http_status_code.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 
 namespace {
 
-constexpr int kMaxExtensionIdsPerRequest = 100;
-constexpr int kStartupCheckDelaySeconds = 30;
-constexpr int kCheckIntervalSeconds = 3 * 60 * 60;
+constexpr int kMaxExtensionIdsPerRequest = 3;
+constexpr int kMaxRetriesPerRequest = 2;
+
+// Default check and fetch intervals.
+constexpr int kCheckIntervalSeconds = 1 * 60 * 60;
 constexpr int kFetchIntervalSeconds = 24 * 60 * 60;
+// Fast mode check and fetch intervals. These intervals are used to
+// facilitate end-end testing.
+constexpr int kFastStartupCheckDelaySeconds = 30;
+constexpr int kFastCheckIntervalSeconds = 1 * 60;
+constexpr int kFastFetchIntervalSeconds = 3 * 60;
+
 constexpr char kRequestUrl[] =
-    "https://chromewebstore.googleapis.com/v2/items/-/StoreMetadata:batchGet";
+    "https://chromewebstore.googleapis.com/v2/items/-/storeMetadata:batchGet";
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("cws_info_service", R"(
       semantics {
@@ -99,15 +117,52 @@ std::string GetNameFromId(const std::string& id) {
   return "items/" + id + "/storeMetadata";
 }
 
+// Whether or not to skip the check if the build includes the Google Chrome API
+// key. Used for testing.
+bool skip_api_key_check_for_testing = false;
+
+// Histogram helpers.
+void RecordFetchSuccess(bool success) {
+  base::UmaHistogramBoolean("Extensions.CWSInfoService.FetchSuccess", success);
+}
+void RecordMetadataChanged(bool changed) {
+  base::UmaHistogramBoolean("Extensions.CWSInfoService.MetadataChanged",
+                            changed);
+}
+void RecordNumRequestsInFetch(int num_requests) {
+  base::UmaHistogramCounts100("Extensions.CWSInfoService.NumRequestsInFetch",
+                              num_requests);
+}
+void RecordNetworkHistograms(const network::SimpleURLLoader* url_loader) {
+  int net_error = url_loader->NetError();
+  int response_code = 0;
+  if (url_loader->ResponseInfo() && url_loader->ResponseInfo()->headers) {
+    response_code = url_loader->ResponseInfo()->headers->response_code();
+  }
+  base::UmaHistogramSparse(
+      "Extensions.CWSInfoService.NetworkResponseCodeOrError",
+      net_error == net::OK || net_error == net::ERR_HTTP_RESPONSE_CODE_FAILURE
+          ? response_code
+          : net_error);
+  if (net_error == net::OK && response_code == net::HTTP_OK) {
+    base::UmaHistogramExactLinear(
+        "Extensions.CWSInfoService.NetworkRetriesTillSuccess",
+        url_loader->GetNumRetries(), kMaxRetriesPerRequest + 1);
+  } else {
+    DVLOG(1) << "Request net error:" << net_error
+             << ", response code:" << response_code;
+  }
+}
+
 }  // namespace
 
 namespace extensions {
 
-// Allow periodic retrieval of extensions metadata from the Chrome Web Store
-// (CWS). This is effectively a kill-switch for the feature.
-BASE_FEATURE(kCWSInfoService,
-             "CWSInfoService",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// Increase the frequency of periodic retrieval of extensions metadata from
+// CWS. This feature is used only for testing purposes.
+BASE_FEATURE(kCWSInfoFastCheck,
+             "CWSInfoFastCheck",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 namespace {
 
@@ -154,6 +209,14 @@ bool SaveInfoIfChanged(ExtensionPrefs* extension_prefs,
   return saved;
 }
 
+int GetNextFetchInterval() {
+  // jitter fetch interval by +/- 25%
+  double jitter_factor = base::RandDouble() * 0.5 + 0.75;
+  return base::FeatureList::IsEnabled(kCWSInfoFastCheck)
+             ? kFastFetchIntervalSeconds
+             : kFetchIntervalSeconds * jitter_factor;
+}
+
 }  // namespace
 
 // Stores context information about a CWS info fetch operation.
@@ -167,28 +230,40 @@ struct CWSInfoService::FetchContext {
   bool metadata_changed = false;
 };
 
+// static
+CWSInfoService* CWSInfoService::Get(Profile* profile) {
+  return CWSInfoServiceFactory::GetInstance()->GetForProfile(profile);
+}
+
 CWSInfoService::CWSInfoService(Profile* profile)
     : profile_(profile),
       pref_service_(profile->GetPrefs()),
       extension_prefs_(ExtensionPrefs::Get(profile)),
       extension_registry_(ExtensionRegistry::Get(profile)),
       url_loader_factory_(profile->GetURLLoaderFactory()),
-      max_ids_per_request_(kMaxExtensionIdsPerRequest) {
-  ScheduleCheck(kStartupCheckDelaySeconds);
+      max_ids_per_request_(kMaxExtensionIdsPerRequest),
+      current_fetch_interval_secs_(GetNextFetchInterval()) {
+  // Vary the startup check out between 30s to 10min, unless FastCheck
+  // option is enabled.
+  startup_delay_secs_ = base::FeatureList::IsEnabled(kCWSInfoFastCheck)
+                            ? kFastStartupCheckDelaySeconds
+                            : base::RandInt(/*min=*/30, /*max=*/600);
+  ScheduleCheck(startup_delay_secs_);
 }
 
+CWSInfoService::CWSInfoService() = default;
 CWSInfoService::~CWSInfoService() = default;
 
 void CWSInfoService::Shutdown() {
   info_check_timer_.Stop();
 }
 
-absl::optional<bool> CWSInfoService::IsLiveInCWS(
+std::optional<bool> CWSInfoService::IsLiveInCWS(
     const Extension& extension) const {
   const base::Value::Dict* cws_info_dict =
       extension_prefs_->ReadPrefAsDict(extension.id(), kCWSInfo);
   if (cws_info_dict == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   if (!cws_info_dict->FindBool(kIsPresent).value_or(false)) {
     return false;
@@ -196,12 +271,12 @@ absl::optional<bool> CWSInfoService::IsLiveInCWS(
   return cws_info_dict->FindBool(kIsLive).value_or(false);
 }
 
-absl::optional<CWSInfoService::CWSInfo> CWSInfoService::GetCWSInfo(
+std::optional<CWSInfoService::CWSInfo> CWSInfoService::GetCWSInfo(
     const Extension& extension) const {
   const base::Value::Dict* cws_info_dict =
       extension_prefs_->ReadPrefAsDict(extension.id(), kCWSInfo);
   if (cws_info_dict == nullptr) {
-    return absl::nullopt;
+    return std::nullopt;
   }
   CWSInfo info;
   info.is_present = cws_info_dict->FindBool(kIsPresent).value_or(false);
@@ -214,7 +289,8 @@ absl::optional<CWSInfoService::CWSInfo> CWSInfoService::GetCWSInfo(
     if (last_update_time_millis_str &&
         base::StringToInt64(*last_update_time_millis_str,
                             &last_update_time_millis)) {
-      info.last_update_time = base::Time::FromJavaTime(last_update_time_millis);
+      info.last_update_time =
+          base::Time::FromMillisecondsSinceUnixEpoch(last_update_time_millis);
     }
 
     info.violation_type = static_cast<CWSViolationType>(
@@ -225,22 +301,37 @@ absl::optional<CWSInfoService::CWSInfo> CWSInfoService::GetCWSInfo(
         cws_info_dict->FindBool(kNoPrivacyPractice).value_or(false);
   }
 
-  return absl::make_optional<CWSInfo>(info);
+  return std::make_optional<CWSInfo>(info);
 }
 
 void CWSInfoService::CheckAndMaybeFetchInfo() {
   CHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
+
+  // Do nothing unless an official api key is configured OR
+  // the api key check is skipped for testing.
+  // Note that there will be no periodic checking after this since we
+  // return immediately without scheduling a future check.
+  if (!google_apis::IsGoogleChromeAPIKeyUsed() &&
+      !skip_api_key_check_for_testing) {
+    return;
+  }
+
   // If a fetch is already in progress, don't do anything.
   if (active_fetch_) {
     return;
   }
 
-  if (CanFetchInfo()) {
-    base::TimeDelta elapsed_time =
+  base::TimeDelta elapsed_time =
+      base::Time::Now() -
+      pref_service_->GetTime(prefs::kCWSInfoFetchErrorTimestamp);
+  // If there was a previous fetch error, wait a full fetch interval before
+  // retrying.
+  if (elapsed_time >= base::Seconds(current_fetch_interval_secs_)) {
+    elapsed_time =
         base::Time::Now() - pref_service_->GetTime(prefs::kCWSInfoTimestamp);
-    // Enough time has elapsed since the last fetch.
+    // Enough time has elapsed since the last successful fetch.
     bool data_refresh_needed =
-        elapsed_time >= base::Seconds(kFetchIntervalSeconds);
+        elapsed_time >= base::Seconds(current_fetch_interval_secs_);
 
     bool new_info_requested = false;
     std::unique_ptr<FetchContext> fetch_context =
@@ -252,20 +343,18 @@ void CWSInfoService::CheckAndMaybeFetchInfo() {
       info_check_timer_.Stop();
       // Save the fetch context and send the (first) request.
       active_fetch_ = std::move(fetch_context);
+      RecordNumRequestsInFetch(active_fetch_->requests.size());
+      current_fetch_interval_secs_ = GetNextFetchInterval();
       SendRequest();
       return;
     }
   }
 
   // No info request necessary at this time. Schedule the next check.
-  ScheduleCheck(kCheckIntervalSeconds);
-}
-
-bool CWSInfoService::CanFetchInfo() const {
-  // TODO(anunoy): Remove this check after policy is end-end tested with server
-  // endpoint and admin console UI.
-  return pref_service_->GetInteger(
-             pref_names::kExtensionUnpublishedAvailability) == 1;
+  int check_interval_seconds = base::FeatureList::IsEnabled(kCWSInfoFastCheck)
+                                   ? kFastCheckIntervalSeconds
+                                   : kCheckIntervalSeconds;
+  ScheduleCheck(check_interval_seconds);
 }
 
 void CWSInfoService::ScheduleCheck(int seconds) {
@@ -278,11 +367,11 @@ std::unique_ptr<CWSInfoService::FetchContext> CWSInfoService::CreateRequests(
   new_info_requested = false;
 
   auto* extension_mgmt =
-      extensions::ExtensionManagementFactory::GetForBrowserContext(profile_);
+      ExtensionManagementFactory::GetForBrowserContext(profile_);
   if (!extension_mgmt) {
     return nullptr;
   }
-  extensions::ExtensionSet installed_extensions =
+  ExtensionSet installed_extensions =
       extension_registry_->GenerateInstalledExtensionsSet();
   if (installed_extensions.empty()) {
     return nullptr;
@@ -321,6 +410,7 @@ std::unique_ptr<CWSInfoService::FetchContext> CWSInfoService::CreateRequests(
     // No extensions require a CWS info fetch.
     return nullptr;
   }
+
   // Return the fetch context - contains information about number of requests to
   // send and which ids are included in each request.
   return fetch_context;
@@ -331,11 +421,15 @@ void CWSInfoService::SendRequest() {
   resource_request->url = GURL(kRequestUrl);
   // A POST request is sent with an override to GET due to server requirements.
   resource_request->method = "POST";
+  resource_request->load_flags = net::LOAD_DISABLE_CACHE;
   resource_request->headers.SetHeader("X-HTTP-Method-Override", "GET");
+  google_apis::AddAPIKeyToRequest(*resource_request, google_apis::GetAPIKey());
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
 
   url_loader_ = network::SimpleURLLoader::Create(std::move(resource_request),
                                                  kTrafficAnnotation);
+  url_loader_->SetRetryOptions(kMaxRetriesPerRequest,
+                               network::SimpleURLLoader::RETRY_ON_5XX);
   std::string request_str =
       active_fetch_->requests.front().proto.SerializeAsString();
   url_loader_->AttachStringForUpload(request_str, "application/x-protobuf");
@@ -348,6 +442,8 @@ void CWSInfoService::SendRequest() {
 
 void CWSInfoService::OnResponseReceived(std::unique_ptr<std::string> response) {
   CHECK(url_loader_);
+  RecordNetworkHistograms(url_loader_.get());
+
   bool error = false;
   if (response) {
     BatchGetStoreMetadatasResponse response_proto;
@@ -363,12 +459,17 @@ void CWSInfoService::OnResponseReceived(std::unique_ptr<std::string> response) {
       error = true;
     }
   } else {
-    DVLOG(1) << "Request failed with error: " << url_loader_->NetError();
     info_errors_++;
     error = true;
   }
 
-  if (!error) {
+  if (error) {
+    // Record the fetch error timestamp. This timestamp is used to
+    // wait at least one fetch interval after an error before
+    // attempting another fetch.
+    pref_service_->SetTime(prefs::kCWSInfoFetchErrorTimestamp,
+                           base::Time::Now());
+  } else {
     // Info response received without any errors. Remove the request object
     // from the request queue.
     active_fetch_->requests.pop();
@@ -382,17 +483,23 @@ void CWSInfoService::OnResponseReceived(std::unique_ptr<std::string> response) {
     // prefs.
     pref_service_->SetTime(prefs::kCWSInfoTimestamp, base::Time::Now());
 
+    RecordMetadataChanged(active_fetch_->metadata_changed);
     if (active_fetch_->metadata_changed) {
       // Notify observers if the metadata changed.
       for (auto& observer : observers_) {
-        observer.OnInfoChanged();
+        observer.OnCWSInfoChanged();
       }
     }
   }
 
-  // All requests completed. Schedule the next check.
+  // All requests completed successfully OR a request failed. In either case,
+  // schedule the next check.
+  RecordFetchSuccess(!error);
   active_fetch_.reset();
-  ScheduleCheck(kCheckIntervalSeconds);
+  int check_interval_seconds = base::FeatureList::IsEnabled(kCWSInfoFastCheck)
+                                   ? kFastCheckIntervalSeconds
+                                   : kCheckIntervalSeconds;
+  ScheduleCheck(check_interval_seconds);
 }
 
 bool CWSInfoService::MaybeSaveResponseToPrefs(
@@ -410,7 +517,7 @@ bool CWSInfoService::MaybeSaveResponseToPrefs(
     }
   }
 
-  // Process any resquested ids missing from the response. These ids represent
+  // Process any requested ids missing from the response. These ids represent
   // extensions that are no longer available from the store.
   for (const auto& id : active_fetch_->requests.front().ids) {
     if (extension_prefs_->HasPrefForExtension(id) == false) {
@@ -432,15 +539,14 @@ void CWSInfoService::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-static_assert(static_cast<int>(
-                  extensions::CWSInfoService::CWSViolationType::kUnknown) == 4,
+static_assert(static_cast<int>(CWSInfoService::CWSViolationType::kUnknown) == 4,
               "GetViolationTypeFromString needs to be updated to match "
               "CWSInfoService::CWSViolationType");
 // static:
 CWSInfoService::CWSViolationType CWSInfoService::GetViolationTypeFromString(
     const std::string& violation_type_str) {
   static constexpr auto violation_type_str_map =
-      base::MakeFixedFlatMap<base::StringPiece,
+      base::MakeFixedFlatMap<std::string_view,
                              CWSInfoService::CWSViolationType>(
           {{"none", CWSInfoService::CWSViolationType::kNone},
            {"malware", CWSInfoService::CWSViolationType::kMalware},
@@ -448,7 +554,7 @@ CWSInfoService::CWSViolationType CWSInfoService::GetViolationTypeFromString(
            {"minor-policy-violation",
             CWSInfoService::CWSViolationType::kMinorPolicy}});
 
-  const auto* it = violation_type_str_map.find(violation_type_str);
+  const auto it = violation_type_str_map.find(violation_type_str);
   return it != violation_type_str_map.end() ? it->second
                                             : CWSViolationType::kUnknown;
 }
@@ -462,11 +568,11 @@ std::string CWSInfoService::GetRequestURLForTesting() const {
 }
 
 int CWSInfoService::GetFetchIntervalForTesting() const {
-  return kFetchIntervalSeconds;
+  return current_fetch_interval_secs_;
 }
 
 int CWSInfoService::GetStartupDelayForTesting() const {
-  return kStartupCheckDelaySeconds;
+  return startup_delay_secs_;
 }
 
 int CWSInfoService::GetCheckIntervalForTesting() const {
@@ -475,6 +581,15 @@ int CWSInfoService::GetCheckIntervalForTesting() const {
 
 base::Time CWSInfoService::GetCWSInfoTimestampForTesting() const {
   return pref_service_->GetTime(prefs::kCWSInfoTimestamp);
+}
+
+base::Time CWSInfoService::GetCWSInfoFetchErrorTimestampForTesting() const {
+  return pref_service_->GetTime(prefs::kCWSInfoFetchErrorTimestamp);
+}
+
+// static
+void CWSInfoService::SetSkipApiCheckForTesting(bool skip_api_key_check) {
+  skip_api_key_check_for_testing = skip_api_key_check;
 }
 
 }  // namespace extensions

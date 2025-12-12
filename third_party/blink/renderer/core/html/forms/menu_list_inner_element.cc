@@ -5,7 +5,7 @@
 #include "third_party/blink/renderer/core/html/forms/menu_list_inner_element.h"
 
 #include "third_party/blink/renderer/core/css/resolver/style_resolver.h"
-#include "third_party/blink/renderer/core/dom/node_computed_style.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
@@ -17,10 +17,14 @@ MenuListInnerElement::MenuListInnerElement(Document& document)
   SetHasCustomStyleCallbacks();
 }
 
-scoped_refptr<const ComputedStyle>
-MenuListInnerElement::CustomStyleForLayoutObject(
+const ComputedStyle* MenuListInnerElement::CustomStyleForLayoutObject(
     const StyleRecalcContext& style_recalc_context) {
   const ComputedStyle& parent_style = OwnerShadowHost()->ComputedStyleRef();
+
+  if (parent_style.EffectiveAppearance() == AppearanceValue::kBaseSelect) {
+    return HTMLDivElement::CustomStyleForLayoutObject(style_recalc_context);
+  }
+
   ComputedStyleBuilder style_builder =
       GetDocument().GetStyleResolver().CreateAnonymousStyleBuilderWithDisplay(
           parent_style, EDisplay::kBlock);
@@ -29,7 +33,9 @@ MenuListInnerElement::CustomStyleForLayoutObject(
   style_builder.SetFlexShrink(1);
   // min-width: 0; is needed for correct shrinking.
   style_builder.SetMinWidth(Length::Fixed(0));
-  style_builder.SetHasLineIfEmpty(true);
+  if (parent_style.ApplyControlFixedSize(OwnerShadowHost())) {
+    style_builder.SetHasLineIfEmpty(true);
+  }
   style_builder.SetOverflowX(EOverflow::kHidden);
   style_builder.SetOverflowY(EOverflow::kHidden);
   style_builder.SetShouldIgnoreOverflowPropertyForInlineBlockBaseline();
@@ -39,7 +45,7 @@ MenuListInnerElement::CustomStyleForLayoutObject(
   if (style_builder.HasInitialLineHeight()) {
     // line-height should be consistent with MenuListIntrinsicBlockSize()
     // in layout_box.cc.
-    const SimpleFontData* font_data = style_builder.GetFont().PrimaryFont();
+    const SimpleFontData* font_data = style_builder.GetFont()->PrimaryFont();
     if (font_data) {
       style_builder.SetLineHeight(
           Length::Fixed(font_data->GetFontMetrics().Height()));
@@ -52,31 +58,38 @@ MenuListInnerElement::CustomStyleForLayoutObject(
   // when the content overflows, treat it the same as align-items: flex-start.
   // But we only do that for the cases where html.css would otherwise use
   // center.
-  if (parent_style.AlignItems().GetPosition() == ItemPosition::kCenter) {
+  if (parent_style.AlignItems().GetPosition() == ItemPosition::kCenter ||
+      parent_style.AlignItems().GetPosition() == ItemPosition::kAnchorCenter) {
     style_builder.SetMarginTop(Length());
     style_builder.SetMarginBottom(Length());
     style_builder.SetAlignSelf(StyleSelfAlignmentData(
         ItemPosition::kStart, OverflowAlignment::kDefault));
   }
 
-  // We set margin-left/right instead of padding-left/right to clip text by
-  // 'overflow: hidden'.
+  // We set margin-* instead of padding-* to clip text by 'overflow: hidden'.
+  LogicalToPhysicalSetter margin_setter(style_builder.GetWritingDirection(),
+                                        style_builder,
+                                        &ComputedStyleBuilder::SetMarginTop,
+                                        &ComputedStyleBuilder::SetMarginRight,
+                                        &ComputedStyleBuilder::SetMarginBottom,
+                                        &ComputedStyleBuilder::SetMarginLeft);
   LayoutTheme& theme = LayoutTheme::GetTheme();
   Length margin_start =
       Length::Fixed(theme.PopupInternalPaddingStart(parent_style));
   Length margin_end = Length::Fixed(
       theme.PopupInternalPaddingEnd(GetDocument().GetFrame(), parent_style));
-  if (parent_style.IsLeftToRightDirection()) {
-    style_builder.SetMarginLeft(margin_start);
-    style_builder.SetMarginRight(margin_end);
-  } else {
-    style_builder.SetMarginLeft(margin_end);
-    style_builder.SetMarginRight(margin_start);
-  }
+  margin_setter.SetInlineEnd(margin_end);
+  margin_setter.SetInlineStart(margin_start);
   style_builder.SetTextAlign(parent_style.GetTextAlign(true));
-  style_builder.SetPaddingTop(
+  LogicalToPhysicalSetter padding_setter(
+      style_builder.GetWritingDirection(), style_builder,
+      &ComputedStyleBuilder::SetPaddingTop,
+      &ComputedStyleBuilder::SetPaddingRight,
+      &ComputedStyleBuilder::SetPaddingBottom,
+      &ComputedStyleBuilder::SetPaddingLeft);
+  padding_setter.SetBlockStart(
       Length::Fixed(theme.PopupInternalPaddingTop(parent_style)));
-  style_builder.SetPaddingBottom(
+  padding_setter.SetBlockEnd(
       Length::Fixed(theme.PopupInternalPaddingBottom(parent_style)));
 
   if (const ComputedStyle* option_style =

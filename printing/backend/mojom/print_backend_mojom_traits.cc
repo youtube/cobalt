@@ -4,9 +4,11 @@
 
 #include "printing/backend/mojom/print_backend_mojom_traits.h"
 
-#include <map>
+#include <set>
 
 #include "base/containers/contains.h"
+#include "base/debug/crash_logging.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/logging.h"
 #include "build/build_config.h"
 #include "ui/gfx/geometry/mojom/geometry.mojom-shared.h"
@@ -34,9 +36,10 @@ struct less<::printing::PrinterSemanticCapsAndDefaults::Paper> {
   bool operator()(
       const ::printing::PrinterSemanticCapsAndDefaults::Paper& lhs,
       const ::printing::PrinterSemanticCapsAndDefaults::Paper& rhs) const {
-    if (lhs.display_name < rhs.display_name)
+    if (lhs.display_name() < rhs.display_name()) {
       return true;
-    return lhs.vendor_id < rhs.vendor_id;
+    }
+    return lhs.vendor_id() < rhs.vendor_id();
   }
 };
 
@@ -56,21 +59,37 @@ struct less<::printing::AdvancedCapability> {
 
 namespace mojo {
 
-namespace {
-template <class Key>
-class DuplicateChecker {
- public:
-  bool HasDuplicates(const std::vector<Key>& items) {
-    std::map<Key, bool> items_encountered;
-    for (auto it = items.begin(); it != items.end(); ++it) {
-      auto found = items_encountered.find(*it);
-      if (found != items_encountered.end())
-        return true;
-      items_encountered[*it] = true;
-    }
+#if BUILDFLAG(IS_CHROMEOS)
+// static
+bool StructTraits<
+    printing::mojom::PaperMarginsDataView,
+    printing::PaperMargins>::Read(printing::mojom::PaperMarginsDataView data,
+                                  printing::PaperMargins* out) {
+  if (data.top_margin_um() < 0 || data.right_margin_um() < 0 ||
+      data.bottom_margin_um() < 0 || data.left_margin_um() < 0) {
     return false;
   }
-};
+  out->top_margin_um = data.top_margin_um();
+  out->right_margin_um = data.right_margin_um();
+  out->bottom_margin_um = data.bottom_margin_um();
+  out->left_margin_um = data.left_margin_um();
+  return true;
+}
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+namespace {
+
+template <class Key>
+bool HasDuplicateItems(const std::vector<Key>& items) {
+  std::set<Key> items_encountered;
+  for (const Key& item : items) {
+    bool inserted = items_encountered.insert(item).second;
+    if (!inserted) {
+      return true;
+    }
+  }
+  return false;
+}
 
 }  // namespace
 
@@ -81,13 +100,10 @@ bool StructTraits<printing::mojom::PrinterBasicInfoDataView,
          printing::PrinterBasicInfo* out) {
   if (!data.ReadPrinterName(&out->printer_name) ||
       !data.ReadDisplayName(&out->display_name) ||
-      !data.ReadPrinterDescription(&out->printer_description)) {
+      !data.ReadPrinterDescription(&out->printer_description) ||
+      !data.ReadOptions(&out->options)) {
     return false;
   }
-  out->printer_status = data.printer_status();
-  out->is_default = data.is_default();
-  if (!data.ReadOptions(&out->options))
-    return false;
 
   // There should be a non-empty value for `printer_name` since it needs to
   // uniquely identify the printer with the operating system among multiple
@@ -112,28 +128,97 @@ bool StructTraits<printing::mojom::PaperDataView,
                   printing::PrinterSemanticCapsAndDefaults::Paper>::
     Read(printing::mojom::PaperDataView data,
          printing::PrinterSemanticCapsAndDefaults::Paper* out) {
-  absl::optional<gfx::Rect> printable_area_um;
-  if (!data.ReadDisplayName(&out->display_name) ||
-      !data.ReadVendorId(&out->vendor_id) || !data.ReadSizeUm(&out->size_um) ||
-      !data.ReadPrintableAreaUm(&printable_area_um)) {
+  std::string display_name;
+  std::string vendor_id;
+  gfx::Size size_um;
+  gfx::Rect printable_area_um;
+  // TODO(crbug.com/372062459): Remove debug code in this function when done.
+  static auto* const crash_key = base::debug::AllocateCrashKeyString(
+      "Bug372062459Paper", base::debug::CrashKeySize::Size64);
+  if (!data.ReadDisplayName(&display_name)) {
+    base::debug::ScopedCrashKeyString scoped_crash_str(crash_key,
+                                                       "display_name");
+    base::debug::DumpWithoutCrashing();
     return false;
   }
+  if (!data.ReadVendorId(&vendor_id)) {
+    base::debug::ScopedCrashKeyString scoped_crash_str(crash_key, "vendor_id");
+    base::debug::DumpWithoutCrashing();
+    return false;
+  }
+  if (!data.ReadSizeUm(&size_um)) {
+    base::debug::ScopedCrashKeyString scoped_crash_str(crash_key, "size_um");
+    base::debug::DumpWithoutCrashing();
+    return false;
+  }
+  if (!data.ReadPrintableAreaUm(&printable_area_um)) {
+    base::debug::ScopedCrashKeyString scoped_crash_str(crash_key,
+                                                       "printable_area_um");
+    base::debug::DumpWithoutCrashing();
+    return false;
+  }
+#if BUILDFLAG(IS_CHROMEOS)
+  std::optional<printing::PaperMargins> supported_margins_um;
+  if (!data.ReadSupportedMarginsUm(&supported_margins_um)) {
+    return false;
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
-  // For backwards compatibility, allow printable area to be missing. Set the
-  // default printable area to be the page size.
-  out->printable_area_um = printable_area_um.value_or(gfx::Rect(out->size_um));
+  int max_height_um = data.max_height_um();
+  bool has_borderless_variant = data.has_borderless_variant();
 
   // Allow empty Papers, since PrinterSemanticCapsAndDefaults can have empty
   // default Papers.
-  if (out->display_name.empty() && out->vendor_id.empty() &&
-      out->size_um.IsEmpty() && out->printable_area_um.IsEmpty()) {
+  if (display_name.empty() && vendor_id.empty() && size_um.IsEmpty() &&
+      printable_area_um.IsEmpty() && max_height_um == 0) {
+    *out = printing::PrinterSemanticCapsAndDefaults::Paper();
     return true;
   }
 
+  // If `max_height_um` is specified, ensure it's larger than size.
+  if (max_height_um > 0 && max_height_um < size_um.height()) {
+    base::debug::ScopedCrashKeyString scoped_crash_str(
+        crash_key, base::NumberToString(max_height_um) + "," +
+                       base::NumberToString(size_um.height()));
+    base::debug::DumpWithoutCrashing();
+    return false;
+  }
+
   // Invalid if the printable area is empty or if the printable area is out of
-  // bounds of the paper size.
-  return !out->printable_area_um.IsEmpty() &&
-         gfx::Rect(out->size_um).Contains(out->printable_area_um);
+  // bounds of the paper size.  `max_height_um` doesn't need to be checked here
+  // since `printable_area_um` is always relative to `size_um`.
+  if (printable_area_um.IsEmpty()) {
+    base::debug::ScopedCrashKeyString scoped_crash_str(
+        crash_key, "printable_area_um empty");
+    base::debug::DumpWithoutCrashing();
+    return false;
+  }
+
+  if (!gfx::Rect(size_um).Contains(printable_area_um)) {
+    base::debug::ScopedCrashKeyString scoped_crash_str(
+        crash_key, size_um.ToString() + "," + printable_area_um.ToString());
+    base::debug::DumpWithoutCrashing();
+    return false;
+  }
+#if BUILDFLAG(IS_CHROMEOS)
+  *out = printing::PrinterSemanticCapsAndDefaults::Paper(
+      display_name, vendor_id, size_um, printable_area_um, max_height_um,
+      has_borderless_variant, supported_margins_um);
+#else
+  *out = printing::PrinterSemanticCapsAndDefaults::Paper(
+      display_name, vendor_id, size_um, printable_area_um, max_height_um,
+      has_borderless_variant);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  return true;
+}
+
+// static
+bool StructTraits<printing::mojom::MediaTypeDataView,
+                  printing::PrinterSemanticCapsAndDefaults::MediaType>::
+    Read(printing::mojom::MediaTypeDataView data,
+         printing::PrinterSemanticCapsAndDefaults::MediaType* out) {
+  return data.ReadDisplayName(&out->display_name) &&
+         data.ReadVendorId(&out->vendor_id);
 }
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -153,7 +238,6 @@ EnumTraits<printing::mojom::AdvancedCapabilityType,
       return printing::mojom::AdvancedCapabilityType::kString;
   }
   NOTREACHED();
-  return printing::mojom::AdvancedCapabilityType::kString;
 }
 
 // static
@@ -176,7 +260,6 @@ bool EnumTraits<printing::mojom::AdvancedCapabilityType,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static
@@ -224,6 +307,11 @@ bool StructTraits<printing::mojom::PrinterSemanticCapsAndDefaultsDataView,
                   printing::PrinterSemanticCapsAndDefaults>::
     Read(printing::mojom::PrinterSemanticCapsAndDefaultsDataView data,
          printing::PrinterSemanticCapsAndDefaults* out) {
+  std::optional<printing::PrinterSemanticCapsAndDefaults::MediaTypes>
+      media_types;
+  std::optional<printing::PrinterSemanticCapsAndDefaults::MediaType>
+      default_media_type;
+
   out->collate_capable = data.collate_capable();
   out->collate_default = data.collate_default();
   out->copies_max = data.copies_max();
@@ -243,8 +331,11 @@ bool StructTraits<printing::mojom::PrinterSemanticCapsAndDefaultsDataView,
 
 #if BUILDFLAG(IS_CHROMEOS)
   out->pin_supported = data.pin_supported();
-  if (!data.ReadAdvancedCapabilities(&out->advanced_capabilities))
+  if (!data.ReadAdvancedCapabilities(&out->advanced_capabilities) ||
+      !data.ReadPrintScalingTypes(&out->print_scaling_types) ||
+      !data.ReadPrintScalingTypeDefault(&out->print_scaling_type_default)) {
     return false;
+  }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
   // Extra validity checks.
@@ -256,25 +347,33 @@ bool StructTraits<printing::mojom::PrinterSemanticCapsAndDefaultsDataView,
   }
 
   // There should not be duplicates in certain arrays.
-  DuplicateChecker<printing::mojom::DuplexMode> duplex_modes_dup_checker;
-  if (duplex_modes_dup_checker.HasDuplicates(out->duplex_modes)) {
+  if (HasDuplicateItems(out->duplex_modes)) {
     DLOG(ERROR) << "Duplicate duplex_modes detected.";
     return false;
   }
 
-  DuplicateChecker<printing::PrinterSemanticCapsAndDefaults::Paper>
-      user_defined_papers_dup_checker;
-  if (user_defined_papers_dup_checker.HasDuplicates(out->user_defined_papers)) {
+  if (HasDuplicateItems(out->user_defined_papers)) {
     DLOG(ERROR) << "Duplicate user_defined_papers detected.";
+    // TODO(crbug.com/372062459): Remove debug code when done.
+    std::string names;
+    for (const auto& user_defined_paper : out->user_defined_papers) {
+      names += user_defined_paper.display_name();
+      names += ' ';
+    }
+    static auto* const crash_key = base::debug::AllocateCrashKeyString(
+        "Bug372062459UserDefinedPaper", base::debug::CrashKeySize::Size1024);
+    base::debug::ScopedCrashKeyString scoped_crash_str(crash_key, names);
+    base::debug::DumpWithoutCrashing();
     return false;
   }
 
 #if BUILDFLAG(IS_CHROMEOS)
-  DuplicateChecker<printing::AdvancedCapability>
-      advanced_capabilities_dup_checker;
-  if (advanced_capabilities_dup_checker.HasDuplicates(
-          out->advanced_capabilities)) {
+  if (HasDuplicateItems(out->advanced_capabilities)) {
     DLOG(ERROR) << "Duplicate advanced_capabilities detected.";
+    return false;
+  }
+  if (HasDuplicateItems(out->print_scaling_types)) {
+    DLOG(ERROR) << "Duplicate print_scaling_types detected.";
     return false;
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
@@ -283,12 +382,10 @@ bool StructTraits<printing::mojom::PrinterSemanticCapsAndDefaultsDataView,
   if (!data.ReadPageOutputQuality(&out->page_output_quality)) {
     return false;
   }
-  DuplicateChecker<printing::PageOutputQualityAttribute>
-      page_output_quality_dup_checker;
   if (out->page_output_quality) {
     printing::PageOutputQualityAttributes qualities =
         out->page_output_quality->qualities;
-    absl::optional<std::string> default_quality =
+    std::optional<std::string> default_quality =
         out->page_output_quality->default_quality;
 
     // If non-null `default_quality`, there should be a matching element in
@@ -303,12 +400,25 @@ bool StructTraits<printing::mojom::PrinterSemanticCapsAndDefaultsDataView,
     }
 
     // There should be no duplicates in `qualities` array.
-    if (page_output_quality_dup_checker.HasDuplicates(qualities)) {
+    if (HasDuplicateItems(qualities)) {
       DLOG(ERROR) << "Duplicate page output qualities detected.";
       return false;
     }
   }
 #endif
+
+  if (!data.ReadMediaTypes(&media_types) ||
+      !data.ReadDefaultMediaType(&default_media_type)) {
+    return false;
+  }
+
+  if (media_types.has_value()) {
+    out->media_types = media_types.value();
+  }
+  if (default_media_type.has_value()) {
+    out->default_media_type = default_media_type.value();
+  }
+
   return true;
 }
 

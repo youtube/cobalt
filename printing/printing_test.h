@@ -6,9 +6,12 @@
 #define PRINTING_PRINTING_TEST_H_
 
 #include <windows.h>
+
 #include <winspool.h>
 
 #include <string>
+
+#include "printing/backend/spooler_win.h"
 
 // Disable the whole test case when executing on a computer that has no printer
 // installed.
@@ -22,6 +25,11 @@ class PrintingTest : public Parent {
     DWORD size = std::size(printer_name);
     BOOL result = ::GetDefaultPrinter(printer_name, &size);
     if (result == 0) {
+      if (printing::internal::IsSpoolerRunning() !=
+          printing::internal::SpoolerServiceStatus::kRunning) {
+        printf("The Windows print spooler service is not running!\n");
+        return std::wstring();
+      }
       if (GetLastError() == ERROR_FILE_NOT_FOUND) {
         printf("There is no printer installed, printing can't be tested!\n");
         return std::wstring();

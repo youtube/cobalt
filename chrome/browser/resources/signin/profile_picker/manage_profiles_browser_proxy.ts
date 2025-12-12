@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {AvatarIcon} from 'chrome://resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.js';
+import type {AvatarIcon} from 'chrome://resources/cr_elements/cr_profile_avatar_selector/cr_profile_avatar_selector.js';
 import {sendWithPromise} from 'chrome://resources/js/cr.js';
 
 /**
@@ -15,11 +15,12 @@ export interface ProfileState {
   needsSignin: boolean;
   gaiaName: string;
   userName: string;
-  isManaged: boolean;
   avatarIcon: string;
-  // <if expr="chromeos_lacros">
-  isPrimaryLacrosProfile: boolean;
-  // </if>
+  // Contains the aria label of the profile card button.
+  profileCardButtonLabel: string;
+  // Empty if no badge should be set.
+  avatarBadge: string;
+  hasEnterpriseLabel: boolean;
 }
 
 /**
@@ -48,19 +49,6 @@ export interface UserThemeChoice {
   colorId: number;
   color?: number;
 }
-
-// <if expr="chromeos_lacros">
-/**
- * This is a data structure sent from C++ to JS, representing accounts present
- * in the ChromeOS system, but not in any Lacros profile.
- */
-export interface AvailableAccount {
-  gaiaId: string;
-  name: string;
-  email: string;
-  accountImageUrl: string;
-}
-// </if>
 
 export interface ManageProfilesBrowserProxy {
   /**
@@ -109,6 +97,13 @@ export interface ManageProfilesBrowserProxy {
   getProfileStatistics(profilePath: string): void;
 
   /**
+   * Stops showing the profile statistics and removes the related keep alive,
+   * unloading the profile for which the statistics are currently being shown if
+   * it has no more keep alives.
+   */
+  closeProfileStatistics(): void;
+
+  /**
    * Removes profile.
    */
   removeProfile(profilePath: string): void;
@@ -126,18 +121,11 @@ export interface ManageProfilesBrowserProxy {
   getAvailableIcons(): Promise<AvatarIcon[]>;
 
   /**
-   * Creates local profile.
-   */
-  createProfile(
-      profileName: string, profileColor: number, avatarIndex: number,
-      createShortcut: boolean): void;
-
-  /**
    * Creates local profile and opens a profile customization modal dialog on a
    * browser window.
-   * TODO(https://crbug.com/1282157): Add createShortcut parameter.
+   * TODO(crbug.com/40209493): Add createShortcut parameter.
    */
-  createProfileAndOpenCustomizationDialog(profileColor: number): void;
+  continueWithoutAccount(profileColor: number): void;
 
   /**
    * Sets the local profile name.
@@ -163,30 +151,20 @@ export interface ManageProfilesBrowserProxy {
    */
   cancelProfileSwitch(): void;
 
-  // <if expr="chromeos_lacros">
   /**
-   * Gets the available accounts, through WebUIListener.
+   * Sends the profile order changes
+   * @param fromIndex the initial index of the tile that was dragged.
+   * @param toIndex the index to which the profile has been moved/dropped.
+   * All other profiles between `fromIndex` and `toIndex` +/-1 should be shifted
+   * by +/-1 depending on the change direction.
    */
-  getAvailableAccounts(): void;
+  updateProfileOrder(fromIndex: number, toIndex: number): void;
 
   /**
-   * Opens Ash Account settings page in a new window.
+   * Loads the last used profile; opens/uses a browser and open the "Sign in to
+   * Chrome" Help center page. Does not close the Picker.
    */
-  openAshAccountSettingsPage(): void;
-
-  /**
-   * Select an existing account to be added in Chrome on Lacros.
-   */
-  selectExistingAccountLacros(profileColor: number|null, gaiaId: string): void;
-
-  /**
-   * Called when the user clicks the 'use device guest' link in the Lacros
-   * account selection dialog. Opens a Ash dialog that allows the user to log
-   * out of their device session and explains how to select `Browse as Guest` on
-   * the login screen.
-   */
-  openDeviceGuestLinkLacros(): void;
-  // </if>
+  onLearnMoreClicked(): void;
 }
 
 /** @implements {ManageProfilesBrowserProxy} */
@@ -227,6 +205,10 @@ export class ManageProfilesBrowserProxyImpl {
     chrome.send('getProfileStatistics', [profilePath]);
   }
 
+  closeProfileStatistics() {
+    chrome.send('closeProfileStatistics');
+  }
+
   selectNewAccount(profileColor: number|null) {
     chrome.send('selectNewAccount', [profileColor]);
   }
@@ -235,16 +217,8 @@ export class ManageProfilesBrowserProxyImpl {
     return sendWithPromise('getAvailableIcons');
   }
 
-  createProfile(
-      profileName: string, profileColor: number, avatarIndex: number,
-      createShortcut: boolean) {
-    chrome.send(
-        'createProfile',
-        [profileName, profileColor, avatarIndex, createShortcut]);
-  }
-
-  createProfileAndOpenCustomizationDialog(profileColor: number) {
-    chrome.send('createProfileAndOpenCustomizationDialog', [profileColor]);
+  continueWithoutAccount(profileColor: number) {
+    chrome.send('continueWithoutAccount', [profileColor]);
   }
 
   setProfileName(profilePath: string, profileName: string) {
@@ -267,23 +241,13 @@ export class ManageProfilesBrowserProxyImpl {
     chrome.send('cancelProfileSwitch');
   }
 
-  // <if expr="chromeos_lacros">
-  getAvailableAccounts() {
-    chrome.send('getAvailableAccounts');
+  updateProfileOrder(fromIndex: number, toIndex: number) {
+    chrome.send('updateProfileOrder', [fromIndex, toIndex]);
   }
 
-  openAshAccountSettingsPage() {
-    chrome.send('openAshAccountSettingsPage');
+  onLearnMoreClicked(): void {
+    chrome.send('onLearnMoreClicked');
   }
-
-  selectExistingAccountLacros(profileColor: number|null, gaiaId: string) {
-    chrome.send('selectExistingAccountLacros', [profileColor, gaiaId]);
-  }
-
-  openDeviceGuestLinkLacros() {
-    chrome.send('openDeviceGuestLinkLacros');
-  }
-  // </if>
 
   static getInstance(): ManageProfilesBrowserProxy {
     return instance || (instance = new ManageProfilesBrowserProxyImpl());

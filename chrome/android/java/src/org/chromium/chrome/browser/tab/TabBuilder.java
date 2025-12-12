@@ -4,37 +4,43 @@
 
 package org.chromium.chrome.browser.tab;
 
-import androidx.annotation.Nullable;
-
 import org.chromium.base.Callback;
-import org.chromium.chrome.browser.tab.state.CriticalPersistedTabData;
-import org.chromium.chrome.browser.tab.state.SerializedCriticalPersistedTabData;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
 
 /**
- * Builds {@link Tab} using builder pattern. All Tab classes should be instantiated
- * through this builder.
+ * Builds {@link Tab} using builder pattern. All Tab classes should be instantiated through this
+ * builder.
  */
+@NullMarked
 public class TabBuilder {
-    private int mId = Tab.INVALID_TAB_ID;
-    private Tab mParent;
-    private TabResolver mTabResolver;
-    private boolean mIncognito;
-    private WindowAndroid mWindow;
-    private Integer mLaunchType;
-    private Integer mCreationType;
-    private boolean mFromFrozenState;
-    private LoadUrlParams mLoadUrlParams;
+    private final Profile mProfile;
 
-    private WebContents mWebContents;
-    private TabDelegateFactory mDelegateFactory;
+    private int mId = Tab.INVALID_TAB_ID;
+    private @Nullable Tab mParent;
+    private @Nullable TabResolver mTabResolver;
+    private @Nullable WindowAndroid mWindow;
+    // Should not be null when build() is called.
+    private @Nullable @TabLaunchType Integer mLaunchType;
+    private @Nullable @TabCreationState Integer mCreationType;
+    private boolean mFromFrozenState;
+    private @Nullable LoadUrlParams mLoadUrlParams;
+    private @Nullable String mTitle;
+
+    private @Nullable WebContents mWebContents;
+    private @Nullable TabDelegateFactory mDelegateFactory;
     private boolean mInitiallyHidden;
     private boolean mInitializeRenderer;
-    private TabState mTabState;
-    private SerializedCriticalPersistedTabData mSerializedCriticalPersistedTabData;
-    private Callback<Tab> mPreInitializeAction;
+    private @Nullable TabState mTabState;
+    private @Nullable Callback<Tab> mPreInitializeAction;
+
+    public TabBuilder(Profile profile) {
+        mProfile = profile;
+    }
 
     /**
      * Sets the id with which the Tab to create should be identified.
@@ -67,16 +73,6 @@ public class TabBuilder {
     }
 
     /**
-     * Sets incognito mode.
-     * @param incognito {@code true} if the tab will be in incognito mode.
-     * @return {@link TabBuilder} creating the Tab.
-     */
-    public TabBuilder setIncognito(boolean incognito) {
-        mIncognito = incognito;
-        return this;
-    }
-
-    /**
      * Sets window which the Tab will be attached to.
      * @param window An instance of a {@link WindowAndroid}.
      * @return {@link TabBuilder} creating the Tab.
@@ -98,8 +94,6 @@ public class TabBuilder {
 
     /**
      * Sets a flag indicating to initialize renderer during WebContents creation.
-     *
-     * @param boolean initializeRenderer to initialize renderer or not.
      *
      * @return {@link TabBuilder} creating the Tab.
      */
@@ -160,19 +154,9 @@ public class TabBuilder {
         return this;
     }
 
-    /**
-     * Sets a serialized {@link CriticalPersistedTabData} object containing information about the
-     * tab, if it was persisted
-     * @param serializedCriticalPersistedTabData serialized {@link CriticalPersistedTabData}
-     * @return {@link TabBuilder} creating the Tab
-     */
-    public TabBuilder setSerializedCriticalPersistedTabData(
-            @Nullable SerializedCriticalPersistedTabData serializedCriticalPersistedTabData) {
-        mSerializedCriticalPersistedTabData = serializedCriticalPersistedTabData;
-        return this;
-    }
-
     public Tab build() {
+        assert mLaunchType != null : "TabBuilder#setLaunchType() must be called.";
+
         // Pre-condition check
         if (mCreationType != null) {
             if (!mFromFrozenState) {
@@ -185,16 +169,12 @@ public class TabBuilder {
             if (mFromFrozenState) assert mLaunchType == TabLaunchType.FROM_RESTORE;
         }
 
-        TabImpl tab =
-                new TabImpl(mId, mIncognito, mLaunchType, mSerializedCriticalPersistedTabData);
+        TabImpl tab = new TabImpl(mId, mProfile, mLaunchType);
         Tab parent = null;
         if (mParent != null) {
             parent = mParent;
         } else if (mTabResolver != null) {
-            if (!CriticalPersistedTabData.isEmptySerialization(
-                        mSerializedCriticalPersistedTabData)) {
-                parent = mTabResolver.resolve(CriticalPersistedTabData.from(tab).getParentId());
-            } else if (mTabState != null) {
+            if (mTabState != null) {
                 parent = mTabResolver.resolve(mTabState.parentId);
             }
         }
@@ -208,8 +188,16 @@ public class TabBuilder {
 
         // Initializes Tab. Its user data objects are also initialized through the event
         // |onInitialized| of TabObserver they register.
-        tab.initialize(parent, mCreationType, mLoadUrlParams, mWebContents, mDelegateFactory,
-                mInitiallyHidden, mTabState, mInitializeRenderer);
+        tab.initialize(
+                parent,
+                mCreationType,
+                mLoadUrlParams,
+                mTitle,
+                mWebContents,
+                mDelegateFactory,
+                mInitiallyHidden,
+                mTabState,
+                mInitializeRenderer);
         return tab;
     }
 
@@ -228,38 +216,64 @@ public class TabBuilder {
         return this;
     }
 
+    private TabBuilder setTitle(@Nullable String title) {
+        mTitle = title;
+        return this;
+    }
+
     /**
      * Creates a TabBuilder for a new, "frozen" tab from a saved state. This can be used for
      * background tabs restored on cold start that should be loaded when switched to. initialize()
      * needs to be called afterwards to complete the second level initialization.
+     *
+     * @param profile The Profile associated with the Tab.
      */
-    public static TabBuilder createFromFrozenState() {
-        return new TabBuilder()
+    public static TabBuilder createFromFrozenState(Profile profile) {
+        return new TabBuilder(profile)
                 .setLaunchType(TabLaunchType.FROM_RESTORE)
                 .setCreationType(TabCreationState.FROZEN_ON_RESTORE)
                 .setFromFrozenState(true);
     }
 
     /**
-     * Creates a TabBuilder for a new tab to be loaded lazily. This can be used for tabs opened
-     * in the background that should be loaded when switched to. initialize() needs to be called
+     * Creates a TabBuilder for a new tab to be loaded lazily. This can be used for tabs opened in
+     * the background that should be loaded when switched to. initialize() needs to be called
      * afterwards to complete the second level initialization.
+     *
+     * @param profile The Profile associated with the Tab.
      * @param loadUrlParams Params specifying the conditions for loading url.
+     * @param title The title to use for the load.
      */
-    public static TabBuilder createForLazyLoad(LoadUrlParams loadUrlParams) {
-        return new TabBuilder()
+    public static TabBuilder createForLazyLoad(
+            Profile profile, LoadUrlParams loadUrlParams, @Nullable String title) {
+        return new TabBuilder(profile)
                 .setLoadUrlParams(loadUrlParams)
+                .setTitle(title)
                 .setCreationType(TabCreationState.FROZEN_FOR_LAZY_LOAD);
     }
 
     /**
-     * Creates a TabBuilder for a fresh tab. initialize() needs to be called afterwards to
-     * complete the second level initialization.
+     * Creates a TabBuilder for a tab from a web contents with no renderer. initialize() needs to be
+     * called afterwards to complete the second level initialization.
+     *
+     * @param profile The Profile associated with the Tab.
+     */
+    public static TabBuilder createLazyTabWithWebContents(Profile profile) {
+        return new TabBuilder(profile).setCreationType(TabCreationState.FROZEN_FOR_LAZY_LOAD);
+    }
+
+    /**
+     * Creates a TabBuilder for a fresh tab. initialize() needs to be called afterwards to complete
+     * the second level initialization.
+     *
+     * @param profile The Profile associated with the Tab.
      * @param initiallyHidden true iff the tab being created is initially in background
      */
-    public static TabBuilder createLiveTab(boolean initiallyHidden) {
-        return new TabBuilder().setCreationType(initiallyHidden
-                        ? TabCreationState.LIVE_IN_BACKGROUND
-                        : TabCreationState.LIVE_IN_FOREGROUND);
+    public static TabBuilder createLiveTab(Profile profile, boolean initiallyHidden) {
+        return new TabBuilder(profile)
+                .setCreationType(
+                        initiallyHidden
+                                ? TabCreationState.LIVE_IN_BACKGROUND
+                                : TabCreationState.LIVE_IN_FOREGROUND);
     }
 }

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 // launcher_main.c implements a main method that launches
 // `updater --server --service=update [--system] [logging flags]`.
 // Because the launcher is sometimes used in a root setuid context, it has
@@ -11,6 +16,10 @@
 // updater with the `--test` flag instead of the `--server` flag. The updater
 // will immediately exit in this case, but this is useful for testing the
 // launcher.
+//
+// If run with --internal as the first argument, the launcher instead launches
+// the updater with the `--service=update-internal` flag instead of the
+// `--service=update` flag.
 //
 // In the system (setuid) context, the launcher verifies several security
 // attributes of the binary it intends to launch, the path leading to the
@@ -452,7 +461,8 @@ static void Harden(const char* target_path) {
   }
 }
 
-static void Launch(bool is_system, bool is_qualifying, const char* path) {
+static void Launch(
+    bool is_system, bool is_qualifying, bool is_internal, const char* path) {
   if (chdir("/")) {
     err(EX_OSFILE, "can't chdir to /");
   }
@@ -524,9 +534,7 @@ static void Launch(bool is_system, bool is_qualifying, const char* path) {
   char* const argv[] = {
       (char*)kExecutableName,  // posix_spawn will not overwrite the argv.
       is_qualifying ? "--test" : "--server",
-      "--service=update",
-      "--enable-logging",
-      "--vmodule=*/components/update_client/*=2,*/chrome/updater/*=2",
+      is_internal ? "--service=update-internal" : "--service=update",
       is_system ? "--system" : NULL,
       NULL};
   static char* const env[] = {"PWD=/", "PATH=/usr/bin:/bin:/usr/sbin:/sbin",
@@ -538,7 +546,7 @@ static void Launch(bool is_system, bool is_qualifying, const char* path) {
   }
 }
 
-void UserMain(uid_t euid, bool is_qualifying) {
+void UserMain(uid_t euid, bool is_qualifying, bool is_internal) {
   // Find home directory.
   const char* home = getenv("HOME");
   if (!home) {
@@ -560,21 +568,22 @@ void UserMain(uid_t euid, bool is_qualifying) {
     err(EX_OSERR, "path to updater executable is too long");
   }
 
-  Launch(false, is_qualifying, path);
+  Launch(false, is_qualifying, is_internal, path);
 }
 
-void SystemMain(bool is_qualifying) {
+void SystemMain(bool is_qualifying, bool is_internal) {
   Harden(kExecutablePath);
-  Launch(true, is_qualifying, kExecutablePath);
+  Launch(true, is_qualifying, is_internal, kExecutablePath);
 }
 
 int main(int argc, char** argv) {
   const uid_t euid = geteuid();
   bool is_qualifying = argc >= 2 && strcmp("--test", argv[1]) == 0;
+  bool is_internal = argc >= 2 && strcmp("--internal", argv[1]) == 0;
   if (euid == 0) {
-    SystemMain(is_qualifying);
+    SystemMain(is_qualifying, is_internal);
   } else {
-    UserMain(euid, is_qualifying);
+    UserMain(euid, is_qualifying, is_internal);
   }
   return EX_OK;
 }

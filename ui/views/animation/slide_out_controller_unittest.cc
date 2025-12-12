@@ -8,8 +8,14 @@
 #include <utility>
 
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/compositor/layer.h"
+#include "ui/events/event.h"
+#include "ui/events/test/event_generator.h"
+#include "ui/events/types/event_type.h"
 #include "ui/views/animation/slide_out_controller_delegate.h"
 #include "ui/views/test/views_test_base.h"
 #include "ui/views/view.h"
@@ -43,10 +49,10 @@ class TestSlideOutControllerDelegate : public SlideOutControllerDelegate {
     slide_started_count_ = 0;
     slide_changed_count_ = 0;
     slide_out_count_ = 0;
-    slide_changed_last_value_ = absl::nullopt;
+    slide_changed_last_value_ = std::nullopt;
   }
 
-  absl::optional<bool> slide_changed_last_value_;
+  std::optional<bool> slide_changed_last_value_;
   int slide_started_count_ = 0;
   int slide_changed_count_ = 0;
   int slide_out_count_ = 0;
@@ -65,22 +71,21 @@ class SlideOutControllerTest : public ViewsTestBase {
 
     widget_ = std::make_unique<Widget>();
 
-    Widget::InitParams params = CreateParams(Widget::InitParams::TYPE_POPUP);
-    params.ownership = Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
+    Widget::InitParams params = CreateParams(
+        Widget::InitParams::CLIENT_OWNS_WIDGET, Widget::InitParams::TYPE_POPUP);
     params.bounds = gfx::Rect(50, 50, 650, 650);
     widget_->Init(std::move(params));
     View* root = widget_->GetRootView();
 
-    View* target_ = new View();
-    target_->SetPaintToLayer(ui::LAYER_TEXTURED);
-    target_->SetSize(gfx::Size(kTargetWidth, 50));
+    View* target = root->AddChildView(std::make_unique<View>());
+    target->SetPaintToLayer(ui::LAYER_TEXTURED);
+    target->SetSize(gfx::Size(kTargetWidth, 50));
 
-    root->AddChildView(target_);
     widget_->Show();
 
-    delegate_ = std::make_unique<TestSlideOutControllerDelegate>(target_);
+    delegate_ = std::make_unique<TestSlideOutControllerDelegate>(target);
     slide_out_controller_ =
-        std::make_unique<SlideOutController>(target_, delegate_.get());
+        std::make_unique<SlideOutController>(target, delegate_.get());
   }
 
   void TearDown() override {
@@ -110,11 +115,20 @@ class SlideOutControllerTest : public ViewsTestBase {
 
   void PostSequentialSwipeEvent(int swipe_amount) {
     PostSequentialGestureEvent(
-        ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+        ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
+    PostSequentialGestureEvent(ui::GestureEventDetails(
+        ui::EventType::kGestureScrollUpdate, swipe_amount, 0));
     PostSequentialGestureEvent(
-        ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_UPDATE, swipe_amount, 0));
-    PostSequentialGestureEvent(
-        ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+        ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
+  }
+
+  void PostTrackPadSwipeEvent(ui::EventType type,
+                              int swipe_amount,
+                              int finger_count) {
+    auto scroll_event =
+        ui::ScrollEvent(type, gfx::PointF(), gfx::PointF(), base::TimeTicks(),
+                        0, swipe_amount, 0, 0, 0, finger_count);
+    slide_out_controller()->OnScrollEvent(&scroll_event);
   }
 
  private:
@@ -126,7 +140,7 @@ class SlideOutControllerTest : public ViewsTestBase {
 
 TEST_F(SlideOutControllerTest, OnGestureEventAndDelegate) {
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
 
   EXPECT_EQ(1, delegate()->slide_started_count_);
   EXPECT_FALSE(delegate()->IsOnSlideChangedCalled());
@@ -135,7 +149,7 @@ TEST_F(SlideOutControllerTest, OnGestureEventAndDelegate) {
   delegate()->reset();
 
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_UPDATE));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollUpdate));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -145,7 +159,7 @@ TEST_F(SlideOutControllerTest, OnGestureEventAndDelegate) {
   delegate()->reset();
 
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -156,7 +170,7 @@ TEST_F(SlideOutControllerTest, OnGestureEventAndDelegate) {
 TEST_F(SlideOutControllerTest, SlideOutAndClose) {
   // Place a finger on notification.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
 
   EXPECT_EQ(1, delegate()->slide_started_count_);
   EXPECT_EQ(0, delegate()->slide_changed_count_);
@@ -167,7 +181,7 @@ TEST_F(SlideOutControllerTest, SlideOutAndClose) {
   // Move the finger horizontally by 101 px. (101 px is more than half of the
   // target width 200 px)
   PostSequentialGestureEvent(ui::GestureEventDetails(
-      ui::ET_GESTURE_SCROLL_UPDATE, kTargetWidth / 2 + 1, 0));
+      ui::EventType::kGestureScrollUpdate, kTargetWidth / 2 + 1, 0));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -178,7 +192,7 @@ TEST_F(SlideOutControllerTest, SlideOutAndClose) {
 
   // Release the finger.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -200,7 +214,7 @@ TEST_F(SlideOutControllerTest, SlideOutAndClose) {
 TEST_F(SlideOutControllerTest, SlideLittleAmountAndNotClose) {
   // Place a finger on notification.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
 
   EXPECT_EQ(1, delegate()->slide_started_count_);
   EXPECT_FALSE(delegate()->IsOnSlideChangedCalled());
@@ -211,7 +225,7 @@ TEST_F(SlideOutControllerTest, SlideLittleAmountAndNotClose) {
   // Move the finger horizontally by 99 px. (99 px is less than half of the
   // target width 200 px)
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_UPDATE, 99, 0));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollUpdate, 99, 0));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -222,7 +236,7 @@ TEST_F(SlideOutControllerTest, SlideLittleAmountAndNotClose) {
 
   // Release the finger.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -269,7 +283,7 @@ TEST_P(SwipeControlTest, SetSwipeControlWidth_SwipeLessThanControlWidth) {
 
   // Place a finger on notification.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
 
   EXPECT_EQ(1, delegate()->slide_started_count_);
   EXPECT_FALSE(delegate()->IsOnSlideChangedCalled());
@@ -280,7 +294,7 @@ TEST_P(SwipeControlTest, SetSwipeControlWidth_SwipeLessThanControlWidth) {
   // Move the finger horizontally by 29 px. (29 px is less than the swipe
   // control width).
   PostSequentialGestureEvent(ui::GestureEventDetails(
-      ui::ET_GESTURE_SCROLL_UPDATE, kSwipeControlWidth - 1, 0));
+      ui::EventType::kGestureScrollUpdate, kSwipeControlWidth - 1, 0));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -291,7 +305,7 @@ TEST_P(SwipeControlTest, SetSwipeControlWidth_SwipeLessThanControlWidth) {
 
   // Release the finger.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -315,7 +329,7 @@ TEST_P(SwipeControlTest, SwipeControlWidth_SwipeMoreThanControlWidth) {
 
   // Place a finger on notification.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
 
   EXPECT_EQ(1, delegate()->slide_started_count_);
   EXPECT_FALSE(delegate()->IsOnSlideChangedCalled());
@@ -326,7 +340,7 @@ TEST_P(SwipeControlTest, SwipeControlWidth_SwipeMoreThanControlWidth) {
   // Move the finger horizontally by 31 px. (31 px is more than the swipe
   // control width).
   PostSequentialGestureEvent(ui::GestureEventDetails(
-      ui::ET_GESTURE_SCROLL_UPDATE, kSwipeControlWidth + 1, 0));
+      ui::EventType::kGestureScrollUpdate, kSwipeControlWidth + 1, 0));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -337,7 +351,7 @@ TEST_P(SwipeControlTest, SwipeControlWidth_SwipeMoreThanControlWidth) {
 
   // Release the finger.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   // Slide is in progress.
@@ -365,7 +379,7 @@ TEST_P(SwipeControlTest, SetSwipeControlWidth_SwipeOut) {
 
   // Place a finger on notification.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
 
   EXPECT_EQ(1, delegate()->slide_started_count_);
   EXPECT_FALSE(delegate()->IsOnSlideChangedCalled());
@@ -376,7 +390,7 @@ TEST_P(SwipeControlTest, SetSwipeControlWidth_SwipeOut) {
   // Move the finger horizontally by 101 px. (101 px is more than the half of
   // the target width).
   PostSequentialGestureEvent(ui::GestureEventDetails(
-      ui::ET_GESTURE_SCROLL_UPDATE, kTargetWidth / 2 + 1, 0));
+      ui::EventType::kGestureScrollUpdate, kTargetWidth / 2 + 1, 0));
 
   EXPECT_EQ(0, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
@@ -387,7 +401,7 @@ TEST_P(SwipeControlTest, SetSwipeControlWidth_SwipeOut) {
 
   // Release the finger.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
 
   // ... and it is automatically slided out if |swipe_out_supported|.
   EXPECT_EQ(0, delegate()->slide_started_count_);
@@ -415,11 +429,11 @@ TEST_P(SwipeControlTest, SwipeControlWidth_SnapAndSwipeOut) {
 
   // Snap to the swipe control.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
   PostSequentialGestureEvent(ui::GestureEventDetails(
-      ui::ET_GESTURE_SCROLL_UPDATE, kSwipeControlWidth, 0));
+      ui::EventType::kGestureScrollUpdate, kSwipeControlWidth, 0));
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
   EXPECT_EQ(1, delegate()->slide_started_count_);
   EXPECT_TRUE(delegate()->IsOnSlideChangedCalled());
   EXPECT_TRUE(delegate()->slide_changed_last_value_.value());
@@ -431,11 +445,11 @@ TEST_P(SwipeControlTest, SwipeControlWidth_SnapAndSwipeOut) {
 
   // Swipe horizontally by 70 px.
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_BEGIN));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollBegin));
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_UPDATE, 70, 0));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollUpdate, 70, 0));
   PostSequentialGestureEvent(
-      ui::GestureEventDetails(ui::ET_GESTURE_SCROLL_END));
+      ui::GestureEventDetails(ui::EventType::kGestureScrollEnd));
 
   // ... and it is automatically slided out if if |swipe_out_supported|.
   EXPECT_EQ(1, delegate()->slide_started_count_);
@@ -542,6 +556,49 @@ TEST_P(SwipeControlTest, SwipeControlWidth_NotSnapAndBackToOrigin) {
   base::RunLoop().RunUntilIdle();
   EXPECT_FALSE(delegate()->IsOnSlideChangedCalled());
   EXPECT_EQ(0, delegate()->slide_out_count_);
+}
+
+// Test class for making sure trackpad gestures work to trigger slide out
+// events.
+class TrackPadGestureTest : public SlideOutControllerTest {
+ public:
+  TrackPadGestureTest() = default;
+
+  explicit TrackPadGestureTest(const SwipeControlTest&) = delete;
+  TrackPadGestureTest& operator=(const TrackPadGestureTest&) = delete;
+
+  ~TrackPadGestureTest() override = default;
+
+  void SetUp() override {
+    SlideOutControllerTest::SetUp();
+    slide_out_controller()->set_trackpad_gestures_enabled(true);
+  }
+};
+
+TEST_F(TrackPadGestureTest, SlideOut) {
+  int width = delegate()->GetSlideOutLayer()->bounds().width();
+  // A slide out should not be triggered if the scroll offset isn't less greater
+  // than the view's width.
+  PostTrackPadSwipeEvent(ui::EventType::kScroll, width,
+                         /*finger_count=*/2);
+  PostTrackPadSwipeEvent(ui::EventType::kScrollFlingStart, 0, 2);
+  EXPECT_EQ(0, delegate()->slide_out_count_);
+
+  // A slide out should not be triggered if the finger count is not equal to 2.
+  PostTrackPadSwipeEvent(ui::EventType::kScroll, width + 1,
+                         /*finger_count=*/3);
+  PostTrackPadSwipeEvent(ui::EventType::kScrollFlingStart, 0,
+                         /*finger_count=*/3);
+  EXPECT_EQ(0, delegate()->slide_out_count_);
+
+  PostTrackPadSwipeEvent(ui::EventType::kScroll, width + 1,
+                         /*finger_count=*/2);
+  // A slide out should not be triggered until the
+  // `EventType::kScrollFlingStart` is posted.
+  EXPECT_EQ(0, delegate()->slide_out_count_);
+
+  PostTrackPadSwipeEvent(ui::EventType::kScrollFlingStart, 0, 2);
+  EXPECT_EQ(1, delegate()->slide_out_count_);
 }
 
 }  // namespace views

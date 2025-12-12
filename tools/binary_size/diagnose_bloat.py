@@ -32,7 +32,8 @@ _DEFAULT_OUT_DIR = os.path.join(_SRC_ROOT, 'out', 'binary-size-build')
 _SUPERSIZE_PATH = os.path.join(_SRC_ROOT, 'tools', 'binary_size', 'supersize')
 _RESOURCE_SIZES_PATH = os.path.join(
     _SRC_ROOT, 'build', 'android', 'resource_sizes.py')
-_GN_PATH = os.path.join(_SRC_ROOT, 'third_party', 'depot_tools', 'gn')
+_AUTONINJA_PATH = shutil.which('autoninja')
+_GN_PATH = shutil.which('gn')
 _LLVM_TOOLS_DIR = os.path.join(_SRC_ROOT, 'third_party', 'llvm-build',
                                'Release+Asserts', 'bin')
 _CLANG_UPDATE_PATH = os.path.join(_SRC_ROOT, 'tools', 'clang', 'scripts',
@@ -237,16 +238,11 @@ class _BuildHelper:
     self.output_directory = args.output_directory
     self.target = args.target
     self.target_os = args.target_os
-    self.use_goma = args.use_goma
+    self.use_reclient = args.use_reclient
     self.apk_name_override = args.custom_apk_name
     self.main_lib_path_override = args.custom_main_lib_path
     self._SetDefaults()
     self.is_bundle = 'minimal' in self.target
-
-  def _MaybeAddGoogleSuffix(self, path):
-    if self.IsTrichrome() and '_google' in self.target:
-      return path.replace('.', 'Google.', 1)
-    return path
 
   @property
   def abs_apk_paths(self):
@@ -274,26 +270,28 @@ class _BuildHelper:
     # my_great_apk -> MyGreat.apk
     apk_name = ''.join(s.title() for s in self.target.split('_')[:-1]) + '.apk'
     if self.is_bundle:
-      # trichrome_minimal_apks->TrichromeMinimal.apk->Trichrome.minimal.apks
+      # trichrome_32_minimal_apks -> Trichrome32Minimal.apk
+      #                           -> Trichrome32.minimal.apks
       apk_name = apk_name.replace('Minimal.apk', '.minimal.apks')
     return apk_name.replace('Webview', 'WebView')
 
   @property
   def supersize_input(self):
     if self.IsTrichrome():
-      return self._MaybeAddGoogleSuffix(
-          os.path.join(self.output_directory, 'apks', 'Trichrome.ssargs'))
+      suffix = self.TrichromeSuffix()
+      return os.path.join(self.output_directory, 'apks',
+                          f'Trichrome{suffix}.ssargs')
     return self.abs_apk_paths[0]
 
   @property
   def apk_paths(self):
     if self.IsTrichrome():
-      ret = [
-          os.path.join('apks', 'TrichromeChrome.minimal.apks'),
-          os.path.join('apks', 'TrichromeWebView.minimal.apks'),
-          os.path.join('apks', 'TrichromeLibrary.apk'),
+      suffix = self.TrichromeSuffix()
+      return [
+          os.path.join('apks', f'TrichromeChrome{suffix}.minimal.apks'),
+          os.path.join('apks', f'TrichromeWebView{suffix}.minimal.apks'),
+          os.path.join('apks', f'TrichromeLibrary{suffix}.apk'),
       ]
-      return [self._MaybeAddGoogleSuffix(x) for x in ret]
 
     return [os.path.join('apks', self.apk_name)]
 
@@ -327,27 +325,13 @@ class _BuildHelper:
     return self.apk_name + '.size'
 
   def _SetDefaults(self):
-    if self.use_goma:
-      try:
-        goma_is_running = not subprocess.call(['goma_ctl', 'status'],
-                                              stdout=subprocess.DEVNULL,
-                                              stderr=subprocess.DEVNULL)
-        self.use_goma = self.use_goma and goma_is_running
-      except Exception:
-        # goma_ctl not in PATH.
-        self.use_goma = False
-
-      if not self.use_goma:
-        logging.warning('GOMA not running. Setting use_goma=false.')
-
-    has_internal = os.path.exists(
-        os.path.join(os.path.dirname(_SRC_ROOT), 'src-internal'))
+    has_internal = os.path.exists(os.path.join(_SRC_ROOT, 'internal', 'OWNERS'))
     if has_internal:
       self.extra_gn_args_str = (
           'is_chrome_branded=true ' + self.extra_gn_args_str)
     else:
       self.extra_gn_args_str = (
-          'ffmpeg_branding="Chrome" proprietary_codecs=true' +
+          'ffmpeg_branding="Chrome" proprietary_codecs=true ' +
           self.extra_gn_args_str)
     if self.IsLinux():
       self.extra_gn_args_str = (
@@ -358,9 +342,15 @@ class _BuildHelper:
       if self.IsLinux():
         self.target = 'chrome'
       elif self.enable_chrome_android_internal:
-        self.target = 'trichrome_google_minimal_apks'
+        if 'target_cpu="arm64"' in self.extra_gn_args_str:
+          self.target = 'trichrome_google_64_minimal_apks'
+        else:
+          self.target = 'trichrome_google_32_minimal_apks'
       else:
-        self.target = 'trichrome_minimal_apks'
+        if 'target_cpu="arm64"' in self.extra_gn_args_str:
+          self.target = 'trichrome_64_minimal_apks'
+        else:
+          self.target = 'trichrome_32_minimal_apks'
 
   def _GenGnCmd(self):
     gn_args = 'is_official_build=true'
@@ -374,7 +364,7 @@ class _BuildHelper:
     # Compiles need at least symbol_level=1 for pak allowlist to work.
     gn_args += ' symbol_level=1'
     gn_args += ' use_errorprone_java_compiler=false'
-    gn_args += ' use_goma=%s' % str(self.use_goma).lower()
+    gn_args += ' use_remoteexec=%s' % str(self.use_reclient).lower()
     gn_args += ' target_os="%s"' % self.target_os
     if self.IsAndroid():
       gn_args += (' enable_chrome_android_internal=%s' %
@@ -383,7 +373,7 @@ class _BuildHelper:
     return [_GN_PATH, 'gen', self.output_directory, '--args=%s' % gn_args]
 
   def _GenNinjaCmd(self):
-    cmd = ['autoninja', '-C', self.output_directory]
+    cmd = [_AUTONINJA_PATH, '-C', self.output_directory]
     cmd += [self.target]
     return cmd
 
@@ -399,14 +389,27 @@ class _BuildHelper:
                       exit_on_failure=False)[1]
     if retcode:
       return retcode
-    return _RunCmd(
-        self._GenNinjaCmd(), verbose=True, exit_on_failure=False)[1]
+    return _RunCmd(self._GenNinjaCmd(),
+                   cwd=_SRC_ROOT,
+                   verbose=True,
+                   exit_on_failure=False)[1]
 
   def IsAndroid(self):
     return self.target_os == 'android'
 
   def IsTrichrome(self):
     return 'trichrome' in self.target
+
+  def TrichromeSuffix(self):
+    assert self.IsTrichrome()
+    ret = ''
+    if '_google' in self.target:
+      ret = 'Google'
+    if '64_32' in self.target:
+      ret += '6432'
+    elif '64' in self.target:
+      ret += '64'
+    return ret
 
   def IsLinux(self):
     return self.target_os == 'linux'
@@ -559,16 +562,26 @@ class _DiffArchiveManager:
         after.archived_size_path, report_path
     ]
 
-    logging.info('Creating .sizediff')
-    _RunCmd(supersize_cmd)
+    is_single_rev = before_id == after_id
+
+    if not is_single_rev:
+      logging.info('Creating .sizediff')
+      _RunCmd(supersize_cmd)
+
     gsutil_cmd = ['gsutil.py', 'cp']
     if is_internal:
       oneoffs_dir = 'private-oneoffs'
     else:
       oneoffs_dir = 'oneoffs'
       gsutil_cmd += ['-a', 'public-read']
-    unique_name = '{}_{}.sizediff'.format(before.rev, after.rev)
-    local = os.path.relpath(report_path)
+
+    if is_single_rev:
+      unique_name = '{}.size'.format(before.rev)
+      local = os.path.relpath(before.archived_size_path)
+    else:
+      unique_name = '{}_{}.sizediff'.format(before.rev, after.rev)
+      local = os.path.relpath(report_path)
+
     gsutil_cmd += [local, f'gs://chrome-supersize/{oneoffs_dir}/{unique_name}']
 
     if self.share:
@@ -902,11 +915,11 @@ def main():
                       help='Automatically upload using gsutil.py.')
 
   build_group = parser.add_argument_group('build arguments')
-  build_group.add_argument('--no-goma',
+  build_group.add_argument('--no-reclient',
                            action='store_false',
-                           dest='use_goma',
+                           dest='use_reclient',
                            default=True,
-                           help='Do not use goma when building with ninja.')
+                           help='Do not use reclient when building with ninja.')
   build_group.add_argument('--clean',
                            action='store_true',
                            help='Do a clean build for each revision.')
@@ -926,9 +939,13 @@ def main():
                            help='Allow downstream targets to be built.')
   build_group.add_argument('--target',
                            help='GN target to build. Linux default: chrome. '
-                           'Android default: trichrome_minimal_apks or '
-                           'trichrome_google_minimal_apks (depending on '
+                           'Android default: trichrome_32_minimal_apks or '
+                           'trichrome_google_32_minimal_apks (depending on '
                            '--enable-chrome-android-internal).')
+  build_group.add_argument('--arm64',
+                           action='store_true',
+                           help='Adds target_cpu="arm64" and sets the default '
+                           'target to trichrome_64_minimal_apks')
   build_group.add_argument('--custom-apk-name',
                            help='The apk name by default is derived from the '
                            'target name, but occasionally targets set a custom '
@@ -953,6 +970,16 @@ def main():
                       format='%(levelname).1s %(relativeCreated)6d %(message)s')
   if args.target and args.target.endswith('_bundle'):
     parser.error('Bundle targets must use _minimal_apks variants')
+  if args.arm64:
+    if args.gn_args:
+      args.gn_args = 'target_cpu="arm64" ' + args.gn_args
+    else:
+      args.gn_args = 'target_cpu="arm64"'
+
+  if _GN_PATH is None:
+    parser.error('Could not find "gn" on your PATH')
+  if _AUTONINJA_PATH is None:
+    parser.error('Could not find "autoninja" on your PATH')
 
   build = _BuildHelper(args)
   subrepo = args.subrepo or _SRC_ROOT

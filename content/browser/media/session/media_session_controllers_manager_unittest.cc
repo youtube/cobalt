@@ -29,7 +29,9 @@ std::set<media_session::mojom::MediaSessionAction> GetDefaultActions() {
           media_session::mojom::MediaSessionAction::kPause,
           media_session::mojom::MediaSessionAction::kStop,
           media_session::mojom::MediaSessionAction::kSeekTo,
-          media_session::mojom::MediaSessionAction::kScrubTo};
+          media_session::mojom::MediaSessionAction::kScrubTo,
+          media_session::mojom::MediaSessionAction::kSeekForward,
+          media_session::mojom::MediaSessionAction::kSeekBackward};
 }
 
 std::set<media_session::mojom::MediaSessionAction>
@@ -121,9 +123,9 @@ TEST_P(MediaSessionControllersManagerTest, ActivateDeactivateSession) {
   ASSERT_FALSE(media_session()->IsActive());
 
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
   manager_->OnMetadata(media_player_id2_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
   EXPECT_FALSE(media_session()->IsActive());
 
   EXPECT_TRUE(manager_->RequestPlay(media_player_id_));
@@ -147,7 +149,7 @@ TEST_P(MediaSessionControllersManagerTest, ActivateDeactivateSession) {
 
 TEST_P(MediaSessionControllersManagerTest, RenderFrameDeletedRemovesHost) {
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
   EXPECT_TRUE(manager_->RequestPlay(media_player_id_));
   ASSERT_EQ(media_session()->IsActive(), IsMediaSessionEnabled());
 
@@ -157,7 +159,7 @@ TEST_P(MediaSessionControllersManagerTest, RenderFrameDeletedRemovesHost) {
 
 TEST_P(MediaSessionControllersManagerTest, OnPauseSuspends) {
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
   EXPECT_TRUE(manager_->RequestPlay(media_player_id_));
   ASSERT_FALSE(media_session()->IsSuspended());
 
@@ -167,7 +169,7 @@ TEST_P(MediaSessionControllersManagerTest, OnPauseSuspends) {
 
 TEST_P(MediaSessionControllersManagerTest, OnPauseIdNotFound) {
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
   EXPECT_TRUE(manager_->RequestPlay(media_player_id_));
   ASSERT_FALSE(media_session()->IsSuspended());
 
@@ -181,7 +183,7 @@ TEST_P(MediaSessionControllersManagerTest, PositionState) {
     return;
 
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
 
   {
     media_session::test::MockMediaSessionMojoObserver observer(
@@ -233,9 +235,9 @@ TEST_P(MediaSessionControllersManagerTest, MultiplePlayersWithPositionState) {
     return;
 
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
   manager_->OnMetadata(media_player_id2_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
 
   media_session::MediaPosition expected_position1(
       /*playback_rate=*/1.0, /*duration=*/base::TimeDelta(),
@@ -277,7 +279,7 @@ TEST_P(MediaSessionControllersManagerTest, PictureInPictureAvailability) {
     return;
 
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Transient);
+                       media::MediaContentType::kTransient);
 
   media_session::test::MockMediaSessionMojoObserver observer(*media_session());
 
@@ -297,9 +299,9 @@ TEST_P(MediaSessionControllersManagerTest,
     return;
 
   manager_->OnMetadata(media_player_id_, true, false,
-                       media::MediaContentType::Persistent);
+                       media::MediaContentType::kPersistent);
   manager_->OnMetadata(media_player_id2_, true, false,
-                       media::MediaContentType::Persistent);
+                       media::MediaContentType::kPersistent);
 
   media_session::test::MockMediaSessionMojoObserver observer(*media_session());
 
@@ -326,6 +328,66 @@ TEST_P(MediaSessionControllersManagerTest,
   // There is exactly one player again (the second one). Media session should
   // use its updated Picture-In-Picture availability.
   observer.WaitForExpectedActions(GetDefaultActions());
+}
+
+TEST_P(MediaSessionControllersManagerTest, SufficientlyVisibleVideo) {
+  if (!IsMediaSessionEnabled()) {
+    return;
+  }
+
+  manager_->OnMetadata(media_player_id_, true, true,
+                       media::MediaContentType::kTransient);
+
+  media_session::test::MockMediaSessionMojoObserver observer(*media_session());
+
+  manager_->OnVideoVisibilityChanged(media_player_id_, true);
+  EXPECT_TRUE(manager_->RequestPlay(media_player_id_));
+
+  // Verify that media session reports video is sufficiently visible.
+  EXPECT_TRUE(observer.WaitForMeetsVisibilityThreshold(true));
+
+  // Update video visibility to not sufficiently visible, and verify that media
+  // session reports video is not sufficiently visible.
+  manager_->OnVideoVisibilityChanged(media_player_id_, false);
+  EXPECT_FALSE(observer.WaitForMeetsVisibilityThreshold(false));
+}
+
+TEST_P(MediaSessionControllersManagerTest,
+       SufficientlyVisibleVideoMultiplePlayers) {
+  if (!IsMediaSessionEnabled()) {
+    return;
+  }
+
+  manager_->OnMetadata(media_player_id_, true, true,
+                       media::MediaContentType::kPersistent);
+  manager_->OnMetadata(media_player_id2_, true, true,
+                       media::MediaContentType::kPersistent);
+
+  media_session::test::MockMediaSessionMojoObserver observer(*media_session());
+
+  manager_->OnVideoVisibilityChanged(media_player_id_, true);
+  manager_->OnVideoVisibilityChanged(media_player_id2_, true);
+
+  // If there is exactly one player, media session reports its video visibility.
+  EXPECT_TRUE(manager_->RequestPlay(media_player_id_));
+  EXPECT_TRUE(observer.WaitForMeetsVisibilityThreshold(true));
+
+  // Change the video visibility of the first player's video.
+  manager_->OnVideoVisibilityChanged(media_player_id_, false);
+
+  // Stop the second player.
+  manager_->OnPause(media_player_id2_, true);
+
+  // There is exactly one player again (the second one). Media session should
+  // use its updated video visibility.
+  EXPECT_TRUE(observer.WaitForMeetsVisibilityThreshold(true));
+
+  // Stop the first player.
+  manager_->OnPause(media_player_id_, true);
+
+  // There are no remaining players. Media session should report there are no
+  // visible videos.
+  EXPECT_FALSE(observer.WaitForMeetsVisibilityThreshold(false));
 }
 
 // First bool is to indicate whether InternalMediaSession is enabled.

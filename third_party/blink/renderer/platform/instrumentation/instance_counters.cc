@@ -33,7 +33,8 @@
 namespace blink {
 
 // static
-std::atomic_int InstanceCounters::counters_[kCounterTypeLength];
+std::array<std::atomic_int, InstanceCounters::kCounterTypeLength>
+    InstanceCounters::counters_;
 
 // static
 int InstanceCounters::node_counter_ = 0;

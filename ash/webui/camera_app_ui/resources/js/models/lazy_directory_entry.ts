@@ -13,17 +13,13 @@ import {
  * Gets directory entry by given |name| under |parentDir| directory. If the
  * directory does not exist, returns a lazy directory which will only be created
  * once there is any file written in it.
- *
- * @param parentDir Parent directory.
- * @param name Name of the target directory.
  */
 export async function getMaybeLazyDirectory(
     parentDir: DirectoryAccessEntry,
     name: string): Promise<DirectoryAccessEntry> {
   const targetDir =
       await parentDir.getDirectory({name, createIfNotExist: false});
-  return targetDir !== null ? targetDir :
-                              new LazyDirectoryEntry(parentDir, name);
+  return targetDir ?? new LazyDirectoryEntry(parentDir, name);
 }
 
 /**
@@ -33,12 +29,6 @@ export async function getMaybeLazyDirectory(
 class LazyDirectoryEntry implements DirectoryAccessEntry {
   private directory: DirectoryAccessEntry|null = null;
 
-  private creatingDirectory: Promise<DirectoryAccessEntry>|null = null;
-
-  /**
-   * @param parent The parent of the directory that will be lazily created.
-   * @param name The name of the directory that will be lazily created.
-   */
   constructor(
       private readonly parent: DirectoryAccessEntry, readonly name: string) {}
 
@@ -98,20 +88,14 @@ class LazyDirectoryEntry implements DirectoryAccessEntry {
   }
 
   /**
-   * Gets the directory which this entry points to. Create it if it does not
+   * Gets the directory which this entry points to. Creates it if it does not
    * exist.
    */
   private async getRealDirectory(): Promise<DirectoryAccessEntry> {
-    if (this.creatingDirectory === null) {
-      this.creatingDirectory = (async () => {
-        const directory = await this.parent.getDirectory(
-            {name: this.name, createIfNotExist: true});
-        // createIfNotExist is set so the return value will never be null.
-        assert(directory !== null);
-        return directory;
-      })();
-    }
-    this.directory = await this.creatingDirectory;
+    this.directory = await this.parent.getDirectory(
+        {name: this.name, createIfNotExist: true});
+    // createIfNotExist is set so the return value will never be null.
+    assert(this.directory !== null);
     return this.directory;
   }
 }

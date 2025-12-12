@@ -11,10 +11,6 @@
 #include <utility>
 #include <vector>
 
-#include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
-#include "base/allocator/partition_allocator/partition_alloc_config.h"
-#include "base/allocator/partition_allocator/shim/allocator_shim.h"
-#include "base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #include "base/compiler_specific.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
@@ -30,6 +26,7 @@
 #include "base/task/thread_pool/task_tracker.h"
 #include "base/task/thread_pool/test_utils.h"
 #include "base/task/thread_pool/worker_thread_observer.h"
+#include "base/test/bind.h"
 #include "base/test/test_timeouts.h"
 #include "base/test/test_waitable_event.h"
 #include "base/threading/platform_thread.h"
@@ -37,14 +34,18 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "partition_alloc/buildflags.h"
+#include "partition_alloc/partition_alloc_config.h"
+#include "partition_alloc/shim/allocator_shim.h"
+#include "partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
     PA_CONFIG(THREAD_CACHE_SUPPORTED)
-#include "base/allocator/partition_allocator/extended_api.h"  // nogncheck
-#include "base/allocator/partition_allocator/thread_cache.h"
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) &&
+#include "partition_alloc/extended_api.h"
+#include "partition_alloc/thread_cache.h"
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) &&
         // PA_CONFIG(THREAD_CACHE_SUPPORTED)
 
 using testing::_;
@@ -52,8 +53,7 @@ using testing::Mock;
 using testing::Ne;
 using testing::StrictMock;
 
-namespace base {
-namespace internal {
+namespace base::internal {
 namespace {
 
 const size_t kNumSequencesPerTest = 150;
@@ -73,20 +73,40 @@ class WorkerThreadDefaultDelegate : public WorkerThread::Delegate {
   RegisteredTaskSource GetWork(WorkerThread* worker) override {
     return nullptr;
   }
-  void DidProcessTask(RegisteredTaskSource task_source) override {
-    ADD_FAILURE() << "Unexpected call to DidRunTask()";
+  RegisteredTaskSource SwapProcessedTask(RegisteredTaskSource task_source,
+                                         WorkerThread* worker) override {
+    ADD_FAILURE() << "Unexpected call to SwapProcessedTask()";
+    return nullptr;
   }
   TimeDelta GetSleepTimeout() override { return TimeDelta::Max(); }
 };
-
 // The test parameter is the number of Tasks per Sequence returned by GetWork().
-class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
+
+class ThreadPoolWorkerTest : public testing::Test {
  public:
   ThreadPoolWorkerTest(const ThreadPoolWorkerTest&) = delete;
   ThreadPoolWorkerTest& operator=(const ThreadPoolWorkerTest&) = delete;
 
  protected:
-  ThreadPoolWorkerTest() : num_get_work_cv_(lock_.CreateConditionVariable()) {
+  ThreadPoolWorkerTest() {
+    Thread::Options service_thread_options;
+    service_thread_options.message_pump_type = MessagePumpType::IO;
+    service_thread_.StartWithOptions(std::move(service_thread_options));
+  }
+
+  Thread service_thread_ = Thread("ServiceThread");
+};
+
+// The test parameter is the number of Tasks per Sequence returned by GetWork().
+class ThreadPoolWorkerTestParam : public testing::TestWithParam<int> {
+ public:
+  ThreadPoolWorkerTestParam(const ThreadPoolWorkerTestParam&) = delete;
+  ThreadPoolWorkerTestParam& operator=(const ThreadPoolWorkerTestParam&) =
+      delete;
+
+ protected:
+  ThreadPoolWorkerTestParam()
+      : num_get_work_cv_(lock_.CreateConditionVariable()) {
     Thread::Options service_thread_options;
     service_thread_options.message_pump_type = MessagePumpType::IO;
     service_thread_.StartWithOptions(std::move(service_thread_options));
@@ -114,8 +134,9 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
   // Wait until GetWork() has been called |num_get_work| times.
   void WaitForNumGetWork(size_t num_get_work) {
     CheckedAutoLock auto_lock(lock_);
-    while (num_get_work_ < num_get_work)
-      num_get_work_cv_->Wait();
+    while (num_get_work_ < num_get_work) {
+      num_get_work_cv_.Wait();
+    }
   }
 
   void SetMaxGetWork(size_t max_get_work) {
@@ -150,7 +171,7 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
  private:
   class TestWorkerThreadDelegate : public WorkerThreadDefaultDelegate {
    public:
-    explicit TestWorkerThreadDelegate(ThreadPoolWorkerTest* outer)
+    explicit TestWorkerThreadDelegate(ThreadPoolWorkerTestParam* outer)
         : outer_(outer) {}
     TestWorkerThreadDelegate(const TestWorkerThreadDelegate&) = delete;
     TestWorkerThreadDelegate& operator=(const TestWorkerThreadDelegate&) =
@@ -182,14 +203,15 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
 
         // Increment the number of times that this method has been called.
         ++outer_->num_get_work_;
-        outer_->num_get_work_cv_->Signal();
+        outer_->num_get_work_cv_.Signal();
 
         // Verify that this method isn't called more times than expected.
         EXPECT_LE(outer_->num_get_work_, outer_->max_get_work_);
 
         // Check if a Sequence should be returned.
-        if (outer_->num_sequences_to_create_ == 0)
+        if (outer_->num_sequences_to_create_ == 0) {
           return nullptr;
+        }
         --outer_->num_sequences_to_create_;
       }
 
@@ -199,7 +221,7 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
       Sequence::Transaction sequence_transaction(sequence->BeginTransaction());
       for (int i = 0; i < outer_->TasksPerSequence(); ++i) {
         Task task(FROM_HERE,
-                  BindOnce(&ThreadPoolWorkerTest::RunTaskCallback,
+                  BindOnce(&ThreadPoolWorkerTestParam::RunTaskCallback,
                            Unretained(outer_)),
                   TimeTicks::Now(), TimeDelta());
         sequence_transaction.WillPushImmediateTask();
@@ -223,11 +245,9 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
       return registered_task_source;
     }
 
-    // This override verifies that |task_source| has the expected number of
-    // Tasks and adds it to |did_run_task_sources_|. Unlike a normal
-    // DidProcessTask() implementation, it doesn't add |task_source| to a queue
-    // for further execution.
-    void DidProcessTask(RegisteredTaskSource registered_task_source) override {
+    RegisteredTaskSource SwapProcessedTask(
+        RegisteredTaskSource registered_task_source,
+        WorkerThread* worker) override {
       {
         CheckedAutoLock auto_lock(expect_did_run_task_lock_);
         EXPECT_TRUE(expect_did_run_task_);
@@ -264,6 +284,7 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
                     outer_->created_sequences_.size());
         }
       }
+      return GetWork(worker);
     }
 
    private:
@@ -279,7 +300,7 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
       return expect_did_run_task_;
     }
 
-    raw_ptr<ThreadPoolWorkerTest> outer_;
+    raw_ptr<ThreadPoolWorkerTestParam> outer_;
 
     // Synchronizes access to |expect_did_run_task_|.
     mutable CheckedLock expect_did_run_task_lock_;
@@ -314,7 +335,7 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
   size_t max_get_work_ = 0;
 
   // Condition variable signaled when |num_get_work_| is incremented.
-  std::unique_ptr<ConditionVariable> num_get_work_cv_;
+  ConditionVariable num_get_work_cv_;
 
   // Sequences created by GetWork().
   std::vector<scoped_refptr<TaskSource>> created_sequences_;
@@ -333,7 +354,7 @@ class ThreadPoolWorkerTest : public testing::TestWithParam<int> {
 
 // Verify that when GetWork() continuously returns Sequences, all Tasks in these
 // Sequences run successfully. The test wakes up the WorkerThread once.
-TEST_P(ThreadPoolWorkerTest, ContinuousWork) {
+TEST_P(ThreadPoolWorkerTestParam, ContinuousWork) {
   // Set GetWork() to return |kNumSequencesPerTest| Sequences before starting to
   // return nullptr.
   SetNumSequencesToCreate(kNumSequencesPerTest);
@@ -354,16 +375,17 @@ TEST_P(ThreadPoolWorkerTest, ContinuousWork) {
   // If Sequences returned by GetWork() contain more than one Task, they aren't
   // empty after the worker pops Tasks from them and thus should be returned to
   // DidProcessTask().
-  if (TasksPerSequence() > 1)
+  if (TasksPerSequence() > 1) {
     EXPECT_EQ(CreatedTaskSources(), DidProcessTaskSequences());
-  else
+  } else {
     EXPECT_TRUE(DidProcessTaskSequences().empty());
+  }
 }
 
 // Verify that when GetWork() alternates between returning a Sequence and
 // returning nullptr, all Tasks in the returned Sequences run successfully. The
 // test wakes up the WorkerThread once for each Sequence.
-TEST_P(ThreadPoolWorkerTest, IntermittentWork) {
+TEST_P(ThreadPoolWorkerTestParam, IntermittentWork) {
   for (size_t i = 0; i < kNumSequencesPerTest; ++i) {
     // Set GetWork() to return 1 Sequence before starting to return
     // nullptr.
@@ -385,18 +407,19 @@ TEST_P(ThreadPoolWorkerTest, IntermittentWork) {
     // If Sequences returned by GetWork() contain more than one Task, they
     // aren't empty after the worker pops Tasks from them and thus should be
     // returned to DidProcessTask().
-    if (TasksPerSequence() > 1)
+    if (TasksPerSequence() > 1) {
       EXPECT_EQ(CreatedTaskSources(), DidProcessTaskSequences());
-    else
+    } else {
       EXPECT_TRUE(DidProcessTaskSequences().empty());
+    }
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(OneTaskPerSequence,
-                         ThreadPoolWorkerTest,
+                         ThreadPoolWorkerTestParam,
                          ::testing::Values(1));
 INSTANTIATE_TEST_SUITE_P(TwoTasksPerSequence,
-                         ThreadPoolWorkerTest,
+                         ThreadPoolWorkerTestParam,
                          ::testing::Values(2));
 
 namespace {
@@ -501,7 +524,10 @@ class ControllableCleanupDelegate : public WorkerThreadDefaultDelegate {
     return registered_task_source;
   }
 
-  void DidProcessTask(RegisteredTaskSource) override {}
+  RegisteredTaskSource SwapProcessedTask(RegisteredTaskSource task_source,
+                                         WorkerThread* worker) override {
+    return GetWork(worker);
+  }
 
   void OnMainExit(WorkerThread* worker) override {
     controls_->exited_.Signal();
@@ -547,11 +573,7 @@ class MockedControllableCleanupDelegate : public ControllableCleanupDelegate {
 
 // Verify that calling WorkerThread::Cleanup() from GetWork() causes
 // the WorkerThread's thread to exit.
-TEST(ThreadPoolWorkerTest, WorkerCleanupFromGetWork) {
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
+TEST_F(ThreadPoolWorkerTest, WorkerCleanupFromGetWork) {
   TaskTracker task_tracker;
   // Will be owned by WorkerThread.
   MockedControllableCleanupDelegate* delegate =
@@ -563,7 +585,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupFromGetWork) {
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kDefault, WrapUnique(delegate),
                                    task_tracker.GetTrackedRef(), 0);
-  worker->Start(service_thread.task_runner());
+  worker->Start(service_thread_.task_runner());
   worker->WakeUp();
   controls->WaitForWorkToRun();
   Mock::VerifyAndClear(delegate);
@@ -572,11 +594,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupFromGetWork) {
   worker->JoinForTesting();
 }
 
-TEST(ThreadPoolWorkerTest, WorkerCleanupDuringWork) {
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
+TEST_F(ThreadPoolWorkerTest, WorkerCleanupDuringWork) {
   TaskTracker task_tracker;
   // Will be owned by WorkerThread.
   // No mock here as that's reasonably covered by other tests and the delegate
@@ -591,7 +609,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupDuringWork) {
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kDefault, std::move(delegate),
                                    task_tracker.GetTrackedRef(), 0);
-  worker->Start(service_thread.task_runner());
+  worker->Start(service_thread_.task_runner());
   worker->WakeUp();
 
   controls->WaitForWorkToRun();
@@ -601,11 +619,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupDuringWork) {
   controls->WaitForDelegateDestroy();
 }
 
-TEST(ThreadPoolWorkerTest, WorkerCleanupDuringWait) {
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
+TEST_F(ThreadPoolWorkerTest, WorkerCleanupDuringWait) {
   TaskTracker task_tracker;
   // Will be owned by WorkerThread.
   // No mock here as that's reasonably covered by other tests and the delegate
@@ -618,7 +632,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupDuringWait) {
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kDefault, std::move(delegate),
                                    task_tracker.GetTrackedRef(), 0);
-  worker->Start(service_thread.task_runner());
+  worker->Start(service_thread_.task_runner());
   worker->WakeUp();
 
   controls->WaitForCleanupRequest();
@@ -627,12 +641,8 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupDuringWait) {
   controls->WaitForDelegateDestroy();
 }
 
-TEST(ThreadPoolWorkerTest, WorkerCleanupDuringShutdown) {
+TEST_F(ThreadPoolWorkerTest, WorkerCleanupDuringShutdown) {
   TaskTracker task_tracker;
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
   // Will be owned by WorkerThread.
   // No mock here as that's reasonably covered by other tests and the delegate
   // may destroy on a different thread. Mocks aren't designed with that in mind.
@@ -646,7 +656,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupDuringShutdown) {
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kDefault, std::move(delegate),
                                    task_tracker.GetTrackedRef(), 0);
-  worker->Start(service_thread.task_runner());
+  worker->Start(service_thread_.task_runner());
   worker->WakeUp();
 
   controls->WaitForWorkToRun();
@@ -658,11 +668,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupDuringShutdown) {
 }
 
 // Verify that Start() is a no-op after Cleanup().
-TEST(ThreadPoolWorkerTest, CleanupBeforeStart) {
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
+TEST_F(ThreadPoolWorkerTest, CleanupBeforeStart) {
   TaskTracker task_tracker;
   // Will be owned by WorkerThread.
   // No mock here as that's reasonably covered by other tests and the delegate
@@ -678,7 +684,7 @@ TEST(ThreadPoolWorkerTest, CleanupBeforeStart) {
                                    task_tracker.GetTrackedRef(), 0);
 
   worker->Cleanup();
-  worker->Start(service_thread.task_runner());
+  worker->Start(service_thread_.task_runner());
 
   EXPECT_FALSE(worker->ThreadAliveForTesting());
 }
@@ -710,11 +716,7 @@ class CallJoinFromDifferentThread : public SimpleThread {
 
 }  // namespace
 
-TEST(ThreadPoolWorkerTest, WorkerCleanupDuringJoin) {
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
+TEST_F(ThreadPoolWorkerTest, WorkerCleanupDuringJoin) {
   TaskTracker task_tracker;
   // Will be owned by WorkerThread.
   // No mock here as that's reasonably covered by other tests and the
@@ -730,7 +732,7 @@ TEST(ThreadPoolWorkerTest, WorkerCleanupDuringJoin) {
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kDefault, std::move(delegate),
                                    task_tracker.GetTrackedRef(), 0);
-  worker->Start(service_thread.task_runner());
+  worker->Start(service_thread_.task_runner());
   worker->WakeUp();
 
   controls->WaitForWorkToRun();
@@ -793,15 +795,12 @@ class ExpectThreadTypeDelegate : public WorkerThreadDefaultDelegate {
 
 }  // namespace
 
-TEST(ThreadPoolWorkerTest, BumpThreadTypeOfAliveThreadDuringShutdown) {
-  if (!CanUseBackgroundThreadTypeForWorkerThread())
+TEST_F(ThreadPoolWorkerTest, BumpThreadTypeOfAliveThreadDuringShutdown) {
+  if (!CanUseBackgroundThreadTypeForWorkerThread()) {
     return;
+  }
 
   TaskTracker task_tracker;
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
 
   // Block shutdown to ensure that the worker doesn't exit when StartShutdown()
   // is called.
@@ -818,7 +817,7 @@ TEST(ThreadPoolWorkerTest, BumpThreadTypeOfAliveThreadDuringShutdown) {
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kBackground, std::move(delegate),
                                    task_tracker.GetTrackedRef(), 0);
-  worker->Start(service_thread.task_runner());
+  worker->Start(service_thread_.task_runner());
 
   // Verify that the initial thread type is kBackground (or kNormal if thread
   // type can't be increased).
@@ -862,36 +861,74 @@ class VerifyCallsToObserverDelegate : public WorkerThreadDefaultDelegate {
 
 // Verify that the WorkerThreadObserver is notified when the worker enters
 // and exits its main function.
-TEST(ThreadPoolWorkerTest, WorkerThreadObserver) {
+TEST_F(ThreadPoolWorkerTest, WorkerThreadObserver) {
   StrictMock<test::MockWorkerThreadObserver> observer;
   TaskTracker task_tracker;
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
   auto delegate = std::make_unique<VerifyCallsToObserverDelegate>(&observer);
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kDefault, std::move(delegate),
                                    task_tracker.GetTrackedRef(), 0);
   EXPECT_CALL(observer, OnWorkerThreadMainEntry());
-  worker->Start(service_thread.task_runner(), &observer);
+  worker->Start(service_thread_.task_runner(), &observer);
   worker->Cleanup();
   // Join the worker to avoid leaks.
   worker->JoinForTesting();
   Mock::VerifyAndClear(&observer);
 }
 
-#if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && \
     PA_CONFIG(THREAD_CACHE_SUPPORTED)
 namespace {
 NOINLINE void FreeForTest(void* data) {
   free(data);
 }
+
+using ::testing::AllOf;
+using ::testing::Ge;
+using ::testing::Le;
+
 }  // namespace
 
 class WorkerThreadThreadCacheDelegate : public WorkerThreadDefaultDelegate {
  public:
-  void WaitForWork(WaitableEvent* wake_up_event) override {
+  void PrepareForTesting() {
+    TimeTicks now = TimeTicks::Now();
+    WorkerThreadDefaultDelegate::set_first_sleep_time_for_testing(now);
+    first_sleep_time_for_testing_ = now;
+  }
+
+  TimeDelta GetSleepDurationBeforePurge(TimeTicks) override {
+    // Expect `GetSleepDurationBeforePurge()` to return
+    // `kFirstSleepDurationBeforePurge` when invoked within
+    // `kFirstSleepDurationBeforePurge` of the first sleep (with
+    // `kPurgeThreadCacheIdleDelay` tolerance due to alignment).
+    EXPECT_THAT(
+        WorkerThreadDefaultDelegate::GetSleepDurationBeforePurge(
+            /* now=*/first_sleep_time_for_testing_),
+        AllOf(Ge(WorkerThread::Delegate::kFirstSleepDurationBeforePurge),
+              Le(WorkerThread::Delegate::kFirstSleepDurationBeforePurge +
+                 WorkerThread::Delegate::kPurgeThreadCacheIdleDelay)));
+
+    // Expect `GetSleepDurationBeforePurge()` to return
+    // `WorkerThread::Delegate::kPurgeThreadCacheIdleDelay` when invoked later
+    // than `kFirstSleepDurationBeforePurge` after the first sleep (with
+    // `kPurgeThreadCacheIdleDelay` tolerance due to alignment).
+    constexpr base::TimeDelta kEpsilon = base::Microseconds(1);
+    EXPECT_THAT(
+        WorkerThreadDefaultDelegate::GetSleepDurationBeforePurge(
+            /* now=*/first_sleep_time_for_testing_ +
+            WorkerThread::Delegate::kFirstSleepDurationBeforePurge + kEpsilon),
+        AllOf(Ge(WorkerThread::Delegate::kPurgeThreadCacheIdleDelay),
+              Le(WorkerThread::Delegate::kPurgeThreadCacheIdleDelay +
+                 WorkerThread::Delegate::kPurgeThreadCacheIdleDelay)));
+
+    // The output of this function is used to drive real sleep in tests.
+    // Return a constant so that the tests can validate the wakeups without
+    // timing out.
+    return GetSleepTimeout();
+  }
+
+  void WaitForWork() override {
     // Fill several buckets before going to sleep.
     for (size_t size = 8;
          size < partition_alloc::ThreadCache::kDefaultSizeThreshold; size++) {
@@ -905,57 +942,90 @@ class WorkerThreadThreadCacheDelegate : public WorkerThreadDefaultDelegate {
 
     size_t cached_memory_before =
         partition_alloc::ThreadCache::Get()->CachedMemory();
-    WorkerThreadDefaultDelegate::WaitForWork(wake_up_event);
+    WorkerThreadDefaultDelegate::WaitForWork();
     size_t cached_memory_after =
         partition_alloc::ThreadCache::Get()->CachedMemory();
 
-    if (!first_wakeup_done_) {
-      // First time we sleep is a short sleep, no cache purging.
-      //
-      // Here and below, cannot assert on exact thread cache size, since
-      // anything that allocates will make it fluctuate.
-      EXPECT_GT(cached_memory_after, cached_memory_before / 2);
-      first_wakeup_done_.store(true, std::memory_order_release);
-    } else {
-      // Second one is long, should purge.
-      EXPECT_LT(cached_memory_after, cached_memory_before / 2);
+    if (!test_done_) {
+      if (purge_expected_) {
+        EXPECT_LT(cached_memory_after, cached_memory_before / 2);
+      } else {
+        EXPECT_GT(cached_memory_after, cached_memory_before / 2);
+      }
+      // Unblock the test.
+      wakeup_done_.Signal();
+      test_done_ = true;
     }
   }
 
-  std::atomic<bool> first_wakeup_done_{false};
+  // Avoid using the default sleep timeout which is infinite and prevents the
+  // tests from completing.
+  TimeDelta GetSleepTimeout() override {
+    return WorkerThread::Delegate::kPurgeThreadCacheIdleDelay +
+           TestTimeouts::tiny_timeout();
+  }
+
+  void SetPurgeExpectation(bool purge_expected) {
+    purge_expected_ = purge_expected;
+  }
+
+  TimeTicks first_sleep_time_for_testing_;
+  bool test_done_ = false;
+  bool purge_expected_ = false;
+  base::WaitableEvent wakeup_done_;
 };
 
-TEST(ThreadPoolWorkerThreadCachePurgeTest, Purge) {
+TEST_F(ThreadPoolWorkerTest, WorkerThreadCacheNoPurgeOnSignal) {
   // Make sure the thread cache is enabled in the main partition.
   partition_alloc::internal::ThreadCacheProcessScopeForTesting scope(
       allocator_shim::internal::PartitionAllocMalloc::Allocator());
 
-  Thread service_thread = Thread("ServiceThread");
-  Thread::Options service_thread_options;
-  service_thread_options.message_pump_type = MessagePumpType::IO;
-  service_thread.StartWithOptions(std::move(service_thread_options));
   TaskTracker task_tracker;
   auto delegate = std::make_unique<WorkerThreadThreadCacheDelegate>();
   auto* delegate_raw = delegate.get();
   auto worker =
       MakeRefCounted<WorkerThread>(ThreadType::kDefault, std::move(delegate),
                                    task_tracker.GetTrackedRef(), 0);
-  // Wake up before the thread is started to make sure the first sleep is short.
+  delegate_raw->PrepareForTesting();
+
+  // No purge is expected on waking up from a signal.
+  delegate_raw->SetPurgeExpectation(false);
+
+  // Wake up before the thread is started to make sure the first wakeup is
+  // caused by a signal.
   worker->WakeUp();
-  worker->Start(service_thread.task_runner(), nullptr);
+  worker->Start(service_thread_.task_runner(), nullptr);
 
-  while (delegate_raw->first_wakeup_done_.load(std::memory_order_acquire)) {
-  }
-
-  // Have to use real sleep unfortunately rather than virtual time, because
-  // WaitableEvent uses the non-overridable variant of TimeTicks.
-  PlatformThread::Sleep(1.1 *
-                        WorkerThread::Delegate::kPurgeThreadCacheIdleDelay);
+  // Wait until a wakeup has completed.
+  delegate_raw->wakeup_done_.Wait();
   worker->JoinForTesting();
 }
 
-#endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) &&
+TEST_F(ThreadPoolWorkerTest, PurgeOnUninteruptedSleep) {
+  // Make sure the thread cache is enabled in the main partition.
+  partition_alloc::internal::ThreadCacheProcessScopeForTesting scope(
+      allocator_shim::internal::PartitionAllocMalloc::Allocator());
+
+  TaskTracker task_tracker;
+  auto delegate = std::make_unique<WorkerThreadThreadCacheDelegate>();
+  auto* delegate_raw = delegate.get();
+  auto worker =
+      MakeRefCounted<WorkerThread>(ThreadType::kDefault, std::move(delegate),
+                                   task_tracker.GetTrackedRef(), 0);
+
+  delegate_raw->PrepareForTesting();
+
+  // A purge will take place
+  delegate_raw->SetPurgeExpectation(true);
+
+  worker->Start(service_thread_.task_runner(), nullptr);
+
+  // Wait until a wakeup has completed.
+  delegate_raw->wakeup_done_.Wait();
+  worker->JoinForTesting();
+}
+
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) &&
         // PA_CONFIG(THREAD_CACHE_SUPPORTED)
 
-}  // namespace internal
-}  // namespace base
+}  // namespace base::internal

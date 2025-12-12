@@ -1,20 +1,16 @@
 {
   "scripts/egl_angle_ext.xml":
-    "bee532d3939bddbb2bb823645e2a5ab9",
+    "8389749098fae1d5c832a06b5be51dc1",
   "scripts/gen_proc_table.py":
-    "073351265b085943f816498cecaa281c",
+    "23ebf460dda78d2c21625e0d41d3cb97",
   "scripts/gl_angle_ext.xml":
-    "796894fd74d141b88000669104a663ea",
+    "da4ecccdd77635f1b0e9d4664f856706",
   "scripts/registry_xml.py":
-    "8dc1bcf2e8324094c19c41613897b212",
+    "c56e84017783474a6b4698370cf5864a",
+  "src/libGLESv2/egl_stubs_getprocaddress_autogen.cpp":
+    "0509998531cd46780dda07f371be3277",
   "src/libGLESv2/proc_table_cl_autogen.cpp":
     "ed003b0f041aaaa35b67d3fe07e61f91",
-  "src/libGLESv2/proc_table_egl_autogen.cpp":
-    "d1fed5143e181eadef448e55e4bb1b69",
-  "src/libGLESv2/proc_table_glx_autogen.cpp":
-    "982300e551154e773513b15684f7ac6f",
-  "src/libGLESv2/proc_table_wgl_autogen.cpp":
-    "48d87037a02d5ea93dd58171b51a39cc",
   "src/libOpenCL/libOpenCL_autogen.map":
     "bc5f5cf48227149ed321258a16eff1d7",
   "third_party/EGL-Registry/src/api/egl.xml":

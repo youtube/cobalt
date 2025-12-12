@@ -54,6 +54,11 @@ void KeyedServiceBaseFactory::MarkContextLive(void* context) {
   dependency_manager_->MarkContextLive(context);
 }
 
+bool KeyedServiceBaseFactory::ServiceIsRequiredForContextInitialization()
+    const {
+  return false;
+}
+
 bool KeyedServiceBaseFactory::ServiceIsCreatedWithContext() const {
   return false;
 }
@@ -66,4 +71,8 @@ void KeyedServiceBaseFactory::ContextDestroyed(void* context) {
   // While object destruction can be customized in ways where the object is
   // only dereferenced, this still must run on the UI thread.
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+}
+
+void KeyedServiceBaseFactory::CreateServiceNowForTesting(void* context) {
+  CreateServiceNow(context);
 }

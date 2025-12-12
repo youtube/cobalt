@@ -20,9 +20,15 @@ source_set("sqlite") {
   sources = [
     "db_sqlite_table.cc",
     "db_sqlite_table.h",
-    "query_cache.h",
+    "module_state_manager.cc",
+    "module_state_manager.h",
+    "scoped_db.h",
+    "sql_source.cc",
+    "sql_source.h",
     "sql_stats_table.cc",
     "sql_stats_table.h",
+    "sqlite_engine.cc",
+    "sqlite_engine.h",
     "sqlite_utils.cc",
     "sqlite_utils.h",
     "stats_table.cc",
@@ -32,53 +38,42 @@ source_set("sqlite") {
     "..:metatrace",
     "../../../gn:default_deps",
     "../../../gn:sqlite",
+    "../../../include/perfetto/trace_processor",
+    "../../../include/perfetto/trace_processor:basic_types",
     "../../../protos/perfetto/trace/ftrace:zero",
+    "../../../protos/perfetto/trace_processor:zero",
     "../../base",
     "../containers",
     "../db",
+    "../db/column",
     "../importers/common",
     "../importers/ftrace:ftrace_descriptors",
-    "../prelude/table_functions",
+    "../perfetto_sql/intrinsics/table_functions:interface",
     "../storage",
     "../types",
     "../util",
     "../util:profile_builder",
+    "../util:regex",
   ]
-  public_deps = [ ":sqlite_minimal" ]
-}
-
-source_set("sqlite_minimal") {
-  sources = [
-    "query_constraints.cc",
-    "query_constraints.h",
-    "scoped_db.h",
-    "sqlite_table.cc",
-    "sqlite_table.h",
-    "sqlite_utils.h",
-  ]
-  deps = [
-    "..:metatrace",
-    "../../../gn:default_deps",
-    "../../../gn:sqlite",
-    "../../../include/perfetto/trace_processor",
-    "../../base",
-  ]
+  public_deps = [ "bindings" ]
 }
 
 perfetto_unittest_source_set("unittests") {
   testonly = true
   sources = [
     "db_sqlite_table_unittest.cc",
-    "query_constraints_unittest.cc",
+    "sql_source_unittest.cc",
     "sqlite_utils_unittest.cc",
   ]
   deps = [
     ":sqlite",
-    ":sqlite_minimal",
     "../../../gn:default_deps",
     "../../../gn:gtest_and_gmock",
     "../../../gn:sqlite",
+    "../../../include/perfetto/trace_processor:basic_types",
     "../../base",
+    "../../base:test_support",
+    "../db",
   ]
 }
 

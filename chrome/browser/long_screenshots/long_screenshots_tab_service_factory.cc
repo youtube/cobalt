@@ -12,9 +12,11 @@
 #include "chrome/browser/long_screenshots/long_screenshots_tab_service.h"
 #include "chrome/browser/profiles/profile_key.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/share/android/jni_headers/LongScreenshotsTabServiceFactory_jni.h"
 #include "components/keyed_service/core/simple_dependency_manager.h"
 #include "components/keyed_service/core/simple_factory_key.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/android/chrome_jni_headers/LongScreenshotsTabServiceFactory_jni.h"
 
 namespace long_screenshots {
 
@@ -27,7 +29,8 @@ constexpr char kFeatureDirname[] = "long_screenshots_tab_service";
 // static
 LongScreenshotsTabServiceFactory*
 LongScreenshotsTabServiceFactory::GetInstance() {
-  return base::Singleton<LongScreenshotsTabServiceFactory>::get();
+  static base::NoDestructor<LongScreenshotsTabServiceFactory> instance;
+  return instance.get();
 }
 
 // static

@@ -33,11 +33,18 @@ void HotspotEnabledStateNotifier::OnHotspotStatusChanged() {
     return;
   }
 
-  absl::optional<hotspot_config::mojom::DisableReason> disable_reason =
+  std::optional<hotspot_config::mojom::DisableReason> disable_reason =
       hotspot_state_handler_->GetDisableReason();
 
   if (!disable_reason) {
     NET_LOG(EVENT) << "Disable reason is not set in state handler";
+    return;
+  }
+
+  if (disable_reason.value() ==
+      hotspot_config::mojom::DisableReason::kUserInitiated) {
+    NET_LOG(EVENT) << "Skipping recording user initiated disable events "
+                      "reported from platform";
     return;
   }
 
@@ -46,9 +53,9 @@ void HotspotEnabledStateNotifier::OnHotspotStatusChanged() {
   }
 }
 
-void HotspotEnabledStateNotifier::OnHotspotTurnedOn(bool wifi_turned_off) {
+void HotspotEnabledStateNotifier::OnHotspotTurnedOn() {
   for (auto& observer : observers_) {
-    observer->OnHotspotTurnedOn(wifi_turned_off);
+    observer->OnHotspotTurnedOn();
   }
 }
 

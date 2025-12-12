@@ -19,15 +19,21 @@
 #include "components/viz/common/buildflags.h"
 #include "components/viz/common/features.h"
 #include "components/viz/service/debugger/viz_debugger.h"
+#include "components/viz/service/gl/gpu_log_message_manager.h"
 #include "components/viz/service/performance_hint/hint_session.h"
-#include "gpu/command_buffer/common/activity_flags.h"
+#include "gpu/command_buffer/common/shm_count.h"
 #include "gpu/config/gpu_finch_features.h"
 #include "gpu/ipc/service/gpu_init.h"
 #include "gpu/ipc/service/gpu_watchdog_thread.h"
 #include "media/gpu/buildflags.h"
+#include "mojo/public/cpp/bindings/interface_endpoint_client.h"
 #include "services/metrics/public/cpp/delegating_ukm_recorder.h"
 #include "services/metrics/public/cpp/mojo_ukm_recorder.h"
 #include "skia/ext/legacy_display_globals.h"
+
+#if BUILDFLAG(SKIA_USE_DAWN)
+#include "gpu/command_buffer/service/dawn_context_provider.h"
+#endif
 
 namespace {
 
@@ -37,9 +43,14 @@ std::unique_ptr<base::Thread> CreateAndStartIOThread() {
   base::Thread::Options thread_options(base::MessagePumpType::IO, 0);
   // TODO(reveman): Remove this in favor of setting it explicitly for each
   // type of process.
-  thread_options.thread_type = base::ThreadType::kCompositing;
+  thread_options.thread_type = base::ThreadType::kDisplayCritical;
   auto io_thread = std::make_unique<base::Thread>("GpuIOThread");
   CHECK(io_thread->StartWithOptions(std::move(thread_options)));
+
+  io_thread->task_runner()->PostTask(
+      FROM_HERE, base::BindOnce([]() {
+        mojo::InterfaceEndpointClient::SetThreadNameSuffixForMetrics("GpuIO");
+      }));
   return io_thread;
 }
 
@@ -67,20 +78,30 @@ VizMainImpl::VizMainImpl(Delegate* delegate,
           base::SingleThreadTaskRunner::GetCurrentDefault()) {
   DCHECK(gpu_init_);
 
-  // TODO(crbug.com/609317): Remove this when Mus Window Server and GPU are
+  // Null hypothesis finch testing. This code has no functional purpose.
+  // See: crbug.com/354724066
+  if (base::FeatureList::IsEnabled(features::kVizNullHypothesis)) {
+    VLOG(1) << "VizNullHypothesis is enabled (not a warning)";
+  } else {
+    VLOG(1) << "VizNullHypothesis is disabled (not a warning)";
+  }
+  // TODO(crbug.com/41252481): Remove this when Mus Window Server and GPU are
   // split into separate processes. Until then this is necessary to be able to
   // run Mushrome (chrome with mus) with Mus running in the browser process.
   if (dependencies_.power_monitor_source) {
-    base::PowerMonitor::Initialize(
+    base::PowerMonitor::GetInstance()->Initialize(
         std::move(dependencies_.power_monitor_source));
   }
 
   if (!dependencies_.io_thread_task_runner)
     io_thread_ = CreateAndStartIOThread();
 
-  if (dependencies_.viz_compositor_thread_runner) {
-    viz_compositor_thread_runner_ = dependencies_.viz_compositor_thread_runner;
-  } else {
+#if BUILDFLAG(IS_ANDROID)
+  // On Android, the compositor thread runner may be created externally and
+  // passed in (in particular, for WebView).
+  viz_compositor_thread_runner_ = dependencies_.viz_compositor_thread_runner;
+#endif
+  if (!viz_compositor_thread_runner_) {
     viz_compositor_thread_runner_impl_ =
         std::make_unique<VizCompositorThreadRunnerImpl>();
     viz_compositor_thread_runner_ = viz_compositor_thread_runner_impl_.get();
@@ -97,45 +118,22 @@ VizMainImpl::VizMainImpl(Delegate* delegate,
         dependencies_.ukm_recorder->GetWeakPtr());
   }
 
+  GpuServiceImpl::InitParams init_params;
+  init_params.watchdog_thread = gpu_init_->TakeWatchdogThread();
+  init_params.io_runner = io_task_runner();
+  init_params.vulkan_implementation = gpu_init_->vulkan_implementation();
+#if BUILDFLAG(SKIA_USE_DAWN)
+  init_params.dawn_context_provider = gpu_init_->TakeDawnContextProvider();
+#endif
+
+  init_params.vulkan_implementation = gpu_init_->vulkan_implementation();
   gpu_service_ = std::make_unique<GpuServiceImpl>(
-      gpu_init_->gpu_info(), gpu_init_->TakeWatchdogThread(), io_task_runner(),
-      gpu_init_->gpu_feature_info(), gpu_init_->gpu_preferences(),
-      gpu_init_->gpu_info_for_hardware_gpu(),
+      gpu_init_->gpu_preferences(), gpu_init_->gpu_info(),
+      gpu_init_->gpu_feature_info(), gpu_init_->gpu_info_for_hardware_gpu(),
       gpu_init_->gpu_feature_info_for_hardware_gpu(),
-      gpu_init_->gpu_extra_info(), gpu_init_->vulkan_implementation(),
-      base::BindOnce(&VizMainImpl::ExitProcess, base::Unretained(this)));
-
-  {
-    // Gather the thread IDs of display GPU, and IO for performance hint.
-    // These are the viz threads that are on the critical path of all frames.
-    base::flat_set<base::PlatformThreadId> gpu_process_thread_ids;
-
-    CompositorGpuThread* compositor_gpu_thread =
-        gpu_service_->compositor_gpu_thread();
-    gpu_process_thread_ids.insert(compositor_gpu_thread
-                                      ? compositor_gpu_thread->GetThreadId()
-                                      : base::PlatformThread::CurrentId());
-
-    base::WaitableEvent event;
-    base::PlatformThreadId io_thread_id = base::kInvalidThreadId;
-    io_task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(
-                       [](base::PlatformThreadId* io_thread_id,
-                          base::WaitableEvent* event) {
-                         *io_thread_id = base::PlatformThread::CurrentId();
-                         event->Signal();
-                       },
-                       &io_thread_id, &event));
-    event.Wait();
-    gpu_process_thread_ids.insert(io_thread_id);
-
-    base::RepeatingClosure wake_up_closure;
-    if (viz_compositor_thread_runner_->CreateHintSessionFactory(
-            std::move(gpu_process_thread_ids), &wake_up_closure)) {
-      gpu_service_->SetWakeUpGpuClosure(std::move(wake_up_closure));
-    }
-  }
-
+      gpu_init_->gpu_extra_info(), std::move(init_params));
+  gpu_service_->SetRequestBeginFrameForGpuServiceCB(base::BindRepeating(
+      &VizMainImpl::RequestBeginFrameForGpuService, base::Unretained(this)));
   VizDebugger::GetInstance();
 }
 
@@ -172,8 +170,8 @@ void VizMainImpl::CreateGpuService(
     mojo::PendingRemote<
         discardable_memory::mojom::DiscardableSharedMemoryManager>
         discardable_memory_manager,
-    base::UnsafeSharedMemoryRegion activity_flags_region,
-    gfx::FontRenderParams::SubpixelRendering subpixel_rendering) {
+    base::UnsafeSharedMemoryRegion use_shader_cache_shm_region,
+    mojom::GpuServiceCreationParamsPtr params) {
   DCHECK(gpu_thread_task_runner_->BelongsToCurrentThread());
 
   mojo::Remote<mojom::GpuHost> gpu_host(std::move(pending_gpu_host));
@@ -184,7 +182,7 @@ void VizMainImpl::CreateGpuService(
 
   if (!gpu_init_->init_successful()) {
     LOG(ERROR) << "Exiting GPU process due to errors during initialization";
-    GpuServiceImpl::FlushPreInitializeLogMessages(gpu_host.get());
+    GpuLogMessageManager::GetInstance()->FlushMessages(gpu_host.get());
     gpu_service_.reset();
     gpu_host->DidFailInitialize();
     if (delegate_)
@@ -202,17 +200,69 @@ void VizMainImpl::CreateGpuService(
         discardable_shared_memory_manager_.get());
   }
 
-  skia::LegacyDisplayGlobals::SetCachedPixelGeometry(
-      gfx::FontRenderParams::SubpixelRenderingToSkiaPixelGeometry(
-          subpixel_rendering));
-
+#if BUILDFLAG(IS_ANDROID)
   gpu_service_->InitializeWithHost(
       gpu_host.Unbind(),
-      gpu::GpuProcessActivityFlags(std::move(activity_flags_region)),
-      gpu_init_->TakeDefaultOffscreenSurface(),
+      gpu::GpuProcessShmCount(std::move(use_shader_cache_shm_region)),
+      gpu_init_->TakeDefaultOffscreenSurface(), std::move(params),
       dependencies_.sync_point_manager, dependencies_.shared_image_manager,
-      dependencies_.scheduler, dependencies_.shutdown_event);
+      dependencies_.scheduler, dependencies_.shutdown_event,
+      dependencies_.gr_context_options_provider);
+#else
+  gpu_service_->InitializeWithHost(
+      gpu_host.Unbind(),
+      gpu::GpuProcessShmCount(std::move(use_shader_cache_shm_region)),
+      gpu_init_->TakeDefaultOffscreenSurface(), std::move(params),
+      dependencies_.shutdown_event);
+#endif
+
   gpu_service_->Bind(std::move(pending_receiver));
+
+  {
+    // Gather the thread IDs of display GPU, and IO for performance hint.
+    // These are the viz threads that are on the critical path of all frames.
+    base::flat_set<base::PlatformThreadId> gpu_process_thread_ids;
+
+    // Add the current (GPU Main, or in-process GPU) thread and Compositor GPU
+    // thread IDs.
+    base::PlatformThreadId main_thread_id = base::PlatformThread::CurrentId();
+    gpu_process_thread_ids.insert(main_thread_id);
+#if BUILDFLAG(IS_ANDROID)
+    if (base::FeatureList::IsEnabled(::features::kWebViewEnableADPFGpuMain)) {
+      viz_compositor_thread_runner_->SetGpuMainThreadId(main_thread_id);
+    }
+#endif
+
+    CompositorGpuThread* compositor_gpu_thread =
+        gpu_service_->compositor_gpu_thread();
+
+    if (compositor_gpu_thread &&
+        base::FeatureList::IsEnabled(
+            ::features::kEnableADPFGpuCompositorThread)) {
+      gpu_process_thread_ids.insert(compositor_gpu_thread->GetThreadId());
+    }
+
+    // Add IO thread ID.
+    base::WaitableEvent event;
+    base::PlatformThreadId io_thread_id = base::kInvalidThreadId;
+    io_task_runner()->PostTask(
+        FROM_HERE, base::BindOnce(
+                       [](base::PlatformThreadId* io_thread_id,
+                          base::WaitableEvent* event) {
+                         *io_thread_id = base::PlatformThread::CurrentId();
+                         event->Signal();
+                       },
+                       &io_thread_id, &event));
+    event.Wait();
+    gpu_process_thread_ids.insert(io_thread_id);
+    viz_compositor_thread_runner_->SetIOThreadId(io_thread_id);
+
+    base::RepeatingClosure wake_up_closure;
+    if (viz_compositor_thread_runner_->CreateHintSessionFactory(
+            std::move(gpu_process_thread_ids), &wake_up_closure)) {
+      gpu_service_->SetWakeUpGpuClosure(std::move(wake_up_closure));
+    }
+  }
 
   if (!pending_frame_sink_manager_params_.is_null()) {
     CreateFrameSinkManagerInternal(
@@ -221,6 +271,16 @@ void VizMainImpl::CreateGpuService(
   }
   if (delegate_)
     delegate_->OnGpuServiceConnection(gpu_service_.get());
+}
+
+void VizMainImpl::SetRenderParams(
+    gfx::FontRenderParams::SubpixelRendering subpixel_rendering,
+    float text_contrast,
+    float text_gamma) {
+  skia::LegacyDisplayGlobals::SetCachedParams(
+      gfx::FontRenderParams::SubpixelRenderingToSkiaPixelGeometry(
+          subpixel_rendering),
+      text_contrast, text_gamma);
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -275,8 +335,13 @@ void VizMainImpl::CreateFrameSinkManagerInternal(
                                                         gpu_service_.get());
 }
 
+void VizMainImpl::RequestBeginFrameForGpuService(bool toggle) {
+  DCHECK(gpu_thread_task_runner_->BelongsToCurrentThread());
+  viz_compositor_thread_runner_->RequestBeginFrameForGpuService(toggle);
+}
+
 #if BUILDFLAG(USE_VIZ_DEBUGGER)
-void VizMainImpl::FilterDebugStream(base::Value filter_data) {
+void VizMainImpl::FilterDebugStream(base::Value::Dict filter_data) {
   VizDebugger::GetInstance()->FilterDebugStream(std::move(filter_data));
 }
 

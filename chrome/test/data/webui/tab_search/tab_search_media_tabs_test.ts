@@ -2,21 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://webui-test/mojo_webui_test_support.js';
-
 import {MetricsReporterImpl} from 'chrome://resources/js/metrics_reporter/metrics_reporter.js';
-import {keyDownOn} from 'chrome://resources/polymer/v3_0/iron-test-helpers/mock-interactions.js';
-import {ProfileData, Tab, TabAlertState, TabSearchApiProxyImpl, TabSearchAppElement} from 'chrome://tab-search.top-chrome/tab_search.js';
+import type {ProfileData, Tab, TabSearchPageElement} from 'chrome://tab-search.top-chrome/tab_search.js';
+import {TabAlertState, TabSearchApiProxyImpl} from 'chrome://tab-search.top-chrome/tab_search.js';
 import {assertEquals} from 'chrome://webui-test/chai_assert.js';
+import {keyDownOn} from 'chrome://webui-test/keyboard_mock_interactions.js';
 import {MockedMetricsReporter} from 'chrome://webui-test/mocked_metrics_reporter.js';
-import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
+import {eventToPromise, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {createProfileData, createTab, SAMPLE_WINDOW_DATA, SAMPLE_WINDOW_DATA_WITH_MEDIA_TAB, SAMPLE_WINDOW_HEIGHT} from './tab_search_test_data.js';
 import {initLoadTimeDataWithDefaults} from './tab_search_test_helper.js';
 import {TestTabSearchApiProxy} from './test_tab_search_api_proxy.js';
 
 suite('TabSearchMediaTabsTest', () => {
-  let tabSearchApp: TabSearchAppElement;
+  let tabSearchPage: TabSearchPageElement;
   let testProxy: TestTabSearchApiProxy;
 
   function verifyTabIds(rows: NodeListOf<HTMLElement>, ids: number[]) {
@@ -27,12 +26,12 @@ suite('TabSearchMediaTabsTest', () => {
   }
 
   function queryRows(): NodeListOf<HTMLElement> {
-    return tabSearchApp.$.tabsList.querySelectorAll(
+    return tabSearchPage.$.tabsList.querySelectorAll(
         'tab-search-item, tab-search-group-item');
   }
 
   function queryListTitle(): NodeListOf<HTMLElement> {
-    return tabSearchApp.$.tabsList.querySelectorAll('.list-section-title');
+    return tabSearchPage.$.tabsList.querySelectorAll('.list-section-title');
   }
 
   /**
@@ -50,11 +49,13 @@ suite('TabSearchMediaTabsTest', () => {
     testProxy.setProfileData(sampleData);
     TabSearchApiProxyImpl.setInstance(testProxy);
 
-    tabSearchApp = document.createElement('tab-search-app');
+    tabSearchPage = document.createElement('tab-search-page');
+    tabSearchPage.availableHeight = 500;
 
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
-    document.body.appendChild(tabSearchApp);
-    await flushTasks();
+    document.body.appendChild(tabSearchPage);
+    await eventToPromise('selected-change', tabSearchPage.$.tabsList);
+    await microtasksFinished();
   }
 
   test('Verify initially selected tab is most recently used tab', async () => {
@@ -63,41 +64,42 @@ suite('TabSearchMediaTabsTest', () => {
           windows: SAMPLE_WINDOW_DATA_WITH_MEDIA_TAB,
         }),
         {mediaTabsEnabled: true});
-    assertEquals(1, tabSearchApp.getSelectedIndex());
+    assertEquals(1, tabSearchPage.getSelectedTabIndex());
     const tabSearchItems = queryRows();
     keyDownOn(tabSearchItems[1]!, 0, [], 'ArrowUp');
-    assertEquals(0, tabSearchApp.getSelectedIndex());
+    await eventToPromise('selected-change', tabSearchPage.$.tabsList);
+    await microtasksFinished();
+    assertEquals(0, tabSearchPage.getSelectedTabIndex());
 
     Object.defineProperty(
         document, 'visibilityState', {value: 'hidden', writable: true});
     document.dispatchEvent(new Event('visibilitychange'));
-    await flushTasks();
+    await microtasksFinished();
     // Note that unlike the 'Verify hiding document resets selection and
     // search text' test case, if no search query was originally provided
     // onSearchChanged will not be called when hidden and the index is not
     // reset until the state is visible again.
-    assertEquals(-1, tabSearchApp.getSelectedIndex());
+    assertEquals(-1, tabSearchPage.getSelectedTabIndex());
 
     // The selected tab should again be the most recently used tab.
     Object.defineProperty(
         document, 'visibilityState', {value: 'visible', writable: true});
     document.dispatchEvent(new Event('visibilitychange'));
-    await flushTasks();
-    assertEquals(1, tabSearchApp.getSelectedIndex());
+    await microtasksFinished();
+    assertEquals(1, tabSearchPage.getSelectedTabIndex());
 
     // During search there should be no Audio & Video section and the selected
     // index should be 0.
-    const searchField = tabSearchApp.$.searchField;
-    searchField.setValue('Google');
-    await flushTasks();
+    tabSearchPage.setValue('Google');
+    await microtasksFinished();
     verifyTabIds(queryRows(), [2, 1]);
-    assertEquals(0, tabSearchApp.getSelectedIndex());
+    assertEquals(0, tabSearchPage.getSelectedTabIndex());
 
     // When the search query is reset the initially selected index should also
     // be reset.
-    searchField.setValue('');
-    await flushTasks();
-    assertEquals(1, tabSearchApp.getSelectedIndex());
+    tabSearchPage.setValue('');
+    await microtasksFinished();
+    assertEquals(1, tabSearchPage.getSelectedTabIndex());
   });
 
   test('Verify initially selected tab is not the active tab', async () => {
@@ -146,7 +148,7 @@ suite('TabSearchMediaTabsTest', () => {
 
     // MRU is the tab with Id 3 but since it is the active tab the selected
     // index should be the next MRU tab.
-    assertEquals(0, tabSearchApp.getSelectedIndex());
+    assertEquals(0, tabSearchPage.getSelectedTabIndex());
   });
 
   test('Show media tab in Audio & Video section', async () => {
@@ -173,7 +175,7 @@ suite('TabSearchMediaTabsTest', () => {
       tab: updatedTab,
     };
     testProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);
-    await flushTasks();
+    await microtasksFinished();
     // Three non-media tabs.
     assertEquals(3, queryRows().length);
     // Only "Open Tabs" section should exist.
@@ -198,7 +200,7 @@ suite('TabSearchMediaTabsTest', () => {
       tab: updatedTab,
     };
     testProxy.getCallbackRouterRemote().tabUpdated(tabUpdateInfo);
-    await flushTasks();
+    await microtasksFinished();
     // One media tab, the rest are non-media tabs.
     assertEquals(6, queryRows().length);
     // "Audio and Video" and "Open Tabs" section should both exist.
@@ -209,9 +211,8 @@ suite('TabSearchMediaTabsTest', () => {
   test('Search for media tab', async () => {
     await setupTest(
         createProfileData({windows: SAMPLE_WINDOW_DATA_WITH_MEDIA_TAB}));
-    const searchField = tabSearchApp.$.searchField;
-    searchField.setValue('google');
-    await flushTasks();
+    tabSearchPage.setValue('google');
+    await microtasksFinished();
     // No media tabs section when there is a search query.
     assertEquals(1, queryListTitle().length);
     assertEquals(2, queryRows().length);

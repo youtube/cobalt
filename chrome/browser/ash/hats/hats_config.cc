@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/hats/hats_config.h"
 
+#include "base/time/time.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/pref_names.h"
 
@@ -20,7 +21,28 @@ HatsConfig::HatsConfig(const base::Feature& feature,
     : feature(feature),
       new_device_threshold(new_device_threshold),
       is_selected_pref_name(is_selected_pref_name),
-      cycle_end_timestamp_pref_name(cycle_end_timestamp_pref_name) {
+      cycle_end_timestamp_pref_name(cycle_end_timestamp_pref_name),
+      survey_last_interaction_timestamp_pref_name(nullptr),
+      threshold_time(base::TimeDelta()),
+      prioritized(false) {
+  DCHECK(new_device_threshold.InDaysFloored() >= kMinDaysThreshold);
+}
+
+HatsConfig::HatsConfig(
+    const base::Feature& feature,
+    const base::TimeDelta& new_device_threshold,
+    const char* const is_selected_pref_name,
+    const char* const cycle_end_timestamp_pref_name,
+    const char* const survey_last_interaction_timestamp_pref_name,
+    const base::TimeDelta& threshold_time)
+    : feature(feature),
+      new_device_threshold(new_device_threshold),
+      is_selected_pref_name(is_selected_pref_name),
+      cycle_end_timestamp_pref_name(cycle_end_timestamp_pref_name),
+      survey_last_interaction_timestamp_pref_name(
+          survey_last_interaction_timestamp_pref_name),
+      threshold_time(threshold_time),
+      prioritized(true) {
   DCHECK(new_device_threshold.InDaysFloored() >= kMinDaysThreshold);
 }
 
@@ -64,24 +86,6 @@ const HatsConfig kHatsOnboardingSurvey = {
     prefs::kHatsOnboardingSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
 };
 
-// Unlock Experience Survey -- shown after successfully unlocking with Smart
-// Lock
-const HatsConfig kHatsSmartLockSurvey = {
-    ::features::kHappinessTrackingSystemSmartLock,  // feature
-    base::Days(7),                                  // hatsNewDeviceThreshold
-    prefs::kHatsSmartLockDeviceIsSelected,          // hatsIsSelectedPrefName
-    prefs::kHatsSmartLockSurveyCycleEndTs,  // hatsCycleEndTimestampPrefName
-};
-
-// Unlock Experience Survey -- shown after successfully unlocking with any auth
-// method execpt Smart Lock
-const HatsConfig kHatsUnlockSurvey = {
-    ::features::kHappinessTrackingSystemUnlock,  // feature
-    base::Days(7),                               // hatsNewDeviceThreshold
-    prefs::kHatsUnlockDeviceIsSelected,          // hatsIsSelectedPrefName
-    prefs::kHatsUnlockSurveyCycleEndTs,  // hatsCycleEndTimestampPrefName
-};
-
 // ARC++ Games Survey -- shown after a user played a top XX ARC++ game
 const HatsConfig kHatsArcGamesSurvey = {
     ::features::kHappinessTrackingSystemArcGames,  // feature
@@ -99,6 +103,23 @@ const HatsConfig kHatsAudioSurvey = {
     prefs::kHatsAudioSurveyCycleEndTs,          // cycle_end_timestamp_pref_name
 };
 
+const HatsConfig kHatsAudioOutputProcSurvey = {
+    ::features::kHappinessTrackingSystemAudioOutputProc,  // feature
+    base::Days(7),                                // new_device_threshold
+    prefs::kHatsAudioOutputProcDeviceIsSelected,  // is_selected_pref_name
+    prefs::
+        kHatsAudioOutputProcSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
+
+// Bluetooth Audio Survey -- shown after the user closed an audio stream
+// sent to a Bluetooth device after listening for more than one minute.
+const HatsConfig kHatsBluetoothAudioSurvey = {
+    ::features::kHappinessTrackingSystemBluetoothAudio,  // feature
+    base::Days(90),                                      // new_device_threshold
+    prefs::kHatsBluetoothAudioDeviceIsSelected,  // is_selected_pref_name
+    prefs::
+        kHatsBluetoothAudioSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
 // Personalization Avatar Survey -- shown 60 seconds after a user closes the
 // Avatar selection page of either OS Settings or Personalization Hub, depending
 // on whether PersonalizationHub feature is enabled.
@@ -169,6 +190,23 @@ const HatsConfig kHatsGeneralCameraSurvey = {
     prefs::kHatsGeneralCameraSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
 };
 
+// Prioritized General Camera Survey -- shown after camera is closed after being
+// open for at least 15 seconds by using any app (e.g. Chrome or Android app).
+const HatsConfig kHatsGeneralCameraPrioritizedSurvey = {
+    // feature
+    ::features::kHappinessTrackingGeneralCameraPrioritized,
+    // new_device_threshold
+    base::Days(7),
+    // is_selected_pref_name
+    prefs::kHatsGeneralCameraPrioritizedIsSelected,
+    // cycle_end_timestamp_pref_name
+    prefs::kHatsGeneralCameraPrioritizedSurveyCycleEndTs,
+    // survey_last_interaction_timestamp_pref_name
+    prefs::kHatsGeneralCameraPrioritizedLastInteractionTimestamp,
+    // threshold_time
+    base::Days(120),
+};
+
 // Bluetooth revamp experience survey -- shown 5 mins after interacting with new
 // Bluetooth UI surfaces.
 const HatsConfig kHatsBluetoothRevampSurvey = {
@@ -186,13 +224,12 @@ const HatsConfig kHatsBatteryLifeSurvey = {
     prefs::kHatsBatteryLifeCycleEndTs,  // cycle_end_timestamp_pref_name
 };
 
-// Privacy Hub Baseline experience survey -- shown 40 seconds after the user
-// leaves the Security and Privacy page.
-const HatsConfig kPrivacyHubBaselineSurvey = {
-    ::features::kHappinessTrackingPrivacyHubBaseline,  // feature
-    base::Days(1),                                     // new_device_threshold
-    prefs::kHatsPrivacyHubBaselineIsSelected,          // is_selected_pref_name
-    prefs::kHatsPrivacyHubBaselineCycleEndTs,  // cycle_end_timestamp_pref_name
+// Peripherals experience survey -- shown after login.
+const HatsConfig kHatsPeripheralsSurvey = {
+    ::features::kHappinessTrackingSystemPeripherals,  // feature
+    base::Days(7),                                    // new_device_threshold
+    prefs::kHatsPeripheralsIsSelected,                // is_selected_pref_name
+    prefs::kHatsPeripheralsCycleEndTs,  // cycle_end_timestamp_pref_name
 };
 
 // OS Settings Survey -- shown [5-30] seconds after a user removes focus from
@@ -204,6 +241,45 @@ const HatsConfig kHatsOsSettingsSearchSurvey = {
     prefs::kHatsOsSettingsSearchSurveyIsSelected,    // is_selected_pref_name
     prefs::
         kHatsOsSettingsSearchSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
+
+// Borealis games survey -- Shown after a Steam game exits.
+const HatsConfig kHatsBorealisGamesSurvey = {
+    ::features::kHappinessTrackingBorealisGames,  // feature
+    base::Days(1),                                // new_device_threshold
+    prefs::kHatsBorealisGamesSurveyIsSelected,    // is_selected_pref_name
+    prefs::kHatsBorealisGamesSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+    prefs::kHatsBorealisGamesLastInteractionTimestamp,
+    // survey_last_interaction_timestamp_pref_name
+    base::Days(7),  // threshold_time
+};
+
+// Launcher survey -- Shown after a user opens the launcher for the first time.
+// This survey is enabled for 25% of users.
+const HatsConfig kHatsLauncherAppsFindingSurvey = {
+    ::features::kHappinessTrackingLauncherAppsFinding,  // feature
+    base::Hours(2),                                     // new_device_threshold
+    prefs::kHatsLauncherAppsSurveyIsSelected,           // is_selected_pref_name
+    prefs::kHatsLauncherAppsSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
+
+// Launcher survey -- Shown after a user opens the launcher for the first time.
+// This survey is enabled for 75% of users.
+const HatsConfig kHatsLauncherAppsNeedingSurvey = {
+    ::features::kHappinessTrackingLauncherAppsNeeding,  // feature
+    base::Hours(2),                                     // new_device_threshold
+    prefs::kHatsLauncherAppsSurveyIsSelected,           // is_selected_pref_name
+    prefs::kHatsLauncherAppsSurveyCycleEndTs,  // cycle_end_timestamp_pref_name
+};
+
+// Office integration survey -- Shown after the user opens an Office file:
+// For MS365 and Docs/Sheets/Slides, shown when the app is inactive or closed.
+// For QuickOffice, shown 1 minute after launch.
+const HatsConfig kHatsOfficeSurvey = {
+    ::features::kHappinessTrackingOffice,  // feature
+    base::Days(1),                         // new_device_threshold
+    prefs::kHatsOfficeSurveyIsSelected,    // is_selected_pref_name
+    prefs::kHatsOfficeSurveyCycleEndTs,    // cycle_end_timestamp_pref_name
 };
 
 }  // namespace ash

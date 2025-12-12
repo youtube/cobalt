@@ -18,6 +18,8 @@ bool UseCounterFeatureTracker::Test(const UseCounterFeature& feature) const {
   switch (feature.type()) {
     case FeatureType::kWebFeature:
       return web_features_.test(feature.value());
+    case FeatureType::kWebDXFeature:
+      return webdx_features_.test(feature.value());
     case FeatureType::kCssProperty:
       return css_properties_.test(feature.value());
     case FeatureType::kAnimatedCssProperty:
@@ -28,6 +30,8 @@ bool UseCounterFeatureTracker::Test(const UseCounterFeature& feature) const {
       return iframe_permissions_policy_features_.test(feature.value());
     case FeatureType::kPermissionsPolicyHeader:
       return header_permissions_policy_features_.test(feature.value());
+    case FeatureType::kPermissionsPolicyEnabledPrivacySensitive:
+      return private_permissions_policy_features_.test(feature.value());
   }
 }
 
@@ -42,32 +46,39 @@ std::vector<UseCounterFeature> UseCounterFeatureTracker::GetRecordedFeatures()
   std::vector<UseCounterFeature> ret;
   for (uint32_t i = 0; i < web_features_.size(); i++) {
     if (web_features_.test(i))
-      ret.push_back({FeatureType::kWebFeature, i});
+      ret.emplace_back(FeatureType::kWebFeature, i);
   }
 
   for (uint32_t i = 0; i < css_properties_.size(); i++) {
     if (css_properties_.test(i))
-      ret.push_back({FeatureType::kCssProperty, i});
+      ret.emplace_back(FeatureType::kCssProperty, i);
   }
 
   for (uint32_t i = 0; i < animated_css_properties_.size(); i++) {
     if (animated_css_properties_.test(i))
-      ret.push_back({FeatureType::kAnimatedCssProperty, i});
+      ret.emplace_back(FeatureType::kAnimatedCssProperty, i);
   }
 
   for (uint32_t i = 0; i < violated_permissions_policy_features_.size(); i++) {
     if (violated_permissions_policy_features_.test(i))
-      ret.push_back({FeatureType::kPermissionsPolicyViolationEnforce, i});
+      ret.emplace_back(FeatureType::kPermissionsPolicyViolationEnforce, i);
   }
 
   for (uint32_t i = 0; i < iframe_permissions_policy_features_.size(); i++) {
     if (iframe_permissions_policy_features_.test(i))
-      ret.push_back({FeatureType::kPermissionsPolicyIframeAttribute, i});
+      ret.emplace_back(FeatureType::kPermissionsPolicyIframeAttribute, i);
   }
 
   for (uint32_t i = 0; i < header_permissions_policy_features_.size(); i++) {
     if (header_permissions_policy_features_.test(i))
-      ret.push_back({FeatureType::kPermissionsPolicyHeader, i});
+      ret.emplace_back(FeatureType::kPermissionsPolicyHeader, i);
+  }
+
+  for (uint32_t i = 0; i < private_permissions_policy_features_.size(); i++) {
+    if (private_permissions_policy_features_.test(i)) {
+      ret.emplace_back(FeatureType::kPermissionsPolicyEnabledPrivacySensitive,
+                       i);
+    }
   }
 
   return ret;
@@ -83,7 +94,9 @@ bool UseCounterFeatureTracker::ContainsForTesting(
   return BitsetContains(web_features_, other.web_features_) &&
          BitsetContains(css_properties_, other.css_properties_) &&
          BitsetContains(animated_css_properties_,
-                        other.animated_css_properties_);
+                        other.animated_css_properties_) &&
+         BitsetContains(private_permissions_policy_features_,
+                        other.private_permissions_policy_features_);
 }
 
 void UseCounterFeatureTracker::Set(const UseCounterFeature& feature,
@@ -91,6 +104,9 @@ void UseCounterFeatureTracker::Set(const UseCounterFeature& feature,
   switch (feature.type()) {
     case FeatureType::kWebFeature:
       web_features_[feature.value()] = value;
+      break;
+    case FeatureType::kWebDXFeature:
+      webdx_features_[feature.value()] = value;
       break;
     case FeatureType::kCssProperty:
       css_properties_[feature.value()] = value;
@@ -106,6 +122,9 @@ void UseCounterFeatureTracker::Set(const UseCounterFeature& feature,
       break;
     case FeatureType::kPermissionsPolicyHeader:
       header_permissions_policy_features_[feature.value()] = value;
+      break;
+    case FeatureType::kPermissionsPolicyEnabledPrivacySensitive:
+      private_permissions_policy_features_[feature.value()] = value;
       break;
   }
 }

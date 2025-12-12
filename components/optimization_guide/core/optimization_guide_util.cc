@@ -6,16 +6,26 @@
 
 #include "base/containers/flat_set.h"
 #include "base/notreached.h"
+#include "base/strings/string_number_conversions.h"
 #include "build/build_config.h"
+#include "components/optimization_guide/core/model_execution/feature_keys.h"
 #include "components/optimization_guide/core/optimization_guide_decision.h"
 #include "components/optimization_guide/core/optimization_guide_enums.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/optimization_guide/core/optimization_guide_logger.h"
+#include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/prefs/pref_service.h"
+#include "google_apis/common/api_key_request_util.h"
 #include "net/base/url_util.h"
+#include "net/http/http_request_headers.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "url/url_canon.h"
 
 namespace {
+
+constexpr char kAuthHeaderBearer[] = "Bearer ";
+constexpr char kServerTimeoutHeader[] = "X-Server-Timeout";
+
 optimization_guide::proto::Platform GetPlatform() {
 #if BUILDFLAG(IS_WIN)
   return optimization_guide::proto::PLATFORM_WINDOWS;
@@ -30,16 +40,89 @@ optimization_guide::proto::Platform GetPlatform() {
 #elif BUILDFLAG(IS_LINUX)
   return optimization_guide::proto::PLATFORM_LINUX;
 #else
-  return optimization_guide::proto::PLATFORM_UNKNOWN;
+  return optimization_guide::proto::PLATFORM_UNDEFINED;
 #endif
 }
+
 }  // namespace
 
 namespace optimization_guide {
 
+std::string_view GetStringNameForModelExecutionFeature(
+    std::optional<UserVisibleFeatureKey> feature) {
+  if (!feature) {
+    return GetStringNameForModelExecutionFeature(
+        proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_UNSPECIFIED);
+  }
+  return GetStringNameForModelExecutionFeature(
+      ToModelExecutionFeatureProto(*feature));
+}
+
+std::string_view GetStringNameForModelExecutionFeature(
+    ModelBasedCapabilityKey feature) {
+  return GetStringNameForModelExecutionFeature(
+      ToModelExecutionFeatureProto(feature));
+}
+
+std::string_view GetStringNameForModelExecutionFeature(
+    proto::ModelExecutionFeature feature) {
+  switch (feature) {
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_WALLPAPER_SEARCH:
+      return "WallpaperSearch";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_TAB_ORGANIZATION:
+      return "TabOrganization";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_COMPOSE:
+      return "Compose";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_TEST:
+      return "Test";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_TEXT_SAFETY:
+      return "TextSafety";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_PROMPT_API:
+      return "PromptApi";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_SUMMARIZE:
+      return "Summarize";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_HISTORY_SEARCH:
+      return "HistorySearch";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_HISTORY_QUERY_INTENT:
+      return "HistoryQueryIntent";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_FORMS_CLASSIFICATIONS:
+      return "FormsClassifications";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_BLING_PROTOTYPING:
+      return "BlingPrototyping";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_PASSWORD_CHANGE_SUBMISSION:
+      return "PasswordChangeSubmission";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_SCAM_DETECTION:
+      return "ScamDetection";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_PERMISSIONS_AI:
+      return "PermissionsAi";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_WRITING_ASSISTANCE_API:
+      return "WritingAssistanceApi";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_ENHANCED_CALENDAR:
+      return "EnhancedCalendar";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_ZERO_STATE_SUGGESTIONS:
+      return "ZeroStateSuggestions";
+    case proto::ModelExecutionFeature::
+        MODEL_EXECUTION_FEATURE_PROOFREADER_API:
+      return "ProofreaderApi";
+    case proto::ModelExecutionFeature::MODEL_EXECUTION_FEATURE_UNSPECIFIED:
+      return "Unknown";
+      // Must be in sync with the ModelExecutionFeature variant in
+      // optimization/histograms.xml for metric recording. The output may also
+      // be used for storing other persistent data (e.g., prefs).
+  }
+}
+
 bool IsHostValidToFetchFromRemoteOptimizationGuide(const std::string& host) {
-  if (net::HostStringIsLocalhost(host))
+  if (net::HostStringIsLocalhost(host)) {
     return false;
+  }
   url::CanonHostInfo host_info;
   std::string canonicalized_host(net::CanonicalizeHost(host, &host_info));
   if (host_info.IsIPAddress() ||
@@ -60,7 +143,6 @@ std::string GetStringForOptimizationGuideDecision(
       return "False";
   }
   NOTREACHED();
-  return std::string();
 }
 
 optimization_guide::proto::OriginInfo GetClientOriginInfo() {
@@ -72,8 +154,9 @@ optimization_guide::proto::OriginInfo GetClientOriginInfo() {
 void LogFeatureFlagsInfo(OptimizationGuideLogger* optimization_guide_logger,
                          bool is_off_the_record,
                          PrefService* pref_service) {
-  if (!optimization_guide::switches::IsDebugLogsEnabled())
+  if (!optimization_guide::switches::IsDebugLogsEnabled()) {
     return;
+  }
   if (!optimization_guide::features::IsOptimizationHintsEnabled()) {
     OPTIMIZATION_GUIDE_LOG(
         optimization_guide_common::mojom::LogSource::SERVICE_AND_SETTINGS,
@@ -104,6 +187,35 @@ void LogFeatureFlagsInfo(OptimizationGuideLogger* optimization_guide_logger,
         optimization_guide_logger,
         "FEATURE_FLAG model downloading feature disabled");
   }
+}
+
+void PopulateAuthorizationRequestHeader(
+    network::ResourceRequest* resource_request,
+    std::string_view access_token) {
+  CHECK(!access_token.empty());
+  resource_request->headers.SetHeader(
+      net::HttpRequestHeaders::kAuthorization,
+      base::StrCat({kAuthHeaderBearer, access_token}));
+}
+
+void PopulateApiKeyRequestHeader(network::ResourceRequest* resource_request,
+                                 std::string_view api_key) {
+  CHECK(!api_key.empty());
+  google_apis::AddAPIKeyToRequest(*resource_request, api_key);
+}
+
+void PopulateServerTimeoutRequestHeader(
+    network::ResourceRequest* resource_request,
+    base::TimeDelta timeout) {
+  CHECK(timeout.is_positive());
+  resource_request->headers.SetHeader(
+      kServerTimeoutHeader, base::NumberToString(timeout.InSeconds()));
+}
+
+bool ShouldStartModelValidator() {
+  return switches::ShouldValidateModel() ||
+         switches::ShouldValidateModelExecution() ||
+         switches::GetOnDeviceValidationRequestOverride();
 }
 
 }  // namespace optimization_guide

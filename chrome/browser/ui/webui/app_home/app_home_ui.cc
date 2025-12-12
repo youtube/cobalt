@@ -7,12 +7,34 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/webui/app_home/app_home.mojom.h"
 #include "chrome/browser/ui/webui/app_home/app_home_page_handler.h"
-#include "chrome/browser/ui/webui/webui_util.h"
-#include "chrome/common/webui_url_constants.h"
+#include "chrome/browser/ui/webui/page_not_available_for_guest/page_not_available_for_guest_ui.h"
+#include "chrome/common/url_constants.h"
 #include "chrome/grit/app_home_resources.h"
 #include "chrome/grit/app_home_resources_map.h"
 #include "chrome/grit/generated_resources.h"
+#include "chrome/grit/theme_resources.h"
 #include "content/public/browser/web_ui_data_source.h"
+#include "extensions/browser/extension_system.h"
+#include "ui/base/resource/resource_bundle.h"
+#include "ui/webui/webui_util.h"
+
+bool AppHomeUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
+  Profile* profile = Profile::FromBrowserContext(browser_context);
+  return profile &&
+         extensions::ExtensionSystem::Get(profile)->extension_service() &&
+         !profile->IsGuestSession();
+}
+
+std::unique_ptr<content::WebUIController>
+AppHomeUIConfig::CreateWebUIController(content::WebUI* web_ui,
+                                       const GURL& url) {
+  Profile* profile = Profile::FromWebUI(web_ui);
+  if (profile->IsGuestSession()) {
+    return std::make_unique<PageNotAvailableForGuestUI>(
+        web_ui, chrome::kChromeUIAppLauncherPageHost);
+  }
+  return std::make_unique<webapps::AppHomeUI>(web_ui);
+}
 
 namespace webapps {
 
@@ -41,9 +63,8 @@ AppHomeUI::AppHomeUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       Profile::FromWebUI(web_ui), chrome::kChromeUIAppLauncherPageHost);
   AddAppHomeLocalizedStrings(source);
-  webui::SetupWebUIDataSource(
-      source, base::make_span(kAppHomeResources, kAppHomeResourcesSize),
-      IDR_APP_HOME_APP_HOME_HTML);
+  webui::SetupWebUIDataSource(source, kAppHomeResources,
+                              IDR_APP_HOME_APP_HOME_HTML);
 }
 
 void AppHomeUI::BindInterface(
@@ -51,6 +72,13 @@ void AppHomeUI::BindInterface(
   page_factory_receiver_.reset();
 
   page_factory_receiver_.Bind(std::move(receiver));
+}
+
+// static
+base::RefCountedMemory* AppHomeUI::GetFaviconResourceBytes(
+    ui::ResourceScaleFactor scale_factor) {
+  return ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytesForScale(
+      IDR_BOOKMARK_BAR_APPS_SHORTCUT, scale_factor);
 }
 
 void AppHomeUI::CreatePageHandler(

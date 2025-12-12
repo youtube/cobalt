@@ -67,14 +67,7 @@ SVGFilterElement::SVGFilterElement(Document& document)
                        SVGAnimatedEnumeration<SVGUnitTypes::SVGUnitType>>(
           this,
           svg_names::kPrimitiveUnitsAttr,
-          SVGUnitTypes::kSvgUnitTypeUserspaceonuse)) {
-  AddToPropertyMap(x_);
-  AddToPropertyMap(y_);
-  AddToPropertyMap(width_);
-  AddToPropertyMap(height_);
-  AddToPropertyMap(filter_units_);
-  AddToPropertyMap(primitive_units_);
-}
+          SVGUnitTypes::kSvgUnitTypeUserspaceonuse)) {}
 
 SVGFilterElement::~SVGFilterElement() = default;
 
@@ -92,15 +85,11 @@ void SVGFilterElement::Trace(Visitor* visitor) const {
 void SVGFilterElement::SvgAttributeChanged(
     const SvgAttributeChangedParams& params) {
   const QualifiedName& attr_name = params.name;
-  bool is_xywh =
-      attr_name == svg_names::kXAttr || attr_name == svg_names::kYAttr ||
-      attr_name == svg_names::kWidthAttr || attr_name == svg_names::kHeightAttr;
-  if (is_xywh)
-    UpdateRelativeLengthsInformation();
-
-  if (is_xywh || attr_name == svg_names::kFilterUnitsAttr ||
+  if (attr_name == svg_names::kXAttr || attr_name == svg_names::kYAttr ||
+      attr_name == svg_names::kWidthAttr ||
+      attr_name == svg_names::kHeightAttr ||
+      attr_name == svg_names::kFilterUnitsAttr ||
       attr_name == svg_names::kPrimitiveUnitsAttr) {
-    SVGElement::InvalidationGuard invalidation_guard(this);
     InvalidateFilterChain();
     return;
   }
@@ -131,10 +120,6 @@ void SVGFilterElement::ChildrenChanged(const ChildrenChange& change) {
   if (change.ByParser() && !AssociatedResource())
     return;
 
-  if (LayoutObject* object = GetLayoutObject()) {
-    object->SetNeedsLayoutAndFullPaintInvalidation(
-        layout_invalidation_reason::kChildChanged);
-  }
   InvalidateFilterChain();
 }
 
@@ -146,6 +131,43 @@ bool SVGFilterElement::SelfHasRelativeLengths() const {
   return x_->CurrentValue()->IsRelative() || y_->CurrentValue()->IsRelative() ||
          width_->CurrentValue()->IsRelative() ||
          height_->CurrentValue()->IsRelative();
+}
+
+SVGAnimatedPropertyBase* SVGFilterElement::PropertyFromAttribute(
+    const QualifiedName& attribute_name) const {
+  if (attribute_name == svg_names::kXAttr) {
+    return x_.Get();
+  } else if (attribute_name == svg_names::kYAttr) {
+    return y_.Get();
+  } else if (attribute_name == svg_names::kWidthAttr) {
+    return width_.Get();
+  } else if (attribute_name == svg_names::kHeightAttr) {
+    return height_.Get();
+  } else if (attribute_name == svg_names::kFilterUnitsAttr) {
+    return filter_units_.Get();
+  } else if (attribute_name == svg_names::kPrimitiveUnitsAttr) {
+    return primitive_units_.Get();
+  } else {
+    SVGAnimatedPropertyBase* ret =
+        SVGURIReference::PropertyFromAttribute(attribute_name);
+    if (ret) {
+      return ret;
+    } else {
+      return SVGElement::PropertyFromAttribute(attribute_name);
+    }
+  }
+}
+
+void SVGFilterElement::SynchronizeAllSVGAttributes() const {
+  SVGAnimatedPropertyBase* attrs[]{x_.Get(),
+                                   y_.Get(),
+                                   width_.Get(),
+                                   height_.Get(),
+                                   filter_units_.Get(),
+                                   primitive_units_.Get()};
+  SynchronizeListOfSVGAttributes(attrs);
+  SVGURIReference::SynchronizeAllSVGAttributes();
+  SVGElement::SynchronizeAllSVGAttributes();
 }
 
 }  // namespace blink

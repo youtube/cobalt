@@ -7,21 +7,17 @@
 #import <ChromeWebView/ChromeWebView.h>
 #import <Foundation/Foundation.h>
 
-#include "base/base64.h"
-#include "base/functional/bind.h"
+#import "base/base64.h"
+#import "base/functional/bind.h"
 #import "base/memory/ptr_util.h"
-#include "base/strings/stringprintf.h"
+#import "base/strings/stringprintf.h"
 #import "ios/web/common/uikit_ui_util.h"
 #import "ios/web_view/test/web_view_test_util.h"
-#include "net/base/url_util.h"
-#include "net/test/embedded_test_server/embedded_test_server.h"
-#include "net/test/embedded_test_server/http_request.h"
-#include "net/test/embedded_test_server/http_response.h"
-#include "testing/gtest/include/gtest/gtest.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "net/base/url_util.h"
+#import "net/test/embedded_test_server/embedded_test_server.h"
+#import "net/test/embedded_test_server/http_request.h"
+#import "net/test/embedded_test_server/http_response.h"
+#import "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 
@@ -51,9 +47,7 @@ bool StartsWith(std::string string, std::string prefix) {
 
 // Encodes the |string| for use as the value of a url parameter.
 std::string EncodeQueryParamValue(std::string string) {
-  std::string encoded_string;
-  base::Base64Encode(string, &encoded_string);
-  return encoded_string;
+  return base::Base64Encode(string);
 }
 
 // Decodes the |encoded_string|. Undoes the encoding performed by
@@ -109,10 +103,14 @@ std::unique_ptr<net::test_server::HttpResponse> TestRequestHandler(
 
 namespace ios_web_view {
 
-WebViewInttestBase::WebViewInttestBase()
-    : web_view_(test::CreateWebView()),
-      test_server_(std::make_unique<net::EmbeddedTestServer>(
-          net::test_server::EmbeddedTestServer::TYPE_HTTP)) {
+WebViewInttestBase::WebViewInttestBase() {
+  // Explicitly start global state machinery before accessing any CWV APIs.
+  [[CWVGlobalState sharedInstance] earlyInit];
+  [[CWVGlobalState sharedInstance] start];
+
+  web_view_ = test::CreateWebView();
+  test_server_ = std::make_unique<net::EmbeddedTestServer>(
+      net::test_server::EmbeddedTestServer::TYPE_HTTP);
   // The WKWebView must be present in the view hierarchy in order to prevent
   // WebKit optimizations which may pause internal parts of the web view
   // without notice. Work around this by adding the view directly.

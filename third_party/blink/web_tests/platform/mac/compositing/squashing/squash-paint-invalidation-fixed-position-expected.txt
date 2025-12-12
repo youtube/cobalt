@@ -7,27 +7,24 @@
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV",
+      "name": "LayoutBlockFlow (positioned) DIV",
       "bounds": [100, 5000],
       "contentsOpaque": true,
       "backgroundColor": "#ADD8E6",
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV",
+      "name": "LayoutBlockFlow (positioned) DIV",
       "bounds": [100, 100],
       "contentsOpaque": true,
       "backgroundColor": "#D3D3D3",
       "transform": 2
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV id='foo'",
+      "name": "LayoutBlockFlow (positioned) DIV id='foo'",
       "bounds": [100, 100],
       "contentsOpaque": true,
       "backgroundColor": "#FF0000",
-      "invalidations": [
-        [0, 0, 100, 100]
-      ],
       "transform": 3
     }
   ],
@@ -70,27 +67,24 @@
       "backgroundColor": "#FFFFFF"
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV",
+      "name": "LayoutBlockFlow (positioned) DIV",
       "bounds": [100, 5000],
       "contentsOpaque": true,
       "backgroundColor": "#ADD8E6",
       "transform": 1
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV",
+      "name": "LayoutBlockFlow (positioned) DIV",
       "bounds": [100, 100],
       "contentsOpaque": true,
       "backgroundColor": "#D3D3D3",
       "transform": 2
     },
     {
-      "name": "LayoutNGBlockFlow (positioned) DIV id='foo'",
+      "name": "LayoutBlockFlow (positioned) DIV id='foo'",
       "bounds": [100, 100],
       "contentsOpaque": true,
       "backgroundColor": "#0000FF",
-      "invalidations": [
-        [0, 0, 100, 100]
-      ],
       "transform": 3
     }
   ],

@@ -4,8 +4,10 @@
 
 #include "ash/wallpaper/wallpaper_utils/wallpaper_online_variant_utils.h"
 
+#include <algorithm>
+
 #include "ash/public/cpp/wallpaper/online_wallpaper_variant.h"
-#include "base/ranges/algorithm.h"
+#include "ash/wallpaper/wallpaper_constants.h"
 
 namespace ash {
 
@@ -25,9 +27,9 @@ bool IsSuitableOnlineWallpaperVariantInternal(
   }
   switch (checkpoint) {
     case ScheduleCheckpoint::kSunrise:
+      return variant.type == backdrop::Image_ImageType_IMAGE_TYPE_LIGHT_MODE;
     // `kDisabled` is equivalent to Light mode.
     case ScheduleCheckpoint::kDisabled:
-      return variant.type == backdrop::Image_ImageType_IMAGE_TYPE_LIGHT_MODE;
     case ScheduleCheckpoint::kMorning:
       return variant.type ==
                  backdrop::Image_ImageType_IMAGE_TYPE_MORNING_MODE ||
@@ -58,7 +60,7 @@ const OnlineWallpaperVariant* FirstValidVariant(
     ScheduleCheckpoint checkpoint) {
   // Attempt to find the exact 1:1 match for |variant| and |checkpoint|.
   auto iter =
-      base::ranges::find_if(variants, [checkpoint](const auto& variant) {
+      std::ranges::find_if(variants, [checkpoint](const auto& variant) {
         return IsSuitableOnlineWallpaperVariantInternal(
             variant, checkpoint,
             /*match_subtype=*/false);
@@ -67,7 +69,7 @@ const OnlineWallpaperVariant* FirstValidVariant(
     return &(*iter);
   }
   // Attempt to find a subtype |variant| for |checkpoint|.
-  iter = base::ranges::find_if(variants, [checkpoint](const auto& variant) {
+  iter = std::ranges::find_if(variants, [checkpoint](const auto& variant) {
     return IsSuitableOnlineWallpaperVariantInternal(variant, checkpoint,
                                                     /*match_subtype=*/true);
   });
@@ -77,15 +79,8 @@ const OnlineWallpaperVariant* FirstValidVariant(
   return nullptr;
 }
 
-bool IsTimeOfDayWallpaper(const WallpaperInfo& wallpaper_info) {
-  const std::vector<OnlineWallpaperVariant>& variants = wallpaper_info.variants;
-  return base::ranges::any_of(
-      variants, [](const OnlineWallpaperVariant& variant) {
-        return variant.type ==
-                   backdrop::Image_ImageType_IMAGE_TYPE_MORNING_MODE ||
-               variant.type ==
-                   backdrop::Image_ImageType_IMAGE_TYPE_LATE_AFTERNOON_MODE;
-      });
+bool IsTimeOfDayWallpaper(const std::string& collection_id) {
+  return collection_id == wallpaper_constants::kTimeOfDayWallpaperCollectionId;
 }
 
 }  // namespace ash

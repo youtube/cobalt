@@ -3,30 +3,28 @@
 // found in the LICENSE file.
 
 #include "third_party/blink/renderer/core/css/css_syntax_string_parser.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/core/css/css_syntax_component.h"
-#include "third_party/blink/renderer/platform/testing/runtime_enabled_features_test_helpers.h"
 
 namespace blink {
 
 class CSSSyntaxStringParserTest : public testing::Test {
  public:
-  absl::optional<CSSSyntaxComponent> ParseSingleComponent(
-      const String& syntax) {
+  std::optional<CSSSyntaxComponent> ParseSingleComponent(const String& syntax) {
     auto definition = CSSSyntaxStringParser(syntax).Parse();
     if (!definition) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     if (definition->Components().size() != 1) {
-      return absl::nullopt;
+      return std::nullopt;
     }
     return definition->Components()[0];
   }
 
-  absl::optional<CSSSyntaxType> ParseSingleType(const String& syntax) {
+  std::optional<CSSSyntaxType> ParseSingleType(const String& syntax) {
     auto component = ParseSingleComponent(syntax);
-    return component ? absl::make_optional(component->GetType())
-                     : absl::nullopt;
+    return component ? std::make_optional(component->GetType()) : std::nullopt;
   }
 
   String ParseSingleIdent(const String& syntax) {

@@ -4,28 +4,21 @@
 
 package org.chromium.mojo.bindings;
 
-/**
- * The header for a mojo complex element.
- */
+import org.chromium.build.annotations.NullMarked;
+
+/** The header for a mojo complex element. */
+@NullMarked
 public final class DataHeader {
-    /**
-     * The size of a serialized header, in bytes.
-     */
+    /** The size of a serialized header, in bytes. */
     public static final int HEADER_SIZE = 8;
 
-    /**
-     * The offset of the size field.
-     */
+    /** The offset of the size field. */
     public static final int SIZE_OFFSET = 0;
 
-    /**
-     * The offset of the number of fields field.
-     */
+    /** The offset of the number of fields field. */
     public static final int ELEMENTS_OR_VERSION_OFFSET = 4;
 
-    /**
-     * The size of the object owning this header.
-     */
+    /** The size of the object owning this header. */
     public final int size;
 
     /**
@@ -34,9 +27,7 @@ public final class DataHeader {
      */
     public final int elementsOrVersion;
 
-    /**
-     * Constructor.
-     */
+    /** Constructor. */
     public DataHeader(int size, int elementsOrVersion) {
         super();
         this.size = size;

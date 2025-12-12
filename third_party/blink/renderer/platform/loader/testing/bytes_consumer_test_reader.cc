@@ -16,18 +16,14 @@ BytesConsumerTestReader::BytesConsumerTestReader(BytesConsumer* consumer)
 
 void BytesConsumerTestReader::OnStateChange() {
   while (true) {
-    const char* buffer = nullptr;
-    size_t available = 0;
-    auto result = consumer_->BeginRead(&buffer, &available);
+    base::span<const char> buffer;
+    auto result = consumer_->BeginRead(buffer);
     if (result == BytesConsumer::Result::kShouldWait)
       return;
     if (result == BytesConsumer::Result::kOk) {
-      // We don't use |available| as-is to test cases where endRead
-      // is called with a number smaller than |available|. We choose 3
-      // because of the same reasons as Reader::onStateChange.
       wtf_size_t read =
-          static_cast<wtf_size_t>(std::min(static_cast<size_t>(3), available));
-      data_.Append(buffer, read);
+          static_cast<wtf_size_t>(std::min(max_chunk_size_, buffer.size()));
+      data_.AppendSpan(buffer.first(read));
       result = consumer_->EndRead(read);
     }
     DCHECK_NE(result, BytesConsumer::Result::kShouldWait);

@@ -20,7 +20,6 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_list_observer.h"
 #include "chrome/browser/ui/browser_window.h"
-#include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "content/public/test/browser_test.h"
 #include "ui/display/types/display_constants.h"
@@ -49,7 +48,7 @@ class Waiter : public BrowserListObserver {
   }
 
   base::OnceClosure callback_;
-  raw_ptr<Browser, ExperimentalAsh> browser_ = nullptr;
+  raw_ptr<Browser> browser_ = nullptr;
 };
 }  // namespace
 
@@ -91,9 +90,9 @@ class AppShortcutShelfItemControllerBrowserTest : public InProcessBrowserTest {
                                                    base::NullCallback());
   }
 
-  raw_ptr<ChromeShelfController, ExperimentalAsh> controller_;
+  raw_ptr<ChromeShelfController, DanglingUntriaged> controller_;
 
-  web_app::AppId app_id_;
+  webapps::AppId app_id_;
   ash::ShelfID app_shelf_id_;
 };
 

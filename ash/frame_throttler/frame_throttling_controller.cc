@@ -4,18 +4,18 @@
 
 #include "ash/frame_throttler/frame_throttling_controller.h"
 
+#include <algorithm>
 #include <utility>
 
-#include "ash/constants/app_types.h"
-#include "ash/constants/ash_switches.h"
 #include "ash/public/cpp/window_properties.h"
 #include "ash/shell.h"
 #include "ash/wm/mru_window_tracker.h"
-#include "base/command_line.h"
 #include "base/logging.h"
+#include "base/memory/raw_ptr.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/ranges/algorithm.h"
 #include "base/strings/string_number_conversions.h"
+#include "chromeos/ui/base/app_types.h"
+#include "chromeos/ui/base/window_properties.h"
 #include "components/viz/common/surfaces/frame_sink_id.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "ui/aura/client/aura_constants.h"
@@ -26,13 +26,23 @@ namespace ash {
 
 namespace {
 
+std::unique_ptr<ThottleControllerWindowDelegate> instance = nullptr;
+
+viz::FrameSinkId GetFrameSinkId(const aura::Window* window) {
+  if (instance) {
+    return instance->GetFrameSinkIdForWindow(window);
+  }
+  return window->GetFrameSinkId();
+}
+
 void CollectFrameSinkIds(const aura::Window* window,
                          base::flat_set<viz::FrameSinkId>* frame_sink_ids) {
-  if (window->GetFrameSinkId().is_valid()) {
-    frame_sink_ids->insert(window->GetFrameSinkId());
+  auto id = GetFrameSinkId(window);
+  if (id.is_valid()) {
+    frame_sink_ids->insert(id);
     return;
   }
-  for (auto* child : window->children()) {
+  for (aura::Window* child : window->children()) {
     CollectFrameSinkIds(child, frame_sink_ids);
   }
 }
@@ -46,22 +56,26 @@ void CollectBrowserFrameSinkIdsInWindow(
     bool inside_browser,
     const base::flat_set<viz::FrameSinkId>& ids,
     base::flat_set<viz::FrameSinkId>* frame_sink_ids) {
-  if (inside_browser || ash::AppType::BROWSER ==
-                            static_cast<ash::AppType>(
-                                window->GetProperty(aura::client::kAppType))) {
-    const auto& id = window->GetFrameSinkId();
+  if (inside_browser || chromeos::AppType::BROWSER ==
+                            window->GetProperty(chromeos::kAppTypeKey)) {
+    auto id = GetFrameSinkId(window);
     if (id.is_valid() && ids.contains(id))
       frame_sink_ids->insert(id);
     inside_browser = true;
   }
 
-  for (auto* child : window->children()) {
+  for (aura::Window* child : window->children()) {
     CollectBrowserFrameSinkIdsInWindow(child, inside_browser, ids,
                                        frame_sink_ids);
   }
 }
 
 }  // namespace
+
+void SetThottleControllerWindowDelegate(
+    std::unique_ptr<ThottleControllerWindowDelegate> delegate) {
+  instance = std::move(delegate);
+}
 
 ThrottleCandidates::ThrottleCandidates() = default;
 
@@ -73,32 +87,19 @@ ThrottleCandidates& ThrottleCandidates::operator=(const ThrottleCandidates&) =
     default;
 
 bool ThrottleCandidates::IsEmpty() const {
-  return browser_frame_sink_ids.empty() && lacros_candidates.empty();
+  return browser_frame_sink_ids.empty();
 }
 
 void FrameThrottlingController::ResetThrottleCandidates(
     ThrottleCandidates* candidates) {
   candidates->browser_frame_sink_ids.clear();
-  for (auto& lacros_candidate : candidates->lacros_candidates) {
-    // Reset the window property for frame rate throttling.
-    lacros_candidate.first->SetProperty(ash::kFrameRateThrottleKey, false);
-  }
-  candidates->lacros_candidates.clear();
 }
 
 FrameThrottlingController::FrameThrottlingController(
     viz::HostFrameSinkManager* host_frame_sink_manager)
     : host_frame_sink_manager_(host_frame_sink_manager) {
   DCHECK(host_frame_sink_manager_);
-  int default_fps = kDefaultThrottleFps;
-  const base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
-  if (cl->HasSwitch(switches::kFrameThrottleFps)) {
-    if (!base::StringToInt(cl->GetSwitchValueASCII(switches::kFrameThrottleFps),
-                           &default_fps)) {
-      default_fps = kDefaultThrottleFps;
-    }
-  }
-  default_throttled_frame_interval_ = base::Hertz(default_fps);
+  default_throttled_frame_interval_ = base::Hertz(kDefaultThrottleFps);
   current_throttled_frame_interval_ = default_throttled_frame_interval_;
 }
 
@@ -107,7 +108,7 @@ FrameThrottlingController::~FrameThrottlingController() {
 }
 
 void FrameThrottlingController::StartThrottling(
-    const std::vector<aura::Window*>& windows,
+    const std::vector<raw_ptr<aura::Window, VectorExperimental>>& windows,
     base::TimeDelta requested_frame_interval) {
   latest_custom_throttled_frame_interval_ = requested_frame_interval;
 
@@ -118,31 +119,25 @@ void FrameThrottlingController::StartThrottling(
     return;
 
   std::vector<aura::Window*> all_arc_windows;
-  base::ranges::copy_if(
+  std::ranges::copy_if(
       Shell::Get()->mru_window_tracker()->BuildMruWindowList(kActiveDesk),
       std::back_inserter(all_arc_windows), [](aura::Window* window) {
-        return ash::AppType::ARC_APP ==
-               static_cast<ash::AppType>(
-                   window->GetProperty(aura::client::kAppType));
+        return chromeos::AppType::ARC_APP ==
+               window->GetProperty(chromeos::kAppTypeKey);
       });
 
   std::vector<aura::Window*> arc_windows;
   arc_windows.reserve(windows.size());
-  for (auto* window : windows) {
-    ash::AppType type =
-        static_cast<ash::AppType>(window->GetProperty(aura::client::kAppType));
+  for (aura::Window* window : windows) {
+    chromeos::AppType type = window->GetProperty(chromeos::kAppTypeKey);
     switch (type) {
-      case ash::AppType::NON_APP:
-      case ash::AppType::BROWSER:
+      case chromeos::AppType::NON_APP:
+      case chromeos::AppType::BROWSER:
         CollectFrameSinkIds(
             window, &manually_throttled_candidates_.browser_frame_sink_ids);
         break;
-      case ash::AppType::ARC_APP:
+      case chromeos::AppType::ARC_APP:
         arc_windows.push_back(window);
-        break;
-      case ash::AppType::LACROS:
-        CollectLacrosCandidates(
-            window, &manually_throttled_candidates_.lacros_candidates, window);
         break;
       default:
         break;
@@ -153,10 +148,6 @@ void FrameThrottlingController::StartThrottling(
   if (!manually_throttled_candidates_.IsEmpty()) {
     SetWindowsManuallyThrottled(true);
     UpdateThrottlingOnFrameSinks();
-    for (const auto& lacros_candidate :
-         manually_throttled_candidates_.lacros_candidates) {
-      lacros_candidate.first->SetProperty(ash::kFrameRateThrottleKey, true);
-    }
   }
 
   // Do not throttle arc if at least one arc window should not be throttled.
@@ -202,44 +193,15 @@ void FrameThrottlingController::OnCompositingFrameSinksToThrottleUpdated(
   const aura::Window* window = window_tree_host->window();
   CollectBrowserFrameSinkIdsInWindow(window, false, ids,
                                      &candidates.browser_frame_sink_ids);
-  CollectLacrosWindowsInWindow(const_cast<aura::Window*>(window), false, ids,
-                               &candidates.lacros_candidates);
   UpdateThrottlingOnFrameSinks();
-  for (auto& lacros_candidate : candidates.lacros_candidates)
-    lacros_candidate.first->SetProperty(ash::kFrameRateThrottleKey, true);
 }
 
 void FrameThrottlingController::OnWindowDestroying(aura::Window* window) {
-  if (window->IsRootWindow()) {
-    auto it = host_to_candidates_map_.find(window->GetHost());
-    if (it != host_to_candidates_map_.end()) {
-      for (auto& lacros_candidate : it->second.lacros_candidates) {
-        lacros_candidate.first->SetProperty(ash::kFrameRateThrottleKey, false);
-        lacros_candidate.first->RemoveObserver(this);
-      }
-      host_to_candidates_map_.erase(it);
-      UpdateThrottlingOnFrameSinks();
-    }
-  } else {
-    bool window_removed = false;
-    for (auto& host_to_candidates : host_to_candidates_map_) {
-      auto& lacros_candidates = host_to_candidates.second.lacros_candidates;
-      auto it = lacros_candidates.find(window);
-      if (it != lacros_candidates.end()) {
-        window_removed = true;
-        lacros_candidates.erase(it);
-      }
-    }
-    auto& manually_throttled_lacros_candidates =
-        manually_throttled_candidates_.lacros_candidates;
-    auto it = manually_throttled_lacros_candidates.find(window);
-    if (it != manually_throttled_lacros_candidates.end()) {
-      window_removed = true;
-      manually_throttled_lacros_candidates.erase(it);
-    }
-
-    if (window_removed)
-      UpdateThrottlingOnFrameSinks();
+  CHECK(window->IsRootWindow());
+  auto it = host_to_candidates_map_.find(window->GetHost());
+  if (it != host_to_candidates_map_.end()) {
+    host_to_candidates_map_.erase(it);
+    UpdateThrottlingOnFrameSinks();
   }
   window->RemoveObserver(this);
 }
@@ -259,10 +221,6 @@ FrameThrottlingController::GetFrameSinkIdsToThrottle() const {
     ids_to_throttle.insert(ids_to_throttle.end(),
                            pair.second.browser_frame_sink_ids.begin(),
                            pair.second.browser_frame_sink_ids.end());
-    // insert the frame sink ids for lacros windows.
-    for (const auto& candidate : pair.second.lacros_candidates) {
-      ids_to_throttle.push_back(candidate.second);
-    }
   }
   // Add frame sink ids from special ui modes.
   if (!manually_throttled_candidates_.IsEmpty()) {
@@ -270,10 +228,6 @@ FrameThrottlingController::GetFrameSinkIdsToThrottle() const {
         ids_to_throttle.end(),
         manually_throttled_candidates_.browser_frame_sink_ids.begin(),
         manually_throttled_candidates_.browser_frame_sink_ids.end());
-    for (const auto& lacros_candidate :
-         manually_throttled_candidates_.lacros_candidates) {
-      ids_to_throttle.push_back(lacros_candidate.second);
-    }
   }
   return ids_to_throttle;
 }
@@ -321,52 +275,6 @@ void FrameThrottlingController::RemoveArcObserver(
 bool FrameThrottlingController::HasArcObserver(
     FrameThrottlingObserver* observer) {
   return arc_observers_.HasObserver(observer);
-}
-
-void FrameThrottlingController::CollectLacrosWindowsInWindow(
-    aura::Window* window,
-    bool inside_lacros,
-    const base::flat_set<viz::FrameSinkId>& ids,
-    base::flat_map<aura::Window*, viz::FrameSinkId>* candidates,
-    aura::Window* lacros_window) {
-  if (ash::AppType::LACROS ==
-      static_cast<ash::AppType>(window->GetProperty(aura::client::kAppType))) {
-    DCHECK(!lacros_window);
-    lacros_window = window;
-    inside_lacros = true;
-  }
-
-  if (inside_lacros) {
-    const auto& id = window->GetFrameSinkId();
-    if (id.is_valid() && ids.contains(id)) {
-      DCHECK(lacros_window);
-      candidates->insert(std::make_pair(lacros_window, id));
-      if (!lacros_window->HasObserver(this))
-        lacros_window->AddObserver(this);
-      return;
-    }
-  }
-
-  for (auto* child : window->children()) {
-    CollectLacrosWindowsInWindow(child, inside_lacros, ids, candidates,
-                                 lacros_window);
-  }
-}
-
-void FrameThrottlingController::CollectLacrosCandidates(
-    aura::Window* window,
-    base::flat_map<aura::Window*, viz::FrameSinkId>* candidates,
-    aura::Window* lacros_window) {
-  const auto& id = window->GetFrameSinkId();
-  if (id.is_valid()) {
-    DCHECK(lacros_window);
-    candidates->insert(std::make_pair(lacros_window, id));
-    if (!lacros_window->HasObserver(this))
-      lacros_window->AddObserver(this);
-    return;
-  }
-  for (auto* child : window->children())
-    CollectLacrosCandidates(child, candidates, lacros_window);
 }
 
 bool FrameThrottlingController::HasCompositingBasedThrottling() const {

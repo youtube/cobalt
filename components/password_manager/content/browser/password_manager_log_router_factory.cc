@@ -6,7 +6,7 @@
 
 #include "components/autofill/core/browser/logging/log_router.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
-#include "components/password_manager/core/common/password_manager_features.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 
 namespace password_manager {
 
@@ -37,9 +37,10 @@ PasswordManagerLogRouterFactory::PasswordManagerLogRouterFactory()
 
 PasswordManagerLogRouterFactory::~PasswordManagerLogRouterFactory() = default;
 
-KeyedService* PasswordManagerLogRouterFactory::BuildServiceInstanceFor(
+std::unique_ptr<KeyedService>
+PasswordManagerLogRouterFactory::BuildServiceInstanceForBrowserContext(
     content::BrowserContext* /* context */) const {
-  return new LogRouter();
+  return std::make_unique<LogRouter>();
 }
 
 }  // namespace password_manager

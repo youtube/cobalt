@@ -12,7 +12,6 @@
 #include <fuzzer/FuzzedDataProvider.h>
 
 #include "base/logging.h"
-#include "base/strings/string_piece.h"
 #include "extensions/browser/api/web_request/form_data_parser.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
@@ -26,7 +25,7 @@ class Environment {
  public:
   Environment() {
     // Disable noisy logging.
-    logging::SetMinLogLevel(logging::LOG_FATAL);
+    logging::SetMinLogLevel(logging::LOGGING_FATAL);
   }
 };
 
@@ -55,8 +54,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   std::vector<std::string> sources;
   for (;;) {
     std::string source = provider.ConsumeRandomLengthString();
-    if (source.empty())
+    if (source.empty()) {
       break;
+    }
     sources.push_back(std::move(source));
   }
 
@@ -79,8 +79,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       break;
     }
   }
-  if (!parser)
+  if (!parser) {
     return 0;
+  }
 
   // Run the parser.
   for (const auto& source : sources) {

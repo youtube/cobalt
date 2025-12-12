@@ -209,7 +209,7 @@ class GitRecipesMixin(object):
                 cq_dry_run=False, set_bot_commit=False, bypass_hooks=False,
                 cc="", tbr_reviewer="", no_autocc=False, message_file=None,
                 **kwargs):
-    args = ["cl upload --send-mail --no-python2-post-upload-hooks"]
+    args = ["cl upload --send-mail"]
     if reviewer:
       args += ["-r", Quoted(reviewer)]
     if tbr_reviewer:
@@ -234,13 +234,13 @@ class GitRecipesMixin(object):
     # base files were uploaded, if not retry.
     self.Git(MakeArgs(args), pipe=False, **kwargs)
 
-  def GitCommit(self, message="", file_name="", author=None, **kwargs):
+  def GitCommit(self, message="", file_name="", author=None, prefix=None, **kwargs):
     assert message or file_name
-    args = ["commit"]
+    args = (prefix or []) + ["commit"]
     if file_name:
       args += ["-aF", Quoted(file_name)]
     if message:
-      args += ["-am", Quoted(message)]
+      args += ["-m", Quoted(message)]
     if author:
       args += ["--author", "\"%s <%s>\"" % (author, author)]
     self.Git(MakeArgs(args), **kwargs)

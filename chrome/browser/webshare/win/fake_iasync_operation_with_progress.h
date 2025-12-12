@@ -57,14 +57,12 @@ class FakeIAsyncOperationWithProgress final
                                                                TProgress>*
           handler) final {
     NOTREACHED();
-    return E_NOTIMPL;
   }
   IFACEMETHODIMP get_Progress(
       ABI::Windows::Foundation::IAsyncOperationProgressHandler<TResult,
                                                                TProgress>**
           handler) final {
     NOTREACHED();
-    return E_NOTIMPL;
   }
   IFACEMETHODIMP put_Completed(
       ABI::Windows::Foundation::IAsyncOperationWithProgressCompletedHandler<
@@ -81,7 +79,6 @@ class FakeIAsyncOperationWithProgress final
           TResult,
           TProgress>** handler) final {
     NOTREACHED();
-    return E_NOTIMPL;
   }
   IFACEMETHODIMP GetResults(
       internal::AsyncOperationWithProgressAbi<TResult, TProgress>* results)
@@ -97,10 +94,7 @@ class FakeIAsyncOperationWithProgress final
   }
 
   // ABI::Windows::Foundation::IAsyncInfo:
-  IFACEMETHODIMP get_Id(uint32_t* id) final {
-    NOTREACHED();
-    return E_NOTIMPL;
-  }
+  IFACEMETHODIMP get_Id(uint32_t* id) final { NOTREACHED(); }
   IFACEMETHODIMP get_Status(AsyncStatus* status) final {
     *status = status_;
     return S_OK;
@@ -109,14 +103,8 @@ class FakeIAsyncOperationWithProgress final
     *error_code = error_code_;
     return S_OK;
   }
-  IFACEMETHODIMP Cancel() final {
-    NOTREACHED();
-    return E_NOTIMPL;
-  }
-  IFACEMETHODIMP Close() final {
-    NOTREACHED();
-    return E_NOTIMPL;
-  }
+  IFACEMETHODIMP Cancel() final { NOTREACHED(); }
+  IFACEMETHODIMP Close() final { NOTREACHED(); }
 
   // Completes the operation with |error_code|.
   //

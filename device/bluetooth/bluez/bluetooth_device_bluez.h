@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
@@ -64,7 +65,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceBlueZ
   uint16_t GetProductID() const override;
   uint16_t GetDeviceID() const override;
   uint16_t GetAppearance() const override;
-  absl::optional<std::string> GetName() const override;
+  std::optional<std::string> GetName() const override;
   bool IsPaired() const override;
 #if BUILDFLAG(IS_CHROMEOS)
   bool IsBonded() const override;
@@ -74,8 +75,8 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceBlueZ
   bool IsConnectable() const override;
   bool IsConnecting() const override;
   UUIDSet GetUUIDs() const override;
-  absl::optional<int8_t> GetInquiryRSSI() const override;
-  absl::optional<int8_t> GetInquiryTxPower() const override;
+  std::optional<int8_t> GetInquiryRSSI() const override;
+  std::optional<int8_t> GetInquiryTxPower() const override;
   bool ExpectingPinCode() const override;
   bool ExpectingPasskey() const override;
   bool ExpectingConfirmation() const override;
@@ -193,7 +194,7 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceBlueZ
  protected:
   // BluetoothDevice override
   void CreateGattConnectionImpl(
-      absl::optional<device::BluetoothUUID> service_uuid) override;
+      std::optional<device::BluetoothUUID> service_uuid) override;
   void DisconnectGatt() override;
 
  private:
@@ -310,7 +311,8 @@ class DEVICE_BLUETOOTH_EXPORT BluetoothDeviceBlueZ
 
   // Keeps track of all services for which we've called
   // NotifyGattDiscoveryComplete().
-  std::unordered_set<device::BluetoothRemoteGattService*>
+  std::unordered_set<
+      raw_ptr<device::BluetoothRemoteGattService, CtnExperimental>>
       discovery_complete_notified_;
 
   // UI thread task runner and socket thread object used to create sockets.

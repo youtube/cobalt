@@ -2,7 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/features.gni")
 import("//build/config/linux/gtk/gtk.gni")
 import("//build/config/linux/pkg_config.gni")
@@ -12,8 +11,8 @@ import("//printing/buildflags/buildflags.gni")
 import("//testing/test.gni")
 import("//tools/generate_stubs/rules.gni")
 
-assert(is_linux || is_chromeos_lacros || is_chromeos,
-       "This file should only be referenced on Linux")
+assert(is_linux || is_chromeos,
+       "This file should only be referenced on Linux or Chrome OS")
 assert(use_gio, "GIO is required for building with GTK")
 
 source_set("gtk_types") {
@@ -124,6 +123,8 @@ component("gtk") {
     "//ui/aura",
     "//ui/base",
     "//ui/base:buildflags",
+    "//ui/base:ozone_buildflags",
+    "//ui/base/glib",
     "//ui/base/ime",
     "//ui/base/ime/linux",
     "//ui/color",

@@ -4,12 +4,12 @@
 
 #include "chrome/credential_provider/gaiacp/os_process_manager.h"
 
-#include <Windows.h>
+#include <windows.h>
+#include <winternl.h>
 
 #include <MDMRegistration.h>
-#include <Shellapi.h>  // For CommandLineToArgvW()
+#include <Shellapi.h>
 #include <Shlobj.h>
-#include <Winternl.h>
 #include <aclapi.h>
 #include <atlconv.h>
 #include <dpapi.h>
@@ -19,20 +19,21 @@
 #include <security.h>
 #include <stdlib.h>
 #include <userenv.h>
-#include <wincred.h>
 
 #include <iomanip>
 #include <memory>
 
 #include "base/command_line.h"
+#include "base/compiler_specific.h"
 #include "base/files/file_path.h"
 #include "base/process/launch.h"
 #include "base/scoped_native_library.h"
-#include "base/strings/stringprintf.h"
+#include "base/strings/strcat_win.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/registry.h"
 #include "base/win/scoped_process_information.h"
 #include "base/win/win_util.h"
+#include "base/win/wincred_shim.h"
 #include "chrome/credential_provider/common/gcp_strings.h"
 #include "chrome/credential_provider/gaiacp/gcp_utils.h"
 #include "chrome/credential_provider/gaiacp/logging.h"
@@ -430,7 +431,7 @@ void OSProcessManager::SetInstanceForTesting(OSProcessManager* instance) {
   *GetInstanceStorage() = instance;
 }
 
-OSProcessManager::~OSProcessManager() {}
+OSProcessManager::~OSProcessManager() = default;
 
 HRESULT OSProcessManager::GetTokenLogonSID(const base::win::ScopedHandle& token,
                                            PSID* sid) {
@@ -448,8 +449,9 @@ HRESULT OSProcessManager::CreateProcessWithToken(
     base::win::ScopedProcessInformation* procinfo) {
   // CreateProcessWithTokenW() expects the command line to be non-const, so make
   // a copy here.
-  std::unique_ptr<wchar_t, void (*)(void*)>
-      cmdline(wcsdup(command_line.GetCommandLineString().c_str()), std::free);
+  std::unique_ptr<wchar_t, void (*)(void*)> cmdline(
+      UNSAFE_TODO(wcsdup(command_line.GetCommandLineString().c_str())),
+      std::free);
   PROCESS_INFORMATION temp_procinfo = {};
   if (!::CreateProcessWithTokenW(logon_token.Get(),
                                  LOGON_WITH_PROFILE,
@@ -475,9 +477,8 @@ HRESULT OSProcessManager::CreateRunningProcess(
   // code.  However this function is called to execute rundll32 which parses
   // command lines in a special way and fails when the first arg is double
   // quoted.  Therefore the command line is built manually here.
-  std::wstring unquoted_cmdline;
-  base::StringAppendF(&unquoted_cmdline, L"\"%ls\"",
-                      command_line.GetProgram().value().c_str());
+  std::wstring unquoted_cmdline =
+      base::StrCat({L"\"", command_line.GetProgram().value(), L"\""});
   for (const auto& arg : command_line.GetArgs()) {
     unquoted_cmdline.append(FILE_PATH_LITERAL(" "));
     unquoted_cmdline.append(arg);

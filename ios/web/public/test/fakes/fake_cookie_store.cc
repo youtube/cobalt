@@ -4,9 +4,10 @@
 
 #include "ios/web/public/test/fakes/fake_cookie_store.h"
 
+#include <optional>
+
 #include "ios/web/public/thread/web_task_traits.h"
 #include "ios/web/public/thread/web_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace web {
 
@@ -29,7 +30,13 @@ void FakeCookieStore::SetCanonicalCookieAsync(
     const GURL& source_url,
     const net::CookieOptions& options,
     SetCookiesCallback callback,
-    absl::optional<net::CookieAccessResult> cookie_access_result) {
+    std::optional<net::CookieAccessResult> cookie_access_result) {
+  NOTIMPLEMENTED() << "Implement this if necessary.";
+}
+
+void FakeCookieStore::SetUnsafeCanonicalCookieForTestAsync(
+    std::unique_ptr<net::CanonicalCookie> cookie,
+    SetCookiesCallback callback) {
   NOTIMPLEMENTED() << "Implement this if necessary.";
 }
 
@@ -73,7 +80,7 @@ void FakeCookieStore::FlushStore(base::OnceClosure callback) {
 }
 
 void FakeCookieStore::SetCookieableSchemes(
-    const std::vector<std::string>& schemes,
+    std::vector<std::string> schemes,
     SetCookieableSchemesCallback callback) {
   NOTIMPLEMENTED() << "Implement this if necessary.";
 }
@@ -83,9 +90,6 @@ net::CookieChangeDispatcher& FakeCookieStore::GetChangeDispatcher() {
   // SEGV in the next line anyways. Crashing here with a more friendly error
   // message is preferred.
   NOTREACHED() << "Not implemented. Implement this if necessary.";
-  // Perform a crazy thing here just to make the compiler happy. It doesn't
-  // matter because it should never reach here.
-  return *reinterpret_cast<net::CookieChangeDispatcher*>(this);
 }
 
 }  // namespace web

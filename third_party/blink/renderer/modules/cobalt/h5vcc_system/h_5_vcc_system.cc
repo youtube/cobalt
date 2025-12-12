@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
+
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h"
@@ -27,9 +28,10 @@ H5vccSystem::H5vccSystem(LocalDOMWindow& window)
 
 void H5vccSystem::ContextDestroyed() {}
 
-ScriptPromise H5vccSystem::getAdvertisingId(ScriptState* script_state,
-                                            ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLString> H5vccSystem::getAdvertisingId(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -41,7 +43,7 @@ ScriptPromise H5vccSystem::getAdvertisingId(ScriptState* script_state,
   return resolver->Promise();
 }
 
-void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver* resolver,
+void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver<IDLString>* resolver,
                                      const String& result) {
   resolver->Resolve(result);
 }
@@ -52,9 +54,10 @@ const String& H5vccSystem::advertisingId() {
   return advertising_id_;
 }
 
-ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
-                                              ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+ScriptPromise<IDLBoolean> H5vccSystem::getLimitAdTracking(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLBoolean>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -66,8 +69,9 @@ ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
   return resolver->Promise();
 }
 
-void H5vccSystem::OnGetLimitAdTracking(ScriptPromiseResolver* resolver,
-                                       bool result) {
+void H5vccSystem::OnGetLimitAdTracking(
+    ScriptPromiseResolver<IDLBoolean>* resolver,
+    bool result) {
   resolver->Resolve(result);
 }
 
@@ -78,10 +82,10 @@ absl::optional<bool> H5vccSystem::limitAdTracking() {
   return limit_ad_tracking;
 }
 
-ScriptPromise H5vccSystem::getTrackingAuthorizationStatus(
+ScriptPromise<IDLString> H5vccSystem::getTrackingAuthorizationStatus(
     ScriptState* script_state,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -94,7 +98,7 @@ ScriptPromise H5vccSystem::getTrackingAuthorizationStatus(
 }
 
 void H5vccSystem::OnGetTrackingAuthorizationStatus(
-    ScriptPromiseResolver* resolver,
+    ScriptPromiseResolver<IDLString>* resolver,
     const String& result) {
   resolver->Resolve(result);
 }
@@ -106,10 +110,10 @@ const String& H5vccSystem::trackingAuthorizationStatus() {
   return tracking_authorization_status_;
 }
 
-ScriptPromise H5vccSystem::requestTrackingAuthorization(
+ScriptPromise<IDLUndefined> H5vccSystem::requestTrackingAuthorization(
     ScriptState* script_state,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
 
   EnsureReceiverIsBound();
@@ -122,7 +126,7 @@ ScriptPromise H5vccSystem::requestTrackingAuthorization(
 }
 
 void H5vccSystem::OnRequestTrackingAuthorization(
-    ScriptPromiseResolver* resolver) {
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   // TODO - b/395650827: Reject when this fails.
   resolver->Resolve();
 }
@@ -146,7 +150,7 @@ uint32_t H5vccSystem::userOnExitStrategy() {
     case h5vcc_system::mojom::blink::UserOnExitStrategy::kNoExit:
       return static_cast<uint32_t>(V8UserOnExitStrategy::Enum::kNoExit);
   }
-  NOTREACHED_NORETURN() << "Invalid userOnExitStrategy: " << strategy;
+  NOTREACHED() << "Invalid userOnExitStrategy: " << strategy;
 }
 
 void H5vccSystem::EnsureReceiverIsBound() {

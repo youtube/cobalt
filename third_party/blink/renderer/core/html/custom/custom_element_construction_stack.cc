@@ -4,11 +4,10 @@
 
 #include "third_party/blink/renderer/core/html/custom/custom_element_construction_stack.h"
 
-#include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
-#include "third_party/blink/renderer/core/html/custom/custom_element_definition.h"
 #include "third_party/blink/renderer/core/html/custom/custom_element_registry.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
+#include "third_party/blink/renderer/platform/heap/disallow_new_wrapper.h"
 
 namespace blink {
 
@@ -19,27 +18,28 @@ namespace {
 // construction stack.
 
 using ConstructorToStackMap =
-    HeapHashMap<Member<V8CustomElementConstructor>,
-                Member<CustomElementConstructionStack>,
-                V8CustomElementConstructorHashTraits>;
+    GCedHeapHashMap<Member<V8CustomElementConstructor>,
+                    Member<CustomElementConstructionStack>,
+                    V8CustomElementConstructorHashTraits>;
 
 using WindowMap =
     HeapHashMap<Member<const LocalDOMWindow>, Member<ConstructorToStackMap>>;
+using WindowMapHolder = DisallowNewWrapper<WindowMap>;
 
-Persistent<WindowMap>& GetWindowMap() {
+Persistent<WindowMapHolder>& GetWindowMapHolder() {
   // This map is created only when upgrading custom elements and cleared when it
   // finishes, so it never leaks. This is because construction stacks are
   // populated only during custom element upgrading.
-  DEFINE_STATIC_LOCAL(Persistent<WindowMap>, map, ());
-  return map;
+  DEFINE_STATIC_LOCAL(Persistent<WindowMapHolder>, holder, ());
+  return holder;
 }
 
 WindowMap& EnsureWindowMap() {
-  Persistent<WindowMap>& map = GetWindowMap();
-  if (!map) {
-    map = MakeGarbageCollected<WindowMap>();
+  Persistent<WindowMapHolder>& holder = GetWindowMapHolder();
+  if (!holder) {
+    holder = MakeGarbageCollected<WindowMapHolder>();
   }
-  return *map;
+  return holder->Value();
 }
 
 ConstructorToStackMap& EnsureConstructorToStackMap(
@@ -74,12 +74,13 @@ CustomElementConstructionStack& EnsureConstructionStack(
 CustomElementConstructionStack* GetCustomElementConstructionStack(
     const LocalDOMWindow* window,
     v8::Local<v8::Object> constructor) {
-  WindowMap* window_map = GetWindowMap();
-  if (!window_map) {
+  const auto& window_map_holder = GetWindowMapHolder();
+  if (!window_map_holder) {
     return nullptr;
   }
-  auto constructor_stack_map_iter = window_map->find(window);
-  if (constructor_stack_map_iter == window_map->end()) {
+  auto& window_map = window_map_holder->Value();
+  auto constructor_stack_map_iter = window_map.find(window);
+  if (constructor_stack_map_iter == window_map.end()) {
     return nullptr;
   }
   ConstructorToStackMap* constructor_stack_map =
@@ -100,7 +101,8 @@ CustomElementConstructionStackScope::CustomElementConstructionStackScope(
     Element& element)
     : construction_stack_(EnsureConstructionStack(definition)) {
   // Push the construction stack.
-  construction_stack_.push_back(&element);
+  construction_stack_.push_back(
+      CustomElementConstructionStackEntry(element, definition));
   ++nesting_level_;
 #if DCHECK_IS_ON()
   element_ = &element;
@@ -110,14 +112,15 @@ CustomElementConstructionStackScope::CustomElementConstructionStackScope(
 
 CustomElementConstructionStackScope::~CustomElementConstructionStackScope() {
 #if DCHECK_IS_ON()
-  DCHECK(!construction_stack_.back() || construction_stack_.back() == element_);
+  DCHECK(!construction_stack_.back().element ||
+         construction_stack_.back().element == element_);
   DCHECK_EQ(construction_stack_.size(), depth_);  // It's a *stack*.
 #endif
   // Pop the construction stack.
   construction_stack_.pop_back();
   // Clear the memory backing if all construction stacks are empty.
   if (--nesting_level_ == 0) {
-    GetWindowMap().Clear();
+    GetWindowMapHolder().Clear();
   }
 }
 

@@ -10,6 +10,7 @@
 #include "components/infobars/core/infobar.h"
 #include "components/infobars/core/infobar_container.h"
 #include "third_party/skia/include/core/SkPath.h"
+#include "ui/base/interaction/element_identifier.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/views/controls/menu/menu_types.h"
 #include "ui/views/focus/external_focus_tracker.h"
@@ -26,23 +27,23 @@ class MenuRunner;
 class InfoBarView : public infobars::InfoBar,
                     public views::View,
                     public views::ExternalFocusTracker {
+  METADATA_HEADER(InfoBarView, views::View)
+
  public:
-  METADATA_HEADER(InfoBarView);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kInfoBarElementId);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kDismissButtonElementId);
+
   explicit InfoBarView(std::unique_ptr<infobars::InfoBarDelegate> delegate);
   InfoBarView(const InfoBarView&) = delete;
   InfoBarView& operator=(const InfoBarView&) = delete;
   ~InfoBarView() override;
 
-  // Requests that the infobar recompute its target height.
-  void RecalculateHeight();
-
   // views::View:
-  void Layout() override;
-  void GetAccessibleNodeData(ui::AXNodeData* node_data) override;
-  gfx::Size CalculatePreferredSize() const override;
+  void Layout(PassKey) override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   void ViewHierarchyChanged(
       const views::ViewHierarchyChangedDetails& details) override;
-  void OnPaint(gfx::Canvas* canvas) override;
   void OnThemeChanged() override;
 
   // views::ExternalFocusTracker:

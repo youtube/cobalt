@@ -57,7 +57,7 @@ class SignedExchangeLoaderTest : public testing::Test {
     MOCK_METHOD3(OnReceiveResponse,
                  void(const network::mojom::URLResponseHeadPtr,
                       mojo::ScopedDataPipeConsumerHandle,
-                      absl::optional<mojo_base::BigBuffer>));
+                      std::optional<mojo_base::BigBuffer>));
     MOCK_METHOD2(OnReceiveRedirect,
                  void(const net::RedirectInfo&,
                       network::mojom::URLResponseHeadPtr));
@@ -86,12 +86,10 @@ class SignedExchangeLoaderTest : public testing::Test {
                  void(const std::vector<std::string>&,
                       const net::HttpRequestHeaders&,
                       const net::HttpRequestHeaders&,
-                      const absl::optional<GURL>&));
+                      const std::optional<GURL>&));
     MOCK_METHOD2(SetPriority,
                  void(net::RequestPriority priority,
                       int32_t intra_priority_value));
-    MOCK_METHOD0(PauseReadingBodyFromNet, void());
-    MOCK_METHOD0(ResumeReadingBodyFromNet, void());
 
    private:
     mojo::Receiver<network::mojom::URLLoader> receiver_;
@@ -114,6 +112,11 @@ TEST_F(SignedExchangeLoaderTest, Simple) {
 
   network::ResourceRequest resource_request;
   resource_request.url = GURL("https://example.com/test.sxg");
+  auto origin = url::Origin::Create(resource_request.url);
+  resource_request.trusted_params = network::ResourceRequest::TrustedParams();
+  resource_request.trusted_params->isolation_info = net::IsolationInfo::Create(
+      net::IsolationInfo::RequestType::kOther, origin, origin,
+      net::SiteForCookies::FromOrigin(origin));
 
   auto response = network::mojom::URLResponseHead::New();
   std::string headers("HTTP/1.1 200 OK\nnContent-type: foo/bar\n\n");
@@ -139,17 +142,9 @@ TEST_F(SignedExchangeLoaderTest, Simple) {
           network::mojom::kURLLoadOptionNone,
           false /* should_redirect_to_fallback */, nullptr /* devtools_proxy */,
           nullptr /* reporter */, nullptr /* url_loader_factory */,
-          SignedExchangeLoader::URLLoaderThrottlesGetter(),
-          net::NetworkAnonymizationKey(),
-          FrameTreeNode::kFrameTreeNodeInvalidId,
+          SignedExchangeLoader::URLLoaderThrottlesGetter(), FrameTreeNodeId(),
           std::string() /* accept_langs */,
           false /* keep_entry_for_prefetch_cache */);
-
-  EXPECT_CALL(mock_loader, PauseReadingBodyFromNet());
-  signed_exchange_loader->PauseReadingBodyFromNet();
-
-  EXPECT_CALL(mock_loader, ResumeReadingBodyFromNet());
-  signed_exchange_loader->ResumeReadingBodyFromNet();
 
   constexpr int kIntraPriority = 5;
   EXPECT_CALL(mock_loader,

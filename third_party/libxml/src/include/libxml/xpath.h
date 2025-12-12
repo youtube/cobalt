@@ -26,15 +26,10 @@
 #include <libxml/xmlerror.h>
 #include <libxml/tree.h>
 #include <libxml/hash.h>
-#endif /* LIBXML_XPATH_ENABLED */
 
-#if defined(LIBXML_XPATH_ENABLED) || defined(LIBXML_SCHEMAS_ENABLED)
 #ifdef __cplusplus
 extern "C" {
 #endif
-#endif /* LIBXML_XPATH_ENABLED or LIBXML_SCHEMAS_ENABLED */
-
-#ifdef LIBXML_XPATH_ENABLED
 
 typedef struct _xmlXPathContext xmlXPathContext;
 typedef xmlXPathContext *xmlXPathContextPtr;
@@ -104,22 +99,15 @@ typedef enum {
     XPATH_BOOLEAN = 2,
     XPATH_NUMBER = 3,
     XPATH_STRING = 4,
-#ifdef LIBXML_XPTR_LOCS_ENABLED
-    XPATH_POINT = 5,
-    XPATH_RANGE = 6,
-    XPATH_LOCATIONSET = 7,
-#endif
     XPATH_USERS = 8,
     XPATH_XSLT_TREE = 9  /* An XSLT value tree, non modifiable */
 } xmlXPathObjectType;
 
-#ifndef LIBXML_XPTR_LOCS_ENABLED
 /** DOC_DISABLE */
 #define XPATH_POINT 5
 #define XPATH_RANGE 6
 #define XPATH_LOCATIONSET 7
 /** DOC_ENABLE */
-#endif
 
 typedef struct _xmlXPathObject xmlXPathObject;
 typedef xmlXPathObject *xmlXPathObjectPtr;
@@ -400,7 +388,7 @@ struct _xmlXPathParserContext {
     int xptr;				/* it this an XPointer expression */
     xmlNodePtr         ancestor;	/* used for walking preceding axis */
 
-    int              valueFrame;        /* unused */
+    int              valueFrame;        /* always zero for compatibility */
 };
 
 /************************************************************************
@@ -413,8 +401,11 @@ struct _xmlXPathParserContext {
  * Objects and Nodesets handling
  */
 
+XML_DEPRECATED
 XMLPUBVAR double xmlXPathNAN;
+XML_DEPRECATED
 XMLPUBVAR double xmlXPathPINF;
+XML_DEPRECATED
 XMLPUBVAR double xmlXPathNINF;
 
 /* These macros may later turn into functions */
@@ -515,6 +506,10 @@ XMLPUBFUN xmlXPathContextPtr
 		    xmlXPathNewContext		(xmlDocPtr doc);
 XMLPUBFUN void
 		    xmlXPathFreeContext		(xmlXPathContextPtr ctxt);
+XMLPUBFUN void
+		    xmlXPathSetErrorHandler(xmlXPathContextPtr ctxt,
+					    xmlStructuredErrorFunc handler,
+					    void *context);
 XMLPUBFUN int
 		    xmlXPathContextSetCache(xmlXPathContextPtr ctxt,
 				            int active,
@@ -557,8 +552,7 @@ XMLPUBFUN int
 						 xmlXPathContextPtr ctxt);
 XMLPUBFUN void
 		    xmlXPathFreeCompExpr	(xmlXPathCompExprPtr comp);
-#endif /* LIBXML_XPATH_ENABLED */
-#if defined(LIBXML_XPATH_ENABLED) || defined(LIBXML_SCHEMAS_ENABLED)
+
 XML_DEPRECATED
 XMLPUBFUN void
 		    xmlXPathInit		(void);
@@ -571,5 +565,5 @@ XMLPUBFUN int
 }
 #endif
 
-#endif /* LIBXML_XPATH_ENABLED or LIBXML_SCHEMAS_ENABLED*/
+#endif /* LIBXML_XPATH_ENABLED */
 #endif /* ! __XML_XPATH_H__ */

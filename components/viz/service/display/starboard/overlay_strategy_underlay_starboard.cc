@@ -9,30 +9,15 @@
 
 #include "base/containers/adapters.h"
 #include "base/logging.h"
-#include "base/no_destructor.h"
 #include "base/unguessable_token.h"
 #include "components/viz/common/quads/draw_quad.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/video_hole_draw_quad.h"
 #include "components/viz/service/display/overlay_candidate_factory.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace viz {
-
-namespace {
-
-// This persistent mojo::Remote is bound then used by all the instances
-// of OverlayStrategyUnderlayStarboard.
-mojo::Remote<cobalt::media::mojom::VideoGeometrySetter>&
-GetVideoGeometrySetter() {
-  static base::NoDestructor<
-      mojo::Remote<cobalt::media::mojom::VideoGeometrySetter>>
-      g_video_geometry_setter;
-  return *g_video_geometry_setter;
-}
-
-}  // namespace
 
 OverlayStrategyUnderlayStarboard::OverlayStrategyUnderlayStarboard(
     OverlayProcessorUsingStrategy* capability_checker)
@@ -45,7 +30,7 @@ void OverlayStrategyUnderlayStarboard::Propose(
     const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
     const PrimaryPlane* primary_plane,
@@ -55,10 +40,11 @@ void OverlayStrategyUnderlayStarboard::Propose(
   QuadList& quad_list = render_pass->quad_list;
   OverlayCandidate candidate;
   auto overlay_iter = quad_list.end();
+  OverlayCandidateFactory::OverlayContext context;
   OverlayCandidateFactory candidate_factory = OverlayCandidateFactory(
       render_pass, resource_provider, surface_damage_rect_list,
       &output_color_matrix, GetPrimaryPlaneDisplayRect(primary_plane),
-      &render_pass_filters);
+      &render_pass_filters, context);
 
   // Original code did reverse iteration.
   // Here we do forward but find the last one, which should be the same thing.
@@ -92,7 +78,7 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
     const OverlayProcessorInterface::FilterOperationsMap& render_pass_filters,
     const OverlayProcessorInterface::FilterOperationsMap&
         render_pass_backdrop_filters,
-    DisplayResourceProvider* resource_provider,
+    const DisplayResourceProvider* resource_provider,
     AggregatedRenderPassList* render_pass_list,
     SurfaceDamageRectList* surface_damage_rect_list,
     const PrimaryPlane* primary_plane,
@@ -105,10 +91,11 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
   QuadList& quad_list = render_pass->quad_list;
   bool found_underlay = false;
   gfx::Rect content_rect;
+  OverlayCandidateFactory::OverlayContext context;
   OverlayCandidateFactory candidate_factory = OverlayCandidateFactory(
       render_pass, resource_provider, surface_damage_rect_list,
       &output_color_matrix, GetPrimaryPlaneDisplayRect(primary_plane),
-      &render_pass_filters);
+      &render_pass_filters, context);
 
   for (const auto* quad : base::Reversed(quad_list)) {
     if (OverlayCandidate::IsInvisibleQuad(quad)) {
@@ -181,7 +168,7 @@ void OverlayStrategyUnderlayStarboard::CommitCandidate(
   DCHECK(GetVideoGeometrySetter());
   GetVideoGeometrySetter()->SetVideoGeometry(
       proposed_candidate.candidate.display_rect,
-      absl::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
+      std::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
       VideoHoleDrawQuad::MaterialCast(*proposed_candidate.quad_iter)
           ->overlay_plane_id);
   if (proposed_candidate.candidate.has_mask_filter) {
@@ -206,13 +193,6 @@ void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
 
 OverlayStrategy OverlayStrategyUnderlayStarboard::GetUMAEnum() const {
   return OverlayStrategy::kUnderlay;
-}
-
-// static
-void OverlayStrategyUnderlayStarboard::ConnectVideoGeometrySetter(
-    mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
-        video_geometry_setter) {
-  GetVideoGeometrySetter().Bind(std::move(video_geometry_setter));
 }
 
 }  // namespace viz

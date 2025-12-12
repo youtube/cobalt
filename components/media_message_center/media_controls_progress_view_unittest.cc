@@ -37,35 +37,38 @@ class MediaControlsProgressViewTest : public views::ViewsTestBase {
     ViewsTestBase::SetUp();
 
     views::Widget::InitParams params =
-        CreateParams(views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
+        CreateParams(views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET,
+                     views::Widget::InitParams::TYPE_WINDOW_FRAMELESS);
     params.bounds = gfx::Rect(300, 300);
-    params.ownership = views::Widget::InitParams::WIDGET_OWNS_NATIVE_WIDGET;
     widget_.Init(std::move(params));
     views::View* container =
         widget_.SetContentsView(std::make_unique<views::View>());
 
-    progress_view_ = new MediaControlsProgressView(base::BindRepeating(
-        &MediaControlsProgressViewTest::SeekTo, base::Unretained(this)));
-    container->AddChildView(progress_view_.get());
+    progress_view_ =
+        std::make_unique<MediaControlsProgressView>(base::BindRepeating(
+            &MediaControlsProgressViewTest::SeekTo, base::Unretained(this)));
+
+    container->AddChildViewRaw(progress_view_.get());
 
     widget_.Show();
   }
 
   void TearDown() override {
     widget_.Close();
+    progress_view_.reset();
     ViewsTestBase::TearDown();
   }
 
   MOCK_METHOD1(SeekTo, void(double));
 
  protected:
-  raw_ptr<MediaControlsProgressView> progress_view_ = nullptr;
+  std::unique_ptr<MediaControlsProgressView> progress_view_;
 
  private:
   views::Widget widget_;
 };
 
-// TODO(crbug.com/1009356): many of these tests are failing on TSan builds.
+// TODO(crbug.com/40650520): many of these tests are failing on TSan builds.
 #if defined(THREAD_SANITIZER)
 #define MAYBE_MediaControlsProgressViewTest \
   DISABLED_MediaControlsProgressViewTest
@@ -322,7 +325,7 @@ TEST_F(MAYBE_MediaControlsProgressViewTest, SeekTo) {
   progress_view_->UpdateProgress(media_position);
 
   gfx::Point point(progress_view_->width() / 2, progress_view_->height() / 2);
-  ui::MouseEvent pressed_event(ui::ET_MOUSE_PRESSED, point, point,
+  ui::MouseEvent pressed_event(ui::EventType::kMousePressed, point, point,
                                ui::EventTimeForNow(), ui::EF_LEFT_MOUSE_BUTTON,
                                ui::EF_LEFT_MOUSE_BUTTON);
 

@@ -5,24 +5,28 @@
 #include "components/search_engines/template_url_data_util.h"
 
 #include <string>
+#include <string_view>
 
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "components/search_engines/default_search_manager.h"
-#include "components/search_engines/prepopulated_engines.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_starter_pack_data.h"
+#include "third_party/search_engines_data/resources/definitions/prepopulated_engines.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 namespace {
 
-// Converts the C-style string `str` to a base::StringPiece making sure to avoid
+// Converts the C-style string `str` to a std::string_view making sure to avoid
 // dereferencing nullptrs.
-base::StringPiece ToStringPiece(const char* str) {
-  return str ? base::StringPiece(str) : base::StringPiece();
+std::string_view ToStringView(const char* str) {
+  return str ? std::string_view(str) : std::string_view();
+}
+
+std::u16string_view ToU16StringView(const char16_t* str) {
+  return str ? std::u16string_view(str) : std::u16string_view();
 }
 
 }  // namespace
@@ -112,16 +116,6 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromDictionary(
   if (image_url_post_params) {
     result->image_url_post_params = *image_url_post_params;
   }
-  const std::string* side_search_param =
-      dict.FindString(DefaultSearchManager::kSideSearchParam);
-  if (side_search_param) {
-    result->side_search_param = *side_search_param;
-  }
-  const std::string* side_image_search_param =
-      dict.FindString(DefaultSearchManager::kSideImageSearchParam);
-  if (side_image_search_param) {
-    result->side_image_search_param = *side_image_search_param;
-  }
   const std::string* image_translate_source_language_param_key =
       dict.FindString(
           DefaultSearchManager::kImageTranslateSourceLanguageParamKey);
@@ -153,7 +147,7 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromDictionary(
       }
     }
   }
-  absl::optional<bool> safe_for_autoreplace =
+  std::optional<bool> safe_for_autoreplace =
       dict.FindBool(DefaultSearchManager::kSafeForAutoReplace);
   if (safe_for_autoreplace) {
     result->safe_for_autoreplace = *safe_for_autoreplace;
@@ -210,12 +204,17 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromDictionary(
     }
   }
 
-  result->created_by_policy =
-      dict.FindBool(DefaultSearchManager::kCreatedByPolicy)
-          .value_or(result->created_by_policy);
-  result->created_from_play_api =
-      dict.FindBool(DefaultSearchManager::kCreatedFromPlayAPI)
-          .value_or(result->created_from_play_api);
+  result->policy_origin = static_cast<TemplateURLData::PolicyOrigin>(
+      dict.FindInt(DefaultSearchManager::kPolicyOrigin)
+          .value_or(static_cast<int>(result->policy_origin)));
+  // TODO(b:322513019): recognize all programs, not just AndroidEEA
+  result->regulatory_origin =
+      dict.FindBool(DefaultSearchManager::kCreatedFromPlayAPI).value_or(false)
+          ? RegulatoryExtensionType::kAndroidEEA
+          : RegulatoryExtensionType::kDefault;
+  result->featured_by_policy =
+      dict.FindBool(DefaultSearchManager::kFeaturedByPolicy)
+          .value_or(result->featured_by_policy);
   result->preconnect_to_search_url =
       dict.FindBool(DefaultSearchManager::kPreconnectToSearchUrl)
           .value_or(result->preconnect_to_search_url);
@@ -260,9 +259,6 @@ base::Value::Dict TemplateURLDataToDictionary(const TemplateURLData& data) {
                data.suggestions_url_post_params);
   url_dict.Set(DefaultSearchManager::kImageURLPostParams,
                data.image_url_post_params);
-  url_dict.Set(DefaultSearchManager::kSideSearchParam, data.side_search_param);
-  url_dict.Set(DefaultSearchManager::kSideImageSearchParam,
-               data.side_image_search_param);
   url_dict.Set(DefaultSearchManager::kImageTranslateSourceLanguageParamKey,
                data.image_translate_source_language_param_key);
   url_dict.Set(DefaultSearchManager::kImageTranslateTargetLanguageParamKey,
@@ -299,9 +295,13 @@ base::Value::Dict TemplateURLDataToDictionary(const TemplateURLData& data) {
     encodings.Append(input_encoding);
   url_dict.Set(DefaultSearchManager::kInputEncodings, std::move(encodings));
 
-  url_dict.Set(DefaultSearchManager::kCreatedByPolicy, data.created_by_policy);
+  url_dict.Set(DefaultSearchManager::kPolicyOrigin,
+               static_cast<int>(data.policy_origin));
+  // TODO(b:322513019): recognize all programs, not just AndroidEEA
   url_dict.Set(DefaultSearchManager::kCreatedFromPlayAPI,
-               data.created_from_play_api);
+               data.regulatory_origin == RegulatoryExtensionType::kAndroidEEA);
+  url_dict.Set(DefaultSearchManager::kFeaturedByPolicy,
+               data.featured_by_policy);
   url_dict.Set(DefaultSearchManager::kPreconnectToSearchUrl,
                data.preconnect_to_search_url);
   url_dict.Set(DefaultSearchManager::kPrefetchLikelyNavigations,
@@ -316,44 +316,38 @@ base::Value::Dict TemplateURLDataToDictionary(const TemplateURLData& data) {
 std::unique_ptr<TemplateURLData> TemplateURLDataFromPrepopulatedEngine(
     const TemplateURLPrepopulateData::PrepopulatedEngine& engine) {
   std::vector<std::string> search_intent_params;
-  if (engine.search_intent_params) {
-    for (size_t i = 0; i < engine.search_intent_params_size; ++i) {
-      search_intent_params.emplace_back(engine.search_intent_params[i]);
-    }
+  for (const auto* search_intent_param : engine.search_intent_params) {
+    search_intent_params.emplace_back(search_intent_param);
   }
 
   base::Value::List alternate_urls;
-  if (engine.alternate_urls) {
-    for (size_t i = 0; i < engine.alternate_urls_size; ++i)
-      alternate_urls.Append(std::string(engine.alternate_urls[i]));
+  for (const auto* alternate_url : engine.alternate_urls) {
+    alternate_urls.Append(std::string(alternate_url));
   }
 
   std::u16string image_search_branding_label =
-      engine.image_search_branding_label
-          ? base::WideToUTF16(engine.image_search_branding_label)
-          : std::u16string();
+      engine.image_search_branding_label ? engine.image_search_branding_label
+                                         : std::u16string();
 
   return std::make_unique<TemplateURLData>(
-      base::WideToUTF16(engine.name), base::WideToUTF16(engine.keyword),
-      ToStringPiece(engine.search_url), ToStringPiece(engine.suggest_url),
-      ToStringPiece(engine.image_url),
-      ToStringPiece(engine.image_translate_url),
-      ToStringPiece(engine.new_tab_url),
-      ToStringPiece(engine.contextual_search_url),
-      ToStringPiece(engine.logo_url), ToStringPiece(engine.doodle_url),
-      ToStringPiece(engine.search_url_post_params),
-      ToStringPiece(engine.suggest_url_post_params),
-      ToStringPiece(engine.image_url_post_params),
-      ToStringPiece(engine.side_search_param),
-      ToStringPiece(engine.side_image_search_param),
-      ToStringPiece(engine.image_translate_source_language_param_key),
-      ToStringPiece(engine.image_translate_target_language_param_key),
-      std::move(search_intent_params), ToStringPiece(engine.favicon_url),
-      ToStringPiece(engine.encoding), image_search_branding_label,
+      ToU16StringView(engine.name), ToU16StringView(engine.keyword),
+      ToStringView(engine.search_url), ToStringView(engine.suggest_url),
+      ToStringView(engine.image_url), ToStringView(engine.image_translate_url),
+      ToStringView(engine.new_tab_url),
+      ToStringView(engine.contextual_search_url), ToStringView(engine.logo_url),
+      ToStringView(engine.doodle_url),
+      ToStringView(engine.base_builtin_resource_id),
+      ToStringView(engine.search_url_post_params),
+      ToStringView(engine.suggest_url_post_params),
+      ToStringView(engine.image_url_post_params),
+      ToStringView(engine.image_translate_source_language_param_key),
+      ToStringView(engine.image_translate_target_language_param_key),
+      std::move(search_intent_params), ToStringView(engine.favicon_url),
+      ToStringView(engine.encoding), image_search_branding_label,
       alternate_urls,
-      ToStringPiece(engine.preconnect_to_search_url) == "ALLOWED",
-      ToStringPiece(engine.prefetch_likely_navigations) == "ALLOWED",
-      engine.id);
+      ToStringView(engine.preconnect_to_search_url) == "ALLOWED",
+      ToStringView(engine.prefetch_likely_navigations) == "ALLOWED", engine.id,
+      engine.regulatory_extensions);
 }
 
 std::unique_ptr<TemplateURLData> TemplateURLDataFromOverrideDictionary(
@@ -386,7 +380,7 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromOverrideDictionary(
   if (string_value) {
     encoding = *string_value;
   }
-  absl::optional<int> id = engine_dict.FindInt("id");
+  std::optional<int> id = engine_dict.FindInt("id");
 
   // The following fields are required for each search engine configuration.
   if (!name.empty() && !keyword.empty() && !search_url.empty() &&
@@ -405,11 +399,10 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromOverrideDictionary(
     std::string contextual_search_url;
     std::string logo_url;
     std::string doodle_url;
+    std::string base_builtin_resource_id;
     std::string search_url_post_params;
     std::string suggest_url_post_params;
     std::string image_url_post_params;
-    std::string side_search_param;
-    std::string side_image_search_param;
     std::string image_translate_source_language_param_key;
     std::string image_translate_target_language_param_key;
     std::u16string image_search_branding_label;
@@ -445,6 +438,10 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromOverrideDictionary(
     if (string_value) {
       doodle_url = *string_value;
     }
+    string_value = engine_dict.FindString("base_builtin_resource_id");
+    if (string_value) {
+      base_builtin_resource_id = *string_value;
+    }
     string_value = engine_dict.FindString("search_url_post_params");
     if (string_value) {
       search_url_post_params = *string_value;
@@ -456,14 +453,6 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromOverrideDictionary(
     string_value = engine_dict.FindString("image_url_post_params");
     if (string_value) {
       image_url_post_params = *string_value;
-    }
-    string_value = engine_dict.FindString("side_search_param");
-    if (string_value) {
-      side_search_param = *string_value;
-    }
-    string_value = engine_dict.FindString("side_image_search_param");
-    if (string_value) {
-      side_image_search_param = *string_value;
     }
     string_value =
         engine_dict.FindString("image_translate_source_language_param_key");
@@ -501,14 +490,15 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromOverrideDictionary(
     return std::make_unique<TemplateURLData>(
         name, keyword, search_url, suggest_url, image_url, image_translate_url,
         new_tab_url, contextual_search_url, logo_url, doodle_url,
-        search_url_post_params, suggest_url_post_params, image_url_post_params,
-        side_search_param, side_image_search_param,
+        base_builtin_resource_id, search_url_post_params,
+        suggest_url_post_params, image_url_post_params,
         image_translate_source_language_param_key,
         image_translate_target_language_param_key,
         std::move(search_intent_params), favicon_url, encoding,
         image_search_branding_label, *alternate_urls,
         preconnect_to_search_url.compare("ALLOWED") == 0,
-        prefetch_likely_navigations.compare("ALLOWED") == 0, *id);
+        prefetch_likely_navigations.compare("ALLOWED") == 0, *id,
+        base::span<const TemplateURLData::RegulatoryExtension>());
   }
   return nullptr;
 }
@@ -519,7 +509,7 @@ std::unique_ptr<TemplateURLData> TemplateURLDataFromStarterPackEngine(
   turl->SetShortName(l10n_util::GetStringUTF16(engine.name_message_id));
   turl->SetKeyword(u"@" + l10n_util::GetStringUTF16(engine.keyword_message_id));
   turl->SetURL(engine.search_url);
-  turl->favicon_url = GURL(ToStringPiece(engine.favicon_url));
+  turl->favicon_url = GURL(ToStringView(engine.favicon_url));
   turl->starter_pack_id = engine.id;
   turl->GenerateSyncGUID();
   turl->safe_for_autoreplace = true;

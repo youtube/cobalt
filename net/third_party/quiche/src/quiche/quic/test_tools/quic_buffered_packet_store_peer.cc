@@ -9,16 +9,24 @@
 namespace quic {
 namespace test {
 
-// static
 QuicAlarm* QuicBufferedPacketStorePeer::expiration_alarm(
     QuicBufferedPacketStore* store) {
   return store->expiration_alarm_.get();
 }
 
-// static
 void QuicBufferedPacketStorePeer::set_clock(QuicBufferedPacketStore* store,
                                             const QuicClock* clock) {
   store->clock_ = clock;
+}
+
+const QuicBufferedPacketStore::BufferedPacketList*
+QuicBufferedPacketStorePeer::FindBufferedPackets(
+    const QuicBufferedPacketStore* store, QuicConnectionId connection_id) {
+  auto it = store->buffered_session_map_.find(connection_id);
+  if (it == store->buffered_session_map_.end()) {
+    return nullptr;
+  }
+  return it->second.get();
 }
 
 }  // namespace test

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ServiceInterface} from 'chrome://extensions/extensions.js';
+import type {ServiceInterface} from 'chrome://extensions/extensions.js';
 import {FakeChromeEvent} from 'chrome://webui-test/fake_chrome_event.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
@@ -32,6 +32,11 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'deleteActivitiesFromExtension',
       'deleteErrors',
       'deleteItem',
+      'deleteItems',
+      'dismissSafetyHubExtensionsMenuNotification',
+      'dismissMv2DeprecationNotice',
+      'dismissMv2DeprecationNoticeForExtension',
+      'uninstallItem',
       'downloadActivities',
       'getExtensionActivityLog',
       'getExtensionsInfo',
@@ -57,10 +62,13 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'requestFileSource',
       'retryLoadUnpacked',
       'setItemAllowedIncognito',
+      'setItemAllowedUserScripts',
       'setItemAllowedOnFileUrls',
       'setItemCollectsErrors',
       'setItemEnabled',
       'setItemHostAccess',
+      'setItemPinnedToToolbar',
+      'setItemSafetyCheckWarningAcknowledged',
       'setProfileInDevMode',
       'setShortcutHandlingSuspended',
       'setShowAccessRequestsInToolbar',
@@ -71,6 +79,7 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       'updateExtensionCommandKeybinding',
       'updateExtensionCommandScope',
       'updateSiteAccess',
+      'uploadItemToAccount',
     ]);
   }
 
@@ -110,6 +119,7 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       isDeveloperModeControlledByPolicy: false,
       isIncognitoAvailable: false,
       isChildAccount: false,
+      isMv2DeprecationNoticeDismissed: false,
     });
   }
 
@@ -148,12 +158,21 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
     this.methodCalled('setItemAllowedIncognito', [id, isAllowedIncognito]);
   }
 
+  setItemAllowedUserScripts(id: string, isAllowedIncognito: boolean) {
+    this.methodCalled('setItemAllowedUserScripts', [id, isAllowedIncognito]);
+  }
+
   setItemAllowedOnFileUrls(id: string, isAllowedOnFileUrls: boolean) {
     this.methodCalled('setItemAllowedOnFileUrls', [id, isAllowedOnFileUrls]);
   }
 
+  setItemSafetyCheckWarningAcknowledged(id: string) {
+    this.methodCalled('setItemSafetyCheckWarningAcknowledged', id);
+  }
+
   setItemEnabled(id: string, isEnabled: boolean) {
     this.methodCalled('setItemEnabled', [id, isEnabled]);
+    return Promise.resolve();
   }
 
   setItemCollectsErrors(id: string, collectsErrors: boolean) {
@@ -164,6 +183,10 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
     this.methodCalled('setItemHostAccess', [id, access]);
   }
 
+  setItemPinnedToToolbar(id: string, pinnedToToolbar: boolean) {
+    this.methodCalled('setItemPinnedToToolbar', [id, pinnedToToolbar]);
+  }
+
   setShortcutHandlingSuspended(enable: boolean) {
     this.methodCalled('setShortcutHandlingSuspended', enable);
   }
@@ -171,6 +194,7 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
   shouldIgnoreUpdate(
       extensionId: string, eventType: chrome.developerPrivate.EventType) {
     this.methodCalled('shouldIgnoreUpdate', [extensionId, eventType]);
+    return false;
   }
 
   updateExtensionCommandKeybinding(
@@ -305,6 +329,16 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
     this.methodCalled('deleteItem', id);
   }
 
+  deleteItems(ids: string[]) {
+    this.methodCalled('deleteItems', ids);
+    return Promise.resolve();
+  }
+
+  uninstallItem(id: string) {
+    this.methodCalled('uninstallItem', id);
+    return Promise.resolve();
+  }
+
   getOnExtensionActivity() {
     return this.extensionActivityTarget;
   }
@@ -366,5 +400,22 @@ export class TestService extends TestBrowserProxy implements ServiceInterface {
       updates: chrome.developerPrivate.ExtensionSiteAccessUpdate[]) {
     this.methodCalled('updateSiteAccess', site, updates);
     return Promise.resolve();
+  }
+
+  dismissSafetyHubExtensionsMenuNotification() {
+    this.methodCalled('dismissSafetyHubExtensionsMenuNotification');
+  }
+
+  dismissMv2DeprecationNoticeForExtension(id: string) {
+    this.methodCalled('dismissMv2DeprecationNoticeForExtension', id);
+  }
+
+  dismissMv2DeprecationNotice() {
+    this.methodCalled('dismissMv2DeprecationNotice');
+  }
+
+  uploadItemToAccount(id: string) {
+    this.methodCalled('uploadItemToAccount', id);
+    return Promise.resolve(false);
   }
 }

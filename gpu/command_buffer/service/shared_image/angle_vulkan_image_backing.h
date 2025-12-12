@@ -7,27 +7,28 @@
 
 #include "gpu/command_buffer/service/shared_context_state.h"
 #include "gpu/command_buffer/service/shared_image/gl_common_image_backing_factory.h"
-#include "gpu/command_buffer/service/shared_image/gl_texture_common_representations.h"
 #include "gpu/command_buffer/service/shared_image/shared_image_backing.h"
 #include "gpu/command_buffer/service/shared_image/texture_holder_vk.h"
 #include "ui/gl/scoped_egl_image.h"
+
+class GrPromiseImageTexture;
 
 namespace gpu {
 namespace gles2 {
 class TexturePassthrough;
 }
 
-class AngleVulkanImageBacking : public ClearTrackingSharedImageBacking,
-                                public GLTextureImageRepresentationClient {
+class AngleVulkanImageBacking : public ClearTrackingSharedImageBacking {
  public:
-  AngleVulkanImageBacking(const raw_ptr<SharedContextState>& context_state,
+  AngleVulkanImageBacking(scoped_refptr<SharedContextState> context_state,
                           const Mailbox& mailbox,
                           viz::SharedImageFormat format,
                           const gfx::Size& size,
                           const gfx::ColorSpace& color_space,
                           GrSurfaceOrigin surface_origin,
                           SkAlphaType alpha_type,
-                          uint32_t usage);
+                          gpu::SharedImageUsageSet usage,
+                          std::string debug_label);
   ~AngleVulkanImageBacking() override;
 
   bool Initialize(const base::span<const uint8_t>& data);
@@ -37,6 +38,7 @@ class AngleVulkanImageBacking : public ClearTrackingSharedImageBacking,
   // SharedImageBacking implementation.
   SharedImageBackingType GetType() const override;
   bool UploadFromMemory(const std::vector<SkPixmap>& pixmaps) override;
+  bool ReadbackToMemory(const std::vector<SkPixmap>& pixmaps) override;
   void Update(std::unique_ptr<gfx::GpuFence> in_fence) override;
   std::unique_ptr<GLTexturePassthroughImageRepresentation>
   ProduceGLTexturePassthrough(SharedImageManager* manager,
@@ -46,12 +48,9 @@ class AngleVulkanImageBacking : public ClearTrackingSharedImageBacking,
       MemoryTypeTracker* tracker,
       scoped_refptr<SharedContextState> context_state) override;
 
-  // GLTextureImageRepresentationClient implementation.
-  bool GLTextureImageRepresentationBeginAccess(bool readonly) override;
-  void GLTextureImageRepresentationEndAccess(bool readonly) override;
-
  private:
   class SkiaAngleVulkanImageRepresentation;
+  class GLTexturePassthroughAngleVulkanImageRepresentation;
 
   struct TextureHolderGL {
     TextureHolderGL();
@@ -66,18 +65,20 @@ class AngleVulkanImageBacking : public ClearTrackingSharedImageBacking,
   // The maximum number of GL or Vulkan textures this backing can hold.
   static constexpr size_t kMaxTextures = 3;
 
-  std::vector<sk_sp<SkPromiseImageTexture>> GetPromiseTextures();
+  std::vector<sk_sp<GrPromiseImageTexture>> GetPromiseTextures();
   void AcquireTextureANGLE();
   void ReleaseTextureANGLE();
   void PrepareBackendTexture();
   void SyncImageLayoutFromBackendTexture();
+  bool BeginAccessGLTexturePassthrough(GLenum mode);
+  void EndAccessGLTexturePassthrough(GLenum mode);
   bool BeginAccessSkia(bool readonly);
   void EndAccessSkia();
   bool InitializePassthroughTexture();
 
   GrDirectContext* gr_context() { return context_state_->gr_context(); }
 
-  const raw_ptr<SharedContextState> context_state_;
+  const scoped_refptr<SharedContextState> context_state_;
 
   // In general there will be the same number of Vulkan and GL textures.
   // For multi-planar VkFormats there are no equivalent multi-planar GL

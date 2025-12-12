@@ -4,6 +4,7 @@
 
 #include "services/network/cookie_access_delegate_impl.h"
 
+#include <optional>
 #include <set>
 
 #include "base/containers/flat_map.h"
@@ -13,8 +14,8 @@
 #include "net/cookies/cookie_constants.h"
 #include "net/cookies/cookie_util.h"
 #include "net/first_party_sets/first_party_set_metadata.h"
+#include "net/first_party_sets/first_party_sets_cache_filter.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace network {
 
@@ -50,6 +51,17 @@ net::CookieAccessSemantics CookieAccessDelegateImpl::GetAccessSemantics(
   }
 }
 
+net::CookieScopeSemantics CookieAccessDelegateImpl::GetScopeSemantics(
+    const std::string_view domain) const {
+  if (!cookie_settings_) {
+    return net::CookieScopeSemantics::UNKNOWN;
+  }
+  // TODO(crbug.com/378827534)  finish propagating string_view thru cookie
+  // settings.
+  return cookie_settings_->GetCookieScopeSemanticsForDomain(
+      std::string(domain));
+}
+
 bool CookieAccessDelegateImpl::ShouldIgnoreSameSiteRestrictions(
     const GURL& url,
     const net::SiteForCookies& site_for_cookies) const {
@@ -60,25 +72,29 @@ bool CookieAccessDelegateImpl::ShouldIgnoreSameSiteRestrictions(
   return false;
 }
 
-absl::optional<net::FirstPartySetMetadata>
+std::optional<std::pair<net::FirstPartySetMetadata,
+                        net::FirstPartySetsCacheFilter::MatchInfo>>
 CookieAccessDelegateImpl::ComputeFirstPartySetMetadataMaybeAsync(
     const net::SchemefulSite& site,
     const net::SchemefulSite* top_frame_site,
-    const std::set<net::SchemefulSite>& party_context,
-    base::OnceCallback<void(net::FirstPartySetMetadata)> callback) const {
-  if (!first_party_sets_access_delegate_)
-    return {net::FirstPartySetMetadata()};
+    base::OnceCallback<void(net::FirstPartySetMetadata,
+                            net::FirstPartySetsCacheFilter::MatchInfo)>
+        callback) const {
+  if (!first_party_sets_access_delegate_) {
+    return std::make_pair(net::FirstPartySetMetadata(),
+                          net::FirstPartySetsCacheFilter::MatchInfo());
+  }
   return first_party_sets_access_delegate_->ComputeMetadata(
-      site, top_frame_site, party_context, std::move(callback));
+      site, top_frame_site, std::move(callback));
 }
 
-absl::optional<FirstPartySetsAccessDelegate::EntriesResult>
+std::optional<FirstPartySetsAccessDelegate::EntriesResult>
 CookieAccessDelegateImpl::FindFirstPartySetEntries(
     const base::flat_set<net::SchemefulSite>& sites,
     base::OnceCallback<void(FirstPartySetsAccessDelegate::EntriesResult)>
         callback) const {
   if (!first_party_sets_access_delegate_)
-    return {{}};
+    return FirstPartySetsAccessDelegate::EntriesResult();
   return first_party_sets_access_delegate_->FindEntries(sites,
                                                         std::move(callback));
 }

@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/clang/clang.gni")
 import("//starboard/content/fonts/font_configuration.gni")
 
 # NOTE:
@@ -34,7 +33,7 @@ declare_args() {
 
   # The Starboard API version of the current build configuration. The default
   # value is meant to be overridden by a Starboard ABI file.
-  sb_api_version = 17
+  sb_api_version = 18
 
   # Enables embedding Cobalt as a shared library within another app. This
   # requires a 'lib' starboard implementation for the corresponding platform.
@@ -42,10 +41,6 @@ declare_args() {
 
   # Directory path to static contents' data.
   sb_static_contents_output_data_dir = "$root_out_dir/content/data"
-
-  # Whether this is an Evergreen compatible platform. A compatible platform
-  # can run the elf_loader and launch the Evergreen build.
-  sb_is_evergreen_compatible = false
 
   # Whether to use the libunwind library on Evergreen compatible platform.
   sb_evergreen_compatible_use_libunwind = false
@@ -115,9 +110,6 @@ declare_args() {
   # Enables or disables the DIAL server that runs inside Cobalt.
   # Note: Only enable if there's no system-wide DIAL support.
   enable_in_app_dial = false
-
-  # A symbolizer path for ASAN can be added to allow translation of callstacks.
-  asan_symbolizer_path = "$clang_base_path/bin/llvm-symbolizer"
 
   # Sub-directory to copy license file to.
   cobalt_licenses_platform = "default"

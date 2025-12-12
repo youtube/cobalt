@@ -4,21 +4,30 @@
 
 package org.chromium.chrome.browser.privacy_sandbox;
 
+import org.chromium.build.annotations.NullMarked;
+
 import java.util.Objects;
 
 /**
  * Represents a CanonicalTopic consisting of a TopicId and a TaxonomyVersion (see canonical_topic.h)
  * and its display name.
  */
+@NullMarked
 public final class Topic {
     private final int mTopicId;
     private final int mTaxonomyVersion;
     private final String mName;
+    private final String mDescription;
 
     public Topic(int topicId, int taxonomyVersion, String name) {
+        this(topicId, taxonomyVersion, name, "");
+    }
+
+    public Topic(int topicId, int taxonomyVersion, String name, String description) {
         mTopicId = topicId;
         mTaxonomyVersion = taxonomyVersion;
         mName = name;
+        mDescription = description;
     }
 
     public int getTopicId() {
@@ -31,6 +40,10 @@ public final class Topic {
 
     public String getName() {
         return mName;
+    }
+
+    public String getDescription() {
+        return mDescription;
     }
 
     /**
@@ -56,7 +69,12 @@ public final class Topic {
 
     @Override
     public String toString() {
-        return "Topic{topicId=" + mTopicId + ", taxonomyVersion=" + mTaxonomyVersion
-                + ", name=" + mName + '}';
+        return "Topic{topicId="
+                + mTopicId
+                + ", taxonomyVersion="
+                + mTaxonomyVersion
+                + ", name="
+                + mName
+                + '}';
     }
 }

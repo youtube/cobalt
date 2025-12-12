@@ -20,6 +20,7 @@
 
 #include "third_party/blink/renderer/core/svg/svg_string_list.h"
 
+#include "base/compiler_specific.h"
 #include "base/notreached.h"
 #include "third_party/blink/renderer/core/svg/svg_parser_utilities.h"
 #include "third_party/blink/renderer/platform/wtf/text/character_visitor.h"
@@ -55,11 +56,13 @@ void SVGStringListBase::ParseInternal(const CharType* ptr,
                                       char list_delimiter) {
   while (ptr < end) {
     const CharType* start = ptr;
-    while (ptr < end && *ptr != list_delimiter && !IsHTMLSpace<CharType>(*ptr))
-      ptr++;
+    while (ptr < end && *ptr != list_delimiter &&
+           !IsHTMLSpace<CharType>(*ptr)) {
+      UNSAFE_TODO(ptr++);
+    }
     if (ptr == start)
       break;
-    values_.push_back(String(start, static_cast<wtf_size_t>(ptr - start)));
+    values_.push_back(String(UNSAFE_TODO(base::span(start, ptr))));
     SkipOptionalSVGSpacesOrDelimiter(ptr, end, list_delimiter);
   }
 }
@@ -73,8 +76,8 @@ SVGParsingError SVGStringListBase::SetValueAsStringWithDelimiter(
   if (data.empty())
     return SVGParseStatus::kNoError;
 
-  WTF::VisitCharacters(data, [&](const auto* chars, unsigned length) {
-    ParseInternal(chars, chars + length, list_delimiter);
+  WTF::VisitCharacters(data, [&](auto chars) {
+    ParseInternal(chars.data(), chars.data() + chars.size(), list_delimiter);
   });
   return SVGParseStatus::kNoError;
 }
@@ -90,9 +93,9 @@ String SVGStringListBase::ValueAsStringWithDelimiter(
   Vector<String>::const_iterator it_end = values_.end();
   if (it != it_end) {
     builder.Append(*it);
-    ++it;
+    UNSAFE_TODO(++it);
 
-    for (; it != it_end; ++it) {
+    for (; it != it_end; UNSAFE_TODO(++it)) {
       builder.Append(list_delimiter);
       builder.Append(*it);
     }
@@ -123,7 +126,6 @@ float SVGStringListBase::CalculateDistance(const SVGPropertyBase*,
                                            const SVGElement*) const {
   // SVGStringList is never animated.
   NOTREACHED();
-  return -1.0f;
 }
 
 }  // namespace blink

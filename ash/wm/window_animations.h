@@ -16,6 +16,7 @@ class Window;
 }
 
 namespace ui {
+class Layer;
 class LayerTreeOwner;
 }
 
@@ -76,6 +77,9 @@ CreateBrightnessGrayscaleAnimationSequence(float target_value,
 // involves rotation.
 ASH_EXPORT gfx::Rect GetMinimizeAnimationTargetBoundsInScreen(
     aura::Window* window);
+
+// Triggers the window bounce animation.
+ASH_EXPORT void BounceWindow(aura::Window* window);
 
 }  // namespace ash
 

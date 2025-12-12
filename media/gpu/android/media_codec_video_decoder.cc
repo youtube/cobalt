@@ -5,6 +5,7 @@
 #include "media/gpu/android/media_codec_video_decoder.h"
 
 #include <memory>
+#include <variant>
 
 #include "base/android/build_info.h"
 #include "base/command_line.h"
@@ -15,6 +16,8 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/no_destructor.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
@@ -27,6 +30,7 @@
 #include "media/base/media_switches.h"
 #include "media/base/scoped_async_trace.h"
 #include "media/base/status.h"
+#include "media/base/supported_types.h"
 #include "media/base/supported_video_decoder_config.h"
 #include "media/base/video_aspect_ratio.h"
 #include "media/base/video_codecs.h"
@@ -44,14 +48,12 @@
 namespace media {
 namespace {
 
-void OutputBufferReleased(bool using_async_api,
-                          base::RepeatingClosure pump_cb,
-                          bool has_work) {
+void OutputBufferReleased(base::RepeatingClosure pump_cb, bool has_work) {
   // The asynchronous API doesn't need pumping upon calls to ReleaseOutputBuffer
   // unless we're draining or drained.
-  if (using_async_api && !has_work)
-    return;
-  pump_cb.Run();
+  if (has_work) {
+    pump_cb.Run();
+  }
 }
 
 bool IsSurfaceControlEnabled(const gpu::GpuFeatureInfo& info) {
@@ -59,36 +61,43 @@ bool IsSurfaceControlEnabled(const gpu::GpuFeatureInfo& info) {
          gpu::kGpuFeatureStatusEnabled;
 }
 
-std::vector<SupportedVideoDecoderConfig> GetSupportedConfigsInternal(
+std::vector<SupportedVideoDecoderConfig> GenerateSupportedConfigs(
     DeviceInfo* device_info,
-    bool allow_software_codecs = false) {
+    bool allow_media_codec_sw_decoder) {
   std::vector<SupportedVideoDecoderConfig> supported_configs;
   for (const auto& info : GetDecoderInfoCache()) {
     const auto codec = VideoCodecProfileToVideoCodec(info.profile);
+    // Some DRM key system doesn't require a secure decoder to decrypt the
+    // stream (e.g. Widevine L3). When this function is called, we have no idea
+    // on which key system will be used. So we simply declare all the decoders
+    // to support encrypted content playback. If the playback does require a
+    // secure decoder, it will fail when creating MediaCodec.
+    constexpr bool kAllowEncrypted = true;
     if ((codec == VideoCodec::kVP8 && device_info->IsVp8DecoderAvailable()) ||
         (codec == VideoCodec::kVP9 && device_info->IsVp9DecoderAvailable()) ||
-        (codec == VideoCodec::kAV1 && device_info->IsAv1DecoderAvailable())) {
-      // We don't compile support into libvpx for these profiles, so allow them
-      // for all resolutions. Tests require availability of software codecs.
-      const bool require_encrypted = !allow_software_codecs &&
-                                     info.profile != VP9PROFILE_PROFILE2 &&
-                                     info.profile != VP9PROFILE_PROFILE3;
+        (codec == VideoCodec::kAV1 && device_info->IsAv1DecoderAvailable()) ||
+        (codec == VideoCodec::kH264 && IsDecoderBuiltInVideoCodec(codec))) {
+      // Don't allow OS software decoding for bundled software decoders unless
+      // the content is encrypted.
+      const bool can_use_builtin_software_decoder =
+          info.profile != VP9PROFILE_PROFILE2 &&
+          info.profile != VP9PROFILE_PROFILE3 &&
+          info.secure_codec_capability == SecureCodecCapability::kClear;
+      const bool is_os_software_decoder_allowed =
+          !can_use_builtin_software_decoder || allow_media_codec_sw_decoder;
+      if (info.is_software_codec && !is_os_software_decoder_allowed) {
+        supported_configs.emplace_back(info.profile, info.profile,
+                                       info.coded_size_min, info.coded_size_max,
+                                       kAllowEncrypted,
+                                       /*require_encrypted=*/true);
+        continue;
+      }
+
       supported_configs.emplace_back(
           info.profile, info.profile, info.coded_size_min, info.coded_size_max,
-          /*allow_encrypted=*/true, require_encrypted);
-
-      // Don't allow software decoding since we bundle VP8, VP9, AV1 decoders.
-      if (!info.is_software_codec && require_encrypted) {
-        // Require a minimum of 360p even for hardware decoding of VP8, VP9.
-        auto coded_size_min = info.coded_size_min;
-        if (codec == VideoCodec::kVP8 || codec == VideoCodec::kVP9) {
-          coded_size_min.SetToMax(gfx::Size(360, 360));
-        }
-        supported_configs.emplace_back(info.profile, info.profile,
-                                       coded_size_min, info.coded_size_max,
-                                       /*allow_encrypted=*/false,
-                                       /*require_encrypted=*/false);
-      }
+          kAllowEncrypted,
+          /*require_encrypted=*/info.secure_codec_capability ==
+              SecureCodecCapability::kEncrypted);
       continue;
     }
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
@@ -101,10 +110,11 @@ std::vector<SupportedVideoDecoderConfig> GetSupportedConfigsInternal(
         || codec == VideoCodec::kDolbyVision
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
     ) {
-      supported_configs.emplace_back(info.profile, info.profile,
-                                     info.coded_size_min, info.coded_size_max,
-                                     /*allow_encrypted=*/true,
-                                     /*require_encrypted=*/false);
+      supported_configs.emplace_back(
+          info.profile, info.profile, info.coded_size_min, info.coded_size_max,
+          kAllowEncrypted,
+          /*require_encrypted=*/info.secure_codec_capability ==
+              SecureCodecCapability::kEncrypted);
     }
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
   }
@@ -113,8 +123,11 @@ std::vector<SupportedVideoDecoderConfig> GetSupportedConfigsInternal(
 }
 
 // Return the name of the decoder that will be used to create MediaCodec.
-std::string SelectMediaCodec(const VideoDecoderConfig& config,
-                             bool requires_secure_codec) {
+void SelectMediaCodec(const VideoDecoderConfig& config,
+                      bool requires_secure_codec,
+                      std::string* out_codec_name) {
+  *out_codec_name = "";
+
   std::string software_decoder;
   for (const auto& info : GetDecoderInfoCache()) {
     VideoCodec codec = VideoCodecProfileToVideoCodec(info.profile);
@@ -127,14 +140,15 @@ std::string SelectMediaCodec(const VideoDecoderConfig& config,
       continue;
     }
 
-    if (config.level() != kNoVideoCodecLevel && config.level() > info.level) {
+    if (config.level() != kNoVideoCodecLevel &&
+        info.level != kNoVideoCodecLevel && config.level() > info.level) {
       continue;
     }
 
     if (config.coded_size().width() < info.coded_size_min.width() ||
         config.coded_size().height() < info.coded_size_min.height() ||
         config.coded_size().width() > info.coded_size_max.width() ||
-        config.coded_size().height() > info.coded_size_max.width()) {
+        config.coded_size().height() > info.coded_size_max.height()) {
       continue;
     }
 
@@ -157,7 +171,8 @@ std::string SelectMediaCodec(const VideoDecoderConfig& config,
       continue;
     }
 
-    return info.name;
+    *out_codec_name = info.name;
+    return;
   }
 
   // Allow software decoder if either:
@@ -174,14 +189,15 @@ std::string SelectMediaCodec(const VideoDecoderConfig& config,
         || config.codec() == VideoCodec::kDolbyVision
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DOLBY_VISION)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-        )) {
-    software_decoder = "";
+        // TODO(b/376720494): Allow this only libvpx doesn't supports HRD.
+        || config.profile() == VP9PROFILE_PROFILE2 ||
+        config.profile() == VP9PROFILE_PROFILE3)) {
+    DVLOG(2) << "Can't find proper video decoder from decoder info cache, "
+                "fallback to the default decoder selection path.";
+    return;
   }
 
-  DVLOG_IF(2, software_decoder.empty())
-      << "Can't find proper video decoder from decoder info cache, "
-         "fallback to the default decoder selection path.";
-  return software_decoder;
+  *out_codec_name = software_decoder;
 }
 
 }  // namespace
@@ -205,9 +221,12 @@ PendingDecode::~PendingDecode() = default;
 // static
 std::vector<SupportedVideoDecoderConfig>
 MediaCodecVideoDecoder::GetSupportedConfigs() {
-  static const auto configs =
-      GetSupportedConfigsInternal(DeviceInfo::GetInstance());
-  return configs;
+  static const base::NoDestructor<std::vector<SupportedVideoDecoderConfig>>
+      configs(GenerateSupportedConfigs(
+          DeviceInfo::GetInstance(),
+          base::FeatureList::IsEnabled(
+              media::kAllowMediaCodecSoftwareDecoder)));
+  return *configs;
 }
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
@@ -238,7 +257,10 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       enable_threaded_texture_mailboxes_(
           gpu_preferences.enable_threaded_texture_mailboxes),
       allow_nonsecure_overlays_(
-          base::FeatureList::IsEnabled(media::kAllowNonSecureOverlays)) {
+          base::FeatureList::IsEnabled(media::kAllowNonSecureOverlays)),
+      use_block_model_(device_info_->SdkVersion() >=
+                           base::android::SDK_VERSION_V &&
+                       base::FeatureList::IsEnabled(kMediaCodecBlockModel)) {
   DVLOG(2) << __func__;
   surface_chooser_helper_.chooser()->SetClientCallbacks(
       base::BindRepeating(&MediaCodecVideoDecoder::OnSurfaceChosen,
@@ -268,6 +290,7 @@ std::unique_ptr<VideoDecoder> MediaCodecVideoDecoder::Create(
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   TRACE_EVENT0("media", "MediaCodecVideoDecoder::~MediaCodecVideoDecoder");
   ReleaseCodec();
@@ -287,7 +310,7 @@ void MediaCodecVideoDecoder::DestroyAsync(
   //
   // WARNING: This will lose the callback we've given to MediaCodecBridge for
   // asynchronous notifications; so we must not leave this function with any
-  // work necessary from StartTimerOrPumpCodec().
+  // work necessary from PumpCodec().
   self->weak_factory_.InvalidateWeakPtrs();
 
   if (self->media_crypto_context_) {
@@ -307,8 +330,7 @@ void MediaCodecVideoDecoder::DestroyAsync(
   self->StartDrainingCodec(DrainType::kForDestroy);
 
   // Per the WARNING above. Validate that no draining work remains.
-  if (self->using_async_api_)
-    DCHECK(!self->drain_type_.has_value());
+  DCHECK(!self->drain_type_.has_value());
 }
 
 void MediaCodecVideoDecoder::Initialize(const VideoDecoderConfig& config,
@@ -317,6 +339,7 @@ void MediaCodecVideoDecoder::Initialize(const VideoDecoderConfig& config,
                                         InitCB init_cb,
                                         const OutputCB& output_cb,
                                         const WaitingCB& waiting_cb) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(output_cb);
   DCHECK(waiting_cb);
 
@@ -334,17 +357,10 @@ void MediaCodecVideoDecoder::Initialize(const VideoDecoderConfig& config,
     return;
   }
 
-  // Tests override the DeviceInfo, so if an override is provided query the
-  // configs as they look under that DeviceInfo. If not, use the default method
-  // which is statically cached for faster Initialize().
-  //
-  // The tests also require the presence of software codecs.
-  const auto configs = device_info_ == DeviceInfo::GetInstance()
-                           ? GetSupportedConfigs()
-                           : GetSupportedConfigsInternal(
-                                 device_info_, /*allow_software_codecs=*/true);
-  if (!IsVideoDecoderConfigSupported(configs, config)) {
-    DVLOG(1) << "Unsupported configuration.";
+  // If we don't have support support for a given codec, try to initialize
+  // anyways -- otherwise we're certain to fail playback.
+  if (!IsVideoDecoderConfigSupported(GetSupportedConfigsInternal(), config) &&
+      IsDecoderBuiltInVideoCodec(config.codec())) {
     MEDIA_LOG(INFO, media_log_) << "Video configuration is not valid: "
                                 << config.AsHumanReadableString();
     base::BindPostTaskToCurrentDefault(std::move(init_cb))
@@ -362,6 +378,7 @@ void MediaCodecVideoDecoder::Initialize(const VideoDecoderConfig& config,
         .Run(DecoderStatus::Codes::kCantChangeCodec);
     return;
   }
+  const auto old_size = decoder_config_.coded_size();
   decoder_config_ = config;
 
   surface_chooser_helper_.SetVideoRotation(
@@ -402,8 +419,12 @@ void MediaCodecVideoDecoder::Initialize(const VideoDecoderConfig& config,
   // Restrict this behavior to Q, where the behavior changed.
   if (first_init) {
     last_width_ = width;
-  } else if (width > last_width_ * kReallocateThreshold && device_info_ &&
-             device_info_->SdkVersion() > base::android::SDK_VERSION_P) {
+  } else if (CodecNeedsReallocation(width)) {
+    MEDIA_LOG(INFO, media_log_)
+        << "Queuing deferred codec reallocation for resolution change from "
+        << old_size.ToString() << " to "
+        << decoder_config_.coded_size().ToString();
+
     // Reallocate the codec the next time we queue input, once there are no
     // outstanding output buffers.  Note that |deferred_flush_pending_| might
     // already be set, which is fine.  We're just upgrading the flush.
@@ -416,10 +437,16 @@ void MediaCodecVideoDecoder::Initialize(const VideoDecoderConfig& config,
     // race condition in the android framework.
     should_retry_codec_allocation_ = true;
     last_width_ = width;
-  }  // else leave |last_width_| unmodified, since we're re-using the codec.
+  } else {
+    MEDIA_LOG(INFO, media_log_)
+        << "Reusing codec without reallocation for resolution change from "
+        << old_size.ToString() << " to "
+        << decoder_config_.coded_size().ToString();
+  }
 }
 
 void MediaCodecVideoDecoder::SetCdm(CdmContext* cdm_context, InitCB init_cb) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << __func__;
   DCHECK(cdm_context) << "No CDM provided";
   DCHECK(cdm_context->GetMediaCryptoContext());
@@ -442,6 +469,7 @@ void MediaCodecVideoDecoder::OnMediaCryptoReady(
     InitCB init_cb,
     JavaObjectPtr media_crypto,
     bool requires_secure_video_codec) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(1) << __func__
            << ": requires_secure_video_codec = " << requires_secure_video_codec;
 
@@ -454,7 +482,8 @@ void MediaCodecVideoDecoder::OnMediaCryptoReady(
 
     if (decoder_config_.is_encrypted()) {
       LOG(ERROR) << "MediaCrypto is not available";
-      EnterTerminalState(State::kError, "MediaCrypto is not available");
+      EnterTerminalState(State::kError, {DecoderStatus::Codes::kFailed,
+                                         "MediaCrypto is not available"});
       std::move(init_cb).Run(DecoderStatus::Codes::kUnsupportedEncryptionMode);
       return;
     }
@@ -481,16 +510,18 @@ void MediaCodecVideoDecoder::OnMediaCryptoReady(
 }
 
 void MediaCodecVideoDecoder::OnCdmContextEvent(CdmContext::Event event) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
 
   if (event != CdmContext::Event::kHasAdditionalUsableKey)
     return;
 
   waiting_for_key_ = false;
-  StartTimerOrPumpCodec();
+  PumpCodec();
 }
 
 void MediaCodecVideoDecoder::StartLazyInit() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   TRACE_EVENT0("media", "MediaCodecVideoDecoder::StartLazyInit");
   lazy_init_pending_ = false;
@@ -527,11 +558,13 @@ void MediaCodecVideoDecoder::StartLazyInit() {
 
 void MediaCodecVideoDecoder::OnVideoFrameFactoryInitialized(
     scoped_refptr<gpu::TextureOwner> texture_owner) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   TRACE_EVENT0("media",
                "MediaCodecVideoDecoder::OnVideoFrameFactoryInitialized");
   if (!texture_owner) {
-    EnterTerminalState(State::kError, "Could not allocated TextureOwner");
+    EnterTerminalState(State::kError, {DecoderStatus::Codes::kFailed,
+                                       "Could not allocated TextureOwner"});
     return;
   }
   texture_owner_bundle_ =
@@ -561,6 +594,7 @@ void MediaCodecVideoDecoder::OnVideoFrameFactoryInitialized(
 
 void MediaCodecVideoDecoder::OnOverlayInfoChanged(
     const OverlayInfo& overlay_info) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   DCHECK(device_info_->SupportsOverlaySurfaces());
   DCHECK(!enable_threaded_texture_mailboxes_);
@@ -573,12 +607,13 @@ void MediaCodecVideoDecoder::OnOverlayInfoChanged(
   surface_chooser_helper_.SetIsPersistentVideo(
       overlay_info_.is_persistent_video);
   surface_chooser_helper_.UpdateChooserState(
-      overlay_changed ? absl::make_optional(CreateOverlayFactoryCb())
-                      : absl::nullopt);
+      overlay_changed ? std::make_optional(CreateOverlayFactoryCb())
+                      : std::nullopt);
 }
 
 void MediaCodecVideoDecoder::OnSurfaceChosen(
     std::unique_ptr<AndroidOverlay> overlay) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   DCHECK(state_ == State::kInitializing ||
          device_info_->IsSetOutputSurfaceSupported());
@@ -603,6 +638,7 @@ void MediaCodecVideoDecoder::OnSurfaceChosen(
 }
 
 void MediaCodecVideoDecoder::OnSurfaceDestroyed(AndroidOverlay* overlay) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   DCHECK_NE(state_, State::kInitializing);
   TRACE_EVENT0("media", "MediaCodecVideoDecoder::OnSurfaceDestroyed");
@@ -614,7 +650,8 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed(AndroidOverlay* overlay) {
   // no idea that this has happened.  We should unback the frames here.  This
   // might work now that we have CodecImageGroup -- verify this.
   if (!device_info_->IsSetOutputSurfaceSupported()) {
-    EnterTerminalState(State::kSurfaceDestroyed, "Surface destroyed");
+    EnterTerminalState(State::kSurfaceDestroyed,
+                       {DecoderStatus::Codes::kFailed, "Surface destroyed"});
     return;
   }
 
@@ -643,17 +680,21 @@ void MediaCodecVideoDecoder::OnSurfaceDestroyed(AndroidOverlay* overlay) {
 }
 
 bool MediaCodecVideoDecoder::SurfaceTransitionPending() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return codec_ && codec_->SurfaceBundle() != target_surface_bundle_;
 }
 
 void MediaCodecVideoDecoder::TransitionToTargetSurface() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   DCHECK(SurfaceTransitionPending());
   DCHECK(device_info_->IsSetOutputSurfaceSupported());
 
   if (!codec_->SetSurface(target_surface_bundle_)) {
     video_frame_factory_->SetSurfaceBundle(nullptr);
-    EnterTerminalState(State::kError, "Could not switch codec output surface");
+    EnterTerminalState(State::kError,
+                       {DecoderStatus::Codes::kFailed,
+                        "Could not switch codec output surface"});
     return;
   }
 
@@ -662,6 +703,7 @@ void MediaCodecVideoDecoder::TransitionToTargetSurface() {
 }
 
 void MediaCodecVideoDecoder::CreateCodec() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!codec_);
   DCHECK(target_surface_bundle_);
   DCHECK_EQ(state_, State::kRunning);
@@ -677,15 +719,13 @@ void MediaCodecVideoDecoder::CreateCodec() {
   config->initial_expected_coded_size = decoder_config_.coded_size();
   config->container_color_space = decoder_config_.color_space_info();
   config->hdr_metadata = decoder_config_.hdr_metadata();
-  config->name = SelectMediaCodec(decoder_config_, requires_secure_codec_);
+  config->use_block_model = use_block_model_;
+  config->profile = decoder_config_.profile();
+  SelectMediaCodec(decoder_config_, requires_secure_codec_, &config->name);
 
-  // Use the asynchronous API if we can.
-  if (device_info_->IsAsyncApiSupported()) {
-    using_async_api_ = true;
-    config->on_buffers_available_cb = base::BindPostTaskToCurrentDefault(
-        base::BindRepeating(&MediaCodecVideoDecoder::StartTimerOrPumpCodec,
-                            weak_factory_.GetWeakPtr()));
-  }
+  config->on_buffers_available_cb =
+      base::BindPostTaskToCurrentDefault(base::BindRepeating(
+          &MediaCodecVideoDecoder::PumpCodec, weak_factory_.GetWeakPtr()));
 
   // Note that this might be the same surface bundle that we've been using, if
   // we're reinitializing the codec without changing surfaces.  That's fine.
@@ -720,6 +760,7 @@ void MediaCodecVideoDecoder::OnCodecConfiguredInternal(
 void MediaCodecVideoDecoder::OnCodecConfigured(
     scoped_refptr<CodecSurfaceBundle> surface_bundle,
     std::unique_ptr<MediaCodecBridge> codec) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(!codec_);
   DCHECK_EQ(state_, State::kRunning);
   bool should_retry_codec_allocation = should_retry_codec_allocation_;
@@ -739,20 +780,45 @@ void MediaCodecVideoDecoder::OnCodecConfigured(
   }
 
   if (!codec) {
-    EnterTerminalState(State::kError, "Unable to allocate codec");
+    EnterTerminalState(State::kError, {DecoderStatus::Codes::kFailed,
+                                       "Unable to allocate codec"});
     return;
+  }
+
+  codec_name_ = codec->GetName();
+  MEDIA_LOG(INFO, media_log_)
+      << "Created MediaCodec " << codec_name_
+      << ", is_software_codec=" << codec->IsSoftwareCodec()
+      << ", use_block_model_=" << use_block_model_;
+
+  // Since we can't get the coded size w/o rendering the frame, we try to guess
+  // in cases where we are unable to render the frame (resolution changes). If
+  // we can't guess, there will be a visible rendering glitch.
+  std::optional<gfx::Size> coded_size_alignment;
+  if (base::FeatureList::IsEnabled(kMediaCodecCodedSizeGuessing)) {
+    coded_size_alignment =
+        MediaCodecUtil::LookupCodedSizeAlignment(codec_name_);
+    if (coded_size_alignment) {
+      MEDIA_LOG(INFO, media_log_) << "Using a coded size alignment of "
+                                  << coded_size_alignment->ToString();
+    } else {
+      // TODO(crbug.com/40917948): If the known cases work well, we can try
+      // guessing generically since we get a glitch either way.
+      MEDIA_LOG(WARNING, media_log_)
+          << "Unable to lookup coded size alignment for codec " << codec_name_;
+    }
   }
 
   max_input_size_ = codec->GetMaxInputSize();
   codec_ = std::make_unique<CodecWrapper>(
       CodecSurfacePair(std::move(codec), std::move(surface_bundle)),
       base::BindRepeating(
-          &OutputBufferReleased, using_async_api_,
+          &OutputBufferReleased,
           base::BindPostTaskToCurrentDefault(base::BindRepeating(
-              &MediaCodecVideoDecoder::StartTimerOrPumpCodec,
-              weak_factory_.GetWeakPtr()))),
-      base::SequencedTaskRunner::GetCurrentDefault(),
-      decoder_config_.coded_size());
+              &MediaCodecVideoDecoder::PumpCodec, weak_factory_.GetWeakPtr()))),
+      decoder_config_.coded_size(),
+      decoder_config_.color_space_info().ToGfxColorSpace(),
+      coded_size_alignment);
 
   // If the target surface changed while codec creation was in progress,
   // transition to it immediately.
@@ -765,11 +831,12 @@ void MediaCodecVideoDecoder::OnCodecConfigured(
   // Cache the frame information that goes with this codec.
   CacheFrameInformation();
 
-  StartTimerOrPumpCodec();
+  PumpCodec();
 }
 
 void MediaCodecVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
                                     DecodeCB decode_cb) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(3) << __func__ << ": " << buffer->AsHumanReadableString();
   if (state_ == State::kError) {
     std::move(decode_cb).Run(DecoderStatus::Codes::kFailed);
@@ -788,10 +855,11 @@ void MediaCodecVideoDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
       StartLazyInit();
     return;
   }
-  PumpCodec(true);
+  PumpCodec();
 }
 
 void MediaCodecVideoDecoder::FlushCodec() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
 
   // If a deferred flush was pending, then it isn't anymore.
@@ -826,72 +894,26 @@ void MediaCodecVideoDecoder::FlushCodec() {
 
   DVLOG(2) << "Flushing codec";
   if (!codec_->Flush())
-    EnterTerminalState(State::kError, "Codec flush failed");
+    EnterTerminalState(State::kError,
+                       {DecoderStatus::Codes::kFailed, "Codec flush failed"});
 }
 
-void MediaCodecVideoDecoder::PumpCodec(bool force_start_timer) {
+void MediaCodecVideoDecoder::PumpCodec() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(4) << __func__;
-  bool did_work = false, did_input = false, did_output = false;
+  if (state_ != State::kRunning) {
+    return;
+  }
+
+  bool did_input = false, did_output = false;
   do {
     did_input = QueueInput();
     did_output = DequeueOutput();
-    if (did_input || did_output)
-      did_work = true;
   } while (did_input || did_output);
-
-  if (using_async_api_)
-    return;
-
-  if (did_work || force_start_timer)
-    StartTimerOrPumpCodec();
-  else
-    StopTimerIfIdle();
-}
-
-void MediaCodecVideoDecoder::StartTimerOrPumpCodec() {
-  DVLOG(4) << __func__;
-  if (state_ != State::kRunning)
-    return;
-
-  if (using_async_api_) {
-    PumpCodec(false);
-    return;
-  }
-
-  idle_timer_ = base::ElapsedTimer();
-
-  // Poll at 10ms somewhat arbitrarily.
-  // TODO: Don't poll on new devices; use the callback API.
-  // TODO: Experiment with this number to save power. Since we already pump the
-  // codec in response to receiving a decode and output buffer release, polling
-  // at this frequency is likely overkill in the steady state.
-  const auto kPollingPeriod = base::Milliseconds(10);
-  if (!pump_codec_timer_.IsRunning()) {
-    pump_codec_timer_.Start(
-        FROM_HERE, kPollingPeriod,
-        base::BindRepeating(&MediaCodecVideoDecoder::PumpCodec,
-                            base::Unretained(this), false));
-  }
-}
-
-void MediaCodecVideoDecoder::StopTimerIfIdle() {
-  DVLOG(4) << __func__;
-  DCHECK(!using_async_api_);
-
-  // Stop the timer if we've been idle for one second. Chosen arbitrarily.
-  const auto kTimeout = base::Seconds(1);
-  if (idle_timer_.Elapsed() > kTimeout) {
-    DVLOG(2) << "Stopping timer; idle timeout hit";
-    pump_codec_timer_.Stop();
-    // Draining for destroy can no longer proceed if the timer is stopping,
-    // because no more Decode() calls can be made, so complete it now to avoid
-    // leaking |this|.
-    if (drain_type_ == DrainType::kForDestroy)
-      OnCodecDrained();
-  }
 }
 
 bool MediaCodecVideoDecoder::QueueInput() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(4) << __func__;
   if (!codec_ || waiting_for_key_)
     return false;
@@ -913,10 +935,14 @@ bool MediaCodecVideoDecoder::QueueInput() {
   if (pending_decodes_.empty())
     return false;
 
-  PendingDecode& pending_decode = pending_decodes_.front();
-  if (!pending_decode.buffer->end_of_stream() &&
-      pending_decode.buffer->is_key_frame() &&
-      pending_decode.buffer->data_size() > max_input_size_) {
+  // TODO(crbug.com/373986013): We take a full ref on the buffer here since
+  // crash data seems to show access violations potentially involving this
+  // buffer.
+  auto pending_buffer = pending_decodes_.front().buffer;
+
+  if (!use_block_model_ && !pending_buffer->end_of_stream() &&
+      pending_buffer->is_key_frame() &&
+      pending_buffer->size() > max_input_size_) {
     // If we we're already using the provided resolution, try to guess something
     // larger based on the actual input size.
     if (decoder_config_.coded_size().width() == last_width_) {
@@ -927,7 +953,7 @@ bool MediaCodecVideoDecoder::QueueInput() {
               ? 2
               : 4;
       const size_t max_pixels =
-          (pending_decode.buffer->data_size() * compression_ratio * 2) / 3;
+          (pending_buffer->size() * compression_ratio * 2) / 3;
       if (max_pixels > 8294400)  // 4K
         decoder_config_.set_coded_size(gfx::Size(7680, 4320));
       else if (max_pixels > 2088960)  // 1080p
@@ -946,43 +972,89 @@ bool MediaCodecVideoDecoder::QueueInput() {
     }
   }
 
-  auto status = codec_->QueueInputBuffer(*pending_decode.buffer);
-  DVLOG((status == CodecWrapper::QueueStatus::kTryAgainLater ||
-                 status == CodecWrapper::QueueStatus::kOk
+  // See if we can elide the EOS / Flush for a config change. Some platforms
+  // may tear down expensive scaffolding around HDR during a flush.
+  //
+  // Note: Normally we must wait for all buffers to be emitted and rendered
+  // before running the EOS DecodeCB. We're relying on an implementation detail
+  // in DecoderSelector -- that the existing VideoDecoder will be reused.
+  //
+  // If this ever changes, the code below runs the risk of dropping all frames
+  // which haven't been received and rendered from the MediaCodec instance.
+  if (base::FeatureList::IsEnabled(kMediaCodecElideEOS) &&
+      pending_buffer->end_of_stream() && pending_buffer->next_config()) {
+    const auto new_config =
+        std::get<VideoDecoderConfig>(*pending_buffer->next_config());
+
+    // The underlying MediaCodec must remain the same in order for us to elide
+    // the end of stream flush.
+    const bool can_reuse_codec = [&]() {
+      std::string codec_name;
+      SelectMediaCodec(new_config, requires_secure_codec_, &codec_name);
+      return !codec_name_.empty() && codec_name == codec_name_ &&
+             !CodecNeedsReallocation(new_config.coded_size().width());
+    }();
+
+    if (can_reuse_codec) {
+      MEDIA_LOG(INFO, media_log_)
+          << "Eliding EOS buffer and flush for resolution change from "
+          << decoder_config_.coded_size().ToString() << " to "
+          << new_config.coded_size().ToString();
+      std::move(pending_decodes_.front().decode_cb)
+          .Run(DecoderStatus::Codes::kElidedEndOfStreamForConfigChange);
+      pending_decodes_.pop_front();
+      DCHECK(pending_decodes_.empty());
+      decoder_config_ = new_config;
+
+      // Note: We don't set `last_width_` here since the codec was allocated
+      // with the pre-config change resolution. If `max_input_size_` is
+      // exceeded, the code will detect that `last_width_` doesn't match the
+      // current config and try reallocating at that size.
+      return true;
+    }
+  }
+
+  auto status = codec_->QueueInputBuffer(*pending_buffer);
+  DVLOG((status.code() == CodecWrapper::QueueStatus::Codes::kTryAgainLater ||
+                 status.is_ok()
              ? 3
              : 2))
-      << "QueueInput(" << pending_decode.buffer->AsHumanReadableString()
-      << ") status=" << static_cast<int>(status);
+      << "QueueInput(" << pending_buffer->AsHumanReadableString()
+      << ") status=" << status.message();
 
-  switch (status) {
-    case CodecWrapper::QueueStatus::kOk:
+  switch (status.code()) {
+    case CodecWrapper::QueueStatus::Codes::kOk:
       break;
-    case CodecWrapper::QueueStatus::kTryAgainLater:
+    case CodecWrapper::QueueStatus::Codes::kTryAgainLater:
       return false;
-    case CodecWrapper::QueueStatus::kNoKey:
+    case CodecWrapper::QueueStatus::Codes::kNoKey:
       // Retry when a key is added.
       waiting_for_key_ = true;
       waiting_cb_.Run(WaitingReason::kNoDecryptionKey);
       return false;
-    case CodecWrapper::QueueStatus::kError:
-      EnterTerminalState(State::kError, "QueueInputBuffer failed");
+    case CodecWrapper::QueueStatus::Codes::kError:
+      EnterTerminalState(State::kError,
+                         {DecoderStatus::Codes::kFailed,
+                          "QueueInputBuffer failed", std::move(status)});
       return false;
   }
 
-  if (pending_decode.buffer->end_of_stream()) {
+  if (pending_buffer->end_of_stream()) {
     // The VideoDecoder interface requires that the EOS DecodeCB is called after
     // all decodes before it are delivered, so we have to save it and call it
     // when the EOS is dequeued.
     DCHECK(!eos_decode_cb_);
-    eos_decode_cb_ = std::move(pending_decode.decode_cb);
+    eos_decode_cb_ = std::move(pending_decodes_.front().decode_cb);
   } else {
-    std::move(pending_decode.decode_cb).Run(DecoderStatus::Codes::kOk);
+    std::move(pending_decodes_.front().decode_cb)
+        .Run(DecoderStatus::Codes::kOk);
   }
   pending_decodes_.pop_front();
   return true;
 }
 
 bool MediaCodecVideoDecoder::DequeueOutput() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(4) << __func__;
   if (!codec_ || codec_->IsDrained() || waiting_for_key_)
     return false;
@@ -1005,19 +1077,21 @@ bool MediaCodecVideoDecoder::DequeueOutput() {
   std::unique_ptr<CodecOutputBuffer> output_buffer;
   auto status =
       codec_->DequeueOutputBuffer(&presentation_time, &eos, &output_buffer);
-  switch (status) {
-    case CodecWrapper::DequeueStatus::kOk:
+  switch (status.code()) {
+    case CodecWrapper::DequeueStatus::Codes::kOk:
       break;
-    case CodecWrapper::DequeueStatus::kTryAgainLater:
+    case CodecWrapper::DequeueStatus::Codes::kTryAgainLater:
       return false;
-    case CodecWrapper::DequeueStatus::kError:
+    case CodecWrapper::DequeueStatus::Codes::kError:
       DVLOG(1) << "DequeueOutputBuffer() error";
-      EnterTerminalState(State::kError, "DequeueOutputBuffer failed");
+      EnterTerminalState(State::kError,
+                         {DecoderStatus::Codes::kFailed,
+                          "DequeueOutputBuffer failed", std::move(status)});
       return false;
   }
   DVLOG(3) << "DequeueOutputBuffer(): pts="
            << (eos ? "EOS"
-                   : std::to_string(presentation_time.InMilliseconds()));
+                   : base::NumberToString(presentation_time.InMilliseconds()));
 
   if (eos) {
     if (eos_decode_cb_) {
@@ -1055,9 +1129,9 @@ bool MediaCodecVideoDecoder::DequeueOutput() {
   // SurfaceControl overlays, then this isn't needed; there is never a surface
   // transition anyway.
   if (!is_surface_control_enabled_) {
-    output_buffer->set_render_cb(base::BindPostTaskToCurrentDefault(
-        base::BindOnce(&MediaCodecVideoDecoder::StartTimerOrPumpCodec,
-                       weak_factory_.GetWeakPtr())));
+    output_buffer->set_render_cb(
+        base::BindPostTaskToCurrentDefault(base::BindOnce(
+            &MediaCodecVideoDecoder::PumpCodec, weak_factory_.GetWeakPtr())));
   }
   video_frame_factory_->CreateVideoFrame(
       std::move(output_buffer), presentation_time,
@@ -1070,6 +1144,7 @@ bool MediaCodecVideoDecoder::DequeueOutput() {
 }
 
 void MediaCodecVideoDecoder::RunEosDecodeCb(int reset_generation) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Both of the following conditions are necessary because:
   //  * In an error state, the reset generations will match but |eos_decode_cb_|
   //    will be aborted.
@@ -1084,13 +1159,15 @@ void MediaCodecVideoDecoder::ForwardVideoFrame(
     std::unique_ptr<ScopedAsyncTrace> async_trace,
     base::TimeTicks started_at,
     scoped_refptr<VideoFrame> frame) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(3) << __func__ << " : "
            << (frame ? frame->AsHumanReadableString() : "null");
 
   // No |frame| indicates an error creating it.
   if (!frame) {
     DLOG(ERROR) << __func__ << " |frame| is null";
-    EnterTerminalState(State::kError, "Could not create VideoFrame");
+    EnterTerminalState(State::kError, {DecoderStatus::Codes::kFailed,
+                                       "Could not create VideoFrame"});
     return;
   }
 
@@ -1099,6 +1176,13 @@ void MediaCodecVideoDecoder::ForwardVideoFrame(
   // way, often sRGB.  In that case, don't confuse things with HDR metadata.
   if (frame->ColorSpace().IsHDR() && decoder_config_.hdr_metadata()) {
     frame->set_hdr_metadata(decoder_config_.hdr_metadata());
+  }
+
+  if (media_crypto_context_) {
+    frame->metadata().protected_video = true;
+    if (requires_secure_codec_) {
+      frame->metadata().hw_protected = true;
+    }
   }
 
   if (reset_generation == reset_generation_) {
@@ -1114,6 +1198,7 @@ void MediaCodecVideoDecoder::ForwardVideoFrame(
 // 1) no VideoFrames from before the Reset() will be output, and
 // 2) no DecodeCBs (including EOS) from before the Reset() will be run.
 void MediaCodecVideoDecoder::Reset(base::OnceClosure closure) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   DCHECK(!reset_cb_);
   reset_generation_++;
@@ -1123,6 +1208,7 @@ void MediaCodecVideoDecoder::Reset(base::OnceClosure closure) {
 }
 
 void MediaCodecVideoDecoder::StartDrainingCodec(DrainType drain_type) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   TRACE_EVENT0("media", "MediaCodecVideoDecoder::StartDrainingCodec");
   DCHECK(pending_decodes_.empty());
@@ -1140,30 +1226,16 @@ void MediaCodecVideoDecoder::StartDrainingCodec(DrainType drain_type) {
   if (codec_)
     codec_->DiscardOutputBuffers();
 
-  // Skip the drain if possible. Only VP8 codecs need draining because
-  // they can hang in release() or flush() otherwise
-  // (http://crbug.com/598963).
-  // TODO(watk): Strongly consider blocking VP8 (or specific MediaCodecs)
-  // instead. Draining is responsible for a lot of complexity.
-  if (decoder_config_.codec() != VideoCodec::kVP8 || !codec_ ||
-      codec_->IsFlushed() || codec_->IsDrained() || using_async_api_) {
-    // If the codec isn't already drained or flushed, then we have to remember
-    // that we owe it a flush.  We also have to remember not to deliver any
-    // output buffers that might still be in progress in the codec.
-    deferred_flush_pending_ =
-        codec_ && !codec_->IsDrained() && !codec_->IsFlushed();
-    OnCodecDrained();
-    return;
-  }
-
-  // Queue EOS if the codec isn't already processing one.
-  if (!codec_->IsDraining())
-    pending_decodes_.push_back(PendingDecode::CreateEos());
-
-  PumpCodec(true);
+  // If the codec isn't already drained or flushed, then we have to remember
+  // that we owe it a flush.  We also have to remember not to deliver any
+  // output buffers that might still be in progress in the codec.
+  deferred_flush_pending_ =
+      codec_ && !codec_->IsDrained() && !codec_->IsFlushed();
+  OnCodecDrained();
 }
 
 void MediaCodecVideoDecoder::OnCodecDrained() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DVLOG(2) << __func__;
   TRACE_EVENT0("media", "MediaCodecVideoDecoder::OnCodecDrained");
   DrainType drain_type = *drain_type_;
@@ -1187,30 +1259,39 @@ void MediaCodecVideoDecoder::OnCodecDrained() {
 }
 
 void MediaCodecVideoDecoder::EnterTerminalState(State state,
-                                                const char* reason) {
-  DVLOG(2) << __func__ << " " << static_cast<int>(state) << " " << reason;
-  MEDIA_LOG(INFO, media_log_) << "Entering Terminal State: " << reason;
+                                                DecoderStatus reason) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Any nested error inside `reason` not displayed as the error is propagated
+  // to the caller.
+  DVLOG(2) << __func__ << " " << static_cast<int>(state) << " "
+           << reason.message();
 
   state_ = state;
   DCHECK(InTerminalState());
 
   // Cancel pending codec creation.
   codec_allocator_weak_factory_.InvalidateWeakPtrs();
-  pump_codec_timer_.Stop();
   ReleaseCodec();
   target_surface_bundle_ = nullptr;
   texture_owner_bundle_ = nullptr;
-  if (state == State::kError)
-    CancelPendingDecodes({DecoderStatus::Codes::kFailed, reason});
-  if (drain_type_)
+  if (state == State::kError) {
+    CancelPendingDecodes(reason);
+  } else {
+    MEDIA_LOG(INFO, media_log_)
+        << "Entering Terminal State: " << reason.message();
+  }
+  if (drain_type_) {
     OnCodecDrained();
+  }
 }
 
 bool MediaCodecVideoDecoder::InTerminalState() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return state_ == State::kSurfaceDestroyed || state_ == State::kError;
 }
 
 void MediaCodecVideoDecoder::CancelPendingDecodes(DecoderStatus status) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   for (auto& pending_decode : pending_decodes_)
     std::move(pending_decode.decode_cb).Run(status);
   pending_decodes_.clear();
@@ -1219,6 +1300,7 @@ void MediaCodecVideoDecoder::CancelPendingDecodes(DecoderStatus status) {
 }
 
 void MediaCodecVideoDecoder::ReleaseCodec() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!codec_)
     return;
   auto pair = codec_->TakeCodecSurfacePair();
@@ -1232,6 +1314,7 @@ void MediaCodecVideoDecoder::ReleaseCodec() {
 }
 
 AndroidOverlayFactoryCB MediaCodecVideoDecoder::CreateOverlayFactoryCb() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!overlay_factory_cb_ || !overlay_info_.HasValidRoutingToken())
     return AndroidOverlayFactoryCB();
 
@@ -1247,14 +1330,13 @@ bool MediaCodecVideoDecoder::NeedsBitstreamConversion() const {
 }
 
 bool MediaCodecVideoDecoder::CanReadWithoutStalling() const {
-  // MediaCodec gives us no indication that it will stop producing outputs
-  // until we provide more inputs or release output buffers back to it, so
-  // we have to always return false.
-  // TODO(watk): This puts all MCVD playbacks into low delay mode (i.e., the
-  // renderer won't try to preroll). Ideally we'd be smarter about
-  // this and attempt preroll but be able to give up if we can't produce
-  // enough frames.
-  return false;
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // We should always be able to get at least two outputs, one in the front
+  // buffer slot and one in the back buffer slot unless we're waiting for
+  // rendering to happen.
+  const auto buffer_count =
+      codec_ ? codec_->GetUnreleasedOutputBufferCount() : 0;
+  return !video_frame_factory_->IsStalled() && buffer_count < 2;
 }
 
 int MediaCodecVideoDecoder::GetMaxDecodeRequests() const {
@@ -1266,6 +1348,7 @@ int MediaCodecVideoDecoder::GetMaxDecodeRequests() const {
 
 PromotionHintAggregator::NotifyPromotionHintCB
 MediaCodecVideoDecoder::CreatePromotionHintCB() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Right now, we don't request promotion hints.  This is only used by SOP.
   // While we could simplify it a bit, this is the general form that we'll use
   // when handling promotion hints.
@@ -1294,19 +1377,43 @@ MediaCodecVideoDecoder::CreatePromotionHintCB() {
 }
 
 bool MediaCodecVideoDecoder::IsUsingOverlay() const {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return codec_ && codec_->SurfaceBundle() &&
          codec_->SurfaceBundle()->overlay();
 }
 
 void MediaCodecVideoDecoder::NotifyPromotionHint(
     PromotionHintAggregator::Hint hint) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   surface_chooser_helper_.NotifyPromotionHintAndUpdateChooser(hint,
                                                               IsUsingOverlay());
 }
 
 void MediaCodecVideoDecoder::CacheFrameInformation() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   cached_frame_information_ =
       surface_chooser_helper_.ComputeFrameInformation(IsUsingOverlay());
+}
+
+bool MediaCodecVideoDecoder::CodecNeedsReallocation(int new_width) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return !use_block_model_ && new_width > last_width_ * kReallocateThreshold &&
+         device_info_ &&
+         device_info_->SdkVersion() > base::android::SDK_VERSION_P;
+}
+
+std::vector<SupportedVideoDecoderConfig>
+MediaCodecVideoDecoder::GetSupportedConfigsInternal() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  // Tests override the DeviceInfo, so if an override is provided query the
+  // configs as they look under that DeviceInfo.
+  if (device_info_ != DeviceInfo::GetInstance()) {
+    return GenerateSupportedConfigs(device_info_,
+                                    /*allow_media_codec_sw_decoder=*/true);
+  }
+
+  // Use the default cached results if minimum resolutions should be enforced.
+  return GetSupportedConfigs();
 }
 
 }  // namespace media

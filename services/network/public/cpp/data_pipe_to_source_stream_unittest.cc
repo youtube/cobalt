@@ -4,7 +4,10 @@
 
 #include "services/network/public/cpp/data_pipe_to_source_stream.h"
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
+#include "base/containers/span.h"
+#include "base/strings/cstring_view.h"
 #include "base/test/task_environment.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
@@ -48,7 +51,7 @@ class DataPipeToSourceStreamTest
       : output_buffer_(base::MakeRefCounted<net::IOBufferWithSize>(
             GetParam().buffer_size)) {}
 
-  void Init(base::StringPiece message) {
+  void Init(std::string_view message) {
     message_ = message;
     const MojoCreateDataPipeOptions data_pipe_options{
         sizeof(MojoCreateDataPipeOptions), MOJO_CREATE_DATA_PIPE_FLAG_NONE, 1,
@@ -71,11 +74,15 @@ class DataPipeToSourceStreamTest
     }
     bool one_byte_at_a_time =
         GetParam().write_mode == WriteMode::ONE_BYTE_AT_A_TIME;
-    uint32_t num_bytes = one_byte_at_a_time ? 1 : message_.size();
-    MojoResult result = producer_end_->WriteData(message_.data(), &num_bytes,
-                                                 MOJO_WRITE_DATA_FLAG_NONE);
+    base::span<const uint8_t> bytes = base::as_byte_span(message_);
+    if (one_byte_at_a_time) {
+      bytes = bytes.first(1u);
+    }
+    size_t actually_written_bytes = 0;
+    MojoResult result = producer_end_->WriteData(
+        bytes, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
     if (result == MOJO_RESULT_OK) {
-      message_.remove_prefix(num_bytes);
+      message_.remove_prefix(actually_written_bytes);
       if (message_.empty())
         CloseProducerHandle();
       return;
@@ -120,7 +127,7 @@ class DataPipeToSourceStreamTest
   scoped_refptr<net::IOBufferWithSize> output_buffer_;
   std::unique_ptr<DataPipeToSourceStream> adapter_;
   mojo::ScopedDataPipeProducerHandle producer_end_;
-  base::StringPiece message_;
+  std::string_view message_;
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -168,12 +175,13 @@ TEST_P(DataPipeToSourceStreamTest, Simple) {
 }
 
 TEST_P(DataPipeToSourceStreamTest, DestructorClosesConsumerEnd) {
-  const char message[] = "Hello, world!";
-  Init(message);
+  constexpr base::cstring_view kMessage = "Hello, world!";
+  Init(kMessage.c_str());
   CloseAdapter();
-  uint32_t num_bytes = sizeof(message) - 1;
-  MojoResult result =
-      producer_end().WriteData(message, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE);
+  size_t actually_written_bytes = 0;
+  MojoResult result = producer_end().WriteData(base::as_byte_span(kMessage),
+                                               MOJO_WRITE_DATA_FLAG_NONE,
+                                               actually_written_bytes);
   EXPECT_EQ(result, MOJO_RESULT_FAILED_PRECONDITION);
 }
 

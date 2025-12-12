@@ -16,10 +16,12 @@
 
 #include <stddef.h>
 
+#include <cstdio>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "base/command_line.h"
 #include "base/functional/callback_helpers.h"
@@ -31,31 +33,53 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "cobalt/shell/app/resource.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/embedded_resources/embedded_js.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
-
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/devtools_agent_host.h"
-#include "content/public/browser/file_select_listener.h"
+#include "content/public/browser/document_picture_in_picture_window_controller.h"
+#include "content/public/browser/media_capture_devices.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/renderer_preferences_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "media/media_buildflags.h"
 #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
-#include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/android/shared/audio_permission_requester.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#include "starboard/android/shared/starboard_bridge.h"
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+
+using ::starboard::StarboardBridge;
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
+#endif
 
 namespace content {
 
@@ -64,6 +88,38 @@ namespace {
 base::OnceClosure& GetMainMessageLoopQuitClosure() {
   static base::NoDestructor<base::OnceClosure> closure;
   return *closure;
+}
+
+bool RequestRecordAudioPermission() {
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  JNIEnv* env = AttachCurrentThread();
+  return starboard::RequestRecordAudioPermission(env);
+#else
+  // It is expected that all 3P will have system-level permissions.
+  return true;
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
+    const blink::MediaStreamDevices& devices,
+    const std::vector<std::string>& requested_device_ids) {
+  for (const auto& requested_device_id : requested_device_ids) {
+    if (requested_device_id.empty()) {
+      continue;
+    }
+
+    auto it = std::ranges::find(devices, requested_device_id,
+                                &blink::MediaStreamDevice::id);
+    if (it != devices.end()) {
+      return &(*it);
+    }
+  }
+
+  if (!devices.empty()) {
+    return &devices[0];
+  }
+
+  return nullptr;
 }
 
 constexpr int kDefaultTestWindowWidthDip = 800;
@@ -90,6 +146,18 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       web_contents_->GetMutableRendererPrefs());
 
   windows_.push_back(this);
+
+  // Create browser-side mojo service component
+  js_communication_host_ =
+      std::make_unique<js_injection::JsCommunicationHost>(web_contents_.get());
+
+  RegisterInjectedJavaScript();
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (OomInterventionTabHelper::IsEnabled()) {
+    OomInterventionTabHelper::CreateForWebContents(web_contents_.get());
+  }
+#endif
 
   if (shell_created_callback_) {
     std::move(shell_created_callback_).Run(this);
@@ -124,8 +192,8 @@ void Shell::FinishShellInitialization(Shell* shell) {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kForceWebRtcIPHandlingPolicy)) {
     raw_web_contents->GetMutableRendererPrefs()->webrtc_ip_handling_policy =
-        command_line->GetSwitchValueASCII(
-            switches::kForceWebRtcIPHandlingPolicy);
+        blink::ToWebRTCIPHandlingPolicy(command_line->GetSwitchValueASCII(
+            switches::kForceWebRtcIPHandlingPolicy));
   }
 
   GetPlatform()->SetContents(shell);
@@ -263,6 +331,42 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   }
 }
 
+void Shell::PrimaryMainDocumentElementAvailable() {
+  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
+      web_contents());
+}
+
+void Shell::DidStopLoading() {
+  // Set initial focus to the web content.
+  if (web_contents()->GetRenderWidgetHostView()) {
+    web_contents()->GetRenderWidgetHostView()->Focus();
+  }
+}
+
+void Shell::RegisterInjectedJavaScript() {
+  // Get the embedded header resource
+  GeneratedResourceMap resource_map;
+  CobaltJavaScriptPolyfill::GenerateMap(resource_map);
+
+  for (const auto& [file_name, file_contents] : resource_map) {
+    LOG(INFO) << "JS injection for filename: " << file_name;
+    std::string js(reinterpret_cast<const char*>(file_contents.data),
+                   file_contents.size);
+
+    // Inject a script at document start for all origins
+    const std::u16string script(base::UTF8ToUTF16(js));
+    const std::vector<std::string> allowed_origins({"*"});
+    auto result = js_communication_host_->AddDocumentStartJavaScript(
+        script, allowed_origins);
+
+    if (result.error_message.has_value()) {
+      // error_message contains a value
+      LOG(WARNING) << "Failed to register JS injection for:" << file_name
+                   << ", error message: " << result.error_message.value();
+    }
+  }
+}
+
 void Shell::LoadURL(const GURL& url) {
   LoadURLForFrame(
       url, std::string(),
@@ -303,7 +407,7 @@ void Shell::LoadDataWithBaseURLInternal(const GURL& url,
   DCHECK(!load_as_string);  // Only supported on Android.
 #endif
 
-  NavigationController::LoadURLParams params(GURL::EmptyGURL());
+  NavigationController::LoadURLParams params{GURL()};
   const std::string data_url_header = "data:text/html;charset=utf-8,";
   if (load_as_string) {
     params.url = GURL(data_url_header);
@@ -318,21 +422,36 @@ void Shell::LoadDataWithBaseURLInternal(const GURL& url,
 
   params.load_type = NavigationController::LOAD_TYPE_DATA;
   params.base_url_for_data_url = base_url;
-  params.virtual_url_for_data_url = url;
+  params.virtual_url_for_special_cases = url;
   params.override_user_agent = NavigationController::UA_OVERRIDE_FALSE;
   web_contents_->GetController().LoadURLWithParams(params);
 }
 
-void Shell::AddNewContents(WebContents* source,
-                           std::unique_ptr<WebContents> new_contents,
-                           const GURL& target_url,
-                           WindowOpenDisposition disposition,
-                           const blink::mojom::WindowFeatures& window_features,
-                           bool user_gesture,
-                           bool* was_blocked) {
+WebContents* Shell::AddNewContents(
+    WebContents* source,
+    std::unique_ptr<WebContents> new_contents,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    bool user_gesture,
+    bool* was_blocked) {
+#if !BUILDFLAG(IS_ANDROID)
+  // If the shell is opening a document picture-in-picture window, it needs to
+  // inform the DocumentPictureInPictureWindowController.
+  if (disposition == WindowOpenDisposition::NEW_PICTURE_IN_PICTURE) {
+    DocumentPictureInPictureWindowController* controller =
+        PictureInPictureWindowController::
+            GetOrCreateDocumentPictureInPictureController(source);
+    controller->SetChildWebContents(new_contents.get());
+    controller->Show();
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+  WebContents* result = new_contents.get();
   CreateShell(
       std::move(new_contents), AdjustWindowSize(window_features.bounds.size()),
       !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */);
+  return result;
 }
 
 void Shell::GoBackOrForward(int offset) {
@@ -387,7 +506,7 @@ void Shell::ResizeWebContentForTests(const gfx::Size& content_size) {
 
 gfx::NativeView Shell::GetContentView() {
   if (!web_contents_) {
-    return nullptr;
+    return gfx::NativeView();
   }
   return web_contents_->GetNativeView();
 }
@@ -398,8 +517,11 @@ gfx::NativeWindow Shell::window() {
 }
 #endif
 
-WebContents* Shell::OpenURLFromTab(WebContents* source,
-                                   const OpenURLParams& params) {
+WebContents* Shell::OpenURLFromTab(
+    WebContents* source,
+    const OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
   WebContents* target = nullptr;
   switch (params.disposition) {
     case WindowOpenDisposition::CURRENT_TAB:
@@ -442,8 +564,14 @@ WebContents* Shell::OpenURLFromTab(WebContents* source,
       return nullptr;
   }
 
-  target->GetController().LoadURLWithParams(
-      NavigationController::LoadURLParams(params));
+  base::WeakPtr<NavigationHandle> navigation_handle =
+      target->GetController().LoadURLWithParams(
+          NavigationController::LoadURLParams(params));
+
+  if (navigation_handle_callback && navigation_handle) {
+    std::move(navigation_handle_callback).Run(*navigation_handle);
+  }
+
   return target;
 }
 
@@ -502,14 +630,14 @@ blink::mojom::DisplayMode Shell::GetDisplayMode(
              : blink::mojom::DisplayMode::kBrowser;
 }
 
-void Shell::RequestToLockMouse(WebContents* web_contents,
+void Shell::RequestPointerLock(WebContents* web_contents,
                                bool user_gesture,
                                bool last_unlocked_by_target) {
   // Give the platform a chance to handle the lock request, if it doesn't
   // indicate it handled it, allow the request.
-  if (!g_platform->HandleRequestToLockMouse(this, web_contents, user_gesture,
+  if (!g_platform->HandlePointerLockRequest(this, web_contents, user_gesture,
                                             last_unlocked_by_target)) {
-    web_contents->GotResponseToLockMouseRequest(
+    web_contents->GotResponseToPointerLockRequest(
         blink::mojom::PointerLockResult::kSuccess);
   }
 }
@@ -523,6 +651,11 @@ void Shell::Close() {
 }
 
 void Shell::CloseContents(WebContents* source) {
+#if BUILDFLAG(IS_ANDROID)
+  JNIEnv* env = AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->CloseApp(env);
+#endif
   Close();
 }
 
@@ -560,10 +693,6 @@ bool Shell::DidAddMessageToConsole(WebContents* source,
   return false;
 }
 
-void Shell::PortalWebContentsCreated(WebContents* portal_web_contents) {
-  g_platform->DidCreateOrAttachWebContents(this, portal_web_contents);
-}
-
 void Shell::RendererUnresponsive(
     WebContents* source,
     RenderWidgetHost* render_widget_host,
@@ -576,31 +705,14 @@ void Shell::ActivateContents(WebContents* contents) {
   contents->Focus();
 }
 
-void Shell::RunFileChooser(RenderFrameHost* render_frame_host,
-                           scoped_refptr<FileSelectListener> listener,
-                           const blink::mojom::FileChooserParams& params) {
-  g_platform->RunFileChooser(render_frame_host, std::move(listener), params);
-}
-
-bool Shell::IsBackForwardCacheSupported() {
+bool Shell::IsBackForwardCacheSupported(WebContents& web_contents) {
   return true;
 }
 
-PreloadingEligibility Shell::IsPrerender2Supported(WebContents& web_contents) {
+PreloadingEligibility Shell::IsPrerender2Supported(
+    WebContents& web_contents,
+    PreloadingTriggerType trigger_type) {
   return PreloadingEligibility::kEligible;
-}
-
-std::unique_ptr<WebContents> Shell::ActivatePortalWebContents(
-    WebContents* predecessor_contents,
-    std::unique_ptr<WebContents> portal_contents) {
-  DCHECK_EQ(predecessor_contents, web_contents_.get());
-  portal_contents->SetDelegate(this);
-  web_contents_->SetDelegate(nullptr);
-  std::swap(web_contents_, portal_contents);
-  g_platform->SetContents(this);
-  g_platform->SetAddressBarURL(this, web_contents_->GetVisibleURL());
-  LoadingStateChanged(web_contents_.get(), true);
-  return portal_contents;
 }
 
 namespace {
@@ -615,19 +727,6 @@ class PendingCallback : public base::RefCounted<PendingCallback> {
   base::OnceCallback<void()> callback_;
 };
 }  // namespace
-
-void Shell::UpdateInspectedWebContentsIfNecessary(
-    WebContents* old_contents,
-    WebContents* new_contents,
-    base::OnceCallback<void()> callback) {
-  scoped_refptr<PendingCallback> pending_callback =
-      base::MakeRefCounted<PendingCallback>(std::move(callback));
-  for (auto* shell_devtools_bindings :
-       ShellDevToolsBindings::GetInstancesForWebContents(old_contents)) {
-    shell_devtools_bindings->UpdateInspectedWebContents(
-        new_contents, base::DoNothingWithBoundArgs(pending_callback));
-  }
-}
 
 bool Shell::ShouldAllowRunningInsecureContent(WebContents* web_contents,
                                               bool allowed_per_prefs,
@@ -650,6 +749,50 @@ bool Shell::ShouldResumeRequestsForCreatedWindow() {
 
 void Shell::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
   DCHECK(source == web_contents());  // There's only one WebContents per Shell.
+}
+
+void Shell::RequestMediaAccessPermission(WebContents* web_contents,
+                                         const MediaStreamRequest& request,
+                                         MediaResponseCallback callback) {
+  if (request.audio_type !=
+      blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE) {
+    std::move(callback).Run(
+        blink::mojom::StreamDevicesSet(),
+        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
+        /*ui=*/nullptr);
+    return;
+  }
+  bool can_record_audio = RequestRecordAudioPermission();
+  if (!can_record_audio) {
+    std::move(callback).Run(
+        blink::mojom::StreamDevicesSet(),
+        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
+        /*ui=*/nullptr);
+    return;
+  }
+  auto audio_devices =
+      MediaCaptureDevices::GetInstance()->GetAudioCaptureDevices();
+  const blink::MediaStreamDevice* device = GetRequestedDeviceOrDefault(
+      audio_devices, request.requested_audio_device_ids);
+  if (!device) {
+    std::move(callback).Run(blink::mojom::StreamDevicesSet(),
+                            blink::mojom::MediaStreamRequestResult::NO_HARDWARE,
+                            /*ui=*/nullptr);
+    return;
+  }
+  blink::mojom::StreamDevicesSet stream_devices_set;
+  stream_devices_set.stream_devices.emplace_back(
+      blink::mojom::StreamDevices::New());
+  stream_devices_set.stream_devices[0]->audio_device = *device;
+  std::move(callback).Run(stream_devices_set,
+                          blink::mojom::MediaStreamRequestResult::OK,
+                          std::unique_ptr<MediaStreamUI>());
+}
+
+bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
+                                       const url::Origin&,
+                                       blink::mojom::MediaStreamType) {
+  return true;
 }
 
 gfx::Size Shell::GetShellDefaultSize() {

@@ -6,23 +6,26 @@ package org.chromium.ui.modelutil;
 
 import android.view.ViewGroup;
 
-import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.RecyclerView.ViewHolder;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 
 import java.util.List;
 
 /**
  * A base {@link RecyclerView} adapter that delegates most of its logic. This allows compositing
- * different delegates together to support different UI features living in the same
- * {@link RecyclerView}.
+ * different delegates together to support different UI features living in the same {@link
+ * RecyclerView}.
  *
  * @param <VH> The {@link ViewHolder} type for the {@link RecyclerView}.
  * @param <P> The payload type for partial updates, or {@link Void} if the adapter does not support
- * partial updates.
+ *     partial updates.
  */
-public class RecyclerViewAdapter<VH extends ViewHolder, P>
-        extends RecyclerView.Adapter<VH> implements ListObservable.ListObserver<P> {
+@NullMarked
+public class RecyclerViewAdapter<VH extends ViewHolder, P> extends RecyclerView.Adapter<VH>
+        implements ListObservable.ListObserver<P> {
     /**
      * Delegate interface for the adapter.
      * @param <VH> The {@link ViewHolder} type for the {@link RecyclerView}.

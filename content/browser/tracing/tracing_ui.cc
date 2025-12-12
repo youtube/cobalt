@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -32,7 +33,6 @@
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/tracing_controller.h"
-#include "content/public/browser/tracing_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -40,7 +40,6 @@
 #include "content/public/common/url_constants.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_session.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #include "third_party/perfetto/protos/perfetto/common/trace_stats.gen.h"
 
@@ -59,7 +58,7 @@ void OnGotCategories(WebUIDataSource::GotDataCallback callback,
   }
 
   auto res = base::MakeRefCounted<base::RefCountedString>();
-  base::JSONWriter::Write(category_list, &res->data());
+  base::JSONWriter::Write(category_list, &res->as_string());
   std::move(callback).Run(res);
 }
 
@@ -145,7 +144,7 @@ void ReadProtobufTraceData(
 void TracingCallbackWrapperBase64(WebUIDataSource::GotDataCallback callback,
                                   std::unique_ptr<std::string> data) {
   base::RefCountedString* data_base64 = new base::RefCountedString();
-  base::Base64Encode(*data, &data_base64->data());
+  data_base64->as_string() = base::Base64Encode(*data);
   std::move(callback).Run(data_base64);
 }
 
@@ -233,9 +232,7 @@ void OnTracingRequest(const std::string& path,
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-TracingUI::TracingUI(WebUI* web_ui)
-    : WebUIController(web_ui),
-      delegate_(GetContentClient()->browser()->GetTracingDelegate()) {
+TracingUI::TracingUI(WebUI* web_ui) : WebUIController(web_ui) {
   // Set up the chrome://tracing/ source.
   WebUIDataSource* source = WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(), kChromeUITracingHost);
@@ -260,7 +257,7 @@ bool TracingUI::GetTracingOptions(const std::string& data64,
     return false;
   }
 
-  absl::optional<base::Value> options = base::JSONReader::Read(data);
+  std::optional<base::Value> options = base::JSONReader::Read(data);
   if (!options) {
     LOG(ERROR) << "Options were not valid JSON";
     return false;

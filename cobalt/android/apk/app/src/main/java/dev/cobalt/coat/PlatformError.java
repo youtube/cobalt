@@ -29,7 +29,8 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.NativeMethods;
+import org.chromium.content_public.browser.WebContents;
 
 /** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
@@ -54,25 +55,25 @@ public class PlatformError
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
 
-  private final Holder<Activity> activityHolder;
-  private final @ErrorType int errorType;
-  private final long data;
-  private final Handler uiThreadHandler;
+  private final Holder<Activity> mActivityHolder;
+  private final @ErrorType int mErrorType;
+  private final long mData;
+  private final Handler mUiThreadHandler;
 
-  private Dialog dialog;
-  private int response;
+  private Dialog mDialog;
+  private int mResponse;
 
   public PlatformError(Holder<Activity> activityHolder, @ErrorType int errorType, long data) {
-    this.activityHolder = activityHolder;
-    this.errorType = errorType;
-    this.data = data;
-    uiThreadHandler = new Handler(Looper.getMainLooper());
-    response = CANCELLED;
+    mActivityHolder = activityHolder;
+    mErrorType = errorType;
+    mData = data;
+    mUiThreadHandler = new Handler(Looper.getMainLooper());
+    mResponse = CANCELLED;
   }
 
   /** Display the error. */
   public void raise() {
-    uiThreadHandler.post(
+    mUiThreadHandler.post(
         new Runnable() {
           @Override
           public void run() {
@@ -81,14 +82,18 @@ public class PlatformError
         });
   }
 
+  public void setResponse(@Response int response) {
+    mResponse = response;
+  }
+
   private void showDialogOnUiThread() {
-    Activity activity = activityHolder.get();
+    Activity activity = mActivityHolder.get();
     if (activity == null) {
-      sendResponse(CANCELLED, data);
+      sendResponse(CANCELLED, mData);
       return;
     }
     ErrorDialog.Builder dialogBuilder = new ErrorDialog.Builder(activity);
-    switch (errorType) {
+    switch (mErrorType) {
       case CONNECTION_ERROR:
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
@@ -96,36 +101,48 @@ public class PlatformError
             .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
         break;
       default:
-        Log.e(TAG, "Unknown platform error " + errorType);
+        Log.e(TAG, "Unknown platform error " + mErrorType);
         return;
     }
-    dialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
-    dialog.show();
+    mDialog = dialogBuilder.setButtonClickListener(this).setOnDismissListener(this).create();
+    mDialog.show();
+  }
+
+  public void dismiss() {
+    mUiThreadHandler.post(
+        () -> {
+          if (mDialog != null) {
+            mDialog.dismiss();
+          }
+        });
+  }
+
+  public boolean isShowing() {
+    return mDialog != null && mDialog.isShowing();
   }
 
   @Override
   public void onClick(DialogInterface dialogInterface, int whichButton) {
-    if (errorType == CONNECTION_ERROR) {
-      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+    if (mErrorType == CONNECTION_ERROR) {
+      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       switch (whichButton) {
         case NETWORK_SETTINGS_BUTTON:
-          response = POSITIVE;
+          mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.mShouldReloadOnResume = true;
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
           }
-          dialog.dismiss();
+          mDialog.dismiss();
           break;
         case RETRY_BUTTON:
-          response = POSITIVE;
+          mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+            cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
-          dialog.dismiss();
+          mDialog.dismiss();
           break;
         default: // fall out
       }
@@ -134,10 +151,9 @@ public class PlatformError
 
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
-    dialog = null;
-      CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
-      if (cobaltActivity != null && response == CANCELLED) {
-        cobaltActivity.mShouldReloadOnResume = true;
+    mDialog = null;
+      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+      if (cobaltActivity != null && mResponse == CANCELLED) {
         cobaltActivity.getStarboardBridge().requestSuspend();
       }
   }

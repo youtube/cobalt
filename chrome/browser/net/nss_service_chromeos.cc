@@ -16,9 +16,6 @@
 #include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "base/task/single_thread_task_runner.h"
-#include "chrome/browser/ash/crosapi/cert_database_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_ash.h"
-#include "chrome/browser/ash/crosapi/crosapi_manager.h"
 #include "chrome/browser/ash/login/startup_utils.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/profiles/profile.h"
@@ -27,6 +24,7 @@
 #include "chromeos/ash/components/dbus/userdataauth/cryptohome_pkcs11_client.h"
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/tpm/tpm_token_info_getter.h"
+#include "chromeos/components/kiosk/kiosk_utils.h"
 #include "components/user_manager/user.h"
 #include "components/user_manager/user_manager.h"
 #include "content/public/browser/browser_context.h"
@@ -41,7 +39,7 @@ using content::BrowserThread;
 namespace {
 
 // The following four functions are responsible for initializing NSS for each
-// profile on ChromeOS Ash, which has a separate NSS database and TPM slot
+// profile on ChromeOS, which has a separate NSS database and TPM slot
 // per-profile.
 //
 // Initialization basically follows these steps:
@@ -79,7 +77,7 @@ namespace {
 void DidGetTPMInfoForUserOnUIThread(
     std::unique_ptr<ash::TPMTokenInfoGetter> getter,
     const std::string& username_hash,
-    absl::optional<user_data_auth::TpmTokenInfo> token_info) {
+    std::optional<user_data_auth::TpmTokenInfo> token_info) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   if (token_info.has_value() && token_info->slot() != -1) {
     DVLOG(1) << "Got TPM slot for " << username_hash << ": "
@@ -127,13 +125,25 @@ void StartTPMSlotInitializationOnIOThread(const AccountId& account_id,
 
 void StartNSSInitOnIOThread(const AccountId& account_id,
                             const std::string& username_hash,
-                            const base::FilePath& path) {
+                            const base::FilePath& path,
+                            bool is_kiosk) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DVLOG(1) << "Starting NSS init for " << account_id.Serialize()
            << "  hash:" << username_hash;
 
   // Make sure NSS is initialized for the user.
-  crypto::InitializeNSSForChromeOSUser(username_hash, path);
+  if (is_kiosk) {
+    // Kiosk sessions don't have the UI that could result in interactions with
+    // the public slot. Kiosk users are also not owner users and can't have
+    // the owner key in the public slot. So the public slot is not used in
+    // Kiosk sessions and can be replaced by the internal slot. This is done
+    // mainly because Chrome sometimes fails to load the public slot and has
+    // to crash because of that.
+    crypto::InitializeNSSForChromeOSUserWithSlot(
+        username_hash, crypto::ScopedPK11Slot(PK11_GetInternalKeySlot()));
+  } else {
+    crypto::InitializeNSSForChromeOSUser(username_hash, path);
+  }
 
   // Check if it's OK to initialize TPM for the user before continuing. This
   // may not be the case if the TPM slot initialization was previously
@@ -146,20 +156,11 @@ void StartNSSInitOnIOThread(const AccountId& account_id,
       &StartTPMSlotInitializationOnIOThread, account_id, username_hash));
 }
 
-void NotifyCertsChangedInAshOnUIThread() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  crosapi::CrosapiManager::Get()
-      ->crosapi_ash()
-      ->cert_database_ash()
-      ->NotifyCertsChangedInAsh();
-}
-
 }  // namespace
 
 // Creates and manages a NSSCertDatabaseChromeOS. Created on the UI thread, but
 // all other calls are made on the IO thread.
-class NssService::NSSCertDatabaseChromeOSManager
-    : public net::NSSCertDatabase::Observer {
+class NssService::NSSCertDatabaseChromeOSManager {
  public:
   using GetNSSCertDatabaseCallback =
       base::OnceCallback<void(net::NSSCertDatabase*)>;
@@ -176,12 +177,7 @@ class NssService::NSSCertDatabaseChromeOSManager
   NSSCertDatabaseChromeOSManager& operator=(
       const NSSCertDatabaseChromeOSManager&) = delete;
 
-  ~NSSCertDatabaseChromeOSManager() override {
-    DCHECK_CURRENTLY_ON(BrowserThread::IO);
-    if (nss_cert_database_) {
-      nss_cert_database_->RemoveObserver(this);
-    }
-  }
+  ~NSSCertDatabaseChromeOSManager() { DCHECK_CURRENTLY_ON(BrowserThread::IO); }
 
   net::NSSCertDatabase* GetNSSCertDatabase(
       GetNSSCertDatabaseCallback callback) {
@@ -202,12 +198,6 @@ class NssService::NSSCertDatabaseChromeOSManager
     }
 
     return nullptr;
-  }
-
-  // net::NSSCertDatabase::Observer
-  void OnCertDBChanged() override {
-    content::GetUIThreadTaskRunner({})->PostTask(
-        FROM_HERE, base::BindOnce(&NotifyCertsChangedInAshOnUIThread));
   }
 
  private:
@@ -242,6 +232,16 @@ class NssService::NSSCertDatabaseChromeOSManager
 
     auto public_slot = crypto::GetPublicSlotForChromeOSUser(username_hash_);
 
+#if !BUILDFLAG(IS_CHROMEOS_DEVICE)
+    if (!public_slot) {
+      // This is a "for testing" branch. The code below will intentionally crash
+      // when the public slot fails to load. By default prevent this from
+      // happening in tests that simply don't properly fake NSS. Consider using
+      // FakeNssService if a specific NSS behavior is required in tests.
+      public_slot = crypto::ScopedPK11Slot(PK11_GetInternalKeySlot());
+    }
+#endif
+
     // TODO(crbug.com/1163303): Remove when the bug is fixed.
     if (!public_slot) {
       Profile* profile = ProfileManager::GetActiveUserProfile();
@@ -255,7 +255,6 @@ class NssService::NSSCertDatabaseChromeOSManager
 
     if (system_slot)
       nss_cert_database_->SetSystemSlot(std::move(system_slot));
-    nss_cert_database_->AddObserver(this);
 
     ready_callback_list_.Notify(nss_cert_database_.get());
   }
@@ -289,7 +288,8 @@ NssService::NssService(content::BrowserContext* context) {
     DCHECK(!username_hash.empty());
     content::GetIOThreadTaskRunner({})->PostTask(
         FROM_HERE, base::BindOnce(&StartNSSInitOnIOThread, user->GetAccountId(),
-                                  username_hash, profile->GetPath()));
+                                  username_hash, profile->GetPath(),
+                                  chromeos::IsKioskSession()));
 
     enable_system_slot = user->IsAffiliated();
   }

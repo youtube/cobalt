@@ -5,42 +5,67 @@
 #include "chrome/browser/ui/webui/chrome_untrusted_web_ui_configs.h"
 
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
-#include "chrome/browser/ui/webui/chrome_untrusted_web_ui_configs_common.h"
+#include "content/public/browser/webui_config_map.h"
+#include "printing/buildflags/buildflags.h"
 
-#if BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/webui/chrome_untrusted_web_ui_configs_android.h"
-#endif  // BUILDFLAG(IS_ANDROID)
+#if defined(TOOLKIT_VIEWS)
+#include "chrome/browser/ui/webui/data_sharing/data_sharing_ui.h"
+#include "chrome/browser/ui/webui/privacy_sandbox/privacy_sandbox_dialog_untrusted_ui.h"
+#include "chrome/browser/ui/webui/side_panel/read_anything/read_anything_untrusted_ui.h"
+#include "components/compose/buildflags.h"
+#if BUILDFLAG(ENABLE_COMPOSE)
+#include "chrome/browser/ui/webui/compose/compose_untrusted_ui.h"
+#endif  // BUILDFLAG(ENABLE_COMPOSE)
+#include "chrome/browser/ui/lens/lens_overlay_untrusted_ui.h"
+#include "chrome/browser/ui/lens/lens_side_panel_untrusted_ui.h"
+#endif  // defined(TOOLKIT_VIEWS)
+
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+#include "chrome/browser/ui/webui/print_preview/print_preview_ui_untrusted.h"
+#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
+
+#if BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/ui/webui/ash/config/chrome_untrusted_web_ui_configs_chromeos.h"
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/webui/chrome_untrusted_web_ui_configs_desktop.h"
+#include "chrome/browser/ui/webui/ntp_microsoft_auth/ntp_microsoft_auth_untrusted_ui.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_CHROMEOS)
-#include "chrome/browser/ui/webui/chromeos/chrome_untrusted_web_ui_configs_chromeos.h"
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
 void RegisterChromeUntrustedWebUIConfigs() {
-  // Don't add calls to `AddUntrustedWebUIConfig()` here. Add it in one of
-  // the corresponding files:
-  //  - chrome_untrusted_web_ui_configs_android.cc
-  //  - chrome_untrusted_web_ui_configs_common.cc
-  //  - chrome_untrusted_web_ui_configs_desktop.cc
-  //  - chrome_untrusted_web_ui_configs_chromeos.cc
-
-  RegisterCommonChromeUntrustedWebUIConfigs();
-
-#if BUILDFLAG(IS_ANDROID)
-  RegisterAndroidChromeUntrustedWebUIConfigs();
-#endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
-  RegisterDesktopChromeUntrustedWebUIConfigs();
-#endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)  ||
-        // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_FUCHSIA)
-
+  // Don't add calls to `AddUntrustedWebUIConfig()` for ash-specific UIs here.
+  // Add them in chrome_untrusted_web_ui_configs_chromeos.cc.
 #if BUILDFLAG(IS_CHROMEOS)
-  RegisterChromeOSChromeUntrustedWebUIConfigs();
+  ash::RegisterAshChromeUntrustedWebUIConfigs();
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if defined(TOOLKIT_VIEWS) || BUILDFLAG(ENABLE_PRINT_PREVIEW)
+  auto& map = content::WebUIConfigMap::GetInstance();
+#endif  // defined(TOOLKIT_VIEWS) || BUILDFLAG(ENABLE_PRINT_PREVIEW)
+
+#if defined(TOOLKIT_VIEWS)
+  map.AddUntrustedWebUIConfig(
+      std::make_unique<lens::LensOverlayUntrustedUIConfig>());
+  map.AddUntrustedWebUIConfig(
+      std::make_unique<lens::LensSidePanelUntrustedUIConfig>());
+  map.AddUntrustedWebUIConfig(
+      std::make_unique<ReadAnythingUIUntrustedConfig>());
+  map.AddUntrustedWebUIConfig(std::make_unique<DataSharingUIConfig>());
+  map.AddUntrustedWebUIConfig(
+      std::make_unique<PrivacySandboxDialogUntrustedUIConfig>());
+
+#if BUILDFLAG(ENABLE_COMPOSE)
+  map.AddUntrustedWebUIConfig(std::make_unique<ComposeUIUntrustedConfig>());
+#endif  // BUILDFLAG(ENABLE_COMPOSE)
+#endif  // defined(TOOLKIT_VIEWS)
+
+#if BUILDFLAG(ENABLE_PRINT_PREVIEW)
+  map.AddUntrustedWebUIConfig(
+      std::make_unique<printing::PrintPreviewUIUntrustedConfig>());
+#endif  // BUILDFLAG(ENABLE_PRINT_PREVIEW)
+
+#if !BUILDFLAG(IS_ANDROID)
+  map.AddUntrustedWebUIConfig(
+      std::make_unique<NtpMicrosoftAuthUntrustedUIConfig>());
+#endif  // !BUILDFLAG(IS_ANDROID)
 }

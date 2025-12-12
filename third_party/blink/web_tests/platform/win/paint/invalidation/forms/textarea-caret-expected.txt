@@ -1,7 +1,7 @@
 {
   "layers": [
     {
-      "name": "Scrolling background of LayoutNGView #document",
+      "name": "Scrolling background of LayoutView #document",
       "bounds": [800, 600],
       "contentsOpaque": true,
       "backgroundColor": "#FFFFFF",
@@ -10,17 +10,21 @@
       ]
     },
     {
+      "name": "HorizontalScrollbar",
+      "position": [1, 22],
+      "bounds": [164, 15],
+      "contentsOpaque": true,
+      "transform": 1
+    },
+    {
       "name": "Caret",
       "position": [482, 3],
       "bounds": [1, 16],
       "contentsOpaque": true,
-      "invalidations": [
-        [0, 0, 1, 16]
-      ],
       "transform": 2
     },
     {
-      "name": "LayoutNGTextControlMultiLine TEXTAREA id='editor'",
+      "name": "LayoutTextControlMultiLine (inline) TEXTAREA id='editor'",
       "position": [-1, -1],
       "bounds": [183, 40],
       "invalidations": [

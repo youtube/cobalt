@@ -18,25 +18,57 @@ class Profile;
 namespace arc {
 namespace policy_util {
 
-constexpr char kArcPolicyKeyAccountTypesWithManagementDisabled[] =
+inline constexpr char kArcPolicyKeyAccountTypesWithManagementDisabled[] =
     "accountTypesWithManagementDisabled";
-constexpr char kArcPolicyKeyAlwaysOnVpnPackage[] = "alwaysOnVpnPackage";
-constexpr char kArcPolicyKeyApplications[] = "applications";
-constexpr char kArcPolicyKeyAvailableAppSetPolicy[] = "availableAppSetPolicy";
-constexpr char kArcPolicyKeyComplianceRules[] = "complianceRules";
-constexpr char kArcPolicyKeyInstallUnknownSourcesDisabled[] =
+inline constexpr char kArcPolicyKeyAlwaysOnVpnPackage[] = "alwaysOnVpnPackage";
+inline constexpr char kArcPolicyKeyApplications[] = "applications";
+inline constexpr char kArcPolicyKeyAvailableAppSetPolicyDeprecated[] =
+    "availableAppSetPolicy";
+inline constexpr char kArcPolicyKeyComplianceRules[] = "complianceRules";
+inline constexpr char kArcPolicyKeyInstallUnknownSourcesDisabled[] =
     "installUnknownSourcesDisabled";
-constexpr char kArcPolicyKeyMaintenanceWindow[] = "maintenanceWindow";
-constexpr char kArcPolicyKeyModifyAccountsDisabled[] = "modifyAccountsDisabled";
-constexpr char kArcPolicyKeyPermissionGrants[] = "permissionGrants";
-constexpr char kArcPolicyKeyPermittedAccessibilityServices[] =
+inline constexpr char kArcPolicyKeyMaintenanceWindow[] = "maintenanceWindow";
+inline constexpr char kArcPolicyKeyModifyAccountsDisabled[] =
+    "modifyAccountsDisabled";
+inline constexpr char kArcPolicyKeyPermissionGrants[] = "permissionGrants";
+inline constexpr char kArcPolicyKeyPermittedAccessibilityServices[] =
     "permittedAccessibilityServices";
-constexpr char kArcPolicyKeyPlayStoreMode[] = "playStoreMode";
-constexpr char kArcPolicyKeyShortSupportMessage[] = "shortSupportMessage";
-constexpr char kArcPolicyKeyStatusReportingSettings[] =
+inline constexpr char kArcPolicyKeyPlayStoreMode[] = "playStoreMode";
+inline constexpr char kArcPolicyKeyShortSupportMessage[] =
+    "shortSupportMessage";
+inline constexpr char kArcPolicyKeyStatusReportingSettings[] =
     "statusReportingSettings";
-constexpr char kArcPolicyKeyWorkAccountAppWhitelist[] =
+inline constexpr char kArcPolicyKeyWorkAccountAppWhitelistDeprecated[] =
     "workAccountAppWhitelist";
+inline constexpr char kArcPolicyKeyGuid[] = "guid";
+inline constexpr char kArcPolicyKeyApkCacheEnabled[] = "apkCacheEnabled";
+inline constexpr char kArcPolicyKeyMountPhysicalMediaDisabled[] =
+    "mountPhysicalMediaDisabled";
+inline constexpr char kArcPolicyKeyDebuggingFeaturesDisabled[] =
+    "debuggingFeaturesDisabled";
+inline constexpr char kArcPolicyKeyCameraDisabled[] = "cameraDisabled";
+inline constexpr char kArcPolicyKeyPrintingDisabled[] = "printingDisabled";
+inline constexpr char kArcPolicyKeyScreenCaptureDisabled[] =
+    "screenCaptureDisabled";
+inline constexpr char kArcPolicyKeyShareLocationDisabled[] =
+    "shareLocationDisabled";
+inline constexpr char kArcPolicyKeyUnmuteMicrophoneDisabled[] =
+    "unmuteMicrophoneDisabled";
+inline constexpr char kArcPolicyKeySetWallpaperDisabled[] =
+    "setWallpaperDisabled";
+inline constexpr char kArcPolicyKeyVpnConfigDisabled[] = "vpnConfigDisabled";
+inline constexpr char kArcPolicyKeyPrivateKeySelectionEnabled[] =
+    "privateKeySelectionEnabled";
+inline constexpr char kArcPolicyKeyChoosePrivateKeyRules[] =
+    "choosePrivateKeyRules";
+inline constexpr char kArcPolicyKeyCredentialsConfigDisabled[] =
+    "credentialsConfigDisabled";
+inline constexpr char kArcPolicyKeyCaCerts[] = "caCerts";
+inline constexpr char kArcPolicyKeyRequiredKeyPairs[] = "requiredKeyPairs";
+inline constexpr char kArcPolicyKeyDpsInteractionsDisabled[] =
+    "dpsInteractionsDisabled";
+inline constexpr char kArcPolicyKeyEnabledSystemAppPackageNames[] =
+    "enabledSystemAppPackageNames";
 
 // An app's install type specified by the policy.
 // See google3/wireless/android/enterprise/clouddps/proto/schema.proto.
@@ -65,7 +97,7 @@ enum class ArcPolicyKey {
   kAccountTypesWithManagementDisabled = 1,
   kAlwaysOnVpnPackage = 2,
   kApplications = 3,
-  kAvailableAppSetPolicy = 4,
+  kAvailableAppSetPolicyDeprecated = 4,
   kComplianceRules = 5,
   kInstallUnknownSourcesDisabled = 6,
   kMaintenanceWindow = 7,
@@ -75,8 +107,23 @@ enum class ArcPolicyKey {
   kPlayStoreMode = 11,
   kShortSupportMessage = 12,
   kStatusReportingSettings = 13,
-  kWorkAccountAppWhitelist = 14,
-  kMaxValue = kWorkAccountAppWhitelist,
+  kWorkAccountAppWhitelistDeprecated = 14,
+  kApkCacheEnabled = 15,
+  kDebuggingFeaturesDisabled = 16,
+  kCameraDisabled = 17,
+  kPrintingDisabled = 18,
+  kScreenCaptureDisabled = 19,
+  kShareLocationDisabled = 20,
+  kUnmuteMicrophoneDisabled = 21,
+  kSetWallpaperDisabled = 22,
+  kVpnConfigDisabled = 23,
+  kPrivateKeySelectionEnabled = 24,
+  kChoosePrivateKeyRules = 25,
+  kCredentialsConfigDisabled = 26,
+  kCaCerts = 27,
+  kRequiredKeyPairs = 28,
+  kEnabledSystemAppPackageNames = 29,
+  kMaxValue = kEnabledSystemAppPackageNames,
 };
 
 // Returns true if the account is managed. Otherwise false.
@@ -103,10 +150,11 @@ std::map<std::string, std::set<std::string>> CreateInstallTypeMap(
 InstallType GetInstallTypeEnumFromString(const std::string& install_type);
 
 // Converts a string to its corresponding ArcPolicyKey enum.
-ArcPolicyKey GetPolicyKeyFromString(const std::string& policy_key);
+std::optional<ArcPolicyKey> GetPolicyKeyFromString(
+    const std::string& policy_key);
 
 // Parses policy JSON string to a dictionary.
-absl::optional<base::Value> ParsePolicyJson(const std::string& arc_policy);
+std::optional<base::Value> ParsePolicyJson(const std::string& arc_policy);
 
 }  // namespace policy_util
 }  // namespace arc

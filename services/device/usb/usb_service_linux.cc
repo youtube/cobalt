@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "services/device/usb/usb_service_linux.h"
 
 #include <stdint.h>
@@ -23,7 +28,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/device_event_log/device_event_log.h"
 #include "device/udev_linux/udev_watcher.h"
 #include "services/device/usb/usb_device_handle.h"
@@ -33,6 +37,8 @@
 namespace device {
 
 namespace {
+
+constexpr std::string_view kUsbSubsystem = "usb";
 
 // Standard USB requests and descriptor types:
 const uint16_t kUsbVersion2_1 = 0x0210;
@@ -45,7 +51,7 @@ bool ShouldReadDescriptors(const UsbDeviceLinux& device) {
     return false;
 
   // Avoid detaching the usb-storage driver.
-  // TODO(crbug.com/1176107): We should read descriptors for composite mass
+  // TODO(crbug.com/40168206): We should read descriptors for composite mass
   // storage devices.
   auto* configuration = device.GetActiveConfiguration();
   if (configuration) {
@@ -123,7 +129,8 @@ UsbServiceLinux::BlockingTaskRunnerHelper::BlockingTaskRunnerHelper(
 
   // Initializing udev for device enumeration and monitoring may fail. In that
   // case this service will continue to exist but no devices will be found.
-  watcher_ = UdevWatcher::StartWatching(this);
+  const std::vector<UdevWatcher::Filter> filters = {{kUsbSubsystem, ""}};
+  watcher_ = UdevWatcher::StartWatching(this, filters);
   if (watcher_)
     watcher_->EnumerateExistingDevices();
 
@@ -142,8 +149,8 @@ void UsbServiceLinux::BlockingTaskRunnerHelper::OnDeviceAdded(
   base::ScopedBlockingCall scoped_blocking_call(FROM_HERE,
                                                 base::BlockingType::MAY_BLOCK);
   const char* subsystem = udev_device_get_subsystem(device.get());
-  if (!subsystem || strcmp(subsystem, "usb") != 0)
-    return;
+  CHECK(subsystem);
+  CHECK_EQ(subsystem, kUsbSubsystem);
 
   const char* value = udev_device_get_devnode(device.get());
   if (!value)
@@ -161,9 +168,9 @@ void UsbServiceLinux::BlockingTaskRunnerHelper::OnDeviceAdded(
     return;
 
   std::unique_ptr<UsbDeviceDescriptor> descriptor(new UsbDeviceDescriptor());
-  if (!descriptor->Parse(base::make_span(
-          reinterpret_cast<const uint8_t*>(descriptors_str.data()),
-          descriptors_str.size()))) {
+  if (!descriptor->Parse(
+          base::span(reinterpret_cast<const uint8_t*>(descriptors_str.data()),
+                     descriptors_str.size()))) {
     return;
   }
 

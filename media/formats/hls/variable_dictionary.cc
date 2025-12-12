@@ -4,7 +4,8 @@
 
 #include "media/formats/hls/variable_dictionary.h"
 
-#include "base/strings/string_piece.h"
+#include <string_view>
+
 #include "base/strings/string_util.h"
 #include "media/formats/hls/parse_status.h"
 #include "media/formats/hls/source_string.h"
@@ -20,13 +21,13 @@ struct GetNextVariableResult {
 
   // The variable name and the portion of the string following it, if one was
   // found.
-  absl::optional<std::pair<types::VariableName, SourceString>> tail;
+  std::optional<std::pair<types::VariableName, SourceString>> tail;
 };
 
 GetNextVariableResult GetNextVariable(const SourceString input) {
   // Iterate through occurrences of "{$" in the string.
   for (size_t ref_start = input.Str().find("{$");
-       ref_start != base::StringPiece::npos;
+       ref_start != std::string_view::npos;
        ref_start = input.Str().find("{$", ref_start + 2)) {
     auto remaining_input = input;
 
@@ -37,7 +38,7 @@ GetNextVariableResult GetNextVariable(const SourceString input) {
     // Find the end of the variable reference sequence. If this fails there will
     // be no more valid variable references.
     const auto ref_end = remaining_input.Str().find_first_of('}');
-    if (ref_end == base::StringPiece::npos) {
+    if (ref_end == std::string_view::npos) {
       break;
     }
 
@@ -55,7 +56,7 @@ GetNextVariableResult GetNextVariable(const SourceString input) {
         .head = head, .tail = std::make_pair(var_name, remaining_input)};
   }
 
-  return GetNextVariableResult{.head = input, .tail = absl::nullopt};
+  return GetNextVariableResult{.head = input, .tail = std::nullopt};
 }
 
 }  // namespace
@@ -73,11 +74,11 @@ VariableDictionary::VariableDictionary(VariableDictionary&&) = default;
 VariableDictionary& VariableDictionary::operator=(VariableDictionary&&) =
     default;
 
-absl::optional<base::StringPiece> VariableDictionary::Find(
+std::optional<std::string_view> VariableDictionary::Find(
     types::VariableName name) const& {
   auto iter = entries_.find(name.GetName());
   if (iter == entries_.end()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   return *iter->second;
@@ -121,7 +122,7 @@ ParseStatus::Or<ResolvedSourceString> VariableDictionary::Resolve(
   while (true) {
     // Append the substring leading to the variable, and abort if there was no
     // variable reference
-    string_buf.append(next_var.head.Str().data(), next_var.head.Str().size());
+    string_buf.append(next_var.head.Str());
     if (!next_var.tail) {
       break;
     }
@@ -132,7 +133,7 @@ ParseStatus::Or<ResolvedSourceString> VariableDictionary::Resolve(
       return ParseStatus(ParseStatusCode::kVariableUndefined)
           .WithData("key", next_var.tail->first.GetName());
     }
-    string_buf.append(value->data(), value->size());
+    string_buf.append(*value);
 
     next_var = GetNextVariable(next_var.tail->second);
   }

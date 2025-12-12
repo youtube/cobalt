@@ -4,6 +4,7 @@
 
 #include "chrome/browser/enterprise/reporting/extension_request/extension_request_notification.h"
 
+#include <array>
 #include <memory>
 
 #include "chrome/browser/notifications/notification_display_service.h"
@@ -34,16 +35,19 @@ constexpr char kChromeWebstoreUrl[] =
 
 // The elements order of array below must match the order in enum
 // ExtensionRequestNotification::NotifyType.
-const char* const kNotificationIds[] = {
-    kApprovedNotificationId, kRejectedNotificationId, kInstalledNotificationId};
-constexpr int kNotificationTitles[] = {
-    IDS_ENTERPRISE_EXTENSION_REQUEST_APPROVED_TITLE,
-    IDS_ENTERPRISE_EXTENSION_REQUEST_REJECTED_TITLE,
-    IDS_ENTERPRISE_EXTENSION_REQUEST_FORCE_INSTALLED_TITLE};
-constexpr int kNotificationBodies[] = {
-    IDS_ENTERPRISE_EXTENSION_REQUEST_CLICK_TO_INSTALL,
-    IDS_ENTERPRISE_EXTENSION_REQUEST_CLICK_TO_VIEW,
-    IDS_ENTERPRISE_EXTENSION_REQUEST_CLICK_TO_VIEW};
+constexpr auto kNotificationIds = std::to_array<const char*>({
+    kApprovedNotificationId,
+    kRejectedNotificationId,
+    kInstalledNotificationId,
+});
+constexpr auto kNotificationTitles = std::to_array<int>(
+    {IDS_ENTERPRISE_EXTENSION_REQUEST_APPROVED_TITLE,
+     IDS_ENTERPRISE_EXTENSION_REQUEST_REJECTED_TITLE,
+     IDS_ENTERPRISE_EXTENSION_REQUEST_FORCE_INSTALLED_TITLE});
+constexpr auto kNotificationBodies =
+    std::to_array<int>({IDS_ENTERPRISE_EXTENSION_REQUEST_CLICK_TO_INSTALL,
+                        IDS_ENTERPRISE_EXTENSION_REQUEST_CLICK_TO_VIEW,
+                        IDS_ENTERPRISE_EXTENSION_REQUEST_CLICK_TO_VIEW});
 
 }  // namespace
 
@@ -58,10 +62,7 @@ ExtensionRequestNotification::ExtensionRequestNotification(
 ExtensionRequestNotification::~ExtensionRequestNotification() = default;
 
 void ExtensionRequestNotification::Show(NotificationCloseCallback callback) {
-  if (extension_ids_.empty()) {
-    NOTREACHED();
-    return;
-  }
+  CHECK(!extension_ids_.empty());
 
   callback_ = std::move(callback);
 
@@ -84,19 +85,19 @@ void ExtensionRequestNotification::Show(NotificationCloseCallback callback) {
           weak_factory_.GetWeakPtr()));
   notification_->set_never_timeout(true);
 
-  NotificationDisplayService::GetForProfile(profile_)->Display(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Display(
       NotificationHandler::Type::TRANSIENT, *notification_, nullptr);
 }
 
 void ExtensionRequestNotification::CloseNotification() {
-  NotificationDisplayService::GetForProfile(profile_)->Close(
+  NotificationDisplayServiceFactory::GetForProfile(profile_)->Close(
       NotificationHandler::Type::TRANSIENT, kNotificationIds[notify_type_]);
   notification_.reset();
 }
 
 void ExtensionRequestNotification::Click(
-    const absl::optional<int>& button_index,
-    const absl::optional<std::u16string>& reply) {
+    const std::optional<int>& button_index,
+    const std::optional<std::u16string>& reply) {
   for (const std::string& extension_id : extension_ids_) {
     NavigateParams params(profile_, GURL(kChromeWebstoreUrl + extension_id),
                           ui::PAGE_TRANSITION_LINK);

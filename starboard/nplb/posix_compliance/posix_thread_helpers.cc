@@ -16,8 +16,9 @@
 
 #include <unistd.h>
 
+#include <cstddef>
+
 #include "starboard/thread.h"
-#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

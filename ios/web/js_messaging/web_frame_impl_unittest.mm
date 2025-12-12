@@ -21,10 +21,6 @@
 #import "testing/gtest_mac.h"
 #import "third_party/ocmock/OCMock/OCMock.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 const char kFrameId[] = "1effd8f52a067c8d3a01762d3c41dfd8";
@@ -46,6 +42,7 @@ class WebFrameImplTest : public web::WebTest {
         .andDo(^(NSInvocation* invocation) {
           [invocation retainArguments];
           [invocation getArgument:&last_received_script_ atIndex:2];
+          [invocation getArgument:&last_received_content_world_ atIndex:4];
         });
     OCMStub([mock_frame_info_ webView]).andReturn(mock_web_view_);
   }
@@ -63,16 +60,17 @@ class WebFrameImplTest : public web::WebTest {
   id mock_frame_info_;
   id mock_web_view_;
   NSString* last_received_script_;
+  WKContentWorld* last_received_content_world_;
 
   FakeWebState fake_web_state_;
-  GURL security_origin_;
+  url::Origin security_origin_;
 };
 
 // Tests creation of a WebFrame for the main frame.
 TEST_F(WebFrameImplTest, CreateWebFrameForMainFrame) {
   WebFrameImpl web_frame([[WKFrameInfo alloc] init], kFrameId,
                          /*is_main_frame=*/true, security_origin_,
-                         &fake_web_state_);
+                         &fake_web_state_, ContentWorld::kPageContentWorld);
 
   EXPECT_EQ(&fake_web_state_, web_frame.GetWebState());
   EXPECT_TRUE(web_frame.IsMainFrame());
@@ -84,52 +82,57 @@ TEST_F(WebFrameImplTest, CreateWebFrameForMainFrame) {
 TEST_F(WebFrameImplTest, CallJavaScriptFunctionMainFrame) {
   WebFrameImpl web_frame(mock_frame_info_, kFrameId,
                          /*is_main_frame=*/true, security_origin_,
-                         &fake_web_state_);
+                         &fake_web_state_, ContentWorld::kPageContentWorld);
 
-  std::vector<base::Value> function_params;
-
+  base::Value::List function_params;
   EXPECT_TRUE(
       web_frame.CallJavaScriptFunction("functionName", function_params));
   EXPECT_NSEQ(@"__gCrWeb.functionName()", last_received_script_);
+  EXPECT_NSEQ(WKContentWorld.pageWorld, last_received_content_world_);
 
-  function_params.push_back(base::Value("param1"));
+  function_params.Append("param1");
   EXPECT_TRUE(
       web_frame.CallJavaScriptFunction("functionName", function_params));
   EXPECT_NSEQ(@"__gCrWeb.functionName(\"param1\")", last_received_script_);
+  EXPECT_NSEQ(WKContentWorld.pageWorld, last_received_content_world_);
 
-  function_params.push_back(base::Value(true));
-  function_params.push_back(base::Value(27));
-  function_params.push_back(base::Value(3.14));
+  function_params.Append(true);
+  function_params.Append(27);
+  function_params.Append(3.14);
   EXPECT_TRUE(
       web_frame.CallJavaScriptFunction("functionName", function_params));
   EXPECT_NSEQ(@"__gCrWeb.functionName(\"param1\",true,27,3.14)",
               last_received_script_);
+  EXPECT_NSEQ(WKContentWorld.pageWorld, last_received_content_world_);
 }
 
 // Tests that the WebFrame creates JavaScript for an iframe.
 TEST_F(WebFrameImplTest, CallJavaScriptFunctionIFrame) {
   WebFrameImpl web_frame(mock_frame_info_, kFrameId,
                          /*is_main_frame=*/false, security_origin_,
-                         &fake_web_state_);
+                         &fake_web_state_, ContentWorld::kIsolatedWorld);
 
-  std::vector<base::Value> function_params;
+  base::Value::List function_params;
 
   EXPECT_TRUE(
       web_frame.CallJavaScriptFunction("functionName", function_params));
   EXPECT_NSEQ(@"__gCrWeb.functionName()", last_received_script_);
+  EXPECT_NSEQ(WKContentWorld.defaultClientWorld, last_received_content_world_);
 
-  function_params.push_back(base::Value("param1"));
+  function_params.Append("param1");
   EXPECT_TRUE(
       web_frame.CallJavaScriptFunction("functionName", function_params));
   EXPECT_NSEQ(@"__gCrWeb.functionName(\"param1\")", last_received_script_);
+  EXPECT_NSEQ(WKContentWorld.defaultClientWorld, last_received_content_world_);
 
-  function_params.push_back(base::Value(true));
-  function_params.push_back(base::Value(27));
-  function_params.push_back(base::Value(3.14));
+  function_params.Append(true);
+  function_params.Append(27);
+  function_params.Append(3.14);
   EXPECT_TRUE(
       web_frame.CallJavaScriptFunction("functionName", function_params));
   EXPECT_NSEQ(@"__gCrWeb.functionName(\"param1\",true,27,3.14)",
               last_received_script_);
+  EXPECT_NSEQ(WKContentWorld.defaultClientWorld, last_received_content_world_);
 }
 
 // Tests that the WebFrame can execute arbitrary JavaScript.
@@ -141,13 +144,13 @@ TEST_F(WebFrameImplTest, ExecuteJavaScript) {
 
   WebFrameImpl web_frame(mock_frame_info_, kFrameId,
                          /*is_main_frame=*/true, security_origin_,
-                         &fake_web_state_);
+                         &fake_web_state_, ContentWorld::kPageContentWorld);
 
   EXPECT_TRUE(web_frame.ExecuteJavaScript(base::SysNSStringToUTF16(script)));
 
   WebFrameImpl web_frame2(mock_frame_info_, kFrameId,
                           /*is_main_frame=*/false, security_origin_,
-                          &fake_web_state_);
+                          &fake_web_state_, ContentWorld::kPageContentWorld);
   EXPECT_TRUE(web_frame2.ExecuteJavaScript(base::SysNSStringToUTF16(script)));
 }
 
@@ -160,7 +163,7 @@ TEST_F(WebFrameImplTest, ExecuteJavaScriptWithCallback) {
 
   WebFrameImpl web_frame(mock_frame_info_, kFrameId,
                          /*is_main_frame=*/true, security_origin_,
-                         &fake_web_state_);
+                         &fake_web_state_, ContentWorld::kPageContentWorld);
 
   EXPECT_TRUE(
       web_frame.ExecuteJavaScript(base::SysNSStringToUTF16(script),
@@ -169,7 +172,7 @@ TEST_F(WebFrameImplTest, ExecuteJavaScriptWithCallback) {
 
   WebFrameImpl web_frame2(mock_frame_info_, kFrameId,
                           /*is_main_frame=*/false, security_origin_,
-                          &fake_web_state_);
+                          &fake_web_state_, ContentWorld::kPageContentWorld);
 
   EXPECT_TRUE(
       web_frame2.ExecuteJavaScript(base::SysNSStringToUTF16(script),

@@ -28,8 +28,7 @@
 
 [
     ActiveScriptWrappable,
-    Exposed=Worker,
-    ImmutablePrototype
+    Exposed=Worker
 ] interface WorkerGlobalScope : EventTarget {
     readonly attribute WorkerGlobalScope self;
     readonly attribute WorkerLocation location;
@@ -41,9 +40,7 @@
     // attribute EventHandler ononline;
 
     // https://html.spec.whatwg.org/C/#apis-available-to-workers
-    // Although RaisesException is not specified, importScripts() can actually
-    // throw exceptions directly to V8.
-    void importScripts(ScriptURLString... urls);
+    [RaisesException] void importScripts((USVString or TrustedScriptURL)... urls);
     readonly attribute WorkerNavigator navigator;
 
 
@@ -57,24 +54,14 @@
     attribute EventHandler onrejectionhandled;
     attribute EventHandler onunhandledrejection;
 
-    // Secure Contexts
-    // https://w3c.github.io/webappsec-secure-contexts/#dom-windoworworkerglobalscope-issecurecontext
-    [ImplementedAs=isSecureContextForBindings] readonly attribute boolean isSecureContext;
-
     // WindowOrWorkerGlobalScope mixin
     // https://html.spec.whatwg.org/C/#windoworworkerglobalscope-mixin
     [Replaceable] readonly attribute DOMString origin;
-    void queueMicrotask(VoidFunction callback);
-
-    // FontFaceSource
-    // https://drafts.csswg.org/css-font-loading-3/#font-face-source
-    // TODO(fserb): temporarly until we can enable the interface below.
-    readonly attribute FontFaceSet fonts;
 
     // TrustedTypes API: http://github.com/w3c/trusted-types
     readonly attribute TrustedTypePolicyFactory trustedTypes;
 };
 
+WorkerGlobalScope includes UniversalGlobalScope;
 WorkerGlobalScope includes WindowOrWorkerGlobalScope;
-// TODO(fserb): this needs to be enabled once we get out of RuntimeEnabled.
-//WorkerGlobalScope includes FontFaceSource;
+WorkerGlobalScope includes FontFaceSource;

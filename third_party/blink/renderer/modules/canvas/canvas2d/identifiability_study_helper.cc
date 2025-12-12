@@ -4,6 +4,14 @@
 
 #include "third_party/blink/renderer/modules/canvas/canvas2d/identifiability_study_helper.h"
 
+#include <cstdint>
+#include <initializer_list>
+
+#include "base/containers/span.h"
+#include "base/hash/legacy_hash.h"
+#include "third_party/blink/public/common/privacy_budget/identifiable_token.h"
+#include "third_party/blink/renderer/platform/heap/visitor.h"
+
 namespace blink {
 
 // The maximum number of canvas context operations to incorportate into digest
@@ -13,6 +21,22 @@ namespace blink {
 
 void IdentifiabilityStudyHelper::Trace(Visitor* visitor) const {
   visitor->Trace(execution_context_);
+}
+
+void IdentifiabilityStudyHelper::AddTokens(
+    std::initializer_list<IdentifiableToken> tokens) {
+  for (IdentifiableToken token : tokens) {
+    partial_[position_++] = token.ToUkmMetricValue();
+    if (position_ == 8) {
+      chaining_value_ = DigestPartialData();
+      position_ = 0;
+    }
+  }
+}
+
+uint64_t IdentifiabilityStudyHelper::DigestPartialData() const {
+  return base::legacy::CityHash64WithSeed(
+      base::as_bytes(base::span(partial_).first(position_)), chaining_value_);
 }
 
 }  // namespace blink

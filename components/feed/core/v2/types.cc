@@ -2,12 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/feed/core/v2/types.h"
 
 #include <ostream>
+#include <string_view>
 #include <utility>
 
 #include "base/base64.h"
+#include "base/containers/span.h"
 #include "base/json/values_util.h"
 #include "base/pickle.h"
 #include "base/strings/strcat.h"
@@ -52,7 +59,7 @@ bool UnpickleNetworkResponseInfo(base::PickleIterator& iterator,
 }
 
 void PickleOptionalNetworkResponseInfo(
-    const absl::optional<NetworkResponseInfo>& value,
+    const std::optional<NetworkResponseInfo>& value,
     base::Pickle& pickle) {
   if (value.has_value()) {
     pickle.WriteBool(true);
@@ -64,7 +71,7 @@ void PickleOptionalNetworkResponseInfo(
 
 bool UnpickleOptionalNetworkResponseInfo(
     base::PickleIterator& iterator,
-    absl::optional<NetworkResponseInfo>& value) {
+    std::optional<NetworkResponseInfo>& value) {
   bool has_network_response_info = false;
   if (!iterator.ReadBool(&has_network_response_info))
     return false;
@@ -116,10 +123,21 @@ feedwire::ClientInfo RequestMetadata::ToClientInfo() const {
 }
 
 NetworkResponseInfo::NetworkResponseInfo() = default;
-NetworkResponseInfo::~NetworkResponseInfo() = default;
 NetworkResponseInfo::NetworkResponseInfo(const NetworkResponseInfo&) = default;
+NetworkResponseInfo::NetworkResponseInfo(NetworkResponseInfo&&) = default;
 NetworkResponseInfo& NetworkResponseInfo::operator=(
     const NetworkResponseInfo&) = default;
+NetworkResponseInfo& NetworkResponseInfo::operator=(NetworkResponseInfo&&) =
+    default;
+NetworkResponseInfo::~NetworkResponseInfo() = default;
+
+NetworkResponse::NetworkResponse() = default;
+NetworkResponse::NetworkResponse(const std::string& response_bytes,
+                                 int status_code)
+    : response_bytes(response_bytes), status_code(status_code) {}
+NetworkResponse::~NetworkResponse() = default;
+NetworkResponse::NetworkResponse(const NetworkResponse&) = default;
+NetworkResponse& NetworkResponse::operator=(const NetworkResponse&) = default;
 
 std::string ToString(ContentRevision c) {
   // The 'c/' prefix is used to identify slices as content. Don't change this
@@ -133,7 +151,7 @@ ContentRevision ToContentRevision(const std::string& str) {
 
   uint32_t value;
   if (str[0] == 'c' && str[1] == '/' &&
-      base::StringToUint(base::StringPiece(str).substr(2), &value)) {
+      base::StringToUint(std::string_view(str).substr(2), &value)) {
     return ContentRevision(value);
   }
   return {};
@@ -147,15 +165,16 @@ std::string SerializeDebugStreamData(const DebugStreamData& data) {
       base::span<const uint8_t>(pickle_data_ptr, pickle.size()));
 }
 
-absl::optional<DebugStreamData> DeserializeDebugStreamData(
-    base::StringPiece base64_encoded) {
+std::optional<DebugStreamData> DeserializeDebugStreamData(
+    std::string_view base64_encoded) {
   std::string binary_data;
   if (!base::Base64Decode(base64_encoded, &binary_data))
-    return absl::nullopt;
-  base::Pickle pickle(binary_data.data(), binary_data.size());
+    return std::nullopt;
+  base::Pickle pickle =
+      base::Pickle::WithUnownedBuffer(base::as_byte_span(binary_data));
   DebugStreamData result;
   if (!UnpickleDebugStreamData(base::PickleIterator(pickle), result))
-    return absl::nullopt;
+    return std::nullopt;
   return result;
 }
 
@@ -182,12 +201,12 @@ base::Value::Dict PersistentMetricsDataToDict(
 PersistentMetricsData PersistentMetricsDataFromDict(
     const base::Value::Dict& dict) {
   PersistentMetricsData result;
-  absl::optional<base::Time> day_start =
+  std::optional<base::Time> day_start =
       base::ValueToTime(dict.Find("day_start"));
   if (!day_start)
     return result;
   result.current_day_start = *day_start;
-  absl::optional<base::TimeDelta> time_spent_in_feed =
+  std::optional<base::TimeDelta> time_spent_in_feed =
       base::ValueToTimeDelta(dict.Find("time_spent_in_feed"));
   if (time_spent_in_feed) {
     result.accumulated_time_spent_in_feed = *time_spent_in_feed;

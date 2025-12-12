@@ -2,9 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/config/chromeos/ui_mode.gni")
-
-assert(is_chromeos_ash, "Non-ChromeOS builds cannot depend on //chromeos/ash")
+assert(is_chromeos, "Non-ChromeOS builds cannot depend on //chromeos/ash")
 
 config("network_config") {
   defines = [ "IS_CHROMEOS_NETWORK_IMPL" ]
@@ -15,30 +13,39 @@ component("network") {
   deps = [
     "//ash/constants",
     "//base",
+    "//chromeos/ash/components/cryptohome",
     "//chromeos/ash/components/dbus/hermes",
     "//chromeos/ash/components/dbus/shill",
     "//chromeos/ash/components/feature_usage",
+    "//chromeos/ash/components/install_attributes",
     "//chromeos/ash/components/login/login_state",
     "//chromeos/ash/components/network/metrics",
     "//chromeos/ash/components/network/onc",
     "//chromeos/ash/components/network/proxy",
+    "//chromeos/ash/experiences/arc:prefs",
+    "//chromeos/ash/services/cellular_setup/public/mojom",
     "//chromeos/ash/services/hotspot_config/public/cpp",
     "//chromeos/ash/services/hotspot_config/public/mojom",
     "//chromeos/components/onc",
     "//chromeos/dbus/common",
     "//chromeos/dbus/permission_broker",
+    "//chromeos/dbus/power",
+    "//chromeos/dbus/power:power_manager_proto",
     "//chromeos/services/network_config/public/mojom",
     "//components/account_id",
     "//components/device_event_log",
     "//components/onc",
     "//components/pref_registry",
     "//components/prefs",
+    "//components/server_certificate_database",
     "//components/url_formatter",
     "//components/user_manager",
     "//crypto",
     "//dbus",
     "//net",
     "//services/preferences/public/cpp",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/re2",
     "//url",
   ]
 
@@ -70,6 +77,8 @@ component("network") {
     "cellular_esim_profile_handler.h",
     "cellular_esim_profile_handler_impl.cc",
     "cellular_esim_profile_handler_impl.h",
+    "cellular_esim_profile_waiter.cc",
+    "cellular_esim_profile_waiter.h",
     "cellular_esim_uninstall_handler.cc",
     "cellular_esim_uninstall_handler.h",
     "cellular_inhibitor.cc",
@@ -90,6 +99,12 @@ component("network") {
     "device_state.h",
     "enterprise_managed_metadata_store.cc",
     "enterprise_managed_metadata_store.h",
+    "ephemeral_network_configuration_handler.cc",
+    "ephemeral_network_configuration_handler.h",
+    "ephemeral_network_policies_enablement_handler.cc",
+    "ephemeral_network_policies_enablement_handler.h",
+    "fake_network_state_handler.cc",
+    "fake_network_state_handler.h",
     "fast_transition_observer.cc",
     "fast_transition_observer.h",
     "geolocation_handler.cc",
@@ -120,6 +135,8 @@ component("network") {
     "managed_network_configuration_handler_impl.h",
     "managed_state.cc",
     "managed_state.h",
+    "network_3gpp_handler.cc",
+    "network_3gpp_handler.h",
     "network_activation_handler.h",
     "network_activation_handler_impl.cc",
     "network_activation_handler_impl.h",
@@ -127,6 +144,8 @@ component("network") {
     "network_cert_loader.h",
     "network_certificate_handler.cc",
     "network_certificate_handler.h",
+    "network_config.cc",
+    "network_config.h",
     "network_configuration_handler.cc",
     "network_configuration_handler.h",
     "network_configuration_observer.cc",
@@ -151,6 +170,8 @@ component("network") {
     "network_handler_callbacks.h",
     "network_ip_config.cc",
     "network_ip_config.h",
+    "network_login_screen_protocol_handler_observer.cc",
+    "network_login_screen_protocol_handler_observer.h",
     "network_metadata_observer.cc",
     "network_metadata_observer.h",
     "network_metadata_store.cc",
@@ -197,7 +218,33 @@ component("network") {
     "technology_state_controller.h",
     "tether_constants.cc",
     "tether_constants.h",
+    "text_message_provider.cc",
+    "text_message_provider.h",
+    "text_message_suppression_state.h",
+    "traffic_counters_handler.cc",
+    "traffic_counters_handler.h",
   ]
+}
+
+# This is separate from :network to prevent a dependency cycle due to:
+#  //chromeos/ash/services/network_config:in_process_instance ->
+#  //chromeos/ash/components/network:network
+component("vpn_providers_observer") {
+  configs += [ ":network_config" ]
+
+  sources = [
+    "vpn_providers_observer.cc",
+    "vpn_providers_observer.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//chromeos/services/network_config/public/cpp",
+    "//chromeos/services/network_config/public/mojom",
+    "//mojo/public/cpp/bindings",
+  ]
+
+  deps = [ "//chromeos/ash/services/network_config:in_process_instance" ]
 }
 
 source_set("test_support") {
@@ -209,12 +256,15 @@ source_set("test_support") {
     "//dbus",
   ]
   deps = [
+    "//ash/constants",
     "//base",
-    "//chromeos:test_utils",
+    "//chromeos:test_support",
     "//chromeos/ash/components/dbus/shill",
+    "//chromeos/ash/components/install_attributes:test_support",
     "//chromeos/components/onc:test_support",
     "//chromeos/services/network_config/public/mojom",
     "//components/onc",
+    "//components/prefs",
     "//components/sync_preferences:test_support",
     "//dbus",
     "//net:test_support",
@@ -222,12 +272,16 @@ source_set("test_support") {
     "//testing/gtest",
   ]
   sources = [
+    "fake_network_3gpp_handler.cc",
+    "fake_network_3gpp_handler.h",
     "fake_network_activation_handler.cc",
     "fake_network_activation_handler.h",
     "fake_network_connection_handler.cc",
     "fake_network_connection_handler.h",
     "fake_network_device_handler.cc",
     "fake_network_device_handler.h",
+    "fake_network_metadata_store.cc",
+    "fake_network_metadata_store.h",
     "fake_stub_cellular_networks_provider.cc",
     "fake_stub_cellular_networks_provider.h",
     "mock_managed_cellular_pref_handler.cc",
@@ -265,10 +319,15 @@ source_set("unit_tests") {
     "//chromeos/ash/components/dbus:test_support",
     "//chromeos/ash/components/dbus/shill",
     "//chromeos/ash/components/feature_usage",
+    "//chromeos/ash/components/install_attributes",
+    "//chromeos/ash/components/install_attributes:test_support",
     "//chromeos/ash/components/login/login_state",
+    "//chromeos/ash/components/network/metrics:test_support",
     "//chromeos/ash/components/network/metrics:unit_tests",
     "//chromeos/ash/components/network/onc:unit_tests",
     "//chromeos/ash/components/network/proxy:unit_tests",
+    "//chromeos/ash/experiences/arc:prefs",
+    "//chromeos/ash/services/cellular_setup/public/mojom",
     "//chromeos/ash/services/hotspot_config/public/cpp",
     "//chromeos/ash/services/hotspot_config/public/cpp:test_support",
     "//chromeos/ash/services/hotspot_config/public/mojom",
@@ -277,10 +336,13 @@ source_set("unit_tests") {
     "//chromeos/components/onc",
     "//chromeos/components/onc:test_support",
     "//chromeos/dbus/permission_broker",
+    "//chromeos/dbus/power",
+    "//chromeos/dbus/power:power_manager_proto",
     "//components/onc",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/proxy_config",
+    "//components/server_certificate_database:test_support",
     "//components/sync_preferences:test_support",
     "//components/user_manager:test_support",
     "//crypto",
@@ -290,6 +352,7 @@ source_set("unit_tests") {
     "//net:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/abseil-cpp:absl",
   ]
   sources = [
     "auto_connect_handler_unittest.cc",
@@ -297,6 +360,7 @@ source_set("unit_tests") {
     "cellular_esim_installer_unittest.cc",
     "cellular_esim_profile_handler_impl_unittest.cc",
     "cellular_esim_profile_unittest.cc",
+    "cellular_esim_profile_waiter_unittest.cc",
     "cellular_esim_uninstall_handler_unittest.cc",
     "cellular_inhibitor_unittest.cc",
     "cellular_metrics_logger_unittest.cc",
@@ -306,18 +370,23 @@ source_set("unit_tests") {
     "client_cert_resolver_unittest.cc",
     "client_cert_util_unittest.cc",
     "device_state_unittest.cc",
+    "ephemeral_network_configuration_handler_unittest.cc",
+    "ephemeral_network_policies_enablement_handler_unittest.cc",
     "fast_transition_observer_unittest.cc",
     "geolocation_handler_unittest.cc",
     "hidden_network_handler_unittest.cc",
     "hotspot_allowed_flag_handler_unittest.cc",
     "hotspot_capabilities_provider_unittest.cc",
     "hotspot_configuration_handler_unittest.cc",
+    "hotspot_controller_concurrency_api_unittest.cc",
     "hotspot_controller_unittest.cc",
     "hotspot_enabled_state_notifier_unittest.cc",
     "hotspot_state_handler_unittest.cc",
     "managed_cellular_pref_handler_unittest.cc",
     "managed_network_configuration_handler_unittest.cc",
+    "network_3gpp_handler_unittest.cc",
     "network_cert_loader_unittest.cc",
+    "network_config_unittest.cc",
     "network_configuration_handler_unittest.cc",
     "network_connect_unittest.cc",
     "network_connection_handler_impl_unittest.cc",
@@ -331,6 +400,7 @@ source_set("unit_tests") {
     "network_type_pattern_unittest.cc",
     "network_ui_data_unittest.cc",
     "network_util_unittest.cc",
+    "policy_util_unittest.cc",
     "profile_policies_unittest.cc",
     "prohibited_technologies_handler_unittest.cc",
     "shill_property_handler_unittest.cc",
@@ -338,5 +408,7 @@ source_set("unit_tests") {
     "stub_cellular_networks_provider_unittest.cc",
     "system_token_cert_db_storage_unittest.cc",
     "technology_state_controller_unittest.cc",
+    "text_message_provider_unittest.cc",
+    "traffic_counters_handler_unittest.cc",
   ]
 }

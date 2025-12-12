@@ -25,6 +25,14 @@ class AppRegistryCache;
 class InstanceRegistry;
 }  // namespace apps
 
+namespace ukm {
+class UkmRecorder;
+}
+
+namespace video_conference {
+class VideoConferenceUkmHelper;
+}
+
 namespace ash {
 
 // VideoConferenceAppServiceClient is a client class for CrOS
@@ -67,6 +75,7 @@ class VideoConferenceAppServiceClient
       crosapi::mojom::VideoConferenceMediaDevice device,
       bool disabled,
       SetSystemMediaDeviceStatusCallback callback) override;
+  void StopAllScreenShare() override;
 
   // apps::AppCapabilityAccessCache::Observer overrides.
   void OnCapabilityAccessUpdate(
@@ -109,13 +118,16 @@ class VideoConferenceAppServiceClient
   void HandleMediaUsageUpdate();
 
   // These registries are used for observing app behaviors.
-  base::raw_ptr<apps::InstanceRegistry> instance_registry_;
-  base::raw_ptr<apps::AppRegistryCache> app_registry_;
-  base::raw_ptr<apps::AppCapabilityAccessCache> capability_cache_;
+  raw_ptr<apps::InstanceRegistry> instance_registry_;
+  raw_ptr<apps::AppRegistryCache> app_registry_;
+  raw_ptr<apps::AppCapabilityAccessCache> capability_cache_;
 
   // Unique id associated with this client. It is used by the VcManager to
   // identify clients.
   const base::UnguessableToken client_id_;
+
+  // Only used for testing purpose.
+  raw_ptr<ukm::UkmRecorder> test_ukm_recorder_ = nullptr;
 
   // Current status_ aggregated from all apps in `id_to_app_state_`.
   crosapi::mojom::VideoConferenceMediaUsageStatusPtr status_;
@@ -127,6 +139,10 @@ class VideoConferenceAppServiceClient
 
   // This records a list of AppState; each represents a video conference app.
   std::map<AppIdString, AppState> id_to_app_state_;
+
+  std::map<AppIdString,
+           std::unique_ptr<video_conference::VideoConferenceUkmHelper>>
+      id_to_ukm_hepler_;
 
   base::ScopedObservation<SessionController, SessionObserver>
       session_observation_{this};

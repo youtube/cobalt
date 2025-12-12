@@ -8,6 +8,8 @@
 
 #include "base/functional/callback_helpers.h"
 #include "base/json/json_reader.h"
+#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
@@ -94,17 +96,17 @@ class ItemSuggestCacheTest : public testing::Test {
   void ResultMatches(const ItemSuggestCache::Result& actual,
                      const std::string& id,
                      const std::string& title,
-                     const absl::optional<std::string>& prediction_reason) {
+                     const std::optional<std::string>& prediction_reason) {
     EXPECT_EQ(actual.id, id);
     EXPECT_EQ(actual.title, title);
     EXPECT_EQ(actual.prediction_reason, prediction_reason);
   }
 
   void ResultsMatch(
-      const absl::optional<ItemSuggestCache::Results>& actual,
+      const std::optional<ItemSuggestCache::Results>& actual,
       const std::string& suggestion_id,
       const std::vector<
-          std::tuple<std::string, std::string, absl::optional<std::string>>>&
+          std::tuple<std::string, std::string, std::optional<std::string>>>&
           results) {
     EXPECT_TRUE(actual.has_value());
 
@@ -120,16 +122,15 @@ class ItemSuggestCacheTest : public testing::Test {
     profile_manager_ = std::make_unique<TestingProfileManager>(
         TestingBrowserProcess::GetGlobal());
     ASSERT_TRUE(profile_manager_->SetUp());
-    TestingProfile::TestingFactories factories =
+    profile_ = profile_manager_->CreateTestingProfile(
+        kEmail, /*prefs=*/{}, kEmail16,
+        /*avatar_id=*/0,
         IdentityTestEnvironmentProfileAdaptor::
-            GetIdentityTestEnvironmentFactories();
-    factories.push_back(
-        {ChromeSigninClientFactory::GetInstance(),
-         base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
-                             &url_loader_factory_)});
-    profile_ =
-        profile_manager_->CreateTestingProfile(kEmail, /*prefs=*/{}, kEmail16,
-                                               /*avatar_id=*/0, factories);
+            GetIdentityTestEnvironmentFactoriesWithAppendedFactories(
+                {TestingProfile::TestingFactory{
+                    ChromeSigninClientFactory::GetInstance(),
+                    base::BindRepeating(&BuildChromeSigninClientWithURLLoader,
+                                        &url_loader_factory_)}}));
 
     identity_test_env_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile_);
@@ -142,19 +143,20 @@ class ItemSuggestCacheTest : public testing::Test {
 
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  signin::IdentityTestEnvironment* identity_test_env_;
+  raw_ptr<signin::IdentityTestEnvironment, DanglingUntriaged>
+      identity_test_env_;
   std::unique_ptr<IdentityTestEnvironmentProfileAdaptor>
       identity_test_env_adaptor_;
 
   std::unique_ptr<TestingProfileManager> profile_manager_;
-  TestingProfile* profile_;
+  raw_ptr<TestingProfile> profile_;
 
   network::TestURLLoaderFactory url_loader_factory_;
   data_decoder::test::InProcessDataDecoder in_process_data_decoder_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
 
   ScopedFeatureList scoped_feature_list_;
-  const base::Feature& feature_ = kLauncherItemSuggest;
+  const raw_ref<const base::Feature> feature_{kLauncherItemSuggest};
 
   const base::HistogramTester histogram_tester_;
 };
@@ -162,7 +164,7 @@ class ItemSuggestCacheTest : public testing::Test {
 TEST_F(ItemSuggestCacheTest, ConvertJsonSuccess) {
   const base::Value full = Parse(kValidJsonResponse);
   ResultsMatch(ItemSuggestCache::ConvertJsonForTest(&full), "suggestion id 1",
-               {{"item id 1", "display text 1", absl::nullopt},
+               {{"item id 1", "display text 1", std::nullopt},
                 {"item id 2", "display text 2", "prediction reason 2"},
                 {"item id 3", "display text 3", "prediction reason 3"}});
 
@@ -221,7 +223,7 @@ TEST_F(ItemSuggestCacheTest, ConvertJsonFailure) {
 
 TEST_F(ItemSuggestCacheTest, UpdateCacheDisabledByExperiment) {
   scoped_feature_list_.InitAndEnableFeatureWithParameters(
-      feature_, {{"enabled", "false"}});
+      *feature_, {{"enabled", "false"}});
   std::unique_ptr<ItemSuggestCache> item_suggest_cache =
       std::make_unique<ItemSuggestCache>("en", profile_,
                                          shared_url_loader_factory_);
@@ -244,7 +246,7 @@ TEST_F(ItemSuggestCacheTest, UpdateCacheDisabledByPolicy) {
 
 TEST_F(ItemSuggestCacheTest, UpdateCacheServerUrlIsNotHttps) {
   scoped_feature_list_.InitAndEnableFeatureWithParameters(
-      feature_,
+      *feature_,
       {{"server_url", "http://appsitemsuggest-pa.googleapis.com/v1/items"}});
   std::unique_ptr<ItemSuggestCache> item_suggest_cache =
       std::make_unique<ItemSuggestCache>("en", profile_,
@@ -257,7 +259,7 @@ TEST_F(ItemSuggestCacheTest, UpdateCacheServerUrlIsNotHttps) {
 
 TEST_F(ItemSuggestCacheTest, UpdateCacheServerUrlIsNotGoogleDomain) {
   scoped_feature_list_.InitAndEnableFeatureWithParameters(
-      feature_, {{"server_url", "https://foo.com"}});
+      *feature_, {{"server_url", "https://foo.com"}});
   std::unique_ptr<ItemSuggestCache> item_suggest_cache =
       std::make_unique<ItemSuggestCache>("en", profile_,
                                          shared_url_loader_factory_);
@@ -486,7 +488,7 @@ TEST_F(ItemSuggestCacheTest, UpdateCacheSavesResults) {
                                        /* sample= */ 716,
                                        /* expected_bucket_count= */ 1);
   ResultsMatch(item_suggest_cache->GetResults(), "suggestion id 1",
-               {{"item id 1", "display text 1", absl::nullopt},
+               {{"item id 1", "display text 1", std::nullopt},
                 {"item id 2", "display text 2", "prediction reason 2"},
                 {"item id 3", "display text 3", "prediction reason 3"}});
   histogram_tester_.ExpectUniqueSample(kStatusHistogramName,
@@ -516,7 +518,7 @@ TEST_F(ItemSuggestCacheTest, UpdateCacheSmallTimeBetweenUpdates) {
   item_suggest_cache->MaybeUpdateCache();
   task_environment_.RunUntilIdle();
   ResultsMatch(item_suggest_cache->GetResults(), "suggestion id 1",
-               {{"item id 1", "display text 1", absl::nullopt}});
+               {{"item id 1", "display text 1", std::nullopt}});
 
   task_environment_.AdvanceClock(base::Minutes(2));
 
@@ -537,7 +539,7 @@ TEST_F(ItemSuggestCacheTest, UpdateCacheSmallTimeBetweenUpdates) {
   // The first set of results are in the cache since the second update occurred
   // before the minimum time between updates.
   ResultsMatch(item_suggest_cache->GetResults(), "suggestion id 1",
-               {{"item id 1", "display text 1", absl::nullopt}});
+               {{"item id 1", "display text 1", std::nullopt}});
 }
 
 TEST_F(ItemSuggestCacheTest, RequestIncludesLocale) {

@@ -44,6 +44,27 @@ enum class StabilityEventType {
   kMaxValue = kUtilityLaunch,
 };
 
+// Types of content hosted by a renderer process.
+//
+// Used for metrics. Keep in sync with the "RendererHostedContentType" histogram
+// enum. Do not repurpose previously used indexes.
+enum class RendererHostedContentType {
+  // Hosting an extension
+  kExtension = 0,
+  // Hosting an active foreground main frame
+  kForegroundMainFrame = 1,
+  // Hosting an active foreground subframe (but no active foreground main frame)
+  kForegroundSubframe = 2,
+  // Hosting an active background frame (but no active foreground frame)
+  kBackgroundFrame = 3,
+  // Hosting an inactive frame (but no active frame)
+  // Examples of inactive frames: pending commit, prerendering, in BFCache...
+  kInactiveFrame = 4,
+  // Not hosting any frame or extension
+  kNoFrameOrExtension = 5,
+  kMaxValue = kNoFrameOrExtension,
+};
+
 class SystemProfileProto;
 
 // Responsible for providing functionality common to different embedders'
@@ -87,15 +108,35 @@ class StabilityMetricsHelper {
 #endif
   );
 
+  // Records a CDM utility process launch with name |metrics_name|.
+  void CdmUtilityProcessLaunched(const std::string& metrics_name);
+
+  // Records a CDM utility process crash with name |metrics_name|.
+  void CdmUtilityProcessCrashed(const std::string& metrics_name, int exit_code);
+
+  // Records that a CDM utility process process with name |metrics_name| failed
+  // to launch. The |launch_error_code| is a platform-specific error code. On
+  // Windows, a |last_error| is also supplied to help diagnose the launch
+  // failure.
+  void CdmUtilityProcessLaunchFailed(const std::string& metrics_name,
+                                     int launch_error_code
+#if BUILDFLAG(IS_WIN)
+                                     ,
+                                     DWORD last_error
+#endif
+  );
+
   // Logs the initiation of a page load.
   void LogLoadStarted();
 
-#if !BUILDFLAG(IS_ANDROID)
   // Records a renderer process crash.
-  void LogRendererCrash(bool was_extension_process,
+#if BUILDFLAG(IS_IOS)
+  void LogRendererCrash();
+#elif !BUILDFLAG(IS_ANDROID)
+  void LogRendererCrash(RendererHostedContentType hosted_content_type,
                         base::TerminationStatus status,
                         int exit_code);
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif
 
   // Records that a new renderer process was successfully launched.
   void LogRendererLaunched(bool was_extension_process);
@@ -116,11 +157,24 @@ class StabilityMetricsHelper {
   static void RecordStabilityEvent(StabilityEventType stability_event_type);
 
  private:
+  // Used for metrics. Keep in sync with the corresponding enums.xml definition.
+  // Do not repurpose previously used indexes.
+  enum class CoarseRendererType {
+    kRenderer = 1,
+    kExtension = 2,
+    kMaxValue = kExtension,
+  };
+
   // Increments an Integer pref value specified by |path|.
   void IncrementPrefValue(const char* path);
 
-  // Records that a renderer launch failed.
-  void LogRendererLaunchFailed(bool was_extension_process);
+  // Records metrics specific to these termination statuses:
+  // - TERMINATION_STATUS_PROCESS_CRASHED
+  // - TERMINATION_STATUS_ABNORMAL_TERMINATION
+  // - TERMINATION_STATUS_OOM
+  // Extracted to a helper method to allow sharing between desktop and iOS.
+  void LogRendererCrashImpl(CoarseRendererType coarse_renderer_type,
+                            int exit_code);
 
   raw_ptr<PrefService> local_state_;
 };

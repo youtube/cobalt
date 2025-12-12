@@ -16,7 +16,7 @@
 
 namespace wm {
 
-typedef aura::test::AuraTestBase WindowUtilTest;
+using WindowUtilTest = aura::test::AuraTestBase;
 
 // Test if the recreate layers does not recreate layers that have
 // already been acquired.

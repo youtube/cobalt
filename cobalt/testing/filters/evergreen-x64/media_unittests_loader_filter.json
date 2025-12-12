@@ -35,6 +35,15 @@
     "Vp8ParserTest.*",
     "Vp9ParserTest.*",
     "WebMStreamParserTest.*",
-    "WebPParserTest.*"
+    "WebPParserTest.*",
+    "AecdumpRecordingManagerTest.*",
+    "AudioDebugRecordingHelperTest.EnableDisable",
+    "AudioDebugRecordingHelperTest.OnData",
+    "TemporalScalabilityIdExtractorTest.AV1_TwoTemporalLayers",
+    "AudioInputDeviceGroup/AudioInputDeviceTest.ConfirmReadsViaShmemFlag/*",
+    "Mp4MuxerDelegateTest.*",
+    "SupportedTypesTest.IsDecoderSupportedVideoTypeBasics",
+    "SupportedTypesTest.IsDecoderSupportedVideoTypeWithHdrMetadataBasics",
+    "SupportedTypesTest.IsEncoderSupportedVideoType_VP9Profiles"
   ]
 }

@@ -12,9 +12,9 @@ void ResourcePreloader::TakeAndPreload(PreloadRequestStream& r) {
   PreloadRequestStream requests;
   requests.swap(r);
 
-  for (PreloadRequestStream::iterator it = requests.begin();
-       it != requests.end(); ++it)
-    Preload(std::move(*it));
+  for (auto& request : requests) {
+    Preload(std::move(request));
+  }
 }
 
 }  // namespace blink

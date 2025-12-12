@@ -12,8 +12,8 @@
 #include <cstdint>
 #include <initializer_list>
 #include <memory>
+#include <optional>
 
-#include "absl/types/optional.h"
 #include "api/array_view.h"
 #include "api/task_queue/task_queue_base.h"
 #include "net/dcsctp/common/handover_testing.h"
@@ -29,6 +29,8 @@ using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 using ::testing::SizeIs;
 using ::testing::UnorderedElementsAre;
+using ::webrtc::TimeDelta;
+using ::webrtc::Timestamp;
 
 constexpr size_t kArwnd = 10000;
 constexpr TSN kInitialTSN(11);
@@ -42,8 +44,8 @@ class DataTrackerTest : public testing::Test {
         }),
         timer_(timer_manager_.CreateTimer(
             "test/delayed_ack",
-            []() { return absl::nullopt; },
-            TimerOptions(DurationMs(0)))),
+            []() { return TimeDelta::Zero(); },
+            TimerOptions(TimeDelta::Zero()))),
         tracker_(
             std::make_unique<DataTracker>("log: ", timer_.get(), kInitialTSN)) {
   }
@@ -71,7 +73,7 @@ class DataTrackerTest : public testing::Test {
     tracker_->RestoreFromState(state);
   }
 
-  TimeMs now_ = TimeMs(0);
+  Timestamp now_ = Timestamp::Zero();
   FakeTimeoutManager timeout_manager_;
   TimerManager timer_manager_;
   std::unique_ptr<Timer> timer_;
@@ -735,5 +737,65 @@ TEST_F(DataTrackerTest, HandoverWhileSendingSackEveryPacketOnPacketLoss) {
   EXPECT_FALSE(tracker_->ShouldSendAck());
   EXPECT_TRUE(timer_->is_running());
 }
+
+TEST_F(DataTrackerTest, DoesNotAcceptDataBeforeForwardTsn) {
+  Observer({12, 13, 14, 15, 17});
+  tracker_->ObservePacketEnd();
+
+  tracker_->HandleForwardTsn(TSN(13));
+
+  EXPECT_FALSE(tracker_->Observe(TSN(11)));
+}
+
+TEST_F(DataTrackerTest, DoesNotAcceptDataAtForwardTsn) {
+  Observer({12, 13, 14, 15, 17});
+  tracker_->ObservePacketEnd();
+
+  tracker_->HandleForwardTsn(TSN(16));
+
+  EXPECT_FALSE(tracker_->Observe(TSN(16)));
+}
+
+TEST_F(DataTrackerTest, DoesNotAcceptDataBeforeCumAckTsn) {
+  EXPECT_EQ(kInitialTSN, TSN(11));
+  EXPECT_FALSE(tracker_->Observe(TSN(10)));
+}
+
+TEST_F(DataTrackerTest, DoesNotAcceptContiguousDuplicateData) {
+  EXPECT_EQ(kInitialTSN, TSN(11));
+  EXPECT_TRUE(tracker_->Observe(TSN(11)));
+  EXPECT_FALSE(tracker_->Observe(TSN(11)));
+  EXPECT_TRUE(tracker_->Observe(TSN(12)));
+  EXPECT_FALSE(tracker_->Observe(TSN(12)));
+  EXPECT_FALSE(tracker_->Observe(TSN(11)));
+  EXPECT_FALSE(tracker_->Observe(TSN(10)));
+}
+
+TEST_F(DataTrackerTest, DoesNotAcceptGapsWithDuplicateData) {
+  EXPECT_EQ(kInitialTSN, TSN(11));
+  EXPECT_TRUE(tracker_->Observe(TSN(11)));
+  EXPECT_FALSE(tracker_->Observe(TSN(11)));
+
+  EXPECT_TRUE(tracker_->Observe(TSN(14)));
+  EXPECT_FALSE(tracker_->Observe(TSN(14)));
+
+  EXPECT_TRUE(tracker_->Observe(TSN(13)));
+  EXPECT_FALSE(tracker_->Observe(TSN(13)));
+
+  EXPECT_TRUE(tracker_->Observe(TSN(12)));
+  EXPECT_FALSE(tracker_->Observe(TSN(12)));
+}
+
+TEST_F(DataTrackerTest, NotReadyForHandoverWhenHavingTsnGaps) {
+  tracker_->Observe(TSN(10));
+  tracker_->Observe(TSN(12));
+  EXPECT_EQ(tracker_->GetHandoverReadiness(),
+            HandoverReadinessStatus().Add(
+                HandoverUnreadinessReason::kDataTrackerTsnBlocksPending));
+
+  tracker_->Observe(TSN(11));
+  EXPECT_EQ(tracker_->GetHandoverReadiness(), HandoverReadinessStatus());
+}
+
 }  // namespace
 }  // namespace dcsctp

@@ -14,7 +14,8 @@ namespace extensions {
 // static
 ExtensionNotificationDisplayHelperFactory*
 ExtensionNotificationDisplayHelperFactory::GetInstance() {
-  return base::Singleton<ExtensionNotificationDisplayHelperFactory>::get();
+  static base::NoDestructor<ExtensionNotificationDisplayHelperFactory> instance;
+  return instance.get();
 }
 
 // static
@@ -28,16 +29,22 @@ ExtensionNotificationDisplayHelperFactory::
     ExtensionNotificationDisplayHelperFactory()
     : ProfileKeyedServiceFactory(
           "ExtensionNotificationDisplayHelperFactory",
-          ProfileSelections::BuildForRegularAndIncognito()) {}
+          ProfileSelections::Builder()
+              .WithRegular(ProfileSelection::kOwnInstance)
+              .WithGuest(ProfileSelection::kOwnInstance)
+              // TODO(crbug.com/41488885): Check if this service is needed for
+              // Ash Internals.
+              .WithAshInternals(ProfileSelection::kOwnInstance)
+              .Build()) {}
 
 ExtensionNotificationDisplayHelperFactory::
-    ~ExtensionNotificationDisplayHelperFactory() {}
+    ~ExtensionNotificationDisplayHelperFactory() = default;
 
-KeyedService*
-ExtensionNotificationDisplayHelperFactory::BuildServiceInstanceFor(
-    content::BrowserContext* context) const {
+std::unique_ptr<KeyedService> ExtensionNotificationDisplayHelperFactory::
+    BuildServiceInstanceForBrowserContext(
+        content::BrowserContext* context) const {
   Profile* profile = Profile::FromBrowserContext(context);
-  return new ExtensionNotificationDisplayHelper(profile);
+  return std::make_unique<ExtensionNotificationDisplayHelper>(profile);
 }
 
 }  // namespace extensions

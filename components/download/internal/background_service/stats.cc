@@ -50,14 +50,13 @@ std::string TaskTypeToHistogramSuffix(DownloadTaskType task_type) {
     case DownloadTaskType::CLEANUP_TASK:
       return "CleanUpTask";
     case DownloadTaskType::DOWNLOAD_AUTO_RESUMPTION_TASK:
+    case DownloadTaskType::DOWNLOAD_AUTO_RESUMPTION_UNMETERED_TASK:
+    case DownloadTaskType::DOWNLOAD_AUTO_RESUMPTION_ANY_NETWORK_TASK:
       NOTREACHED();
-      return "DownloadAutoResumptionTask";
     case DownloadTaskType::DOWNLOAD_LATER_TASK:
       NOTREACHED();
-      return "DownloadLaterTask";
   }
   NOTREACHED();
-  return std::string();
 }
 
 // Converts FileCleanupReason to histogram suffix.
@@ -76,7 +75,6 @@ std::string FileCleanupReasonToHistogramSuffix(FileCleanupReason reason) {
       NOTREACHED();
   }
   NOTREACHED();
-  return std::string();
 }
 
 // Helper method to log the pause reason for a particular download.

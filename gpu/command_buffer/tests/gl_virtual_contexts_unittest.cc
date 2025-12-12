@@ -2,10 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 #include <GLES2/gl2extchromium.h>
 #include <stdint.h>
+
+#include <array>
 
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
@@ -163,11 +170,11 @@ TEST_P(GLVirtualContextsTest, Basic) {
     raw_ptr<GLManager> manager;
   };
   const int kNumTests = 3;
-  TestInfo tests[] = {
-    { kSize0, { 255, 0, 0, 0, }, &gl_real_, },
-    { kSize1, { 0, 255, 0, 0, }, &gl1_, },
-    { kSize2, { 0, 0, 255, 0, }, &gl2_, },
-  };
+  auto tests = std::to_array<TestInfo>({
+      {kSize0, {255, 0, 0, 0}, &gl_real_},
+      {kSize1, {0, 255, 0, 0}, &gl1_},
+      {kSize2, {0, 0, 255, 0}, &gl2_},
+  });
 
   for (int ii = 0; ii < kNumTests; ++ii) {
     const TestInfo& test = tests[ii];
@@ -322,7 +329,6 @@ TEST_P(GLVirtualContextsTest, VirtualQueries) {
     GL_COMMANDS_COMPLETED_CHROMIUM,
     GL_COMMANDS_ISSUED_CHROMIUM,
     GL_GET_ERROR_QUERY_CHROMIUM,
-    GL_LATENCY_QUERY_CHROMIUM,
     GL_TIME_ELAPSED_EXT,
   };
 
@@ -445,4 +451,3 @@ INSTANTIATE_TEST_SUITE_P(WithWorkarounds,
                          ::testing::ValuesIn(workarounds_cases));
 
 }  // namespace gpu
-

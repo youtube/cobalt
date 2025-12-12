@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Round a number up to the nearest stepsize.
-export function roundUpNearest(val: number, stepsize: number): number {
-  return stepsize * Math.ceil(val / stepsize);
+// Restrict the value of a number between two values (inclusive)
+export function clamp(val: number, lower: number, upper: number): number {
+  return Math.max(lower, Math.min(upper, val));
 }
 
-// Round a number down to the nearest stepsize.
-export function roundDownNearest(val: number, stepsize: number): number {
-  return stepsize * Math.floor(val / stepsize);
+const FLOAT_EPSILON = 1e-9;
+
+// Returns true if two floats are close enough to be considered equal.
+export function floatEqual(a: number, b: number, eps = FLOAT_EPSILON): boolean {
+  return Math.abs(a - b) < eps;
 }

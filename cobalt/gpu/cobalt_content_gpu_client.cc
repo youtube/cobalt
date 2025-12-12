@@ -14,9 +14,11 @@
 
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 
+#include <memory>
+
 #include "base/memory/ptr_util.h"
 #include "base/task/single_thread_task_runner.h"
-#include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
+#include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
 
 namespace cobalt {
@@ -34,11 +36,9 @@ void CobaltContentGpuClient::PostCompositorThreadCreated(
   content::ChildThread::Get()->BindHostReceiver(
       video_geometry_setter.InitWithNewPipeAndPassReceiver());
 
-  task_runner->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &viz::OverlayStrategyUnderlayStarboard::ConnectVideoGeometrySetter,
-          std::move(video_geometry_setter)));
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&viz::ConnectVideoGeometrySetter,
+                                       std::move(video_geometry_setter)));
 }
 
 }  // namespace cobalt

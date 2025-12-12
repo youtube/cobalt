@@ -329,7 +329,7 @@ class LocalFileSyncContext
       base::File::Error error);
 
   const base::FilePath local_base_path_;
-  raw_ptr<leveldb::Env> env_override_;
+  raw_ptr<leveldb::Env, DanglingUntriaged> env_override_;
 
   scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner_;
   scoped_refptr<base::SingleThreadTaskRunner> io_task_runner_;
@@ -348,7 +348,8 @@ class LocalFileSyncContext
   // Pointers to file system contexts that have been initialized for
   // synchronization (i.e. that own this instance).
   // This must be accessed only on UI thread.
-  std::set<storage::FileSystemContext*> file_system_contexts_;
+  std::set<raw_ptr<storage::FileSystemContext, SetExperimental>>
+      file_system_contexts_;
 
   // Accessed only on UI thread.
   std::map<storage::FileSystemContext*, StatusCallbackQueue>

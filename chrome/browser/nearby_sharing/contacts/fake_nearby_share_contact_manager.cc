@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "chrome/browser/nearby_sharing/contacts/fake_nearby_share_contact_manager.h"
+#include <set>
+#include <string>
 
 FakeNearbyShareContactManager::Factory::Factory() = default;
 
@@ -10,14 +12,12 @@ FakeNearbyShareContactManager::Factory::~Factory() = default;
 
 std::unique_ptr<NearbyShareContactManager>
 FakeNearbyShareContactManager::Factory::CreateInstance(
+    std::string user_email,
     PrefService* pref_service,
     NearbyShareClientFactory* http_client_factory,
-    NearbyShareLocalDeviceDataManager* local_device_data_manager,
-    NearbyShareProfileInfoProvider* profile_info_provider) {
-  latest_pref_service_ = pref_service;
+    NearbyShareLocalDeviceDataManager* local_device_data_manager) {
   latest_http_client_factory_ = http_client_factory;
   latest_local_device_data_manager_ = local_device_data_manager;
-  latest_profile_info_provider_ = profile_info_provider;
 
   auto instance = std::make_unique<FakeNearbyShareContactManager>();
   instances_.push_back(instance.get());
@@ -36,6 +36,12 @@ void FakeNearbyShareContactManager::DownloadContacts() {
 void FakeNearbyShareContactManager::SetAllowedContacts(
     const std::set<std::string>& allowed_contact_ids) {
   set_allowed_contacts_calls_.push_back(allowed_contact_ids);
+}
+std::set<std::string> FakeNearbyShareContactManager::GetAllowedContacts()
+    const {
+  return set_allowed_contacts_calls_.empty()
+             ? std::set<std::string>()
+             : set_allowed_contacts_calls_.back();
 }
 
 void FakeNearbyShareContactManager::OnStart() {}

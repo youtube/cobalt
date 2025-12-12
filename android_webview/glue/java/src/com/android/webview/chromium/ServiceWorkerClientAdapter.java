@@ -7,8 +7,8 @@ package com.android.webview.chromium;
 import android.webkit.ServiceWorkerClient;
 import android.webkit.WebResourceResponse;
 
-import org.chromium.android_webview.AwContentsClient.AwWebResourceRequest;
 import org.chromium.android_webview.AwServiceWorkerClient;
+import org.chromium.android_webview.AwWebResourceRequest;
 import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
 
 /**
@@ -16,7 +16,7 @@ import org.chromium.components.embedder_support.util.WebResourceResponseInfo;
  * to the corresponding {@link ServiceWorkerClient}.
  */
 public class ServiceWorkerClientAdapter extends AwServiceWorkerClient {
-    private ServiceWorkerClient mServiceWorkerClient;
+    private final ServiceWorkerClient mServiceWorkerClient;
 
     public ServiceWorkerClientAdapter(ServiceWorkerClient client) {
         mServiceWorkerClient = client;
@@ -32,8 +32,12 @@ public class ServiceWorkerClientAdapter extends AwServiceWorkerClient {
     public static WebResourceResponseInfo fromWebResourceResponse(WebResourceResponse response) {
         if (response == null) return null;
 
-        return new WebResourceResponseInfo(response.getMimeType(), response.getEncoding(),
-                response.getData(), response.getStatusCode(), response.getReasonPhrase(),
+        return new WebResourceResponseInfo(
+                response.getMimeType(),
+                response.getEncoding(),
+                response.getData(),
+                response.getStatusCode(),
+                response.getReasonPhrase(),
                 response.getResponseHeaders());
     }
 }

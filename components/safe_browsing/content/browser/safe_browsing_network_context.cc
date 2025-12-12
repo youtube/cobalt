@@ -10,6 +10,7 @@
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/trace_event/trace_event.h"
+#include "components/safe_browsing/core/browser/utils/url_loader_factory_params.h"
 #include "components/safe_browsing/core/common/safebrowsing_constants.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/network_context_client_base.h"
@@ -21,10 +22,6 @@
 #include "net/net_buildflags.h"
 #include "services/network/network_context.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
-
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/remove_stale_data.h"
-#endif
 
 namespace safe_browsing {
 
@@ -97,20 +94,15 @@ class SafeBrowsingNetworkContext::SharedURLLoaderFactory
   // network::SharedURLLoaderFactory implementation:
   std::unique_ptr<network::PendingSharedURLLoaderFactory> Clone() override {
     NOTREACHED();
-    return nullptr;
   }
 
   network::mojom::URLLoaderFactory* GetURLLoaderFactory() {
     DCHECK(content::BrowserThread::CurrentlyOn(content::BrowserThread::UI));
     if (!url_loader_factory_ || !url_loader_factory_.is_connected()) {
       url_loader_factory_.reset();
-      network::mojom::URLLoaderFactoryParamsPtr params =
-          network::mojom::URLLoaderFactoryParams::New();
-      params->process_id = network::mojom::kBrowserProcessId;
-      params->is_corb_enabled = false;
-      params->is_trusted = true;
       GetNetworkContext()->CreateURLLoaderFactory(
-          url_loader_factory_.BindNewPipeAndPassReceiver(), std::move(params));
+          url_loader_factory_.BindNewPipeAndPassReceiver(),
+          GetUrlLoaderFactoryParams());
     }
     return url_loader_factory_.get();
   }
@@ -138,18 +130,6 @@ class SafeBrowsingNetworkContext::SharedURLLoaderFactory
     network_context_params->file_paths->cookie_database_name = base::FilePath(
         base::FilePath::StringType(kSafeBrowsingBaseFilename) + kCookiesFile);
     network_context_params->enable_encrypted_cookies = false;
-
-#if BUILDFLAG(IS_ANDROID)
-    // On Android the `data_directory` was used by some wrong builds instead of
-    // `unsandboxed_data_path`. Cleaning it up. See crbug.com/1331809.
-    // The `cookie_manager` is set by WebView, where the mistaken migration did
-    // not happen.
-    DCHECK(!trigger_migration_);
-    if (!network_context_params->cookie_manager) {
-      base::android::RemoveStaleDataDirectory(
-          network_context_params->file_paths->data_directory.path());
-    }
-#endif  // BUILDFLAG(IS_ANDROID)
 
     return network_context_params;
   }

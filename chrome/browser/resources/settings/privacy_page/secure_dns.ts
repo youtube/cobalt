@@ -14,41 +14,48 @@
  * by PrivacyPageBrowserProxy and describe the new host resolver configuration.
  */
 
-import 'chrome://resources/cr_elements/cr_radio_button/cr_radio_button.js';
-import 'chrome://resources/cr_elements/cr_radio_group/cr_radio_group.js';
+import 'chrome://resources/cr_elements/cr_shared_style.css.js';
+import 'chrome://resources/cr_elements/cr_shared_vars.css.js';
 import 'chrome://resources/cr_elements/md_select.css.js';
-import 'chrome://resources/cr_components/settings_prefs/prefs.js';
+import '/shared/settings/prefs/prefs.js';
 import '../controls/settings_toggle_button.js';
-import '../settings_shared.css.js';
-import '../strings.m.js';
 import './secure_dns_input.js';
 
-import {PrivacyPageBrowserProxy, PrivacyPageBrowserProxyImpl, ResolverOption, SecureDnsMode, SecureDnsSetting, SecureDnsUiManagementMode} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
-import {PrefsMixin} from 'chrome://resources/cr_components/settings_prefs/prefs_mixin.js';
-import {CrRadioGroupElement} from 'chrome://resources/cr_elements/cr_radio_group/cr_radio_group.js';
+import {PrefsMixin} from '/shared/settings/prefs/prefs_mixin.js';
+import type {PrivacyPageBrowserProxy, ResolverOption, SecureDnsSetting} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
+import {PrivacyPageBrowserProxyImpl, SecureDnsMode, SecureDnsUiManagementMode} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
+import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assertNotReached} from 'chrome://resources/js/assert_ts.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import {assert, assertNotReached} from 'chrome://resources/js/assert.js';
 import {sanitizeInnerHtml} from 'chrome://resources/js/parse_html_subset.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {SettingsToggleButtonElement} from '../controls/settings_toggle_button.js';
+import {loadTimeData} from '../i18n_setup.js';
 
 import {getTemplate} from './secure_dns.html.js';
-import {SecureDnsInputElement} from './secure_dns_input.js';
+import type {SecureDnsInputElement} from './secure_dns_input.js';
 
 export interface SettingsSecureDnsElement {
   $: {
     privacyPolicy: HTMLElement,
     secureDnsInput: SecureDnsInputElement,
-    secureDnsRadioGroup: CrRadioGroupElement,
-    secureDnsToggle: SettingsToggleButtonElement,
-    secureResolverSelect: HTMLSelectElement,
+    secureDnsInputContainer: HTMLElement,
+    resolverSelect: HTMLSelectElement,
   };
 }
 
 const SettingsSecureDnsElementBase =
-    WebUiListenerMixin(PrefsMixin(PolymerElement));
+    WebUiListenerMixin(PrefsMixin(I18nMixin(PolymerElement)));
+
+/**
+ * Enum for the categories of options in the secure DNS resolver select
+ * menu.
+ */
+export enum SecureDnsResolverType {
+  AUTOMATIC = 'automatic',
+  BUILT_IN = 'built-in',
+  CUSTOM = 'custom',
+}
 
 export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
   static get is() {
@@ -62,20 +69,12 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
   static get properties() {
     return {
       /**
-       * Preferences state.
-       */
-      prefs: {
-        type: Object,
-        notify: true,
-      },
-
-      /**
-       * Mirroring the secure DNS mode enum so that it can be used from HTML
+       * Mirroring the secure DNS resolver enum so that it can be used from HTML
        * bindings.
        */
-      secureDnsModeEnum_: {
+      resolverTypeEnum_: {
         type: Object,
-        value: SecureDnsMode,
+        value: SecureDnsResolverType,
       },
 
       /**
@@ -98,29 +97,14 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
       },
 
       /**
-       * Whether the radio buttons should be shown.
+       * Whether the secure DNS resolver options should be shown.
        */
-      showRadioGroup_: Boolean,
-
-      /**
-       * Represents the selected radio button. Should always have a value of
-       * 'automatic' or 'secure'.
-       */
-      secureDnsRadio_: {
-        type: String,
-        value: SecureDnsMode.AUTOMATIC,
-      },
+      showSecureDnsOptions_: Boolean,
 
       /**
        * List of secure DNS resolvers to display in dropdown menu.
        */
       resolverOptions_: Array,
-
-      /**
-       * Track the selected dropdown option so that it can be logged when a
-       * user- initiated UI dropdown selection change event occurs.
-       */
-      lastResolverOption_: String,
 
       /**
        * String displaying the privacy policy of the resolver selected in the
@@ -135,14 +119,12 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
     };
   }
 
-  private secureDnsDescription_: string;
-  private secureDnsToggle_: chrome.settingsPrivate.PrefObject<boolean>;
-  private showRadioGroup_: boolean;
-  private secureDnsRadio_: SecureDnsMode;
-  private resolverOptions_: ResolverOption[];
-  private lastResolverOption_: string;
-  private privacyPolicyString_: TrustedHTML;
-  private secureDnsInputValue_: string;
+  declare private secureDnsDescription_: string;
+  declare private secureDnsToggle_: chrome.settingsPrivate.PrefObject<boolean>;
+  declare private showSecureDnsOptions_: boolean;
+  declare private resolverOptions_: ResolverOption[];
+  declare private privacyPolicyString_: TrustedHTML;
+  declare private secureDnsInputValue_: string;
   private browserProxy_: PrivacyPageBrowserProxy =
       PrivacyPageBrowserProxyImpl.getInstance();
 
@@ -153,7 +135,6 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
     // to match the underlying host resolver configuration.
     this.browserProxy_.getSecureDnsResolverList().then(resolvers => {
       this.resolverOptions_ = resolvers;
-      this.lastResolverOption_ = this.resolverOptions_[0].value;
       this.browserProxy_.getSecureDnsSetting().then(
           (setting: SecureDnsSetting) =>
               this.onSecureDnsPrefsChanged_(setting));
@@ -175,17 +156,9 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
   private onSecureDnsPrefsChanged_(setting: SecureDnsSetting) {
     switch (setting.mode) {
       case SecureDnsMode.SECURE:
-        this.set('secureDnsToggle_.value', true);
-        this.secureDnsRadio_ = SecureDnsMode.SECURE;
-        // Only update the selected dropdown item if the user is in secure
-        // mode. Otherwise, we may be losing a selection that hasn't been
-        // pushed yet to prefs.
-        this.updateConfigRepresentation_(setting.config);
-        this.updatePrivacyPolicyLine_();
-        break;
       case SecureDnsMode.AUTOMATIC:
         this.set('secureDnsToggle_.value', true);
-        this.secureDnsRadio_ = SecureDnsMode.AUTOMATIC;
+        this.updateConfigRepresentation_(setting.mode, setting.config);
         break;
       case SecureDnsMode.OFF:
         this.set('secureDnsToggle_.value', false);
@@ -199,30 +172,26 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
 
   /**
    * Updates the underlying secure DNS mode pref based on the new toggle
-   * selection (and the underlying radio button if the toggle has just been
-   * enabled).
+   * selection (and the underlying select menu if the toggle has just been
+   * turned on).
    */
   private onToggleChanged_() {
-    this.showRadioGroup_ = this.secureDnsToggle_.value;
-    if (this.secureDnsRadio_ === SecureDnsMode.SECURE &&
-        !this.$.secureResolverSelect.value) {
-      this.$.secureDnsInput.focus();
-    }
-    this.updateDnsPrefs_(
-        this.secureDnsToggle_.value ? this.secureDnsRadio_ : SecureDnsMode.OFF);
-  }
+    this.showSecureDnsOptions_ = this.secureDnsToggle_.value;
 
-  /**
-   * Updates the underlying secure DNS prefs based on the newly selected radio
-   * button. This should only be called from the HTML. Focuses the custom text
-   * field if the custom option has been selected.
-   */
-  private onRadioSelectionChanged_(event: CustomEvent<{value: SecureDnsMode}>) {
-    if (event.detail.value === SecureDnsMode.SECURE &&
-        !this.$.secureResolverSelect.value) {
-      this.$.secureDnsInput.focus();
+    if (!this.secureDnsToggle_.value) {
+      this.updateDnsPrefs_(SecureDnsMode.OFF);
+      return;
     }
-    this.updateDnsPrefs_(event.detail.value);
+
+    const resolver = this.$.resolverSelect.value;
+    if (resolver === SecureDnsResolverType.AUTOMATIC) {
+      this.updateDnsPrefs_(SecureDnsMode.AUTOMATIC);
+    } else {
+      if (resolver === SecureDnsResolverType.CUSTOM) {
+        this.$.secureDnsInput.focus();
+      }
+      this.updateDnsPrefs_(SecureDnsMode.SECURE);
+    }
   }
 
   /**
@@ -241,14 +210,14 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
         // was not specified, the custom entry may be invalid or may not
         // have passed validation yet, and we should not update either the
         // underlying mode or templates prefs.
-        if (!this.$.secureResolverSelect.value) {
+        const builtInResolver = this.builtInResolver_();
+        if (!builtInResolver) {
           if (!templates) {
             return;
           }
           this.setPrefValue('dns_over_https.templates', templates);
         } else {
-          this.setPrefValue(
-              'dns_over_https.templates', this.$.secureResolverSelect.value);
+          this.setPrefValue('dns_over_https.templates', builtInResolver.value);
         }
         this.setPrefValue('dns_over_https.mode', mode);
         break;
@@ -265,32 +234,26 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
   }
 
   /**
-   * Prevent interactions with the dropdown menu or custom text field from
-   * causing the corresponding radio button to be selected.
-   */
-  private stopEventPropagation_(event: Event) {
-    event.stopPropagation();
-  }
-
-  /**
    * Updates the underlying secure DNS templates pref based on the selected
-   * resolver and displays the corresponding privacy policy. Focuses the custom
-   * text field if the custom option has been selected.
+   * resolver and displays the corresponding privacy policy.
    */
   private onDropdownSelectionChanged_() {
-    // If we're already in secure mode, update the prefs.
-    if (this.secureDnsRadio_ === SecureDnsMode.SECURE) {
-      this.updateDnsPrefs_(SecureDnsMode.SECURE);
+    switch (this.$.resolverSelect.value) {
+      case SecureDnsResolverType.AUTOMATIC:
+        this.updateDnsPrefs_(SecureDnsMode.AUTOMATIC);
+        this.updateConfigRepresentation_(SecureDnsMode.AUTOMATIC, '');
+        break;
+      case SecureDnsResolverType.CUSTOM:
+        this.updateDnsPrefs_(SecureDnsMode.SECURE);
+        this.updateConfigRepresentation_(SecureDnsMode.SECURE, '');
+        break;
+      default:
+        const resolver = this.builtInResolver_();
+        assert(resolver);
+        this.updateDnsPrefs_(SecureDnsMode.SECURE, resolver.value);
+        this.updateConfigRepresentation_(SecureDnsMode.SECURE, resolver.value);
+        break;
     }
-    this.updatePrivacyPolicyLine_();
-
-    if (!this.$.secureResolverSelect.value) {
-      this.$.secureDnsInput.focus();
-    }
-
-    this.browserProxy_.recordUserDropdownInteraction(
-        this.lastResolverOption_, this.$.secureResolverSelect.value);
-    this.lastResolverOption_ = this.$.secureResolverSelect.value;
   }
 
   /**
@@ -314,14 +277,7 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
     // hashed with a salt and hex encoded), then the message will contain the
     // template URI for display in which the identifiers are shown in plain
     // text.
-    let secureDescription = loadTimeData.getString('secureDnsDescription');
-    // <if expr="chromeos_ash">
-    if (setting.dohWithIdentifiersActive) {
-      secureDescription = loadTimeData.substituteString(
-          loadTimeData.getString('secureDnsWithIdentifiersDescription'),
-          setting.configForDisplay);
-    }
-    // </if>
+    const secureDescription = loadTimeData.getString('secureDnsDescription');
 
     if (this.getPref('dns_over_https.mode').enforcement ===
         chrome.settingsPrivate.Enforcement.ENFORCED) {
@@ -355,75 +311,96 @@ export class SettingsSecureDnsElement extends SettingsSecureDnsElementBase {
 
     if (this.secureDnsToggle_.enforcement ===
         chrome.settingsPrivate.Enforcement.ENFORCED) {
-      this.showRadioGroup_ = false;
+      this.showSecureDnsOptions_ = false;
     } else {
-      this.showRadioGroup_ = this.secureDnsToggle_.value;
+      this.showSecureDnsOptions_ = this.secureDnsToggle_.value;
     }
   }
 
   /**
-   * Updates the UI to represent the given secure DNS config.
-   * @param secureDnsConfig The current host resolver configuration.
+   * Updates the UI to match the provided configuration parameters.
    */
-  private updateConfigRepresentation_(secureDnsConfig: string) {
-    // If it is one of the non-custom dropdown options, select that option.
-    const resolver =
-        this.resolverOptions_.slice(1).find(r => r.value === secureDnsConfig);
-    if (resolver) {
-      this.$.secureResolverSelect.value = resolver.value;
-      this.lastResolverOption_ = resolver.value;
-      return;
+  private updateConfigRepresentation_(mode: SecureDnsMode, template: string) {
+    let hideCustomEntry = true;
+    let selectValue = '';
+    let privacyPolicy = '';
+
+    const index = this.resolverOptions_.findIndex(r => r.value === template);
+    if (index !== -1) {
+      privacyPolicy = this.resolverOptions_[index].policy;
     }
 
-    // Otherwise, select the custom option.
-    this.$.secureResolverSelect.value = '';
-    this.lastResolverOption_ = '';
+    switch (mode) {
+      case SecureDnsMode.AUTOMATIC:
+        selectValue = SecureDnsResolverType.AUTOMATIC;
+        break;
+      case SecureDnsMode.SECURE:
+        if (index === -1) {
+          selectValue = SecureDnsResolverType.CUSTOM;
+          hideCustomEntry = false;
+        } else {
+          selectValue = index.toString();
+        }
+        break;
+      default:
+        assertNotReached(`Unexpected DNS mode ${mode}`);
+    }
 
-    // Only update the custom input field if the config string is non-empty.
-    // Otherwise, we may be clearing a previous value that the user wishes to
-    // reuse.
-    if (secureDnsConfig.length > 0) {
-      this.secureDnsInputValue_ = secureDnsConfig;
+    this.$.resolverSelect.value = selectValue;
+
+    this.updatePrivacyPolicyLine_(privacyPolicy);
+
+    this.$.secureDnsInputContainer.hidden = hideCustomEntry;
+    if (!hideCustomEntry) {
+      this.secureDnsInputValue_ = template;
+      if (!template) {
+        this.$.secureDnsInput.focus();
+      }
     }
   }
 
   /**
-   * Displays the privacy policy corresponding to the selected dropdown resolver
-   * or hides the privacy policy line if a custom resolver is selected.
+   * Displays the privacy policy string if the policy URL is specified,
+   * otherwise hides it.
+   * @param policy The privacy policy URL.
    */
-  private updatePrivacyPolicyLine_() {
-    // If the selected item is the custom provider option, hide the privacy
+  private updatePrivacyPolicyLine_(policy: string) {
+    // If the selected item is the custom resolver option, hide the privacy
     // policy line.
-    if (!this.$.secureResolverSelect.value) {
+    if (!policy) {
       this.$.privacyPolicy.style.display = 'none';
-      this.$.secureDnsInput.style.display = 'block';
       return;
     }
 
     // Otherwise, display the corresponding privacy policy.
     this.$.privacyPolicy.style.display = 'block';
-    this.$.secureDnsInput.style.display = 'none';
-    const resolver = this.resolverOptions_.find(
-        r => r.value === this.$.secureResolverSelect.value);
-    if (!resolver) {
-      return;
-    }
 
     this.privacyPolicyString_ = sanitizeInnerHtml(loadTimeData.substituteString(
         loadTimeData.getString('secureDnsSecureDropdownModePrivacyPolicy'),
-        resolver.policy));
+        policy));
   }
 
   /**
    * Updates the underlying prefs if a custom entry was determined to be valid.
-   * If the custom entry was determined to be invalid, moves the selected radio
-   * button away from 'secure' if necessary.
    */
   private onSecureDnsInputEvaluated_(
       event: CustomEvent<{text: string, isValid: boolean}>) {
     if (event.detail.isValid) {
-      this.updateDnsPrefs_(this.secureDnsRadio_, event.detail.text);
+      this.updateDnsPrefs_(SecureDnsMode.SECURE, event.detail.text);
     }
+  }
+
+  /**
+   * Returns the ResolverOption details if the currently selected secure DNS
+   * resolver is a built-in one.
+   */
+  private builtInResolver_(): ResolverOption|undefined {
+    if (this.$.resolverSelect.selectedOptions[0].dataset['resolverType'] ===
+        SecureDnsResolverType.BUILT_IN) {
+      const index = Number.parseInt(this.$.resolverSelect.value);
+      return this.resolverOptions_[index];
+    }
+    return undefined;
   }
 }
 

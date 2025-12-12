@@ -868,6 +868,11 @@
         "FramebufferTexture2DMultisampleEXT"
     ],
 
+    "GL_NV_polygon_mode":
+    [
+        "PolygonModeNV"
+    ],
+
     "GL_EXT_polygon_offset_clamp":
     [
         "PolygonOffsetClampEXT"
@@ -881,5 +886,11 @@
     "GL_MESA_framebuffer_flip_y":
     [
         "FramebufferParameteriMESA"
+    ],
+
+    "GL_QCOM_tiled_rendering":
+    [
+        "StartTilingQCOM",
+        "EndTilingQCOM"
     ]
 }

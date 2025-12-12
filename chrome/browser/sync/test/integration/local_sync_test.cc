@@ -9,26 +9,32 @@
 #include "base/files/scoped_temp_dir.h"
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/sync/sync_service_factory.h"
+#include "chrome/browser/sync/test/integration/encryption_helper.h"
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/browser_sync/browser_sync_switches.h"
+#include "components/commerce/core/commerce_feature_list.h"
 #include "components/power_bookmarks/core/power_bookmark_features.h"
 #include "components/sync/base/command_line_switches.h"
+#include "components/sync/base/data_type.h"
 #include "components/sync/base/features.h"
-#include "components/sync/base/model_type.h"
-#include "components/sync/driver/sync_service_impl.h"
+#include "components/sync/service/sync_service_impl.h"
 #include "content/public/test/browser_test.h"
 #include "crypto/ec_private_key.h"
+
+// The local sync backend is currently only supported on Windows, Mac, Linux.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 namespace {
 
 using syncer::SyncServiceImpl;
+
+constexpr char kTestPassphrase[] = "hunter2";
 
 class SyncTransportActiveChecker : public SingleClientStatusChangeChecker {
  public:
@@ -73,10 +79,6 @@ class LocalSyncTest : public InProcessBrowserTest {
   base::ScopedTempDir local_sync_backend_dir_;
 };
 
-// The local sync backend is currently only supported on Windows, Mac, Linux,
-// and Lacros.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
-    BUILDFLAG(IS_CHROMEOS_LACROS)
 IN_PROC_BROWSER_TEST_F(LocalSyncTest, ShouldStart) {
   SyncServiceImpl* service =
       SyncServiceFactory::GetAsSyncServiceImplForProfileForTesting(
@@ -88,43 +90,47 @@ IN_PROC_BROWSER_TEST_F(LocalSyncTest, ShouldStart) {
   EXPECT_TRUE(service->IsLocalSyncEnabled());
   EXPECT_FALSE(service->IsSyncFeatureEnabled());
   EXPECT_FALSE(service->IsSyncFeatureActive());
+  EXPECT_FALSE(service->GetUserSettings()->IsInitialSyncFeatureSetupComplete());
 
   // Verify that the expected set of data types successfully started up.
   // If this test fails after adding a new data type, carefully consider whether
   // the type should be enabled in Local Sync mode, i.e. for roaming profiles on
   // Windows.
-  // TODO(crbug.com/1109640): Consider whether all of these types should really
-  // be enabled in Local Sync mode.
-  syncer::ModelTypeSet expected_active_data_types = syncer::ModelTypeSet(
-      syncer::BOOKMARKS, syncer::READING_LIST, syncer::PREFERENCES,
-      syncer::PASSWORDS, syncer::AUTOFILL_PROFILE, syncer::AUTOFILL,
-      syncer::AUTOFILL_WALLET_DATA, syncer::AUTOFILL_WALLET_METADATA,
-      syncer::THEMES, syncer::TYPED_URLS, syncer::EXTENSIONS,
-      syncer::SEARCH_ENGINES, syncer::SESSIONS, syncer::APPS,
-      syncer::APP_SETTINGS, syncer::EXTENSION_SETTINGS,
-      syncer::HISTORY_DELETE_DIRECTIVES, syncer::DEVICE_INFO,
-      syncer::PRIORITY_PREFERENCES, syncer::WEB_APPS, syncer::PROXY_TABS,
-      syncer::NIGORI);
-
-  if (base::FeatureList::IsEnabled(syncer::kSyncEnableHistoryDataType)) {
-    // If this feature is enabled, HISTORY replaces TYPED_URLS (and HISTORY
-    // isn't supported in local sync mode).
-    expected_active_data_types.Remove(syncer::TYPED_URLS);
-  }
-
-  if (base::FeatureList::IsEnabled(features::kTabGroupsSaveSyncIntegration)) {
-    expected_active_data_types.Put(syncer::SAVED_TAB_GROUP);
-  }
+  syncer::DataTypeSet expected_active_data_types = {
+      syncer::BOOKMARKS,
+      syncer::READING_LIST,
+      syncer::PREFERENCES,
+      syncer::PASSWORDS,
+      syncer::AUTOFILL_PROFILE,
+      syncer::AUTOFILL,
+      syncer::THEMES,
+      syncer::EXTENSIONS,
+      syncer::SAVED_TAB_GROUP,
+      syncer::SEARCH_ENGINES,
+      syncer::SESSIONS,
+      syncer::APPS,
+      syncer::APP_SETTINGS,
+      syncer::EXTENSION_SETTINGS,
+      syncer::DEVICE_INFO,
+      syncer::PRIORITY_PREFERENCES,
+      syncer::WEBAUTHN_CREDENTIAL,
+      syncer::WEB_APPS,
+      syncer::NIGORI};
 
   if (base::FeatureList::IsEnabled(power_bookmarks::kPowerBookmarkBackend)) {
     expected_active_data_types.Put(syncer::POWER_BOOKMARK);
   }
 
-  // The dictionary is currently only synced on Windows, Linux, and Lacros.
-  // TODO(crbug.com/1052397): Reassess whether the following block needs to be
-  // included in lacros-chrome once build flag switch of lacros-chrome is
-  // complete.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_LACROS)
+  if (base::FeatureList::IsEnabled(syncer::kSyncAutofillWalletCredentialData)) {
+    expected_active_data_types.Put(syncer::AUTOFILL_WALLET_CREDENTIAL);
+  }
+
+  if (base::FeatureList::IsEnabled(commerce::kProductSpecifications)) {
+    expected_active_data_types.Put(syncer::PRODUCT_COMPARISON);
+  }
+
+  // The dictionary is currently only synced on Windows and Linux.
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
   expected_active_data_types.Put(syncer::DICTIONARY);
 #endif
   EXPECT_EQ(service->GetActiveDataTypes(), expected_active_data_types);
@@ -138,7 +144,47 @@ IN_PROC_BROWSER_TEST_F(LocalSyncTest, ShouldStart) {
   EXPECT_FALSE(service->GetActiveDataTypes().Has(syncer::SEND_TAB_TO_SELF));
   EXPECT_FALSE(service->GetActiveDataTypes().Has(syncer::HISTORY));
 }
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_LINUX) ||
-        // BUILDFLAG(IS_CHROMEOS_LACROS))
+
+IN_PROC_BROWSER_TEST_F(LocalSyncTest, ShouldHonorSelectedTypes) {
+  SyncServiceImpl* service =
+      SyncServiceFactory::GetAsSyncServiceImplForProfileForTesting(
+          browser()->profile());
+
+  // Wait until the first sync cycle is completed.
+  ASSERT_TRUE(SyncTransportActiveChecker(service).Wait());
+
+  ASSERT_TRUE(service->IsLocalSyncEnabled());
+  ASSERT_FALSE(service->IsSyncFeatureEnabled());
+  ASSERT_TRUE(service->GetActiveDataTypes().Has(syncer::BOOKMARKS));
+  ASSERT_TRUE(service->GetActiveDataTypes().Has(syncer::PASSWORDS));
+
+  service->GetUserSettings()->SetSelectedTypes(
+      /*sync_everything=*/false, {syncer::UserSelectableType::kPasswords});
+
+  ASSERT_TRUE(SyncTransportActiveChecker(service).Wait());
+
+  EXPECT_TRUE(service->GetActiveDataTypes().Has(syncer::PASSWORDS));
+  EXPECT_FALSE(service->GetActiveDataTypes().Has(syncer::BOOKMARKS));
+}
+
+// Setting up a custom passphrase is arguably meaningless for local sync, but it
+// has been allowed historically.
+IN_PROC_BROWSER_TEST_F(LocalSyncTest, ShouldSupportCustomPassphrase) {
+  SyncServiceImpl* service =
+      SyncServiceFactory::GetAsSyncServiceImplForProfileForTesting(
+          browser()->profile());
+
+  // Wait until the first sync cycle is completed.
+  ASSERT_TRUE(SyncTransportActiveChecker(service).Wait());
+
+  ASSERT_TRUE(service->IsLocalSyncEnabled());
+  ASSERT_FALSE(service->IsSyncFeatureEnabled());
+
+  service->GetUserSettings()->SetEncryptionPassphrase(kTestPassphrase);
+
+  EXPECT_TRUE(PassphraseAcceptedChecker(service).Wait());
+}
 
 }  // namespace
+
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)

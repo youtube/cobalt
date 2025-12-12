@@ -81,15 +81,17 @@ class PopupCreatedObserver : public WebContentsDelegate {
   explicit PopupCreatedObserver(WebContentsCreatedCallback callback)
       : callback_(std::move(callback)) {}
 
-  void AddNewContents(WebContents* source_contents,
-                      std::unique_ptr<WebContents> new_contents,
-                      const GURL& target_url,
-                      WindowOpenDisposition disposition,
-                      const blink::mojom::WindowFeatures& window_features,
-                      bool user_gesture,
-                      bool* was_blocked) override {
+  WebContents* AddNewContents(
+      WebContents* source_contents,
+      std::unique_ptr<WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override {
     callback_.Run(new_contents.get());
     web_contents_.push_back(std::move(new_contents));
+    return nullptr;
   }
 
  private:
@@ -294,7 +296,7 @@ IN_PROC_BROWSER_TEST_F(DocumentUserDataTest,
   DisableProactiveBrowsingInstanceSwapFor(rfh_a);
   shell()->LoadURLForFrame(url_b, std::string(),
                            ui::PageTransitionFromInt(ui::PAGE_TRANSITION_LINK));
-  EXPECT_TRUE(manager.WaitForRequestStart());
+  manager.WaitForSpeculativeRenderFrameHostCreation();
 
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
   RenderFrameHostImpl* pending_rfh =
@@ -469,7 +471,7 @@ IN_PROC_BROWSER_TEST_F(DocumentUserDataTest,
   // 2) Start navigation to B, but don't commit yet.
   TestNavigationManager manager(shell()->web_contents(), url_b);
   shell()->LoadURL(url_b);
-  EXPECT_TRUE(manager.WaitForRequestStart());
+  manager.WaitForSpeculativeRenderFrameHostCreation();
 
   FrameTreeNode* root = web_contents()->GetPrimaryFrameTree().root();
   RenderFrameHostImpl* pending_rfh =
@@ -505,7 +507,7 @@ IN_PROC_BROWSER_TEST_F(DocumentUserDataTest, SpeculativeRFHDeleted) {
   ASSERT_TRUE(embedded_test_server()->Start());
   GURL url_a(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
-  GURL url_c(embedded_test_server()->GetURL("c.com", "/hung"));
+  GURL url_c(embedded_test_server()->GetURL("c.com", "/title1.html"));
   IsolateAllSitesForTesting(base::CommandLine::ForCurrentProcess());
 
   // 1) Initial state: A(B).
@@ -516,10 +518,11 @@ IN_PROC_BROWSER_TEST_F(DocumentUserDataTest, SpeculativeRFHDeleted) {
   // Leave rfh_b in pending deletion state.
   LeaveInPendingDeletionState(rfh_b);
 
-  // 2) Navigation from B to C. The server is slow to respond.
-  TestNavigationManager navigation_observer(web_contents(), url_c);
+  // 2) Navigation from B to C. The navigation will be paused
+  // when the speculative RFH is created.
+  SpeculativeRenderFrameHostObserver observer(web_contents(), url_c);
   EXPECT_TRUE(ExecJs(rfh_b, JsReplace("location.href=$1;", url_c)));
-  EXPECT_TRUE(navigation_observer.WaitForRequestStart());
+  observer.Wait();
   RenderFrameHostImpl* pending_rfh_c =
       rfh_b->frame_tree_node()->render_manager()->speculative_frame_host();
 
@@ -674,12 +677,12 @@ IN_PROC_BROWSER_TEST_F(DocumentUserDataTest, CancelledNavigation) {
   TestNavigationThrottleInserter throttle_inserter(
       shell()->web_contents(),
       base::BindLambdaForTesting(
-          [&](NavigationHandle* handle) -> std::unique_ptr<NavigationThrottle> {
-            auto throttle = std::make_unique<TestNavigationThrottle>(handle);
+          [&](NavigationThrottleRegistry& registry) -> void {
+            auto throttle = std::make_unique<TestNavigationThrottle>(registry);
             throttle->SetResponse(TestNavigationThrottle::WILL_START_REQUEST,
                                   TestNavigationThrottle::SYNCHRONOUS,
                                   NavigationThrottle::CANCEL_AND_IGNORE);
-            return throttle;
+            registry.AddThrottle(std::move(throttle));
           }));
 
   // 4) Try navigating to B.

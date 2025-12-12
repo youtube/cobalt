@@ -34,15 +34,10 @@ struct LayoutObjectWithDepth {
   unsigned depth = 0u;
 
   LayoutObject& operator*() const { return *object; }
-  LayoutObject* operator->() const { return object; }
+  LayoutObject* operator->() const { return object.Get(); }
 
   bool operator<(const LayoutObjectWithDepth& other) const {
     return depth > other.depth;
-  }
-
-  void operator=(LayoutObject* obj) {
-    object = obj;
-    depth = DetermineDepth(obj);
   }
 
  private:

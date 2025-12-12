@@ -7,10 +7,12 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "components/media_router/browser/android/flinging_controller_bridge.h"
-#include "components/media_router/browser/android/jni_headers/BrowserMediaRouter_jni.h"
 #include "components/media_router/browser/android/media_router_android.h"
 #include "content/public/browser/web_contents.h"
 #include "media/base/media_controller.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/media_router/browser/android/jni_headers/BrowserMediaRouter_jni.h"
 
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
@@ -52,8 +54,9 @@ void MediaRouterAndroidBridge::CreateRoute(const MediaSource::Id& source_id,
   ScopedJavaLocalRef<jstring> jorigin =
       ConvertUTF8ToJavaString(env, origin.GetURL().spec());
   base::android::ScopedJavaLocalRef<jobject> java_web_contents;
-  if (web_contents)
+  if (web_contents) {
     java_web_contents = web_contents->GetJavaWebContents();
+  }
 
   Java_BrowserMediaRouter_createRoute(env, java_media_router_, jsource_id,
                                       jsink_id, jpresentation_id, jorigin,
@@ -73,8 +76,9 @@ void MediaRouterAndroidBridge::JoinRoute(const MediaSource::Id& source_id,
   ScopedJavaLocalRef<jstring> jorigin =
       ConvertUTF8ToJavaString(env, origin.GetURL().spec());
   base::android::ScopedJavaLocalRef<jobject> java_web_contents;
-  if (web_contents)
+  if (web_contents) {
     java_web_contents = web_contents->GetJavaWebContents();
+  }
 
   Java_BrowserMediaRouter_joinRoute(env, java_media_router_, jsource_id,
                                     jpresentation_id, jorigin,
@@ -135,8 +139,9 @@ MediaRouterAndroidBridge::GetFlingingController(
   flinging_controller.Reset(Java_BrowserMediaRouter_getFlingingControllerBridge(
       env, java_media_router_, jroute_id));
 
-  if (flinging_controller.is_null())
+  if (flinging_controller.is_null()) {
     return nullptr;
+  }
 
   return std::make_unique<FlingingControllerBridge>(flinging_controller);
 }
@@ -219,8 +224,8 @@ void MediaRouterAndroidBridge::OnRouteClosed(
   native_media_router_->OnRouteClosed(
       ConvertJavaStringToUTF8(env, jmedia_route_id),
       jerror.is_null()
-          ? absl::nullopt
-          : absl::make_optional(ConvertJavaStringToUTF8(env, jerror)));
+          ? std::nullopt
+          : std::make_optional(ConvertJavaStringToUTF8(env, jerror)));
 }
 
 void MediaRouterAndroidBridge::OnMessage(

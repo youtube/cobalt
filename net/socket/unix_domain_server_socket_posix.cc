@@ -8,10 +8,12 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/logging.h"
+#include "base/notimplemented.h"
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
 #include "net/base/sockaddr_storage.h"
@@ -52,7 +54,7 @@ bool UnixDomainServerSocket::GetPeerCredentials(SocketDescriptor socket,
 
 int UnixDomainServerSocket::Listen(const IPEndPoint& address,
                                    int backlog,
-                                   absl::optional<bool> ipv6_only) {
+                                   std::optional<bool> ipv6_only) {
   NOTIMPLEMENTED();
   return ERR_NOT_IMPLEMENTED;
 }

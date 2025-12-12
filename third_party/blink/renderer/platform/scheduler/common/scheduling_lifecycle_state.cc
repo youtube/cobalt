@@ -21,7 +21,6 @@ const char* SchedulingLifecycleStateToString(SchedulingLifecycleState state) {
       return "frozen";
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

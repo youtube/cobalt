@@ -105,7 +105,7 @@ const re2::RE2* GetVisitCartPattern(const GURL& url) {
   return cart_regex_map->at(domain).get();
 }
 
-// TODO(crbug/1164236): cover more shopping sites.
+// TODO(crbug.com/40163450): cover more shopping sites.
 const re2::RE2* GetVisitCheckoutPattern(const GURL& url) {
   std::string domain = eTLDPlusOne(url);
   auto* pattern_from_component =
@@ -150,10 +150,6 @@ const re2::RE2* GetVisitCheckoutPattern(const GURL& url) {
   return checkout_regex_map->at(domain).get();
 }
 
-bool PartialMatch(base::StringPiece str, const re2::RE2& re) {
-  return RE2::PartialMatch(re2::StringPiece(str.data(), str.size()), re);
-}
-
 std::string CanonicalURL(const GURL& url) {
   return base::JoinString({url.scheme_piece(), "://", url.host_piece(),
                            url.path_piece().substr(0, kLengthLimit)},
@@ -166,58 +162,14 @@ bool IsVisitCart(const GURL& url) {
   auto* pattern = GetVisitCartPattern(url);
   if (!pattern)
     return false;
-  return PartialMatch(CanonicalURL(url).substr(0, kLengthLimit), *pattern);
+  return RE2::PartialMatch(CanonicalURL(url).substr(0, kLengthLimit), *pattern);
 }
 
 bool IsVisitCheckout(const GURL& url) {
   auto* pattern = GetVisitCheckoutPattern(url);
   if (!pattern)
     return false;
-  return PartialMatch(url.spec().substr(0, kLengthLimit), *pattern);
-}
-
-bool IsAddToCartButtonSpec(int height, int width) {
-  if (height > width)
-    return false;
-  int limit_height = commerce::kAddToCartButtonHeightLimit.Get();
-  int limit_width = commerce::kAddToCartButtonWidthLimit.Get();
-  if (width > limit_width || height > limit_height) {
-    return false;
-  }
-  return true;
-}
-
-bool IsAddToCartButtonTag(const std::string& tag) {
-  static re2::RE2::Options options;
-  options.set_case_sensitive(false);
-  static base::NoDestructor<std::set<std::string>> set([] {
-    std::vector<std::string> tags =
-        base::SplitString(commerce::kAddToCartButtonTagPattern.Get(), ",",
-                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    std::set<std::string> set(tags.begin(), tags.end());
-    return set;
-  }());
-
-  return set->find(tag) != set->end();
-}
-
-bool IsAddToCartButtonText(const std::string& text) {
-  static re2::RE2::Options options;
-  options.set_case_sensitive(false);
-  static base::NoDestructor<re2::RE2> instance(
-      commerce::kAddToCartButtonTextPattern.Get(), options);
-  return PartialMatch(text.substr(0, kLengthLimit), *instance);
-}
-
-bool ShouldUseDOMBasedHeuristics(const GURL& url) {
-  if (!base::FeatureList::IsEnabled(commerce::kChromeCartDomBasedHeuristics)) {
-    return false;
-  }
-  static re2::RE2::Options options;
-  options.set_case_sensitive(false);
-  static base::NoDestructor<re2::RE2> instance(
-      commerce::kSkipHeuristicsDomainPattern.Get(), options);
-  return !PartialMatch(eTLDPlusOne(url), *instance);
+  return RE2::PartialMatch(url.spec().substr(0, kLengthLimit), *pattern);
 }
 
 }  // namespace commerce_heuristics

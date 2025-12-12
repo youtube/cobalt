@@ -10,11 +10,13 @@
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/time.h"
+#include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
 #include "src/logging/counters.h"
 #include "src/objects/objects-inl.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -47,6 +49,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     // Disable RuntimeCallStats before tearing down the isolate to prevent
     // printing the tests table. Comment the following line for debugging
     // purposes.
+    isolate()->AbortConcurrentOptimization(BlockingBehavior::kBlock);
     TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
   }
 
@@ -112,14 +115,25 @@ class V8_NODISCARD ElapsedTimeScope {
 // Temporarily use the default time source.
 class V8_NODISCARD NativeTimeScope {
  public:
-  NativeTimeScope() {
+  explicit NativeTimeScope(Isolate* isolate) : isolate_(isolate) {
+    // Make sure there are no concurrent optimizations which might be measuring
+    // RCS.
+    isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
+
     CHECK_EQ(RuntimeCallTimer::Now, &RuntimeCallStatsTestNow);
     RuntimeCallTimer::Now = &base::TimeTicks::Now;
   }
   ~NativeTimeScope() {
+    // Make sure there are no concurrent optimizations which might be measuring
+    // RCS.
+    isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
+
     CHECK_EQ(RuntimeCallTimer::Now, &base::TimeTicks::Now);
     RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
   }
+
+ private:
+  Isolate* isolate_;
 };
 
 }  // namespace
@@ -393,7 +407,7 @@ TEST_F(RuntimeCallStatsTest, BasicJavaScript) {
   EXPECT_EQ(0, counter->time().InMicroseconds());
 
   {
-    NativeTimeScope native_timer_scope;
+    NativeTimeScope native_timer_scope(i_isolate());
     RunJS("function f() { return 1; };");
   }
   EXPECT_EQ(1, counter->count());
@@ -401,7 +415,7 @@ TEST_F(RuntimeCallStatsTest, BasicJavaScript) {
   EXPECT_LT(0, time);
 
   {
-    NativeTimeScope native_timer_scope;
+    NativeTimeScope native_timer_scope(i_isolate());
     RunJS("f();");
   }
   EXPECT_EQ(2, counter->count());
@@ -417,7 +431,7 @@ TEST_F(RuntimeCallStatsTest, FunctionLengthGetter) {
   EXPECT_EQ(0, js_counter()->time().InMicroseconds());
 
   {
-    NativeTimeScope native_timer_scope;
+    NativeTimeScope native_timer_scope(i_isolate());
     RunJS("function f(array) { return array.length; };");
   }
   EXPECT_EQ(0, getter_counter->count());
@@ -427,7 +441,7 @@ TEST_F(RuntimeCallStatsTest, FunctionLengthGetter) {
   EXPECT_LT(0, js_time);
 
   {
-    NativeTimeScope native_timer_scope;
+    NativeTimeScope native_timer_scope(i_isolate());
     RunJS("f.length;");
   }
   EXPECT_EQ(1, getter_counter->count());
@@ -436,14 +450,14 @@ TEST_F(RuntimeCallStatsTest, FunctionLengthGetter) {
   EXPECT_LE(js_time, js_counter()->time().InMicroseconds());
 
   {
-    NativeTimeScope native_timer_scope;
+    NativeTimeScope native_timer_scope(i_isolate());
     RunJS("for (let i = 0; i < 50; i++) { f.length };");
   }
   EXPECT_EQ(51, getter_counter->count());
   EXPECT_EQ(3, js_counter()->count());
 
   {
-    NativeTimeScope native_timer_scope;
+    NativeTimeScope native_timer_scope(i_isolate());
     RunJS("for (let i = 0; i < 1000; i++) { f.length; };");
   }
   EXPECT_EQ(1051, getter_counter->count());
@@ -635,6 +649,7 @@ TEST_F(RuntimeCallStatsTest, GarbageCollection) {
   v8_flags.single_threaded_gc = true;
 
   FlagList::EnforceFlagImplications();
+  ManualGCScope manual_gc_scope(i_isolate());
   v8::Isolate* isolate = v8_isolate();
   RunJS(
       "let root = [];"

@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "base/feature_list.h"
-#include "base/memory/ref_counted.h"
+#include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
 #include "base/timer/timer.h"
@@ -56,7 +56,7 @@ class ClientIncidentReport_EnvironmentData;
 class ClientIncidentReport_ExtensionData;
 class Incident;
 class IncidentReceiver;
-class SafeBrowsingService;
+class SafeBrowsingServiceImpl;
 
 // A class that manages the collection of incidents and submission of incident
 // reports to the safe browsing client-side detection service. The service
@@ -75,7 +75,8 @@ class SafeBrowsingService;
 class IncidentReportingService : public ProfileManagerObserver,
                                  public ProfileObserver {
  public:
-  explicit IncidentReportingService(SafeBrowsingService* safe_browsing_service);
+  explicit IncidentReportingService(
+      SafeBrowsingServiceImpl* safe_browsing_service);
 
   IncidentReportingService(const IncidentReportingService&) = delete;
   IncidentReportingService& operator=(const IncidentReportingService&) = delete;
@@ -120,7 +121,7 @@ class IncidentReportingService : public ProfileManagerObserver,
   // For testing so that the TaskRunner used for delayed analysis callbacks can
   // be specified.
   IncidentReportingService(
-      SafeBrowsingService* safe_browsing_service,
+      SafeBrowsingServiceImpl* safe_browsing_service,
       base::TimeDelta delayed_task_interval,
       const scoped_refptr<base::TaskRunner>& delayed_task_runner);
 
@@ -294,15 +295,6 @@ class IncidentReportingService : public ProfileManagerObserver,
 
   // The time at which the initial incident is reported.
   base::Time first_incident_time_;
-
-  // The time at which the last incident is reported.
-  base::TimeTicks last_incident_time_;
-
-  // The time at which environmental data collection was initiated.
-  base::TimeTicks environment_collection_begin_;
-
-  // The time at which download collection was initiated.
-  base::TimeTicks last_download_begin_;
 
   // Context data for all on-the-record profiles plus the process-wide (NULL)
   // context. A mapping of profiles to contexts holding state about received

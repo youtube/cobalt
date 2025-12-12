@@ -13,7 +13,6 @@
 #include "base/task/thread_pool.h"
 #include "base/thread_annotations.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "components/services/quarantine/quarantine.h"
 #include "content/browser/file_system_access/features.h"
 #include "content/browser/file_system_access/file_system_access_error.h"
@@ -201,16 +200,10 @@ bool FileSystemAccessSafeMoveHelper::RequireAfterWriteChecks() const {
   if (dest_url().type() == storage::kFileSystemTypeTemporary)
     return false;
 
-  if (!base::FeatureList::IsEnabled(
-          features::
-              kFileSystemAccessSkipAfterWriteChecksIfUnchangingExtension)) {
-    return true;
-  }
-
   if (!source_url().IsInSameFileSystem(dest_url()))
     return true;
 
-  // TODO(crbug.com/1250534): Properly handle directory moves here, for
+  // TODO(crbug.com/40198034): Properly handle directory moves here, for
   // which extension checks don't make sense.
   auto source_extension = source_url().path().Extension();
   auto dest_extension = dest_url().path().Extension();
@@ -331,7 +324,7 @@ void FileSystemAccessSafeMoveHelper::DidFileDoQuarantine(
   // On ChromeOS on the other hand anything that isn't in the sandboxed file
   // system is also uniquely identifiable by its FileSystemURL::path(), and
   // thus we accept all other FileSystemURL types.
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   DCHECK(target_url.type() != storage::kFileSystemTypeTemporary &&
          target_url.type() != storage::kFileSystemTypePersistent)
       << target_url.type();
@@ -350,6 +343,9 @@ void FileSystemAccessSafeMoveHelper::DidFileDoQuarantine(
     quarantine::mojom::Quarantine* raw_quarantine = quarantine_remote.get();
     raw_quarantine->QuarantineFile(
         target_url.path(), authority_url, referrer_url,
+        // TODO(crbug.com/351165321): Consider propagating request_initiator
+        // information here.
+        /*request_initiator=*/std::nullopt,
         GetContentClient()
             ->browser()
             ->GetApplicationClientGUIDForQuarantineCheck(),

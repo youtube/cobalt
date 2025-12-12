@@ -4,6 +4,8 @@
 
 #include "src/compiler/load-elimination.h"
 
+#include <optional>
+
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
@@ -112,6 +114,8 @@ Reduction LoadElimination::Reduce(Node* node) {
       return ReduceMaybeGrowFastElements(node);
     case IrOpcode::kTransitionElementsKind:
       return ReduceTransitionElementsKind(node);
+    case IrOpcode::kTransitionElementsKindOrCheckMap:
+      return ReduceTransitionElementsKindOrCheckMap(node);
     case IrOpcode::kLoadField:
       return ReduceLoadField(node, FieldAccessOf(node->op()));
     case IrOpcode::kStoreField:
@@ -389,6 +393,10 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
     // We are tracking too many objects, which leads to bad performance.
     // Delete one to avoid the map from becoming bigger.
     that->info_for_node_.erase(that->info_for_node_.begin());
+    if (V8_UNLIKELY(v8_flags.trace_turbo_bailouts)) {
+      std::cout
+          << "Bailing out in Load Elimination because of kMaxTrackedObjects\n";
+    }
   }
   object = ResolveRenames(object);
   that->info_for_node_[object] = maps;
@@ -452,7 +460,7 @@ void LoadElimination::AbstractState::FieldsMerge(
     AbstractField const*& this_field = (*this_fields)[i];
     if (this_field) {
       if (that_fields[i]) {
-        this_field = this_field->Merge(that_fields[i], zone);
+        this_field = this_field->Merge(that_fields[i], zone, &fields_count_);
       } else {
         this_field = nullptr;
       }
@@ -470,8 +478,10 @@ void LoadElimination::AbstractState::Merge(AbstractState const* that,
   }
 
   // Merge the information we have about the fields.
-  FieldsMerge(&this->fields_, that->fields_, zone);
+  fields_count_ = 0;
   FieldsMerge(&this->const_fields_, that->const_fields_, zone);
+  const_fields_count_ = fields_count_;
+  FieldsMerge(&this->fields_, that->fields_, zone);
 
   // Merge the information we have about the maps.
   if (this->maps_) {
@@ -557,14 +567,19 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
     Node* object, IndexRange index_range, LoadElimination::FieldInfo info,
     Zone* zone) const {
   AbstractState* that = zone->New<AbstractState>(*this);
-  AbstractFields& fields =
-      info.const_field_info.IsConst() ? that->const_fields_ : that->fields_;
+  bool is_const = info.const_field_info.IsConst();
+  AbstractFields& fields = is_const ? that->const_fields_ : that->fields_;
   for (int index : index_range) {
+    int count_before = fields[index] ? fields[index]->count() : 0;
     if (fields[index]) {
-      fields[index] = fields[index]->Extend(object, info, zone);
+      fields[index] =
+          fields[index]->Extend(object, info, zone, that->fields_count_);
     } else {
       fields[index] = zone->New<AbstractField>(object, info, zone);
     }
+    int added = fields[index]->count() - count_before;
+    if (is_const) that->const_fields_count_ += added;
+    that->fields_count_ += added;
   }
   return that;
 }
@@ -581,6 +596,10 @@ LoadElimination::AbstractState::KillConstField(Node* object,
       if (this->const_fields_[index] != this_field) {
         if (!that) that = zone->New<AbstractState>(*this);
         that->const_fields_[index] = this_field;
+        int removed = this->const_fields_[index]->count() -
+                      that->const_fields_[index]->count();
+        that->const_fields_count_ -= removed;
+        that->fields_count_ -= removed;
       }
     }
   }
@@ -604,6 +623,9 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
       if (this->fields_[index] != this_field) {
         if (!that) that = zone->New<AbstractState>(*this);
         that->fields_[index] = this_field;
+        int removed =
+            this->fields_[index]->count() - that->fields_[index]->count();
+        that->fields_count_ -= removed;
       }
     }
   }
@@ -615,7 +637,9 @@ LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
                                            Zone* zone) const {
   AliasStateInfo alias_info(this, object);
   for (size_t i = 0;; ++i) {
-    if (i == fields_.size()) return this;
+    if (i == fields_.size()) {
+      return this;
+    }
     if (AbstractField const* this_field = this->fields_[i]) {
       AbstractField const* that_field =
           this_field->Kill(alias_info, name, zone);
@@ -625,6 +649,8 @@ LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
         while (++i < fields_.size()) {
           if (this->fields_[i] != nullptr) {
             that->fields_[i] = this->fields_[i]->Kill(alias_info, name, zone);
+            int removed = this->fields_[i]->count() - that->fields_[i]->count();
+            that->fields_count_ -= removed;
           }
         }
         return that;
@@ -640,6 +666,8 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillAll(
     if (const_fields_[i]) {
       AbstractState* that = zone->New<AbstractState>();
       that->const_fields_ = const_fields_;
+      that->const_fields_count_ = const_fields_count_;
+      that->fields_count_ = const_fields_count_;
       return that;
     }
   }
@@ -651,7 +679,7 @@ LoadElimination::FieldInfo const* LoadElimination::AbstractState::LookupField(
     ConstFieldInfo const_field_info) const {
   // Check if all the indices in {index_range} contain identical information.
   // If not, a partially overlapping access has invalidated part of the value.
-  base::Optional<LoadElimination::FieldInfo const*> result;
+  std::optional<LoadElimination::FieldInfo const*> result;
   for (int index : index_range) {
     LoadElimination::FieldInfo const* info = nullptr;
     if (const_field_info.IsConst()) {
@@ -883,6 +911,52 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
   return UpdateState(node, state);
 }
 
+Reduction LoadElimination::ReduceTransitionElementsKindOrCheckMap(Node* node) {
+  ElementsTransitionWithMultipleSources transition =
+      ElementsTransitionWithMultipleSourcesOf(node->op());
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  const ZoneRefSet<Map>& source_maps = transition.sources();
+  MapRef target_map(transition.target());
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  for (MapRef source_map : source_maps) {
+    if (!IsSimpleMapChangeTransition(source_map.elements_kind(),
+                                     target_map.elements_kind())) {
+      // Kill the elements as well.
+      AliasStateInfo alias_info(state, object, source_map);
+      state = state->KillField(
+          alias_info, FieldIndexOf(JSObject::kElementsOffset, kTaggedSize),
+          MaybeHandle<Name>(), zone());
+    }
+  }
+
+  ZoneRefSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (ZoneRefSet<Map>(target_map).contains(object_maps)) {
+      // The {object} already has the {target_map}, so this TransitionElements
+      // {node} is fully redundant (independent of what {source_map} is).
+      return Replace(effect);
+    }
+    for (MapRef source_map : source_maps) {
+      if (object_maps.contains(ZoneRefSet<Map>(source_map))) {
+        object_maps.remove(source_map, zone());
+        object_maps.insert(target_map, zone());
+        AliasStateInfo alias_info(state, object, source_map);
+        state = state->KillMaps(alias_info, zone());
+        state = state->SetMaps(object, object_maps, zone());
+      }
+    }
+  } else {
+    for (MapRef source_map : source_maps) {
+      AliasStateInfo alias_info(state, object, source_map);
+      state = state->KillMaps(alias_info, zone());
+    }
+  }
+  state = state->SetMaps(object, ZoneRefSet<Map>(target_map), zone());
+  return UpdateState(node, state);
+}
+
 Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
   Node* const object = NodeProperties::GetValueInput(node, 0);
   MapRef double_map(DoubleMapParameterOf(node->op()));
@@ -920,7 +994,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node,
     DCHECK(IsAnyTagged(access.machine_type.representation()));
     ZoneRefSet<Map> object_maps;
     if (state->LookupMaps(object, &object_maps) && object_maps.size() == 1) {
-      Node* value = jsgraph()->HeapConstant(object_maps[0].object());
+      Node* value = jsgraph()->HeapConstantNoHole(object_maps[0].object());
       NodeProperties::SetType(value, Type::OtherInternal());
       ReplaceWithValue(node, value, effect);
       return Replace(value);
@@ -1071,9 +1145,13 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat16RawBits:
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kProtectedPointer:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kSandboxedPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
@@ -1129,10 +1207,14 @@ Reduction LoadElimination::ReduceStoreElement(Node* node) {
     case MachineRepresentation::kWord16:
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
+    case MachineRepresentation::kFloat16RawBits:
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kProtectedPointer:
+    case MachineRepresentation::kIndirectPointer:
       // TODO(turbofan): Add support for doing the truncations.
       break;
     case MachineRepresentation::kFloat64:
@@ -1326,6 +1408,26 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             }
             break;
           }
+          case IrOpcode::kTransitionElementsKindOrCheckMap: {
+            ElementsTransitionWithMultipleSources transition =
+                ElementsTransitionWithMultipleSourcesOf(current->op());
+            Node* const object = NodeProperties::GetValueInput(current, 0);
+            ZoneRefSet<Map> object_maps;
+            MapRef target = transition.target();
+            if (!state->LookupMaps(object, &object_maps) ||
+                !ZoneRefSet<Map>(target).contains(object_maps)) {
+              for (MapRef source : transition.sources()) {
+                ElementsTransition::Mode mode =
+                    IsSimpleMapChangeTransition(source.elements_kind(),
+                                                target.elements_kind())
+                        ? ElementsTransition::kFastTransition
+                        : ElementsTransition::kSlowTransition;
+                element_transitions_.push_back(
+                    {ElementsTransition(mode, source, target), object});
+              }
+            }
+            break;
+          }
           case IrOpcode::kTransitionAndStoreElement: {
             Node* const object = NodeProperties::GetValueInput(current, 0);
             // Invalidate what we know about the {object}s map.
@@ -1424,9 +1526,11 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kBit:
     case MachineRepresentation::kSimd128:
     case MachineRepresentation::kSimd256:
+    case MachineRepresentation::kFloat16RawBits:
       UNREACHABLE();
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
       // Currently untracked.
       return IndexRange::Invalid();
@@ -1439,11 +1543,18 @@ LoadElimination::IndexRange LoadElimination::FieldIndexOf(
     case MachineRepresentation::kMapWord:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kProtectedPointer:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kSandboxedPointer:
       break;
   }
   int representation_size = ElementSizeInBytes(rep);
   // We currently only track fields that are at least tagged pointer sized.
+  // We assume that indirect pointers are tagged pointer sized if we see them
+  // here since they should only ever be used in pointer compression
+  // configurations.
+  DCHECK(rep != MachineRepresentation::kIndirectPointer ||
+         representation_size == kTaggedSize);
   if (representation_size < kTaggedSize) return IndexRange::Invalid();
   DCHECK_EQ(0, representation_size % kTaggedSize);
 
@@ -1458,7 +1569,7 @@ CommonOperatorBuilder* LoadElimination::common() const {
   return jsgraph()->common();
 }
 
-Graph* LoadElimination::graph() const { return jsgraph()->graph(); }
+TFGraph* LoadElimination::graph() const { return jsgraph()->graph(); }
 
 Isolate* LoadElimination::isolate() const { return jsgraph()->isolate(); }
 

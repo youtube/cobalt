@@ -2,6 +2,11 @@
 #include "stdio_impl.h"
 #include "locale_impl.h"
 
+#if defined(STARBOARD)
+#warning When adding fwide to Starboard platforms, ensure to also update fgetwc
+#warning and ungetwc.
+#endif
+
 int fwide(FILE *f, int mode)
 {
 	FLOCK(f);

@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/location.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
@@ -180,6 +181,8 @@ class WorkerProcessLauncherTest : public testing::Test, public IPC::Listener {
   // Quits |message_loop_|.
   void QuitMainMessageLoop();
 
+  void Run() { loop_.Run(); }
+
  protected:
   void DoLaunchProcess();
 
@@ -214,6 +217,9 @@ class WorkerProcessLauncherTest : public testing::Test, public IPC::Listener {
 
   // An event that is used to emulate the worker process's handle.
   ScopedHandle worker_process_;
+
+  // The internal run loop, used for managing messages.
+  base::RunLoop loop_;
 };
 
 WorkerProcessLauncherTest::WorkerProcessLauncherTest()
@@ -343,7 +349,8 @@ void WorkerProcessLauncherTest::DisconnectServer() {
 
 void WorkerProcessLauncherTest::SendFakeMessageToLauncher() {
   if (desktop_session_state_handler_) {
-    desktop_session_state_handler_->DisconnectSession(protocol::OK);
+    desktop_session_state_handler_->DisconnectSession(
+        ErrorCode::OK, /* error_details= */ {}, FROM_HERE);
   }
 }
 
@@ -368,7 +375,7 @@ void WorkerProcessLauncherTest::StopWorker() {
 
 void WorkerProcessLauncherTest::QuitMainMessageLoop() {
   task_environment_.GetMainThreadTaskRunner()->PostTask(
-      FROM_HERE, base::RunLoop::QuitCurrentWhenIdleClosureDeprecated());
+      FROM_HERE, loop_.QuitWhenIdleClosure());
 }
 
 void WorkerProcessLauncherTest::DoLaunchProcess() {
@@ -422,7 +429,7 @@ TEST_F(WorkerProcessLauncherTest, Start) {
 
   StartWorker();
   StopWorker();
-  base::RunLoop().Run();
+  Run();
 }
 
 // Starts and connects to the worker process. Expect OnChannelConnected to be
@@ -441,7 +448,7 @@ TEST_F(WorkerProcessLauncherTest, StartAndConnect) {
   EXPECT_CALL(server_listener_, OnWorkerProcessStopped()).Times(0);
 
   StartWorker();
-  base::RunLoop().Run();
+  Run();
 }
 
 // Kills the worker process after the 1st connect and expects it to be
@@ -454,8 +461,8 @@ TEST_F(WorkerProcessLauncherTest, Restart) {
   Expectation first_connect =
       EXPECT_CALL(server_listener_, OnChannelConnected(_))
           .Times(2)
-          .WillOnce(
-              InvokeWithoutArgs([=]() { TerminateWorker(CONTROL_C_EXIT); }))
+          .WillOnce(InvokeWithoutArgs(
+              [=, this]() { TerminateWorker(CONTROL_C_EXIT); }))
           .WillOnce(
               InvokeWithoutArgs(this, &WorkerProcessLauncherTest::StopWorker));
 
@@ -463,7 +470,7 @@ TEST_F(WorkerProcessLauncherTest, Restart) {
   EXPECT_CALL(server_listener_, OnWorkerProcessStopped()).Times(1);
 
   StartWorker();
-  base::RunLoop().Run();
+  Run();
 }
 
 // Drops the IPC channel to the worker process after the 1st connect and expects
@@ -486,7 +493,7 @@ TEST_F(WorkerProcessLauncherTest, DropIpcChannel) {
   EXPECT_CALL(server_listener_, OnWorkerProcessStopped()).Times(1);
 
   StartWorker();
-  base::RunLoop().Run();
+  Run();
 }
 
 // Returns a permanent error exit code and expects OnPermanentError() to be
@@ -500,7 +507,7 @@ TEST_F(WorkerProcessLauncherTest, PermanentError) {
   EXPECT_CALL(server_listener_, OnChannelConnected(_))
       .Times(1)
       .WillOnce(InvokeWithoutArgs(
-          [=] { TerminateWorker(kMinPermanentErrorExitCode); }));
+          [=, this] { TerminateWorker(kMinPermanentErrorExitCode); }));
   EXPECT_CALL(server_listener_, OnPermanentError(_))
       .Times(1)
       .WillOnce(
@@ -508,7 +515,7 @@ TEST_F(WorkerProcessLauncherTest, PermanentError) {
   EXPECT_CALL(server_listener_, OnWorkerProcessStopped()).Times(1);
 
   StartWorker();
-  base::RunLoop().Run();
+  Run();
 }
 
 // Requests the worker to crash and expects it to honor the request.
@@ -527,12 +534,12 @@ TEST_F(WorkerProcessLauncherTest, Crash) {
 
   EXPECT_CALL(client_listener_, CrashProcess(_, _, _))
       .Times(1)
-      .WillOnce(
-          InvokeWithoutArgs([=]() { TerminateWorker(EXCEPTION_BREAKPOINT); }));
+      .WillOnce(InvokeWithoutArgs(
+          [=, this]() { TerminateWorker(EXCEPTION_BREAKPOINT); }));
   EXPECT_CALL(server_listener_, OnWorkerProcessStopped()).Times(1);
 
   StartWorker();
-  base::RunLoop().Run();
+  Run();
 }
 
 // Requests the worker to crash and terminates the worker even if it does not
@@ -558,7 +565,7 @@ TEST_F(WorkerProcessLauncherTest, CrashAnyway) {
   EXPECT_CALL(server_listener_, OnWorkerProcessStopped()).Times(1);
 
   StartWorker();
-  base::RunLoop().Run();
+  Run();
 }
 
 }  // namespace remoting

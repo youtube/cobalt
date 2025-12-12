@@ -14,6 +14,7 @@
 #include "sdk/android/generated_video_jni/VideoTrack_jni.h"
 #include "sdk/android/src/jni/jni_helpers.h"
 #include "sdk/android/src/jni/video_sink.h"
+#include "third_party/jni_zero/jni_zero.h"
 
 namespace webrtc {
 namespace jni {
@@ -23,25 +24,26 @@ static void JNI_VideoTrack_AddSink(JNIEnv* jni,
                                    jlong j_native_sink) {
   reinterpret_cast<VideoTrackInterface*>(j_native_track)
       ->AddOrUpdateSink(
-          reinterpret_cast<rtc::VideoSinkInterface<VideoFrame>*>(j_native_sink),
-          rtc::VideoSinkWants());
+          reinterpret_cast<VideoSinkInterface<VideoFrame>*>(j_native_sink),
+          VideoSinkWants());
 }
 
 static void JNI_VideoTrack_RemoveSink(JNIEnv* jni,
                                       jlong j_native_track,
                                       jlong j_native_sink) {
   reinterpret_cast<VideoTrackInterface*>(j_native_track)
-      ->RemoveSink(reinterpret_cast<rtc::VideoSinkInterface<VideoFrame>*>(
-          j_native_sink));
+      ->RemoveSink(
+          reinterpret_cast<VideoSinkInterface<VideoFrame>*>(j_native_sink));
 }
 
-static jlong JNI_VideoTrack_WrapSink(JNIEnv* jni,
-                                     const JavaParamRef<jobject>& sink) {
+static jlong JNI_VideoTrack_WrapSink(
+    JNIEnv* jni,
+    const jni_zero::JavaParamRef<jobject>& sink) {
   return jlongFromPointer(new VideoSinkWrapper(jni, sink));
 }
 
 static void JNI_VideoTrack_FreeSink(JNIEnv* jni, jlong j_native_sink) {
-  delete reinterpret_cast<rtc::VideoSinkInterface<VideoFrame>*>(j_native_sink);
+  delete reinterpret_cast<VideoSinkInterface<VideoFrame>*>(j_native_sink);
 }
 
 }  // namespace jni

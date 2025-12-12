@@ -2,12 +2,32 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "base/strings/utf_string_conversion_utils.h"
 
 #include "base/third_party/icu/icu_utf.h"
 #include "build/build_config.h"
 
 namespace base {
+
+// CountUnicodeCharacters ------------------------------------------------------
+
+std::optional<size_t> CountUnicodeCharacters(std::string_view text,
+                                             size_t limit) {
+  base_icu::UChar32 unused = 0;
+  size_t count = 0;
+  for (size_t index = 0; count < limit && index < text.size();
+       ++count, ++index) {
+    if (!ReadUnicodeCharacter(text.data(), text.size(), &index, &unused)) {
+      return std::nullopt;
+    }
+  }
+  return count;
+}
 
 // ReadUnicodeCharacter --------------------------------------------------------
 
@@ -40,8 +60,8 @@ bool ReadUnicodeCharacter(const char16_t* src,
     }
 
     // Valid surrogate pair.
-    *code_point = CBU16_GET_SUPPLEMENTARY(src[*char_index],
-                                          src[*char_index + 1]);
+    *code_point =
+        CBU16_GET_SUPPLEMENTARY(src[*char_index], src[*char_index + 1]);
     (*char_index)++;
   } else {
     // Not a surrogate, just one 16-bit word.
@@ -51,7 +71,7 @@ bool ReadUnicodeCharacter(const char16_t* src,
   return IsValidCodepoint(*code_point);
 }
 
-#if defined(WCHAR_T_IS_UTF32)
+#if defined(WCHAR_T_IS_32_BIT)
 bool ReadUnicodeCharacter(const wchar_t* src,
                           size_t src_len,
                           size_t* char_index,
@@ -62,7 +82,7 @@ bool ReadUnicodeCharacter(const wchar_t* src,
   // Validate the value.
   return IsValidCodepoint(*code_point);
 }
-#endif  // defined(WCHAR_T_IS_UTF32)
+#endif  // defined(WCHAR_T_IS_32_BIT)
 
 // WriteUnicodeCharacter -------------------------------------------------------
 
@@ -104,13 +124,14 @@ size_t WriteUnicodeCharacter(base_icu::UChar32 code_point,
 
 // Generalized Unicode converter -----------------------------------------------
 
-template<typename CHAR>
+template <typename CHAR>
 void PrepareForUTF8Output(const CHAR* src,
                           size_t src_len,
                           std::string* output) {
   output->clear();
-  if (src_len == 0)
+  if (src_len == 0) {
     return;
+  }
   if (src[0] < 0x80) {
     // Assume that the entire input will be ASCII.
     output->reserve(src_len);
@@ -127,13 +148,14 @@ template void PrepareForUTF8Output(const wchar_t*, size_t, std::string*);
 #endif
 template void PrepareForUTF8Output(const char16_t*, size_t, std::string*);
 
-template<typename STRING>
+template <typename STRING>
 void PrepareForUTF16Or32Output(const char* src,
                                size_t src_len,
                                STRING* output) {
   output->clear();
-  if (src_len == 0)
+  if (src_len == 0) {
     return;
+  }
   if (static_cast<unsigned char>(src[0]) < 0x80) {
     // Assume the input is all ASCII, which means 1:1 correspondence.
     output->reserve(src_len);

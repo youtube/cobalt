@@ -5,94 +5,24 @@
 #include "ash/system/media/media_tray.h"
 
 #include "ash/constants/tray_background_view_catalog.h"
-#include "ash/shelf/shelf.h"
 #include "ash/shell.h"
+#include "ash/strings/grit/ash_strings.h"
 #include "ash/system/media/media_notification_provider.h"
+#include "ash/system/media/mock_media_notification_provider.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/system/status_area_widget_test_helper.h"
 #include "ash/system/tray/tray_bubble_wrapper.h"
 #include "ash/test/ash_test_base.h"
 #include "base/memory/raw_ptr.h"
-#include "base/test/scoped_feature_list.h"
 #include "components/media_message_center/media_notification_view_impl.h"
-#include "media/base/media_switches.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/events/event.h"
+#include "ui/views/accessibility/view_accessibility.h"
 
 using ::testing::_;
 
 namespace ash {
-namespace {
-
-constexpr gfx::Size kMockTraySize = gfx::Size(48, 48);
-
-class MockMediaNotificationProvider : public MediaNotificationProvider {
- public:
-  MockMediaNotificationProvider()
-      : old_provider_(MediaNotificationProvider::Get()) {
-    MediaNotificationProvider::Set(this);
-
-    ON_CALL(*this, GetMediaNotificationListView(_, _, _))
-        .WillByDefault([](auto, auto, const auto&) {
-          return std::make_unique<views::View>();
-        });
-  }
-
-  ~MockMediaNotificationProvider() override {
-    MediaNotificationProvider::Set(old_provider_);
-  }
-
-  // Medianotificationprovider implementations.
-  MOCK_METHOD((std::unique_ptr<views::View>),
-              GetMediaNotificationListView,
-              (int, bool, const std::string&));
-  MOCK_METHOD((std::unique_ptr<views::View>),
-              GetActiveMediaNotificationView,
-              ());
-  MOCK_METHOD(void, OnBubbleClosing, ());
-  MOCK_METHOD(global_media_controls::MediaItemManager*,
-              GetMediaItemManager,
-              ());
-  void AddObserver(MediaNotificationProviderObserver* observer) override {}
-  void RemoveObserver(MediaNotificationProviderObserver* observer) override {}
-  bool HasActiveNotifications() override { return has_active_notifications_; }
-  bool HasFrozenNotifications() override { return has_frozen_notifications_; }
-  void SetColorTheme(
-      const media_message_center::NotificationTheme& color_theme) override {}
-
-  void SetHasActiveNotifications(bool has_active_notifications) {
-    has_active_notifications_ = has_active_notifications;
-  }
-
-  void SetHasFrozenNotifications(bool has_frozen_notifications) {
-    has_frozen_notifications_ = has_frozen_notifications;
-  }
-
- private:
-  bool has_active_notifications_ = false;
-  bool has_frozen_notifications_ = false;
-  const raw_ptr<MediaNotificationProvider, ExperimentalAsh> old_provider_;
-};
-
-// Mock tray button used to test media tray bubble's anchor update.
-class MockTrayBackgroundView : public ash::TrayBackgroundView {
- public:
-  explicit MockTrayBackgroundView(Shelf* shelf)
-      : TrayBackgroundView(shelf,
-                           TrayBackgroundViewCatalogName::kTestCatalogName) {
-    SetSize(kMockTraySize);
-  }
-
-  ~MockTrayBackgroundView() override = default;
-
-  // TrayBackgroundview implementations
-  std::u16string GetAccessibleNameForTray() override { return u""; }
-  void HandleLocaleChange() override {}
-  void HideBubbleWithView(const TrayBubbleView* bubble_view) override {}
-  void ClickedOutsideBubble() override {}
-};
-
-}  // namespace
 
 class MediaTrayTest : public AshTestBase {
  public:
@@ -100,38 +30,19 @@ class MediaTrayTest : public AshTestBase {
   ~MediaTrayTest() override = default;
 
   void SetUp() override {
-    feature_list_.InitAndEnableFeature(media::kGlobalMediaControlsForChromeOS);
     AshTestBase::SetUp();
-
     provider_ = std::make_unique<MockMediaNotificationProvider>();
-
     media_tray_ = status_area_widget()->media_tray();
     ASSERT_TRUE(MediaTray::IsPinnedToShelf());
   }
 
   void TearDown() override {
-    mock_tray_.reset();
     provider_.reset();
     AshTestBase::TearDown();
   }
 
-  // Insert mock tray to status area widget right before system tray (The last
-  // two tray buttons are always system tray and overview button tray).
-  void InsertMockTray() {
-    mock_tray_ =
-        std::make_unique<MockTrayBackgroundView>(status_area_widget()->shelf());
-    status_area_widget()->tray_buttons_.insert(
-        status_area_widget()->tray_buttons_.end() - 2, mock_tray_.get());
-  }
-
   void SimulateNotificationListChanged() {
     media_tray_->OnNotificationListChanged();
-  }
-
-  void SimulateTapOnMediaTray() {
-    ui::GestureEvent tap(0, 0, 0, base::TimeTicks(),
-                         ui::GestureEventDetails(ui::ET_GESTURE_TAP));
-    media_tray_->PerformAction(tap);
   }
 
   void SimulateTapOnPinButton() {
@@ -143,17 +54,12 @@ class MediaTrayTest : public AshTestBase {
     generator->ClickLeftButton();
   }
 
-  void SimulateMockTrayVisibilityChanged(bool visible) {
-    mock_tray_->SetVisible(visible);
-    media_tray_->AnchorUpdated();
-  }
-
   TrayBubbleWrapper* GetBubbleWrapper() {
     return media_tray_->tray_bubble_wrapper_for_testing();
   }
 
-  gfx::Rect GetBubbleBounds() {
-    return GetBubbleWrapper()->GetBubbleView()->GetBoundsInScreen();
+  std::u16string GetAccessibleNameForBubble() {
+    return media_tray_->GetAccessibleNameForBubble();
   }
 
   StatusAreaWidget* status_area_widget() {
@@ -168,10 +74,7 @@ class MediaTrayTest : public AshTestBase {
 
  private:
   std::unique_ptr<MockMediaNotificationProvider> provider_;
-  raw_ptr<MediaTray, ExperimentalAsh> media_tray_;
-  std::unique_ptr<MockTrayBackgroundView> mock_tray_;
-
-  base::test::ScopedFeatureList feature_list_;
+  raw_ptr<MediaTray, DanglingUntriaged> media_tray_;
 };
 
 TEST_F(MediaTrayTest, MediaTrayVisibilityTest) {
@@ -223,16 +126,16 @@ TEST_F(MediaTrayTest, ShowAndHideBubbleTest) {
   // Tap the media tray should show the bubble, and media tray should
   // be active. GetMediaNotificationlistview also should be called for
   // getting active notifications.
-  EXPECT_CALL(*provider(),
-              GetMediaNotificationListView(_, /*should_clip_height=*/true, _));
-  SimulateTapOnMediaTray();
+  EXPECT_CALL(*provider(), GetMediaNotificationListView(
+                               _, /*should_clip_height=*/true, _, _));
+  GestureTapOn(media_tray());
   EXPECT_NE(GetBubbleWrapper(), nullptr);
   EXPECT_TRUE(media_tray()->is_active());
 
   // Tap again should close the bubble and MediaNotificationProvider should
   // be notified.
   EXPECT_CALL(*provider(), OnBubbleClosing());
-  SimulateTapOnMediaTray();
+  GestureTapOn(media_tray());
   EXPECT_EQ(GetBubbleWrapper(), nullptr);
   EXPECT_FALSE(media_tray()->is_active());
 }
@@ -248,7 +151,8 @@ TEST_F(MediaTrayTest, OpenBubbleForcesShelfToShow) {
   EXPECT_FALSE(status_area_widget()->ShouldShowShelf());
 
   // Open the media tray bubble and verify that the shelf is forced to show.
-  SimulateTapOnMediaTray();
+  GestureTapOn(media_tray());
+  ;
   EXPECT_TRUE(status_area_widget()->ShouldShowShelf());
 }
 
@@ -264,7 +168,7 @@ TEST_F(MediaTrayTest, ShowEmptyStateWhenNoActiveNotification) {
   EXPECT_FALSE(media_tray()->is_active());
 
   // Tap and show bubble.
-  SimulateTapOnMediaTray();
+  GestureTapOn(media_tray());
   EXPECT_NE(GetBubbleWrapper(), nullptr);
   EXPECT_TRUE(media_tray()->is_active());
 
@@ -272,7 +176,7 @@ TEST_F(MediaTrayTest, ShowEmptyStateWhenNoActiveNotification) {
   provider()->SetHasActiveNotifications(false);
   SimulateNotificationListChanged();
   EXPECT_NE(GetBubbleWrapper(), nullptr);
-  EXPECT_FALSE(media_tray()->GetVisible());
+  EXPECT_TRUE(media_tray()->GetVisible());
   EXPECT_NE(empty_state_view(), nullptr);
   EXPECT_TRUE(empty_state_view()->GetVisible());
 
@@ -291,17 +195,17 @@ TEST_F(MediaTrayTest, PinButtonTest) {
   provider()->SetHasActiveNotifications(true);
   SimulateNotificationListChanged();
   EXPECT_TRUE(media_tray()->GetVisible());
-  SimulateTapOnMediaTray();
+  GestureTapOn(media_tray());
   EXPECT_NE(GetBubbleWrapper(), nullptr);
 
-  // Tapping the pin button while the media controls dialog is opened
-  // should have the media tray hidden.
+  // Tapping the pin button while the media controls dialog is opened should not
+  // hide the media tray.
   SimulateTapOnPinButton();
   EXPECT_NE(GetBubbleWrapper(), nullptr);
-  EXPECT_FALSE(media_tray()->GetVisible());
+  EXPECT_TRUE(media_tray()->GetVisible());
   EXPECT_FALSE(MediaTray::IsPinnedToShelf());
 
-  // Tap pin button again should bring back media tray.
+  // Tap the pin button again and the media tray should still be visible.
   SimulateTapOnPinButton();
   EXPECT_TRUE(media_tray()->GetVisible());
   EXPECT_TRUE(MediaTray::IsPinnedToShelf());
@@ -329,94 +233,11 @@ TEST_F(MediaTrayTest, BubbleGetsFocusWhenOpenWithKeyboard) {
   EXPECT_TRUE(GetBubbleWrapper()->GetBubbleWidget()->IsActive());
 }
 
-TEST_F(MediaTrayTest, DialogAnchor) {
-  InsertMockTray();
-
-  // Simulate active notification and tap media tray to show dialog.
-  provider()->SetHasActiveNotifications(true);
-  SimulateNotificationListChanged();
-  EXPECT_TRUE(media_tray()->GetVisible());
-  SimulateTapOnMediaTray();
-  EXPECT_NE(GetBubbleWrapper(), nullptr);
-
-  EXPECT_TRUE(status_area_widget()->shelf()->IsHorizontalAlignment());
-  gfx::Rect initial_bounds = GetBubbleBounds();
-
-  // Simulate mock tray becoming visible, bubble should shift left.
-  SimulateMockTrayVisibilityChanged(true);
-  EXPECT_EQ(initial_bounds - gfx::Vector2d(kMockTraySize.width(), 0),
-            GetBubbleBounds());
-
-  // Simulate mock tray disappearing, bubble should shift back to the
-  // original position.
-  SimulateMockTrayVisibilityChanged(false);
-  EXPECT_EQ(initial_bounds, GetBubbleBounds());
-
-  // Simulate tapping pin button to hide media tray, bubble position
-  // should not change.
-  SimulateTapOnPinButton();
-  EXPECT_FALSE(media_tray()->GetVisible());
-  EXPECT_EQ(initial_bounds, GetBubbleBounds());
-
-  // Simlate mock tray appearing and disappearing while the media tray
-  // is hidden. Bubble should shift accordingly.
-  SimulateMockTrayVisibilityChanged(true);
-  EXPECT_EQ(initial_bounds - gfx::Vector2d(kMockTraySize.width(), 0),
-            GetBubbleBounds());
-
-  SimulateMockTrayVisibilityChanged(false);
-  EXPECT_EQ(initial_bounds, GetBubbleBounds());
-
-  // Tap pin button and bring back media tray, bubble position should
-  // stay the same.
-  SimulateTapOnPinButton();
-  EXPECT_TRUE(media_tray()->GetVisible());
-  EXPECT_EQ(initial_bounds, GetBubbleBounds());
-
-  // Hide bubble, change shelf alignment to left (vertical), and open
-  // bubble again.
-  SimulateTapOnMediaTray();
-  status_area_widget()->shelf()->SetAlignment(ShelfAlignment::kLeft);
-  SimulateTapOnMediaTray();
-
-  // Get new bounds.
-  initial_bounds = GetBubbleBounds();
-
-  // Simulate mock tray appears and disappears while the shelf alignment is
-  // vertical. The bubble should shift vertically.
-  SimulateMockTrayVisibilityChanged(true);
-  EXPECT_EQ(initial_bounds - gfx::Vector2d(0, kMockTraySize.height()),
-            GetBubbleBounds());
-
-  SimulateMockTrayVisibilityChanged(false);
-  EXPECT_EQ(initial_bounds, GetBubbleBounds());
-
-  // Hide bubble, change shelf alignment back to bottom and switch ui
-  // direction to RTL.
-  SimulateTapOnMediaTray();
-  status_area_widget()->shelf()->SetAlignment(ShelfAlignment::kBottom);
-  base::i18n::SetRTLForTesting(true);
-  status_area_widget()->UpdateLayout(false);
-  SimulateTapOnMediaTray();
-
-  // Get new bounds.
-  initial_bounds = GetBubbleBounds();
-
-  // Simulate tray appears and triggers while ui direction is RTL,
-  // bubble should shift to the right.
-  SimulateMockTrayVisibilityChanged(true);
-  EXPECT_EQ(initial_bounds + gfx::Vector2d(kMockTraySize.width(), 0),
-            GetBubbleBounds());
-
-  SimulateMockTrayVisibilityChanged(false);
-  EXPECT_EQ(initial_bounds, GetBubbleBounds());
-}
-
 TEST_F(MediaTrayTest, ShowBubble) {
   // We start with no bubble view.
   EXPECT_EQ(nullptr, media_tray()->GetBubbleView());
 
-  EXPECT_CALL(*provider(), GetMediaNotificationListView(_, _, ""));
+  EXPECT_CALL(*provider(), GetMediaNotificationListView(_, _, _, ""));
   media_tray()->ShowBubble();
   EXPECT_NE(nullptr, media_tray()->GetBubbleView());
 }
@@ -426,56 +247,39 @@ TEST_F(MediaTrayTest, ShowBubbleWithItem) {
   EXPECT_EQ(nullptr, media_tray()->GetBubbleView());
 
   const std::string item_id = "my-item-id";
-  EXPECT_CALL(*provider(), GetMediaNotificationListView(_, _, item_id));
+  EXPECT_CALL(*provider(), GetMediaNotificationListView(_, _, _, item_id));
   media_tray()->ShowBubbleWithItem(item_id);
   EXPECT_NE(nullptr, media_tray()->GetBubbleView());
 }
 
-class MediaTrayPinnedParamTest : public AshTestBase {
- public:
-  MediaTrayPinnedParamTest() = default;
-  ~MediaTrayPinnedParamTest() override = default;
+TEST_F(MediaTrayTest, CloseBubbleIsNoopWhenNoBubble) {
+  // Start out with no bubble.
+  ASSERT_EQ(nullptr, media_tray()->GetBubbleView());
 
-  void SetUp() override {
-    auto& pin_param = media::kCrosGlobalMediaControlsPinParam;
-    feature_list_.InitAndEnableFeatureWithParameters(
-        media::kGlobalMediaControlsForChromeOS,
-        {{pin_param.name,
-          pin_param.GetName(media::kCrosGlobalMediaControlsPinOptions::kPin)}});
-    AshTestBase::SetUp();
-  }
-
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
-
-TEST_F(MediaTrayPinnedParamTest, PinParamTest) {
-  UpdateDisplay("200x100");
-  EXPECT_TRUE(MediaTray::IsPinnedToShelf());
+  // `OnBubbleClosing()` should not be called when there is no bubble to close.
+  EXPECT_CALL(*provider(), OnBubbleClosing).Times(0);
+  media_tray()->CloseBubble();
 }
 
-class MediaTrayNotPinnedParamTest : public AshTestBase {
- public:
-  MediaTrayNotPinnedParamTest() = default;
-  ~MediaTrayNotPinnedParamTest() override = default;
-
-  void SetUp() override {
-    auto& pin_param = media::kCrosGlobalMediaControlsPinParam;
-    feature_list_.InitAndEnableFeatureWithParameters(
-        media::kGlobalMediaControlsForChromeOS,
-        {{pin_param.name,
-          pin_param.GetName(
-              media::kCrosGlobalMediaControlsPinOptions::kNotPin)}});
-    AshTestBase::SetUp();
+TEST_F(MediaTrayTest, AccessibleNames) {
+  {
+    ui::AXNodeData node_data;
+    media_tray()->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+    EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+              l10n_util::GetStringUTF16(
+                  IDS_ASH_GLOBAL_MEDIA_CONTROLS_BUTTON_TOOLTIP_TEXT));
   }
 
- private:
-  base::test::ScopedFeatureList feature_list_;
-};
+  media_tray()->ShowBubble();
+  ASSERT_TRUE(media_tray()->GetBubbleView());
 
-TEST_F(MediaTrayNotPinnedParamTest, PinParamTest) {
-  UpdateDisplay("2560x1440");
-  EXPECT_FALSE(MediaTray::IsPinnedToShelf());
+  {
+    ui::AXNodeData node_data;
+    media_tray()->GetBubbleView()->GetViewAccessibility().GetAccessibleNodeData(
+        &node_data);
+    EXPECT_EQ(node_data.GetString16Attribute(ax::mojom::StringAttribute::kName),
+              GetAccessibleNameForBubble());
+  }
 }
 
 }  // namespace ash

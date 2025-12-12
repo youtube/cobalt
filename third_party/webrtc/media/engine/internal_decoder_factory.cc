@@ -10,18 +10,22 @@
 
 #include "media/engine/internal_decoder_factory.h"
 
+#include <memory>
+#include <vector>
+
 #include "absl/strings/match.h"
-#include "api/video_codecs/av1_profile.h"
+#include "api/environment/environment.h"
+#include "api/video/video_codec_type.h"
 #include "api/video_codecs/sdp_video_format.h"
 #include "api/video_codecs/video_codec.h"
-#include "media/base/codec.h"
+#include "api/video_codecs/video_decoder.h"
+#include "api/video_codecs/video_decoder_factory.h"
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
-#include "system_wrappers/include/field_trial.h"
 
 #if defined(RTC_DAV1D_IN_INTERNAL_DECODER_FACTORY)
 #include "modules/video_coding/codecs/av1/dav1d_decoder.h"  // nogncheck
@@ -33,7 +37,7 @@ namespace {
 constexpr bool kDav1dIsIncluded = true;
 #else
 constexpr bool kDav1dIsIncluded = false;
-std::unique_ptr<VideoDecoder> CreateDav1dDecoder() {
+std::unique_ptr<VideoDecoder> CreateDav1dDecoder(const Environment& env) {
   return nullptr;
 }
 #endif
@@ -43,17 +47,15 @@ std::unique_ptr<VideoDecoder> CreateDav1dDecoder() {
 std::vector<SdpVideoFormat> InternalDecoderFactory::GetSupportedFormats()
     const {
   std::vector<SdpVideoFormat> formats;
-  formats.push_back(SdpVideoFormat(cricket::kVp8CodecName));
+  formats.push_back(SdpVideoFormat::VP8());
   for (const SdpVideoFormat& format : SupportedVP9DecoderCodecs())
     formats.push_back(format);
   for (const SdpVideoFormat& h264_format : SupportedH264DecoderCodecs())
     formats.push_back(h264_format);
 
   if (kDav1dIsIncluded) {
-    formats.push_back(SdpVideoFormat(cricket::kAv1CodecName));
-    formats.push_back(SdpVideoFormat(
-        cricket::kAv1CodecName,
-        {{kAV1FmtpProfile, AV1ProfileToString(AV1Profile::kProfile1).data()}}));
+    formats.push_back(SdpVideoFormat::AV1Profile0());
+    formats.push_back(SdpVideoFormat::AV1Profile1());
   }
 
   return formats;
@@ -77,7 +79,8 @@ VideoDecoderFactory::CodecSupport InternalDecoderFactory::QueryCodecSupport(
   return codec_support;
 }
 
-std::unique_ptr<VideoDecoder> InternalDecoderFactory::CreateVideoDecoder(
+std::unique_ptr<VideoDecoder> InternalDecoderFactory::Create(
+    const Environment& env,
     const SdpVideoFormat& format) {
   if (!format.IsCodecInList(GetSupportedFormats())) {
     RTC_LOG(LS_WARNING) << "Trying to create decoder for unsupported format. "
@@ -85,16 +88,15 @@ std::unique_ptr<VideoDecoder> InternalDecoderFactory::CreateVideoDecoder(
     return nullptr;
   }
 
-  if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
-    return VP8Decoder::Create();
-  if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName))
+  if (absl::EqualsIgnoreCase(format.name, kVp8CodecName))
+    return CreateVp8Decoder(env);
+  if (absl::EqualsIgnoreCase(format.name, kVp9CodecName))
     return VP9Decoder::Create();
-  if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName))
+  if (absl::EqualsIgnoreCase(format.name, kH264CodecName))
     return H264Decoder::Create();
 
-  if (absl::EqualsIgnoreCase(format.name, cricket::kAv1CodecName) &&
-      kDav1dIsIncluded) {
-    return CreateDav1dDecoder();
+  if (absl::EqualsIgnoreCase(format.name, kAv1CodecName) && kDav1dIsIncluded) {
+    return CreateDav1dDecoder(env);
   }
 
   RTC_DCHECK_NOTREACHED();

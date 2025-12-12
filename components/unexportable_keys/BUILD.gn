@@ -2,17 +2,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-static_library("unexportable_keys") {
+component("unexportable_keys") {
   sources = [
     "background_long_task_scheduler.cc",
     "background_long_task_scheduler.h",
     "background_task.h",
     "background_task_impl.h",
+    "background_task_priority.cc",
     "background_task_priority.h",
+    "background_task_type.cc",
+    "background_task_type.h",
+    "features.cc",
+    "features.h",
     "ref_counted_unexportable_signing_key.cc",
     "ref_counted_unexportable_signing_key.h",
     "service_error.h",
     "unexportable_key_id.h",
+    "unexportable_key_loader.cc",
+    "unexportable_key_loader.h",
     "unexportable_key_service.h",
     "unexportable_key_service_impl.cc",
     "unexportable_key_service_impl.h",
@@ -22,9 +29,12 @@ static_library("unexportable_keys") {
     "unexportable_key_tasks.h",
   ]
 
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  defines = [ "IS_UNEXPORTABLE_KEYS_IMPL" ]
+
   public_deps = [
     "//base",
-    "//components/keyed_service/core",
     "//crypto",
     "//third_party/abseil-cpp:absl",
   ]
@@ -36,9 +46,19 @@ source_set("test_support") {
   sources = [
     "fake_unexportable_key_service.cc",
     "fake_unexportable_key_service.h",
+    "mock_unexportable_key.cc",
+    "mock_unexportable_key.h",
+    "mock_unexportable_key_service.cc",
+    "mock_unexportable_key_service.h",
+    "scoped_mock_unexportable_key_provider.cc",
+    "scoped_mock_unexportable_key_provider.h",
   ]
 
-  deps = [ ":unexportable_keys" ]
+  public_deps = [
+    ":unexportable_keys",
+    "//crypto",
+    "//testing/gmock",
+  ]
 }
 
 source_set("unit_tests") {
@@ -46,6 +66,7 @@ source_set("unit_tests") {
 
   sources = [
     "background_long_task_scheduler_unittest.cc",
+    "unexportable_key_loader_unittest.cc",
     "unexportable_key_service_impl_unittest.cc",
     "unexportable_key_task_manager_unittest.cc",
   ]

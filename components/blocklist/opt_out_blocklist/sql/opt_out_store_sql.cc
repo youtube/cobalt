@@ -78,46 +78,41 @@ void CreateSchema(sql::Database* db) {
       " opt_out INTEGER NOT NULL,"
       " type INTEGER NOT NULL,"
       " PRIMARY KEY(host_name, time DESC, opt_out, type))";
-  if (!db->Execute(kSqlCreateTable))
+  if (!db->Execute(kSqlCreateTable)) {
     return;
+  }
 
   static const char kSqlCreateEnabledTypeVersionTable[] =
       "CREATE TABLE IF NOT EXISTS " ENABLED_TYPES_TABLE_NAME
       " (type INTEGER NOT NULL,"
       " version INTEGER NOT NULL,"
       " PRIMARY KEY(type))";
-  if (!db->Execute(kSqlCreateEnabledTypeVersionTable))
+  if (!db->Execute(kSqlCreateEnabledTypeVersionTable)) {
     return;
+  }
 }
 
 void DatabaseErrorCallback(sql::Database* db,
-                           const base::FilePath& db_path,
                            int extended_error,
                            sql::Statement* stmt) {
-  if (sql::Recovery::ShouldRecover(extended_error)) {
-    // Prevent reentrant calls.
-    db->reset_error_callback();
+  // Attempt to recover a corrupt database, if it is eligible to be recovered.
+  if (sql::Recovery::RecoverIfPossible(
+          db, extended_error, sql::Recovery::Strategy::kRecoverOrRaze)) {
+    // Recovery was attempted. The database handle has been poisoned and the
+    // error callback has been reset.
 
-    // After this call, the |db| handle is poisoned so that future calls will
-    // return errors until the handle is re-opened.
-    sql::Recovery::RecoverDatabase(db, db_path);
-
-    // The DLOG(WARNING) below is intended to draw immediate attention to errors
-    // in newly-written code.  Database corruption is generally a result of OS
-    // or hardware issues, not coding errors at the client level, so displaying
-    // the error would probably lead to confusion.  The ignored call signals the
-    // test-expectation framework that the error was handled.
+    // Signal the test-expectation framework that the error was handled.
     std::ignore = sql::Database::IsExpectedSqliteError(extended_error);
     return;
   }
 }
 
 void InitDatabase(sql::Database* db, base::FilePath path) {
-  // TODO(crbug.com/1092101): Migrate to OptOutBlocklist and update any backend
-  // code that may depend on this tag.
-  db->set_histogram_tag("OptOutBlacklist");
-
-  db->set_error_callback(base::BindRepeating(&DatabaseErrorCallback, db, path));
+  if (!db->has_error_callback()) {
+    // The error callback may be reset if recovery was attempted, so ensure the
+    // callback is re-set when the database is re-opened.
+    db->set_error_callback(base::BindRepeating(&DatabaseErrorCallback, db));
+  }
 
   base::File::Error err;
   if (!base::CreateDirectoryAndGetError(path.DirName(), &err)) {
@@ -308,8 +303,9 @@ void LoadBlockListSync(sql::Database* db,
                        std::unique_ptr<BlocklistData> blocklist_data,
                        scoped_refptr<base::SingleThreadTaskRunner> runner,
                        LoadBlockListCallback callback) {
-  if (!db->is_open())
+  if (!db->is_open()) {
     InitDatabase(db, path);
+  }
 
   LoadBlockListFromDataBase(db, std::move(blocklist_data), runner,
                             std::move(callback));
@@ -335,8 +331,9 @@ void AddEntrySync(bool opt_out,
                   base::Time now,
                   sql::Database* db) {
   sql::Transaction transaction(db);
-  if (!transaction.Begin())
+  if (!transaction.Begin()) {
     return;
+  }
   AddEntryToDataBase(db, opt_out, host_name, type, now);
   MaybeEvictHostEntryFromDataBase(db, host_name);
   transaction.Commit();
@@ -384,21 +381,23 @@ void OptOutStoreSQL::LoadBlockList(
     LoadBlockListCallback callback) {
   DCHECK(io_task_runner_->BelongsToCurrentThread());
   if (!db_) {
-    db_ = std::make_unique<sql::Database>(sql::DatabaseOptions{
-        .exclusive_locking = true,
-        // The entry size should be between 11 and 10 + x bytes, where x is the
-        // the length of the host name string in bytes.
-        // The total number of entries per host is bounded at 32, and the total
-        // number of hosts is currently unbounded (but typically expected to be
-        // under 100). Assuming average of 100 bytes per entry, and 100 hosts,
-        // the total size will be 4096 * 78. 250 allows room for extreme cases
-        // such as many host names or very long host names. The average case
-        // should be much smaller as users rarely visit hosts that are not in
-        // their top 20 hosts. It should be closer to 32 * 100 * 20 for most
-        // users, which is about 4096 * 15. The total size of the database will
-        // be capped at 3200 entries.
-        .page_size = 4096,
-        .cache_size = 250});
+    db_ = std::make_unique<sql::Database>(
+        sql::DatabaseOptions()
+            // The entry size should be between 11 and 10 + x bytes, where x is
+            // the the length of the host name string in bytes. The total number
+            // of entries per host is bounded at 32, and the total number of
+            // hosts is currently unbounded (but typically expected to be under
+            // 100). Assuming average of 100 bytes per entry, and 100 hosts, the
+            // total size will be 4096 * 78. 250 allows room for extreme cases
+            // such as many host names or very long host names. The average case
+            // should be much smaller as users rarely visit hosts that are not
+            // in their top 20 hosts. It should be closer to 32 * 100 * 20 for
+            // most users, which is about 4096 * 15. The total size of the
+            // database will be capped at 3200 entries.
+            .set_cache_size(250),
+        // TODO(crbug.com/40134470): Migrate to OptOutBlocklist and update any
+        // backend code that may depend on this tag.
+        sql::Database::Tag("OptOutBlacklist"));
   }
   background_task_runner_->PostTask(
       FROM_HERE,

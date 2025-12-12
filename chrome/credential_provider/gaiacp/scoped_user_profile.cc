@@ -5,6 +5,7 @@
 #include "chrome/credential_provider/gaiacp/scoped_user_profile.h"
 
 #include <Windows.h>
+
 #include <aclapi.h>
 #include <atlcomcli.h>
 #include <atlconv.h>
@@ -15,12 +16,15 @@
 #include <userenv.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/strings/strcat_win.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -50,7 +54,7 @@ constexpr int kProfilePictureSizes[] = {32, 40, 48, 96, 192, 240, 448};
 
 std::string GetEncryptedRefreshToken(
     base::win::ScopedHandle::Handle logon_handle,
-    const base::Value& properties) {
+    const base::Value::Dict& properties) {
   std::string refresh_token = GetDictStringUTF8(properties, kKeyRefreshToken);
   if (refresh_token.empty()) {
     LOGFN(ERROR) << "Refresh token is empty";
@@ -106,8 +110,9 @@ base::FilePath GetUserSizedAccountPictureFilePath(
     const base::FilePath& account_picture_path,
     int size,
     const std::wstring& picture_extension) {
-  return account_picture_path.Append(base::StringPrintf(
-      L"GoogleAccountPicture_%i%ls", size, picture_extension.c_str()));
+  return account_picture_path.Append(
+      base::StrCat({L"GoogleAccountPicture_", base::NumberToWString(size),
+                    picture_extension}));
 }
 
 using ImageProcessor =
@@ -126,8 +131,8 @@ HRESULT SaveProcessedProfilePictureToDisk(
   if (file_attributes != INVALID_FILE_ATTRIBUTES) {
     if (!::SetFileAttributes(picture_path.value().c_str(),
                              file_attributes & ~FILE_ATTRIBUTE_HIDDEN)) {
-      LOGFN(ERROR) << "SetFileAttributes(remove hidden) err="
-                   << ::GetLastError();
+      DWORD saved_last_err = ::GetLastError();
+      LOGFN(ERROR) << "SetFileAttributes(remove hidden) err=" << saved_last_err;
     }
   }
 
@@ -138,8 +143,8 @@ HRESULT SaveProcessedProfilePictureToDisk(
     if (file_attributes != INVALID_FILE_ATTRIBUTES) {
       if (!::SetFileAttributes(picture_path.value().c_str(),
                                file_attributes | FILE_ATTRIBUTE_HIDDEN)) {
-        LOGFN(ERROR) << "SetFileAttributes(add hidden) err="
-                     << ::GetLastError();
+        DWORD saved_last_err = ::GetLastError();
+        LOGFN(ERROR) << "SetFileAttributes(add hidden) err=" << saved_last_err;
       }
     }
   }
@@ -153,8 +158,8 @@ HRESULT CreateDirectoryWithRestrictedAccess(const base::FilePath& path) {
 
   SECURITY_DESCRIPTOR sd;
   if (!::InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION)) {
-    LOGFN(ERROR) << "Failed to initialize sd hr="
-                 << HRESULT_FROM_WIN32(::GetLastError());
+    HRESULT hr = HRESULT_FROM_WIN32(::GetLastError());
+    LOGFN(ERROR) << "Failed to initialize sd hr=" << hr;
     return E_FAIL;
   }
 
@@ -357,10 +362,9 @@ HRESULT UpdateProfilePictures(const std::wstring& sid,
                  const base::FilePath& picture_path,
                  const std::vector<char>& picture_buffer) {
                 HRESULT hr = S_OK;
-                if (!base::WriteFile(
-                        picture_path,
-                        base::StringPiece(picture_buffer.data(),
-                                          picture_buffer.size()))) {
+                if (!base::WriteFile(picture_path,
+                                     std::string_view(picture_buffer.data(),
+                                                      picture_buffer.size()))) {
                   LOGFN(ERROR) << "Failed to write profile picture to file="
                                << picture_path;
                   hr = HRESULT_FROM_WIN32(::GetLastError());
@@ -426,14 +430,14 @@ ScopedUserProfile::ScopedUserProfile(const std::wstring& sid,
     token_.Close();
 }
 
-ScopedUserProfile::~ScopedUserProfile() {}
+ScopedUserProfile::~ScopedUserProfile() = default;
 
 bool ScopedUserProfile::IsValid() {
   return token_.IsValid();
 }
 
 HRESULT ScopedUserProfile::ExtractAssociationInformation(
-    const base::Value& properties,
+    const base::Value::Dict& properties,
     std::wstring* sid,
     std::wstring* id,
     std::wstring* email,
@@ -507,7 +511,8 @@ HRESULT ScopedUserProfile::RegisterAssociation(
   return S_OK;
 }
 
-HRESULT ScopedUserProfile::SaveAccountInfo(const base::Value& properties) {
+HRESULT ScopedUserProfile::SaveAccountInfo(
+    const base::Value::Dict& properties) {
   LOGFN(VERBOSE);
 
   std::wstring sid;
@@ -533,8 +538,8 @@ HRESULT ScopedUserProfile::SaveAccountInfo(const base::Value& properties) {
   // but administrators and SYSTEM can.
   {
     wchar_t key_name[128];
-    swprintf_s(key_name, std::size(key_name), L"%s\\%s\\%s", sid.c_str(),
-               kRegHkcuAccountsPath, id.c_str());
+    UNSAFE_TODO(swprintf_s(key_name, std::size(key_name), L"%s\\%s\\%s",
+                           sid.c_str(), kRegHkcuAccountsPath, id.c_str()));
     LOGFN(VERBOSE) << "HKU\\" << key_name;
 
     base::win::RegKey key;
@@ -607,7 +612,7 @@ HRESULT ScopedUserProfile::SaveAccountInfo(const base::Value& properties) {
   return S_OK;
 }
 
-ScopedUserProfile::ScopedUserProfile() {}
+ScopedUserProfile::ScopedUserProfile() = default;
 
 bool ScopedUserProfile::WaitForProfileCreation(const std::wstring& sid) {
   LOGFN(VERBOSE);
@@ -637,8 +642,8 @@ bool ScopedUserProfile::WaitForProfileCreation(const std::wstring& sid) {
   // but administrators and SYSTEM can.
   base::win::RegKey key;
   wchar_t key_name[128];
-  swprintf_s(key_name, std::size(key_name), L"%s\\%s", sid.c_str(),
-             kRegHkcuAccountsPath);
+  UNSAFE_TODO(swprintf_s(key_name, std::size(key_name), L"%s\\%s", sid.c_str(),
+                         kRegHkcuAccountsPath));
   LOGFN(VERBOSE) << "HKU\\" << key_name;
 
   for (int i = 0; i < kWaitForProfileCreationRetryCount; ++i) {

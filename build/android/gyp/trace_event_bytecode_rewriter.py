@@ -5,14 +5,22 @@
 """Wrapper script around TraceEventAdder script."""
 
 import argparse
+import logging
 import sys
+import tempfile
 import os
 
 from util import build_utils
 import action_helpers  # build_utils adds //build to sys.path.
 
 
+# The real limit is generally >100kb, but 10k seems like a reasonable "it's big"
+# threshold.
+_MAX_CMDLINE = 10000
+
+
 def main(argv):
+  build_utils.InitLogging('TRACE_EVENT_REWRITER_DEBUG')
   argv = build_utils.ExpandFileArgs(argv[1:])
   parser = argparse.ArgumentParser()
   action_helpers.add_depfile_arg(parser)
@@ -34,15 +42,26 @@ def main(argv):
     if not os.path.exists(jar_dir):
       os.makedirs(jar_dir)
 
-  all_input_jars = set(args.classpath + args.input_jars)
   cmd = [
-      args.script, '--classpath', ':'.join(sorted(all_input_jars)),
+      args.script, '--classpath', ':'.join(args.classpath),
       ':'.join(args.input_jars), ':'.join(args.output_jars)
   ]
+  if sum(len(x) for x in cmd) > _MAX_CMDLINE:
+    # Cannot put --classpath in the args file because that is consumed by the
+    # wrapper script. Keep the args file on disk when debugging.
+    is_debug = logging.getLogger().isEnabledFor(logging.DEBUG)
+    args_file = tempfile.NamedTemporaryFile(mode='w', delete=not is_debug)
+    args_file.write('\n'.join(cmd[3:]))
+    args_file.flush()
+    cmd[3:] = ['@' + args_file.name]
+
+  logging.debug(' '.join(cmd))
+
   build_utils.CheckOutput(cmd, print_stdout=True)
 
   build_utils.Touch(args.stamp)
 
+  all_input_jars = args.input_jars + args.classpath
   action_helpers.write_depfile(args.depfile, args.stamp, inputs=all_input_jars)
 
 

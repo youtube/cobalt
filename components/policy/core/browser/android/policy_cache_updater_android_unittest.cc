@@ -13,7 +13,6 @@
 #include "base/memory/raw_ptr.h"
 #include "base/test/task_environment.h"
 #include "base/values.h"
-#include "components/policy/android/test_jni_headers/PolicyCacheUpdaterTestSupporter_jni.h"
 #include "components/policy/core/browser/configuration_policy_handler.h"
 #include "components/policy/core/browser/policy_conversions_client.h"
 #include "components/policy/core/browser/policy_error_map.h"
@@ -23,6 +22,9 @@
 #include "components/policy/core/common/policy_service_impl.h"
 #include "components/strings/grit/components_strings.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/policy/android/test_jni_headers/PolicyCacheUpdaterTestSupporter_jni.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -80,7 +82,8 @@ class PolicyCacheUpdaterAndroidTest : public ::testing::Test {
         true /* is_first_policy_load_complete_return */);
     j_support_ = Java_PolicyCacheUpdaterTestSupporter_Constructor(env_);
     policy_service_ = std::make_unique<policy::PolicyServiceImpl>(
-        std::vector<ConfigurationPolicyProvider*>({&policy_provider_}));
+        std::vector<raw_ptr<ConfigurationPolicyProvider, VectorExperimental>>{
+            &policy_provider_});
     policy_handler_list_ = std::make_unique<ConfigurationPolicyHandlerList>(
         ConfigurationPolicyHandlerList::
             PopulatePolicyHandlerParametersCallback(),

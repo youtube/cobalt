@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -15,20 +20,28 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
+#include "media/gpu/v4l2/test/video_decoder.h"
+#include "media/gpu/v4l2/test/vp8_decoder.h"
+#include "media/gpu/v4l2/test/vp9_decoder.h"
+#include "media/media_buildflags.h"
+
 // AV1 stateless decoding not supported upstream yet
 #if BUILDFLAG(IS_CHROMEOS)
 #include "media/gpu/v4l2/test/av1_decoder.h"
 #endif
 #include "media/gpu/v4l2/test/h264_decoder.h"
-#include "media/gpu/v4l2/test/video_decoder.h"
-#include "media/gpu/v4l2/test/vp8_decoder.h"
-#include "media/gpu/v4l2/test/vp9_decoder.h"
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+#include "media/gpu/v4l2/test/h265_decoder.h"
+#endif
 
 // AV1 stateless decoding not supported upstream yet
 #if BUILDFLAG(IS_CHROMEOS)
 using media::v4l2_test::Av1Decoder;
 #endif
 using media::v4l2_test::H264Decoder;
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+using media::v4l2_test::H265Decoder;
+#endif
 using media::v4l2_test::VideoDecoder;
 using media::v4l2_test::Vp8Decoder;
 using media::v4l2_test::Vp9Decoder;
@@ -49,7 +62,7 @@ constexpr char kUsageMsg[] =
 constexpr char kHelpMsg[] =
     "This binary decodes the IVF video in <video> path with specified \n"
     "video <profile> via thinly wrapped v4l2 calls.\n"
-    "Supported codecs: VP9 (profile 0), and AV1 (profile 0)\n"
+    "Supported codecs: VP9 (profile 0), AV1 (profile 0), and H.265\n"
     "\nThe following arguments are supported:\n"
     "    --video=<path>\n"
     "        Required. Path to IVF-formatted video to decode.\n"
@@ -82,7 +95,7 @@ constexpr char kHelpMsg[] =
 void ComputeAndPrintMD5hash(const std::vector<uint8_t>& yuv_plane,
                             const base::FilePath md5_log_location) {
   base::MD5Digest md5_digest;
-  base::MD5Sum(yuv_plane.data(), yuv_plane.size(), &md5_digest);
+  base::MD5Sum(yuv_plane, &md5_digest);
   std::string md5_digest_b16 = MD5DigestToBase16(md5_digest);
 
   if (!md5_log_location.empty()) {
@@ -115,6 +128,12 @@ std::unique_ptr<VideoDecoder> CreateVideoDecoder(
 
   if (!decoder)
     decoder = Vp8Decoder::Create(stream);
+
+#if BUILDFLAG(ENABLE_HEVC_PARSER_AND_HW_DECODER)
+  if (!decoder) {
+    decoder = H265Decoder::Create(stream);
+  }
+#endif
 
   return decoder;
 }
@@ -185,16 +204,17 @@ int main(int argc, char** argv) {
   }
 
   for (int i = 0; i < n_frames || n_frames == 0; i++) {
-    LOG(INFO) << "Frame " << i << "...";
+    VLOG(1) << "Frame " << i << "...";
 
     std::vector<uint8_t> y_plane;
     std::vector<uint8_t> u_plane;
     std::vector<uint8_t> v_plane;
     gfx::Size size;
+    VideoDecoder::BitDepth bit_depth;
     const VideoDecoder::Result res =
-        dec->DecodeNextFrame(y_plane, u_plane, v_plane, size, i);
+        dec->DecodeNextFrame(i, y_plane, u_plane, v_plane, size, bit_depth);
     if (res == VideoDecoder::kEOStream) {
-      LOG(INFO) << "End of stream.";
+      VLOG(1) << "End of stream.";
       break;
     } else if (res == VideoDecoder::kError) {
       LOG(ERROR) << "Unable to decode next frame.";
@@ -224,7 +244,7 @@ int main(int argc, char** argv) {
                         yuv_plane.size());
     } else {
       std::vector<uint8_t> image_buffer = dec->ConvertYUVToPNG(
-          y_plane.data(), u_plane.data(), v_plane.data(), size);
+          y_plane.data(), u_plane.data(), v_plane.data(), size, bit_depth);
       output_file.Write(0, reinterpret_cast<char*>(image_buffer.data()),
                         image_buffer.size());
     }

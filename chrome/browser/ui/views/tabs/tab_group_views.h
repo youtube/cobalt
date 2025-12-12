@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_VIEWS_TABS_TAB_GROUP_VIEWS_H_
 
 #include <memory>
+
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
@@ -25,8 +26,8 @@ class TabGroupStyle;
 class TabGroupViews {
  public:
   // Creates the various views representing a tab group and adds them to
-  // |container_view| and |drag_container_view| as children.  Assumes these
-  // views are not destroyed before |this|.
+  // `container_view` and `drag_container_view` as children.  Assumes these
+  // views are not destroyed before `this`.
   TabGroupViews(views::View* container_view,
                 views::View* drag_container_view,
                 TabSlotController& tab_slot_controller,
@@ -55,14 +56,6 @@ class TabGroupViews {
   // Returns the group color.
   SkColor GetGroupColor() const;
 
-  // Returns the tab highlight background color. Needed to layer painting for
-  // the group background highlight.
-  SkColor GetTabBackgroundColor() const;
-
-  // Returns the group background color, which matches the non-active selected
-  // tab color. Needed to layer painting for the group background highlight.
-  SkColor GetGroupBackgroundColor() const;
-
   // Finds the first and last tab or group header belonging to `group_` from the
   // whole Tabstrip.
   std::tuple<const views::View*, const views::View*>
@@ -79,15 +72,15 @@ class TabGroupViews {
 
   bool InTearDown() const;
 
-  // Finds the first and last tab or group header belonging to |group_|, only
+  // Finds the first and last tab or group header belonging to `group_`, only
   // including views that are being dragged.
   std::tuple<views::View*, views::View*> GetLeadingTrailingDraggedGroupViews()
       const;
 
-  // Finds the first and last tab or group header belonging to |group_| within
-  // |children|.
+  // Finds the first and last tab or group header belonging to `group_` within
+  // `children`.
   std::tuple<views::View*, views::View*> GetLeadingTrailingGroupViews(
-      std::vector<views::View*> children) const;
+      std::vector<raw_ptr<views::View, VectorExperimental>> children) const;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TABS_TAB_GROUP_VIEWS_H_

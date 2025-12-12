@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+
 #include "content/browser/quota/quota_internals_ui.h"
 
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -25,8 +26,7 @@ QuotaInternalsUI::QuotaInternalsUI(WebUI* web_ui) : WebUIController(web_ui) {
       web_ui->GetWebContents()->GetBrowserContext(),
       kChromeUIQuotaInternalsHost);
 
-  source->AddResourcePaths(
-      base::make_span(kQuotaInternalsResources, kQuotaInternalsResourcesSize));
+  source->AddResourcePaths(kQuotaInternalsResources);
 
   source->SetDefaultResource(IDR_QUOTA_INTERNALS_QUOTA_INTERNALS_HTML);
 

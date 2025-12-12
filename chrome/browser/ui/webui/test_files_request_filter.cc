@@ -17,8 +17,9 @@ namespace {
 bool ShouldHandleTestFileRequestCallback(const std::string& path) {
   std::vector<std::string> url_substr =
       base::SplitString(path, "/", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
-  if (url_substr.size() != 2 || url_substr[0] != "test")
+  if (url_substr.size() != 2 || url_substr[0] != "test") {
     return false;
+  }
 
   base::ScopedAllowBlockingForTesting allow_blocking;
   base::FilePath test_data_dir;
@@ -43,7 +44,7 @@ void HandleTestFileRequestCallback(
       &contents));
 
   base::RefCountedString* ref_contents = new base::RefCountedString();
-  ref_contents->data() = contents;
+  ref_contents->as_string() = contents;
   std::move(callback).Run(ref_contents);
 }
 

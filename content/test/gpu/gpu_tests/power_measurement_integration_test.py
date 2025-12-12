@@ -23,22 +23,22 @@ This script is tested and works fine with the following video sites:
   * http://crosvideo.appspot.com
 """
 
+import dataclasses
 import logging
 import os
 import posixpath
 import sys
 import time
-from typing import Any, List
+from typing import Any
 import unittest
 
+import py_utils
+
+import gpu_path_util
 from gpu_tests import common_browser_args as cba
 from gpu_tests import common_typing as ct
 from gpu_tests import gpu_integration_test
 from gpu_tests import ipg_utils
-
-import gpu_path_util
-
-import py_utils
 
 # Waits for [x] seconds after browser launch before measuring power to
 # avoid startup tasks affecting results.
@@ -210,36 +210,24 @@ _VIDEO_TEST_SCRIPT = r"""
 """
 
 
+@dataclasses.dataclass
 class _PowerMeasurementTestArguments():
   """Struct-like object for passing power measurement args instead of a dict."""
-
-  def __init__(  # pylint: disable=too-many-arguments
-      self,
-      test_func,
-      repeat,
-      bypass_ipg,
-      underlay=None,
-      fullscreen=None,
-      outliers=None,
-      ipg_logdir=None,
-      ipg_duration=None,
-      ipg_delay=None,
-      ipg_resolution=None):
-    self.test_func = test_func
-    self.repeat = repeat
-    self.bypass_ipg = bypass_ipg
-    self.underlay = underlay
-    self.fullscreen = fullscreen
-    self.outliers = outliers
-    self.ipg_logdir = ipg_logdir
-    self.ipg_duration = ipg_duration
-    self.ipg_delay = ipg_delay
-    self.ipg_resolution = ipg_resolution
+  test_func: str
+  repeat: int
+  bypass_ipg: bool
+  underlay: bool | None = None
+  fullscreen: bool | None = None
+  outliers: int | None = None
+  ipg_logdir: str | None = None
+  ipg_duration: int | None = None
+  ipg_delay: int | None = None
+  ipg_resolution: int | None = None
 
 
 class PowerMeasurementIntegrationTest(gpu_integration_test.GpuIntegrationTest):
 
-  _url_mode = None
+  _url_mode: bool | None = None
 
   @classmethod
   def Name(cls) -> str:
@@ -248,66 +236,67 @@ class PowerMeasurementIntegrationTest(gpu_integration_test.GpuIntegrationTest):
   @classmethod
   def AddCommandlineArgs(cls, parser: ct.CmdArgParser) -> None:
     super(PowerMeasurementIntegrationTest, cls).AddCommandlineArgs(parser)
-    parser.add_option(
+    parser.add_argument(
         '--duration',
         default=_POWER_MEASUREMENT_DURATION,
-        type='int',
-        help='specify how many seconds Intel Power Gadget measures. By '
-        'default, %d seconds is selected.' % _POWER_MEASUREMENT_DURATION)
-    parser.add_option(
+        type=int,
+        help=('Specify how many seconds Intel Power Gadget measures. By '
+              'default, %(default)s seconds is selected.'))
+    parser.add_argument(
         '--delay',
         default=_POWER_MEASUREMENT_DELAY,
-        type='int',
-        help='specify how many seconds we skip in the data Intel Power Gadget '
-        'collects. This time is for starting video play, switching to '
-        'fullscreen mode, etc. By default, %d seconds is selected.' %
-        _POWER_MEASUREMENT_DELAY)
-    parser.add_option(
+        type=int,
+        help=('Specify how many seconds we skip in the data Intel Power Gadget '
+              'collects. This time is for starting video play, switching to '
+              'fullscreen mode, etc. By default, %(default)s seconds is '
+              'selected.'))
+    parser.add_argument(
         '--resolution',
         default=100,
-        type='int',
-        help='specify how often Intel Power Gadget samples data in '
-        'milliseconds. By default, 100 ms is selected.')
-    parser.add_option('--url',
-                      help='specify the webpage URL the browser launches with.')
-    parser.add_option(
+        type=int,
+        help=('Specify how often Intel Power Gadget samples data in '
+              'milliseconds. By default, %(default)s ms is selected.'))
+    parser.add_argument(
+        '--url', help='specify the webpage URL the browser launches with.')
+    parser.add_argument(
         '--fullscreen',
         action='store_true',
         default=False,
-        help='specify if the browser goes to fullscreen mode automatically, '
-        'specifically if there is a single video element in the page, switch '
-        'it to fullsrceen mode.')
-    parser.add_option(
+        help=('Specify if the browser goes to fullscreen mode automatically, '
+              'specifically if there is a single video element in the page, '
+              'switch it to fullsrceen mode.'))
+    parser.add_argument(
         '--underlay',
         action='store_true',
         default=False,
-        help='add a layer on top so the video layer becomes an underlay.')
-    parser.add_option(
+        help='Add a layer on top so the video layer becomes an underlay.')
+    parser.add_argument(
         '--logdir',
-        help='Specify where the Intel Power Gadget log file should be stored. '
-        'If specified, the log file name will include a timestamp. If not '
-        'specified, the log file will be PowerLog.csv at the current dir and '
-        'will be overwritten at next run.')
-    parser.add_option(
+        help=('Specify where the Intel Power Gadget log file should be stored. '
+              'If specified, the log file name will include a timestamp. If '
+              'not specified, the log file will be PowerLog.csv at the current '
+              'dir and will be overwritten at next run.'))
+    parser.add_argument(
         '--repeat',
         default=3,
-        type='int',
-        help='specify how many times to repreat the measurement. By default, '
-        'measure only once. If measure more than once, between each '
-        'measurement, browser restarts.')
-    parser.add_option(
+        type=int,
+        help=('Specify how many times to repreat the measurement. By default, '
+              'measure only once. If measure more than once, between each '
+              'measurement, browser restarts.'))
+    parser.add_argument(
         '--outliers',
         default=0,
-        type='int',
-        help='if a test is repeated multiples and outliers is set to N, then '
-        'N smallest results and N largest results are discarded before '
-        'computing mean and stdev.')
-    parser.add_option(
+        type=int,
+        help=('If a test is repeated multiples and outliers is set to N, then '
+              'N smallest results and N largest results are discarded before '
+              'computing mean and stdev.'))
+    parser.add_argument(
         '--bypass-ipg',
         action='store_true',
         default=False,
-        help='Do not launch Intel Power Gadget. This is for testing '
-        'convenience on machines where Intel Power Gadget does not work.')
+        help=('Do not launch Intel Power Gadget. This is for testing '
+              'convenience on machines where Intel Power Gadget does not '
+              'work.'))
 
   @classmethod
   def GenerateGpuTests(cls, options: ct.ParsedCmdArgs) -> ct.TestGenerator:
@@ -387,11 +376,11 @@ class PowerMeasurementIntegrationTest(gpu_integration_test.GpuIntegrationTest):
   def RunActualGpuTest(self, test_path: str, args: ct.TestArgs) -> None:
     test_params = args[0]
     assert test_params is not None
-    prefixed_test_func_name = '_RunTest_%s' % test_params.test_func
+    prefixed_test_func_name = f'_RunTest_{test_params.test_func}'
     getattr(self, prefixed_test_func_name)(test_path, test_params)
 
   @classmethod
-  def GenerateBrowserArgs(cls, additional_args: List[str]) -> List[str]:
+  def GenerateBrowserArgs(cls, additional_args: list[str]) -> list[str]:
     """Adds default arguments to |additional_args|.
 
     See the parent class' method documentation for additional information.
@@ -545,7 +534,7 @@ class PowerMeasurementIntegrationTest(gpu_integration_test.GpuIntegrationTest):
       logging.info('Summary: %s', str(summary))
 
   @classmethod
-  def ExpectationsFiles(cls) -> List[str]:
+  def ExpectationsFiles(cls) -> list[str]:
     return [
         os.path.join(
             os.path.dirname(os.path.abspath(__file__)), 'test_expectations',

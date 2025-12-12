@@ -5,15 +5,17 @@
 #include "third_party/blink/renderer/modules/mediasession/media_session.h"
 
 #include <memory>
+#include <optional>
 
+#include "base/notreached.h"
 #include "base/time/default_tick_clock.h"
 #include "base/time/time.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
-#include "third_party/blink/public/common/browser_interface_broker_proxy.h"
 #include "third_party/blink/public/mojom/frame/user_activation_notification_type.mojom-blink.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_position_state.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_session_action_details.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_session_action_handler.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_media_session_playback_state.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_media_session_seek_to_action_details.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -21,7 +23,7 @@
 #include "third_party/blink/renderer/core/frame/web_feature.h"
 #include "third_party/blink/renderer/modules/mediasession/media_metadata.h"
 #include "third_party/blink/renderer/modules/mediasession/media_metadata_sanitizer.h"
-#include "third_party/blink/renderer/modules/mediasession/type_converters.h"
+#include "third_party/blink/renderer/modules/mediasession/media_session_type_converters.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
@@ -32,126 +34,109 @@ namespace {
 
 using ::media_session::mojom::blink::MediaSessionAction;
 
-const AtomicString& MojomActionToActionName(MediaSessionAction action) {
-  DEFINE_STATIC_LOCAL(const AtomicString, play_action_name, ("play"));
-  DEFINE_STATIC_LOCAL(const AtomicString, pause_action_name, ("pause"));
-  DEFINE_STATIC_LOCAL(const AtomicString, previous_track_action_name,
-                      ("previoustrack"));
-  DEFINE_STATIC_LOCAL(const AtomicString, next_track_action_name,
-                      ("nexttrack"));
-  DEFINE_STATIC_LOCAL(const AtomicString, seek_backward_action_name,
-                      ("seekbackward"));
-  DEFINE_STATIC_LOCAL(const AtomicString, seek_forward_action_name,
-                      ("seekforward"));
-  DEFINE_STATIC_LOCAL(const AtomicString, skip_ad_action_name, ("skipad"));
-  DEFINE_STATIC_LOCAL(const AtomicString, stop_action_name, ("stop"));
-  DEFINE_STATIC_LOCAL(const AtomicString, seek_to_action_name, ("seekto"));
-  DEFINE_STATIC_LOCAL(const AtomicString, toggle_microphone_action_name,
-                      ("togglemicrophone"));
-  DEFINE_STATIC_LOCAL(const AtomicString, toggle_camera_action_name,
-                      ("togglecamera"));
-  DEFINE_STATIC_LOCAL(const AtomicString, hang_up_action_name, ("hangup"));
-  DEFINE_STATIC_LOCAL(const AtomicString, previous_slide_action_name,
-                      ("previousslide"));
-  DEFINE_STATIC_LOCAL(const AtomicString, next_slide_action_name,
-                      ("nextslide"));
-
+V8MediaSessionAction::Enum MojomActionToActionEnum(MediaSessionAction action) {
   switch (action) {
     case MediaSessionAction::kPlay:
-      return play_action_name;
+      return V8MediaSessionAction::Enum::kPlay;
     case MediaSessionAction::kPause:
-      return pause_action_name;
+      return V8MediaSessionAction::Enum::kPause;
     case MediaSessionAction::kPreviousTrack:
-      return previous_track_action_name;
+      return V8MediaSessionAction::Enum::kPrevioustrack;
     case MediaSessionAction::kNextTrack:
-      return next_track_action_name;
+      return V8MediaSessionAction::Enum::kNexttrack;
     case MediaSessionAction::kSeekBackward:
-      return seek_backward_action_name;
+      return V8MediaSessionAction::Enum::kSeekbackward;
     case MediaSessionAction::kSeekForward:
-      return seek_forward_action_name;
+      return V8MediaSessionAction::Enum::kSeekforward;
     case MediaSessionAction::kSkipAd:
-      return skip_ad_action_name;
+      return V8MediaSessionAction::Enum::kSkipad;
     case MediaSessionAction::kStop:
-      return stop_action_name;
+      return V8MediaSessionAction::Enum::kStop;
     case MediaSessionAction::kSeekTo:
-      return seek_to_action_name;
+      return V8MediaSessionAction::Enum::kSeekto;
     case MediaSessionAction::kToggleMicrophone:
-      return toggle_microphone_action_name;
+      return V8MediaSessionAction::Enum::kTogglemicrophone;
     case MediaSessionAction::kToggleCamera:
-      return toggle_camera_action_name;
+      return V8MediaSessionAction::Enum::kTogglecamera;
     case MediaSessionAction::kHangUp:
-      return hang_up_action_name;
+      return V8MediaSessionAction::Enum::kHangup;
     case MediaSessionAction::kPreviousSlide:
-      return previous_slide_action_name;
+      return V8MediaSessionAction::Enum::kPreviousslide;
     case MediaSessionAction::kNextSlide:
-      return next_slide_action_name;
-    default:
+      return V8MediaSessionAction::Enum::kNextslide;
+    case MediaSessionAction::kEnterPictureInPicture:
+      return V8MediaSessionAction::Enum::kEnterpictureinpicture;
+    case MediaSessionAction::kScrubTo:
+    case MediaSessionAction::kExitPictureInPicture:
+    case MediaSessionAction::kSwitchAudioDevice:
+    case MediaSessionAction::kEnterAutoPictureInPicture:
+    case MediaSessionAction::kSetMute:
+    case MediaSessionAction::kRaise:
       NOTREACHED();
   }
-  return WTF::g_empty_atom;
-}
-
-absl::optional<MediaSessionAction> ActionNameToMojomAction(
-    const String& action_name) {
-  if ("play" == action_name)
-    return MediaSessionAction::kPlay;
-  if ("pause" == action_name)
-    return MediaSessionAction::kPause;
-  if ("previoustrack" == action_name)
-    return MediaSessionAction::kPreviousTrack;
-  if ("nexttrack" == action_name)
-    return MediaSessionAction::kNextTrack;
-  if ("seekbackward" == action_name)
-    return MediaSessionAction::kSeekBackward;
-  if ("seekforward" == action_name)
-    return MediaSessionAction::kSeekForward;
-  if ("skipad" == action_name)
-    return MediaSessionAction::kSkipAd;
-  if ("stop" == action_name)
-    return MediaSessionAction::kStop;
-  if ("seekto" == action_name)
-    return MediaSessionAction::kSeekTo;
-  if ("togglemicrophone" == action_name)
-    return MediaSessionAction::kToggleMicrophone;
-  if ("togglecamera" == action_name)
-    return MediaSessionAction::kToggleCamera;
-  if ("hangup" == action_name)
-    return MediaSessionAction::kHangUp;
-  if ("previousslide" == action_name)
-    return MediaSessionAction::kPreviousSlide;
-  if ("nextslide" == action_name)
-    return MediaSessionAction::kNextSlide;
-
   NOTREACHED();
-  return absl::nullopt;
 }
 
-const AtomicString& MediaSessionPlaybackStateToString(
-    mojom::blink::MediaSessionPlaybackState state) {
-  DEFINE_STATIC_LOCAL(const AtomicString, none_value, ("none"));
-  DEFINE_STATIC_LOCAL(const AtomicString, paused_value, ("paused"));
-  DEFINE_STATIC_LOCAL(const AtomicString, playing_value, ("playing"));
-
-  switch (state) {
-    case mojom::blink::MediaSessionPlaybackState::NONE:
-      return none_value;
-    case mojom::blink::MediaSessionPlaybackState::PAUSED:
-      return paused_value;
-    case mojom::blink::MediaSessionPlaybackState::PLAYING:
-      return playing_value;
+MediaSessionAction ActionEnumToMojomAction(V8MediaSessionAction::Enum action) {
+  switch (action) {
+    case V8MediaSessionAction::Enum::kPlay:
+      return MediaSessionAction::kPlay;
+    case V8MediaSessionAction::Enum::kPause:
+      return MediaSessionAction::kPause;
+    case V8MediaSessionAction::Enum::kPrevioustrack:
+      return MediaSessionAction::kPreviousTrack;
+    case V8MediaSessionAction::Enum::kNexttrack:
+      return MediaSessionAction::kNextTrack;
+    case V8MediaSessionAction::Enum::kSeekbackward:
+      return MediaSessionAction::kSeekBackward;
+    case V8MediaSessionAction::Enum::kSeekforward:
+      return MediaSessionAction::kSeekForward;
+    case V8MediaSessionAction::Enum::kSkipad:
+      return MediaSessionAction::kSkipAd;
+    case V8MediaSessionAction::Enum::kStop:
+      return MediaSessionAction::kStop;
+    case V8MediaSessionAction::Enum::kSeekto:
+      return MediaSessionAction::kSeekTo;
+    case V8MediaSessionAction::Enum::kTogglemicrophone:
+      return MediaSessionAction::kToggleMicrophone;
+    case V8MediaSessionAction::Enum::kTogglecamera:
+      return MediaSessionAction::kToggleCamera;
+    case V8MediaSessionAction::Enum::kHangup:
+      return MediaSessionAction::kHangUp;
+    case V8MediaSessionAction::Enum::kPreviousslide:
+      return MediaSessionAction::kPreviousSlide;
+    case V8MediaSessionAction::Enum::kNextslide:
+      return MediaSessionAction::kNextSlide;
+    case V8MediaSessionAction::Enum::kEnterpictureinpicture:
+      return MediaSessionAction::kEnterPictureInPicture;
   }
   NOTREACHED();
-  return WTF::g_empty_atom;
 }
 
-mojom::blink::MediaSessionPlaybackState StringToMediaSessionPlaybackState(
-    const String& state_name) {
-  if (state_name == "none")
-    return mojom::blink::MediaSessionPlaybackState::NONE;
-  if (state_name == "paused")
-    return mojom::blink::MediaSessionPlaybackState::PAUSED;
-  DCHECK_EQ(state_name, "playing");
-  return mojom::blink::MediaSessionPlaybackState::PLAYING;
+V8MediaSessionPlaybackState::Enum MediaSessionPlaybackStateToEnum(
+    mojom::blink::MediaSessionPlaybackState state) {
+  switch (state) {
+    case mojom::blink::MediaSessionPlaybackState::NONE:
+      return V8MediaSessionPlaybackState::Enum::kNone;
+    case mojom::blink::MediaSessionPlaybackState::PAUSED:
+      return V8MediaSessionPlaybackState::Enum::kPaused;
+    case mojom::blink::MediaSessionPlaybackState::PLAYING:
+      return V8MediaSessionPlaybackState::Enum::kPlaying;
+  }
+  NOTREACHED();
+}
+
+mojom::blink::MediaSessionPlaybackState EnumToMediaSessionPlaybackState(
+    const V8MediaSessionPlaybackState::Enum& state) {
+  switch (state) {
+    case V8MediaSessionPlaybackState::Enum::kNone:
+      return mojom::blink::MediaSessionPlaybackState::NONE;
+    case V8MediaSessionPlaybackState::Enum::kPaused:
+      return mojom::blink::MediaSessionPlaybackState::PAUSED;
+    case V8MediaSessionPlaybackState::Enum::kPlaying:
+      return mojom::blink::MediaSessionPlaybackState::PLAYING;
+  }
+  NOTREACHED();
 }
 
 }  // anonymous namespace
@@ -175,8 +160,9 @@ MediaSession::MediaSession(Navigator& navigator)
       service_(navigator.GetExecutionContext()),
       client_receiver_(this, navigator.DomWindow()) {}
 
-void MediaSession::setPlaybackState(const String& playback_state) {
-  playback_state_ = StringToMediaSessionPlaybackState(playback_state);
+void MediaSession::setPlaybackState(
+    const V8MediaSessionPlaybackState& playback_state) {
+  playback_state_ = EnumToMediaSessionPlaybackState(playback_state.AsEnum());
 
   RecalculatePositionState(/*was_set=*/false);
 
@@ -185,8 +171,9 @@ void MediaSession::setPlaybackState(const String& playback_state) {
     service->SetPlaybackState(playback_state_);
 }
 
-String MediaSession::playbackState() {
-  return MediaSessionPlaybackStateToString(playback_state_);
+V8MediaSessionPlaybackState MediaSession::playbackState() {
+  return V8MediaSessionPlaybackState(
+      MediaSessionPlaybackStateToEnum(playback_state_));
 }
 
 void MediaSession::setMetadata(MediaMetadata* metadata) {
@@ -201,7 +188,7 @@ void MediaSession::setMetadata(MediaMetadata* metadata) {
 }
 
 MediaMetadata* MediaSession::metadata() const {
-  return metadata_;
+  return metadata_.Get();
 }
 
 void MediaSession::OnMetadataChanged() {
@@ -219,10 +206,11 @@ void MediaSession::OnMetadataChanged() {
       MediaMetadataSanitizer::SanitizeAndConvertToMojo(metadata_, context));
 }
 
-void MediaSession::setActionHandler(const String& action,
+void MediaSession::setActionHandler(const V8MediaSessionAction& action,
                                     V8MediaSessionActionHandler* handler,
                                     ExceptionState& exception_state) {
-  if (action == "skipad") {
+  auto action_value = action.AsEnum();
+  if (action_value == V8MediaSessionAction::Enum::kSkipad) {
     LocalDOMWindow* window = GetSupplementable()->DomWindow();
     if (!RuntimeEnabledFeatures::SkipAdEnabled(window)) {
       exception_state.ThrowTypeError(
@@ -234,29 +222,34 @@ void MediaSession::setActionHandler(const String& action,
     UseCounter::Count(window, WebFeature::kMediaSessionSkipAd);
   }
 
-  if (!RuntimeEnabledFeatures::MediaSessionSlidesEnabled()) {
-    if ("previousslide" == action || "nextslide" == action) {
-      exception_state.ThrowTypeError("The provided value '" + action +
-                                     "' is not a valid enum "
-                                     "value of type MediaSessionAction.");
+  if (action_value == V8MediaSessionAction::Enum::kEnterpictureinpicture) {
+    if (!RuntimeEnabledFeatures::MediaSessionEnterPictureInPictureEnabled()) {
+      exception_state.ThrowTypeError(
+          "The provided value 'enterpictureinpicture'"
+          " is not a valid enum "
+          "value of type MediaSessionAction.");
       return;
     }
+
+    UseCounter::Count(GetSupplementable()->DomWindow(),
+                      WebFeature::kMediaSessionEnterPictureInPicture);
   }
 
   if (handler) {
-    auto add_result = action_handlers_.Set(action, handler);
+    auto add_result = action_handlers_.Set(action_value, handler);
 
     if (!add_result.is_new_entry)
       return;
 
-    NotifyActionChange(action, ActionChangeType::kActionEnabled);
+    NotifyActionChange(action_value, ActionChangeType::kActionEnabled);
   } else {
-    if (action_handlers_.find(action) == action_handlers_.end())
+    if (action_handlers_.find(action_value) == action_handlers_.end()) {
       return;
+    }
 
-    action_handlers_.erase(action);
+    action_handlers_.erase(action_value);
 
-    NotifyActionChange(action, ActionChangeType::kActionDisabled);
+    NotifyActionChange(action_value, ActionChangeType::kActionDisabled);
   }
 }
 
@@ -277,6 +270,12 @@ void MediaSession::setPositionState(MediaPositionState* position_state,
   // The duration cannot be missing.
   if (!position_state->hasDuration()) {
     exception_state.ThrowTypeError("The duration must be provided.");
+    return;
+  }
+
+  // The duration cannot be NaN.
+  if (std::isnan(position_state->duration())) {
+    exception_state.ThrowTypeError("The provided duration cannot be NaN.");
     return;
   }
 
@@ -344,21 +343,19 @@ void MediaSession::setCameraActive(bool active) {
   }
 }
 
-void MediaSession::NotifyActionChange(const String& action,
+void MediaSession::NotifyActionChange(V8MediaSessionAction::Enum action,
                                       ActionChangeType type) {
   mojom::blink::MediaSessionService* service = GetService();
   if (!service)
     return;
 
-  auto mojom_action = ActionNameToMojomAction(action);
-  DCHECK(mojom_action.has_value());
-
+  auto mojom_action = ActionEnumToMojomAction(action);
   switch (type) {
     case ActionChangeType::kActionEnabled:
-      service->EnableAction(mojom_action.value());
+      service->EnableAction(mojom_action);
       break;
     case ActionChangeType::kActionDisabled:
-      service->DisableAction(mojom_action.value());
+      service->DisableAction(mojom_action);
       break;
   }
 }
@@ -434,16 +431,16 @@ void MediaSession::DidReceiveAction(
       window->GetFrame(),
       mojom::blink::UserActivationNotificationType::kInteraction);
 
-  auto& name = MojomActionToActionName(action);
+  auto v8_action = MojomActionToActionEnum(action);
 
-  auto iter = action_handlers_.find(name);
+  auto iter = action_handlers_.find(v8_action);
   if (iter == action_handlers_.end())
     return;
 
   const auto* blink_details =
       mojo::TypeConverter<const blink::MediaSessionActionDetails*,
                           blink::mojom::blink::MediaSessionActionDetailsPtr>::
-          ConvertWithActionName(details, name);
+          ConvertWithV8Action(details, v8_action);
 
   iter->value->InvokeAndReportException(this, blink_details);
 }

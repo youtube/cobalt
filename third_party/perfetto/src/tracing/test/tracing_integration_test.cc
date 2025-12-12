@@ -32,7 +32,7 @@
 #include "perfetto/tracing/core/trace_config.h"
 #include "src/base/test/test_task_runner.h"
 #include "src/ipc/test/test_socket.h"
-#include "src/tracing/core/tracing_service_impl.h"
+#include "src/tracing/service/tracing_service_impl.h"
 #include "test/gtest_and_gmock.h"
 
 #include "protos/perfetto/config/trace_config.gen.h"
@@ -73,7 +73,7 @@ class MockProducer : public Producer {
   MOCK_METHOD(void, OnTracingSetup, (), (override));
   MOCK_METHOD(void,
               Flush,
-              (FlushRequestID, const DataSourceInstanceID*, size_t),
+              (FlushRequestID, const DataSourceInstanceID*, size_t, FlushFlags),
               (override));
   MOCK_METHOD(void,
               ClearIncrementalState,
@@ -97,7 +97,7 @@ class MockConsumer : public Consumer {
   MOCK_METHOD(void, OnAttach, (bool, const TraceConfig&), (override));
   MOCK_METHOD(void, OnTraceStats, (bool, const TraceStats&), (override));
   MOCK_METHOD(void, OnObservableEvents, (const ObservableEvents&), (override));
-  MOCK_METHOD(void, OnSessionCloned, (bool, const std::string&), (override));
+  MOCK_METHOD(void, OnSessionCloned, (const OnSessionClonedArgs&), (override));
 
   // Workaround, gmock doesn't support yet move-only types, passing a pointer.
   void OnTraceData(std::vector<TracePacket> packets, bool has_more) {
@@ -200,35 +200,6 @@ class TracingIntegrationTest : public ::testing::Test {
     return TracingService::ProducerSMBScrapingMode::kDefault;
   }
 
-  void WaitForTraceWritersChanged(ProducerID producer_id) {
-    static int i = 0;
-    auto checkpoint_name = "writers_changed_" + std::to_string(producer_id) +
-                           "_" + std::to_string(i++);
-    auto writers_changed = task_runner_->CreateCheckpoint(checkpoint_name);
-    auto writers = GetWriters(producer_id);
-    std::function<void()> task;
-    task = [&task, writers, writers_changed, producer_id, this]() {
-      if (writers != GetWriters(producer_id)) {
-        writers_changed();
-        return;
-      }
-      task_runner_->PostDelayedTask(task, 1);
-    };
-    task_runner_->PostDelayedTask(task, 1);
-    task_runner_->RunUntilCheckpoint(checkpoint_name);
-  }
-
-  const std::map<WriterID, BufferID>& GetWriters(ProducerID producer_id) {
-    return reinterpret_cast<TracingServiceImpl*>(svc_->service())
-        ->GetProducer(producer_id)
-        ->writers_;
-  }
-
-  ProducerID* last_producer_id() {
-    return &reinterpret_cast<TracingServiceImpl*>(svc_->service())
-                ->last_producer_id_;
-  }
-
   std::unique_ptr<base::TestTaskRunner> task_runner_;
   std::unique_ptr<ServiceIPCHost> svc_;
   std::unique_ptr<TracingService::ProducerEndpoint> producer_endpoint_;
@@ -286,8 +257,8 @@ TEST_F(TracingIntegrationTest, WithIPCTransport) {
   // Now let the data source fill some pages within the same task.
   // Doing so should accumulate a bunch of chunks that will be notified by the
   // a future task in one batch.
-  std::unique_ptr<TraceWriter> writer =
-      producer_endpoint_->CreateTraceWriter(global_buf_id);
+  std::unique_ptr<TraceWriter> writer = producer_endpoint_->CreateTraceWriter(
+      global_buf_id, BufferExhaustedPolicy::kStall);
   ASSERT_TRUE(writer);
 
   const size_t kNumPackets = 10;
@@ -419,8 +390,8 @@ TEST_F(TracingIntegrationTest, WriteIntoFile) {
       }));
   task_runner_->RunUntilCheckpoint("on_create_ds_instance");
 
-  std::unique_ptr<TraceWriter> writer =
-      producer_endpoint_->CreateTraceWriter(global_buf_id);
+  std::unique_ptr<TraceWriter> writer = producer_endpoint_->CreateTraceWriter(
+      global_buf_id, BufferExhaustedPolicy::kStall);
   ASSERT_TRUE(writer);
 
   const size_t kNumPackets = 10;
@@ -510,12 +481,12 @@ TEST_F(TracingIntegrationTestWithSMBScrapingProducer, ScrapeOnFlush) {
 
   // Create writer, which will post a task to register the writer with the
   // service.
-  std::unique_ptr<TraceWriter> writer =
-      producer_endpoint_->CreateTraceWriter(global_buf_id);
+  std::unique_ptr<TraceWriter> writer = producer_endpoint_->CreateTraceWriter(
+      global_buf_id, BufferExhaustedPolicy::kStall);
   ASSERT_TRUE(writer);
 
   // Wait for the writer to be registered.
-  WaitForTraceWritersChanged(*last_producer_id());
+  task_runner_->RunUntilIdle();
 
   // Write a few trace packets.
   writer->NewTracePacket()->set_for_testing()->set_str("payload1");
@@ -525,20 +496,23 @@ TEST_F(TracingIntegrationTestWithSMBScrapingProducer, ScrapeOnFlush) {
   // Ask the service to flush, but don't flush our trace writer. This should
   // cause our uncommitted SMB chunk to be scraped.
   auto on_flush_complete = task_runner_->CreateCheckpoint("on_flush_complete");
-  consumer_endpoint_->Flush(5000, [on_flush_complete](bool success) {
-    EXPECT_TRUE(success);
-    on_flush_complete();
-  });
-  EXPECT_CALL(producer_, Flush(_, _, _))
+  FlushFlags flush_flags(FlushFlags::Initiator::kConsumerSdk,
+                         FlushFlags::Reason::kExplicit);
+  consumer_endpoint_->Flush(
+      5000,
+      [on_flush_complete](bool success) {
+        EXPECT_TRUE(success);
+        on_flush_complete();
+      },
+      flush_flags);
+  EXPECT_CALL(producer_, Flush(_, _, _, flush_flags))
       .WillOnce(Invoke([this](FlushRequestID flush_req_id,
-                              const DataSourceInstanceID*, size_t) {
+                              const DataSourceInstanceID*, size_t, FlushFlags) {
         producer_endpoint_->NotifyFlushComplete(flush_req_id);
       }));
   task_runner_->RunUntilCheckpoint("on_flush_complete");
 
-  // Read the log buffer. We should only see the first two written trace
-  // packets, because the service can't be sure the last one was written
-  // completely by the trace writer.
+  // Read the log buffer. We should see all the packets.
   consumer_endpoint_->ReadBuffers();
 
   size_t num_test_pack_rx = 0;
@@ -559,7 +533,7 @@ TEST_F(TracingIntegrationTestWithSMBScrapingProducer, ScrapeOnFlush) {
               all_packets_rx();
           }));
   task_runner_->RunUntilCheckpoint("all_packets_rx");
-  ASSERT_EQ(2u, num_test_pack_rx);
+  ASSERT_EQ(3u, num_test_pack_rx);
 
   // Disable tracing.
   consumer_endpoint_->DisableTracing();

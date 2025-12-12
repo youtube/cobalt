@@ -11,24 +11,25 @@
 #ifndef MODULES_RTP_RTCP_SOURCE_RTP_PACKET_HISTORY_H_
 #define MODULES_RTP_RTCP_SOURCE_RTP_PACKET_HISTORY_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <deque>
-#include <map>
 #include <memory>
-#include <set>
-#include <utility>
-#include <vector>
+#include <optional>
 
+#include "api/array_view.h"
+#include "api/environment/environment.h"
 #include "api/function_view.h"
 #include "api/units/time_delta.h"
 #include "api/units/timestamp.h"
 #include "modules/rtp_rtcp/include/rtp_rtcp_defines.h"
+#include "modules/rtp_rtcp/source/rtp_packet_to_send.h"
 #include "rtc_base/synchronization/mutex.h"
 #include "rtc_base/thread_annotations.h"
 
 namespace webrtc {
 
 class Clock;
-class RtpPacketToSend;
 
 class RtpPacketHistory {
  public:
@@ -36,6 +37,13 @@ class RtpPacketHistory {
     kDisabled,     // Don't store any packets.
     kStoreAndCull  // Store up to `number_to_store` packets, but try to remove
                    // packets as they time out or as signaled as received.
+  };
+
+  enum class PaddingMode {
+    kDefault,  // Last packet stored in the history that has not yet been
+               // culled.
+    kRecentLargePacket  // Use the most recent large packet. Packet is kept for
+                        // padding even after it has been culled from history.
   };
 
   // Maximum number of packets we ever allow in the history.
@@ -48,7 +56,7 @@ class RtpPacketHistory {
   // With kStoreAndCull, always remove packets after 3x max(1000ms, 3x rtt).
   static constexpr int kPacketCullingDelayFactor = 3;
 
-  RtpPacketHistory(Clock* clock, bool enable_padding_prio);
+  RtpPacketHistory(const Environment& env, PaddingMode padding_mode);
 
   RtpPacketHistory() = delete;
   RtpPacketHistory(const RtpPacketHistory&) = delete;
@@ -82,8 +90,8 @@ class RtpPacketHistory {
   // packet will not be marked as pending.
   std::unique_ptr<RtpPacketToSend> GetPacketAndMarkAsPending(
       uint16_t sequence_number,
-      rtc::FunctionView<std::unique_ptr<RtpPacketToSend>(
-          const RtpPacketToSend&)> encapsulate);
+      FunctionView<std::unique_ptr<RtpPacketToSend>(const RtpPacketToSend&)>
+          encapsulate);
 
   // Updates the send time for the given packet and increments the transmission
   // counter. Marks the packet as no longer being in the pacer queue.
@@ -104,21 +112,17 @@ class RtpPacketHistory {
   // container, or to abort getting the packet if the function returns
   // nullptr.
   std::unique_ptr<RtpPacketToSend> GetPayloadPaddingPacket(
-      rtc::FunctionView<std::unique_ptr<RtpPacketToSend>(
-          const RtpPacketToSend&)> encapsulate);
+      FunctionView<std::unique_ptr<RtpPacketToSend>(const RtpPacketToSend&)>
+          encapsulate);
 
   // Cull packets that have been acknowledged as received by the remote end.
-  void CullAcknowledgedPackets(rtc::ArrayView<const uint16_t> sequence_numbers);
+  void CullAcknowledgedPackets(ArrayView<const uint16_t> sequence_numbers);
 
   // Remove all pending packets from the history, but keep storage mode and
   // capacity.
   void Clear();
 
  private:
-  struct MoreUseful;
-  class StoredPacket;
-  using PacketPrioritySet = std::set<StoredPacket*, MoreUseful>;
-
   class StoredPacket {
    public:
     StoredPacket() = default;
@@ -131,7 +135,7 @@ class RtpPacketHistory {
 
     uint64_t insert_order() const { return insert_order_; }
     size_t times_retransmitted() const { return times_retransmitted_; }
-    void IncrementTimesRetransmitted(PacketPrioritySet* priority_set);
+    void IncrementTimesRetransmitted();
 
     // The time of last transmission, including retransmissions.
     Timestamp send_time() const { return send_time_; }
@@ -153,9 +157,6 @@ class RtpPacketHistory {
     // Number of times RE-transmitted, ie excluding the first transmission.
     size_t times_retransmitted_;
   };
-  struct MoreUseful {
-    bool operator()(StoredPacket* lhs, StoredPacket* rhs) const;
-  };
 
   // Helper method to check if packet has too recently been sent.
   bool VerifyRtt(const StoredPacket& packet) const
@@ -172,7 +173,7 @@ class RtpPacketHistory {
       RTC_EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   Clock* const clock_;
-  const bool enable_padding_prio_;
+  const PaddingMode padding_mode_;
   mutable Mutex lock_;
   size_t number_to_store_ RTC_GUARDED_BY(lock_);
   StorageMode mode_ RTC_GUARDED_BY(lock_);
@@ -188,9 +189,8 @@ class RtpPacketHistory {
 
   // Total number of packets with inserted.
   uint64_t packets_inserted_ RTC_GUARDED_BY(lock_);
-  // Objects from `packet_history_` ordered by "most likely to be useful", used
-  // in GetPayloadPaddingPacket().
-  PacketPrioritySet padding_priority_ RTC_GUARDED_BY(lock_);
+
+  std::optional<RtpPacketToSend> large_payload_packet_ RTC_GUARDED_BY(lock_);
 };
 }  // namespace webrtc
 #endif  // MODULES_RTP_RTCP_SOURCE_RTP_PACKET_HISTORY_H_

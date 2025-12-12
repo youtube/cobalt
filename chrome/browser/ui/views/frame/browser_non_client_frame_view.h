@@ -13,7 +13,6 @@
 #include "ui/views/window/non_client_view.h"
 
 class BrowserView;
-class TabSearchBubbleHost;
 
 // Type used for functions whose return values depend on the active state of
 // the frame.
@@ -27,8 +26,9 @@ enum class BrowserFrameActiveState {
 // Browser-specific methods.
 class BrowserNonClientFrameView : public views::NonClientFrameView,
                                   public ProfileAttributesStorage::Observer {
+  METADATA_HEADER(BrowserNonClientFrameView, views::NonClientFrameView)
+
  public:
-  METADATA_HEADER(BrowserNonClientFrameView);
   // The minimum total height users should have to use as a drag handle to move
   // the window with.
   static constexpr int kMinimumDragHeight = 8;
@@ -78,9 +78,6 @@ class BrowserNonClientFrameView : public views::NonClientFrameView,
   // regardless of its current state.
   virtual int GetTopInset(bool restored) const = 0;
 
-  // Returns the amount that the theme background should be inset.
-  virtual int GetThemeBackgroundXInset() const = 0;
-
   // Updates the top UI state to be hidden or shown in fullscreen according to
   // the preference's state. Currently only used on Mac.
   virtual void UpdateFullscreenTopUI();
@@ -119,7 +116,7 @@ class BrowserNonClientFrameView : public views::NonClientFrameView,
 
   // For non-transparent windows, returns the background tab image resource ID
   // if the image has been customized, directly or indirectly, by the theme.
-  absl::optional<int> GetCustomBackgroundId(
+  std::optional<int> GetCustomBackgroundId(
       BrowserFrameActiveState active_state) const;
 
   // Updates the throbber.
@@ -136,14 +133,10 @@ class BrowserNonClientFrameView : public views::NonClientFrameView,
   using views::NonClientFrameView::ShouldPaintAsActive;
   void VisibilityChanged(views::View* starting_from, bool is_visible) override;
 
-  // Gets the TabSearchBubbleHost if present in the NonClientFrameView. Can
-  // return null.
-  virtual TabSearchBubbleHost* GetTabSearchBubbleHost();
-
   // Returns the insets from the edge of the native window to the client view in
   // DIPs. The value is left-to-right even on RTL locales. That is,
   // insets.left() will be on the left in screen coordinates.
-  virtual gfx::Insets MirroredFrameBorderInsets() const;
+  virtual gfx::Insets RestoredMirroredFrameBorderInsets() const;
 
   // Returns the insets from the client view to the input region. The returned
   // insets will be negative, such that view_rect.Inset(GetInputInsets()) will
@@ -164,6 +157,9 @@ class BrowserNonClientFrameView : public views::NonClientFrameView,
   // Used by TabContainerOverlayView to paint tab strip background.
   virtual void PaintThemedFrame(gfx::Canvas* canvas) {}
 #endif
+
+  // Sets the bounds of `frame_`.
+  virtual void SetFrameBounds(const gfx::Rect& bounds);
 
  protected:
   // Called when |frame_|'s "paint as active" state has changed.

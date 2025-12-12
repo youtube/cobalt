@@ -47,7 +47,6 @@ class PLATFORM_EXPORT CachingWordShapeIterator final {
         text_run_(run),
         font_(font),
         spacing_(run),
-        width_so_far_(0),
         start_index_(0) {
     DCHECK(font);
 
@@ -56,67 +55,77 @@ class PLATFORM_EXPORT CachingWordShapeIterator final {
     // fall back on shaping the entire run.
     shape_by_word_ = font_->CanShapeWordByWord();
 
-    // SVG sets SpacingDisabled because it handles spacing by themselves.
-    if (!run.SpacingDisabled())
-      spacing_.SetSpacingAndExpansion(font->GetFontDescription());
+    spacing_.SetSpacingAndExpansion(font->GetFontDescription());
   }
   CachingWordShapeIterator(const CachingWordShapeIterator&) = delete;
   CachingWordShapeIterator& operator=(const CachingWordShapeIterator&) = delete;
 
-  bool Next(scoped_refptr<const ShapeResult>* word_result) {
-    if (UNLIKELY(text_run_.AllowTabs()))
-      return NextForAllowTabs(word_result);
-
+  bool Next(const ShapeResult** word_result) {
     if (!shape_by_word_) {
       if (start_index_)
         return false;
       *word_result = ShapeWord(text_run_, font_);
       start_index_ = 1;
-      return word_result->get();
+      return *word_result;
     }
 
     return NextWord(word_result);
   }
 
  private:
-  scoped_refptr<const ShapeResult>
-  ShapeWordWithoutSpacing(const TextRun&, const Font*);
+  const ShapeResult* ShapeWordWithoutSpacing(const TextRun&, const Font*);
 
-  scoped_refptr<const ShapeResult> ShapeWord(const TextRun&,
-                                             const Font*);
+  const ShapeResult* ShapeWord(const TextRun&, const Font*);
 
-  bool NextWord(scoped_refptr<const ShapeResult>* word_result) {
-    return ShapeToEndIndex(word_result, NextWordEndIndex());
+  bool NextWord(const ShapeResult** word_result) {
+    return ShapeToEndIndex(
+        word_result,
+        NextWordEndIndex<false>(text_run_.ToStringView(), start_index_));
   }
 
+  template <bool split_by_zws>
   static bool IsWordDelimiter(UChar ch) {
-    return ch == kSpaceCharacter || ch == kTabulationCharacter;
+    // As of 2025 March, Google Docs always wraps text with BiDi control
+    // characters, and they are replaced with ZWS for HarfBuzzShaper.
+    // Assuming ZWS as a word delimiter improves hit rate of a shape cache.
+    return ch == kSpaceCharacter || ch == kTabulationCharacter ||
+           (split_by_zws && ch == kZeroWidthSpaceCharacter);
   }
 
-  unsigned NextWordEndIndex() const {
-    const unsigned length = text_run_.length();
-    if (start_index_ >= length)
+  // TODO(crbug.com/389726691): Move NextWordEndIndex() to a new file because
+  // CachingWordShapeIterator will be removed.
+  friend class PlainTextNode;
+  template <bool split_by_zws>
+  static unsigned NextWordEndIndex(StringView text, unsigned start_index) {
+    const unsigned length = text.length();
+    if (start_index >= length) {
       return 0;
+    }
 
-    if (start_index_ + 1u == length || IsWordDelimiter(text_run_[start_index_]))
-      return start_index_ + 1;
+    if (start_index + 1u == length ||
+        IsWordDelimiter<split_by_zws>(text[start_index])) {
+      return start_index + 1;
+    }
 
-    // 8Bit words end at isWordDelimiter().
-    if (text_run_.Is8Bit()) {
-      for (unsigned i = start_index_ + 1;; i++) {
-        if (i == length || IsWordDelimiter(text_run_[i]))
+    // 8Bit words end at IsWordDelimiter().
+    if (text.Is8Bit()) {
+      for (unsigned i = start_index + 1;; ++i) {
+        if (i == length || IsWordDelimiter<false>(text[i])) {
           return i;
+        }
       }
     }
 
-    // Non-CJK/Emoji words end at isWordDelimiter() or CJK/Emoji characters.
-    unsigned end = start_index_;
-    UChar32 ch = text_run_.CodepointAtAndNext(end);
+    // Non-CJK/Emoji words end at IsWordDelimiter() or CJK/Emoji characters.
+    unsigned end = start_index;
+    UChar32 ch = text.CodePointAtAndNext(end);
     if (!Character::IsCJKIdeographOrSymbol(ch)) {
       for (unsigned next_end = end; end < length; end = next_end) {
-        ch = text_run_.CodepointAtAndNext(next_end);
-        if (IsWordDelimiter(ch) || Character::IsCJKIdeographOrSymbolBase(ch))
+        ch = text.CodePointAtAndNext(next_end);
+        if (IsWordDelimiter<split_by_zws>(ch) ||
+            Character::IsCJKIdeographOrSymbolBase(ch)) {
           return end;
+        }
       }
       return length;
     }
@@ -126,7 +135,7 @@ class PLATFORM_EXPORT CachingWordShapeIterator final {
     // worsen the cache efficiency.
     bool has_any_script = !Character::IsCommonOrInheritedScript(ch);
     for (unsigned next_end = end; end < length; end = next_end) {
-      ch = text_run_.CodepointAtAndNext(next_end);
+      ch = text.CodePointAtAndNext(next_end);
       // Modifier check in order not to split Emoji sequences.
       if (U_GET_GC_MASK(ch) & (U_GC_M_MASK | U_GC_LM_MASK | U_GC_SK_MASK) ||
           ch == kZeroWidthJoinerCharacter || Character::IsEmojiComponent(ch) ||
@@ -147,8 +156,7 @@ class PLATFORM_EXPORT CachingWordShapeIterator final {
     return length;
   }
 
-  bool ShapeToEndIndex(scoped_refptr<const ShapeResult>* result,
-                       unsigned end_index) {
+  bool ShapeToEndIndex(const ShapeResult** result, unsigned end_index) {
     if (!end_index || end_index <= start_index_)
       return false;
 
@@ -162,7 +170,7 @@ class PLATFORM_EXPORT CachingWordShapeIterator final {
       *result = ShapeWord(sub_run, font_);
     }
     start_index_ = end_index;
-    return result->get();
+    return result;
   }
 
   unsigned EndIndexUntil(UChar ch) const {
@@ -174,37 +182,10 @@ class PLATFORM_EXPORT CachingWordShapeIterator final {
     }
   }
 
-  bool NextForAllowTabs(scoped_refptr<const ShapeResult>* word_result) {
-    unsigned length = text_run_.length();
-    if (start_index_ >= length)
-      return false;
-
-    if (UNLIKELY(text_run_[start_index_] == kTabulationCharacter)) {
-      for (unsigned i = start_index_ + 1;; i++) {
-        if (i == length || text_run_[i] != kTabulationCharacter) {
-          *word_result = ShapeResult::CreateForTabulationCharacters(
-              font_, text_run_, width_so_far_, i - start_index_);
-          start_index_ = i;
-          break;
-        }
-      }
-    } else if (!shape_by_word_) {
-      if (!ShapeToEndIndex(word_result, EndIndexUntil(kTabulationCharacter)))
-        return false;
-    } else {
-      if (!NextWord(word_result))
-        return false;
-    }
-    DCHECK(*word_result);
-    width_so_far_ += (*word_result)->Width();
-    return true;
-  }
-
   ShapeCache* shape_cache_;
   const TextRun& text_run_;
   const Font* font_;
   ShapeResultSpacing<TextRun> spacing_;
-  float width_so_far_;  // Used only when allowTabs()
   unsigned start_index_ : 31;
   unsigned shape_by_word_ : 1;
 };

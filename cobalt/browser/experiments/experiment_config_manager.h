@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 #define COBALT_BROWSER_EXPERIMENTS_EXPERIMENT_CONFIG_MANAGER_H_
 
+#include "base/gtest_prod_util.h"
 #include "base/memory/raw_ptr.h"
 #include "components/prefs/pref_service.h"
 
@@ -29,15 +30,12 @@ enum class ExperimentConfigType {
 // This class manages the content of the experiment config stored on disk.
 class ExperimentConfigManager {
  public:
-  explicit ExperimentConfigManager(PrefService* experiment_config)
-      : experiment_config_(experiment_config) {}
-  ~ExperimentConfigManager() = default;
-
-  // Return an ExperimentConfigType that's used by the current run of Cobalt.
-  // This should only be called before the safe config has been stored.
-  // `StoreSafeConfig()` calls this method internally, but subsequent calls from
-  // other places are disallowed via a DCHECK.
+  explicit ExperimentConfigManager(PrefService* experiment_config,
+                                   PrefService* metrics_local_state);
+  // Returns the experiment config type based on the number of crashes and
+  // whether the config has expired.
   ExperimentConfigType GetExperimentConfigType();
+
   // If regular config is used in the current run, save the active config as
   // safe config.
   // This should only be called before any modification to
@@ -51,16 +49,18 @@ class ExperimentConfigManager {
 
  private:
   bool called_store_safe_config_ = false;
-  // The pref service used to persist the experiment config. Weak reference;
-  // Must outlive |this| instance.
-  raw_ptr<PrefService> experiment_config_;
+
+  // PrefService for experiment config.
+  const raw_ptr<PrefService> experiment_config_;
+  // PrefService for metrics local state.
+  const raw_ptr<PrefService> metrics_local_state_;
 
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
-                           TestStoreSafeConfigWithRegularConfig);
+                           StoreSafeConfigWithRegularConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
-                           TestStoreSafeConfigWithSafeConfig);
+                           StoreSafeConfigWithSafeConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
-                           TestStoreSafeConfigWithEmptyConfig);
+                           StoreSafeConfigWithEmptyConfig);
 };
 
 }  // namespace cobalt

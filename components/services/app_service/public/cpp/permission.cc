@@ -5,10 +5,21 @@
 #include "components/services/app_service/public/cpp/permission.h"
 
 #include <sstream>
+#include <variant>
 
-#include "third_party/abseil-cpp/absl/types/variant.h"
+#include "base/containers/to_value_list.h"
+#include "base/strings/to_string.h"
 
 namespace apps {
+
+namespace {
+
+const char kPermissionTypeKey[] = "permission_type";
+const char kValueKey[] = "value";
+const char kIsManagedKey[] = "is_managed";
+const char kDetailsKey[] = "details";
+
+}  // namespace
 
 APP_ENUM_TO_STRING(PermissionType,
                    kUnknown,
@@ -22,91 +33,45 @@ APP_ENUM_TO_STRING(PermissionType,
                    kFileHandling)
 APP_ENUM_TO_STRING(TriState, kAllow, kBlock, kAsk)
 
-PermissionValue::PermissionValue(bool bool_value) : value(bool_value) {}
-
-PermissionValue::PermissionValue(TriState tristate_value)
-    : value(tristate_value) {}
-
-PermissionValue::~PermissionValue() = default;
-
-bool PermissionValue::operator==(const PermissionValue& other) const {
-  if (absl::holds_alternative<bool>(value) &&
-      absl::holds_alternative<bool>(other.value)) {
-    return absl::get<bool>(value) == absl::get<bool>(other.value);
-  }
-  if (absl::holds_alternative<TriState>(value) &&
-      absl::holds_alternative<TriState>(other.value)) {
-    return absl::get<TriState>(value) == absl::get<TriState>(other.value);
-  }
-  return false;
-}
-
-std::unique_ptr<PermissionValue> PermissionValue::Clone() const {
-  if (absl::holds_alternative<bool>(value)) {
-    return std::make_unique<PermissionValue>(absl::get<bool>(value));
-  }
-  if (absl::holds_alternative<TriState>(value)) {
-    return std::make_unique<PermissionValue>(absl::get<TriState>(value));
-  }
-  return nullptr;
-}
-
-bool PermissionValue::IsPermissionEnabled() const {
-  if (absl::holds_alternative<bool>(value)) {
-    return absl::get<bool>(value);
-  }
-  if (absl::holds_alternative<TriState>(value)) {
-    return absl::get<TriState>(value) == TriState::kAllow;
-  }
-  return false;
-}
-
 Permission::Permission(PermissionType permission_type,
-                       PermissionValuePtr value,
-                       bool is_managed)
+                       PermissionValue value,
+                       bool is_managed,
+                       std::optional<std::string> details)
     : permission_type(permission_type),
       value(std::move(value)),
-      is_managed(is_managed) {}
+      is_managed(is_managed),
+      details(std::move(details)) {}
 
 Permission::~Permission() = default;
 
-bool Permission::operator==(const Permission& other) const {
-  return permission_type == other.permission_type &&
-         ((!value && !other.value) || (*value == *other.value)) &&
-         is_managed == other.is_managed;
-}
-
-bool Permission::operator!=(const Permission& other) const {
-  return !(*this == other);
-}
-
 PermissionPtr Permission::Clone() const {
-  if (!value) {
-    return nullptr;
-  }
-
-  return std::make_unique<Permission>(permission_type, value->Clone(),
-                                      is_managed);
+  return std::make_unique<Permission>(permission_type, value, is_managed,
+                                      details);
 }
 
 bool Permission::IsPermissionEnabled() const {
-  return value && value->IsPermissionEnabled();
+  if (std::holds_alternative<bool>(value)) {
+    return std::get<bool>(value);
+  }
+  if (std::holds_alternative<TriState>(value)) {
+    return std::get<TriState>(value) == TriState::kAllow;
+  }
+  return false;
 }
 
 std::string Permission::ToString() const {
   std::stringstream out;
-  out << " permission type: " << EnumToString(permission_type);
-  out << " value: " << std::endl;
-  if (value) {
-    if (absl::holds_alternative<bool>(value->value)) {
-      out << " bool_value: "
-          << (absl::get<bool>(value->value) ? "true" : "false");
-    } else if (absl::holds_alternative<TriState>(value->value)) {
-      out << " tristate_value: "
-          << EnumToString(absl::get<TriState>(value->value));
-    }
+  out << " permission type: " << EnumToString(permission_type) << std::endl;
+  if (std::holds_alternative<bool>(value)) {
+    out << " bool_value: " << base::ToString(std::get<bool>(value));
+  } else if (std::holds_alternative<TriState>(value)) {
+    out << " tristate_value: " << EnumToString(std::get<TriState>(value));
   }
-  out << " is_managed: " << (is_managed ? "true" : "false") << std::endl;
+  out << std::endl;
+  if (details.has_value()) {
+    out << " details: " << details.value() << std::endl;
+  }
+  out << " is_managed: " << base::ToString(is_managed) << std::endl;
   return out.str();
 }
 
@@ -129,6 +94,88 @@ bool IsEqual(const Permissions& source, const Permissions& target) {
     }
   }
   return true;
+}
+
+base::Value::Dict ConvertPermissionToDict(const PermissionPtr& permission) {
+  base::Value::Dict dict;
+
+  if (!permission) {
+    return dict;
+  }
+
+  dict.Set(kPermissionTypeKey, static_cast<int>(permission->permission_type));
+
+  if (std::holds_alternative<bool>(permission->value)) {
+    dict.Set(kValueKey, std::get<bool>(permission->value));
+  } else if (std::holds_alternative<TriState>(permission->value)) {
+    dict.Set(kValueKey,
+             static_cast<int>(std::get<TriState>(permission->value)));
+  }
+
+  dict.Set(kIsManagedKey, permission->is_managed);
+
+  if (permission->details.has_value()) {
+    dict.Set(kDetailsKey, permission->details.value());
+  }
+
+  return dict;
+}
+
+PermissionPtr ConvertDictToPermission(const base::Value::Dict& dict) {
+  std::optional<int> permission_type = dict.FindInt(kPermissionTypeKey);
+  if (!permission_type.has_value() ||
+      permission_type.value() < static_cast<int>(PermissionType::kUnknown) ||
+      permission_type.value() > static_cast<int>(PermissionType::kMaxValue)) {
+    return nullptr;
+  }
+
+  Permission::PermissionValue permission_value;
+  std::optional<bool> value = dict.FindBool(kValueKey);
+  if (value.has_value()) {
+    permission_value = value.value();
+  } else {
+    std::optional<int> tri_state = dict.FindInt(kValueKey);
+    if (tri_state.has_value() &&
+        tri_state.value() >= static_cast<int>(TriState::kAllow) &&
+        tri_state.value() <= static_cast<int>(TriState::kMaxValue)) {
+      permission_value = static_cast<TriState>(tri_state.value());
+    } else {
+      return nullptr;
+    }
+  }
+
+  std::optional<bool> is_managed = dict.FindBool(kIsManagedKey);
+  if (!is_managed.has_value()) {
+    return nullptr;
+  }
+
+  const std::string* details = dict.FindString(kDetailsKey);
+
+  return std::make_unique<Permission>(
+      static_cast<PermissionType>(permission_type.value()), permission_value,
+      is_managed.value(),
+      details ? std::optional<std::string>(*details) : std::nullopt);
+}
+
+base::Value::List ConvertPermissionsToList(const Permissions& permissions) {
+  return base::ToValueList(permissions, &ConvertPermissionToDict);
+}
+
+Permissions ConvertListToPermissions(const base::Value::List* list) {
+  Permissions permissions;
+
+  if (!list) {
+    return permissions;
+  }
+
+  for (const base::Value& permission : *list) {
+    PermissionPtr parsed_permission =
+        ConvertDictToPermission(permission.GetDict());
+    if (parsed_permission) {
+      permissions.push_back(std::move(parsed_permission));
+    }
+  }
+  return permissions;
 }
 
 }  // namespace apps

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/browser/ash/file_system_provider/operations/write_file.h"
 
 #include <utility>
@@ -12,9 +17,7 @@
 #include "chrome/common/extensions/api/file_system_provider.h"
 #include "chrome/common/extensions/api/file_system_provider_internal.h"
 
-namespace ash {
-namespace file_system_provider {
-namespace operations {
+namespace ash::file_system_provider::operations {
 
 WriteFile::WriteFile(RequestDispatcher* dispatcher,
                      const ProvidedFileSystemInfo& file_system_info,
@@ -30,8 +33,7 @@ WriteFile::WriteFile(RequestDispatcher* dispatcher,
       length_(length),
       callback_(std::move(callback)) {}
 
-WriteFile::~WriteFile() {
-}
+WriteFile::~WriteFile() = default;
 
 bool WriteFile::Execute(int request_id) {
   TRACE_EVENT0("file_system_provider", "WriteFile::Execute");
@@ -53,7 +55,7 @@ bool WriteFile::Execute(int request_id) {
   base::Value::Dict options_as_value = options.ToValue();
   options_as_value.Set(
       "data",
-      base::Value(base::as_bytes(base::make_span(buffer_->data(), length_))));
+      base::Value(base::as_bytes(base::span(buffer_->data(), length_))));
 
   base::Value::List event_args;
   event_args.Append(std::move(options_as_value));
@@ -65,22 +67,20 @@ bool WriteFile::Execute(int request_id) {
       std::move(event_args));
 }
 
-void WriteFile::OnSuccess(int /* request_id */,
-                          const RequestValue& /* result */,
-                          bool /* has_more */) {
+void WriteFile::OnSuccess(/*request_id=*/int,
+                          /*result=*/const RequestValue&,
+                          /*has_more=*/bool) {
   TRACE_EVENT0("file_system_provider", "WriteFile::OnSuccess");
   DCHECK(callback_);
   std::move(callback_).Run(base::File::FILE_OK);
 }
 
-void WriteFile::OnError(int /* request_id */,
-                        const RequestValue& /* result */,
+void WriteFile::OnError(/*request_id=*/int,
+                        /*result=*/const RequestValue&,
                         base::File::Error error) {
   TRACE_EVENT0("file_system_provider", "WriteFile::OnError");
   DCHECK(callback_);
   std::move(callback_).Run(error);
 }
 
-}  // namespace operations
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider::operations

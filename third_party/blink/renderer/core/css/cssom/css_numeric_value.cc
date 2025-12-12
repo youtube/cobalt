@@ -4,9 +4,9 @@
 
 #include "third_party/blink/renderer/core/css/cssom/css_numeric_value.h"
 
+#include <algorithm>
 #include <numeric>
 
-#include "base/ranges/algorithm.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_css_numeric_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_cssnumericvalue_double.h"
 #include "third_party/blink/renderer/core/css/css_math_expression_node.h"
@@ -25,6 +25,7 @@
 #include "third_party/blink/renderer/core/css/parser/css_tokenizer.h"
 #include "third_party/blink/renderer/core/css_value_keywords.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/wtf/text/strcat.h"
 
 namespace blink {
 
@@ -101,7 +102,6 @@ CSSMathOperator CanonicalOperator(CSSMathOperator op) {
       return CSSMathOperator::kMultiply;
     default:
       NOTREACHED();
-      return CSSMathOperator::kInvalid;
   }
 }
 
@@ -283,39 +283,34 @@ CSSNumericValue* CSSNumericValue::parse(
     const ExecutionContext* execution_context,
     const String& css_text,
     ExceptionState& exception_state) {
-  CSSTokenizer tokenizer(css_text);
-  CSSParserTokenStream stream(tokenizer);
+  CSSParserTokenStream stream(css_text);
   stream.ConsumeWhitespace();
-  auto range = stream.ConsumeUntilPeekedTypeIs<>();
-  stream.ConsumeWhitespace();
-  if (!stream.AtEnd()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kSyntaxError,
-                                      "Invalid math expression");
-    return nullptr;
-  }
 
-  switch (range.Peek().GetType()) {
+  switch (stream.Peek().GetType()) {
     case kNumberToken:
     case kPercentageToken:
     case kDimensionToken: {
-      const auto token = range.ConsumeIncludingWhitespace();
-      if (!range.AtEnd() || !IsValidUnit(token.GetUnitType())) {
+      const auto token = stream.ConsumeIncludingWhitespace();
+      if (!stream.AtEnd() || !IsValidUnit(token.GetUnitType())) {
         break;
       }
       return CSSUnitValue::Create(token.NumericValue(), token.GetUnitType());
     }
     case kFunctionToken:
-      if (range.Peek().FunctionId() == CSSValueID::kCalc ||
-          range.Peek().FunctionId() == CSSValueID::kWebkitCalc ||
-          range.Peek().FunctionId() == CSSValueID::kMin ||
-          range.Peek().FunctionId() == CSSValueID::kMax ||
-          range.Peek().FunctionId() == CSSValueID::kClamp) {
+      if (stream.Peek().FunctionId() == CSSValueID::kCalc ||
+          stream.Peek().FunctionId() == CSSValueID::kWebkitCalc ||
+          stream.Peek().FunctionId() == CSSValueID::kMin ||
+          stream.Peek().FunctionId() == CSSValueID::kMax ||
+          stream.Peek().FunctionId() == CSSValueID::kClamp) {
+        using enum CSSMathExpressionNode::Flag;
+        using Flags = CSSMathExpressionNode::Flags;
+
         // TODO(crbug.com/1309178): Decide how to handle anchor queries here.
         CSSMathExpressionNode* expression =
             CSSMathExpressionNode::ParseMathFunction(
-                CSSValueID::kCalc, range,
+                CSSValueID::kCalc, stream,
                 *MakeGarbageCollected<CSSParserContext>(*execution_context),
-                kCSSAnchorQueryTypesNone);
+                Flags({AllowPercent}), kCSSAnchorQueryTypesNone);
         if (expression) {
           return CalcToNumericValue(*expression);
         }
@@ -333,8 +328,22 @@ CSSNumericValue* CSSNumericValue::parse(
 // static
 CSSNumericValue* CSSNumericValue::FromCSSValue(const CSSPrimitiveValue& value) {
   if (value.IsCalculated()) {
-    return CalcToNumericValue(
-        *To<CSSMathFunctionValue>(value).ExpressionNode());
+    const auto& math_function = To<CSSMathFunctionValue>(value);
+    // We don't currently have a spec or implementation for a typed OM
+    // representation of anchor functions or sizing keywords (in calc-size()).
+    // So we should not attempt to produce such a representation.  Do this
+    // exactly for anchor functions, but handle sizing keywords by rejecting
+    // any calc-size() function (even if it doesn't have sizing keywords),
+    // since the use of sizing keywords is the main use of such functions.
+    auto is_calc_size = [](const CSSMathExpressionNode* expression) {
+      const auto* operation = DynamicTo<CSSMathExpressionOperation>(expression);
+      return operation && operation->IsCalcSize();
+    };
+    const CSSMathExpressionNode* expression = math_function.ExpressionNode();
+    if (math_function.HasAnchorFunctions() || is_calc_size(expression)) {
+      return nullptr;
+    }
+    return CalcToNumericValue(*expression);
   }
   return CSSUnitValue::FromCSSValue(To<CSSNumericLiteralValue>(value));
 }
@@ -368,7 +377,8 @@ CSSUnitValue* CSSNumericValue::to(const String& unit_string,
 
   CSSUnitValue* result = to(target_unit);
   if (!result) {
-    exception_state.ThrowTypeError("Cannot convert to " + unit_string);
+    exception_state.ThrowTypeError(
+        WTF::StrCat({"Cannot convert to ", unit_string}));
     return nullptr;
   }
 
@@ -398,7 +408,7 @@ CSSMathSum* CSSNumericValue::toSum(const Vector<String>& unit_strings,
     }
   }
 
-  const absl::optional<CSSNumericSumValue> sum = SumValue();
+  const std::optional<CSSNumericSumValue> sum = SumValue();
   if (!sum.has_value()) {
     exception_state.ThrowTypeError("Invalid value for conversion");
     return nullptr;
@@ -450,7 +460,7 @@ CSSMathSum* CSSNumericValue::toSum(const Vector<String>& unit_strings,
     result.push_back(CSSUnitValue::Create(total_value, target_unit));
   }
 
-  if (base::ranges::any_of(values, [](const auto& v) { return v; })) {
+  if (std::ranges::any_of(values, [](const auto& v) { return v; })) {
     exception_state.ThrowTypeError(
         "There were leftover terms that were not converted");
     return nullptr;
@@ -508,7 +518,7 @@ CSSNumericValue* CSSNumericValue::sub(
     const HeapVector<Member<V8CSSNumberish>>& numberishes,
     ExceptionState& exception_state) {
   auto values = CSSNumberishesToNumericValues(numberishes);
-  base::ranges::transform(values, values.begin(), &CSSNumericValue::Negate);
+  std::ranges::transform(values, values.begin(), &CSSNumericValue::Negate);
   PrependValueForArithmetic<kSumType>(values, this);
 
   if (CSSUnitValue* unit_value =
@@ -580,7 +590,7 @@ CSSNumericValue* CSSNumericValue::max(
 bool CSSNumericValue::equals(
     const HeapVector<Member<V8CSSNumberish>>& numberishes) {
   CSSNumericValueVector values = CSSNumberishesToNumericValues(numberishes);
-  return base::ranges::all_of(
+  return std::ranges::all_of(
       values, [this](const auto& v) { return this->Equals(*v); });
 }
 

@@ -8,10 +8,11 @@
 #include <fidl/fuchsia.logger/cpp/fidl.h>
 #include <lib/sys/cpp/outgoing_directory.h>
 
-#include "base/fuchsia/scoped_service_publisher.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
 
-// Runs an isolated archivist-without-attribution, publishing its
+#include "base/fuchsia/scoped_service_publisher.h"
+
+// Runs an isolated archivist-for-embedding, publishing its
 // fuchsia_logger::LogSink into a given OutgoingDirectory, and providing access
 // to its fuchsia.logger.Log. Consumers of this class must use
 // `//build/config/fuchsia/test/archivist.shard.test-cml` in their component
@@ -26,7 +27,7 @@ class IsolatedArchivist {
   fidl::Client<fuchsia_logger::Log>& log() { return log_; }
 
  private:
-  absl::optional<base::ScopedNaturalServicePublisher<fuchsia_logger::LogSink>>
+  std::optional<base::ScopedNaturalServicePublisher<fuchsia_logger::LogSink>>
       log_sink_publisher_;
   fidl::Client<fuchsia_logger::Log> log_;
 };

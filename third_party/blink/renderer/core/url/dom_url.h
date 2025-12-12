@@ -56,7 +56,14 @@ class CORE_EXPORT DOMURL final : public ScriptWrappable, public DOMURLUtils {
                         ExceptionState& exception_state);
 
   DOMURL(PassKey, const String& url, const KURL& base, ExceptionState&);
+  DOMURL(PassKey, const KURL& url);
   ~DOMURL() override;
+
+  static DOMURL* parse(const String& url);
+  static DOMURL* parse(const String& url, const String& base);
+
+  static bool canParse(const String& url);
+  static bool canParse(const String& url, const String& base);
 
   static String CreatePublicURL(ExecutionContext*, URLRegistrable*);
 
@@ -66,7 +73,6 @@ class CORE_EXPORT DOMURL final : public ScriptWrappable, public DOMURLUtils {
   String Input() const override {
     // Url() can never be null, so Input() is never called.
     NOTREACHED();
-    return String();
   }
 
   void setHref(const String&, ExceptionState& exception_state);

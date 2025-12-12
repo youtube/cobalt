@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // Tests on exact results from cryptographic operations are based on test data
 // provided in [MS-NLMP] Version 28.0 [1] Section 4.2.
 //
@@ -13,10 +18,11 @@
 
 #include "net/ntlm/ntlm.h"
 
+#include <algorithm>
+#include <array>
 #include <iterator>
 #include <string>
 
-#include "base/ranges/algorithm.h"
 #include "base/strings/utf_string_conversions.h"
 #include "net/ntlm/ntlm_test_data.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -60,7 +66,7 @@ TEST(NtlmTest, MapHashToDesKeysAllOnes) {
   // is undefined, so clear it to do memcmp.
   ClearLsb(result);
 
-  EXPECT_TRUE(base::ranges::equal(expected, result));
+  EXPECT_TRUE(std::ranges::equal(expected, result));
 }
 
 TEST(NtlmTest, MapHashToDesKeysAllZeros) {
@@ -74,7 +80,7 @@ TEST(NtlmTest, MapHashToDesKeysAllZeros) {
   // is undefined, so clear it to do memcmp.
   ClearLsb(result);
 
-  EXPECT_TRUE(base::ranges::equal(expected, result));
+  EXPECT_TRUE(std::ranges::equal(expected, result));
 }
 
 TEST(NtlmTest, MapHashToDesKeysAlternatingBits) {
@@ -91,7 +97,7 @@ TEST(NtlmTest, MapHashToDesKeysAlternatingBits) {
   // is undefined, so clear it to do memcmp.
   ClearLsb(result);
 
-  EXPECT_TRUE(base::ranges::equal(expected, result));
+  EXPECT_TRUE(std::ranges::equal(expected, result));
 }
 
 TEST(NtlmTest, GenerateNtlmHashV1PasswordSpecTests) {
@@ -201,10 +207,8 @@ TEST(NtlmTest, GenerateNtlmHashV2SpecTests) {
 }
 
 TEST(NtlmTest, GenerateProofInputV2SpecTests) {
-  std::vector<uint8_t> proof_input;
-  proof_input =
+  std::array<uint8_t, kProofInputLenV2> proof_input =
       GenerateProofInputV2(test::kServerTimestamp, test::kClientChallenge);
-  ASSERT_EQ(kProofInputLenV2, proof_input.size());
 
   // |GenerateProofInputV2| generates the first |kProofInputLenV2| bytes of
   // what [MS-NLMP] calls "temp".
@@ -217,10 +221,10 @@ TEST(NtlmTest, GenerateNtlmProofV2SpecTests) {
   // are read and this is equivalent to the output of |GenerateProofInputV2|.
   // See |GenerateProofInputV2SpecTests| for validation.
   uint8_t v2_proof[kNtlmProofLenV2];
-  GenerateNtlmProofV2(test::kExpectedNtlmHashV2, test::kServerChallenge,
-                      base::make_span(test::kExpectedTempFromSpecV2)
-                          .subspan<0, kProofInputLenV2>(),
-                      test::kExpectedTargetInfoFromSpecV2, v2_proof);
+  GenerateNtlmProofV2(
+      test::kExpectedNtlmHashV2, test::kServerChallenge,
+      base::span(test::kExpectedTempFromSpecV2).first<kProofInputLenV2>(),
+      test::kExpectedTargetInfoFromSpecV2, v2_proof);
 
   ASSERT_EQ(0,
             memcmp(test::kExpectedProofFromSpecV2, v2_proof, kNtlmProofLenV2));
@@ -394,10 +398,10 @@ TEST(NtlmTest, GenerateUpdatedTargetInfoWhenServerSendsNoTargetInfo) {
 TEST(NtlmTest, GenerateNtlmProofV2) {
   uint8_t proof[kNtlmProofLenV2];
 
-  GenerateNtlmProofV2(test::kExpectedNtlmHashV2, test::kServerChallenge,
-                      base::make_span(test::kExpectedTempFromSpecV2)
-                          .subspan<0, kProofInputLenV2>(),
-                      test::kExpectedTargetInfoSpecResponseV2, proof);
+  GenerateNtlmProofV2(
+      test::kExpectedNtlmHashV2, test::kServerChallenge,
+      base::span(test::kExpectedTempFromSpecV2).first<kProofInputLenV2>(),
+      test::kExpectedTargetInfoSpecResponseV2, proof);
   ASSERT_EQ(0,
             memcmp(test::kExpectedProofSpecResponseV2, proof, kNtlmProofLenV2));
 }
@@ -409,8 +413,8 @@ TEST(NtlmTest, GenerateNtlmProofWithClientTimestampV2) {
   // timestamp, a separate proof test value must be validated for use in full
   // message validation.
   GenerateNtlmProofV2(test::kExpectedNtlmHashV2, test::kServerChallenge,
-                      base::make_span(test::kExpectedTempWithClientTimestampV2)
-                          .subspan<0, kProofInputLenV2>(),
+                      base::span(test::kExpectedTempWithClientTimestampV2)
+                          .first<kProofInputLenV2>(),
                       test::kExpectedTargetInfoSpecResponseV2, proof);
   ASSERT_EQ(0, memcmp(test::kExpectedProofSpecResponseWithClientTimestampV2,
                       proof, kNtlmProofLenV2));

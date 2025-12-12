@@ -4,7 +4,10 @@
 
 #include <cstddef>
 #include <sstream>
+
 #include "base/functional/callback_helpers.h"
+#include "base/strings/strcat.h"
+#include "build/buildflag.h"
 #include "components/feed/core/proto/v2/wire/reliability_logging_enums.pb.h"
 #include "components/feed/core/shared_prefs/pref_names.h"
 #include "components/feed/core/v2/api_test/feed_api_test.h"
@@ -15,6 +18,7 @@
 #include "components/feed/core/v2/public/feed_service.h"
 #include "components/feed/core/v2/public/stream_type.h"
 #include "components/feed/core/v2/test/callback_receiver.h"
+#include "components/feed/feed_feature_list.h"
 #include "net/http/http_status_code.h"
 
 namespace feed {
@@ -65,6 +69,21 @@ TEST_F(FeedApiReliabilityLoggingTest,
       surface.reliability_logging_bridge.GetEventsString());
 }
 
+#if BUILDFLAG(IS_ANDROID)
+TEST_F(FeedApiReliabilityLoggingTest, AttachSurface_DisabledByDse) {
+  profile_prefs_.SetBoolean(prefs::kEnableSnippetsByDse, false);
+  CreateStream(/*wait_for_initialization=*/true,
+               /*is_new_tab_search_engine_url_android_enabled*/ true);
+  TestForYouSurface surface(stream_.get());
+  EXPECT_EQ(
+      "LogFeedLaunchOtherStart\n"
+      "LogLaunchFinishedAfterStreamUpdate "
+      "result=INELIGIBLE_DISCOVER_DISABLED_BY_DSE\n"
+      "LogAboveTheFoldRender result=FULL_FEED_ERROR\n",
+      surface.reliability_logging_bridge.GetEventsString());
+}
+#endif  // BUILDFLAG(IS_ANDROID)
+
 TEST_F(FeedApiReliabilityLoggingTest, AttachSurface_ClearAllInProgress) {
   TestForYouSurface surface(stream_.get());
   stream_->OnCacheDataCleared();
@@ -87,7 +106,7 @@ TEST_F(FeedApiReliabilityLoggingTest, AttachSurface_ClearAllInProgress) {
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
       "LogLaunchFinishedAfterStreamUpdate "
@@ -118,7 +137,7 @@ TEST_F(FeedApiReliabilityLoggingTest, AttachSurface_DataInStoreForAnotherUser) {
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
       "LogLaunchFinishedAfterStreamUpdate "
@@ -142,7 +161,7 @@ TEST_F(FeedApiReliabilityLoggingTest, MultipleSurfaces_SimultaneousLoad) {
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
       "LogAboveTheFoldRender result=SUCCESS\n",
@@ -156,7 +175,7 @@ TEST_F(FeedApiReliabilityLoggingTest, MultipleSurfaces_SimultaneousLoad) {
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
       "LogAboveTheFoldRender result=SUCCESS\n",
@@ -182,7 +201,7 @@ TEST_F(FeedApiReliabilityLoggingTest,
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
       "LogAboveTheFoldRender result=SUCCESS\n",
@@ -196,27 +215,44 @@ TEST_F(FeedApiReliabilityLoggingTest,
 }
 
 TEST_F(FeedApiReliabilityLoggingTest, LoadStreamComplete_Success) {
-  response_translator_.InjectResponse(MakeTypicalInitialModelState());
+  base::Time request_recv_timestamp = base::Time::Now();
+  task_environment_.AdvanceClock(base::Seconds(100));
+  base::Time response_sent_timestamp = base::Time::Now();
+  RefreshResponseData response;
+  response.model_update_request = MakeTypicalInitialModelState();
+  response.server_request_received_timestamp = request_recv_timestamp;
+  response.server_response_sent_timestamp = response_sent_timestamp;
+  response.last_fetch_timestamp = base::Time::Now();
+  response_translator_.InjectResponse(std::move(response));
+
   TestForYouSurface surface(stream_.get());
   WaitForIdleTaskQueue();
 
-  EXPECT_EQ(
-      "LogFeedLaunchOtherStart\n"
-      "LogLoadingIndicatorShown\n"
+  EXPECT_EQ(base::StrCat({"LogFeedLaunchOtherStart\n"
+                          "LogLoadingIndicatorShown\n"
 
-      "LogCacheReadStart\n"
-      "LogCacheReadEnd result=EMPTY_SESSION\n"
+                          "LogCacheReadStart\n"
+                          "LogCacheReadEnd result=EMPTY_SESSION\n"
 
-      "LogFeedRequestStart id=1\n"
-      "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
-      "LogRequestFinished result=200 id=1\n"
+                          "LogFeedRequestStart id=1\n"
+                          "LogRequestSent id=1\n"
+                          "LogResponseReceived id=1 receive_timestamp=",
+                          base::NumberToString(feedstore::ToTimestampNanos(
+                              request_recv_timestamp)),
+                          " send_timestamp=",
+                          base::NumberToString(feedstore::ToTimestampNanos(
+                              response_sent_timestamp)),
+                          "\nLogRequestFinished result=200 id=1\n"
 
-      "LogAboveTheFoldRender result=SUCCESS\n",
-      surface.reliability_logging_bridge.GetEventsString());
+                          "LogAboveTheFoldRender result=SUCCESS\n"}),
+            surface.reliability_logging_bridge.GetEventsString());
 }
 
 TEST_F(FeedApiReliabilityLoggingTest, LoadStreamComplete_ZeroCards) {
+  // InjectRealFeedQueryResponse is only supported in old feed query request.
+  base::test::ScopedFeatureList features;
+  features.InitAndDisableFeature(kDiscoFeedEndpoint);
+
   network_.InjectRealFeedQueryResponseWithNoContent();
   TestForYouSurface surface(stream_.get());
   WaitForIdleTaskQueue();
@@ -230,10 +266,9 @@ TEST_F(FeedApiReliabilityLoggingTest, LoadStreamComplete_ZeroCards) {
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=123456000 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
-      "LogLoadingIndicatorShown\n"
       "LogLaunchFinishedAfterStreamUpdate "
       "result=NO_CARDS_RESPONSE_ERROR_ZERO_CARDS\n"
 
@@ -284,6 +319,78 @@ TEST_F(FeedApiReliabilityLoggingTest, LoadStreamComplete_NoResponseReceived) {
       surface.reliability_logging_bridge.GetEventsString());
 }
 
+TEST_F(FeedApiReliabilityLoggingTest, LoadStreamComplete_InternetDisconnected) {
+  network_.error = net::ERR_INTERNET_DISCONNECTED;
+  TestForYouSurface surface(stream_.get());
+  WaitForIdleTaskQueue();
+
+  EXPECT_EQ(
+      "LogFeedLaunchOtherStart\n"
+      "LogLoadingIndicatorShown\n"
+
+      "LogCacheReadStart\n"
+      "LogCacheReadEnd result=EMPTY_SESSION\n"
+
+      "LogFeedRequestStart id=1\n"
+      "LogRequestSent id=1\n"
+      // Should not call LogResponseReceived.
+      "LogRequestFinished result=-106 id=1\n"
+
+      "LogLaunchFinishedAfterStreamUpdate "
+      "result=NO_CARDS_REQUEST_ERROR_NO_INTERNET\n"
+
+      "LogAboveTheFoldRender result=FULL_FEED_ERROR\n",
+      surface.reliability_logging_bridge.GetEventsString());
+}
+
+TEST_F(FeedApiReliabilityLoggingTest, LoadStreamComplete_NameNotResolved) {
+  network_.error = net::ERR_NAME_NOT_RESOLVED;
+  TestForYouSurface surface(stream_.get());
+  WaitForIdleTaskQueue();
+
+  EXPECT_EQ(
+      "LogFeedLaunchOtherStart\n"
+      "LogLoadingIndicatorShown\n"
+
+      "LogCacheReadStart\n"
+      "LogCacheReadEnd result=EMPTY_SESSION\n"
+
+      "LogFeedRequestStart id=1\n"
+      "LogRequestSent id=1\n"
+      // Should not call LogResponseReceived.
+      "LogRequestFinished result=-105 id=1\n"
+
+      "LogLaunchFinishedAfterStreamUpdate "
+      "result=NO_CARDS_REQUEST_ERROR_NO_INTERNET\n"
+
+      "LogAboveTheFoldRender result=FULL_FEED_ERROR\n",
+      surface.reliability_logging_bridge.GetEventsString());
+}
+
+TEST_F(FeedApiReliabilityLoggingTest, LoadStreamComplete_AddressUnreachable) {
+  network_.error = net::ERR_ADDRESS_UNREACHABLE;
+  TestForYouSurface surface(stream_.get());
+  WaitForIdleTaskQueue();
+
+  EXPECT_EQ(
+      "LogFeedLaunchOtherStart\n"
+      "LogLoadingIndicatorShown\n"
+
+      "LogCacheReadStart\n"
+      "LogCacheReadEnd result=EMPTY_SESSION\n"
+
+      "LogFeedRequestStart id=1\n"
+      "LogRequestSent id=1\n"
+      // Should not call LogResponseReceived.
+      "LogRequestFinished result=-109 id=1\n"
+
+      "LogLaunchFinishedAfterStreamUpdate "
+      "result=NO_CARDS_REQUEST_ERROR_NO_INTERNET\n"
+
+      "LogAboveTheFoldRender result=FULL_FEED_ERROR\n",
+      surface.reliability_logging_bridge.GetEventsString());
+}
+
 TEST_F(FeedApiReliabilityLoggingTest,
        LoadStreamComplete_ResponseReceivedWithHttpError) {
   network_.http_status_code = net::HttpStatusCode::HTTP_FORBIDDEN;
@@ -299,7 +406,7 @@ TEST_F(FeedApiReliabilityLoggingTest,
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=403 id=1\n"
 
       "LogLaunchFinishedAfterStreamUpdate "
@@ -335,7 +442,7 @@ TEST_F(FeedApiReliabilityLoggingTest, CacheRead_Stale) {
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
       "LogAboveTheFoldRender result=SUCCESS\n",
@@ -369,7 +476,7 @@ TEST_F(FeedApiReliabilityLoggingTest, CacheRead_StaleWithNetworkError) {
 
       "LogFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=403 id=1\n"
 
       "LogAboveTheFoldRender result=SUCCESS\n",
@@ -411,12 +518,12 @@ TEST_F(FeedApiReliabilityLoggingTest, UploadActions) {
 
       "LogActionsUploadRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
 
       "LogFeedRequestStart id=2\n"
       "LogRequestSent id=2\n"
-      "LogResponseReceived id=2\n"
+      "LogResponseReceived id=2 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=2\n"
 
       "LogAboveTheFoldRender result=SUCCESS\n",
@@ -468,7 +575,7 @@ TEST_F(FeedApiReliabilityLoggingTest, WebFeedLoad) {
       "LogCacheReadEnd result=EMPTY_SESSION\n"
       "LogWebFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
       "LogAboveTheFoldRender result=SUCCESS\n",
       surface.reliability_logging_bridge.GetEventsString());
@@ -485,10 +592,80 @@ TEST_F(FeedApiReliabilityLoggingTest, SingleWebFeedLoad) {
       "LogCacheReadEnd result=EMPTY_SESSION\n"
       "LogSingleWebFeedRequestStart id=1\n"
       "LogRequestSent id=1\n"
-      "LogResponseReceived id=1\n"
+      "LogResponseReceived id=1 receive_timestamp=0 send_timestamp=0\n"
       "LogRequestFinished result=200 id=1\n"
       "LogAboveTheFoldRender result=SUCCESS\n",
       surface.reliability_logging_bridge.GetEventsString());
+}
+
+TEST_F(FeedApiReliabilityLoggingTest, LoadMoreSucceeds) {
+  response_translator_.InjectResponse(MakeTypicalInitialModelState());
+  TestForYouSurface surface(stream_.get());
+  WaitForIdleTaskQueue();
+  surface.reliability_logging_bridge.ClearEventsString();
+
+  base::Time request_recv_timestamp = base::Time::Now();
+  task_environment_.AdvanceClock(base::Seconds(100));
+  base::Time response_sent_timestamp = base::Time::Now();
+  RefreshResponseData response;
+  response.model_update_request = MakeTypicalNextPageState();
+  response.server_request_received_timestamp = request_recv_timestamp;
+  response.server_response_sent_timestamp = response_sent_timestamp;
+  response.last_fetch_timestamp = base::Time::Now();
+  response_translator_.InjectResponse(std::move(response));
+
+  stream_->LoadMore(surface.GetSurfaceId(), base::DoNothing());
+  WaitForIdleTaskQueue();
+
+  EXPECT_EQ(base::StrCat({"LogLoadMoreStarted\n"
+                          "LogLoadMoreRequestSent\n"
+                          "LogLoadMoreResponseReceived "
+                          "receive_timestamp=",
+                          base::NumberToString(feedstore::ToTimestampNanos(
+                              request_recv_timestamp)),
+                          " send_timestamp=",
+                          base::NumberToString(feedstore::ToTimestampNanos(
+                              response_sent_timestamp)),
+                          "\nLogLoadMoreRequestFinished result=200\n"
+                          "LogLoadMoreEnded success=true\n"}),
+            surface.reliability_logging_bridge.GetEventsString());
+}
+
+TEST_F(FeedApiReliabilityLoggingTest, LoadMoreFails) {
+  response_translator_.InjectResponse(MakeTypicalInitialModelState());
+  TestForYouSurface surface(stream_.get());
+  WaitForIdleTaskQueue();
+  surface.reliability_logging_bridge.ClearEventsString();
+
+  // Don't inject another response, which results in a proto translation
+  // failure.
+  stream_->LoadMore(surface.GetSurfaceId(), base::DoNothing());
+  WaitForIdleTaskQueue();
+
+  EXPECT_EQ(
+      "LogLoadMoreStarted\n"
+      "LogLoadMoreRequestSent\n"
+      "LogLoadMoreResponseReceived receive_timestamp=0 send_timestamp=0\n"
+      "LogLoadMoreRequestFinished result=200\n"
+      "LogLoadMoreEnded success=false\n",
+      surface.reliability_logging_bridge.GetEventsString());
+}
+
+TEST_F(FeedApiReliabilityLoggingTest, LoadMoreAbortsIfNoNextPageToken) {
+  {
+    std::unique_ptr<StreamModelUpdateRequest> initial_state =
+        MakeTypicalInitialModelState();
+    initial_state->stream_data.clear_next_page_token();
+    response_translator_.InjectResponse(std::move(initial_state));
+  }
+  TestForYouSurface surface(stream_.get());
+  WaitForIdleTaskQueue();
+  surface.reliability_logging_bridge.ClearEventsString();
+
+  stream_->LoadMore(surface.GetSurfaceId(), base::DoNothing());
+  WaitForIdleTaskQueue();
+
+  EXPECT_EQ("", surface.reliability_logging_bridge.GetEventsString());
 }
 
 }  // namespace

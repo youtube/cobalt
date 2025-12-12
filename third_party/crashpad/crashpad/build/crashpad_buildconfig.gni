@@ -57,8 +57,15 @@ if (crashpad_is_external || crashpad_is_in_dart) {
 }
 
 if (crashpad_is_in_chromium) {
+  if (is_ios) {
+    # For `target_platform`.
+    import("//build/config/apple/mobile_config.gni")
+  }
+
   crashpad_is_mac = is_mac
   crashpad_is_ios = is_ios
+  crashpad_is_tvos = is_ios && target_platform == "tvos"
+  crashpad_is_apple = is_apple
   crashpad_is_win = is_win
   crashpad_is_linux = is_linux &&
     # We don't actually use crashpad components built with the cobalt toolchain
@@ -76,8 +83,15 @@ if (crashpad_is_in_chromium) {
   import("$mini_chromium_import_root/build/compiler.gni")
   import("$mini_chromium_import_root/build/platform.gni")
 
+  if (mini_chromium_is_ios) {
+    # For `target_platform`.
+    import("$mini_chromium_import_root/build/ios/ios_sdk.gni")
+  }
+
   crashpad_is_mac = mini_chromium_is_mac
   crashpad_is_ios = mini_chromium_is_ios
+  crashpad_is_tvos = crashpad_is_ios && target_platform == "tvos"
+  crashpad_is_apple = mini_chromium_is_apple
   crashpad_is_win = mini_chromium_is_win
   crashpad_is_linux = mini_chromium_is_linux
   crashpad_is_android = mini_chromium_is_android
@@ -86,6 +100,9 @@ if (crashpad_is_in_chromium) {
   crashpad_is_posix = mini_chromium_is_posix
 
   crashpad_is_clang = mini_chromium_is_clang
+
+  # fuchsia-gn-sdk from chromium uses "is_fuchsia" condition.
+  is_fuchsia = crashpad_is_fuchsia
 }
 
 # TODO: b/406511608 - Cobalt: Investigate enabling crashpad_flock_always_supported
@@ -111,7 +128,7 @@ template("crashpad_executable") {
     if (crashpad_is_in_fuchsia) {
       conversion_config = [ "//build/config:Wno-conversion" ]
       if (configs + conversion_config - conversion_config == configs) {
-        # TODO(https://fxbug.dev/58162): Decide if these are worth enabling.
+        # TODO(https://fxbug.dev/42136089): Decide if these are worth enabling.
         configs += conversion_config
       }
     }
@@ -137,7 +154,7 @@ template("crashpad_loadable_module") {
     if (crashpad_is_in_fuchsia) {
       conversion_config = [ "//build/config:Wno-conversion" ]
       if (configs + conversion_config - conversion_config == configs) {
-        # TODO(https://fxbug.dev/58162): Decide if these are worth enabling.
+        # TODO(https://fxbug.dev/42136089): Decide if these are worth enabling.
         configs += conversion_config
       }
     }
@@ -163,7 +180,7 @@ template("crashpad_static_library") {
     if (crashpad_is_in_fuchsia) {
       conversion_config = [ "//build/config:Wno-conversion" ]
       if (configs + conversion_config - conversion_config == configs) {
-        # TODO(https://fxbug.dev/58162): Decide if these are worth enabling.
+        # TODO(https://fxbug.dev/42136089): Decide if these are worth enabling.
         configs += conversion_config
       }
     }

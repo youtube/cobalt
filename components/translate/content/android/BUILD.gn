@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 android_resources("java_resources") {
   sources = [
@@ -26,10 +27,9 @@ android_resources("java_resources") {
 }
 
 android_library("java") {
+  srcjar_deps = [ ":jni_headers" ]
   sources = [
-    "java/src/org/chromium/components/translate/TranslateFeatureList.java",
-    "java/src/org/chromium/components/translate/TranslateMenu.java",
-    "java/src/org/chromium/components/translate/TranslateMenuHelper.java",
+    "java/src/org/chromium/components/translate/TranslateFeatureMap.java",
     "java/src/org/chromium/components/translate/TranslateMessage.java",
     "java/src/org/chromium/components/translate/TranslateMessageSecondaryMenu.java",
     "java/src/org/chromium/components/translate/TranslateMessageSecondaryMenuAdapter.java",
@@ -41,7 +41,6 @@ android_library("java") {
   deps = [
     ":java_resources",
     "//base:base_java",
-    "//base:jni_java",
     "//build/android:build_java",
     "//components/browser_ui/widget/android:java",
     "//components/messages/android:java",
@@ -50,24 +49,23 @@ android_library("java") {
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//third_party/androidx:androidx_appcompat_appcompat_java",
     "//third_party/androidx:androidx_core_core_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
   ]
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
 
 static_library("android") {
   sources = [
-    "translate_feature_list.cc",
+    "translate_feature_map.cc",
     "translate_message.cc",
     "translate_message.h",
-    "translate_utils.cc",
-    "translate_utils.h",
   ]
 
   deps = [
     ":jni_headers",
     "//base",
     "//components/language/core/common",
+    "//components/language_detection/core",
     "//components/messages/android",
     "//components/metrics",
     "//components/strings:components_strings_grit",
@@ -80,19 +78,9 @@ static_library("android") {
 
 generate_jni("jni_headers") {
   sources = [
-    "java/src/org/chromium/components/translate/TranslateFeatureList.java",
+    "java/src/org/chromium/components/translate/TranslateFeatureMap.java",
     "java/src/org/chromium/components/translate/TranslateMessage.java",
   ]
-}
-
-java_cpp_enum("translate_android_enums") {
-  sources = [ "translate_utils.h" ]
-}
-
-android_library("translate_android_enums_java") {
-  deps = [ "//third_party/androidx:androidx_annotation_annotation_java" ]
-
-  srcjar_deps = [ ":translate_android_enums" ]
 }
 
 robolectric_library("junit") {
@@ -112,6 +100,7 @@ robolectric_library("junit") {
     "//content/public/android:content_java",
     "//third_party/androidx:androidx_appcompat_appcompat_java",
     "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit:junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
@@ -134,7 +123,9 @@ android_library("unit_device_javatests") {
     "//content/public/test/android:content_java_test_support",
     "//third_party/android_deps:espresso_java",
     "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/hamcrest:hamcrest_java",
     "//third_party/hamcrest:hamcrest_library_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
@@ -144,10 +135,7 @@ android_library("unit_device_javatests") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [
-    "translate_message_unittest.cc",
-    "translate_utils_unittest.cc",
-  ]
+  sources = [ "translate_message_unittest.cc" ]
   deps = [
     ":android",
     "//base",
@@ -156,6 +144,7 @@ source_set("unit_tests") {
     "//components/language/core/browser",
     "//components/language/core/browser:test_support",
     "//components/language/core/common",
+    "//components/language_detection/core",
     "//components/messages/android",
     "//components/metrics",
     "//components/pref_registry:pref_registry",

@@ -24,9 +24,10 @@ chromium-metrics-reviews@google.com.
 <histograms>
 
 <histogram name="AccountManager.AccountAdditionResultStatus"
-    enum="AccountManagerAccountAdditionResultStatus" expires_after="2023-10-31">
+    enum="AccountManagerAccountUpsertionResultStatus"
+    expires_after="2024-11-01">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Records the result of in-session account addition (or re-authentication)
     triggers on Chrome OS. This is recorded whenever an in-session account
@@ -36,9 +37,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.AccountAdditionSource"
-    enum="AccountManagerAccountAdditionSource" expires_after="2023-10-31">
+    enum="AccountManagerAccountAdditionSource" expires_after="2025-10-26">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Records the source of in-session account addition (or re-authentication)
     triggers on Chrome OS. This is recorded whenever an in-session account
@@ -49,7 +50,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.EduCoexistence.FetchAccessTokenResult"
-    enum="GoogleServiceAuthError" expires_after="2023-10-31">
+    enum="GoogleServiceAuthError" expires_after="2025-10-01">
   <owner>agawronska@chromium.org</owner>
   <owner>cros-families-eng@google.com</owner>
   <summary>
@@ -60,10 +61,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.EduCoexistenceV2.InSessionFlowResult"
-    enum="EduCoexistenceFlowV2Result" expires_after="2023-10-31">
+    enum="EduCoexistenceFlowV2Result" expires_after="2025-10-01">
   <owner>agawronska@chromium.org</owner>
-  <owner>danan@chromium.org</owner>
-  <owner>yilkal@chromium.org</owner>
   <owner>cros-families-eng@google.com</owner>
   <summary>
     Records the last completed step in the EDU account addition flow. Allows to
@@ -72,10 +71,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.EduCoexistenceV2.OnboardingFlowResult"
-    enum="EduCoexistenceFlowV2Result" expires_after="2023-10-31">
+    enum="EduCoexistenceFlowV2Result" expires_after="2025-10-01">
   <owner>agawronska@chromium.org</owner>
-  <owner>danan@chromium.org</owner>
-  <owner>yilkal@chromium.org</owner>
   <owner>cros-families-eng@google.com</owner>
   <summary>
     Records the last completed step in the EDU account addition flow. Allows to
@@ -84,8 +81,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.FacadeGetAccountsMojoStatus"
-    enum="AccountManagerFacadeMojoStatus" expires_after="2023-10-31">
-  <owner>anastasiian@chromium.org</owner>
+    enum="AccountManagerFacadeMojoStatus" expires_after="2024-11-01">
+  <owner>emaamari@google.com</owner>
   <owner>droger@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -97,9 +94,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.InitializationTime" units="microseconds"
-    expires_after="2023-10-31">
+    expires_after="2024-11-01">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Measures the time taken to fully initialize Chrome OS Account Manager. This
     is recorded once per user session, at login time. This metric only reports
@@ -108,18 +105,18 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.ManageAccountsServiceType"
-    enum="GaiaServiceType" expires_after="2023-10-31">
+    enum="GaiaServiceType" expires_after="2024-11-01">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Tracks the service type received with the mirror response header.
   </summary>
 </histogram>
 
 <histogram name="AccountManager.MojoDisconnections.AccessTokenFetcherRemote"
-    units="count" expires_after="2023-10-31">
+    units="count" expires_after="2024-11-01">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Tracks the number of Mojo pipe disconnections observed by the access token
     fetcher Mojo remote in `AccountManagerFacadeImpl`. This is logged at the end
@@ -131,9 +128,9 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="AccountManager.MojoDisconnections.AccountManagerObserverReceiver"
-    units="count" expires_after="2023-10-31">
+    units="count" expires_after="2024-11-01">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Tracks the number of Mojo pipe disconnections observed by the
     `AccountManagerObserver` Mojo receiver in `AccountManagerFacadeImpl`. This
@@ -145,9 +142,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.MojoDisconnections.AccountManagerRemote"
-    units="count" expires_after="2023-10-31">
+    units="count" expires_after="2024-11-01">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Tracks the number of Mojo pipe disconnections observed by the Account
     Manager Mojo remote in `AccountManagerFacadeImpl`. This is logged at the end
@@ -159,9 +156,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.NumAccounts" units="count"
-    expires_after="2023-10-31">
+    expires_after="2025-11-16">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Tracks the number of accounts stored in Chrome OS Account Manager by a given
     user. This is recorded only once per session, at login time.
@@ -169,9 +166,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.ReportAuthError.IsAccountKeyEmpty"
-    enum="BooleanEmpty" expires_after="2023-12-31">
+    enum="BooleanEmpty" expires_after="2024-11-01">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Indicates if the account whose authentication error is being reported to
     AccountManagerMojoService has an empty account id. This is recorded whenever
@@ -184,9 +181,9 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="AccountManager.TokenLoadStatus"
-    enum="AccountManagerTokenLoadStatus" expires_after="2023-10-31">
+    enum="AccountManagerTokenLoadStatus" expires_after="2025-01-05">
   <owner>sinhak@chromium.org</owner>
-  <owner>anastasiian@chromium.org</owner>
+  <owner>emaamari@google.com</owner>
   <summary>
     Tracks the status of token loads from disk by Chrome OS Account Manager, for
     a given user. This is recorded only once per session, at login time.

@@ -5,9 +5,9 @@
 #ifndef PRINTING_PRINTING_CONTEXT_SYSTEM_DIALOG_WIN_H_
 #define PRINTING_PRINTING_CONTEXT_SYSTEM_DIALOG_WIN_H_
 
-#include <ocidl.h>  // NOLINT(build/include_order)
+#include <ocidl.h>
 
-#include <commdlg.h>  // Must come after ocidl.h.
+#include <commdlg.h>
 
 #include <string>
 
@@ -20,7 +20,8 @@ namespace printing {
 class COMPONENT_EXPORT(PRINTING) PrintingContextSystemDialogWin
     : public PrintingContextWin {
  public:
-  explicit PrintingContextSystemDialogWin(Delegate* delegate);
+  PrintingContextSystemDialogWin(Delegate* delegate,
+                                 OutOfProcessBehavior out_of_process_behavior);
   PrintingContextSystemDialogWin(const PrintingContextSystemDialogWin&) =
       delete;
   PrintingContextSystemDialogWin& operator=(

@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'chrome://resources/cr_elements/cr_button/cr_button.js';
-import 'chrome://resources/cr_elements/icons.html.js';
-import 'chrome://resources/cr_elements/policy/cr_policy_indicator.js';
-import 'chrome://resources/cr_elements/cr_shared_style.css.js';
+import 'chrome://resources/ash/common/cr_elements/cr_button/cr_button.js';
+import 'chrome://resources/ash/common/cr_elements/icons.html.js';
+import 'chrome://resources/ash/common/cr_elements/policy/cr_policy_indicator.js';
+import 'chrome://resources/ash/common/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/polymer/v3_0/iron-list/iron-list.js';
 import 'chrome://resources/polymer/v3_0/iron-icon/iron-icon.js';
 import 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
@@ -13,19 +13,21 @@ import './print_job_clear_history_dialog.js';
 import './print_job_entry.js';
 import './print_management_fonts.css.js';
 import './print_management_shared.css.js';
-import './strings.m.js';
+import './printer_setup_info.js';
+import '/strings.m.js';
 
-import {IronIconElement} from '//resources/polymer/v3_0/iron-icon/iron-icon.js';
+import type {IronIconElement} from '//resources/polymer/v3_0/iron-icon/iron-icon.js';
+import {I18nMixin} from 'chrome://resources/ash/common/cr_elements/i18n_mixin.js';
 import {loadTimeData} from 'chrome://resources/ash/common/load_time_data.m.js';
-import {startColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
-import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
-import {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
+import {ColorChangeUpdater} from 'chrome://resources/cr_components/color_change_listener/colors_css_updater.js';
+import {assert} from 'chrome://resources/js/assert.js';
+import type {PolymerElementProperties} from 'chrome://resources/polymer/v3_0/polymer/interfaces.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {getMetadataProvider} from './mojo_interface_provider.js';
+import {getMetadataProvider, getPrintManagementHandler} from './mojo_interface_provider.js';
 import {getTemplate} from './print_management.html.js';
-import {ActivePrintJobState, PrintingMetadataProviderInterface, PrintJobInfo, PrintJobsObserverInterface, PrintJobsObserverReceiver} from './printing_manager.mojom-webui.js';
+import type {PrintingMetadataProviderInterface, PrintJobInfo, PrintJobsObserverInterface, PrintManagementHandlerInterface} from './printing_manager.mojom-webui.js';
+import {ActivePrintJobState, LaunchSource, PrintJobsObserverReceiver} from './printing_manager.mojom-webui.js';
 
 const METADATA_STORED_INDEFINITELY = -1;
 const METADATA_STORED_FOR_ONE_DAY = 1;
@@ -132,6 +134,8 @@ export class PrintManagementElement extends PrintManagementElementBase
        * events.
        */
       printJobsObserverReceiver: {type: Object},
+
+      printJobsLoaded: Boolean,
     };
   }
 
@@ -143,6 +147,7 @@ export class PrintManagementElement extends PrintManagementElementBase
     super();
 
     this.mojoInterfaceProvider = getMetadataProvider();
+    this.pageHandler = getPrintManagementHandler();
 
     window.CrPolicyStrings = {
       controlledSettingPolicy:
@@ -154,6 +159,7 @@ export class PrintManagementElement extends PrintManagementElementBase
   }
 
   private mojoInterfaceProvider: PrintingMetadataProviderInterface;
+  private pageHandler: PrintManagementHandlerInterface;
   private isPolicyControlled: boolean;
   private printJobs: PrintJobInfo[];
   private printJobHistoryExpirationPeriod: string;
@@ -166,6 +172,7 @@ export class PrintManagementElement extends PrintManagementElementBase
   private deletePrintJobHistoryAllowedByPolicy: boolean;
   private shouldDisableClearAllButton: boolean;
   private printJobsObserverReceiver: PrintJobsObserverReceiver;
+  private printJobsLoaded: boolean = false;
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -174,14 +181,7 @@ export class PrintManagementElement extends PrintManagementElementBase
     this.startObservingPrintJobs();
     this.fetchDeletePrintJobHistoryPolicy();
 
-    if (loadTimeData.getBoolean('isJellyEnabledForPrintManagement')) {
-      // TODO(b/276493795): After the Jelly experiment is launched, replace
-      // `cros_styles.css` with `theme/colors.css` directly in `index.html`.
-      document.querySelector('link[href*=\'cros_styles.css\']')
-          ?.setAttribute('href', 'chrome://theme/colors.css?sets=legacy,sys');
-      document.body.classList.add('jelly-enabled');
-      startColorChangeUpdater();
-    }
+    ColorChangeUpdater.forDocument().start();
   }
 
   override disconnectedCallback(): void {
@@ -242,7 +242,13 @@ export class PrintManagementElement extends PrintManagementElementBase
     }
   }
 
-  private onPrintJobsReceived(jobs: {printJobs: PrintJobInfo[]}): void {
+  private onPrintJobsReceived(
+      jobs: {printJobs: PrintJobInfo[]}, requestStartTime: number): void {
+    // Set on the first print jobs response.
+    if (!this.printJobsLoaded) {
+      this.printJobsLoaded = true;
+    }
+
     // TODO(crbug/1073690): Update this when BigInt is supported for
     // updateList().
     const ongoingList = [];
@@ -259,11 +265,17 @@ export class PrintManagementElement extends PrintManagementElementBase
     // Sort the print jobs in chronological order.
     this.ongoingPrintJobs = ongoingList.sort(comparePrintJobsChronologically);
     this.printJobs = historyList.sort(comparePrintJobsReverseChronologically);
+
+    // Record request duration.
+    this.pageHandler.recordGetPrintJobsRequestDuration(
+        Date.now() - requestStartTime);
   }
 
   private getPrintJobs(): void {
+    const requestStartTime = Date.now();
     this.mojoInterfaceProvider.getPrintJobs().then(
-        this.onPrintJobsReceived.bind(this));
+        (jobs: {printJobs: PrintJobInfo[]}) =>
+            this.onPrintJobsReceived(jobs, requestStartTime));
   }
 
   private onPrintJobHistoryExpirationPeriodReceived(printJobPolicyInfo: {
@@ -304,6 +316,11 @@ export class PrintManagementElement extends PrintManagementElementBase
   }
 
   private removePrintJob(e: RemovePrintJobEvent): void {
+    // Reset this variable to prevent the printer setup assistance UI from
+    // showing during the brief time this print job transfers from
+    // `ongoingPrintJobs` to `printJobs`.
+    this.printJobsLoaded = false;
+
     const idx = this.getIndexOfOngoingPrintJob(e.detail);
     if (idx !== -1) {
       this.splice('ongoingPrintJobs', idx, 1);
@@ -333,6 +350,28 @@ export class PrintManagementElement extends PrintManagementElementBase
         'delete-enabled', !this.shouldDisableClearAllButton);
     this.$.deleteIcon.classList.toggle(
         'delete-disabled', this.shouldDisableClearAllButton);
+  }
+
+  /** Determine if printer setup UI should be shown. */
+  private shouldShowSetupAssistance(): boolean {
+    return this.printJobsLoaded && this.ongoingPrintJobs.length === 0 &&
+        this.printJobs.length === 0;
+  }
+
+  /** Determine if ongoing jobs empty messaging should be shown. */
+  private shouldShowOngoingEmptyState(): boolean {
+    // The ongoing empty state should only be shown when there aren't ongoing
+    // print jobs and the completed prints jobs list is showing.
+    return this.printJobs.length > 0 && this.ongoingPrintJobs.length === 0;
+  }
+
+  /** Determine if manage printer button in header should be shown. */
+  private shouldShowManagePrinterButton(): boolean {
+    return this.ongoingPrintJobs.length > 0 || this.printJobs.length > 0;
+  }
+
+  private onManagePrintersClicked(): void {
+    this.pageHandler.launchPrinterSettings(LaunchSource.kHeaderButton);
   }
 }
 

@@ -4,9 +4,7 @@
 
 #include "chromeos/ash/components/phonehub/pref_names.h"
 
-namespace ash {
-namespace phonehub {
-namespace prefs {
+namespace ash::phonehub::prefs {
 
 // The last provided camera roll access status provided by the phone. This pref
 // stores the numerical value associated with the
@@ -70,6 +68,20 @@ const char kRecentAppsHistory[] = "cros.phonehub.recent_apps_history";
 const char kFeatureSetupRequestSupported[] =
     "cros.phonehub.feature_setup_request_supported";
 
-}  // namespace prefs
-}  // namespace phonehub
-}  // namespace ash
+const char kPhoneManufacturer[] = "cros.phonehub.phone_manufacturer";
+const char kPhoneModel[] = "cros.phonehub.phone_model";
+const char kPhoneLocale[] = "cros.phonehub.phone_locale";
+const char kPhonePseudonymousId[] = "cros.phonehub.phone_pseudonymous_id";
+const char kPhoneAndroidVersion[] = "cros.phonehub.phone_android_version";
+const char kPhoneGmsCoreVersion[] = "cros.phonehub.phone_gms_core_version";
+const char kPhoneAmbientApkVersion[] =
+    "cros.phonehub.phone_ambient_apk_version";
+const char kPhoneProfileType[] = "cros.phonehub.phone_profile_type";
+const char kPhoneInfoLastUpdatedTime[] =
+    "cros.phonehub.phone_info_last_updated_time";
+const char kChromebookPseudonymousId[] =
+    "cros.phonehub.chromebook_pseudonymous_id";
+const char kPseudonymousIdRotationDate[] =
+    "cros.phonehub.pseudonymous_id_rotation_date";
+
+}  // namespace ash::phonehub::prefs

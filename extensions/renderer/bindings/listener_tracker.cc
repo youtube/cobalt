@@ -24,7 +24,7 @@ bool ListenerTracker::RemoveUnfilteredListener(
     const std::string& event_name) {
   ListenerCountMap& listeners = unfiltered_listeners_[context_owner_id];
   auto iter = listeners.find(event_name);
-  DCHECK(iter != listeners.end());
+  CHECK(iter != listeners.end());
   if (--(iter->second) == 0) {
     listeners.erase(iter);
     return true;
@@ -64,7 +64,7 @@ ListenerTracker::RemoveFilteredListener(const std::string& context_owner_id,
   FilteredListeners::const_iterator counts = filtered_listeners_.find(key);
 
   bool was_last_of_kind = false;
-  DCHECK(counts != filtered_listeners_.end());
+  CHECK(counts != filtered_listeners_.end());
   base::Value filter_copy = base::Value(matcher->value()->Clone());
   if (counts->second->Remove(filter_copy)) {
     if (counts->second->is_empty()) {

@@ -5,11 +5,14 @@
 #include "chromeos/ash/components/network/policy_util.h"
 
 #include <memory>
+#include <sstream>
 #include <utility>
 
+#include "base/check.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/values.h"
+#include "chromeos/ash/components/network/network_event_log.h"
 #include "chromeos/ash/components/network/network_profile.h"
 #include "chromeos/ash/components/network/network_type_pattern.h"
 #include "chromeos/ash/components/network/network_ui_data.h"
@@ -23,12 +26,20 @@
 #include "components/onc/onc_constants.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "third_party/cros_system_api/dbus/shill/dbus-constants.h"
+#include "third_party/re2/src/re2/re2.h"
 
 namespace ash::policy_util {
 
 const char kFakeCredential[] = "FAKE_CREDENTIAL_VPaJDV9x";
 
+// This pattern captures the entire activation code except the matching ID.
+const char kActivationCodePattern[] = R"((^LPA\:1\$[a-zA-Z0-9.\-+*\/:%]*\$))";
+
 namespace {
+
+// When this is true, ephemeral network policies have been enabled by device
+// policy.
+bool g_ephemeral_network_policies_enabled_by_policy = false;
 
 std::string GetString(const base::Value::Dict& dict, const char* key) {
   const std::string* value = dict.FindString(key);
@@ -149,7 +160,67 @@ void ApplyGlobalAutoconnectPolicy(NetworkProfile::Type profile_type,
                                policy_source);
 }
 
+bool HasAnyRecommendedField(const base::Value::List& onc_list) {
+  for (const auto& entry : onc_list) {
+    if (entry.is_dict() &&
+        ::ash::policy_util::HasAnyRecommendedField(entry.GetDict())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace
+
+SmdxActivationCode::SmdxActivationCode(Type type, std::string value)
+    : type_(type), value_(value) {}
+
+SmdxActivationCode::SmdxActivationCode(SmdxActivationCode&& other) {
+  type_ = other.type_;
+  value_ = std::move(other.value_);
+}
+
+SmdxActivationCode& SmdxActivationCode::operator=(SmdxActivationCode&& other) {
+  type_ = other.type_;
+  value_ = std::move(other.value_);
+  return *this;
+}
+
+std::string SmdxActivationCode::ToString() const {
+  return GetString(/*for_error_message=*/false);
+}
+
+std::string SmdxActivationCode::ToErrorString() const {
+  return GetString(/*for_error_message=*/true);
+}
+
+std::string SmdxActivationCode::GetString(bool for_error_message) const {
+  std::stringstream ss;
+  ss << "[type: ";
+
+  switch (type_) {
+    case SmdxActivationCode::Type::SMDP:
+      ss << "SM-DP+";
+      break;
+    case SmdxActivationCode::Type::SMDS:
+      ss << "SM-DS";
+      break;
+  }
+
+  if (for_error_message) {
+    ss << ", value: ";
+
+    std::string sanitized;
+    if (RE2::PartialMatch(value_, kActivationCodePattern, &sanitized)) {
+      ss << sanitized;
+    } else {
+      ss << "<bad format>";
+    }
+  }
+
+  ss << "]";
+  return ss.str();
+}
 
 base::Value::Dict CreateManagedONC(const base::Value::Dict* global_policy,
                                    const base::Value::Dict* network_policy,
@@ -427,6 +498,22 @@ bool IsCellularPolicy(const base::Value::Dict& onc_config) {
   return type && *type == ::onc::network_type::kCellular;
 }
 
+bool HasAnyRecommendedField(const base::Value::Dict& onc_config) {
+  for (const auto [field_name, onc_value] : onc_config) {
+    if (field_name == ::onc::kRecommended && onc_value.is_list() &&
+        !onc_value.GetList().empty()) {
+      return true;
+    }
+    if (onc_value.is_dict() && HasAnyRecommendedField(onc_value.GetDict())) {
+      return true;
+    }
+    if (onc_value.is_list() && HasAnyRecommendedField(onc_value.GetList())) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const std::string* GetIccidFromONC(const base::Value::Dict& onc_config) {
   if (!IsCellularPolicy(onc_config))
     return nullptr;
@@ -451,6 +538,55 @@ const std::string* GetSMDPAddressFromONC(const base::Value::Dict& onc_config) {
   }
 
   return smdp_address;
+}
+
+std::optional<SmdxActivationCode> GetSmdxActivationCodeFromONC(
+    const base::Value::Dict& onc_config) {
+  const std::string* type = onc_config.FindString(::onc::network_config::kType);
+  const base::Value::Dict* cellular_dict =
+      onc_config.FindDict(::onc::network_config::kCellular);
+
+  if (!type || (*type != ::onc::network_type::kCellular) || !cellular_dict) {
+    return std::nullopt;
+  }
+
+  const std::string* const smdp_activation_code =
+      cellular_dict->FindString(::onc::cellular::kSMDPAddress);
+  const std::string* const smds_activation_code =
+      cellular_dict->FindString(::onc::cellular::kSMDSAddress);
+
+  if (smdp_activation_code && smds_activation_code) {
+    NET_LOG(ERROR) << "Failed to get SM-DX activation code from ONC "
+                   << "configuration. Expected either an SM-DP+ activation "
+                   << "code or an SM-DS activation code but got both.";
+    return std::nullopt;
+  }
+
+  if (smdp_activation_code) {
+    return SmdxActivationCode(SmdxActivationCode::Type::SMDP,
+                              *smdp_activation_code);
+  }
+  if (smds_activation_code) {
+    return SmdxActivationCode(SmdxActivationCode::Type::SMDS,
+                              *smds_activation_code);
+  }
+
+  NET_LOG(ERROR) << "Failed to get SM-DX activation code from ONC "
+                 << "configuration. Expected either an SM-DP+ activation code "
+                 << "or an SM-DS activation code but got neither.";
+  return std::nullopt;
+}
+
+void SetEphemeralNetworkPoliciesEnabled() {
+  g_ephemeral_network_policies_enabled_by_policy = true;
+}
+
+void ResetEphemeralNetworkPoliciesEnabledForTesting() {
+  g_ephemeral_network_policies_enabled_by_policy = false;
+}
+
+bool AreEphemeralNetworkPoliciesEnabled() {
+  return g_ephemeral_network_policies_enabled_by_policy;
 }
 
 }  // namespace ash::policy_util

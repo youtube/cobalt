@@ -3,16 +3,24 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import datetime
 import typing
 import unittest
 
+# //testing imports.
 from flake_suppressor_common import data_types
+from unexpected_passes_common import data_types as unexpected_dt
+
+NON_WILDCARD = unexpected_dt.WildcardType.NON_WILDCARD
+SIMPLE_WILDCARD = unexpected_dt.WildcardType.SIMPLE_WILDCARD
+FULL_WILDCARD = unexpected_dt.WildcardType.FULL_WILDCARD
 
 
 class ExpectationUnittest(unittest.TestCase):
   def testAppliesToResultNonResult(self) -> None:
     """Tests that AppliesToResult properly fails when given a non-Result."""
-    e = data_types.Expectation('test', ['win', 'nvidia'], ['Failure'])
+    e = data_types.Expectation('test', ['win', 'nvidia'], ['Failure'],
+                               NON_WILDCARD)
     fake_result = typing.cast(data_types.Result, None)
     with self.assertRaises(AssertionError):
       e.AppliesToResult(fake_result)
@@ -20,21 +28,70 @@ class ExpectationUnittest(unittest.TestCase):
   def testAppliesToResultApplies(self) -> None:
     """Tests that AppliesToResult properly returns True on expected Results."""
     # Exact match.
-    e = data_types.Expectation('test', ['win', 'nvidia'], ['Failure'])
+    e = data_types.Expectation('test', ['win', 'nvidia'], ['Failure'],
+                               NON_WILDCARD)
     r = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id')
+    self.assertTrue(e.AppliesToResult(r))
+    # With status
+    r = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', 'FAIL')
+    self.assertTrue(e.AppliesToResult(r))
+    # With date
+    r = data_types.Result('suite',
+                          'test', ('win', 'nvidia'),
+                          'id',
+                          date=datetime.date(2023, 3, 8))
+    self.assertTrue(e.AppliesToResult(r))
+    # With is_slow
+    r = data_types.Result('suite',
+                          'test', ('win', 'nvidia'),
+                          'id',
+                          is_slow=True)
+    self.assertTrue(e.AppliesToResult(r))
+    # With typ_expectations
+    r = data_types.Result('suite',
+                          'test', ('win', 'nvidia'),
+                          'id',
+                          typ_expectations=['Pass'])
     self.assertTrue(e.AppliesToResult(r))
     # Tag subset
     r = data_types.Result('suite', 'test', ('win', 'nvidia', 'release'), 'id')
     self.assertTrue(e.AppliesToResult(r))
-    # Glob match
-    e = data_types.Expectation('t*', ['win', 'nvidia'], ['Failure'])
+    # Simple glob match
+    e = data_types.Expectation('t*', ['win', 'nvidia'], ['Failure'],
+                               SIMPLE_WILDCARD)
+    self.assertTrue(e.AppliesToResult(r))
+    # Full glob match
+    e = data_types.Expectation('t*st', ['win', 'nvidia'], ['Failure'],
+                               FULL_WILDCARD)
     self.assertTrue(e.AppliesToResult(r))
 
   def testAppliesToResultDoesNotApply(self) -> None:
     """Tests that AppliesToResult properly returns False on expected Results."""
     # Name mismatch
-    e = data_types.Expectation('test', ['win', 'nvidia'], ['Failure'])
+    e = data_types.Expectation('test', ['win', 'nvidia'], ['Failure'],
+                               NON_WILDCARD)
     r = data_types.Result('suite', 'notatest', ('win', 'nvidia'), 'id')
+    self.assertFalse(e.AppliesToResult(r))
+    # With status
+    r = data_types.Result('suite', 'notatest', ('win', 'nvidia'), 'id', 'FAIL')
+    self.assertFalse(e.AppliesToResult(r))
+    # With date
+    r = data_types.Result('suite',
+                          'notatest', ('win', 'nvidia'),
+                          'id',
+                          date=datetime.date(2023, 3, 8))
+    self.assertFalse(e.AppliesToResult(r))
+    # With is_slow
+    r = data_types.Result('suite',
+                          'notatest', ('win', 'nvidia'),
+                          'id',
+                          is_slow=True)
+    self.assertFalse(e.AppliesToResult(r))
+    # With typ_expectations
+    r = data_types.Result('suite',
+                          'notatest', ('win', 'nvidia'),
+                          'id',
+                          typ_expectations=['Pass'])
     self.assertFalse(e.AppliesToResult(r))
     # Tag superset
     r = data_types.Result('suite', 'test', tuple(['win']), 'id')
@@ -76,6 +133,36 @@ class ResultUnittest(unittest.TestCase):
     self.assertNotEqual(r, other)
 
     other = None
+    self.assertNotEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', '')
+    self.assertEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', 'FAIL')
+    self.assertNotEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', '',
+                              datetime.date.min)
+    self.assertEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', 'FAIL',
+                              datetime.date(2023, 3, 8))
+    self.assertNotEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', '',
+                              datetime.date.min, False)
+    self.assertEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', '',
+                              datetime.date.min, True)
+    self.assertNotEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', '',
+                              datetime.date.min, False, [])
+    self.assertEqual(r, other)
+
+    other = data_types.Result('suite', 'test', ('win', 'nvidia'), 'id', '',
+                              datetime.date.min, False, ['Pass'])
     self.assertNotEqual(r, other)
 
 

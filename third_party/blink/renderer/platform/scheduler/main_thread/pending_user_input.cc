@@ -39,7 +39,7 @@ void PendingUserInput::Monitor::OnDequeue(
     return;
 
   auto it = pending_events_.find(AttributionGroup(attribution));
-  DCHECK_NE(it, pending_events_.end());
+  CHECK_NE(it, pending_events_.end());
 
   auto& value = it->value;
   if (IsContinuousEventType(type)) {

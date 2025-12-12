@@ -32,6 +32,7 @@ import argparse
 import subprocess
 import os
 
+BRANCH = 'main'
 PLATFORMS = ['android-arm', 'android-arm64', 'android-x86']
 CONFIGS = ['gold', 'qa']
 
@@ -53,8 +54,8 @@ def out_dir_for_google3(platform, config):
   return f'out/{platform}_{config}_for_google3'
 
 
-def build(platforms_to_package):
-  for platform in platforms_to_package:
+def build(package_platforms):
+  for platform in package_platforms:
     for config in CONFIGS:
       out_dir = out_dir_for_google3(platform, config)
 
@@ -66,9 +67,9 @@ def build(platforms_to_package):
       subprocess.call(['autoninja', '-C', out_dir, 'cobalt:gn_all'])
 
 
-def package(platforms_to_package):
+def package(package_platforms, package_branch):
   subprocess.call(['rm', '-rf', 'out/packages'])
-  for platform in platforms_to_package:
+  for platform in package_platforms:
     for config in CONFIGS:
       out_dir = out_dir_for_google3(platform, config)
       subprocess.call([
@@ -76,7 +77,7 @@ def package(platforms_to_package):
           f'--name={platform}_{config}',
           '--json_path=cobalt/build/android/package.json',
           f'--out_dir={out_dir}',
-          f'--package_dir=out/packages/{platform}_local/local/local',
+          f'--package_dir=out/packages/{platform}_{package_branch}/local/local',
       ])
 
 
@@ -85,18 +86,22 @@ if __name__ == '__main__':
   parser.add_argument(
       '--package_only',
       action='store_true',
-      help='Skips build steps assuming that it is already complete')
+      help='Skips build steps assuming that it is already complete.')
   parser.add_argument(
       '--platforms',
       nargs='+',  # Expect one or more platform names
       help='Override the default platforms to build and package.')
+  parser.add_argument('--branch', help='The branch to use, e.g. 26.lts.1+')
   args = parser.parse_args()
 
   platforms = PLATFORMS
   if args.platforms:
     platforms = args.platforms
+  branch = BRANCH
+  if args.branch:
+    branch = args.branch
 
   if not args.package_only:
     build(platforms)
 
-  package(platforms)
+  package(platforms, branch)

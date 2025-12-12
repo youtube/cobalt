@@ -31,13 +31,16 @@
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
 
 #include "base/feature_list.h"
-
+#include "skia/ext/font_utils.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/platform/font_family_names.h"
 #include "third_party/blink/renderer/platform/fonts/font_description.h"
 #include "third_party/blink/renderer/platform/fonts/font_face_creation_params.h"
+#include "third_party/blink/renderer/platform/fonts/font_fallback_priority.h"
+#include "third_party/blink/renderer/platform/fonts/opentype/color_table_lookup.h"
 #include "third_party/blink/renderer/platform/fonts/simple_font_data.h"
 #include "third_party/blink/renderer/platform/language.h"
+#include "third_party/blink/renderer/platform/text/character.h"
 #include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 
@@ -59,17 +62,13 @@ static AtomicString DefaultFontFamily(sk_sp<SkFontMgr> font_manager) {
       return ToAtomicString(family_name);
   }
 
-  // Some devices do not return the default typeface. There's not much we can
-  // do here, use "Arial", the value LayoutTheme uses for CSS system font
-  // keywords such as "menu".
   NOTREACHED();
-  return font_family_names::kArial;
 }
 
 static AtomicString DefaultFontFamily() {
   if (sk_sp<SkFontMgr> font_manager = FontCache::Get().FontManager())
     return DefaultFontFamily(font_manager);
-  return DefaultFontFamily(SkFontMgr::RefDefault());
+  return DefaultFontFamily(skia::DefaultFontMgr());
 }
 
 // static
@@ -97,7 +96,7 @@ sk_sp<SkTypeface> FontCache::CreateLocaleSpecificTypeface(
   const char* bcp47 = locale.LocaleForSkFontMgr();
   DCHECK(bcp47);
   SkFontMgr* font_manager =
-      font_manager_ ? font_manager_.get() : SkFontMgr::RefDefault().get();
+      font_manager_ ? font_manager_.get() : skia::DefaultFontMgr().get();
   sk_sp<SkTypeface> typeface(font_manager->matchFamilyStyleCharacter(
       locale_family_name, font_description.SkiaFontStyle(), &bcp47,
       /* bcp47Count */ 1,
@@ -126,12 +125,12 @@ sk_sp<SkTypeface> FontCache::CreateLocaleSpecificTypeface(
   return nullptr;
 }
 
-scoped_refptr<SimpleFontData> FontCache::PlatformFallbackFontForCharacter(
+const SimpleFontData* FontCache::PlatformFallbackFontForCharacter(
     const FontDescription& font_description,
     UChar32 c,
     const SimpleFontData*,
     FontFallbackPriority fallback_priority) {
-  sk_sp<SkFontMgr> fm(SkFontMgr::RefDefault());
+  sk_sp<SkFontMgr> fm(skia::DefaultFontMgr());
 
   // Pass "serif" to |matchFamilyStyleCharacter| if the `font-family` list
   // contains `serif`, so that it fallbacks to i18n serif fonts that has the
@@ -141,23 +140,62 @@ scoped_refptr<SimpleFontData> FontCache::PlatformFallbackFontForCharacter(
   if (font_description.GenericFamily() == FontDescription::kSerifFamily)
     generic_family_name = "serif";
 
+  FontFallbackPriority fallback_priority_with_emoji_text = fallback_priority;
+
+  if (RuntimeEnabledFeatures::SystemFallbackEmojiVSSupportEnabled() &&
+      fallback_priority == FontFallbackPriority::kText &&
+      Character::IsEmoji(c)) {
+    fallback_priority_with_emoji_text = FontFallbackPriority::kEmojiText;
+  }
+
   AtomicString family_name = GetFamilyNameForCharacter(
-      fm.get(), c, font_description, generic_family_name, fallback_priority);
+      fm.get(), c, font_description, generic_family_name,
+      fallback_priority_with_emoji_text);
 
-  // Return the GMS Core emoji font if FontFallbackPriority is kEmojiEmoji and
-  // a) no system fallback was found or b) the system fallback font's PostScript
-  // name is "Noto Color Emoji" - then we override the system one with the newer
-  // one from GMS core if we have it and if it has glyph coverage. This should
-  // improves coverage for sequences such as WOMAN FEEDING BABY, which would
-  // otherwise get broken down into multiple individual emoji from the
-  // potentially older firmware emoji font.  Don't override it if a fallback
-  // font for emoji was returned but its PS name is not NotoColorEmoji as we
-  // would otherwise always override an OEMs emoji font.
+  auto skia_fallback_is_color = [&]() {
+    const FontPlatformData* skia_fallback_result = GetFontPlatformData(
+        font_description, FontFaceCreationParams(family_name));
+    if (skia_fallback_result && skia_fallback_result->Typeface()) {
+      return ColorTableLookup::TypefaceHasAnySupportedColorTable(
+          skia_fallback_result->Typeface());
+    }
+    return false;
+  };
+  // On Android when we request font with specific emoji locale (i.e. "Zsym" or
+  // "Zsye"), Skia will first search for the font with the exact emoji locale,
+  // if it didn't succeed it will look at fonts with other emoji locales and
+  // only after look at the fonts without any emoji locale at all. The only font
+  // with "Zsym" locale on Android is "NotoSansSymbols-Regular-Subsetted2.ttf"
+  // font, but some text default emoji codepoints that are not present in this
+  // font, can be present in other monochromatic fonts without "Zsym" locale
+  // (for instance "NotoSansSymbols-Regular-Subsetted.ttf" is a font without
+  // emoji locales). So, if text presentation was requested for emoji character,
+  // but `GetFamilyNameForCharacter` returned colored font, we should try to get
+  // monochromatic font by searching for the font without emoji locales "Zsym"
+  // or "Zsye", see https://unicode.org/reports/tr51/#Emoji_Script.
+  if (RuntimeEnabledFeatures::SystemFallbackEmojiVSSupportEnabled() &&
+      IsTextPresentationEmoji(fallback_priority_with_emoji_text) &&
+      skia_fallback_is_color()) {
+    family_name = GetFamilyNameForCharacter(fm.get(), c, font_description,
+                                            generic_family_name,
+                                            FontFallbackPriority::kText);
+  }
 
-  if (fallback_priority == FontFallbackPriority::kEmojiEmoji &&
+  // Return the GMS Core emoji font if FontFallbackPriority is kEmojiEmoji or
+  // kEmojiEmojiWithVS and a) no system fallback was found or b) the system
+  // fallback font's PostScript name is "Noto Color Emoji" - then we override
+  // the system one with the newer one from GMS core if we have it and if it has
+  // glyph coverage. This should improves coverage for sequences such as WOMAN
+  // FEEDING BABY, which would otherwise get broken down into multiple
+  // individual emoji from the potentially older firmware emoji font.  Don't
+  // override it if a fallback font for emoji was returned but its PS name is
+  // not NotoColorEmoji as we would otherwise always override an OEMs emoji
+  // font.
+
+  if (IsEmojiPresentationEmoji(fallback_priority) &&
       base::FeatureList::IsEnabled(features::kGMSCoreEmoji)) {
     auto skia_fallback_is_noto_color_emoji = [&]() {
-      FontPlatformData* skia_fallback_result = GetFontPlatformData(
+      const FontPlatformData* skia_fallback_result = GetFontPlatformData(
           font_description, FontFaceCreationParams(family_name));
 
       // Determining the PostScript name is required as Skia on Android gives
@@ -172,17 +210,15 @@ scoped_refptr<SimpleFontData> FontCache::PlatformFallbackFontForCharacter(
       }
       return fallback_postscript_name.equals(kNotoColorEmoji);
     };
-
     if (family_name.empty() || skia_fallback_is_noto_color_emoji()) {
-      FontPlatformData* emoji_gms_core_font = GetFontPlatformData(
+      const FontPlatformData* emoji_gms_core_font = GetFontPlatformData(
           font_description,
           FontFaceCreationParams(AtomicString(kNotoColorEmojiCompat)));
       if (emoji_gms_core_font) {
         SkTypeface* probe_coverage_typeface = emoji_gms_core_font->Typeface();
         if (probe_coverage_typeface &&
             probe_coverage_typeface->unicharToGlyph(c)) {
-          return FontDataFromFontPlatformData(emoji_gms_core_font,
-                                              kDoNotRetain);
+          return FontDataFromFontPlatformData(emoji_gms_core_font);
         }
       }
     }
@@ -192,12 +228,10 @@ scoped_refptr<SimpleFontData> FontCache::PlatformFallbackFontForCharacter(
   // font was not found or an OEM emoji font was not to be overridden.
 
   if (family_name.empty())
-    return GetLastResortFallbackFont(font_description, kDoNotRetain);
+    return GetLastResortFallbackFont(font_description);
 
-  return FontDataFromFontPlatformData(
-      GetFontPlatformData(font_description,
-                          FontFaceCreationParams(family_name)),
-      kDoNotRetain);
+  return FontDataFromFontPlatformData(GetFontPlatformData(
+      font_description, FontFaceCreationParams(family_name)));
 }
 
 // static
@@ -243,7 +277,7 @@ AtomicString FontCache::GetGenericFamilyNameForScript(
       return generic_family_name_fallback;
   }
 
-  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  sk_sp<SkFontMgr> font_manager(skia::DefaultFontMgr());
   return GetFamilyNameForCharacter(font_manager.get(), exampler_char,
                                    font_description, nullptr,
                                    FontFallbackPriority::kText);

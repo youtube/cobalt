@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "chrome/utility/importer/safari_importer.h"
 
 #include <stddef.h>
@@ -18,15 +23,13 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/common/chrome_paths.h"
-#include "chrome/common/importer/imported_bookmark_entry.h"
 #include "chrome/common/importer/importer_bridge.h"
 #include "chrome/common/importer/safari_importer_utils.h"
 #include "chrome/utility/importer/safari_importer.h"
 #include "components/favicon_base/favicon_usage_data.h"
+#include "components/user_data_importer/common/imported_bookmark_entry.h"
 #include "sql/database.h"
 #include "testing/platform_test.h"
-
-using base::ASCIIToUTF16;
 
 // In order to test the Safari import functionality effectively, we store a
 // simulated Library directory containing dummy data files in the same
@@ -76,13 +79,13 @@ TEST_F(SafariImporterTest, BookmarkImport) {
   };
 
   scoped_refptr<SafariImporter> importer(GetSafariImporter());
-  std::vector<ImportedBookmarkEntry> bookmarks;
+  std::vector<user_data_importer::ImportedBookmarkEntry> bookmarks;
   importer->ParseBookmarks(u"Toolbar", &bookmarks);
   size_t num_bookmarks = bookmarks.size();
   ASSERT_EQ(std::size(kImportedBookmarksData), num_bookmarks);
 
   for (size_t i = 0; i < num_bookmarks; ++i) {
-    ImportedBookmarkEntry& entry = bookmarks[i];
+    user_data_importer::ImportedBookmarkEntry& entry = bookmarks[i];
     EXPECT_EQ(kImportedBookmarksData[i].in_toolbar, entry.in_toolbar);
     EXPECT_EQ(kImportedBookmarksData[i].url, entry.url);
 
@@ -118,13 +121,13 @@ TEST_F(SafariImporterTest, BookmarkImportWithEmptyBookmarksMenu) {
 
   scoped_refptr<SafariImporter> importer(
       GetSafariImporterWithPathSuffix("empty_bookmarks_menu"));
-  std::vector<ImportedBookmarkEntry> bookmarks;
+  std::vector<user_data_importer::ImportedBookmarkEntry> bookmarks;
   importer->ParseBookmarks(u"Toolbar", &bookmarks);
   size_t num_bookmarks = bookmarks.size();
   ASSERT_EQ(std::size(kImportedBookmarksData), num_bookmarks);
 
   for (size_t i = 0; i < num_bookmarks; ++i) {
-    ImportedBookmarkEntry& entry = bookmarks[i];
+    user_data_importer::ImportedBookmarkEntry& entry = bookmarks[i];
     EXPECT_EQ(kImportedBookmarksData[i].in_toolbar, entry.in_toolbar);
     EXPECT_EQ(kImportedBookmarksData[i].url, entry.url);
 
@@ -140,46 +143,11 @@ TEST_F(SafariImporterTest, BookmarkImportWithEmptyBookmarksMenu) {
   }
 }
 
-TEST_F(SafariImporterTest, FaviconImport) {
-  scoped_refptr<SafariImporter> importer(GetSafariImporter());
-  sql::Database db;
-  ASSERT_TRUE(importer->OpenDatabase(&db));
-
-  SafariImporter::FaviconMap favicon_map;
-  importer->ImportFaviconURLs(&db, &favicon_map);
-
-  favicon_base::FaviconUsageDataList favicons;
-  importer->LoadFaviconData(&db, favicon_map, &favicons);
-
-  size_t num_favicons = favicons.size();
-  ASSERT_EQ(num_favicons, 2U);
-
-  favicon_base::FaviconUsageData& fav0 = favicons[0];
-  EXPECT_EQ("http://s.ytimg.com/yt/favicon-vfl86270.ico",
-            fav0.favicon_url.spec());
-  EXPECT_GT(fav0.png_data.size(), 0U);
-  EXPECT_EQ(fav0.urls.size(), 1U);
-  EXPECT_TRUE(fav0.urls.find(GURL("http://www.youtube.com/"))
-      != fav0.urls.end());
-
-  favicon_base::FaviconUsageData& fav1 = favicons[1];
-  EXPECT_EQ("http://www.opensearch.org/favicon.ico",
-            fav1.favicon_url.spec());
-  EXPECT_GT(fav1.png_data.size(), 0U);
-  EXPECT_EQ(fav1.urls.size(), 2U);
-  EXPECT_TRUE(fav1.urls.find(GURL("http://www.opensearch.org/Home"))
-      != fav1.urls.end());
-
-  EXPECT_TRUE(fav1.urls.find(
-      GURL("http://www.opensearch.org/Special:Search?search=lalala&go=Search"))
-          != fav1.urls.end());
-}
-
 TEST_F(SafariImporterTest, CanImport) {
-  uint16_t items = importer::NONE;
+  uint16_t items = user_data_importer::NONE;
   EXPECT_TRUE(SafariImporterCanImport(
       GetTestSafariLibraryPath("default"), &items));
-  EXPECT_EQ(items, importer::FAVORITES);
+  EXPECT_EQ(items, user_data_importer::FAVORITES);
 
   // Check that we don't import anything from a bogus library directory.
   base::ScopedTempDir fake_library_dir;

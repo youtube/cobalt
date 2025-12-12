@@ -5,7 +5,6 @@
 """
 
 PRESUBMIT_VERSION = '2.0.0'
-USE_PYTHON3 = True
 
 def CheckPythonUnittestsPass(input_api, output_api):
     # The rust scripts and tests don't work on Windows.
@@ -19,10 +18,7 @@ def CheckPythonUnittestsPass(input_api, output_api):
             input_api,
             output_api,
             this_dir,
-            files_to_check=['.*unittest.*\.py$'],
-            env=None,
-            run_on_python2=False,
-            run_on_python3=True,
-            skip_shebang_check=True))
+            files_to_check=[r'.*unittest.*\.py$'],
+            env=None))
 
     return results

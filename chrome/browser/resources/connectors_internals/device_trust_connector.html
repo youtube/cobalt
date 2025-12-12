@@ -19,6 +19,9 @@
 <div>
   Is Enabled: <span id="enabled-string" class="bold"></span>
 </div>
+<div>
+  DTC Enabled Levels: <span id="policy-enabled-levels" class="bold"></span>
+</div>
 <div id="key-manager-section">
   Key Manager Initialized: <span id="key-manager-state" class="bold"></span>
 
@@ -39,8 +42,21 @@
       Key Sync: <span id="key-sync" class="bold"></span>
     </div>
   </div>
+
+  <button id="delete-key" class="hidden">[Debug] Delete Key</button>
 </div>
-<div>
+<div id="consent-details">
+  <div>
+    Consent Was Received: <span id="consent-received" class="bold"></span>
+  </div>
+  <div>
+    Can Collect Signals: <span id="can-collect" class="bold"></span>
+  </div>
+</div>
+<div id="no-consent-details" class="red hidden">
+  Details about user consent could not be retrieved.
+</div>
+<div id="signals-section">
   Signals:
   <pre id="signals"></pre>
   <button id="copy-signals">Copy Signals</button>

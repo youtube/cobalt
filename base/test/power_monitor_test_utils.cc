@@ -4,6 +4,8 @@
 
 #include "base/test/power_monitor_test_utils.h"
 
+#include "base/time/time.h"
+
 namespace base::test {
 
 TestSamplingEventSource::TestSamplingEventSource() = default;
@@ -14,6 +16,12 @@ bool TestSamplingEventSource::Start(SamplingEventCallback callback) {
   return true;
 }
 
+TimeDelta TestSamplingEventSource::GetSampleInterval() {
+  // This value is meaningless because samples are taken manually, but we need
+  // a valid value for tests.
+  return base::Minutes(1);
+}
+
 void TestSamplingEventSource::SimulateEvent() {
   sampling_event_callback_.Run();
 }
@@ -22,13 +30,13 @@ TestBatteryLevelProvider::TestBatteryLevelProvider() = default;
 
 void TestBatteryLevelProvider::GetBatteryState(
     base::OnceCallback<
-        void(const absl::optional<base::BatteryLevelProvider::BatteryState>&)>
+        void(const std::optional<base::BatteryLevelProvider::BatteryState>&)>
         callback) {
   std::move(callback).Run(battery_state_);
 }
 
 void TestBatteryLevelProvider::SetBatteryState(
-    absl::optional<base::BatteryLevelProvider::BatteryState> battery_state) {
+    std::optional<base::BatteryLevelProvider::BatteryState> battery_state) {
   battery_state_ = battery_state;
 }
 

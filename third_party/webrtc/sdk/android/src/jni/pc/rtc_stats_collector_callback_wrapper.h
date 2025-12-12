@@ -29,7 +29,7 @@ class RTCStatsCollectorCallbackWrapper : public RTCStatsCollectorCallback {
   ~RTCStatsCollectorCallbackWrapper() override;
 
   void OnStatsDelivered(
-      const rtc::scoped_refptr<const RTCStatsReport>& report) override;
+      const scoped_refptr<const RTCStatsReport>& report) override;
 
  private:
   const ScopedJavaGlobalRef<jobject> j_callback_global_;

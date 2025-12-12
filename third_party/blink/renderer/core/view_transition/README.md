@@ -13,6 +13,10 @@ on top of the content.
 For a detailed explanation, please see the
 [explainer](https://github.com/WICG/view-transitions/blob/main/README.md)
 
+The specification governing this feature is located in the following places:
+* [Level 1](https://drafts.csswg.org/css-view-transitions-1/)
+* [Level 2](https://drafts.csswg.org/css-view-transitions-2/)
+
 ## Code Structure
 
 A new method is exposed on window.document, called startViewTransition(). This is
@@ -77,6 +81,32 @@ Each transition element is tagged with a developer provided string which can be
 used as a custom ident to uniquely identify and target the corresponding
 generated pseudo elements in UA and developer stylesheets. This string is
 tracked on the PseudoElement class.
+
+### Pseudo-element traversal
+
+Pseudo elements are not considered part of tree structure of the ordinary DOM
+tree and thus have no sibling or child pointers like ordinary nodes. However, an
+ordering is defined via special "PseudoAware" methods for child and sibling
+operations.
+
+Within the ::view-transition subtree, view-transition-group siblings are ordered
+based on ordering of the view-transition-name, which is sorted by the paint
+order of the elements they represent, see
+[ViewTransitionStyleTracker::AddTransitionElementsFromCSSRecursive](https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/core/view_transition/view_transition_style_tracker.cc;l=559;drc=7172fffc3c545134d5c88af8ab07b04fcb1d628e).
+::view-transition-old always precedes ::view-transition-new.
+
+In terms of ordering, only ::view-transition is relevant in relation to non-VT
+elements and pseudos, since VT-pseudos can only appear within ::view-transition and
+no other elements can. ::view-transition is placed after ::after:
+
+```
+  Element
+    ::marker
+    ::before
+    Ordinary Elements
+    ::after
+    ::view-transition
+```
 
 ## ViewTransitionElementResourceId
 ViewTransitionElementResourceId is an identifier used to tag the rendered output (called
@@ -158,11 +188,3 @@ than the current fixed viewport. Painting is offset within the snapshot so that
 page content is rendered at the correct location (i.e. the snapshot will paint
 the background color in the region overlaid by the URL bar).
 
-
-## Additional Notes
-
-Note that this project is in early stages of design and implementation. To
-follow the design evolution, please see [our github
-repo](https://github.com/WICG/view-transitions/). Furthermore, this
-README's Code Structure section will be updated as we make progress with our
-implementation.

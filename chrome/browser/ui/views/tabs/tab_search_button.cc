@@ -8,26 +8,60 @@
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
+#include "chrome/browser/ui/views/tabs/tab_search_button.h"
+#include "chrome/browser/ui/views/tabs/tab_strip_control_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
+#include "chrome/common/chrome_features.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/vector_icons/vector_icons.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/paint_vector_icon.h"
+#include "ui/views/background.h"
+#include "ui/views/controls/button/menu_button_controller.h"
 #include "ui/views/view_class_properties.h"
 
-TabSearchButton::TabSearchButton(TabStrip* tab_strip)
-    : NewTabButton(tab_strip, PressedCallback()),
-      tab_search_bubble_host_(std::make_unique<TabSearchBubbleHost>(
-          this,
-          tab_strip->controller()->GetProfile())) {
-  SetImageHorizontalAlignment(HorizontalAlignment::ALIGN_CENTER);
-  SetImageVerticalAlignment(VerticalAlignment::ALIGN_MIDDLE);
+namespace {
+constexpr int kCRTabSearchCornerRadius = 10;
+constexpr int kCRTabSearchFlatCornerRadius = 4;
+constexpr int kComboButtonFlatCornerRadius = 0;
+}  // namespace
+
+TabSearchButton::TabSearchButton(
+    TabStripController* tab_strip_controller,
+    BrowserWindowInterface* browser_window_interface,
+    Edge fixed_flat_edge,
+    Edge animated_flat_edge,
+    TabStrip* tab_strip)
+    : TabStripControlButton(tab_strip_controller,
+                            PressedCallback(),
+                            vector_icons::kExpandMoreIcon,
+                            fixed_flat_edge,
+                            animated_flat_edge) {
   SetProperty(views::kElementIdentifierKey, kTabSearchButtonElementId);
+
+  SetTooltipText(l10n_util::GetStringUTF16(IDS_TOOLTIP_TAB_SEARCH));
+  GetViewAccessibility().SetName(
+      l10n_util::GetStringUTF16(IDS_ACCNAME_TAB_SEARCH));
+
+  if (!features::IsTabSearchMoving() ||
+      features::HasTabstripComboButtonWithBackground()) {
+    SetForegroundFrameActiveColorId(kColorNewTabButtonForegroundFrameActive);
+    SetForegroundFrameInactiveColorId(
+        kColorNewTabButtonForegroundFrameInactive);
+    SetBackgroundFrameActiveColorId(kColorNewTabButtonCRBackgroundFrameActive);
+    SetBackgroundFrameInactiveColorId(
+        kColorNewTabButtonCRBackgroundFrameInactive);
+
+    UpdateColors();
+  }
 }
 
 TabSearchButton::~TabSearchButton() = default;
 
 void TabSearchButton::NotifyClick(const ui::Event& event) {
+  TabStripControlButton::NotifyClick(event);
   // Run pressed callback via MenuButtonController, instead of directly. This is
   // safe as the TabSearchBubbleHost will always configure the TabSearchButton
   // with a MenuButtonController.
@@ -35,67 +69,14 @@ void TabSearchButton::NotifyClick(const ui::Event& event) {
       ->Activate(&event);
 }
 
-void TabSearchButton::FrameColorsChanged() {
-  NewTabButton::FrameColorsChanged();
-  // Icon color needs to be updated here as this is called when the hosting
-  // window switches between active and inactive states. In each state the
-  // foreground color of the tab controls is expected to change.
-  SetImageModel(
-      Button::STATE_NORMAL,
-      ui::ImageModel::FromVectorIcon(
-          base::FeatureList::IsEnabled(features::kTabSearchChevronIcon)
-              ? vector_icons::kCaretDownIcon
-              : kTabSearchIcon,
-          GetForegroundColor()));
-}
-
-void TabSearchButton::PaintIcon(gfx::Canvas* canvas) {
-  // Call ImageButton::PaintButtonContents() to paint the TabSearchButton's
-  // VectorIcon.
-  views::ImageButton::PaintButtonContents(canvas);
-}
-
 int TabSearchButton::GetCornerRadius() const {
-  static int corner_radius = -1;
-
-  if (corner_radius != -1) {
-    return corner_radius;
-  }
-
-  if (features::IsChromeRefresh2023()) {
-    corner_radius = 10;
-  } else {
-    corner_radius = NewTabButton::GetCornerRadius();
-  }
-  return corner_radius;
+  return kCRTabSearchCornerRadius;
 }
 
-SkPath TabSearchButton::GetBorderPath(const gfx::Point& origin,
-                                      float scale,
-                                      bool extend_to_top) const {
-  gfx::PointF scaled_origin(origin);
-  scaled_origin.Scale(scale);
-  float radius = GetCornerRadius() * scale;
-
-  SkPath path;
-  if (extend_to_top) {
-    // revert to old NewTabButton radius
-    radius = NewTabButton::GetCornerRadius() * scale;
-    path.moveTo(scaled_origin.x(), 0);
-    const float diameter = radius * 2;
-    path.rLineTo(diameter, 0);
-    path.rLineTo(0, scaled_origin.y() + radius);
-    path.rArcTo(radius, radius, 0, SkPath::kSmall_ArcSize, SkPathDirection::kCW,
-                -diameter, 0);
-    path.close();
-  } else {
-    path.addRRect(SkRRect::MakeRectXY(
-        SkRect::MakeXYWH(scaled_origin.x(), scaled_origin.y(), 28 * scale,
-                         28 * scale),
-        radius, radius));
-  }
-  return path;
+int TabSearchButton::GetFlatCornerRadius() const {
+  return features::IsTabSearchMoving() ? kComboButtonFlatCornerRadius
+                                       : kCRTabSearchFlatCornerRadius;
 }
 
-BEGIN_METADATA(TabSearchButton, NewTabButton)
+BEGIN_METADATA(TabSearchButton)
 END_METADATA

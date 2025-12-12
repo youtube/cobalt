@@ -5,7 +5,9 @@
 #include "net/socket/transport_connect_job.h"
 
 #include <memory>
+#include <set>
 #include <utility>
+#include <variant>
 
 #include "base/check_op.h"
 #include "base/feature_list.h"
@@ -27,7 +29,6 @@
 #include "net/log/net_log_event_type.h"
 #include "net/socket/socket_tag.h"
 #include "net/socket/transport_connect_sub_job.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 #include "url/scheme_host_port.h"
 #include "url/url_constants.h"
 
@@ -35,17 +36,17 @@ namespace net {
 
 namespace {
 
-// TODO(crbug.com/1206799): Delete once endpoint usage is converted to using
+// TODO(crbug.com/40181080): Delete once endpoint usage is converted to using
 // url::SchemeHostPort when available.
 HostPortPair ToLegacyDestinationEndpoint(
     const TransportSocketParams::Endpoint& endpoint) {
-  if (absl::holds_alternative<url::SchemeHostPort>(endpoint)) {
+  if (std::holds_alternative<url::SchemeHostPort>(endpoint)) {
     return HostPortPair::FromSchemeHostPort(
-        absl::get<url::SchemeHostPort>(endpoint));
+        std::get<url::SchemeHostPort>(endpoint));
   }
 
-  DCHECK(absl::holds_alternative<HostPortPair>(endpoint));
-  return absl::get<HostPortPair>(endpoint);
+  DCHECK(std::holds_alternative<HostPortPair>(endpoint));
+  return std::get<HostPortPair>(endpoint);
 }
 
 }  // namespace
@@ -62,7 +63,7 @@ TransportSocketParams::TransportSocketParams(
       host_resolution_callback_(std::move(host_resolution_callback)),
       supported_alpns_(std::move(supported_alpns)) {
 #if DCHECK_IS_ON()
-  auto* scheme_host_port = absl::get_if<url::SchemeHostPort>(&destination_);
+  auto* scheme_host_port = std::get_if<url::SchemeHostPort>(&destination_);
   if (scheme_host_port) {
     if (scheme_host_port->scheme() == url::kHttpsScheme) {
       // HTTPS destinations will, when passed to the DNS resolver, return
@@ -119,7 +120,7 @@ TransportConnectJob::TransportConnectJob(
     const scoped_refptr<TransportSocketParams>& params,
     Delegate* delegate,
     const NetLogWithSource* net_log,
-    absl::optional<EndpointResultOverride> endpoint_result_override)
+    std::optional<EndpointResultOverride> endpoint_result_override)
     : ConnectJob(priority,
                  socket_tag,
                  ConnectionTimeout(),
@@ -183,7 +184,7 @@ ResolveErrorInfo TransportConnectJob::GetResolveErrorInfo() const {
   return resolve_error_info_;
 }
 
-absl::optional<HostResolverEndpointResult>
+std::optional<HostResolverEndpointResult>
 TransportConnectJob::GetHostResolverEndpointResult() const {
   CHECK_LT(current_endpoint_result_, endpoint_results_.size());
   return endpoint_results_[current_endpoint_result_];
@@ -233,8 +234,6 @@ int TransportConnectJob::DoLoop(int result) {
         break;
       default:
         NOTREACHED();
-        rv = ERR_FAILED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
 
@@ -256,13 +255,13 @@ int TransportConnectJob::DoResolveHost() {
   HostResolver::ResolveHostParameters parameters;
   parameters.initial_priority = priority();
   parameters.secure_dns_policy = params_->secure_dns_policy();
-  if (absl::holds_alternative<url::SchemeHostPort>(params_->destination())) {
+  if (std::holds_alternative<url::SchemeHostPort>(params_->destination())) {
     request_ = host_resolver()->CreateRequest(
-        absl::get<url::SchemeHostPort>(params_->destination()),
+        std::get<url::SchemeHostPort>(params_->destination()),
         params_->network_anonymization_key(), net_log(), parameters);
   } else {
     request_ = host_resolver()->CreateRequest(
-        absl::get<HostPortPair>(params_->destination()),
+        std::get<HostPortPair>(params_->destination()),
         params_->network_anonymization_key(), net_log(), parameters);
   }
 
@@ -347,8 +346,26 @@ int TransportConnectJob::DoResolveHostCallbackComplete() {
     return ERR_NAME_NOT_RESOLVED;
   }
 
-  next_state_ = STATE_TRANSPORT_CONNECT;
-  return OK;
+  Error result = OK;
+  // If DNS aliases are resolved, have the delegate process the aliases to
+  // determine if further action is needed.
+  // Only invoke `HandleDnsAliasesResolved` if aliases contains at least one
+  // element that is not the destination hostname.
+  const std::string& endpoint_hostname =
+      std::holds_alternative<url::SchemeHostPort>(params_->destination())
+          ? std::get<url::SchemeHostPort>(params_->destination()).host()
+          : std::get<HostPortPair>(params_->destination()).host();
+  if (dns_aliases_.size() > 1 ||
+      (dns_aliases_.size() == 1 && !dns_aliases_.contains(endpoint_hostname))) {
+    result = HandleDnsAliasesResolved(dns_aliases_);
+    CHECK_NE(result, ERR_IO_PENDING);
+  }
+
+  if (result == OK) {
+    next_state_ = STATE_TRANSPORT_CONNECT;
+  }
+
+  return result;
 }
 
 int TransportConnectJob::DoTransportConnect() {
@@ -513,15 +530,13 @@ bool TransportConnectJob::IsSvcbOptional(
   // draft-ietf-dnsop-svcb-https-08.
 
   auto* scheme_host_port =
-      absl::get_if<url::SchemeHostPort>(&params_->destination());
+      std::get_if<url::SchemeHostPort>(&params_->destination());
   if (!scheme_host_port || scheme_host_port->scheme() != url::kHttpsScheme) {
     return true;  // This is not a SVCB-capable request at all.
   }
 
   if (!common_connect_job_params()->ssl_client_context ||
-      !common_connect_job_params()
-           ->ssl_client_context->config()
-           .EncryptedClientHelloEnabled()) {
+      !common_connect_job_params()->ssl_client_context->config().ech_enabled) {
     return true;  // ECH is not supported for this request.
   }
 

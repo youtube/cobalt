@@ -12,7 +12,9 @@
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/loader/empty_clients.h"
 #include "third_party/blink/renderer/core/testing/dummy_page_holder.h"
+#include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/wtf/shared_buffer.h"
 
 namespace blink {
@@ -22,7 +24,9 @@ namespace blink {
 // InternalPopupMenu::WriteDocument.
 #if !BUILDFLAG(IS_ANDROID)
 
-TEST(InternalPopupMenuTest, ShowSelectDisplayNone) {
+class InternalPopupMenuTest : public PageTestBase {};
+
+TEST_F(InternalPopupMenuTest, ShowSelectDisplayNone) {
   auto dummy_page_holder_ =
       std::make_unique<DummyPageHolder>(gfx::Size(800, 600));
   Document& document = dummy_page_holder_->GetDocument();
@@ -36,8 +40,9 @@ TEST(InternalPopupMenuTest, ShowSelectDisplayNone) {
   )HTML");
   document.View()->UpdateAllLifecyclePhasesForTest();
 
-  auto* div = document.getElementById("container");
-  auto* select = To<HTMLSelectElement>(document.getElementById("select"));
+  auto* div = document.getElementById(AtomicString("container"));
+  auto* select =
+      To<HTMLSelectElement>(document.getElementById(AtomicString("select")));
   ASSERT_TRUE(select);
   auto* menu = MakeGarbageCollected<InternalPopupMenu>(
       MakeGarbageCollected<EmptyChromeClient>(), *select);

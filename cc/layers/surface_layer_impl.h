@@ -39,10 +39,10 @@ class CC_EXPORT SurfaceLayerImpl : public LayerImpl {
   SurfaceLayerImpl& operator=(const SurfaceLayerImpl&) = delete;
 
   void SetRange(const viz::SurfaceRange& surface_range,
-                absl::optional<uint32_t> deadline_in_frames);
+                std::optional<uint32_t> deadline_in_frames);
   const viz::SurfaceRange& range() const { return surface_range_; }
 
-  absl::optional<uint32_t> deadline_in_frames() const {
+  std::optional<uint32_t> deadline_in_frames() const {
     return deadline_in_frames_;
   }
 
@@ -60,13 +60,24 @@ class CC_EXPORT SurfaceLayerImpl : public LayerImpl {
   void SetIsReflection(bool is_reflection);
   bool is_reflection() const { return is_reflection_; }
 
+  bool will_draw_needs_reset() const { return will_draw_needs_reset_; }
+
+  void SetOverrideChildPaintFlags(bool override_child_paint_flags);
+  bool override_child_paint_flags() const {
+    return override_child_paint_flags_;
+  }
+
+  void ResetStateForUpdateSubmissionStateCallback();
+
   // LayerImpl overrides.
+  mojom::LayerType GetLayerType() const override;
   std::unique_ptr<LayerImpl> CreateLayerImpl(
       LayerTreeImpl* tree_impl) const override;
   void PushPropertiesTo(LayerImpl* layer) override;
   bool WillDraw(DrawMode draw_mode,
                 viz::ClientResourceProvider* resource_provider) override;
-  void AppendQuads(viz::CompositorRenderPass* render_pass,
+  void AppendQuads(const AppendQuadsContext& context,
+                   viz::CompositorRenderPass* render_pass,
                    AppendQuadsData* append_quads_data) override;
   bool is_surface_layer() const override;
   gfx::Rect GetEnclosingVisibleRectInTargetSpace() const override;
@@ -78,17 +89,21 @@ class CC_EXPORT SurfaceLayerImpl : public LayerImpl {
   void GetDebugBorderProperties(SkColor4f* color, float* width) const override;
   void AppendRainbowDebugBorder(viz::CompositorRenderPass* render_pass);
   void AsValueInto(base::trace_event::TracedValue* dict) const override;
-  const char* LayerTypeAsString() const override;
 
   UpdateSubmissionStateCB update_submission_state_callback_;
   viz::SurfaceRange surface_range_;
-  absl::optional<uint32_t> deadline_in_frames_;
+  std::optional<uint32_t> deadline_in_frames_;
 
   bool stretch_content_to_fill_bounds_ = false;
   bool surface_hit_testable_ = false;
   bool has_pointer_events_none_ = false;
   bool is_reflection_ = false;
   bool will_draw_ = false;
+  // This value tracks if a visibility reset took place in the associated
+  // SurfaceLayer, so that it can be propagated to the active SurfaceLayerImpl
+  // and used to update `will_draw_` on that layer accordingly.
+  bool will_draw_needs_reset_ = false;
+  bool override_child_paint_flags_ = false;
 };
 
 }  // namespace cc

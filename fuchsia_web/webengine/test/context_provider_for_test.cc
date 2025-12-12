@@ -24,9 +24,9 @@ namespace {
   static constexpr char kContextProviderService[] = "context_provider";
   realm_builder.AddChild(kContextProviderService, "#meta/context_provider.cm");
 
-  constexpr char const* kSwitchesToCopy[] = {"ozone-platform"};
+  static constexpr char const* kSwitchesToCopy[] = {"ozone-platform"};
   command_line.CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
-                                kSwitchesToCopy, std::size(kSwitchesToCopy));
+                                kSwitchesToCopy);
 
   test::AppendCommandLineArguments(realm_builder, kContextProviderService,
                                    command_line);
@@ -41,6 +41,7 @@ namespace {
           .capabilities =
               {// Capabilities used/routed by WebInstanceHost:
                ::component_testing::Directory{"config-data-for-web-instance"},
+               ::component_testing::Directory{"tzdata-icu"},
                // Required capabilities offered to web-instance.cm:
                ::component_testing::Directory{"root-ssl-certificates"},
                ::component_testing::Protocol{"fuchsia.buildinfo.Provider"},
@@ -49,13 +50,15 @@ namespace {
                ::component_testing::Protocol{"fuchsia.hwinfo.Product"},
                ::component_testing::Protocol{"fuchsia.intl.PropertyProvider"},
                ::component_testing::Protocol{"fuchsia.kernel.VmexResource"},
-               ::component_testing::Protocol{"fuchsia.logger.LogSink"},
+               ::component_testing::Dictionary{"diagnostics"},
                ::component_testing::Protocol{"fuchsia.memorypressure.Provider"},
                ::component_testing::Protocol{"fuchsia.process.Launcher"},
                ::component_testing::Protocol{"fuchsia.sysmem.Allocator"},
+               ::component_testing::Protocol{"fuchsia.sysmem2.Allocator"},
                // Optional capabilities offered to web-instance.cm:
                ::component_testing::Protocol{"fuchsia.camera3.DeviceWatcher"},
                ::component_testing::Protocol{"fuchsia.media.ProfileProvider"},
+               ::component_testing::Protocol{"fuchsia.scheduler.RoleManager"},
                ::component_testing::Protocol{"fuchsia.settings.Display"},
                ::component_testing::Protocol{
                    "fuchsia.tracing.perfetto.ProducerConnector"},

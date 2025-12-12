@@ -16,7 +16,6 @@
 #include "cc/paint/display_item_list.h"
 #include "cc/paint/image_provider.h"
 #include "cc/paint/skia_paint_canvas.h"
-#include "cc/tiles/picture_layer_tiling.h"
 #include "components/viz/common/traced_value.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "ui/gfx/geometry/axis_transform2d.h"
@@ -24,17 +23,21 @@
 
 namespace cc {
 
-RasterSource::RasterSource(const RecordingSource* other)
-    : display_list_(other->display_list_),
-      background_color_(other->background_color_),
-      requires_clear_(other->requires_clear_),
-      is_solid_color_(other->is_solid_color_),
-      solid_color_(other->solid_color_),
-      recorded_viewport_(other->recorded_viewport_),
-      size_(other->size_),
+RasterSource::RasterSource(const RecordingSource& other)
+    : display_list_(other.display_list_),
+      background_color_(other.background_color_),
+      requires_clear_(other.requires_clear_),
+      is_solid_color_(other.is_solid_color_),
+      solid_color_(other.solid_color_),
+      recorded_bounds_(other.recorded_bounds_),
+      size_(other.size_),
       slow_down_raster_scale_factor_for_debug_(
-          other->slow_down_raster_scale_factor_for_debug_),
-      recording_scale_factor_(other->recording_scale_factor_) {}
+          other.slow_down_raster_scale_factor_for_debug_),
+      recording_scale_factor_(other.recording_scale_factor_),
+      directly_composited_image_info_(other.directly_composited_image_info_) {
+  DCHECK(recorded_bounds_.IsEmpty() ||
+         gfx::Rect(size_).Contains(recorded_bounds_));
+}
 
 RasterSource::~RasterSource() = default;
 
@@ -113,70 +116,41 @@ void RasterSource::PlaybackToCanvas(
     raster_canvas->clear(SK_ColorTRANSPARENT);
   }
 
-  PlaybackDisplayListToCanvas(raster_canvas, settings.image_provider);
+  PlaybackDisplayListToCanvas(raster_canvas, settings);
   raster_canvas->restore();
 }
 
 void RasterSource::PlaybackDisplayListToCanvas(
     SkCanvas* raster_canvas,
-    ImageProvider* image_provider) const {
-  // TODO(enne): Temporary CHECK debugging for http://crbug.com/823835
-  CHECK(display_list_.get());
+    const PlaybackSettings& settings) const {
+  CHECK(display_list_);
   int repeat_count = std::max(1, slow_down_raster_scale_factor_for_debug_);
-  for (int i = 0; i < repeat_count; ++i)
-    display_list_->Raster(raster_canvas, image_provider);
+  PlaybackParams params(settings.image_provider, SkM44());
+  params.raster_inducing_scroll_offsets =
+      settings.raster_inducing_scroll_offsets;
+  for (int i = 0; i < repeat_count; ++i) {
+    display_list_->Raster(raster_canvas, params);
+  }
 }
 
 bool RasterSource::PerformSolidColorAnalysis(gfx::Rect layer_rect,
                                              SkColor4f* color,
                                              int max_ops_to_analyze) const {
   TRACE_EVENT0("cc", "RasterSource::PerformSolidColorAnalysis");
-
+  CHECK(display_list_);
   layer_rect.Intersect(gfx::Rect(size_));
   layer_rect = gfx::ScaleToRoundedRect(layer_rect, recording_scale_factor_);
   return display_list_->GetColorIfSolidInRect(layer_rect, color,
                                               max_ops_to_analyze);
 }
 
-void RasterSource::GetDiscardableImagesInRect(
-    const gfx::Rect& layer_rect,
-    std::vector<const DrawImage*>* images) const {
-  DCHECK_EQ(0u, images->size());
-  display_list_->discardable_image_map().GetDiscardableImagesInRect(layer_rect,
-                                                                    images);
-}
-
-base::flat_map<PaintImage::Id, PaintImage::DecodingMode>
-RasterSource::TakeDecodingModeMap() {
-  return display_list_->TakeDecodingModeMap();
-}
-
-bool RasterSource::IntersectsRect(
-    const gfx::Rect& layer_rect,
-    const PictureLayerTilingClient& client) const {
-  if (size_.IsEmpty())
-    return false;
-
-  // Directly composited images by definition have a single DrawImageRectOp that
-  // covers the entire layer, so return true for these raster sources.
-  // TODO(crbug.com/1117174): This will miss cases when the raster source
-  // partially covers the layer rect.
-  if (client.IsDirectlyCompositedImage())
-    return true;
-
-  gfx::Rect bounded_rect = layer_rect;
-  bounded_rect.Intersect(gfx::Rect(size_));
-  return recorded_viewport_.Intersects(bounded_rect);
-}
-
-gfx::Size RasterSource::GetSize() const {
-  return size_;
+bool RasterSource::IntersectsRect(const gfx::Rect& layer_rect) const {
+  return recorded_bounds().Intersects(layer_rect);
 }
 
 gfx::Size RasterSource::GetContentSize(
     const gfx::Vector2dF& content_scale) const {
-  return gfx::ScaleToCeiledSize(GetSize(), content_scale.x(),
-                                content_scale.y());
+  return gfx::ScaleToCeiledSize(size_, content_scale.x(), content_scale.y());
 }
 
 bool RasterSource::IsSolidColor() const {
@@ -189,11 +163,7 @@ SkColor4f RasterSource::GetSolidColor() const {
 }
 
 bool RasterSource::HasRecordings() const {
-  return !!display_list_.get();
-}
-
-gfx::Rect RasterSource::RecordedViewport() const {
-  return recorded_viewport_;
+  return display_list_ && !recorded_bounds_.IsEmpty();
 }
 
 void RasterSource::AsValueInto(base::trace_event::TracedValue* array) const {

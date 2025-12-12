@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/core/inspector/inspector_log_agent.h"
 
 #include "base/format_macros.h"
+#include "third_party/blink/renderer/core/dom/dom_node_ids.h"
 #include "third_party/blink/renderer/core/frame/performance_monitor.h"
 #include "third_party/blink/renderer/core/inspector/console_message.h"
 #include "third_party/blink/renderer/core/inspector/console_message_storage.h"
@@ -117,8 +118,8 @@ void InspectorLogAgent::ConsoleMessageAdded(ConsoleMessage* message) {
 
   std::unique_ptr<protocol::Log::LogEntry> entry =
       protocol::Log::LogEntry::create()
-          .setSource(MessageSourceValue(message->Source()))
-          .setLevel(MessageLevelValue(message->Level()))
+          .setSource(MessageSourceValue(message->GetSource()))
+          .setLevel(MessageLevelValue(message->GetLevel()))
           .setText(message->Message())
           .setTimestamp(message->Timestamp())
           .build();
@@ -130,10 +131,11 @@ void InspectorLogAgent::ConsoleMessageAdded(ConsoleMessage* message) {
     entry->setStackTrace(std::move(stack_trace));
   if (message->Location()->LineNumber())
     entry->setLineNumber(message->Location()->LineNumber() - 1);
-  if (message->Source() == mojom::blink::ConsoleMessageSource::kWorker &&
-      !message->WorkerId().empty())
+  if (message->GetSource() == ConsoleMessage::Source::kWorker &&
+      !message->WorkerId().empty()) {
     entry->setWorkerId(message->WorkerId());
-  if (message->Source() == mojom::blink::ConsoleMessageSource::kNetwork &&
+  }
+  if (message->GetSource() == ConsoleMessage::Source::kNetwork &&
       !message->RequestIdentifier().IsNull()) {
     entry->setNetworkRequestId(message->RequestIdentifier());
   }
@@ -147,8 +149,7 @@ void InspectorLogAgent::ConsoleMessageAdded(ConsoleMessage* message) {
           remote_object;
       Node* node = DOMNodeIds::NodeForId(node_id);
       if (node) {
-        remote_object =
-            ResolveNode(v8_session_, node, "console", protocol::Maybe<int>());
+        remote_object = ResolveNode(v8_session_, node, "console", std::nullopt);
       }
       if (!remote_object) {
         remote_object =

@@ -17,6 +17,8 @@ class NativeInputMethodEngineObserverTest : public ::testing::Test {
  public:
   NativeInputMethodEngineObserverTest()
       : observer_(/*prefs=*/profile_.GetPrefs(),
+                  /*editor_event_sink=*/nullptr,
+                  /*lobster_event_sink=*/nullptr,
                   /*ime_base_observer=*/nullptr,
                   /*assistive_suggester=*/nullptr,
                   /*autocorrect_manager=*/nullptr,
@@ -36,7 +38,7 @@ TEST_F(NativeInputMethodEngineObserverTest,
   histogram_tester.ExpectTotalCount(
       "InputMethod.Assistive.MultiWord.SuggestionOpportunity", 0);
 
-  observer_.ReportSuggestionOpportunity(
+  observer_.DEPRECATED_ReportSuggestionOpportunity(
       ime::AssistiveSuggestionMode::kCompletion);
 
   histogram_tester.ExpectTotalCount(
@@ -53,7 +55,7 @@ TEST_F(NativeInputMethodEngineObserverTest,
   histogram_tester.ExpectTotalCount(
       "InputMethod.Assistive.MultiWord.SuggestionOpportunity", 0);
 
-  observer_.ReportSuggestionOpportunity(
+  observer_.DEPRECATED_ReportSuggestionOpportunity(
       ime::AssistiveSuggestionMode::kPrediction);
 
   histogram_tester.ExpectTotalCount(

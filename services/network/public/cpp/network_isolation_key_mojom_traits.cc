@@ -6,6 +6,8 @@
 
 #include "base/unguessable_token.h"
 #include "net/base/features.h"
+#include "net/base/network_isolation_partition.h"
+#include "services/network/public/cpp/network_isolation_partition_mojom_traits.h"
 
 namespace mojo {
 
@@ -19,43 +21,24 @@ bool StructTraits<network::mojom::EmptyNetworkIsolationKeyDataView,
 }
 
 // static
-bool StructTraits<network::mojom::FrameSiteEnabledNetworkIsolationKeyDataView,
+bool StructTraits<network::mojom::NonEmptyNetworkIsolationKeyDataView,
                   net::NetworkIsolationKey>::
-    Read(network::mojom::FrameSiteEnabledNetworkIsolationKeyDataView data,
+    Read(network::mojom::NonEmptyNetworkIsolationKeyDataView data,
          net::NetworkIsolationKey* out) {
   net::SchemefulSite top_frame_site;
   net::SchemefulSite frame_site;
-  absl::optional<base::UnguessableToken> nonce;
+  std::optional<base::UnguessableToken> nonce;
+  net::NetworkIsolationPartition network_isolation_partition;
 
   if (!data.ReadTopFrameSite(&top_frame_site) ||
-      !data.ReadFrameSite(&frame_site) || !data.ReadNonce(&nonce)) {
-    return false;
-  }
-
-  *out = net::NetworkIsolationKey(std::move(top_frame_site),
-                                  std::move(frame_site), std::move(nonce));
-  return true;
-}
-
-// static
-bool StructTraits<
-    network::mojom::CrossSiteFlagEnabledNetworkIsolationKeyDataView,
-    net::NetworkIsolationKey>::
-    Read(network::mojom::CrossSiteFlagEnabledNetworkIsolationKeyDataView data,
-         net::NetworkIsolationKey* out) {
-  net::SchemefulSite top_frame_site;
-  net::SchemefulSite frame_site;
-  absl::optional<base::UnguessableToken> nonce;
-
-  if (!data.ReadTopFrameSite(&top_frame_site) ||
-      !data.ReadFrameSite(&frame_site) || !data.ReadNonce(&nonce)) {
+      !data.ReadFrameSite(&frame_site) || !data.ReadNonce(&nonce) ||
+      !data.ReadNetworkIsolationPartition(&network_isolation_partition)) {
     return false;
   }
 
   *out =
-      net::NetworkIsolationKey(net::NetworkIsolationKey::SerializationPasskey(),
-                               std::move(top_frame_site), std::move(frame_site),
-                               data.is_cross_site(), std::move(nonce));
+      net::NetworkIsolationKey(std::move(top_frame_site), std::move(frame_site),
+                               std::move(nonce), network_isolation_partition);
   return true;
 }
 
@@ -68,19 +51,8 @@ bool UnionTraits<network::mojom::NetworkIsolationKeyDataView,
     return data.ReadEmpty(out);
   }
 
-  switch (net::NetworkIsolationKey::GetMode()) {
-    case net::NetworkIsolationKey::Mode::kFrameSiteEnabled:
-      if (!data.is_frame_site_enabled()) {
-        return false;
-      }
-      return data.ReadFrameSiteEnabled(out);
-    case net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled:
-      if (!data.is_cross_site_flag_enabled()) {
-        return false;
-      }
-      return data.ReadCrossSiteFlagEnabled(out);
-  }
-  NOTREACHED_NORETURN();
+  CHECK(data.is_non_empty());
+  return data.ReadNonEmpty(out);
 }
 
 // static
@@ -91,15 +63,8 @@ UnionTraits<network::mojom::NetworkIsolationKeyDataView,
   if (network_isolation_key.IsEmpty()) {
     return network::mojom::NetworkIsolationKeyDataView::Tag::kEmpty;
   }
-  switch (net::NetworkIsolationKey::GetMode()) {
-    case net::NetworkIsolationKey::Mode::kFrameSiteEnabled:
-      return network::mojom::NetworkIsolationKeyDataView::Tag::
-          kFrameSiteEnabled;
-    case net::NetworkIsolationKey::Mode::kCrossSiteFlagEnabled:
-      return network::mojom::NetworkIsolationKeyDataView::Tag::
-          kCrossSiteFlagEnabled;
-  }
-  NOTREACHED_NORETURN();
+
+  return network::mojom::NetworkIsolationKeyDataView::Tag::kNonEmpty;
 }
 
 }  // namespace mojo

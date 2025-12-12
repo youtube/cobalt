@@ -25,6 +25,9 @@
   <message name="IDS_ASH_ARC_NEARBY_SHARE_ERROR_DIALOG_MESSAGE" desc="Dialog body that tells the user there was an error while sharing text and/or files.">
     Something went wrong while using Nearby Share
   </message>
+  <message name="IDS_ASH_ARC_NEARBY_SHARE_ERROR_DIALOG_MESSAGE_PH" desc="Feature name placeholder: Dialog body that tells the user there was an error while sharing text and/or files.">
+    Something went wrong while using <ph name="FEATURE_NAME">$1<ex>Nearby Share</ex></ph>
+  </message>
   <message name="IDS_ASH_ARC_NEARBY_SHARE_LOW_DISK_SPACE_DIALOG_TITLE" desc="Dialog title that tells the user Nearby Share failed due to low disk space.">
     Free up space
   </message>
@@ -33,17 +36,13 @@
       =1 {To send this file using Nearby Share, free up space (<ph name="DISK_SPACE_SIZE">$1<ex>20MB</ex></ph>) on your device}
       other {To send these files using Nearby Share, free up space (<ph name="DISK_SPACE_SIZE">$1<ex>20MB</ex></ph>) on your device}}
   </message>
+  <message name="IDS_ASH_ARC_NEARBY_SHARE_LOW_DISK_SPACE_DIALOG_MESSAGE_PH" desc="Feature name placeholder: Dialog body that tells the user Nearby Share failed due to low disk space while sharing a file(s).">
+    {NUM_FILES, plural,
+      =1 {To send this file using <ph name="FEATURE_NAME">{1}<ex>Nearby Share</ex></ph>, free up space (<ph name="DISK_SPACE_SIZE">{2}<ex>20MB</ex></ph>) on your device}
+      other {To send these files using <ph name="FEATURE_NAME">{1}<ex>Nearby Share</ex></ph>, free up space (<ph name="DISK_SPACE_SIZE">{2}<ex>20MB</ex></ph>) on your device}}
+  </message>
   <message name="IDS_ASH_ARC_NEARBY_SHARE_LOW_DISK_SPACE_DIALOG_STORAGE_BUTTON" desc="Label for button to acknowledge Nearby Share failed due to low disk space and open the Storage management settings page.">
     Storage management
-  </message>
-  <message name="IDS_ARC_COMPAT_MODE_RESIZE_TOGGLE_MENU_PHONE" desc="Item in a list of possible sizes for the app. Makes the app in a portrait, phone size.">
-    Phone
-  </message>
-  <message name="IDS_ARC_COMPAT_MODE_RESIZE_TOGGLE_MENU_TABLET" desc="Item in a list of possible sizes for the app. Makes the app bigger and wider in a tablet size.">
-    Tablet
-  </message>
-  <message name="IDS_ARC_COMPAT_MODE_RESIZE_TOGGLE_MENU_RESIZABLE" desc="Item in a list of possible sizes for the app. Makes the app resizable.">
-    Resizable
   </message>
   <message name="IDS_ARC_COMPAT_MODE_RESIZE_TOGGLE_MENU_RESIZE_SETTINGS" desc="Label for the button to allow the user to go to resize settings.">
     Settings
@@ -206,5 +205,19 @@
   </message>
   <message name="IDS_ARC_VM_DATA_MIGRATION_SCREEN_REPORT_BUTTON_LABEL" desc="Label of a button to send a feedback report after an update to improve the performance of Android apps on ChromeOS failed.">
     Send a report
+  </message>
+
+ <!-- ARC VM preload notification -->
+  <message name="IDS_ARC_VM_PRELOAD_NOTIFICATION_TITLE" desc="Title of the notification to keep users informed about the download progress of ArcVm.">
+    ArcVm preload progress update
+  </message>
+  <message name="IDS_ARC_VM_PRELOAD_STARTED_MESSAGE" desc="Main message of the notification to keep users informed about the download progress of ArcVm.">
+    Installation of VPN background services has started, this may take a few minutes.
+  </message>
+  <message name="IDS_ARC_VM_PRELOAD_SUCCEEDED_MESSAGE" desc="Main message of the notification to keep users informed about the download progress of ArcVm.">
+    VPN Background Services installation complete. If you do not see VPN apps, please log out and log back in.
+  </message>
+  <message name="IDS_ARC_VM_PRELOAD_FAILED_MESSAGE" desc="Main message of the notification to keep users informed about the download progress of ArcVm.">
+    VPN background services installation failed.
   </message>
 </grit-part>

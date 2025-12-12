@@ -10,7 +10,7 @@
 
 namespace feature_engagement {
 
-DisplayLockControllerImpl::DisplayLockControllerImpl() {}
+DisplayLockControllerImpl::DisplayLockControllerImpl() = default;
 
 DisplayLockControllerImpl::~DisplayLockControllerImpl() = default;
 
@@ -18,7 +18,7 @@ void DisplayLockControllerImpl::ReleaseDisplayLock(uint32_t handle_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   auto it = outstanding_display_locks_.find(handle_id);
-  DCHECK(it != outstanding_display_locks_.end());
+  CHECK(it != outstanding_display_locks_.end());
   outstanding_display_locks_.erase(it);
 }
 

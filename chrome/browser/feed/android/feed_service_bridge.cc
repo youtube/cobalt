@@ -14,7 +14,6 @@
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/feed/android/jni_headers/FeedServiceBridge_jni.h"
 #include "chrome/browser/feed/feed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
@@ -25,6 +24,9 @@
 #include "components/feed/feed_feature_list.h"
 #include "components/metrics/metrics_service.h"
 #include "components/prefs/pref_service.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/browser/feed/android/jni_headers/FeedServiceBridge_jni.h"
 
 namespace feed {
 namespace {
@@ -64,31 +66,8 @@ static int JNI_FeedServiceBridge_GetLoadMoreTriggerScrollDistanceDp(
   return GetFeedConfig().load_more_trigger_scroll_distance_dp;
 }
 
-static void JNI_FeedServiceBridge_ReportOpenVisitComplete(JNIEnv* env,
-                                                          jlong visitTimeMs) {
-  FeedApi* api = GetFeedApi();
-  if (!api)
-    return;
-  api->ReportOpenVisitComplete(base::Milliseconds(visitTimeMs));
-}
-
-static int JNI_FeedServiceBridge_GetVideoPreviewsTypePreference(JNIEnv* env) {
-  PrefService* pref_service = ProfileManager::GetLastUsedProfile()->GetPrefs();
-  return pref_service->GetInteger(feed::prefs::kVideoPreviewsType);
-}
-
-static void JNI_FeedServiceBridge_SetVideoPreviewsTypePreference(JNIEnv* env,
-                                                                 jint setting) {
-  PrefService* pref_service = ProfileManager::GetLastUsedProfile()->GetPrefs();
-  pref_service->SetInteger(feed::prefs::kVideoPreviewsType, setting);
-}
-
 static jlong JNI_FeedServiceBridge_GetReliabilityLoggingId(JNIEnv* env) {
   return FeedServiceBridge::GetReliabilityLoggingId();
-}
-
-static jboolean JNI_FeedServiceBridge_IsAutoplayEnabled(JNIEnv* env) {
-  return FeedServiceBridge::IsAutoplayEnabled();
 }
 
 static jlong JNI_FeedServiceBridge_AddUnreadContentObserver(
@@ -106,14 +85,24 @@ static jlong JNI_FeedServiceBridge_AddUnreadContentObserver(
   return reinterpret_cast<jlong>(observer);
 }
 
-static void JNI_FeedServiceBridge_ReportOtherUserAction(JNIEnv* env,
-                                                        jint stream_kind,
-                                                        jint action) {
+static void JNI_FeedServiceBridge_ReportOtherUserActionForStream(
+    JNIEnv* env,
+    jint stream_kind,
+    jint action) {
   FeedApi* api = GetFeedApi();
   if (!api)
     return;
   api->ReportOtherUserAction(StreamType(static_cast<StreamKind>(stream_kind)),
                              static_cast<FeedUserActionType>(action));
+}
+
+static void JNI_FeedServiceBridge_ReportOtherUserAction(JNIEnv* env,
+                                                        jint action) {
+  FeedApi* api = GetFeedApi();
+  if (!api) {
+    return;
+  }
+  api->ReportOtherUserAction(static_cast<FeedUserActionType>(action));
 }
 
 static jint JNI_FeedServiceBridge_GetContentOrderForWebFeed(JNIEnv* env) {
@@ -151,8 +140,7 @@ static jboolean JNI_FeedServiceBridge_IsSignedIn(JNIEnv* env) {
 
 std::string FeedServiceBridge::GetLanguageTag() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  return ConvertJavaStringToUTF8(env,
-                                 Java_FeedServiceBridge_getLanguageTag(env));
+  return Java_FeedServiceBridge_getLanguageTag(env);
 }
 
 DisplayMetrics FeedServiceBridge::GetDisplayMetrics() {
@@ -168,16 +156,6 @@ DisplayMetrics FeedServiceBridge::GetDisplayMetrics() {
   return result;
 }
 
-bool FeedServiceBridge::IsAutoplayEnabled() {
-  return base::FeatureList::IsEnabled(kInterestFeedV2Autoplay);
-}
-
-TabGroupEnabledState FeedServiceBridge::GetTabGroupEnabledState() {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  return static_cast<TabGroupEnabledState>(
-      Java_FeedServiceBridge_getTabGroupEnabledState(env));
-}
-
 void FeedServiceBridge::ClearAll() {
   JNIEnv* env = base::android::AttachCurrentThread();
   Java_FeedServiceBridge_clearAll(env);
@@ -190,8 +168,7 @@ bool FeedServiceBridge::IsEnabled() {
 
 void FeedServiceBridge::PrefetchImage(const GURL& url) {
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_FeedServiceBridge_prefetchImage(
-      env, base::android::ConvertUTF8ToJavaString(env, url.spec()));
+  Java_FeedServiceBridge_prefetchImage(env, url.spec());
 }
 
 uint64_t FeedServiceBridge::GetReliabilityLoggingId() {

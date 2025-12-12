@@ -21,9 +21,8 @@ owners:
 - atwilson@chromium.org
 schema:
   type: boolean
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:37-
 tags: []
 type: main
+generate_device_proto: False

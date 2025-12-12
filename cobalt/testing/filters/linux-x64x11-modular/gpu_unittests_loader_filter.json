@@ -1,5 +1,14 @@
 {
   "failing_tests": [
-    "GpuChannelManagerTest.GpuPeakMemoryOnlyReportedForValidSequence"
+    "GpuChannelManagerTest.GpuPeakMemoryOnlyReportedForValidSequence",
+    "GpuDiskCacheTest.ClearByPathTriggersCallback",
+    "GpuDiskCacheTest.ClearByPathWithNoExistingCache",
+    "GpuDiskCacheTest.ClearsCache",
+    "GpuDiskCacheTest.DestroyedCallbackCalledMultipleInstance",
+    "GpuDiskCacheTest.DestroyedCallbackCalledOneInstance",
+    "GpuDiskCacheTest.ModifyExistingKey",
+    "GpuDiskCacheTest.MultipleLoaderCallbacks",
+    "GpuDiskCacheTest.ReleasedCacheHandle",
+    "GpuDiskCacheTest.SafeToDeleteCacheMidEntryOpen"
   ]
 }

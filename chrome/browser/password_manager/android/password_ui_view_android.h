@@ -14,14 +14,15 @@
 #include "base/android/jni_weak_ref.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/password_entry_edit/android/credential_edit_bridge.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
-#include "chrome/browser/password_manager/affiliation_service_factory.h"
-#include "chrome/browser/password_manager/password_store_factory.h"
-#include "chrome/browser/profiles/profile_manager.h"
+#include "chrome/browser/password_manager/profile_password_store_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
-#include "components/password_manager/core/browser/password_store_consumer.h"
+#include "components/password_manager/core/browser/password_store/password_store_consumer.h"
 #include "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
+
+class Profile;
 
 namespace password_manager {
 class CredentialProviderInterface;
@@ -29,7 +30,7 @@ class CredentialProviderInterface;
 
 // PasswordUIView for Android, contains jni hooks that allows Android UI to
 // display passwords and route UI commands back to SavedPasswordsPresenter.
-class PasswordUIViewAndroid
+class PasswordUiViewAndroid
     : public password_manager::SavedPasswordsPresenter::Observer {
  public:
   // Result of transforming a vector of PasswordForms into their CSV
@@ -47,27 +48,27 @@ class PasswordUIViewAndroid
     std::string error;
   };
 
-  PasswordUIViewAndroid(JNIEnv* env, jobject);
+  PasswordUiViewAndroid(JNIEnv* env,
+                        const jni_zero::JavaRef<jobject>& obj,
+                        Profile* profile);
 
-  PasswordUIViewAndroid(const PasswordUIViewAndroid&) = delete;
-  PasswordUIViewAndroid& operator=(const PasswordUIViewAndroid&) = delete;
+  PasswordUiViewAndroid(const PasswordUiViewAndroid&) = delete;
+  PasswordUiViewAndroid& operator=(const PasswordUiViewAndroid&) = delete;
 
-  ~PasswordUIViewAndroid() override;
+  ~PasswordUiViewAndroid() override;
 
   // Calls from Java.
   base::android::ScopedJavaLocalRef<jobject> GetSavedPasswordEntry(
       JNIEnv* env,
       const base::android::JavaRef<jobject>&,
       int index);
-  base::android::ScopedJavaLocalRef<jstring> GetSavedPasswordException(
-      JNIEnv* env,
-      const base::android::JavaRef<jobject>&,
-      int index);
-  void InsertPasswordEntryForTesting(
-      JNIEnv* env,
-      const base::android::JavaRef<jstring>& origin,
-      const base::android::JavaRef<jstring>& username,
-      const base::android::JavaRef<jstring>& password);
+  std::string GetSavedPasswordException(JNIEnv* env,
+                                        const base::android::JavaRef<jobject>&,
+                                        int index);
+  void InsertPasswordEntryForTesting(JNIEnv* env,
+                                     const std::u16string& origin,
+                                     const std::u16string& username,
+                                     const std::u16string& password);
   void UpdatePasswordLists(JNIEnv* env, const base::android::JavaRef<jobject>&);
   void HandleRemoveSavedPasswordEntry(JNIEnv* env,
                                       const base::android::JavaRef<jobject>&,
@@ -79,21 +80,21 @@ class PasswordUIViewAndroid
   void HandleSerializePasswords(
       JNIEnv* env,
       const base::android::JavaRef<jobject>&,
-      const base::android::JavaRef<jstring>& java_target_directory,
+      const std::string& java_target_directory,
       const base::android::JavaRef<jobject>& success_callback,
       const base::android::JavaRef<jobject>& error_callback);
   void HandleShowPasswordEntryEditingView(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& context,
-      const base::android::JavaRef<jobject>& settings_launcher,
       int index,
       const base::android::JavaParamRef<jobject>& obj);
   void HandleShowBlockedCredentialView(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& context,
-      const base::android::JavaRef<jobject>& settings_launcher,
       int index,
       const base::android::JavaParamRef<jobject>& obj);
+  jboolean IsWaitingForPasswordStore(JNIEnv* env,
+                                     const base::android::JavaRef<jobject>&);
   // Destroy the native implementation.
   void Destroy(JNIEnv*, const base::android::JavaRef<jobject>&);
 
@@ -110,7 +111,7 @@ class PasswordUIViewAndroid
   }
 
  private:
-  // Possible states in the life of PasswordUIViewAndroid.
+  // Possible states in the life of PasswordUiViewAndroid.
   // ALIVE:
   //   * Destroy was not called and no background tasks are pending.
   //   * All data members can be used on the main task runner.
@@ -129,7 +130,8 @@ class PasswordUIViewAndroid
   enum class State { ALIVE, ALIVE_SERIALIZATION_PENDING, DELETION_PENDING };
 
   // password_manager::SavedPasswordsPresenter::Observer implementation.
-  void OnSavedPasswordsChanged() override;
+  void OnSavedPasswordsChanged(
+      const password_manager::PasswordStoreChangeList& changes) override;
 
   void UpdatePasswordLists();
 
@@ -148,19 +150,13 @@ class PasswordUIViewAndroid
   // remain null in production code.
   raw_ptr<SerializationResult> export_target_for_testing_ = nullptr;
 
+  raw_ptr<Profile> profile_;
+
   // Pointer to the password store, powering |saved_passwords_presenter_|.
-  scoped_refptr<password_manager::PasswordStoreInterface> profile_store_ =
-      PasswordStoreFactory::GetForProfile(ProfileManager::GetLastUsedProfile(),
-                                          ServiceAccessType::EXPLICIT_ACCESS);
+  scoped_refptr<password_manager::PasswordStoreInterface> profile_store_;
 
   // Manages the list of saved passwords, including updates.
-  password_manager::SavedPasswordsPresenter saved_passwords_presenter_{
-      AffiliationServiceFactory::GetForProfile(
-          ProfileManager::GetLastUsedProfile()),
-      profile_store_,
-      AccountPasswordStoreFactory::GetForProfile(
-          ProfileManager::GetLastUsedProfile(),
-          ServiceAccessType::EXPLICIT_ACCESS)};
+  password_manager::SavedPasswordsPresenter saved_passwords_presenter_;
 
   // Cached passwords and blocked sites.
   std::vector<password_manager::CredentialUIEntry> passwords_;

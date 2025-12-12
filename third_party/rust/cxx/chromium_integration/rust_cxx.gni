@@ -1,4 +1,4 @@
-# Copyright 2022 The Chromium Authors. All rights reserved.
+# Copyright 2022 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -89,18 +89,21 @@ template("rust_cxx") {
     output_h = "{{source_gen_dir}}/{{source_file_part}}.h"
     output_cc = "{{source_gen_dir}}/{{source_file_part}}.cc"
 
-    # Below we use $host_toolchain_no_sanitizers rather than $host_toolchain.
-    # Usually this is the same thing, but in sanitizer builds,
-    # host_toolchain_no_sanitizers won't have the sanitizers.
-    # In this case, it's fine either way, so we can choose whichever
-    # is the quicker to build, based on sharing C++ dependencies with
-    # $host_toolchain, or sharing Rust dependencies with proc macros
-    # using $host_toolchain_no_sanitizers.
-    cxxbridge_target = "//third_party/rust/cxxbridge_cmd/v1:cxxbridge($host_toolchain_no_sanitizers)"
+    # Below we use $rust_macro_toolchain rather than $host_toolchain since we
+    # are building a standalone Rust target that is not part of the Chromium
+    # production build, and this unblocks it from building while the Chromium
+    # stdlib is still compiling, further freeing up other Rust proc-macro
+    # targets (if they used cxxbridge for some reason).
+    cxxbridge_target =
+        "//third_party/rust/cxxbridge_cmd/v1:cxxbridge($rust_macro_toolchain)"
 
     cxxbridge_out_dir = get_label_info(cxxbridge_target, "root_out_dir")
     cxxbridge_executable = "${cxxbridge_out_dir}/cxxbridge"
-    if (is_win) {
+
+    # The executable is always built with the `rust_macro_toolchain` which
+    # targets the `host_os`. The rule here is on the `target_toolchain` which
+    # can be different (e.g. compiling on Linux, targeting Windows).
+    if (host_os == "win") {
       cxxbridge_executable = "${cxxbridge_executable}.exe"
     }
 
@@ -162,5 +165,9 @@ template("rust_cxx") {
       ":${target_name}_gen",
       "//build/rust:cxx_cppdeps",
     ]
+    if (defined(invoker.configs)) {
+      configs = []
+      configs = invoker.configs
+    }
   }
 }

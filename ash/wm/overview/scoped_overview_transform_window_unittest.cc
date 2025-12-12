@@ -6,8 +6,10 @@
 
 #include "ash/public/cpp/window_properties.h"
 #include "ash/test/ash_test_base.h"
+#include "ash/wm/overview/overview_types.h"
 #include "ash/wm/overview/overview_utils.h"
 #include "ash/wm/window_state.h"
+#include "ash/wm/window_util.h"
 #include "base/numerics/safe_conversions.h"
 #include "ui/aura/window.h"
 #include "ui/compositor/layer.h"
@@ -20,12 +22,12 @@ namespace ash {
 
 namespace {
 
-float GetItemScale(const gfx::RectF& source,
-                   const gfx::RectF& target,
+float GetItemScale(int source_height,
+                   int target_height,
                    int top_view_inset,
                    int title_height) {
   return ScopedOverviewTransformWindow::GetItemScale(
-      source.size(), target.size(), top_view_inset, title_height);
+      source_height, target_height, top_view_inset, title_height);
 }
 
 }  // namespace
@@ -47,33 +49,33 @@ TEST_F(ScopedOverviewTransformWindowTest, TransformedRectMaintainsAspect) {
   gfx::RectF bounds(100.f, 100.f, 50.f, 50.f);
   gfx::RectF transformed_rect =
       transform_window.ShrinkRectToFitPreservingAspectRatio(rect, bounds, 0, 0);
-  float scale = GetItemScale(rect, bounds, 0, 0);
+  float scale = GetItemScale(rect.height(), bounds.height(), 0, 0);
   EXPECT_NEAR(scale * rect.width(), transformed_rect.width(), 1);
   EXPECT_NEAR(scale * rect.height(), transformed_rect.height(), 1);
 
   rect = gfx::RectF(50.f, 50.f, 400.f, 200.f);
-  scale = GetItemScale(rect, bounds, 0, 0);
+  scale = GetItemScale(rect.height(), bounds.height(), 0, 0);
   transformed_rect =
       transform_window.ShrinkRectToFitPreservingAspectRatio(rect, bounds, 0, 0);
   EXPECT_NEAR(scale * rect.width(), transformed_rect.width(), 1);
   EXPECT_NEAR(scale * rect.height(), transformed_rect.height(), 1);
 
   rect = gfx::RectF(50.f, 50.f, 25.f, 25.f);
-  scale = GetItemScale(rect, bounds, 0, 0);
+  scale = GetItemScale(rect.height(), bounds.height(), 0, 0);
   transformed_rect =
       transform_window.ShrinkRectToFitPreservingAspectRatio(rect, bounds, 0, 0);
   EXPECT_NEAR(scale * rect.width(), transformed_rect.width(), 1);
   EXPECT_NEAR(scale * rect.height(), transformed_rect.height(), 1);
 
   rect = gfx::RectF(50.f, 50.f, 25.f, 50.f);
-  scale = GetItemScale(rect, bounds, 0, 0);
+  scale = GetItemScale(rect.height(), bounds.height(), 0, 0);
   transformed_rect =
       transform_window.ShrinkRectToFitPreservingAspectRatio(rect, bounds, 0, 0);
   EXPECT_NEAR(scale * rect.width(), transformed_rect.width(), 1);
   EXPECT_NEAR(scale * rect.height(), transformed_rect.height(), 1);
 
   rect = gfx::RectF(50.f, 50.f, 50.f, 25.f);
-  scale = GetItemScale(rect, bounds, 0, 0);
+  scale = GetItemScale(rect.height(), bounds.height(), 0, 0);
   transformed_rect =
       transform_window.ShrinkRectToFitPreservingAspectRatio(rect, bounds, 0, 0);
   EXPECT_NEAR(scale * rect.width(), transformed_rect.width(), 1);
@@ -109,7 +111,8 @@ TEST_F(ScopedOverviewTransformWindowTest, TransformedRectIsCenteredWithInset) {
   gfx::RectF bounds(100.f, 100.f, 50.f, 50.f);
   const int inset = 20;
   const int header_height = 10;
-  const float scale = GetItemScale(rect, bounds, inset, header_height);
+  const float scale =
+      GetItemScale(rect.height(), bounds.height(), inset, header_height);
   gfx::RectF transformed_rect =
       transform_window.ShrinkRectToFitPreservingAspectRatio(rect, bounds, inset,
                                                             header_height);
@@ -136,7 +139,7 @@ TEST_F(ScopedOverviewTransformWindowTest, TransformingLetteredRect) {
   const int scale = 3;
   std::unique_ptr<aura::Window> window = CreateTestWindow(original_bounds);
   ScopedOverviewTransformWindow transform_window(nullptr, window.get());
-  EXPECT_EQ(OverviewGridWindowFillMode::kLetterBoxed, transform_window.type());
+  EXPECT_EQ(OverviewItemFillMode::kLetterBoxed, transform_window.fill_mode());
 
   // Without any headers, the width should match the target, and the height
   // should be such that the aspect ratio of |original_bounds| is maintained.
@@ -169,7 +172,7 @@ TEST_F(ScopedOverviewTransformWindowTest, TransformingPillaredRect) {
   const int scale = 3;
   std::unique_ptr<aura::Window> window = CreateTestWindow(original_bounds);
   ScopedOverviewTransformWindow transform_window(nullptr, window.get());
-  EXPECT_EQ(OverviewGridWindowFillMode::kPillarBoxed, transform_window.type());
+  EXPECT_EQ(OverviewItemFillMode::kPillarBoxed, transform_window.fill_mode());
 
   // Without any headers, the height should match the target, and the width
   // should be such that the aspect ratio of |original_bounds| is maintained.
@@ -213,25 +216,24 @@ TEST_F(ScopedOverviewTransformWindowTest, ExtremeWindowBounds) {
 
   // Verify the window dimension type is as expected after entering overview
   // mode.
-  using OverviewGridWindowFillMode = OverviewGridWindowFillMode;
-  EXPECT_EQ(OverviewGridWindowFillMode::kLetterBoxed, scoped_wide.type());
-  EXPECT_EQ(OverviewGridWindowFillMode::kPillarBoxed, scoped_tall.type());
-  EXPECT_EQ(OverviewGridWindowFillMode::kNormal, scoped_normal.type());
+  EXPECT_EQ(OverviewItemFillMode::kLetterBoxed, scoped_wide.fill_mode());
+  EXPECT_EQ(OverviewItemFillMode::kPillarBoxed, scoped_tall.fill_mode());
+  EXPECT_EQ(OverviewItemFillMode::kNormal, scoped_normal.fill_mode());
 
   display::Screen* screen = display::Screen::GetScreen();
   const display::Display& display = screen->GetPrimaryDisplay();
   display_manager()->SetDisplayRotation(
       display.id(), display::Display::ROTATE_90,
       display::Display::RotationSource::ACTIVE);
-  scoped_wide.UpdateWindowDimensionsType();
-  scoped_tall.UpdateWindowDimensionsType();
-  scoped_normal.UpdateWindowDimensionsType();
+  scoped_wide.UpdateOverviewItemFillMode();
+  scoped_tall.UpdateOverviewItemFillMode();
+  scoped_normal.UpdateOverviewItemFillMode();
 
   // Verify that |wide| has its window dimension type updated after the display
   // change.
-  EXPECT_EQ(OverviewGridWindowFillMode::kNormal, scoped_wide.type());
-  EXPECT_EQ(OverviewGridWindowFillMode::kPillarBoxed, scoped_tall.type());
-  EXPECT_EQ(OverviewGridWindowFillMode::kNormal, scoped_normal.type());
+  EXPECT_EQ(OverviewItemFillMode::kNormal, scoped_wide.fill_mode());
+  EXPECT_EQ(OverviewItemFillMode::kPillarBoxed, scoped_tall.fill_mode());
+  EXPECT_EQ(OverviewItemFillMode::kNormal, scoped_normal.fill_mode());
 }
 
 // Tests that transients which should be invisible in overview do not have their
@@ -262,7 +264,7 @@ TEST_F(ScopedOverviewTransformWindowTest, InvisibleTransients) {
   EXPECT_FALSE(child2->IsVisible());
 
   auto transform = gfx::Transform::MakeTranslation(10.f, 10.f);
-  SetTransform(window.get(), transform);
+  window_util::SetTransform(window.get(), transform);
   EXPECT_EQ(transform, window->transform());
   EXPECT_EQ(transform, child->transform());
   EXPECT_TRUE(child2->transform().IsIdentity());

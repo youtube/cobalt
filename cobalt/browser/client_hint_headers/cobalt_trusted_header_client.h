@@ -22,10 +22,12 @@
 namespace cobalt {
 namespace browser {
 
+// Responsible for handling trusted headers for individual network requests.
+// This class is used to add Cobalt-specific client hint headers before a
+// request is sent.
 class CobaltTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
  public:
-  CobaltTrustedHeaderClient(
-      mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
+  CobaltTrustedHeaderClient();
 
   CobaltTrustedHeaderClient(const CobaltTrustedHeaderClient&) = delete;
   CobaltTrustedHeaderClient& operator=(const CobaltTrustedHeaderClient&) =
@@ -39,9 +41,6 @@ class CobaltTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
   void OnHeadersReceived(const std::string& headers,
                          const net::IPEndPoint& endpoint,
                          OnHeadersReceivedCallback callback) override;
-
- private:
-  mojo::Receiver<network::mojom::TrustedHeaderClient> receiver_;
 };
 
 }  // namespace browser

@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/check.h"
+#include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "content/renderer/pepper/host_array_buffer_var.h"
 #include "content/renderer/pepper/host_globals.h"
@@ -66,7 +67,7 @@ void HostVarTracker::RemoveV8ObjectVar(V8ObjectVar* object_var) {
   v8::HandleScope handle_scope(object_var->instance()->GetIsolate());
   auto it = GetForV8Object(object_var->instance()->pp_instance(),
                            object_var->GetHandle());
-  DCHECK(it != object_map_.end());
+  CHECK(it != object_map_.end());
   object_map_.erase(it);
 }
 
@@ -133,7 +134,6 @@ void HostVarTracker::ForceReleaseV8Object(ppapi::V8ObjectVar* object_var) {
   auto iter = live_vars_.find(object_var->GetExistingVarID());
   if (iter == live_vars_.end()) {
     NOTREACHED();
-    return;
   }
   iter->second.ref_count = 0;
   DCHECK(iter->second.track_with_no_reference_count == 0);
@@ -163,8 +163,7 @@ int HostVarTracker::TrackSharedMemoryRegion(
   entry.size_in_bytes = size_in_bytes;
 
   // Find a free id for our map.
-  while (shared_memory_map_.find(last_shared_memory_map_id_) !=
-         shared_memory_map_.end()) {
+  while (base::Contains(shared_memory_map_, last_shared_memory_map_id_)) {
     ++last_shared_memory_map_id_;
   }
   shared_memory_map_[last_shared_memory_map_id_] = std::move(entry);

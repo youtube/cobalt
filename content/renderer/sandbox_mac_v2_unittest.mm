@@ -4,7 +4,6 @@
 
 #import <Foundation/Foundation.h>
 #import <IOSurface/IOSurface.h>
-
 #include <ifaddrs.h>
 #include <servers/bootstrap.h>
 #include <sys/socket.h>
@@ -13,16 +12,19 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <string_view>
+
+#include "base/apple/bundle_locations.h"
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
-#include "base/mac/bundle_locations.h"
 #include "base/mac/mac_util.h"
 #include "base/process/kill.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/system/sys_info.h"
 #include "base/test/multiprocess_test.h"
 #include "base/test/test_timeouts.h"
 #include "content/test/test_content_client.h"
-#include "sandbox/mac/sandbox_compiler.h"
+#include "sandbox/mac/sandbox_serializer.h"
 #include "sandbox/mac/seatbelt_exec.h"
 #include "sandbox/policy/mac/common.sb.h"
 #include "sandbox/policy/mac/params.h"
@@ -33,46 +35,46 @@
 
 namespace content {
 
+using sandbox::SandboxSerializer;
+
 namespace {
 
-void SetParametersForTest(sandbox::SandboxCompiler* compiler,
+void SetParametersForTest(SandboxSerializer* serializer,
                           const base::FilePath& logging_path,
                           const base::FilePath& executable_path) {
   bool enable_logging = true;
-  CHECK(compiler->SetBooleanParameter(sandbox::policy::kParamEnableLogging,
-                                      enable_logging));
-  CHECK(compiler->SetBooleanParameter(
+  CHECK(serializer->SetBooleanParameter(sandbox::policy::kParamEnableLogging,
+                                        enable_logging));
+  CHECK(serializer->SetBooleanParameter(
       sandbox::policy::kParamDisableSandboxDenialLogging, !enable_logging));
 
   std::string homedir =
       sandbox::policy::GetCanonicalPath(base::GetHomeDir()).value();
-  CHECK(
-      compiler->SetParameter(sandbox::policy::kParamHomedirAsLiteral, homedir));
+  CHECK(serializer->SetParameter(sandbox::policy::kParamHomedirAsLiteral,
+                                 homedir));
 
   int32_t major_version, minor_version, bugfix_version;
   base::SysInfo::OperatingSystemVersionNumbers(&major_version, &minor_version,
                                                &bugfix_version);
   int32_t os_version = (major_version * 100) + minor_version;
-  CHECK(compiler->SetParameter(sandbox::policy::kParamOsVersion,
-                               base::NumberToString(os_version)));
+  CHECK(serializer->SetParameter(sandbox::policy::kParamOsVersion,
+                                 base::NumberToString(os_version)));
 
   std::string bundle_path =
-      sandbox::policy::GetCanonicalPath(base::mac::MainBundlePath()).value();
-  CHECK(compiler->SetParameter(sandbox::policy::kParamBundlePath, bundle_path));
+      sandbox::policy::GetCanonicalPath(base::apple::MainBundlePath()).value();
+  CHECK(
+      serializer->SetParameter(sandbox::policy::kParamBundlePath, bundle_path));
 
-  CHECK(compiler->SetParameter(sandbox::policy::kParamBundleId,
-                               "com.google.Chrome.test.sandbox"));
-  CHECK(compiler->SetParameter(sandbox::policy::kParamBrowserPid,
-                               base::NumberToString(getpid())));
+  CHECK(serializer->SetParameter(sandbox::policy::kParamBundleId,
+                                 "com.google.Chrome.test.sandbox"));
+  CHECK(serializer->SetParameter(sandbox::policy::kParamBrowserPid,
+                                 base::NumberToString(getpid())));
 
-  CHECK(compiler->SetParameter(sandbox::policy::kParamLogFilePath,
-                               logging_path.value()));
+  CHECK(serializer->SetParameter(sandbox::policy::kParamLogFilePath,
+                                 logging_path.value()));
 
-  CHECK(compiler->SetParameter(sandbox::policy::kParamExecutablePath,
-                               executable_path.value()));
-
-  CHECK(compiler->SetBooleanParameter(sandbox::policy::kParamFilterSyscalls,
-                                      true));
+  CHECK(serializer->SetParameter(sandbox::policy::kParamExecutablePath,
+                                 executable_path.value()));
 }
 
 }  // namespace
@@ -90,8 +92,8 @@ MULTIPROCESS_TEST_MAIN(SandboxProfileProcess) {
   const std::string profile =
       std::string(sandbox::policy::kSeatbeltPolicyString_common) +
       sandbox::policy::kSeatbeltPolicyString_renderer;
-  sandbox::SandboxCompiler compiler;
-  compiler.SetProfile(profile);
+  SandboxSerializer serializer(SandboxSerializer::Target::kSource);
+  serializer.SetProfile(profile);
 
   // Create the logging file and pass /bin/ls as the executable path.
   base::ScopedTempDir temp_dir;
@@ -102,15 +104,15 @@ MULTIPROCESS_TEST_MAIN(SandboxProfileProcess) {
   const base::FilePath log_file = temp_path.Append("log-file");
   const base::FilePath exec_file("/bin/ls");
 
-  SetParametersForTest(&compiler, log_file, exec_file);
+  SetParametersForTest(&serializer, log_file, exec_file);
 
-  std::string error;
-  bool result = compiler.CompileAndApplyProfile(error);
-  CHECK(result) << error;
+  std::string error, serialized;
+  CHECK(serializer.SerializePolicy(serialized, error)) << error;
+  CHECK(serializer.ApplySerializedPolicy(serialized));
 
   // Test the properties of the sandbox profile.
-  constexpr base::StringPiece log_msg = "logged";
-  CHECK(base::WriteFile(log_file, base::StringPiece(log_msg)));
+  constexpr std::string_view log_msg = "logged";
+  CHECK(base::WriteFile(log_file, std::string_view(log_msg)));
   // Log file is write only.
   char read_buf[log_msg.size()];
   CHECK_EQ(-1, base::ReadFile(log_file, read_buf, sizeof(read_buf)));
@@ -139,7 +141,7 @@ MULTIPROCESS_TEST_MAIN(SandboxProfileProcess) {
   CHECK_NE(BOOTSTRAP_SUCCESS, status);
 
   // Read bundle contents.
-  base::FilePath bundle_path = base::mac::MainBundlePath();
+  base::FilePath bundle_path = base::apple::MainBundlePath();
   struct stat st;
   CHECK_NE(-1, stat(bundle_path.value().c_str(), &st));
 

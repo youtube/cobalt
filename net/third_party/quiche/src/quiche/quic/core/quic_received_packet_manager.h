@@ -27,7 +27,7 @@ class UberReceivedPacketManagerPeer;
 struct QuicConnectionStats;
 
 // Records all received packets by a connection.
-class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
+class QUICHE_EXPORT QuicReceivedPacketManager {
  public:
   QuicReceivedPacketManager();
   explicit QuicReceivedPacketManager(QuicConnectionStats* stats);
@@ -61,6 +61,10 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // received after this call.
   void DontWaitForPacketsBefore(QuicPacketNumber least_unacked);
 
+  // An IMMEDIATE_ACK frame arrived, so update the ack_timeout_ to now the next
+  // time it's set.
+  void OnImmediateAckFrame() { ack_now_ = true; }
+
   // Called to update ack_timeout_ to the time when an ACK needs to be sent. A
   // caller can decide whether and when to send an ACK by retrieving
   // ack_timeout_. If ack_timeout_ is not initialized, no ACK needs to be sent.
@@ -79,10 +83,6 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   // Returns true when there are new missing packets to be reported within 3
   // packets of the largest observed.
   virtual bool HasNewMissingPackets() const;
-
-  QuicPacketNumber peer_least_packet_awaiting_ack() const {
-    return peer_least_packet_awaiting_ack_;
-  }
 
   virtual bool ack_frame_updated() const;
 
@@ -154,6 +154,8 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
     return last_ack_frequency_frame_sequence_number_ >= 0;
   }
 
+  void MaybeTrimAckRanges();
+
   // Least packet number of the the packet sent by the peer for which it
   // hasn't received an ack.
   QuicPacketNumber peer_least_packet_awaiting_ack_;
@@ -216,6 +218,15 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   QuicTime time_of_previous_received_packet_;
   // Whether the most recent packet was missing before it was received.
   bool was_last_packet_missing_;
+
+  // Was the previous received packet CE-marked?
+  bool last_packet_was_ce_marked_ = false;
+  // The current packet is CE-marked, and the previous packet was not. This
+  // condition should trigger an immediate ACK.
+  bool changed_to_ce_marked_ = false;
+  // Because of an IMMEDIATE_ACK frame, the next call to MaybeUpdateAckTimeout
+  // should set the ack timeout to now.
+  bool ack_now_ = false;
 
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;

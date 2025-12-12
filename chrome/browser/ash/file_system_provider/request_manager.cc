@@ -8,23 +8,10 @@
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 
-namespace ash {
-namespace file_system_provider {
+namespace ash::file_system_provider {
 namespace {
 
-// Timeout in minutes, before a request is considered as stale and hence
-// aborted.
-const int kDefaultTimeout = 5;
-
 }  // namespace
-
-RequestManager::RequestManager(
-    Profile* profile,
-    NotificationManagerInterface* notification_manager)
-    : profile_(profile),
-      notification_manager_(notification_manager),
-      next_id_(1),
-      timeout_(base::Minutes(kDefaultTimeout)) {}
 
 RequestManager::RequestManager(
     Profile* profile,
@@ -41,7 +28,9 @@ RequestManager::~RequestManager() {
   while (it != requests_.end()) {
     const int request_id = it->first;
     ++it;
-    RejectRequest(request_id, RequestValue(), base::File::FILE_ERROR_ABORT);
+    RejectRequestInternal(request_id, RequestValue(),
+                          base::File::FILE_ERROR_ABORT,
+                          OperationCompletion::kAbortedInternally);
   }
 
   DCHECK_EQ(0u, requests_.size());
@@ -74,7 +63,7 @@ int RequestManager::CreateRequest(RequestType type,
   // extension is not listening for the request event being sent.
   // In such case, we should abort as soon as possible.
   if (!requests_[request_id]->handler->Execute(request_id)) {
-    DestroyRequest(request_id);
+    DestroyRequest(request_id, OperationCompletion::kCompletedNormally);
     return 0;
   }
 
@@ -94,10 +83,13 @@ base::File::Error RequestManager::FulfillRequest(int request_id,
   for (auto& observer : observers_)
     observer.OnRequestFulfilled(request_id, response, has_more);
 
-  request_it->second->handler->OnSuccess(request_id, response, has_more);
+  const Request& request = *request_it->second;
+  request.handler->OnSuccess(request_id, response, has_more);
 
   if (!has_more) {
-    DestroyRequest(request_id);
+    DestroyRequest(request_id, request.shown_unresponsive_notification
+                                   ? OperationCompletion::kCompletedAfterWarning
+                                   : OperationCompletion::kCompletedNormally);
   } else {
     if (notification_manager_)
       notification_manager_->HideUnresponsiveNotification(request_id);
@@ -111,19 +103,14 @@ base::File::Error RequestManager::RejectRequest(int request_id,
                                                 const RequestValue& response,
                                                 base::File::Error error) {
   auto request_it = requests_.find(request_id);
-  if (request_it == requests_.end())
+  if (request_it == requests_.end()) {
     return base::File::FILE_ERROR_NOT_FOUND;
-
-  if (error == base::File::FILE_ERROR_ABORT) {
-    request_it->second->handler->OnAbort(request_id);
   }
-
-  for (auto& observer : observers_)
-    observer.OnRequestRejected(request_id, response, error);
-  request_it->second->handler->OnError(request_id, response, error);
-  DestroyRequest(request_id);
-
-  return base::File::FILE_OK;
+  const Request& request = *request_it->second;
+  return RejectRequestInternal(request_id, response, error,
+                               request.shown_unresponsive_notification
+                                   ? OperationCompletion::kCompletedAfterWarning
+                                   : OperationCompletion::kCompletedNormally);
 }
 
 void RequestManager::SetTimeoutForTesting(const base::TimeDelta& timeout) {
@@ -133,9 +120,8 @@ void RequestManager::SetTimeoutForTesting(const base::TimeDelta& timeout) {
 std::vector<int> RequestManager::GetActiveRequestIds() const {
   std::vector<int> result;
 
-  for (auto request_it = requests_.begin(); request_it != requests_.end();
-       ++request_it) {
-    result.push_back(request_it->first);
+  for (const auto& request : requests_) {
+    result.push_back(request.first);
   }
 
   return result;
@@ -151,19 +137,27 @@ void RequestManager::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-RequestManager::Request::Request() {}
+RequestManager::Request::Request() = default;
 
-RequestManager::Request::~Request() {}
+RequestManager::Request::~Request() = default;
 
 void RequestManager::OnRequestTimeout(int request_id) {
   for (auto& observer : observers_)
-    observer.OnRequestTimeouted(request_id);
+    observer.OnRequestTimedOut(request_id);
 
   if (!notification_manager_) {
-    RejectRequest(request_id, RequestValue(), base::File::FILE_ERROR_ABORT);
+    RejectRequestInternal(request_id, RequestValue(),
+                          base::File::FILE_ERROR_ABORT,
+                          OperationCompletion::kAbortedInternally);
     return;
   }
 
+  auto request_it = requests_.find(request_id);
+  if (request_it == requests_.end()) {
+    return;
+  }
+
+  request_it->second->shown_unresponsive_notification = true;
   notification_manager_->ShowUnresponsiveNotification(
       request_id,
       base::BindOnce(&RequestManager::OnUnresponsiveNotificationResult,
@@ -182,7 +176,9 @@ void RequestManager::OnUnresponsiveNotificationResult(
     return;
   }
 
-  RejectRequest(request_id, RequestValue(), base::File::FILE_ERROR_ABORT);
+  RejectRequestInternal(request_id, RequestValue(),
+                        base::File::FILE_ERROR_ABORT,
+                        OperationCompletion::kAbortedFromNotification);
 }
 
 void RequestManager::ResetTimer(int request_id) {
@@ -196,7 +192,31 @@ void RequestManager::ResetTimer(int request_id) {
                      weak_ptr_factory_.GetWeakPtr(), request_id));
 }
 
-void RequestManager::DestroyRequest(int request_id) {
+base::File::Error RequestManager::RejectRequestInternal(
+    int request_id,
+    const RequestValue& response,
+    base::File::Error error,
+    OperationCompletion completion) {
+  auto request_it = requests_.find(request_id);
+  if (request_it == requests_.end()) {
+    return base::File::FILE_ERROR_NOT_FOUND;
+  }
+
+  if (error == base::File::FILE_ERROR_ABORT) {
+    request_it->second->handler->OnAbort(request_id);
+  }
+
+  for (auto& observer : observers_) {
+    observer.OnRequestRejected(request_id, response, error);
+  }
+  request_it->second->handler->OnError(request_id, response, error);
+  DestroyRequest(request_id, completion);
+
+  return base::File::FILE_OK;
+}
+
+void RequestManager::DestroyRequest(int request_id,
+                                    OperationCompletion completion) {
   auto request_it = requests_.find(request_id);
   if (request_it == requests_.end())
     return;
@@ -207,12 +227,11 @@ void RequestManager::DestroyRequest(int request_id) {
     notification_manager_->HideUnresponsiveNotification(request_id);
 
   for (auto& observer : observers_)
-    observer.OnRequestDestroyed(request_id);
+    observer.OnRequestDestroyed(request_id, completion);
 
   TRACE_EVENT_NESTABLE_ASYNC_END0("file_system_provider",
                                   "RequestManager::Request",
                                   TRACE_ID_LOCAL(request_id));
 }
 
-}  // namespace file_system_provider
-}  // namespace ash
+}  // namespace ash::file_system_provider

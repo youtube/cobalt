@@ -149,7 +149,7 @@ class AXLanguageDetectionTestDynamicContent
 };
 
 TEST_F(AXLanguageDetectionTestFixture, StaticContentFeatureFlag) {
-  // TODO(crbug/889370): Remove this test once this feature is stable
+  // TODO(crbug.com/41417304): Remove this test once this feature is stable
   EXPECT_FALSE(
       ::switches::IsExperimentalAccessibilityLanguageDetectionEnabled());
   EXPECT_FALSE(IsStaticLanguageDetectionEnabled());
@@ -163,7 +163,7 @@ TEST_F(AXLanguageDetectionTestFixture, StaticContentFeatureFlag) {
 }
 
 TEST_F(AXLanguageDetectionTestFixture, DynamicContentFeatureFlag) {
-  // TODO(crbug/889370): Remove this test once this feature is stable
+  // TODO(crbug.com/41417304): Remove this test once this feature is stable
   EXPECT_FALSE(
       ::switches::IsExperimentalAccessibilityLanguageDetectionDynamicEnabled());
   EXPECT_FALSE(IsDynamicLanguageDetectionEnabled());
@@ -177,7 +177,7 @@ TEST_F(AXLanguageDetectionTestFixture, DynamicContentFeatureFlag) {
 }
 
 TEST_F(AXLanguageDetectionTestFixture, FeatureFlag) {
-  // TODO(crbug/889370): Remove this test once this feature is stable
+  // TODO(crbug.com/41417304): Remove this test once this feature is stable
   EXPECT_FALSE(IsStaticLanguageDetectionEnabled());
   EXPECT_FALSE(IsDynamicLanguageDetectionEnabled());
 
@@ -1647,7 +1647,7 @@ TEST(AXLanguageDetectionTest, ShortLanguageDetectorLabeledTest) {
   // Empty output.
   annotation =
       tree.language_detection_manager->GetLanguageAnnotationForStringAttribute(
-          *item, ax::mojom::StringAttribute::kInnerHtml);
+          *item, ax::mojom::StringAttribute::kMathContent);
   ASSERT_EQ(0, (int)annotation.size());
   // Returns single AXLanguageSpan.
   annotation =

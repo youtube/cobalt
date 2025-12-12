@@ -5,35 +5,40 @@
 package org.chromium.chrome.browser.layouts.animation;
 
 import static org.junit.Assert.assertEquals;
+import static org.robolectric.Shadows.shadowOf;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.os.Build;
+import android.os.Looper;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.MathUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.CallbackHelper;
+import org.chromium.base.test.util.DisabledTest;
+import org.chromium.ui.accessibility.AccessibilityState;
 
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * Unit tests for the {@link CompositorAnimator} class.
- */
+/** Unit tests for the {@link CompositorAnimator} class. */
 @RunWith(BaseRobolectricTestRunner.class)
-@Config(manifest = Config.NONE,
+@Config(
+        manifest = Config.NONE,
         // AnimatorSet seems to not work in Robolectric 3.4.2. Remove this SDK
         // specification once we upgrade to a version in which it works. crbug.com/774357
-        sdk = Build.VERSION_CODES.N_MR1)
+        sdk = Build.VERSION_CODES.TIRAMISU)
 public final class CompositorAnimatorTest {
     /** An animation update listener that counts calls to its methods. */
     private static class TestUpdateListener implements CompositorAnimator.AnimatorUpdateListener {
@@ -69,6 +74,7 @@ public final class CompositorAnimatorTest {
         }
     }
 
+    @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
     private final CallbackHelper mRequestRenderCallbackHelper = new CallbackHelper();
 
     /** The handler that is responsible for managing all {@link CompositorAnimator}s. */
@@ -82,8 +88,6 @@ public final class CompositorAnimatorTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-
         mHandler = new CompositorAnimationHandler(mRequestRenderCallbackHelper::notifyCalled);
 
         mUpdateListener = new TestUpdateListener();
@@ -94,7 +98,7 @@ public final class CompositorAnimatorTest {
     public void testUnityScale() {
         // Make sure the testing environment doesn't have ANIMATOR_DURATION_SCALE set to a value
         // other than 1.
-        assertEquals(CompositorAnimator.sDurationScale, 1, 0);
+        assertEquals(AccessibilityState.getAnimatorDurationScale(), 1, 0);
     }
 
     @Test
@@ -103,20 +107,28 @@ public final class CompositorAnimatorTest {
         animator.setDuration(10);
         animator.addListener(mListener);
 
-        assertEquals("No updates should have been requested.", 0,
+        assertEquals(
+                "No updates should have been requested.",
+                0,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
-        assertEquals("The 'start' event should not have been called.", 0,
+        assertEquals(
+                "The 'start' event should not have been called.",
+                0,
                 mListener.mStartCallbackHelper.getCallCount());
 
         animator.start();
 
-        assertEquals("One update should have been requested.", 1,
+        assertEquals(
+                "One update should have been requested.",
+                1,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be one active animation.", 1, mHandler.getActiveAnimationCount());
-        assertEquals("The 'start' event should have been called.", 1,
+        assertEquals(
+                "The 'start' event should have been called.",
+                1,
                 mListener.mStartCallbackHelper.getCallCount());
     }
 
@@ -126,29 +138,41 @@ public final class CompositorAnimatorTest {
         animator.setDuration(10);
         animator.addListener(mListener);
 
-        assertEquals("No updates should have been requested.", 0,
+        assertEquals(
+                "No updates should have been requested.",
+                0,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
-        assertEquals("The 'end' event should not have been called.", 0,
+        assertEquals(
+                "The 'end' event should not have been called.",
+                0,
                 mListener.mEndCallbackHelper.getCallCount());
 
         animator.start();
 
-        assertEquals("One update should have been requested.", 1,
+        assertEquals(
+                "One update should have been requested.",
+                1,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be one active animation.", 1, mHandler.getActiveAnimationCount());
 
         mHandler.pushUpdate(15);
 
-        assertEquals("Two updates should have been requested", 2,
+        assertEquals(
+                "Two updates should have been requested",
+                2,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
-        assertEquals("The 'cancel' event should not have been called.", 0,
+        assertEquals(
+                "The 'cancel' event should not have been called.",
+                0,
                 mListener.mCancelCallbackHelper.getCallCount());
-        assertEquals("The 'end' event should have been called.", 1,
+        assertEquals(
+                "The 'end' event should have been called.",
+                1,
                 mListener.mEndCallbackHelper.getCallCount());
     }
 
@@ -158,29 +182,41 @@ public final class CompositorAnimatorTest {
         animator.setDuration(10);
         animator.addListener(mListener);
 
-        assertEquals("No updates should have been requested.", 0,
+        assertEquals(
+                "No updates should have been requested.",
+                0,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
-        assertEquals("The 'end' event should not have been called.", 0,
+        assertEquals(
+                "The 'end' event should not have been called.",
+                0,
                 mListener.mEndCallbackHelper.getCallCount());
 
         animator.start();
 
-        assertEquals("One update should have been requested.", 1,
+        assertEquals(
+                "One update should have been requested.",
+                1,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be one active animation.", 1, mHandler.getActiveAnimationCount());
 
         animator.cancel();
 
-        assertEquals("One update should have been requested.", 1,
+        assertEquals(
+                "One update should have been requested.",
+                1,
                 mRequestRenderCallbackHelper.getCallCount());
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
-        assertEquals("The 'cancel' event should have been called.", 1,
+        assertEquals(
+                "The 'cancel' event should have been called.",
+                1,
                 mListener.mCancelCallbackHelper.getCallCount());
-        assertEquals("The 'end' event should have been called.", 1,
+        assertEquals(
+                "The 'end' event should have been called.",
+                1,
                 mListener.mEndCallbackHelper.getCallCount());
     }
 
@@ -194,17 +230,26 @@ public final class CompositorAnimatorTest {
 
         animator.start();
 
-        assertEquals("The animated value is incorrect.", 50, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                50,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         mHandler.pushUpdate(5);
 
-        assertEquals("The animated value is incorrect.", 75, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                75,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         mHandler.pushUpdate(5);
 
-        assertEquals("The animated value is incorrect.", 100, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                100,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         assertEquals(
@@ -224,27 +269,42 @@ public final class CompositorAnimatorTest {
 
         animator.start();
 
-        assertEquals("The animated value is incorrect.", 50, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                50,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         mHandler.pushUpdate(5);
 
-        assertEquals("The animated value is incorrect.", 75, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                75,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         startValue.set(0);
         endValue.set(20);
-        assertEquals("The animated value is incorrect.", 10, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                10,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         mHandler.pushUpdate(5);
 
-        assertEquals("The animated value is incorrect.", 20, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                20,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         startValue.set(200);
         endValue.set(300);
-        assertEquals("The animated value is incorrect.", 300, animator.getAnimatedValue(),
+        assertEquals(
+                "The animated value is incorrect.",
+                300,
+                animator.getAnimatedValue(),
                 MathUtils.EPSILON);
 
         assertEquals(
@@ -266,8 +326,11 @@ public final class CompositorAnimatorTest {
         animator.cancel();
 
         // Calling 'cancel' should leave the value in its current state.
-        assertEquals("The animated fraction is incorrect.", 0.5f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
+        assertEquals(
+                "The animated fraction is incorrect.",
+                0.5f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
     }
@@ -287,8 +350,11 @@ public final class CompositorAnimatorTest {
         animator.end();
 
         // Calling 'end' should set the value to its final state.
-        assertEquals("The animated fraction is incorrect.", 1f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
+        assertEquals(
+                "The animated fraction is incorrect.",
+                1f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
     }
@@ -309,25 +375,43 @@ public final class CompositorAnimatorTest {
 
         assertEquals(
                 "There should be one active animation.", 1, mHandler.getActiveAnimationCount());
-        assertEquals("The animated fraction is incorrect.", 0f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
+        assertEquals(
+                "The animated fraction is incorrect.",
+                0f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
 
         mHandler.pushUpdate(10);
-        assertEquals("The animated fraction is incorrect.", 0.1f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
-        assertEquals("The update event count is incorrect.", 1,
+        assertEquals(
+                "The animated fraction is incorrect.",
+                0.1f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
+        assertEquals(
+                "The update event count is incorrect.",
+                1,
                 mUpdateListener.mUpdateCallbackHelper.getCallCount());
 
         mHandler.pushUpdate(80);
-        assertEquals("The animated fraction is incorrect.", 0.9f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
-        assertEquals("The update event count is incorrect.", 2,
+        assertEquals(
+                "The animated fraction is incorrect.",
+                0.9f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
+        assertEquals(
+                "The update event count is incorrect.",
+                2,
                 mUpdateListener.mUpdateCallbackHelper.getCallCount());
 
         mHandler.pushUpdate(10);
-        assertEquals("The animated fraction is incorrect.", 1f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
-        assertEquals("The update event count is incorrect.", 3,
+        assertEquals(
+                "The animated fraction is incorrect.",
+                1f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
+        assertEquals(
+                "The update event count is incorrect.",
+                3,
                 mUpdateListener.mUpdateCallbackHelper.getCallCount());
 
         assertEquals(
@@ -350,25 +434,43 @@ public final class CompositorAnimatorTest {
 
         assertEquals(
                 "There should be one active animation.", 1, mHandler.getActiveAnimationCount());
-        assertEquals("The animated fraction is incorrect.", 0f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
+        assertEquals(
+                "The animated fraction is incorrect.",
+                0f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
 
         mHandler.pushUpdate(10);
-        assertEquals("The animated fraction is incorrect.", 0.0245f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
-        assertEquals("The update event count is incorrect.", 1,
+        assertEquals(
+                "The animated fraction is incorrect.",
+                0.0245f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
+        assertEquals(
+                "The update event count is incorrect.",
+                1,
                 mUpdateListener.mUpdateCallbackHelper.getCallCount());
 
         mHandler.pushUpdate(80);
-        assertEquals("The animated fraction is incorrect.", 0.9755f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
-        assertEquals("The update event count is incorrect.", 2,
+        assertEquals(
+                "The animated fraction is incorrect.",
+                0.9755f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
+        assertEquals(
+                "The update event count is incorrect.",
+                2,
                 mUpdateListener.mUpdateCallbackHelper.getCallCount());
 
         mHandler.pushUpdate(10);
-        assertEquals("The animated fraction is incorrect.", 1f,
-                mUpdateListener.mLastAnimatedFraction, MathUtils.EPSILON);
-        assertEquals("The update event count is incorrect.", 3,
+        assertEquals(
+                "The animated fraction is incorrect.",
+                1f,
+                mUpdateListener.mLastAnimatedFraction,
+                MathUtils.EPSILON);
+        assertEquals(
+                "The update event count is incorrect.",
+                3,
                 mUpdateListener.mUpdateCallbackHelper.getCallCount());
 
         assertEquals(
@@ -399,25 +501,39 @@ public final class CompositorAnimatorTest {
 
         assertEquals(
                 "There should be two active animations.", 2, mHandler.getActiveAnimationCount());
-        assertEquals("The 'start' event should have been called for the set listener.", 1,
+        assertEquals(
+                "The 'start' event should have been called for the set listener.",
+                1,
                 setListener.mStartCallbackHelper.getCallCount());
-        assertEquals("The 'start' event should have been called for the first listener.", 1,
+        assertEquals(
+                "The 'start' event should have been called for the first listener.",
+                1,
                 mListener.mStartCallbackHelper.getCallCount());
-        assertEquals("The 'start' event should have been called for the second listener.", 1,
+        assertEquals(
+                "The 'start' event should have been called for the second listener.",
+                1,
                 listener2.mStartCallbackHelper.getCallCount());
 
         mHandler.pushUpdate(15);
+        shadowOf(Looper.getMainLooper()).idle();
 
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
-        assertEquals("The 'end' event should have been called for the set listener.", 1,
+        assertEquals(
+                "The 'end' event should have been called for the set listener.",
+                1,
                 setListener.mEndCallbackHelper.getCallCount());
-        assertEquals("The 'end' event should have been called for the first listener.", 1,
+        assertEquals(
+                "The 'end' event should have been called for the first listener.",
+                1,
                 mListener.mEndCallbackHelper.getCallCount());
-        assertEquals("The 'end' event should have been called for the second listener.", 1,
+        assertEquals(
+                "The 'end' event should have been called for the second listener.",
+                1,
                 listener2.mEndCallbackHelper.getCallCount());
     }
 
+    @DisabledTest(message = "crbug.com/774357")
     @Test
     public void testAnimatorSet_playSequentially() {
         CompositorAnimator animator = new CompositorAnimator(mHandler);
@@ -442,31 +558,47 @@ public final class CompositorAnimatorTest {
 
         assertEquals(
                 "There should be one active animation.", 1, mHandler.getActiveAnimationCount());
-        assertEquals("The 'start' event should have been called for the set listener.", 1,
+        assertEquals(
+                "The 'start' event should have been called for the set listener.",
+                1,
                 setListener.mStartCallbackHelper.getCallCount());
-        assertEquals("The 'start' event should have been called for the first listener.", 1,
+        assertEquals(
+                "The 'start' event should have been called for the first listener.",
+                1,
                 mListener.mStartCallbackHelper.getCallCount());
-        assertEquals("The 'start' event should not have been called for the second listener.", 0,
+        assertEquals(
+                "The 'start' event should not have been called for the second listener.",
+                0,
                 listener2.mStartCallbackHelper.getCallCount());
 
         mHandler.pushUpdate(15);
 
         assertEquals(
                 "There should be one active animation.", 1, mHandler.getActiveAnimationCount());
-        assertEquals("The 'end' event should not have been called for the set listener.", 0,
+        assertEquals(
+                "The 'end' event should not have been called for the set listener.",
+                0,
                 setListener.mEndCallbackHelper.getCallCount());
-        assertEquals("The 'end' event should have been called for the first listener.", 1,
+        assertEquals(
+                "The 'end' event should have been called for the first listener.",
+                1,
                 mListener.mEndCallbackHelper.getCallCount());
-        assertEquals("The 'start' event should have been called for the second listener.", 1,
+        assertEquals(
+                "The 'start' event should have been called for the second listener.",
+                1,
                 listener2.mStartCallbackHelper.getCallCount());
 
         mHandler.pushUpdate(15);
 
         assertEquals(
                 "There should be no active animations.", 0, mHandler.getActiveAnimationCount());
-        assertEquals("The 'end' event should have been called for the set listener.", 1,
+        assertEquals(
+                "The 'end' event should have been called for the set listener.",
+                1,
                 setListener.mEndCallbackHelper.getCallCount());
-        assertEquals("The 'end' event should have been called for the second listener.", 1,
+        assertEquals(
+                "The 'end' event should have been called for the second listener.",
+                1,
                 listener2.mEndCallbackHelper.getCallCount());
     }
 }

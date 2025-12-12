@@ -4,42 +4,45 @@
 
 package org.chromium.device;
 
-import org.chromium.base.FeatureList;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
-import org.chromium.build.annotations.MainDex;
+import android.text.format.DateUtils;
+
+import org.jni_zero.JNINamespace;
+
+import org.chromium.base.MutableFlagWithSafeDefault;
+import org.chromium.base.MutableIntParamWithSafeDefault;
+import org.chromium.build.annotations.NullMarked;
 
 /**
- * Provides an API for querying the status of Device Service Features.
+ * Lists //services/device features that can be accessed through {@link DeviceFeatureMap}.
+ *
+ * <p>Note: Features must be added to the array |kFeaturesExposedToJava| in
+ * //services/device/public/cpp/device_feature_map.cc.
  */
-// TODO(crbug.com/1060097): Remove/update this once a generalized FeatureList exists.
 @JNINamespace("features")
-@MainDex
-public class DeviceFeatureList {
-    public static final String ASYNC_SENSOR_CALLS = "AsyncSensorCalls";
+@NullMarked
+public abstract class DeviceFeatureList {
     public static final String GENERIC_SENSOR_EXTRA_CLASSES = "GenericSensorExtraClasses";
-    public static final String WEBAUTHN_ANDROID_CRED_MAN = "WebAuthenticationAndroidCredMan";
+    public static final String WEBAUTHN_ANDROID_USE_PASSKEY_CACHE =
+            "WebAuthenticationAndroidUsePasskeyCache";
+    public static final String BATTERY_STATUS_MANAGER_BROADCAST_RECEIVER_IN_BACKGROUND =
+            "BatteryStatusManagerBroadcastReceiverInBackground";
+    public static final String WEBAUTHN_REMOTE_DESKTOP_ALLOWED_ORIGINS =
+            "WebAuthenticationRemoteDesktopAllowedOriginsPolicy";
+    public static final String BLUETOOTH_RFCOMM_ANDROID = "BluetoothRfcommAndroid";
 
-    private DeviceFeatureList() {}
+    public static final MutableFlagWithSafeDefault sGmsCoreLocationRequestParamOverride =
+            newMutableFlagWithSafeDefault("GmsCoreLocationRequestParamOverride", false);
+    public static final MutableIntParamWithSafeDefault sGmsCoreLocationRequestUpdateInterval =
+            sGmsCoreLocationRequestParamOverride.newIntParam(
+                    "location_request_min_update_interval_millis",
+                    (int) (9 * DateUtils.SECOND_IN_MILLIS));
+    public static final MutableIntParamWithSafeDefault sGmsCoreLocationRequestMaxLocationAge =
+            sGmsCoreLocationRequestParamOverride.newIntParam(
+                    "location_request_max_location_age_mills",
+                    (int) (5 * DateUtils.SECOND_IN_MILLIS));
 
-    /**
-     * Returns whether the specified feature is enabled or not.
-     *
-     * Note: Features queried through this API must be added to the array
-     * |kFeaturesExposedToJava| in //services/device/public/cpp/device_feature_list.cc.
-     *
-     * @param featureName The name of the feature to query.
-     * @return Whether the feature is enabled or not.
-     */
-    public static boolean isEnabled(String featureName) {
-        Boolean testValue = FeatureList.getTestValueForFeature(featureName);
-        if (testValue != null) return testValue;
-        assert FeatureList.isNativeInitialized();
-        return DeviceFeatureListJni.get().isEnabled(featureName);
-    }
-
-    @NativeMethods
-    interface Natives {
-        boolean isEnabled(String featureName);
+    private static MutableFlagWithSafeDefault newMutableFlagWithSafeDefault(
+            String featureName, boolean defaultValue) {
+        return DeviceFeatureMap.getInstance().mutableFlagWithSafeDefault(featureName, defaultValue);
     }
 }

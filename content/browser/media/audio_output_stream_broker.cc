@@ -9,12 +9,18 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/trace_event/trace_event.h"
+#include "content/browser/browser_main_loop.h"
+#include "content/browser/media/audio_stream_broker_helper.h"
 #include "content/browser/media/media_internals.h"
+#include "content/browser/renderer_host/media/media_stream_manager.h"
+#include "content/browser/renderer_host/media/preferred_audio_output_device_manager.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/browser/media_observer.h"
 #include "content/public/common/content_client.h"
+#include "media/audio/audio_device_description.h"
 #include "media/audio/audio_logging.h"
 #include "media/mojo/mojom/audio_data_pipe.mojom.h"
+#include "media/mojo/mojom/audio_output_stream.mojom.h"
 
 namespace content {
 
@@ -61,6 +67,7 @@ StreamBrokerDisconnectReason GetDisconnectReason(DisconnectReason reason,
 AudioOutputStreamBroker::AudioOutputStreamBroker(
     int render_process_id,
     int render_frame_id,
+    const GlobalRenderFrameHostToken& main_frame_token,
     int stream_id,
     const std::string& output_device_id,
     const media::AudioParameters& params,
@@ -68,6 +75,7 @@ AudioOutputStreamBroker::AudioOutputStreamBroker(
     DeleterCallback deleter,
     mojo::PendingRemote<media::mojom::AudioOutputStreamProviderClient> client)
     : AudioStreamBroker(render_process_id, render_frame_id),
+      main_frame_token_(main_frame_token),
       output_device_id_(output_device_id),
       params_(params),
       group_id_(group_id),
@@ -91,10 +99,16 @@ AudioOutputStreamBroker::AudioOutputStreamBroker(
   client_.set_disconnect_handler(
       base::BindOnce(&AudioOutputStreamBroker::Cleanup, base::Unretained(this),
                      DisconnectReason::kTerminatedByClient));
+
+  NotifyFrameHostOfAudioStreamStarted(render_process_id, render_frame_id,
+                                      /*is_capturing=*/false);
 }
 
 AudioOutputStreamBroker::~AudioOutputStreamBroker() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+
+  NotifyFrameHostOfAudioStreamStopped(render_process_id(), render_frame_id(),
+                                      /*is_capturing=*/false);
 
   const StreamBrokerDisconnectReason reason =
       GetDisconnectReason(disconnect_reason_, AwaitingCreated());
@@ -102,6 +116,11 @@ AudioOutputStreamBroker::~AudioOutputStreamBroker() {
   if (AwaitingCreated()) {
     TRACE_EVENT_NESTABLE_ASYNC_END1("audio", "CreateStream", this, "success",
                                     "failed or cancelled");
+  }
+
+  if (MediaStreamManager::GetPreferredOutputManagerInstance()) {
+    MediaStreamManager::GetPreferredOutputManagerInstance()->RemoveSwitcher(
+        main_frame_token_, this);
   }
 
   TRACE_EVENT_NESTABLE_ASYNC_END1("audio", "AudioOutputStreamBroker", this,
@@ -113,8 +132,10 @@ void AudioOutputStreamBroker::CreateStream(
     media::mojom::AudioStreamFactory* factory) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
   DCHECK(!observer_receiver_.is_bound());
+  DCHECK(!device_switch_interface_.is_bound());
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("audio", "CreateStream", this, "device id",
                                     output_device_id_);
+
   stream_creation_start_time_ = base::TimeTicks::Now();
 
   // Set up observer ptr. Unretained is safe because |this| owns
@@ -132,14 +153,36 @@ void AudioOutputStreamBroker::CreateStream(
   // several users of the same audio log. Since this audio log is for a single
   // stream, the component id used doesn't matter.
   constexpr int log_component_id = 0;
-  factory->CreateOutputStream(
-      std::move(stream_receiver), std::move(observer),
-      MediaInternals::GetInstance()->CreateMojoAudioLog(
-          media::AudioLogFactory::AudioComponent::AUDIO_OUTPUT_CONTROLLER,
-          log_component_id, render_process_id(), render_frame_id()),
-      output_device_id_, params_, group_id_,
-      base::BindOnce(&AudioOutputStreamBroker::StreamCreated,
-                     weak_ptr_factory_.GetWeakPtr(), std::move(stream)));
+
+  if (MediaStreamManager::GetPreferredOutputManagerInstance() &&
+      media::AudioDeviceDescription::IsDefaultDevice(output_device_id_)) {
+    // Register the device switcher with PreferredAudioOutputDeviceManager.
+    // `output_device_id_` will be updated by the `SwitchAudioOutputDeviceId`,
+    // which is called by the PreferredAudioOutputDeviceManager during
+    // `AddSwitcher()`.
+    MediaStreamManager::GetPreferredOutputManagerInstance()->AddSwitcher(
+        main_frame_token_, this);
+
+    factory->CreateSwitchableOutputStream(
+        std::move(stream_receiver),
+        device_switch_interface_.BindNewPipeAndPassReceiver(),
+        std::move(observer),
+        MediaInternals::GetInstance()->CreateMojoAudioLog(
+            media::AudioLogFactory::AudioComponent::kAudioOuputController,
+            log_component_id, render_process_id(), render_frame_id()),
+        output_device_id_, params_, group_id_,
+        base::BindOnce(&AudioOutputStreamBroker::StreamCreated,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(stream)));
+  } else {
+    factory->CreateOutputStream(
+        std::move(stream_receiver), std::move(observer),
+        MediaInternals::GetInstance()->CreateMojoAudioLog(
+            media::AudioLogFactory::AudioComponent::kAudioOuputController,
+            log_component_id, render_process_id(), render_frame_id()),
+        output_device_id_, params_, group_id_,
+        base::BindOnce(&AudioOutputStreamBroker::StreamCreated,
+                       weak_ptr_factory_.GetWeakPtr(), std::move(stream)));
+  }
 }
 
 void AudioOutputStreamBroker::StreamCreated(
@@ -167,12 +210,13 @@ void AudioOutputStreamBroker::ObserverBindingLost(
   DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
   TRACE_EVENT_NESTABLE_ASYNC_INSTANT1("audio", "ObserverBindingLost", this,
                                       "reset reason", reason);
-  if (reason > static_cast<uint32_t>(DisconnectReason::kMaxValue))
+  if (reason > static_cast<uint32_t>(DisconnectReason::kMaxValue)) {
     NOTREACHED() << "Invalid reason: " << reason;
+  }
 
   DisconnectReason reason_enum = static_cast<DisconnectReason>(reason);
 
-  // TODO(https://crbug.com/787806): Don't propagate errors if we can retry
+  // TODO(crbug.com/40551225): Don't propagate errors if we can retry
   // instead.
   client_.ResetWithReason(
       static_cast<uint32_t>(DisconnectReason::kPlatformError), std::string());
@@ -190,6 +234,15 @@ void AudioOutputStreamBroker::Cleanup(DisconnectReason reason) {
 
 bool AudioOutputStreamBroker::AwaitingCreated() const {
   return stream_creation_start_time_ != base::TimeTicks();
+}
+
+void AudioOutputStreamBroker::SwitchAudioOutputDeviceId(
+    const std::string& device_id) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(owning_sequence_);
+  output_device_id_ = device_id;
+  if (device_switch_interface_.is_bound()) {
+    device_switch_interface_->SwitchAudioOutputDeviceId(output_device_id_);
+  }
 }
 
 }  // namespace content

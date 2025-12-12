@@ -46,7 +46,7 @@ class CONTENT_EXPORT BackgroundFetchScheduler
       BackgroundFetchDataManager* data_manager,
       BackgroundFetchRegistrationNotifier* registration_notifier,
       BackgroundFetchDelegateProxy* delegate_proxy,
-      DevToolsBackgroundServicesContextImpl* devtools_context,
+      DevToolsBackgroundServicesContextImpl& devtools_context,
       scoped_refptr<ServiceWorkerContextWrapper> service_worker_context);
 
   BackgroundFetchScheduler(const BackgroundFetchScheduler&) = delete;
@@ -80,7 +80,7 @@ class CONTENT_EXPORT BackgroundFetchScheduler
       int num_requests,
       std::vector<scoped_refptr<BackgroundFetchRequestInfo>>
           active_fetch_requests,
-      absl::optional<net::IsolationInfo> isolation_info) override;
+      std::optional<net::IsolationInfo> isolation_info) override;
   void OnServiceWorkerDatabaseCorrupted(
       int64_t service_worker_registration_id) override;
   void OnRegistrationQueried(
@@ -96,6 +96,9 @@ class CONTENT_EXPORT BackgroundFetchScheduler
                              const GURL& pattern,
                              const blink::StorageKey& key) override;
   void OnStorageWiped() override;
+
+  // Called by BackgroundFetchContext during shutdown.
+  void Shutdown();
 
  private:
   friend class BackgroundFetchJobControllerTest;
@@ -127,7 +130,7 @@ class CONTENT_EXPORT BackgroundFetchScheduler
       std::vector<scoped_refptr<BackgroundFetchRequestInfo>>
           active_fetch_requests,
       bool start_paused,
-      absl::optional<net::IsolationInfo> isolation_info);
+      std::optional<net::IsolationInfo> isolation_info);
 
   void DidStartRequest(const BackgroundFetchRegistrationId& registration_id,
                        const BackgroundFetchRequestInfo* request_info);
@@ -164,9 +167,9 @@ class CONTENT_EXPORT BackgroundFetchScheduler
       std::map<std::string, std::string> metadata = {});
 
   // Owned by BackgroundFetchContext.
-  raw_ptr<BackgroundFetchDataManager> data_manager_;
+  raw_ptr<BackgroundFetchDataManager, DanglingUntriaged> data_manager_;
   raw_ptr<BackgroundFetchRegistrationNotifier> registration_notifier_;
-  raw_ptr<BackgroundFetchDelegateProxy> delegate_proxy_;
+  raw_ptr<BackgroundFetchDelegateProxy, DanglingUntriaged> delegate_proxy_;
   raw_ptr<DevToolsBackgroundServicesContextImpl> devtools_context_;
 
   BackgroundFetchEventDispatcher event_dispatcher_;
@@ -198,7 +201,7 @@ class CONTENT_EXPORT BackgroundFetchScheduler
   // Map from |unique_id|s to the registration data.
   // An entry in here means the fetch has completed. This information is needed
   // after the fetch has completed to dispatch the backgroundfetchclick event.
-  // TODO(crbug.com/857122): Clean this up when the UI is no longer showing.
+  // TODO(crbug.com/41397180): Clean this up when the UI is no longer showing.
   std::map<std::string, std::unique_ptr<RegistrationData>> completed_fetches_;
 
   // Scheduling params - Finch configurable.

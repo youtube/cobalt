@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 // File utilities that use the ICU library go in this file.
 
 #include "base/i18n/file_util_icu.h"
@@ -18,12 +23,10 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "third_party/icu/source/common/unicode/uniset.h"
 #include "third_party/icu/source/i18n/unicode/coll.h"
 
-namespace base {
-namespace i18n {
+namespace base::i18n {
 
 namespace {
 
@@ -242,13 +245,15 @@ void ReplaceIllegalCharactersInPath(FilePath::StringType* file_name,
       // character again.
       cursor = char_begin + 1;
     } else if (!is_illegal_at_ends) {
-      if (unreplaced_legal_range_begin == -1)
+      if (unreplaced_legal_range_begin == -1) {
         unreplaced_legal_range_begin = char_begin;
+      }
       unreplaced_legal_range_end = cursor;
     }
 
-    if (code_point == kExtensionSeparator)
+    if (code_point == kExtensionSeparator) {
       last_extension_separator = char_begin;
+    }
   }
 
   // If |replace_char| is not a legal starting/ending character, ensure that
@@ -306,7 +311,7 @@ bool LocaleAwareCompareFilenames(const FilePath& a, const FilePath& b) {
 }
 
 void NormalizeFileNameEncoding(FilePath* file_name) {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   std::string normalized_str;
   if (ConvertToUtf8AndNormalize(file_name->BaseName().value(), kCodepageUTF8,
                                 &normalized_str) &&
@@ -316,5 +321,4 @@ void NormalizeFileNameEncoding(FilePath* file_name) {
 #endif
 }
 
-}  // namespace i18n
-}  // namespace base
+}  // namespace base::i18n

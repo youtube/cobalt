@@ -3,30 +3,37 @@
 // found in the LICENSE file.
 
 package org.chromium.chrome.browser.locale;
-import org.chromium.base.annotations.NativeMethods;
+
+import org.jni_zero.JniType;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileManager;
 
 /**
- * A loader class for changes of template url in a given special locale. This is a JNI bridge and
- * it owns the native object. Make sure to call destroy() after this object is not used anymore.
+ * A loader class for changes of template url in a given special locale. This is a JNI bridge and it
+ * owns the native object. Make sure to call destroy() after this object is not used anymore.
  */
+@NullMarked
 public class LocaleTemplateUrlLoader {
-    private final String mLocaleId;
     private long mNativeLocaleTemplateUrlLoader;
     private boolean mAddedToService;
 
     /**
      * Creates a {@link LocaleTemplateUrlLoader} that handles changes for the given locale.
+     *
      * @param localeId Country id of the locale. Should be 2 characters long.
      */
     public LocaleTemplateUrlLoader(String localeId) {
         assert localeId.length() == 2;
-        mLocaleId = localeId;
-        mNativeLocaleTemplateUrlLoader = LocaleTemplateUrlLoaderJni.get().init(localeId);
+        // TODO(b/344633755): Remove getLastUsedRegularProfile().
+        mNativeLocaleTemplateUrlLoader =
+                LocaleTemplateUrlLoaderJni.get()
+                        .init(localeId, ProfileManager.getLastUsedRegularProfile());
     }
 
-    /**
-     * This *must* be called after the {@link LocaleTemplateUrlLoader} is not used anymore.
-     */
+    /** This *must* be called after the {@link LocaleTemplateUrlLoader} is not used anymore. */
     public void destroy() {
         assert mNativeLocaleTemplateUrlLoader != 0;
         LocaleTemplateUrlLoaderJni.get().destroy(mNativeLocaleTemplateUrlLoader);
@@ -58,18 +65,14 @@ public class LocaleTemplateUrlLoader {
         }
     }
 
-    /**
-     * Overrides the default search provider in special locale.
-     */
+    /** Overrides the default search provider in special locale. */
     public void overrideDefaultSearchProvider() {
         assert mNativeLocaleTemplateUrlLoader != 0;
-        LocaleTemplateUrlLoaderJni.get().overrideDefaultSearchProvider(
-                mNativeLocaleTemplateUrlLoader);
+        LocaleTemplateUrlLoaderJni.get()
+                .overrideDefaultSearchProvider(mNativeLocaleTemplateUrlLoader);
     }
 
-    /**
-     * Sets the default search provider back to Google.
-     */
+    /** Sets the default search provider back to Google. */
     public void setGoogleAsDefaultSearch() {
         assert mNativeLocaleTemplateUrlLoader != 0;
         LocaleTemplateUrlLoaderJni.get().setGoogleAsDefaultSearch(mNativeLocaleTemplateUrlLoader);
@@ -77,11 +80,16 @@ public class LocaleTemplateUrlLoader {
 
     @NativeMethods
     interface Natives {
-        long init(String localeId);
+        long init(@JniType("std::string") String localeId, @JniType("Profile*") Profile profile);
+
         void destroy(long nativeLocaleTemplateUrlLoader);
+
         boolean loadTemplateUrls(long nativeLocaleTemplateUrlLoader);
+
         void removeTemplateUrls(long nativeLocaleTemplateUrlLoader);
+
         void overrideDefaultSearchProvider(long nativeLocaleTemplateUrlLoader);
+
         void setGoogleAsDefaultSearch(long nativeLocaleTemplateUrlLoader);
     }
 }

@@ -4,12 +4,18 @@
 
 package org.chromium.chrome.browser.language.settings;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import androidx.annotation.IntDef;
 import androidx.core.util.Predicate;
 
 import org.chromium.base.LocaleUtils;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.language.AppLocaleUtils;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.profiles.ProfileKeyedMap;
 import org.chromium.chrome.browser.translate.TranslateBridge;
 
 import java.lang.annotation.Retention;
@@ -29,35 +35,37 @@ import java.util.TreeSet;
  *
  *The LanguagesManager is responsible for fetching languages details from native.
  */
+@NullMarked
 public class LanguagesManager {
     /**
      * An observer interface that allows other classes to know when the accept language list is
      * updated in native side.
      */
     interface AcceptLanguageObserver {
-        /**
-         * Called when the accept languages for the current user are updated.
-         */
+        /** Called when the accept languages for the current user are updated. */
         void onDataUpdated();
     }
 
     // Constants used to log UMA enum histogram, must stay in sync with
     // LanguageSettingsActionType. Further actions can only be appended, existing
     // entries must not be overwritten.
-    @IntDef({LanguageSettingsActionType.LANGUAGE_ADDED, LanguageSettingsActionType.LANGUAGE_REMOVED,
-            LanguageSettingsActionType.DISABLE_TRANSLATE_GLOBALLY,
-            LanguageSettingsActionType.ENABLE_TRANSLATE_GLOBALLY,
-            LanguageSettingsActionType.DISABLE_TRANSLATE_FOR_SINGLE_LANGUAGE,
-            LanguageSettingsActionType.ENABLE_TRANSLATE_FOR_SINGLE_LANGUAGE,
-            LanguageSettingsActionType.LANGUAGE_LIST_REORDERED,
-            LanguageSettingsActionType.CHANGE_CHROME_LANGUAGE,
-            LanguageSettingsActionType.CHANGE_TARGET_LANGUAGE,
-            LanguageSettingsActionType.REMOVE_FROM_NEVER_TRANSLATE,
-            LanguageSettingsActionType.ADD_TO_NEVER_TRANSLATE,
-            LanguageSettingsActionType.REMOVE_FROM_ALWAYS_TRANSLATE,
-            LanguageSettingsActionType.ADD_TO_ALWAYS_TRANSLATE,
-            LanguageSettingsActionType.REMOVE_SITE_FROM_NEVER_TRANSLATE,
-            LanguageSettingsActionType.RESTART_CHROME})
+    @IntDef({
+        LanguageSettingsActionType.LANGUAGE_ADDED,
+        LanguageSettingsActionType.LANGUAGE_REMOVED,
+        LanguageSettingsActionType.DISABLE_TRANSLATE_GLOBALLY,
+        LanguageSettingsActionType.ENABLE_TRANSLATE_GLOBALLY,
+        LanguageSettingsActionType.DISABLE_TRANSLATE_FOR_SINGLE_LANGUAGE,
+        LanguageSettingsActionType.ENABLE_TRANSLATE_FOR_SINGLE_LANGUAGE,
+        LanguageSettingsActionType.LANGUAGE_LIST_REORDERED,
+        LanguageSettingsActionType.CHANGE_CHROME_LANGUAGE,
+        LanguageSettingsActionType.CHANGE_TARGET_LANGUAGE,
+        LanguageSettingsActionType.REMOVE_FROM_NEVER_TRANSLATE,
+        LanguageSettingsActionType.ADD_TO_NEVER_TRANSLATE,
+        LanguageSettingsActionType.REMOVE_FROM_ALWAYS_TRANSLATE,
+        LanguageSettingsActionType.ADD_TO_ALWAYS_TRANSLATE,
+        LanguageSettingsActionType.REMOVE_SITE_FROM_NEVER_TRANSLATE,
+        LanguageSettingsActionType.RESTART_CHROME
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface LanguageSettingsActionType {
         // int CLICK_ON_ADD_LANGUAGE = 1; // Removed M89
@@ -82,17 +90,19 @@ public class LanguagesManager {
     // Constants used to log UMA enum histogram, must stay in sync with
     // LanguageSettingsPageType. Further actions can only be appended, existing
     // entries must not be overwritten.
-    @IntDef({LanguageSettingsPageType.PAGE_MAIN,
-            LanguageSettingsPageType.CONTENT_LANGUAGE_ADD_LANGUAGE,
-            LanguageSettingsPageType.CHANGE_CHROME_LANGUAGE,
-            LanguageSettingsPageType.ADVANCED_LANGUAGE_SETTINGS,
-            LanguageSettingsPageType.CHANGE_TARGET_LANGUAGE,
-            LanguageSettingsPageType.LANGUAGE_OVERFLOW_MENU_OPENED,
-            LanguageSettingsPageType.VIEW_NEVER_TRANSLATE_LANGUAGES,
-            LanguageSettingsPageType.NEVER_TRANSLATE_ADD_LANGUAGE,
-            LanguageSettingsPageType.VIEW_ALWAYS_TRANSLATE_LANGUAGES,
-            LanguageSettingsPageType.ALWAYS_TRANSLATE_ADD_LANGUAGE,
-            LanguageSettingsPageType.VIEW_NEVER_TRANSLATE_SITES})
+    @IntDef({
+        LanguageSettingsPageType.PAGE_MAIN,
+        LanguageSettingsPageType.CONTENT_LANGUAGE_ADD_LANGUAGE,
+        LanguageSettingsPageType.CHANGE_CHROME_LANGUAGE,
+        LanguageSettingsPageType.ADVANCED_LANGUAGE_SETTINGS,
+        LanguageSettingsPageType.CHANGE_TARGET_LANGUAGE,
+        LanguageSettingsPageType.LANGUAGE_OVERFLOW_MENU_OPENED,
+        LanguageSettingsPageType.VIEW_NEVER_TRANSLATE_LANGUAGES,
+        LanguageSettingsPageType.NEVER_TRANSLATE_ADD_LANGUAGE,
+        LanguageSettingsPageType.VIEW_ALWAYS_TRANSLATE_LANGUAGES,
+        LanguageSettingsPageType.ALWAYS_TRANSLATE_ADD_LANGUAGE,
+        LanguageSettingsPageType.VIEW_NEVER_TRANSLATE_SITES
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface LanguageSettingsPageType {
         int PAGE_MAIN = 0;
@@ -111,9 +121,13 @@ public class LanguagesManager {
     }
 
     // Int keys to determine the list of potential languages for different language preferences.
-    @IntDef({LanguageListType.ACCEPT_LANGUAGES, LanguageListType.UI_LANGUAGES,
-            LanguageListType.TARGET_LANGUAGES, LanguageListType.NEVER_LANGUAGES,
-            LanguageListType.ALWAYS_LANGUAGES})
+    @IntDef({
+        LanguageListType.ACCEPT_LANGUAGES,
+        LanguageListType.UI_LANGUAGES,
+        LanguageListType.TARGET_LANGUAGES,
+        LanguageListType.NEVER_LANGUAGES,
+        LanguageListType.ALWAYS_LANGUAGES
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface LanguageListType {
         int ACCEPT_LANGUAGES = 0; // Default
@@ -123,16 +137,19 @@ public class LanguagesManager {
         int ALWAYS_LANGUAGES = 4;
     }
 
-    private static LanguagesManager sManager;
+    private static @Nullable ProfileKeyedMap<LanguagesManager> sProfileMap;
 
+    private final Profile mProfile;
     private final Map<String, LanguageItem> mLanguagesMap;
 
-    private AcceptLanguageObserver mObserver;
+    private @Nullable AcceptLanguageObserver mObserver;
 
-    private LanguagesManager() {
+    private LanguagesManager(Profile profile) {
+        mProfile = profile;
+
         // Get all language data from native.
         mLanguagesMap = new LinkedHashMap<>();
-        for (LanguageItem item : TranslateBridge.getChromeLanguageList()) {
+        for (LanguageItem item : TranslateBridge.getChromeLanguageList(mProfile)) {
             mLanguagesMap.put(item.getCode(), item);
         }
     }
@@ -141,9 +158,7 @@ public class LanguagesManager {
         if (mObserver != null) mObserver.onDataUpdated();
     }
 
-    /**
-     * Sets the observer tracking the user accept languages changes.
-     */
+    /** Sets the observer tracking the user accept languages changes. */
     public void setAcceptLanguageObserver(AcceptLanguageObserver observer) {
         mObserver = observer;
     }
@@ -153,7 +168,7 @@ public class LanguagesManager {
      */
     public List<LanguageItem> getUserAcceptLanguageItems() {
         // Always read the latest user accept language code list from native.
-        List<String> codes = TranslateBridge.getUserLanguageCodes();
+        List<String> codes = TranslateBridge.getUserLanguageCodes(mProfile);
 
         List<LanguageItem> results = new ArrayList<>();
         // Keep the same order as accept language codes list.
@@ -168,6 +183,7 @@ public class LanguagesManager {
      * Get the list of potential languages to show in the {@link SelectLanguageFragment} based on
      * which list or preference a language will be added to. By default the potential languages for
      * the Accept-Language list is returned.
+     *
      * @param LanguageListType key to select which languages to get.
      * @return A list of LanguageItems to choose from for the given preference.
      */
@@ -175,19 +191,20 @@ public class LanguagesManager {
         switch (potentialLanguages) {
             case LanguageListType.ALWAYS_LANGUAGES:
                 return getPotentialTranslateLanguages(
-                        TranslateBridge.getAlwaysTranslateLanguages());
+                        TranslateBridge.getAlwaysTranslateLanguages(mProfile));
             case LanguageListType.NEVER_LANGUAGES:
-                return getPotentialTranslateLanguages(TranslateBridge.getNeverTranslateLanguages());
+                return getPotentialTranslateLanguages(
+                        TranslateBridge.getNeverTranslateLanguages(mProfile));
             case LanguageListType.TARGET_LANGUAGES:
                 return getPotentialTranslateLanguages(
-                        Arrays.asList(TranslateBridge.getTargetLanguageForChromium()));
+                        Arrays.asList(TranslateBridge.getTargetLanguageForChromium(mProfile)));
             case LanguageListType.UI_LANGUAGES:
                 return getPotentialUiLanguages();
             case LanguageListType.ACCEPT_LANGUAGES:
                 return getPotentialAcceptLanguages();
             default:
                 assert false : "No valid LanguageListType";
-                return null;
+                return assumeNonNull(null);
         }
     }
 
@@ -201,10 +218,11 @@ public class LanguagesManager {
         HashSet<String> codesToSkipSet = new HashSet<String>(codesToSkip);
         LinkedHashSet<LanguageItem> results = new LinkedHashSet<>();
         // Filter for translatable languages not in |codesToSkipSet|.
-        Predicate<LanguageItem> filter = (item) -> {
-            return item.isSupportedBaseTranslateLanguage()
-                    && !codesToSkipSet.contains(item.getCode());
-        };
+        Predicate<LanguageItem> filter =
+                (item) -> {
+                    return item.isSupportedBaseTranslateLanguage()
+                            && !codesToSkipSet.contains(item.getCode());
+                };
         addItemsToResult(results, getUserAcceptLanguageItems(), filter);
         addItemsToResult(results, mLanguagesMap.values(), filter);
         return new ArrayList<>(results);
@@ -219,15 +237,17 @@ public class LanguagesManager {
         LinkedHashSet<LanguageItem> results = new LinkedHashSet<>();
         LanguageItem currentUiLanguage = getLanguageItem(AppLocaleUtils.getAppLanguagePref());
 
+        assumeNonNull(currentUiLanguage);
         // Add the system default language if an override language is set.
         if (!currentUiLanguage.isSystemDefault()) {
             results.add(LanguageItem.makeFollowSystemLanguageItem());
         }
 
         // Filter for UI languages that are not the current UI language.
-        Predicate<LanguageItem> filter = (item) -> {
-            return item.isUISupported() && !item.equals(currentUiLanguage);
-        };
+        Predicate<LanguageItem> filter =
+                (item) -> {
+                    return item.isUiSupported() && !item.equals(currentUiLanguage);
+                };
         addItemsToResult(results, getUserAcceptLanguageItems(), filter);
         addItemsToResult(results, mLanguagesMap.values(), filter);
         return new ArrayList<>(results);
@@ -239,20 +259,22 @@ public class LanguagesManager {
      */
     public List<LanguageItem> getAllPossibleUiLanguages() {
         LinkedHashSet<LanguageItem> results = new LinkedHashSet<>();
-        Predicate<LanguageItem> filter = (item) -> {
-            return item.isUISupported();
-        };
+        Predicate<LanguageItem> filter =
+                (item) -> {
+                    return item.isUiSupported();
+                };
         addItemsToResult(results, mLanguagesMap.values(), filter);
         return new ArrayList<>(results);
     }
 
     /**
      * Get a list of potential Accept-Languages excluding the current Accept-Languages.
+     *
      * @return A list of LanguageItems, excluding the current user's accept languages.
      */
     private List<LanguageItem> getPotentialAcceptLanguages() {
         // Always read the latest user accept language code list from native.
-        HashSet<String> codesToSkip = new HashSet(TranslateBridge.getUserLanguageCodes());
+        HashSet<String> codesToSkip = new HashSet(TranslateBridge.getUserLanguageCodes(mProfile));
         LinkedHashSet<LanguageItem> results = new LinkedHashSet<>();
         addItemsToResult(
                 results, mLanguagesMap.values(), (item) -> !codesToSkip.contains(item.getCode()));
@@ -266,8 +288,10 @@ public class LanguagesManager {
      * @param items Collection of LanguageItems to potentially add to results.
      * @param filter Predicate to return true for items that should be added to results.
      */
-    private void addItemsToResult(LinkedHashSet<LanguageItem> results,
-            Collection<LanguageItem> items, Predicate<LanguageItem> filter) {
+    private void addItemsToResult(
+            LinkedHashSet<LanguageItem> results,
+            Collection<LanguageItem> items,
+            Predicate<LanguageItem> filter) {
         for (LanguageItem item : items) {
             if (filter.test(item)) {
                 results.add(item);
@@ -278,11 +302,12 @@ public class LanguagesManager {
     /**
      * Get a list of LanguageItems that the user has set to always translate. The list is sorted
      * alphabetically by display name.
+     *
      * @return List of LanguageItems.
      */
     public Collection<LanguageItem> getAlwaysTranslateLanguageItems() {
         // Get the latest always translate list from native. This list has no guaranteed order.
-        List<String> codes = TranslateBridge.getAlwaysTranslateLanguages();
+        List<String> codes = TranslateBridge.getAlwaysTranslateLanguages(mProfile);
         TreeSet<LanguageItem> results = new TreeSet(LanguageItem.COMPARE_BY_DISPLAY_NAME);
         for (String code : codes) {
             if (mLanguagesMap.containsKey(code)) results.add(mLanguagesMap.get(code));
@@ -293,11 +318,12 @@ public class LanguagesManager {
     /**
      * Get a list of LanguageItems that the user has set to never prompt for translation. The list
      * is sorted alphabetically by display name.
+     *
      * @return List of LanguageItems.
      */
     public Collection<LanguageItem> getNeverTranslateLanguageItems() {
         // Get the latest never translate list from native. This list has no guaranteed order.
-        List<String> codes = TranslateBridge.getNeverTranslateLanguages();
+        List<String> codes = TranslateBridge.getNeverTranslateLanguages(mProfile);
         TreeSet<LanguageItem> results = new TreeSet(LanguageItem.COMPARE_BY_DISPLAY_NAME);
         for (String code : codes) {
             if (mLanguagesMap.containsKey(code)) results.add(mLanguagesMap.get(code));
@@ -310,32 +336,35 @@ public class LanguagesManager {
      * language is checked (e.g. "en" for "en-AU"). If there is still no match null is returned.
      * @return LanguageItem or null if none found
      */
-    public LanguageItem getLanguageItem(String localeCode) {
+    public @Nullable LanguageItem getLanguageItem(@Nullable String localeCode) {
         if (AppLocaleUtils.isFollowSystemLanguage(localeCode)) {
             return LanguageItem.makeFollowSystemLanguageItem();
         }
         LanguageItem result = mLanguagesMap.get(localeCode);
         if (result != null) return result;
 
+        assumeNonNull(localeCode);
         String baseLanguage = LocaleUtils.toBaseLanguage(localeCode);
         return mLanguagesMap.get(baseLanguage);
     }
 
     /**
      * Add a language to the current user's accept languages.
+     *
      * @param code The language code to remove.
      */
-    public void addToAcceptLanguages(String code) {
-        TranslateBridge.updateUserAcceptLanguages(code, true /* is_add */);
+    public void addToAcceptLanguages(@Nullable String code) {
+        TranslateBridge.updateUserAcceptLanguages(mProfile, code, /* add= */ true);
         notifyAcceptLanguageObserver();
     }
 
     /**
      * Remove a language from the current user's accept languages.
+     *
      * @param code The language code to remove.
      */
     public void removeFromAcceptLanguages(String code) {
-        TranslateBridge.updateUserAcceptLanguages(code, false /* is_add */);
+        TranslateBridge.updateUserAcceptLanguages(mProfile, code, /* add= */ false);
         notifyAcceptLanguageObserver();
     }
 
@@ -349,7 +378,7 @@ public class LanguagesManager {
     public void moveLanguagePosition(String code, int offset, boolean reload) {
         if (offset == 0) return;
 
-        TranslateBridge.moveAcceptLanguage(code, offset);
+        TranslateBridge.moveAcceptLanguage(mProfile, code, offset);
         recordAction(LanguageSettingsActionType.LANGUAGE_LIST_REORDERED);
         if (reload) notifyAcceptLanguageObserver();
     }
@@ -361,7 +390,7 @@ public class LanguagesManager {
      * @param reload True iff the language list should be reloaded.
      */
     public void setOrder(String[] codes, boolean reload) {
-        TranslateBridge.setLanguageOrder(codes);
+        TranslateBridge.setLanguageOrder(mProfile, codes);
         recordAction(LanguageSettingsActionType.LANGUAGE_LIST_REORDERED);
         if (reload) notifyAcceptLanguageObserver();
     }
@@ -374,33 +403,32 @@ public class LanguagesManager {
         return mLanguagesMap;
     }
 
-    /**
-     * Get the static instance of ChromePreferenceManager if it exists else create it.
-     * @return the LanguagesManager singleton.
-     */
-    public static LanguagesManager getInstance() {
-        if (sManager == null) sManager = new LanguagesManager();
-        return sManager;
+    /** Return the {@link LanguagesManager} associated with the current {@link Profile}. */
+    public static LanguagesManager getForProfile(Profile profile) {
+        if (sProfileMap == null) {
+            sProfileMap =
+                    new ProfileKeyedMap<>(
+                            ProfileKeyedMap.ProfileSelection.REDIRECTED_TO_ORIGINAL,
+                            ProfileKeyedMap.NO_REQUIRED_CLEANUP_ACTION);
+        }
+        return sProfileMap.getForProfile(profile, LanguagesManager::new);
     }
 
-    /**
-     * Called to release unused resources.
-     */
+    /** Called to release unused resources. */
     public static void recycle() {
-        sManager = null;
+        if (sProfileMap != null) {
+            sProfileMap.destroy();
+            sProfileMap = null;
+        }
     }
 
-    /**
-     * Record language settings page impression.
-     */
+    /** Record language settings page impression. */
     public static void recordImpression(@LanguageSettingsPageType int pageType) {
         RecordHistogram.recordEnumeratedHistogram(
                 "LanguageSettings.PageImpression", pageType, LanguageSettingsPageType.NUM_ENTRIES);
     }
 
-    /**
-     * Record actions taken on language settings page.
-     */
+    /** Record actions taken on language settings page. */
     public static void recordAction(@LanguageSettingsActionType int actionType) {
         RecordHistogram.recordEnumeratedHistogram(
                 "LanguageSettings.Actions", actionType, LanguageSettingsActionType.NUM_ENTRIES);

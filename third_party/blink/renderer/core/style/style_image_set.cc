@@ -26,6 +26,8 @@
 #include "third_party/blink/renderer/core/style/style_image_set.h"
 
 #include "base/memory/values_equivalent.h"
+#include "third_party/blink/renderer/core/css/css_image_set_option_value.h"
+#include "third_party/blink/renderer/core/style/style_image_computed_css_value_builder.h"
 
 namespace blink {
 
@@ -55,16 +57,19 @@ ImageResourceContent* StyleImageSet::CachedImage() const {
 }
 
 CSSValue* StyleImageSet::CssValue() const {
-  return image_set_value_;
+  return image_set_value_.Get();
 }
 
 CSSValue* StyleImageSet::ComputedCSSValue(const ComputedStyle& style,
-                                          bool allow_visited_style) const {
-  return image_set_value_->ComputedCSSValue(style, allow_visited_style);
+                                          bool allow_visited_style,
+                                          CSSValuePhase value_phase) const {
+  return StyleImageComputedCSSValueBuilder(style, allow_visited_style,
+                                           value_phase)
+      .Build(image_set_value_);
 }
 
 bool StyleImageSet::CanRender() const {
-  return !best_fit_image_ || best_fit_image_->CanRender();
+  return best_fit_image_ && best_fit_image_->CanRender();
 }
 
 bool StyleImageSet::IsLoaded() const {
@@ -81,6 +86,20 @@ bool StyleImageSet::ErrorOccurred() const {
 
 bool StyleImageSet::IsAccessAllowed(String& failing_url) const {
   return !best_fit_image_ || best_fit_image_->IsAccessAllowed(failing_url);
+}
+
+bool StyleImageSet::IsFromOriginCleanStyleSheet() const {
+  return !best_fit_image_ || best_fit_image_->IsFromOriginCleanStyleSheet();
+}
+
+NaturalSizingInfo StyleImageSet::GetNaturalSizingInfo(
+    float multiplier,
+    RespectImageOrientationEnum respect_orientation) const {
+  if (best_fit_image_) {
+    return best_fit_image_->GetNaturalSizingInfo(multiplier,
+                                                 respect_orientation);
+  }
+  return NaturalSizingInfo::None();
 }
 
 gfx::SizeF StyleImageSet::ImageSize(
@@ -115,13 +134,12 @@ void StyleImageSet::RemoveClient(ImageResourceObserver* observer) {
 
 scoped_refptr<Image> StyleImageSet::GetImage(
     const ImageResourceObserver& image_resource_observer,
-    const Document& document,
+    const Node& node,
     const ComputedStyle& style,
     const gfx::SizeF& target_size) const {
-  return best_fit_image_
-             ? best_fit_image_->GetImage(image_resource_observer, document,
-                                         style, target_size)
-             : nullptr;
+  return best_fit_image_ ? best_fit_image_->GetImage(image_resource_observer,
+                                                     node, style, target_size)
+                         : nullptr;
 }
 
 float StyleImageSet::ImageScaleFactor() const {

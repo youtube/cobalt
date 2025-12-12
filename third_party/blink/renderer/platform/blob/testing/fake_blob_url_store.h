@@ -26,18 +26,17 @@ class FakeBlobURLStore : public mojom::blink::BlobURLStore {
       const KURL&,
       // TODO(https://crbug.com/1224926): Remove this once experiment is over.
       const base::UnguessableToken& unsafe_agent_cluster_id,
-      const absl::optional<BlinkSchemefulSite>& unsafe_top_level_site,
+      const std::optional<BlinkSchemefulSite>& unsafe_top_level_site,
       RegisterCallback) override;
   void Revoke(const KURL&) override;
-  void Resolve(const KURL&, ResolveCallback) override;
   void ResolveAsURLLoaderFactory(
       const KURL&,
       mojo::PendingReceiver<network::mojom::blink::URLLoaderFactory>,
       ResolveAsURLLoaderFactoryCallback) override;
-  void ResolveForNavigation(const KURL&,
-                            mojo::PendingReceiver<mojom::blink::BlobURLToken>,
-                            ResolveForNavigationCallback) override;
-
+  void ResolveAsBlobURLToken(const KURL&,
+                             mojo::PendingReceiver<mojom::blink::BlobURLToken>,
+                             bool is_top_level_navigation,
+                             ResolveAsBlobURLTokenCallback) override;
   HashMap<KURL, mojo::Remote<mojom::blink::Blob>> registrations;
   HashMap<KURL, base::UnguessableToken> agent_registrations;
   Vector<KURL> revocations;

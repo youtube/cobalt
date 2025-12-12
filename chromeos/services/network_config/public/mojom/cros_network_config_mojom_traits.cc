@@ -27,7 +27,6 @@ EnumTraits<chromeos::network_config::mojom::ProxyMode,
   }
 
   NOTREACHED();
-  return chromeos::network_config::mojom::ProxyMode::kDirect;
 }
 
 bool EnumTraits<chromeos::network_config::mojom::ProxyMode,
@@ -53,7 +52,6 @@ bool EnumTraits<chromeos::network_config::mojom::ProxyMode,
   }
 
   NOTREACHED();
-  return false;
 }
 
 }  // namespace mojo

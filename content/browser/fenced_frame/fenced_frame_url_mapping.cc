@@ -6,16 +6,23 @@
 
 #include <cstring>
 #include <map>
+#include <optional>
 #include <string>
+#include <utility>
 
+#include "base/containers/contains.h"
+#include "base/feature_list.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/types/id_type.h"
 #include "content/browser/fenced_frame/fenced_frame_reporter.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "net/base/schemeful_site.h"
+#include "services/network/public/cpp/permissions_policy/fenced_frame_permissions_policies.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/fenced_frame/fenced_frame_utils.h"
+#include "third_party/blink/public/common/interest_group/ad_auction_constants.h"
 #include "third_party/blink/public/common/interest_group/ad_display_size.h"
 #include "third_party/blink/public/common/interest_group/ad_display_size_utils.h"
 #include "ui/display/screen.h"
@@ -24,38 +31,6 @@
 namespace content {
 
 namespace {
-
-// Returns a new string based on input where the matching substrings have been
-// replaced with the corresponding substitutions. This function avoids repeated
-// string operations by building the output based on all substitutions, one
-// substitution at a time. This effectively performs all substitutions
-// simultaneously, with the earliest match in the input taking precedence.
-std::string SubstituteMappedStrings(
-    const std::string& input,
-    const std::vector<std::pair<std::string, std::string>>& substitutions) {
-  std::vector<std::string> output_vec;
-  size_t input_idx = 0;
-  while (input_idx < input.size()) {
-    size_t replace_idx = input.size();
-    size_t replace_end_idx = input.size();
-    std::pair<std::string, std::string> const* next_replacement = nullptr;
-    for (const auto& substitution : substitutions) {
-      size_t found_idx = input.find(substitution.first, input_idx);
-      if (found_idx < replace_idx) {
-        replace_idx = found_idx;
-        replace_end_idx = found_idx + substitution.first.size();
-        next_replacement = &substitution;
-      }
-    }
-    output_vec.push_back(input.substr(input_idx, replace_idx - input_idx));
-    if (replace_idx < input.size()) {
-      output_vec.push_back(next_replacement->second);
-    }
-    // move input index to after what we replaced (or end of string).
-    input_idx = replace_end_idx;
-  }
-  return base::StrCat(output_vec);
-}
 
 int AdSizeToPixels(double size, blink::AdSize::LengthUnit unit) {
   switch (unit) {
@@ -68,8 +43,15 @@ int AdSizeToPixels(double size, blink::AdSize::LengthUnit unit) {
                                 .width();
       return static_cast<int>(size / 100.0 * screen_width);
     }
+    case blink::AdSize::LengthUnit::kScreenHeight: {
+      double screen_height = display::Screen::GetScreen()
+                                 ->GetPrimaryDisplay()
+                                 .GetSizeInPixel()
+                                 .height();
+      return static_cast<int>(size / 100.0 * screen_height);
+    }
     case blink::AdSize::LengthUnit::kInvalid:
-      NOTREACHED_NORETURN();
+      NOTREACHED();
   }
 }
 
@@ -80,7 +62,7 @@ gfx::Size AdSizeToGfxSize(const blink::AdSize& ad_size) {
   return gfx::Size(width_in_pixels, height_in_pixels);
 }
 
-// TODO(crbug.com/1420638): Once the representation of size in fenced frame
+// TODO(crbug.com/40258855): Once the representation of size in fenced frame
 // config is finalized, change the type of substituted width and height to the
 // same.
 // Substitute the size macros in ad url with the size from the winning bid.
@@ -92,17 +74,69 @@ GURL SubstituteSizeIntoURL(const blink::AdDescriptor& ad_descriptor) {
   // Convert dimensions to pixels.
   gfx::Size size = AdSizeToGfxSize(ad_descriptor.size.value());
 
-  return GURL(SubstituteMappedStrings(
-      ad_descriptor.url.spec(),
-      {std::make_pair("{%AD_WIDTH%}", base::NumberToString(size.width())),
-       std::make_pair("{%AD_HEIGHT%}", base::NumberToString(size.height()))}));
+  std::string width = base::NumberToString(size.width());
+  std::string height = base::NumberToString(size.height());
+  std::vector<std::pair<std::string, std::string>> substitutions;
+
+  // Set up the width and height macros, in two formats.
+  substitutions.emplace_back("{%AD_WIDTH%}", width);
+  substitutions.emplace_back("{%AD_HEIGHT%}", height);
+  substitutions.emplace_back("${AD_WIDTH}", width);
+  substitutions.emplace_back("${AD_HEIGHT}", height);
+
+  return GURL(SubstituteMappedStrings(ad_descriptor.url.spec(), substitutions));
 }
+
+// For each ad component and its parent, we examine its SchemefulSite, and
+// increment a count of how many ads correspond to that site. We then log the
+// highest number of ads which are same-site to one another (the largest value
+// in the map below) as a UMA metric. The purpose of this metric is to explore
+// how often ads are same-site with one another, which may inform future limits
+// on same-site fenced frames. We also log a separate UMA metric to count the
+// total number of ad components regardless of their site.
+class AdComponentMetrics {
+ public:
+  explicit AdComponentMetrics(int total_component_count)
+      : total_component_count_(total_component_count) {}
+
+  void UpdateForSite(net::SchemefulSite component_site) {
+    auto iter = components_per_site_counts_.find(component_site);
+    if (iter == components_per_site_counts_.end()) {
+      components_per_site_counts_.insert({component_site, 1});
+    } else {
+      iter->second += 1;
+    }
+    int count_for_current_site =
+        iter == components_per_site_counts_.end() ? 1 : iter->second;
+    if (count_for_current_site > same_site_component_max_count_) {
+      same_site_component_max_count_ = count_for_current_site;
+    }
+  }
+
+  void LogSameSiteMetric() {
+    base::UmaHistogramExactLinear(
+        blink::kSameSiteAdComponentsMaxCountForWinningBidHistogram,
+        same_site_component_max_count_,
+        // We shouldn't allow the histogram bucket count to change over time, so
+        // assume the largest allowed number of components per auction.
+        blink::kMaxAdAuctionAdComponentsConfigLimit + 1);
+  }
+
+  void LogTotalCountMetric() {
+    base::UmaHistogramExactLinear(
+        blink::kAdComponentsCountForWinningBidHistogram, total_component_count_,
+        blink::kMaxAdAuctionAdComponentsConfigLimit + 1);
+  }
+
+ private:
+  std::map<net::SchemefulSite, int> components_per_site_counts_;
+  int same_site_component_max_count_ = 0;
+  int total_component_count_ = 0;
+};
 
 }  // namespace
 
-FencedFrameURLMapping::FencedFrameURLMapping() : unique_id_(GetNextId()) {
-  CHECK(unique_id_);
-}
+FencedFrameURLMapping::FencedFrameURLMapping() = default;
 
 FencedFrameURLMapping::~FencedFrameURLMapping() = default;
 
@@ -131,7 +165,7 @@ void FencedFrameURLMapping::ImportPendingAdComponents(
     // navigated. In urn iframes, the Page is rooted at the top-level frame, so
     // the same FencedFrameURLMapping exists after "urn iframe root"
     // navigations.
-    // TODO(crbug.com/1415475): Change this to a CHECK when we remove urn
+    // TODO(crbug.com/40256574): Change this to a CHECK when we remove urn
     // iframes.
     if (IsMapped(component_ad.first)) {
       return;
@@ -146,7 +180,7 @@ void FencedFrameURLMapping::ImportPendingAdComponents(
   }
 }
 
-absl::optional<GURL> FencedFrameURLMapping::AddFencedFrameURLForTesting(
+std::optional<GURL> FencedFrameURLMapping::AddFencedFrameURLForTesting(
     const GURL& url,
     scoped_refptr<FencedFrameReporter> fenced_frame_reporter) {
   DCHECK(url.is_valid());
@@ -156,23 +190,40 @@ absl::optional<GURL> FencedFrameURLMapping::AddFencedFrameURLForTesting(
 
   if (!it.has_value()) {
     // Insertion fails, the number of urn mappings has reached limit.
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   auto& [urn, config] = *it.value();
 
   config.fenced_frame_reporter_ = std::move(fenced_frame_reporter);
   config.mode_ = blink::FencedFrame::DeprecatedFencedFrameMode::kOpaqueAds;
+  // Give this frame the more restrictive option.
+  config.allows_information_inflow_ = false;
   config.deprecated_should_freeze_initial_size_.emplace(
       true, VisibilityToEmbedder::kTransparent, VisibilityToContent::kOpaque);
+  // We don't know at this point if the test being run needs the FLEDGE or
+  // Shared Storage permissions set. To be safe, we set both here.
+  config.effective_enabled_permissions_.insert(
+      config.effective_enabled_permissions_.end(),
+      std::begin(network::kFencedFrameFledgeDefaultRequiredFeatures),
+      std::end(network::kFencedFrameFledgeDefaultRequiredFeatures));
+  config.effective_enabled_permissions_.insert(
+      config.effective_enabled_permissions_.end(),
+      std::begin(network::kFencedFrameSharedStorageDefaultRequiredFeatures),
+      std::end(network::kFencedFrameSharedStorageDefaultRequiredFeatures));
   return urn;
 }
 
-absl::optional<FencedFrameURLMapping::UrnUuidToUrlMap::iterator>
+void FencedFrameURLMapping::ClearMapForTesting() {
+  urn_uuid_to_url_map_.clear();
+  pending_urn_uuid_to_url_map_.clear();
+}
+
+std::optional<FencedFrameURLMapping::UrnUuidToUrlMap::iterator>
 FencedFrameURLMapping::AddMappingForUrl(const GURL& url) {
   if (IsFull()) {
     // Number of urn mappings has reached limit, url will not be inserted.
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   // Create a urn::uuid.
@@ -187,14 +238,14 @@ FencedFrameURLMapping::AddMappingForUrl(const GURL& url) {
 blink::FencedFrame::RedactedFencedFrameConfig
 FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
     const GURL& urn_uuid,
-    absl::optional<blink::AdSize> container_size,
+    std::optional<blink::AdSize> container_size,
     const blink::AdDescriptor& ad_descriptor,
     AdAuctionData ad_auction_data,
     base::RepeatingClosure on_navigate_callback,
     std::vector<blink::AdDescriptor> ad_component_descriptors,
     scoped_refptr<FencedFrameReporter> fenced_frame_reporter) {
   // Move pending mapped urn::uuid to `urn_uuid_to_url_map_`.
-  // TODO(crbug.com/1422301): Remove the check for whether `urn_uuid` has been
+  // TODO(crbug.com/40896818): Remove the check for whether `urn_uuid` has been
   // mapped already once the crash is resolved.
   CHECK(!IsMapped(urn_uuid));
   auto pending_it = pending_urn_uuid_to_url_map_.find(urn_uuid);
@@ -208,7 +259,7 @@ FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
   auto& config = urn_uuid_to_url_map_[urn_uuid];
 
   // Assign mapped URL and interest group info.
-  // TODO(crbug.com/1420638): Once the representation of size in fenced frame
+  // TODO(crbug.com/40258855): Once the representation of size in fenced frame
   // config is finalized, pass the ad size from the winning bid to its fenced
   // frame config.
   config.urn_uuid_.emplace(urn_uuid);
@@ -231,11 +282,17 @@ FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
   config.deprecated_should_freeze_initial_size_.emplace(
       !ad_descriptor.size.has_value(), VisibilityToEmbedder::kTransparent,
       VisibilityToContent::kOpaque);
-  config.ad_auction_data_.emplace(std::move(ad_auction_data),
+  config.ad_auction_data_.emplace(ad_auction_data,
                                   VisibilityToEmbedder::kOpaque,
                                   VisibilityToContent::kOpaque);
   config.on_navigate_callback_ = std::move(on_navigate_callback);
 
+  config.effective_enabled_permissions_ =
+      std::vector<network::mojom::PermissionsPolicyFeature>(
+          std::begin(network::kFencedFrameFledgeDefaultRequiredFeatures),
+          std::end(network::kFencedFrameFledgeDefaultRequiredFeatures));
+
+  AdComponentMetrics metrics(ad_component_descriptors.size());
   std::vector<FencedFrameConfig> nested_configs;
   nested_configs.reserve(ad_component_descriptors.size());
   for (const auto& ad_component_descriptor : ad_component_descriptors) {
@@ -245,7 +302,7 @@ FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
     // frame is reused. The pointer to its parent's fenced frame reporter is
     // copied to each ad component. This has the advantage that we do not need
     // to traverse to its parent every time we need its parent's reporter.
-    // TODO(crbug.com/1420638): Once the representation of size in fenced frame
+    // TODO(crbug.com/40258855): Once the representation of size in fenced frame
     // config is finalized, pass the ad component size from the winning bid to
     // its fenced frame config.
     if (ad_component_descriptor.size) {
@@ -262,20 +319,40 @@ FencedFrameURLMapping::AssignFencedFrameURLAndInterestGroupInfo(
           /*fenced_frame_reporter=*/fenced_frame_reporter,
           /*is_ad_component=*/true);
     }
+    // The ad auction data is added to the nested configs in order to enable
+    // leaveAdInterestGroup() for ad components.
+    nested_configs.back().ad_auction_data_.emplace(
+        ad_auction_data, VisibilityToEmbedder::kOpaque,
+        VisibilityToContent::kOpaque);
+
+    metrics.UpdateForSite(net::SchemefulSite(ad_component_descriptor.url));
   }
+
   config.nested_configs_.emplace(std::move(nested_configs),
                                  VisibilityToEmbedder::kOpaque,
                                  VisibilityToContent::kTransparent);
 
   config.fenced_frame_reporter_ = std::move(fenced_frame_reporter);
   config.mode_ = blink::FencedFrame::DeprecatedFencedFrameMode::kOpaqueAds;
+  config.allows_information_inflow_ = false;
+
+  // If we have no ad components, then skip logging our component UMA metrics so
+  // we don't dilute them. If we do have components, include the top-level ad's
+  // site in the metrics, since the top-level ad might be same-site to one or
+  // more components as well.
+  if (ad_component_descriptors.size() > 0) {
+    metrics.UpdateForSite(net::SchemefulSite(ad_descriptor.url));
+    metrics.LogSameSiteMetric();
+  }
+
+  metrics.LogTotalCountMetric();
 
   return config.RedactFor(FencedFrameEntity::kEmbedder);
 }
 
-absl::optional<GURL> FencedFrameURLMapping::GeneratePendingMappedURN() {
+std::optional<GURL> FencedFrameURLMapping::GeneratePendingMappedURN() {
   if (IsFull()) {
-    return absl::nullopt;
+    return std::nullopt;
   }
 
   GURL urn_uuid = GenerateUrnUuid();
@@ -298,11 +375,16 @@ void FencedFrameURLMapping::ConvertFencedFrameURNToURL(
     return;
   }
 
-  absl::optional<FencedFrameProperties> properties;
+  std::optional<FencedFrameProperties> properties;
 
   auto it = urn_uuid_to_url_map_.find(urn_uuid);
   if (it != urn_uuid_to_url_map_.end()) {
     properties = FencedFrameProperties(it->second);
+  }
+
+  if (properties.has_value() && properties->ad_auction_data().has_value()) {
+    base::UmaHistogramBoolean("Ads.InterestGroup.Auction.AdNavigationStarted",
+                              true);
   }
 
   observer->OnFencedFrameURLMappingComplete(properties);
@@ -312,41 +394,54 @@ void FencedFrameURLMapping::RemoveObserverForURN(
     const GURL& urn_uuid,
     MappingResultObserver* observer) {
   auto it = pending_urn_uuid_to_url_map_.find(urn_uuid);
-  DCHECK(it != pending_urn_uuid_to_url_map_.end());
+  if (it == pending_urn_uuid_to_url_map_.end()) {
+    // A harmless race condition may occur that the pending urn to url map has
+    // changed out from under the place that is calling this function (so the
+    // destructors were already called), so it's empty.
+    return;
+  }
 
   auto observer_it = it->second.find(observer);
-  DCHECK(observer_it != it->second.end());
+  if (observer_it == it->second.end()) {
+    // Similarly, the observer may not be associated with the urn.
+    return;
+  }
 
   it->second.erase(observer_it);
 }
 
-absl::optional<FencedFrameConfig>
+std::optional<FencedFrameConfig>
 FencedFrameURLMapping::OnSharedStorageURNMappingResultDetermined(
     const GURL& urn_uuid,
     const SharedStorageURNMappingResult& mapping_result) {
   auto pending_it = pending_urn_uuid_to_url_map_.find(urn_uuid);
-  DCHECK(pending_it != pending_urn_uuid_to_url_map_.end());
+  CHECK(pending_it != pending_urn_uuid_to_url_map_.end());
 
   DCHECK(!IsMapped(urn_uuid));
 
-  absl::optional<FencedFrameConfig> config = absl::nullopt;
+  std::optional<FencedFrameConfig> config = std::nullopt;
 
   // Only if the resolved URL is fenced-frame-compatible do we:
   //   1.) Add it to `urn_uuid_to_url_map_`
   //   2.) Report it back to any already-queued observers
-  // TODO(crbug.com/1318970): Simplify this by making Shared Storage only
+  // TODO(crbug.com/40223071): Simplify this by making Shared Storage only
   // capable of producing URLs that fenced frames can navigate to.
   if (blink::IsValidFencedFrameURL(mapping_result.mapped_url)) {
     config = FencedFrameConfig(urn_uuid, mapping_result.mapped_url,
                                mapping_result.budget_metadata,
                                std::move(mapping_result.fenced_frame_reporter));
     config->mode_ = blink::FencedFrame::DeprecatedFencedFrameMode::kOpaqueAds;
+    config->effective_enabled_permissions_ = {
+        std::begin(network::kFencedFrameSharedStorageDefaultRequiredFeatures),
+        std::end(network::kFencedFrameSharedStorageDefaultRequiredFeatures)};
+    config->allows_information_inflow_ = true;
+
     urn_uuid_to_url_map_.emplace(urn_uuid, *config);
   }
 
   std::set<raw_ptr<MappingResultObserver>>& observers = pending_it->second;
 
-  absl::optional<FencedFrameProperties> properties = absl::nullopt;
+  std::optional<FencedFrameProperties> properties = std::nullopt;
   auto final_it = urn_uuid_to_url_map_.find(urn_uuid);
   if (final_it != urn_uuid_to_url_map_.end()) {
     properties = FencedFrameProperties(final_it->second);
@@ -365,10 +460,11 @@ SharedStorageBudgetMetadata*
 FencedFrameURLMapping::GetSharedStorageBudgetMetadataForTesting(
     const GURL& urn_uuid) {
   auto it = urn_uuid_to_url_map_.find(urn_uuid);
-  DCHECK(it != urn_uuid_to_url_map_.end());
+  CHECK(it != urn_uuid_to_url_map_.end());
 
-  if (!it->second.shared_storage_budget_metadata_)
+  if (!it->second.shared_storage_budget_metadata_) {
     return nullptr;
+  }
 
   return &it->second.shared_storage_budget_metadata_->value_;
 }
@@ -404,19 +500,12 @@ void FencedFrameURLMapping::SubstituteMappedURL(
   it->second = std::move(info);
 }
 
-// static
-FencedFrameURLMapping::Id FencedFrameURLMapping::GetNextId() {
-  static Id::Generator generator;
-  return generator.GenerateNextId();
-}
-
 bool FencedFrameURLMapping::IsMapped(const GURL& urn_uuid) const {
-  return urn_uuid_to_url_map_.find(urn_uuid) != urn_uuid_to_url_map_.end();
+  return base::Contains(urn_uuid_to_url_map_, urn_uuid);
 }
 
 bool FencedFrameURLMapping::IsPendingMapped(const GURL& urn_uuid) const {
-  return pending_urn_uuid_to_url_map_.find(urn_uuid) !=
-         pending_urn_uuid_to_url_map_.end();
+  return base::Contains(pending_urn_uuid_to_url_map_, urn_uuid);
 }
 
 bool FencedFrameURLMapping::IsFull() const {

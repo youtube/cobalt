@@ -3,25 +3,28 @@
 // found in the LICENSE file.
 
 import 'chrome://resources/cr_elements/policy/cr_tooltip_icon.js';
+import 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
-import 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
 import '../settings_shared.css.js';
 import '../i18n_setup.js';
 
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {CrTooltipIconElement} from 'chrome://resources/cr_elements/policy/cr_tooltip_icon.js';
+import type {CrTooltipIconElement} from 'chrome://resources/cr_elements/policy/cr_tooltip_icon.js';
 import {WebUiListenerMixin} from 'chrome://resources/cr_elements/web_ui_listener_mixin.js';
-import {assert} from 'chrome://resources/js/assert_ts.js';
+import {assert} from 'chrome://resources/js/assert.js';
 import {focusWithoutInk} from 'chrome://resources/js/focus_without_ink.js';
-import {PaperTooltipElement} from 'chrome://resources/polymer/v3_0/paper-tooltip/paper-tooltip.js';
-import {DomRepeatEvent, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import type {CrTooltipElement} from 'chrome://resources/cr_elements/cr_tooltip/cr_tooltip.js';
+import type {DomRepeatEvent} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {FocusConfig} from '../focus_config.js';
+import type {FocusConfig} from '../focus_config.js';
 import {routes} from '../route.js';
-import {Route, RouteObserverMixin, Router} from '../router.js';
-import {AllSitesAction2, ContentSetting, ContentSettingsTypes, SiteSettingSource} from '../site_settings/constants.js';
+import type {Route} from '../router.js';
+import {RouteObserverMixin, Router} from '../router.js';
+import type {ContentSettingsTypes} from '../site_settings/constants.js';
+import {AllSitesAction2, ContentSetting, SiteSettingSource} from '../site_settings/constants.js';
 import {SiteSettingsMixin} from '../site_settings/site_settings_mixin.js';
-import {RawSiteException, RecentSitePermissions} from '../site_settings/site_settings_prefs_browser_proxy.js';
+import type {RawSiteException, RecentSitePermissions} from '../site_settings/site_settings_prefs_browser_proxy.js';
 import {TooltipMixin} from '../tooltip_mixin.js';
 
 import {getTemplate} from './recent_site_permissions.html.js';
@@ -29,7 +32,7 @@ import {getLocalizationStringForContentType} from './site_settings_page_util.js'
 
 export interface SettingsRecentSitePermissionsElement {
   $: {
-    tooltip: PaperTooltipElement,
+    tooltip: CrTooltipElement,
   };
 }
 
@@ -72,10 +75,10 @@ export class SettingsRecentSitePermissionsElement extends
     };
   }
 
-  noRecentPermissions: boolean;
-  private shouldFocusAfterPopulation_: boolean;
-  private recentSitePermissionsList_: RecentSitePermissions[];
-  focusConfig: FocusConfig;
+  declare noRecentPermissions: boolean;
+  declare private shouldFocusAfterPopulation_: boolean;
+  declare private recentSitePermissionsList_: RecentSitePermissions[];
+  declare focusConfig: FocusConfig;
   private lastSelected_: {origin: string, incognito: boolean, index: number}|
       null;
 
@@ -257,7 +260,7 @@ export class SettingsRecentSitePermissionsElement extends
   private onShowIncognitoTooltip_(e: Event) {
     e.stopPropagation();
 
-    this.showTooltipAtTarget(this.$.tooltip, e.target!);
+    this.showTooltipAtTarget(this.$.tooltip, e.target! as Element);
   }
 
   /**
@@ -286,7 +289,7 @@ export class SettingsRecentSitePermissionsElement extends
       const icon = this.shadowRoot!.querySelector<CrTooltipIconElement>(
           `#incognitoInfoIcon_${index}`);
       assert(!!icon);
-      const toFocus = icon.getFocusableElement() as HTMLElement;
+      const toFocus = icon.getFocusableElement();
       assert(!!toFocus);
       focusWithoutInk(toFocus);
     } else {

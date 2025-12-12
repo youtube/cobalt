@@ -9,7 +9,9 @@ import android.graphics.drawable.Drawable;
 
 import androidx.appcompat.content.res.AppCompatResources;
 
-import org.chromium.base.annotations.CalledByNative;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JniType;
+
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
@@ -32,11 +34,11 @@ public class AutoSigninSnackbarController implements SnackbarManager.SnackbarCon
     private final Tab mTab;
 
     /**
-     * Displays Auto sign-in snackbar, which communicates to the users that they
-     * were signed in to the web site.
+     * Displays Auto sign-in snackbar, which communicates to the users that they were signed in to
+     * the web site.
      */
     @CalledByNative
-    private static void showSnackbar(Tab tab, String text) {
+    private static void showSnackbar(Tab tab, @JniType("std::u16string") String text) {
         Activity activity = TabUtils.getActivity(tab);
         if (activity == null) return;
         WindowAndroid windowAndroid = tab.getWindowAndroid();
@@ -44,8 +46,12 @@ public class AutoSigninSnackbarController implements SnackbarManager.SnackbarCon
         SnackbarManager snackbarManager = SnackbarManagerProvider.from(windowAndroid);
         AutoSigninSnackbarController snackbarController =
                 new AutoSigninSnackbarController(snackbarManager, tab);
-        Snackbar snackbar = Snackbar.make(
-                text, snackbarController, Snackbar.TYPE_NOTIFICATION, Snackbar.UMA_AUTO_LOGIN);
+        Snackbar snackbar =
+                Snackbar.make(
+                        text,
+                        snackbarController,
+                        Snackbar.TYPE_NOTIFICATION,
+                        Snackbar.UMA_AUTO_LOGIN);
         int backgroundColor = SemanticColorUtils.getDefaultControlColorActive(activity);
         Drawable icon = AppCompatResources.getDrawable(activity, R.drawable.logo_avatar_anonymous);
         snackbar.setSingleLine(false)
@@ -62,28 +68,27 @@ public class AutoSigninSnackbarController implements SnackbarManager.SnackbarCon
     private AutoSigninSnackbarController(SnackbarManager snackbarManager, Tab tab) {
         mTab = tab;
         mSnackbarManager = snackbarManager;
-        mTabObserver = new EmptyTabObserver() {
-            @Override
-            public void onHidden(Tab tab, @TabHidingType int type) {
-                AutoSigninSnackbarController.this.dismissAutoSigninSnackbar();
-            }
+        mTabObserver =
+                new EmptyTabObserver() {
+                    @Override
+                    public void onHidden(Tab tab, @TabHidingType int type) {
+                        AutoSigninSnackbarController.this.dismissAutoSigninSnackbar();
+                    }
 
-            @Override
-            public void onDestroyed(Tab tab) {
-                AutoSigninSnackbarController.this.dismissAutoSigninSnackbar();
-            }
+                    @Override
+                    public void onDestroyed(Tab tab) {
+                        AutoSigninSnackbarController.this.dismissAutoSigninSnackbar();
+                    }
 
-            @Override
-            public void onCrash(Tab tab) {
-                AutoSigninSnackbarController.this.dismissAutoSigninSnackbar();
-            }
-        };
+                    @Override
+                    public void onCrash(Tab tab) {
+                        AutoSigninSnackbarController.this.dismissAutoSigninSnackbar();
+                    }
+                };
         mTab.addObserver(mTabObserver);
     }
 
-    /**
-     * Dismisses the snackbar.
-     */
+    /** Dismisses the snackbar. */
     public void dismissAutoSigninSnackbar() {
         if (mSnackbarManager.isShowing()) {
             mSnackbarManager.dismissSnackbars(this);

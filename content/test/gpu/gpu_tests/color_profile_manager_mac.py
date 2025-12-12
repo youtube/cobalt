@@ -8,8 +8,9 @@
 # pytype: disable=name-error
 
 
-import sys
-if sys.platform.startswith('darwin'):
+from gpu_tests.util import host_information
+
+if host_information.IsMac():
   # pylint: disable=import-error
   # pytype: disable=import-error
   import Foundation
@@ -46,6 +47,10 @@ if sys.platform.startswith('darwin'):
     </signatures>"""
   objc.parseBridgeSupport(color_sync_bridge_string, globals(),
                           color_sync_framework)
+else:
+  Foundation = None
+  Quartz = None
+  objc = None
 
 
 # Set |display_id| to use the color profile specified in |profile_url|. If

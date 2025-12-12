@@ -6,6 +6,7 @@
 #define CHROMECAST_MEDIA_CMA_BACKEND_PROXY_BUFFER_ID_MANAGER_H_
 
 #include <memory>
+#include <optional>
 #include <queue>
 #include <utility>
 
@@ -13,7 +14,6 @@
 #include "base/sequence_checker.h"
 #include "chromecast/media/api/cma_backend.h"
 #include "chromecast/media/cma/backend/proxy/audio_decoder_pipeline_node.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromecast {
 namespace media {
@@ -155,7 +155,7 @@ class BufferIdManager {
   int64_t pending_playback_time_in_microseconds_ = 0;
 
   // Information about the most recently played buffer.
-  mutable absl::optional<BufferPlayoutInfo> most_recently_played_buffer_;
+  mutable std::optional<BufferPlayoutInfo> most_recently_played_buffer_;
 
   BufferIdQueue buffer_id_queue_;
   std::queue<BufferInfo> buffer_infos_;

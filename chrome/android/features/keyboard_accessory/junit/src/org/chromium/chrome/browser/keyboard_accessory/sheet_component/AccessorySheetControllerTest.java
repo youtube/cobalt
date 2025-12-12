@@ -8,7 +8,6 @@ import static androidx.test.espresso.matcher.ViewMatchers.assertThat;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -23,6 +22,8 @@ import static org.chromium.chrome.browser.keyboard_accessory.sheet_component.Acc
 import static org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetProperties.TOP_SHADOW_VISIBLE;
 import static org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetProperties.VISIBLE;
 
+import android.content.Context;
+import android.graphics.Color;
 import android.view.ViewGroup;
 
 import androidx.recyclerview.widget.RecyclerView;
@@ -30,82 +31,78 @@ import androidx.recyclerview.widget.RecyclerView;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.robolectric.ParameterizedRobolectricTestRunner;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.Implementation;
+import org.robolectric.annotation.Implements;
 
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.metrics.UmaRecorderHolder;
 import org.chromium.base.task.test.CustomShadowAsyncTask;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.keyboard_accessory.AccessorySheetTrigger;
+import org.chromium.chrome.browser.keyboard_accessory.AccessorySheetVisualStateProvider;
 import org.chromium.chrome.browser.keyboard_accessory.ManualFillingMetricsRecorder;
 import org.chromium.chrome.browser.keyboard_accessory.data.KeyboardAccessoryData.Tab;
 import org.chromium.chrome.browser.keyboard_accessory.sheet_component.AccessorySheetCoordinator.SheetVisibilityDelegate;
-import org.chromium.chrome.test.util.browser.Features;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.ui.modelutil.ListObservable;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyObservable;
 import org.chromium.ui.test.util.modelutil.FakeViewProvider;
 
-import java.util.Arrays;
-import java.util.Collection;
-
-/**
- * Controller tests for the keyboard accessory bottom sheet component.
- */
-@RunWith(ParameterizedRobolectricTestRunner.class)
-@Config(manifest = Config.NONE, shadows = {CustomShadowAsyncTask.class})
+/** Controller tests for the keyboard accessory bottom sheet component. */
+@RunWith(BaseRobolectricTestRunner.class)
+@Config(
+        manifest = Config.NONE,
+        shadows = {
+            CustomShadowAsyncTask.class,
+            AccessorySheetControllerTest.ShadowSemanticColorUtils.class
+        })
 public class AccessorySheetControllerTest {
-    @Mock
-    private PropertyObservable.PropertyObserver<PropertyKey> mMockPropertyObserver;
-    @Mock
-    private ListObservable.ListObserver<Void> mTabListObserver;
-    @Mock
-    private AccessorySheetView mMockView;
-    @Mock
-    private RecyclerView mMockRecyclerView;
-    @Mock
-    private SheetVisibilityDelegate mSheetVisibilityDelegate;
+    @Implements(SemanticColorUtils.class)
+    static class ShadowSemanticColorUtils {
+        @Implementation
+        public static int getDefaultBgColor(Context context) {
+            return DEFAULT_BG_COLOR;
+        }
+    }
 
-    private final Tab[] mTabs = new Tab[] {new Tab("Passwords", null, null, 0, 0, null),
-            new Tab("Passwords", null, null, 0, 0, null),
-            new Tab("Passwords", null, null, 0, 0, null),
-            new Tab("Passwords", null, null, 0, 0, null)};
+    private static final int DEFAULT_BG_COLOR = Color.LTGRAY;
+
+    @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
+
+    @Mock private PropertyObservable.PropertyObserver<PropertyKey> mMockPropertyObserver;
+    @Mock private ListObservable.ListObserver<Void> mTabListObserver;
+    @Mock private AccessorySheetView mMockView;
+    @Mock private RecyclerView mMockRecyclerView;
+    @Mock private SheetVisibilityDelegate mSheetVisibilityDelegate;
+    @Mock private AccessorySheetVisualStateProvider.Observer mVisualObserver;
+
+    private final Tab[] mTabs =
+            new Tab[] {
+                new Tab("Passwords", null, null, 0, 0, null),
+                new Tab("Passwords", null, null, 0, 0, null),
+                new Tab("Passwords", null, null, 0, 0, null),
+                new Tab("Passwords", null, null, 0, 0, null)
+            };
 
     private AccessorySheetCoordinator mCoordinator;
     private AccessorySheetMediator mMediator;
     private PropertyModel mModel;
 
-    @Rule
-    public TestRule mFeaturesProcessor = new Features.JUnitProcessor();
-
-    @ParameterizedRobolectricTestRunner.Parameters
-    public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {{false}, {true}});
-    }
-
-    public AccessorySheetControllerTest(boolean isKeyboardAccessoryEnabled) {
-        if (isKeyboardAccessoryEnabled) {
-            Features.getInstance().enable(ChromeFeatureList.AUTOFILL_KEYBOARD_ACCESSORY);
-        } else {
-            Features.getInstance().disable(ChromeFeatureList.AUTOFILL_KEYBOARD_ACCESSORY);
-        }
-    }
-
     @Before
     public void setUp() {
-        UmaRecorderHolder.resetForTesting();
-        MockitoAnnotations.initMocks(this);
         when(mMockView.getLayoutParams()).thenReturn(new ViewGroup.LayoutParams(0, 0));
-        mCoordinator = new AccessorySheetCoordinator(
-                new FakeViewProvider<>(mMockView), mSheetVisibilityDelegate);
+        mCoordinator =
+                new AccessorySheetCoordinator(
+                        null, new FakeViewProvider<>(mMockView), mSheetVisibilityDelegate);
         mMediator = mCoordinator.getMediatorForTesting();
         mModel = mMediator.getModelForTesting();
+        mMediator.addObserver(mVisualObserver);
     }
 
     @Test
@@ -118,20 +115,26 @@ public class AccessorySheetControllerTest {
     @Test
     public void testModelNotifiesAboutVisibilityOncePerChange() {
         mModel.addObserver(mMockPropertyObserver);
+        // The visual observer is notified of the current state when it is added.
+        verify(mVisualObserver).onAccessorySheetStateChanged(false, DEFAULT_BG_COLOR);
 
         // Calling show on the mediator should make model propagate that it's visible.
         mMediator.show();
         verify(mMockPropertyObserver).onPropertyChanged(mModel, VISIBLE);
         assertThat(mModel.get(VISIBLE), is(true));
+        verify(mVisualObserver).onAccessorySheetStateChanged(true, DEFAULT_BG_COLOR);
 
         // Calling show again does nothing.
         mMediator.show();
         verify(mMockPropertyObserver) // Still the same call and no new one added.
                 .onPropertyChanged(mModel, VISIBLE);
+        verify(mVisualObserver) // Still the same call and no new one added.
+                .onAccessorySheetStateChanged(true, DEFAULT_BG_COLOR);
 
         // Calling hide on the mediator should make model propagate that it's invisible.
         mMediator.hide();
         verify(mMockPropertyObserver, times(2)).onPropertyChanged(mModel, VISIBLE);
+        verify(mVisualObserver, times(2)).onAccessorySheetStateChanged(false, DEFAULT_BG_COLOR);
 
         assertThat(mModel.get(VISIBLE), is(false));
     }
@@ -204,8 +207,9 @@ public class AccessorySheetControllerTest {
 
     @Test
     public void testRecordsSheetClosure() {
-        assertThat(RecordHistogram.getHistogramTotalCountForTesting(
-                           ManualFillingMetricsRecorder.UMA_KEYBOARD_ACCESSORY_SHEET_TRIGGERED),
+        assertThat(
+                RecordHistogram.getHistogramTotalCountForTesting(
+                        ManualFillingMetricsRecorder.UMA_KEYBOARD_ACCESSORY_SHEET_TRIGGERED),
                 is(0));
 
         // Although sheets must be opened manually as of now, don't assume that every opened sheet
@@ -225,11 +229,6 @@ public class AccessorySheetControllerTest {
         mCoordinator.setTabs(mTabs);
         mModel.set(ACTIVE_TAB_INDEX, NO_ACTIVE_TAB);
         Runnable keyboardCallback = mModel.get(SHOW_KEYBOARD_CALLBACK);
-
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.AUTOFILL_KEYBOARD_ACCESSORY)) {
-            assertThat(keyboardCallback, is(nullValue()));
-            return;
-        }
 
         assertThat(keyboardCallback, is(notNullValue()));
         verifyNoMoreInteractions(mSheetVisibilityDelegate);

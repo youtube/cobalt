@@ -5,11 +5,14 @@
 #include "chrome/browser/ui/views/toolbar/reload_button.h"
 
 #include "base/run_loop.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
 #include "chrome/test/views/chrome_test_views_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/events/event_utils.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/test/button_test_api.h"
 
 class ReloadButtonTest : public ChromeRenderViewHostTestHarness {
@@ -66,7 +69,7 @@ TEST_F(ReloadButtonTest, Basic) {
              false, false);
 
   // Press the button.  This should start the double-click timer.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(reload());
   test_api.NotifyClick(e);
@@ -87,7 +90,7 @@ TEST_F(ReloadButtonTest, Basic) {
 
 TEST_F(ReloadButtonTest, DoubleClickTimer) {
   // Start by pressing the button.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(reload());
   test_api.NotifyClick(e);
@@ -115,7 +118,7 @@ TEST_F(ReloadButtonTest, DoubleClickTimer) {
 
 TEST_F(ReloadButtonTest, DisableOnHover) {
   // Change to stop and hover.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi(reload()).NotifyClick(e);
   reload()->ChangeMode(ReloadButton::Mode::kStop, false);
@@ -129,7 +132,7 @@ TEST_F(ReloadButtonTest, DisableOnHover) {
 
   // Un-hover the button, which should allow it to reset.
   set_mouse_hovered(false);
-  ui::MouseEvent e2(ui::ET_MOUSE_MOVED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e2(ui::EventType::kMouseMoved, gfx::Point(), gfx::Point(),
                     ui::EventTimeForNow(), 0, 0);
   reload()->OnMouseExited(e2);
   CheckState(true, ReloadButton::Mode::kReload, ReloadButton::Mode::kReload,
@@ -138,7 +141,7 @@ TEST_F(ReloadButtonTest, DisableOnHover) {
 
 TEST_F(ReloadButtonTest, ResetOnClick) {
   // Change to stop and hover.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi test_api(reload());
   test_api.NotifyClick(e);
@@ -154,7 +157,7 @@ TEST_F(ReloadButtonTest, ResetOnClick) {
 
 TEST_F(ReloadButtonTest, ResetOnTimer) {
   // Change to stop, hover, and change back to reload.
-  ui::MouseEvent e(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
+  ui::MouseEvent e(ui::EventType::kMousePressed, gfx::Point(), gfx::Point(),
                    ui::EventTimeForNow(), 0, 0);
   views::test::ButtonTestApi(reload()).NotifyClick(e);
   reload()->ChangeMode(ReloadButton::Mode::kStop, false);
@@ -165,4 +168,77 @@ TEST_F(ReloadButtonTest, ResetOnTimer) {
   base::RunLoop().RunUntilIdle();
   CheckState(true, ReloadButton::Mode::kReload, ReloadButton::Mode::kReload,
              false, false);
+}
+
+TEST_F(ReloadButtonTest, AccessibleHasPopup) {
+  ui::AXNodeData button_data;
+
+  button_data = ui::AXNodeData();
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_FALSE(reload()->GetMenuEnabled());
+  EXPECT_EQ(ax::mojom::HasPopup::kNone, button_data.GetHasPopup());
+
+  button_data = ui::AXNodeData();
+  reload()->SetMenuEnabled(true);
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_TRUE(reload()->GetMenuEnabled());
+  EXPECT_EQ(ax::mojom::HasPopup::kMenu, button_data.GetHasPopup());
+}
+
+TEST_F(ReloadButtonTest, TooltipText) {
+  reload()->SetVisibleMode(ReloadButton::Mode::kReload);
+  EXPECT_FALSE(reload()->GetMenuEnabled());
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_RELOAD));
+  reload()->SetVisibleMode(ReloadButton::Mode::kStop);
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_STOP));
+
+  reload()->SetMenuEnabled(true);
+  reload()->SetVisibleMode(ReloadButton::Mode::kReload);
+  EXPECT_TRUE(reload()->GetMenuEnabled());
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_RELOAD_WITH_MENU));
+  reload()->SetVisibleMode(ReloadButton::Mode::kStop);
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_STOP));
+}
+
+TEST_F(ReloadButtonTest, TooltipTextAccessibility) {
+  ui::AXNodeData button_data;
+  reload()->SetVisibleMode(ReloadButton::Mode::kReload);
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_FALSE(reload()->GetMenuEnabled());
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_RELOAD));
+  EXPECT_EQ(button_data.GetString16Attribute(
+                ax::mojom::StringAttribute::kDescription),
+            reload()->GetRenderedTooltipText(gfx::Point()));
+  button_data = ui::AXNodeData();
+  reload()->SetVisibleMode(ReloadButton::Mode::kStop);
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_STOP));
+  EXPECT_EQ(button_data.GetString16Attribute(
+                ax::mojom::StringAttribute::kDescription),
+            reload()->GetRenderedTooltipText(gfx::Point()));
+  button_data = ui::AXNodeData();
+
+  reload()->SetMenuEnabled(true);
+  reload()->SetVisibleMode(ReloadButton::Mode::kReload);
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_TRUE(reload()->GetMenuEnabled());
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_RELOAD_WITH_MENU));
+  EXPECT_EQ(button_data.GetString16Attribute(
+                ax::mojom::StringAttribute::kDescription),
+            reload()->GetRenderedTooltipText(gfx::Point()));
+  button_data = ui::AXNodeData();
+  reload()->SetVisibleMode(ReloadButton::Mode::kStop);
+  reload()->GetViewAccessibility().GetAccessibleNodeData(&button_data);
+  EXPECT_EQ(reload()->GetRenderedTooltipText(gfx::Point()),
+            l10n_util::GetStringUTF16(IDS_TOOLTIP_STOP));
+  EXPECT_EQ(button_data.GetString16Attribute(
+                ax::mojom::StringAttribute::kDescription),
+            reload()->GetRenderedTooltipText(gfx::Point()));
 }

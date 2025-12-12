@@ -1,3 +1,15 @@
 {
-  "failing_tests": []
+  "_comment": "TODO(b/403007005): Disabled new locale tests.",
+  "failing_tests": [
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+
+    "PosixLocaleSetTest.LocaleConvC",
+    "PosixLocaleSetTest.NewUseFreeLocale",
+    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
+    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
+    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
+    "PosixLocaleThreadTest.DupLocale",
+    "PosixLocaleThreadTest.DupLocaleNonDefault",
+    "Posix/NlLanginfo*"
+  ]
 }

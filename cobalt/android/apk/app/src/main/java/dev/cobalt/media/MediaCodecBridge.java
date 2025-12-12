@@ -20,7 +20,6 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
 import android.media.MediaCodec.CryptoInfo.Pattern;
@@ -40,21 +39,13 @@ import dev.cobalt.util.SynchronizedHolder;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
 @JNINamespace("starboard")
 class MediaCodecBridge {
-  // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
-  // for several frames. As a result, the player may find that the time does not increase
-  // after decoding a frame. To detect this, we check whether the presentation timestamp from
-  // dequeueOutputBuffer() is larger than input_timestamp - MAX_PRESENTATION_TIMESTAMP_SHIFT_US
-  // after a flush. And we set the presentation timestamp from dequeueOutputBuffer() to be
-  // non-decreasing for the remaining frames.
-  private static final long MAX_PRESENTATION_TIMESTAMP_SHIFT_US = 100000;
-
   // TODO: Use MediaFormat constants when part of the public API.
   private static final String KEY_CROP_LEFT = "crop-left";
   private static final String KEY_CROP_RIGHT = "crop-right";
@@ -70,8 +61,6 @@ class MediaCodecBridge {
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
   private MediaCodec.Callback mCallback;
-  private boolean mFlushed;
-  private long mLastPresentationTimeUs;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
   private final boolean mIsTunnelingPlayback;
@@ -283,8 +272,6 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mLastPresentationTimeUs = 0;
-    mFlushed = true;
     mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
@@ -671,7 +658,6 @@ class MediaCodecBridge {
   @CalledByNative
   private int flush() {
     try {
-      mFlushed = true;
       mMediaCodec.get().flush();
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
@@ -685,6 +671,14 @@ class MediaCodecBridge {
     synchronized (mNativeBridgeLock) {
       mNativeMediaCodecBridge = 0;
     }
+
+    // We skip calling stop() on Android 11, as this version has a race condition
+    // if an error occurs during stop(). See b/369372033 for details.
+    if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
+      Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
+      return;
+    }
+
     try {
       mMediaCodec.get().stop();
     } catch (Exception e) {
@@ -739,11 +733,10 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags, boolean is_decode_only) {
-    resetLastPresentationTimeIfNeeded(presentationTimeUs);
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
     try {
       if (isDecodeOnlyFlagEnabled()
-          && is_decode_only
+          && isDecodeOnly
           && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
@@ -768,8 +761,7 @@ class MediaCodecBridge {
       int blocksToEncrypt,
       int blocksToSkip,
       long presentationTimeUs,
-      boolean is_decode_only) {
-    resetLastPresentationTimeIfNeeded(presentationTimeUs);
+      boolean isDecodeOnly) {
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
@@ -783,7 +775,7 @@ class MediaCodecBridge {
       }
 
       int flags = 0;
-      if (isDecodeOnlyFlagEnabled() && is_decode_only) {
+      if (isDecodeOnlyFlagEnabled() && isDecodeOnly) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
 
@@ -1012,7 +1004,6 @@ class MediaCodecBridge {
     }
   }
 
-  @CalledByNative
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
       mMediaCodec.get().configure(format, null, crypto, flags);
@@ -1025,32 +1016,6 @@ class MediaCodecBridge {
       Log.e(TAG, "Cannot configure the audio codec", e);
     }
     return false;
-  }
-
-  private void resetLastPresentationTimeIfNeeded(long presentationTimeUs) {
-    if (mFlushed) {
-      mLastPresentationTimeUs =
-          Math.max(presentationTimeUs - MAX_PRESENTATION_TIMESTAMP_SHIFT_US, 0);
-      mFlushed = false;
-    }
-  }
-
-  @SuppressWarnings("deprecation")
-  private int getAudioFormat(int channelCount) {
-    switch (channelCount) {
-      case 1:
-        return AudioFormat.CHANNEL_OUT_MONO;
-      case 2:
-        return AudioFormat.CHANNEL_OUT_STEREO;
-      case 4:
-        return AudioFormat.CHANNEL_OUT_QUAD;
-      case 6:
-        return AudioFormat.CHANNEL_OUT_5POINT1;
-      case 8:
-        return AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
-      default:
-        return AudioFormat.CHANNEL_OUT_DEFAULT;
-    }
   }
 
   @NativeMethods

@@ -105,10 +105,9 @@ def main(argv):
         '-Wl,-rpath="\$$ORIGIN/."', '-Wl,-rpath-link=.'
     ])
     append_to_env('CXXFLAGS', [
-        '-nostdinc++',
-        '-isystem../../../buildtools/third_party/libc++',
-        '-isystem../../../buildtools/third_party/libc++/trunk/include',
-        '-isystem../../../buildtools/third_party/libc++abi/trunk/include'
+        '-nostdinc++', '-isystem../../../buildtools/third_party/libc++',
+        '-isystem../../../third_party/libc++/src/include',
+        '-isystem../../../third_party/libc++abi/src/include'
     ])
 
   cmd = [
@@ -123,7 +122,7 @@ def main(argv):
 
   shutil.copy2(
       os.path.join(BOOTSTRAP_DIR, 'last_commit_position.h'), gn_build_dir)
-  cmd = [ninja_binary, '-C', gn_build_dir, '-w', 'dupbuild=err', 'gn']
+  cmd = [ninja_binary, '-C', gn_build_dir, 'gn']
   if options.jobs:
     cmd += ['-j', str(options.jobs)]
   subprocess.check_call(cmd)

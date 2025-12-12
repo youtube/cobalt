@@ -41,8 +41,9 @@ class TestSafeDialAppInfoParser : public SafeDialAppInfoParser {
 
   void InvokeParseCallback(std::unique_ptr<ParsedDialAppInfo> app_info,
                            ParsingResult parsing_result) {
-    if (!parse_callback_)
+    if (!parse_callback_) {
       return;
+    }
     std::move(parse_callback_).Run(std::move(app_info), parsing_result);
   }
 
@@ -73,10 +74,11 @@ class DialAppDiscoveryServiceTest : public ::testing::Test {
   void OnAppInfo(const MediaSink::Id& sink_id,
                  const std::string& app_name,
                  DialAppInfoResult result) {
-    if (result.app_info)
+    if (result.app_info) {
       OnAppInfoSuccess(sink_id, app_name, *result.app_info, result.result_code);
-    else
+    } else {
       OnAppInfoFailure(sink_id, app_name, result.result_code);
+    }
   }
 
   // Returns a raw pointer to the PendingRequest tracked in
@@ -102,7 +104,7 @@ class DialAppDiscoveryServiceTest : public ::testing::Test {
   }
 
   void OnDialAppInfoFetchError(DialAppDiscoveryService::PendingRequest* request,
-                               absl::optional<int> response_code,
+                               std::optional<int> response_code,
                                const std::string& error_text) {
     request->OnDialAppInfoFetchError(error_text, response_code);
   }
@@ -112,7 +114,7 @@ class DialAppDiscoveryServiceTest : public ::testing::Test {
   }
 
  protected:
-  raw_ptr<TestSafeDialAppInfoParser> test_parser_;
+  raw_ptr<TestSafeDialAppInfoParser, DanglingUntriaged> test_parser_;
   DialAppDiscoveryService dial_app_discovery_service_;
 
   // Must be on Chrome_UIThread, as `OnDialAppInfoFetchComplete` uses a
@@ -146,7 +148,7 @@ TEST_F(DialAppDiscoveryServiceTest,
 
   EXPECT_CALL(*this, OnAppInfoFailure(sink_id, _,
                                       DialAppInfoResultCode::kNetworkError));
-  OnDialAppInfoFetchError(request, absl::nullopt, "Temporarily throttled");
+  OnDialAppInfoFetchError(request, std::nullopt, "Temporarily throttled");
 }
 
 TEST_F(DialAppDiscoveryServiceTest, TestFetchDialAppInfoFetchURLError) {

@@ -34,6 +34,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -53,12 +54,16 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.base.memory.MemoryPressureMonitor;
-import org.chromium.components.version_info.VersionInfo;
+import org.chromium.base.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 
@@ -74,27 +79,26 @@ public abstract class CobaltActivity extends Activity {
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
-  private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
+  private List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList = new ArrayList<>();
 
   @SuppressWarnings("unused")
-  private CobaltA11yHelper a11yHelper;
+  private CobaltA11yHelper mA11yHelper;
 
-  private VideoSurfaceView videoSurfaceView;
+  private VideoSurfaceView mVideoSurfaceView;
 
-  private boolean forceCreateNewVideoSurfaceView;
+  private boolean mForceCreateNewVideoSurfaceView;
 
-  private long timeInNanoseconds;
+  private long mTimeInNanoseconds;
 
   private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
-  // Tracks whether we should reload the page on resume, to re-trigger a network error dialog.
-  protected Boolean mShouldReloadOnResume = false;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
-  private Boolean isKeepScreenOnEnabled = false;
-  private String diagnosticFinishReason = "Unknown";
+  private Boolean mIsKeepScreenOnEnabled = false;
+  private CobaltConnectivityDetector mCobaltConnectivityDetector;
+  private WebContentsObserver mWebContentsObserver;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -111,7 +115,7 @@ public abstract class CobaltActivity extends Activity {
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
 
-    DeviceUtils.addDeviceSpecificUserAgentSwitch();
+    DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
     // This initializes JNI and ends up calling JNI_OnLoad in native code
     LibraryLoader.getInstance().ensureInitialized();
@@ -138,12 +142,20 @@ public abstract class CobaltActivity extends Activity {
     mShellManager = new ShellManager(this);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
+    mWindowAndroid =
+        new ActivityWindowAndroid(
+            this,
+            listenToActivityState,
+            mIntentRequestTracker,
+            /* insetObserver= */ null,
+            /* trackOcclusion= */ false);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
     // Set up the animation placeholder to be the SurfaceView. This disables the
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
+        mShellManager.getContentViewRenderView().getSurfaceView());
+    mA11yHelper = new CobaltA11yHelper(this,
         mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
@@ -169,62 +181,13 @@ public abstract class CobaltActivity extends Activity {
             new BrowserStartupController.StartupCallback() {
               @Override
               public void onSuccess() {
-                // Verbose code to differentiate different possible crash reasons
-                // for JNI crash on prime. Only the line number of the exception
-                // is output, hence the else/if block. b/439066169
-                if (isFinishing() || isDestroyed()) {
-                  if ("ON_BACK_PRESSED".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_BACK_PRESSED");
-                  } else if ("ON_LOW_MEMORY".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_LOW_MEMORY");
-                  } else if ("APP_INIT_FAILURE".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: APP_INIT_FAILURE");
-                  } else if ("ON_DESTROY_UNKNOWN".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_DESTROY_UNKNOWN");
-                  } else {
-                    throw new RuntimeException(
-                        "Callback called on finishing Activity. Finish reason: "
-                            + diagnosticFinishReason);
-                  }
-                }
                 Log.i(TAG, "Browser process init succeeded");
                 finishInitialization(savedInstanceState);
-
-                if (isFinishing() || isDestroyed()) {
-                  if ("ON_BACK_PRESSED".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_BACK_PRESSED after init");
-                  } else if ("ON_LOW_MEMORY".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_LOW_MEMORY after init");
-                  } else if ("APP_INIT_FAILURE".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: APP_INIT_FAILURE after init");
-                  } else if ("ON_DESTROY_UNKNOWN".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_DESTROY_UNKNOWN after init");
-                  } else {
-                    throw new RuntimeException(
-                        "Callback called on finishing Activity after init. Finish reason: "
-                            + diagnosticFinishReason);
-                  }
-                }
                 getStarboardBridge().measureAppStartTimestamp();
               }
 
               @Override
               public void onFailure() {
-                if (isFinishing() || isDestroyed()) {
-                  if ("ON_BACK_PRESSED".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_BACK_PRESSED");
-                  } else if ("ON_LOW_MEMORY".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_LOW_MEMORY");
-                  } else if ("APP_INIT_FAILURE".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: APP_INIT_FAILURE");
-                  } else if ("ON_DESTROY_UNKNOWN".equals(diagnosticFinishReason)) {
-                    throw new RuntimeException("Finish reason: ON_DESTROY_UNKNOWN");
-                  } else {
-                    throw new RuntimeException(
-                        "Callback called on finishing Activity. Finish reason: "
-                            + diagnosticFinishReason);
-                  }
-                }
                 Log.e(TAG, "Browser process init failed");
                 initializationFailed();
               }
@@ -239,10 +202,12 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // Load an empty page to let shell create WebContents. Override Shell.java's
+    // onWebContentsReady()
     // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
     // that the webContents are correctly created not null.
-    mShellManager.launchShell("",
+    mShellManager.launchShell(
+        "",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
@@ -253,17 +218,34 @@ public abstract class CobaltActivity extends Activity {
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
+
+            // Initialize and register a WebContentsObserver.
+            mWebContentsObserver =
+              new org.chromium.content_public.browser.WebContentsObserver(getActiveWebContents()) {
+                @Override
+                public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  if (!navigationHandle.isSameDocument()) {
+                    mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
+                  }
+                }
+
+                @Override
+                public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  // The connectivity detector will consider the app has loaded if the navigation has
+                  // committed successfully with a valid internet connection.
+                  if (navigationHandle.hasCommitted()
+                      && !navigationHandle.isErrorPage()
+                      && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
+                        mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
+                  }
+                }
+              };
           }
         });
   }
 
   // Initially copied from ContentShellActiviy.java
   private void initializationFailed() {
-    if (isFinishing() || isDestroyed()) {
-      throw new RuntimeException(
-          "initializationFailed on finishing Activity. Reason: " + diagnosticFinishReason);
-    }
-    diagnosticFinishReason = "APP_INIT_FAILURE";
     Log.e(TAG, "ContentView initialization failed.");
     Toast.makeText(
             CobaltActivity.this, R.string.browser_process_initialization_failed, Toast.LENGTH_SHORT)
@@ -288,7 +270,7 @@ public abstract class CobaltActivity extends Activity {
     // If input is a from a gamepad button, it shouldn't be dispatched to IME which incorrectly
     // consumes the event as a VKEY_UNKNOWN
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyDown(keyCode, event);
+      return super.onKeyDown(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
@@ -296,7 +278,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     if (KeyEvent.isGamepadButton(keyCode)) {
-        return super.onKeyUp(keyCode, event);
+      return super.onKeyUp(keyCode, event);
     }
     return dispatchKeyEventToIme(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
@@ -361,7 +343,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
-    timeInNanoseconds = System.nanoTime();
+    mTimeInNanoseconds = System.nanoTime();
 
     // To ensure that volume controls adjust the correct stream, make this call
     // early in the app's lifecycle. This connects the volume controls to
@@ -369,13 +351,16 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
+    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
+    NetworkChangeNotifier.init();
+    mCobaltConnectivityDetector.registerObserver();
+    NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
-    videoSurfaceView = new VideoSurfaceView(this);
-    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+    mVideoSurfaceView = new VideoSurfaceView(this);
     addContentView(
-        videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+        mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
 
   /**
@@ -395,22 +380,23 @@ public abstract class CobaltActivity extends Activity {
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
-    javaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
-    javaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
+    mJavaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
+    mJavaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
-    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
+    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents);
 
     javascriptInjector.setAllowInspection(true);
-    for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
+    for (CobaltJavaScriptAndroidObject javascriptAndroidObject : mJavaScriptAndroidObjectList) {
       Log.d(
           TAG,
           "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
       javascriptInjector.addPossiblyUnsafeInterface(
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
-          CobaltJavaScriptInterface.class);
+          CobaltJavaScriptInterface.class,
+          /* originAllowlist= */ new ArrayList<String>());
     }
   }
 
@@ -424,13 +410,17 @@ public abstract class CobaltActivity extends Activity {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
 
+  public CobaltConnectivityDetector getCobaltConnectivityDetector() {
+    return mCobaltConnectivityDetector;
+  }
+
   @Override
   protected void onStart() {
     if (!isReleaseBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (forceCreateNewVideoSurfaceView) {
+    if (mForceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -447,9 +437,15 @@ public abstract class CobaltActivity extends Activity {
       // document.onresume event
       webContents.onResume();
       // visibility:visible event
-      webContents.onShow();
+      webContents.updateWebContentsVisibility(Visibility.VISIBLE);
     }
-    MemoryPressureMonitor.INSTANCE.enablePolling();
+    MemoryPressureMonitor.INSTANCE.enablePolling(false);
+  }
+
+  @Override
+  protected void onPause() {
+    CobaltContentBrowserClient.dispatchBlur();
+    super.onPause();
   }
 
   @Override
@@ -460,13 +456,13 @@ public abstract class CobaltActivity extends Activity {
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
-      webContents.onHide();
+      webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       // document.onfreeze event
       webContents.onFreeze();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
-      forceCreateNewVideoSurfaceView = true;
+      mForceCreateNewVideoSurfaceView = true;
     }
     MemoryPressureMonitor.INSTANCE.disablePolling();
 
@@ -478,31 +474,27 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    diagnosticFinishReason = "Unknown";
-    if (mShouldReloadOnResume) {
-      WebContents webContents = getActiveWebContents();
-      if (webContents != null) {
-        webContents.getNavigationController().reload(true);
-      }
-      mShouldReloadOnResume = false;
-    }
-
+    mCobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
       Log.i(TAG, "Request focus on the root view on resume.");
     }
+    CobaltContentBrowserClient.dispatchFocus();
   }
 
   @Override
   protected void onDestroy() {
+    if (mCobaltConnectivityDetector != null) {
+      mCobaltConnectivityDetector.destroy();
+    }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
-    // If the reason is still unknown, it's likely a config change or system kill.
-    if ("Unknown".equals(diagnosticFinishReason)) {
-      diagnosticFinishReason = "ON_DESTROY_UNKNOWN";
+    if (mWebContentsObserver != null) {
+      mWebContentsObserver.observe(null);
+      mWebContentsObserver = null;
     }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
@@ -643,8 +635,8 @@ public abstract class CobaltActivity extends Activity {
         new Runnable() {
           @Override
           public void run() {
-            LayoutParams layoutParams = videoSurfaceView.getLayoutParams();
-            // Since videoSurfaceView is added directly to the Activity's content view, which is a
+            LayoutParams layoutParams = mVideoSurfaceView.getLayoutParams();
+            // Since mVideoSurfaceView is added directly to the Activity's content view, which is a
             // FrameLayout, we expect its layout params to become FrameLayout.LayoutParams.
             if (layoutParams instanceof FrameLayout.LayoutParams) {
               ((FrameLayout.LayoutParams) layoutParams).setMargins(x, y, x + width, y + height);
@@ -661,33 +653,32 @@ public abstract class CobaltActivity extends Activity {
             // SurfaceView to position its underlying Surface to match the screen coordinates of
             // where the view would be in a UI layout and to set the surface transform matrix to
             // match the view's size.
-            videoSurfaceView.setLayoutParams(layoutParams);
+            mVideoSurfaceView.setLayoutParams(layoutParams);
           }
         });
   }
 
   private void createNewSurfaceView() {
-    ViewParent parent = videoSurfaceView.getParent();
+    ViewParent parent = mVideoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
-      int index = frameLayout.indexOfChild(videoSurfaceView);
-      frameLayout.removeView(videoSurfaceView);
-      Log.i(TAG, "removed videoSurfaceView at index:" + index);
+      int index = frameLayout.indexOfChild(mVideoSurfaceView);
+      frameLayout.removeView(mVideoSurfaceView);
+      Log.i(TAG, "removed mVideoSurfaceView at index:" + index);
 
-      videoSurfaceView = new VideoSurfaceView(this);
-      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
+      mVideoSurfaceView = new VideoSurfaceView(this);
       frameLayout.addView(
-          videoSurfaceView,
+          mVideoSurfaceView,
           index,
           new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-      Log.i(TAG, "inserted new videoSurfaceView at index:" + index);
+      Log.i(TAG, "inserted new mVideoSurfaceView at index:" + index);
     } else {
       Log.w(TAG, "Unexpected surface view parent class " + parent.getClass().getName());
     }
   }
 
   public long getAppStartTimestamp() {
-    return timeInNanoseconds;
+    return mTimeInNanoseconds;
   }
 
   public void evaluateJavaScript(String jsCode) {
@@ -705,7 +696,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void toggleKeepScreenOn(boolean keepOn) {
-    if (isKeepScreenOnEnabled != keepOn) {
+    if (mIsKeepScreenOnEnabled != keepOn) {
       runOnUiThread(
           new Runnable() {
             @Override
@@ -719,19 +710,7 @@ public abstract class CobaltActivity extends Activity {
               }
             }
           });
-      isKeepScreenOnEnabled = keepOn;
+      mIsKeepScreenOnEnabled = keepOn;
     }
-  }
-
-  @Override
-  public void onBackPressed() {
-    diagnosticFinishReason = "ON_BACK_PRESSED";
-    super.onBackPressed();
-  }
-
-  @Override
-  public void onLowMemory() {
-    diagnosticFinishReason = "ON_LOW_MEMORY";
-    super.onLowMemory();
   }
 }

@@ -18,8 +18,6 @@ namespace viz {
 
 class VIZ_COMMON_EXPORT RenderPassDrawQuadInternal : public DrawQuad {
  public:
-  static const size_t kMaskResourceIdIndex = 0;
-
   gfx::RectF mask_uv_rect;
   gfx::Size mask_texture_size;
 
@@ -27,7 +25,7 @@ class VIZ_COMMON_EXPORT RenderPassDrawQuadInternal : public DrawQuad {
   // the render pass physical pixels. This scale is applied to the filter
   // parameters for pixel-moving filters. This scale should include
   // content-to-target-space scale, and device pixel ratio.
-  gfx::Vector2dF filters_scale;
+  gfx::Vector2dF filters_scale{1.0f, 1.0f};
 
   // The origin for post-processing filters which will be used to offset
   // crop rects, lights, etc.
@@ -35,17 +33,15 @@ class VIZ_COMMON_EXPORT RenderPassDrawQuadInternal : public DrawQuad {
 
   gfx::RectF tex_coord_rect;
 
-  float backdrop_filter_quality;
+  float backdrop_filter_quality = 1.0f;
 
-  bool force_anti_aliasing_off;
+  bool force_anti_aliasing_off = false;
 
   // Indicates if this quad intersects any damage from quads under it rendering
   // to the same target.
   mutable bool intersects_damage_under = true;
 
-  ResourceId mask_resource_id() const {
-    return resources.ids[kMaskResourceIdIndex];
-  }
+  ResourceId mask_resource_id() const { return resource_id; }
 
  protected:
   RenderPassDrawQuadInternal();

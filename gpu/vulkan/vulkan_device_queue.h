@@ -21,6 +21,10 @@
 #include "gpu/vulkan/vulkan_instance.h"
 #include "ui/gfx/extension_set.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/pre_freeze_background_memory_trimmer.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace gpu {
 
 class VulkanCommandPool;
@@ -74,6 +78,7 @@ class COMPONENT_EXPORT(VULKAN) VulkanDeviceQueue
       VkPhysicalDevice vk_physical_device,
       VkDevice vk_device,
       VkQueue vk_queue,
+      void* vk_queue_lock_context,
       uint32_t vk_queue_index,
       gfx::ExtensionSet enabled_extensions,
       const VkPhysicalDeviceFeatures2& vk_physical_device_features2,
@@ -100,6 +105,8 @@ class COMPONENT_EXPORT(VULKAN) VulkanDeviceQueue
     return vk_physical_device_driver_properties_;
   }
 
+  uint64_t drm_device_id() const { return drm_device_id_; }
+
   VkDevice GetVulkanDevice() const {
     DCHECK_NE(static_cast<VkDevice>(VK_NULL_HANDLE), vk_device_);
     return vk_device_;
@@ -109,6 +116,7 @@ class COMPONENT_EXPORT(VULKAN) VulkanDeviceQueue
     DCHECK_NE(static_cast<VkQueue>(VK_NULL_HANDLE), vk_queue_);
     return vk_queue_;
   }
+  void* GetVulkanQueueLockContext() const { return angle_display_; }
 
   VkInstance GetVulkanInstance() const { return vk_instance_; }
 
@@ -149,6 +157,7 @@ class COMPONENT_EXPORT(VULKAN) VulkanDeviceQueue
   VkPhysicalDevice vk_physical_device_ = VK_NULL_HANDLE;
   VkPhysicalDeviceProperties vk_physical_device_properties_;
   VkPhysicalDeviceDriverProperties vk_physical_device_driver_properties_;
+  uint64_t drm_device_id_ = 0;
   VkDevice owned_vk_device_ = VK_NULL_HANDLE;
   VkDevice vk_device_ = VK_NULL_HANDLE;
   VkQueue vk_queue_ = VK_NULL_HANDLE;
@@ -162,14 +171,23 @@ class COMPONENT_EXPORT(VULKAN) VulkanDeviceQueue
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
   raw_ptr<const VkPhysicalDeviceFeatures2>
       enabled_device_features_2_from_angle_ = nullptr;
+  raw_ptr<void> angle_display_ = nullptr;
 
   bool allow_protected_memory_ = false;
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<
+      const base::android::PreFreezeBackgroundMemoryTrimmer::PreFreezeMetric>
+      metric_ = nullptr;
+#endif
+
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
   VkPhysicalDeviceSamplerYcbcrConversionFeatures
       sampler_ycbcr_conversion_features_{
           VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES};
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_LINUX)
+        // || BUILDFLAG(IS_CHROMEOS)
 
   VkPhysicalDeviceProtectedMemoryFeatures protected_memory_features_{
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES};

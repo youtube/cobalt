@@ -2,21 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "android_webview/test/shell/src/draw_fn/context_manager.h"
 
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 
 #include "android_webview/public/browser/draw_fn.h"
-#include "android_webview/test/draw_fn_impl_jni_headers/ContextManager_jni.h"
 #include "android_webview/test/shell/src/draw_fn/allocator.h"
 #include "base/android/jni_array.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "base/native_library.h"
 #include "base/threading/thread_restrictions.h"
-#include "gpu/vulkan/init/gr_vk_memory_allocator_impl.h"
 #include "gpu/vulkan/init/vulkan_factory.h"
+#include "gpu/vulkan/skia_vk_memory_allocator_impl.h"
 #include "gpu/vulkan/vulkan_device_queue.h"
 #include "gpu/vulkan/vulkan_function_pointers.h"
 #include "gpu/vulkan/vulkan_implementation.h"
@@ -29,15 +33,25 @@
 #include "third_party/skia/include/core/SkDrawable.h"
 #include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/core/SkSurfaceProps.h"
-#include "third_party/skia/include/gpu/GrBackendDrawableInfo.h"
-#include "third_party/skia/include/gpu/GrBackendSemaphore.h"
-#include "third_party/skia/include/gpu/GrBackendSurface.h"
-#include "third_party/skia/include/gpu/GrBackendSurfaceMutableState.h"
-#include "third_party/skia/include/gpu/GrDirectContext.h"
-#include "third_party/skia/include/gpu/vk/GrVkBackendContext.h"
-#include "third_party/skia/include/gpu/vk/GrVkExtensions.h"
-#include "third_party/skia/include/gpu/vk/GrVkTypes.h"
+#include "third_party/skia/include/gpu/MutableTextureState.h"
+#include "third_party/skia/include/gpu/ganesh/GrBackendSemaphore.h"
+#include "third_party/skia/include/gpu/ganesh/GrBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/GrDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/GrTypes.h"
+#include "third_party/skia/include/gpu/ganesh/SkSurfaceGanesh.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrBackendDrawableInfo.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSemaphore.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkBackendSurface.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkDirectContext.h"
+#include "third_party/skia/include/gpu/ganesh/vk/GrVkTypes.h"
+#include "third_party/skia/include/gpu/vk/VulkanBackendContext.h"
+#include "third_party/skia/include/gpu/vk/VulkanExtensions.h"
+#include "third_party/skia/include/gpu/vk/VulkanMutableTextureState.h"
+#include "third_party/skia/include/gpu/vk/VulkanTypes.h"
 #include "ui/gfx/color_space.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "android_webview/test/draw_fn_impl_jni_headers/ContextManager_jni.h"
 
 namespace draw_fn {
 
@@ -565,29 +579,29 @@ base::android::ScopedJavaLocalRef<jintArray> ContextManagerVulkan::Draw(
       vk_image_info.fCurrentQueueFamily = VK_QUEUE_FAMILY_IGNORED;
       vk_image_info.fProtected = GrProtected::kNo;
       const auto& vk_image_size = vulkan_surface_->image_size();
-      GrBackendRenderTarget render_target(vk_image_size.width(),
-                                          vk_image_size.height(),
-                                          0 /* sample_cnt */, vk_image_info);
+      auto render_target = GrBackendRenderTargets::MakeVk(
+          vk_image_size.width(), vk_image_size.height(), vk_image_info);
 
       auto sk_color_type = surface_format == VK_FORMAT_B8G8R8A8_UNORM
                                ? kBGRA_8888_SkColorType
                                : kRGBA_8888_SkColorType;
-      sk_surface = SkSurface::MakeFromBackendRenderTarget(
+      sk_surface = SkSurfaces::WrapBackendRenderTarget(
           gr_context_.get(), render_target, kTopLeft_GrSurfaceOrigin,
           sk_color_type, gfx::ColorSpace::CreateSRGB().ToSkColorSpace(),
           &surface_props);
       CHECK(sk_surface);
     } else {
-      auto backend = sk_surface->getBackendRenderTarget(
-          SkSurface::kFlushRead_BackendHandleAccess);
-      backend.setVkImageLayout(scoped_write.image_layout());
+      auto backend = SkSurfaces::GetBackendRenderTarget(
+          sk_surface.get(), SkSurfaces::BackendHandleAccess::kFlushRead);
+      GrBackendRenderTargets::SetVkImageLayout(&backend,
+                                               scoped_write.image_layout());
     }
 
     {
       VkSemaphore vk_semaphore = scoped_write.begin_semaphore();
       DCHECK(vk_semaphore != VK_NULL_HANDLE);
-      GrBackendSemaphore begin_semaphore;
-      begin_semaphore.initVulkan(vk_semaphore);
+      GrBackendSemaphore begin_semaphore =
+          GrBackendSemaphores::MakeVk(vk_semaphore);
       bool result = sk_surface->wait(1, &begin_semaphore,
                                      /*deleteSemaphoresAfterWait=*/false);
       CHECK(result);
@@ -617,19 +631,21 @@ base::android::ScopedJavaLocalRef<jintArray> ContextManagerVulkan::Draw(
     }
 
     {
-      GrBackendSemaphore end_semaphore;
-      end_semaphore.initVulkan(scoped_write.end_semaphore());
+      GrBackendSemaphore end_semaphore =
+          GrBackendSemaphores::MakeVk(scoped_write.end_semaphore());
       GrFlushInfo flush_info = {
           .fNumSemaphores = 1,
           .fSignalSemaphores = &end_semaphore,
       };
       uint32_t queue_index = device_queue_->GetVulkanQueueIndex();
-      GrBackendSurfaceMutableState state(VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                         queue_index);
-      GrSemaphoresSubmitted submitted = sk_surface->flush(flush_info, &state);
+      skgpu::MutableTextureState state =
+          skgpu::MutableTextureStates::MakeVulkan(
+              VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, queue_index);
+      GrSemaphoresSubmitted submitted =
+          gr_context_->flush(sk_surface.get(), flush_info, &state);
       CHECK_EQ(GrSemaphoresSubmitted::kYes, submitted);
     }
-    CHECK(gr_context_->submit(/*sync_cpu=*/false));
+    CHECK(gr_context_->submit(GrSyncCpu::kNo));
   }
 
   gfx::SwapResult result = vulkan_surface_->SwapBuffers(
@@ -646,7 +662,7 @@ void ContextManagerVulkan::DoCreateContext(JNIEnv* env, int width, int height) {
                                     gpu::VulkanSurface::FORMAT_RGBA_32));
   ResizeSurface(env, width, height);
 
-  GrVkBackendContext backend_context;
+  skgpu::VulkanBackendContext backend_context;
   backend_context.fInstance = device_queue_->GetVulkanInstance();
   backend_context.fPhysicalDevice = device_queue_->GetVulkanPhysicalDevice();
   backend_context.fDevice = device_queue_->GetVulkanDevice();
@@ -656,10 +672,10 @@ void ContextManagerVulkan::DoCreateContext(JNIEnv* env, int width, int height) {
                                        ->vulkan_info()
                                        .used_api_version;
   backend_context.fMemoryAllocator =
-      gpu::CreateGrVkMemoryAllocator(device_queue_.get());
+      gpu::CreateSkiaVulkanMemoryAllocator(device_queue_.get());
 
-  GrVkGetProc get_proc = [](const char* proc_name, VkInstance instance,
-                            VkDevice device) {
+  skgpu::VulkanGetProc get_proc = [](const char* proc_name, VkInstance instance,
+                                     VkDevice device) {
     if (device) {
       return vkGetDeviceProcAddr(device, proc_name);
     }
@@ -674,20 +690,20 @@ void ContextManagerVulkan::DoCreateContext(JNIEnv* env, int width, int height) {
   device_extensions.reserve(device_queue_->enabled_extensions().size());
   for (const auto& extension : device_queue_->enabled_extensions())
     device_extensions.push_back(extension.data());
-  GrVkExtensions gr_extensions;
-  gr_extensions.init(get_proc,
+  skgpu::VulkanExtensions vk_extensions;
+  vk_extensions.init(get_proc,
                      vulkan_implementation_->GetVulkanInstance()->vk_instance(),
                      device_queue_->GetVulkanPhysicalDevice(),
                      instance_extensions.size(), instance_extensions.data(),
                      device_extensions.size(), device_extensions.data());
-  backend_context.fVkExtensions = &gr_extensions;
+  backend_context.fVkExtensions = &vk_extensions;
   backend_context.fDeviceFeatures2 =
       &device_queue_->enabled_device_features_2();
   backend_context.fGetProc = get_proc;
   backend_context.fProtectedContext = GrProtected::kNo;
 
   GrContextOptions options;
-  gr_context_ = GrDirectContext::MakeVulkan(backend_context, options);
+  gr_context_ = GrDirectContexts::MakeVulkan(backend_context, options);
   CHECK(gr_context_);
 
   MaybeCallFunctorInitVk();

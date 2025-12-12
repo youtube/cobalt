@@ -6,28 +6,34 @@
 
 #include <memory>
 #include <string>
-#include <tuple>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_string.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/notreached.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/profiles/profile_android.h"
 #include "chrome/browser/signin/chrome_signin_client_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/signin/test_signin_client_builder.h"
-#include "chrome/browser/supervised_user/child_accounts/family_info_fetcher.h"
-#include "chrome/browser/supervised_user/supervised_user_service.h"
-#include "chrome/browser/supervised_user/supervised_user_service_factory.h"
-#include "chrome/test/test_support_jni_headers/FamilyInfoFeedbackSourceTestBridge_jni.h"
+#include "chrome/browser/supervised_user/supervised_user_test_util.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
+#include "components/supervised_user/core/browser/proto/families_common.pb.h"
+#include "components/supervised_user/core/browser/proto/kidsmanagement_messages.pb.h"
+#include "components/supervised_user/core/browser/proto_fetcher_status.h"
 #include "components/supervised_user/core/browser/supervised_user_url_filter.h"
+#include "components/supervised_user/core/browser/supervised_user_utils.h"
+#include "components/supervised_user/core/common/supervised_user_constants.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
+#include "google_apis/gaia/gaia_id.h"
+#include "google_apis/gaia/google_service_auth_error.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "chrome/test/test_support_jni_headers/FamilyInfoFeedbackSourceTestBridge_jni.h"
 
 using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
@@ -36,15 +42,27 @@ namespace chrome::android {
 namespace {
 
 const char kTestEmail[] = "test@gmail.com";
-const char kFeedbackTagFamilyMemberRole[] = "Family_Member_Role";
 const char kFeedbackTagParentalControlSitesChild[] =
     "Parental_Control_Sites_Child";
+
+kidsmanagement::ListMembersResponse CreateFamilyWithOneMember(
+    const GaiaId& gaia_id,
+    kidsmanagement::FamilyRole role) {
+  kidsmanagement::ListMembersResponse response;
+  kidsmanagement::FamilyMember* member = response.add_members();
+
+  member->set_user_id(gaia_id.ToString());
+  member->set_role(role);
+  member->mutable_profile()->set_display_name("Name");
+  member->mutable_profile()->set_email(kTestEmail);
+  return response;
+}
 }  // namespace
 
+// TODO(b/280772872): Integrate AsyncURLChecker to test
+// supervised_user::SupervisedUserURLFilter::WebFilterType::kTryToBlockMatureSites.
 class FamilyInfoFeedbackSourceForChildFilterBehaviorTest
-    : public testing::TestWithParam<std::tuple<
-          supervised_user::SupervisedUserURLFilter::FilteringBehavior,
-          bool>> {
+    : public testing::TestWithParam<supervised_user::WebFilterType> {
  public:
   FamilyInfoFeedbackSourceForChildFilterBehaviorTest()
       : env_(base::android::AttachCurrentThread()) {}
@@ -56,20 +74,19 @@ class FamilyInfoFeedbackSourceForChildFilterBehaviorTest
         base::BindRepeating(&signin::BuildTestSigninClient));
     builder.SetIsSupervisedProfile();
 
-    role_ = FamilyInfoFetcher::FamilyMemberRole::CHILD;
+    role_ = kidsmanagement::CHILD;
     profile_ = IdentityTestEnvironmentProfileAdaptor::
         CreateProfileForIdentityTestEnvironment(builder);
     identity_test_env_profile_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(profile_.get());
     j_feedback_source_ = CreateJavaObjectForTesting();
-    supervised_user_service_ =
-        SupervisedUserServiceFactory::GetForProfile(profile_.get());
   }
 
  protected:
   signin::IdentityTestEnvironment* identity_test_env() {
     return identity_test_env_profile_adaptor_->identity_test_env();
   }
+  Profile* profile() const { return profile_.get(); }
 
   // Methods to access Java counterpart FamilyInfoFeedbackSource.
   std::string GetFeedbackValue(std::string feedback_tag) {
@@ -82,10 +99,10 @@ class FamilyInfoFeedbackSourceForChildFilterBehaviorTest
     return base::android::ConvertJavaStringToUTF8(env_, j_value);
   }
 
-  void OnGetFamilyMembersSuccess(
+  void OnListFamilyMembersSuccess(
       base::WeakPtr<FamilyInfoFeedbackSource> feedback_source,
-      const std::vector<FamilyInfoFetcher::FamilyMember>& members) {
-    feedback_source->OnGetFamilyMembersSuccess(members);
+      const kidsmanagement::ListMembersResponse& members) {
+    feedback_source->OnSuccess(members);
   }
 
   // Creates a new instance of FamilyInfoFeedbackSource that is destroyed on
@@ -97,37 +114,12 @@ class FamilyInfoFeedbackSourceForChildFilterBehaviorTest
     return source->weak_factory_.GetWeakPtr();
   }
 
-  // Returns the expected string representation of the Parental_Control_
-  // Sites_Parent PSD field that is included in the feedback log.
-  std::string GetFilterTypeAsString(
-      supervised_user::SupervisedUserURLFilter::FilteringBehavior behavior,
-      bool safe_sites_enabled) {
-    switch (behavior) {
-      case (supervised_user::SupervisedUserURLFilter::FilteringBehavior::BLOCK):
-        return "allow_certain_sites";
-      case (supervised_user::SupervisedUserURLFilter::FilteringBehavior::ALLOW):
-        if (safe_sites_enabled) {
-          return "block_mature_sites";
-        } else {
-          return "allow_all_sites";
-        }
-      case (
-          supervised_user::SupervisedUserURLFilter::FilteringBehavior::INVALID):
-        return "";
-    }
-  }
-
-  FamilyInfoFetcher::FamilyMemberRole role_;
-  raw_ptr<SupervisedUserService> supervised_user_service_;
-
+  kidsmanagement::FamilyRole role_;
  private:
   // Creates a Java instance of FamilyInfoFeedbackSource.
   base::android::ScopedJavaLocalRef<jobject> CreateJavaObjectForTesting() {
-    ProfileAndroid* profile_android =
-        ProfileAndroid::FromProfile(profile_.get());
     return Java_FamilyInfoFeedbackSourceTestBridge_createFamilyInfoFeedbackSource(
-        env_, base::android::JavaParamRef<jobject>(
-                  env_, profile_android->GetJavaObject().Release()));
+        env_, profile_.get()->GetJavaObject());
   }
 
   content::BrowserTaskEnvironment task_environment_;
@@ -141,52 +133,60 @@ class FamilyInfoFeedbackSourceForChildFilterBehaviorTest
 // Tests that the parental control sites value for a child user is recorded.
 TEST_P(FamilyInfoFeedbackSourceForChildFilterBehaviorTest,
        GetChildFilteringBehaviour) {
-  base::test::ScopedFeatureList scoped_list;
-  scoped_list.InitAndEnableFeature(
-      chrome::android::kReportParentalControlSitesChild);
-
   CoreAccountInfo primary_account =
       identity_test_env()->MakePrimaryAccountAvailable(
           kTestEmail, signin::ConsentLevel::kSignin);
 
-  supervised_user::SupervisedUserURLFilter::FilteringBehavior
-      filtering_behavior = std::get<0>(GetParam());
-  supervised_user_service_->GetURLFilter()->SetDefaultFilteringBehavior(
-      filtering_behavior);
+  supervised_user_test_util::SetWebFilterType(profile(), GetParam());
 
-  std::vector<FamilyInfoFetcher::FamilyMember> members(
-      {FamilyInfoFetcher::FamilyMember(
-          primary_account.gaia, role_, "Name", kTestEmail,
-          /*profile_url=*/std::string(), /*profile_image_url=*/std::string())});
+  kidsmanagement::ListMembersResponse members =
+      CreateFamilyWithOneMember(primary_account.gaia, role_);
 
   base::WeakPtr<FamilyInfoFeedbackSource> feedback_source =
       CreateFamilyInfoFeedbackSource();
-  OnGetFamilyMembersSuccess(feedback_source, members);
+  OnListFamilyMembersSuccess(feedback_source, members);
 
-  bool safe_sites_enabled = std::get<1>(GetParam());
-  // TODO(b/264668884): set up the AsyncURLChecker and re-add test cases with
-  // safe_sites_enabled == true. These were removed as SupervisedUserDenylist is
-  // deprecated.
+  std::string expected_feedback_value =
+      GetFeedbackValue(kFeedbackTagParentalControlSitesChild);
 
-  std::string expected_filter =
-      GetFilterTypeAsString(filtering_behavior, safe_sites_enabled);
-  EXPECT_EQ(expected_filter,
-            GetFeedbackValue(kFeedbackTagParentalControlSitesChild));
+  // Don't put logic in tests, test explicit values.
+  switch (GetParam()) {
+    case (supervised_user::WebFilterType::kCertainSites):
+      EXPECT_EQ("allow_certain_sites", expected_feedback_value);
+      break;
+    case (supervised_user::WebFilterType::kTryToBlockMatureSites):
+      EXPECT_EQ("block_mature_sites", expected_feedback_value);
+      break;
+    case (supervised_user::WebFilterType::kAllowAllSites):
+      EXPECT_EQ("allow_all_sites", expected_feedback_value);
+      break;
+    default:
+      // Remaining combinations are not tested.
+      NOTREACHED();
+  }
 }
 
 INSTANTIATE_TEST_SUITE_P(
     FilterBehaviourContainer,
     FamilyInfoFeedbackSourceForChildFilterBehaviorTest,
-    ::testing::Values(
-        std::make_tuple(
-            supervised_user::SupervisedUserURLFilter::FilteringBehavior::BLOCK,
-            false),
-        std::make_tuple(
-            supervised_user::SupervisedUserURLFilter::FilteringBehavior::ALLOW,
-            false)));
+    ::testing::Values(supervised_user::WebFilterType::kCertainSites,
+                      supervised_user::WebFilterType::kTryToBlockMatureSites,
+                      supervised_user::WebFilterType::kAllowAllSites),
+    [](const testing::TestParamInfo<supervised_user::WebFilterType>& info) {
+      switch (info.param) {
+        case supervised_user::WebFilterType::kCertainSites:
+          return "CertainSites";
+        case supervised_user::WebFilterType::kTryToBlockMatureSites:
+          return "TryToBlockMatureSites";
+        case supervised_user::WebFilterType::kAllowAllSites:
+          return "AllowAllSites";
+        default:
+          NOTREACHED();
+      }
+    });
 
 class FamilyInfoFeedbackSourceTest
-    : public testing::TestWithParam<FamilyInfoFetcher::FamilyMemberRole> {
+    : public testing::TestWithParam<kidsmanagement::FamilyRole> {
  public:
   FamilyInfoFeedbackSourceTest() : env_(base::android::AttachCurrentThread()) {}
 
@@ -201,7 +201,7 @@ class FamilyInfoFeedbackSourceTest
     if (::testing::UnitTest::GetInstance()
             ->current_test_info()
             ->value_param()) {
-      is_child_ = GetParam() == FamilyInfoFetcher::FamilyMemberRole::CHILD;
+      is_child_ = GetParam() == kidsmanagement::CHILD;
       if (is_child_) {
         builder.SetIsSupervisedProfile();
       }
@@ -227,19 +227,22 @@ class FamilyInfoFeedbackSourceTest
             base::android::JavaParamRef<jobject>(env_,
                                                  j_feedback_source_.obj()),
             base::android::ConvertUTF8ToJavaString(
-                env_, kFeedbackTagFamilyMemberRole));
+                env_, supervised_user::kFamilyMemberRoleFeedbackTag));
     return base::android::ConvertJavaStringToUTF8(env_, j_value);
   }
 
-  void OnGetFamilyMembersSuccess(
+  void OnListFamilyMembersSuccess(
       base::WeakPtr<FamilyInfoFeedbackSource> feedback_source,
-      const std::vector<FamilyInfoFetcher::FamilyMember>& members) {
-    feedback_source->OnGetFamilyMembersSuccess(members);
+      const kidsmanagement::ListMembersResponse& members) {
+    feedback_source->OnSuccess(members);
   }
 
   void OnGetFamilyMembersFailure(
       base::WeakPtr<FamilyInfoFeedbackSource> feedback_source) {
-    feedback_source->OnFailure(FamilyInfoFetcher::ErrorCode::kTokenError);
+    feedback_source->OnFailure(
+        supervised_user::ProtoFetcherStatus::GoogleServiceAuthError(
+            GoogleServiceAuthError(
+                GoogleServiceAuthError::State::INVALID_GAIA_CREDENTIALS)));
   }
 
   // Creates a new instance of FamilyInfoFeedbackSource that is destroyed on
@@ -258,11 +261,8 @@ class FamilyInfoFeedbackSourceTest
  private:
   // Creates a Java instance of FamilyInfoFeedbackSource.
   base::android::ScopedJavaLocalRef<jobject> CreateJavaObjectForTesting() {
-    ProfileAndroid* profile_android =
-        ProfileAndroid::FromProfile(profile_.get());
     return Java_FamilyInfoFeedbackSourceTestBridge_createFamilyInfoFeedbackSource(
-        env_, base::android::JavaParamRef<jobject>(
-                  env_, profile_android->GetJavaObject().Release()));
+        env_, profile_.get()->GetJavaObject());
   }
 
   content::BrowserTaskEnvironment task_environment_;
@@ -281,30 +281,38 @@ TEST_P(FamilyInfoFeedbackSourceTest, GetFamilyMembersSignedIn) {
       identity_test_env()->MakePrimaryAccountAvailable(
           kTestEmail, signin::ConsentLevel::kSignin);
 
-  FamilyInfoFetcher::FamilyMemberRole role = GetParam();
-  std::vector<FamilyInfoFetcher::FamilyMember> members(
-      {FamilyInfoFetcher::FamilyMember(
-          primary_account.gaia, role, "Name", kTestEmail,
-          /*profile_url=*/std::string(), /*profile_image_url=*/std::string())});
+  kidsmanagement::FamilyRole role = GetParam();
+  kidsmanagement::ListMembersResponse members =
+      CreateFamilyWithOneMember(primary_account.gaia, role);
 
   if (is_child()) {
-    raw_ptr<SupervisedUserService> supervised_user_service_ =
-        SupervisedUserServiceFactory::GetForProfile(profile());
-    // Set some filtering behavior for the user, as OnGetFamilyMembersSuccess
+    // Set some filtering behavior for the user, as ListFamilyMembers
     // will try to obtain this along with the family role (and crush otherwise).
-    supervised_user_service_->GetURLFilter()->SetDefaultFilteringBehavior(
-        supervised_user::SupervisedUserURLFilter::FilteringBehavior::ALLOW);
+    supervised_user_test_util::SetWebFilterType(
+        profile(), supervised_user::WebFilterType::kAllowAllSites);
   }
 
   base::WeakPtr<FamilyInfoFeedbackSource> feedback_source =
       CreateFamilyInfoFeedbackSource();
-  OnGetFamilyMembersSuccess(feedback_source, members);
+  OnListFamilyMembersSuccess(feedback_source, members);
 
-  std::string expected_role =
-      role == FamilyInfoFetcher::FamilyMemberRole::HEAD_OF_HOUSEHOLD
-          ? "family_manager"
-          : FamilyInfoFetcher::RoleToString(role);
-  EXPECT_EQ(expected_role, GetFeedbackValue());
+  // Don't put logic in tests, test explicit values.
+  switch (role) {
+    case kidsmanagement::HEAD_OF_HOUSEHOLD:
+      EXPECT_EQ("family_manager", GetFeedbackValue());
+      break;
+    case kidsmanagement::PARENT:
+      EXPECT_EQ("parent", GetFeedbackValue());
+      break;
+    case kidsmanagement::MEMBER:
+      EXPECT_EQ("member", GetFeedbackValue());
+      break;
+    case kidsmanagement::CHILD:
+      EXPECT_EQ("child", GetFeedbackValue());
+      break;
+    default:
+      NOTREACHED();
+  }
 }
 
 // Tests that a user that is not in a Family group is not processed.
@@ -315,8 +323,8 @@ TEST_F(FamilyInfoFeedbackSourceTest, GetFamilyMembersSignedInNoFamily) {
 
   base::WeakPtr<FamilyInfoFeedbackSource> feedback_source =
       CreateFamilyInfoFeedbackSource();
-  std::vector<FamilyInfoFetcher::FamilyMember> members;
-  OnGetFamilyMembersSuccess(feedback_source, members);
+  kidsmanagement::ListMembersResponse members;
+  OnListFamilyMembersSuccess(feedback_source, members);
 
   EXPECT_EQ("", GetFeedbackValue());
 }
@@ -336,10 +344,10 @@ TEST_F(FamilyInfoFeedbackSourceTest, GetFamilyMembersOnFailure) {
 }
 
 TEST_F(FamilyInfoFeedbackSourceTest, FeedbackSourceDestroyedOnCompletion) {
-  std::vector<FamilyInfoFetcher::FamilyMember> members;
+  kidsmanagement::ListMembersResponse members;
   base::WeakPtr<FamilyInfoFeedbackSource> feedback_source =
       CreateFamilyInfoFeedbackSource();
-  OnGetFamilyMembersSuccess(feedback_source, members);
+  OnListFamilyMembersSuccess(feedback_source, members);
 
   EXPECT_TRUE(feedback_source.WasInvalidated());
 }
@@ -352,12 +360,11 @@ TEST_F(FamilyInfoFeedbackSourceTest, FeedbackSourceDestroyedOnFailure) {
   EXPECT_TRUE(feedback_source.WasInvalidated());
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    AllFamilyMemberRoles,
-    FamilyInfoFeedbackSourceTest,
-    ::testing::Values(FamilyInfoFetcher::FamilyMemberRole::HEAD_OF_HOUSEHOLD,
-                      FamilyInfoFetcher::FamilyMemberRole::CHILD,
-                      FamilyInfoFetcher::FamilyMemberRole::MEMBER,
-                      FamilyInfoFetcher::FamilyMemberRole::PARENT));
+INSTANTIATE_TEST_SUITE_P(AllFamilyMemberRoles,
+                         FamilyInfoFeedbackSourceTest,
+                         ::testing::Values(kidsmanagement::HEAD_OF_HOUSEHOLD,
+                                           kidsmanagement::CHILD,
+                                           kidsmanagement::MEMBER,
+                                           kidsmanagement::PARENT));
 
 }  // namespace chrome::android

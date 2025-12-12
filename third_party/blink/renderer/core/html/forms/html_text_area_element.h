@@ -56,10 +56,12 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   String defaultValue() const;
   void setDefaultValue(const String&);
   int textLength() const { return Value().length(); }
+  String InnerEditorValue() const override;
 
   // Sets the suggested value and puts the element into
   // WebAutofillState::kPreviewed state if |value| is non-empty, or
   // WebAutofillState::kNotFilled otherwise.
+  // A null value indicates that the suggested value should be hidden.
   void SetSuggestedValue(const String& value) override;
 
   // For ValidityState
@@ -74,6 +76,8 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
 
   String DefaultToolTip() const override;
 
+  void SetFocused(bool is_focused, mojom::blink::FocusType) override;
+
  private:
   FRIEND_TEST_ALL_PREFIXES(HTMLTextAreaElementTest, SanitizeUserInputValue);
 
@@ -82,7 +86,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   void DidAddUserAgentShadowRoot(ShadowRoot&) override;
   bool AreAuthorShadowsAllowed() const override { return false; }
 
-  void HandleBeforeTextInsertedEvent(BeforeTextInsertedEvent*) const;
+  void HandleBeforeTextInsertedEvent(BeforeTextInsertedEvent*);
   static String SanitizeUserInputValue(const String&, unsigned max_length);
   void UpdateValue();
   void SetNonDirtyValue(const String&, TextControlSetValueSelection);
@@ -95,9 +99,9 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   void SetPlaceholderVisibility(bool) override;
   bool SupportsPlaceholder() const override { return true; }
   String GetPlaceholderValue() const final;
-  void UpdatePlaceholderText() override;
-  bool IsEmptyValue() const override { return Value().empty(); }
-  TextControlInnerEditorElement* EnsureInnerEditorElement() const final;
+  HTMLElement* UpdatePlaceholderText() override;
+  bool IsInnerEditorValueEmpty() const final;
+  void CreateInnerEditorElementIfNecessary() const final;
 
   bool IsOptionalFormControl() const override {
     return !IsRequiredFormControl();
@@ -112,12 +116,14 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   bool IsInteractiveContent() const override;
   bool IsLabelable() const override { return true; }
 
-  const AtomicString& FormControlType() const override;
+  mojom::blink::FormControlType FormControlType() const override;
+  const AtomicString& FormControlTypeAsString() const override;
 
   FormControlState SaveFormControlState() const override;
   void RestoreFormControlState(const FormControlState&) override;
 
   bool IsTextControl() const override { return true; }
+  bool IsAutoDirectionalityFormAssociated() const final { return true; }
   int scrollWidth() override;
   int scrollHeight() override;
   void ChildrenChanged(const ChildrenChange&) override;
@@ -126,13 +132,15 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   void CollectStyleForPresentationAttribute(
       const QualifiedName&,
       const AtomicString&,
-      MutableCSSPropertyValueSet*) override;
+      HeapVector<CSSPropertyValue, 8>&) override;
   LayoutObject* CreateLayoutObject(const ComputedStyle&) override;
   void AppendToFormData(FormData&) override;
   void ResetImpl() override;
   bool HasCustomFocusLogic() const override;
   bool MayTriggerVirtualKeyboard() const override;
-  bool IsKeyboardFocusable() const override;
+  bool IsKeyboardFocusableSlow(
+      UpdateBehavior update_behavior =
+          UpdateBehavior::kStyleAndLayout) const override;
   void UpdateSelectionOnFocus(SelectionBehaviorOnFocus,
                               const FocusOptions*) override;
 
@@ -140,7 +148,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
 
   bool MatchesReadOnlyPseudoClass() const override;
   bool MatchesReadWritePseudoClass() const override;
-  void CloneNonAttributePropertiesFrom(const Element&, CloneChildrenFlag) final;
+  void CloneNonAttributePropertiesFrom(const Element&, NodeCloningData&) final;
 
   // If the String* argument is 0, apply value().
   bool ValueMissing(const String*) const;

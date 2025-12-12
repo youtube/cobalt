@@ -8,13 +8,13 @@
 #include <fuchsia/camera3/cpp/fidl.h>
 
 #include <memory>
+#include <optional>
 
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "media/capture/video/video_capture_device.h"
 #include "media/fuchsia/common/sysmem_client.h"
 #include "media/fuchsia/common/vmo_buffer.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
 
@@ -25,9 +25,11 @@ class CAPTURE_EXPORT VideoCaptureDeviceFuchsia final
   // |format| will be converted. PIXEL_FORMAT_UNKNOWN is returned for
   // unsupported formats.
   static VideoPixelFormat GetConvertedPixelFormat(
+      fuchsia::images2::PixelFormat format);
+  static VideoPixelFormat GetConvertedPixelFormat(
       fuchsia::sysmem::PixelFormatType format);
 
-  static bool IsSupportedPixelFormat(fuchsia::sysmem::PixelFormatType format);
+  static bool IsSupportedPixelFormat(fuchsia::images2::PixelFormat format);
 
   explicit VideoCaptureDeviceFuchsia(
       fidl::InterfaceHandle<fuchsia::camera3::Device> device);
@@ -75,13 +77,13 @@ class CAPTURE_EXPORT VideoCaptureDeviceFuchsia final
   // complete. Old buffer collection are dropped synchronously (whether they
   // have finished initialization or not).
   void InitializeBufferCollection(
-      fidl::InterfaceHandle<fuchsia::sysmem::BufferCollectionToken>
+      fidl::InterfaceHandle<fuchsia::sysmem2::BufferCollectionToken>
           token_handle);
 
   // Callback for SysmemCollectionClient::AcquireBuffers().
   void OnBuffersAcquired(
       std::vector<VmoBuffer> buffers,
-      const fuchsia::sysmem::SingleBufferSettings& buffer_settings);
+      const fuchsia::sysmem2::SingleBufferSettings& buffer_settings);
 
   // Calls Stream::GetNextFrame() in a loop to receive incoming frames.
   void ReceiveNextFrame();
@@ -98,9 +100,9 @@ class CAPTURE_EXPORT VideoCaptureDeviceFuchsia final
   SysmemAllocatorClient sysmem_allocator_;
   std::unique_ptr<SysmemCollectionClient> buffer_collection_;
   std::vector<VmoBuffer> buffers_;
-  fuchsia::sysmem::ImageFormatConstraints buffers_format_;
+  fuchsia::sysmem2::ImageFormatConstraints buffers_format_;
 
-  absl::optional<gfx::Size> frame_size_;
+  std::optional<gfx::Size> frame_size_;
   fuchsia::camera3::Orientation orientation_ =
       fuchsia::camera3::Orientation::UP;
 

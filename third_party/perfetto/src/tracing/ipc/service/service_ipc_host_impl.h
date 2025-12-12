@@ -33,16 +33,13 @@ class Host;
 // producer_ipc_service.cc and consumer_ipc_service.cc.
 class ServiceIPCHostImpl : public ServiceIPCHost {
  public:
-  ServiceIPCHostImpl(base::TaskRunner*);
+  explicit ServiceIPCHostImpl(base::TaskRunner*,
+                              TracingService::InitOpts init_opts = {});
   ~ServiceIPCHostImpl() override;
 
   // ServiceIPCHost implementation.
-  bool Start(const char* producer_socket_name,
-             const char* consumer_socket_name) override;
-  bool Start(base::ScopedSocketHandle producer_socket_fd,
-             base::ScopedSocketHandle consumer_socket_fd) override;
-  bool Start(std::unique_ptr<ipc::Host> producer_host,
-             std::unique_ptr<ipc::Host> consumer_host) override;
+  bool Start(std::list<ListenEndpoint> producer_sockets,
+             ListenEndpoint consumer_socket) override;
 
   TracingService* service() const override;
 
@@ -51,11 +48,15 @@ class ServiceIPCHostImpl : public ServiceIPCHost {
   void Shutdown();
 
   base::TaskRunner* const task_runner_;
+  const TracingService::InitOpts init_opts_;
   std::unique_ptr<TracingService> svc_;  // The service business logic.
 
-  // The IPC host that listens on the Producer socket. It owns the
-  // PosixServiceProducerPort instance which deals with all producers' IPC(s).
-  std::unique_ptr<ipc::Host> producer_ipc_port_;
+  // The IPC hosts that listen on the Producer sockets. They own the
+  // PosixServiceProducerPort instances which deal with all producers' IPC(s).
+  // Note that there can be multiple producer sockets if it's specified in the
+  // producer socket name (e.g. for listening both on vsock for VMs and AF_UNIX
+  // for processes on the same machine).
+  std::vector<std::unique_ptr<ipc::Host>> producer_ipc_ports_;
 
   // As above, but for the Consumer port.
   std::unique_ptr<ipc::Host> consumer_ipc_port_;

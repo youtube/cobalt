@@ -12,6 +12,7 @@
 
 class Browser;
 class HistoryClustersSidePanelUI;
+class SidePanelEntryScope;
 class SidePanelRegistry;
 
 namespace views {
@@ -24,10 +25,6 @@ class HistoryClustersSidePanelCoordinator
     : public BrowserUserData<HistoryClustersSidePanelCoordinator> {
  public:
   explicit HistoryClustersSidePanelCoordinator(Browser* browser);
-  HistoryClustersSidePanelCoordinator(
-      const HistoryClustersSidePanelCoordinator&) = delete;
-  HistoryClustersSidePanelCoordinator& operator=(
-      const HistoryClustersSidePanelCoordinator&) = delete;
   ~HistoryClustersSidePanelCoordinator() override;
 
   // Returns whether HistoryClustersSidePanelCoordinator is supported for
@@ -52,7 +49,8 @@ class HistoryClustersSidePanelCoordinator
  private:
   friend class BrowserUserData<HistoryClustersSidePanelCoordinator>;
 
-  std::unique_ptr<views::View> CreateHistoryClustersWebView();
+  std::unique_ptr<views::View> CreateHistoryClustersWebView(
+      SidePanelEntryScope& scope);
 
   // A weak reference to the last-created UI object for this browser.
   base::WeakPtr<HistoryClustersSidePanelUI> history_clusters_ui_;

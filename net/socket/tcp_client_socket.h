@@ -69,10 +69,11 @@ class NET_EXPORT TCPClientSocket : public TransportClientSocket,
   TCPClientSocket(std::unique_ptr<TCPSocket> connected_socket,
                   const IPEndPoint& peer_address);
 
-  // Adopts an unconnected TCPSocket. This function is used by
-  // TCPClientSocketBrokered.
+  // Adopts an unconnected TCPSocket. TCPSocket may be bound or unbound. This
+  // function is used by BrokeredTcpClientSocket.
   TCPClientSocket(std::unique_ptr<TCPSocket> unconnected_socket,
                   const AddressList& addresses,
+                  std::unique_ptr<IPEndPoint> bound_address,
                   NetworkQualityEstimator* network_quality_estimator);
 
   // Creates a TCPClientSocket from a bound-but-not-connected socket.
@@ -103,7 +104,6 @@ class NET_EXPORT TCPClientSocket : public TransportClientSocket,
   int GetLocalAddress(IPEndPoint* address) const override;
   const NetLogWithSource& NetLog() const override;
   bool WasEverUsed() const override;
-  bool WasAlpnNegotiated() const override;
   NextProto GetNegotiatedProtocol() const override;
   bool GetSSLInfo(SSLInfo* ssl_info) override;
   int64_t GetTotalReceivedBytes() const override;
@@ -233,7 +233,7 @@ class NET_EXPORT TCPClientSocket : public TransportClientSocket,
   bool was_disconnected_on_suspend_ = false;
 
   // The time when the latest connect attempt was started.
-  absl::optional<base::TimeTicks> start_connect_attempt_;
+  std::optional<base::TimeTicks> start_connect_attempt_;
 
   // The NetworkQualityEstimator for the context this socket is associated with.
   // Can be nullptr.

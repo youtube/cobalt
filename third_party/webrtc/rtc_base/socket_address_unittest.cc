@@ -8,17 +8,17 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#if defined(WEBRTC_POSIX)
-#include <netinet/in.h>  // for sockaddr_in
-#endif
+#include "rtc_base/socket_address.h"
 
 #include <string.h>
 
+#include <string>
+
 #include "rtc_base/ip_address.h"
-#include "rtc_base/socket_address.h"
+#include "rtc_base/net_helpers.h"
 #include "test/gtest.h"
 
-namespace rtc {
+namespace webrtc {
 
 const in6_addr kTestV6Addr = {
     {{0x20, 0x01, 0x0d, 0xb8, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70, 0x80,
@@ -363,4 +363,4 @@ TEST(SocketAddressTest, TestToSensitiveNameAndAddressString) {
             hostAndIpv6.ToSensitiveNameAndAddressString());
 }
 
-}  // namespace rtc
+}  // namespace webrtc

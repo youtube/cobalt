@@ -5,7 +5,7 @@
 import unittest
 from unittest import mock
 
-from . import model, parts, signing, test_config
+from signing import model, parts, signing, test_config
 
 
 def _get_identity_hash(i):
@@ -103,6 +103,12 @@ class TestGetParts(unittest.TestCase):
             | model.CodeSignOptions.KILL
             | model.CodeSignOptions.HARDENED_RUNTIME,
             all_parts['app-mode-app'].options)
+        self.assertEqual(
+            model.CodeSignOptions.RESTRICT
+            | model.CodeSignOptions.LIBRARY_VALIDATION
+            | model.CodeSignOptions.KILL
+            | model.CodeSignOptions.HARDENED_RUNTIME,
+            all_parts['web-app-shortcut-copier'].options)
         self.assertEqual(
             model.CodeSignOptions.RESTRICT
             | model.CodeSignOptions.LIBRARY_VALIDATION
@@ -298,6 +304,38 @@ class TestSignChrome(unittest.TestCase):
             'App Product.app/Contents/Library/LaunchServices' +
             '/test.signing.bundle_id.UpdaterPrivilegedHelper',
             [call[1][2].path for call in kwargs['sign_part'].mock_calls])
+
+    @mock.patch('signing.parts._sanity_check_version_keys')
+    @mock.patch(
+        'signing.signing._binary_architectures_offsets',
+        return_value=(('arch_1', 123), ('arch_2', 456)))
+    def test_sign_chrome_pinned_geometry(self, *args, **kwargs):
+
+        class Config(test_config.TestConfig):
+
+            @property
+            def main_executable_pinned_geometry(self):
+                return (('arch_1', 123), ('arch_2', 456))
+
+        config = model.Distribution().to_config(Config())
+        parts.sign_chrome(self.paths, config, sign_framework=True)
+
+    @mock.patch('signing.parts._sanity_check_version_keys')
+    @mock.patch(
+        'signing.signing._binary_architectures_offsets',
+        return_value=(('arch_1', 123), ('arch_2', 789)))
+    def test_sign_chrome_unpinned_geometry(self, *args, **kwargs):
+
+        class Config(test_config.TestConfig):
+
+            @property
+            def main_executable_pinned_geometry(self):
+                return (('arch_1', 123), ('arch_2', 456))
+
+        config = model.Distribution().to_config(Config())
+        self.assertRaises(
+            signing.InvalidAppGeometryException,
+            lambda: parts.sign_chrome(self.paths, config, sign_framework=True))
 
     @mock.patch(
         'signing.commands.read_plist',

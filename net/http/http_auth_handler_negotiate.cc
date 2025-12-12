@@ -15,7 +15,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "net/base/address_family.h"
 #include "net/base/address_list.h"
 #include "net/base/host_port_pair.h"
@@ -44,8 +43,7 @@ base::Value::Dict NetLogParameterChannelBindings(
   if (!NetLogCaptureIncludesSocketBytes(capture_mode))
     return dict;
 
-  dict.Set("token", base::HexEncode(channel_binding_token.data(),
-                                    channel_binding_token.size()));
+  dict.Set("token", base::HexEncode(channel_binding_token));
   return dict;
 }
 
@@ -60,7 +58,7 @@ std::unique_ptr<HttpAuthMechanism> CreateAuthSystem(
   if (negotiate_auth_system_factory)
     return negotiate_auth_system_factory.Run(prefs);
 #if BUILDFLAG(IS_ANDROID)
-  return std::make_unique<net::android::HttpAuthNegotiateAndroid>(prefs);
+  return std::make_unique<android::HttpAuthNegotiateAndroid>(prefs);
 #elif BUILDFLAG(IS_WIN)
   return std::make_unique<HttpAuthSSPI>(auth_library,
                                         HttpAuth::AUTH_SCHEME_NEGOTIATE);
@@ -121,14 +119,14 @@ int HttpAuthHandlerNegotiate::Factory::CreateAuthHandler(
 #elif BUILDFLAG(IS_POSIX)
   if (is_unsupported_)
     return ERR_UNSUPPORTED_AUTH_SCHEME;
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   // Note: Don't set is_unsupported_ = true here. AllowGssapiLibraryLoad()
   // might change to true during a session.
   if (!http_auth_preferences() ||
       !http_auth_preferences()->AllowGssapiLibraryLoad()) {
     return ERR_UNSUPPORTED_AUTH_SCHEME;
   }
-#endif  // BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
   if (!auth_library_->Init(net_log)) {
     is_unsupported_ = true;
     return ERR_UNSUPPORTED_AUTH_SCHEME;
@@ -337,8 +335,6 @@ int HttpAuthHandlerNegotiate::DoLoop(int result) {
         break;
       default:
         NOTREACHED() << "bad state";
-        rv = ERR_FAILED;
-        break;
     }
   } while (rv != ERR_IO_PENDING && next_state_ != STATE_NONE);
 

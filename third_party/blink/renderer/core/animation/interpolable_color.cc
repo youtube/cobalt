@@ -12,14 +12,56 @@
 #include "third_party/blink/renderer/core/animation/interpolable_value.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 
+namespace {
+
+double ScaleAndAdd(double value, double scale, double add) {
+  return value * scale + add;
+}
+
+}  // namespace
+
 namespace blink {
 
-// All colors are zero-initialized (transparent black).
-InterpolableColor::InterpolableColor() = default;
+namespace {
+// InterpolableColors are stored premultiplied (scaled by alpha) during the
+// blending process for efficiency and unpremultiplied during resolution. This
+// works since restricted to rectangular color spaces. This optimization step
+// would not work in polar color spaces. Fortunately, interpolation is currently
+// restricted to srgb-legacy and oklab.
 
-std::unique_ptr<InterpolableColor> InterpolableColor::Create(Color color) {
-  std::unique_ptr<InterpolableColor> result =
-      std::make_unique<InterpolableColor>();
+// Apply a color blend. The first color in the blend, expressed as doubles and a
+// colorspace is expected to already be in premultiplied form (scaled by alpha).
+// The result is left in premultiplied form for efficiency.
+std::tuple<double, double, double, double> AddPremultipliedColor(
+    double param0,
+    double param1,
+    double param2,
+    double alpha,
+    double fraction,
+    Color color,
+    Color::ColorSpace color_space) {
+  DCHECK(color_space == Color::ColorSpace::kSRGBLegacy ||
+         color_space == Color::ColorSpace::kOklab);
+  color.ConvertToColorSpace(color_space);
+  return std::make_tuple(param0 + fraction * color.Param0() * color.Alpha(),
+                         param1 + fraction * color.Param1() * color.Alpha(),
+                         param2 + fraction * color.Param2() * color.Alpha(),
+                         alpha + fraction * color.Alpha());
+}
+
+// Convert color parameters back to unpremultiplied form (not scaled by alpha)
+// suitable for the Color constructor.
+std::tuple<double, double, double> UnpremultiplyColor(double param0,
+                                                      double param1,
+                                                      double param2,
+                                                      double alpha) {
+  return std::make_tuple(param0 / alpha, param1 / alpha, param2 / alpha);
+}
+
+}  // namespace
+
+InterpolableColor* InterpolableColor::Create(Color color) {
+  InterpolableColor* result = MakeGarbageCollected<InterpolableColor>();
   result->color_space_ = color.GetColorInterpolationSpace();
 
   // A color is not necessarily "in" it's desired interpolation space.
@@ -27,35 +69,46 @@ std::unique_ptr<InterpolableColor> InterpolableColor::Create(Color color) {
 
   // All params are stored pre-multiplied.
   // https://www.w3.org/TR/css-color-4/#interpolation-alpha
-  result->param0_.Set(color.Param0() * color.FloatAlpha());
-  result->param1_.Set(color.Param1() * color.FloatAlpha());
-  result->param2_.Set(color.Param2() * color.FloatAlpha());
-  result->alpha_.Set(color.FloatAlpha());
+  result->param0_ = color.Param0() * color.Alpha();
+  result->param1_ = color.Param1() * color.Alpha();
+  result->param2_ = color.Param2() * color.Alpha();
+  result->alpha_ = color.Alpha();
 
   return result;
 }
 
-std::unique_ptr<InterpolableColor> InterpolableColor::Create(
-    ColorKeyword color_keyword) {
-  std::unique_ptr<InterpolableColor> result =
-      std::make_unique<InterpolableColor>();
-  unsigned keyword_index = static_cast<int>(color_keyword);
-  DCHECK_LT(keyword_index, kColorKeywordCount);
+InterpolableColor* InterpolableColor::Create(ColorKeyword color_keyword) {
+  InterpolableColor* result = MakeGarbageCollected<InterpolableColor>();
   // color_keyword_fractions_ keeps track of keyword colors (like
   // "currentcolor") for interpolation. These keyword colors are not known at
   // specified value time, so we need to wait until we resolve them. Upon
   // creation the entry for the correct keyword is set to "1" and all others are
   // "0". These values are interpolated as normal. When the color is resolved
   // the proper fraction of the keyword color is added in.
-  result->color_keyword_fractions_.Set(keyword_index, InterpolableNumber(1));
+  switch (color_keyword) {
+    case ColorKeyword::kCurrentcolor:
+      result->current_color_ = 1.0;
+      break;
+    case ColorKeyword::kWebkitActivelink:
+      result->webkit_active_link_ = 1.0;
+      break;
+    case ColorKeyword::kWebkitLink:
+      result->webkit_link_ = 1.0;
+      break;
+    case ColorKeyword::kQuirkInherit:
+      result->quirk_inherit_ = 1.0;
+      break;
+  }
   // Keyword colors are functionally legacy colors for interpolation.
   result->color_space_ = Color::ColorSpace::kSRGBLegacy;
 
   return result;
 }
 
-std::unique_ptr<InterpolableColor> InterpolableColor::Create(
-    CSSValueID keyword) {
+InterpolableColor* InterpolableColor::Create(
+    CSSValueID keyword,
+    mojom::blink::ColorScheme color_scheme,
+    const ui::ColorProvider* color_provider) {
   switch (keyword) {
     case CSSValueID::kCurrentcolor:
       return Create(ColorKeyword::kCurrentcolor);
@@ -66,56 +119,39 @@ std::unique_ptr<InterpolableColor> InterpolableColor::Create(
     case CSSValueID::kInternalQuirkInherit:
       return Create(ColorKeyword::kQuirkInherit);
     case CSSValueID::kWebkitFocusRingColor:
-      // TODO(crbug.com/929098) Need to pass an appropriate color scheme here.
-      return Create(LayoutTheme::GetTheme().FocusRingColor(
-          mojom::blink::ColorScheme::kLight));
+      return Create(LayoutTheme::GetTheme().FocusRingColor(color_scheme));
     default:
       DCHECK(StyleColor::IsColorKeyword(keyword));
-      // TODO(crbug.com/929098) Need to pass an appropriate color scheme here.
-      return Create(StyleColor::ColorFromKeyword(
-          keyword, mojom::blink::ColorScheme::kLight));
+      // TODO(crbug.com/40229450): Pass down if within installed webapp scope
+      // from Document.
+      return Create(
+          StyleColor::ColorFromKeyword(keyword, color_scheme, color_provider,
+                                       /*is_in_web_app_scope=*/false));
   }
 }
 
-InterpolableColor::InterpolableColor(
-    InterpolableNumber param0,
-    InterpolableNumber param1,
-    InterpolableNumber param2,
-    InterpolableNumber alpha,
-    InterpolableNumberList color_keyword_fractions,
-    Color::ColorSpace color_space)
-    : param0_(std::move(param0)),
-      param1_(std::move(param1)),
-      param2_(std::move(param2)),
-      alpha_(std::move(alpha)),
-      color_keyword_fractions_(std::move(color_keyword_fractions)),
-      color_space_(color_space) {
-  DCHECK_EQ(color_keyword_fractions_.length(), kColorKeywordCount);
-}
-
 InterpolableColor* InterpolableColor::RawClone() const {
-  DCHECK_EQ(color_keyword_fractions_.length(), kColorKeywordCount);
-  return new InterpolableColor(param0_, param1_, param2_, alpha_,
-                               color_keyword_fractions_.Clone(), color_space_);
+  return MakeGarbageCollected<InterpolableColor>(
+      param0_, param1_, param2_, alpha_, current_color_, webkit_active_link_,
+      webkit_link_, quirk_inherit_, color_space_);
 }
 
 InterpolableColor* InterpolableColor::RawCloneAndZero() const {
-  return new InterpolableColor(InterpolableNumber(0), InterpolableNumber(0),
-                               InterpolableNumber(0), InterpolableNumber(0),
-                               color_keyword_fractions_.CloneAndZero(),
-                               color_space_);
+  return MakeGarbageCollected<InterpolableColor>(0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                                 0.0, 0.0, color_space_);
 }
 
 Color InterpolableColor::GetColor() const {
   // Prevent dividing by zero.
-  if (alpha_.Value() == 0)
+  if (alpha_ == 0) {
     return Color::kTransparent;
+  }
 
   // All params are stored pre-multiplied.
-  float param0 = param0_.Value() / alpha_.Value();
-  float param1 = param1_.Value() / alpha_.Value();
-  float param2 = param2_.Value() / alpha_.Value();
-  float alpha = ClampTo<double>(alpha_.Value(), 0, 1);
+  float param0 = param0_ / alpha_;
+  float param1 = param1_ / alpha_;
+  float param2 = param2_ / alpha_;
+  float alpha = ClampTo<double>(alpha_, 0, 1);
 
   switch (color_space_) {
     // There is no way for the user to specify which color spaces should be
@@ -126,7 +162,6 @@ Color InterpolableColor::GetColor() const {
       return Color::FromColorSpace(color_space_, param0, param1, param2, alpha);
     default:
       NOTREACHED();
-      return Color();
   }
 }
 
@@ -134,12 +169,6 @@ void InterpolableColor::AssertCanInterpolateWith(
     const InterpolableValue& other) const {
   const InterpolableColor& other_color = To<InterpolableColor>(other);
   DCHECK_EQ(color_space_, other_color.color_space_);
-  param0_.AssertCanInterpolateWith(other_color.param0_);
-  param1_.AssertCanInterpolateWith(other_color.param1_);
-  param2_.AssertCanInterpolateWith(other_color.param2_);
-  alpha_.AssertCanInterpolateWith(other_color.alpha_);
-  color_keyword_fractions_.AssertCanInterpolateWith(
-      other_color.color_keyword_fractions_);
 }
 
 bool InterpolableColor::IsKeywordColor() const {
@@ -147,12 +176,8 @@ bool InterpolableColor::IsKeywordColor() const {
   // important for resolving the color. If any of these store a non-zero value,
   // then the interpolated color is not the same as the color produced by simply
   // looking at the param values and color interpolation space.
-  for (wtf_size_t i = 0; i < color_keyword_fractions_.length(); i++) {
-    double keyword_fraction = color_keyword_fractions_.Get(i).Value();
-    if (keyword_fraction != 0)
-      return false;
-  }
-  return true;
+  return current_color_ || webkit_active_link_ || webkit_link_ ||
+         quirk_inherit_;
 }
 
 void InterpolableColor::ConvertToColorSpace(Color::ColorSpace color_space) {
@@ -162,10 +187,10 @@ void InterpolableColor::ConvertToColorSpace(Color::ColorSpace color_space) {
 
   Color underlying_color = GetColor();
   underlying_color.ConvertToColorSpace(color_space);
-  param0_.Set(underlying_color.Param0() * underlying_color.FloatAlpha());
-  param1_.Set(underlying_color.Param1() * underlying_color.FloatAlpha());
-  param2_.Set(underlying_color.Param2() * underlying_color.FloatAlpha());
-  alpha_.Set(underlying_color.FloatAlpha());
+  param0_ = underlying_color.Param0() * underlying_color.Alpha();
+  param1_ = underlying_color.Param1() * underlying_color.Alpha();
+  param2_ = underlying_color.Param2() * underlying_color.Alpha();
+  alpha_ = underlying_color.Alpha();
 
   color_space_ = color_space;
 }
@@ -190,38 +215,99 @@ void InterpolableColor::SetupColorInterpolationSpaces(InterpolableColor& to,
 void InterpolableColor::Scale(double scale) {
 // A guard to prevent overload with very large values.
 #if DCHECK_IS_ON()
-  bool param0_is_positive = param0_.Value() > 0.0;
-  bool param1_is_positive = param1_.Value() > 0.0;
-  bool param2_is_positive = param2_.Value() > 0.0;
-  bool alpha_is_positive = alpha_.Value() > 0.0;
+  bool param0_is_positive = param0_ > 0.0;
+  bool param1_is_positive = param1_ > 0.0;
+  bool param2_is_positive = param2_ > 0.0;
+  bool alpha_is_positive = alpha_ > 0.0;
 #endif
 
-  param0_.Scale(scale);
-  param1_.Scale(scale);
-  param2_.Scale(scale);
-  alpha_.Scale(scale);
-  color_keyword_fractions_.Scale(scale);
+  param0_ *= scale;
+  param1_ *= scale;
+  param2_ *= scale;
+  alpha_ *= scale;
+  current_color_ *= scale;
+  webkit_active_link_ *= scale;
+  webkit_link_ *= scale;
+  quirk_inherit_ *= scale;
 
 #if DCHECK_IS_ON()
-  DCHECK_EQ(param0_is_positive * (scale > 0), param0_.Value() > 0.0);
-  DCHECK_EQ(param1_is_positive * (scale > 0), param1_.Value() > 0.0);
-  DCHECK_EQ(param2_is_positive * (scale > 0), param2_.Value() > 0.0);
-  DCHECK_EQ(alpha_is_positive * (scale > 0), alpha_.Value() > 0.0);
-  for (unsigned i = 0; i < color_keyword_fractions_.length(); i++) {
-    double fraction = color_keyword_fractions_.Get(i).Value();
-    DCHECK_GE(fraction, 0);
-    DCHECK_LE(fraction, 1);
-  }
+  DCHECK_EQ(param0_is_positive * (scale > 0), param0_ > 0.0);
+  DCHECK_EQ(param1_is_positive * (scale > 0), param1_ > 0.0);
+  DCHECK_EQ(param2_is_positive * (scale > 0), param2_ > 0.0);
+  DCHECK_EQ(alpha_is_positive * (scale > 0), alpha_ > 0.0);
+  DCHECK_GE(current_color_, 0.);
+  DCHECK_LE(current_color_, 1.);
+  DCHECK_GE(webkit_active_link_, 0.);
+  DCHECK_LE(webkit_active_link_, 1.);
+  DCHECK_GE(webkit_link_, 0.);
+  DCHECK_LE(webkit_link_, 1.);
+  DCHECK_GE(quirk_inherit_, 0.);
+  DCHECK_LE(quirk_inherit_, 1.);
 #endif
 }
 
 void InterpolableColor::Add(const InterpolableValue& other) {
   const InterpolableColor& other_color = To<InterpolableColor>(other);
-  param0_.Add(other_color.param0_);
-  param1_.Add(other_color.param1_);
-  param2_.Add(other_color.param2_);
-  alpha_.Add(other_color.alpha_);
-  color_keyword_fractions_.Add(other_color.color_keyword_fractions_);
+  param0_ += other_color.param0_;
+  param1_ += other_color.param1_;
+  param2_ += other_color.param2_;
+  alpha_ += other_color.alpha_;
+  current_color_ += other_color.current_color_;
+  webkit_active_link_ += other_color.webkit_active_link_;
+  webkit_link_ += other_color.webkit_link_;
+  quirk_inherit_ += other_color.quirk_inherit_;
+}
+
+Color InterpolableColor::Resolve(const Color& current_color,
+                                 const Color& active_link_color,
+                                 const Color& link_color,
+                                 const Color& text_color,
+                                 mojom::blink::ColorScheme color_scheme) const {
+  double param0 = Param0();
+  double param1 = Param1();
+  double param2 = Param2();
+  double alpha = Alpha();
+
+  if (double currentcolor_fraction = current_color_) {
+    std::tie(param0, param1, param2, alpha) = AddPremultipliedColor(
+        param0, param1, param2, alpha, currentcolor_fraction, current_color,
+        color_space_);
+  }
+  if (double webkit_activelink_fraction = webkit_active_link_) {
+    std::tie(param0, param1, param2, alpha) = AddPremultipliedColor(
+        param0, param1, param2, alpha, webkit_activelink_fraction,
+        active_link_color, color_space_);
+  }
+  if (double webkit_link_fraction = webkit_link_) {
+    std::tie(param0, param1, param2, alpha) =
+        AddPremultipliedColor(param0, param1, param2, alpha,
+                              webkit_link_fraction, link_color, color_space_);
+  }
+  if (double quirk_inherit_fraction = quirk_inherit_) {
+    std::tie(param0, param1, param2, alpha) =
+        AddPremultipliedColor(param0, param1, param2, alpha,
+                              quirk_inherit_fraction, text_color, color_space_);
+  }
+
+  alpha = ClampTo<double>(alpha, 0, 1);
+  if (alpha == 0) {
+    return Color::FromColorSpace(color_space_, param0, param1, param2, 0);
+  }
+
+  std::tie(param0, param1, param2) =
+      UnpremultiplyColor(param0, param1, param2, alpha);
+
+  switch (color_space_) {
+    case Color::ColorSpace::kSRGBLegacy:
+    case Color::ColorSpace::kOklab:
+      return Color::FromColorSpace(color_space_, param0, param1, param2, alpha);
+    default:
+      // There is no way for the user to specify which color spaces should be
+      // used for interpolation, so sRGB (for legacy colors) and Oklab are
+      // the only possibilities.
+      // https://www.w3.org/TR/css-color-4/#interpolation-space
+      NOTREACHED();
+  }
 }
 
 void InterpolableColor::Interpolate(const InterpolableValue& to,
@@ -233,29 +319,46 @@ void InterpolableColor::Interpolate(const InterpolableValue& to,
   DCHECK_EQ(to_color.color_space_, color_space_);
   DCHECK_EQ(result_color.color_space_, color_space_);
 
-  param0_.Interpolate(to_color.param0_, progress, result_color.param0_);
-  param1_.Interpolate(to_color.param1_, progress, result_color.param1_);
-  param2_.Interpolate(to_color.param2_, progress, result_color.param2_);
-  alpha_.Interpolate(to_color.alpha_, progress, result_color.alpha_);
+  result_color.param0_ =
+      InterpolableNumber::Interpolate(param0_, to_color.param0_, progress);
+  result_color.param1_ =
+      InterpolableNumber::Interpolate(param1_, to_color.param1_, progress);
+  result_color.param2_ =
+      InterpolableNumber::Interpolate(param2_, to_color.param2_, progress);
+  result_color.alpha_ =
+      InterpolableNumber::Interpolate(alpha_, to_color.alpha_, progress);
 
-  color_keyword_fractions_.Interpolate(to_color.color_keyword_fractions_,
-                                       progress,
-                                       result_color.color_keyword_fractions_);
+  result_color.current_color_ = InterpolableNumber::Interpolate(
+      current_color_, to_color.current_color_, progress);
+  result_color.webkit_active_link_ = InterpolableNumber::Interpolate(
+      webkit_active_link_, to_color.webkit_active_link_, progress);
+  result_color.webkit_link_ = InterpolableNumber::Interpolate(
+      webkit_link_, to_color.webkit_link_, progress);
+  result_color.quirk_inherit_ = InterpolableNumber::Interpolate(
+      quirk_inherit_, to_color.quirk_inherit_, progress);
 }
 
-void InterpolableColor::Composite(const InterpolableColor& other,
+void InterpolableColor::Composite(const BaseInterpolableColor& value,
                                   double fraction) {
-  param0_.ScaleAndAdd(fraction, other.param0_);
-  param1_.ScaleAndAdd(fraction, other.param1_);
-  param2_.ScaleAndAdd(fraction, other.param2_);
+  auto& other = To<InterpolableColor>(value);
+
+  param0_ = ::ScaleAndAdd(param0_, fraction, other.param0_);
+  param1_ = ::ScaleAndAdd(param1_, fraction, other.param1_);
+  param2_ = ::ScaleAndAdd(param2_, fraction, other.param2_);
   // TODO(crbug.com/981326): Test coverage has historically been missing for
   // composition of transparent colors. We should aim for interop with Firefox
   // and Safari.
-  if (alpha_.Value() != other.alpha_.Value())
-    alpha_.ScaleAndAdd(fraction, other.alpha_);
+  if (alpha_ != other.alpha_) {
+    alpha_ = ::ScaleAndAdd(alpha_, fraction, other.alpha_);
+  }
 
-  color_keyword_fractions_.ScaleAndAdd(fraction,
-                                       other.color_keyword_fractions_);
+  current_color_ =
+      ::ScaleAndAdd(current_color_, fraction, other.current_color_);
+  webkit_active_link_ =
+      ::ScaleAndAdd(webkit_active_link_, fraction, other.webkit_active_link_);
+  webkit_link_ = ::ScaleAndAdd(webkit_link_, fraction, other.webkit_link_);
+  quirk_inherit_ =
+      ::ScaleAndAdd(quirk_inherit_, fraction, other.quirk_inherit_);
 }
 
 }  // namespace blink

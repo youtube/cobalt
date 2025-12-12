@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_H_5_VCC_METRICS_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_H_5_VCC_METRICS_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_METRICS_H_5_VCC_METRICS_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_METRICS_H_5_VCC_METRICS_H_
 
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom-blink.h"
-
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -37,10 +36,9 @@ namespace blink {
 class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
-class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccMetrics final
-    : public EventTargetWithInlineData,
+    : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_metrics::mojom::blink::MetricsListener {
   DEFINE_WRAPPERTYPEINFO();
@@ -54,12 +52,14 @@ class MODULES_EXPORT H5vccMetrics final
 
   // Web-exposed interface:
   DEFINE_ATTRIBUTE_EVENT_LISTENER(metrics, kMetrics)
-  ScriptPromise enable(ScriptState*, ExceptionState&);
-  ScriptPromise disable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> enable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> disable(ScriptState*, ExceptionState&);
   bool isEnabled();
-  ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
+  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*,
+                                                     uint64_t,
+                                                     ExceptionState&);
 
-  // EventTargetWithInlineData impl.
+  // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
     return ExecutionContextLifecycleObserver::GetExecutionContext();
   }
@@ -82,9 +82,9 @@ class MODULES_EXPORT H5vccMetrics final
       const RegisteredEventListener& registered_listener) override;
 
  private:
-  void OnEnable(ScriptPromiseResolver* resolver);
-  void OnDisable(ScriptPromiseResolver* resolver);
-  void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
+  void OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
@@ -92,7 +92,7 @@ class MODULES_EXPORT H5vccMetrics final
   void MaybeRegisterMojoListener();
   void MaybeUnregisterMojoListener();
 
-  void CleanupPromise(ScriptPromiseResolver* resolver);
+  void CleanupPromise(ScriptPromiseResolverBase* resolver);
 
   bool HasValidExecutionContext();
 
@@ -102,11 +102,11 @@ class MODULES_EXPORT H5vccMetrics final
       receiver_;
 
   // If the Mojo connection closes/errors all promises are rejected.
-  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises_;
+  HeapHashSet<Member<ScriptPromiseResolverBase>> h5vcc_metrics_promises_;
 
   bool is_reporting_enabled_ = false;
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_H_5_VCC_METRICS_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_METRICS_H_5_VCC_METRICS_H_

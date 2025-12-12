@@ -40,9 +40,8 @@ class COMPONENT_EXPORT(TAB_GROUPS) TabGroupVisualData {
   bool operator==(const TabGroupVisualData& other) const {
     return title_ == other.title_ && color_ == other.color_;
   }
-  bool operator!=(const TabGroupVisualData& other) const {
-    return !(*this == other);
-  }
+
+  void SetTitle(const std::u16string& title) { title_ = title; }
 
  private:
   std::u16string title_;

@@ -7,6 +7,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
+
 #include "media/base/timestamp_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,6 +25,7 @@ static const int kDefaultSampleRate = 44100;
 class AudioTimestampHelperTest : public ::testing::Test {
  public:
   AudioTimestampHelperTest() : helper_(kDefaultSampleRate) {
+    EXPECT_FALSE(helper_.base_timestamp());
     helper_.SetBaseTimestamp(base::TimeDelta());
   }
 
@@ -100,6 +103,7 @@ TEST_F(AudioTimestampHelperTest, TimeToFrames) {
 }
 
 TEST_F(AudioTimestampHelperTest, Basic) {
+  EXPECT_EQ(0, helper_.frame_count());
   EXPECT_EQ(0, helper_.GetTimestamp().InMicroseconds());
 
   // Verify that the output timestamp is always rounded down to the
@@ -117,21 +121,27 @@ TEST_F(AudioTimestampHelperTest, Basic) {
   // returned if the same number of frames are added all at once.
   base::TimeDelta timestamp_1  = helper_.GetTimestamp();
   helper_.SetBaseTimestamp(kNoTimestamp);
-  EXPECT_TRUE(kNoTimestamp == helper_.base_timestamp());
+  ASSERT_TRUE(helper_.base_timestamp());
+  EXPECT_EQ(kNoTimestamp, helper_.base_timestamp());
   helper_.SetBaseTimestamp(base::TimeDelta());
+  EXPECT_TRUE(helper_.base_timestamp());
   EXPECT_EQ(0, helper_.GetTimestamp().InMicroseconds());
 
   helper_.AddFrames(5);
   EXPECT_EQ(113, helper_.GetTimestamp().InMicroseconds());
-  EXPECT_TRUE(timestamp_1 == helper_.GetTimestamp());
-}
+  EXPECT_EQ(timestamp_1, helper_.GetTimestamp());
 
+  helper_.Reset();
+  EXPECT_FALSE(helper_.base_timestamp());
+  EXPECT_EQ(0, helper_.frame_count());
+}
 
 TEST_F(AudioTimestampHelperTest, GetDuration) {
   helper_.SetBaseTimestamp(base::Microseconds(100));
 
   int frame_count = 5;
-  int64_t expected_durations[] = {113, 113, 114, 113, 113, 114};
+  auto expected_durations =
+      std::to_array<int64_t>({113, 113, 114, 113, 113, 114});
   for (size_t i = 0; i < std::size(expected_durations); ++i) {
     base::TimeDelta duration = helper_.GetFrameDuration(frame_count);
     EXPECT_EQ(expected_durations[i], duration.InMicroseconds());

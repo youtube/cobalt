@@ -30,6 +30,7 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
@@ -37,24 +38,18 @@ import org.chromium.base.test.util.Criteria;
 import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.components.browser_ui.widget.test.R;
-import org.chromium.content_public.browser.test.util.TestThreadUtils;
 import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.test.util.BlankUiTestActivity;
-import org.chromium.ui.test.util.DisableAnimationsTestRule;
 
-/**
- * Unit tests for {@link RadioButtonWithEditText}.
- */
+/** Unit tests for {@link RadioButtonWithEditText}. */
 @RunWith(BaseJUnit4ClassRunner.class)
 @Batch(Batch.UNIT_TESTS)
 public class RadioButtonWithEditTextTest {
     @ClassRule
-    public static DisableAnimationsTestRule disableAnimationsRule = new DisableAnimationsTestRule();
-    @ClassRule
     public static BaseActivityTestRule<BlankUiTestActivity> activityTestRule =
             new BaseActivityTestRule<>(BlankUiTestActivity.class);
 
-    private class TestListener implements RadioButtonWithEditText.OnTextChangeListener {
+    private static class TestListener implements RadioButtonWithEditText.OnTextChangeListener {
         private CharSequence mCurrentText;
         private int mNumberOfTimesTextChanged;
 
@@ -62,9 +57,7 @@ public class RadioButtonWithEditTextTest {
             mNumberOfTimesTextChanged = 0;
         }
 
-        /**
-         * Will be called when the text edit has a value change.
-         */
+        /** Will be called when the text edit has a value change. */
         @Override
         public void onTextChanged(CharSequence newText) {
             mCurrentText = newText;
@@ -77,6 +70,7 @@ public class RadioButtonWithEditTextTest {
 
         /**
          * Get the current text stored inside
+         *
          * @return current text updated by RadioButtonWithEditText
          */
         CharSequence getCurrentText() {
@@ -101,34 +95,37 @@ public class RadioButtonWithEditTextTest {
     public static void setupSuite() {
         InstrumentationRegistry.getInstrumentation().setInTouchMode(false);
         activityTestRule.launchActivity(null);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            sActivity = activityTestRule.getActivity();
-            sContentView = new FrameLayout(sActivity);
-            sActivity.setContentView(sContentView);
-        });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    sActivity = activityTestRule.getActivity();
+                    sContentView = new FrameLayout(sActivity);
+                    sActivity.setContentView(sContentView);
+                });
     }
 
     @Before
     public void setupTest() {
         mListener = new TestListener();
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            sContentView.removeAllViews();
-            View layout = LayoutInflater.from(sActivity).inflate(
-                    R.layout.radio_button_with_edit_text_test, null, false);
-            sContentView.addView(layout, MATCH_PARENT, WRAP_CONTENT);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    sContentView.removeAllViews();
+                    View layout =
+                            LayoutInflater.from(sActivity)
+                                    .inflate(
+                                            R.layout.radio_button_with_edit_text_test, null, false);
+                    sContentView.addView(layout, MATCH_PARENT, WRAP_CONTENT);
 
-            mRadioButtonWithEditText =
-                    (RadioButtonWithEditText) layout.findViewById(R.id.test_radio_button);
-            mDummyButton = (Button) layout.findViewById(R.id.dummy_button);
-            Assert.assertNotNull(mRadioButtonWithEditText);
-            Assert.assertNotNull(mDummyButton);
+                    mRadioButtonWithEditText = layout.findViewById(R.id.test_radio_button);
+                    mDummyButton = layout.findViewById(R.id.dummy_button);
+                    Assert.assertNotNull(mRadioButtonWithEditText);
+                    Assert.assertNotNull(mDummyButton);
 
-            mButton = layout.findViewById(R.id.radio_button);
-            mEditText = layout.findViewById(R.id.edit_text);
+                    mButton = layout.findViewById(R.id.radio_button);
+                    mEditText = layout.findViewById(R.id.edit_text);
 
-            Assert.assertNotNull("Radio Button should not be null", mButton);
-            Assert.assertNotNull("Edit Text should not be null", mEditText);
-        });
+                    Assert.assertNotNull("Radio Button should not be null", mButton);
+                    Assert.assertNotNull("Edit Text should not be null", mEditText);
+                });
     }
 
     @Test
@@ -140,15 +137,21 @@ public class RadioButtonWithEditTextTest {
 
         // Test if apply attr works
         int textUriInputType = InputType.TYPE_TEXT_VARIATION_URI | InputType.TYPE_CLASS_TEXT;
-        Assert.assertEquals("EditText input type is different than attr setting.", textUriInputType,
+        Assert.assertEquals(
+                "EditText input type is different than attr setting.",
+                textUriInputType,
                 mEditText.getInputType());
-        Assert.assertEquals("EditText input hint is different than attr setting.",
-                sActivity.getResources().getString(R.string.test_uri), mEditText.getHint());
+        Assert.assertEquals(
+                "EditText input hint is different than attr setting.",
+                sActivity.getResources().getString(R.string.test_uri),
+                mEditText.getHint());
 
         TextView description = sActivity.findViewById(R.id.description);
         Assert.assertNotNull("Description should not be null", description);
-        Assert.assertEquals("Description is different than attr setting.",
-                sActivity.getResources().getString(R.string.test_string), description.getText());
+        Assert.assertEquals(
+                "Description is different than attr setting.",
+                sActivity.getResources().getString(R.string.test_string),
+                description.getText());
     }
 
     @Test
@@ -156,28 +159,33 @@ public class RadioButtonWithEditTextTest {
     public void testSetHint() {
         final CharSequence hintMsg = "Text hint";
         final String resourceString = sActivity.getResources().getString(R.string.test_string);
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mRadioButtonWithEditText.setHint(hintMsg);
-            Assert.assertEquals("Hint message set from string is different from test setting",
-                    hintMsg.toString(), mEditText.getHint().toString());
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRadioButtonWithEditText.setHint(hintMsg);
+                    Assert.assertEquals(
+                            "Hint message set from string is different from test setting",
+                            hintMsg.toString(),
+                            mEditText.getHint().toString());
 
-            mRadioButtonWithEditText.setHint(R.string.test_string);
-            Assert.assertEquals("Hint message set from resource id is different from test setting",
-                    resourceString, mEditText.getHint().toString());
-        });
+                    mRadioButtonWithEditText.setHint(R.string.test_string);
+                    Assert.assertEquals(
+                            "Hint message set from resource id is different from test setting",
+                            resourceString,
+                            mEditText.getHint().toString());
+                });
     }
 
     @Test
     @SmallTest
     public void testSetInputType() {
         int[] commonInputTypes = {
-                InputType.TYPE_CLASS_DATETIME,
-                InputType.TYPE_CLASS_NUMBER,
-                InputType.TYPE_CLASS_PHONE,
-                InputType.TYPE_CLASS_TEXT,
-                InputType.TYPE_TEXT_VARIATION_URI,
-                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
-                InputType.TYPE_DATETIME_VARIATION_DATE,
+            InputType.TYPE_CLASS_DATETIME,
+            InputType.TYPE_CLASS_NUMBER,
+            InputType.TYPE_CLASS_PHONE,
+            InputType.TYPE_CLASS_TEXT,
+            InputType.TYPE_TEXT_VARIATION_URI,
+            InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            InputType.TYPE_DATETIME_VARIATION_DATE,
         };
 
         for (int type : commonInputTypes) {
@@ -200,38 +208,63 @@ public class RadioButtonWithEditTextTest {
         int timesCalled = mListener.getTimesCalled();
 
         // Test changes for edit text
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mRadioButtonWithEditText.setPrimaryText(str1); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRadioButtonWithEditText.setPrimaryText(str1);
+                });
 
-        Assert.assertEquals("New String value should be updated", str1.toString(),
+        Assert.assertEquals(
+                "New String value should be updated",
+                str1.toString(),
                 mRadioButtonWithEditText.getPrimaryText().toString());
-        Assert.assertEquals("Text message in listener should be updated accordingly",
-                str1.toString(), mListener.getCurrentText().toString());
-        Assert.assertEquals("TestListener#OnTextChanged should be called once", timesCalled + 1,
+        Assert.assertEquals(
+                "Text message in listener should be updated accordingly",
+                str1.toString(),
+                mListener.getCurrentText().toString());
+        Assert.assertEquals(
+                "TestListener#OnTextChanged should be called once",
+                timesCalled + 1,
                 mListener.getTimesCalled());
 
         // change to another text from View
         timesCalled = mListener.getTimesCalled();
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mEditText.setText(str2); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mEditText.setText(str2);
+                });
 
-        Assert.assertEquals("New String value should be updated", str2.toString(),
+        Assert.assertEquals(
+                "New String value should be updated",
+                str2.toString(),
                 mRadioButtonWithEditText.getPrimaryText().toString());
-        Assert.assertEquals("Text message in listener should be updated accordingly",
-                str2.toString(), mListener.getCurrentText().toString());
-        Assert.assertEquals("TestListener#OnTextChanged should be called once", timesCalled + 1,
+        Assert.assertEquals(
+                "Text message in listener should be updated accordingly",
+                str2.toString(),
+                mListener.getCurrentText().toString());
+        Assert.assertEquals(
+                "TestListener#OnTextChanged should be called once",
+                timesCalled + 1,
                 mListener.getTimesCalled());
 
         // change to another text from View
         mRadioButtonWithEditText.removeTextChangeListener(mListener);
         timesCalled = mListener.getTimesCalled();
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mRadioButtonWithEditText.setPrimaryText(str1); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRadioButtonWithEditText.setPrimaryText(str1);
+                });
 
-        Assert.assertEquals("New String value should be updated", str1.toString(),
+        Assert.assertEquals(
+                "New String value should be updated",
+                str1.toString(),
                 mRadioButtonWithEditText.getPrimaryText().toString());
-        Assert.assertEquals("Text message in listener should not be updated.", str2.toString(),
+        Assert.assertEquals(
+                "Text message in listener should not be updated.",
+                str2.toString(),
                 mListener.getCurrentText().toString());
-        Assert.assertEquals("TestListener#OnTextChanged should not be called any more", timesCalled,
+        Assert.assertEquals(
+                "TestListener#OnTextChanged should not be called any more",
+                timesCalled,
                 mListener.getTimesCalled());
     }
 
@@ -240,33 +273,45 @@ public class RadioButtonWithEditTextTest {
     @DisabledTest(message = "Test is flaky: https://crbug.com/1344713")
     public void testFocusChange() {
         Assert.assertFalse(mRadioButtonWithEditText.hasFocus());
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mRadioButtonWithEditText.setChecked(true); });
-        Assert.assertFalse("Edit text should not gain focus when radio button is checked.",
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRadioButtonWithEditText.setChecked(true);
+                });
+        Assert.assertFalse(
+                "Edit text should not gain focus when radio button is checked.",
                 mEditText.hasFocus());
         waitForCursorVisibility(false);
 
         // Test requesting focus on the EditText.
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mEditText.requestFocus(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mEditText.requestFocus();
+                });
         waitForCursorVisibility(true);
 
         // Requesting focus elsewhere.
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mDummyButton.requestFocus(); });
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mDummyButton.requestFocus();
+                });
         waitForCursorVisibility(false);
         waitForKeyboardVisibility(false);
 
         // Uncheck the radio button, then click EditText to show keyboard and checked the radio
         // button.
-        TestThreadUtils.runOnUiThreadBlocking(() -> {
-            mRadioButtonWithEditText.setChecked(false);
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRadioButtonWithEditText.setChecked(false);
 
-            // Request focus on EditText and show keyboard as if it is clicked.
-            // See https://crbug.com/1177183.
-            mEditText.requestFocus();
-            KeyboardVisibilityDelegate.getInstance().showKeyboard(mEditText);
-        });
+                    // Request focus on EditText and show keyboard as if it is clicked.
+                    // See https://crbug.com/1177183.
+                    mEditText.requestFocus();
+                    KeyboardVisibilityDelegate.getInstance().showKeyboard(mEditText);
+                });
         waitForCursorVisibility(true);
         waitForKeyboardVisibility(true);
-        Assert.assertTrue("RadioButton should be checked after EditText gains focus.",
+        Assert.assertTrue(
+                "RadioButton should be checked after EditText gains focus.",
                 mRadioButtonWithEditText.isChecked());
 
         // Test editor action.
@@ -278,37 +323,52 @@ public class RadioButtonWithEditTextTest {
     @Test
     @SmallTest
     public void testSetEnabled() {
-        TestThreadUtils.runOnUiThreadBlocking(
-                () -> { mRadioButtonWithEditText.setEnabled(false); });
-        Assert.assertFalse("Primary TextView should be set to disabled.",
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRadioButtonWithEditText.setEnabled(false);
+                });
+        Assert.assertFalse(
+                "Primary TextView should be set to disabled.",
                 mRadioButtonWithEditText.getPrimaryTextView().isEnabled());
-        Assert.assertFalse("Description TextView should be set to disabled.",
+        Assert.assertFalse(
+                "Description TextView should be set to disabled.",
                 mRadioButtonWithEditText.getDescriptionTextView().isEnabled());
-        Assert.assertFalse("RadioButton should be set to disabled.",
+        Assert.assertFalse(
+                "RadioButton should be set to disabled.",
                 mRadioButtonWithEditText.getRadioButtonView().isEnabled());
 
-        TestThreadUtils.runOnUiThreadBlocking(() -> { mRadioButtonWithEditText.setEnabled(true); });
-        Assert.assertTrue("Primary TextView should be set to enabled.",
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mRadioButtonWithEditText.setEnabled(true);
+                });
+        Assert.assertTrue(
+                "Primary TextView should be set to enabled.",
                 mRadioButtonWithEditText.getPrimaryTextView().isEnabled());
-        Assert.assertTrue("Description TextView should be set to enabled.",
+        Assert.assertTrue(
+                "Description TextView should be set to enabled.",
                 mRadioButtonWithEditText.getDescriptionTextView().isEnabled());
-        Assert.assertTrue("RadioButton should be set to enabled.",
+        Assert.assertTrue(
+                "RadioButton should be set to enabled.",
                 mRadioButtonWithEditText.getRadioButtonView().isEnabled());
     }
 
     private void waitForKeyboardVisibility(boolean isVisible) {
-        CriteriaHelper.pollUiThread(() -> {
-            Criteria.checkThat("Keyboard visibility does not consist with test setting.",
-                    KeyboardVisibilityDelegate.getInstance().isKeyboardShowing(
-                            sActivity, mEditText),
-                    Matchers.is(isVisible));
-        });
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    Criteria.checkThat(
+                            "Keyboard visibility does not consist with test setting.",
+                            KeyboardVisibilityDelegate.getInstance()
+                                    .isKeyboardShowing(sActivity, mEditText),
+                            Matchers.is(isVisible));
+                });
     }
 
     private void waitForCursorVisibility(boolean isVisible) {
         CriteriaHelper.pollUiThread(
-                ()
-                        -> Criteria.checkThat("Cursor visibility is different.",
-                                mEditText.isCursorVisible(), Matchers.is(isVisible)));
+                () ->
+                        Criteria.checkThat(
+                                "Cursor visibility is different.",
+                                mEditText.isCursorVisible(),
+                                Matchers.is(isVisible)));
     }
 }

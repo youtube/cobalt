@@ -15,14 +15,14 @@ import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.tab.state.ShoppingPersistedTabData;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.tab_ui.R;
-import org.chromium.components.browser_ui.styles.ChromeColors;
+import org.chromium.components.browser_ui.styles.SemanticColorUtils;
 import org.chromium.components.browser_ui.widget.MaterialCardViewNoShadow;
 import org.chromium.components.browser_ui.widget.textbubble.TextBubble;
 import org.chromium.ui.widget.ButtonCompat;
@@ -35,8 +35,9 @@ import java.lang.ref.WeakReference;
  * Represents a large message card view in Grid Tab Switcher. The view contains a customized content
  * section, an action button for acceptance, and a close button for dismissal.
  */
+@NullMarked
 class LargeMessageCardView extends FrameLayout {
-    private static WeakReference<Bitmap> sCloseButtonBitmapWeakRef;
+    private static @Nullable WeakReference<Bitmap> sCloseButtonBitmapWeakRef;
 
     private final Context mContext;
     private final int mLandscapeSidePadding;
@@ -52,8 +53,11 @@ class LargeMessageCardView extends FrameLayout {
     public LargeMessageCardView(Context context, AttributeSet attrs) {
         super(context, attrs);
         mContext = context;
-        mLandscapeSidePadding = (int) context.getResources().getDimension(
-                R.dimen.tab_grid_large_message_side_padding_landscape);
+        mLandscapeSidePadding =
+                (int)
+                        context.getResources()
+                                .getDimension(
+                                        R.dimen.tab_grid_large_message_side_padding_landscape);
     }
 
     @Override
@@ -73,8 +77,10 @@ class LargeMessageCardView extends FrameLayout {
             int closeButtonSize =
                     (int) getResources().getDimension(R.dimen.tab_grid_close_button_size);
             Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.btn_close);
-            sCloseButtonBitmapWeakRef = new WeakReference<>(
-                    Bitmap.createScaledBitmap(bitmap, closeButtonSize, closeButtonSize, true));
+            sCloseButtonBitmapWeakRef =
+                    new WeakReference<>(
+                            Bitmap.createScaledBitmap(
+                                    bitmap, closeButtonSize, closeButtonSize, true));
         }
         mCloseButton.setImageBitmap(sCloseButtonBitmapWeakRef.get());
     }
@@ -95,9 +101,10 @@ class LargeMessageCardView extends FrameLayout {
 
     /**
      * Set description text.
+     *
      * @param descriptionText Text to be displayed.
      */
-    void setDescriptionText(String descriptionText) {
+    void setDescriptionText(CharSequence descriptionText) {
         mDescription.setText(descriptionText);
     }
 
@@ -152,10 +159,8 @@ class LargeMessageCardView extends FrameLayout {
         mCloseButton.setOnClickListener(listener);
     }
 
-    /**
-     * Setup the price info box.
-     */
-    void setupPriceInfoBox(@Nullable ShoppingPersistedTabData.PriceDrop priceDrop) {
+    /** Setup the price info box. */
+    void setupPriceInfoBox(ShoppingPersistedTabData.@Nullable PriceDrop priceDrop) {
         if (priceDrop != null) {
             mPriceInfoBox.setPriceStrings(priceDrop.price, priceDrop.previousPrice);
             mPriceInfoBox.setVisibility(View.VISIBLE);
@@ -205,7 +210,8 @@ class LargeMessageCardView extends FrameLayout {
         }
     }
 
-    // TODO(crbug.com/1166704): This method has little to do with this view. Move this function to a
+    // TODO(crbug.com/40164330): This method has little to do with this view. Move this function to
+    // a
     // price tracking UI utility class.
     /**
      * When user taps on "Show me" on PriceWelcomeMessage, we scroll them to the binding tab, then a
@@ -213,9 +219,15 @@ class LargeMessageCardView extends FrameLayout {
      */
     public static void showPriceDropTooltip(View view) {
         ViewRectProvider rectProvider = new ViewRectProvider(view);
-        TextBubble textBubble = new TextBubble(view.getContext(), view,
-                R.string.price_drop_spotted_lower_price, R.string.price_drop_spotted_lower_price,
-                true, rectProvider, ChromeAccessibilityUtil.get().isAccessibilityEnabled());
+        TextBubble textBubble =
+                new TextBubble(
+                        view.getContext(),
+                        view,
+                        R.string.price_drop_spotted_lower_price,
+                        R.string.price_drop_spotted_lower_price,
+                        true,
+                        rectProvider,
+                        ChromeAccessibilityUtil.get().isAccessibilityEnabled());
         textBubble.setFocusable(true);
         textBubble.setDismissOnTouchInteraction(true);
         textBubble.show();
@@ -229,13 +241,13 @@ class LargeMessageCardView extends FrameLayout {
     void updateMessageCardColor(boolean isIncognito) {
         setBackground(isIncognito);
         MessageCardViewUtils.setTitleTextAppearance(
-                mTitle, isIncognito, /*isLargeMessageCard=*/true);
+                mTitle, isIncognito, /* isLargeMessageCard= */ true);
         MessageCardViewUtils.setDescriptionTextAppearance(
-                mDescription, isIncognito, /*isLargeMessageCard=*/true);
+                mDescription, isIncognito, /* isLargeMessageCard= */ true);
         MessageCardViewUtils.setActionButtonTextAppearance(
-                mActionButton, isIncognito, /*isLargeMessageCard=*/true);
+                mActionButton, isIncognito, /* isLargeMessageCard= */ true);
         MessageCardViewUtils.setActionButtonBackgroundColor(
-                mActionButton, isIncognito, /*isLargeMessageCard=*/true);
+                mActionButton, isIncognito, /* isLargeMessageCard= */ true);
         MessageCardViewUtils.setSecondaryActionButtonColor(mSecondaryActionButton, isIncognito);
         MessageCardViewUtils.setCloseButtonTint(mCloseButton, isIncognito);
     }
@@ -243,7 +255,7 @@ class LargeMessageCardView extends FrameLayout {
     /**
      * Update the icon's width.
      *
-     * TODO(crbug.com/1227656): Confirm with UX, whether large message card can follow a general
+     * <p>TODO(crbug.com/40056462): Confirm with UX, whether large message card can follow a general
      * icon size for all clients. If so, then remove this method.
      *
      * @param widthInPixels The desired width in pixels to set.
@@ -255,7 +267,7 @@ class LargeMessageCardView extends FrameLayout {
     /**
      * Update the icon's height.
      *
-     * TODO(crbug.com/1227656): Confirm with UX, whether large message card can follow a general
+     * <p>TODO(crbug.com/40056462): Confirm with UX, whether large message card can follow a general
      * icon size for all clients. If so, then remove this method.
      *
      * @param heightInPixels The desired height in pixels to set.
@@ -270,13 +282,11 @@ class LargeMessageCardView extends FrameLayout {
      * @param isIncognito Whether the resource is used for incognito mode.
      */
     private void setBackground(boolean isIncognito) {
-        final int elevationDimenId = ChromeFeatureList.sBaselineGm3SurfaceColors.isEnabled()
-                ? R.dimen.default_elevation_2
-                : R.dimen.card_elevation;
-
-        ColorStateList backgroundTint = ColorStateList.valueOf((isIncognito)
-                        ? mContext.getColor(R.color.incognito_card_bg_color)
-                        : ChromeColors.getSurfaceColor(mContext, elevationDimenId));
+        ColorStateList backgroundTint =
+                ColorStateList.valueOf(
+                        isIncognito
+                                ? mContext.getColor(R.color.incognito_card_bg_color)
+                                : SemanticColorUtils.getColorSurfaceContainer(mContext));
         mMaterialCardViewNoShadow.setBackgroundTintList(backgroundTint);
     }
 }

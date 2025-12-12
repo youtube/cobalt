@@ -55,11 +55,12 @@ class CastMediaNotificationItem
       media_session::mojom::MediaSessionAction action) override;
   void SeekTo(base::TimeDelta time) override;
   void Dismiss() override;
-  media_message_center::SourceType SourceType() override;
   void SetVolume(float volume) override;
   void SetMute(bool mute) override;
   bool RequestMediaRemoting() override;
-  absl::optional<base::UnguessableToken> GetSourceId() const override;
+  media_message_center::Source GetSource() const override;
+  media_message_center::SourceType GetSourceType() const override;
+  std::optional<base::UnguessableToken> GetSourceId() const override;
 
   // media_router::mojom::MediaStatusObserver:
   void OnMediaStatusUpdated(
@@ -68,8 +69,7 @@ class CastMediaNotificationItem
   void OnRouteUpdated(const media_router::MediaRoute& route);
 
   // Stops the cast session and logs UMA about the stop cast action.
-  virtual void StopCasting(
-      global_media_controls::GlobalMediaControlsEntryPoint entry_point);
+  virtual void StopCasting();
 
   // Returns a pending remote bound to |this|. This should not be called more
   // than once per instance.
@@ -82,6 +82,7 @@ class CastMediaNotificationItem
   Profile* profile() { return profile_; }
   bool is_active() const { return is_active_; }
   bool route_is_local() const { return route_is_local_; }
+  std::optional<std::string> device_name() const { return device_name_; }
 
   base::WeakPtr<CastMediaNotificationItem> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
@@ -130,9 +131,7 @@ class CastMediaNotificationItem
 
   void UpdateView();
   void ImageChanged(const SkBitmap& bitmap);
-  void RecordMetadataMetrics() const;
 
-  bool recorded_metadata_metrics_ = false;
   // The notification is shown when active.
   bool is_active_ = true;
 
@@ -144,6 +143,7 @@ class CastMediaNotificationItem
   const media_router::MediaRoute::Id media_route_id_;
   // True if the route is started from the |profile_| on the current device.
   const bool route_is_local_;
+  std::optional<std::string> device_name_;
   ImageDownloader image_downloader_;
   media_session::MediaMetadata metadata_;
   std::vector<media_session::mojom::MediaSessionAction> actions_;

@@ -49,7 +49,7 @@ bool HTMLTableColElement::IsPresentationAttribute(
 void HTMLTableColElement::CollectStyleForPresentationAttribute(
     const QualifiedName& name,
     const AtomicString& value,
-    MutableCSSPropertyValueSet* style) {
+    HeapVector<CSSPropertyValue, 8>& style) {
   if (name == html_names::kWidthAttr)
     AddHTMLLengthToStyle(style, CSSPropertyID::kWidth, value);
   else
@@ -73,7 +73,7 @@ void HTMLTableColElement::ParseAttribute(
       if (GetLayoutObject() && GetLayoutObject()->IsLayoutTableCol()) {
         auto* col = To<LayoutBox>(GetLayoutObject());
         int new_width = Width().ToInt();
-        if (new_width != col->Size().Width()) {
+        if (new_width != col->Size().width) {
           col->SetNeedsLayoutAndIntrinsicWidthsRecalcAndFullPaintInvalidation(
               layout_invalidation_reason::kAttributeChanged);
         }

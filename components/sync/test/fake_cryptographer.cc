@@ -4,10 +4,12 @@
 
 #include "components/sync/test/fake_cryptographer.h"
 
-#include "base/containers/contains.h"
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+#include <iterator>
+
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "components/sync/protocol/encryption.pb.h"
 
 namespace syncer {
 
@@ -37,7 +39,7 @@ void FakeCryptographer::AddEncryptionKey(const std::string& key_name) {
 
 void FakeCryptographer::SelectDefaultEncryptionKey(
     const std::string& key_name) {
-  DCHECK(base::Contains(known_key_names_, key_name));
+  DCHECK(known_key_names_.contains(key_name));
   default_key_name_ = key_name;
 }
 
@@ -51,7 +53,7 @@ bool FakeCryptographer::CanEncrypt() const {
 
 bool FakeCryptographer::CanDecrypt(
     const sync_pb::EncryptedData& encrypted) const {
-  return base::Contains(known_key_names_, encrypted.key_name());
+  return known_key_names_.contains(encrypted.key_name());
 }
 
 std::string FakeCryptographer::GetDefaultEncryptionKeyName() const {
@@ -71,7 +73,7 @@ bool FakeCryptographer::EncryptString(const std::string& decrypted,
 
 bool FakeCryptographer::DecryptToString(const sync_pb::EncryptedData& encrypted,
                                         std::string* decrypted) const {
-  auto key_iter = base::ranges::find(known_key_names_, encrypted.key_name());
+  auto key_iter = std::ranges::find(known_key_names_, encrypted.key_name());
   if (key_iter == known_key_names_.end()) {
     return false;
   }
@@ -86,6 +88,53 @@ bool FakeCryptographer::DecryptToString(const sync_pb::EncryptedData& encrypted,
       std::string(encrypted.blob().begin() + key_name_and_separator.size(),
                   encrypted.blob().end());
   return true;
+}
+
+const CrossUserSharingPublicPrivateKeyPair&
+FakeCryptographer::GetCrossUserSharingKeyPair(uint32_t version) const {
+  return cross_user_sharing_key_pair_;
+}
+
+std::optional<std::vector<uint8_t>>
+FakeCryptographer::AuthEncryptForCrossUserSharing(
+    base::span<const uint8_t> plaintext,
+    base::span<const uint8_t> recipient_public_key) const {
+  // Just join two parts of the data. Note that sender's private key is omitted
+  // here for simplicity.
+  std::vector<uint8_t> result;
+  result.reserve(plaintext.size() + recipient_public_key.size());
+  std::ranges::copy(recipient_public_key, std::back_inserter(result));
+  std::ranges::copy(plaintext, std::back_inserter(result));
+  return result;
+}
+
+std::optional<std::vector<uint8_t>>
+FakeCryptographer::AuthDecryptForCrossUserSharing(
+    base::span<const uint8_t> encrypted_data,
+    base::span<const uint8_t> sender_public_key,
+    const uint32_t recipient_key_version) const {
+  // `encrypted_data` is expected to contain receiver's public key as a prefix,
+  // and the actual data. `sender_public_key` is not used for simplicity. In
+  // real case, sender's private key is used during encryption and sender's
+  // public key during decryption.
+  if (encrypted_data.size() <
+      cross_user_sharing_key_pair_.GetRawPublicKey().size()) {
+    return std::nullopt;
+  }
+
+  // Verify that the prefix contains an expected public key.
+  if (std::ranges::equal(
+          cross_user_sharing_key_pair_.GetRawPublicKey().begin(),
+          cross_user_sharing_key_pair_.GetRawPublicKey().end(),
+          encrypted_data.begin(),
+          encrypted_data.begin() +
+              cross_user_sharing_key_pair_.GetRawPublicKey().size())) {
+    return std::nullopt;
+  }
+  return std::vector<uint8_t>(
+      encrypted_data.begin() +
+          cross_user_sharing_key_pair_.GetRawPublicKey().size(),
+      encrypted_data.end());
 }
 
 }  // namespace syncer

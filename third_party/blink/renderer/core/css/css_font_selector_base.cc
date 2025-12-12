@@ -38,72 +38,38 @@ bool CSSFontSelectorBase::IsPlatformFamilyMatchAvailable(
 void CSSFontSelectorBase::ReportEmojiSegmentGlyphCoverage(
     unsigned num_clusters,
     unsigned num_broken_clusters) {
-  GetFontMatchingMetrics()->ReportEmojiSegmentGlyphCoverage(
-      num_clusters, num_broken_clusters);
-}
-
-void CSSFontSelectorBase::ReportFontFamilyLookupByGenericFamily(
-    const AtomicString& generic_font_family_name,
-    UScriptCode script,
-    FontDescription::GenericFamilyType generic_family_type,
-    const AtomicString& resulting_font_name) {
-  GetFontMatchingMetrics()->ReportFontFamilyLookupByGenericFamily(
-      generic_font_family_name, script, generic_family_type,
-      resulting_font_name);
+  if (FontMatchingMetrics* font_matching_metrics = GetFontMatchingMetrics()) {
+    font_matching_metrics->ReportEmojiSegmentGlyphCoverage(num_clusters,
+                                                           num_broken_clusters);
+  }
 }
 
 void CSSFontSelectorBase::ReportSuccessfulFontFamilyMatch(
     const AtomicString& font_family_name) {
-  GetFontMatchingMetrics()->ReportSuccessfulFontFamilyMatch(font_family_name);
+  if (FontMatchingMetrics* font_matching_metrics = GetFontMatchingMetrics()) {
+    font_matching_metrics->ReportSuccessfulFontFamilyMatch(font_family_name);
+  }
 }
 
 void CSSFontSelectorBase::ReportFailedFontFamilyMatch(
     const AtomicString& font_family_name) {
-  GetFontMatchingMetrics()->ReportFailedFontFamilyMatch(font_family_name);
+  if (FontMatchingMetrics* font_matching_metrics = GetFontMatchingMetrics()) {
+    font_matching_metrics->ReportFailedFontFamilyMatch(font_family_name);
+  }
 }
 
 void CSSFontSelectorBase::ReportSuccessfulLocalFontMatch(
     const AtomicString& font_name) {
-  GetFontMatchingMetrics()->ReportSuccessfulLocalFontMatch(font_name);
+  if (FontMatchingMetrics* font_matching_metrics = GetFontMatchingMetrics()) {
+    font_matching_metrics->ReportSuccessfulLocalFontMatch(font_name);
+  }
 }
 
 void CSSFontSelectorBase::ReportFailedLocalFontMatch(
     const AtomicString& font_name) {
-  GetFontMatchingMetrics()->ReportFailedLocalFontMatch(font_name);
-}
-
-void CSSFontSelectorBase::ReportFontLookupByUniqueOrFamilyName(
-    const AtomicString& name,
-    const FontDescription& font_description,
-    scoped_refptr<SimpleFontData> resulting_font_data) {
-  GetFontMatchingMetrics()->ReportFontLookupByUniqueOrFamilyName(
-      name, font_description, resulting_font_data.get());
-}
-
-void CSSFontSelectorBase::ReportFontLookupByUniqueNameOnly(
-    const AtomicString& name,
-    const FontDescription& font_description,
-    scoped_refptr<SimpleFontData> resulting_font_data,
-    bool is_loading_fallback) {
-  GetFontMatchingMetrics()->ReportFontLookupByUniqueNameOnly(
-      name, font_description, resulting_font_data.get(), is_loading_fallback);
-}
-
-void CSSFontSelectorBase::ReportFontLookupByFallbackCharacter(
-    UChar32 fallback_character,
-    FontFallbackPriority fallback_priority,
-    const FontDescription& font_description,
-    scoped_refptr<SimpleFontData> resulting_font_data) {
-  GetFontMatchingMetrics()->ReportFontLookupByFallbackCharacter(
-      fallback_character, fallback_priority, font_description,
-      resulting_font_data.get());
-}
-
-void CSSFontSelectorBase::ReportLastResortFallbackFontLookup(
-    const FontDescription& font_description,
-    scoped_refptr<SimpleFontData> resulting_font_data) {
-  GetFontMatchingMetrics()->ReportLastResortFallbackFontLookup(
-      font_description, resulting_font_data.get());
+  if (FontMatchingMetrics* font_matching_metrics = GetFontMatchingMetrics()) {
+    font_matching_metrics->ReportFailedLocalFontMatch(font_name);
+  }
 }
 
 void CSSFontSelectorBase::ReportNotDefGlyph() const {
@@ -111,22 +77,15 @@ void CSSFontSelectorBase::ReportNotDefGlyph() const {
                     WebFeature::kFontShapingNotDefGlyphObserved);
 }
 
-void CSSFontSelectorBase::ReportSystemFontFamily(
-    const AtomicString& font_family_name) {
-  GetFontMatchingMetrics()->ReportSystemFontFamily(font_family_name);
-}
-
-void CSSFontSelectorBase::ReportWebFontFamily(
-    const AtomicString& font_family_name) {
-  GetFontMatchingMetrics()->ReportWebFontFamily(font_family_name);
-}
-
 void CSSFontSelectorBase::WillUseFontData(
     const FontDescription& font_description,
     const FontFamily& family,
     const String& text) {
   if (family.FamilyIsGeneric()) {
-    if (family.IsPrewarmed() || UNLIKELY(family.FamilyName().empty())) {
+    if (family.IsPrewarmed()) {
+      return;
+    }
+    if (family.FamilyName().empty()) [[unlikely]] {
       return;
     }
     family.SetIsPrewarmed();
@@ -156,7 +115,10 @@ void CSSFontSelectorBase::WillUseFontData(
     return;
   }
 
-  if (family.IsPrewarmed() || UNLIKELY(family.FamilyName().empty())) {
+  if (family.IsPrewarmed()) {
+    return;
+  }
+  if (family.FamilyName().empty()) [[unlikely]] {
     return;
   }
   family.SetIsPrewarmed();

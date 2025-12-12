@@ -17,8 +17,9 @@ class TabGroupStyle;
 // is in a selected state. There is one highlight for each group, which is
 // positioned across all tabs in the group and painted by the tab strip.
 class TabGroupHighlight : public views::View {
+  METADATA_HEADER(TabGroupHighlight, views::View)
+
  public:
-  METADATA_HEADER(TabGroupHighlight);
   TabGroupHighlight(TabGroupViews* tab_group_views,
                     const tab_groups::TabGroupId& group,
                     const TabGroupStyle& style);
@@ -29,7 +30,6 @@ class TabGroupHighlight : public views::View {
 
   // views::View:
   void OnPaint(gfx::Canvas* canvas) override;
-  bool GetCanProcessEventsWithinSubtree() const override;
 
  private:
   // Returns the highlight shape, which immitates the tab highlight shape.

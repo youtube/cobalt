@@ -21,11 +21,11 @@ perfetto_proto_library("@TYPE@") {
   proto_generators = [
     "ipc",
     "cpp",
-    "source_set",
   ]
   sources = [
     "consumer_port.proto",
     "producer_port.proto",
+    "relay_port.proto",
   ]
   deps = [
     # Deliberately :cpp and not :@TYPE@. In both cases (:gen and :cpp target)
@@ -40,7 +40,6 @@ perfetto_proto_library("wire_protocol_@TYPE@") {
   proto_generators = [
     "zero",
     "cpp",
-    "source_set",
   ]
   sources = [ "wire_protocol.proto" ]
 }

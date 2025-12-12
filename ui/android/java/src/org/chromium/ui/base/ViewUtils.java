@@ -18,10 +18,10 @@ import androidx.core.graphics.drawable.RoundedBitmapDrawable;
 import androidx.core.graphics.drawable.RoundedBitmapDrawableFactory;
 
 import org.chromium.base.TraceEvent;
+import org.chromium.build.annotations.NullMarked;
 
-/**
- * A utility class that has helper methods for Android view.
- */
+/** A utility class that has helper methods for Android view. */
+@NullMarked
 public final class ViewUtils {
     private static final int[] sLocationTmp = new int[2];
 
@@ -50,9 +50,7 @@ public final class ViewUtils {
         return view.isInTouchMode() ? view.isFocusableInTouchMode() : view.isFocusable();
     }
 
-    /**
-     * Invalidates a view and all of its descendants.
-     */
+    /** Invalidates a view and all of its descendants. */
     private static void recursiveInvalidate(View view) {
         view.invalidate();
         if (view instanceof ViewGroup) {
@@ -67,9 +65,7 @@ public final class ViewUtils {
         }
     }
 
-    /**
-     * Sets the enabled property of a View and all of its descendants.
-     */
+    /** Sets the enabled property of a View and all of its descendants. */
     public static void setEnabledRecursive(View view, boolean enabled) {
         view.setEnabled(enabled);
         if (view instanceof ViewGroup) {
@@ -80,9 +76,7 @@ public final class ViewUtils {
         }
     }
 
-    /**
-     * Captures a bitmap of a View and draws it to a Canvas.
-     */
+    /** Captures a bitmap of a View and draws it to a Canvas. */
     public static void captureBitmap(View view, Canvas canvas) {
         // Invalidate all the descendants of view, before calling view.draw(). Otherwise, some of
         // the descendant views may optimize away their drawing. http://crbug.com/415251
@@ -140,9 +134,12 @@ public final class ViewUtils {
      */
     public static void gatherTransparentRegionsForOpaqueView(View view, Region region) {
         view.getLocationInWindow(sLocationTmp);
-        region.op(sLocationTmp[0], sLocationTmp[1],
+        region.op(
+                sLocationTmp[0],
+                sLocationTmp[1],
                 sLocationTmp[0] + view.getRight() - view.getLeft(),
-                sLocationTmp[1] + view.getBottom() - view.getTop(), Region.Op.DIFFERENCE);
+                sLocationTmp[1] + view.getBottom() - view.getTop(),
+                Region.Op.DIFFERENCE);
     }
 
     /**
@@ -168,22 +165,56 @@ public final class ViewUtils {
     }
 
     /**
-     * Sets clip children for the provided ViewGroup and all of its ancestors.
-     * @param view The ViewGroup whose children should (not) be clipped.
-     * @param clip Whether to clip children to the parent bounds.
+     * As {@link #setAncestorsShouldClipChildren(ViewGroup, boolean, int)}, defaulting to stopping
+     * at the view with id android.R.id.content.
      */
     public static void setAncestorsShouldClipChildren(ViewGroup view, boolean clip) {
+        setAncestorsShouldClipChildren(view, clip, android.R.id.content);
+    }
+
+    /**
+     * Sets clip children for the provided ViewGroup and all of its ancestors.
+     *
+     * @param view The ViewGroup whose children should (not) be clipped.
+     * @param clip Whether to clip children to the parent bounds.
+     * @param viewIdToStopAt The id of the last view in the ancestor list on which the operation
+     *     should performed; potentially NO_ID signifying the operation should traverse all the way
+     *     to the root.
+     */
+    public static void setAncestorsShouldClipChildren(
+            ViewGroup view, boolean clip, int viewIdToStopAt) {
         ViewGroup parent = view;
         while (parent != null) {
             parent.setClipChildren(clip);
             if (!(parent.getParent() instanceof ViewGroup)) break;
-            if (parent.getId() == android.R.id.content) break;
+            if (viewIdToStopAt != View.NO_ID && parent.getId() == viewIdToStopAt) break;
+            parent = (ViewGroup) parent.getParent();
+        }
+    }
+
+    /**
+     * Sets clipToPadding for the provided ViewGroup and all of its ancestors.
+     *
+     * @param view The ViewGroup who should (not) be clipped to padding.
+     * @param clip Whether to clip to padding.
+     * @param viewIdToStopAt The id of the last view in the ancestor list on which the operation
+     *     should performed; potentially NO_ID signifying the operation should traverse all the way
+     *     to the root.
+     */
+    public static void setAncestorsShouldClipToPadding(
+            ViewGroup view, boolean clip, int viewIdToStopAt) {
+        ViewGroup parent = view;
+        while (parent != null) {
+            parent.setClipToPadding(clip);
+            if (!(parent.getParent() instanceof ViewGroup)) break;
+            if (viewIdToStopAt != View.NO_ID && parent.getId() == viewIdToStopAt) break;
             parent = (ViewGroup) parent.getParent();
         }
     }
 
     /**
      * Creates a {@link RoundedBitmapDrawable} using the provided {@link Bitmap} and cornerRadius.
+     *
      * @param resources The {@link Resources}.
      * @param icon The {@link Bitmap} to round.
      * @param cornerRadius The corner radius.

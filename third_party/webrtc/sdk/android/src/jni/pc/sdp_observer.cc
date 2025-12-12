@@ -41,7 +41,7 @@ void CreateSdpObserverJni::OnSuccess(SessionDescriptionInterface* desc) {
   delete desc;
 }
 
-void CreateSdpObserverJni::OnFailure(webrtc::RTCError error) {
+void CreateSdpObserverJni::OnFailure(RTCError error) {
   JNIEnv* env = AttachCurrentThreadIfNeeded();
   Java_SdpObserver_onCreateFailure(env, j_observer_global_,
                                    NativeToJavaString(env, error.message()));

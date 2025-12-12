@@ -7,12 +7,13 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/strings/string_piece.h"
 #include "base/values.h"
 #include "media/base/crc_16.h"
 #include "media/base/media_export.h"
@@ -43,7 +44,7 @@ namespace media {
 using StatusCodeType = uint16_t;
 
 // This is the type that TypedStatusTraits::Group should be.
-using StatusGroupType = base::StringPiece;
+using StatusGroupType = std::string_view;
 
 // This is the type that a status will get serialized into for UKM purposes.
 using UKMPackedType = uint64_t;
@@ -93,7 +94,7 @@ struct MEDIA_EXPORT StatusData {
   std::string message;
 
   // Stack frames
-  std::vector<base::Value> frames;
+  base::Value::List frames;
 
   // Store a root cause. Helpful for debugging, as it can end up containing
   // the chain of causes.
@@ -106,34 +107,35 @@ struct MEDIA_EXPORT StatusData {
   UKMPackedType packed_root_cause = 0;
 };
 
-#define NAME_DETECTOR(detector_name, field)                            \
-  template <typename T>                                                \
-  struct detector_name {                                               \
-    template <typename, typename>                                      \
-    struct field##is_enum {                                            \
-      constexpr static bool value = false;                             \
-    };                                                                 \
-    template <typename V>                                              \
-    struct field##is_enum<V, decltype(V::field)> {                     \
-      constexpr static bool value = true;                              \
-    };                                                                 \
-    template <typename, typename>                                      \
-    struct field##_is_member {                                         \
-      constexpr static bool value = false;                             \
-    };                                                                 \
-    template <typename V>                                              \
-    struct field##_is_member<                                          \
-        V,                                                             \
-        std::enable_if_t<std::is_pointer_v<decltype(&V::field)>, V>> { \
-      constexpr static bool value = true;                              \
-    };                                                                 \
-    constexpr static bool as_enum_value = field##is_enum<T, T>::value; \
-    constexpr static bool as_method = field##_is_member<T, T>::value;  \
+#define NAME_DETECTOR(detector_name, field)                         \
+  template <typename T>                                             \
+  struct detector_name {                                            \
+    template <typename>                                             \
+    struct field##is_enum {                                         \
+      constexpr static bool value = false;                          \
+    };                                                              \
+    template <typename V>                                           \
+      requires(requires { V::field; })                              \
+    struct field##is_enum<V> {                                      \
+      constexpr static bool value = true;                           \
+    };                                                              \
+    template <typename>                                             \
+    struct field##_is_member {                                      \
+      constexpr static bool value = false;                          \
+    };                                                              \
+    template <typename V>                                           \
+      requires(requires { &V::field; })                             \
+    struct field##_is_member<V> {                                   \
+      constexpr static bool value = true;                           \
+    };                                                              \
+    constexpr static bool as_enum_value = field##is_enum<T>::value; \
+    constexpr static bool as_method = field##_is_member<T>::value;  \
   }
 
 NAME_DETECTOR(HasOkCode, kOk);
 NAME_DETECTOR(HasPackExtraData, PackExtraData);
 NAME_DETECTOR(HasSetDefaultOk, OkEnumValue);
+NAME_DETECTOR(HasEnumValueSerializer, ReadableCodeName);
 
 #undef NAME_DETECTOR
 
@@ -143,16 +145,17 @@ struct StatusTraitsHelper {
   static constexpr bool has_ok = HasOkCode<typename T::Codes>::as_enum_value;
   static constexpr bool has_default = HasSetDefaultOk<T>::as_method;
   static constexpr bool has_pack = HasPackExtraData<T>::as_method;
+  static constexpr bool has_code_repr = HasEnumValueSerializer<T>::as_method;
 
   // If T defines OkEnumValue(), then return it. Otherwise, return an
-  // T::Codes::kOk if that's defined, or absl::nullopt if its not.
-  static constexpr absl::optional<typename T::Codes> OkEnumValue() {
+  // T::Codes::kOk if that's defined, or std::nullopt if its not.
+  static constexpr std::optional<typename T::Codes> OkEnumValue() {
     if constexpr (has_default) {
       return T::OkEnumValue();
     } else if constexpr (has_ok) {
       return T::Codes::kOk;
     } else {
-      return absl::nullopt;
+      return std::nullopt;
     }
   }
 
@@ -165,6 +168,17 @@ struct StatusTraitsHelper {
     } else {
       return 0;
     }
+  }
+
+  static constexpr std::string GetMessage(std::string_view message,
+                                          T::Codes code) {
+    if (!message.empty()) {
+      return std::string(message);
+    }
+    if constexpr (has_code_repr) {
+      return T::ReadableCodeName(code);
+    }
+    return "";
   }
 };
 
@@ -221,6 +235,7 @@ class MEDIA_EXPORT TypedStatus {
   // Convenience aliases to allow, e.g., MyStatusType::Codes::kGreatDisturbance.
   using Traits = T;
   using Codes = typename T::Codes;
+  using Callback = base::OnceCallback<void(TypedStatus<T>)>;
 
   // See media/base/status.md for the ways that an instantiation of TypedStatus
   // can be constructed, since there are a few.
@@ -241,15 +256,14 @@ class MEDIA_EXPORT TypedStatus {
               const base::Location& location = base::Location::Current())
       : TypedStatus(code, "", location) {}
 
-  TypedStatus(std::tuple<Codes, base::StringPiece> pack,
+  TypedStatus(std::tuple<Codes, std::string_view> pack,
               const base::Location& location = base::Location::Current())
       : TypedStatus(std::get<0>(pack), std::get<1>(pack), location) {}
 
   // Used to allow returning {TypedStatus::Codes::kValue, CastFrom} implicitly
   // iff TypedStatus::Traits::OnCreateFrom is implemented.
-  template <
-      typename _T = Traits,
-      typename = std::enable_if<std::is_pointer_v<decltype(&_T::OnCreateFrom)>>>
+  template <typename _T = Traits>
+    requires(requires { &_T::OnCreateFrom; })
   TypedStatus(
       Codes code,
       const typename internal::SecondArgType<decltype(_T::OnCreateFrom)>::Type&
@@ -263,12 +277,11 @@ class MEDIA_EXPORT TypedStatus {
 
   // Used to allow returning {TypedStatus::Codes::kValue, "message", CastFrom}
   // implicitly iff TypedStatus::Traits::OnCreateFrom is implemented.
-  template <
-      typename _T = Traits,
-      typename = std::enable_if<std::is_pointer_v<decltype(&_T::OnCreateFrom)>>>
+  template <typename _T = Traits>
+    requires(requires { &_T::OnCreateFrom; })
   TypedStatus(
       Codes code,
-      base::StringPiece message,
+      std::string_view message,
       const typename internal::SecondArgType<decltype(_T::OnCreateFrom)>::Type&
           data,
       const base::Location& location = base::Location::Current())
@@ -279,11 +292,11 @@ class MEDIA_EXPORT TypedStatus {
 
   // Used to allow returning {TypedStatus::Codes::kValue, cause}
   template <typename CausalStatusType>
+    requires(!std::is_same_v<CausalStatusType, Traits>)
   TypedStatus(Codes code,
               TypedStatus<CausalStatusType>&& cause,
               const base::Location& location = base::Location::Current())
       : TypedStatus(code, "", location) {
-    static_assert(!std::is_same_v<CausalStatusType, Traits>);
     DCHECK(data_);
     AddCause(std::move(cause));
   }
@@ -291,7 +304,7 @@ class MEDIA_EXPORT TypedStatus {
   // Used to allow returning {TypedStatus::Codes::kValue, "message", cause}
   template <typename CausalStatusType>
   TypedStatus(Codes code,
-              base::StringPiece message,
+              std::string_view message,
               TypedStatus<CausalStatusType>&& cause,
               const base::Location& location = base::Location::Current())
       : TypedStatus(code, message, location) {
@@ -307,7 +320,7 @@ class MEDIA_EXPORT TypedStatus {
   // Also used to allow returning {TypedStatus::Codes::kValue, "message"}
   // implicitly as a typed status.
   TypedStatus(Codes code,
-              base::StringPiece message,
+              std::string_view message,
               const base::Location& location = base::Location::Current()) {
     // Note that |message| would be dropped when code is the default value,
     // so DCHECK that it is not set.
@@ -317,7 +330,7 @@ class MEDIA_EXPORT TypedStatus {
     }
     data_ = std::make_unique<internal::StatusData>(
         Traits::Group(), static_cast<StatusCodeType>(code),
-        std::string(message), 0);
+        internal::StatusTraitsHelper<Traits>::GetMessage(message, code), 0);
     data_->AddLocation(location);
   }
 
@@ -559,7 +572,7 @@ class MEDIA_EXPORT TypedStatus {
     ReturnType MapValue(
         FnType&& lambda,
         typename ConvertTo::Codes on_error,
-        base::StringPiece message = "",
+        std::string_view message = "",
         base::Location location = base::Location::Current()) && {
       CHECK(error_ || value_);
       if (!has_value()) {
@@ -575,13 +588,27 @@ class MEDIA_EXPORT TypedStatus {
     }
 
    private:
-    absl::optional<TypedStatus<T>> error_;
+    std::optional<TypedStatus<T>> error_;
 
     // We wrap |OtherType| in a container so that windows COM wrappers work.
     // They override operator& and similar, and won't compile in a
-    // absl::optional.
-    absl::optional<std::tuple<OtherType>> value_;
+    // std::optional.
+    std::optional<std::tuple<OtherType>> value_;
   };
+
+  static Callback BindOkContinuation(Callback err,
+                                     base::OnceCallback<void(Callback)> ok) {
+    return base::BindOnce(
+        [](Callback err, base::OnceCallback<void(Callback)> ok,
+           TypedStatus<T> status) {
+          if (status.is_ok()) {
+            std::move(ok).Run(std::move(err));
+          } else {
+            std::move(err).Run(std::move(status));
+          }
+        },
+        std::move(err), std::move(ok));
+  }
 
  private:
   std::unique_ptr<internal::StatusData> data_;
@@ -589,8 +616,11 @@ class MEDIA_EXPORT TypedStatus {
   template <typename StatusEnum, typename DataView>
   friend struct mojo::StructTraits;
 
-  // Allow media-serialization
-  friend struct internal::MediaSerializer<TypedStatus<T>>;
+  // Allow media log to access the internals to generate debug info for users.
+  friend class MediaLog;
+
+  // Allow dumping TypedStatus<T> to string for debugging in tests.
+  friend struct internal::MediaSerializerDebug<TypedStatus<T>>;
 
   // Allow AddCause.
   template <typename StatusEnum>

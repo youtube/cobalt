@@ -5,15 +5,21 @@
 #ifndef COMPONENTS_ATTRIBUTION_REPORTING_AGGREGATION_KEYS_H_
 #define COMPONENTS_ATTRIBUTION_REPORTING_AGGREGATION_KEYS_H_
 
+#include <stddef.h>
+
+#include <optional>
 #include <string>
 
 #include "base/component_export.h"
 #include "base/containers/flat_map.h"
 #include "base/types/expected.h"
-#include "base/values.h"
 #include "components/attribution_reporting/source_registration_error.mojom-forward.h"
 #include "third_party/abseil-cpp/absl/numeric/int128.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+
+namespace base {
+class DictValue;
+class Value;
+}  // namespace base
 
 namespace attribution_reporting {
 
@@ -21,8 +27,8 @@ class COMPONENT_EXPORT(ATTRIBUTION_REPORTING) AggregationKeys {
  public:
   using Keys = base::flat_map<std::string, absl::uint128>;
 
-  // Returns `absl::nullopt` if `keys` is invalid.
-  static absl::optional<AggregationKeys> FromKeys(Keys keys);
+  // Returns `std::nullopt` if `keys` is invalid.
+  static std::optional<AggregationKeys> FromKeys(Keys keys);
 
   static base::expected<AggregationKeys, mojom::SourceRegistrationError>
   FromJSON(const base::Value*);
@@ -38,7 +44,12 @@ class COMPONENT_EXPORT(ATTRIBUTION_REPORTING) AggregationKeys {
 
   const Keys& keys() const { return keys_; }
 
-  base::Value::Dict ToJson() const;
+  base::DictValue ToJson() const;
+
+  friend bool operator==(const AggregationKeys&,
+                         const AggregationKeys&) = default;
+
+  static constexpr size_t kMaxBytesPerAggregationKeyId = 25;
 
  private:
   explicit AggregationKeys(Keys keys);

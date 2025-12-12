@@ -4,7 +4,7 @@
 
 #import "chrome/browser/ui/cocoa/applescript/bookmark_item_applescript.h"
 
-#include "base/mac/foundation_util.h"
+#include "base/apple/foundation_util.h"
 #include "base/strings/sys_string_conversions.h"
 #import "chrome/browser/app_controller_mac.h"
 #import "chrome/browser/ui/cocoa/applescript/apple_event_util.h"
@@ -36,11 +36,6 @@ using bookmarks::BookmarkNode;
   return self;
 }
 
-- (void)dealloc {
-  [_tempURL release];
-  [super dealloc];
-}
-
 - (void)didCreateBookmarkNode:(const bookmarks::BookmarkNode*)bookmarkNode {
   [super didCreateBookmarkNode:bookmarkNode];
   self.URL = self.tempURL;
@@ -68,9 +63,8 @@ using bookmarks::BookmarkNode;
     return;
   }
 
-  AppController* appDelegate =
-      base::mac::ObjCCastStrict<AppController>(NSApp.delegate);
-  if (!chrome::mac::IsJavaScriptEnabledForProfile(appDelegate.lastProfile) &&
+  if (!chrome::mac::IsJavaScriptEnabledForProfile(
+          AppController.sharedController.lastProfile) &&
       gurl.SchemeIs(url::kJavaScriptScheme)) {
     AppleScript::SetError(AppleScript::Error::kJavaScriptUnsupported);
     return;

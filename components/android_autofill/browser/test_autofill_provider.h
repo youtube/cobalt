@@ -13,10 +13,8 @@ namespace autofill {
 
 class TestAutofillProvider : public AutofillProvider {
  public:
-  // Create a instance owned by |web_contents|.
   explicit TestAutofillProvider(content::WebContents* web_contents)
       : AutofillProvider(web_contents) {}
-
   ~TestAutofillProvider() override = default;
 
   // AutofillProvider:
@@ -24,40 +22,31 @@ class TestAutofillProvider : public AutofillProvider {
       AndroidAutofillManager* manager,
       const FormData& form,
       const FormFieldData& field,
-      const gfx::RectF& bounding_box,
-      AutoselectFirstSuggestion autoselect_first_suggestion,
-      FormElementWasClicked form_element_was_clicked) override {}
-  void OnTextFieldDidChange(AndroidAutofillManager* manager,
-                            const FormData& form,
-                            const FormFieldData& field,
-                            const gfx::RectF& bounding_box,
-                            const base::TimeTicks timestamp) override {}
+      AutofillSuggestionTriggerSource trigger_source) override {}
+  void OnTextFieldValueChanged(AndroidAutofillManager* manager,
+                               const FormData& form,
+                               const FormFieldData& field,
+                               const base::TimeTicks timestamp) override {}
   void OnTextFieldDidScroll(AndroidAutofillManager* manager,
                             const FormData& form,
-                            const FormFieldData& field,
-                            const gfx::RectF& bounding_box) override {}
-  void OnSelectControlDidChange(AndroidAutofillManager* manager,
-                                const FormData& form,
-                                const FormFieldData& field,
-                                const gfx::RectF& bounding_box) override {}
+                            const FormFieldData& field) override {}
+  void OnSelectControlSelectionChanged(AndroidAutofillManager* manager,
+                                       const FormData& form,
+                                       const FormFieldData& field) override {}
   void OnFormSubmitted(AndroidAutofillManager* manager,
                        const FormData& form,
-                       bool known_success,
                        mojom::SubmissionSource source) override {}
-  void OnFocusNoLongerOnForm(AndroidAutofillManager* manager,
-                             bool had_interacted_form) override {}
+  void OnFocusOnNonFormField(AndroidAutofillManager* manager) override {}
   void OnFocusOnFormField(AndroidAutofillManager* manager,
                           const FormData& form,
-                          const FormFieldData& field,
-                          const gfx::RectF& bounding_box) override {}
+                          const FormFieldData& field) override {}
   void OnDidFillAutofillFormData(AndroidAutofillManager* manager,
                                  const FormData& form,
                                  base::TimeTicks timestamp) override {}
   void OnHidePopup(AndroidAutofillManager* manager) override {}
-  void OnServerPredictionsAvailable(AndroidAutofillManager* manager) override {}
-  void OnServerQueryRequestError(AndroidAutofillManager* manager,
-                                 FormSignature form_signature) override {}
-  void Reset(AndroidAutofillManager* manager) override {}
+  void OnServerPredictionsAvailable(AndroidAutofillManager&,
+                                    FormGlobalId form) override {}
+  void OnManagerResetOrDestroyed(AndroidAutofillManager* manager) override {}
   bool GetCachedIsAutofilled(const FormFieldData& field) const override;
 };
 

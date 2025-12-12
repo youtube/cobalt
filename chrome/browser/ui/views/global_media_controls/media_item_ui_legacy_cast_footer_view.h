@@ -9,7 +9,7 @@
 #include "base/memory/raw_ptr.h"
 #include "components/global_media_controls/public/constants.h"
 #include "components/global_media_controls/public/views/media_item_ui_footer.h"
-#include "ui/gfx/color_palette.h"
+#include "ui/base/metadata/metadata_header_macros.h"
 
 namespace views {
 class Button;
@@ -20,6 +20,8 @@ class LabelButton;
 // disabled.
 class MediaItemUILegacyCastFooterView
     : public global_media_controls::MediaItemUIFooter {
+  METADATA_HEADER(MediaItemUILegacyCastFooterView,
+                  global_media_controls::MediaItemUIFooter)
  public:
   explicit MediaItemUILegacyCastFooterView(
       base::RepeatingClosure stop_casting_callback);

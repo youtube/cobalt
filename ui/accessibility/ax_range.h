@@ -6,13 +6,13 @@
 #define UI_ACCESSIBILITY_AX_RANGE_H_
 
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "base/strings/utf_string_conversions.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/accessibility/ax_clipping_behavior.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_node_position.h"
@@ -41,7 +41,7 @@ class AXRangeRectDelegate {
       AXNodeID node_id,
       int start_offset,
       int end_offset,
-      ui::AXClippingBehavior clipping_behavior,
+      AXClippingBehavior clipping_behavior,
       AXOffscreenResult* offscreen_result) = 0;
   virtual gfx::Rect GetBoundsRect(AXTreeID tree_id,
                                   AXNodeID node_id,
@@ -53,7 +53,7 @@ class AXRangeRectDelegate {
 // In order to avoid any confusion regarding whether a deep or a shallow copy is
 // being performed, this class can be moved, but not copied.
 template <class AXPositionType>
-class AXRange {
+class AXRange final {
  public:
   using AXPositionInstance = std::unique_ptr<AXPositionType>;
 
@@ -82,7 +82,7 @@ class AXRange {
     focus_.swap(other.focus_);
   }
 
-  virtual ~AXRange() = default;
+  ~AXRange() = default;
 
   AXPositionType* anchor() const {
     DCHECK(anchor_);
@@ -128,11 +128,11 @@ class AXRange {
   //        <0 - If the first position would come BEFORE the second.
   //        >0 - If the first position would come AFTER the second.
   //   nullopt - If positions are not comparable (see AXPosition::CompareTo).
-  static absl::optional<int> CompareEndpoints(const AXPositionType* first,
-                                              const AXPositionType* second) {
+  static std::optional<int> CompareEndpoints(const AXPositionType* first,
+                                             const AXPositionType* second) {
     DCHECK(first->IsValid());
     DCHECK(second->IsValid());
-    absl::optional<int> tree_position_comparison =
+    std::optional<int> tree_position_comparison =
         first->AsTreePosition()->CompareTo(*second->AsTreePosition());
 
     // When the tree comparison is nullopt, using value_or(1) forces a default
@@ -301,14 +301,14 @@ class AXRange {
       AXTextConcatenationBehavior concatenation_behavior =
           AXTextConcatenationBehavior::kWithoutParagraphBreaks,
       AXEmbeddedObjectBehavior embedded_object_behavior =
-          AXEmbeddedObjectBehavior::kExposeCharacter,
+          AXEmbeddedObjectBehavior::kExposeCharacterForHypertext,
       int max_count = -1,
       bool include_ignored = false,
-      size_t* appended_newlines_count = nullptr) const {
+      std::vector<size_t>* appended_newlines_indices = nullptr) const {
     if (max_count == 0 || IsNull())
       return std::u16string();
 
-    absl::optional<int> endpoint_comparison =
+    std::optional<int> endpoint_comparison =
         CompareEndpoints(anchor(), focus());
     if (!endpoint_comparison)
       return std::u16string();
@@ -321,7 +321,6 @@ class AXRange {
                                  : anchor_->AsLeafTextPosition();
 
     std::u16string range_text;
-    size_t computed_newlines_count = 0;
     bool is_first_non_whitespace_leaf = true;
     bool crossed_paragraph_boundary = false;
     bool is_first_included_leaf = true;
@@ -355,7 +354,9 @@ class AXRange {
           // previous leaf position was a <br> (already ending with a newline).
           if (crossed_paragraph_boundary && !found_trailing_newline) {
             range_text += u"\n";
-            computed_newlines_count++;
+            if (appended_newlines_indices) {
+              appended_newlines_indices->push_back(range_text.length() - 1);
+            }
           }
 
           is_first_non_whitespace_leaf = false;
@@ -400,16 +401,19 @@ class AXRange {
         break;
       }
 
+      ax::mojom::Role prev_role = start->GetAnchor()->GetRole();
       start = start->CreateNextLeafTextPosition();
+      // We should not mark `cross_paragraph_boundary` as true if the start
+      // anchor is a `kListMarker` since there should be no newline added
+      // by default after the `kListMarker` node.
       if (concatenation_behavior ==
               AXTextConcatenationBehavior::kWithParagraphBreaks &&
-          !crossed_paragraph_boundary && !is_first_non_whitespace_leaf) {
+          !crossed_paragraph_boundary && !is_first_non_whitespace_leaf &&
+          prev_role != ax::mojom::Role::kListMarker) {
         crossed_paragraph_boundary = start->AtStartOfParagraph();
       }
     }
 
-    if (appended_newlines_count)
-      *appended_newlines_count = computed_newlines_count;
     return range_text;
   }
 
@@ -437,7 +441,7 @@ class AXRange {
       gfx::Rect degenerate_range_rect = delegate->GetInnerTextRangeBoundsRect(
           range_start->tree_id(), range_start->anchor_id(),
           range_start->text_offset(), range_end->text_offset(),
-          ui::AXClippingBehavior::kUnclipped, &offscreen_result);
+          AXClippingBehavior::kUnclipped, &offscreen_result);
       if (offscreen_result == AXOffscreenResult::kOnscreen) {
         DCHECK(degenerate_range_rect.width() == 0);
         degenerate_range_rect.set_width(1);
@@ -458,20 +462,24 @@ class AXRange {
 
       // For text anchors, we retrieve the bounding rectangles of its text
       // content. For non-text anchors (such as checkboxes, images, etc.), we
-      // want to directly retrieve their bounding rectangles.
+      // want to directly retrieve their bounding rectangles. Since text fields
+      // in Views do not have text nodes as children (the text is in the text
+      // field itself), we need to expose the inner bounds of those nodes too.
       AXOffscreenResult offscreen_result;
-      gfx::Rect current_rect =
-          (current_line_start->GetAnchor()->IsLineBreak() ||
-           current_line_start->IsInTextObject())
-              ? delegate->GetInnerTextRangeBoundsRect(
-                    current_line_start->tree_id(),
-                    current_line_start->anchor_id(),
-                    current_line_start->text_offset(),
-                    current_line_end->text_offset(),
-                    ui::AXClippingBehavior::kClipped, &offscreen_result)
-              : delegate->GetBoundsRect(current_line_start->tree_id(),
-                                        current_line_start->anchor_id(),
-                                        &offscreen_result);
+      gfx::Rect current_rect;
+      if (current_line_start->GetAnchor()->IsLineBreak() ||
+          current_line_start->IsInTextObject() ||
+          (current_line_start->GetAnchor()->IsView() &&
+           current_line_start->IsInTextField())) {
+        current_rect = delegate->GetInnerTextRangeBoundsRect(
+            current_line_start->tree_id(), current_line_start->anchor_id(),
+            current_line_start->text_offset(), current_line_end->text_offset(),
+            AXClippingBehavior::kClipped, &offscreen_result);
+      } else {
+        current_rect = delegate->GetBoundsRect(current_line_start->tree_id(),
+                                               current_line_start->anchor_id(),
+                                               &offscreen_result);
+      }
 
       // If the bounding box of the current range is clipped because it lies
       // outside an ancestor’s bounds, then the bounding box is pushed to the

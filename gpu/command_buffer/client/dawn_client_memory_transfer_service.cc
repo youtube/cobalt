@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/390223051): Remove C-library calls to fix the errors.
+#pragma allow_unsafe_libc_calls
+#endif
+
 #include "gpu/command_buffer/client/dawn_client_memory_transfer_service.h"
 
 #include "base/memory/raw_ptr.h"
@@ -147,7 +152,8 @@ void DawnClientMemoryTransferService::MarkHandleFree(void* ptr) {
 }
 
 void DawnClientMemoryTransferService::FreeHandles(CommandBufferHelper* helper) {
-  std::vector<void*> to_free = std::move(free_blocks_);
+  std::vector<raw_ptr<void, VectorExperimental>> to_free =
+      std::move(free_blocks_);
   if (to_free.size() > 0) {
     int32_t token = helper->InsertToken();
     for (void* ptr : to_free) {

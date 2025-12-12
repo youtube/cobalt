@@ -36,8 +36,6 @@ namespace {
 using std::placeholders::_1;
 using std::placeholders::_2;
 
-using HandlerResult = PlayerWorker::Handler::HandlerResult;
-
 // TODO: Make this configurable inside SbPlayerCreate().
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 
@@ -81,7 +79,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::Init(
+Result<void> FilterBasedPlayerWorkerHandler::Init(
     SbPlayer player,
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
@@ -179,9 +177,9 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
   return Success();
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
-                                                   int ticket) {
-  SB_DCHECK(BelongsToCurrentThread());
+Result<void> FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
+                                                  int ticket) {
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Seek to " << seek_to_time << ", and media time provider is "
                << media_time_provider_;
@@ -206,11 +204,11 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
   return Success();
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
+Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
     const InputBuffers& input_buffers,
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(samples_written);
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -296,9 +294,9 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteSamples(
   return Success();
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::WriteEndOfStream(
+Result<void> FilterBasedPlayerWorkerHandler::WriteEndOfStream(
     SbMediaType sample_type) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (sample_type == kSbMediaTypeAudio) {
     if (!audio_renderer_) {
@@ -327,8 +325,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::WriteEndOfStream(
   return Success();
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
-  SB_DCHECK(BelongsToCurrentThread());
+Result<void> FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Set pause from " << paused_ << " to " << pause
                << ", and media time provider is " << media_time_provider_;
@@ -348,9 +346,9 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   return Success();
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::SetPlaybackRate(
+Result<void> FilterBasedPlayerWorkerHandler::SetPlaybackRate(
     double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Set playback rate from " << playback_rate_ << " to "
                << playback_rate << ", and media time provider is "
@@ -368,7 +366,7 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetPlaybackRate(
 }
 
 void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Set volume from " << volume_ << " to " << volume
                << ", and audio renderer is " << audio_renderer_;
@@ -379,8 +377,8 @@ void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
   }
 }
 
-HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
-  SB_DCHECK(BelongsToCurrentThread());
+Result<void> FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
+  SB_CHECK(BelongsToCurrentThread());
 
   if (memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0) {
     // |z_index| is changed quite frequently.  Assign |z_index| first, so we
@@ -475,7 +473,7 @@ void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
 }
 
 void FilterBasedPlayerWorkerHandler::Update() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!media_time_provider_) {
     return;
@@ -500,7 +498,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
 }
 
 void FilterBasedPlayerWorkerHandler::Stop() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "FilterBasedPlayerWorkerHandler stopped.";
 

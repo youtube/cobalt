@@ -35,6 +35,14 @@ enum class BrowserTaskType {
   // Tasks processing ServiceWorker's storage control's response.
   // TODO(chikamune): Make this content-internal.
   kServiceWorkerStorageControlResponse,
+
+  // Task continuing navigation asynchronously after determining that no before
+  // unload handlers are registered in the unloading render.
+  // NOTE: This task type should not be used for other navigation-related tasks
+  // as they should be ordered w.r.t. IPC channel and the UI thread's default
+  // task runner. Reach out to navigation-dev@ before adding new usages.
+  kBeforeUnloadBrowserResponse,
+
 };
 
 class CONTENT_EXPORT BrowserTaskTraits {
@@ -42,15 +50,13 @@ class CONTENT_EXPORT BrowserTaskTraits {
   struct ValidTrait {
     ValidTrait(BrowserTaskType);
 
-    // TODO(1026641): Reconsider whether BrowserTaskTraits should really be
-    // supporting base::TaskPriority.
+    // TODO(crbug.com/40108370): Reconsider whether BrowserTaskTraits should
+    // really be supporting base::TaskPriority.
     ValidTrait(base::TaskPriority);
   };
 
-  template <
-      class... ArgTypes,
-      class CheckArgumentsAreValid = std::enable_if_t<
-          base::trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>::value>>
+  template <class... ArgTypes>
+    requires base::trait_helpers::AreValidTraits<ValidTrait, ArgTypes...>
   // TaskTraits are intended to be implicitly-constructable (eg {}).
   // NOLINTNEXTLINE(google-explicit-constructor)
   constexpr BrowserTaskTraits(ArgTypes... args)

@@ -9,7 +9,7 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
-#include "base/metrics/histogram_macros.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "components/dom_distiller/content/browser/distiller_javascript_utils.h"
 #include "components/dom_distiller/core/distiller_page.h"
@@ -30,7 +30,11 @@ namespace dom_distiller {
 SourcePageHandleWebContents::SourcePageHandleWebContents(
     content::WebContents* web_contents,
     bool owned)
-    : web_contents_(web_contents), owned_(owned) {}
+    : web_contents_(web_contents), owned_(owned) {
+  if (web_contents_ && owned) {
+    web_contents_->SetOwnerLocationForDebug(FROM_HERE);
+  }
+}
 
 SourcePageHandleWebContents::~SourcePageHandleWebContents() {
   if (owned_) {
@@ -76,7 +80,7 @@ DistillerPageWebContents::DistillerPageWebContents(
 
 DistillerPageWebContents::~DistillerPageWebContents() = default;
 
-bool DistillerPageWebContents::StringifyOutput() {
+bool DistillerPageWebContents::ShouldFetchOfflineData() {
   return false;
 }
 
@@ -184,8 +188,8 @@ void DistillerPageWebContents::OnWebContentsDistillationDone(
 
   if (!javascript_start.is_null()) {
     base::TimeDelta javascript_time = base::TimeTicks::Now() - javascript_start;
-    UMA_HISTOGRAM_TIMES("DomDistiller.Time.RunJavaScript", javascript_time);
-    DVLOG(1) << "DomDistiller.Time.RunJavaScript = " << javascript_time;
+    base::UmaHistogramTimes("DomDistiller.Time.RunDistillationJavaScript",
+                            javascript_time);
   }
 
   DistillerPage::OnDistillationDone(page_url, &value);

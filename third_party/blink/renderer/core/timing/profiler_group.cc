@@ -4,7 +4,8 @@
 
 #include "third_party/blink/renderer/core/timing/profiler_group.h"
 
-#include "base/ranges/algorithm.h"
+#include <algorithm>
+
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "third_party/blink/public/platform/task_type.h"
@@ -20,7 +21,6 @@
 #include "third_party/blink/renderer/core/timing/profiler.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_state.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread_scheduler.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -87,8 +87,7 @@ bool ProfilerGroup::CanProfile(LocalDOMWindow* local_window,
 
 void ProfilerGroup::InitializeIfEnabled(LocalDOMWindow* local_window) {
   if (ProfilerGroup::CanProfile(local_window)) {
-    auto* profiler_group =
-        ProfilerGroup::From(V8PerIsolateData::MainThreadIsolate());
+    auto* profiler_group = ProfilerGroup::From(local_window->GetIsolate());
     profiler_group->OnProfilingContextAdded(local_window);
   }
 }
@@ -96,10 +95,12 @@ void ProfilerGroup::InitializeIfEnabled(LocalDOMWindow* local_window) {
 ProfilerGroup* ProfilerGroup::From(v8::Isolate* isolate) {
   auto* isolate_data = V8PerIsolateData::From(isolate);
   auto* profiler_group =
-      reinterpret_cast<ProfilerGroup*>(isolate_data->ProfilerGroup());
+      reinterpret_cast<ProfilerGroup*>(isolate_data->GetUserData(
+          V8PerIsolateData::UserData::Key::kProfileGroup));
   if (!profiler_group) {
     profiler_group = MakeGarbageCollected<ProfilerGroup>(isolate);
-    isolate_data->SetProfilerGroup(profiler_group);
+    isolate_data->SetUserData(V8PerIsolateData::UserData::Key::kProfileGroup,
+                              profiler_group);
   }
   return profiler_group;
 }
@@ -241,7 +242,7 @@ void ProfilerGroup::WillBeDestroyed() {
 void ProfilerGroup::Trace(Visitor* visitor) const {
   visitor->Trace(profilers_);
   visitor->Trace(context_observers_);
-  V8PerIsolateData::GarbageCollectedData::Trace(visitor);
+  V8PerIsolateData::UserData::Trace(visitor);
 }
 
 void ProfilerGroup::OnProfilingContextDestroyed(
@@ -275,9 +276,10 @@ void ProfilerGroup::TeardownV8Profiler() {
   cpu_profiler_ = nullptr;
 }
 
-void ProfilerGroup::StopProfiler(ScriptState* script_state,
-                                 Profiler* profiler,
-                                 ScriptPromiseResolver* resolver) {
+void ProfilerGroup::StopProfiler(
+    ScriptState* script_state,
+    Profiler* profiler,
+    ScriptPromiseResolver<ProfilerTrace>* resolver) {
   DCHECK(cpu_profiler_);
   DCHECK(!profiler->stopped());
 
@@ -326,7 +328,7 @@ void ProfilerGroup::StopDetachedProfiler(String profiler_id) {
 
   // we use a vector instead of a map because the expected number of profiler
   // is expected to be very small
-  auto* it = base::ranges::find(detached_profiler_ids_, profiler_id);
+  auto it = std::ranges::find(detached_profiler_ids_, profiler_id);
 
   if (it == detached_profiler_ids_.end()) {
     // Profiler already stopped

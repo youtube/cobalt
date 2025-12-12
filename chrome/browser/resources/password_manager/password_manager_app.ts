@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import 'chrome://resources/cr_elements/cr_page_host_style.css.js';
+import 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
 import 'chrome://resources/cr_elements/cr_shared_style.css.js';
 import 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
-import 'chrome://resources/polymer/v3_0/iron-media-query/iron-media-query.js';
-import 'chrome://resources/polymer/v3_0/iron-pages/iron-pages.js';
-import 'chrome://resources/cr_components/settings_prefs/prefs.js';
+import '/shared/settings/prefs/prefs.js';
 import './checkup_section.js';
 import './checkup_details_section.js';
 import './password_details_section.js';
+import './password_change_details.js';
 import './passwords_exporter.js';
 import './passwords_section.js';
 import './settings_section.js';
@@ -17,27 +17,32 @@ import './shared_style.css.js';
 import './side_bar.js';
 import './toolbar.js';
 
-import {CrToastElement} from '//resources/cr_elements/cr_toast/cr_toast.js';
+import type {CrToastElement} from '//resources/cr_elements/cr_toast/cr_toast.js';
 import {focusWithoutInk} from '//resources/js/focus_without_ink.js';
-import {SettingsPrefsElement} from 'chrome://resources/cr_components/settings_prefs/prefs.js';
+import {loadTimeData} from '//resources/js/load_time_data.js';
+import type {SettingsPrefsElement} from '/shared/settings/prefs/prefs.js';
 import {CrContainerShadowMixin} from 'chrome://resources/cr_elements/cr_container_shadow_mixin.js';
-import {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
+import type {CrDrawerElement} from 'chrome://resources/cr_elements/cr_drawer/cr_drawer.js';
+import type {CrPageSelectorElement} from 'chrome://resources/cr_elements/cr_page_selector/cr_page_selector.js';
 import {FindShortcutMixin} from 'chrome://resources/cr_elements/find_shortcut_mixin.js';
 import {I18nMixin} from 'chrome://resources/cr_elements/i18n_mixin.js';
-import {getDeepActiveElement, listenOnce} from 'chrome://resources/js/util_ts.js';
-import {IronPagesElement} from 'chrome://resources/polymer/v3_0/iron-pages/iron-pages.js';
-import {DomIf, PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {EventTracker} from 'chrome://resources/js/event_tracker.js';
+import {PluralStringProxyImpl} from 'chrome://resources/js/plural_string_proxy.js';
+import {getDeepActiveElement, listenOnce} from 'chrome://resources/js/util.js';
+import type {DomIf} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
-import {CheckupSectionElement} from './checkup_section.js';
-import {FocusConfig} from './focus_config.js';
-import {PasswordRemovedEvent} from './password_details_card.js';
+import type {CheckupSectionElement} from './checkup_section.js';
+import type {PasswordRemovedEvent} from './credential_details/password_details_card.js';
+import type {FocusConfig} from './focus_config.js';
 import {getTemplate} from './password_manager_app.html.js';
 import {PasswordManagerImpl} from './password_manager_proxy.js';
-import {PasswordsSectionElement} from './passwords_section.js';
-import {Page, Route, RouteObserverMixin, Router} from './router.js';
-import {SettingsSectionElement} from './settings_section.js';
-import {PasswordManagerSideBarElement} from './side_bar.js';
-import {PasswordManagerToolbarElement} from './toolbar.js';
+import type {PasswordsSectionElement} from './passwords_section.js';
+import type {Route} from './router.js';
+import {Page, RouteObserverMixin, Router} from './router.js';
+import type {SettingsSectionElement} from './settings_section.js';
+import type {PasswordManagerSideBarElement} from './side_bar.js';
+import type {PasswordManagerToolbarElement} from './toolbar.js';
 
 /**
  * Checks if an HTML element is an editable. An editable is either a text
@@ -52,15 +57,20 @@ function isEditable(element: Element): boolean {
             (element as HTMLInputElement).type)));
 }
 
+export type PasswordsMovedEvent =
+    CustomEvent<{accountEmail: string, numberOfPasswords: number}>;
+
+export type ValueCopiedEvent = CustomEvent<{toastMessage: string}>;
+
 export interface PasswordManagerAppElement {
   $: {
     checkup: CheckupSectionElement,
-    content: IronPagesElement,
+    content: CrPageSelectorElement,
     drawer: CrDrawerElement,
     drawerTemplate: DomIf,
     passwords: PasswordsSectionElement,
     prefs: SettingsPrefsElement,
-    removalToast: CrToastElement,
+    toast: CrToastElement,
     settings: SettingsSectionElement,
     sidebar: PasswordManagerSideBarElement,
     toolbar: PasswordManagerToolbarElement,
@@ -86,11 +96,24 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
        */
       prefs_: Object,
 
-      selectedPage_: String,
+      selectedPage_: {
+        type: String,
+        value: Page.PASSWORDS,
+      },
 
       narrow_: {
         type: Boolean,
-        observer: 'onNarrowChanged_',
+        observer: 'onMaxWidthChanged_',
+      },
+
+      collapsed_: {
+        type: Boolean,
+        observer: 'onMaxWidthChanged_',
+      },
+
+      pageTitle_: {
+        type: String,
+        value: () => loadTimeData.getString('passwordManagerTitle'),
       },
 
       /*
@@ -102,6 +125,11 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
       },
 
       toastMessage_: String,
+
+      /**
+       * Whether to show an "undo" button on the removal toast.
+       */
+      showUndo_: Boolean,
 
       /**
        * A Map specifying which element should be focused when exiting a
@@ -119,13 +147,65 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
     };
   }
 
-  private selectedPage_: Page;
-  private narrow_: boolean;
-  private toastMessage_: string;
-  private focusConfig_: FocusConfig;
+  declare private prefs_: {[key: string]: any};
+  declare private selectedPage_: Page;
+  declare private narrow_: boolean;
+  declare private collapsed_: boolean;
+  declare private pageTitle_: string;
+  declare private toastMessage_: string;
+  declare private showUndo_: boolean;
+  declare private focusConfig_: FocusConfig;
+  private eventTracker_: EventTracker = new EventTracker();
+
+  override connectedCallback() {
+    super.connectedCallback();
+
+    const narrowQuery = window.matchMedia('(max-width: 1036px)');
+    this.narrow_ = narrowQuery.matches;
+    this.eventTracker_.add(
+        narrowQuery, 'change',
+        (e: MediaQueryListEvent) => this.narrow_ = e.matches);
+
+    const collapsedQuery = window.matchMedia('(max-width: 1200px)');
+    this.collapsed_ = collapsedQuery.matches;
+    this.eventTracker_.add(
+        collapsedQuery, 'change',
+        (e: MediaQueryListEvent) => this.collapsed_ = e.matches);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.eventTracker_.removeAll();
+  }
 
   override ready() {
     super.ready();
+
+    window.CrPolicyStrings = {
+      controlledSettingExtension:
+          loadTimeData.getString('controlledSettingExtension'),
+      controlledSettingExtensionWithoutName:
+          loadTimeData.getString('controlledSettingExtensionWithoutName'),
+      controlledSettingPolicy:
+          loadTimeData.getString('controlledSettingPolicy'),
+      controlledSettingRecommendedMatches:
+          loadTimeData.getString('controlledSettingRecommendedMatches'),
+      controlledSettingRecommendedDiffers:
+          loadTimeData.getString('controlledSettingRecommendedDiffers'),
+      controlledSettingChildRestriction:
+          loadTimeData.getString('controlledSettingChildRestriction'),
+      controlledSettingParent:
+          loadTimeData.getString('controlledSettingParent'),
+
+      // <if expr="chromeos_ash">
+      controlledSettingShared:
+          loadTimeData.getString('controlledSettingShared'),
+      controlledSettingWithOwner:
+          loadTimeData.getString('controlledSettingWithOwner'),
+      controlledSettingNoOwner:
+          loadTimeData.getString('controlledSettingNoOwner'),
+      // </if>
+    };
 
     document.addEventListener('keydown', e => {
       // <if expr="is_macosx">
@@ -145,17 +225,20 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
       this.$.drawerTemplate.if = true;
     });
 
-    this.addEventListener('cr-toolbar-menu-tap', this.onMenuButtonTap_);
+    this.addEventListener('cr-toolbar-menu-click', this.onMenuButtonClick_);
+    this.addEventListener('close-drawer', this.closeDrawer_);
   }
 
   override currentRouteChanged(route: Route): void {
     this.selectedPage_ = route.page;
     setTimeout(() => {  // Async to allow page to load.
-      if (route.page === Page.CHECKUP_DETAILS) {
-        this.enableShadowBehavior(false);
-        this.showDropShadows();
+      if (route.page === Page.CHECKUP_DETAILS ||
+          route.page === Page.PASSWORD_CHANGE) {
+        this.enableScrollObservation(false);
+        this.setForceDropShadows(true);
       } else {
-        this.enableShadowBehavior(true);
+        this.setForceDropShadows(false);
+        this.enableScrollObservation(true);
       }
     }, 0);
   }
@@ -165,8 +248,12 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
     if (modalContextOpen) {
       return false;
     }
-    this.$.toolbar.searchField.showAndFocus();
-    return true;
+    // Redirect to Password Manager search on Passwords page.
+    if (Router.getInstance().currentRoute.page === Page.PASSWORDS) {
+      this.$.toolbar.searchField.showAndFocus();
+      return true;
+    }
+    return false;
   }
 
   // Override FindShortcutMixin methods.
@@ -174,14 +261,26 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
     return this.$.toolbar.searchField.isSearchFocused();
   }
 
-  private onNarrowChanged_() {
+  private onMaxWidthChanged_() {
     if (this.$.drawer.open && !this.narrow_) {
       this.$.drawer.close();
     }
+    // Window is greater than 980px but less than 1200px.
+    if (!this.narrow_ && this.collapsed_) {
+      this.pageTitle_ = this.i18n('passwordManagerString');
+    } else {
+      this.pageTitle_ = this.i18n('passwordManagerTitle');
+    }
   }
 
-  private onMenuButtonTap_() {
+  private onMenuButtonClick_() {
     this.$.drawer.toggle();
+  }
+
+  private closeDrawer_() {
+    if (this.$.drawer && this.$.drawer.open) {
+      this.$.drawer.close();
+    }
   }
 
   setNarrowForTesting(state: boolean) {
@@ -210,14 +309,37 @@ export class PasswordManagerAppElement extends PasswordManagerAppElementBase {
   }
 
   private onPasswordRemoved_(_event: PasswordRemovedEvent) {
-    // TODO(crbug.com/1350947): Show different message if account store user.
+    // TODO(crbug.com/40234318): Show different message if account store user.
+    this.showUndo_ = true;
     this.toastMessage_ = this.i18n('passwordDeleted');
-    this.$.removalToast.show();
+    this.$.toast.show();
+  }
+
+  private onPasskeyRemoved_() {
+    this.showUndo_ = false;
+    this.toastMessage_ = this.i18n('passkeyDeleted');
+    this.$.toast.show();
+  }
+
+  private async onPasswordsMoved_(event: PasswordsMovedEvent) {
+    this.showUndo_ = false;
+    this.toastMessage_ =
+        await PluralStringProxyImpl.getInstance()
+            .getPluralString(
+                'passwordsMovedToastMessage', event.detail.numberOfPasswords)
+            .then(label => label.replace('$1', event.detail.accountEmail));
+    this.$.toast.show();
+  }
+
+  private onValueCopied_(event: ValueCopiedEvent) {
+    this.showUndo_ = false;
+    this.toastMessage_ = event.detail.toastMessage;
+    this.$.toast.show();
   }
 
   private onUndoButtonClick_() {
     PasswordManagerImpl.getInstance().undoRemoveSavedPasswordOrException();
-    this.$.removalToast.hide();
+    this.$.toast.hide();
   }
 
   private onSearchEnterClick_() {

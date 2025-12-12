@@ -7,6 +7,7 @@ import argparse
 import logging
 import os
 
+# //testing imports.
 from unexpected_passes_common import constants
 
 
@@ -43,6 +44,14 @@ def AddCommonArguments(parser: argparse.ArgumentParser) -> None:
                       help='Automatically modify or split semi-stale '
                       'expectations so they only apply to configurations that '
                       'actually need them.')
+  parser.add_argument('--no-auto-close-bugs',
+                      dest='auto_close_bugs',
+                      action='store_false',
+                      default=True,
+                      help='Disables automatic closing of bugs that no longer '
+                      'have active expectations once the generated CL lands. '
+                      'If set, a comment will be posted to the bug when all '
+                      'active expectations are gone instead.')
   parser.add_argument('-v',
                       '--verbose',
                       action='count',
@@ -54,13 +63,6 @@ def AddCommonArguments(parser: argparse.ArgumentParser) -> None:
                       action='store_true',
                       default=False,
                       help='Disable logging for non-errors.')
-  parser.add_argument('--large-query-mode',
-                      action='store_true',
-                      default=False,
-                      help='Run the script in large query mode. This incurs '
-                      'a significant performance hit, but allows the use of '
-                      'larger sample sizes on large test suites by partially '
-                      'working around a hard memory limit in BigQuery.')
   parser.add_argument('--expectation-grace-period',
                       type=int,
                       default=7,
@@ -78,11 +80,15 @@ def AddCommonArguments(parser: argparse.ArgumentParser) -> None:
                             'intended for use in CL descriptions. If not '
                             'specified, will be printed to the terminal '
                             'instead.'))
-  parser.add_argument('--jobs',
-                      '-j',
-                      type=int,
-                      help=('How many parallel jobs to run. By default, runs '
-                            'all work in parallel.'))
+  parser.add_argument('--keep-unmatched-results',
+                      action='store_true',
+                      default=False,
+                      help=('Store unmatched results and include them in the '
+                            'script output. Doing so can result in a '
+                            'significant increase in memory usage depending on '
+                            'the data being queried. This is meant for '
+                            'debugging purposes and should not be needed '
+                            'during normal use.'))
   internal_group = parser.add_mutually_exclusive_group()
   internal_group.add_argument('--include-internal-builders',
                               action='store_true',

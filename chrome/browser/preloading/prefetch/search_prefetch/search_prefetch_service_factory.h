@@ -21,7 +21,11 @@ class SearchPrefetchServiceFactory : public ProfileKeyedServiceFactory {
  public:
   // Gets the SearchPrefetchService for the profile.
   //
-  // Returns null if the features if not enabled or incognito.
+  // Returns null if either:
+  //
+  // - the profile is incognito and the feature param for it is disabled. See
+  //   crbug.com/394716358.
+  // - the feature `kDsePreload2` is enabled.
   static SearchPrefetchService* GetForProfile(Profile* profile);
 
   // Gets the LazyInstance that owns all SearchPrefetchService(s).
@@ -38,7 +42,7 @@ class SearchPrefetchServiceFactory : public ProfileKeyedServiceFactory {
   ~SearchPrefetchServiceFactory() override;
 
   // BrowserContextKeyedServiceFactory:
-  KeyedService* BuildServiceInstanceFor(
+  std::unique_ptr<KeyedService> BuildServiceInstanceForBrowserContext(
       content::BrowserContext* context) const override;
 };
 

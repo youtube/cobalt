@@ -4,7 +4,6 @@
 
 #include "ash/system/unified/quick_settings_footer.h"
 
-#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_pref_names.h"
 #include "ash/constants/quick_settings_catalogs.h"
 #include "ash/public/cpp/ash_view_ids.h"
@@ -17,7 +16,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/test/metrics/histogram_tester.h"
-#include "base/test/scoped_feature_list.h"
+#include "base/test/run_until.h"
 #include "components/user_manager/user_type.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/view_utils.h"
@@ -35,7 +34,6 @@ class QuickSettingsFooterTest : public NoSessionAshTestBase {
   ~QuickSettingsFooterTest() override = default;
 
   void SetUp() override {
-    feature_list_.InitWithFeatures({features::kQsRevamp}, {});
     NoSessionAshTestBase::SetUp();
     widget_ = CreateFramelessTestWidget();
     widget_->SetFullscreen(true);
@@ -68,21 +66,25 @@ class QuickSettingsFooterTest : public NoSessionAshTestBase {
         footer_->GetViewByID(VIEW_ID_QS_POWER_BUTTON));
   }
 
+  views::View* GetUserAvatar() {
+    return footer_->GetViewByID(VIEW_ID_QS_USER_AVATAR_BUTTON);
+  }
+
   void LayoutFooter() { views::test::RunScheduledLayout(footer_); }
 
  private:
   std::unique_ptr<views::Widget> widget_;
 
   // Owned by `widget_`.
-  raw_ptr<QuickSettingsFooter, ExperimentalAsh> footer_;
-
-  base::test::ScopedFeatureList feature_list_;
+  raw_ptr<QuickSettingsFooter, DanglingUntriaged> footer_;
 };
 
 // Tests that all buttons are with the correct view id, catalog name and UMA
 // tracking.
 TEST_F(QuickSettingsFooterTest, ButtonNamesAndUMA) {
-  CreateUserSessions(1);
+  auto primary = SimulateUserLogin(kRegularUserLoginInfo);
+  SimulateUserLogin({"user1@tray"});
+  SwitchActiveUser(primary);
   SetUpView();
 
   // The number of view id should be the number of catalog name -1, since
@@ -101,6 +103,10 @@ TEST_F(QuickSettingsFooterTest, ButtonNamesAndUMA) {
 
   EXPECT_TRUE(GetPowerButton()->GetVisible());
   EXPECT_EQ(VIEW_ID_QS_POWER_BUTTON, GetPowerButton()->GetID());
+
+  ASSERT_TRUE(GetUserAvatar());
+  EXPECT_TRUE(GetUserAvatar()->GetVisible());
+  EXPECT_EQ(VIEW_ID_QS_USER_AVATAR_BUTTON, GetUserAvatar()->GetID());
 
   EXPECT_TRUE(GetBatteryButton()->GetVisible());
   EXPECT_EQ(VIEW_ID_QS_BATTERY_BUTTON, GetBatteryButton()->GetID());
@@ -125,27 +131,38 @@ TEST_F(QuickSettingsFooterTest, ButtonNamesAndUMA) {
                                       /*expected_count=*/1);
 }
 
-// Settings button is hidden before login.
+// Settings button and avatar button are hidden before login.
 TEST_F(QuickSettingsFooterTest, ButtonStatesNotLoggedIn) {
   SetUpView();
 
-  EXPECT_EQ(nullptr, GetSettingsButton());
+  EXPECT_FALSE(GetUserAvatar());
+  EXPECT_FALSE(GetSettingsButton());
   EXPECT_TRUE(GetPowerButton()->GetVisible());
   EXPECT_TRUE(GetBatteryButton()->GetVisible());
-  EXPECT_EQ(nullptr, GetSignOutButton());
+  EXPECT_FALSE(GetSignOutButton());
 }
 
 // All buttons are shown after login.
 TEST_F(QuickSettingsFooterTest, ButtonStatesLoggedIn) {
-  CreateUserSessions(1);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUpView();
 
+  EXPECT_FALSE(GetSignOutButton());
+
+  ASSERT_TRUE(GetSettingsButton());
   EXPECT_TRUE(GetSettingsButton()->GetVisible());
+
+  ASSERT_TRUE(GetPowerButton());
   EXPECT_TRUE(GetPowerButton()->GetVisible());
+
+  ASSERT_TRUE(GetBatteryButton());
   EXPECT_TRUE(GetBatteryButton()->GetVisible());
 
   // No sign-out button because there is only one account on the device.
-  EXPECT_EQ(nullptr, GetSignOutButton());
+  EXPECT_FALSE(GetSignOutButton());
+
+  // No user avatar button because only one user is signed in.
+  EXPECT_FALSE(GetUserAvatar());
 }
 
 // Settings button is hidden at the lock screen.
@@ -153,20 +170,29 @@ TEST_F(QuickSettingsFooterTest, ButtonStatesLockScreen) {
   BlockUserSession(BLOCKED_BY_LOCK_SCREEN);
   SetUpView();
 
-  EXPECT_EQ(nullptr, GetSettingsButton());
+  EXPECT_FALSE(GetSettingsButton());
+  ASSERT_TRUE(GetPowerButton());
   EXPECT_TRUE(GetPowerButton()->GetVisible());
+  ASSERT_TRUE(GetBatteryButton());
   EXPECT_TRUE(GetBatteryButton()->GetVisible());
+
+  // No user avatar button because we are in the lock screen.
+  EXPECT_FALSE(GetUserAvatar());
 }
 
 // Settings button and lock button are hidden when adding a second
 // multiprofile user.
 TEST_F(QuickSettingsFooterTest, ButtonStatesAddingUser) {
-  CreateUserSessions(1);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUserAddingScreenRunning(true);
   SetUpView();
 
+  ASSERT_FALSE(GetUserAvatar());
+  ASSERT_FALSE(GetSignOutButton());
   EXPECT_EQ(nullptr, GetSettingsButton());
+  ASSERT_TRUE(GetPowerButton());
   EXPECT_TRUE(GetPowerButton()->GetVisible());
+  ASSERT_TRUE(GetBatteryButton());
   EXPECT_TRUE(GetBatteryButton()->GetVisible());
 }
 
@@ -189,7 +215,8 @@ TEST_F(QuickSettingsFooterTest, ButtonStatesGuestMode) {
 }
 
 TEST_F(QuickSettingsFooterTest, ButtonStatesPublicAccount) {
-  SimulateUserLogin("foo@example.com", user_manager::USER_TYPE_PUBLIC_ACCOUNT);
+  SimulateUserLogin(
+      {"foo@example.com", user_manager::UserType::kPublicAccount});
   SetUpView();
 
   ASSERT_TRUE(GetSettingsButton());
@@ -204,21 +231,27 @@ TEST_F(QuickSettingsFooterTest, ButtonStatesPublicAccount) {
   ASSERT_TRUE(GetSignOutButton());
   EXPECT_TRUE(GetSignOutButton()->GetVisible());
   EXPECT_EQ(u"Exit session", GetSignOutButton()->GetText());
+
+  EXPECT_FALSE(GetUserAvatar());
 }
 
 TEST_F(QuickSettingsFooterTest, SignOutShowsWithMultipleAccounts) {
   GetSessionControllerClient()->set_existing_users_count(2);
-  CreateUserSessions(1);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUpView();
 
   ASSERT_TRUE(GetSignOutButton());
   EXPECT_TRUE(GetSignOutButton()->GetVisible());
   EXPECT_EQ(u"Sign out", GetSignOutButton()->GetText());
+
+  // Although there are two accounts, only one is logged in so do not show the
+  // user avatar.
+  EXPECT_FALSE(GetUserAvatar());
 }
 
 TEST_F(QuickSettingsFooterTest, SignOutButtonRecordsUmaAndSignsOut) {
   GetSessionControllerClient()->set_existing_users_count(2);
-  CreateUserSessions(1);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUpView();
 
   base::HistogramTester histogram_tester;
@@ -230,15 +263,14 @@ TEST_F(QuickSettingsFooterTest, SignOutButtonRecordsUmaAndSignsOut) {
                                      QsButtonCatalogName::kSignOutButton,
                                      /*expected_count=*/1);
 
-  EXPECT_EQ(1, GetSessionControllerClient()->request_sign_out_count());
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetSessionControllerClient()->request_sign_out_count() == 1;
+  }));
 }
 
 // Settings button is disabled when kSettingsIconDisabled is set.
 TEST_F(QuickSettingsFooterTest, DisableSettingsIconPolicy) {
-  GetSessionControllerClient()->AddUserSession("foo@example.com",
-                                               user_manager::USER_TYPE_REGULAR);
-  GetSessionControllerClient()->SetSessionState(
-      session_manager::SessionState::ACTIVE);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUpView();
   EXPECT_EQ(views::Button::STATE_NORMAL, GetSettingsButton()->GetState());
 
@@ -251,7 +283,7 @@ TEST_F(QuickSettingsFooterTest, DisableSettingsIconPolicy) {
 
 // Tests different battery states.
 TEST_F(QuickSettingsFooterTest, BatteryButtonState) {
-  CreateUserSessions(1);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUpView();
 
   const bool use_smart_charging_ui =
@@ -279,7 +311,7 @@ TEST_F(QuickSettingsFooterTest, ButtonLayoutNotLoggedIn) {
 
 // Try to layout buttons after login.
 TEST_F(QuickSettingsFooterTest, ButtonLayoutLoggedIn) {
-  CreateUserSessions(1);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUpView();
   LayoutFooter();
 }
@@ -293,7 +325,7 @@ TEST_F(QuickSettingsFooterTest, ButtonLayoutLockScreen) {
 
 // Try to layout buttons when adding a second multiprofile user.
 TEST_F(QuickSettingsFooterTest, ButtonLayoutAddingUser) {
-  CreateUserSessions(1);
+  SimulateUserLogin(kRegularUserLoginInfo);
   SetUserAddingScreenRunning(true);
   SetUpView();
   LayoutFooter();

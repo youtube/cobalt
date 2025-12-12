@@ -7,20 +7,22 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "base/memory/memory_pressure_listener.h"
-#include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
+#include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/ash/arc/process/arc_process_service.h"
 #include "chrome/browser/performance_manager/mechanisms/working_set_trimmer_chromeos.h"
 #include "chrome/browser/performance_manager/policies/policy_features.h"
 #include "chrome/browser/performance_manager/policies/working_set_trimmer_policy.h"
+#include "chromeos/ash/experiences/arc/process/arc_process_service.h"
+#include "chromeos/dbus/power/power_manager_client.h"
 #include "content/public/browser/browser_thread.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace arc {
 class ArcProcess;
@@ -34,7 +36,8 @@ class WorkingSetTrimmerPolicyChromeOSTest;
 // ChromeOS specific WorkingSetTrimmerPolicy which uses the default policy on
 // all frames frozen, additionally it will add working set trim under memory
 // pressure.
-class WorkingSetTrimmerPolicyChromeOS : public WorkingSetTrimmerPolicy {
+class WorkingSetTrimmerPolicyChromeOS : public WorkingSetTrimmerPolicy,
+                                        chromeos::PowerManagerClient::Observer {
  public:
   // A delegate interface for checking ARCVM status. This interface allows us 1)
   // to test WorkingSetTrimmerPolicyChromeOS more easily, and 2) to have all the
@@ -77,6 +80,10 @@ class WorkingSetTrimmerPolicyChromeOS : public WorkingSetTrimmerPolicy {
 
   // ProcessNodeObserver implementation:
   void OnAllFramesInProcessFrozen(const ProcessNode* process_node) override;
+
+  // PowerManagerClient::Observer implementations:
+  void SuspendImminent(power_manager::SuspendImminent::Reason reason) override;
+  void SuspendDone(base::TimeDelta duration) override;
 
   // We maintain the last time we reclaimed an ARC process, to allow us to not
   // reclaim too frequently, this is configurable.
@@ -123,37 +130,15 @@ class WorkingSetTrimmerPolicyChromeOS : public WorkingSetTrimmerPolicy {
   // from ARCVM, and do that when it is. These are virtual for testing.
   virtual void TrimArcVmProcesses(
       base::MemoryPressureListener::MemoryPressureLevel level);
-
-  // The functions below form a chain of callbacks that carry along
-  // a WeakPtr to an instance of WorkingSetTrimmerPolicyChromeOS.
-  // That instance can be destroyed at any point in the chain.
-  // The following constraints apply:
-  // - The WeakPtr is built on the PM thread, so it can only be
-  //   checked for validity or dereferenced in the PM thread.
-  // - For member functions, there is an automatic pointer check inside
-  //   BindOnce at invocation, if the "this" is a WeakPtr.
-  // Because of the combination of constraints above, the methods that
-  // execute on threads other than the PM thread must be made static,
-  // and they must not use the WeakPtr except to pass it down the chain.
-  static void TrimArcVmProcessesOnUIThread(
-      base::MemoryPressureListener::MemoryPressureLevel level,
-      features::TrimOnMemoryPressureParams params,
-      base::WeakPtr<WorkingSetTrimmerPolicyChromeOS> ptr);
   virtual void OnTrimArcVmProcesses(mechanism::ArcVmReclaimType reclaim_type,
-                                    bool is_first_trim_post_boot,
-                                    int pages_per_minute,
-                                    int max_pages_per_iteration);
+                                    bool is_first_trim_post_boot);
   virtual void OnArcVmTrimStarting();
-  static void DoTrimArcVmOnUIThread(
-      base::WeakPtr<WorkingSetTrimmerPolicyChromeOS> ptr,
-      mechanism::WorkingSetTrimmerChromeOS* trimmer,
-      mechanism::ArcVmReclaimType reclaim_type,
-      int page_limit);
-  static void OnTrimArcVmWorkingSetOnUIThread(
-      base::WeakPtr<WorkingSetTrimmerPolicyChromeOS> ptr,
-      mechanism::ArcVmReclaimType reclaim_type,
-      bool success,
-      const std::string& failure_reason);
+  void DoTrimArcVm(mechanism::WorkingSetTrimmerChromeOS* trimmer,
+                   mechanism::ArcVmReclaimType reclaim_type,
+                   int page_limit);
+  void OnTrimArcVmWorkingSet(mechanism::ArcVmReclaimType reclaim_type,
+                             bool success,
+                             const std::string& failure_reason);
   virtual void OnArcVmTrimEnded(mechanism::ArcVmReclaimType reclaim_type,
                                 bool success);
 
@@ -161,42 +146,36 @@ class WorkingSetTrimmerPolicyChromeOS : public WorkingSetTrimmerPolicy {
 
   // Keeps track of the last time we walked the graph looking for processes
   // to trim.
-  absl::optional<base::TimeTicks> last_graph_walk_;
+  std::optional<base::TimeTicks> last_graph_walk_;
 
   // We keep track of the last time we fetched the ARC process list.
-  absl::optional<base::TimeTicks> last_arc_process_fetch_;
+  std::optional<base::TimeTicks> last_arc_process_fetch_;
 
   // We also keep track of the last time we reclaimed memory from ARCVM.
-  absl::optional<base::TimeTicks> last_arcvm_trim_;
-  absl::optional<base::TimeTicks> last_arcvm_trim_success_;
+  std::optional<base::TimeTicks> last_arcvm_trim_;
+  std::optional<base::TimeTicks> last_arcvm_trim_success_;
 
-  absl::optional<base::MemoryPressureListener> memory_pressure_listener_;
+  std::optional<base::MemoryPressureListener> memory_pressure_listener_;
 
  private:
-  static size_t GetArcVmTrimCountForFinalReport(
-      size_t current_arcvm_trim_count,
-      const base::TimeDelta& time_since_last_arcvm_trim_metric_report,
-      const base::TimeDelta& arcvm_trim_backoff_time,
-      const base::TimeDelta& arcvm_trim_metric_report_delay);
-
-  void ReportArcVmTrimMetric();
-  void ReportArcVmTrimMetricOnDestruction();
-
-  raw_ptr<Graph, ExperimentalAsh> graph_ = nullptr;
-
   bool trim_on_freeze_ = false;
   bool trim_arc_on_memory_pressure_ = false;
   bool trim_arcvm_on_memory_pressure_ = false;
+  bool disable_trim_while_suspended_ = false;
+  // The status of suspend is updated by PowerManagerClient::Observer which runs
+  // on the main thread, and is referenced by
+  // WorkingSetTrimmerPolicyChromeOS::OnMemoryPressure() which runs on the PM
+  // sequence.
+  base::Lock mutex_;
+  bool is_system_suspended_ GUARDED_BY(mutex_) = false;
+  std::optional<base::TimeTicks> last_suspend_done_time_ GUARDED_BY(mutex_);
 
   // This map contains the last trim time of arc processes.
   std::map<base::ProcessId, base::TimeTicks> arc_processes_last_trim_;
 
-  // A timer for periodically reporting UMA stats.
-  base::RepeatingTimer arcvm_trim_metric_report_timer_;
-
-  size_t arcvm_trim_count_ = 0;
-  size_t arcvm_trim_fail_count_ = 0;
-  base::ElapsedTimer time_since_last_arcvm_trim_metric_report_;
+  base::ScopedObservation<chromeos::PowerManagerClient,
+                          chromeos::PowerManagerClient::Observer>
+      power_manager_observation_{this};
 
   base::WeakPtrFactory<WorkingSetTrimmerPolicyChromeOS> weak_ptr_factory_{this};
 };

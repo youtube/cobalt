@@ -31,10 +31,11 @@ namespace guest_os {
 // opened and closes the channel once a response is received.
 class VmSKForwardingNativeMessageHost : public extensions::NativeMessageHost {
  public:
-  static const char* const kHostName;
-  static const char* const kOrigins[];
+  static constexpr char kHostName[] = "com.google.vm_sk_forwarding";
+  static constexpr const char* kOrigins[] = {
+      "chrome-extension://lehkgnicackihfeppclgiffgbgbhmbdp/",
+      "chrome-extension://lcooaekmckohjjnpaaokodoepajbnill/"};
   static const char* const kHostCreatedByExtensionNotSupportedError;
-  static const size_t kOriginCount;
 
   using ResponseCallback =
       base::OnceCallback<void(const std::string& response)>;
@@ -92,8 +93,7 @@ class VmSKForwardingNativeMessageHost : public extensions::NativeMessageHost {
   const std::string json_message_to_send_;
 
   // Unowned. |client_| must outlive this instance.
-  raw_ptr<extensions::NativeMessageHost::Client, ExperimentalAsh> client_ =
-      nullptr;
+  raw_ptr<extensions::NativeMessageHost::Client> client_ = nullptr;
 };
 
 }  // namespace guest_os

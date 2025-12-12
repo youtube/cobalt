@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
+#include <string_view>
+
 #include "raw_input_gamepad_device_win.h"
 
 // NOTE: <hidsdi.h> must be included before <hidpi.h>. clang-format will want to
@@ -13,7 +20,9 @@ extern "C" {
 }
 // clang-format on
 
-#include "base/cxx17_backports.h"
+#include <algorithm>
+#include <optional>
+
 #include "base/strings/string_util_win.h"
 #include "base/strings/sys_string_conversions.h"
 #include "device/gamepad/dualshock4_controller.h"
@@ -22,7 +31,6 @@ extern "C" {
 #include "device/gamepad/hid_haptic_gamepad.h"
 #include "device/gamepad/hid_writer_win.h"
 #include "device/gamepad/public/cpp/gamepad_features.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace device {
 
@@ -88,7 +96,7 @@ RawInputGamepadDeviceWin::RawInputGamepadDeviceWin(HANDLE device_handle,
     : handle_(device_handle),
       source_id_(source_id),
       last_update_timestamp_(GamepadDataFetcher::CurrentTimeInMicroseconds()),
-      button_report_id_(Gamepad::kButtonsLengthCap, absl::nullopt) {
+      button_report_id_(Gamepad::kButtonsLengthCap, std::nullopt) {
   ::ZeroMemory(buttons_, sizeof(buttons_));
   ::ZeroMemory(axes_, sizeof(axes_));
 
@@ -137,8 +145,8 @@ void RawInputGamepadDeviceWin::UpdateGamepad(RAWINPUT* input) {
     // Handle Dualshock4 input reports that do not specify HID gamepad usages in
     // the report descriptor.
     uint8_t report_id = input->data.hid.bRawData[0];
-    auto report = base::make_span(input->data.hid.bRawData + 1,
-                                  input->data.hid.dwSizeHid);
+    auto report =
+        base::span(input->data.hid.bRawData + 1, input->data.hid.dwSizeHid);
     Gamepad pad;
     bool is_multitouch_enabled = features::IsGamepadMultitouchEnabled();
     if (dualshock4_->ProcessInputReport(report_id, report, &pad, false,
@@ -175,16 +183,15 @@ void RawInputGamepadDeviceWin::UpdateGamepad(RAWINPUT* input) {
                      reinterpret_cast<PCHAR>(input->data.hid.bRawData),
                      input->data.hid.dwSizeHid);
 
-    std::unique_ptr<USAGE_AND_PAGE[]> usages(
-        new USAGE_AND_PAGE[buttons_length]);
-    status = HidP_GetUsagesEx(HidP_Input, 0, usages.get(), &buttons_length,
+    auto usages = base::HeapArray<USAGE_AND_PAGE>::Uninit(buttons_length);
+    status = HidP_GetUsagesEx(HidP_Input, 0, usages.data(), &buttons_length,
                               preparsed_data_,
                               reinterpret_cast<PCHAR>(input->data.hid.bRawData),
                               input->data.hid.dwSizeHid);
 
     uint8_t report_id = input->data.hid.bRawData[0];
     // Clear the button state of buttons contained in this report
-    for (size_t j = 0; j < sizeof(button_report_id_); j++) {
+    for (size_t j = 0; j < button_report_id_.size(); j++) {
       if (button_report_id_[j].has_value() &&
           button_report_id_[j].value() == report_id) {
         buttons_[j] = false;
@@ -289,8 +296,8 @@ bool RawInputGamepadDeviceWin::QueryDeviceInfo() {
   // "DEV" instead of "VID" and "PID". PCI HID devices are typically not
   // gamepads and are ignored.
   // Example PCI device name: \\?\HID#VEN_1234&DEV_ABCD
-  // TODO(crbug/881539): Potentially allow PCI HID devices to be enumerated, but
-  // prefer known gamepads when there is contention.
+  // TODO(crbug.com/41412324): Potentially allow PCI HID devices to be
+  // enumerated, but prefer known gamepads when there is contention.
   std::wstring pci_prefix = L"\\\\?\\HID#VEN_";
   if (!name_.compare(0, pci_prefix.size(), pci_prefix))
     return false;
@@ -335,16 +342,16 @@ bool RawInputGamepadDeviceWin::QueryHidInfo() {
   }
   DCHECK_EQ(0u, result);
 
-  std::unique_ptr<uint8_t[]> buffer(new uint8_t[size]);
+  auto buffer = base::HeapArray<uint8_t>::Uninit(size);
   result =
-      ::GetRawInputDeviceInfo(handle_, RIDI_DEVICEINFO, buffer.get(), &size);
+      ::GetRawInputDeviceInfo(handle_, RIDI_DEVICEINFO, buffer.data(), &size);
   if (result == static_cast<UINT>(-1)) {
     PLOG(ERROR) << "GetRawInputDeviceInfo() failed";
     return false;
   }
   DCHECK_EQ(size, result);
   RID_DEVICE_INFO* device_info =
-      reinterpret_cast<RID_DEVICE_INFO*>(buffer.get());
+      reinterpret_cast<RID_DEVICE_INFO*>(buffer.data());
 
   DCHECK_EQ(device_info->dwType, static_cast<DWORD>(RIM_TYPEHID));
   vendor_id_ = static_cast<uint16_t>(device_info->hid.dwVendorId);
@@ -366,16 +373,16 @@ bool RawInputGamepadDeviceWin::QueryDeviceName() {
   }
   DCHECK_EQ(0u, result);
 
-  std::unique_ptr<wchar_t[]> buffer(new wchar_t[size]);
-  result =
-      ::GetRawInputDeviceInfo(handle_, RIDI_DEVICENAME, buffer.get(), &size);
+  std::wstring buffer;
+  result = ::GetRawInputDeviceInfo(handle_, RIDI_DEVICENAME,
+                                   base::WriteInto(&buffer, size), &size);
   if (result == static_cast<UINT>(-1)) {
     PLOG(ERROR) << "GetRawInputDeviceInfo() failed";
     return false;
   }
   DCHECK_EQ(size, result);
 
-  name_ = buffer.get();
+  name_ = std::move(buffer);
 
   return true;
 }
@@ -394,7 +401,7 @@ bool RawInputGamepadDeviceWin::QueryProductString(
   }
 
   // Remove trailing NUL characters.
-  buffer = std::wstring(base::TrimString(buffer, base::WStringPiece(L"\0", 1),
+  buffer = std::wstring(base::TrimString(buffer, std::wstring_view(L"\0", 1),
                                          base::TRIM_TRAILING));
 
   // The product string cannot be empty.
@@ -423,10 +430,10 @@ bool RawInputGamepadDeviceWin::QueryDeviceCapabilities() {
   }
   DCHECK_EQ(0u, result);
 
-  ppd_buffer_.reset(new uint8_t[size]);
-  preparsed_data_ = reinterpret_cast<PHIDP_PREPARSED_DATA>(ppd_buffer_.get());
+  ppd_buffer_ = base::HeapArray<uint8_t>::Uninit(size);
+  preparsed_data_ = reinterpret_cast<PHIDP_PREPARSED_DATA>(ppd_buffer_.data());
   result = ::GetRawInputDeviceInfo(handle_, RIDI_PREPARSEDDATA,
-                                   ppd_buffer_.get(), &size);
+                                   ppd_buffer_.data(), &size);
   if (result == static_cast<UINT>(-1)) {
     PLOG(ERROR) << "GetRawInputDeviceInfo() failed";
     return false;
@@ -533,8 +540,8 @@ void RawInputGamepadDeviceWin::QuerySpecialButtonCapabilities(
 }
 
 void RawInputGamepadDeviceWin::QueryAxisCapabilities(uint16_t axis_count) {
-  std::unique_ptr<HIDP_VALUE_CAPS[]> axes_caps(new HIDP_VALUE_CAPS[axis_count]);
-  HidP_GetValueCaps(HidP_Input, axes_caps.get(), &axis_count, preparsed_data_);
+  auto axes_caps = base::HeapArray<HIDP_VALUE_CAPS>::Uninit(axis_count);
+  HidP_GetValueCaps(HidP_Input, axes_caps.data(), &axis_count, preparsed_data_);
 
   bool mapped_all_axes = true;
 

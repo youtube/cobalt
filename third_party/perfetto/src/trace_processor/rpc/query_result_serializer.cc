@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "src/trace_processor/rpc/query_result_serializer.h"
+#include "perfetto/ext/trace_processor/rpc/query_result_serializer.h"
 
 #include <vector>
 
@@ -269,6 +269,7 @@ void QueryResultSerializer::SerializeMetadata(
     res->add_column_names(iter_->GetColumnName(c));
   res->set_statement_count(iter_->StatementCount());
   res->set_statement_with_output_count(iter_->StatementCountWithOutput());
+  res->set_last_statement_sql(iter_->LastStatementSql());
 }
 
 }  // namespace trace_processor

@@ -16,9 +16,9 @@ package dev.cobalt.media;
 
 import android.graphics.SurfaceTexture;
 import android.view.Surface;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
 
 /**
  *  A wrapper of SurfaceTexture class.

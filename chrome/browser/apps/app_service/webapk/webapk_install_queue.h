@@ -8,11 +8,11 @@
 #include <memory>
 #include <string>
 
-#include "ash/components/arc/mojom/webapk.mojom-forward.h"
-#include "ash/components/arc/session/connection_observer.h"
 #include "base/containers/circular_deque.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "chromeos/ash/experiences/arc/mojom/webapk.mojom-forward.h"
+#include "chromeos/ash/experiences/arc/session/connection_observer.h"
 
 class Profile;
 
@@ -46,7 +46,7 @@ class WebApkInstallQueue
   void MaybeStartNext();
   void OnInstallCompleted(bool success);
 
-  raw_ptr<Profile, ExperimentalAsh> profile_;
+  raw_ptr<Profile> profile_;
   base::circular_deque<std::unique_ptr<WebApkInstallTask>> pending_installs_;
   std::unique_ptr<WebApkInstallTask> current_install_;
   bool connection_ready_ = false;

@@ -9,6 +9,7 @@
 
 #include "base/memory/ptr_util.h"
 #include "third_party/blink/renderer/core/animation/interpolable_length.h"
+#include "third_party/blink/renderer/core/animation/underlying_value_owner.h"
 #include "third_party/blink/renderer/core/css/css_identifier_value.h"
 #include "third_party/blink/renderer/core/css/css_quad_value.h"
 #include "third_party/blink/renderer/core/css/resolver/style_resolver_state.h"
@@ -56,18 +57,17 @@ struct ClipAutos {
 
 class InheritedClipChecker : public CSSInterpolationType::CSSConversionChecker {
  public:
-  static std::unique_ptr<InheritedClipChecker> Create(
-      const ComputedStyle& parent_style) {
+  static InheritedClipChecker* Create(const ComputedStyle& parent_style) {
     Vector<Length> inherited_length_list;
     GetClipLengthList(parent_style, inherited_length_list);
-    return base::WrapUnique(
-        new InheritedClipChecker(std::move(inherited_length_list)));
+    return MakeGarbageCollected<InheritedClipChecker>(
+        std::move(inherited_length_list));
   }
 
- private:
-  InheritedClipChecker(const Vector<Length>&& inherited_length_list)
+  explicit InheritedClipChecker(const Vector<Length>&& inherited_length_list)
       : inherited_length_list_(std::move(inherited_length_list)) {}
 
+ private:
   bool IsValid(const StyleResolverState& state,
                const InterpolationValue& underlying) const final {
     Vector<Length> inherited_length_list;
@@ -90,23 +90,17 @@ class InheritedClipChecker : public CSSInterpolationType::CSSConversionChecker {
 
 class CSSClipNonInterpolableValue final : public NonInterpolableValue {
  public:
-  ~CSSClipNonInterpolableValue() final = default;
-
-  static scoped_refptr<CSSClipNonInterpolableValue> Create(
-      const ClipAutos& clip_autos) {
-    return base::AdoptRef(new CSSClipNonInterpolableValue(clip_autos));
+  explicit CSSClipNonInterpolableValue(const ClipAutos& clip_autos)
+      : clip_autos_(clip_autos) {
+    DCHECK(!clip_autos_.is_auto);
   }
+  ~CSSClipNonInterpolableValue() final = default;
 
   const ClipAutos& GetClipAutos() const { return clip_autos_; }
 
   DECLARE_NON_INTERPOLABLE_VALUE_TYPE();
 
  private:
-  CSSClipNonInterpolableValue(const ClipAutos& clip_autos)
-      : clip_autos_(clip_autos) {
-    DCHECK(!clip_autos_.is_auto);
-  }
-
   const ClipAutos clip_autos_;
 };
 
@@ -152,22 +146,27 @@ enum ClipComponentIndex : unsigned {
   kClipComponentIndexCount,
 };
 
-static std::unique_ptr<InterpolableValue> ConvertClipComponent(
-    const Length& length,
-    double zoom) {
-  if (length.IsAuto())
-    return std::make_unique<InterpolableList>(0);
-  return InterpolableLength::MaybeConvertLength(length, zoom);
+static InterpolableValue* ConvertClipComponent(const Length& length,
+                                               const CSSProperty& property,
+                                               double zoom) {
+  if (length.IsAuto()) {
+    return MakeGarbageCollected<InterpolableList>(0);
+  }
+  return InterpolableLength::MaybeConvertLength(
+      length, property, zoom,
+      /*interpolate_size=*/std::nullopt);
 }
 
-static InterpolationValue CreateClipValue(const LengthBox& clip, double zoom) {
-  auto list = std::make_unique<InterpolableList>(kClipComponentIndexCount);
-  list->Set(kClipTop, ConvertClipComponent(clip.Top(), zoom));
-  list->Set(kClipRight, ConvertClipComponent(clip.Right(), zoom));
-  list->Set(kClipBottom, ConvertClipComponent(clip.Bottom(), zoom));
-  list->Set(kClipLeft, ConvertClipComponent(clip.Left(), zoom));
+static InterpolationValue CreateClipValue(const LengthBox& clip,
+                                          const CSSProperty& property,
+                                          double zoom) {
+  auto* list = MakeGarbageCollected<InterpolableList>(kClipComponentIndexCount);
+  list->Set(kClipTop, ConvertClipComponent(clip.Top(), property, zoom));
+  list->Set(kClipRight, ConvertClipComponent(clip.Right(), property, zoom));
+  list->Set(kClipBottom, ConvertClipComponent(clip.Bottom(), property, zoom));
+  list->Set(kClipLeft, ConvertClipComponent(clip.Left(), property, zoom));
   return InterpolationValue(
-      std::move(list), CSSClipNonInterpolableValue::Create(ClipAutos(clip)));
+      list, MakeGarbageCollected<CSSClipNonInterpolableValue>(ClipAutos(clip)));
 }
 
 InterpolationValue CSSClipInterpolationType::MaybeConvertNeutral(
@@ -176,7 +175,7 @@ InterpolationValue CSSClipInterpolationType::MaybeConvertNeutral(
   ClipAutos underlying_autos =
       UnderlyingAutosChecker::GetUnderlyingAutos(underlying);
   conversion_checkers.push_back(
-      std::make_unique<UnderlyingAutosChecker>(underlying_autos));
+      MakeGarbageCollected<UnderlyingAutosChecker>(underlying_autos));
   if (underlying_autos.is_auto)
     return nullptr;
   LengthBox neutral_box(
@@ -184,7 +183,7 @@ InterpolationValue CSSClipInterpolationType::MaybeConvertNeutral(
       underlying_autos.is_right_auto ? Length::Auto() : Length::Fixed(0),
       underlying_autos.is_bottom_auto ? Length::Auto() : Length::Fixed(0),
       underlying_autos.is_left_auto ? Length::Auto() : Length::Fixed(0));
-  return CreateClipValue(neutral_box, 1);
+  return CreateClipValue(neutral_box, CssProperty(), 1);
 }
 
 InterpolationValue CSSClipInterpolationType::MaybeConvertInitial(
@@ -200,7 +199,7 @@ InterpolationValue CSSClipInterpolationType::MaybeConvertInherit(
       InheritedClipChecker::Create(*state.ParentStyle()));
   if (state.ParentStyle()->HasAutoClip())
     return nullptr;
-  return CreateClipValue(state.ParentStyle()->Clip(),
+  return CreateClipValue(state.ParentStyle()->Clip(), CssProperty(),
                          state.ParentStyle()->EffectiveZoom());
 }
 
@@ -210,29 +209,28 @@ static bool IsCSSAuto(const CSSValue& value) {
          identifier_value->GetValueID() == CSSValueID::kAuto;
 }
 
-static std::unique_ptr<InterpolableValue> ConvertClipComponent(
-    const CSSValue& length) {
+static InterpolableValue* ConvertClipComponent(const CSSValue& length) {
   if (IsCSSAuto(length))
-    return std::make_unique<InterpolableList>(0);
+    return MakeGarbageCollected<InterpolableList>(0);
   return InterpolableLength::MaybeConvertCSSValue(length);
 }
 
 InterpolationValue CSSClipInterpolationType::MaybeConvertValue(
     const CSSValue& value,
-    const StyleResolverState*,
+    const StyleResolverState&,
     ConversionCheckers&) const {
   const auto* quad = DynamicTo<CSSQuadValue>(value);
   if (!quad)
     return nullptr;
-  auto list = std::make_unique<InterpolableList>(kClipComponentIndexCount);
+  auto* list = MakeGarbageCollected<InterpolableList>(kClipComponentIndexCount);
   list->Set(kClipTop, ConvertClipComponent(*quad->Top()));
   list->Set(kClipRight, ConvertClipComponent(*quad->Right()));
   list->Set(kClipBottom, ConvertClipComponent(*quad->Bottom()));
   list->Set(kClipLeft, ConvertClipComponent(*quad->Left()));
   ClipAutos autos(IsCSSAuto(*quad->Top()), IsCSSAuto(*quad->Right()),
                   IsCSSAuto(*quad->Bottom()), IsCSSAuto(*quad->Left()));
-  return InterpolationValue(std::move(list),
-                            CSSClipNonInterpolableValue::Create(autos));
+  return InterpolationValue(
+      list, MakeGarbageCollected<CSSClipNonInterpolableValue>(autos));
 }
 
 InterpolationValue
@@ -240,7 +238,7 @@ CSSClipInterpolationType::MaybeConvertStandardPropertyUnderlyingValue(
     const ComputedStyle& style) const {
   if (style.HasAutoClip())
     return nullptr;
-  return CreateClipValue(style.Clip(), style.EffectiveZoom());
+  return CreateClipValue(style.Clip(), CssProperty(), style.EffectiveZoom());
 }
 
 PairwiseInterpolationValue CSSClipInterpolationType::MaybeMergeSingles(
@@ -275,7 +273,7 @@ void CSSClipInterpolationType::Composite(
     underlying_value_owner.MutableValue().interpolable_value->ScaleAndAdd(
         underlying_fraction, *value.interpolable_value);
   else
-    underlying_value_owner.Set(*this, value);
+    underlying_value_owner.Set(this, value);
 }
 
 void CSSClipInterpolationType::ApplyStandardPropertyValue(

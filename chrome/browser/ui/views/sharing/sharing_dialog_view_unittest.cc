@@ -11,14 +11,15 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
 #include "chrome/app/vector_icons/vector_icons.h"
-#include "chrome/browser/sharing/fake_device_info.h"
-#include "chrome/browser/sharing/sharing_app.h"
-#include "chrome/browser/sharing/sharing_metrics.h"
 #include "chrome/browser/ui/views/controls/hover_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/test_with_browser_view.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/test/base/browser_with_test_window_test.h"
+#include "components/sharing_message/fake_device_info.h"
+#include "components/sharing_message/sharing_app.h"
+#include "components/sharing_message/sharing_metrics.h"
+#include "components/sharing_message/sharing_target_device_info.h"
 #include "components/sync_device_info/device_info.h"
 #include "components/url_formatter/elide_url.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -47,24 +48,30 @@ class SharingDialogViewTest : public TestWithBrowserView {
 
     // We create |web_contents_| to have a valid committed page origin to check
     // against when showing the origin view.
-    web_contents_ = browser()->OpenURL(content::OpenURLParams(
-        GURL("https://google.com"), content::Referrer(),
-        WindowOpenDisposition::CURRENT_TAB, ui::PAGE_TRANSITION_TYPED, false));
+    web_contents_ = browser()->OpenURL(
+        content::OpenURLParams(GURL("https://google.com"), content::Referrer(),
+                               WindowOpenDisposition::CURRENT_TAB,
+                               ui::PAGE_TRANSITION_TYPED, false),
+        /*navigation_handle_callback=*/{});
     CommitPendingLoad(&web_contents_->GetController());
   }
 
   void TearDown() override {
-    if (dialog_)
+    if (dialog_) {
       dialog_->GetWidget()->CloseNow();
+    }
     TestWithBrowserView::TearDown();
   }
 
-  std::vector<std::unique_ptr<syncer::DeviceInfo>> CreateDevices(int count) {
-    std::vector<std::unique_ptr<syncer::DeviceInfo>> devices;
+  std::vector<SharingTargetDeviceInfo> CreateDevices(int count) {
+    std::vector<SharingTargetDeviceInfo> devices;
     for (int i = 0; i < count; ++i) {
-      devices.push_back(
-          CreateFakeDeviceInfo("guid_" + base::NumberToString(i),
-                               "name_" + base::NumberToString(i)));
+      devices.emplace_back("guid_" + base::NumberToString(i),
+                           "name_" + base::NumberToString(i),
+                           SharingDevicePlatform::kUnknown,
+                           /*pulse_interval=*/base::TimeDelta(),
+                           syncer::DeviceInfo::FormFactor::kUnknown,
+                           /*last_updated_timestamp=*/base::Time());
     }
     return devices;
   }
@@ -88,12 +95,13 @@ class SharingDialogViewTest : public TestWithBrowserView {
   SharingDialogData CreateDialogData(int devices, int apps) {
     SharingDialogData data;
 
-    if (devices)
+    if (devices) {
       data.type = SharingDialogType::kDialogWithDevicesMaybeApps;
-    else if (apps)
+    } else if (apps) {
       data.type = SharingDialogType::kDialogWithoutDevicesWithApp;
-    else
+    } else {
       data.type = SharingDialogType::kEducationalDialog;
+    }
 
     data.prefix = SharingFeatureName::kClickToCall;
     data.devices = CreateDevices(devices);
@@ -107,7 +115,7 @@ class SharingDialogViewTest : public TestWithBrowserView {
         IDS_BROWSER_SHARING_CLICK_TO_CALL_DIALOG_INITIATING_ORIGIN;
 
     data.device_callback =
-        base::BindLambdaForTesting([&](const syncer::DeviceInfo& device) {
+        base::BindLambdaForTesting([&](const SharingTargetDeviceInfo& device) {
           device_callback_.Call(device);
         });
     data.app_callback = base::BindLambdaForTesting(
@@ -118,12 +126,12 @@ class SharingDialogViewTest : public TestWithBrowserView {
 
   SharingDialogView* dialog() { return dialog_; }
 
-  testing::MockFunction<void(const syncer::DeviceInfo&)> device_callback_;
+  testing::MockFunction<void(const SharingTargetDeviceInfo&)> device_callback_;
   testing::MockFunction<void(const SharingApp&)> app_callback_;
 
  private:
-  raw_ptr<content::WebContents> web_contents_ = nullptr;
-  raw_ptr<SharingDialogView> dialog_ = nullptr;
+  raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
+  raw_ptr<SharingDialogView, DanglingUntriaged> dialog_ = nullptr;
 };
 
 TEST_F(SharingDialogViewTest, PopulateDialogView) {
@@ -135,7 +143,7 @@ TEST_F(SharingDialogViewTest, PopulateDialogView) {
 
 TEST_F(SharingDialogViewTest, DevicePressed) {
   EXPECT_CALL(device_callback_,
-              Call(Property(&syncer::DeviceInfo::guid, "guid_1")));
+              Call(Property(&SharingTargetDeviceInfo::guid, "guid_1")));
 
   auto dialog_data = CreateDialogData(/*devices=*/3, /*apps=*/2);
   CreateDialogView(std::move(dialog_data));
@@ -144,7 +152,7 @@ TEST_F(SharingDialogViewTest, DevicePressed) {
   const auto& buttons = dialog()->button_list_for_testing()->children();
   ASSERT_EQ(5U, buttons.size());
   views::test::ButtonTestApi(static_cast<views::Button*>(buttons[1]))
-      .NotifyClick(ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(),
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
                                   gfx::Point(), ui::EventTimeForNow(), 0, 0));
 }
 
@@ -160,7 +168,7 @@ TEST_F(SharingDialogViewTest, AppPressed) {
   const auto& buttons = dialog()->button_list_for_testing()->children();
   ASSERT_EQ(5U, buttons.size());
   views::test::ButtonTestApi(static_cast<views::Button*>(buttons[3]))
-      .NotifyClick(ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(),
+      .NotifyClick(ui::MouseEvent(ui::EventType::kMousePressed, gfx::Point(),
                                   gfx::Point(), ui::EventTimeForNow(), 0, 0));
 }
 

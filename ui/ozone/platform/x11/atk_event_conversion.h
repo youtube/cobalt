@@ -27,7 +27,10 @@ typedef enum {
   KAtkMod5Mask = 1 << 7,
 } AtkKeyModifierMask;
 
-std::unique_ptr<AtkKeyEventStruct> AtkKeyEventFromXEvent(const x11::Event& xev);
+// Converts `event` to an ATK key event. Handles x11::KeyEvent and
+// x11::Input::DeviceEvent. Returns nullptr on failure.
+std::unique_ptr<AtkKeyEventStruct> AtkKeyEventFromXEvent(
+    const x11::Event& event);
 
 }  // namespace ui
 

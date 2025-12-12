@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_ASH_FUSEBOX_FUSEBOX_SERVER_H_
 
 #include <string>
+#include <variant>
 
 #include "base/containers/circular_deque.h"
 #include "base/files/file.h"
@@ -17,10 +18,9 @@
 #include "base/values.h"
 #include "chrome/browser/ash/fusebox/fusebox.pb.h"
 #include "chrome/browser/ash/fusebox/fusebox_moniker.h"
-#include "chrome/browser/ash/fusebox/fusebox_staging.pb.h"
+#include "chrome/browser/ash/system_web_apps/apps/files_internals_debug_json_provider.h"
 #include "storage/browser/file_system/async_file_util.h"
 #include "storage/browser/file_system/file_system_context.h"
-#include "third_party/abseil-cpp/absl/types/variant.h"
 
 class Profile;
 
@@ -28,7 +28,7 @@ namespace fusebox {
 
 class ReadWriter;
 
-class Server {
+class Server : public ash::FilesInternalsDebugJSONProvider {
  public:
   struct Delegate {
     // These methods cause D-Bus signals to be sent that a storage unit (as
@@ -48,7 +48,7 @@ class Server {
   explicit Server(Delegate* delegate);
   Server(const Server&) = delete;
   Server& operator=(const Server&) = delete;
-  ~Server();
+  ~Server() override;
 
   // Manages monikers in the context of the Server's MonikerMap.
   fusebox::Moniker CreateMoniker(const storage::FileSystemURL& target,
@@ -82,8 +82,18 @@ class Server {
   // previously registered (subdir, fs_url_prefix) that matched.
   base::FilePath InverseResolveFSURL(const storage::FileSystemURL& fs_url);
 
-  // Returns human-readable debugging information as a JSON value.
-  base::Value GetDebugJSON();
+  // Chains GetInstance and InverseResolveFSURL, returning an empty
+  // base::FilePath when there is no instance.
+  static base::FilePath SubstituteFuseboxFilePath(
+      const storage::FileSystemURL& fs_url) {
+    Server* server = GetInstance();
+    return server ? server->InverseResolveFSURL(fs_url) : base::FilePath();
+  }
+
+  // ash::FilesInternalsDebugJSONProvider overrides.
+  void GetDebugJSONForKey(
+      std::string_view key,
+      base::OnceCallback<void(JSONKeyValuePair)> callback) override;
 
   // These methods map 1:1 to the D-Bus methods implemented by
   // fusebox_service_provider.cc.
@@ -112,6 +122,11 @@ class Server {
   using CreateCallback =
       base::OnceCallback<void(const CreateResponseProto& response)>;
   void Create(const CreateRequestProto& request, CreateCallback callback);
+
+  // Flush flushes a file, like the C standard library's fsync.
+  using FlushCallback =
+      base::OnceCallback<void(const FlushResponseProto& response)>;
+  void Flush(const FlushRequestProto& request, FlushCallback callback);
 
   // MkDir is analogous to "/usr/bin/mkdir".
   using MkDirCallback =
@@ -207,9 +222,10 @@ class Server {
 
   // ----
 
+  using PendingFlush = std::pair<FlushRequestProto, FlushCallback>;
   using PendingRead2 = std::pair<Read2RequestProto, Read2Callback>;
   using PendingWrite2 = std::pair<Write2RequestProto, Write2Callback>;
-  using PendingOp = absl::variant<PendingRead2, PendingWrite2>;
+  using PendingOp = std::variant<PendingFlush, PendingRead2, PendingWrite2>;
 
   struct FuseFileMapEntry {
     FuseFileMapEntry(scoped_refptr<storage::FileSystemContext> fs_context_arg,
@@ -222,6 +238,7 @@ class Server {
     FuseFileMapEntry(FuseFileMapEntry&&);
     ~FuseFileMapEntry();
 
+    void DoFlush(const FlushRequestProto& request, FlushCallback callback);
     void DoRead2(const Read2RequestProto& request, Read2Callback callback);
     void DoWrite2(const Write2RequestProto& request, Write2Callback callback);
     void Do(PendingOp& op,
@@ -300,6 +317,10 @@ class Server {
                           bool create_succeeded,
                           MakeTempDirCallback callback);
 
+  void OnFlush(uint64_t fuse_handle,
+               FlushCallback callback,
+               const FlushResponseProto& response);
+
   void OnRead2(uint64_t fuse_handle,
                Read2Callback callback,
                const Read2ResponseProto& response);
@@ -320,7 +341,7 @@ class Server {
   // Returns the fuse_handle that is the map key.
   uint64_t InsertFuseFileMapEntry(FuseFileMapEntry&& entry);
 
-  raw_ptr<Delegate, ExperimentalAsh> delegate_;
+  raw_ptr<Delegate> delegate_;
   FuseFileMap fuse_file_map_;
   fusebox::MonikerMap moniker_map_;
   PrefixMap prefix_map_;

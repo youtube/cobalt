@@ -12,9 +12,11 @@
 #include "cc/slim/ui_resource_layer.h"
 #include "chrome/browser/android/compositor/resources/toolbar_resource.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
+#include "components/viz/common/quads/offset_tag.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/android/resources/nine_patch_resource.h"
 #include "ui/android/resources/resource_manager.h"
+#include "ui/gfx/geometry/rounded_corners_f.h"
 
 namespace android {
 
@@ -34,9 +36,10 @@ void ToolbarLayer::PushResource(int toolbar_resource_id,
                                 int toolbar_textbox_background_color,
                                 int url_bar_background_resource_id,
                                 float x_offset,
-                                float y_offset,
+                                float content_offset,
                                 bool show_debug,
-                                bool clip_shadow) {
+                                bool clip_shadow,
+                                const viz::OffsetTag& offset_tag) {
   ToolbarResource* resource =
       ToolbarResource::From(resource_manager_->GetResource(
           ui::ANDROID_RESOURCE_TYPE_DYNAMIC, toolbar_resource_id));
@@ -57,7 +60,7 @@ void ToolbarLayer::PushResource(int toolbar_resource_id,
   toolbar_background_layer_->SetBounds(resource->toolbar_rect().size());
   toolbar_background_layer_->SetPosition(
       gfx::PointF(resource->toolbar_rect().origin()));
-  // TODO(crbug/1308932): Remove FromColor and make all SkColor4f.
+  // TODO(crbug.com/40219248): Remove FromColor and make all SkColor4f.
   toolbar_background_layer_->SetBackgroundColor(
       SkColor4f::FromColor(toolbar_background_color));
 
@@ -112,7 +115,11 @@ void ToolbarLayer::PushResource(int toolbar_resource_id,
   else if (!show_debug && debug_layer_->parent())
     debug_layer_->RemoveFromParent();
 
-  layer_->SetPosition(gfx::PointF(x_offset, y_offset));
+  // Position the toolbar at the bottom of the space available for top controls.
+  layer_->SetPosition(
+      gfx::PointF(x_offset, content_offset - layer_->bounds().height()));
+
+  layer_->SetOffsetTag(offset_tag);
 }
 
 int ToolbarLayer::GetIndexOfLayer(scoped_refptr<cc::slim::Layer> layer) {
@@ -132,32 +139,62 @@ void ToolbarLayer::UpdateProgressBar(int progress_bar_x,
                                      int progress_bar_background_y,
                                      int progress_bar_background_width,
                                      int progress_bar_background_height,
-                                     int progress_bar_background_color) {
-  bool is_progress_bar_background_visible = SkColorGetA(
-      progress_bar_background_color);
-  progress_bar_background_layer_->SetHideLayerAndSubtree(
-      !is_progress_bar_background_visible);
-  if (is_progress_bar_background_visible) {
+                                     int progress_bar_background_color,
+                                     int progress_bar_static_background_x,
+                                     int progress_bar_static_background_width,
+                                     int progress_bar_static_background_color,
+                                     int progress_bar_end_indicator_x,
+                                     int progress_bar_end_indicator_y,
+                                     int progress_bar_end_indicator_width,
+                                     int progress_bar_end_indicator_height,
+                                     float corner_radius,
+                                     bool progress_bar_visual_update_available) {
+  bool is_progress_bar_visible = SkColorGetA(progress_bar_background_color);
+
+  progress_bar_background_layer_->SetHideLayerAndSubtree(!is_progress_bar_visible);
+  progress_bar_layer_->SetHideLayerAndSubtree(!is_progress_bar_visible);
+  progress_bar_end_circle_layer_->SetHideLayerAndSubtree(
+      !(is_progress_bar_visible && progress_bar_visual_update_available));
+  progress_bar_static_background_layer_->SetHideLayerAndSubtree(
+      !(is_progress_bar_visible && progress_bar_visual_update_available));
+
+  if (is_progress_bar_visible) {
     progress_bar_background_layer_->SetPosition(
         gfx::PointF(progress_bar_background_x, progress_bar_background_y));
     progress_bar_background_layer_->SetBounds(
         gfx::Size(progress_bar_background_width,
                   progress_bar_background_height));
-    // TODO(crbug/1308932): Remove FromColor and make all SkColor4f.
+    // TODO(crbug.com/40219248): Remove FromColor and make all SkColor4f.
     progress_bar_background_layer_->SetBackgroundColor(
         SkColor4f::FromColor(progress_bar_background_color));
-  }
+    progress_bar_background_layer_->SetRoundedCorner(gfx::RoundedCornersF(corner_radius));
 
-  bool is_progress_bar_visible = SkColorGetA(progress_bar_background_color);
-  progress_bar_layer_->SetHideLayerAndSubtree(!is_progress_bar_visible);
-  if (is_progress_bar_visible) {
     progress_bar_layer_->SetPosition(
         gfx::PointF(progress_bar_x, progress_bar_y));
     progress_bar_layer_->SetBounds(
         gfx::Size(progress_bar_width, progress_bar_height));
-    // TODO(crbug/1308932): Remove FromColor and make all SkColor4f.
+    // TODO(crbug.com/40219248): Remove FromColor and make all SkColor4f.
     progress_bar_layer_->SetBackgroundColor(
         SkColor4f::FromColor(progress_bar_color));
+    progress_bar_layer_->SetRoundedCorner(gfx::RoundedCornersF(corner_radius));
+
+    if (progress_bar_visual_update_available) {
+      // Display the end circle and static background layer.
+      progress_bar_end_circle_layer_->SetPosition(
+          gfx::PointF(progress_bar_end_indicator_x, progress_bar_end_indicator_y));
+      progress_bar_end_circle_layer_->SetBounds(
+          gfx::Size(progress_bar_end_indicator_width, progress_bar_end_indicator_height));
+      progress_bar_end_circle_layer_->SetBackgroundColor(SkColor4f::FromColor(progress_bar_color));
+      progress_bar_end_circle_layer_->SetRoundedCorner(gfx::RoundedCornersF(corner_radius));
+
+      progress_bar_static_background_layer_->SetPosition(gfx::PointF(
+          progress_bar_static_background_x, progress_bar_y));
+      progress_bar_static_background_layer_->SetBounds(gfx::Size(
+          progress_bar_static_background_width, progress_bar_height));
+      progress_bar_static_background_layer_->SetBackgroundColor(
+          SkColor4f::FromColor(progress_bar_static_background_color));
+      progress_bar_static_background_layer_->SetRoundedCorner(gfx::RoundedCornersF(corner_radius));
+    }
   }
 }
 
@@ -168,6 +205,8 @@ void ToolbarLayer::SetOpacity(float opacity) {
 
   progress_bar_layer_->SetOpacity(opacity);
   progress_bar_background_layer_->SetOpacity(opacity);
+  progress_bar_end_circle_layer_->SetOpacity(opacity);
+  progress_bar_static_background_layer_->SetOpacity(opacity);
 }
 
 ToolbarLayer::ToolbarLayer(ui::ResourceManager* resource_manager)
@@ -178,6 +217,8 @@ ToolbarLayer::ToolbarLayer(ui::ResourceManager* resource_manager)
       bitmap_layer_(cc::slim::UIResourceLayer::Create()),
       progress_bar_layer_(cc::slim::SolidColorLayer::Create()),
       progress_bar_background_layer_(cc::slim::SolidColorLayer::Create()),
+      progress_bar_end_circle_layer_(cc::slim::SolidColorLayer::Create()),
+      progress_bar_static_background_layer_(cc::slim::SolidColorLayer::Create()),
       debug_layer_(cc::slim::SolidColorLayer::Create()) {
   toolbar_background_layer_->SetIsDrawable(true);
   layer_->AddChild(toolbar_background_layer_);
@@ -189,9 +230,17 @@ ToolbarLayer::ToolbarLayer(ui::ResourceManager* resource_manager)
   bitmap_layer_->SetIsDrawable(true);
   layer_->AddChild(bitmap_layer_);
 
+  progress_bar_static_background_layer_->SetIsDrawable(true);
+  progress_bar_static_background_layer_->SetHideLayerAndSubtree(true);
+  layer_->AddChild(progress_bar_static_background_layer_);
+
   progress_bar_background_layer_->SetIsDrawable(true);
   progress_bar_background_layer_->SetHideLayerAndSubtree(true);
   layer_->AddChild(progress_bar_background_layer_);
+
+  progress_bar_end_circle_layer_->SetIsDrawable(true);
+  progress_bar_end_circle_layer_->SetHideLayerAndSubtree(true);
+  layer_->AddChild(progress_bar_end_circle_layer_);
 
   progress_bar_layer_->SetIsDrawable(true);
   progress_bar_layer_->SetHideLayerAndSubtree(true);
@@ -202,7 +251,6 @@ ToolbarLayer::ToolbarLayer(ui::ResourceManager* resource_manager)
   debug_layer_->SetOpacity(0.5f);
 }
 
-ToolbarLayer::~ToolbarLayer() {
-}
+ToolbarLayer::~ToolbarLayer() = default;
 
 }  //  namespace android

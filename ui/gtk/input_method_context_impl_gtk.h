@@ -6,15 +6,17 @@
 #define UI_GTK_INPUT_METHOD_CONTEXT_IMPL_GTK_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/raw_ptr.h"
 #include "ui/base/glib/glib_integers.h"
-#include "ui/base/glib/glib_signal.h"
+#include "ui/base/glib/scoped_gsignal.h"
 #include "ui/base/ime/linux/linux_input_method_context.h"
 #include "ui/gfx/geometry/rect.h"
 
-using GtkIMContext = struct _GtkIMContext;
 using GdkWindow = struct _GdkWindow;
+using GtkIMContext = struct _GtkIMContext;
+using GtkWidget = struct _GtkWidget;
 
 namespace gtk {
 
@@ -38,44 +40,21 @@ class InputMethodContextImplGtk : public ui::LinuxInputMethodContext {
   void Reset() override;
   void UpdateFocus(bool has_client,
                    ui::TextInputType old_type,
-                   ui::TextInputType new_type,
+                   const TextInputClientAttributes& new_client_attributes,
                    ui::TextInputClient::FocusReason reason) override;
-  void SetSurroundingText(
-      const std::u16string& text,
-      const gfx::Range& text_range,
-      const gfx::Range& selection_range,
-      const absl::optional<ui::GrammarFragment>& fragment,
-      const absl::optional<ui::AutocorrectInfo>& autocorrect) override;
-  void SetContentType(ui::TextInputType type,
-                      ui::TextInputMode mode,
-                      uint32_t flags,
-                      bool should_do_learning,
-                      bool can_compose_inline) override;
+  void SetSurroundingText(const std::u16string& text,
+                          const gfx::Range& text_range,
+                          const gfx::Range& composition_range,
+                          const gfx::Range& selection_range) override;
   ui::VirtualKeyboardController* GetVirtualKeyboardController() override;
 
  private:
   // GtkIMContext event handlers.  They are shared among |gtk_context_simple_|
   // and |gtk_multicontext_|.
-  CHROMEG_CALLBACK_1(InputMethodContextImplGtk,
-                     void,
-                     OnCommit,
-                     GtkIMContext*,
-                     gchar*);
-  CHROMEG_CALLBACK_0(InputMethodContextImplGtk,
-                     void,
-                     OnPreeditChanged,
-                     GtkIMContext*);
-  CHROMEG_CALLBACK_0(InputMethodContextImplGtk,
-                     void,
-                     OnPreeditEnd,
-                     GtkIMContext*);
-  CHROMEG_CALLBACK_0(InputMethodContextImplGtk,
-                     void,
-                     OnPreeditStart,
-                     GtkIMContext*);
-
-  // Only used on GTK3.
-  void SetContextClientWindow(GdkWindow* window, GtkIMContext* gtk_context);
+  void OnCommit(GtkIMContext* context, gchar* text);
+  void OnPreeditChanged(GtkIMContext* context);
+  void OnPreeditEnd(GtkIMContext* context);
+  void OnPreeditStart(GtkIMContext* context);
 
   // Returns the IMContext depending on the currently connected input field
   // type.
@@ -88,16 +67,18 @@ class InputMethodContextImplGtk : public ui::LinuxInputMethodContext {
   ui::TextInputType type_ = ui::TEXT_INPUT_TYPE_NONE;
 
   // IME's input GTK context.
-  raw_ptr<GtkIMContext> gtk_context_ = nullptr;
-  raw_ptr<GtkIMContext> gtk_simple_context_ = nullptr;
+  ScopedGObject<GtkIMContext> gtk_context_ = nullptr;
+  ScopedGObject<GtkIMContext> gtk_simple_context_ = nullptr;
 
-  // Only used on GTK3.
-  gpointer gdk_last_set_client_window_ = nullptr;
-  gpointer gdk_last_set_client_window_for_simple_ = nullptr;
+  // These correspond to the GtkImContexts above.
+  raw_ptr<GdkWindow> last_set_client_window_for_gtk_context_ = nullptr;
+  raw_ptr<GdkWindow> last_set_client_window_for_gtk_simple_comtext_ = nullptr;
 
   // Last known caret bounds relative to the screen coordinates, in DIPs.
   // Effective only on non-simple context.
   gfx::Rect last_caret_bounds_;
+
+  std::vector<ScopedGSignal> signals_;
 };
 
 }  // namespace gtk

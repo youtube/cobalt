@@ -71,7 +71,6 @@ struct EnumTraits<ui::mojom::EventMomentumPhase, ui::EventMomentumPhase> {
         return ui::mojom::EventMomentumPhase::BLOCKED;
     }
     NOTREACHED();
-    return ui::mojom::EventMomentumPhase::NONE;
   }
 
   static bool FromMojom(ui::mojom::EventMomentumPhase input,
@@ -97,7 +96,6 @@ struct EnumTraits<ui::mojom::EventMomentumPhase, ui::EventMomentumPhase> {
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 
@@ -137,7 +135,6 @@ struct EnumTraits<ui::mojom::ScrollEventPhase, ui::ScrollEventPhase> {
         return ui::mojom::ScrollEventPhase::kEnd;
     }
     NOTREACHED();
-    return ui::mojom::ScrollEventPhase::kNone;
   }
 
   static bool FromMojom(ui::mojom::ScrollEventPhase input,
@@ -157,7 +154,6 @@ struct EnumTraits<ui::mojom::ScrollEventPhase, ui::ScrollEventPhase> {
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 
@@ -173,7 +169,6 @@ struct EnumTraits<ui::mojom::GestureDeviceType, ui::GestureDeviceType> {
         return ui::mojom::GestureDeviceType::DEVICE_TOUCHSCREEN;
     }
     NOTREACHED();
-    return ui::mojom::GestureDeviceType::DEVICE_UNKNOWN;
   }
 
   static bool FromMojom(ui::mojom::GestureDeviceType input,
@@ -190,7 +185,6 @@ struct EnumTraits<ui::mojom::GestureDeviceType, ui::GestureDeviceType> {
         return true;
     }
     NOTREACHED();
-    return false;
   }
 };
 

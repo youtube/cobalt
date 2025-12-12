@@ -4,16 +4,16 @@
 
 #include "src/compiler/linear-scheduler.h"
 
-#include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-LinearScheduler::LinearScheduler(Zone* zone, Graph* graph)
+LinearScheduler::LinearScheduler(Zone* zone, TFGraph* graph)
     : graph_(graph), control_level_(zone), early_schedule_position_(zone) {
   ComputeControlLevel();
 }
@@ -32,6 +32,9 @@ void LinearScheduler::ComputeControlLevel() {
     for (Edge const edge : node->use_edges()) {
       if (!NodeProperties::IsControlEdge(edge)) continue;
       Node* use = edge.from();
+      if (use->opcode() == IrOpcode::kLoopExit &&
+          node->opcode() == IrOpcode::kLoop)
+        continue;
       if (control_level_.find(use) == control_level_.end() &&
           use->opcode() != IrOpcode::kEnd) {
         SetControlLevel(use, level + 1);
@@ -71,9 +74,10 @@ Node* LinearScheduler::GetEarlySchedulePosition(Node* node) {
         if (NodeProperties::IsControl(input)) {
           input_early_schedule_position = input;
         } else {
-          auto it = early_schedule_position_.find(input);
-          if (it != early_schedule_position_.end())
-            input_early_schedule_position = it->second;
+          auto early_pos_it = early_schedule_position_.find(input);
+          if (early_pos_it != early_schedule_position_.end()) {
+            input_early_schedule_position = early_pos_it->second;
+          }
         }
         if (input_early_schedule_position != nullptr) {
           if (top.early_schedule_position == nullptr ||

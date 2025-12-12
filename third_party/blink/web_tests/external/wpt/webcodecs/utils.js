@@ -49,10 +49,10 @@ function getDefaultCodecInit(test) {
 
 // Checks that codec can be configured, reset, reconfigured, and that incomplete
 // or invalid configs throw errors immediately.
-function testConfigurations(codec, validCondig, invalidCodecs) {
+function testConfigurations(codec, validConfig, unsupportedCodecsList) {
   assert_equals(codec.state, "unconfigured");
 
-  const requiredConfigPairs = validCondig;
+  const requiredConfigPairs = validConfig;
   let incrementalConfig = {};
 
   for (let key in requiredConfigPairs) {
@@ -72,11 +72,13 @@ function testConfigurations(codec, validCondig, invalidCodecs) {
 
   let config = incrementalConfig;
 
-  invalidCodecs.forEach(badCodec => {
+  unsupportedCodecsList.forEach(unsupportedCodec => {
     // Invalid codecs should fail.
-    config.codec = badCodec;
-    assert_throws_js(TypeError, () => { codec.configure(config); }, badCodec);
-  })
+    config.codec = unsupportedCodec;
+    assert_throws_dom('NotSupportedError', () => {
+      codec.configure(config);
+    }, unsupportedCodec);
+  });
 
   // The failed configures should not affect the current config.
   assert_equals(codec.state, "configured");
@@ -85,7 +87,7 @@ function testConfigurations(codec, validCondig, invalidCodecs) {
   codec.reset()
   assert_equals(codec.state, "unconfigured");
 
-  codec.configure(validCondig);
+  codec.configure(validConfig);
   assert_equals(codec.state, "configured");
 }
 
@@ -155,27 +157,6 @@ function testUnconfiguredCodec(test, codec, codecInput) {
 
 const kSRGBPixel = [50, 100, 150, 255];
 const kP3Pixel = [62, 99, 146, 255];
-const kRec2020Pixel = [87, 106, 151, 255];
-
-const kCanvasOptionsP3Uint8 = {
-  colorSpace: 'display-p3',
-  pixelFormat: 'uint8'
-};
-
-const kImageSettingOptionsP3Uint8 = {
-  colorSpace: 'display-p3',
-  storageFormat: 'uint8'
-};
-
-const kCanvasOptionsRec2020Uint8 = {
-  colorSpace: 'rec2020',
-  pixelFormat: 'uint8'
-};
-
-const kImageSettingOptionsRec2020Uint8 = {
-  colorSpace: 'rec2020',
-  storageFormat: 'uint8'
-};
 
 function testCanvas(ctx, width, height, expected_pixel, imageSetting, assert_compares) {
   // The dup getImageData is to workaournd crbug.com/1100233

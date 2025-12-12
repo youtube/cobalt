@@ -19,7 +19,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "components/payments/content/android/byte_buffer_helper.h"
 #include "components/payments/content/android/csp_checker_android.h"
-#include "components/payments/content/android/jni_headers/PaymentAppServiceBridge_jni.h"
 #include "components/payments/content/android/jni_payment_app.h"
 #include "components/payments/content/android/payment_request_spec.h"
 #include "components/payments/content/payment_app_service.h"
@@ -38,6 +37,9 @@
 #include "ui/gfx/android/java_bitmap.h"
 #include "url/android/gurl_android.h"
 #include "url/origin.h"
+
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "components/payments/content/android/jni_headers/PaymentAppServiceBridge_jni.h"
 
 namespace {
 using ::base::android::AttachCurrentThread;
@@ -101,7 +103,7 @@ void JNI_PaymentAppServiceBridge_Create(
     const JavaParamRef<jstring>& jtop_origin,
     const JavaParamRef<jobject>& jpayment_request_spec,
     const JavaParamRef<jstring>& jtwa_package_name,
-    // TODO(crbug.com/1209835): Remove jmay_crawl_for_installable_payment_apps,
+    // TODO(crbug.com/40182225): Remove jmay_crawl_for_installable_payment_apps,
     // as it is no longer used.
     jboolean jmay_crawl_for_installable_payment_apps,
     jboolean jis_off_the_record,
@@ -269,7 +271,7 @@ PaymentAppServiceBridge::CreateInternalAuthenticator() const {
   // safety precaution to ensure that `RenderFrameDeleted()` will be called at
   // some point.
   return rfh && rfh->IsActive() && rfh->IsRenderFrameLive()
-             ? std::make_unique<InternalAuthenticatorAndroid>(rfh)
+             ? std::make_unique<webauthn::InternalAuthenticatorAndroid>(rfh)
              : nullptr;
 }
 
@@ -286,7 +288,6 @@ base::WeakPtr<ContentPaymentRequestDelegate>
 PaymentAppServiceBridge::GetPaymentRequestDelegate() const {
   // PaymentAppService flow should have short-circuited before this point.
   NOTREACHED();
-  return nullptr;
 }
 
 void PaymentAppServiceBridge::ShowProcessingSpinner() {
@@ -342,6 +343,11 @@ base::WeakPtr<CSPChecker> PaymentAppServiceBridge::GetCSPChecker() {
 
 void PaymentAppServiceBridge::SetOptOutOffered() {
   set_opt_out_offered_callback_.Run();
+}
+
+std::optional<base::UnguessableToken>
+PaymentAppServiceBridge::GetChromeOSTWAInstanceId() const {
+  return std::nullopt;
 }
 
 PaymentAppServiceBridge::PaymentAppServiceBridge(

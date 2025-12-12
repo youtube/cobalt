@@ -24,15 +24,6 @@ class VIEWS_EXPORT SublevelManager : public WidgetObserver {
 
   ~SublevelManager() override;
 
-  // Tracks a child widget.
-  void TrackChildWidget(Widget* child);
-
-  // Untracks a child widget.
-  // This is intended for internal use and to work around platform-specific
-  // compatibility issues.
-  // You should not use this.
-  void UntrackChildWidget(Widget* child);
-
   // Sets the sublevel of `owner_` and triggers `EnsureOwnerSublevel()`.
   void SetSublevel(int sublevel);
 
@@ -43,10 +34,19 @@ class VIEWS_EXPORT SublevelManager : public WidgetObserver {
   // to ensure that its sublevel is respected.
   void EnsureOwnerSublevel();
 
- private:
-  // WidgetObserver:
-  void OnWidgetDestroying(Widget* owner) override;
+  // Repositions `owner_` and its descendants to ensure that their sublevels
+  // are respected.
+  void EnsureOwnerTreeSublevel();
 
+  // WidgetObserver:
+  void OnWidgetChildAdded(Widget* owner, Widget* child) override;
+  // There are some calls to `OnWidgetChildRemoved` from external callers.  This
+  // is intended for internal use and to work around platform-specific
+  // compatibility issues.
+  // You should not use this directly.
+  void OnWidgetChildRemoved(Widget* owner, Widget* child) override;
+
+ private:
   // Repositions `child_` among its siblings of the same z-order level
   // to ensure that its sublevel is respected.
   void OrderChildWidget(Widget* child);
@@ -57,7 +57,8 @@ class VIEWS_EXPORT SublevelManager : public WidgetObserver {
   // Returns the position in `children_` before which `child` should be inserted
   // to maintain the sublevel ordering. This methods assumes that `child` is not
   // in `children_`.
-  using ChildIterator = std::vector<Widget*>::const_iterator;
+  using ChildIterator =
+      std::vector<raw_ptr<Widget, VectorExperimental>>::const_iterator;
   ChildIterator FindInsertPosition(Widget* child) const;
 
   // The owner widget.
@@ -74,7 +75,7 @@ class VIEWS_EXPORT SublevelManager : public WidgetObserver {
   // within each level subsequence, but subsequences may interleave with each
   // other. For example, "[(1,0), (2,0), (2,1), (1,1), (1,2)]" is a possible
   // sequence of (level, sublevel).
-  std::vector<Widget*> children_;
+  std::vector<raw_ptr<Widget, VectorExperimental>> children_;
 };
 
 }  // namespace views

@@ -7,6 +7,7 @@
 
 #include <list>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <utility>
@@ -19,13 +20,12 @@
 #include "content/public/test/test_utils.h"
 #include "crypto/rsa_private_key.h"
 #include "extensions/browser/content_hash_reader.h"
-#include "extensions/browser/content_verifier.h"
 #include "extensions/browser/content_verifier/content_hash.h"
-#include "extensions/browser/content_verifier_delegate.h"
-#include "extensions/browser/content_verify_job.h"
+#include "extensions/browser/content_verifier/content_verifier.h"
+#include "extensions/browser/content_verifier/content_verifier_delegate.h"
+#include "extensions/browser/content_verifier/content_verify_job.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/test/test_extension_dir.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace extensions {
 
@@ -89,7 +89,7 @@ class TestContentVerifySingleJobObserver {
 
     ExtensionId extension_id_;
     base::FilePath relative_path_;
-    absl::optional<ContentVerifyJob::FailureReason> failure_reason_;
+    std::optional<ContentVerifyJob::FailureReason> failure_reason_;
     bool seen_on_hashes_ready_ = false;
     ContentHashReader::InitStatus hashes_status_;
   };
@@ -159,7 +159,7 @@ class TestContentVerifyJobObserver {
 
     std::list<ExpectedResult> expectations_;
     content::BrowserThread::ID creation_thread_;
-    // Accessed on |creation_thread_|.
+    // Accessed on `creation_thread_`.
     base::OnceClosure job_quit_closure_;
   };
 
@@ -214,7 +214,7 @@ class VerifierObserver : public ContentVerifier::TestObserver {
   }
   bool did_hash_mismatch() const { return did_hash_mismatch_; }
 
-  // Ensures that |extension_id| has seen OnFetchComplete, waits for it to
+  // Ensures that `extension_id` has seen OnFetchComplete, waits for it to
   // complete if it hasn't already.
   void EnsureFetchCompleted(const ExtensionId& extension_id);
 
@@ -228,9 +228,11 @@ class VerifierObserver : public ContentVerifier::TestObserver {
   scoped_refptr<const ContentHash> content_hash_;
   bool did_hash_mismatch_ = true;
 
-  // Created and accessed on |creation_thread_|.
+  // Created and accessed on `creation_thread_`.
   scoped_refptr<content::MessageLoopRunner> loop_runner_;
   content::BrowserThread::ID creation_thread_;
+
+  base::WeakPtrFactory<VerifierObserver> weak_ptr_factory_{this};
 };
 
 // Used to hold the result of a callback from the ContentHash creation.
@@ -330,9 +332,9 @@ class TestExtensionBuilder {
   TestExtensionDir extension_dir_;
 };
 
-// Unzips the extension source from |extension_zip| into |unzip_dir|
+// Unzips the extension source from `extension_zip` into `unzip_dir`
 // directory and loads it. Returns the resulting Extension object.
-// |destination| points to the path where the extension was extracted.
+// `destination` points to the path where the extension was extracted.
 //
 // TODO(lazyboy): Move this function to a generic file.
 scoped_refptr<Extension> UnzipToDirAndLoadExtension(

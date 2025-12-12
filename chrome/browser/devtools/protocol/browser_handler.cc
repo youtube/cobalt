@@ -12,11 +12,14 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/devtools/chrome_devtools_manager_delegate.h"
 #include "chrome/browser/devtools/devtools_dock_tile.h"
+#include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
+#include "components/privacy_sandbox/privacy_sandbox_attestations/privacy_sandbox_attestations.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
@@ -24,13 +27,12 @@
 #include "ui/gfx/image/image.h"
 #include "ui/gfx/image/image_png_rep.h"
 
-using protocol::Maybe;
 using protocol::Response;
 
 namespace {
 
 BrowserWindow* GetBrowserWindow(int window_id) {
-  for (auto* b : *BrowserList::GetInstance()) {
+  for (Browser* b : *BrowserList::GetInstance()) {
     if (b->session_id().id() == window_id)
       return b->window();
   }
@@ -74,11 +76,11 @@ BrowserHandler::BrowserHandler(protocol::UberDispatcher* dispatcher,
 BrowserHandler::~BrowserHandler() = default;
 
 Response BrowserHandler::GetWindowForTarget(
-    protocol::Maybe<std::string> target_id,
+    std::optional<std::string> target_id,
     int* out_window_id,
     std::unique_ptr<protocol::Browser::Bounds>* out_bounds) {
   auto host =
-      content::DevToolsAgentHost::GetForId(target_id.fromMaybe(target_id_));
+      content::DevToolsAgentHost::GetForId(target_id.value_or(target_id_));
   if (!host)
     return Response::ServerError("No target with given id");
   content::WebContents* web_contents = host->GetWebContents();
@@ -86,7 +88,7 @@ Response BrowserHandler::GetWindowForTarget(
     return Response::ServerError("No web contents in the target");
 
   Browser* browser = nullptr;
-  for (auto* b : *BrowserList::GetInstance()) {
+  for (Browser* b : *BrowserList::GetInstance()) {
     int tab_index = b->tab_strip_model()->GetIndexOfWebContents(web_contents);
     if (tab_index != TabStripModel::kNoTab)
       browser = b;
@@ -147,7 +149,8 @@ Response BrowserHandler::SetWindowBounds(
           "restore it to normal state first.");
     }
     window->GetExclusiveAccessContext()->EnterFullscreen(
-        GURL(), EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE, display::kInvalidDisplayId);
+        url::Origin(), EXCLUSIVE_ACCESS_BUBBLE_TYPE_NONE,
+        display::kInvalidDisplayId);
   } else if (window_state == "maximized") {
     if (window->IsMinimized() || window->IsFullscreen()) {
       return Response::ServerError(
@@ -163,14 +166,13 @@ Response BrowserHandler::SetWindowBounds(
     }
     window->Minimize();
   } else if (window_state == "normal") {
-    if (window->IsFullscreen())
+    if (window->IsFullscreen()) {
       window->GetExclusiveAccessContext()->ExitFullscreen();
-    else if (window->IsMinimized())
-      window->Show();
-    else if (window->IsMaximized())
+    } else if (window->IsMinimized() || window->IsMaximized()) {
       window->Restore();
-    else if (set_bounds)
+    } else if (set_bounds) {
       window->SetBounds(bounds);
+    }
   } else {
     NOTREACHED();
   }
@@ -179,12 +181,13 @@ Response BrowserHandler::SetWindowBounds(
 }
 
 protocol::Response BrowserHandler::SetDockTile(
-    protocol::Maybe<std::string> label,
-    protocol::Maybe<protocol::Binary> image) {
+    std::optional<std::string> label,
+    std::optional<protocol::Binary> image) {
   std::vector<gfx::ImagePNGRep> reps;
-  if (image.isJust())
-    reps.emplace_back(image.fromJust().bytes(), 1);
-  DevToolsDockTile::Update(label.fromMaybe(std::string()),
+  if (image.has_value()) {
+    reps.emplace_back(image.value().bytes(), 1);
+  }
+  DevToolsDockTile::Update(label.value_or(std::string()),
                            !reps.empty() ? gfx::Image(reps) : gfx::Image());
   return Response::Success();
 }
@@ -196,7 +199,9 @@ protocol::Response BrowserHandler::ExecuteBrowserCommand(
           {protocol::Browser::BrowserCommandIdEnum::OpenTabSearch,
            IDC_TAB_SEARCH},
           {protocol::Browser::BrowserCommandIdEnum::CloseTabSearch,
-           IDC_TAB_SEARCH_CLOSE}};
+           IDC_TAB_SEARCH_CLOSE},
+          {protocol::Browser::BrowserCommandIdEnum::OpenGlic, IDC_OPEN_GLIC},
+      };
   if (command_id_map.count(command_id) == 0) {
     return Response::InvalidParams("Invalid BrowserCommandId: " + command_id);
   }
@@ -205,5 +210,23 @@ protocol::Response BrowserHandler::ExecuteBrowserCommand(
     return Response::InvalidRequest(
         "Browser command not supported. BrowserCommandId: " + command_id);
   }
+  return Response::Success();
+}
+
+protocol::Response BrowserHandler::AddPrivacySandboxEnrollmentOverride(
+    const std::string& in_url) {
+  auto host = content::DevToolsAgentHost::GetForId(target_id_);
+  if (!host) {
+    return Response::ServerError("No host found");
+  }
+
+  GURL url_to_add = GURL(in_url);
+
+  if (!url_to_add.is_valid()) {
+    return Response::InvalidParams("Invalid URL");
+  }
+
+  privacy_sandbox::PrivacySandboxAttestations::GetInstance()->AddOverride(
+      net::SchemefulSite(url_to_add));
   return Response::Success();
 }

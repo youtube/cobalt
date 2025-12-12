@@ -14,8 +14,8 @@
 
 #include <memory>
 
+#include "base/apple/scoped_cftyperef.h"
 #include "base/logging.h"
-#include "base/mac/scoped_cftyperef.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/power_monitor/power_monitor_source.h"
 #include "base/power_monitor/power_observer.h"
@@ -24,7 +24,7 @@ namespace {
 
 base::PowerThermalObserver::DeviceThermalState
 NSProcessInfoThermalStateToDeviceThermalState(
-    NSProcessInfoThermalState nsinfo_state) NS_AVAILABLE_MAC(10_10_3) {
+    NSProcessInfoThermalState nsinfo_state) {
   switch (nsinfo_state) {
     case NSProcessInfoThermalStateNominal:
       return base::PowerThermalObserver::DeviceThermalState::kNominal;
@@ -36,14 +36,13 @@ NSProcessInfoThermalStateToDeviceThermalState(
       return base::PowerThermalObserver::DeviceThermalState::kCritical;
   }
   NOTREACHED();
-  return base::PowerThermalObserver::DeviceThermalState::kUnknown;
 }
-}
+}  // namespace
 
 namespace base {
 
 struct ThermalStateObserverMac::ObjCStorage {
-  id thermal_state_update_observer_ = nil;
+  id __strong thermal_state_update_observer = nil;
 };
 
 ThermalStateObserverMac::ThermalStateObserverMac(
@@ -58,18 +57,19 @@ ThermalStateObserverMac::ThermalStateObserverMac(
     // thermal dissipation increase, from Nominal upwards, see:
     // https://developer.apple.com/library/archive/documentation/Performance/Conceptual/power_efficiency_guidelines_osx/RespondToThermalStateChanges.html
     NSProcessInfoThermalState nsinfo_state =
-        [[NSProcessInfo processInfo] thermalState];
+        NSProcessInfo.processInfo.thermalState;
     state = NSProcessInfoThermalStateToDeviceThermalState(nsinfo_state);
     if (state_for_testing_ !=
-        PowerThermalObserver::DeviceThermalState::kUnknown)
+        PowerThermalObserver::DeviceThermalState::kUnknown) {
       state = state_for_testing_;
+    }
     DVLOG(1) << __func__ << ": "
              << PowerMonitorSource::DeviceThermalStateToString(state);
     state_update_callback.Run(state);
   };
 
-  objc_storage_->thermal_state_update_observer_ =
-      [[NSNotificationCenter defaultCenter]
+  objc_storage_->thermal_state_update_observer =
+      [NSNotificationCenter.defaultCenter
           addObserverForName:NSProcessInfoThermalStateDidChangeNotification
                       object:nil
                        queue:nil
@@ -96,22 +96,24 @@ ThermalStateObserverMac::ThermalStateObserverMac(
 }
 
 ThermalStateObserverMac::~ThermalStateObserverMac() {
-  [[NSNotificationCenter defaultCenter]
-      removeObserver:objc_storage_->thermal_state_update_observer_];
+  [NSNotificationCenter.defaultCenter
+      removeObserver:objc_storage_->thermal_state_update_observer];
   notify_cancel(speed_limit_notification_token_);
 }
 
 PowerThermalObserver::DeviceThermalState
 ThermalStateObserverMac::GetCurrentThermalState() {
-  if (state_for_testing_ != PowerThermalObserver::DeviceThermalState::kUnknown)
+  if (state_for_testing_ !=
+      PowerThermalObserver::DeviceThermalState::kUnknown) {
     return state_for_testing_;
+  }
   NSProcessInfoThermalState nsinfo_state =
-      [[NSProcessInfo processInfo] thermalState];
+      NSProcessInfo.processInfo.thermalState;
   return NSProcessInfoThermalStateToDeviceThermalState(nsinfo_state);
 }
 
-int ThermalStateObserverMac::GetCurrentSpeedLimit() {
-  base::ScopedCFTypeRef<CFDictionaryRef> dictionary;
+int ThermalStateObserverMac::GetCurrentSpeedLimit() const {
+  apple::ScopedCFTypeRef<CFDictionaryRef> dictionary;
   IOReturn result = IOPMCopyCPUPowerStatus(dictionary.InitializeInto());
   if (result != kIOReturnSuccess) {
     DVLOG(1) << __func__
@@ -132,4 +134,4 @@ int ThermalStateObserverMac::GetCurrentSpeedLimit() {
   }
   return PowerThermalObserver::kSpeedLimitMax;
 }
-}
+}  // namespace base

@@ -35,7 +35,7 @@ class ASH_PUBLIC_EXPORT WallpaperControllerObserver {
   virtual void OnWallpaperColorsChanged() {}
 
   // Invoked when the blur state of the wallpaper changes.
-  // TODO(crbug.com/875128): Remove this after web-ui login code is completely
+  // TODO(crbug.com/41408561): Remove this after web-ui login code is completely
   // removed.
   virtual void OnWallpaperBlurChanged() {}
 
@@ -48,6 +48,13 @@ class ASH_PUBLIC_EXPORT WallpaperControllerObserver {
   // Invoked when the first wallpaper is set. The first wallpaper is the one
   // shown right after boot splash screen or after a session restart.
   virtual void OnFirstWallpaperShown() {}
+
+  // Invoked after a user successfully sets a wallpaper.
+  virtual void OnUserSetWallpaper(const AccountId& account_id) {}
+
+  // Invoked when the WallpaperDailyRefreshScheduler triggers
+  // OnCheckpointChanged().
+  virtual void OnDailyRefreshCheckpointChanged() {}
 
  protected:
   virtual ~WallpaperControllerObserver();

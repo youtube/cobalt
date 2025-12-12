@@ -13,7 +13,7 @@
 #include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
-
+class DigitalGoodsService;
 class LocalDOMWindow;
 class ScriptState;
 
@@ -23,18 +23,20 @@ class DOMWindowDigitalGoods final
  public:
   static const char kSupplementName[];
 
-  DOMWindowDigitalGoods(ExecutionContext* context);
+  DOMWindowDigitalGoods(LocalDOMWindow& window);
 
   // IDL Interface:
-  static ScriptPromise getDigitalGoodsService(ScriptState*,
-                                              LocalDOMWindow&,
-                                              const String& payment_method,
-                                              ExceptionState&);
+  static ScriptPromise<DigitalGoodsService> getDigitalGoodsService(
+      ScriptState*,
+      LocalDOMWindow&,
+      const String& payment_method,
+      ExceptionState&);
 
-  ScriptPromise GetDigitalGoodsService(ScriptState*,
-                                       LocalDOMWindow&,
-                                       const String& payment_method,
-                                       ExceptionState&);
+  ScriptPromise<DigitalGoodsService> GetDigitalGoodsService(
+      ScriptState*,
+      LocalDOMWindow&,
+      const String& payment_method,
+      ExceptionState&);
   void Trace(Visitor* visitor) const override;
 
  private:

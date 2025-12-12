@@ -5,13 +5,16 @@
 #ifndef SERVICES_NETWORK_PUBLIC_CPP_NETWORK_ISOLATION_KEY_MOJOM_TRAITS_H_
 #define SERVICES_NETWORK_PUBLIC_CPP_NETWORK_ISOLATION_KEY_MOJOM_TRAITS_H_
 
+#include <optional>
+
 #include "base/no_destructor.h"
 #include "mojo/public/cpp/bindings/struct_traits.h"
 #include "net/base/network_isolation_key.h"
+#include "net/base/network_isolation_partition.h"
 #include "net/base/schemeful_site.h"
+#include "services/network/public/cpp/network_isolation_partition_mojom_traits.h"
 #include "services/network/public/cpp/schemeful_site_mojom_traits.h"
 #include "services/network/public/mojom/network_isolation_key.mojom-shared.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace base {
 class UnguessableToken;
@@ -29,7 +32,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
 
 template <>
 struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
-    StructTraits<network::mojom::FrameSiteEnabledNetworkIsolationKeyDataView,
+    StructTraits<network::mojom::NonEmptyNetworkIsolationKeyDataView,
                  net::NetworkIsolationKey> {
   static const net::SchemefulSite& top_frame_site(
       const net::NetworkIsolationKey& input) {
@@ -40,51 +43,22 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
       const net::NetworkIsolationKey& input) {
     return input
         .GetFrameSiteForSerialization(
-            net::NetworkIsolationKey::SerializationPasskey())
+            net::NetworkIsolationKey::SerializationPassKey())
         .value();
   }
 
-  static const absl::optional<base::UnguessableToken>& nonce(
+  static const std::optional<base::UnguessableToken>& nonce(
       const net::NetworkIsolationKey& input) {
     return input.GetNonce();
   }
 
-  static bool Read(
-      network::mojom::FrameSiteEnabledNetworkIsolationKeyDataView data,
-      net::NetworkIsolationKey* out);
-};
-
-template <>
-struct COMPONENT_EXPORT(NETWORK_CPP_BASE) StructTraits<
-    network::mojom::CrossSiteFlagEnabledNetworkIsolationKeyDataView,
-    net::NetworkIsolationKey> {
-  static const net::SchemefulSite& top_frame_site(
+  static net::NetworkIsolationPartition network_isolation_partition(
       const net::NetworkIsolationKey& input) {
-    return input.GetTopFrameSite().value();
+    return input.GetNetworkIsolationPartition();
   }
 
-  static const net::SchemefulSite& frame_site(
-      const net::NetworkIsolationKey& input) {
-    return input
-        .GetFrameSiteForSerialization(
-            net::NetworkIsolationKey::SerializationPasskey())
-        .value();
-  }
-
-  static bool is_cross_site(const net::NetworkIsolationKey& input) {
-    absl::optional<bool> is_cross_site = input.GetIsCrossSiteForSerialization(
-        net::NetworkIsolationKey::SerializationPasskey());
-    return is_cross_site.value();
-  }
-
-  static const absl::optional<base::UnguessableToken>& nonce(
-      const net::NetworkIsolationKey& input) {
-    return input.GetNonce();
-  }
-
-  static bool Read(
-      network::mojom::CrossSiteFlagEnabledNetworkIsolationKeyDataView data,
-      net::NetworkIsolationKey* out);
+  static bool Read(network::mojom::NonEmptyNetworkIsolationKeyDataView data,
+                   net::NetworkIsolationKey* out);
 };
 
 template <>
@@ -96,12 +70,7 @@ struct COMPONENT_EXPORT(NETWORK_CPP_BASE)
     return input;
   }
 
-  static const net::NetworkIsolationKey& frame_site_enabled(
-      const net::NetworkIsolationKey& input) {
-    return input;
-  }
-
-  static const net::NetworkIsolationKey& cross_site_flag_enabled(
+  static const net::NetworkIsolationKey& non_empty(
       const net::NetworkIsolationKey& input) {
     return input;
   }

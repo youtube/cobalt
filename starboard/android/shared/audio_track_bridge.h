@@ -16,12 +16,14 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_
 
 #include <jni.h>
+
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "starboard/media.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

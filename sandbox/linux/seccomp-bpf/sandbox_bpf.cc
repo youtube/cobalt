@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "sandbox/linux/seccomp-bpf/sandbox_bpf.h"
 
 #include <errno.h>
@@ -101,14 +106,6 @@ bool KernelSupportsSeccompTsync() {
   return KernelSupportsSeccompFlags(SECCOMP_FILTER_FLAG_TSYNC);
 }
 
-#if BUILDFLAG(DISABLE_SECCOMP_SSBD)
-// Check if the kernel supports seccomp-filter via the seccomp system call and
-// without spec flaw mitigation.
-bool KernelSupportSeccompSpecAllow() {
-  return KernelSupportsSeccompFlags(SECCOMP_FILTER_FLAG_SPEC_ALLOW);
-}
-#endif
-
 uint64_t EscapePC() {
   intptr_t rv = Syscall::Call(-1);
   if (rv == -1 && errno == ENOSYS) {
@@ -142,7 +139,6 @@ bool SandboxBPF::SupportsSeccompSandbox(SeccompLevel level) {
       return KernelSupportsSeccompTsync();
   }
   NOTREACHED();
-  return false;
 }
 
 bool SandboxBPF::StartSandbox(SeccompLevel seccomp_level, bool enable_ibpb) {
@@ -235,7 +231,12 @@ void SandboxBPF::InstallFilter(bool must_sync_threads, bool enable_ibpb) {
   // in system calls to things like munmap() or brk().
   CodeGen::Program program = AssembleFilter();
 
+// Silence clang's warning about allocating on the stack because we have no
+// other choice.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wvla-extension"
   struct sock_filter bpf[program.size()];
+#pragma clang diagnostic pop
   const struct sock_fprog prog = {static_cast<unsigned short>(program.size()),
                                   bpf};
   memcpy(bpf, &program[0], sizeof(bpf));
@@ -257,19 +258,17 @@ void SandboxBPF::InstallFilter(bool must_sync_threads, bool enable_ibpb) {
   unsigned int seccomp_filter_flags = 0;
   if (must_sync_threads) {
     seccomp_filter_flags |= SECCOMP_FILTER_FLAG_TSYNC;
-#if BUILDFLAG(DISABLE_SECCOMP_SSBD)
     // Seccomp will disable indirect branch speculation and speculative store
     // bypass simultaneously. To only opt-out SSBD, following steps are needed
     // 1. Disable IBSpec with prctl
     // 2. Call seccomp with SECCOMP_FILTER_FLAG_SPEC_ALLOW
     // As prctl provide a per thread control of the speculation feature, only
     // opt-out SSBD when process is single-threaded and tsync is not necessary.
-  } else if (KernelSupportSeccompSpecAllow()) {
+  } else if (KernelSupportsSeccompFlags(SECCOMP_FILTER_FLAG_SPEC_ALLOW)) {
     seccomp_filter_flags |= SECCOMP_FILTER_FLAG_SPEC_ALLOW;
     if (enable_ibpb) {
       DisableIBSpec();
     }
-#endif
   } else {
     if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog)) {
       SANDBOX_DIE("Kernel refuses to turn on BPF filters");

@@ -4,12 +4,14 @@
 
 package org.chromium.components.payments;
 
-import androidx.annotation.Nullable;
 import androidx.collection.ArrayMap;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.payments.mojom.PaymentDetails;
 import org.chromium.payments.mojom.PaymentDetailsModifier;
 import org.chromium.payments.mojom.PaymentItem;
@@ -32,6 +34,7 @@ import java.util.Map;
  * the native pointer.
  */
 @JNINamespace("payments::android")
+@NullMarked
 public class PaymentRequestSpec {
     private long mNativePointer;
 
@@ -44,10 +47,18 @@ public class PaymentRequestSpec {
      * method specific data.
      * @param appLocale The current application locale.
      */
-    public PaymentRequestSpec(PaymentOptions options, PaymentDetails details,
-            Collection<PaymentMethodData> methodData, String appLocale) {
-        mNativePointer = PaymentRequestSpecJni.get().create(options.serialize(),
-                details.serialize(), MojoStructCollection.serialize(methodData), appLocale);
+    public PaymentRequestSpec(
+            PaymentOptions options,
+            PaymentDetails details,
+            Collection<PaymentMethodData> methodData,
+            String appLocale) {
+        mNativePointer =
+                PaymentRequestSpecJni.get()
+                        .create(
+                                options.serialize(),
+                                details.serialize(),
+                                MojoStructCollection.serialize(methodData),
+                                appLocale);
     }
 
     /** @return Whether destroy() has been called. */
@@ -103,7 +114,7 @@ public class PaymentRequestSpec {
      * @return The id of the request, found in PaymentDetails. This method cannot be used after the
      *         instance is destroyed.
      */
-    public String getId() {
+    public @Nullable String getId() {
         return getPaymentDetails().id;
     }
 
@@ -114,7 +125,8 @@ public class PaymentRequestSpec {
      */
     public List<PaymentShippingOption> getRawShippingOptions() {
         PaymentDetails details = getPaymentDetails();
-        return Collections.unmodifiableList(details.shippingOptions != null
+        return Collections.unmodifiableList(
+                details.shippingOptions != null
                         ? Arrays.asList(details.shippingOptions)
                         : new ArrayList<>());
     }
@@ -125,7 +137,8 @@ public class PaymentRequestSpec {
      */
     public List<PaymentItem> getRawLineItems() {
         PaymentDetails details = getPaymentDetails();
-        return Collections.unmodifiableList(details.displayItems != null
+        return Collections.unmodifiableList(
+                details.displayItems != null
                         ? Arrays.asList(details.displayItems)
                         : new ArrayList<>());
     }
@@ -134,7 +147,7 @@ public class PaymentRequestSpec {
      * The raw total amount being charged, as it was received from the website. This data is passed
      * to the payment app. This method cannot be used after the instance is destroyed.
      */
-    public PaymentItem getRawTotal() {
+    public @Nullable PaymentItem getRawTotal() {
         return getPaymentDetails().total;
     }
 
@@ -165,9 +178,7 @@ public class PaymentRequestSpec {
         PaymentRequestSpecJni.get().retry(mNativePointer, validationErrors.serialize());
     }
 
-    /**
-     * Recomputes spec based on details. This cannot be used after the instance is destroyed.
-     */
+    /** Recomputes spec based on details. This cannot be used after the instance is destroyed. */
     public void recomputeSpecForDetails() {
         PaymentRequestSpecJni.get().recomputeSpecForDetails(mNativePointer);
     }
@@ -176,8 +187,7 @@ public class PaymentRequestSpec {
      * Returns the selected shipping option error. This cannot be used after the instance is
      * destroyed.
      */
-    @Nullable
-    public String selectedShippingOptionError() {
+    public @Nullable String selectedShippingOptionError() {
         return PaymentRequestSpecJni.get().selectedShippingOptionError(mNativePointer);
     }
 
@@ -200,16 +210,28 @@ public class PaymentRequestSpec {
 
     @NativeMethods
     /* package */ interface Natives {
-        long create(ByteBuffer optionsByteBuffer, ByteBuffer detailsByteBuffer,
-                ByteBuffer[] methodDataByteBuffers, String appLocale);
+        long create(
+                ByteBuffer optionsByteBuffer,
+                ByteBuffer detailsByteBuffer,
+                ByteBuffer[] methodDataByteBuffers,
+                String appLocale);
+
         void updateWith(long nativePaymentRequestSpec, ByteBuffer detailsByteBuffer);
+
         void retry(long nativePaymentRequestSpec, ByteBuffer validationErrorsByteBuffer);
+
         void recomputeSpecForDetails(long nativePaymentRequestSpec);
+
         String selectedShippingOptionError(long nativePaymentRequestSpec);
+
         void destroy(long nativePaymentRequestSpec);
+
         byte[] getPaymentDetails(long nativePaymentRequestSpec);
+
         byte[][] getMethodData(long nativePaymentRequestSpec);
+
         byte[] getPaymentOptions(long nativePaymentRequestSpec);
+
         boolean isSecurePaymentConfirmationRequested(long nativePaymentRequestSpec);
     }
 }

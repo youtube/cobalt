@@ -21,7 +21,7 @@ namespace {
 void OnGotExtensionValue(GetExtensionKeyPermissionsServiceCallback callback,
                          content::BrowserContext* context,
                          extensions::ExtensionId extension_id,
-                         absl::optional<base::Value> value) {
+                         std::optional<base::Value> value) {
   Profile* profile = Profile::FromBrowserContext(context);
   if (!profile) {
     std::move(callback).Run(/*extension_key_permissions_service=*/nullptr);
@@ -54,7 +54,7 @@ void ExtensionKeyPermissionsServiceFactory::GetForBrowserContextAndExtension(
       extensions::ExtensionSystem::Get(context)->state_store();
 
   // Must not be nullptr since KeyPermissionsServiceFactory depends on
-  // ExtensionSystemFactory.
+  // ChromeExtensionSystemFactory.
   DCHECK(state_store);
 
   state_store->GetExtensionValue(

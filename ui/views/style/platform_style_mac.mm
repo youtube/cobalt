@@ -4,14 +4,18 @@
 
 #include "ui/views/style/platform_style.h"
 
+#import <Cocoa/Cocoa.h>
+#include <stddef.h>
+
+#include <memory>
+#include <string_view>
+
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/sys_string_conversions.h"
 #include "ui/base/buildflags.h"
 #include "ui/gfx/color_utils.h"
 #include "ui/views/controls/button/label_button.h"
 #import "ui/views/controls/scrollbar/cocoa_scroll_bar.h"
-
-#import <Cocoa/Cocoa.h>
 
 extern "C" {
 // From CFString private headers.
@@ -33,30 +37,10 @@ CFRange CFStringGetRangeOfCharacterClusterAtIndex(
 
 namespace views {
 
-const int PlatformStyle::kMinLabelButtonWidth = 32;
-const int PlatformStyle::kMinLabelButtonHeight = 30;
-const bool PlatformStyle::kDialogDefaultButtonCanBeCancel = false;
-const bool PlatformStyle::kSelectWordOnRightClick = true;
-const bool PlatformStyle::kSelectAllOnRightClickWhenUnfocused = true;
-const bool PlatformStyle::kTextfieldUsesDragCursorWhenDraggable = false;
-const bool PlatformStyle::kTableViewSupportsKeyboardNavigationByCell = false;
-const bool PlatformStyle::kTreeViewSelectionPaintsEntireRow = true;
-const bool PlatformStyle::kUseRipples = false;
-const bool PlatformStyle::kInactiveWidgetControlsAppearDisabled = true;
-const bool PlatformStyle::kAdjustBubbleIfOffscreen = false;
-const View::FocusBehavior PlatformStyle::kDefaultFocusBehavior =
-    View::FocusBehavior::ACCESSIBLE_ONLY;
-
-const Button::KeyClickAction PlatformStyle::kKeyClickActionOnSpace =
-    Button::KeyClickAction::kOnKeyPress;
-
-// On Mac, the Return key is used to perform the default action even when a
-// control is focused.
-const bool PlatformStyle::kReturnClicksFocusedControl = false;
-
 // static
-std::unique_ptr<ScrollBar> PlatformStyle::CreateScrollBar(bool is_horizontal) {
-  return std::make_unique<CocoaScrollBar>(is_horizontal);
+std::unique_ptr<ScrollBar> PlatformStyle::CreateScrollBar(
+    ScrollBar::Orientation orientation) {
+  return std::make_unique<CocoaScrollBar>(orientation);
 }
 
 // static
@@ -65,20 +49,23 @@ void PlatformStyle::OnTextfieldEditFailed() {
 }
 
 // static
-gfx::Range PlatformStyle::RangeToDeleteBackwards(const std::u16string& text,
+gfx::Range PlatformStyle::RangeToDeleteBackwards(std::u16string_view text,
                                                  size_t cursor_position) {
-  if (cursor_position == 0)
+  if (cursor_position == 0) {
     return gfx::Range();
+  }
 
-  base::ScopedCFTypeRef<CFStringRef> cf_string(CFStringCreateWithCharacters(
-      kCFAllocatorDefault, reinterpret_cast<const UniChar*>(text.data()),
-      base::checked_cast<CFIndex>(text.size())));
+  base::apple::ScopedCFTypeRef<CFStringRef> cf_string(
+      CFStringCreateWithCharacters(
+          kCFAllocatorDefault, reinterpret_cast<const UniChar*>(text.data()),
+          base::checked_cast<CFIndex>(text.size())));
   CFRange range_to_delete = CFStringGetRangeOfCharacterClusterAtIndex(
-      cf_string, base::checked_cast<CFIndex>(cursor_position - 1),
+      cf_string.get(), base::checked_cast<CFIndex>(cursor_position - 1),
       kCFStringBackwardDeletionCluster);
 
-  if (range_to_delete.location == NSNotFound)
+  if (range_to_delete.location == NSNotFound) {
     return gfx::Range();
+  }
 
   // The range needs to be reversed to undo correctly.
   return gfx::Range(base::checked_cast<size_t>(range_to_delete.location +

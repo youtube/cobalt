@@ -2,22 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#import "ios/web_view/internal/cwv_favicon_internal.h"
-
 #import <UIKit/UIKit.h>
-#include <vector>
 
-#include "ios/web/public/favicon/favicon_url.h"
-#import "net/base/mac/url_conversions.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#import <vector>
+
+#import "ios/web/public/favicon/favicon_url.h"
+#import "ios/web_view/internal/cwv_favicon_internal.h"
+#import "net/base/apple/url_conversions.h"
+#import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
-#include "testing/platform_test.h"
-#include "ui/gfx/geometry/size.h"
-#include "url/gurl.h"
-
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#import "testing/platform_test.h"
+#import "ui/gfx/geometry/size.h"
+#import "url/gurl.h"
 
 namespace ios_web_view {
 

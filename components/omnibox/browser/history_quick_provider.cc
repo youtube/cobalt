@@ -31,6 +31,7 @@
 #include "components/omnibox/browser/history_url_provider.h"
 #include "components/omnibox/browser/in_memory_url_index.h"
 #include "components/omnibox/browser/keyword_provider.h"
+#include "components/omnibox/browser/match_compare.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/url_prefix.h"
@@ -41,9 +42,14 @@
 #include "third_party/metrics_proto/omnibox_event.pb.h"
 #include "third_party/metrics_proto/omnibox_focus_type.pb.h"
 #include "third_party/metrics_proto/omnibox_input_type.pb.h"
+#include "third_party/omnibox_proto/groups.pb.h"
 #include "ui/base/page_transition_types.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_util.h"
+
+namespace {
+constexpr int kAndroidHubMaxMatches = 5;
+}  // namespace
 
 bool HistoryQuickProvider::disabled_ = false;
 
@@ -55,23 +61,19 @@ void HistoryQuickProvider::Start(const AutocompleteInput& input,
                                  bool minimal_changes) {
   TRACE_EVENT0("omnibox", "HistoryQuickProvider::Start");
   matches_.clear();
-  if (disabled_ ||
-      input.focus_type() != metrics::OmniboxFocusType::INTERACTION_DEFAULT)
+  if (disabled_ || input.IsZeroSuggest() ||
+      input.type() == metrics::OmniboxInputType::EMPTY) {
     return;
-
-  // Don't bother with INVALID.
-  if ((input.type() == metrics::OmniboxInputType::EMPTY))
-    return;
+  }
 
   // Remove the keyword from input if we're in keyword mode for a starter pack
   // engine.
-  std::tie(autocomplete_input_, starter_pack_engine_) =
-      KeywordProvider::AdjustInputForStarterPackEngines(
-          input, client()->GetTemplateURLService());
+  const auto [adjusted_input, starter_pack_engine] =
+      AdjustInputForStarterPackKeyword(input,
+                                       client()->GetTemplateURLService());
+  autocomplete_input_ = std::move(adjusted_input);
+  starter_pack_engine_ = starter_pack_engine;
 
-  // TODO(pkasting): We should just block here until this loads.  Any time
-  // someone unloads the history backend, we'll get inconsistent inline
-  // autocomplete behavior here.
   if (in_memory_url_index_) {
     DoAutocomplete();
   }
@@ -91,9 +93,15 @@ void HistoryQuickProvider::DoAutocomplete() {
   // In keyword mode, it's possible we only provide results from one or two
   // autocomplete provider(s), so it's sometimes necessary to show more results
   // than provider_max_matches_.
-  size_t max_matches = InKeywordMode(autocomplete_input_)
+  size_t max_matches = autocomplete_input_.InKeywordMode()
                            ? provider_max_matches_in_keyword_mode_
                            : provider_max_matches_;
+  if (autocomplete_input_.current_page_classification() ==
+      metrics::OmniboxEventProto::ANDROID_HUB) {
+    // LINT.IfChange(HubHistoryMaxMatches)
+    max_matches = kAndroidHubMaxMatches;
+    // LINT.ThenChange(//components/omnibox/browser/autocomplete_grouper_sections.cc:HubHistorySectionSlots)
+  }
 
   // Get the matching URLs from the DB.
   ScoredHistoryMatches matches = in_memory_url_index_->HistoryItemsForTerms(
@@ -114,7 +122,14 @@ void HistoryQuickProvider::DoAutocomplete() {
     for (const auto& history_match : matches) {
       // Set max_match_score to the score we'll assign this result.
       max_match_score = std::min(max_match_score, history_match.raw_score);
-      matches_.push_back(QuickMatchToACMatch(history_match, max_match_score));
+      auto match = QuickMatchToACMatch(history_match, max_match_score);
+      if (autocomplete_input_.current_page_classification() ==
+          PageClassification::
+              OmniboxEventProto_PageClassification_ANDROID_HUB) {
+        match.suggestion_group_id = omnibox::GROUP_MOBILE_HISTORY;
+      }
+
+      matches_.push_back(std::move(match));
       // Mark this max_match_score as being used.
       max_match_score--;
     }
@@ -122,12 +137,24 @@ void HistoryQuickProvider::DoAutocomplete() {
 
   add_matches(matches);
 
+  if (autocomplete_input_.current_page_classification() !=
+      PageClassification::OmniboxEventProto_PageClassification_ANDROID_HUB) {
+    // If ML scoring is enabled, mark all "extra" matches as
+    // `culled_by_provider`. If ML scoring is disabled, this is effectively a
+    // no-op as the matches will already be resized in the above call to
+    // `HistoryItemsForTerms()`.
+    ResizeMatches(
+        max_matches,
+        OmniboxFieldTrial::IsMlUrlScoringUnlimitedNumCandidatesEnabled());
+  }
+
   // Add suggestions from the user's highly visited domains bypassing
   // `provider_max_matches_`.
 
   // In keyword mode, already have enough matches.
-  if (InKeywordMode(autocomplete_input_))
+  if (autocomplete_input_.InKeywordMode()) {
     return;
+  }
 
   static const size_t domain_suggestions_min_char =
       OmniboxFieldTrial::kDomainSuggestionsMinInputLength.Get();
@@ -171,7 +198,7 @@ void HistoryQuickProvider::DoAutocomplete() {
   }
 }
 
-absl::optional<int> HistoryQuickProvider::MaxMatchScore() {
+std::optional<int> HistoryQuickProvider::MaxMatchScore() {
   // Figure out if HistoryURL provider has a URL-what-you-typed match
   // that ought to go first and what its score will be.
   bool will_have_url_what_you_typed_match_first = false;
@@ -258,8 +285,8 @@ absl::optional<int> HistoryQuickProvider::MaxMatchScore() {
     }
   }
   return will_have_url_what_you_typed_match_first
-             ? absl::optional<int>{url_what_you_typed_match_score - 1}
-             : absl::nullopt;
+             ? std::optional<int>{url_what_you_typed_match_score - 1}
+             : std::nullopt;
 }
 
 AutocompleteMatch HistoryQuickProvider::QuickMatchToACMatch(
@@ -333,7 +360,7 @@ AutocompleteMatch HistoryQuickProvider::QuickMatchToACMatch(
         ACMatchClassification::URL);
   }
 
-  match.description = info.title();
+  match.description = AutocompleteMatch::SanitizeString(info.title());
   auto description_terms =
       FindTermMatches(autocomplete_input_.text(), match.description);
   match.description_class = ClassifyTermMatches(
@@ -341,8 +368,8 @@ AutocompleteMatch HistoryQuickProvider::QuickMatchToACMatch(
       ACMatchClassification::NONE);
 
   // Set |inline_autocompletion| and |allowed_to_be_default_match| if possible.
-  if (match.TryRichAutocompletion(match.contents, match.description,
-                                  autocomplete_input_)) {
+  if (match.TryRichAutocompletion(autocomplete_input_, match.contents,
+                                  match.description)) {
     // If rich autocompletion applies, we skip trying the alternatives below.
   } else if (inline_autocomplete_offset != std::u16string::npos) {
     match.inline_autocompletion =
@@ -357,12 +384,12 @@ AutocompleteMatch HistoryQuickProvider::QuickMatchToACMatch(
     match.transition = ui::PAGE_TRANSITION_KEYWORD;
   }
 
-  if (InKeywordMode(autocomplete_input_)) {
+  if (autocomplete_input_.InKeywordMode()) {
     match.from_keyword = true;
   }
 
-  if (OmniboxFieldTrial::IsLogUrlScoringSignalsEnabled() &&
-      AutocompleteScoringSignalsAnnotator::IsEligibleMatch(match)) {
+  if (OmniboxFieldTrial::IsPopulatingUrlScoringSignalsEnabled() &&
+      match.IsMlSignalLoggingEligible()) {
     // Propagate scoring signals to AC Match for ML Model training data.
     // `allowed_to_be_default_match` is set in this function, after the ACMatch
     // is constructed, rather than in ScoredHistoryMatch. We have to propagate

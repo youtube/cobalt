@@ -46,7 +46,6 @@ struct IOSurfaceFormatInfo
 static const IOSurfaceFormatInfo kIOSurfaceFormats[] = {
     {GL_RED,      GL_UNSIGNED_BYTE,                1, GL_RED,  GL_RED,  GL_UNSIGNED_BYTE              },
     {GL_RED,      GL_UNSIGNED_SHORT,               2, GL_RED,  GL_RED,  GL_UNSIGNED_SHORT             },
-    {GL_R16UI,    GL_UNSIGNED_SHORT,               2, GL_RED,  GL_RED,  GL_UNSIGNED_SHORT             },
     {GL_RG,       GL_UNSIGNED_BYTE,                2, GL_RG,   GL_RG,   GL_UNSIGNED_BYTE              },
     {GL_RG,       GL_UNSIGNED_SHORT,               4, GL_RG,   GL_RG,   GL_UNSIGNED_SHORT             },
     {GL_RGB,      GL_UNSIGNED_BYTE,                4, GL_RGBA, GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV   },
@@ -140,7 +139,7 @@ egl::Error IOSurfaceSurfaceCGL::unMakeCurrent(const gl::Context *context)
     return egl::NoError();
 }
 
-egl::Error IOSurfaceSurfaceCGL::swap(const gl::Context *context)
+egl::Error IOSurfaceSurfaceCGL::swap(const gl::Context *context, SurfaceSwapFeedback *feedback)
 {
     return egl::NoError();
 }
@@ -178,12 +177,14 @@ egl::Error IOSurfaceSurfaceCGL::bindTexImage(const gl::Context *context,
 
     if (error != kCGLNoError)
     {
-        return egl::EglContextLost() << "CGLTexImageIOSurface2D failed: " << CGLErrorString(error);
+        std::ostringstream err;
+        err << "CGLTexImageIOSurface2D failed: " << CGLErrorString(error);
+        return egl::Error(EGL_CONTEXT_LOST, err.str());
     }
 
     if (IsError(initializeAlphaChannel(context, textureID)))
     {
-        return egl::EglContextLost() << "Failed to initialize IOSurface alpha channel.";
+        return egl::Error(EGL_CONTEXT_LOST, "Failed to initialize IOSurface alpha channel.");
     }
 
     return egl::NoError();
@@ -196,7 +197,7 @@ egl::Error IOSurfaceSurfaceCGL::releaseTexImage(const gl::Context *context, EGLi
     return egl::NoError();
 }
 
-void IOSurfaceSurfaceCGL::setSwapInterval(EGLint interval)
+void IOSurfaceSurfaceCGL::setSwapInterval(const egl::Display *display, EGLint interval)
 {
     UNREACHABLE();
 }
@@ -309,15 +310,16 @@ egl::Error IOSurfaceSurfaceCGL::attachToFramebuffer(const gl::Context *context,
             format.nativeFormat, format.nativeType, mIOSurface, mPlane);
         if (error != kCGLNoError)
         {
-            return egl::EglContextLost()
-                   << "CGLTexImageIOSurface2D failed: " << CGLErrorString(error);
+            std::ostringstream err;
+            err << "CGLTexImageIOSurface2D failed: " << CGLErrorString(error);
+            return egl::Error(EGL_CONTEXT_LOST, err.str());
         }
         ASSERT(error == kCGLNoError);
 
         // TODO: pass context
         if (IsError(initializeAlphaChannel(context, textureID)))
         {
-            return egl::EglContextLost() << "Failed to initialize IOSurface alpha channel.";
+            return egl::Error(EGL_CONTEXT_LOST, "Failed to initialize IOSurface alpha channel.");
         }
 
         GLuint framebufferID = 0;

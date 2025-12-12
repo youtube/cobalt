@@ -23,10 +23,17 @@
  * DAMAGE.
  */
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/351564777): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "third_party/blink/renderer/platform/audio/equal_power_panner.h"
 
 #include <algorithm>
 #include <cmath>
+
+#include "base/containers/span.h"
 #include "third_party/blink/renderer/platform/audio/audio_bus.h"
 #include "third_party/blink/renderer/platform/audio/audio_utilities.h"
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
@@ -134,8 +141,8 @@ void EqualPowerPanner::Pan(double azimuth,
 }
 
 void EqualPowerPanner::PanWithSampleAccurateValues(
-    double* azimuth,
-    double* /*elevation*/,
+    base::span<double> azimuth,
+    base::span<double> /*elevation*/,
     const AudioBus* input_bus,
     AudioBus* output_bus,
     uint32_t frames_to_process,

@@ -2,31 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/extensions/pref_mapping.h"
+
+#include <optional>
 #include <span>  // std::size.
+#include <string_view>
 
 #include "base/containers/contains.h"
 #include "base/strings/stringprintf.h"
-#include "chrome/browser/extensions/pref_mapping.h"
 #include "chrome/browser/extensions/pref_transformer_interface.h"
 #include "chrome/browser/prefetch/pref_names.h"
-#include "chrome/browser/prefetch/prefetch_prefs.h"
+#include "chrome/browser/preloading/preloading_prefs.h"
+#include "chrome/common/pref_names.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/content_settings/core/common/pref_names.h"
 #include "components/embedder_support/pref_names.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/privacy_sandbox/privacy_sandbox_prefs.h"
+#include "components/privacy_sandbox/tracking_protection_prefs.h"
 #include "components/proxy_config/proxy_config_pref_names.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/spellcheck/browser/pref_names.h"
 #include "components/translate/core/browser/translate_pref_names.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "chrome/browser/chromeos/extensions/controlled_pref_mapping.h"
-#endif
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-#include "base/containers/fixed_flat_map.h"
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_pref_names.h"
 #endif
 
 using extensions::mojom::APIPermissionID;
@@ -55,7 +55,6 @@ const PrefMappingEntry kMappings[] = {
      password_manager::prefs::kCredentialsEnableService,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
 
-    // Note in Lacros this is Ash-controlled.
     {"protectedContentEnabled", prefs::kProtectedContentDefault,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
 
@@ -76,8 +75,6 @@ const PrefMappingEntry kMappings[] = {
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"thirdPartyCookiesAllowed", prefs::kCookieControlsMode,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
-    {"privacySandboxEnabled", prefs::kPrivacySandboxApisEnabled,
-     APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"topicsEnabled", prefs::kPrivacySandboxM1TopicsEnabled,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"fledgeEnabled", prefs::kPrivacySandboxM1FledgeEnabled,
@@ -88,8 +85,13 @@ const PrefMappingEntry kMappings[] = {
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"webRTCIPHandlingPolicy", prefs::kWebRTCIPHandlingPolicy,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
+    {"webRTCIPHandlingUrl", prefs::kWebRTCIPHandlingUrl,
+     APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
     {"webRTCUDPPortRange", prefs::kWebRTCUDPPortRange,
      APIPermissionID::kPrivacy, APIPermissionID::kPrivacy},
+    {"relatedWebsiteSetsEnabled",
+     prefs::kPrivacySandboxRelatedWebsiteSetsEnabled, APIPermissionID::kPrivacy,
+     APIPermissionID::kPrivacy},
     // accessibilityFeatures.animationPolicy is available for
     // all platforms but the others from accessibilityFeatures
     // is only available for OS_CHROMEOS.
@@ -100,50 +102,50 @@ const PrefMappingEntry kMappings[] = {
 // feature being controlled exists in ash. They should be kept in sync/in order.
 // If a new extension-controlled pref of this type is added, it should be added
 // to both lists.
-#if BUILDFLAG(IS_CHROMEOS_ASH) || BUILDFLAG(IS_CHROMEOS_LACROS)
-    {"autoclick", chromeos::prefs::kAccessibilityAutoclickEnabled,
+#if BUILDFLAG(IS_CHROMEOS)
+    {"autoclick", ash::prefs::kAccessibilityAutoclickEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"caretHighlight", chromeos::prefs::kAccessibilityCaretHighlightEnabled,
+    {"caretHighlight", ash::prefs::kAccessibilityCaretHighlightEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"cursorColor", chromeos::prefs::kAccessibilityCursorColorEnabled,
+    {"cursorColor", ash::prefs::kAccessibilityCursorColorEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"cursorHighlight", chromeos::prefs::kAccessibilityCursorHighlightEnabled,
+    {"cursorHighlight", ash::prefs::kAccessibilityCursorHighlightEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"dictation", chromeos::prefs::kAccessibilityDictationEnabled,
+    {"dictation", ash::prefs::kAccessibilityDictationEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"dockedMagnifier", chromeos::prefs::kDockedMagnifierEnabled,
+    {"dockedMagnifier", ash::prefs::kDockedMagnifierEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"focusHighlight", chromeos::prefs::kAccessibilityFocusHighlightEnabled,
+    {"focusHighlight", ash::prefs::kAccessibilityFocusHighlightEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"highContrast", chromeos::prefs::kAccessibilityHighContrastEnabled,
+    {"highContrast", ash::prefs::kAccessibilityHighContrastEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"largeCursor", chromeos::prefs::kAccessibilityLargeCursorEnabled,
+    {"largeCursor", ash::prefs::kAccessibilityLargeCursorEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"screenMagnifier", chromeos::prefs::kAccessibilityScreenMagnifierEnabled,
+    {"screenMagnifier", ash::prefs::kAccessibilityScreenMagnifierEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"selectToSpeak", chromeos::prefs::kAccessibilitySelectToSpeakEnabled,
+    {"selectToSpeak", ash::prefs::kAccessibilitySelectToSpeakEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"spokenFeedback", chromeos::prefs::kAccessibilitySpokenFeedbackEnabled,
+    {"spokenFeedback", ash::prefs::kAccessibilitySpokenFeedbackEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"stickyKeys", chromeos::prefs::kAccessibilityStickyKeysEnabled,
+    {"stickyKeys", ash::prefs::kAccessibilityStickyKeysEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"switchAccess", chromeos::prefs::kAccessibilitySwitchAccessEnabled,
+    {"switchAccess", ash::prefs::kAccessibilitySwitchAccessEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
-    {"virtualKeyboard", chromeos::prefs::kAccessibilityVirtualKeyboardEnabled,
+    {"virtualKeyboard", ash::prefs::kAccessibilityVirtualKeyboardEnabled,
      APIPermissionID::kAccessibilityFeaturesRead,
      APIPermissionID::kAccessibilityFeaturesModify},
 #endif
@@ -151,14 +153,14 @@ const PrefMappingEntry kMappings[] = {
 
 class IdentityPrefTransformer : public PrefTransformerInterface {
  public:
-  absl::optional<base::Value> ExtensionToBrowserPref(
+  std::optional<base::Value> ExtensionToBrowserPref(
       const base::Value& extension_pref,
       std::string& error,
       bool& bad_message) override {
     return extension_pref.Clone();
   }
 
-  absl::optional<base::Value> BrowserToExtensionPref(
+  std::optional<base::Value> BrowserToExtensionPref(
       const base::Value& browser_pref,
       bool is_incognito_profile) override {
     return browser_pref.Clone();
@@ -209,53 +211,6 @@ PrefTransformerInterface* PrefMapping::FindTransformerForBrowserPref(
     return it->second.get();
   return identity_transformer_.get();
 }
-
-#if BUILDFLAG(IS_CHROMEOS_LACROS)
-// Given a pref name for an extension-controlled pref where the underlying
-// pref is controlled by ash, returns the PrefPath used by the crosapi to set
-// the pref in ash, or nullptr if no pref exists.
-crosapi::mojom::PrefPath PrefMapping::GetPrefPathForPrefName(
-    const std::string& pref_name) const {
-  static const auto name_to_extension_prefpath = base::MakeFixedFlatMap<
-      base::StringPiece, crosapi::mojom::PrefPath>(
-      {{chromeos::prefs::kDockedMagnifierEnabled,
-        crosapi::mojom::PrefPath::kDockedMagnifierEnabled},
-       {chromeos::prefs::kAccessibilityAutoclickEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityAutoclickEnabled},
-       {chromeos::prefs::kAccessibilityCaretHighlightEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityCaretHighlightEnabled},
-       {chromeos::prefs::kAccessibilityCursorColorEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityCursorColorEnabled},
-       {chromeos::prefs::kAccessibilityCursorHighlightEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityCursorHighlightEnabled},
-       {chromeos::prefs::kAccessibilityDictationEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityDictationEnabled},
-       {chromeos::prefs::kAccessibilityFocusHighlightEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityFocusHighlightEnabled},
-       {chromeos::prefs::kAccessibilityHighContrastEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityHighContrastEnabled},
-       {chromeos::prefs::kAccessibilityLargeCursorEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityLargeCursorEnabled},
-       {chromeos::prefs::kAccessibilityScreenMagnifierEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityScreenMagnifierEnabled},
-       {chromeos::prefs::kAccessibilitySelectToSpeakEnabled,
-        crosapi::mojom::PrefPath::kAccessibilitySelectToSpeakEnabled},
-       {chromeos::prefs::kAccessibilitySpokenFeedbackEnabled,
-        crosapi::mojom::PrefPath::kExtensionAccessibilitySpokenFeedbackEnabled},
-       {chromeos::prefs::kAccessibilityStickyKeysEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityStickyKeysEnabled},
-       {chromeos::prefs::kAccessibilitySwitchAccessEnabled,
-        crosapi::mojom::PrefPath::kAccessibilitySwitchAccessEnabled},
-       {chromeos::prefs::kAccessibilityVirtualKeyboardEnabled,
-        crosapi::mojom::PrefPath::kAccessibilityVirtualKeyboardEnabled},
-       {prefs::kProtectedContentDefault,
-        crosapi::mojom::PrefPath::kProtectedContentDefault}});
-  auto* pref_iter = name_to_extension_prefpath.find(pref_name);
-  return pref_iter == name_to_extension_prefpath.end()
-             ? crosapi::mojom::PrefPath::kUnknown
-             : pref_iter->second;
-}
-#endif  // BUILDFLAG(IS_CHROMEOS_LACROS)
 
 PrefMapping::PrefMapping() {
   identity_transformer_ = std::make_unique<IdentityPrefTransformer>();

@@ -6,14 +6,15 @@ package org.chromium.components.security_interstitials;
 
 import android.content.Intent;
 
-import org.chromium.base.ContextUtils;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
 
-/**
- * Helper for opening date and time settings.
- */
+import org.chromium.base.ContextUtils;
+import org.chromium.build.annotations.NullMarked;
+
+/** Helper for opening date and time settings. */
 @JNINamespace("security_interstitials")
+@NullMarked
 public abstract class DateAndTimeSettingsHelper {
     private DateAndTimeSettingsHelper() {}
 

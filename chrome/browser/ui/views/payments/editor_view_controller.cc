@@ -14,6 +14,7 @@
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view.h"
 #include "chrome/browser/ui/views/payments/payment_request_dialog_view_ids.h"
+#include "chrome/browser/ui/views/payments/payment_request_sheet_controller.h"
 #include "chrome/browser/ui/views/payments/payment_request_views_util.h"
 #include "chrome/browser/ui/views/payments/validating_combobox.h"
 #include "chrome/browser/ui/views/payments/validating_textfield.h"
@@ -25,6 +26,7 @@
 #include "ui/color/color_id.h"
 #include "ui/color/color_provider.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
 #include "ui/views/controls/button/label_button.h"
 #include "ui/views/controls/button/md_text_button.h"
@@ -40,29 +42,21 @@
 namespace payments {
 namespace {
 
-class ErrorLabelView : public views::Label {
- public:
-  METADATA_HEADER(ErrorLabelView);
+constexpr int kErrorLabelTopPadding = 6;
 
-  ErrorLabelView(const std::u16string& error, autofill::ServerFieldType type)
-      : views::Label(error, CONTEXT_DIALOG_BODY_TEXT_SMALL) {
-    SetID(static_cast<int>(DialogViewID::ERROR_LABEL_OFFSET) + type);
-    SetMultiLine(true);
-    SetHorizontalAlignment(gfx::ALIGN_LEFT);
-    constexpr int kErrorLabelTopPadding = 6;
-    SetBorder(views::CreateEmptyBorder(
-        gfx::Insets::TLBR(kErrorLabelTopPadding, 0, 0, 0)));
-  }
-
-  // views::Label:
-  void OnThemeChanged() override {
-    views::Label::OnThemeChanged();
-    SetEnabledColor(GetColorProvider()->GetColor(ui::kColorAlertHighSeverity));
-  }
-};
-
-BEGIN_METADATA(ErrorLabelView, views::Label)
-END_METADATA
+std::unique_ptr<views::Label> CreateErrorLabel(const std::u16string& error,
+                                               autofill::FieldType type) {
+  return views::Builder<views::Label>()
+      .SetText(error)
+      .SetTextContext(CONTEXT_DIALOG_BODY_TEXT_SMALL)
+      .SetID(static_cast<int>(DialogViewID::ERROR_LABEL_OFFSET) + type)
+      .SetMultiLine(true)
+      .SetHorizontalAlignment(gfx::ALIGN_LEFT)
+      .SetBorder(views::CreateEmptyBorder(
+          gfx::Insets::TLBR(kErrorLabelTopPadding, 0, 0, 0)))
+      .SetEnabledColor(ui::kColorAlertHighSeverity)
+      .Build();
+}
 
 }  // namespace
 
@@ -73,21 +67,22 @@ EditorViewController::EditorViewController(
     BackNavigationType back_navigation_type,
     bool is_incognito)
     : PaymentRequestSheetController(spec, state, dialog),
-      initial_focus_field_view_(nullptr),
       back_navigation_type_(back_navigation_type),
       is_incognito_(is_incognito) {}
 
-EditorViewController::~EditorViewController() {}
+EditorViewController::~EditorViewController() {
+  ClearViewPointers();
+}
 
 void EditorViewController::DisplayErrorMessageForField(
-    autofill::ServerFieldType type,
+    autofill::FieldType type,
     const std::u16string& error_message) {
   AddOrUpdateErrorMessageForField(type, error_message);
   RelayoutPane();
 }
 
 // static
-int EditorViewController::GetInputFieldViewId(autofill::ServerFieldType type) {
+int EditorViewController::GetInputFieldViewId(autofill::FieldType type) {
   return static_cast<int>(DialogViewID::INPUT_FIELD_TYPE_OFFSET) +
          static_cast<int>(type);
 }
@@ -97,7 +92,7 @@ std::unique_ptr<views::View> EditorViewController::CreateHeaderView() {
 }
 
 std::unique_ptr<views::View> EditorViewController::CreateCustomFieldView(
-    autofill::ServerFieldType type,
+    autofill::FieldType type,
     views::View** focusable_field,
     bool* valid,
     std::u16string* error_message) {
@@ -105,20 +100,27 @@ std::unique_ptr<views::View> EditorViewController::CreateCustomFieldView(
 }
 
 std::unique_ptr<views::View> EditorViewController::CreateExtraViewForField(
-    autofill::ServerFieldType type) {
+    autofill::FieldType type) {
   return nullptr;
 }
 
 bool EditorViewController::ValidateInputFields() {
   for (const auto& field : text_fields()) {
-    if (!field.first->IsValid())
+    if (!field.first->IsValid()) {
       return false;
+    }
   }
   for (const auto& field : comboboxes()) {
-    if (!field.first->IsValid())
+    if (!field.first->IsValid()) {
       return false;
+    }
   }
   return true;
+}
+
+void EditorViewController::Stop() {
+  PaymentRequestSheetController::Stop();
+  ClearViewPointers();
 }
 
 std::u16string EditorViewController::GetPrimaryButtonLabel() {
@@ -154,12 +156,12 @@ void EditorViewController::FillContentView(views::View* content_view) {
   // No insets. Child views below are responsible for their padding.
 
   // An editor can optionally have a header view specific to it.
-  std::unique_ptr<views::View> header_view = CreateHeaderView();
-  if (header_view.get())
-    content_view->AddChildView(header_view.release());
+  if (std::unique_ptr<views::View> header_view = CreateHeaderView()) {
+    content_view->AddChildView(std::move(header_view));
+  }
 
   // The heart of the editor dialog: all the input fields with their labels.
-  content_view->AddChildView(CreateEditorView().release());
+  content_view->AddChildView(CreateEditorView());
 }
 
 bool EditorViewController::ShouldAccelerateEnterKey() {
@@ -170,14 +172,17 @@ bool EditorViewController::ShouldAccelerateEnterKey() {
 }
 
 void EditorViewController::UpdateEditorView() {
+  // `UpdateContentView` removes all children, so reset pointers to them.
+  ClearViewPointers();
   UpdateContentView();
   UpdateFocus(GetFirstFocusedView());
   dialog()->EditorViewUpdated();
 }
 
 views::View* EditorViewController::GetFirstFocusedView() {
-  if (initial_focus_field_view_)
+  if (initial_focus_field_view_) {
     return initial_focus_field_view_;
+  }
   return PaymentRequestSheetController::GetFirstFocusedView();
 }
 
@@ -190,11 +195,12 @@ EditorViewController::CreateComboboxForField(const EditorField& field,
   std::unique_ptr<ValidatingCombobox> combobox =
       std::make_unique<ValidatingCombobox>(GetComboboxModelForType(field.type),
                                            std::move(delegate));
-  combobox->SetAccessibleName(field.label);
+  combobox->GetViewAccessibility().SetName(field.label);
 
   std::u16string initial_value = GetInitialValueForType(field.type);
-  if (!initial_value.empty())
+  if (!initial_value.empty()) {
     combobox->SelectValue(initial_value);
+  }
   if (IsEditingExistingItem()) {
     combobox->SetInvalid(
         !delegate_ptr->IsValidCombobox(combobox.get(), error_message));
@@ -223,9 +229,6 @@ void EditorViewController::OnPerformAction(ValidatingCombobox* sender) {
 
 std::unique_ptr<views::View> EditorViewController::CreateEditorView() {
   std::unique_ptr<views::View> editor_view = std::make_unique<views::View>();
-  text_fields_.clear();
-  comboboxes_.clear();
-  initial_focus_field_view_ = nullptr;
 
   // All views have fixed size except the Field which stretches. The fixed
   // padding at the end is computed so that Field views have a minimum of
@@ -248,14 +251,17 @@ std::unique_ptr<views::View> EditorViewController::CreateEditorView() {
     bool valid = false;
     views::View* focusable_field =
         CreateInputField(editor_view.get(), field, &valid);
-    if (!first_field)
+    if (!first_field) {
       first_field = focusable_field;
-    if (!initial_focus_field_view_ && !valid)
+    }
+    if (!initial_focus_field_view_ && !valid) {
       initial_focus_field_view_ = focusable_field;
+    }
   }
 
-  if (!initial_focus_field_view_)
+  if (!initial_focus_field_view_) {
     initial_focus_field_view_ = first_field;
+  }
 
   // Validate all fields and disable the primary (Done) button if necessary.
   primary_button()->SetEnabled(ValidateInputFields());
@@ -356,14 +362,16 @@ views::View* EditorViewController::CreateInputField(views::View* editor_view,
           std::make_unique<ValidatingTextfield>(std::move(validation_delegate));
       // Set the initial value and validity state.
       text_field->SetText(initial_value);
-      text_field->SetAccessibleName(field.label);
+      text_field->GetViewAccessibility().SetName(field.label);
       *valid = IsEditingExistingItem() &&
                delegate_ptr->IsValidTextfield(text_field.get(), &error_message);
-      if (IsEditingExistingItem())
+      if (IsEditingExistingItem()) {
         text_field->SetInvalid(!(*valid));
+      }
 
-      if (field.control_type == EditorField::ControlType::TEXTFIELD_NUMBER)
+      if (field.control_type == EditorField::ControlType::TEXTFIELD_NUMBER) {
         text_field->SetTextInputType(ui::TextInputType::TEXT_INPUT_TYPE_NUMBER);
+      }
       text_field->set_controller(this);
       // Using autofill field type as a view ID (for testing).
       text_field->SetID(GetInputFieldViewId(field.type));
@@ -418,8 +426,9 @@ views::View* EditorViewController::CreateInputField(views::View* editor_view,
   auto error_label_view = std::make_unique<views::View>();
   error_label_view->SetLayoutManager(std::make_unique<views::FillLayout>());
   error_labels_[field.type] = error_label_view.get();
-  if (IsEditingExistingItem() && !error_message.empty())
+  if (IsEditingExistingItem() && !error_message.empty()) {
     AddOrUpdateErrorMessageForField(field.type, error_message);
+  }
 
   field_view->AddChildView(std::move(error_label_view));
 
@@ -431,13 +440,15 @@ int EditorViewController::ComputeWidestExtraViewWidth(
   int widest_column_width = 0;
 
   for (const auto& field : GetFieldDefinitions()) {
-    if (field.length_hint != size)
+    if (field.length_hint != size) {
       continue;
+    }
 
     std::unique_ptr<views::View> extra_view =
         CreateExtraViewForField(field.type);
-    if (!extra_view)
+    if (!extra_view) {
       continue;
+    }
     widest_column_width =
         std::max(extra_view->GetPreferredSize().width(), widest_column_width);
   }
@@ -445,10 +456,10 @@ int EditorViewController::ComputeWidestExtraViewWidth(
 }
 
 void EditorViewController::AddOrUpdateErrorMessageForField(
-    autofill::ServerFieldType type,
+    autofill::FieldType type,
     const std::u16string& error_message) {
   const auto& label_view_it = error_labels_.find(type);
-  DCHECK(label_view_it != error_labels_.end());
+  CHECK(label_view_it != error_labels_.end());
 
   if (error_message.empty()) {
     label_view_it->second->RemoveAllChildViews();
@@ -456,7 +467,7 @@ void EditorViewController::AddOrUpdateErrorMessageForField(
     if (label_view_it->second->children().empty()) {
       // If there was no error label view, add it.
       label_view_it->second->AddChildView(
-          std::make_unique<ErrorLabelView>(error_message, type));
+          CreateErrorLabel(error_message, type));
     } else {
       // The error view is the only child, and has a Label as only child itself.
       static_cast<views::Label*>(label_view_it->second->children().front())
@@ -465,15 +476,25 @@ void EditorViewController::AddOrUpdateErrorMessageForField(
   }
 }
 
-void EditorViewController::SaveButtonPressed() {
-  if (!ValidateModelAndSave())
+void EditorViewController::SaveButtonPressed(const ui::Event& event) {
+  if (!ValidateModelAndSave()) {
     return;
+  }
   if (back_navigation_type_ == BackNavigationType::kOneStep) {
     dialog()->GoBack();
   } else {
     DCHECK_EQ(BackNavigationType::kPaymentSheet, back_navigation_type_);
     dialog()->GoBackToPaymentSheet();
   }
+}
+
+void EditorViewController::ClearViewPointers() {
+  for (auto [textfield, _] : text_fields_) {
+    textfield->set_controller(nullptr);
+  }
+  text_fields_.clear();
+  comboboxes_.clear();
+  initial_focus_field_view_ = nullptr;
 }
 
 }  // namespace payments

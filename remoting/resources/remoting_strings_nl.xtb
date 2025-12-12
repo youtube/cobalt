@@ -4,7 +4,6 @@
 <translation id="1002108253973310084">Er is een incompatibele versie gedetecteerd. Controleer of de nieuwste versie van de software is geïnstalleerd op beide computers en probeer het opnieuw.</translation>
 <translation id="1008557486741366299">Niet nu</translation>
 <translation id="1201402288615127009">Volgende</translation>
-<translation id="1296511125400541222">Copyright 2023 De auteurs van Chromium. Alle rechten voorbehouden.</translation>
 <translation id="1297009705180977556">Fout bij maken van verbinding met <ph name="HOSTNAME" /></translation>
 <translation id="1450760146488584666">Het gevraagde object bestaat niet.</translation>
 <translation id="1480046233931937785">Credits</translation>
@@ -29,7 +28,7 @@ Als <ph name="SERVICE_SCRIPT_NAME" /> al is aangevinkt, vink je dit eerst uit en
 <translation id="2329392777730037872">Kan <ph name="URL" /> niet openen op de client.</translation>
 <translation id="2359808026110333948">Doorgaan</translation>
 <translation id="2366718077645204424">Kan de host niet bereiken. Dit komt waarschijnlijk door de configuratie van het netwerk dat je gebruikt.</translation>
-<translation id="2370754117186920852"><ph name="OPTIONAL_OFFLINE_REASON" />  Laatst online gezien: <ph name="RELATIVE_TIMESTAMP" />.</translation>
+<translation id="242591256144136845">Copyright 2025 Google LLC. Alle rechten voorbehouden.</translation>
 <translation id="2504109125669302160">Toegangsrechten verlenen aan <ph name="PRODUCT_NAME" /></translation>
 <translation id="2509394361235492552">Verbonden met <ph name="HOSTNAME" /></translation>
 <translation id="2540992418118313681">Wil je deze computer delen zodat een andere gebruiker deze kan bekijken en bedienen?</translation>
@@ -39,8 +38,9 @@ Als <ph name="SERVICE_SCRIPT_NAME" /> al is aangevinkt, vink je dit eerst uit en
 <translation id="2676780859508944670">Bezig…</translation>
 <translation id="2699970397166997657">Chromoting</translation>
 <translation id="2758123043070977469">Er is een fout opgetreden tijdens het verifiëren. Log opnieuw in.</translation>
-<translation id="2803375539583399270">Pincode opgeven</translation>
+<translation id="2803375539583399270">Pincode invoeren</translation>
 <translation id="2919669478609886916">Je deelt deze computer momenteel met een andere gebruiker. Wil je doorgaan met delen?</translation>
+<translation id="2929683002824598593">Apparaat delen</translation>
 <translation id="2939145106548231838">Verifiëren naar host</translation>
 <translation id="3027681561976217984">Aanraakmodus</translation>
 <translation id="3106379468611574572">De externe computer reageert niet op verbindingsverzoeken. Controleer of deze online is en probeer het opnieuw.</translation>
@@ -54,7 +54,6 @@ Als <ph name="SERVICE_SCRIPT_NAME" /> al is aangevinkt, vink je dit eerst uit en
 <translation id="3423542133075182604">Proces voor externe toegang tot beveiligingssleutel</translation>
 <translation id="3581045510967524389">Kan geen verbinding maken met het netwerk. Controleer of je apparaat online is.</translation>
 <translation id="3596628256176442606">Met deze service zijn inkomende verbindingen van Chromoting-clients mogelijk.</translation>
-<translation id="369442766917958684">Offline.</translation>
 <translation id="3695446226812920698">Meer informatie</translation>
 <translation id="3776024066357219166">Je Chrome Remote Desktop-sessie is beëindigd.</translation>
 <translation id="3858860766373142691">Naam</translation>
@@ -89,12 +88,12 @@ Als <ph name="SERVICE_SCRIPT_NAME" /> al is aangevinkt, vink je dit eerst uit en
 <translation id="4808503597364150972">Geef je pincode voor <ph name="HOSTNAME" /> op.</translation>
 <translation id="4812684235631257312">Host</translation>
 <translation id="4867841927763172006">PrtScn verzenden</translation>
-<translation id="4960795469833295568">Copyright 2023 Google LLC. Alle rechten voorbehouden.</translation>
 <translation id="4974476491460646149">Verbinding verbroken voor <ph name="HOSTNAME" /></translation>
 <translation id="4985296110227979402">Je moet eerst je computer instellen voor externe toegang</translation>
 <translation id="4987330545941822761">Chrome Remote Desktop kan niet vaststellen met welke browser URL's lokaal moeten worden geopend. Maak een keuze in de onderstaande lijst.</translation>
 <translation id="5064360042339518108"><ph name="HOSTNAME" /> (offline)</translation>
 <translation id="507204348399810022">Weet je zeker dat je externe verbindingen met <ph name="HOSTNAME" /> wilt uitzetten?</translation>
+<translation id="5095424396646120601">Crashrapportage</translation>
 <translation id="5170982930780719864">Ongeldige host-ID.</translation>
 <translation id="5204575267916639804">Veelgestelde vragen</translation>
 <translation id="5222676887888702881">Uitloggen</translation>
@@ -107,7 +106,6 @@ Als <ph name="SERVICE_SCRIPT_NAME" /> al is aangevinkt, vink je dit eerst uit en
 <translation id="5601503069213153581">Pincode</translation>
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5708869785009007625">Je bureaublad wordt momenteel gedeeld met <ph name="USER" />.</translation>
-<translation id="5750083143895808682">Ingelogd als <ph name="EMAIL_ADDRESS" />.</translation>
 <translation id="579702532610384533">Opnieuw verbinding maken</translation>
 <translation id="5810269635982033450">Scherm werkt als een trackpad</translation>
 <translation id="5823554426827907568"><ph name="CLIENT_USERNAME" /> heeft toegang gevraagd om je scherm te zien en je toetsenbord en muis te bedienen. Druk op <ph name="IDS_SHARE_CONFIRM_DIALOG_DECLINE" /> als je dit verzoek niet verwacht. Selecteer anders <ph name="IDS_SHARE_CONFIRM_DIALOG_CONFIRM" /> om de verbinding toe te staan als je zover bent.</translation>
@@ -121,10 +119,12 @@ Als <ph name="SERVICE_SCRIPT_NAME" /> al is aangevinkt, vink je dit eerst uit en
 <translation id="6178645564515549384">Systeemeigen berichthost voor externe support</translation>
 <translation id="618120821413932081">Externe resolutie aanpassen aan venster</translation>
 <translation id="6223301979382383752">Voorkeuren voor Schermopname openen</translation>
+<translation id="6252344563748670011"><ph name="CLIENT_USERNAME" /> heeft toegang gevraagd om je scherm te zien en je toetsenbord en muis te bedienen. Wil je je apparaat delen?</translation>
 <translation id="6284412385303060032">De actieve host op het console-inlogscherm is uitgezet om de gordijnmodus te ondersteunen door over te schakelen naar een host die in een gebruikersspecifieke sessie wordt uitgevoerd.</translation>
 <translation id="6542902059648396432">Een probleem melden…</translation>
 <translation id="6583902294974160967">Support</translation>
 <translation id="6612717000975622067">Ctrl-Alt-Del verzenden</translation>
+<translation id="6625262630437221505">{0,plural, =1{Als je niets doet, wordt je apparaat over # seconde automatisch gedeeld.}other{Als je niets doet, wordt je apparaat over # seconden automatisch gedeeld.}}</translation>
 <translation id="6654753848497929428">Delen</translation>
 <translation id="677755392401385740">Host gestart voor gebruiker: <ph name="HOST_USERNAME" />.</translation>
 <translation id="6902524959760471898">Helper-app waarmee je een URL kunt openen in de <ph name="PRODUCT_NAME" />-client</translation>
@@ -138,6 +138,7 @@ Als <ph name="SERVICE_SCRIPT_NAME" /> al is aangevinkt, vink je dit eerst uit en
 <translation id="7067321367069083429">Scherm werkt als een touchscreen</translation>
 <translation id="7116737094673640201">Welkom bij Chrome Remote Desktop</translation>
 <translation id="7144878232160441200">Opnieuw proberen</translation>
+<translation id="7298392173540380852">Copyright 2025 De auteurs van Chromium. Alle rechten voorbehouden.</translation>
 <translation id="7312846573060934304">Host is offline.</translation>
 <translation id="7319983568955948908">Delen stoppen</translation>
 <translation id="7359298090707901886">De gekozen browser kan niet worden gebruikt om URL's op de lokale machine te openen.</translation>

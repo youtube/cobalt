@@ -10,31 +10,26 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.android_webview.common.Lifetime;
 import org.chromium.ui.base.ViewAndroidDelegate;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
-/**
- * Implementation of the abstract class {@link ViewAndroidDelegate} for WebView.
- */
+/** Implementation of the abstract class {@link ViewAndroidDelegate} for WebView. */
+@Lifetime.WebView
 public class AwViewAndroidDelegate extends ViewAndroidDelegate {
-    /** Used for logging. */
-    private static final String TAG = "AwVAD";
-
     /**
-     * List of anchor views stored in the order in which they were acquired mapped
-     * to their position.
+     * List of anchor views stored in the order in which they were acquired mapped to their
+     * position.
      */
     private final Map<View, Position> mAnchorViews = new LinkedHashMap<>();
 
     private final AwContentsClient mContentsClient;
     private final AwScrollOffsetManager mScrollManager;
 
-    /**
-     * Represents the position of an anchor view.
-     */
+    /** Represents the position of an anchor view. */
     @VisibleForTesting
     private static class Position {
         public final float mX;
@@ -44,8 +39,8 @@ public class AwViewAndroidDelegate extends ViewAndroidDelegate {
         public final int mLeftMargin;
         public final int mTopMargin;
 
-        public Position(float x, float y, float width, float height, int leftMargin,
-                int topMargin) {
+        public Position(
+                float x, float y, float width, float height, int leftMargin, int topMargin) {
             mX = x;
             mY = y;
             mWidth = width;
@@ -56,7 +51,9 @@ public class AwViewAndroidDelegate extends ViewAndroidDelegate {
     }
 
     @VisibleForTesting
-    public AwViewAndroidDelegate(ViewGroup containerView, AwContentsClient contentsClient,
+    public AwViewAndroidDelegate(
+            ViewGroup containerView,
+            AwContentsClient contentsClient,
             AwScrollOffsetManager scrollManager) {
         super(containerView);
         mContentsClient = contentsClient;
@@ -94,16 +91,28 @@ public class AwViewAndroidDelegate extends ViewAndroidDelegate {
             }
             mContainerView.addView(anchorView);
             if (position != null) {
-                setViewPosition(anchorView, position.mX, position.mY, position.mWidth,
-                        position.mHeight, position.mLeftMargin, position.mTopMargin);
+                setViewPosition(
+                        anchorView,
+                        position.mX,
+                        position.mY,
+                        position.mWidth,
+                        position.mHeight,
+                        position.mLeftMargin,
+                        position.mTopMargin);
             }
         }
     }
 
     @SuppressWarnings("deprecation") // AbsoluteLayout
     @Override
-    public void setViewPosition(View anchorView, float x, float y, float width, float height,
-            int leftMargin, int topMargin) {
+    public void setViewPosition(
+            View anchorView,
+            float x,
+            float y,
+            float width,
+            float height,
+            int leftMargin,
+            int topMargin) {
         ViewGroup containerView = getContainerViewGroup();
         if (!mAnchorViews.containsKey(anchorView) || containerView == null) return;
 

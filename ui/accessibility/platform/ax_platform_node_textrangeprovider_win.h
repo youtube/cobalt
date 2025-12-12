@@ -16,11 +16,12 @@
 #include "ui/accessibility/ax_position.h"
 #include "ui/accessibility/ax_range.h"
 #include "ui/accessibility/platform/ax_platform_node_win.h"
+#include "ui/accessibility/platform/sequence_affine_com_object_root_win.h"
 
 namespace ui {
 class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
     "3071e40d-a10d-45ff-a59f-6e8e1138e2c1")) AXPlatformNodeTextRangeProviderWin
-    : public CComObjectRootEx<CComMultiThreadModel>,
+    : public SequenceAffineComObjectRoot,
       public ITextRangeProvider {
  public:
   BEGIN_COM_MAP(AXPlatformNodeTextRangeProviderWin)
@@ -32,16 +33,17 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
   ~AXPlatformNodeTextRangeProviderWin();
 
   // Creates an instance of the class.
-  static ITextRangeProvider* CreateTextRangeProvider(
-      AXNodePosition::AXPositionInstance start,
-      AXNodePosition::AXPositionInstance end);
+  static void CreateTextRangeProvider(AXNodePosition::AXPositionInstance start,
+                                      AXNodePosition::AXPositionInstance end,
+                                      ITextRangeProvider** text_range_provider);
 
   // Creates an instance of the class for unit tests, where AXPlatformNodes
   // cannot be queried automatically from endpoints.
-  static ITextRangeProvider* CreateTextRangeProviderForTesting(
+  static void CreateTextRangeProviderForTesting(
       AXPlatformNodeWin* owner,
       AXNodePosition::AXPositionInstance start,
-      AXNodePosition::AXPositionInstance end);
+      AXNodePosition::AXPositionInstance end,
+      ITextRangeProvider** text_range_provider_out);
 
   //
   // ITextRangeProvider methods.
@@ -89,6 +91,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
   IFACEMETHODIMP GetChildren(SAFEARRAY** children) override;
 
   AXPlatformNodeWin* GetOwner() const;
+  AXPlatformNodeDelegate* GetDelegate() const;
   void SetOwnerForTesting(AXPlatformNodeWin* owner);
 
  private:
@@ -119,8 +122,14 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
 
   IFACEMETHODIMP ExpandToEnclosingUnitImpl(TextUnit unit);
 
-  std::u16string GetString(int max_count,
-                           size_t* appended_newlines_count = nullptr);
+  std::u16string GetString(
+      int max_count,
+      std::vector<size_t>* appended_newlines_indices = nullptr);
+
+  static size_t GetAppendedNewLinesCountInRange(
+      size_t find_start,
+      size_t find_length,
+      const std::vector<size_t>& appended_newlines_indices);
   const AXPositionInstance& start() const { return endpoints_.GetStart(); }
   const AXPositionInstance& end() const { return endpoints_.GetEnd(); }
   AXPlatformNodeDelegate* GetDelegate(
@@ -154,7 +163,6 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
                                         const int count,
                                         int* units_moved);
   AXPositionInstance MoveEndpointByFormat(const AXPositionInstance& endpoint,
-                                          const bool is_start_endpoint,
                                           const int count,
                                           int* units_moved);
   AXPositionInstance MoveEndpointByDocument(const AXPositionInstance& endpoint,
@@ -182,7 +190,7 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
   static void NormalizeAsUnignoredTextRange(AXPositionInstance& start,
                                             AXPositionInstance& end);
 
-  AXPlatformNodeDelegate* GetRootDelegate(const ui::AXTreeID tree_id);
+  AXPlatformNodeDelegate* GetRootDelegate(const AXTreeID tree_id);
   AXNode* GetSelectionCommonAnchor();
   void RemoveFocusFromPreviousSelectionIfNeeded(
       const AXNodeRange& new_selection);
@@ -194,6 +202,8 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
 
   void SetStart(AXPositionInstance start);
   void SetEnd(AXPositionInstance end);
+
+  void SnapStartAndEndToMaxTextOffsetIfBeyond();
 
   static bool TextAttributeIsArrayType(TEXTATTRIBUTEID attribute_id);
   static bool TextAttributeIsUiaReservedValue(
@@ -274,6 +284,17 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
     void OnNodeDeleted(AXTree* tree, AXNodeID node_id) override;
     void OnTreeManagerWillBeRemoved(AXTreeID previous_tree_id) override;
 
+    // This function is in charge of modifying the text offset when it changes
+    // by deletion of text. The renderer fires an even notifying that the text
+    // offset changed via a deletion, we listen to that here and adjust
+    // accordingly. This is needed so that the text offset that the renderer has
+    // and the text offset that we have here is synched in case a deletion
+    // happens. Otherwise, there are scenarios where an AT may perform an
+    // operation, such as a selection, on a range that is no longer in sync with
+    // what the renderer has which can lead to wrong behavior.
+    void OnTextDeletionOrInsertion(const AXNode& node,
+                                   const AXNodeData& new_data) override;
+
    private:
     struct DeletionOfInterest {
       AXTreeID tree_id;
@@ -294,11 +315,21 @@ class COMPONENT_EXPORT(AX_PLATFORM) __declspec(uuid(
     // validation to keep work out of unserialize.
     void ValidateEndpointsAfterNodeDeletionIfNeeded();
 
+    void AdjustEndpointForTextFieldEdit(
+        const AXNode& text_field_node,
+        const AXPositionInstance& current_position,
+        AXNode* edit_start_anchor,
+        AXNode* edit_end_anchor,
+        int edit_start,
+        int edit_end,
+        bool is_start,
+        ax::mojom::Command op);
+
     AXPositionInstance start_;
     AXPositionInstance end_;
 
-    absl::optional<DeletionOfInterest> validation_necessary_for_start_;
-    absl::optional<DeletionOfInterest> validation_necessary_for_end_;
+    std::optional<DeletionOfInterest> validation_necessary_for_start_;
+    std::optional<DeletionOfInterest> validation_necessary_for_end_;
   };
   // This is marked as mutable since endpoints will lazily validate their
   // positions after a deletion of interest was actually deleted.

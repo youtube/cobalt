@@ -65,7 +65,7 @@ the Google Play Store.
 1. [Leave the tester program.][WebView tester program]
 2. Uninstall all updates by visiting Settings > Apps > Android System WebView >
    Three dots menu in the top right > Uninstall updates.
-3. [Visit the Play Store page][Webview PlayStore] one more time to install the
+3. [Visit the Play Store page][WebView PlayStore] one more time to install the
    latest updates to WebView stable, which will include important security
    fixes.
 
@@ -165,7 +165,7 @@ pre-release channels of WebView are not available.
 ## Reporting problems with pre-release WebView
 
 Any WebView-related bugs can be filed
-[here](https://bugs.chromium.org/p/chromium/issues/entry?template=Webview+Bugs).
+[here](https://issues.chromium.org/issues/new?component=1456456&template=1923373).
 
 To best enable us to resolve the issue, please ensure you provide all of the
 information requested in the bug report template.

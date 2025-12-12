@@ -11,8 +11,8 @@
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
-#include "ash/system/message_center/ash_notification_view.h"
-#include "ash/system/message_center/message_view_factory.h"
+#include "ash/system/notification_center/views/ash_notification_view.h"
+#include "ash/system/notification_center/message_view_factory.h"
 #include "ash/system/model/system_tray_model.h"
 #include "ash/system/phonehub/phone_hub_metrics.h"
 #include "ash/system/tray/tray_popup_utils.h"
@@ -145,6 +145,11 @@ class PhoneHubAshNotificationView : public AshNotificationView {
     action_buttons_row_->SetVisible(true);
     inline_reply_->textfield()->SetText(std::u16string());
 
+    // Since the focus may still be on the now-hidden buttons used to send a
+    // message, refocus on the entire notification.
+    CHECK(GetFocusManager());
+    GetFocusManager()->SetFocusedView(this);
+
     // Briefly disable reply button.
     reply_button_->SetEnabled(false);
     enable_reply_timer_.Start(
@@ -155,15 +160,14 @@ class PhoneHubAshNotificationView : public AshNotificationView {
 
   void EnableReplyButton() {
     reply_button_->SetEnabled(true);
-    enable_reply_timer_.AbandonAndStop();
+    enable_reply_timer_.Stop();
   }
 
  private:
   // Owned by view hierarchy.
-  raw_ptr<views::View, ExperimentalAsh> action_buttons_row_ = nullptr;
-  raw_ptr<views::View, ExperimentalAsh> reply_button_ = nullptr;
-  raw_ptr<message_center::NotificationInputContainer, ExperimentalAsh>
-      inline_reply_ = nullptr;
+  raw_ptr<views::View> action_buttons_row_ = nullptr;
+  raw_ptr<views::View> reply_button_ = nullptr;
+  raw_ptr<message_center::NotificationInputContainer> inline_reply_ = nullptr;
 
   // Timer that fires to enable reply button after a brief period of time.
   base::OneShotTimer enable_reply_timer_;
@@ -223,8 +227,8 @@ class PhoneHubNotificationController::NotificationDelegate
     controller_->DismissNotification(phone_hub_id_);
   }
 
-  void Click(const absl::optional<int>& button_index,
-             const absl::optional<std::u16string>& reply) override {
+  void Click(const std::optional<int>& button_index,
+             const std::optional<std::u16string>& reply) override {
     if (!controller_)
       return;
 
@@ -269,8 +273,7 @@ class PhoneHubNotificationController::NotificationDelegate
   enum OngoingCallButton { BUTTON_HANGUP };
 
   // The parent controller, which owns this object.
-  raw_ptr<PhoneHubNotificationController, ExperimentalAsh> controller_ =
-      nullptr;
+  raw_ptr<PhoneHubNotificationController> controller_ = nullptr;
 
   // The notification ID tracked by PhoneHub.
   const int64_t phone_hub_id_;
@@ -403,7 +406,7 @@ void PhoneHubNotificationController::OnAttemptConnectionScanFailed() {
   // Add a notification if tether failed.
   scoped_refptr<message_center::NotificationDelegate> delegate =
       base::MakeRefCounted<message_center::HandleNotificationClickDelegate>(
-          base::BindRepeating([](absl::optional<int> button_index) {
+          base::BindRepeating([](std::optional<int> button_index) {
             // When clicked, open Tether Settings page if we can open WebUI
             // settings, otherwise do nothing.
             if (TrayPopupUtils::CanOpenWebUISettings()) {
@@ -463,7 +466,7 @@ PhoneHubNotificationController::CreateCameraRollGenericNotification(
           base::BindRepeating(
               [](phonehub::CameraRollManager* manager,
                  const CameraRollItemMetadata& metadata,
-                 absl::optional<int> button_index) {
+                 std::optional<int> button_index) {
                 // When button is clicked, close notification and retry the
                 // download
                 if (button_index.has_value()) {
@@ -499,7 +502,7 @@ PhoneHubNotificationController::CreateCameraRollStorageNotification(
     const CameraRollItemMetadata& metadata) {
   scoped_refptr<message_center::NotificationDelegate> delegate =
       base::MakeRefCounted<message_center::HandleNotificationClickDelegate>(
-          base::BindRepeating([](absl::optional<int> button_index) {
+          base::BindRepeating([](std::optional<int> button_index) {
             // When button is clicked, close notification and open Storage
             // Management Settings page if we can open WebUI settings.
             if (button_index.has_value()) {
@@ -543,7 +546,7 @@ PhoneHubNotificationController::CreateCameraRollNetworkNotification(
     const CameraRollItemMetadata& metadata) {
   scoped_refptr<message_center::NotificationDelegate> delegate =
       base::MakeRefCounted<message_center::HandleNotificationClickDelegate>(
-          base::BindRepeating([](absl::optional<int> button_index) {
+          base::BindRepeating([](std::optional<int> button_index) {
             // When button is clicked, close notification and open Network
             // Settings page if we can open WebUI settings.
             if (button_index.has_value()) {

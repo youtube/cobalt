@@ -1,2 +1,2 @@
-android.webkit.WebView focusable focused scrollable
-++android.view.View role_description='navigation'
+android.webkit.WebView focusable focused
+++com.google.android.material.navigation.NavigationView role_description='navigation'

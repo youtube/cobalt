@@ -5,12 +5,15 @@
 #include "components/download/public/common/download_utils.h"
 
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "base/files/file_util.h"
 #include "base/format_macros.h"
 #include "base/i18n/file_util_icu.h"
 #include "base/metrics/field_trial_params.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -26,12 +29,14 @@
 #include "net/base/isolation_info.h"
 #include "net/base/load_flags.h"
 #include "net/cookies/site_for_cookies.h"
+#include "net/http/http_content_disposition.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_status_code.h"
+#include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "url/origin.h"
+
 #if BUILDFLAG(IS_ANDROID)
-#include "base/android/content_uri_utils.h"
 #include "components/download/internal/common/android/download_collection_bridge.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -89,15 +94,11 @@ void AppendExtraHeaders(net::HttpRequestHeaders* headers,
 
 // Return whether the download is explicitly to fetch part of the file.
 bool IsArbitraryRangeRequest(DownloadSaveInfo* save_info) {
-  if (!base::FeatureList::IsEnabled(features::kDownloadRange))
-    return false;
   return save_info && save_info->IsArbitraryRangeRequest();
 }
 
 bool IsArbitraryRangeRequest(DownloadUrlParameters* parameters) {
   DCHECK(parameters);
-  if (!base::FeatureList::IsEnabled(features::kDownloadRange))
-    return false;
   auto offsets = parameters->range_request_offset();
   return offsets.first != kInvalidRange || offsets.second != kInvalidRange;
 }
@@ -149,7 +150,7 @@ CreateIntermediateUriResult CreateIntermediateUri(
     const base::FilePath& suggested_name,
     const std::string& mime_type) {
   base::FilePath content_path =
-      current_path.IsContentUri() && base::ContentUriExists(current_path)
+      current_path.IsContentUri() && base::PathExists(current_path)
           ? current_path
           : DownloadCollectionBridge::CreateIntermediateUriForPublish(
                 original_url, referrer_url, suggested_name, mime_type);
@@ -331,18 +332,22 @@ void HandleResponseHeaders(const net::HttpResponseHeaders* headers,
   if (headers->HasStrongValidators()) {
     // If we don't have strong validators as per RFC 7232 section 2, then
     // we neither store nor use them for range requests.
-    if (!headers->EnumerateHeader(nullptr, "Last-Modified",
-                                  &create_info->last_modified))
-      create_info->last_modified.clear();
-    if (!headers->EnumerateHeader(nullptr, "ETag", &create_info->etag))
-      create_info->etag.clear();
+    std::optional<std::string_view> last_modified =
+        headers->EnumerateHeader(nullptr, "Last-Modified");
+    create_info->last_modified = last_modified.value_or(std::string_view());
+
+    std::optional<std::string_view> etag =
+        headers->EnumerateHeader(nullptr, "ETag");
+    create_info->etag = etag.value_or(std::string_view());
   }
 
   // Grab the first content-disposition header.  There may be more than one,
   // though as of this writing, the network stack ensures if there are, they
   // are all duplicates.
-  headers->EnumerateHeader(nullptr, "Content-Disposition",
-                           &create_info->content_disposition);
+  std::optional<std::string_view> content_disposition =
+      headers->EnumerateHeader(nullptr, "Content-Disposition");
+  create_info->content_disposition =
+      content_disposition.value_or(std::string_view());
 
   // Parse the original mime type from the header, notice that actual mime type
   // might be different due to mime type sniffing.
@@ -375,6 +380,12 @@ std::unique_ptr<network::ResourceRequest> CreateResourceRequest(
   request->request_initiator = params->initiator();
   request->trusted_params = network::ResourceRequest::TrustedParams();
   request->has_user_gesture = params->has_user_gesture();
+
+  // TODO(crbug.com/382291442): Remove feature guarding once launched.
+  if (base::FeatureList::IsEnabled(
+          network::features::kPopulatePermissionsPolicyOnRequest)) {
+    request->permissions_policy = params->permissions_policy();
+  }
 
   if (params->isolation_info().has_value()) {
     request->trusted_params->isolation_info = params->isolation_info().value();
@@ -552,22 +563,22 @@ DownloadDBEntry CreateDownloadDBEntryFromItem(const DownloadItemImpl& item) {
   in_progress_info.range_request_from = range_request_offset.first;
   in_progress_info.range_request_to = range_request_offset.second;
 
-  download_info.in_progress_info = in_progress_info;
+  download_info.in_progress_info = std::move(in_progress_info);
 
   download_info.ukm_info =
       UkmInfo(item.GetDownloadSource(), item.ukm_download_id());
-  entry.download_info = download_info;
+  entry.download_info = std::move(download_info);
   return entry;
 }
 
 std::unique_ptr<DownloadEntry> CreateDownloadEntryFromDownloadDBEntry(
-    absl::optional<DownloadDBEntry> entry) {
+    std::optional<DownloadDBEntry> entry) {
   if (!entry || !entry->download_info)
     return nullptr;
 
-  absl::optional<InProgressInfo> in_progress_info =
+  std::optional<InProgressInfo> in_progress_info =
       entry->download_info->in_progress_info;
-  absl::optional<UkmInfo> ukm_info = entry->download_info->ukm_info;
+  std::optional<UkmInfo> ukm_info = entry->download_info->ukm_info;
   if (!ukm_info || !in_progress_info)
     return nullptr;
 
@@ -700,12 +711,6 @@ bool IsDownloadDone(const GURL& url,
 
 bool DeleteDownloadedFile(const base::FilePath& path) {
   DCHECK(GetDownloadTaskRunner()->RunsTasksInCurrentSequence());
-#if BUILDFLAG(IS_ANDROID)
-  if (path.IsContentUri()) {
-    base::DeleteContentUri(path);
-    return true;
-  }
-#endif
   // Make sure we only delete files.
   if (base::DirectoryExists(path))
     return true;
@@ -768,10 +773,10 @@ base::TimeDelta GetOverwrittenDownloadDeleteTime() {
   return base::Days(expired_days);
 }
 
-int GetDownloadFileBufferSize() {
-  return base::GetFieldTrialParamByFeatureAsInt(
+size_t GetDownloadFileBufferSize() {
+  return base::checked_cast<size_t>(base::GetFieldTrialParamByFeatureAsInt(
       features::kAllowFileBufferSizeControl, kDownloadFileBufferSizeFinchKey,
-      kDefaultDownloadFileBufferSize);
+      kDefaultDownloadFileBufferSize));
 }
 
 void DetermineLocalPath(DownloadItem* download,
@@ -796,6 +801,73 @@ void DetermineLocalPath(DownloadItem* download,
   }
 #endif  // BUILDFLAG(IS_ANDROID)
   std::move(callback).Run(virtual_path, base::FilePath());
+}
+
+#if BUILDFLAG(IS_ANDROID)
+// Determine the file path for the save package file given the `suggested_path`.
+COMPONENTS_DOWNLOAD_EXPORT
+void DetermineSavePackagePath(const GURL& url,
+                              const base::FilePath& suggested_path,
+                              LocalPathCallback callback) {
+  base::FilePath mhtml_path = suggested_path.ReplaceExtension("mhtml");
+  if (DownloadCollectionBridge::ShouldPublishDownload(mhtml_path)) {
+    GetDownloadTaskRunner()->PostTaskAndReplyWithResult(
+        FROM_HERE,
+        base::BindOnce(&CreateIntermediateUri, url, GURL(), mhtml_path,
+                       mhtml_path.BaseName(), "multipart/related"),
+        base::BindOnce(&OnInterMediateUriCreated, std::move(callback)));
+    return;
+  }
+  std::move(callback).Run(mhtml_path, mhtml_path.BaseName());
+}
+#endif
+
+bool IsInterruptedDownloadAutoResumable(download::DownloadItem* download_item,
+                                        int auto_resumption_size_limit) {
+  DCHECK_EQ(download::DownloadItem::INTERRUPTED, download_item->GetState());
+  if (download_item->IsDangerous()) {
+    return false;
+  }
+
+  if (!download_item->GetURL().SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+
+  if (download_item->GetBytesWasted() > auto_resumption_size_limit) {
+    return false;
+  }
+
+  if (download_item->GetTargetFilePath().empty()) {
+    return false;
+  }
+
+  // TODO(shaktisahu): Use DownloadItemImpl::kMaxAutoResumeAttempts.
+  if (download_item->GetAutoResumeCount() >= 5) {
+    return false;
+  }
+
+  int interrupt_reason = download_item->GetLastReason();
+  DCHECK_NE(interrupt_reason, download::DOWNLOAD_INTERRUPT_REASON_NONE);
+  return interrupt_reason ==
+             download::DOWNLOAD_INTERRUPT_REASON_NETWORK_TIMEOUT ||
+         interrupt_reason ==
+             download::DOWNLOAD_INTERRUPT_REASON_NETWORK_FAILED ||
+         interrupt_reason ==
+             download::DOWNLOAD_INTERRUPT_REASON_NETWORK_DISCONNECTED ||
+         interrupt_reason == download::DOWNLOAD_INTERRUPT_REASON_CRASH;
+}
+
+bool IsContentDispositionAttachmentInHead(
+    const network::mojom::URLResponseHead& response_head) {
+  if (!response_head.headers) {
+    return false;
+  }
+  std::string disposition =
+      response_head.headers->GetNormalizedHeader("content-disposition")
+          .value_or(std::string());
+  return !disposition.empty() &&
+         net::HttpContentDisposition(disposition, std::string())
+             .is_attachment();
 }
 
 }  // namespace download

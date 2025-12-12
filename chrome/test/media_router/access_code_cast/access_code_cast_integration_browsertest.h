@@ -23,7 +23,6 @@
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/mixin_based_in_process_browser_test.h"
-#include "chrome/test/base/mojo_web_ui_browser_test.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/media_router/browser/media_router.h"
 #include "components/media_router/browser/test/mock_media_router.h"
@@ -39,6 +38,12 @@
 #include "services/network/test/test_shared_url_loader_factory.h"
 #include "services/network/test/test_url_loader_factory.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+namespace content {
+
+struct EvalJsResult;
+
+}  // namespace content
 
 namespace media_router {
 
@@ -84,9 +89,9 @@ class AccessCodeCastIntegrationBrowserTest
   // This function spins the run loop until an error code is surfaced.
   int WaitForAddSinkErrorCode(content::WebContents* dialog_contents);
 
-  // This function spins the run loop until we detect the given sink_id in the
-  // pref service.
-  void WaitForPrefRemoval(const MediaSink::Id& sink_id);
+  bool HasSinkInDevicesDict(const MediaSink::Id& sink_id);
+  std::optional<base::Time> GetDeviceAddedTimeFromDict(
+      const MediaSink::Id& sink_id);
 
   void SetUpOnMainThread() override;
   void TearDownOnMainThread() override;
@@ -128,12 +133,8 @@ class AccessCodeCastIntegrationBrowserTest
       base::TimeDelta timeout = base::Seconds(60),
       media_router::MockMediaRouter* media_router = nullptr);
 
-  // Verifies that all testing expectations have been met on the
-  // CastMediaSinkServiceImpl object.
-  void ValidateCastMediaSinkServiceImpl();
-
-  void ExpectMediaRouterHasNoSinks(bool has_sink);
-  void ExpectMediaRouterHasSink(bool has_sink);
+  void ExpectMediaRouterHasNoSinks(base::OnceClosure callback, bool has_sink);
+  void ExpectMediaRouterHasSink(base::OnceClosure callback, bool has_sink);
 
   void MockOnChannelOpenedCall(const MediaSinkInternal& cast_sink,
                                std::unique_ptr<net::BackoffEntry> backoff_entry,
@@ -159,9 +160,19 @@ class AccessCodeCastIntegrationBrowserTest
   static constexpr char kAccessCodeCastSavedDeviceScreenplayTag[] =
       "screenplay-5aba818e-1cca-4c41-811a-4bf704cbe820";
 
+  base::Time device_added_time() { return device_added_time_; }
+
+  scoped_refptr<base::TestMockTimeTaskRunner> task_runner() {
+    return task_runner_;
+  }
+
+  void UpdateDeviceAddedTime(const MediaSink::Id& sink_id);
+  void SetAccessCodeCastSinkServiceTaskRunner();
+
  private:
   base::test::ScopedFeatureList feature_list_;
   base::CallbackListSubscription subscription_;
+  scoped_refptr<base::TestMockTimeTaskRunner> task_runner_;
 
   std::unique_ptr<network::TestNetworkConnectionTracker>
       network_connection_tracker_;
@@ -169,8 +180,10 @@ class AccessCodeCastIntegrationBrowserTest
  protected:
   raw_ptr<media_router::MockMediaRouter, DanglingUntriaged> media_router_ =
       nullptr;
-  std::vector<MediaSinksObserver*> media_sinks_observers_;
-  std::vector<media_router::MediaRoutesObserver*> media_routes_observers_;
+  std::vector<raw_ptr<MediaSinksObserver, VectorExperimental>>
+      media_sinks_observers_;
+  std::vector<raw_ptr<media_router::MediaRoutesObserver, VectorExperimental>>
+      media_routes_observers_;
 
   content::WebContents* web_contents() {
     return chrome_test_utils::GetActiveWebContents(this);
@@ -190,7 +203,7 @@ class AccessCodeCastIntegrationBrowserTest
       mock_cast_socket_service_;
   raw_ptr<MockCastMediaSinkServiceImpl> impl_ = nullptr;
 
-  std::unique_ptr<TestMediaSinkService> mock_dual_media_sink_service_;
+  std::unique_ptr<DialMediaSinkServiceImpl> dial_media_sink_service_;
 
   net::Error error_;
   net::HttpStatusCode response_code_;
@@ -201,6 +214,8 @@ class AccessCodeCastIntegrationBrowserTest
 
   mojom::RouteRequestResultCode result_code_ =
       mojom::RouteRequestResultCode::OK;
+
+  base::Time device_added_time_;
 
   base::WeakPtrFactory<AccessCodeCastIntegrationBrowserTest> weak_ptr_factory_{
       this};

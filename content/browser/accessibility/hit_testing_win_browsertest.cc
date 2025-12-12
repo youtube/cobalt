@@ -5,21 +5,23 @@
 #ifndef CONTENT_BROWSER_ACCESSIBILITY_HIT_TESTING_WIN_BROWSERTEST_H_
 #define CONTENT_BROWSER_ACCESSIBILITY_HIT_TESTING_WIN_BROWSERTEST_H_
 
-#include "content/browser/accessibility/hit_testing_browsertest.h"
+#include <objbase.h>
 
-#include "base/command_line.h"
+#include <wrl/client.h>
+
+#include "base/test/scoped_feature_list.h"
 #include "base/win/scoped_variant.h"
-#include "content/browser/accessibility/browser_accessibility.h"
-#include "content/browser/accessibility/browser_accessibility_manager.h"
+#include "content/browser/accessibility/hit_testing_browsertest.h"
 #include "content/public/test/accessibility_notification_waiter.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/shell/browser/shell.h"
-#include "ui/accessibility/accessibility_switches.h"
+#include "ui/accessibility/accessibility_features.h"
+#include "ui/accessibility/platform/browser_accessibility.h"
+#include "ui/accessibility/platform/browser_accessibility_manager.h"
 
-#include <objbase.h>
 #include <uiautomation.h>
-#include <wrl/client.h>
 
 using Microsoft::WRL::ComPtr;
 
@@ -33,13 +35,6 @@ namespace content {
 class AccessibilityHitTestingWinBrowserTest
     : public AccessibilityHitTestingBrowserTest {
  public:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    AccessibilityHitTestingBrowserTest::SetUpCommandLine(command_line);
-
-    base::CommandLine::ForCurrentProcess()->AppendSwitch(
-        ::switches::kEnableExperimentalUIAutomation);
-  }
-
   ComPtr<IAccessible> GetWebContentRootIAccessible() {
     ComPtr<IAccessible> content_root;
     GetRootBrowserAccessibilityManager()
@@ -64,6 +59,9 @@ class AccessibilityHitTestingWinBrowserTest
     content_root->GetPatternProvider(UIA_TextPatternId, &text_provider);
     return text_provider;
   }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_{::features::kUiaProvider};
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -78,7 +76,6 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest, AccHitTest) {
   EXPECT_TRUE(NavigateToURL(shell(), GURL(url::kAboutBlankURL)));
 
   AccessibilityNotificationWaiter waiter(shell()->web_contents(),
-                                         ui::kAXModeComplete,
                                          ax::mojom::Event::kLoadComplete);
   GURL url(embedded_test_server()->GetURL(
       "/accessibility/hit_testing/simple_rectangles.html"));
@@ -102,7 +99,7 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest, AccHitTest) {
     ComPtr<IAccessible> hit_accessible;
     ASSERT_HRESULT_SUCCEEDED(hit_variant.ptr()->pdispVal->QueryInterface(
         IID_PPV_ARGS(&hit_accessible)));
-    BrowserAccessibility* expected_node =
+    ui::BrowserAccessibility* expected_node =
         FindNode(ax::mojom::Role::kGenericContainer, "rect2");
     ComPtr<IAccessible> expected_accessible;
     ASSERT_HRESULT_SUCCEEDED(
@@ -124,7 +121,7 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest, AccHitTest) {
     ComPtr<IAccessible> hit_accessible;
     ASSERT_HRESULT_SUCCEEDED(hit_variant.ptr()->pdispVal->QueryInterface(
         IID_PPV_ARGS(&hit_accessible)));
-    BrowserAccessibility* expected_node =
+    ui::BrowserAccessibility* expected_node =
         FindNode(ax::mojom::Role::kGenericContainer, "rectB");
     ComPtr<IAccessible> expected_accessible;
     ASSERT_HRESULT_SUCCEEDED(
@@ -142,7 +139,6 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest,
   EXPECT_TRUE(NavigateToURL(shell(), GURL(url::kAboutBlankURL)));
 
   AccessibilityNotificationWaiter waiter(shell()->web_contents(),
-                                         ui::kAXModeComplete,
                                          ax::mojom::Event::kLoadComplete);
   GURL url(embedded_test_server()->GetURL(
       "/accessibility/hit_testing/simple_rectangles.html"));
@@ -162,7 +158,7 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest,
     ComPtr<IRawElementProviderFragment> hit_fragment;
     ASSERT_HRESULT_SUCCEEDED(fragment_root->ElementProviderFromPoint(
         rect_2_point_physical.x(), rect_2_point_physical.y(), &hit_fragment));
-    BrowserAccessibility* expected_node =
+    ui::BrowserAccessibility* expected_node =
         FindNode(ax::mojom::Role::kGenericContainer, "rect2");
     ComPtr<IRawElementProviderFragment> expected_fragment;
     ASSERT_HRESULT_SUCCEEDED(
@@ -179,7 +175,7 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest,
     ComPtr<IRawElementProviderFragment> hit_fragment;
     ASSERT_HRESULT_SUCCEEDED(fragment_root->ElementProviderFromPoint(
         rect_b_point_physical.x(), rect_b_point_physical.y(), &hit_fragment));
-    BrowserAccessibility* expected_node =
+    ui::BrowserAccessibility* expected_node =
         FindNode(ax::mojom::Role::kGenericContainer, "rectB");
     ComPtr<IRawElementProviderFragment> expected_fragment;
     ASSERT_HRESULT_SUCCEEDED(
@@ -198,7 +194,6 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest,
   EXPECT_TRUE(NavigateToURL(shell(), GURL(url::kAboutBlankURL)));
 
   AccessibilityNotificationWaiter waiter(shell()->web_contents(),
-                                         ui::kAXModeComplete,
                                          ax::mojom::Event::kLoadComplete);
   GURL url(embedded_test_server()->GetURL(
       "/accessibility/hit_testing/text_ranges.html"));
@@ -222,7 +217,7 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest,
         text_provider->RangeFromPoint(uia_point, &hit_text_range));
     ASSERT_HRESULT_SUCCEEDED(
         hit_text_range->ExpandToEnclosingUnit(TextUnit_Character));
-    BrowserAccessibility* expected_node =
+    ui::BrowserAccessibility* expected_node =
         FindNode(ax::mojom::Role::kGenericContainer, "rect2");
     ComPtr<IRawElementProviderSimple> expected_provider;
     ASSERT_HRESULT_SUCCEEDED(
@@ -251,7 +246,7 @@ IN_PROC_BROWSER_TEST_P(AccessibilityHitTestingWinBrowserTest,
         text_provider->RangeFromPoint(uia_point, &hit_text_range));
     ASSERT_HRESULT_SUCCEEDED(
         hit_text_range->ExpandToEnclosingUnit(TextUnit_Character));
-    BrowserAccessibility* expected_node =
+    ui::BrowserAccessibility* expected_node =
         FindNode(ax::mojom::Role::kGenericContainer, "rectB");
     ComPtr<IRawElementProviderSimple> expected_provider;
     ASSERT_HRESULT_SUCCEEDED(

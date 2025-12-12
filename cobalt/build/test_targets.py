@@ -30,8 +30,10 @@ _ALLOW_TESTS = {
     '//base:base_perftests',
     '//base:base_unittests',
     '//cobalt/renderer:renderer_browsertests',
-    '//cobalt:cobalt_unittests',
-    '//gpu/gles2_conform_support:gles2_conform_test',
+    # TODO: b/418842688 - Broken due to missing files.
+    # '//cobalt:cobalt_unittests',
+    # TODO: b/418842688 - Disabled temporarily.
+    # '//gpu/gles2_conform_support:gles2_conform_test',
     '//mojo:mojo_perftests',
     '//mojo:mojo_unittests',
     '//net:net_unittests',
@@ -88,8 +90,9 @@ def _is_test_target(g, target) -> bool:
           for path_prefix in _EXCLUDE_TESTS_PREFIX)):
     return False
 
-  # Starboard tests include the runner as a source file.
-  if ('//starboard/common/test_main.cc' in g.nodes[target]['sources'] and
+  # Starboard tests include a dependency on starboard_test_main, which contains
+  # the runner.
+  if ('//starboard:starboard_test_main' in g.nodes[target]['deps'] and
       not '__library' in target):
     return True
 

@@ -24,6 +24,8 @@ class AccessibilitySelectionTest : public AccessibilityTest {
   AccessibilitySelectionTest(LocalFrameClient* local_frame_client = nullptr);
 
  protected:
+  void SetUp() override;
+
   // Gets a text representation of the accessibility tree that is currently
   // selected and annotates it with markers indicating the anchor and focus of
   // |selection|.
@@ -55,8 +57,6 @@ class AccessibilitySelectionTest : public AccessibilityTest {
   // accessibility selection.
   void RunSelectionTest(const std::string& test_name,
                         const std::string& suffix = std::string()) const;
-
- private:
 };
 
 }  // namespace blink

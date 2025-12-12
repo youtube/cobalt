@@ -4,13 +4,16 @@
 
 #include "ash/system/time/calendar_utils.h"
 
+#include <algorithm>
+
 #include "ash/system/time/calendar_unittest_utils.h"
 #include "ash/system/time/date_helper.h"
 #include "ash/test/ash_test_base.h"
+#include "base/compiler_specific.h"
 #include "base/i18n/rtl.h"
-#include "base/ranges/algorithm.h"
 #include "base/time/time.h"
 #include "chromeos/ash/components/settings/scoped_timezone_settings.h"
+#include "third_party/abseil-cpp/absl/strings/ascii.h"
 
 namespace ash {
 
@@ -170,7 +173,7 @@ TEST_F(CalendarUtilsUnitTest, HoursAndMinutesInDifferentLocales) {
               calendar_utils::GetTwelveHourClockHours(am_time));
     EXPECT_EQ(u"11", calendar_utils::GetTwelveHourClockHours(pm_time));
     // Locale 'ja'uses  'K' format (0~11) for its 12-hour clock.
-    EXPECT_EQ((strcmp(locale, "ja") == 0) ? u"0" : u"12",
+    EXPECT_EQ((UNSAFE_TODO(strcmp(locale, "ja")) == 0) ? u"0" : u"12",
               calendar_utils::GetTwelveHourClockHours(midnight));
 
     // Return hours in twenty four hour format.
@@ -452,12 +455,12 @@ TEST_F(CalendarUtilsUnitTest, GetYearOfDay) {
 }
 
 TEST_F(CalendarUtilsUnitTest, ChildLoggedIn) {
-  SimulateUserLogin("test@test.test", user_manager::UserType::USER_TYPE_CHILD);
+  SimulateUserLogin({"test@test.test", user_manager::UserType::kChild});
   EXPECT_TRUE(calendar_utils::IsActiveUser());
 }
 
 TEST_F(CalendarUtilsUnitTest, InactiveUser) {
-  SimulateUserLogin("test@test.test", user_manager::UserType::USER_TYPE_GUEST);
+  SimulateGuestLogin();
   EXPECT_FALSE(calendar_utils::IsActiveUser());
 }
 
@@ -500,8 +503,8 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<CalendarUtilsMidnightTest::ParamType>&
            info) {
       std::string name = info.param.timezone;
-      base::ranges::replace_if(
-          name, [](char c) { return !std::isalnum(c); }, '_');
+      std::ranges::replace_if(
+          name, [](unsigned char c) { return !absl::ascii_isalnum(c); }, '_');
       return name;
     });
 

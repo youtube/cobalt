@@ -21,7 +21,6 @@ network::mojom::ReportingApiReportStatus EnumTraits<
       return network::mojom::ReportingApiReportStatus::kSuccess;
   }
   NOTREACHED();
-  return network::mojom::ReportingApiReportStatus::kQueued;
 }
 
 // static
@@ -44,7 +43,6 @@ bool EnumTraits<network::mojom::ReportingApiReportStatus,
       return true;
   }
   NOTREACHED();
-  return false;
 }
 
 // static

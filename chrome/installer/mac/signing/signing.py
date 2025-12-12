@@ -9,55 +9,85 @@ bundle that need to be signed, as well as providing utilities to sign them.
 import os.path
 import re
 
-from . import commands
+from signing import commands, invoker, logger
 
 
-def _linker_signed_arm64_needs_force(path):
-    """Detects linker-signed arm64 code that can only be signed with --force
-    on this system.
+class InvalidLipoArchCountException(ValueError):
+    pass
+
+
+class InvalidAppGeometryException(ValueError):
+    pass
+
+
+class Invoker(invoker.Base):
+
+    def codesign(self, config, product, path):
+        command = ['codesign', '--sign', config.identity]
+        if config.notarize.should_notarize():
+            # If the products will be notarized, the signature requires a secure
+            # timestamp.
+            command.append('--timestamp')
+        if product.sign_with_identifier:
+            command.extend(['--identifier', product.identifier])
+        reqs = product.requirements_string(config)
+        if reqs:
+            command.extend(['--requirements', '=' + reqs])
+        if product.options:
+            command.extend(
+                ['--options',
+                 product.options.to_comma_delimited_string()])
+        if product.entitlements:
+            command.extend(
+                ['--entitlements',
+                 os.path.join(path, product.entitlements)])
+        command.append(os.path.join(path, product.path))
+        commands.run_command(command)
+
+
+def _binary_architectures_offsets(binary_path):
+    """Returns a tuple of architecture offset pairs.
+    Raises InvalidLipoArchCountException if the nfat_arch count does not match
+    the parsed architecture count.
 
     Args:
-        path: A path to a code object to test.
+        binary_path: The path to the binary on disk.
 
     Returns:
-        True if --force must be used with codesign --sign to successfully sign
-        the code, False otherwise.
+        Returns a tuple of architecture offset pairs.
+        For example: (('x86_64', 16384), ('arm64', 294912))
+        or for non-universal: (('arm64', 0),)
     """
-    # On macOS 11.0 and later, codesign handles linker-signed code properly
-    # without the --force hand-holding. Check OS >= 10.16 because that's what
-    # Python will think the OS is if it wasn't built with the 11.0 SDK or later.
-    if commands.macos_version() >= [10, 16]:
-        return False
+    command = ['lipo', '-detailed_info', binary_path]
+    output = commands.run_command_output(command)
 
-    # Look just for --arch=arm64 because that's the only architecture that has
-    # linker-signed code by default. If this were used with universal code (if
-    # there were any), --display without --arch would default to the native
-    # architecture, which almost certainly wouldn't be arm64 and therefore would
-    # be wrong.
-    (returncode, stdout, stderr) = commands.lenient_run_command_output(
-        ['codesign', '--display', '--verbose', '--arch=arm64', '--', path])
+    # Log the detailed macho info. This includes the slice sizes, which will
+    # be helpful when recalculating padding for https://crbug.com/1300598.
+    logger.info('%s', output.decode('utf-8'))
 
-    if returncode != 0:
-        # Problem running codesign? Don't make the error about this confusing
-        # function. Just return False and let some less obscure codesign
-        # invocation be the error. Not signed at all? No problem. No arm64 code?
-        # No problem either. Not code at all? File not found? Well, those don't
-        # count as linker-signed either.
-        return False
-
-    # Yes, codesign --display puts all of this on stderr.
-    match = re.search(b'^CodeDirectory .* flags=(0x[0-9a-f]+)( |\().*$', stderr,
+    # Find the architecture for a non-universal binary.
+    match = re.search(rb'^Non-fat file:.+architecture:\s(.+)$', output,
                       re.MULTILINE)
-    if not match:
-        return False
+    if match is not None:
+        return tuple(((match.group(1).decode('ascii'), 0),))
 
-    flags = int(match.group(1), 16)
+    # Get the expected number of architectures for a universal binary.
+    nfat_arch_count = int(
+        re.search(rb'^nfat_arch\s(\d+)$', output, re.MULTILINE).group(1))
 
-    # This constant is from MacOSX11.0.sdk <Security/CSCommon.h>
-    # SecCodeSignatureFlags kSecCodeSignatureLinkerSigned.
-    LINKER_SIGNED_FLAG = 0x20000
+    # Find architecture-offset pairs for a universal binary.
+    arch_offsets = tuple(
+        (match.group(1).decode('ascii'), int(match.group(2)))
+        for match in re.finditer(
+            rb'^architecture\s(.+)\n(?:^[^\n]*\n)*?^\s+offset\s(\d+)$', output,
+            re.MULTILINE)
+    )
 
-    return (flags & LINKER_SIGNED_FLAG) != 0
+    # Make sure nfat_arch matches the found number of pairs.
+    if nfat_arch_count != len(arch_offsets):
+        raise InvalidLipoArchCountException()
+
+    return arch_offsets
 
 
 def sign_part(paths, config, part):
@@ -69,27 +99,7 @@ def sign_part(paths, config, part):
         part: The |model.CodeSignedProduct| to sign. The product's |path| must
             be in |paths.work|.
     """
-    command = ['codesign', '--sign', config.identity]
-    path = os.path.join(paths.work, part.path)
-    if _linker_signed_arm64_needs_force(path):
-        command.append('--force')
-    if config.notary_user:
-        # Assume if the config has notary authentication information that the
-        # products will be notarized, which requires a secure timestamp.
-        command.append('--timestamp')
-    if part.sign_with_identifier:
-        command.extend(['--identifier', part.identifier])
-    reqs = part.requirements_string(config)
-    if reqs:
-        command.extend(['--requirements', '=' + reqs])
-    if part.options:
-        command.extend(['--options', part.options.to_comma_delimited_string()])
-    if part.entitlements:
-        command.extend(
-            ['--entitlements',
-             os.path.join(paths.work, part.entitlements)])
-    command.append(path)
-    commands.run_command(command)
+    config.invoker.signer.codesign(config, part, paths.work)
 
 
 def verify_part(paths, part):
@@ -124,3 +134,23 @@ def validate_app(paths, config, part):
     ])
     if config.run_spctl_assess:
         commands.run_command(['spctl', '--assess', '-vv', app_path])
+
+
+def validate_app_geometry(paths, config, part):
+    """Validates the architecture offsets in the main executable.
+
+    Args:
+        paths: A |model.Paths| object.
+        conifg: The |model.CodeSignConfig| object.
+        part: The |model.CodeSignedProduct| for the outer application bundle.
+    """
+    if config.main_executable_pinned_geometry is None:
+        return
+
+    app_binary_path = os.path.join(paths.work, config.app_dir, 'Contents',
+                                   'MacOS', config.app_product)
+    pinned_offsets = config.main_executable_pinned_geometry
+    offsets = _binary_architectures_offsets(app_binary_path)
+    if pinned_offsets != offsets:
+        raise InvalidAppGeometryException('Unexpected main executable geometry',
+                                          pinned_offsets, offsets)

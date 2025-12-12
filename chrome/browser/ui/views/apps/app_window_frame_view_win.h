@@ -13,8 +13,9 @@
 
 // A Windows app window frame view.
 class AppWindowFrameViewWin : public views::NonClientFrameView {
+  METADATA_HEADER(AppWindowFrameViewWin, views::NonClientFrameView)
+
  public:
-  METADATA_HEADER(AppWindowFrameViewWin);
   explicit AppWindowFrameViewWin(views::Widget* widget);
   AppWindowFrameViewWin(const AppWindowFrameViewWin&) = delete;
   AppWindowFrameViewWin& operator=(const AppWindowFrameViewWin&) = delete;
@@ -23,11 +24,9 @@ class AppWindowFrameViewWin : public views::NonClientFrameView {
   // The insets to the client area due to the frame.
   gfx::Insets GetFrameInsets() const;
 
-  // Additional insets to the client area.  |monitor| is the monitor this
-  // window is on.  Normally that would be determined from the HWND, but
-  // during WM_NCCALCSIZE Windows does not return the correct monitor for the
-  // HWND, so it must be passed in explicitly.
-  gfx::Insets GetClientAreaInsets(HMONITOR monitor) const;
+  // Additional insets to the client area.  |frame_thickness| is the the
+  // window frame thickness for windows on the monitor this window is on.
+  gfx::Insets GetClientAreaInsets(int frame_thickness) const;
 
  private:
   // views::NonClientFrameView implementation.
@@ -35,14 +34,10 @@ class AppWindowFrameViewWin : public views::NonClientFrameView {
   gfx::Rect GetWindowBoundsForClientBounds(
       const gfx::Rect& client_bounds) const override;
   int NonClientHitTest(const gfx::Point& point) override;
-  void GetWindowMask(const gfx::Size& size, SkPath* window_mask) override;
-  void ResetWindowControls() override {}
-  void UpdateWindowIcon() override {}
-  void UpdateWindowTitle() override {}
-  void SizeConstraintsChanged() override {}
 
   // views::View implementation.
-  gfx::Size CalculatePreferredSize() const override;
+  gfx::Size CalculatePreferredSize(
+      const views::SizeBounds& available_size) const override;
   gfx::Size GetMinimumSize() const override;
   gfx::Size GetMaximumSize() const override;
 

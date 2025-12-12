@@ -65,7 +65,6 @@ CSSTranslate* FromCSSTranslateXYZ(const CSSFunctionValue& value) {
           length);
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 
@@ -134,7 +133,6 @@ CSSTranslate* CSSTranslate::FromCSSValue(const CSSFunctionValue& value) {
       return FromCSSTranslate3D(value);
     default:
       NOTREACHED();
-      return nullptr;
   }
 }
 

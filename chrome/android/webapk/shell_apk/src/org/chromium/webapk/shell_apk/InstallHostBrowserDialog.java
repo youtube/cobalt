@@ -13,7 +13,11 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+
 /** Shows the dialog to install a host browser for launching WebAPK. */
+@NullMarked
 public class InstallHostBrowserDialog {
     /**
      * A listener which is notified when user chooses to install the host browser, or dismiss the
@@ -21,14 +25,18 @@ public class InstallHostBrowserDialog {
      */
     public interface DialogListener {
         void onConfirmInstall(String packageName);
+
         void onConfirmQuit();
     }
 
     /** Checked prior to running the {@link DialogInterface.OnDismissListener}. */
-    private static class OnDismissListenerCanceler { public boolean canceled; }
+    private static class OnDismissListenerCanceler {
+        public boolean canceled;
+    }
 
     /**
      * Shows the dialog to install a host browser.
+     *
      * @param context The current context.
      * @param listener The listener for the dialog.
      * @param appName The name of the WebAPK for which the dialog is shown.
@@ -36,8 +44,12 @@ public class InstallHostBrowserDialog {
      * @param hostBrowserApplicationName The application name of the host browser.
      * @param hostBrowserIconId The resource id of the icon of the host browser.
      */
-    public static void show(Context context, final DialogListener listener, String appName,
-            final String hostBrowserPackageName, String hostBrowserApplicationName,
+    public static void show(
+            Context context,
+            final DialogListener listener,
+            String appName,
+            final String hostBrowserPackageName,
+            @Nullable String hostBrowserApplicationName,
             int hostBrowserIconId) {
         View view = LayoutInflater.from(context).inflate(R.layout.host_browser_list_item, null);
         TextView title = new TextView(context);
@@ -55,18 +67,22 @@ public class InstallHostBrowserDialog {
         OnDismissListenerCanceler onDismissCanceler = new OnDismissListenerCanceler();
 
         // The context theme wrapper is needed for pre-L.
-        AlertDialog.Builder builder = new AlertDialog.Builder(
-                new ContextThemeWrapper(context, android.R.style.Theme_DeviceDefault_Light_Dialog));
+        AlertDialog.Builder builder =
+                new AlertDialog.Builder(
+                        new ContextThemeWrapper(
+                                context, android.R.style.Theme_DeviceDefault_Light_Dialog));
         builder.setCustomTitle(title)
                 .setView(view)
-                .setNegativeButton(R.string.choose_host_browser_dialog_quit,
+                .setNegativeButton(
+                        R.string.choose_host_browser_dialog_quit,
                         new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 dialog.cancel();
                             }
                         })
-                .setPositiveButton(R.string.install_host_browser_dialog_install_button,
+                .setPositiveButton(
+                        R.string.install_host_browser_dialog_install_button,
                         new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
@@ -76,14 +92,15 @@ public class InstallHostBrowserDialog {
                         });
 
         AlertDialog dialog = builder.create();
-        dialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
-            @Override
-            public void onDismiss(DialogInterface dialogInterface) {
-                if (onDismissCanceler.canceled) return;
+        dialog.setOnDismissListener(
+                new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialogInterface) {
+                        if (onDismissCanceler.canceled) return;
 
-                listener.onConfirmQuit();
-            }
-        });
+                        listener.onConfirmQuit();
+                    }
+                });
         dialog.show();
-    };
+    }
 }

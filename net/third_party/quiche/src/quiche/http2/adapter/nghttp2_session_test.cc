@@ -1,5 +1,8 @@
 #include "quiche/http2/adapter/nghttp2_session.h"
 
+#include <string>
+#include <vector>
+
 #include "quiche/http2/adapter/mock_http2_visitor.h"
 #include "quiche/http2/adapter/nghttp2_callbacks.h"
 #include "quiche/http2/adapter/nghttp2_util.h"
@@ -37,11 +40,11 @@ class NgHttp2SessionTest : public quiche::test::QuicheTest {
   void TearDown() override { nghttp2_option_del(options_); }
 
   nghttp2_session_callbacks_unique_ptr CreateCallbacks() {
-    nghttp2_session_callbacks_unique_ptr callbacks = callbacks::Create();
+    nghttp2_session_callbacks_unique_ptr callbacks = callbacks::Create(nullptr);
     return callbacks;
   }
 
-  DataSavingVisitor visitor_;
+  TestVisitor visitor_;
   nghttp2_option* options_ = nullptr;
 };
 

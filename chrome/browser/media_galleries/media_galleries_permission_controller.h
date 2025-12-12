@@ -17,7 +17,6 @@
 #include "chrome/browser/media_galleries/media_galleries_dialog_controller.h"
 #include "chrome/browser/media_galleries/media_galleries_preferences.h"
 #include "components/storage_monitor/removable_storage_observer.h"
-#include "ui/gfx/native_widget_types.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
 
 namespace content {
@@ -120,10 +119,8 @@ class MediaGalleriesPermissionController
   void OnPreferencesInitialized();
 
   // SelectFileDialog::Listener implementation:
-  void FileSelected(const base::FilePath& path,
-                    int index,
-                    void* params) override;
-  void FileSelectionCanceled(void* params) override;
+  void FileSelected(const ui::SelectedFileInfo& file_info, int index) override;
+  void FileSelectionCanceled() override;
 
   // RemovableStorageObserver implementation.
   // Used to keep dialog in sync with removable device status.

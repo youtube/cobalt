@@ -6,8 +6,8 @@
 
 #include <string>
 
-#include "ash/accessibility/accessibility_controller_impl.h"
-#include "ash/public/cpp/desk_template.h"
+#include "ash/accessibility/accessibility_controller.h"
+#include "ash/public/cpp/style/color_provider.h"
 #include "ash/resources/vector_icons/vector_icons.h"
 #include "ash/shell.h"
 #include "ash/strings/grit/ash_strings.h"
@@ -24,13 +24,11 @@
 #include "ash/wm/desks/templates/saved_desk_name_view.h"
 #include "ash/wm/desks/templates/saved_desk_presenter.h"
 #include "ash/wm/desks/templates/saved_desk_util.h"
-#include "ash/wm/overview/overview_constants.h"
 #include "ash/wm/overview/overview_controller.h"
 #include "ash/wm/overview/overview_grid.h"
-#include "ash/wm/overview/overview_highlight_controller.h"
-#include "ash/wm/overview/overview_highlightable_view.h"
 #include "ash/wm/overview/overview_session.h"
 #include "ash/wm/overview/overview_utils.h"
+#include "ash/wm/wm_constants.h"
 #include "base/i18n/time_formatting.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -41,28 +39,26 @@
 #include "ui/base/l10n/time_format.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/chromeos/styles/cros_tokens_color_mappings.h"
-#include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/insets.h"
-#include "ui/gfx/paint_vector_icon.h"
-#include "ui/gfx/text_constants.h"
+#include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/animation_builder.h"
 #include "ui/views/background.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
 #include "ui/views/controls/image_view.h"
 #include "ui/views/controls/label.h"
-#include "ui/views/highlight_border.h"
 #include "ui/views/layout/flex_layout_view.h"
 #include "ui/views/metadata/view_factory_internal.h"
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
+#include "ui/views/view_utils.h"
 
 namespace ash {
 namespace {
 
 // The padding values of the SavedDeskItemView.
-constexpr int kVerticalPaddingDp = 16;
+constexpr int kVerticalPaddingDp = 14;
 
 // The margin for the delete button.
 constexpr int kDeleteButtonMargin = 8;
@@ -89,29 +85,23 @@ constexpr auto kSavedDeskNameInsets = gfx::Insets::VH(0, 2);
 constexpr int kFadeDurationMs = 100;
 
 std::u16string GetTimeStr(base::Time timestamp) {
-  std::u16string date, time, time_str;
-
-  // Returns empty if `timestamp` is out of relative date range, which is
-  // yesterday and today as of now. Please see `ui/base/l10n/time_format.h` for
-  // more details.
-  date = ui::TimeFormat::RelativeDate(timestamp, nullptr);
-  if (date.empty()) {
-    // Syntax `yMMMdjmm` is used by the File App if it's not a relative date.
-    // Please note, this might be slightly different for different locales.
-    // Examples:
-    //  `en-US` - `Jan 1, 2022, 10:30 AM`
-    //  `zh-CN` - `2022年1月1日 10:30`
-    time_str = base::TimeFormatWithPattern(timestamp, "yMMMdjmm");
-  } else {
-    // If it's a relative date, just append `jmm` to it.
-    // Please note, this might be slightly different for different locales.
-    // Examples:
-    //  `en-US` - `Today 10:30 AM`
-    //  `zh-CN` - `今天 10:30`
-    time_str = date + u" " + base::TimeFormatWithPattern(timestamp, "jmm");
-  }
-
-  return time_str;
+  // `ui::TimeFormat::RelativeDate()` returns an empty string if `timestamp` is
+  // out of relative date range, which is yesterday and today as of now.
+  const std::u16string date = ui::TimeFormat::RelativeDate(timestamp, nullptr);
+  return date.empty()
+             // Syntax `yMMMdjmm` is used by the File App if it's not a relative
+             // date. Please note, this might be slightly different for
+             // different locales. Examples:
+             //  `en-US` - `Jan 1, 2022, 10:30 AM`
+             //  `zh-CN` - `2022年1月1日 10:30`
+             ? base::LocalizedTimeFormatWithPattern(timestamp, "yMMMdjmm")
+             // If it's a relative date, just append `jmm` to it.
+             // Please note, this might be slightly different for different
+             // locales. Examples:
+             //  `en-US` - `Today 10:30 AM`
+             //  `zh-CN` - `今天 10:30`
+             : (date + u" " +
+                base::LocalizedTimeFormatWithPattern(timestamp, "jmm"));
 }
 
 }  // namespace
@@ -127,22 +117,24 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
       saved_desk_->source() == DeskTemplateSource::kPolicy;
   SetFocusBehavior(views::View::FocusBehavior::ALWAYS);
 
+  View* background_view = nullptr;
+  View* box_layout_view = nullptr;
   views::Builder<SavedDeskItemView>(this)
       .SetPreferredSize(kPreferredSize)
       .SetUseDefaultFillLayout(true)
-      .SetAccessibleName(saved_desk_name)
+      .SetAccessibleName(ComputeAccessibleName())
       .SetCallback(std::move(launch_template_callback))
-      .SetBackground(views::CreateThemedRoundedRectBackground(
-          cros_tokens::kCrosSysSystemBaseElevated, kSaveDeskCornerRadius))
-      .SetBorder(std::make_unique<views::HighlightBorder>(
-          kSaveDeskCornerRadius,
-          chromeos::features::IsJellyrollEnabled()
-              ? views::HighlightBorder::Type::kHighlightBorderNoShadow
-              : views::HighlightBorder::Type::kHighlightBorder1))
-      // TODO(b/274025495): Update Shadow for SavedDeskItemView.
       .AddChildren(
+          views::Builder<View>()
+              .CopyAddressTo(&background_view)
+              .SetPreferredSize(kPreferredSize)
+              .SetUseDefaultFillLayout(true)
+              .SetBackground(views::CreateRoundedRectBackground(
+                  cros_tokens::kCrosSysSystemBaseElevated,
+                  kSaveDeskCornerRadius)),
           views::Builder<views::FlexLayoutView>()
               .SetOrientation(views::LayoutOrientation::kVertical)
+              .CopyAddressTo(&box_layout_view)
               .SetInteriorMargin(
                   gfx::Insets::VH(kVerticalPaddingDp, kSaveDeskPaddingDp))
               // TODO(richui): Consider splitting some of the children into
@@ -150,15 +142,13 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
               .AddChildren(
                   views::Builder<views::FlexLayoutView>()
                       .SetOrientation(views::LayoutOrientation::kHorizontal)
-                      .SetPreferredSize(gfx::Size(
-                          kSavedDeskNameAndTimePreferredWidth,
-                          SavedDeskNameView::kSavedDeskNameViewHeight))
                       .AddChildren(
                           views::Builder<SavedDeskNameView>()
                               .CopyAddressTo(&name_view_)
                               .SetController(this)
                               .SetText(saved_desk_name)
-                              .SetAccessibleName(saved_desk_name)
+                              .SetAccessibleName(l10n_util::GetStringUTF16(
+                                  IDS_ASH_DESKS_DESK_NAME))
                               .SetReadOnly(!saved_desk_->IsModifiable())
                               // Use the focus behavior specified by the
                               // subclass of `SavedDeskNameView` unless the
@@ -199,7 +189,7 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
                   views::Builder<views::Label>()
                       .CopyAddressTo(&time_view_)
                       .SetHorizontalAlignment(gfx::ALIGN_LEFT)
-                      .SetEnabledColorId(cros_tokens::kCrosSysSecondary)
+                      .SetEnabledColor(cros_tokens::kCrosSysSecondary)
                       .SetText(
                           is_admin_managed
                               ? l10n_util::GetStringUTF16(
@@ -222,12 +212,35 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
           views::Builder<views::View>()
               .CopyAddressTo(&hover_container_)
               .SetUseDefaultFillLayout(true)
-              .SetVisible(false))
+              .SetVisible(true))
       .BuildChildren();
 
-  // We need to ensure that the layer is non-opaque when animating.
   SetPaintToLayer();
+  // We need to ensure that the layer is non-opaque when animating.
   layer()->SetFillsBoundsOpaquely(false);
+
+  // Create a shadow for the view.
+  shadow_ = SystemShadow::CreateShadowOnNinePatchLayerForView(
+      this, SystemShadow::Type::kElevation12);
+  shadow_->SetRoundedCornerRadius(kSaveDeskCornerRadius);
+
+  if (features::IsBackgroundBlurEnabled() &&
+      chromeos::features::IsSystemBlurEnabled()) {
+    background_view->SetPaintToLayer();
+    background_view->layer()->SetFillsBoundsOpaquely(false);
+    background_view->layer()->SetBackgroundBlur(
+        ColorProvider::kBackgroundBlurSigma);
+    background_view->layer()->SetBackdropFilterQuality(
+        ColorProvider::kBackgroundBlurQuality);
+    background_view->layer()->SetRoundedCornerRadius(
+        gfx::RoundedCornersF(kSaveDeskCornerRadius));
+
+    // This needs to be painted to a layer if its sibling `background_view` is.
+    // Otherwise, it will be painted to its ancestors layer and
+    // `background_view` will be drawn on top of it as a result.
+    box_layout_view->SetPaintToLayer();
+    box_layout_view->layer()->SetFillsBoundsOpaquely(false);
+  }
 
   const int button_text_id = saved_desk_->type() == DeskTemplateType::kTemplate
                                  ? IDS_ASH_DESKS_TEMPLATES_USE_TEMPLATE_BUTTON
@@ -238,6 +251,7 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
       l10n_util::GetStringUTF16(button_text_id),
       PillButton::Type::kDefaultWithoutIcon,
       /*icon=*/nullptr));
+  launch_button_->SetFocusBehavior(views::View::FocusBehavior::ACCESSIBLE_ONLY);
 
   // Users cannot delete admin templates.
   if (!is_admin_managed) {
@@ -250,6 +264,8 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
             /*has_border=*/false));
     delete_button_->SetTooltipText(l10n_util::GetStringUTF16(
         IDS_ASH_DESKS_TEMPLATES_DELETE_DIALOG_CONFIRM_BUTTON));
+    delete_button_->SetFocusBehavior(
+        views::View::FocusBehavior::ACCESSIBLE_ONLY);
   }
 
   // Use a border to create spacing between `name_view_`s background (set in
@@ -268,10 +284,7 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
                                                 kSaveDeskCornerRadius);
 
   views::FocusRing* focus_ring =
-      StyleUtil::SetUpFocusRingForView(this, kFocusRingHaloInset);
-  focus_ring->SetHasFocusPredicate([](views::View* view) {
-    return static_cast<SavedDeskItemView*>(view)->IsViewHighlighted();
-  });
+      StyleUtil::SetUpFocusRingForView(this, kWindowMiniViewFocusRingHaloInset);
   focus_ring->SetColorId(cros_tokens::kCrosSysFocusRing);
 
   SetEventTargeter(std::make_unique<views::ViewTargeter>(this));
@@ -281,6 +294,15 @@ SavedDeskItemView::SavedDeskItemView(std::unique_ptr<DeskTemplate> saved_desk)
 
   hover_container_->layer()->SetFillsBoundsOpaquely(false);
   icon_container_view_->layer()->SetFillsBoundsOpaquely(false);
+
+  hover_container_->layer()->SetOpacity(0.0f);
+  icon_container_view_->layer()->SetOpacity(1.0f);
+
+  AddAccelerator(ui::Accelerator(ui::VKEY_W, ui::EF_CONTROL_DOWN));
+
+  GetViewAccessibility().SetRole(ax::mojom::Role::kButton);
+  GetViewAccessibility().SetDescription(l10n_util::GetStringUTF8(
+      IDS_ASH_DESKS_TEMPLATES_LIBRARY_SAVED_DESK_GRID_ITEM_EXTRA_ACCESSIBLE_DESCRIPTION));
 }
 
 SavedDeskItemView::~SavedDeskItemView() {
@@ -308,10 +330,8 @@ void SavedDeskItemView::UpdateHoverButtonsVisibility(
   }
 
   if (hover_container_should_be_visible_) {
-    hover_container_->SetVisible(true);
     AnimateHover(hover_container_->layer(), icon_container_view_->layer());
   } else {
-    icon_container_view_->SetVisible(true);
     AnimateHover(icon_container_view_->layer(), hover_container_->layer());
   }
 }
@@ -348,7 +368,7 @@ void SavedDeskItemView::ReplaceSavedDesk(const base::Uuid& uuid) {
   // since we only record the delete operation when the user specifically
   // deletes an entry.
   if (auto* presenter = saved_desk_util::GetSavedDeskPresenter()) {
-    presenter->DeleteEntry(uuid, /*record_for_type=*/absl::nullopt);
+    presenter->DeleteEntry(uuid, /*record_for_type=*/std::nullopt);
     UpdateSavedDeskName();
     RecordReplaceSavedDeskHistogram(saved_desk_->type());
   }
@@ -369,41 +389,18 @@ void SavedDeskItemView::UpdateSavedDesk(
     const DeskTemplate& updated_saved_desk) {
   saved_desk_ = updated_saved_desk.Clone();
 
-  hover_container_->SetVisible(false);
-  icon_container_view_->SetVisible(true);
-
   auto new_name = saved_desk_->template_name();
   DCHECK(!new_name.empty());
   name_view_->SetText(new_name);
-  name_view_->SetAccessibleName(new_name);
-  SetAccessibleName(new_name);
+  GetViewAccessibility().SetName(ComputeAccessibleName());
 
   // This will trigger `name_view_` to compute its new preferred bounds and
   // invalidate the layout for `this`
   name_view_->OnContentsChanged();
 }
 
-void SavedDeskItemView::GetAccessibleNodeData(ui::AXNodeData* node_data) {
-  int accessible_text_id =
-      saved_desk_->type() == DeskTemplateType::kTemplate
-          ? IDS_ASH_DESKS_TEMPLATES_LIBRARY_TEMPLATES_GRID_ITEM_ACCESSIBLE_NAME
-          : IDS_ASH_DESKS_TEMPLATES_LIBRARY_SAVE_AND_RECALL_GRID_ITEM_ACCESSIBLE_NAME;
-
-  node_data->role = ax::mojom::Role::kButton;
-
-  node_data->AddStringAttribute(
-      ax::mojom::StringAttribute::kName,
-      l10n_util::GetStringFUTF8(accessible_text_id,
-                                saved_desk_->template_name()));
-
-  node_data->AddStringAttribute(
-      ax::mojom::StringAttribute::kDescription,
-      l10n_util::GetStringUTF8(
-          IDS_ASH_DESKS_TEMPLATES_LIBRARY_SAVED_DESK_GRID_ITEM_EXTRA_ACCESSIBLE_DESCRIPTION));
-}
-
-void SavedDeskItemView::Layout() {
-  views::View::Layout();
+void SavedDeskItemView::Layout(PassKey) {
+  LayoutSuperclass<views::View>(this);
 
   if (delete_button_) {
     const gfx::Size delete_button_size = delete_button_->GetPreferredSize();
@@ -415,7 +412,7 @@ void SavedDeskItemView::Layout() {
   }
 
   const gfx::Size launch_button_preferred_size =
-      launch_button_->CalculatePreferredSize();
+      launch_button_->CalculatePreferredSize({});
   launch_button_->SetBoundsRect(
       gfx::Rect({(width() - launch_button_preferred_size.width()) / 2,
                  height() - launch_button_preferred_size.height() -
@@ -441,22 +438,8 @@ void SavedDeskItemView::OnViewFocused(views::View* observed_view) {
   should_commit_name_changes_ = true;
 
   // Hide the hover container when we are modifying the saved desk name.
-  hover_container_->SetVisible(false);
-  icon_container_view_->SetVisible(true);
   hover_container_->layer()->SetOpacity(0.0f);
   icon_container_view_->layer()->SetOpacity(1.0f);
-
-  // Set the Overview highlight to move focus with the `name_view_`.
-  auto* highlight_controller = Shell::Get()
-                                   ->overview_controller()
-                                   ->overview_session()
-                                   ->highlight_controller();
-  if (highlight_controller->IsFocusHighlightVisible()) {
-    highlight_controller->MoveHighlightToView(name_view_);
-
-    // Update a11y focus window.
-    highlight_controller->UpdateA11yFocusWindow(name_view_);
-  }
 
   if (!defer_select_all_)
     name_view_->SelectAll(false);
@@ -506,7 +489,7 @@ void SavedDeskItemView::OnViewBlurred(views::View* observed_view) {
     for (auto& overview_grid : overview_session->grid_list()) {
       if (SavedDeskLibraryView* library_view =
               overview_grid->GetSavedDeskLibraryView()) {
-        for (auto* grid_view : library_view->grid_views()) {
+        for (ash::SavedDeskGridView* grid_view : library_view->grid_views()) {
           grid_view->SortEntries(/*order_first_uuid=*/{});
         }
       }
@@ -524,7 +507,7 @@ void SavedDeskItemView::OnViewBlurred(views::View* observed_view) {
     return;
 
   auto* saved_desk_entry_to_replace = presenter->FindOtherEntryWithName(
-      name_view_->GetText(), saved_desk().type(), uuid());
+      std::u16string(name_view_->GetText()), saved_desk().type(), uuid());
   if (saved_desk_entry_to_replace) {
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&SavedDeskItemView::MaybeShowReplaceDialog,
@@ -535,17 +518,6 @@ void SavedDeskItemView::OnViewBlurred(views::View* observed_view) {
   }
 
   UpdateSavedDeskName();
-}
-
-void SavedDeskItemView::OnFocus() {
-  UpdateOverviewHighlightForFocusAndSpokenFeedback(this);
-  OnViewHighlighted();
-  View::OnFocus();
-}
-
-void SavedDeskItemView::OnBlur() {
-  OnViewUnhighlighted();
-  View::OnBlur();
 }
 
 views::Button::KeyClickAction SavedDeskItemView::GetKeyClickActionForEvent(
@@ -559,8 +531,20 @@ views::Button::KeyClickAction SavedDeskItemView::GetKeyClickActionForEvent(
   return Button::GetKeyClickActionForEvent(event);
 }
 
+bool SavedDeskItemView::AcceleratorPressed(const ui::Accelerator& accelerator) {
+  if (accelerator.IsCtrlDown() && accelerator.key_code() == ui::VKEY_W) {
+    OnDeleteButtonPressed();
+    return true;
+  }
+  return views::Button::AcceleratorPressed(accelerator);
+}
+
+bool SavedDeskItemView::CanHandleAccelerators() const {
+  return HasFocus() && views::Button::CanHandleAccelerators();
+}
+
 void SavedDeskItemView::UpdateSavedDeskName() {
-  saved_desk_->set_template_name(name_view_->GetText());
+  saved_desk_->set_template_name(std::u16string(name_view_->GetText()));
   OnSavedDeskNameChanged(saved_desk_->template_name());
 
   if (auto* presenter = saved_desk_util::GetSavedDeskPresenter()) {
@@ -570,25 +554,21 @@ void SavedDeskItemView::UpdateSavedDeskName() {
   }
 }
 
-void SavedDeskItemView::OnHoverAnimationEnded() {
-  hover_container_->SetVisible(hover_container_should_be_visible_);
-  icon_container_view_->SetVisible(!hover_container_should_be_visible_);
+std::u16string SavedDeskItemView::ComputeAccessibleName() const {
+  int accessible_text_id =
+      saved_desk_->type() == DeskTemplateType::kTemplate
+          ? IDS_ASH_DESKS_TEMPLATES_LIBRARY_TEMPLATES_GRID_ITEM_ACCESSIBLE_NAME
+          : IDS_ASH_DESKS_TEMPLATES_LIBRARY_SAVE_AND_RECALL_GRID_ITEM_ACCESSIBLE_NAME;
+
+  return l10n_util::GetStringFUTF16(accessible_text_id,
+                                    saved_desk_->template_name());
 }
 
 void SavedDeskItemView::AnimateHover(ui::Layer* layer_to_show,
                                      ui::Layer* layer_to_hide) {
   views::AnimationBuilder()
       .SetPreemptionStrategy(ui::LayerAnimator::IMMEDIATELY_SET_NEW_TARGET)
-      .OnEnded(base::BindOnce(
-          [](base::WeakPtr<SavedDeskItemView> view) {
-            if (view)
-              view->OnHoverAnimationEnded();
-          },
-          weak_ptr_factory_.GetWeakPtr()))
       .Once()
-      .SetOpacity(layer_to_show, 0.0f)
-      .SetOpacity(layer_to_hide, 1.0f)
-      .Then()
       .SetDuration(base::Milliseconds(kFadeDurationMs))
       .SetOpacity(layer_to_show, 1.0f)
       .SetOpacity(layer_to_hide, 0.0f);
@@ -626,8 +606,9 @@ bool SavedDeskItemView::HandleKeyEvent(views::Textfield* sender,
   // Pressing enter or escape should blur the focus away from `name_view_` so
   // that editing the saved desk item's name ends. Pressing tab should do the
   // same, but is handled in `OverviewSession`.
-  if (key_event.type() != ui::ET_KEY_PRESSED)
+  if (key_event.type() != ui::EventType::kKeyPressed) {
     return false;
+  }
 
   if (key_event.key_code() != ui::VKEY_RETURN &&
       key_event.key_code() != ui::VKEY_ESCAPE) {
@@ -650,7 +631,7 @@ bool SavedDeskItemView::HandleMouseEvent(views::Textfield* sender,
   DCHECK_EQ(sender, name_view_);
 
   switch (mouse_event.type()) {
-    case ui::ET_MOUSE_PRESSED:
+    case ui::EventType::kMousePressed:
       // If this is the first mouse press on the `name_view_`, then it's not
       // focused yet. `OnViewFocused()` should not select all text, since it
       // will be undone by the mouse release event. Instead we defer it until we
@@ -660,7 +641,7 @@ bool SavedDeskItemView::HandleMouseEvent(views::Textfield* sender,
       }
       break;
 
-    case ui::ET_MOUSE_RELEASED:
+    case ui::EventType::kMouseReleased:
       if (defer_select_all_) {
         defer_select_all_ = false;
         // The user may have already clicked and dragged to select some range
@@ -711,8 +692,8 @@ void SavedDeskItemView::OnDeleteButtonPressed() {
     return;
 
   controller->ShowDeleteDialog(
-      GetWidget()->GetNativeWindow()->GetRootWindow(),
-      name_view_->GetAccessibleName(), saved_desk_->type(),
+      GetWidget()->GetNativeWindow()->GetRootWindow(), name_view_->GetText(),
+      saved_desk_->type(),
       base::BindOnce(&SavedDeskItemView::OnDeleteSavedDesk,
                      weak_ptr_factory_.GetWeakPtr()));
 }
@@ -740,41 +721,15 @@ void SavedDeskItemView::OnSavedDeskNameChanged(const std::u16string& new_name) {
 
   DCHECK(!new_name.empty());
   name_view_->SetText(new_name);
-  name_view_->SetAccessibleName(new_name);
   name_view_->ResetTemporaryName();
-  SetAccessibleName(new_name);
+  GetViewAccessibility().SetName(ComputeAccessibleName());
 
   // This will trigger `name_view_` to compute its new preferred bounds and
   // invalidate the layout for `this`.
   name_view_->OnContentsChanged();
 }
 
-views::View* SavedDeskItemView::GetView() {
-  return this;
-}
-
-void SavedDeskItemView::MaybeActivateHighlightedView() {
-  MaybeLaunchSavedDesk();
-}
-
-void SavedDeskItemView::MaybeCloseHighlightedView(bool primary_action) {
-  if (primary_action)
-    OnDeleteButtonPressed();
-}
-
-void SavedDeskItemView::MaybeSwapHighlightedView(bool right) {}
-
-void SavedDeskItemView::OnViewHighlighted() {
-  views::FocusRing::Get(this)->SchedulePaint();
-
-  ScrollViewToVisible();
-}
-
-void SavedDeskItemView::OnViewUnhighlighted() {
-  views::FocusRing::Get(this)->SchedulePaint();
-}
-
-BEGIN_METADATA(SavedDeskItemView, views::Button)
+BEGIN_METADATA(SavedDeskItemView)
 END_METADATA
 
 }  // namespace ash

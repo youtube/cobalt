@@ -22,12 +22,13 @@
 namespace cobalt {
 namespace browser {
 
+// This class acts as a factory for creating CobaltTrustedHeaderClient instances
+// for each new URL loader. It is responsible for binding the Mojo receiver
+// for the TrustedHeaderClient interface.
 class CobaltTrustedURLLoaderHeaderClient
     : public network::mojom::TrustedURLLoaderHeaderClient {
  public:
-  CobaltTrustedURLLoaderHeaderClient(
-      mojo::PendingReceiver<network::mojom::TrustedURLLoaderHeaderClient>
-          receiver);
+  CobaltTrustedURLLoaderHeaderClient();
 
   CobaltTrustedURLLoaderHeaderClient(
       const CobaltTrustedURLLoaderHeaderClient&) = delete;
@@ -49,10 +50,6 @@ class CobaltTrustedURLLoaderHeaderClient
  private:
   void CreateAndBindCobaltTrustedHeaderClient(
       mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
-
-  mojo::Receiver<network::mojom::TrustedURLLoaderHeaderClient> receiver_;
-  std::vector<std::unique_ptr<CobaltTrustedHeaderClient>>
-      cobalt_header_clients_;
 };
 
 }  // namespace browser

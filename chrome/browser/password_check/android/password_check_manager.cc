@@ -4,20 +4,23 @@
 
 #include "chrome/browser/password_check/android/password_check_manager.h"
 
+#include <string_view>
+
 #include "base/feature_list.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/utf_string_conversions.h"
 #include "chrome/browser/password_check/android/password_check_bridge.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/password_manager/core/browser/affiliation/affiliation_utils.h"
+#include "components/affiliations/core/browser/affiliation_utils.h"
+#include "components/password_manager/core/browser/leak_detection/leak_detection_check_impl.h"
 #include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_manager_client.h"
-#include "components/password_manager/core/browser/password_manager_util.h"
+#include "components/password_manager/core/browser/password_sync_util.h"
 #include "components/password_manager/core/browser/password_ui_utils.h"
 #include "components/password_manager/core/browser/ui/credential_ui_entry.h"
 #include "components/password_manager/core/browser/ui/insecure_credentials_manager.h"
-#include "components/password_manager/core/browser/well_known_change_password_util.h"
+#include "components/password_manager/core/browser/well_known_change_password/well_known_change_password_util.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/strings/grit/components_strings.h"
@@ -27,7 +30,7 @@
 using password_manager::PasswordForm;
 using PasswordCheckUIStatus = password_manager::PasswordCheckUIStatus;
 using State = password_manager::BulkLeakCheckService::State;
-using SyncState = password_manager::SyncState;
+using SyncState = password_manager::sync_util::SyncState;
 using CredentialUIEntry = password_manager::CredentialUIEntry;
 using CredentialFacet = password_manager::CredentialFacet;
 using CompromisedCredentialForUI =
@@ -78,7 +81,8 @@ void PasswordCheckManager::StartCheck() {
     progress_->IncrementCounts(password);
   observer_->OnPasswordCheckProgressChanged(progress_->already_processed(),
                                             progress_->remaining_in_queue());
-  bulk_leak_check_service_adapter_.StartBulkLeakCheck();
+  bulk_leak_check_service_adapter_.StartBulkLeakCheck(
+      password_manager::LeakDetectionInitiator::kBulkSyncedPasswordsCheck);
 }
 
 void PasswordCheckManager::StopCheck() {
@@ -86,7 +90,7 @@ void PasswordCheckManager::StopCheck() {
 }
 
 base::Time PasswordCheckManager::GetLastCheckTimestamp() {
-  return base::Time::FromDoubleT(profile_->GetPrefs()->GetDouble(
+  return base::Time::FromSecondsSinceUnixEpoch(profile_->GetPrefs()->GetDouble(
       password_manager::prefs::kLastTimePasswordCheckCompleted));
 }
 
@@ -112,7 +116,7 @@ PasswordCheckManager::GetCompromisedCredentials() const {
 
 void PasswordCheckManager::UpdateCredential(
     const password_manager::CredentialUIEntry& credential,
-    base::StringPiece new_password) {
+    std::string_view new_password) {
   CredentialUIEntry updated_credential = credential;
   updated_credential.password = base::UTF8ToUTF16(new_password);
   saved_passwords_presenter_.EditSavedCredentials(credential,
@@ -121,8 +125,7 @@ void PasswordCheckManager::UpdateCredential(
 
 void PasswordCheckManager::OnEditCredential(
     const password_manager::CredentialUIEntry& credential,
-    const base::android::JavaParamRef<jobject>& context,
-    const base::android::JavaParamRef<jobject>& settings_launcher) {
+    const base::android::JavaParamRef<jobject>& context) {
   std::vector<password_manager::PasswordForm> forms =
       saved_passwords_presenter_.GetCorrespondingPasswordForms(credential);
   if (forms.empty() || credential_edit_bridge_)
@@ -139,7 +142,7 @@ void PasswordCheckManager::OnEditCredential(
       &saved_passwords_presenter_,
       base::BindOnce(&PasswordCheckManager::OnEditUIDismissed,
                      weak_ptr_factory_.GetWeakPtr()),
-      context, settings_launcher);
+      context);
 }
 
 void PasswordCheckManager::RemoveCredential(
@@ -164,7 +167,8 @@ void PasswordCheckManager::PasswordCheckProgress::OnProcessed(
   remaining_in_queue_ -= num_matching;
 }
 
-void PasswordCheckManager::OnSavedPasswordsChanged() {
+void PasswordCheckManager::OnSavedPasswordsChanged(
+    const password_manager::PasswordStoreChangeList& changes) {
   size_t passwords_count =
       saved_passwords_presenter_.GetSavedPasswords().size();
 
@@ -195,10 +199,7 @@ void PasswordCheckManager::OnStateChanged(State state) {
     // Save the time at which the last successful check finished.
     profile_->GetPrefs()->SetDouble(
         password_manager::prefs::kLastTimePasswordCheckCompleted,
-        base::Time::Now().ToDoubleT());
-    profile_->GetPrefs()->SetTime(
-        password_manager::prefs::kSyncedLastTimePasswordCheckCompleted,
-        base::Time::Now());
+        base::Time::Now().InSecondsFSinceUnixEpoch());
   }
 
   if (state != State::kRunning) {
@@ -223,8 +224,9 @@ void PasswordCheckManager::OnCredentialDone(
                                               progress_->remaining_in_queue());
   }
   if (is_leaked) {
-    // TODO(crbug.com/1092444): Trigger single-credential update.
-    insecure_credentials_manager_.SaveInsecureCredential(credential);
+    // TODO(crbug.com/40134591): Trigger single-credential update.
+    insecure_credentials_manager_.SaveInsecureCredential(
+        credential, password_manager::TriggerBackendNotification(false));
   }
 }
 
@@ -239,7 +241,7 @@ CompromisedCredentialForUI PasswordCheckManager::MakeUICredential(
   credential_facet.signon_realm = credential.GetFirstSignonRealm();
   credential_facet.affiliated_web_realm = credential.GetAffiliatedWebRealm();
 
-  auto facet = password_manager::FacetURI::FromPotentiallyInvalidSpec(
+  auto facet = affiliations::FacetURI::FromPotentiallyInvalidSpec(
       credential.GetFirstSignonRealm());
 
   if (facet.IsValidAndroidFacetURI()) {
@@ -258,7 +260,7 @@ CompromisedCredentialForUI PasswordCheckManager::MakeUICredential(
     // In case no affiliated_web_realm could be obtained we should not have an
     // associated url for android credential.
     credential_facet.url = credential.GetAffiliatedWebRealm().empty()
-                               ? GURL::EmptyGURL()
+                               ? GURL()
                                : GURL(credential.GetAffiliatedWebRealm());
 
   } else {
@@ -309,23 +311,17 @@ PasswordCheckUIStatus PasswordCheckManager::GetUIStatus(State state) const {
       return PasswordCheckUIStatus::kErrorUnknown;
   }
   NOTREACHED();
-  return PasswordCheckUIStatus::kIdle;
 }
 
 bool PasswordCheckManager::CanUseAccountCheck() const {
-  SyncState sync_state = password_manager_util::GetPasswordSyncState(
+  SyncState sync_state = password_manager::sync_util::GetPasswordSyncState(
       SyncServiceFactory::GetForProfile(profile_));
   switch (sync_state) {
-    case SyncState::kNotSyncing:
-      ABSL_FALLTHROUGH_INTENDED;
-    case SyncState::kSyncingWithCustomPassphrase:
-      ABSL_FALLTHROUGH_INTENDED;
-    case SyncState::kAccountPasswordsActiveWithCustomPassphrase:
+    case SyncState::kNotActive:
+    case SyncState::kActiveWithCustomPassphrase:
       return false;
 
-    case SyncState::kSyncingNormalEncryption:
-      ABSL_FALLTHROUGH_INTENDED;
-    case SyncState::kAccountPasswordsActiveNormalEncryption:
+    case SyncState::kActiveWithNormalEncryption:
       return true;
   }
 }
@@ -347,4 +343,11 @@ void PasswordCheckManager::ResetPrecondition(CheckPreconditions condition) {
 
 void PasswordCheckManager::OnEditUIDismissed() {
   credential_edit_bridge_.reset();
+}
+
+bool PasswordCheckManager::HasAccountForRequest() {
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(profile_);
+  return password_manager::LeakDetectionCheckImpl::HasAccountForRequest(
+      identity_manager);
 }

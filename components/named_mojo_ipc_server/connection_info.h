@@ -7,7 +7,6 @@
 
 #include "base/process/process_handle.h"
 #include "build/buildflag.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_handle.h"
@@ -28,9 +27,7 @@ struct ConnectionInfo {
   ConnectionInfo& operator=(const ConnectionInfo&) = delete;
 
   base::ProcessId pid{};
-#if BUILDFLAG(IS_WIN)
-  absl::optional<base::win::ScopedHandle> impersonation_token{};
-#elif BUILDFLAG(IS_MAC)
+#if BUILDFLAG(IS_MAC)
   audit_token_t audit_token{};
 #elif BUILDFLAG(IS_LINUX)
   ucred credentials{};

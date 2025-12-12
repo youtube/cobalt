@@ -160,4 +160,9 @@ void TestContentPaymentRequestDelegate::ShowNoMatchingPaymentCredentialDialog(
     base::OnceClosure response_callback,
     base::OnceClosure opt_out_callback) {}
 
+std::optional<base::UnguessableToken>
+TestContentPaymentRequestDelegate::GetChromeOSTWAInstanceId() const {
+  return std::nullopt;
+}
+
 }  // namespace payments

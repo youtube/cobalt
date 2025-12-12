@@ -2,19 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/time/time.h"
-
 #include <stdint.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
+#include <optional>
+
 #include "base/check.h"
 #include "base/notreached.h"
 #include "base/numerics/safe_math.h"
+#include "base/time/time.h"
 #include "base/time/time_override.h"
 #include "build/build_config.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_ANDROID) && !defined(__LP64__)
 #include <time64.h>
@@ -24,6 +24,13 @@
 // non-POSIX implementation is used for sampling the system clocks.
 #if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_APPLE)
 #error "This implementation is for POSIX platforms other than Fuchsia or Mac."
+#endif
+
+// NaCl doesn't support CLOCK_MONOTONIC_COARSE.
+#if BUILDFLAG(IS_NACL)
+#define TIMETICKS_LOW_RESOLUTION_CLOCK CLOCK_MONOTONIC
+#else
+#define TIMETICKS_LOW_RESOLUTION_CLOCK CLOCK_MONOTONIC_COARSE
 #endif
 
 namespace {
@@ -56,12 +63,13 @@ int64_t ClockNow(clockid_t clk_id) {
   return ConvertTimespecToMicros(ts);
 }
 
-absl::optional<int64_t> MaybeClockNow(clockid_t clk_id) {
+std::optional<int64_t> MaybeClockNow(clockid_t clk_id) {
   struct timespec ts;
   int res = clock_gettime(clk_id, &ts);
-  if (res == 0)
+  if (res == 0) {
     return ConvertTimespecToMicros(ts);
-  return absl::nullopt;
+  }
+  return std::nullopt;
 }
 
 #else  // _POSIX_MONOTONIC_CLOCK
@@ -100,11 +108,16 @@ TimeTicks TimeTicksNowIgnoringOverride() {
   return TimeTicks() + Microseconds(ClockNow(CLOCK_MONOTONIC));
 }
 
-absl::optional<TimeTicks> MaybeTimeTicksNowIgnoringOverride() {
-  absl::optional<int64_t> now = MaybeClockNow(CLOCK_MONOTONIC);
-  if (now.has_value())
+std::optional<TimeTicks> MaybeTimeTicksNowIgnoringOverride() {
+  std::optional<int64_t> now = MaybeClockNow(CLOCK_MONOTONIC);
+  if (now.has_value()) {
     return TimeTicks() + Microseconds(now.value());
-  return absl::nullopt;
+  }
+  return std::nullopt;
+}
+
+TimeTicks TimeTicksLowResolutionNowIgnoringOverride() {
+  return TimeTicks() + Microseconds(ClockNow(TIMETICKS_LOW_RESOLUTION_CLOCK));
 }
 }  // namespace subtle
 
@@ -132,7 +145,6 @@ ThreadTicks ThreadTicksNowIgnoringOverride() {
   return ThreadTicks() + Microseconds(ClockNow(CLOCK_THREAD_CPUTIME_ID));
 #else
   NOTREACHED();
-  return ThreadTicks();
 #endif
 }
 }  // namespace subtle

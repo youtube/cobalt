@@ -5,8 +5,10 @@
 #include "components/cdm/common/cdm_manifest.h"
 
 #include <stddef.h>
+
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/containers/flat_set.h"
@@ -15,15 +17,14 @@
 #include "base/json/json_file_value_serializer.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
 #include "base/values.h"
 #include "base/version.h"
 #include "content/public/common/cdm_info.h"
+#include "media/base/cdm_capability.h"
 #include "media/base/content_decryption_module.h"
 #include "media/base/decrypt_config.h"
 #include "media/base/video_codecs.h"
-#include "media/cdm/cdm_capability.h"
 #include "media/cdm/supported_audio_codecs.h"
 #include "media/cdm/supported_cdm_versions.h"
 #include "media/media_buildflags.h"
@@ -105,7 +106,7 @@ bool CheckForCompatibleVersion(const base::Value::Dict& manifest,
   DVLOG_IF(1, version_string->empty())
       << "CDM manifest has empty " << version_name;
 
-  for (const base::StringPiece& ver_str :
+  for (std::string_view ver_str :
        base::SplitStringPiece(*version_string, kCdmValueDelimiter,
                               base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL)) {
     int version = 0;
@@ -216,7 +217,7 @@ bool GetVideoCodecs(const base::Value::Dict& manifest,
     return true;
   }
 
-  const std::vector<base::StringPiece> supported_codecs =
+  const std::vector<std::string_view> supported_codecs =
       base::SplitStringPiece(codecs, kCdmValueDelimiter, base::TRIM_WHITESPACE,
                              base::SPLIT_WANT_NONEMPTY);
 
@@ -298,11 +299,11 @@ bool ParseCdmManifest(const base::Value::Dict& manifest,
   return GetAudioCodecs(manifest, &capability->audio_codecs) &&
          GetVideoCodecs(manifest, &capability->video_codecs) &&
          GetEncryptionSchemes(manifest, &capability->encryption_schemes) &&
-         GetSessionTypes(manifest, &capability->session_types);
+         GetSessionTypes(manifest, &capability->session_types) &&
+         GetVersion(manifest, &capability->version);
 }
 
 bool ParseCdmManifestFromPath(const base::FilePath& manifest_path,
-                              base::Version* version,
                               media::CdmCapability* capability) {
   JSONFileValueDeserializer deserializer(manifest_path);
   int error_code;
@@ -317,6 +318,5 @@ bool ParseCdmManifestFromPath(const base::FilePath& manifest_path,
   base::Value::Dict& manifest_dict = manifest->GetDict();
 
   return IsCdmManifestCompatibleWithChrome(manifest_dict) &&
-         GetVersion(manifest_dict, version) &&
          ParseCdmManifest(manifest_dict, capability);
 }

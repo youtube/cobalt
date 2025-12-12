@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/filters/audio_file_reader.h"
 
 #include <stddef.h>
@@ -17,8 +22,11 @@
 #include "base/time/time.h"
 #include "media/base/audio_bus.h"
 #include "media/base/audio_sample_types.h"
+#include "media/base/media_switches.h"
 #include "media/ffmpeg/ffmpeg_common.h"
 #include "media/ffmpeg/ffmpeg_decoding_loop.h"
+#include "media/ffmpeg/scoped_av_packet.h"
+#include "media/formats/mpeg/mpeg1_audio_stream_parser.h"
 
 namespace media {
 
@@ -52,7 +60,7 @@ bool AudioFileReader::OpenDemuxer() {
     return false;
   }
 
-  const int result = avformat_find_stream_info(format_context, NULL);
+  const int result = avformat_find_stream_info(format_context, nullptr);
   if (result < 0) {
     DLOG(WARNING)
         << "AudioFileReader::Open() : error in avformat_find_stream_info()";
@@ -150,11 +158,11 @@ int AudioFileReader::Read(
       base::BindRepeating(&AudioFileReader::OnNewFrame, base::Unretained(this),
                           &total_frames, decoded_audio_packets);
 
-  AVPacket packet;
+  auto packet = ScopedAVPacket::Allocate();
   int packets_read = 0;
-  while (packets_read++ < packets_to_read && ReadPacket(&packet)) {
-    const auto status = decode_loop.DecodePacket(&packet, frame_ready_cb);
-    av_packet_unref(&packet);
+  while (packets_read++ < packets_to_read && ReadPacket(packet.get())) {
+    const auto status = decode_loop.DecodePacket(packet.get(), frame_ready_cb);
+    av_packet_unref(packet.get());
 
     if (status != FFmpegDecodingLoop::DecodeStatus::kOkay)
       break;
@@ -211,6 +219,32 @@ bool AudioFileReader::ReadPacket(AVPacket* output_packet) {
       av_packet_unref(output_packet);
       continue;
     }
+
+    if (!IsMp3File()) {
+      return true;
+    }
+
+    // FFmpeg may return garbage packets for MP3 stream containers, so we need
+    // to drop these to avoid decoder errors. The ffmpeg team maintains that
+    // this behavior isn't ideal, but have asked for a significant refactoring
+    // of the AVParser infrastructure to fix this, which is overkill for now.
+    // See http://crbug.com/794782.
+
+    // MP3 packets may be zero-padded according to ffmpeg, so trim until we
+    // have the packet.
+    uint8_t* packet_end = output_packet->data + output_packet->size;
+    uint8_t* header_start = output_packet->data;
+    while (header_start < packet_end && !*header_start) {
+      ++header_start;
+    }
+
+    if (packet_end - header_start < MPEG1AudioStreamParser::kHeaderSize ||
+        !MPEG1AudioStreamParser::ParseHeader(nullptr, nullptr, header_start,
+                                             nullptr)) {
+      av_packet_unref(output_packet);
+      continue;
+    }
+
     return true;
   }
   return false;
@@ -274,8 +308,9 @@ bool AudioFileReader::OnNewFrame(
         reinterpret_cast<float*>(frame->data[0]), frames_read);
   } else if (codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP) {
     for (int ch = 0; ch < audio_bus->channels(); ++ch) {
-      memcpy(audio_bus->channel(ch), frame->extended_data[ch],
-             sizeof(float) * frames_read);
+      audio_bus->channel_span(ch).copy_from_nonoverlapping(
+          base::span(reinterpret_cast<float*>(frame->extended_data[ch]),
+                     static_cast<size_t>(frames_read)));
     }
   } else {
     int bytes_per_sample = av_get_bytes_per_sample(codec_context_->sample_fmt);
@@ -295,12 +330,16 @@ bool AudioFileReader::OnNewFrame(
       default:
         NOTREACHED() << "Unsupported bytes per sample encountered: "
                      << bytes_per_sample;
-        audio_bus->ZeroFrames(frames_read);
     }
   }
 
   (*total_frames) += frames_read;
   return true;
+}
+
+bool AudioFileReader::IsMp3File() {
+  return glue_->container() ==
+         container_names::MediaContainerName::kContainerMP3;
 }
 
 bool AudioFileReader::SeekForTesting(base::TimeDelta seek_time) {

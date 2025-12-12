@@ -7,12 +7,15 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_testing.h"
 #include "third_party/blink/renderer/platform/bindings/to_blink_string.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
 TEST(PushSubscriptionTest, SerializesToBase64URLWithoutPadding) {
+  test::TaskEnvironment task_environment;
   V8TestingScope v8_testing_scope;
 
   // Byte value of a p256dh public key with the following base64 encoding:
@@ -32,17 +35,18 @@ TEST(PushSubscriptionTest, SerializesToBase64URLWithoutPadding) {
                                      0x23, 0xA3, 0x45, 0x08, 0xBD, 0xA1, 0x29,
                                      0x72, 0xFC});
 
-  PushSubscription subscription(
+  PushSubscription* subscription = MakeGarbageCollected<PushSubscription>(
       KURL() /* endpoint */, true /* user_visible_only */,
       Vector<uint8_t>() /* application_server_key */, kP256DH, kAuthSecret,
-      absl::nullopt /* expiration_time */,
+      std::nullopt /* expiration_time */,
       nullptr /* service_worker_registration */);
 
   ScriptValue json_object =
-      subscription.toJSONForBinding(v8_testing_scope.GetScriptState());
+      subscription->toJSONForBinding(v8_testing_scope.GetScriptState());
   EXPECT_TRUE(json_object.IsObject());
 
   String json_string = ToBlinkString<String>(
+      v8_testing_scope.GetIsolate(),
       v8::JSON::Stringify(v8_testing_scope.GetContext(),
                           json_object.V8Value().As<v8::Object>())
           .ToLocalChecked(),

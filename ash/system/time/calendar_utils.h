@@ -5,12 +5,12 @@
 #ifndef ASH_SYSTEM_TIME_CALENDAR_UTILS_H_
 #define ASH_SYSTEM_TIME_CALENDAR_UTILS_H_
 
+#include <optional>
 #include <set>
 
 #include "ash/ash_export.h"
 #include "base/time/time.h"
 #include "google_apis/calendar/calendar_api_response_types.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/gfx/geometry/insets.h"
 
@@ -32,14 +32,14 @@ constexpr int kMillisecondsPerMinute = 60000;
 
 // The padding in each date cell view.
 constexpr int kDateVerticalPadding = 13;
-constexpr int kDateHorizontalPadding = 14;
+constexpr int kDateHorizontalPadding = 16;
 constexpr int kColumnSetPadding = 5;
 
 // The insets for the event list item view.
 constexpr int kEventListItemViewStartEndMargin = 12;
 
 // The insets within a Date cell.
-constexpr auto kDateCellInsets =
+const auto kDateCellInsets =
     gfx::Insets::VH(kDateVerticalPadding, kDateHorizontalPadding);
 
 // Duration of opacity animation for visibility changes.
@@ -71,8 +71,13 @@ constexpr base::TimeDelta kDurationForAdjustingDST = base::Hours(5);
 // previous day. It is less than 24 hours to consider daylight savings.
 constexpr base::TimeDelta kDurationForGettingPreviousDay = base::Hours(20);
 
-// Event fetch will terminate if we don't receive a response sooner than this.
-constexpr base::TimeDelta kEventFetchTimeout = base::Seconds(10);
+// The fetch of a user's calendar list or event list will terminate if a
+// response is not received sooner than this.
+constexpr base::TimeDelta kCalendarDataFetchTimeout = base::Seconds(10);
+
+// Maximum number of selected calendars for which events should be fetched when
+// Multi-Calendar Support is enabled.
+constexpr int kMultipleCalendarsLimit = 10;
 
 // Number of months, before and after the month currently on-display, that we
 // cache-ahead.
@@ -95,12 +100,15 @@ constexpr int kUpNextBetweenChildSpacing = 8;
 // between the bottom and top of the 'nub'.
 constexpr int kUpNextOverlapInPx = 12;
 
+// Returns true if the Multi-Calendar Support feature is enabled.
+bool IsMultiCalendarEnabled();
+
 // Checks if the `selected_date` is local time today.
 bool IsToday(const base::Time selected_date);
 
 // Checks if the two exploded are in the same day.
-bool IsTheSameDay(absl::optional<base::Time> date_a,
-                  absl::optional<base::Time> date_b);
+bool IsTheSameDay(std::optional<base::Time> date_a,
+                  std::optional<base::Time> date_b);
 
 // Returns the set of months that includes |selected_date| and
 // |num_months_out| before and after.
@@ -230,7 +238,7 @@ ASH_EXPORT base::Time GetNextDayMidnight(base::Time date);
 
 // Returns true if (1) it's a regular user; and (2) the user session is not
 // blocked; and (3) the admin has not disabled Google Calendar integration.
-bool ShouldFetchEvents();
+bool ShouldFetchCalendarData();
 
 // Returns true if it's a regular user or the user session is not blocked.
 bool IsActiveUser();

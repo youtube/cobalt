@@ -4,7 +4,7 @@
 
 #include "third_party/blink/renderer/modules/xr/xr_hit_test_result.h"
 
-#include "third_party/blink/renderer/modules/xr/type_converters.h"
+#include "third_party/blink/renderer/modules/xr/vr_service_type_converters.h"
 #include "third_party/blink/renderer/modules/xr/xr_hit_test_source.h"
 #include "third_party/blink/renderer/modules/xr/xr_pose.h"
 #include "third_party/blink/renderer/modules/xr/xr_reference_space.h"
@@ -22,8 +22,8 @@ XRHitTestResult::XRHitTestResult(
     : session_(session),
       mojo_from_this_(hit_result.mojo_from_result),
       plane_id_(hit_result.plane_id != 0
-                    ? absl::optional<uint64_t>(hit_result.plane_id)
-                    : absl::nullopt) {}
+                    ? std::optional<uint64_t>(hit_result.plane_id)
+                    : std::nullopt) {}
 
 XRPose* XRHitTestResult::getPose(XRSpace* other,
                                  ExceptionState& exception_state) {
@@ -51,8 +51,9 @@ XRPose* XRHitTestResult::getPose(XRSpace* other,
   return MakeGarbageCollected<XRPose>(other_offset_from_this, false);
 }
 
-ScriptPromise XRHitTestResult::createAnchor(ScriptState* script_state,
-                                            ExceptionState& exception_state) {
+ScriptPromise<XRAnchor> XRHitTestResult::createAnchor(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   DVLOG(2) << __func__;
 
   if (!session_->IsFeatureEnabled(device::mojom::XRSessionFeature::ANCHORS)) {
@@ -70,7 +71,7 @@ ScriptPromise XRHitTestResult::createAnchor(ScriptState* script_state,
   // (their poses may change dramatically on a frame-by-frame basis). Grab an
   // information about reference space that is well-suited for anchor creation
   // from session:
-  absl::optional<XRSession::ReferenceSpaceInformation>
+  std::optional<XRSession::ReferenceSpaceInformation>
       reference_space_information = session_->GetStationaryReferenceSpace();
 
   if (!reference_space_information) {

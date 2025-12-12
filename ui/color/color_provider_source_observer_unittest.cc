@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "ui/color/color_provider_source.h"
+#include "ui/color/color_provider_source_observer.h"
 
 #include <memory>
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/color/color_provider_manager.h"
-#include "ui/color/color_provider_source_observer.h"
+#include "ui/color/color_provider_source.h"
 
 namespace ui {
 
@@ -17,11 +17,12 @@ namespace {
 
 class MockColorProviderSource : public ColorProviderSource {
  public:
-  MOCK_METHOD(ColorProviderManager::Key,
-              GetColorProviderKey,
-              (),
-              (const, override));
+  MOCK_METHOD(ColorProviderKey, GetColorProviderKey, (), (const, override));
   MOCK_METHOD(const ColorProvider*, GetColorProvider, (), (const, override));
+  MOCK_METHOD(RendererColorMap,
+              GetRendererColorMap,
+              (ColorProviderKey::ColorMode, ColorProviderKey::ForcedColors),
+              (const, override));
 };
 
 class MockColorProviderSourceObserver : public ColorProviderSourceObserver {

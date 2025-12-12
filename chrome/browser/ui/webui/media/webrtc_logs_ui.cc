@@ -19,11 +19,9 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/media/webrtc/webrtc_event_log_manager.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/webui/webui_util.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/media_resources.h"
@@ -36,6 +34,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "content/public/browser/web_ui_message_handler.h"
+#include "ui/webui/webui_util.h"
 
 using content::WebContents;
 using content::WebUIMessageHandler;
@@ -289,11 +288,13 @@ base::Value::List WebRtcLogsDOMHandler::UpdateUIWithTextLogs() const {
       // 2012 when the feature was introduced and now.
       double seconds_since_epoch;
       if (base::StringToDouble(upload->local_id, &seconds_since_epoch)) {
-        base::Time capture_time = base::Time::FromDoubleT(seconds_since_epoch);
-        const base::Time::Exploded lower_limit = {2012, 1, 0, 1, 0, 0, 0, 0};
+        base::Time capture_time =
+            base::Time::FromSecondsSinceUnixEpoch(seconds_since_epoch);
+        static constexpr base::Time::Exploded kLowerLimit = {
+            .year = 2012, .month = 1, .day_of_month = 1};
         base::Time out_time;
         bool conversion_success =
-            base::Time::FromUTCExploded(lower_limit, &out_time);
+            base::Time::FromUTCExploded(kLowerLimit, &out_time);
         DCHECK(conversion_success);
         if (capture_time > out_time && capture_time < base::Time::Now()) {
           value_w = base::TimeFormatFriendlyDateAndTime(capture_time);
@@ -303,8 +304,9 @@ base::Value::List WebRtcLogsDOMHandler::UpdateUIWithTextLogs() const {
     // If we haven't set |value_w| above, we fall back on the upload time, which
     // was already in the variable. In case it's empty set the string to
     // inform that the time is unknown.
-    if (value_w.empty())
+    if (value_w.empty()) {
       value_w = std::u16string(u"(unknown time)");
+    }
     upload_value.Set("capture_time", value_w);
 
     result.Append(std::move(upload_value));
@@ -325,7 +327,7 @@ base::Value WebRtcLogsDOMHandler::EventLogUploadInfoToValue(
     const UploadList::UploadInfo& info) const {
   switch (info.state) {
     case UploadList::UploadInfo::State::Pending:
-      // TODO(crbug.com/775415): Display actively-written logs differently
+      // TODO(crbug.com/40545136): Display actively-written logs differently
       // than fully captured pending logs.
       return info.upload_time.is_null() ? FromPendingLog(info)
                                         : FromActivelyUploadedLog(info);

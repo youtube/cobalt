@@ -15,6 +15,8 @@
 #ifndef STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 #define STARBOARD_RASPI_SHARED_APPLICATION_DISPMANX_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "starboard/configuration.h"
@@ -23,7 +25,6 @@
 #include "starboard/shared/linux/dev_input/dev_input.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
-#include "starboard/types.h"
 #include "starboard/window.h"
 
 namespace starboard {

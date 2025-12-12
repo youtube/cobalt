@@ -12,20 +12,16 @@ constexpr char kMediaViewVolumeIdPrefix[] = "media_view:";
 
 }  // namespace
 
-BASE_FEATURE(kMediaViewFeature,
-             "ArcMediaView",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 const char kMediaDocumentsProviderAuthority[] =
     "com.android.providers.media.documents";
 
-const char kImagesRootDocumentId[] = "images_root";
-const char kVideosRootDocumentId[] = "videos_root";
-const char kAudioRootDocumentId[] = "audio_root";
-const char kDocumentsRootDocumentId[] = "documents_root";
+const char kImagesRootId[] = "images_root";
+const char kVideosRootId[] = "videos_root";
+const char kAudioRootId[] = "audio_root";
+const char kDocumentsRootId[] = "documents_root";
 
-std::string GetMediaViewVolumeId(const std::string& root_document_id) {
-  return std::string(kMediaViewVolumeIdPrefix) + root_document_id;
+std::string GetMediaViewVolumeId(const std::string& root_id) {
+  return std::string(kMediaViewVolumeIdPrefix) + root_id;
 }
 
 }  // namespace arc

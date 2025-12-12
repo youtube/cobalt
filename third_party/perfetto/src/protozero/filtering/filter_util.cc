@@ -67,9 +67,17 @@ void MultiFileErrorCollectorImpl::AddWarning(const std::string& filename,
 FilterUtil::FilterUtil() = default;
 FilterUtil::~FilterUtil() = default;
 
-bool FilterUtil::LoadMessageDefinition(const std::string& proto_file,
-                                       const std::string& root_message,
-                                       const std::string& proto_dir_path) {
+bool FilterUtil::LoadMessageDefinition(
+    const std::string& proto_file,
+    const std::string& root_message,
+    const std::string& proto_dir_path,
+    const std::set<std::string>& passthrough_fields,
+    const std::set<std::string>& string_filter_fields) {
+  passthrough_fields_ = passthrough_fields;
+  passthrough_fields_seen_.clear();
+  filter_string_fields_ = string_filter_fields;
+  filter_string_fields_seen_.clear();
+
   // The protobuf compiler doesn't like backslashes and prints an error like:
   // Error C:\it7mjanpw3\perfetto-a16500 -1:0: Backslashes, consecutive slashes,
   // ".", or ".." are not allowed in the virtual path.
@@ -101,14 +109,14 @@ bool FilterUtil::LoadMessageDefinition(const std::string& proto_file,
   if (!root_message.empty()) {
     root_msg = importer.pool()->FindMessageTypeByName(root_message);
   } else if (root_file->message_type_count() > 0) {
-    // The user didn't specfy the root type. Pick the first type in the file,
+    // The user didn't specify the root type. Pick the first type in the file,
     // most times it's the right guess.
     root_msg = root_file->message_type(0);
     if (root_msg)
       PERFETTO_LOG(
-          "The guessed root message name is \"%s\". Pass -r com.MyName to "
+          "The guessed root message name is \"%.*s\". Pass -r com.MyName to "
           "override",
-          root_msg->full_name().c_str());
+          int(root_msg->full_name().size()), root_msg->full_name().data());
   }
 
   if (!root_msg) {
@@ -122,6 +130,34 @@ bool FilterUtil::LoadMessageDefinition(const std::string& proto_file,
   // future without realizing) when performing the Dedupe() pass.
   DescriptorsByNameMap descriptors_by_full_name;
   ParseProtoDescriptor(root_msg, &descriptors_by_full_name);
+
+  // If the user specified a set of fields to pass through, print an error and
+  // fail if any of the passed fields have not been seen while recursing in the
+  // schema. This is to avoid typos or naming changes to be silently ignored.
+  std::vector<std::string> unused;
+  std::set_difference(passthrough_fields_.begin(), passthrough_fields_.end(),
+                      passthrough_fields_seen_.begin(),
+                      passthrough_fields_seen_.end(),
+                      std::back_inserter(unused));
+  for (const std::string& message_and_field : unused) {
+    PERFETTO_ELOG("Field not found %s", message_and_field.c_str());
+  }
+  if (!unused.empty()) {
+    PERFETTO_ELOG("Passthrough syntax: perfetto.protos.MessageName:field_name");
+    return false;
+  }
+  std::set_difference(
+      filter_string_fields_.begin(), filter_string_fields_.end(),
+      filter_string_fields_seen_.begin(), filter_string_fields_seen_.end(),
+      std::back_inserter(unused));
+  for (const std::string& message_and_field : unused) {
+    PERFETTO_ELOG("Field not found %s", message_and_field.c_str());
+  }
+  if (!unused.empty()) {
+    PERFETTO_ELOG(
+        "Filter string syntax: perfetto.protos.MessageName:field_name");
+    return false;
+  }
   return true;
 }
 
@@ -130,13 +166,14 @@ bool FilterUtil::LoadMessageDefinition(const std::string& proto_file,
 FilterUtil::Message* FilterUtil::ParseProtoDescriptor(
     const google::protobuf::Descriptor* proto,
     DescriptorsByNameMap* descriptors_by_full_name) {
-  auto descr_it = descriptors_by_full_name->find(proto->full_name());
+  auto descr_it =
+      descriptors_by_full_name->find(std::string(proto->full_name()));
   if (descr_it != descriptors_by_full_name->end())
     return descr_it->second;
 
   descriptors_.emplace_back();
   Message* msg = &descriptors_.back();
-  msg->full_name = proto->full_name();
+  msg->full_name = std::string(proto->full_name());
   (*descriptors_by_full_name)[msg->full_name] = msg;
   for (int i = 0; i < proto->field_count(); ++i) {
     const auto* proto_field = proto->field(i);
@@ -145,7 +182,21 @@ FilterUtil::Message* FilterUtil::ParseProtoDescriptor(
     auto& field = msg->fields[field_id];
     field.name = proto_field->name();
     field.type = proto_field->type_name();
-    if (proto_field->message_type()) {
+
+    std::string message_and_field = msg->full_name + ":" + field.name;
+    bool passthrough = false;
+    if (passthrough_fields_.count(message_and_field)) {
+      field.type = "bytes";
+      passthrough = true;
+      passthrough_fields_seen_.insert(message_and_field);
+    }
+    if (filter_string_fields_.count(message_and_field)) {
+      PERFETTO_CHECK(field.type == "string");
+      field.filter_string = true;
+      msg->has_filter_string_fields = true;
+      filter_string_fields_seen_.insert(message_and_field);
+    }
+    if (proto_field->message_type() && !passthrough) {
       msg->has_nested_fields = true;
       // Recurse.
       field.nested_type = ParseProtoDescriptor(proto_field->message_type(),
@@ -166,8 +217,9 @@ void FilterUtil::Dedupe() {
   const size_t initial_count = descriptors_.size();
   size_t field_count = 0;
   for (auto& descr : descriptors_) {
-    if (descr.has_nested_fields)
-      continue;  // Dedupe only leaf messages without nested fields.
+    // Dedupe only leaf messages without nested or string filter fields.
+    if (descr.has_nested_fields || descr.has_filter_string_fields)
+      continue;
     std::string identity;
     for (const auto& id_and_field : descr.fields)
       identity.append(std::to_string(id_and_field.first) + ",");
@@ -197,10 +249,10 @@ void FilterUtil::Dedupe() {
       // Replace with the dupe.
       id_and_field.second.nested_type = it->second;
     }  // for (nested_fields).
-  }    // for (descriptors_).
+  }  // for (descriptors_).
 
   // Remove unreferenced descriptors. We should much rather crash in the case of
-  // a logic bug rathern than trying to use them but don't emit them.
+  // a logic bug rather than trying to use them but don't emit them.
   size_t removed_count = 0;
   for (auto it = descriptors_.begin(); it != descriptors_.end();) {
     if (referenced_descriptors.count(&*it)) {
@@ -245,28 +297,39 @@ void FilterUtil::PrintAsText(std::optional<std::string> filter_bytecode) {
       const uint32_t field_id = id_and_field.first;
       const auto& field = id_and_field.second;
 
-      FilterBytecodeParser::QueryResult result{};
+      FilterBytecodeParser::QueryResult result{0, false};
       if (filter_bytecode) {
         result = parser.Query(msg_index, field_id);
-        if (!result.allowed)
+        if (!result.allowed) {
           continue;
+        }
       }
 
       const Message* nested_type = id_and_field.second.nested_type;
+      bool passthrough = false;
       if (nested_type) {
-        PERFETTO_CHECK(!result.simple_field() || !filter_bytecode);
+        // result.simple_field might be true if the generated bytecode is
+        // passing through a whole submessage without recursing.
+        passthrough = result.allowed && result.simple_field();
         if (seen_msgs.find(nested_type) == seen_msgs.end()) {
           seen_msgs.insert(nested_type);
           queue.emplace_back(result.nested_msg_index, nested_type);
         }
       } else {  // simple field
-        PERFETTO_CHECK(result.simple_field() || !filter_bytecode);
+        PERFETTO_CHECK(result.simple_field() || result.filter_string_field() ||
+                       !filter_bytecode);
+        PERFETTO_CHECK(result.filter_string_field() == field.filter_string ||
+                       !filter_bytecode);
       }
 
       auto stripped_name = StripPrefix(descr.full_name, root_prefix);
       std::string stripped_nested =
           nested_type ? " " + StripPrefix(nested_type->full_name, root_prefix)
                       : "";
+      if (passthrough)
+        stripped_nested += "  # PASSTHROUGH";
+      if (field.filter_string)
+        stripped_nested += "  # FILTER STRING";
       fprintf(print_stream_, "%-60s %3u %-8s %-32s%s\n", stripped_name.c_str(),
               field_id, field.type.c_str(), field.name.c_str(),
               stripped_nested.c_str());
@@ -294,6 +357,11 @@ std::string FilterUtil::GenerateFilterBytecode() {
         ++it;
         continue;
       }
+      if (field.filter_string) {
+        bytecode_gen.AddFilterStringField(field_id);
+        ++it;
+        continue;
+      }
       // Simple field. Lookahead to see if we have a range of contiguous simple
       // fields.
       for (uint32_t range_len = 1;; ++range_len) {
@@ -312,7 +380,7 @@ std::string FilterUtil::GenerateFilterBytecode() {
         }
         break;
       }  // for (range_len)
-    }    // for (descr.fields)
+    }  // for (descr.fields)
     bytecode_gen.EndMessage();
   }  // for (descriptors)
   return bytecode_gen.Serialize();

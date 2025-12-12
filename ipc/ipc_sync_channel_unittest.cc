@@ -167,9 +167,7 @@ class Worker : public Listener, public Sender {
     Send(reply_msg);
   }
 
-  virtual void OnNestedTestMsg(Message* reply_msg) {
-    NOTREACHED();
-  }
+  virtual void OnNestedTestMsg(Message* reply_msg) { NOTREACHED(); }
 
   virtual SyncChannel* CreateChannel() {
     std::unique_ptr<SyncChannel> channel = SyncChannel::Create(
@@ -696,9 +694,8 @@ class MultipleClient1 : public Worker {
   }
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #overlapping
-  RAW_PTR_EXCLUSION WaitableEvent *client1_msg_received_, *client1_can_reply_;
+  raw_ptr<WaitableEvent> client1_msg_received_;
+  raw_ptr<WaitableEvent> client1_can_reply_;
 };
 
 class MultipleServer2 : public Worker {
@@ -729,9 +726,8 @@ class MultipleClient2 : public Worker {
   }
 
  private:
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #overlapping
-  RAW_PTR_EXCLUSION WaitableEvent *client1_msg_received_, *client1_can_reply_;
+  raw_ptr<WaitableEvent> client1_msg_received_;
+  raw_ptr<WaitableEvent> client1_can_reply_;
 };
 
 void Multiple() {
@@ -1172,8 +1168,8 @@ class RestrictedDispatchClient : public Worker {
   }
 
   int ping_;
-  raw_ptr<RestrictedDispatchServer> server_;
-  raw_ptr<NonRestrictedDispatchServer> server2_;
+  raw_ptr<RestrictedDispatchServer, DanglingUntriaged> server_;
+  raw_ptr<NonRestrictedDispatchServer, DanglingUntriaged> server2_;
   raw_ptr<int> success_;
   raw_ptr<WaitableEvent> sent_ping_event_;
   std::unique_ptr<SyncChannel> non_restricted_channel_;
@@ -1285,8 +1281,8 @@ class RestrictedDispatchDeadlockServer : public Worker {
 
   int server_num_;
   raw_ptr<WaitableEvent> server_ready_event_;
-  raw_ptr<WaitableEvent*> events_;
-  raw_ptr<RestrictedDispatchDeadlockServer> peer_;
+  raw_ptr<WaitableEvent*, AllowPtrArithmetic> events_;
+  raw_ptr<RestrictedDispatchDeadlockServer, DanglingUntriaged> peer_;
 };
 
 class RestrictedDispatchDeadlockClient2 : public Worker {
@@ -1320,6 +1316,7 @@ class RestrictedDispatchDeadlockClient2 : public Worker {
   }
 
   base::Thread* ListenerThread() { return Worker::ListenerThread(); }
+
  private:
   bool OnMessageReceived(const Message& message) override {
     IPC_BEGIN_MESSAGE_MAP(RestrictedDispatchDeadlockClient2, message)
@@ -1343,7 +1340,7 @@ class RestrictedDispatchDeadlockClient2 : public Worker {
   }
 
   raw_ptr<WaitableEvent> server_ready_event_;
-  raw_ptr<WaitableEvent*> events_;
+  raw_ptr<WaitableEvent*, AllowPtrArithmetic> events_;
   bool received_msg_;
   bool received_noarg_reply_;
   bool done_issued_;
@@ -1409,10 +1406,10 @@ class RestrictedDispatchDeadlockClient1 : public Worker {
     }
   }
 
-  raw_ptr<RestrictedDispatchDeadlockServer> server_;
-  raw_ptr<RestrictedDispatchDeadlockClient2> peer_;
+  raw_ptr<RestrictedDispatchDeadlockServer, DanglingUntriaged> server_;
+  raw_ptr<RestrictedDispatchDeadlockClient2, DanglingUntriaged> peer_;
   raw_ptr<WaitableEvent> server_ready_event_;
-  raw_ptr<WaitableEvent*> events_;
+  raw_ptr<WaitableEvent*, AllowPtrArithmetic> events_;
   bool received_msg_;
   bool received_noarg_reply_;
   bool done_issued_;

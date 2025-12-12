@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/ui.gni")
+
 source_set("core") {
   sources = [
     "application_breadcrumbs_logger.cc",
@@ -20,16 +22,14 @@ source_set("core") {
     "breadcrumb_persistent_storage_manager.h",
     "breadcrumb_persistent_storage_util.cc",
     "breadcrumb_persistent_storage_util.h",
-    "breadcrumbs_status.cc",
-    "breadcrumbs_status.h",
     "crash_reporter_breadcrumb_constants.h",
     "crash_reporter_breadcrumb_observer.cc",
     "crash_reporter_breadcrumb_observer.h",
   ]
 
   deps = [
-    ":feature_flags",
     ":generate_not_user_triggered_actions",
+    ":status",
     "//base",
     "//components/crash/core/common:crash_key",
     "//components/infobars/core",
@@ -37,14 +37,23 @@ source_set("core") {
     "//net",
     "//ui/base",
   ]
+
+  if (toolkit_views) {
+    deps += [ "//ui/views" ]
+  }
 }
 
-source_set("feature_flags") {
+source_set("status") {
   sources = [
-    "features.cc",
-    "features.h",
+    "breadcrumbs_status.cc",
+    "breadcrumbs_status.h",
   ]
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//components/prefs",
+    "//components/variations",
+    "//components/version_info:channel",
+  ]
 }
 
 source_set("unit_tests") {
@@ -52,9 +61,18 @@ source_set("unit_tests") {
   deps = [
     ":core",
     ":generate_not_user_triggered_actions",
+    ":status",
     "//base/test:test_support",
+    "//components/prefs:test_support",
     "//testing/gtest",
   ]
+
+  if (toolkit_views) {
+    deps += [
+      "//ui/views",
+      "//ui/views:test_support",
+    ]
+  }
 
   sources = [
     "application_breadcrumbs_logger_unittest.cc",
@@ -63,6 +81,7 @@ source_set("unit_tests") {
     "breadcrumb_manager_observer_unittest.cc",
     "breadcrumb_manager_unittest.cc",
     "breadcrumb_persistent_storage_manager_unittest.cc",
+    "breadcrumbs_status_unittest.cc",
   ]
 }
 

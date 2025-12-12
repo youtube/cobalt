@@ -18,13 +18,12 @@ items:
   value: false
 owners:
 - lbaraz@google.com
-- cros-reporting-team@google.com
+- cros-reporting-eng@google.com
 schema:
   type: boolean
-supported_chrome_os_management:
-- google_cloud
 supported_on:
 - chrome_os:99-
 tags:
 - admin-sharing
 type: main
+generate_device_proto: False

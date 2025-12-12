@@ -7,10 +7,6 @@
 #import "ios/chrome/browser/shared/ui/util/url_with_title.h"
 #import "url/gurl.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 @interface ReadingListAddCommand ()
 
 @property(nonatomic, strong) NSArray<URLWithTitle*>* URLs;
@@ -22,14 +18,14 @@
 @synthesize URLs = _URLs;
 
 - (instancetype)initWithURL:(const GURL&)URL title:(NSString*)title {
-  if (self = [super init]) {
+  if ((self = [super init])) {
     _URLs = @[ [[URLWithTitle alloc] initWithURL:URL title:title] ];
   }
   return self;
 }
 
 - (instancetype)initWithURLs:(NSArray<URLWithTitle*>*)URLs {
-  if (self = [super init]) {
+  if ((self = [super init])) {
     _URLs = [URLs copy];
   }
   return self;

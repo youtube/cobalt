@@ -22,7 +22,6 @@ const char kEnableAssistantMessagePipe[] = "enable_assistant_message_pipe";
 const char kEnableDemoStandaloneMode[] = "enable_demo_standalone_mode";
 
 const char kKeyAppId[] = "app_id";
-const char kKeyAllowInsecureContent[] = "allow_insecure_content";
 
 const char kCastCoreRendererFeatures[] = "cast_core_renderer_features";
 const char kCastCoreEnforceFeaturePermissions[] =
@@ -30,8 +29,18 @@ const char kCastCoreEnforceFeaturePermissions[] =
 const char kCastCoreFeaturePermissions[] = "cast_core_feature_permissions";
 const char kCastCoreFeaturePermissionOrigins[] =
     "cast_core_feature_permission_origins";
+const char kCastCoreAllowMediaAccess[] = "cast_core_allow_media_access";
+const char kCastCoreForce720p[] = "cast_core_force_720p";
 const char kCastCoreIsAudioOnly[] = "cast_core_is_audio_only";
 const char kCastCoreIsRemoteControlMode[] = "cast_core_is_remote_control_mode";
+const char kCastCoreLogJsConsoleMessages[] = "cast_core_log_js_console_messages";
+const char kCastCoreTurnOnScreen[] = "cast_core_turn_on_screen";
+const char kCastCoreKeepScreenOn[] = "cast_core_keep_screen_on";
+
+const char kCastCoreBitstreamAudioCodecsInfo[] =
+    "cast_core_bitstream_audio_codecs_info";
+const char kCastCoreCodecs[] = "cast_core_codecs";
+const char kCastCoreSpatialRendering[] = "cast_core_spatial_rendering";
 
 }  // namespace feature
 }  // namespace chromecast

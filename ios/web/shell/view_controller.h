@@ -10,7 +10,7 @@
 namespace web {
 class BrowserState;
 class WebState;
-}
+}  // namespace web
 
 // Accessibility label for the back button.
 extern NSString* const kWebShellBackButtonAccessibilityLabel;
@@ -25,9 +25,6 @@ extern NSString* const kWebShellAddressFieldAccessibilityLabel;
 @property(nonatomic, strong) IBOutlet UIView* containerView;
 @property(nonatomic, strong) IBOutlet UIToolbar* toolbarView;
 @property(nonatomic, assign, readonly) web::WebState* webState;
-
-// Initializes a new ViewController using the given `browserState`.
-- (instancetype)initWithBrowserState:(web::BrowserState*)browserState;
 
 @end
 

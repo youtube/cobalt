@@ -7,6 +7,7 @@
 
 #include "base/containers/flat_set.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/observer_list.h"
 
@@ -15,9 +16,9 @@ namespace content {
 class DevToolsAgentHost;
 class DevToolsAgentHostImpl;
 class DevToolsRendererChannel;
-class NavigationHandle;
 class NavigationRequest;
 class NavigationThrottle;
+class NavigationThrottleRegistry;
 class RenderFrameDevToolsAgentHost;
 
 namespace protocol {
@@ -38,7 +39,7 @@ class TargetAutoAttacher {
     virtual void AutoAttacherDestroyed(TargetAutoAttacher* auto_attacher) = 0;
     virtual std::unique_ptr<NavigationThrottle> CreateThrottleForNavigation(
         TargetAutoAttacher* auto_attacher,
-        NavigationHandle* navigation_handle) = 0;
+        NavigationThrottleRegistry& registry) = 0;
     virtual void TargetInfoChanged(DevToolsAgentHost* host) = 0;
 
    protected:
@@ -59,9 +60,7 @@ class TargetAutoAttacher {
                                     bool wait_for_debugger_on_start,
                                     base::OnceClosure callback);
 
-  void AppendNavigationThrottles(
-      NavigationHandle* navigation_handle,
-      std::vector<std::unique_ptr<NavigationThrottle>>* throttles);
+  void CreateAndAddNavigationThrottles(NavigationThrottleRegistry& registry);
 
   scoped_refptr<RenderFrameDevToolsAgentHost> HandleNavigation(
       NavigationRequest* navigation_request,
@@ -86,7 +85,8 @@ class TargetAutoAttacher {
 
  private:
   base::ObserverList<Client, false, true> clients_;
-  base::flat_set<Client*> clients_requesting_wait_for_debugger_;
+  base::flat_set<raw_ptr<Client, CtnExperimental>>
+      clients_requesting_wait_for_debugger_;
 };
 
 class RendererAutoAttacherBase : public TargetAutoAttacher {
@@ -100,7 +100,7 @@ class RendererAutoAttacherBase : public TargetAutoAttacher {
                           bool waiting_for_debugger);
 
  private:
-  DevToolsRendererChannel* const renderer_channel_;
+  const raw_ptr<DevToolsRendererChannel> renderer_channel_;
 };
 
 }  // namespace protocol

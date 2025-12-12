@@ -53,7 +53,7 @@ class PLATFORM_EXPORT DataPipeBytesConsumer final : public BytesConsumer {
                         CompletionNotifier** notifier);
   ~DataPipeBytesConsumer() override;
 
-  Result BeginRead(const char** buffer, size_t* available) override;
+  Result BeginRead(base::span<const char>& buffer) override;
   Result EndRead(size_t read_size) override;
   mojo::ScopedDataPipeConsumerHandle DrainAsDataPipe() override;
   void SetClient(BytesConsumer::Client*) override;
@@ -62,7 +62,7 @@ class PLATFORM_EXPORT DataPipeBytesConsumer final : public BytesConsumer {
   void Cancel() override;
   PublicState GetPublicState() const override;
   Error GetError() const override {
-    DCHECK(state_ == InternalState::kErrored);
+    DCHECK_EQ(InternalState::kErrored, state_);
     return error_;
   }
   String DebugName() const override { return "DataPipeBytesConsumer"; }
@@ -70,7 +70,7 @@ class PLATFORM_EXPORT DataPipeBytesConsumer final : public BytesConsumer {
   void Trace(Visitor*) const override;
 
  private:
-  bool IsReadableOrWaiting() const;
+  bool IsWaiting() const;
   void MaybeClose();
   void SetError(const Error& error);
   void Notify(MojoResult);
@@ -87,7 +87,7 @@ class PLATFORM_EXPORT DataPipeBytesConsumer final : public BytesConsumer {
   InternalState state_ = InternalState::kWaiting;
   Error error_;
   uint64_t num_read_bytes_ = 0;
-  absl::optional<uint64_t> total_size_;
+  std::optional<uint64_t> total_size_;
   bool is_in_two_phase_read_ = false;
   bool has_pending_notification_ = false;
   bool has_pending_complete_ = false;

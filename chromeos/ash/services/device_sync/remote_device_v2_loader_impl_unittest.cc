@@ -2,18 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chromeos/ash/services/device_sync/remote_device_v2_loader_impl.h"
+
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
 
 #include "base/functional/bind.h"
-#include "base/ranges/algorithm.h"
 #include "chromeos/ash/components/multidevice/fake_secure_message_delegate.h"
 #include "chromeos/ash/components/multidevice/remote_device.h"
 #include "chromeos/ash/services/device_sync/cryptauth_device.h"
 #include "chromeos/ash/services/device_sync/proto/cryptauth_devicesync.pb.h"
 #include "chromeos/ash/services/device_sync/proto/cryptauth_v2_test_util.h"
-#include "chromeos/ash/services/device_sync/remote_device_v2_loader_impl.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace ash::device_sync {
@@ -54,7 +55,7 @@ CryptAuthDevice CreateCryptAuthDevice(const std::string& suffix,
                                       bool has_beto_metadata,
                                       bool has_public_key,
                                       bool has_bluetooth_address) {
-  absl::optional<cryptauthv2::BetterTogetherDeviceMetadata> beto_metadata;
+  std::optional<cryptauthv2::BetterTogetherDeviceMetadata> beto_metadata;
 
   if (has_beto_metadata) {
     beto_metadata = cryptauthv2::BetterTogetherDeviceMetadata();
@@ -74,12 +75,13 @@ CryptAuthDevice CreateCryptAuthDevice(const std::string& suffix,
     }
   }
 
-  return CryptAuthDevice(kInstanceIdPrefix + suffix, kDeviceNamePrefix + suffix,
-                         kDeviceSyncBetterTogetherPublicKeyPrefix + suffix,
-                         base::Time::FromJavaTime(kLastUpdateTimeMs),
-                         beto_metadata,
-                         {{multidevice::SoftwareFeature::kBetterTogetherHost,
-                           multidevice::SoftwareFeatureState::kSupported}});
+  return CryptAuthDevice(
+      kInstanceIdPrefix + suffix, kDeviceNamePrefix + suffix,
+      kDeviceSyncBetterTogetherPublicKeyPrefix + suffix,
+      base::Time::FromMillisecondsSinceUnixEpoch(kLastUpdateTimeMs),
+      beto_metadata,
+      {{multidevice::SoftwareFeature::kBetterTogetherHost,
+        multidevice::SoftwareFeatureState::kSupported}});
 }
 
 // Creates a RemoteDevice with |suffix| appended to each predetermined string
@@ -103,9 +105,10 @@ multidevice::RemoteDevice CreateRemoteDevice(const std::string& suffix,
 
   std::vector<multidevice::BeaconSeed> beacon_seeds;
   if (has_beacon_seeds) {
-    beacon_seeds.emplace_back(kBeaconSeedData + suffix,
-                              base::Time::FromJavaTime(kBeaconSeedStartTimeMs),
-                              base::Time::FromJavaTime(kBeaconSeedEndTimeMs));
+    beacon_seeds.emplace_back(
+        kBeaconSeedData + suffix,
+        base::Time::FromMillisecondsSinceUnixEpoch(kBeaconSeedStartTimeMs),
+        base::Time::FromMillisecondsSinceUnixEpoch(kBeaconSeedEndTimeMs));
   }
 
   return multidevice::RemoteDevice(
@@ -163,8 +166,8 @@ class DeviceSyncRemoteDeviceV2LoaderImplTest : public testing::Test {
 
     for (const auto& expected_device : expected_remote_devices) {
       std::string expected_instance_id = expected_device.instance_id;
-      auto it = base::ranges::find(*remote_devices_, expected_instance_id,
-                                   &multidevice::RemoteDevice::instance_id);
+      auto it = std::ranges::find(*remote_devices_, expected_instance_id,
+                                  &multidevice::RemoteDevice::instance_id);
 
       ASSERT_FALSE(it == remote_devices_->end());
       multidevice::RemoteDevice remote_device = *it;
@@ -186,7 +189,7 @@ class DeviceSyncRemoteDeviceV2LoaderImplTest : public testing::Test {
 
  protected:
   // Null until Load() finishes.
-  absl::optional<multidevice::RemoteDeviceList> remote_devices_;
+  std::optional<multidevice::RemoteDeviceList> remote_devices_;
 
   std::unique_ptr<multidevice::FakeSecureMessageDelegateFactory>
       fake_secure_message_delegate_factory_;

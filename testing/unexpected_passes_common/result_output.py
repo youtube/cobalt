@@ -6,17 +6,23 @@
 Also probably a good example of how to *not* write HTML.
 """
 
-from __future__ import print_function
-
 import collections
 import logging
+import re
 import sys
 import tempfile
-from typing import Any, Dict, IO, List, Optional, OrderedDict, Set, Union
+from typing import Any, Dict, IO, List, Optional, Set, Union
 
+# vpython-provided modules.
 import six
 
+# //testing imports.
 from unexpected_passes_common import data_types
+
+# //third_party/ imports.
+# Used for generating and posting Buganizer comments.
+from blinkpy.w3c import buganizer
+from typ import expectations_parser
 
 FULL_PASS = 'Fully passed in the following'
 PARTIAL_PASS = 'Partially passed in the following'
@@ -165,6 +171,11 @@ SECTION_UNUSED = ('Unused Expectations (Indicative Of The Configuration No '
 MAX_BUGS_PER_LINE = 5
 MAX_CHARACTERS_PER_CL_LINE = 72
 
+BUGANIZER_COMMENT = ('The unexpected pass finder removed the last expectation '
+                     'associated with this bug. An associated CL should be '
+                     'landing shortly, after which this bug can be closed once '
+                     'a human confirms there is no more work to be done.')
+
 ElementType = Union[Dict[str, Any], List[str], str]
 # Sample:
 # {
@@ -241,6 +252,9 @@ UnmatchedResultsType = Dict[str, data_types.ResultListType]
 UnusedExpectation = Dict[str, List[data_types.Expectation]]
 
 RemovedUrlsType = Union[List[str], Set[str]]
+
+_BUG_PREFIX_PATTERN = re.compile(
+    expectations_parser.TaggedTestListParser.BUG_PREFIX_REGEX)
 
 
 def OutputResults(stale_dict: data_types.TestExpectationMap,
@@ -320,7 +334,7 @@ def OutputResults(stale_dict: data_types.TestExpectationMap,
       _RecursiveHtmlToFile(active_str_dict, file_handle)
 
     if unused_expectations_str_list:
-      file_handle.write('\n<h1>' + SECTION_UNUSED + "</h1>\n")
+      file_handle.write('\n<h1>' + SECTION_UNUSED + '</h1>\n')
       _RecursiveHtmlToFile(unused_expectations_str_list, file_handle)
     if unmatched_results_str_dict:
       file_handle.write('\n<h1>' + SECTION_UNMATCHED + '</h1>\n')
@@ -566,7 +580,8 @@ def AddStatsToStr(s: str, stats: data_types.BuildStats) -> str:
 
 def OutputAffectedUrls(removed_urls: RemovedUrlsType,
                        orphaned_urls: Optional[RemovedUrlsType] = None,
-                       bug_file_handle: Optional[IO] = None) -> None:
+                       bug_file_handle: Optional[IO] = None,
+                       auto_close_bugs: bool = True) -> None:
   """Outputs URLs of affected expectations for easier consumption by the user.
 
   Outputs the following:
@@ -584,6 +599,9 @@ def OutputAffectedUrls(removed_urls: RemovedUrlsType,
         corresponding expectations.
     bug_file_handle: An optional open file-like object to write CL description
         bug information to. If not specified, will print to the terminal.
+    auto_close_bugs: A boolean specifying whether bugs in |orphaned_urls| should
+        be auto-closed on CL submission or not. If not closed, a comment will
+        be posted instead.
   """
   removed_urls = list(removed_urls)
   removed_urls.sort()
@@ -593,7 +611,8 @@ def OutputAffectedUrls(removed_urls: RemovedUrlsType,
   _OutputAffectedUrls(removed_urls, orphaned_urls)
   _OutputUrlsForClDescription(removed_urls,
                               orphaned_urls,
-                              file_handle=bug_file_handle)
+                              file_handle=bug_file_handle,
+                              auto_close_bugs=auto_close_bugs)
 
 
 def _OutputAffectedUrls(affected_urls: List[str],
@@ -606,9 +625,9 @@ def _OutputAffectedUrls(affected_urls: List[str],
     orphaned_urls: A list of strings containing URLs to output as closable.
     file_handle: A file handle to write the string to. Defaults to stdout.
   """
-  _OutputUrlsForCommandLine(affected_urls, "Affected bugs", file_handle)
+  _OutputUrlsForCommandLine(affected_urls, 'Affected bugs', file_handle)
   if orphaned_urls:
-    _OutputUrlsForCommandLine(orphaned_urls, "Closable bugs", file_handle)
+    _OutputUrlsForCommandLine(orphaned_urls, 'Closable bugs', file_handle)
 
 
 def _OutputUrlsForCommandLine(urls: List[str],
@@ -637,7 +656,8 @@ def _OutputUrlsForCommandLine(urls: List[str],
 
 def _OutputUrlsForClDescription(affected_urls: List[str],
                                 orphaned_urls: List[str],
-                                file_handle: Optional[IO] = None) -> None:
+                                file_handle: Optional[IO] = None,
+                                auto_close_bugs: bool = True) -> None:
   """Outputs |urls| for use in a CL description.
 
   Output adheres to the line length recommendation and max number of bugs per
@@ -647,6 +667,9 @@ def _OutputUrlsForClDescription(affected_urls: List[str],
     affected_urls: A list of strings containing URLs to output.
     orphaned_urls: A list of strings containing URLs to output as closable.
     file_handle: A file handle to write the string to. Defaults to stdout.
+    auto_close_bugs: A boolean specifying whether bugs in |orphaned_urls| should
+        be auto-closed on CL submission or not. If not closed, a comment will
+        be posted instead.
   """
 
   def AddBugTypeToOutputString(urls, prefix):
@@ -658,7 +681,7 @@ def _OutputUrlsForClDescription(affected_urls: List[str],
 
     while len(urls):
       current_bug = urls.popleft()
-      current_bug = current_bug.split('crbug.com/', 1)[1]
+      current_bug = _BUG_PREFIX_PATTERN.split(current_bug, 1)[1]
       # Handles cases like crbug.com/angleproject/1234.
       current_bug = current_bug.replace('/', ':')
 
@@ -690,6 +713,47 @@ def _OutputUrlsForClDescription(affected_urls: List[str],
   if affected_but_not_closable:
     output_str += AddBugTypeToOutputString(affected_but_not_closable, 'Bug:')
   if orphaned_urls:
-    output_str += AddBugTypeToOutputString(orphaned_urls, 'Fixed:')
+    if auto_close_bugs:
+      output_str += AddBugTypeToOutputString(orphaned_urls, 'Fixed:')
+    else:
+      output_str += AddBugTypeToOutputString(orphaned_urls, 'Bug:')
+      _PostCommentsToOrphanedBugs(orphaned_urls)
 
   file_handle.write('Affected bugs for CL description:\n%s' % output_str)
+
+
+def _PostCommentsToOrphanedBugs(orphaned_urls: List[str]) -> None:
+  """Posts comments to bugs in |orphaned_urls| saying they can likely be closed.
+
+  Does not post again if the comment has been posted before in the past.
+
+  Args:
+    orphaned_urls: A list of strings containing URLs to post comments to.
+  """
+
+  try:
+    buganizer_client = _GetBuganizerClient()
+  except buganizer.BuganizerError as e:
+    logging.error(
+        'Encountered error when authenticating, cannot post comments. %s', e)
+    return
+
+  for url in orphaned_urls:
+    try:
+      comment_list = buganizer_client.GetIssueComments(url)
+      # GetIssueComments currently returns a dict if something goes wrong
+      # instead of raising an exception.
+      if isinstance(comment_list, dict):
+        logging.exception('Failed to get comments from %s: %s', url,
+                          comment_list.get('error', 'error not provided'))
+        continue
+      existing_comments = [c['comment'] for c in comment_list]
+      if BUGANIZER_COMMENT not in existing_comments:
+        buganizer_client.NewComment(url, BUGANIZER_COMMENT)
+    except buganizer.BuganizerError:
+      logging.exception('Could not fetch or add comments for %s', url)
+
+
+def _GetBuganizerClient() -> buganizer.BuganizerClient:
+  """Helper function to get a usable Buganizer client."""
+  return buganizer.BuganizerClient()

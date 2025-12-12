@@ -5,36 +5,43 @@
 package org.chromium.ui.base;
 
 import android.content.ClipData;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.util.SparseArray;
 import android.view.MotionEvent;
 import android.view.PointerIcon;
 import android.view.View;
 import android.view.View.DragShadowBuilder;
 import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
+import android.view.ViewStructure;
+import android.view.autofill.AutofillValue;
 import android.view.inputmethod.InputConnection;
 
 import androidx.annotation.CallSuper;
-import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.view.MarginLayoutParamsCompat;
 
+import org.jni_zero.CalledByNative;
+import org.jni_zero.JNINamespace;
+
+import org.chromium.base.Callback;
 import org.chromium.base.ObserverList;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.dragdrop.DragAndDropDelegate;
 import org.chromium.ui.dragdrop.DragAndDropDelegateImpl;
 import org.chromium.ui.dragdrop.DragStateTracker;
 import org.chromium.ui.dragdrop.DropDataAndroid;
 import org.chromium.ui.mojom.CursorType;
 
-/**
- * Class to acquire, position, and remove anchor views from the implementing View.
- */
+/** Class to acquire, position, and remove anchor views from the implementing View. */
 @JNINamespace("ui")
+@NullMarked
 public class ViewAndroidDelegate {
-    private static DragAndDropDelegate sDragAndDropTestDelegate;
+    private static @Nullable DragAndDropDelegate sDragAndDropDelegateForTesting;
     private final DragAndDropDelegateImpl mDragAndDropDelegateImpl;
 
     /**
@@ -44,18 +51,17 @@ public class ViewAndroidDelegate {
     protected ViewGroup mContainerView;
 
     // Temporary storage for use as a parameter of getLocationOnScreen().
-    private int[] mTemporaryContainerLocation = new int[2];
+    private final int[] mTemporaryContainerLocation = new int[2];
 
-    /**
-     * Notifies the observer when container view is updated.
-     */
-    public interface ContainerViewObserver { void onUpdateContainerView(ViewGroup view); }
+    /** Notifies the observer when container view is updated. */
+    public interface ContainerViewObserver {
+        void onUpdateContainerView(ViewGroup view);
+    }
 
-    private ObserverList<ContainerViewObserver> mContainerViewObservers = new ObserverList<>();
+    private final ObserverList<ContainerViewObserver> mContainerViewObservers =
+            new ObserverList<>();
 
-    /**
-     * Notifies the listener of vertical scroll direction changes.
-     */
+    /** Notifies the listener of vertical scroll direction changes. */
     public interface VerticalScrollDirectionChangeListener {
         /**
          * Called when the vertical scroll direction changes.
@@ -68,39 +74,15 @@ public class ViewAndroidDelegate {
     private final ObserverList<VerticalScrollDirectionChangeListener>
             mVerticalScrollDirectionChangeListeners = new ObserverList<>();
 
-    /**
-     * Handles cursor updates for stylus writing.
-     */
-    public interface StylusWritingCursorHandler {
-        /**
-         * @param currentView the current view to set the cursor.
-         * @return true if cursor update was handled.
-         */
-        boolean didHandleCursorUpdate(View currentView);
-
-        /**
-         * Notify that stylus writing icon is removed and not shown.
-         */
-        default void notifyStylusWritingCursorRemoved() {}
-    }
-
-    private StylusWritingCursorHandler mStylusWritingCursorHandler;
-
-    // Cache the last Pointer Icon calculated for cursor type received from blink. Pointer is reset
-    // to this icon when once cursor stops being overridden.
-    private PointerIcon mPointerIconForLastCursor;
-
-    // Whether the cursor received from blink has been overridden to set specific cursor.
-    // Ex: Stylus writing cursor.
-    private boolean mCursorOverridden;
+    private @Nullable Callback<Boolean> mUpdateShouldShowStylusHoverIcon;
 
     /**
-     * Sets a handler to handle the stylus writing cursor updates.
-     *
-     * @param handler the handler object.
+     * Sets a callback which should be called with the latest value of whether the element being
+     * hovered over is editable.
+     * @param callback the callback object.
      */
-    public void setStylusWritingCursorHandler(StylusWritingCursorHandler handler) {
-        mStylusWritingCursorHandler = handler;
+    public void setShouldShowStylusHoverIconCallback(Callback<Boolean> callback) {
+        mUpdateShouldShowStylusHoverIcon = callback;
     }
 
     /**
@@ -118,14 +100,23 @@ public class ViewAndroidDelegate {
     }
 
     /**
-     * Adds observer that needs notification when container view is updated. Note that
-     * there is no {@code removObserver} since the added observers are all supposed to
-     * go away with this object together.
-     * @param observer {@link ContainerViewObserver} object. The object should have
-     *        the lifetime same as this {@link ViewAndroidDelegate} to avoid gc issues.
+     * Adds observer that needs notification when container view is updated.
+     *
+     * @param observer {@link ContainerViewObserver} object. If {@code removObserver} is not used,
+     *     then the object should have the lifetime same as this {@link ViewAndroidDelegate} to
+     *     avoid gc issues.
      */
     public final void addObserver(ContainerViewObserver observer) {
         mContainerViewObservers.addObserver(observer);
+    }
+
+    /**
+     * Removes observer that does not need notification when container view is updated anymore.
+     *
+     * @param observer {@link ContainerViewObserver} object.
+     */
+    public final void removeObserver(ContainerViewObserver observer) {
+        mContainerViewObservers.removeObserver(observer);
     }
 
     /** Adds the provided {@link VerticalScrollDirectionChangeListener}. */
@@ -168,8 +159,9 @@ public class ViewAndroidDelegate {
     }
 
     protected DragAndDropDelegate getDragAndDropDelegate() {
-        return sDragAndDropTestDelegate != null ? sDragAndDropTestDelegate
-                                                : mDragAndDropDelegateImpl;
+        return sDragAndDropDelegateForTesting != null
+                ? sDragAndDropDelegateForTesting
+                : mDragAndDropDelegateImpl;
     }
 
     /**
@@ -186,8 +178,9 @@ public class ViewAndroidDelegate {
     }
 
     /**
-     * Transfer existing anchor views from the old to the new container view. Called by
-     * {@link setContainerView} only.
+     * Transfer existing anchor views from the old to the new container view. Called by {@link
+     * setContainerView} only.
+     *
      * @param oldContainerView Old container view just replaced by a new one.
      */
     public void updateAnchorViews(ViewGroup oldContainerView) {}
@@ -196,7 +189,7 @@ public class ViewAndroidDelegate {
      * @return An anchor view that can be used to anchor decoration views like Autofill popup.
      */
     @CalledByNative
-    public View acquireView() {
+    public @Nullable View acquireView() {
         ViewGroup containerView = getContainerViewGroup();
         if (containerView == null || containerView.getParent() == null) return null;
         View anchorView = new View(containerView.getContext());
@@ -217,16 +210,23 @@ public class ViewAndroidDelegate {
 
     /**
      * Set the anchor view to specified position and size (all units in px).
+     *
      * @param anchorView The view that needs to be positioned. This must be the result of a previous
-     *         call to {@link acquireView} which has not yet been removed via {@link removeView}.
+     *     call to {@link acquireView} which has not yet been removed via {@link removeView}.
      * @param x X coordinate of the top left corner of the anchor view.
      * @param y Y coordinate of the top left corner of the anchor view.
      * @param width The width of the anchor view.
      * @param height The height of the anchor view.
      */
     @CalledByNative
-    public void setViewPosition(View anchorView, float x, float y, float width, float height,
-            int leftMargin, int topMargin) {
+    public void setViewPosition(
+            View anchorView,
+            float x,
+            float y,
+            float width,
+            float height,
+            int leftMargin,
+            int topMargin) {
         ViewGroup containerView = getContainerViewGroup();
         if (containerView == null) return;
         assert anchorView.getParent() == containerView;
@@ -252,32 +252,49 @@ public class ViewAndroidDelegate {
     }
 
     /**
-     * Start {@link View#startDragAndDrop(ClipData, DragShadowBuilder, Object, int)} with
-     * {@link DropDataAndroid} from the web content.
+     * Start {@link View#startDragAndDrop(ClipData, DragShadowBuilder, Object, int)} with {@link
+     * DropDataAndroid} from the web content.
      *
      * @param shadowImage The shadow image for the dragged object.
      * @param dropData The drop data presenting the drag target.
+     * @param windowAndroid The WindowAndroid used to retrieve a relevant Context.
      * @param cursorOffsetX The x offset of the cursor w.r.t. to top-left corner of the drag-image.
      * @param cursorOffsetY The y offset of the cursor w.r.t. to top-left corner of the drag-image.
      * @param dragObjRectWidth The width of the drag object.
      * @param dragObjRectHeight The height of the drag object.
      */
     @CalledByNative
-    private boolean startDragAndDrop(Bitmap shadowImage, DropDataAndroid dropData,
-            int cursorOffsetX, int cursorOffsetY, int dragObjRectWidth, int dragObjRectHeight) {
+    private boolean startDragAndDrop(
+            Bitmap shadowImage,
+            DropDataAndroid dropData,
+            WindowAndroid windowAndroid,
+            int cursorOffsetX,
+            int cursorOffsetY,
+            int dragObjRectWidth,
+            int dragObjRectHeight) {
         ViewGroup containerView = getContainerViewGroup();
-        if (containerView == null) return false;
+        if (containerView == null || windowAndroid == null) return false;
+        Context context = windowAndroid.getContext().get();
+        if (context == null) {
+            return false;
+        }
 
-        return getDragAndDropDelegate().startDragAndDrop(containerView, shadowImage, dropData,
-                cursorOffsetX, cursorOffsetY, dragObjRectWidth, dragObjRectHeight);
+        return getDragAndDropDelegate()
+                .startDragAndDrop(
+                        containerView,
+                        shadowImage,
+                        dropData,
+                        context,
+                        cursorOffsetX,
+                        cursorOffsetY,
+                        dragObjRectWidth,
+                        dragObjRectHeight);
     }
 
     @VisibleForTesting
     @CalledByNative
     public void onCursorChangedToCustom(Bitmap customCursorBitmap, int hotspotX, int hotspotY) {
         PointerIcon icon = PointerIcon.create(customCursorBitmap, hotspotX, hotspotY);
-        mPointerIconForLastCursor = icon;
-        if (mCursorOverridden) return;
 
         getContainerViewGroup().setPointerIcon(icon);
     }
@@ -350,8 +367,7 @@ public class ViewAndroidDelegate {
             case CursorType.GRABBING:
                 pointerIconType = PointerIcon.TYPE_GRABBING;
                 break;
-            // TODO(jaebaek): set types correctly
-            // after fixing http://crbug.com/584424.
+                // TODO(jaebaek): set types correctly after fixing http://crbug.com/584424.
             case CursorType.EAST_WEST_RESIZE:
                 pointerIconType = PointerIcon.TYPE_HORIZONTAL_DOUBLE_ARROW;
                 break;
@@ -408,34 +424,16 @@ public class ViewAndroidDelegate {
         }
         ViewGroup containerView = getContainerViewGroup();
         PointerIcon icon = PointerIcon.getSystemIcon(containerView.getContext(), pointerIconType);
-        mPointerIconForLastCursor = icon;
-        if (mCursorOverridden) return;
 
         containerView.setPointerIcon(icon);
     }
 
+    @VisibleForTesting
     @CalledByNative
-    private void notifyHoverActionStylusWritable(boolean stylusWritable) {
-        // Set stylus writing icon when hover action under pointer is writable.
-        if (stylusWritable && didHandleStylusWritingCursorUpdate()) {
-            mCursorOverridden = true;
-            return;
+    public void notifyHoverActionStylusWritable(boolean stylusWritable) {
+        if (mUpdateShouldShowStylusHoverIcon != null) {
+            mUpdateShouldShowStylusHoverIcon.onResult(stylusWritable);
         }
-
-        // If the hover action becomes not writable, then blink may not send another cursor update
-        // as the element under pointer is still same. Then reset to last cached icon from blink.
-        if (mCursorOverridden && !stylusWritable) {
-            getContainerViewGroup().setPointerIcon(mPointerIconForLastCursor);
-            if (mStylusWritingCursorHandler != null) {
-                mStylusWritingCursorHandler.notifyStylusWritingCursorRemoved();
-            }
-        }
-        mCursorOverridden = false;
-    }
-
-    private boolean didHandleStylusWritingCursorUpdate() {
-        return mStylusWritingCursorHandler != null
-                && mStylusWritingCursorHandler.didHandleCursorUpdate(getContainerViewGroup());
     }
 
     /**
@@ -447,23 +445,21 @@ public class ViewAndroidDelegate {
 
     /**
      * Notify the client of the position of the top controls.
+     *
      * @param topControlsOffsetY The Y offset of the top controls in physical pixels.
      * @param topContentOffsetY The Y offset of the content in physical pixels.
      * @param topControlsMinHeightOffsetY The current top controls min-height in physical pixels.
-     */
-    @CalledByNative
-    public void onTopControlsChanged(
-            int topControlsOffsetY, int topContentOffsetY, int topControlsMinHeightOffsetY) {}
-
-    /**
-     * Notify the client of the position of the bottom controls.
      * @param bottomControlsOffsetY The Y offset of the bottom controls in physical pixels.
      * @param bottomControlsMinHeightOffsetY The current bottom controls min-height in physical
-     *                                       pixels.
+     *     pixels.
      */
     @CalledByNative
-    public void onBottomControlsChanged(
-            int bottomControlsOffsetY, int bottomControlsMinHeightOffsetY) {}
+    public void onControlsChanged(
+            int topControlsOffsetY,
+            int topContentOffsetY,
+            int topControlsMinHeightOffsetY,
+            int bottomControlsOffsetY,
+            int bottomControlsMinHeightOffsetY) {}
 
     /**
      * @return The Visual Viewport bottom inset in pixels.
@@ -475,10 +471,11 @@ public class ViewAndroidDelegate {
 
     /**
      * Called when root scroll direction changes.
+     *
      * @param directionUp whether the new scroll direction is up (true) or down (false).
-     * @param current_scroll_ratio the ratio of vertical scroll in [0, 1] range.
-     * Scroll at top of page is 0, and bottom of page is 1. It is defined as 0
-     * if page is not scrollable, though this should not be called in that case.
+     * @param currentScrollRatio the ratio of vertical scroll in [0, 1] range. Scroll at top of page
+     *     is 0, and bottom of page is 1. It is defined as 0 if page is not scrollable, though this
+     *     should not be called in that case.
      */
     @CalledByNative
     @CallSuper
@@ -503,9 +500,7 @@ public class ViewAndroidDelegate {
         return mContainerView;
     }
 
-    /**
-     * Return the X location of our container view.
-     */
+    /** Return the X location of our container view. */
     @CalledByNative
     private int getXLocationOfContainerViewInWindow() {
         View container = getContainerView();
@@ -515,9 +510,7 @@ public class ViewAndroidDelegate {
         return mTemporaryContainerLocation[0];
     }
 
-    /**
-     * Return the Y location of our container view.
-     */
+    /** Return the Y location of our container view. */
     @CalledByNative
     private int getYLocationOfContainerViewInWindow() {
         View container = getContainerView();
@@ -527,9 +520,7 @@ public class ViewAndroidDelegate {
         return mTemporaryContainerLocation[1];
     }
 
-    /**
-     * Return the X location of our container view on screen.
-     */
+    /** Return the X location of our container view on screen. */
     @CalledByNative
     private int getXLocationOnScreen() {
         View container = getContainerView();
@@ -539,9 +530,7 @@ public class ViewAndroidDelegate {
         return mTemporaryContainerLocation[0];
     }
 
-    /**
-     * Return the Y location of our container view on screen.
-     */
+    /** Return the Y location of our container view on screen. */
     @CalledByNative
     private int getYLocationOnScreen() {
         View container = getContainerView();
@@ -589,19 +578,6 @@ public class ViewAndroidDelegate {
      */
     public void performPrivateImeCommand(String action, Bundle data) {}
 
-    /**
-     * @return Array of ints with 4 values, the top, left, right, and bottom of
-     *         the display feature. A display feature is a distinctive physical attribute
-     *         located within the display panel of the device that creates a logical or
-     *         physical separation of the Window's space. The display feature is expressed
-     *         in physical pixels, with coordinates relative to the Window. If no
-     *         DisplayFeature exists, or if it is not currently available, returns null.
-     */
-    @CalledByNative
-    protected int[] getDisplayFeature() {
-        return null;
-    }
-
     private void notifyVerticalScrollDirectionChangeListeners(
             boolean directionUp, float currentScrollRatio) {
         for (VerticalScrollDirectionChangeListener listener :
@@ -610,14 +586,37 @@ public class ViewAndroidDelegate {
         }
     }
 
+    /**
+     * Forwards requests for a ViewStructure from the Android Autofill API to the implementing View.
+     *
+     * @see View#onProvideAutofillVirtualStructure(ViewStructure structure, int flags)
+     */
+    public void onProvideAutofillVirtualStructure(ViewStructure structure, int flags) {}
+
+    /**
+     * Forwards autofillable values from the Android Autofill API to the implementing View.
+     *
+     * @see View#autofill(SparseArray)
+     */
+    public void autofill(final SparseArray<AutofillValue> values) {}
+
+    /**
+     * Check whether the Android Autofill Framework can request a ViewStructure for Autofill.
+     *
+     * @return true iff an AutofillProvider provides a ViewStructure when prompted.
+     */
+    public boolean providesAutofillStructure() {
+        return false;
+    }
+
     /** Destroy and clean up dependencies (e.g. drag state tracker if set). */
     public void destroy() {
-        // TODO(https://crbug.com/1297354): Call this in when destroying WebContents.
+        // TODO(crbug.com/40215126): Call this in when destroying WebContents.
         mDragAndDropDelegateImpl.destroy();
     }
 
-    @VisibleForTesting
     public static void setDragAndDropDelegateForTest(DragAndDropDelegate testDelegate) {
-        sDragAndDropTestDelegate = testDelegate;
+        sDragAndDropDelegateForTesting = testDelegate;
+        ResettersForTesting.register(() -> sDragAndDropDelegateForTesting = null);
     }
 }

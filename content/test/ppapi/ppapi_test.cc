@@ -12,7 +12,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "build/build_config.h"
-#include "build/chromeos_buildflags.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/test/ppapi_test_utils.h"
@@ -22,7 +21,7 @@
 #include "ppapi/shared_impl/ppapi_switches.h"
 #include "third_party/blink/public/common/switches.h"
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
 #include "chromeos/ash/components/dbus/audio/cras_audio_client.h"
 #endif
@@ -72,7 +71,7 @@ void PPAPITestBase::SetUpCommandLine(base::CommandLine* command_line) {
   // PPAPI deprecation it doesn't seem worth fixing the tests now.
   command_line->AppendSwitch(switches::kAllowFileAccessFromFiles);
 
-  // TODO(https://crbug.com/1172495): Remove once NaCl code can be deleted.
+  // TODO(crbug.com/40166667): Remove once NaCl code can be deleted.
   command_line->AppendSwitchASCII(blink::switches::kBlinkSettings,
                                   "allowNonEmptyNavigatorPlugins=true");
 }
@@ -82,7 +81,8 @@ GURL PPAPITestBase::GetTestFileUrl(const std::string& test_case) {
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
 
-    EXPECT_TRUE(base::PathService::Get(base::DIR_SOURCE_ROOT, &test_path));
+    EXPECT_TRUE(
+        base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &test_path));
     test_path = test_path.Append(FILE_PATH_LITERAL("ppapi"));
     test_path = test_path.Append(FILE_PATH_LITERAL("tests"));
     test_path = test_path.Append(FILE_PATH_LITERAL("test_case.html"));
@@ -147,7 +147,7 @@ OutOfProcessPPAPITest::OutOfProcessPPAPITest() {
 }
 
 void OutOfProcessPPAPITest::SetUp() {
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::CrasAudioClient::InitializeFake();
   ash::CrasAudioHandler::InitializeForTesting();
 #endif
@@ -156,7 +156,7 @@ void OutOfProcessPPAPITest::SetUp() {
 
 void OutOfProcessPPAPITest::TearDown() {
   ContentBrowserTest::TearDown();
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   ash::CrasAudioHandler::Shutdown();
   ash::CrasAudioClient::Shutdown();
 #endif

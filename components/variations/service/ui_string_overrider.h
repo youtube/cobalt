@@ -8,7 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "base/memory/raw_ptr.h"
+#include "base/containers/span.h"
+#include "base/memory/raw_span.h"
 
 namespace variations {
 
@@ -32,9 +33,10 @@ namespace variations {
 class UIStringOverrider {
  public:
   UIStringOverrider();
-  UIStringOverrider(const uint32_t* resource_hashes,
-                    const int* resource_indices,
-                    size_t num_resources);
+  UIStringOverrider(base::span<const uint32_t> resource_hashes,
+                    base::span<const int> resource_indices);
+
+  UIStringOverrider(const UIStringOverrider&);
 
   UIStringOverrider& operator=(const UIStringOverrider&) = delete;
 
@@ -45,9 +47,8 @@ class UIStringOverrider {
   int GetResourceIndex(uint32_t hash);
 
  private:
-  const raw_ptr<const uint32_t, AllowPtrArithmetic> resource_hashes_;
-  const raw_ptr<const int, DanglingUntriaged> resource_indices_;
-  size_t const num_resources_;
+  const base::raw_span<const uint32_t> resource_hashes_;
+  const base::raw_span<const int> resource_indices_;
 };
 
 }  // namespace variations

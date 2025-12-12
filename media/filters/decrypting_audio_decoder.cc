@@ -29,9 +29,8 @@ static inline bool IsOutOfSync(const base::TimeDelta& timestamp_1,
                                const base::TimeDelta& timestamp_2) {
   // Out of sync of 100ms would be pretty noticeable and we should keep any
   // drift below that.
-  const int64_t kOutOfSyncThresholdInMilliseconds = 100;
-  return std::abs(timestamp_1.InMilliseconds() - timestamp_2.InMilliseconds()) >
-         kOutOfSyncThresholdInMilliseconds;
+  const base::TimeDelta kOutOfSyncThreshold = base::Milliseconds(100);
+  return (timestamp_1 - timestamp_2).magnitude() > kOutOfSyncThreshold;
 }
 
 DecryptingAudioDecoder::DecryptingAudioDecoder(
@@ -127,8 +126,7 @@ void DecryptingAudioDecoder::Decode(scoped_refptr<DecoderBuffer> buffer,
 
   // Initialize the |next_output_timestamp_| to be the timestamp of the first
   // non-EOS buffer.
-  if (timestamp_helper_->base_timestamp() == kNoTimestamp &&
-      !buffer->end_of_stream()) {
+  if (!timestamp_helper_->base_timestamp() && !buffer->end_of_stream()) {
     timestamp_helper_->SetBaseTimestamp(buffer->timestamp());
   }
 
@@ -228,7 +226,7 @@ void DecryptingAudioDecoder::DecodePendingBuffer() {
 
   int buffer_size = 0;
   if (!pending_buffer_to_decode_->end_of_stream()) {
-    buffer_size = pending_buffer_to_decode_->data_size();
+    buffer_size = pending_buffer_to_decode_->size();
   }
 
   if (!DecoderBuffer::DoSubsamplesMatch(*pending_buffer_to_decode_)) {
@@ -282,7 +280,7 @@ void DecryptingAudioDecoder::DeliverFrame(
     std::string key_id =
         scoped_pending_buffer_to_decode->decrypt_config()->key_id();
     std::string log_message =
-        "no key for key ID " + base::HexEncode(key_id.data(), key_id.size()) +
+        "no key for key ID " + base::HexEncode(key_id) +
         "; will resume decoding after new usable key is available";
     DVLOG(1) << __func__ << ": " << log_message;
     MEDIA_LOG(INFO, media_log_) << GetDecoderType() << ": " << log_message;
@@ -350,7 +348,7 @@ void DecryptingAudioDecoder::OnCdmContextEvent(CdmContext::Event event) {
 void DecryptingAudioDecoder::DoReset() {
   DCHECK(!init_cb_);
   DCHECK(!decode_cb_);
-  timestamp_helper_->SetBaseTimestamp(kNoTimestamp);
+  timestamp_helper_->Reset();
   state_ = kIdle;
   std::move(reset_cb_).Run();
 }

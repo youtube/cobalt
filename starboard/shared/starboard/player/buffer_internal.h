@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <utility>
 
@@ -22,7 +24,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/types.h"
 
 namespace starboard {
 

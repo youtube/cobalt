@@ -12,6 +12,7 @@
 #include "components/device_signals/core/browser/crowdstrike_client.h"
 #include "components/device_signals/core/browser/metrics_utils.h"
 #include "components/device_signals/core/browser/signals_types.h"
+#include "components/device_signals/core/browser/user_permission_service.h"
 #include "components/device_signals/core/common/common_types.h"
 
 namespace device_signals {
@@ -30,9 +31,14 @@ AgentSignalsCollector::AgentSignalsCollector(
 AgentSignalsCollector::~AgentSignalsCollector() = default;
 
 void AgentSignalsCollector::GetAgentSignal(
+    UserPermission permission,
     const SignalsAggregationRequest& request,
     SignalsAggregationResponse& response,
     base::OnceClosure done_closure) {
+  if (permission != UserPermission::kGranted) {
+    std::move(done_closure).Run();
+    return;
+  }
   crowdstrike_client_->GetIdentifiers(
       base::BindOnce(&AgentSignalsCollector::OnCrowdStrikeSignalCollected,
                      weak_factory_.GetWeakPtr(), base::TimeTicks::Now(),
@@ -43,8 +49,8 @@ void AgentSignalsCollector::OnCrowdStrikeSignalCollected(
     base::TimeTicks start_time,
     SignalsAggregationResponse& response,
     base::OnceClosure done_closure,
-    absl::optional<CrowdStrikeSignals> agent_signals,
-    absl::optional<SignalCollectionError> error) {
+    std::optional<CrowdStrikeSignals> agent_signals,
+    std::optional<SignalCollectionError> error) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (agent_signals || error) {
     AgentSignalsResponse signal_response;
@@ -58,7 +64,7 @@ void AgentSignalsCollector::OnCrowdStrikeSignalCollected(
       signal_response.collection_error = error.value();
     } else {
       LogSignalCollectionSucceeded(SignalName::kAgent, start_time,
-                                   /*signal_collection_size=*/absl::nullopt);
+                                   /*signal_collection_size=*/std::nullopt);
     }
 
     response.agent_signals_response = std::move(signal_response);

@@ -8,6 +8,7 @@
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/timer/elapsed_timer.h"
+#include "skia/ext/font_utils.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/font_unique_name_lookup/icu_fold_case_util.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
@@ -16,6 +17,7 @@
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/skia/include/core/SkData.h"
+#include "third_party/skia/include/core/SkFontMgr.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
 #include "third_party/skia/include/core/SkTypeface.h"
 
@@ -53,9 +55,9 @@ void FontUniqueNameLookupAndroid::PrepareFontUniqueNameLookup(
 
   EnsureServiceConnected();
 
-  firmware_font_lookup_service_->GetUniqueNameLookupTable(base::BindOnce(
+  firmware_font_lookup_service_->GetUniqueNameLookupTable(WTF::BindOnce(
       &FontUniqueNameLookupAndroid::ReceiveReadOnlySharedMemoryRegion,
-      base::Unretained(this)));
+      WTF::Unretained(this)));
 }
 
 bool FontUniqueNameLookupAndroid::IsFontUniqueNameLookupReadyForSyncLookup() {
@@ -165,12 +167,14 @@ void FontUniqueNameLookupAndroid::ReceiveReadOnlySharedMemoryRegion(
 
 sk_sp<SkTypeface> FontUniqueNameLookupAndroid::MatchUniqueNameFromFirmwareFonts(
     const String& font_unique_name) {
-  absl::optional<FontTableMatcher::MatchResult> match_result =
+  std::optional<FontTableMatcher::MatchResult> match_result =
       font_table_matcher_->MatchName(font_unique_name.Utf8().c_str());
-  if (!match_result)
+  if (!match_result) {
     return nullptr;
-  return SkTypeface::MakeFromFile(match_result->font_path.c_str(),
-                                  match_result->ttc_index);
+  }
+  sk_sp<SkFontMgr> mgr = skia::DefaultFontMgr();
+  return mgr->makeFromFile(match_result->font_path.c_str(),
+                           match_result->ttc_index);
 }
 
 bool FontUniqueNameLookupAndroid::RequestedNameInQueryableFonts(
@@ -182,7 +186,7 @@ bool FontUniqueNameLookupAndroid::RequestedNameInQueryableFonts(
     queryable_fonts_ = std::move(retrieved_fonts);
   }
   return queryable_fonts_ && queryable_fonts_->Contains(String::FromUTF8(
-                                 IcuFoldCase(font_unique_name.Utf8()).c_str()));
+                                 IcuFoldCase(font_unique_name.Utf8())));
 }
 
 sk_sp<SkTypeface>
@@ -199,7 +203,7 @@ FontUniqueNameLookupAndroid::MatchUniqueNameFromDownloadableFonts(
 
   base::File font_file;
   String case_folded_unique_font_name =
-      String::FromUTF8(IcuFoldCase(font_unique_name.Utf8()).c_str());
+      String::FromUTF8(IcuFoldCase(font_unique_name.Utf8()));
 
   base::ElapsedTimer elapsed_timer;
 
@@ -230,7 +234,8 @@ FontUniqueNameLookupAndroid::MatchUniqueNameFromDownloadableFonts(
     return nullptr;
   }
 
-  sk_sp<SkTypeface> return_typeface(SkTypeface::MakeFromData(font_data));
+  sk_sp<SkFontMgr> mgr = skia::DefaultFontMgr();
+  sk_sp<SkTypeface> return_typeface = mgr->makeFromData(font_data);
 
   if (!return_typeface) {
     LogFontLatencyFailure(elapsed_timer.Elapsed());
@@ -251,8 +256,7 @@ void FontUniqueNameLookupAndroid::FontsPrefetched(
     // the AndroidFontLookup service. We can directly set |queryable_fonts_|
     // here from the map keys since |queryable_fonts_| is used to check which
     // fonts can be fetched from the AndroidFontLookup service.
-    queryable_fonts_ = Vector<String>();
-    CopyKeysToVector(prefetched_font_map_, *queryable_fonts_);
+    queryable_fonts_.emplace(prefetched_font_map_.Keys());
   }
 }
 

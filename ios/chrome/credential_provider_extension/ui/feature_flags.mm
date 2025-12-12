@@ -8,24 +8,51 @@
 #import "ios/chrome/common/app_group/app_group_field_trial_version.h"
 #import "ios/chrome/common/credential_provider/constants.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+BOOL IsAutomaticPasskeyUpgradeEnabled() {
+  return [[app_group::GetGroupUserDefaults()
+      objectForKey:
+          AppGroupUserDefaulsCredentialProviderAutomaticPasskeyUpgradeEnabled()]
+      boolValue];
+}
+
+BOOL IsPasskeyPRFEnabled() {
+  return [[app_group::GetGroupUserDefaults()
+      objectForKey:AppGroupUserDefaulsCredentialProviderPasskeyPRFEnabled()]
+      boolValue];
+}
 
 BOOL IsPasswordCreationUserEnabled() {
   return [[app_group::GetGroupUserDefaults()
       objectForKey:
-          AppGroupUserDefaulsCredentialProviderSavingPasswordsEnabled()]
+          AppGroupUserDefaultsCredentialProviderSavingPasswordsEnabled()]
       boolValue];
 }
 
-BOOL IsPasswordNotesWithBackupEnabled() {
-  NSDictionary* allFeatures = [app_group::GetGroupUserDefaults()
-      objectForKey:app_group::kChromeExtensionFieldTrialPreference];
-  NSDictionary* featureData = allFeatures[@"PasswordNotesWithBackup"];
-  if (!featureData || kCredentialProviderExtensionPasswordNotesVersion !=
-                          [featureData[kFieldTrialVersionKey] intValue]) {
-    return NO;
+BOOL IsPasswordCreationManaged() {
+  return [[app_group::GetGroupUserDefaults()
+      objectForKey:
+          AppGroupUserDefaultsCredentialProviderSavingPasswordsManaged()]
+      boolValue];
+}
+
+BOOL IsPasswordSyncEnabled() {
+  return [[app_group::GetGroupUserDefaults()
+      objectForKey:AppGroupUserDefaultsCredentialProviderPasswordSyncSetting()]
+      boolValue];
+}
+
+std::optional<bool> GetPasskeyCreationPolicy() {
+  id passkeyCreationPolicy = [app_group::GetGroupUserDefaults()
+      objectForKey:
+          AppGroupUserDefaultsCredentialProviderSavingPasskeysEnabled()];
+  if (!passkeyCreationPolicy) {
+    return std::nullopt;
   }
-  return [featureData[kFieldTrialValueKey] boolValue];
+  return [passkeyCreationPolicy boolValue];
+}
+
+BOOL IsPasskeysM2Enabled() {
+  return [[app_group::GetGroupUserDefaults()
+      objectForKey:AppGroupUserDefaultsCredentialProviderPasskeysM2Enabled()]
+      boolValue];
 }

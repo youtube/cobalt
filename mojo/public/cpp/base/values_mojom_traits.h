@@ -5,6 +5,7 @@
 #ifndef MOJO_PUBLIC_CPP_BASE_VALUES_MOJOM_TRAITS_H_
 #define MOJO_PUBLIC_CPP_BASE_VALUES_MOJOM_TRAITS_H_
 
+#include <string_view>
 #include <vector>
 
 #include "base/component_export.h"
@@ -54,6 +55,15 @@ struct ArrayTraits<base::Value::List> {
   static const base::Value& GetAt(const base::Value::List& in, size_t index) {
     return in[index];
   }
+
+  static base::Value& GetAt(base::Value::List& in, size_t index) {
+    return in[index];
+  }
+
+  static bool Resize(base::Value::List& in, size_t size) {
+    in.resize(size);
+    return true;
+  }
 };
 
 template <>
@@ -90,7 +100,6 @@ struct COMPONENT_EXPORT(MOJO_BASE_SHARED_TRAITS)
         return mojo_base::mojom::ValueDataView::Tag::kListValue;
     }
     NOTREACHED();
-    return mojo_base::mojom::ValueDataView::Tag::kNullValue;
   }
 
   static uint8_t null_value(const base::Value& value) { return 0; }
@@ -103,7 +112,7 @@ struct COMPONENT_EXPORT(MOJO_BASE_SHARED_TRAITS)
     return value.GetDouble();
   }
 
-  static base::StringPiece string_value(const base::Value& value) {
+  static std::string_view string_value(const base::Value& value) {
     return value.GetString();
   }
 

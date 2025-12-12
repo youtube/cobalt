@@ -43,9 +43,10 @@ egl::Error WindowSurfaceWGL::initialize(const egl::Display *display)
     mDeviceContext = GetDC(mWindow);
     if (!mDeviceContext)
     {
-        return egl::EglBadNativeWindow()
-               << "Failed to get the device context from the native window, "
-               << gl::FmtErr(GetLastError());
+        std::ostringstream err;
+        err << "Failed to get the device context from the native window, "
+            << gl::FmtErr(GetLastError());
+        return egl::Error(EGL_BAD_NATIVE_WINDOW, err.str());
     }
 
     // Require that the pixel format for this window has not been set yet or is equal to the
@@ -57,21 +58,23 @@ egl::Error WindowSurfaceWGL::initialize(const egl::Display *display)
         if (!DescribePixelFormat(mDeviceContext, mPixelFormat, sizeof(pixelFormatDescriptor),
                                  &pixelFormatDescriptor))
         {
-            return egl::EglBadNativeWindow()
-                   << "Failed to DescribePixelFormat, " << gl::FmtErr(GetLastError());
+            std::ostringstream err;
+            err << "Failed to DescribePixelFormat, " << gl::FmtErr(GetLastError());
+            return egl::Error(EGL_BAD_NATIVE_WINDOW, err.str());
         }
 
         if (!SetPixelFormat(mDeviceContext, mPixelFormat, &pixelFormatDescriptor))
         {
-            return egl::EglNotInitialized()
-                   << "Failed to set the pixel format on the device context, "
-                   << gl::FmtErr(GetLastError());
+            std::ostringstream err;
+            err << "Failed to set the pixel format on the device context, "
+                << gl::FmtErr(GetLastError());
+            return egl::Error(EGL_NOT_INITIALIZED, err.str());
         }
     }
     else if (windowPixelFormat != mPixelFormat)
     {
-        return egl::EglNotInitialized()
-               << "Pixel format of the NativeWindow and NativeDisplayType must match.";
+        return egl::Error(EGL_NOT_INITIALIZED,
+                          "Pixel format of the NativeWindow and NativeDisplayType must match.");
     }
 
     // Check for the swap behavior of this pixel format
@@ -97,12 +100,12 @@ egl::Error WindowSurfaceWGL::makeCurrent(const gl::Context *context)
     return egl::NoError();
 }
 
-egl::Error WindowSurfaceWGL::swap(const gl::Context *context)
+egl::Error WindowSurfaceWGL::swap(const gl::Context *context, SurfaceSwapFeedback *feedback)
 {
     if (!mFunctionsWGL->swapBuffers(mDeviceContext))
     {
         // TODO: What error type here?
-        return egl::EglContextLost() << "Failed to swap buffers on the child window.";
+        return egl::Error(EGL_CONTEXT_LOST, "Failed to swap buffers on the child window.");
     }
 
     return egl::NoError();
@@ -138,7 +141,7 @@ egl::Error WindowSurfaceWGL::releaseTexImage(const gl::Context *context, EGLint 
     return egl::NoError();
 }
 
-void WindowSurfaceWGL::setSwapInterval(EGLint interval)
+void WindowSurfaceWGL::setSwapInterval(const egl::Display *display, EGLint interval)
 {
     if (mFunctionsWGL->swapIntervalEXT)
     {

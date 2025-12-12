@@ -10,6 +10,7 @@ from urllib.parse import urlunsplit
 
 from tests.support import defaults
 from tests.support.helpers import cleanup_session, deep_update
+from tests.support.web_extension import EXTENSION_DATA
 from tests.support.inline import build_inline
 from tests.support.http_request import HTTPRequest
 from tests.support.keys import Keys
@@ -31,7 +32,7 @@ def pytest_configure(config):
     )
 
 
-def pytest_sessionfinish(session, exitstatus):
+def pytest_sessionfinish():
     # Cleanup at the end of a test run
     global _current_session
 
@@ -41,16 +42,24 @@ def pytest_sessionfinish(session, exitstatus):
 
 
 @pytest.fixture
-def capabilities():
+def default_capabilities():
     """Default capabilities to use for a new WebDriver session."""
     return {}
 
 
-def pytest_generate_tests(metafunc):
-    if "capabilities" in metafunc.fixturenames:
-        marker = metafunc.definition.get_closest_marker(name="capabilities")
-        if marker:
-            metafunc.parametrize("capabilities", marker.args, ids=None)
+@pytest.fixture
+def capabilities(request, default_capabilities):
+    """Merges default capabilities with any test-specific capabilities from a marker."""
+    marker = request.node.get_closest_marker("capabilities")
+    if marker and marker.args:
+        # Ensure the first positional argument is a dictionary
+        assert isinstance(
+            marker.args[0], dict), "capabilities marker must use a dictionary"
+        caps = copy.deepcopy(default_capabilities)
+        deep_update(caps, marker.args[0])
+        return caps
+
+    return default_capabilities  # Use defaults if no marker is present
 
 
 @pytest.fixture
@@ -64,7 +73,7 @@ def full_configuration():
 
     host - WebDriver server host.
     port -  WebDriver server port.
-    capabilites - Capabilites passed when creating the WebDriver session
+    capabilities - Capabilities passed when creating the WebDriver session
     timeout_multiplier - Multiplier for timeout values
     webdriver - Dict with keys `binary`: path to webdriver binary, and
                 `args`: Additional command line arguments passed to the webdriver
@@ -106,6 +115,43 @@ async def reset_current_session_if_necessary(caps):
             else:
                 _current_session.end()
             _current_session = None
+
+
+@pytest.fixture()
+def screen_size(session):
+    """Return the size (width/height) of the screen."""
+    return tuple(session.execute_script("""
+        return [
+            screen.width,
+            screen.height,
+        ];
+        """))
+
+
+@pytest.fixture()
+def available_screen_size(session):
+    """Return the effective available screen size (width/height).
+
+    This is size which excludes any fixed window manager elements like menu
+    bars, and the dock on MacOS.
+    """
+    return tuple(session.execute_script("""
+        return [
+            screen.availWidth,
+            screen.availHeight,
+        ];
+        """))
+
+
+@pytest.fixture()
+def minimal_screen_position(session):
+    """Return the minimal position (x/y) a window can be positioned at."""
+    return tuple(session.execute_script("""
+        return [
+            screen.availLeft,
+            screen.availTop,
+        ];
+        """))
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -200,8 +246,13 @@ def current_session():
 
 
 @pytest.fixture
+def target_platform(configuration):
+    return configuration["target_platform"]
+
+
+@pytest.fixture
 def url(server_config):
-    def url(path, protocol="http", domain="", subdomain="", query="", fragment=""):
+    def url(path, protocol="https", domain="", subdomain="", query="", fragment=""):
         domain = server_config["domains"][domain][subdomain]
         port = server_config["ports"][protocol][0]
         host = "{0}:{1}".format(domain, port)
@@ -211,8 +262,8 @@ def url(server_config):
 
 
 @pytest.fixture
-def modifier_key(session):
-    if session.capabilities["platformName"] == "mac":
+def modifier_key(current_session):
+    if current_session.capabilities["platformName"] == "mac":
         return Keys.META
     else:
         return Keys.CONTROL
@@ -247,6 +298,13 @@ def inline(url):
 
 
 @pytest.fixture
+def extension_data(current_session):
+    browser_name = current_session.capabilities["browserName"]
+
+    return EXTENSION_DATA[browser_name]
+
+
+@pytest.fixture
 def iframe(inline):
     """Inline document extract as the source document of an <iframe>."""
     def iframe(src, **kwargs):
@@ -256,13 +314,32 @@ def iframe(inline):
 
 
 @pytest.fixture
+def get_actions_origin_page(inline):
+    """Create a test pagefor action origin tests, recording mouse coordinates
+    automatically on window.coords."""
+
+    def get_actions_origin_page(inner_style, outer_style=""):
+        return inline(
+            f"""
+          <div id="outer" style="{outer_style}"
+               onmousemove="window.coords = {{x: event.clientX, y: event.clientY}}">
+            <div id="inner" style="{inner_style}"></div>
+          </div>
+        """
+        )
+
+    return get_actions_origin_page
+
+
+@pytest.fixture
 def get_test_page(iframe, inline):
     def get_test_page(
         as_frame=False,
         frame_doc=None,
         shadow_doc=None,
         nested_shadow_dom=False,
-        shadow_root_mode="open"
+        shadow_root_mode="open",
+        **kwargs
     ):
         if frame_doc is None:
             frame_doc = """<div id="in-frame"><input type="checkbox"/></div>"""
@@ -311,7 +388,7 @@ def get_test_page(iframe, inline):
             <input id="hidden" type="hidden"/>
             <input id="text" type="text"/>
 
-            {iframe(frame_doc)}
+            {iframe(frame_doc, **kwargs)}
 
             <img />
             <svg></svg>
@@ -337,9 +414,10 @@ def get_test_page(iframe, inline):
             </script>"""
 
         if as_frame:
-            return inline(iframe(page_data))
+            iframe_data = iframe(page_data, **kwargs)
+            return inline(iframe_data, **kwargs)
         else:
-            return inline(page_data)
+            return inline(page_data, **kwargs)
 
     return get_test_page
 
@@ -401,16 +479,16 @@ def test_page_with_pdf_js(inline):
 <canvas></canvas>
 <script>
 async function getText() {
-  pages = [];
-  let loadingTask = pdfjsLib.getDocument({data: atob("%s")});
-  let pdf = await loadingTask.promise;
-  for (let pageNumber=1; pageNumber<=pdf.numPages; pageNumber++) {
-    let page = await pdf.getPage(pageNumber);
-    textContent = await page.getTextContent()
-    text = textContent.items.map(x => x.str).join("");
+  const pages = [];
+  const loadingTask = pdfjsLib.getDocument({data: atob("%s")});
+  const pdf = await loadingTask.promise;
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+    const page = await pdf.getPage(pageNumber);
+    const textContent = await page.getTextContent();
+    const text = textContent.items.map(x => x.str).join("");
     pages.push(text);
   }
-  return pages
+  return pages;
 }
 </script>
 """ % encoded_pdf_data)

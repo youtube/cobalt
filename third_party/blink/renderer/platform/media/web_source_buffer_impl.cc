@@ -9,9 +9,6 @@
 #include <cmath>
 #include <limits>
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
-#include "base/functional/callback_helpers.h"
 #include "base/strings/string_number_conversions.h"
 #include "media/base/media_tracks.h"
 #include "media/base/stream_parser.h"
@@ -20,6 +17,8 @@
 #include "media/filters/source_buffer_parse_warnings.h"
 #include "third_party/blink/public/platform/web_media_player.h"
 #include "third_party/blink/public/platform/web_source_buffer_client.h"
+#include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
+#include "third_party/blink/renderer/platform/wtf/functional.h"
 
 namespace blink {
 
@@ -38,7 +37,6 @@ static WebSourceBufferClient::ParseWarning ParseWarningToBlink(
   }
 
   NOTREACHED();
-  return WebSourceBufferClient::ParseWarning::kKeyframeTimeGreaterThanDependant;
 
 #undef CHROMIUM_PARSE_WARNING_TO_BLINK_ENUM_CASE
 }
@@ -77,12 +75,18 @@ WebSourceBufferImpl::WebSourceBufferImpl(const std::string& id,
       client_(nullptr),
       append_window_end_(media::kInfiniteDuration) {
   DCHECK(demuxer_);
+
+  // `HTMLMediaElement` transitively owns both the `MediaSource` (which owns
+  // this) and `Demuxer` and is responsible for shutting both down concurrently.
+  // See `HTMLMediaElement::ClearMediaPlayer`.
   demuxer_->SetTracksWatcher(
-      id, base::BindRepeating(&WebSourceBufferImpl::InitSegmentReceived,
-                              base::Unretained(this)));
+      id, ConvertToBaseRepeatingCallback(CrossThreadBindRepeating(
+              &WebSourceBufferImpl::InitSegmentReceived,
+              CrossThreadUnretained(this))));
   demuxer_->SetParseWarningCallback(
-      id, base::BindRepeating(&WebSourceBufferImpl::NotifyParseWarning,
-                              base::Unretained(this)));
+      id, ConvertToBaseRepeatingCallback(
+              CrossThreadBindRepeating(&WebSourceBufferImpl::NotifyParseWarning,
+                                       CrossThreadUnretained(this))));
 }
 
 WebSourceBufferImpl::~WebSourceBufferImpl() = default;
@@ -111,7 +115,6 @@ bool WebSourceBufferImpl::SetMode(WebSourceBuffer::AppendMode mode) {
   }
 
   NOTREACHED();
-  return false;
 }
 
 WebTimeRanges WebSourceBufferImpl::Buffered() {
@@ -134,9 +137,9 @@ bool WebSourceBufferImpl::EvictCodedFrames(double currentPlaybackTime,
                                     newDataSize);
 }
 
-bool WebSourceBufferImpl::AppendToParseBuffer(const unsigned char* data,
-                                              size_t length) {
-  return demuxer_->AppendToParseBuffer(id_, data, length);
+bool WebSourceBufferImpl::AppendToParseBuffer(
+    base::span<const unsigned char> data) {
+  return demuxer_->AppendToParseBuffer(id_, data);
 }
 
 media::StreamParser::ParseStatus WebSourceBufferImpl::RunSegmentParserLoop(
@@ -255,15 +258,12 @@ double WebSourceBufferImpl::GetWriteHead(
 
 WebMediaPlayer::TrackType mediaTrackTypeToBlink(media::MediaTrack::Type type) {
   switch (type) {
-    case media::MediaTrack::Audio:
+    case media::MediaTrack::Type::kAudio:
       return WebMediaPlayer::kAudioTrack;
-    case media::MediaTrack::Text:
-      return WebMediaPlayer::kTextTrack;
-    case media::MediaTrack::Video:
+    case media::MediaTrack::Type::kVideo:
       return WebMediaPlayer::kVideoTrack;
   }
   NOTREACHED();
-  return WebMediaPlayer::kAudioTrack;
 }
 
 void WebSourceBufferImpl::InitSegmentReceived(
@@ -275,9 +275,9 @@ void WebSourceBufferImpl::InitSegmentReceived(
   for (const auto& track : tracks->tracks()) {
     WebSourceBufferClient::MediaTrackInfo trackInfo;
     trackInfo.track_type = mediaTrackTypeToBlink(track->type());
-    trackInfo.id = WebString::FromUTF8(track->id().value());
+    trackInfo.id = WebString::FromUTF8(track->track_id().value());
     trackInfo.byte_stream_track_id =
-        WebString::FromUTF8(base::NumberToString(track->bytestream_track_id()));
+        WebString::FromUTF8(base::NumberToString(track->stream_id()));
     trackInfo.kind = WebString::FromUTF8(track->kind().value());
     trackInfo.label = WebString::FromUTF8(track->label().value());
     trackInfo.language = WebString::FromUTF8(track->language().value());

@@ -7,13 +7,17 @@
 #include <list>
 
 #include "base/at_exit.h"
+#include "base/compiler_specific.h"
 #include "base/debug/alias.h"
+#include "base/debug/dump_without_crashing.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/synchronization/lock.h"
+#include "base/win/resource_exhaustion.h"
 #include "base/win/win_util.h"
 #include "base/win/wrapped_window_proc.h"
 #include "ui/gfx/win/crash_id_helper.h"
@@ -21,9 +25,10 @@
 
 namespace gfx {
 
-static const DWORD kWindowDefaultChildStyle =
+static constexpr DWORD kWindowDefaultChildStyle =
     WS_CHILD | WS_VISIBLE | WS_CLIPCHILDREN | WS_CLIPSIBLINGS;
-static const DWORD kWindowDefaultStyle = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
+static constexpr DWORD kWindowDefaultStyle =
+    WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN;
 
 ///////////////////////////////////////////////////////////////////////////////
 // WindowImpl class tracking.
@@ -89,16 +94,16 @@ class ClassRegistrar {
   ClassRegistrar();
   friend struct base::DefaultSingletonTraits<ClassRegistrar>;
 
-  typedef std::list<RegisteredClass> RegisteredClasses;
+  using RegisteredClasses = std::list<RegisteredClass>;
   RegisteredClasses registered_classes_;
 
   // Counter of how many classes have been registered so far.
-  int registered_count_;
+  int registered_count_ = 0;
 
   base::Lock lock_;
 };
 
-ClassRegistrar::~ClassRegistrar() {}
+ClassRegistrar::~ClassRegistrar() = default;
 
 // static
 ClassRegistrar* ClassRegistrar::GetInstance() {
@@ -120,33 +125,36 @@ void ClassRegistrar::UnregisterClasses() {
 
 ATOM ClassRegistrar::RetrieveClassAtom(const ClassInfo& class_info) {
   base::AutoLock auto_lock(lock_);
-  for (RegisteredClasses::const_iterator i = registered_classes_.begin();
-       i != registered_classes_.end(); ++i) {
-    if (class_info.Equals(i->info))
-      return i->atom;
+  for (const auto& registered_class : registered_classes_) {
+    if (class_info.Equals(registered_class.info)) {
+      return registered_class.atom;
+    }
   }
 
   // No class found, need to register one.
   std::wstring name = std::wstring(WindowImpl::kBaseClassName) +
                       base::NumberToWString(registered_count_++);
+  // We're not supposed to have many window classes, so if registered_count_
+  // gets above a certain small threshold, we may as well have a resource leak
+  // caused by repeatedly registering a class with auto-generated name, which
+  // would eventually lead to user atom table exhaustion.
+  // TODO(crbug.com/40925772): remove when source of ATOM leak is found.
+  if (registered_count_ == 128) {
+    base::debug::DumpWithoutCrashing();
+  }
 
   WNDCLASSEX window_class;
   base::win::InitializeWindowClass(
       name.c_str(), &base::win::WrappedWindowProc<WindowImpl::WndProc>,
-      class_info.style, 0, 0, NULL,
-      reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)), NULL,
+      class_info.style, 0, 0, nullptr,
+      reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)), nullptr,
       class_info.icon, class_info.small_icon, &window_class);
   HMODULE instance = window_class.hInstance;
   ATOM atom = RegisterClassEx(&window_class);
   if (!atom) {
     // Perhaps the Window session has run out of atoms; see
     // https://crbug.com/653493.
-    auto last_error = ::GetLastError();
-    base::debug::Alias(&last_error);
-    wchar_t name_copy[64];
-    base::wcslcpy(name_copy, name.c_str(), std::size(name_copy));
-    base::debug::Alias(name_copy);
-    PCHECK(atom);
+    base::win::OnResourceExhausted();
   }
 
   registered_classes_.push_back(RegisteredClass(
@@ -161,8 +169,7 @@ ClassRegistrar::RegisteredClass::RegisteredClass(const ClassInfo& info,
                                                  HMODULE instance)
     : info(info), name(name), atom(atom), instance(instance) {}
 
-ClassRegistrar::ClassRegistrar() : registered_count_(0) {}
-
+ClassRegistrar::ClassRegistrar() = default;
 
 ///////////////////////////////////////////////////////////////////////////////
 // WindowImpl, public
@@ -208,19 +215,18 @@ void WindowImpl::Init(HWND parent, const Rect& bounds) {
 
   ATOM atom = GetWindowClassAtom();
   auto weak_this = weak_factory_.GetWeakPtr();
-  HWND hwnd = CreateWindowEx(window_ex_style_,
-                             reinterpret_cast<wchar_t*>(atom), NULL,
-                             window_style_, x, y, width, height,
-                             parent, NULL, NULL, this);
+  HWND hwnd = CreateWindowEx(window_ex_style_, reinterpret_cast<wchar_t*>(atom),
+                             nullptr, window_style_, x, y, width, height,
+                             parent, nullptr, nullptr, this);
   const DWORD create_window_error = ::GetLastError();
 
-  // First nccalcszie (during CreateWindow) for captioned windows is
+  // First nccalcsize (during CreateWindow) for captioned windows is
   // deliberately ignored so force a second one here to get the right
   // non-client set up.
   if (hwnd && (window_style_ & WS_CAPTION)) {
-    SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
-                 SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
-                 SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
+    SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
+                 SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOACTIVATE | SWP_NOREDRAW);
   }
 
   if (!hwnd_ && create_window_error == 0) {
@@ -233,16 +239,16 @@ void WindowImpl::Init(HWND parent, const Rect& bounds) {
     bool got_valid_hwnd = got_valid_hwnd_;
     base::debug::Alias(&got_valid_hwnd);
     WNDCLASSEX class_info;
-    memset(&class_info, 0, sizeof(WNDCLASSEX));
+    UNSAFE_TODO(memset(&class_info, 0, sizeof(WNDCLASSEX)));
     class_info.cbSize = sizeof(WNDCLASSEX);
-    BOOL got_class = GetClassInfoEx(GetModuleHandle(NULL),
-                                    reinterpret_cast<wchar_t*>(atom),
-                                    &class_info);
+    BOOL got_class =
+        GetClassInfoEx(GetModuleHandle(nullptr),
+                       reinterpret_cast<wchar_t*>(atom), &class_info);
     base::debug::Alias(&got_class);
     bool procs_match = got_class && class_info.lpfnWndProc ==
         base::win::WrappedWindowProc<&WindowImpl::WndProc>;
     base::debug::Alias(&procs_match);
-    CHECK(false);
+    NOTREACHED();
   }
 
   CheckWindowCreated(hwnd_, create_window_error);
@@ -275,8 +281,9 @@ LRESULT WindowImpl::OnWndProc(UINT message, WPARAM w_param, LPARAM l_param) {
 }
 
 void WindowImpl::ClearUserData() {
-  if (::IsWindow(hwnd_))
-    gfx::SetWindowUserData(hwnd_, nullptr);
+  if (::IsWindow(hwnd_)) {
+    SetWindowUserData(hwnd_, nullptr);
+  }
 }
 
 // static
@@ -289,7 +296,7 @@ LRESULT CALLBACK WindowImpl::WndProc(HWND hwnd,
     CREATESTRUCT* cs = reinterpret_cast<CREATESTRUCT*>(l_param);
     window = reinterpret_cast<WindowImpl*>(cs->lpCreateParams);
     DCHECK(window);
-    gfx::SetWindowUserData(hwnd, window);
+    SetWindowUserData(hwnd, window);
     window->hwnd_ = hwnd;
     window->got_create_ = true;
     if (hwnd)

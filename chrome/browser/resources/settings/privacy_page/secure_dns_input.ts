@@ -8,16 +8,13 @@
  * `home-url-input`.
  */
 import 'chrome://resources/cr_elements/cr_textarea/cr_textarea.js';
-// <if expr="chromeos_ash">
-import 'chrome://resources/cr_elements/chromeos/cros_color_overrides.css.js';
-// </if>
 
-import '../strings.m.js';
-
-import {PrivacyPageBrowserProxy, PrivacyPageBrowserProxyImpl} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
-import {CrTextareaElement} from 'chrome://resources/cr_elements/cr_textarea/cr_textarea.js';
-import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
+import type {PrivacyPageBrowserProxy} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
+import {PrivacyPageBrowserProxyImpl} from '/shared/settings/privacy_page/privacy_page_browser_proxy.js';
+import type {CrTextareaElement} from 'chrome://resources/cr_elements/cr_textarea/cr_textarea.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
+
+import {loadTimeData} from '../i18n_setup.js';
 
 import {getTemplate} from './secure_dns_input.html.js';
 
@@ -56,9 +53,9 @@ export class SecureDnsInputElement extends PolymerElement {
     };
   }
 
-  value: string;
-  private readonly showError_: string;
-  private errorText_: string;
+  declare value: string;
+  declare private readonly showError_: string;
+  declare private errorText_: string;
   private browserProxy_: PrivacyPageBrowserProxy =
       PrivacyPageBrowserProxyImpl.getInstance();
 
@@ -89,7 +86,7 @@ export class SecureDnsInputElement extends PolymerElement {
     const valueToValidate = this.value;
     const valid = await this.browserProxy_.isValidConfig(valueToValidate);
     const successfulProbe =
-        valid && await this.browserProxy_.probeConfig(valueToValidate);
+        valid && (await this.browserProxy_.probeConfig(valueToValidate));
     // If there was an invalid template or no template can successfully
     // answer a probe query, show an error as long as the input field value
     // hasn't changed and is non-empty.

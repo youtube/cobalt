@@ -10,8 +10,8 @@
 #include "components/favicon/core/favicon_driver_observer.h"
 #include "components/sessions/core/session_id.h"
 #include "components/translate/core/browser/translate_driver.h"
+#include "content/public/browser/visibility.h"
 #include "content/public/browser/web_contents_observer.h"
-#include "content/public/browser/web_contents_user_data.h"
 
 namespace favicon {
 class FaviconDriver;
@@ -28,11 +28,17 @@ class SyncSessionsWebContentsRouter;
 // browser tab.
 // https://chromium.googlesource.com/chromium/src/+/main/docs/tab_helpers.md
 class SyncSessionsRouterTabHelper
-    : public content::WebContentsUserData<SyncSessionsRouterTabHelper>,
-      public content::WebContentsObserver,
+    : public content::WebContentsObserver,
       public translate::TranslateDriver::LanguageDetectionObserver,
       public favicon::FaviconDriverObserver {
  public:
+  // TODO(https://crbug.com/373057420): `chrome_translate_client` and
+  // `favicon_driver` can be null in tests but not in production code. The tests
+  // should be fixed.
+  SyncSessionsRouterTabHelper(content::WebContents* web_contents,
+                              SyncSessionsWebContentsRouter* router,
+                              ChromeTranslateClient* chrome_translate_client,
+                              favicon::FaviconDriver* favicon_driver);
   SyncSessionsRouterTabHelper(const SyncSessionsRouterTabHelper&) = delete;
   SyncSessionsRouterTabHelper& operator=(const SyncSessionsRouterTabHelper&) =
       delete;
@@ -43,7 +49,6 @@ class SyncSessionsRouterTabHelper
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
   void TitleWasSet(content::NavigationEntry* entry) override;
-  void WebContentsDestroyed() override;
   void DidFinishLoad(content::RenderFrameHost* render_frame_host,
                      const GURL& validated_url) override;
   void DidOpenRequestedURL(content::WebContents* new_contents,
@@ -54,6 +59,7 @@ class SyncSessionsRouterTabHelper
                            ui::PageTransition transition,
                            bool started_from_context_menu,
                            bool renderer_initiated) override;
+  void OnVisibilityChanged(content::Visibility visibility) override;
 
   // TranslateDriver::LanguageDetectionObserver implementation.
   void OnLanguageDetermined(
@@ -68,21 +74,15 @@ class SyncSessionsRouterTabHelper
       const gfx::Image& image) override;
 
  private:
-  friend class content::WebContentsUserData<SyncSessionsRouterTabHelper>;
-
-  explicit SyncSessionsRouterTabHelper(content::WebContents* web_contents,
-                                       SyncSessionsWebContentsRouter* router);
 
   void NotifyRouter(bool page_load_completed = false);
 
   // |router_| is a KeyedService and is guaranteed to outlive |this|.
-  raw_ptr<SyncSessionsWebContentsRouter, DanglingUntriaged> router_;
+  const raw_ptr<SyncSessionsWebContentsRouter, DanglingUntriaged> router_;
 
-  raw_ptr<ChromeTranslateClient, DanglingUntriaged> chrome_translate_client_;
+  const raw_ptr<ChromeTranslateClient> chrome_translate_client_;
 
-  raw_ptr<favicon::FaviconDriver, DanglingUntriaged> favicon_driver_;
-
-  WEB_CONTENTS_USER_DATA_KEY_DECL();
+  const raw_ptr<favicon::FaviconDriver> favicon_driver_;
 };
 
 }  // namespace sync_sessions

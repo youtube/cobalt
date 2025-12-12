@@ -12,6 +12,7 @@
 #define TEST_PC_E2E_MEDIA_TEST_VIDEO_CAPTURER_VIDEO_TRACK_SOURCE_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "api/sequence_checker.h"
@@ -27,8 +28,9 @@ class TestVideoCapturerVideoTrackSource : public test::TestVideoTrackSource {
  public:
   TestVideoCapturerVideoTrackSource(
       std::unique_ptr<test::TestVideoCapturer> video_capturer,
-      bool is_screencast)
-      : TestVideoTrackSource(/*remote=*/false),
+      bool is_screencast,
+      std::optional<std::string> stream_label = std::nullopt)
+      : TestVideoTrackSource(/*remote=*/false, std::move(stream_label)),
         video_capturer_(std::move(video_capturer)),
         is_screencast_(is_screencast) {
     sequence_checker_.Detach();
@@ -45,9 +47,15 @@ class TestVideoCapturerVideoTrackSource : public test::TestVideoTrackSource {
 
   ~TestVideoCapturerVideoTrackSource() = default;
 
-  void Start() override { SetState(kLive); }
+  void Start() override {
+    SetState(kLive);
+    video_capturer_->Start();
+  }
 
-  void Stop() override { SetState(kMuted); }
+  void Stop() override {
+    SetState(kMuted);
+    video_capturer_->Stop();
+  }
 
   int GetFrameWidth() const override {
     return video_capturer_->GetFrameWidth();
@@ -68,7 +76,7 @@ class TestVideoCapturerVideoTrackSource : public test::TestVideoTrackSource {
 
   void OnOutputFormatRequest(int width,
                              int height,
-                             const absl::optional<int>& max_fps) override {
+                             const std::optional<int>& max_fps) override {
     video_capturer_->OnOutputFormatRequest(width, height, max_fps);
   }
 
@@ -78,7 +86,7 @@ class TestVideoCapturerVideoTrackSource : public test::TestVideoTrackSource {
   }
 
  protected:
-  rtc::VideoSourceInterface<VideoFrame>* source() override {
+  VideoSourceInterface<VideoFrame>* source() override {
     return video_capturer_.get();
   }
 

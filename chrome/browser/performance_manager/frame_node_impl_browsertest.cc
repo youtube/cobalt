@@ -4,278 +4,366 @@
 
 #include "components/performance_manager/graph/frame_node_impl.h"
 
+#include <vector>
+
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/performance_manager/graph/page_node_impl.h"
 #include "components/performance_manager/performance_manager_impl.h"
-#include "components/performance_manager/public/graph/page_node.h"
+#include "components/performance_manager/public/features.h"
+#include "components/performance_manager/public/graph/frame_node.h"
+#include "components/performance_manager/public/graph/graph.h"
+#include "components/performance_manager/public/viewport_intersection.h"
+#include "components/performance_manager/test_support/graph/mock_frame_node_observer.h"
+#include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/prerender_test_util.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/gfx/geometry/rect_f.h"
 
 namespace performance_manager {
 
-namespace {
+using testing::_;
+using testing::AllOf;
+using testing::Not;
+using testing::UnorderedElementsAre;
 
-class FrameNodeImplBrowserTest : public InProcessBrowserTest {
- public:
-  FrameNodeImplBrowserTest() = default;
-  ~FrameNodeImplBrowserTest() override = default;
-};
-
-// Templated PassToGraph helper that also returns a pointer to the object.
-template <typename DerivedType>
-DerivedType* PassToPMGraph(std::unique_ptr<DerivedType> graph_owned) {
-  DerivedType* object = graph_owned.get();
-  PerformanceManagerImpl::PassToGraph(FROM_HERE, std::move(graph_owned));
-  return object;
+MATCHER(IsMainFrame, "") {
+  return arg->IsMainFrame();
 }
 
-// A FrameNodeObserver that allows waiting until a frame's viewport intersection
-// is initialized to a set value.
-class ViewportIntersectionChangedObserver
-    : public GraphOwned,
-      public FrameNode::ObserverDefaultImpl {
+MATCHER_P(HasViewportIntersection, viewport_intersection, "") {
+  return arg->GetViewportIntersection() == viewport_intersection;
+}
+
+namespace {
+
+// Sends a 'p' key press to the page, simulating a user edit if a text field is
+// focused.
+void SimulateKeyPress(content::WebContents* web_contents) {
+  content::SimulateKeyPress(web_contents, ui::DomKey::FromCharacter('p'),
+                            ui::DomCode::US_P, ui::VKEY_P, /*control=*/false,
+                            /*shift=*/false, /*alt=*/false, /*command=*/false);
+}
+
+using FrameNodeImplBrowserTest = InProcessBrowserTest;
+
+class ParameterizedFrameNodeImplBrowserTest
+    : public FrameNodeImplBrowserTest,
+      public testing::WithParamInterface<bool> {
  public:
-  // Needed to filter OnViewportIntersectionChanged() notifications for frames
-  // that aren't under test. Since the frame node does not exist before the
-  // navigation, it is not possible to directly compare the frame node pointer.
-  // Note: The URL of the frame does not work because the initialization of the
-  // viewport intersection can happen before the document URL is known.
-  using FrameNodeMatcher = base::RepeatingCallback<bool(const FrameNode*)>;
-
-  ViewportIntersectionChangedObserver(
-      FrameNodeMatcher frame_node_matcher,
-      const gfx::Rect& expected_viewport_intersection,
-      base::OnceClosure quit_closure)
-      : frame_node_matcher_(std::move(frame_node_matcher)),
-        expected_viewport_intersection_(expected_viewport_intersection),
-        quit_closure_(std::move(quit_closure)) {}
-  ~ViewportIntersectionChangedObserver() override = default;
-
-  ViewportIntersectionChangedObserver(
-      const ViewportIntersectionChangedObserver&) = delete;
-  ViewportIntersectionChangedObserver& operator=(
-      const ViewportIntersectionChangedObserver&) = delete;
-
-  // GraphOwned:
-  void OnPassedToGraph(Graph* graph) override {
-    graph->AddFrameNodeObserver(this);
+  ParameterizedFrameNodeImplBrowserTest() {
+    base::FieldTrialParams params = {
+        {features::kRenderedOutOfViewIsNotVisible.name,
+         GetParam() ? "true" : "false"}};
+    scoped_feature_list_.InitAndEnableFeatureWithParameters(
+        features::kPMProcessPriorityPolicy, params);
   }
-  void OnTakenFromGraph(Graph* graph) override {
-    graph->RemoveFrameNodeObserver(this);
-  }
-
-  // FrameNodeObserver:
-  void OnViewportIntersectionChanged(const FrameNode* frame_node) override {
-    if (!frame_node_matcher_.Run(frame_node))
-      return;
-
-    EXPECT_EQ(*frame_node->GetViewportIntersection(),
-              expected_viewport_intersection_);
-    std::move(quit_closure_).Run();
-  }
+  ~ParameterizedFrameNodeImplBrowserTest() override = default;
 
  private:
-  const FrameNodeMatcher frame_node_matcher_;
-  const gfx::Rect expected_viewport_intersection_;
-  base::OnceClosure quit_closure_;
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 }  // namespace
 
-IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest,
-                       DISABLED_ViewportIntersection_OutOfView) {
+IN_PROC_BROWSER_TEST_P(ParameterizedFrameNodeImplBrowserTest,
+                       ViewportIntersection_OutOfView) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
 
-  // First, set up the observer on the PM graph.
-  auto frame_node_matcher =
-      base::BindRepeating([](const FrameNode* frame_node) {
-        DCHECK_EQ(frame_node->GetGraph()->GetAllPageNodes().size(), 1u);
+  const bool expects_intersects_viewport =
+      !performance_manager::features::kRenderedOutOfViewIsNotVisible.Get();
+  testing::Matcher<const FrameNode*> viewport_intersection_matcher =
+      expects_intersects_viewport
+          ? HasViewportIntersection(ViewportIntersection::kIntersecting)
+          : HasViewportIntersection(ViewportIntersection::kNotIntersecting);
 
-        // Only match the only child node of the main frame.
-        const FrameNode* main_frame_node =
-            frame_node->GetPageNode()->GetMainFrameNode();
-        DCHECK_EQ(main_frame_node->GetChildFrameNodes().size(), 1u);
-        return frame_node->GetParentFrameNode() == main_frame_node;
-      });
-  const gfx::Rect kExpectedViewportIntersection(0, 0, 0, 0);
-  base::RunLoop run_loop;
-  PerformanceManagerImpl::PassToGraph(
-      FROM_HERE, std::make_unique<ViewportIntersectionChangedObserver>(
-                     std::move(frame_node_matcher),
-                     kExpectedViewportIntersection, run_loop.QuitClosure()));
-
-  // Navigate.
   const GURL main_frame_url(
       embedded_test_server()->GetURL("/iframe_out_of_view.html"));
-  browser()->OpenURL(content::OpenURLParams(main_frame_url, content::Referrer(),
-                                            WindowOpenDisposition::CURRENT_TAB,
-                                            ui::PAGE_TRANSITION_TYPED, false));
-  run_loop.Run();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_frame_url));
+
+  Graph* graph = PerformanceManager::GetGraph();
+  auto all_frame_nodes = graph->GetAllFrameNodes().AsVector();
+
+  EXPECT_THAT(
+      all_frame_nodes,
+      UnorderedElementsAre(
+          // One main frame, intersects with the viewport.
+          AllOf(IsMainFrame(),
+                HasViewportIntersection(ViewportIntersection::kIntersecting)),
+          // One child frame, intersects with the viewport depending on the
+          // value of the kRenderedOutOfViewIsNotVisible feature.
+          AllOf(Not(IsMainFrame()), viewport_intersection_matcher)));
 }
 
-IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest,
-                       DISABLED_ViewportIntersection_Hidden) {
+INSTANTIATE_TEST_SUITE_P(,
+                         ParameterizedFrameNodeImplBrowserTest,
+                         testing::Bool());
+
+IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest, ViewportIntersection_Hidden) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
 
-  // First, set up the observer on the PM graph.
-  auto frame_node_matcher =
-      base::BindRepeating([](const FrameNode* frame_node) {
-        DCHECK_EQ(frame_node->GetGraph()->GetAllPageNodes().size(), 1u);
-
-        // Only match the only child node of the main frame.
-        const FrameNode* main_frame_node =
-            frame_node->GetPageNode()->GetMainFrameNode();
-        DCHECK_EQ(main_frame_node->GetChildFrameNodes().size(), 1u);
-        return frame_node->GetParentFrameNode() == main_frame_node;
-      });
-  const gfx::Rect kExpectedViewportIntersection(0, 0, 0, 0);
-  base::RunLoop run_loop;
-  PerformanceManagerImpl::PassToGraph(
-      FROM_HERE, std::make_unique<ViewportIntersectionChangedObserver>(
-                     std::move(frame_node_matcher),
-                     kExpectedViewportIntersection, run_loop.QuitClosure()));
-
-  // Navigate.
   const GURL main_frame_url(
       embedded_test_server()->GetURL("/iframe_hidden.html"));
-  browser()->OpenURL(content::OpenURLParams(main_frame_url, content::Referrer(),
-                                            WindowOpenDisposition::CURRENT_TAB,
-                                            ui::PAGE_TRANSITION_TYPED, false));
-  run_loop.Run();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_frame_url));
+
+  Graph* graph = PerformanceManager::GetGraph();
+  auto all_frame_nodes = graph->GetAllFrameNodes().AsVector();
+
+  EXPECT_THAT(
+      all_frame_nodes,
+      UnorderedElementsAre(
+          // One main frame, intersects with the viewport.
+          AllOf(IsMainFrame(),
+                HasViewportIntersection(ViewportIntersection::kIntersecting)),
+          // One child frame, does not intersect with the viewport.
+          AllOf(Not(IsMainFrame()),
+                HasViewportIntersection(
+                    ViewportIntersection::kNotIntersecting))));
 }
 
 IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest,
-                       DISABLED_ViewportIntersection_PartiallyVisible) {
+                       ViewportIntersection_PartiallyVisible) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
 
-  // First, set up the observer on the PM graph.
-  auto frame_node_matcher =
-      base::BindRepeating([](const FrameNode* frame_node) {
-        DCHECK_EQ(frame_node->GetGraph()->GetAllPageNodes().size(), 1u);
-
-        // Only match the only child node of the main frame.
-        const FrameNode* main_frame_node =
-            frame_node->GetPageNode()->GetMainFrameNode();
-        DCHECK_EQ(main_frame_node->GetChildFrameNodes().size(), 1u);
-        return frame_node->GetParentFrameNode() == main_frame_node;
-      });
-  // The frame is a 100x100 px square centered on the origin of the
-  // viewport. Thus only the bottom right quarter is visible
-  const gfx::Rect kExpectedViewportIntersection(0, 0, 50, 50);
-  base::RunLoop run_loop;
-  PerformanceManagerImpl::PassToGraph(
-      FROM_HERE, std::make_unique<ViewportIntersectionChangedObserver>(
-                     std::move(frame_node_matcher),
-                     kExpectedViewportIntersection, run_loop.QuitClosure()));
-
-  // Navigate.
   const GURL main_frame_url(
       embedded_test_server()->GetURL("/iframe_partially_visible.html"));
-  browser()->OpenURL(content::OpenURLParams(main_frame_url, content::Referrer(),
-                                            WindowOpenDisposition::CURRENT_TAB,
-                                            ui::PAGE_TRANSITION_TYPED, false));
-  run_loop.Run();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_frame_url));
+
+  Graph* graph = PerformanceManager::GetGraph();
+  auto all_frame_nodes = graph->GetAllFrameNodes().AsVector();
+
+  EXPECT_THAT(
+      all_frame_nodes,
+      UnorderedElementsAre(
+          // One main frame, intersects with the viewport.
+          AllOf(IsMainFrame(),
+                HasViewportIntersection(ViewportIntersection::kIntersecting)),
+          // One child frame, also intersects with the viewport.
+          AllOf(Not(IsMainFrame()),
+                HasViewportIntersection(ViewportIntersection::kIntersecting))));
 }
 
-IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest,
-                       DISABLED_ViewportIntersection_Scaled) {
+IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest, ViewportIntersection_Scaled) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
 
-  // First, set up the observer on the PM graph.
-  auto frame_node_matcher =
-      base::BindRepeating([](const FrameNode* frame_node) {
-        DCHECK_EQ(frame_node->GetGraph()->GetAllPageNodes().size(), 1u);
-
-        // Only match the only child node of the main frame.
-        const FrameNode* main_frame_node =
-            frame_node->GetPageNode()->GetMainFrameNode();
-        DCHECK_EQ(main_frame_node->GetChildFrameNodes().size(), 1u);
-        return frame_node->GetParentFrameNode() == main_frame_node;
-      });
-  const gfx::Rect kExpectedViewportIntersection = []() {
-    gfx::Rect expected_viewport_intersection;
-
-    // The iframe is a 200x200 px square centered at (200, 200) scaled
-    // to 1.5x its size from it's center.
-
-    // The size should be 50% larger.
-    expected_viewport_intersection.set_size(gfx::Size(300, 300));
-
-    // Because the resulting square is still centered at (200, 200), its
-    // origin is (200-width/2, 200-height/2) = (50, 50)
-    expected_viewport_intersection.set_origin(gfx::Point(50, 50));
-
-    return expected_viewport_intersection;
-  }();
-  base::RunLoop run_loop;
-  PerformanceManagerImpl::PassToGraph(
-      FROM_HERE, std::make_unique<ViewportIntersectionChangedObserver>(
-                     std::move(frame_node_matcher),
-                     kExpectedViewportIntersection, run_loop.QuitClosure()));
-
-  // Navigate.
   const GURL main_frame_url(
       embedded_test_server()->GetURL("/iframe_scaled.html"));
-  browser()->OpenURL(content::OpenURLParams(main_frame_url, content::Referrer(),
-                                            WindowOpenDisposition::CURRENT_TAB,
-                                            ui::PAGE_TRANSITION_TYPED, false));
-  run_loop.Run();
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_frame_url));
+
+  Graph* graph = PerformanceManager::GetGraph();
+  auto all_frame_nodes = graph->GetAllFrameNodes().AsVector();
+
+  EXPECT_THAT(
+      all_frame_nodes,
+      UnorderedElementsAre(
+          // One main frame, intersects with the viewport.
+          AllOf(IsMainFrame(),
+                HasViewportIntersection(ViewportIntersection::kIntersecting)),
+          // One child frame, also intersects with the viewport.
+          AllOf(Not(IsMainFrame()),
+                HasViewportIntersection(ViewportIntersection::kIntersecting))));
 }
 
-IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest,
-                       DISABLED_ViewportIntersection_Rotated) {
+IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest, ViewportIntersection_Rotated) {
   ASSERT_TRUE(embedded_test_server()->Start());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
 
-  // First, set up the observer on the PM graph.
-  auto frame_node_matcher =
-      base::BindRepeating([](const FrameNode* frame_node) {
-        DCHECK_EQ(frame_node->GetGraph()->GetAllPageNodes().size(), 1u);
-
-        // Only match the only child node of the main frame.
-        const FrameNode* main_frame_node =
-            frame_node->GetPageNode()->GetMainFrameNode();
-        DCHECK_EQ(main_frame_node->GetChildFrameNodes().size(), 1u);
-        return frame_node->GetParentFrameNode() == main_frame_node;
-      });
-  const gfx::Rect kExpectedViewportIntersection = []() {
-    // The iframe is a 100x100 px square centered at (150, 150) rotated by
-    // 45 degree around its center.
-
-    // This results in a diamond shape also centered at (150, 150), whose
-    // width can be calculated with the pythagorean theorem.
-    const float width = sqrt(100 * 100 + 100 * 100);
-    const float start = 150 - width / 2;
-    const gfx::RectF enclosing_rectf(start, start, width, width);
-    // Thus the expectation for the viewport intersection is to be equal to
-    // the smallest Rect that encloses the |enclosing_rectf|.
-    return ToEnclosingRect(enclosing_rectf);
-  }();
-  base::RunLoop run_loop;
-  PerformanceManagerImpl::PassToGraph(
-      FROM_HERE, std::make_unique<ViewportIntersectionChangedObserver>(
-                     std::move(frame_node_matcher),
-                     kExpectedViewportIntersection, run_loop.QuitClosure()));
-
-  // Navigate.
   const GURL main_frame_url(
       embedded_test_server()->GetURL("/iframe_rotated.html"));
-  browser()->OpenURL(content::OpenURLParams(main_frame_url, content::Referrer(),
-                                            WindowOpenDisposition::CURRENT_TAB,
-                                            ui::PAGE_TRANSITION_TYPED, false));
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), main_frame_url));
+
+  Graph* graph = PerformanceManager::GetGraph();
+  auto all_frame_nodes = graph->GetAllFrameNodes().AsVector();
+
+  EXPECT_THAT(
+      all_frame_nodes,
+      UnorderedElementsAre(
+          // One main frame, intersects with the viewport.
+          AllOf(IsMainFrame(),
+                HasViewportIntersection(ViewportIntersection::kIntersecting)),
+          // One child frame, also intersects with the viewport.
+          AllOf(Not(IsMainFrame()),
+                HasViewportIntersection(ViewportIntersection::kIntersecting))));
+}
+
+// TODO(https://crbug.com/376315752): Deflake and re-enable.
+IN_PROC_BROWSER_TEST_F(FrameNodeImplBrowserTest,
+                       DISABLED_Bind_SimpleNavigation) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+
+  const GURL kTestUrl =
+      embedded_test_server()->GetURL("/form_interaction.html");
+
+  content::RenderFrameHost* rfh =
+      ui_test_utils::NavigateToURL(browser(), kTestUrl);
+  ASSERT_TRUE(rfh);
+  EXPECT_EQ(rfh->GetLifecycleState(),
+            content::RenderFrameHost::LifecycleState::kActive);
+
+  Graph* graph = PerformanceManager::GetGraph();
+
+  // Get the frame's node.
+
+  // Check that a form interaction notification is received through the bound
+  // receiver.
+  MockFrameNodeObserver obs;
+  graph->AddFrameNodeObserver(&obs);
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(obs, OnHadFormInteractionChanged(_)).WillOnce([&]() {
+    run_loop.Quit();
+  });
+
+  SimulateKeyPress(browser()->tab_strip_model()->GetActiveWebContents());
   run_loop.Run();
+
+  // Clean up.
+  graph->RemoveFrameNodeObserver(&obs);
+}
+
+class FrameNodeImplBackForwardCacheBrowserTest
+    : public FrameNodeImplBrowserTest {
+ public:
+  FrameNodeImplBackForwardCacheBrowserTest() {
+    content::InitBackForwardCacheFeature(&scoped_feature_list_,
+                                         /*enable_back_forward_cache=*/true);
+  }
+
+ public:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(FrameNodeImplBackForwardCacheBrowserTest,
+                       Bind_BackForwardCache) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+
+  const GURL kTestUrl =
+      embedded_test_server()->GetURL("/form_interaction.html");
+  const GURL kOtherUrl = embedded_test_server()->GetURL("/title1.html");
+
+  // Navigation to the test URL.
+  content::RenderFrameHost* rfh =
+      ui_test_utils::NavigateToURL(browser(), kTestUrl);
+  ASSERT_TRUE(rfh);
+  EXPECT_EQ(rfh->GetLifecycleState(),
+            content::RenderFrameHost::LifecycleState::kActive);
+
+  // Navigate to some other URL.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), kOtherUrl));
+  EXPECT_EQ(rfh->GetLifecycleState(),
+            content::RenderFrameHost::LifecycleState::kInBackForwardCache);
+
+  // Back to the test URL.
+  EXPECT_TRUE(content::HistoryGoBack(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+  EXPECT_EQ(rfh->GetLifecycleState(),
+            content::RenderFrameHost::LifecycleState::kActive);
+
+  Graph* graph = PerformanceManager::GetGraph();
+
+  // Check that a form interaction notification is received through the bound
+  // receiver.
+  LenientMockFrameNodeObserver obs;
+  graph->AddFrameNodeObserver(&obs);
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(obs, OnHadFormInteractionChanged(_)).WillOnce([&]() {
+    run_loop.Quit();
+  });
+
+  // After HistoryGoBack(), the text field is no longer focused so we explicly
+  // re-focus it.
+  EXPECT_TRUE(ExecJs(rfh, "FocusTextField();"));
+  SimulateKeyPress(browser()->tab_strip_model()->GetActiveWebContents());
+  run_loop.Run();
+
+  // Clean up.
+  graph->RemoveFrameNodeObserver(&obs);
+}
+
+class FrameNodeImplPrerenderBrowserTest : public FrameNodeImplBrowserTest {
+ public:
+  FrameNodeImplPrerenderBrowserTest()
+      : prerender_test_helper_(base::BindRepeating(
+            &FrameNodeImplPrerenderBrowserTest::GetWebContents,
+            base::Unretained(this))) {}
+
+  content::WebContents* GetWebContents() const {
+    return browser()->tab_strip_model()->GetActiveWebContents();
+  }
+
+ public:
+  content::test::ScopedPrerenderFeatureList scoped_prerender_feature_list_;
+  content::test::PrerenderTestHelper prerender_test_helper_;
+};
+
+// TODO(362360274): Fix this flaky test.
+IN_PROC_BROWSER_TEST_F(FrameNodeImplPrerenderBrowserTest,
+                       DISABLED_Bind_PrerenderNavigation) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  EXPECT_EQ(1, browser()->tab_strip_model()->count());
+
+  const GURL kInitialUrl = embedded_test_server()->GetURL("/empty.html");
+  const GURL kPrerenderUrl =
+      embedded_test_server()->GetURL("/form_interaction.html");
+
+  // Initial navigation. Needed so we can add prerendered frames.
+  content::RenderFrameHost* rfh =
+      ui_test_utils::NavigateToURL(browser(), kInitialUrl);
+  ASSERT_TRUE(rfh);
+  EXPECT_EQ(rfh->GetLifecycleState(),
+            content::RenderFrameHost::LifecycleState::kActive);
+
+  // Create the prerendered frame.
+  content::FrameTreeNodeId host_id =
+      prerender_test_helper_.AddPrerender(kPrerenderUrl);
+  content::RenderFrameHost* prerender_rfh =
+      prerender_test_helper_.GetPrerenderedMainFrameHost(host_id);
+  ASSERT_TRUE(prerender_rfh);
+  EXPECT_EQ(prerender_rfh->GetLifecycleState(),
+            content::RenderFrameHost::LifecycleState::kPrerendering);
+
+  // Navigate to the prerendered frame.
+  prerender_test_helper_.NavigatePrimaryPage(kPrerenderUrl);
+  EXPECT_EQ(prerender_rfh->GetLifecycleState(),
+            content::RenderFrameHost::LifecycleState::kActive);
+
+  Graph* graph = PerformanceManager::GetGraph();
+
+  // Check that a form interaction notification is received through the bound
+  // receiver.
+  MockFrameNodeObserver obs;
+  graph->AddFrameNodeObserver(&obs);
+
+  base::RunLoop run_loop;
+  EXPECT_CALL(obs, OnHadFormInteractionChanged(_)).WillOnce([&]() {
+    run_loop.Quit();
+  });
+
+  // After activating the prerender, the text field is no longer focused so we
+  // explicly re-focus it.
+  EXPECT_TRUE(ExecJs(prerender_rfh, "FocusTextField();"));
+  SimulateKeyPress(browser()->tab_strip_model()->GetActiveWebContents());
+  run_loop.Run();
+
+  // Clean up.
+  graph->RemoveFrameNodeObserver(&obs);
 }
 
 }  // namespace performance_manager

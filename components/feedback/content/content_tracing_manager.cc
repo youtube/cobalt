@@ -27,10 +27,10 @@ const base::FilePath::CharType kTracingFilename[] =
 
 scoped_refptr<base::RefCountedString> CompressTraceData(
     std::unique_ptr<std::string> trace_data) {
-  std::string output_val;
-  feedback_util::ZipString(base::FilePath(kTracingFilename), *trace_data,
-                           &output_val);
-  return base::MakeRefCounted<base::RefCountedString>(std::move(output_val));
+  std::optional<std::string> output_val =
+      feedback_util::ZipString(base::FilePath(kTracingFilename), *trace_data);
+  return base::MakeRefCounted<base::RefCountedString>(
+      output_val.value_or(std::string()));
 }
 
 }  // namespace
@@ -101,6 +101,10 @@ void ContentTracingManager::DiscardTraceData(int id) {
     if (trace_callback_)
       std::move(trace_callback_).Run(scoped_refptr<base::RefCountedString>());
   }
+}
+
+base::WeakPtr<TracingManager> ContentTracingManager::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 void ContentTracingManager::StartTracing() {

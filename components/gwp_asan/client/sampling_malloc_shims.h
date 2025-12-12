@@ -10,17 +10,15 @@
 #include "build/build_config.h"
 #include "components/gwp_asan/client/export.h"
 #include "components/gwp_asan/client/guarded_page_allocator.h"
+#include "components/gwp_asan/client/gwp_asan.h"
 
 namespace gwp_asan {
 namespace internal {
 
 // Initialize the guarded allocator with the given parameters, and install the
 // sampling malloc shims with the provided sampling frequency.
-GWP_ASAN_EXPORT void InstallMallocHooks(
-    size_t max_allocated_pages,
-    size_t num_metadata,
-    size_t total_pages,
-    size_t sampling_frequency,
+[[nodiscard]] GWP_ASAN_EXPORT bool  InstallMallocHooks(
+    const AllocatorSettings& settings,
     GuardedPageAllocator::OutOfMemoryCallback callback);
 
 }  // namespace internal

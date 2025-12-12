@@ -9,7 +9,7 @@
 #include "base/values.h"
 #include "chrome/browser/ash/login/oobe_screen.h"
 #include "chrome/browser/ash/login/screens/signin_fatal_error_screen.h"
-#include "chrome/grit/chromium_strings.h"
+#include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/login/localized_values_builder.h"
 #include "components/strings/grit/components_strings.h"
@@ -44,6 +44,10 @@ void SignInFatalErrorScreenHandler::Show(SignInFatalErrorScreen::Error error,
   screen_data.Set("errorState", base::Value(static_cast<int>(error)));
 
   ShowInWebUI(std::move(screen_data));
+}
+
+base::WeakPtr<SignInFatalErrorView> SignInFatalErrorScreenHandler::AsWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 }  // namespace ash

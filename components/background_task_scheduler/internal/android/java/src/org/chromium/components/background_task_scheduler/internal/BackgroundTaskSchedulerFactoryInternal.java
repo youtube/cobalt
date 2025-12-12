@@ -4,19 +4,19 @@
 
 package org.chromium.components.background_task_scheduler.internal;
 
-import androidx.annotation.VisibleForTesting;
-
+import org.chromium.base.ResettersForTesting;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.background_task_scheduler.BackgroundTask;
 import org.chromium.components.background_task_scheduler.BackgroundTaskFactory;
 import org.chromium.components.background_task_scheduler.BackgroundTaskScheduler;
 
-/**
- * A factory for {@link BackgroundTaskScheduler} that ensures there is only ever a single instance.
- */
+/** A factory for {@link BackgroundTaskScheduler} that ensures there is only ever a single instance. */
+@NullMarked
 public final class BackgroundTaskSchedulerFactoryInternal {
-    private static BackgroundTaskScheduler sBackgroundTaskScheduler;
-    private static BackgroundTaskFactory sBackgroundTaskFactory;
+    private static @Nullable BackgroundTaskScheduler sBackgroundTaskScheduler;
+    private static @Nullable BackgroundTaskFactory sBackgroundTaskFactory;
 
     /**
      * @return the current instance of the {@link BackgroundTaskScheduler}. Creates one if none
@@ -31,9 +31,10 @@ public final class BackgroundTaskSchedulerFactoryInternal {
         return sBackgroundTaskScheduler;
     }
 
-    @VisibleForTesting
     public static void setSchedulerForTesting(BackgroundTaskScheduler backgroundTaskScheduler) {
+        var oldValue = sBackgroundTaskScheduler;
         sBackgroundTaskScheduler = backgroundTaskScheduler;
+        ResettersForTesting.register(() -> sBackgroundTaskScheduler = oldValue);
     }
 
     /** See {@code BackgroundTaskSchedulerFactory#getBackgroundTaskFromTaskId}. */

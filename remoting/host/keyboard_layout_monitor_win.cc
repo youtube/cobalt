@@ -5,9 +5,11 @@
 #include "remoting/host/keyboard_layout_monitor.h"
 
 #include <windows.h>
+
 #include <ime.h>
 
 #include <memory>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -229,7 +231,7 @@ void KeyboardLayoutMonitorWin::QueryLayoutOnInputThread(
           /* numlock_state */ true, shift_level & 1, virtual_key, key);
 
       // First check if the key generates a character.
-      BYTE key_state[256] = {0};
+      BYTE key_state[256] = {};
       // Modifiers set the high-order bit when pressed.
       key_state[VK_SHIFT] = (shift_level & 1) << 7;
       key_state[VK_CONTROL] = key_state[VK_MENU] = (shift_level & 2) << 6;
@@ -286,7 +288,7 @@ void KeyboardLayoutMonitorWin::QueryLayoutOnInputThread(
         }
         // The key generated at least one character.
         key_actions[shift_level].set_character(
-            base::WideToUTF8(base::WStringPiece(char_buffer, size)));
+            base::WideToUTF8(std::wstring_view(char_buffer, size)));
         if (shift_level > 2) {
           has_altgr = true;
         }
@@ -377,7 +379,7 @@ void ClearDeadKeys(HKL layout) {
   // which includes the list of currently stored dead keys. Pressing space
   // translates previously pressed dead keys to characters, clearing the dead-
   // key buffer.
-  BYTE key_state[256] = {0};
+  BYTE key_state[256] = {};
   WCHAR char_buffer[16];
   ToUnicodeEx(VK_SPACE,
               ui::KeycodeConverter::DomCodeToNativeKeycode(ui::DomCode::SPACE),

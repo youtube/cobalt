@@ -28,8 +28,6 @@ class TranslateManager;
 class TranslateUIDelegate;
 class TranslateUILanguagesManager;
 
-BASE_DECLARE_FEATURE(kTranslateMessageUI);
-
 class TranslateMessage {
  public:
   TranslateMessage(content::WebContents* web_contents,

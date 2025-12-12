@@ -8,24 +8,24 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.NativeMethods;
+import org.jni_zero.CalledByNative;
+import org.jni_zero.NativeMethods;
+
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.content_public.browser.WebContents;
 
 /**
  * Builds and shows a basic ConfirmInfoBar for code that works almost entirely in Java.
  *
- * Rather than use this class, it is highly recommended that developers create and customize their
- * own customized native InfoBarDelegate to avoid unnecessary JNI hops.
+ * <p>Rather than use this class, it is highly recommended that developers create and customize
+ * their own customized native InfoBarDelegate to avoid unnecessary JNI hops.
  */
+@NullMarked
 public class SimpleConfirmInfoBarBuilder {
-    /**
-     * Listens for when users interact with an infobar.
-     */
+    /** Listens for when users interact with an infobar. */
     public static interface Listener {
-        /**
-         * Called when the infobar was dismissed.
-         */
+        /** Called when the infobar was dismissed. */
         void onInfoBarDismissed();
 
         /**
@@ -56,9 +56,21 @@ public class SimpleConfirmInfoBarBuilder {
      * @param message Message displayed to the user.
      * @param autoExpire Whether the infobar disappears on navigation.
      */
-    public static void create(WebContents webContents, int infobarTypeIdentifier, String message,
+    public static void create(
+            WebContents webContents,
+            int infobarTypeIdentifier,
+            String message,
             boolean autoExpire) {
-        create(webContents, null, infobarTypeIdentifier, null, 0, message, null, null, null,
+        create(
+                webContents,
+                null,
+                infobarTypeIdentifier,
+                null,
+                0,
+                message,
+                null,
+                null,
+                null,
                 autoExpire);
     }
 
@@ -76,14 +88,32 @@ public class SimpleConfirmInfoBarBuilder {
      * @param linkText String shown as the link text on the ConfirmInfoBar.
      * @param autoExpire Whether the infobar disappears on navigation.
      */
-    public static void create(WebContents webContents, Listener listener, int infobarTypeIdentifier,
-            Context context, int drawableId, String message, String primaryText,
-            String secondaryText, String linkText, boolean autoExpire) {
-        Bitmap drawable = context == null || drawableId == 0
-                ? null
-                : BitmapFactory.decodeResource(context.getResources(), drawableId);
-        SimpleConfirmInfoBarBuilderJni.get().create(webContents, infobarTypeIdentifier, drawable,
-                message, primaryText, secondaryText, linkText, autoExpire, listener);
+    public static void create(
+            WebContents webContents,
+            @Nullable Listener listener,
+            int infobarTypeIdentifier,
+            @Nullable Context context,
+            int drawableId,
+            String message,
+            @Nullable String primaryText,
+            @Nullable String secondaryText,
+            @Nullable String linkText,
+            boolean autoExpire) {
+        Bitmap drawable =
+                context == null || drawableId == 0
+                        ? null
+                        : BitmapFactory.decodeResource(context.getResources(), drawableId);
+        SimpleConfirmInfoBarBuilderJni.get()
+                .create(
+                        webContents,
+                        infobarTypeIdentifier,
+                        drawable,
+                        message,
+                        primaryText,
+                        secondaryText,
+                        linkText,
+                        autoExpire,
+                        listener);
     }
 
     @CalledByNative
@@ -103,8 +133,15 @@ public class SimpleConfirmInfoBarBuilder {
 
     @NativeMethods
     interface Natives {
-        void create(WebContents webContents, int infobarTypeIdentifier, Bitmap drawable,
-                String message, String primaryText, String secondaryText, String linkText,
-                boolean autoExpire, Object listener);
+        void create(
+                WebContents webContents,
+                int infobarTypeIdentifier,
+                @Nullable Bitmap drawable,
+                @Nullable String message,
+                @Nullable String primaryText,
+                @Nullable String secondaryText,
+                @Nullable String linkText,
+                boolean autoExpire,
+                @Nullable Object listener);
     }
 }

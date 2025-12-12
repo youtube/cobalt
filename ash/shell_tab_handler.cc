@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "shell_tab_handler.h"
+#include "ash/shell_tab_handler.h"
 
 #include "ash/capture_mode/capture_mode_util.h"
-#include "ash/focus_cycler.h"
+#include "ash/focus/focus_cycler.h"
 #include "ash/shelf/shelf.h"
 #include "ash/shelf/shelf_navigation_widget.h"
 #include "ash/shell.h"
 #include "ash/system/status_area_widget.h"
 #include "ash/wm/tablet_mode/tablet_mode_controller.h"
 #include "ash/wm/window_util.h"
+#include "ui/display/screen.h"
 #include "ui/events/event.h"
 #include "ui/wm/public/activation_client.h"
 
@@ -21,10 +22,10 @@ void ShellTabHandler::OnKeyEvent(ui::KeyEvent* key_event) {
   // Only focus the shelf if the device is in clamshell mode, and the user
   // pressed tab.
   if (key_event->key_code() != ui::KeyboardCode::VKEY_TAB ||
-      key_event->type() != ui::EventType::ET_KEY_PRESSED ||
+      key_event->type() != ui::EventType::kKeyPressed ||
       key_event->IsAltDown() || key_event->IsControlDown() ||
       key_event->IsCommandDown() ||
-      shell_->tablet_mode_controller()->InTabletMode()) {
+      display::Screen::GetScreen()->InTabletMode()) {
     return;
   }
 

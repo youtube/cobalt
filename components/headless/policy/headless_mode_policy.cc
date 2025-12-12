@@ -21,7 +21,6 @@ HeadlessModePolicy::HeadlessMode HeadlessModePolicy::GetPolicy(
   if (value < static_cast<int>(HeadlessMode::kMinValue) ||
       value > static_cast<int>(HeadlessMode::kMaxValue)) {
     NOTREACHED();
-    return HeadlessMode::kDefaultValue;
   }
 
   return static_cast<HeadlessMode>(value);

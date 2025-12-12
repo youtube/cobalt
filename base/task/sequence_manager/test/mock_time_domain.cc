@@ -4,10 +4,9 @@
 
 #include "base/task/sequence_manager/test/mock_time_domain.h"
 
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include <optional>
 
-namespace base {
-namespace sequence_manager {
+namespace base::sequence_manager {
 
 MockTimeDomain::MockTimeDomain(TimeTicks initial_now_ticks)
     : now_ticks_(initial_now_ticks) {}
@@ -23,7 +22,7 @@ void MockTimeDomain::SetNowTicks(TimeTicks now_ticks) {
 }
 
 bool MockTimeDomain::MaybeFastForwardToWakeUp(
-    absl::optional<WakeUp> next_wake_up,
+    std::optional<WakeUp> next_wake_up,
     bool quit_when_idle_requested) {
   return false;
 }
@@ -32,5 +31,4 @@ const char* MockTimeDomain::GetName() const {
   return "MockTimeDomain";
 }
 
-}  // namespace sequence_manager
-}  // namespace base
+}  // namespace base::sequence_manager

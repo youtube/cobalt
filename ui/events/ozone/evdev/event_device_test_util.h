@@ -54,8 +54,8 @@ struct DeviceCapabilities {
   const char* ff;
 
   // EVIOCGABS.
-  // This field is not a raw_ptr<> because it was filtered by the rewriter for:
-  // #global-scope
+  // This field is not a raw_ptr because it only ever points at statically-
+  // allocated memory that is never freed, and hence is not at risk of dangling.
   RAW_PTR_EXCLUSION const DeviceAbsoluteAxis* abs_axis;
   size_t abs_axis_count;
 
@@ -120,6 +120,8 @@ extern const DeviceCapabilities kDellLatitudeE6510Touchpad;
 extern const DeviceCapabilities kHPProBook6560bTouchpad;
 extern const DeviceCapabilities kJinlonKeyboard;
 extern const DeviceCapabilities kSymbolTechBarcodeScanner;
+extern const DeviceCapabilities kRexHeatmapTouchScreen;
+extern const DeviceCapabilities kSplitModifierKeyboard;
 }  // namespace ui
 
 #endif  // UI_EVENTS_OZONE_EVDEV_EVENT_DEVICE_TEST_UTIL_H_

@@ -33,6 +33,7 @@ gcc_toolchain("starboard") {
     sysroot = "$raspi_home/busterroot"
     use_cxx17 = true
     build_base_with_cpp17 = true
+    enable_base_tracing = false
 
     # TODO: 451695911 - enable remote compilation, when we can.
     use_remoteexec = false
@@ -57,6 +58,7 @@ gcc_toolchain("native_target") {
     sysroot = "$raspi_home/busterroot"
     use_cxx17 = true
     build_base_with_cpp17 = true
+    enable_base_tracing = false
 
     # TODO: 451695911 - enable remote compilation, when we can.
     use_remoteexec = false

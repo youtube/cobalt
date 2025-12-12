@@ -42,5 +42,10 @@ if ("SharedWorker" in window)
 navigator.serviceWorker.register('/service_worker.js')
 .catch(function(error) {});
 
+import("/test-css-module", { with: { type: "css" } })
+.catch(function(error) {});
+
+import("/test-json-module", { with: { type: "json" } })
+.catch(function(error) {});
 </script>
 </html>

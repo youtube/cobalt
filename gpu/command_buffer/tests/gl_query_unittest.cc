@@ -27,8 +27,6 @@ class QueryTest : public testing::Test {
 
 TEST_F(QueryTest, MultipleQueries) {
   EXPECT_TRUE(GLTestHelper::HasExtension("GL_CHROMIUM_get_error_query"));
-  EXPECT_TRUE(GLTestHelper::HasExtension(
-                  "GL_CHROMIUM_command_buffer_latency_query"));
 
   GLuint error_query = 0;
   GLuint commands_issue_query = 0;
@@ -100,53 +98,6 @@ TEST_F(QueryTest, GetErrorBasic) {
   EXPECT_EQ(static_cast<uint32_t>(GL_INVALID_ENUM), query_status);
 }
 
-TEST_F(QueryTest, DISABLED_LatencyQueryBasic) {
-  EXPECT_TRUE(GLTestHelper::HasExtension(
-                  "GL_CHROMIUM_command_buffer_latency_query"));
-
-  GLuint query = 0;
-  glGenQueriesEXT(1, &query);
-
-  GLuint query_result = 0;
-  GLuint available = 0;
-
-  // First test a query with a ~1ms "latency".
-  const unsigned int kExpectedLatencyMicroseconds = 2000;
-  const unsigned int kTimePrecisionMicroseconds = 1000;
-
-  glBeginQueryEXT(GL_LATENCY_QUERY_CHROMIUM, query);
-  // Usually, we want to measure gpu-side latency, but we fake it by
-  // adding client side latency for our test because it's easier.
-  base::PlatformThread::Sleep(base::Microseconds(kExpectedLatencyMicroseconds));
-  glEndQueryEXT(GL_LATENCY_QUERY_CHROMIUM);
-
-  glFinish();
-
-  query_result = 0;
-  available = 0;
-  glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_AVAILABLE_EXT, &available);
-  EXPECT_TRUE(available);
-  glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT, &query_result);
-  EXPECT_GE(query_result, kExpectedLatencyMicroseconds
-                          - kTimePrecisionMicroseconds);
-  EXPECT_LE(query_result, kExpectedLatencyMicroseconds
-                          + kTimePrecisionMicroseconds);
-
-  // Then test a query with the lowest latency possible.
-  glBeginQueryEXT(GL_LATENCY_QUERY_CHROMIUM, query);
-  glEndQueryEXT(GL_LATENCY_QUERY_CHROMIUM);
-
-  glFinish();
-
-  query_result = 0;
-  available = 0;
-  glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_AVAILABLE_EXT, &available);
-  EXPECT_TRUE(available);
-  glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_EXT, &query_result);
-
-  EXPECT_LE(query_result, kTimePrecisionMicroseconds);
-}
-
 TEST_F(QueryTest, CommandsCompleted) {
   if (!GLTestHelper::HasExtension("GL_CHROMIUM_sync_query")) {
     LOG(INFO) << "GL_CHROMIUM_sync_query not supported. Skipping test...";
@@ -191,6 +142,29 @@ TEST_F(QueryTest, CommandsCompletedWithFinish) {
   glGetQueryObjectuivEXT(query, GL_QUERY_RESULT_AVAILABLE_EXT, &result);
   EXPECT_EQ(1u, result);
   glDeleteQueriesEXT(1, &query);
+  GLTestHelper::CheckGLError("no errors", __LINE__);
+}
+
+// Test deleting a non-active query with a query of the same type active.
+TEST_F(QueryTest, DeleteQueryWithActiveQuery) {
+  if (!GLTestHelper::HasExtension("GL_EXT_occlusion_query_boolean")) {
+    LOG(INFO)
+        << "GL_EXT_occlusion_query_boolean not supported. Skipping test...";
+    return;
+  }
+
+  GLuint queries[2];
+  glGenQueriesEXT(2, queries);
+
+  glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, queries[0]);
+  glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+
+  glBeginQueryEXT(GL_ANY_SAMPLES_PASSED_EXT, queries[1]);
+  glDeleteQueriesEXT(1, &queries[0]);
+  glEndQueryEXT(GL_ANY_SAMPLES_PASSED_EXT);
+
+  glDeleteQueriesEXT(1, &queries[1]);
+
   GLTestHelper::CheckGLError("no errors", __LINE__);
 }
 

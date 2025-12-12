@@ -31,11 +31,6 @@ TEST(ProtoEnumConversionsTest, GetAppListItemTypeString) {
   TestEnumStringsNonEmpty(sync_pb::AppListSpecifics::AppListItemType);
 }
 
-TEST(ProtoEnumConversionsTest, GetSegmentationPlatformTypeTypeString) {
-  TestEnumStringsNonEmpty(
-      sync_pb::SegmentationSpecifics::DeviceMetadata::PlatformType);
-}
-
 TEST(ProtoEnumConversionsTest, GetBrowserTypeString) {
   TestEnumStringsNonEmpty(sync_pb::SyncEnums::BrowserType);
 }
@@ -72,10 +67,6 @@ TEST(ProtoEnumConversionsTest, GetWifiConfigurationProxyOptionString) {
       sync_pb::WifiConfigurationSpecifics::ProxyConfiguration::ProxyOption);
 }
 
-TEST(ProtoEnumConversionsTest, GetUpdatesSourceString) {
-  TestEnumStringsNonEmpty(sync_pb::GetUpdatesCallerInfo::GetUpdatesSource);
-}
-
 TEST(ProtoEnumConversionsTest, GetUpdatesOriginString) {
   TestEnumStringsNonEmpty(sync_pb::SyncEnums::GetUpdatesOrigin);
 }
@@ -105,6 +96,10 @@ TEST(ProtoEnumConversionsTest, GetSavedTabGroupColorString) {
   TestEnumStringsNonEmpty(sync_pb::SavedTabGroup::SavedTabGroupColor);
 }
 
+TEST(ProtoEnumConversionsTest, GetSharedTabGroupColorString) {
+  TestEnumStringsNonEmpty(sync_pb::SharedTabGroup::Color);
+}
+
 TEST(ProtoEnumConversionsTest, GetIssuerString) {
   TestEnumStringsNonEmpty(sync_pb::CardIssuer::Issuer);
 }
@@ -118,7 +113,39 @@ TEST(ProtoEnumConversionsTest, GetNoteTargetTypeString) {
 }
 
 TEST(ProtoEnumConversionsTest, GetInitialSyncStateString) {
-  TestEnumStringsNonEmpty(sync_pb::ModelTypeState::InitialSyncState);
+  TestEnumStringsNonEmpty(sync_pb::DataTypeState::InitialSyncState);
+}
+
+TEST(ProtoEnumConversionsTest, GetCategoryBenefitTypeString) {
+  TestEnumStringsNonEmpty(sync_pb::CardBenefit::CategoryBenefitType);
+}
+
+TEST(ProtoEnumConversionsTest,
+     GetTrustedVaultAutoUpgradeExperimentGroupTypeString) {
+  TestEnumStringsNonEmpty(
+      sync_pb::TrustedVaultAutoUpgradeExperimentGroup::Type);
+}
+
+TEST(ProtoEnumConversionsTest, GetBrowserColorVariantString) {
+  TestEnumStringsNonEmpty(
+      sync_pb::ThemeSpecifics::UserColorTheme::BrowserColorVariant);
+}
+
+TEST(ProtoEnumConversionsTest, GetBrowserColorSchemeString) {
+  TestEnumStringsNonEmpty(sync_pb::ThemeSpecifics::BrowserColorScheme);
+}
+
+TEST(ProtoEnumConversionsTest, GetContactInfoAddressType) {
+  TestEnumStringsNonEmpty(sync_pb::ContactInfoSpecifics::AddressType);
+}
+
+TEST(ProtoEnumConversionsTest, GetCardInfoRetrievalEnrollmentStateString) {
+  TestEnumStringsNonEmpty(
+      sync_pb::WalletMaskedCreditCard::CardInfoRetrievalEnrollmentState);
+}
+
+TEST(ProtoEnumConversionsTest, GetCardBenefitSourceString) {
+  TestEnumStringsNonEmpty(sync_pb::WalletMaskedCreditCard::CardBenefitSource);
 }
 
 }  // namespace

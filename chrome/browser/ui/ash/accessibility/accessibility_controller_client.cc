@@ -4,10 +4,11 @@
 
 #include "chrome/browser/ui/ash/accessibility/accessibility_controller_client.h"
 
-#include "ash/public/cpp/accessibility_controller.h"
+#include "ash/accessibility/accessibility_controller.h"
 #include "ash/public/cpp/accessibility_controller_enums.h"
 #include "ash/wm/desks/templates/saved_desk_util.h"
 #include "chrome/browser/ash/accessibility/accessibility_manager.h"
+#include "chrome/browser/ash/accessibility/dictation.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/aura/accessibility/automation_manager_aura.h"
 #include "chrome/grit/generated_resources.h"
@@ -24,10 +25,11 @@ void SetAutomationManagerEnabled(content::BrowserContext* context,
                                  bool enabled) {
   DCHECK(context);
   AutomationManagerAura* manager = AutomationManagerAura::GetInstance();
-  if (enabled)
+  if (enabled) {
     manager->Enable();
-  else
+  } else {
     manager->Disable();
+  }
 }
 
 }  // namespace
@@ -43,8 +45,9 @@ AccessibilityControllerClient::~AccessibilityControllerClient() {
 void AccessibilityControllerClient::TriggerAccessibilityAlert(
     ash::AccessibilityAlert alert) {
   Profile* profile = ProfileManager::GetActiveUserProfile();
-  if (!profile)
+  if (!profile) {
     return;
+  }
 
   int msg = 0;
   switch (alert) {
@@ -83,6 +86,24 @@ void AccessibilityControllerClient::TriggerAccessibilityAlert(
                 ? IDS_A11Y_ALERT_SAVED_DESKS_LIBRARY_MODE_ENTERED
                 : IDS_A11Y_ALERT_SAVED_DESKS_SAVED_FOR_LATER_MODE_ENTERED;
       break;
+    case ash::AccessibilityAlert::FASTER_SPLIT_SCREEN_SETUP:
+      msg = IDS_A11Y_ALERT_FASTER_SPLITSCREEN_TOAST;
+      break;
+    case ash::AccessibilityAlert::SNAP_GROUP_RESIZE_LEFT:
+      msg = IDS_A11Y_ALERT_SNAP_GROUP_RESIZE_LEFT;
+      break;
+    case ash::AccessibilityAlert::SNAP_GROUP_RESIZE_RIGHT:
+      msg = IDS_A11Y_ALERT_SNAP_GROUP_RESIZE_RIGHT;
+      break;
+    case ash::AccessibilityAlert::SNAP_GROUP_RESIZE_UP:
+      msg = IDS_A11Y_ALERT_SNAP_GROUP_RESIZE_UP;
+      break;
+    case ash::AccessibilityAlert::SNAP_GROUP_RESIZE_DOWN:
+      msg = IDS_A11Y_ALERT_SNAP_GROUP_RESIZE_DOWN;
+      break;
+    case ash::AccessibilityAlert::SNAP_GROUP_CREATION:
+      msg = IDS_A11Y_ALERT_SNAP_GROUP_CREATION;
+      break;
     case ash::AccessibilityAlert::NONE:
       msg = 0;
       break;
@@ -93,16 +114,18 @@ void AccessibilityControllerClient::TriggerAccessibilityAlert(
         l10n_util::GetStringUTF8(msg));
     // After handling the alert, if the alert is screen-off, we should
     // disable automation manager to handle any following a11y events.
-    if (alert == ash::AccessibilityAlert::SCREEN_OFF)
+    if (alert == ash::AccessibilityAlert::SCREEN_OFF) {
       SetAutomationManagerEnabled(profile, false);
+    }
   }
 }
 
 void AccessibilityControllerClient::TriggerAccessibilityAlertWithMessage(
     const std::string& message) {
   Profile* profile = ProfileManager::GetActiveUserProfile();
-  if (!profile)
+  if (!profile) {
     return;
+  }
 
   AutomationManagerAura::GetInstance()->HandleAlert(message);
 }
@@ -130,14 +153,6 @@ void AccessibilityControllerClient::SilenceSpokenFeedback() {
   content::TtsController::GetInstance()->Stop();
 }
 
-void AccessibilityControllerClient::OnTwoFingerTouchStart() {
-  AccessibilityManager::Get()->OnTwoFingerTouchStart();
-}
-
-void AccessibilityControllerClient::OnTwoFingerTouchStop() {
-  AccessibilityManager::Get()->OnTwoFingerTouchStop();
-}
-
 bool AccessibilityControllerClient::ShouldToggleSpokenFeedbackViaTouch() const {
   return AccessibilityManager::Get()->ShouldToggleSpokenFeedbackViaTouch();
 }
@@ -152,7 +167,7 @@ void AccessibilityControllerClient::RequestSelectToSpeakStateChange() {
 }
 
 void AccessibilityControllerClient::RequestAutoclickScrollableBoundsForPoint(
-    gfx::Point& point_in_screen) {
+    const gfx::Point& point_in_screen) {
   AccessibilityManager::Get()->RequestAutoclickScrollableBoundsForPoint(
       point_in_screen);
 }
@@ -176,4 +191,16 @@ void AccessibilityControllerClient::SetA11yOverrideWindow(
     aura::Window* a11y_override_window) {
   AutomationManagerAura::GetInstance()->SetA11yOverrideWindow(
       a11y_override_window);
+}
+
+std::string AccessibilityControllerClient::GetDictationDefaultLocale(
+    bool new_user) {
+  return ash::Dictation::DetermineDefaultSupportedLocale(
+      ProfileManager::GetActiveUserProfile(), new_user);
+}
+
+void AccessibilityControllerClient::SendFaceGazeDisableDialogResultToSettings(
+    bool accepted) {
+  AccessibilityManager::Get()->SendFaceGazeDisableDialogResultToSettings(
+      accepted);
 }

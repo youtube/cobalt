@@ -6,9 +6,10 @@
 
 #include <Carbon/Carbon.h>  // for <HIToolbox/Events.h>
 
+#include "base/apple/call_with_eh_frame.h"
 #include "base/check.h"
 #include "base/command_line.h"
-#include "base/mac/call_with_eh_frame.h"
+#import "base/mac/mac_util.h"
 #include "base/observer_list.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
@@ -22,6 +23,9 @@
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/native_event_processor_mac.h"
 #include "content/public/browser/native_event_processor_observer_mac.h"
+#include "content/public/browser/scoped_accessibility_mode.h"
+#include "content/public/common/content_features.h"
+#include "ui/accessibility/ax_mode.h"
 #include "ui/base/cocoa/accessibility_focus_overrider.h"
 
 namespace chrome_browser_application_mac {
@@ -38,7 +42,7 @@ void RegisterBrowserCrApp() {
 void InitializeHeadlessMode() {
   // In headless mode the browser window exists but is always hidden, so there
   // is no point in showing dock icon and menu bar.
-  [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+  NSApp.activationPolicy = NSApplicationActivationPolicyAccessory;
 }
 
 void Terminate() {
@@ -117,22 +121,43 @@ std::string DescriptionForNSEvent(NSEvent* event) {
 
 }  // namespace
 
-@interface BrowserCrApplication ()<NativeEventProcessor> {
-  base::ObserverList<content::NativeEventProcessorObserver>::Unchecked
-      _observers;
+@interface BrowserCrApplication () <NativeEventProcessor> {
+  // A counter for enhanced user interface enable (+1) and disable (-1)
+  // requests.
+  int _AXEnhancedUserInterfaceRequests;
+  BOOL _voiceOverEnabled;
+  BOOL _sonomaAccessibilityRefinementsAreActive;
 }
+
+// Enables/disables screen reader support on changes to VoiceOver status.
+- (void)voiceOverStateChanged:(BOOL)voiceOverEnabled;
 @end
 
-@implementation BrowserCrApplication
+@implementation BrowserCrApplication {
+  base::ObserverList<content::NativeEventProcessorObserver>::Unchecked
+      _observers;
+  BOOL _handlingSendEvent;
+  std::unique_ptr<content::ScopedAccessibilityMode>
+      _scoped_accessibility_mode_voiceover;
+  std::unique_ptr<content::ScopedAccessibilityMode>
+      _scoped_accessibility_mode_general;
+}
 
 + (void)initialize {
-  // Turn all deallocated Objective-C objects into zombies, keeping
-  // the most recent 10,000 of them on the treadmill.
-  ObjcEvilDoers::ZombieEnable(true, 10000);
-
-  chrome::InstallObjcExceptionPreprocessor();
+  if (self != [BrowserCrApplication class]) {
+    return;
+  }
+  InstallObjcExceptionPreprocessor();
 
   cocoa_l10n_util::ApplyForcedRTL();
+}
+
+- (void)orderFrontCharacterPalette:sender {
+  [[NSNotificationCenter defaultCenter]
+      postNotificationName:@"ChromeWillOrderFrontCharacterPalette"
+                    object:nil];
+
+  [super orderFrontCharacterPalette:sender];
 }
 
 // Initialize NSApplication using the custom subclass.  Check whether NSApp
@@ -152,11 +177,81 @@ std::string DescriptionForNSEvent(NSEvent* event) {
   // If the message loop was initialized before NSApp is setup, the
   // message pump will be setup incorrectly.  Failing this implies
   // that RegisterBrowserCrApp() should be called earlier.
-  CHECK(base::MessagePumpMac::UsingCrApp())
-      << "MessagePumpMac::Create() is using the wrong pump implementation"
+  CHECK(base::message_pump_apple::UsingCrApp())
+      << "message_pump_apple::Create() is using the wrong pump implementation"
       << " for " << [[self className] UTF8String];
 
   return app;
+}
+
+- (void)finishLaunching {
+  [super finishLaunching];
+
+  // The accessibility feature, enabled from Finch, should already be
+  // restricted to macOS 14, but we'll make an additional check here in the
+  // code.
+  _sonomaAccessibilityRefinementsAreActive =
+      base::mac::MacOSVersion() >= 14'00'00 &&
+      base::FeatureList::IsEnabled(
+          features::kSonomaAccessibilityActivationRefinements);
+}
+
+- (void)observeValueForKeyPath:(NSString*)keyPath
+                      ofObject:(id)object
+                        change:(NSDictionary*)change
+                       context:(void*)context {
+  // KVO of the system's VoiceOver state gets set up during initialization of
+  // BrowserAccessibilityStateImplMac. The context is the browser's
+  // global accessibility object, which we must check to ensure we're acting
+  // on a notification we set up (vs. NSApplication, say).
+  if ([keyPath isEqualToString:@"voiceOverEnabled"] &&
+      context == content::BrowserAccessibilityState::GetInstance()) {
+    NSNumber* newValueNumber = [change objectForKey:NSKeyValueChangeNewKey];
+
+    // In the if statement below, we check newValueNumber's class before
+    // accessing it to guard against crashes should the return type suddenly
+    // change in the future. We DCHECK here to flag any such change.
+    DCHECK([newValueNumber isKindOfClass:[NSNumber class]]);
+
+    if ([newValueNumber isKindOfClass:[NSNumber class]]) {
+      [self voiceOverStateChanged:[newValueNumber boolValue]];
+    }
+
+    return;
+  }
+
+  [super observeValueForKeyPath:keyPath
+                       ofObject:object
+                         change:change
+                        context:context];
+}
+
+// AppKit menu customization overriding
+
+- (void)_customizeFileMenuIfNeeded {
+  // Whenever the main menu is set or modified, AppKit modifies it before using
+  // it. AppKit calls -[NSApplication _customizeMainMenu], which calls out to a
+  // number of customization methods, including -[NSApplication
+  // _customizeFileMenuIfNeeded].
+  //
+  // -_customizeFileMenuIfNeeded does three things:
+  //   1. it adds the "Close All" menu item as an alternate for "Close Window",
+  //   2. for new-style document apps, it turns "Save" and "Save As..." into
+  //      "Save..." and "Duplicate" respectively,
+  //   3. depending on the "Close windows when quitting an application" system
+  //      setting, it adds either "Quit and Keep Windows" or "Quit and Close All
+  //      Windows" as an alternate for "Quit Chromium".
+  //
+  // While #1 is a nice-to-have, and #2 is irrelevant because Chromium isn't a
+  // new-style document app, #3 is a problem. Chromium has its own session
+  // management, and the menu item alternates that AppKit adds are making
+  // promises that Chromium can't fulfill.
+  //
+  // Therefore, override this method to prevent AppKit from doing these menu
+  // shenanigans. For #1, "Close All" is explicitly added to the File menu in
+  // main_menu_builder.mm, and there is nothing lost by preventing the other
+  // two.
+  return;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -226,14 +321,12 @@ std::string DescriptionForNSEvent(NSEvent* event) {
 // NSApplication event loop, so final post- MessageLoop::Run() work is done
 // before exiting.
 - (void)terminate:(id)sender {
-  AppController* appController = static_cast<AppController*>([NSApp delegate]);
-  [appController tryToTerminateApplication:self];
+  [AppController.sharedController tryToTerminateApplication:self];
   // Return, don't exit. The application is responsible for exiting on its own.
 }
 
 - (void)cancelTerminate:(id)sender {
-  AppController* appController = static_cast<AppController*>([NSApp delegate]);
-  [appController stopTryingToTerminateApplication:self];
+  [AppController.sharedController stopTryingToTerminateApplication:self];
 }
 
 - (NSEvent*)nextEventMatchingMask:(NSEventMask)mask
@@ -241,11 +334,11 @@ std::string DescriptionForNSEvent(NSEvent* event) {
                            inMode:(NSString*)mode
                           dequeue:(BOOL)dequeue {
   __block NSEvent* event = nil;
-  base::mac::CallWithEHFrame(^{
-      event = [super nextEventMatchingMask:mask
-                                 untilDate:expiration
-                                    inMode:mode
-                                   dequeue:dequeue];
+  base::apple::CallWithEHFrame(^{
+    event = [super nextEventMatchingMask:mask
+                               untilDate:expiration
+                                  inMode:mode
+                                 dequeue:dequeue];
   });
   return event;
 }
@@ -299,7 +392,7 @@ std::string DescriptionForNSEvent(NSEvent* event) {
   crash_reporter::ScopedCrashKeyString scopedKey(&sendActionKey, value);
 
   __block BOOL rv;
-  base::mac::CallWithEHFrame(^{
+  base::apple::CallWithEHFrame(^{
     rv = [super sendAction:anAction to:aTarget from:sender];
   });
   return rv;
@@ -324,7 +417,7 @@ std::string DescriptionForNSEvent(NSEvent* event) {
   crash_reporter::ScopedCrashKeyString scopedKey(&nseventKey,
                                                  DescriptionForNSEvent(event));
 
-  base::mac::CallWithEHFrame(^{
+  base::apple::CallWithEHFrame(^{
     static const bool kKioskMode =
         base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kKioskMode);
     if (kKioskMode) {
@@ -340,28 +433,107 @@ std::string DescriptionForNSEvent(NSEvent* event) {
     }
     base::mac::ScopedSendingEvent sendingEventScoper;
     content::ScopedNotifyNativeEventProcessorObserver scopedObserverNotifier(
-        &_observers, event);
+        &self->_observers, event);
     // Mac Eisu and Kana keydown events are by default swallowed by sendEvent
     // and sent directly to IME, which prevents ui keydown events from firing.
     // These events need to be sent to [NSApp keyWindow] for handling.
-    if ([event type] == NSEventTypeKeyDown &&
-        ([event keyCode] == kVK_JIS_Eisu || [event keyCode] == kVK_JIS_Kana)) {
-      [[NSApp keyWindow] sendEvent:event];
+    if (event.type == NSEventTypeKeyDown &&
+        (event.keyCode == kVK_JIS_Eisu || event.keyCode == kVK_JIS_Kana)) {
+      [NSApp.keyWindow sendEvent:event];
     } else {
       [super sendEvent:event];
     }
   });
 }
 
+// Accessibility Support
+
+- (void)enableScreenReaderCompleteMode:(BOOL)enable {
+  if (enable) {
+    if (!_scoped_accessibility_mode_voiceover) {
+      _scoped_accessibility_mode_voiceover =
+          content::BrowserAccessibilityState::GetInstance()
+              ->CreateScopedModeForProcess(ui::kAXModeComplete |
+                                           ui::AXMode::kFromPlatform |
+                                           ui::AXMode::kScreenReader);
+    }
+  } else {
+    _scoped_accessibility_mode_voiceover.reset();
+  }
+}
+
+// We need to call enableScreenReaderCompleteMode:YES from performSelector:...
+// but there's no way to supply a BOOL as a parameter, so we have this
+// explicit enable... helper method.
+- (void)enableScreenReaderCompleteMode {
+  _AXEnhancedUserInterfaceRequests = 0;
+  [self enableScreenReaderCompleteMode:YES];
+}
+
+- (void)voiceOverStateChanged:(BOOL)voiceOverEnabled {
+  _voiceOverEnabled = voiceOverEnabled;
+
+  [self enableScreenReaderCompleteMode:voiceOverEnabled];
+}
+
+- (BOOL)voiceOverStateForTesting {
+  return _voiceOverEnabled;
+}
+
+// Enables or disables screen reader support for non-VoiceOver assistive
+// technology (AT), possibly after a delay.
+//
+// Now that we directly monitor VoiceOver status, we no longer watch for
+// changes to AXEnhancedUserInterface for that signal from VO. However, other
+// AT can set a value for AXEnhancedUserInterface, so we can't ignore it.
+// Unfortunately, as of macOS Sonoma, we sometimes see spurious changes to
+// AXEnhancedUserInterface (quick on and off). We debounce by waiting for these
+// changes to settle down before updating the screen reader state.
+- (void)enableScreenReaderCompleteModeAfterDelay:(BOOL)enable {
+  // If VoiceOver is already explicitly enabled, ignore requests from other AT.
+  if (_voiceOverEnabled) {
+    return;
+  }
+
+  // If this is a request to disable screen reader support, and we haven't seen
+  // a corresponding enable request, go ahead and disable.
+  if (!enable && _AXEnhancedUserInterfaceRequests == 0) {
+    [self enableScreenReaderCompleteMode:NO];
+    return;
+  }
+
+  // Use a counter to track requests for changes to the screen reader state.
+  if (enable) {
+    _AXEnhancedUserInterfaceRequests++;
+  } else {
+    _AXEnhancedUserInterfaceRequests--;
+  }
+
+  DCHECK(_AXEnhancedUserInterfaceRequests >= 0);
+
+  // _AXEnhancedUserInterfaceRequests > 0 means we want to enable screen
+  // reader support, but we'll delay that action until there are no more state
+  // change requests within a two-second window. Cancel any pending
+  // performSelector:..., and schedule a new one to restart the countdown.
+  [NSObject cancelPreviousPerformRequestsWithTarget:self
+                                           selector:@selector
+                                           (enableScreenReaderCompleteMode)
+                                             object:nil];
+
+  if (_AXEnhancedUserInterfaceRequests > 0) {
+    const float kTwoSecondDelay = 2.0;
+    [self performSelector:@selector(enableScreenReaderCompleteMode)
+               withObject:nil
+               afterDelay:kTwoSecondDelay];
+  }
+}
+
 - (void)accessibilitySetValue:(id)value forAttribute:(NSString*)attribute {
-  // This is an undocument attribute that's set when VoiceOver is turned on/off.
+  // This is an undocumented attribute that's set when VoiceOver is turned
+  // on/off. We track VoiceOver state changes using KVO, but monitor this
+  // attribute in case other ATs use it to request accessibility activation.
   if ([attribute isEqualToString:@"AXEnhancedUserInterface"]) {
-    content::BrowserAccessibilityState* accessibility_state =
-        content::BrowserAccessibilityState::GetInstance();
-    if ([value intValue] == 1)
-      accessibility_state->OnScreenReaderDetected();
-    else
-      accessibility_state->OnScreenReaderStopped();
+    [self enableScreenReaderCompleteModeAfterDelay:[value boolValue]];
   }
   return [super accessibilitySetValue:value forAttribute:attribute];
 }
@@ -373,16 +545,21 @@ std::string DescriptionForNSEvent(NSEvent* event) {
 }
 
 - (NSAccessibilityRole)accessibilityRole {
-  // For non-VoiceOver AT, such as Voice Control, Apple recommends turning on
-  // a11y when an AT accesses the 'accessibilityRole' property. This function
-  // is accessed frequently so we only change the accessibility state when
-  // accessibility is disabled.
-  content::BrowserAccessibilityState* accessibility_state =
-      content::BrowserAccessibilityState::GetInstance();
-  if (!accessibility_state->GetAccessibilityMode().has_mode(
-          ui::kAXModeBasic.flags())) {
-    accessibility_state->AddAccessibilityModeFlags(ui::kAXModeBasic);
+  // For non-VoiceOver assistive technology (AT), such as Voice Control, Apple
+  // recommends turning on a11y when an AT accesses the 'accessibilityRole'
+  // property. This function is accessed frequently, so we only change the
+  // accessibility state when accessibility is already disabled.
+  if (!_scoped_accessibility_mode_general &&
+      !_scoped_accessibility_mode_voiceover) {
+    ui::AXMode target_mode = _sonomaAccessibilityRefinementsAreActive
+                                 ? ui::AXMode::kNativeAPIs
+                                 : ui::kAXModeBasic;
+    _scoped_accessibility_mode_general =
+        content::BrowserAccessibilityState::GetInstance()
+            ->CreateScopedModeForProcess(target_mode |
+                                         ui::AXMode::kFromPlatform);
   }
+
   return [super accessibilityRole];
 }
 

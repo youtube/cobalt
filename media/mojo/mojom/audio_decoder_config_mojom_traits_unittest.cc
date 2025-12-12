@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "media/mojo/mojom/audio_decoder_config_mojom_traits.h"
 
 #include <utility>
@@ -88,23 +93,6 @@ TEST(AudioDecoderConfigStructTraitsTest, TargetOutputChannelLayout) {
   EXPECT_TRUE(output.Matches(input));
   EXPECT_EQ(output.target_output_channel_layout(), CHANNEL_LAYOUT_5_1);
   EXPECT_EQ(output.target_output_sample_format(), kSampleFormatDts);
-}
-
-TEST(AudioDecoderConfigStructTraitsTest, AacExtraData) {
-  const uint8_t kAacExtraData[] = "aac extra data";
-  const std::vector<uint8_t> kAacExtraDataVector(
-      kAacExtraData, kAacExtraData + std::size(kAacExtraData));
-
-  AudioDecoderConfig input;
-  input.Initialize(AudioCodec::kAAC, kSampleFormatU8, CHANNEL_LAYOUT_SURROUND,
-                   48000, EmptyExtraData(), EncryptionScheme::kUnencrypted,
-                   base::TimeDelta(), 0);
-  input.set_aac_extra_data(kAacExtraDataVector);
-  std::vector<uint8_t> data = mojom::AudioDecoderConfig::Serialize(&input);
-  AudioDecoderConfig output;
-  EXPECT_TRUE(mojom::AudioDecoderConfig::Deserialize(std::move(data), &output));
-  EXPECT_TRUE(output.Matches(input));
-  EXPECT_EQ(output.aac_extra_data(), kAacExtraDataVector);
 }
 
 }  // namespace media

@@ -2,6 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef UNSAFE_BUFFERS_BUILD
+// TODO(crbug.com/40285824): Remove this and convert code to safer constructs.
+#pragma allow_unsafe_buffers
+#endif
+
 #include "components/crash/core/app/crashpad.h"
 
 #import <Foundation/Foundation.h>
@@ -13,10 +18,6 @@
 #include "testing/platform_test.h"
 #include "third_party/crashpad/crashpad/client/crash_report_database.h"
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
-
 namespace {
 
 // A class to temporarily set a crash reporter client.
@@ -25,7 +26,7 @@ namespace {
 // them and restores null values on destruction.
 class ScopedTestCrashDatabaseDir {
  public:
-  ScopedTestCrashDatabaseDir() {}
+  ScopedTestCrashDatabaseDir() = default;
 
   void Init() {
     ASSERT_FALSE(crash_reporter::internal::GetCrashReportDatabase());

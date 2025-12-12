@@ -14,53 +14,21 @@
 // static
 void QuietNotificationPermissionUiState::RegisterProfilePrefs(
     user_prefs::PrefRegistrySyncable* registry) {
-  // TODO(crbug.com/1001857): Consider making this syncable.
+  // TODO(crbug.com/40097905): Consider making this syncable.
   registry->RegisterBooleanPref(prefs::kEnableQuietNotificationPermissionUi,
-                                false /* default_value */);
-  registry->RegisterBooleanPref(
-      prefs::kQuietNotificationPermissionShouldShowPromo,
-      false /* default_value */);
-  registry->RegisterBooleanPref(
-      prefs::kQuietNotificationPermissionPromoWasShown,
-      false /* default_value */);
+                                /*default_value=*/false);
+  registry->RegisterBooleanPref(prefs::kEnableQuietGeolocationPermissionUi,
+                                /*default_value=*/false);
   registry->RegisterBooleanPref(
       prefs::kHadThreeConsecutiveNotificationPermissionDenies,
-      false /* default_value */);
-  registry->RegisterIntegerPref(
-      prefs::kQuietNotificationPermissionUiEnablingMethod,
-      static_cast<int>(EnablingMethod::kUnspecified));
+      /*default_value=*/false);
   registry->RegisterTimePref(prefs::kQuietNotificationPermissionUiDisabledTime,
                              base::Time());
-}
-
-// static
-bool QuietNotificationPermissionUiState::ShouldShowPromo(Profile* profile) {
-  return profile->GetPrefs()->GetBoolean(
-             prefs::kEnableQuietNotificationPermissionUi) &&
-         profile->GetPrefs()->GetBoolean(
-             prefs::kQuietNotificationPermissionShouldShowPromo) &&
-         !profile->GetPrefs()->GetBoolean(
-             prefs::kQuietNotificationPermissionPromoWasShown);
-}
-
-// static
-void QuietNotificationPermissionUiState::PromoWasShown(Profile* profile) {
-  profile->GetPrefs()->SetBoolean(
-      prefs::kQuietNotificationPermissionPromoWasShown, true /* value */);
-}
-
-// static
-QuietNotificationPermissionUiState::EnablingMethod
-QuietNotificationPermissionUiState::GetQuietUiEnablingMethod(Profile* profile) {
-  // Since the `kEnableQuietNotificationPermissionUi` pref is not reset if the
-  // `kQuietNotificationPrompts` is disabled, we have to check both values to
-  // ensure that the quiet UI is enabled.
-  if (!base::FeatureList::IsEnabled(features::kQuietNotificationPrompts) ||
-      !profile->GetPrefs()->GetBoolean(
-          prefs::kEnableQuietNotificationPermissionUi)) {
-    return EnablingMethod::kUnspecified;
-  }
-
-  return static_cast<EnablingMethod>(profile->GetPrefs()->GetInteger(
-      prefs::kQuietNotificationPermissionUiEnablingMethod));
+  registry->RegisterBooleanPref(prefs::kEnableNotificationCPSS,
+                                /*default_value=*/true);
+  registry->RegisterBooleanPref(prefs::kEnableGeolocationCPSS,
+                                /*default_value=*/true);
+  registry->RegisterBooleanPref(
+      prefs::kDidMigrateAdaptiveNotifiationQuietingToCPSS,
+      /*default_value=*/false);
 }

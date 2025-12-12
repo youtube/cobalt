@@ -4,12 +4,17 @@
 
 #include "ui/gfx/android/android_surface_control_compat.h"
 
+#include <android/data_space.h>
+
+#include "base/android/build_info.h"
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
+#include "skia/ext/skcolorspace_trfn.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/gfx/color_space.h"
 
 namespace gfx {
 namespace {
@@ -158,6 +163,89 @@ TEST_F(SurfaceControlTransactionTest, CallbackSetupAfterGetTransaction) {
   // As this is Once callback naturally it's context should have been destroyed.
   EXPECT_TRUE(on_complete_destroyed);
   EXPECT_TRUE(on_commit_destroyed);
+}
+
+TEST(SurfaceControl, ColorSpaceToADataSpace) {
+  // Invalid color spaces are mapped to sRGB.
+  {
+    ADataSpace dataspace = ADATASPACE_UNKNOWN;
+    float extended_range_brightness_ratio = 0.f;
+    EXPECT_TRUE(SurfaceControl::ColorSpaceToADataSpace(
+        gfx::ColorSpace(), 1.f, dataspace, extended_range_brightness_ratio));
+    EXPECT_EQ(dataspace, ADATASPACE_SRGB);
+    EXPECT_EQ(extended_range_brightness_ratio, 1.f);
+  }
+
+  // sRGB.
+  {
+    ADataSpace dataspace = ADATASPACE_UNKNOWN;
+    float extended_range_brightness_ratio = 0.f;
+    EXPECT_TRUE(SurfaceControl::ColorSpaceToADataSpace(
+        gfx::ColorSpace::CreateSRGB(), 1.f, dataspace,
+        extended_range_brightness_ratio));
+    EXPECT_EQ(dataspace, ADATASPACE_SRGB);
+    EXPECT_EQ(extended_range_brightness_ratio, 1.f);
+  }
+
+  // Display P3.
+  {
+    ADataSpace dataspace = ADATASPACE_UNKNOWN;
+    float extended_range_brightness_ratio = 0.f;
+    EXPECT_TRUE(SurfaceControl::ColorSpaceToADataSpace(
+        gfx::ColorSpace::CreateDisplayP3D65(), 1.f, dataspace,
+        extended_range_brightness_ratio));
+    EXPECT_EQ(dataspace, ADATASPACE_DISPLAY_P3);
+    EXPECT_EQ(extended_range_brightness_ratio, 1.f);
+  }
+
+  // Before S, only sRGB and P3 are supported.
+  if (base::android::BuildInfo::GetInstance()->sdk_int() <
+      base::android::SDK_VERSION_S) {
+    return;
+  }
+
+  // Rec2020 with an sRGB transfer function.
+  {
+    gfx::ColorSpace rec2020(gfx::ColorSpace::PrimaryID::BT2020,
+                            gfx::ColorSpace::TransferID::SRGB);
+    ADataSpace dataspace = ADATASPACE_UNKNOWN;
+    float extended_range_brightness_ratio = 0.f;
+    EXPECT_TRUE(SurfaceControl::ColorSpaceToADataSpace(
+        rec2020, 1.f, dataspace, extended_range_brightness_ratio));
+    EXPECT_EQ(dataspace, ADATASPACE_STANDARD_BT2020 | ADATASPACE_TRANSFER_SRGB |
+                             ADATASPACE_RANGE_FULL);
+    EXPECT_EQ(extended_range_brightness_ratio, 1.f);
+  }
+
+  // sRGB, but it will come out as extended because there is a >1 desired
+  // brightness ratio.
+  {
+    ADataSpace dataspace = ADATASPACE_UNKNOWN;
+    float extended_range_brightness_ratio = 0.f;
+    EXPECT_TRUE(SurfaceControl::ColorSpaceToADataSpace(
+        gfx::ColorSpace::CreateSRGB(), 4.f, dataspace,
+        extended_range_brightness_ratio));
+    EXPECT_EQ(dataspace, ADATASPACE_STANDARD_BT709 | ADATASPACE_TRANSFER_SRGB |
+                             ADATASPACE_RANGE_EXTENDED);
+    EXPECT_EQ(extended_range_brightness_ratio, 1.f);
+  }
+
+  // P3, extended by 2x.
+  {
+    skcms_TransferFunction trfn_srgb_scaled =
+        skia::ScaleTransferFunction(SkNamedTransferFn::kSRGB, 2.f);
+    gfx::ColorSpace p3_scaled(
+        gfx::ColorSpace::PrimaryID::P3, gfx::ColorSpace::TransferID::CUSTOM_HDR,
+        gfx::ColorSpace::MatrixID::RGB, gfx::ColorSpace::RangeID::FULL, nullptr,
+        &trfn_srgb_scaled);
+    ADataSpace dataspace = ADATASPACE_UNKNOWN;
+    float extended_range_brightness_ratio = 0.f;
+    EXPECT_TRUE(SurfaceControl::ColorSpaceToADataSpace(
+        p3_scaled, 1.f, dataspace, extended_range_brightness_ratio));
+    EXPECT_EQ(dataspace, ADATASPACE_STANDARD_DCI_P3 | ADATASPACE_TRANSFER_SRGB |
+                             ADATASPACE_RANGE_EXTENDED);
+    EXPECT_NEAR(extended_range_brightness_ratio, 2.f, 0.0001f);
+  }
 }
 
 }  // namespace

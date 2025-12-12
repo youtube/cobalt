@@ -6,8 +6,12 @@
 
 #include <memory>
 
+#include "ash/app_list/vector_icons/vector_icons.h"
+#include "ash/constants/web_app_id_constants.h"
 #include "ash/public/cpp/app_list/app_list_config.h"
 #include "ash/public/cpp/app_list/app_list_metrics.h"
+#include "ash/webui/help_app_ui/help_app_manager.h"
+#include "ash/webui/help_app_ui/help_app_manager_factory.h"
 #include "ash/webui/help_app_ui/search/search_handler.h"
 #include "ash/webui/help_app_ui/url_constants.h"
 #include "base/metrics/histogram_functions.h"
@@ -15,13 +19,14 @@
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/ash/app_list/search/common/icon_constants.h"
-#include "chrome/browser/ash/app_list/vector_icons/vector_icons.h"
+#include "chrome/browser/ash/app_list/search/types.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
-#include "chrome/browser/web_applications/web_app_id_constants.h"
 #include "components/services/app_service/public/cpp/app_launch_util.h"
 #include "components/services/app_service/public/cpp/app_types.h"
-#include "ui/gfx/image/image_skia.h"
+#include "components/session_manager/core/session_manager.h"
+#include "components/session_manager/core/session_manager_observer.h"
+#include "ui/base/models/image_model.h"
 #include "ui/gfx/paint_vector_icon.h"
 #include "url/gurl.h"
 
@@ -58,7 +63,7 @@ HelpAppResult::HelpAppResult(
     const float& relevance,
     Profile* profile,
     const ash::help_app::mojom::SearchResultPtr& result,
-    const gfx::ImageSkia& icon,
+    const ui::ImageModel& icon,
     const std::u16string& query)
     : profile_(profile),
       url_path_(result->url_path_with_parameters),
@@ -93,30 +98,65 @@ void HelpAppResult::Open(int event_flags) {
       std::make_unique<apps::WindowInfo>(display::kDefaultDisplayId));
 }
 
-HelpAppProvider::HelpAppProvider(Profile* profile,
-                                 ash::help_app::SearchHandler* search_handler)
-    : profile_(profile), search_handler_(search_handler) {
-  DCHECK(profile_);
+HelpAppProvider::HelpAppProvider(Profile* profile)
+    : SearchProvider(SearchCategory::kHelp), profile_(profile) {
+  CHECK(profile_);
 
-  app_service_proxy_ = apps::AppServiceProxyFactory::GetForProfile(profile_);
-  Observe(&app_service_proxy_->AppRegistryCache());
+  auto* session_manager = session_manager::SessionManager::Get();
+  if (session_manager->IsUserSessionStartUpTaskCompleted()) {
+    // If user session start up task has completed, the initialization can
+    // start.
+    MaybeInitialize();
+  } else {
+    // Wait for the user session start up task completion to prioritize
+    // resources for them.
+    session_manager_observation_.Observe(session_manager);
+  }
+}
+
+HelpAppProvider::~HelpAppProvider() = default;
+
+void HelpAppProvider::MaybeInitialize(
+    ash::help_app::SearchHandler* fake_search_handler) {
+  // Ensures that the provider can be initialized once only.
+  if (has_initialized) {
+    return;
+  }
+  has_initialized = true;
+
+  // Initialization is happening, so we no longer need to wait for user session
+  // start up task completion.
+  session_manager_observation_.Reset();
+
+  app_registry_cache_observer_.Observe(
+      &apps::AppServiceProxyFactory::GetForProfile(profile_)
+           ->AppRegistryCache());
   LoadIcon();
 
   // TODO(b/261867385): We manually load the icon from the local codebase as
   // the icon load from proxy is flaky. When the flakiness if solved, we can
   // safely remove this.
-  icon_ = gfx::CreateVectorIcon(app_list::kHelpAppIcon, kAppIconDimension,
-                                SK_ColorTRANSPARENT);
+  icon_ = ui::ImageModel::FromVectorIcon(
+      app_list::kHelpAppIcon, SK_ColorTRANSPARENT, kAppIconDimension);
+
+  // Use fake search handler if provided in tests, or get it from
+  // `help_app_manager`.
+  if (fake_search_handler) {
+    search_handler_ = fake_search_handler;
+  } else {
+    auto* help_app_manager =
+        ash::help_app::HelpAppManagerFactory::GetForBrowserContext(profile_);
+    CHECK(help_app_manager);
+    search_handler_ = help_app_manager->search_handler();
+  }
 
   if (!search_handler_) {
     return;
   }
-  search_handler_->OnProfileDirAvailable(profile->GetPath());
+  search_handler_->OnProfileDirAvailable(profile_->GetPath());
   search_handler_->Observe(
       search_results_observer_receiver_.BindNewPipeAndPassRemote());
 }
-
-HelpAppProvider::~HelpAppProvider() = default;
 
 void HelpAppProvider::Start(const std::u16string& query) {
   if (query.size() < kMinQueryLength) {
@@ -127,17 +167,18 @@ void HelpAppProvider::Start(const std::u16string& query) {
     return;
   }
 
-  // Start a search for list results.
-  const base::TimeTicks start_time = base::TimeTicks::Now();
-  last_query_ = query;
-
   // Stop the search if:
   //  - the search backend isn't available (or the feature is disabled)
   //  - we don't have an icon to display with results.
   if (!search_handler_) {
     LogListSearchResultState(ListSearchResultState::kSearchHandlerUnavailable);
+    // If user has started to user launcher search before the user session
+    // startup tasks completed, we should honor this user action and
+    // initialize the provider. It makes the help app search available
+    // earlier.
+    MaybeInitialize();
     return;
-  } else if (icon_.isNull()) {
+  } else if (icon_.IsEmpty()) {
     LogListSearchResultState(ListSearchResultState::kNoHelpAppIcon);
     // This prevents a timeout in the test, but it does not change the user
     // experience because the results were already cleared at the start.
@@ -145,6 +186,10 @@ void HelpAppProvider::Start(const std::u16string& query) {
     SwapResults(&search_results);
     return;
   }
+
+  // Start a search for list results.
+  const base::TimeTicks start_time = base::TimeTicks::Now();
+  last_query_ = query;
 
   // Invalidate weak pointers to cancel existing searches.
   weak_factory_.InvalidateWeakPtrs();
@@ -187,7 +232,7 @@ ash::AppListSearchResultType HelpAppProvider::ResultType() const {
 }
 
 void HelpAppProvider::OnAppUpdate(const apps::AppUpdate& update) {
-  if (update.AppId() == web_app::kHelpAppId && update.ReadinessChanged() &&
+  if (update.AppId() == ash::kHelpAppId && update.ReadinessChanged() &&
       update.Readiness() == apps::Readiness::kReady) {
     LoadIcon();
   }
@@ -195,7 +240,7 @@ void HelpAppProvider::OnAppUpdate(const apps::AppUpdate& update) {
 
 void HelpAppProvider::OnAppRegistryCacheWillBeDestroyed(
     apps::AppRegistryCache* cache) {
-  Observe(nullptr);
+  app_registry_cache_observer_.Reset();
 }
 
 // If the availability of search results changed, start a new search.
@@ -206,16 +251,20 @@ void HelpAppProvider::OnSearchResultAvailabilityChanged() {
   Start(last_query_);
 }
 
+void HelpAppProvider::OnUserSessionStartUpTaskCompleted() {
+  MaybeInitialize();
+}
+
 void HelpAppProvider::OnLoadIcon(apps::IconValuePtr icon_value) {
   if (icon_value && icon_value->icon_type == apps::IconType::kStandard) {
-    icon_ = icon_value->uncompressed;
+    icon_ = ui::ImageModel::FromImageSkia(icon_value->uncompressed);
   }
 }
 
 void HelpAppProvider::LoadIcon() {
-  app_service_proxy_->LoadIcon(
-      app_service_proxy_->AppRegistryCache().GetAppType(web_app::kHelpAppId),
-      web_app::kHelpAppId, apps::IconType::kStandard,
+  auto* proxy = apps::AppServiceProxyFactory::GetForProfile(profile_);
+  proxy->LoadIcon(
+      ash::kHelpAppId, apps::IconType::kStandard,
       ash::SharedAppListConfig::instance().suggestion_chip_icon_dimension(),
       /*allow_placeholder_icon=*/false,
       base::BindOnce(&HelpAppProvider::OnLoadIcon, weak_factory_.GetWeakPtr()));

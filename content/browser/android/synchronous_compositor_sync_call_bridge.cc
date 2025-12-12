@@ -42,9 +42,9 @@ void SynchronousCompositorSyncCallBridge::RemoteClosedOnIOThread() {
 bool SynchronousCompositorSyncCallBridge::ReceiveFrameOnIOThread(
     int layer_tree_frame_sink_id,
     uint32_t metadata_version,
-    absl::optional<viz::LocalSurfaceId> local_surface_id,
-    absl::optional<viz::CompositorFrame> compositor_frame,
-    absl::optional<viz::HitTestRegionList> hit_test_region_list) {
+    std::optional<viz::LocalSurfaceId> local_surface_id,
+    std::optional<viz::CompositorFrame> compositor_frame,
+    std::optional<viz::HitTestRegionList> hit_test_region_list) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   base::AutoLock lock(lock_);
   if (remote_state_ != RemoteState::READY || frame_futures_.empty())
@@ -157,8 +157,9 @@ void SynchronousCompositorSyncCallBridge::BeginFrameCompleteOnUIThread() {
       render_params = last_render_params_.Clone();
     }
   }
-  if (render_params)
-    host_->UpdateState(std::move(render_params));
+  if (render_params) {
+    host_->BeginFrameComplete(std::move(render_params));
+  }
 }
 
 void SynchronousCompositorSyncCallBridge::ProcessFrameMetadataOnUIThread(

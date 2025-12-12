@@ -10,11 +10,29 @@
 class ChromeOsSmartCardDelegate : public content::SmartCardDelegate {
  public:
   ChromeOsSmartCardDelegate();
+  ~ChromeOsSmartCardDelegate() override;
 
   // `content::SmartCardDelegate` overrides:
   mojo::PendingRemote<device::mojom::SmartCardContextFactory>
   GetSmartCardContextFactory(content::BrowserContext& browser_context) override;
-  bool SupportsReaderAddedRemovedNotifications() const override;
+  bool IsPermissionBlocked(
+      content::RenderFrameHost& render_frame_host) override;
+  bool HasReaderPermission(content::RenderFrameHost& render_frame_host,
+                           const std::string& reader_name) override;
+  void RequestReaderPermission(
+      content::RenderFrameHost& render_frame_host,
+      const std::string& reader_name,
+      RequestReaderPermissionCallback callback) override;
+
+  void NotifyConnectionUsed(
+      content::RenderFrameHost& render_frame_host) override;
+  void NotifyLastConnectionLost(
+      content::RenderFrameHost& render_frame_host) override;
+
+  void AddObserver(content::RenderFrameHost& render_frame_host,
+                   PermissionObserver* observer) override;
+  void RemoveObserver(content::RenderFrameHost& render_frame_host,
+                      PermissionObserver* observer) override;
 };
 
 #endif  // CHROME_BROWSER_SMART_CARD_CHROMEOS_SMART_CARD_DELEGATE_H_

@@ -22,7 +22,6 @@
 #include "base/memory/raw_ptr.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/content_browser_client.h"
-#include "content/public/browser/resource_context.h"
 
 class SimpleFactoryKey;
 
@@ -60,7 +59,6 @@ class ShellBrowserContext : public BrowserContext {
       const base::FilePath& partition_path) override;
   bool IsOffTheRecord() override;
   DownloadManagerDelegate* GetDownloadManagerDelegate() override;
-  ResourceContext* GetResourceContext() override;
   BrowserPluginGuestManager* GetGuestManager() override;
   storage::SpecialStoragePolicy* GetSpecialStoragePolicy() override;
   PlatformNotificationService* GetPlatformNotificationService() override;
@@ -73,31 +71,13 @@ class ShellBrowserContext : public BrowserContext {
   BrowsingDataRemoverDelegate* GetBrowsingDataRemoverDelegate() override;
   ContentIndexProvider* GetContentIndexProvider() override;
   ClientHintsControllerDelegate* GetClientHintsControllerDelegate() override;
-  FederatedIdentityApiPermissionContextDelegate*
-  GetFederatedIdentityApiPermissionContext() override;
-  FederatedIdentityAutoReauthnPermissionContextDelegate*
-  GetFederatedIdentityAutoReauthnPermissionContext() override;
-  FederatedIdentityPermissionContextDelegate*
-  GetFederatedIdentityPermissionContext() override;
   ReduceAcceptLanguageControllerDelegate*
   GetReduceAcceptLanguageControllerDelegate() override;
   OriginTrialsControllerDelegate* GetOriginTrialsControllerDelegate() override;
 
  protected:
-  // Contains URLRequestContextGetter required for resource loading.
-  class ShellResourceContext : public ResourceContext {
-   public:
-    ShellResourceContext();
-
-    ShellResourceContext(const ShellResourceContext&) = delete;
-    ShellResourceContext& operator=(const ShellResourceContext&) = delete;
-
-    ~ShellResourceContext() override;
-  };
-
   bool ignore_certificate_errors() const { return ignore_certificate_errors_; }
 
-  std::unique_ptr<ShellResourceContext> resource_context_;
   std::unique_ptr<BackgroundSyncController> background_sync_controller_;
   std::unique_ptr<ContentIndexProvider> content_index_provider_;
   std::unique_ptr<ReduceAcceptLanguageControllerDelegate>

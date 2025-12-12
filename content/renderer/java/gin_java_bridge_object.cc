@@ -4,14 +4,17 @@
 
 #include "content/renderer/java/gin_java_bridge_object.h"
 
+#include "base/containers/contains.h"
 #include "base/functional/bind.h"
-#include "content/common/gin_java_bridge_messages.h"
+#include "content/public/common/content_features.h"
 #include "content/public/renderer/render_thread.h"
 #include "content/renderer/java/gin_java_function_invocation_helper.h"
 #include "gin/function_template.h"
-#include "third_party/blink/public/web/blink.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_local_frame.h"
+#include "v8/include/v8-context.h"
 #include "v8/include/v8-function.h"
+#include "v8/include/v8-local-handle.h"
 
 namespace content {
 
@@ -21,7 +24,7 @@ GinJavaBridgeObject* GinJavaBridgeObject::InjectNamed(
     const base::WeakPtr<GinJavaBridgeDispatcher>& dispatcher,
     const std::string& object_name,
     GinJavaBridgeDispatcher::ObjectID object_id) {
-  v8::Isolate* isolate = blink::MainThreadIsolate();
+  v8::Isolate* isolate = frame->GetAgentGroupScheduler()->Isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Local<v8::Context> context = frame->MainWorldScriptContext();
   if (context.IsEmpty())
@@ -47,10 +50,11 @@ GinJavaBridgeObject* GinJavaBridgeObject::InjectNamed(
 
 // static
 GinJavaBridgeObject* GinJavaBridgeObject::InjectAnonymous(
+    blink::WebLocalFrame* frame,
     const base::WeakPtr<GinJavaBridgeDispatcher>& dispatcher,
     GinJavaBridgeDispatcher::ObjectID object_id) {
-  return new GinJavaBridgeObject(blink::MainThreadIsolate(), dispatcher,
-                                 object_id);
+  return new GinJavaBridgeObject(frame->GetAgentGroupScheduler()->Isolate(),
+                                 dispatcher, object_id);
 }
 
 GinJavaBridgeObject::GinJavaBridgeObject(
@@ -60,19 +64,14 @@ GinJavaBridgeObject::GinJavaBridgeObject(
     : gin::NamedPropertyInterceptor(isolate, this),
       dispatcher_(dispatcher),
       object_id_(object_id),
-      frame_routing_id_(dispatcher_->routing_id()),
       template_cache_(isolate) {
+  dispatcher_->GetRemoteObjectHost()->GetObject(
+      object_id, remote_.BindNewPipeAndPassReceiver());
 }
 
 GinJavaBridgeObject::~GinJavaBridgeObject() {
   if (dispatcher_) {
     dispatcher_->OnGinJavaBridgeObjectDeleted(this);
-  } else {
-    // A wrapper can outlive a render frame, and thus the dispatcher.
-    // Note that we intercept GinJavaBridgeHostMsg messages in a browser filter
-    // thus it's OK to send the message with a routing id of a ceased frame.
-    RenderThread::Get()->Send(new GinJavaBridgeHostMsg_ObjectWrapperDeleted(
-        frame_routing_id_, object_id_));
   }
 }
 
@@ -85,13 +84,15 @@ gin::ObjectTemplateBuilder GinJavaBridgeObject::GetObjectTemplateBuilder(
 v8::Local<v8::Value> GinJavaBridgeObject::GetNamedProperty(
     v8::Isolate* isolate,
     const std::string& property) {
-  std::map<std::string, bool>::iterator method_pos =
-      known_methods_.find(property);
-  if (method_pos == known_methods_.end()) {
+  if (!base::Contains(known_methods_, property)) {
     if (!dispatcher_) {
       return v8::Local<v8::Value>();
     }
-    known_methods_[property] = dispatcher_->HasJavaMethod(object_id_, property);
+    if (remote_) {
+      bool result = false;
+      remote_->HasMethod(property, &result);
+      known_methods_[property] = result;
+    }
   }
   if (known_methods_[property]) {
     return GetFunctionTemplate(isolate, property)
@@ -104,10 +105,11 @@ v8::Local<v8::Value> GinJavaBridgeObject::GetNamedProperty(
 
 std::vector<std::string> GinJavaBridgeObject::EnumerateNamedProperties(
     v8::Isolate* isolate) {
-  std::set<std::string> method_names;
-  if (dispatcher_)
-    dispatcher_->GetJavaMethods(object_id_, &method_names);
-  return std::vector<std::string> (method_names.begin(), method_names.end());
+  std::vector<std::string> method_names;
+  if (remote_) {
+    remote_->GetMethods(&method_names);
+  }
+  return method_names;
 }
 
 v8::Local<v8::FunctionTemplate> GinJavaBridgeObject::GetFunctionTemplate(
@@ -123,6 +125,14 @@ v8::Local<v8::FunctionTemplate> GinJavaBridgeObject::GetFunctionTemplate(
           base::Owned(new GinJavaFunctionInvocationHelper(name, dispatcher_))));
   template_cache_.Set(name, function_template);
   return function_template;
+}
+
+mojom::GinJavaBridgeRemoteObject* GinJavaBridgeObject::GetRemote() {
+  if (!remote_) {
+    // non-mojo case.
+    return nullptr;
+  }
+  return remote_.get();
 }
 
 gin::WrapperInfo GinJavaBridgeObject::kWrapperInfo = {gin::kEmbedderNativeGin};

@@ -78,35 +78,21 @@ chrome.runtime.onMessageExternal.addListener(function(
       // logs have already been stopped or not started. Therefore, ignore
       // any errors along the way, but store them, so that if upload fails
       // they are all reported back.
-      // Stop incoming and outgoing RTP dumps separately, otherwise
-      // stopRtpDump will fail and not stop anything if either type has not
-      // been started.
       const errors = [];
-      chrome.webrtcLoggingPrivate.stopRtpDump(
-          requestInfo, origin, true /* incoming */, false /* outgoing */,
-          function() {
-            appendLastErrorMessage(errors);
-            chrome.webrtcLoggingPrivate.stopRtpDump(
-                requestInfo, origin, false /* incoming */, true /* outgoing */,
-                function() {
-                  appendLastErrorMessage(errors);
-                  chrome.webrtcLoggingPrivate.stop(
-                      requestInfo, origin, function() {
-                        appendLastErrorMessage(errors);
-                        chrome.webrtcLoggingPrivate.upload(
-                            requestInfo, origin, function(uploadValue) {
-                              let errorMessage = null;
-                              // If upload fails, report all previous errors.
-                              // Otherwise, throw them away.
-                              if (chrome.runtime.lastError !== undefined) {
-                                appendLastErrorMessage(errors);
-                                errorMessage = errors.join('; ');
-                              }
-                              doSendResponse(uploadValue, errorMessage);
-                            });
-                      });
-                });
-          });
+      chrome.webrtcLoggingPrivate.stop(requestInfo, origin, function() {
+        appendLastErrorMessage(errors);
+        chrome.webrtcLoggingPrivate.upload(
+            requestInfo, origin, function(uploadValue) {
+              let errorMessage = null;
+              // If upload fails, report all previous errors.
+              // Otherwise, throw them away.
+              if (chrome.runtime.lastError !== undefined) {
+                appendLastErrorMessage(errors);
+                errorMessage = errors.join('; ');
+              }
+              doSendResponse(uploadValue, errorMessage);
+            });
+      });
       return true;
     } else if (method === 'logging.store') {
       const logId = message['logId'];
@@ -115,18 +101,6 @@ chrome.runtime.onMessageExternal.addListener(function(
       return true;
     } else if (method === 'logging.discard') {
       chrome.webrtcLoggingPrivate.discard(requestInfo, origin, doSendResponse);
-      return true;
-    } else if (method === 'logging.startRtpDump') {
-      const incoming = message['incoming'] || false;
-      const outgoing = message['outgoing'] || false;
-      chrome.webrtcLoggingPrivate.startRtpDump(
-          requestInfo, origin, incoming, outgoing, doSendResponse);
-      return true;
-    } else if (method === 'logging.stopRtpDump') {
-      const incoming = message['incoming'] || false;
-      const outgoing = message['outgoing'] || false;
-      chrome.webrtcLoggingPrivate.stopRtpDump(
-          requestInfo, origin, incoming, outgoing, doSendResponse);
       return true;
     } else if (method === 'logging.startEventLogging') {
       const sessionId = message['sessionId'] || '';
@@ -148,67 +122,6 @@ chrome.runtime.onMessageExternal.addListener(function(
     doSendResponse(null, e.name + ': ' + e.message);
   }
 });
-
-// This is a one-time-use port for calling chooseDesktopMedia.  The page
-// sends one message, identifying the requested source types, and the
-// extension sends a single reply, with the user's selected streamId.  A port
-// is used so that if the page is closed before that message is sent, the
-// window picker dialog will be closed.
-function onChooseDesktopMediaPort(port) {
-  function sendResponse(streamId) {
-    port.postMessage({'value': {'streamId': streamId}});
-    port.disconnect();
-  }
-
-  port.onMessage.addListener(function(message) {
-    const method = message['method'];
-    if (method === 'chooseDesktopMedia') {
-      const sources = message['sources'];
-
-      // Options that getDisplayMedia() also has, which are applied *before*
-      // the user makes their choice, and which typically serve to shape
-      // the choice offered to the user.
-      const options = message['options'] ||
-          {systemAudio: 'include', selfBrowserSurface: 'include'};
-
-      // For historical reasons, default to the common behavior of users
-      // of the Hangouts Extension, but still allow users of this API
-      // to explicitly set their own value.
-      if (!('suppressLocalAudioPlaybackIntended' in options)) {
-        options['suppressLocalAudioPlaybackIntended'] = true;
-      }
-
-      let cancelId = null;
-      const tab = port.sender.tab;
-      if (tab) {
-        // Per crbug.com/425344, in order to allow an <iframe> on a different
-        // domain, to get desktop media, we need to set the tab.url to match
-        // the <iframe>, even though it doesn't really load the new url.
-        tab.url = port.sender.url;
-        cancelId = chrome.desktopCapture.chooseDesktopMedia(
-            sources, tab, options, sendResponse);
-      } else {
-        const requestInfo = {};
-        requestInfo['guestProcessId'] = port.sender.guestProcessId || 0;
-        requestInfo['guestRenderFrameId'] =
-            port.sender.guestRenderFrameRoutingId || 0;
-        // TODO(crbug.com/1329129): Plumb systemAudio, selfBrowserSurface and
-        // other options here.
-        cancelId = chrome.webrtcDesktopCapturePrivate.chooseDesktopMedia(
-            sources, requestInfo, sendResponse);
-      }
-      port.onDisconnect.addListener(function() {
-        // This method has no effect if called after the user has selected a
-        // desktop media source, so it does not need to be conditional.
-        if (tab) {
-          chrome.desktopCapture.cancelChooseDesktopMedia(cancelId);
-        } else {
-          chrome.webrtcDesktopCapturePrivate.cancelChooseDesktopMedia(cancelId);
-        }
-      });
-    }
-  });
-}
 
 // A port for continuously reporting relevant CPU usage information to the page.
 function onProcessCpu(port) {
@@ -264,9 +177,7 @@ function appendLastErrorMessage(errors) {
 }
 
 chrome.runtime.onConnectExternal.addListener(function(port) {
-  if (port.name === 'chooseDesktopMedia') {
-    onChooseDesktopMediaPort(port);
-  } else if (port.name === 'processCpu') {
+  if (port.name === 'processCpu') {
     onProcessCpu(port);
   } else {
     // Unknown port type.

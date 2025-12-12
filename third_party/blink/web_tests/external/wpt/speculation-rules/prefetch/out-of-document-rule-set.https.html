@@ -4,6 +4,7 @@
 <script src="/common/dispatcher/dispatcher.js"></script>
 <script src="/common/subset-tests-by-key.js"></script>
 <script src="/common/utils.js"></script>
+<script src="../resources/utils.js"></script>
 <script src="resources/utils.sub.js"></script>
 
 <meta name="variant" content="?include=BaseCase">
@@ -20,8 +21,11 @@
 <meta name="variant" content="?include=StatusCode199">
 <meta name="variant" content="?include=StatusCode404">
 <meta name="variant" content="?include=InvalidMimeType">
+<meta name="variant" content="?include=CSPExemption">
 
 <script>
+  setup(() => assertSpeculationRulesIsSupported());
+
   async function runSpeculationRulesFetchTest(t, options) {
     options = {
       // Whether a prefetch is expected to succeed.
@@ -50,9 +54,10 @@
       useValidUrlForSpeculationRulesSet: true,
       // Wheter to use the valid "application/speculationrules-json" MIME type for the rule set.
       useValidMimeTypeForSpeculationRulesSet: true,
+      // Whether to use a strict CSP for the main page.
+      strictCSP: false,
       ...options
     };
-    assert_implements(HTMLScriptElement.supports('speculationrules'), "Speculation Rules not supported.");
 
     let page = 2;
     let uuid = token();
@@ -76,6 +81,9 @@
     }
     else if (options.useInnerListInSpeculationRulesHeaderValue) {
       speculation_rules_header =  `header(Speculation-Rules, \\("${speculation_rule_set_url}" "xyz.com/rule-set.json"\\))`;
+    }
+    if (options.strictCSP) {
+      speculation_rules_header = speculation_rules_header + `|header(Content-Security-Policy, script-src 'strict-dynamic' 'nonce-abc' 'unsafe-eval')`;
     }
 
     let agent = await spawnWindow(t, {pipe: speculation_rules_header}, uuid);
@@ -148,5 +156,9 @@
   subsetTestByKey('InvalidMimeType', promise_test, async t => {
     return runSpeculationRulesFetchTest(t, {useValidMimeTypeForSpeculationRulesSet: false, shouldPrefetch: false});
   }, "It should reject the speculation rules set with invalid MIME type.");
+
+  subsetTestByKey('CSPExemption', promise_test, async t => {
+    return runSpeculationRulesFetchTest(t, {shouldPrefetch: true, strictCSP: true});
+  }, "It should accept the speculation rules when the main page has strict CSP.");
 
 </script>

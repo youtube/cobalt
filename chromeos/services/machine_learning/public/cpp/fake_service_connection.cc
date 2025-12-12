@@ -4,11 +4,11 @@
 
 #include "chromeos/services/machine_learning/public/cpp/fake_service_connection.h"
 
+#include <optional>
 #include <utility>
 
 #include "base/functional/bind.h"
 #include "base/notreached.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace chromeos {
 namespace machine_learning {
@@ -21,14 +21,10 @@ FakeServiceConnectionImpl::FakeServiceConnectionImpl()
       load_model_result_(mojom::LoadModelResult::OK),
       load_text_classifier_result_(mojom::LoadModelResult::OK),
       load_soda_result_(mojom::LoadModelResult::OK),
+      load_heatmap_palm_rejection_result_(
+          mojom::LoadHeatmapPalmRejectionResult::OK),
       create_graph_executor_result_(mojom::CreateGraphExecutorResult::OK),
       execute_result_(mojom::ExecuteResult::OK),
-      create_web_platform_model_loader_result_(
-          ml::model_loader::mojom::CreateModelLoaderResult::kOk),
-      load_web_platform_model_result_(
-          ml::model_loader::mojom::LoadModelResult::kOk),
-      web_platform_model_compute_result_(
-          ml::model_loader::mojom::ComputeResult::kOk),
       async_mode_(false) {}
 
 FakeServiceConnectionImpl::~FakeServiceConnectionImpl() {}
@@ -180,29 +176,14 @@ void FakeServiceConnectionImpl::LoadImageAnnotator(
       base::Unretained(this), std::move(receiver), std::move(callback)));
 }
 
-void FakeServiceConnectionImpl::Compute(
-    const base::flat_map<std::string, std::vector<uint8_t>>& input_tensors,
-    ml::model_loader::mojom::Model::ComputeCallback callback) {
-  ScheduleCall(base::BindOnce(&FakeServiceConnectionImpl::HandleComputeCall,
-                              base::Unretained(this), std::move(callback)));
-}
-
-void FakeServiceConnectionImpl::Load(
-    mojo_base::BigBuffer model_content,
-    ml::model_loader::mojom::ModelLoader::LoadCallback callback) {
-  ScheduleCall(base::BindOnce(&FakeServiceConnectionImpl::HandleLoadCall,
-                              base::Unretained(this), std::move(callback)));
-}
-
-void FakeServiceConnectionImpl::CreateWebPlatformModelLoader(
-    mojo::PendingReceiver<ml::model_loader::mojom::ModelLoader> receiver,
-    ml::model_loader::mojom::CreateModelLoaderOptionsPtr options,
-    mojom::MachineLearningService::CreateWebPlatformModelLoaderCallback
-        callback) {
-  ScheduleCall(base::BindOnce(
-      &FakeServiceConnectionImpl::HandleCreateWebPlatformModelLoaderCall,
-      base::Unretained(this), std::move(receiver), std::move(options),
-      std::move(callback)));
+void FakeServiceConnectionImpl::LoadHeatmapPalmRejection(
+    mojom::HeatmapPalmRejectionConfigPtr config,
+    mojo::PendingRemote<mojom::HeatmapPalmRejectionClient> client,
+    mojom::MachineLearningService::LoadHeatmapPalmRejectionCallback callback) {
+  ScheduleCall(
+      base::BindOnce(&FakeServiceConnectionImpl::HandleHeatmapPalmRejectionCall,
+                     base::Unretained(this), std::move(config),
+                     std::move(client), std::move(callback)));
 }
 
 void FakeServiceConnectionImpl::Execute(
@@ -241,31 +222,6 @@ void FakeServiceConnectionImpl::SetTextClassifierSuccess() {
 
 void FakeServiceConnectionImpl::SetLoadTextClassifierFailure() {
   load_text_classifier_result_ = mojom::LoadModelResult::LOAD_MODEL_ERROR;
-}
-
-void FakeServiceConnectionImpl::SetCreateWebPlatformModelLoaderResult(
-    ml::model_loader::mojom::CreateModelLoaderResult result) {
-  create_web_platform_model_loader_result_ = result;
-}
-
-void FakeServiceConnectionImpl::SetLoadWebPlatformModelResult(
-    ml::model_loader::mojom::LoadModelResult result) {
-  load_web_platform_model_result_ = result;
-}
-
-void FakeServiceConnectionImpl::SetWebPlatformModelComputeResult(
-    ml::model_loader::mojom::ComputeResult result) {
-  web_platform_model_compute_result_ = result;
-}
-
-void FakeServiceConnectionImpl::SetOutputWebPlatformModelCompute(
-    absl::optional<base::flat_map<std::string, std::vector<uint8_t>>> output) {
-  web_platform_model_compute_output_ = output;
-}
-
-void FakeServiceConnectionImpl::SetWebPlatformModelInfo(
-    ml::model_loader::mojom::ModelInfoPtr model_info) {
-  web_platform_model_info_ = std::move(model_info);
 }
 
 void FakeServiceConnectionImpl::SetOutputValue(
@@ -351,7 +307,7 @@ void FakeServiceConnectionImpl::HandleCreateGraphExecutorCall(
 void FakeServiceConnectionImpl::HandleExecuteCall(
     mojom::GraphExecutor::ExecuteCallback callback) {
   if (execute_result_ != mojom::ExecuteResult::OK) {
-    std::move(callback).Run(execute_result_, absl::nullopt);
+    std::move(callback).Run(execute_result_, std::nullopt);
     return;
   }
 
@@ -641,18 +597,6 @@ void FakeServiceConnectionImpl::HandleLoadDocumentScannerCall(
   std::move(callback).Run(load_model_result_);
 }
 
-void FakeServiceConnectionImpl::HandleCreateWebPlatformModelLoaderCall(
-    mojo::PendingReceiver<ml::model_loader::mojom::ModelLoader> receiver,
-    ml::model_loader::mojom::CreateModelLoaderOptionsPtr option,
-    mojom::MachineLearningService::CreateWebPlatformModelLoaderCallback
-        callback) {
-  if (create_web_platform_model_loader_result_ ==
-      ml::model_loader::mojom::CreateModelLoaderResult::kOk)
-    web_platform_model_loader_receivers_.Add(this, std::move(receiver));
-
-  std::move(callback).Run(create_web_platform_model_loader_result_);
-}
-
 void FakeServiceConnectionImpl::HandleDocumentScannerDetectNV12Call(
     base::ReadOnlySharedMemoryRegion nv12_image,
     mojom::DocumentScanner::DetectCornersFromNV12ImageCallback callback) {
@@ -672,33 +616,6 @@ void FakeServiceConnectionImpl::HandleDocumentScannerPostProcessingCall(
   std::move(callback).Run(do_post_processing_result_.Clone());
 }
 
-void FakeServiceConnectionImpl::HandleComputeCall(
-    ml::model_loader::mojom::Model::ComputeCallback callback) {
-  if (web_platform_model_compute_result_ ==
-      ml::model_loader::mojom::ComputeResult::kOk) {
-    std::move(callback).Run(ml::model_loader::mojom::ComputeResult::kOk,
-                            web_platform_model_compute_output_);
-  } else {
-    std::move(callback).Run(web_platform_model_compute_result_, absl::nullopt);
-  }
-}
-
-void FakeServiceConnectionImpl::HandleLoadCall(
-    ml::model_loader::mojom::ModelLoader::LoadCallback callback) {
-  if (load_web_platform_model_result_ ==
-      ml::model_loader::mojom::LoadModelResult::kOk) {
-    mojo::PendingRemote<ml::model_loader::mojom::Model> remote;
-    web_platform_model_receivers_.Add(this,
-                                      remote.InitWithNewPipeAndPassReceiver());
-    std::move(callback).Run(ml::model_loader::mojom::LoadModelResult::kOk,
-                            std::move(remote),
-                            web_platform_model_info_.Clone());
-  } else {
-    std::move(callback).Run(load_web_platform_model_result_, mojo::NullRemote(),
-                            nullptr);
-  }
-}
-
 void FakeServiceConnectionImpl::HandleLoadImageAnnotatorCall(
     mojo::PendingReceiver<mojom::ImageContentAnnotator> receiver,
     mojom::MachineLearningService::LoadImageAnnotatorCallback callback) {
@@ -707,6 +624,24 @@ void FakeServiceConnectionImpl::HandleLoadImageAnnotatorCall(
   }
 
   std::move(callback).Run(load_model_result_);
+}
+
+void FakeServiceConnectionImpl::HandleHeatmapPalmRejectionCall(
+    mojom::HeatmapPalmRejectionConfigPtr config,
+    mojo::PendingRemote<mojom::HeatmapPalmRejectionClient> client,
+    mojom::MachineLearningService::LoadHeatmapPalmRejectionCallback callback) {
+  if (load_heatmap_palm_rejection_result_ ==
+      mojom::LoadHeatmapPalmRejectionResult::OK) {
+    heatmap_palm_rejection_client_ = mojo::Remote(std::move(client));
+  }
+  std::move(callback).Run(load_heatmap_palm_rejection_result_);
+}
+
+void FakeServiceConnectionImpl::SendHeatmapPalmRejectionEvent(
+    mojom::HeatmapProcessedEventPtr event) {
+  if (heatmap_palm_rejection_client_.is_bound()) {
+    heatmap_palm_rejection_client_->OnHeatmapProcessedEvent(std::move(event));
+  }
 }
 
 void FakeServiceConnectionImpl::HandleAnnotateRawImageCall(

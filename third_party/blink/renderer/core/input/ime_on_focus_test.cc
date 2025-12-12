@@ -11,6 +11,7 @@
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/frame/web_local_frame_impl.h"
 #include "third_party/blink/renderer/core/html/html_element.h"
+#include "third_party/blink/renderer/platform/testing/task_environment.h"
 #include "third_party/blink/renderer/platform/testing/unit_test_helpers.h"
 #include "third_party/blink/renderer/platform/testing/url_loader_mock_factory.h"
 #include "third_party/blink/renderer/platform/testing/url_test_helpers.h"
@@ -38,6 +39,8 @@ class ImeOnFocusTest : public testing::Test {
                          gfx::Point tap_point = gfx::Point(-1, -1),
                          const AtomicString& focus_element = g_null_atom,
                          String frame = "");
+
+  test::TaskEnvironment task_environment_;
 
   String base_url_;
   frame_test_helpers::WebViewHelper web_view_helper_;
@@ -127,17 +130,17 @@ TEST_F(ImeOnFocusTest, OnUserGesture) {
 
 TEST_F(ImeOnFocusTest, AfterFirstGesture) {
   RunImeOnFocusTest("ime-on-focus-after-first-gesture.html", 1,
-                    gfx::Point(50, 50), "input");
+                    gfx::Point(50, 50), AtomicString("input"));
 }
 
 TEST_F(ImeOnFocusTest, AfterNavigationWithinPage) {
   RunImeOnFocusTest("ime-on-focus-after-navigation-within-page.html", 1,
-                    gfx::Point(50, 50), "input");
+                    gfx::Point(50, 50), AtomicString("input"));
 }
 
 TEST_F(ImeOnFocusTest, AfterFrameLoadOnGesture) {
   RunImeOnFocusTest("ime-on-focus-after-frame-load-on-gesture.html", 1,
-                    gfx::Point(50, 50), "input", "frame.html");
+                    gfx::Point(50, 50), AtomicString("input"), "frame.html");
 }
 
 }  // namespace blink

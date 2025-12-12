@@ -5,11 +5,11 @@
 #ifndef IOS_WEB_FIND_IN_PAGE_FIND_IN_PAGE_MANAGER_IMPL_H_
 #define IOS_WEB_FIND_IN_PAGE_FIND_IN_PAGE_MANAGER_IMPL_H_
 
+#import "base/memory/raw_ptr.h"
+#import "base/memory/weak_ptr.h"
 #import "base/timer/timer.h"
 #import "ios/web/public/find_in_page/find_in_page_manager.h"
 #import "ios/web/public/web_state_observer.h"
-
-#import "base/memory/weak_ptr.h"
 
 @protocol CRWFindInteraction;
 @protocol CRWFindSession;
@@ -19,8 +19,8 @@ namespace web {
 class FindInPageManagerImpl : public FindInPageManager,
                               public web::WebStateObserver {
  public:
-  explicit FindInPageManagerImpl(web::WebState* web_state,
-                                 bool use_find_interaction);
+  FindInPageManagerImpl(web::WebState* web_state,
+                        base::TimeDelta poll_active_find_session_delay);
   ~FindInPageManagerImpl() override;
 
   // AbstractFindInPageManager:
@@ -66,10 +66,6 @@ class FindInPageManagerImpl : public FindInPageManager,
   void WebStateDestroyed(WebState* web_state) override;
 
  protected:
-  // Whether the manager should use a Find interaction, or instead use its own
-  // `UIFindSession` instance stored in `find_session_`.
-  bool use_find_interaction_;
-
   // Last value given to `StartSearch`. This is used in `PollActiveFindSession`
   // so a query value can be provided to the delegate.
   NSString* current_query_ = nil;
@@ -92,8 +88,8 @@ class FindInPageManagerImpl : public FindInPageManager,
   // in `StartSearch` and set back to `nil` in `StopSearch`.
   id<CRWFindSession> find_session_ API_AVAILABLE(ios(16)) = nil;
 
-  FindInPageManagerDelegate* delegate_ = nullptr;
-  web::WebState* web_state_ = nullptr;
+  raw_ptr<FindInPageManagerDelegate> delegate_ = nullptr;
+  raw_ptr<web::WebState> web_state_ = nullptr;
   base::WeakPtrFactory<FindInPageManagerImpl> weak_factory_;
 };
 

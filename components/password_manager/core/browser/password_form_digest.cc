@@ -15,8 +15,8 @@ PasswordFormDigest::PasswordFormDigest(const PasswordForm& form)
 
 PasswordFormDigest::PasswordFormDigest(const autofill::FormData& form)
     : scheme(PasswordForm::Scheme::kHtml),
-      signon_realm(form.url.DeprecatedGetOriginAsURL().spec()),
-      url(form.url) {}
+      signon_realm(form.url().DeprecatedGetOriginAsURL().spec()),
+      url(form.url()) {}
 
 PasswordFormDigest::PasswordFormDigest(const PasswordFormDigest& other) =
     default;
@@ -28,14 +28,5 @@ PasswordFormDigest& PasswordFormDigest::operator=(
 
 PasswordFormDigest& PasswordFormDigest::operator=(PasswordFormDigest&& other) =
     default;
-
-bool PasswordFormDigest::operator==(const PasswordFormDigest& other) const {
-  return scheme == other.scheme && signon_realm == other.signon_realm &&
-         url == other.url;
-}
-
-bool PasswordFormDigest::operator!=(const PasswordFormDigest& other) const {
-  return !(*this == other);
-}
 
 }  // namespace password_manager

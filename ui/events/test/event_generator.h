@@ -6,14 +6,14 @@
 #define UI_EVENTS_TEST_EVENT_GENERATOR_H_
 
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "base/time/time.h"
-#include "build/chromeos_buildflags.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/events/event.h"
+#include "ui/events/event_constants.h"
 #include "ui/events/event_dispatcher.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/point.h"
@@ -110,6 +110,11 @@ class EventGeneratorDelegate {
 // EventGeneratorDelegate.
 class EventGenerator {
  public:
+  // Some test suites (e.g. chromeos_integration_tests) must use ui_controls.h
+  // and cannot use EventGenerator. Calling this function causes
+  // EventGenerator::Init() to CHECK-fail with a helpful message.
+  static void BanEventGenerator();
+
   // Create an EventGenerator with EventGeneratorDelegate,
   // which uses the coordinates conversions and targeting provided by
   // |delegate|.
@@ -159,6 +164,16 @@ class EventGenerator {
     WIDGET,
   };
 
+  // Determines the end state of a scroll sequence.
+  enum class ScrollSequenceType {
+    // Create an "incomplete" scroll sequence, meaning that it ends with the
+    // fingers resting on the trackpad.
+    ScrollOnly,
+    // Create a "complete" scroll sequence, meaning that it ends with the
+    // fingers being lifted off of the trackpad.
+    UpToFling,
+  };
+
   // Updates the |current_screen_location_| to point to the middle of the target
   // window and sets the appropriate dispatcher target.
   void SetTargetWindow(gfx::NativeWindow target_window);
@@ -170,6 +185,16 @@ class EventGenerator {
   // Resets the event flags bitmask.
   void set_flags(int flags) { flags_ = flags; }
   int flags() const { return flags_; }
+
+  // Resets the Mouse Event device ID.
+  void set_mouse_source_device_id(
+      int source_device_id = ui::ED_UNKNOWN_DEVICE) {
+    mouse_source_device_id_ = source_device_id;
+  }
+
+  // Generates a button press / release event.
+  void PressButton(int flag);
+  void ReleaseButton(int flag);
 
   // Generates a left button press event.
   void PressLeftButton();
@@ -208,7 +233,7 @@ class EventGenerator {
     MoveMouseToInHost(gfx::Point(x, y));
   }
 
-#if BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_CHROMEOS)
   // Generates a mouse move event at the point given in the host
   // coordinates, with a native event with |point_for_natve|.
   void MoveMouseToWithNative(const gfx::Point& point_in_host,
@@ -232,8 +257,9 @@ class EventGenerator {
     MoveMouseRelativeTo(window, gfx::Point(x, y));
   }
 
-  void MoveMouseBy(int x, int y) {
-    MoveMouseTo(current_screen_location_ + gfx::Vector2d(x, y));
+  void MoveMouseBy(int x, int y) { MoveMouseBy(x, y, /*count=*/1); }
+  void MoveMouseBy(int x, int y, int count) {
+    MoveMouseTo(current_screen_location_ + gfx::Vector2d(x, y), count);
   }
 
   // Generates events to drag mouse to given |point|.
@@ -272,33 +298,46 @@ class EventGenerator {
   // Set force of touch PointerDetails.
   void SetTouchForce(float force) { touch_pointer_details_.force = force; }
 
+  // Sets Event properties. The previous value is replaced if present.
+  void SetProperties(std::optional<Event::Properties> properties);
+
   // Generates a touch press event. If |touch_location_in_screen| is not null,
   // the touch press event will happen at |touch_location_in_screen|. Otherwise,
   // it will happen at the current event location |current_screen_location_|.
-  void PressTouch(const absl::optional<gfx::Point>& touch_location_in_screen =
-                      absl::nullopt);
+  void PressTouch(
+      const std::optional<gfx::Point>& touch_location_in_screen = std::nullopt);
 
   // Generates a touch press event with |touch_id|. See PressTouch() event for
   // the description of |touch_location_in_screen| parameter.
-  void PressTouchId(int touch_id,
-                    const absl::optional<gfx::Point>& touch_location_in_screen =
-                        absl::nullopt);
+  void PressTouchId(
+      int touch_id,
+      const std::optional<gfx::Point>& touch_location_in_screen = std::nullopt);
 
-  // Generates a ET_TOUCH_MOVED event to |point|.
-  void MoveTouch(const gfx::Point& point);
+  // Generates EventType::kTouchMoved events to |point|.
+  void MoveTouch(const gfx::Point& point, int count);
+  void MoveTouch(const gfx::Point& point) { MoveTouch(point, /*count=*/1); }
 
-  // Generates a ET_TOUCH_MOVED event moving by (x, y) from current location.
-  void MoveTouchBy(int x, int y) {
-    MoveTouch(current_screen_location_ + gfx::Vector2d(x, y));
+  // Generates EventType::kTouchMoved events moving by (x, y) from current
+  // location.
+  void MoveTouchBy(int x, int y, int count) {
+    MoveTouch(current_screen_location_ + gfx::Vector2d(x, y), count);
+  }
+  void MoveTouchBy(int x, int y) { MoveTouchBy(x, y, /*count=*/1); }
+
+  // Generates EventType::kTouchMoved events to |point| with |touch_id|.
+  void MoveTouchId(const gfx::Point& point, int touch_id, int count);
+  void MoveTouchId(const gfx::Point& point, int touch_id) {
+    MoveTouchId(point, touch_id, /*count=*/1);
   }
 
-  // Generates a ET_TOUCH_MOVED event to |point| with |touch_id|.
-  void MoveTouchId(const gfx::Point& point, int touch_id);
-
-  // Generates a ET_TOUCH_MOVED event moving (x, y) from current location with
-  // |touch_id|.
+  // Generates a EventType::kTouchMoved event moving (x, y) from current
+  // location with |touch_id|.
+  void MoveTouchIdBy(int touch_id, int x, int y, int count) {
+    MoveTouchId(current_screen_location_ + gfx::Vector2d(x, y), touch_id,
+                count);
+  }
   void MoveTouchIdBy(int touch_id, int x, int y) {
-    MoveTouchId(current_screen_location_ + gfx::Vector2d(x, y), touch_id);
+    MoveTouchIdBy(touch_id, x, y, /*count=*/1);
   }
 
   // Generates a touch release event.
@@ -360,8 +399,9 @@ class EventGenerator {
 
   // The same as GestureScrollSequence(), with the exception that |callback| is
   // called at each step of the scroll sequence. |callback| is called at the
-  // start of the sequence with ET_GESTURE_SCROLL_BEGIN, followed by one or more
-  // ET_GESTURE_SCROLL_UPDATE and ends with an ET_GESTURE_SCROLL_END.
+  // start of the sequence with EventType::kGestureScrollBegin, followed by one
+  // or more EventType::kGestureScrollUpdate and ends with an
+  // EventType::kGestureScrollEnd.
   void GestureScrollSequenceWithCallback(const gfx::Point& start,
                                          const gfx::Point& end,
                                          const base::TimeDelta& duration,
@@ -411,14 +451,19 @@ class EventGenerator {
                                 int move_x,
                                 int move_y);
 
-  // Generates scroll sequences of a FlingCancel, Scrolls, FlingStart, with
-  // constant deltas to |x_offset| and |y_offset| in |steps|.
-  void ScrollSequence(const gfx::Point& start,
-                      const base::TimeDelta& step_delay,
-                      float x_offset,
-                      float y_offset,
-                      int steps,
-                      int num_fingers);
+  // Generates scroll sequences starting with a FlingCancel, followed by Scrolls
+  // with constant deltas to `x_offset` and `y_offset` in `steps`. If
+  // `end_state` == `UpToFling`, the scroll sequences end with a FlingStart.
+  // Otherwise, return early to simulate the fingers still resting on the
+  // trackpad.
+  void ScrollSequence(
+      const gfx::Point& start,
+      const base::TimeDelta& step_delay,
+      float x_offset,
+      float y_offset,
+      int steps,
+      int num_fingers,
+      ScrollSequenceType end_state = ScrollSequenceType::UpToFling);
 
   // Generate a TrackPad "rest" event. That is, a user resting fingers on the
   // trackpad without moving. This may then be followed by a ScrollSequence(),
@@ -450,6 +495,32 @@ class EventGenerator {
                           int flags = EF_NONE,
                           int source_device_id = ED_UNKNOWN_DEVICE);
 
+  // Emulates pressing modidifer keys from given flags.
+  void PressModifierKeys(int flags, int source_device_id = ED_UNKNOWN_DEVICE);
+
+  // Emulates releasing modifier keys from given flags.
+  void ReleaseModifierKeys(int flags, int source_device_id = ED_UNKNOWN_DEVICE);
+
+  // Emulates press key with modifiers. If modifier key `flags` are specified,
+  // corresponding key press events are first sent, then key press event for
+  // the given `key` will be sent.
+  void PressKeyAndModifierKeys(KeyboardCode key,
+                               int flags,
+                               int source_device_id = ED_UNKNOWN_DEVICE);
+  // Emulates release key with modifiers. If modifier key `flags` are specified,
+  // corresponding key release events are sent after the key release event for
+  // the given `key`.
+  void ReleaseKeyAndModifierKeys(KeyboardCode key,
+                                 int flags,
+                                 int source_device_id = ED_UNKNOWN_DEVICE);
+
+  // Convenient alias to call PressKeyAndModifierKeys() followed by
+  // ReleaseKeyAndModifierKeys() to emulate user key event sequence.
+  void PressAndReleaseKeyAndModifierKeys(
+      KeyboardCode key,
+      int flags,
+      int source_device_id = ED_UNKNOWN_DEVICE);
+
   // Dispatch the event to the WindowEventDispatcher.
   void Dispatch(Event* event);
 
@@ -475,16 +546,15 @@ class EventGenerator {
 
   void SetCurrentScreenLocation(const gfx::Point& point);
   void UpdateCurrentDispatcher(const gfx::Point& point);
-  void PressButton(int flag);
-  void ReleaseButton(int flag);
 
   gfx::Point GetLocationInCurrentRoot() const;
   gfx::Point CenterOfWindow(const EventTarget* window) const;
 
   std::unique_ptr<EventGeneratorDelegate> delegate_;
   gfx::Point current_screen_location_;
-  raw_ptr<EventTarget, DanglingUntriaged> current_target_ = nullptr;
+  raw_ptr<EventTarget, AcrossTasksDanglingUntriaged> current_target_ = nullptr;
   int flags_ = 0;
+  int mouse_source_device_id_ = ui::ED_UNKNOWN_DEVICE;
   bool grab_ = false;
 
   ui::PointerDetails touch_pointer_details_;
@@ -492,11 +562,13 @@ class EventGenerator {
   Target target_ = Target::WIDGET;
 
   std::unique_ptr<TestTickClock> tick_clock_;
+
+  std::optional<Event::Properties> properties_;
 };
 
 // This generates key events for moidfiers as well as the key with
 // modifiers.
-// TODO(crbug.com/1415115): Remove this once the EventGenerator is
+// TODO(crbug.com/40256427): Remove this once the EventGenerator is
 // modified to generate the same sequence.
 void EmulateFullKeyPressReleaseSequence(test::EventGenerator* generator,
                                         KeyboardCode key,

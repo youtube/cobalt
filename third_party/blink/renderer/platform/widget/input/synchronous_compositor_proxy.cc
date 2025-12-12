@@ -6,8 +6,6 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/shared_memory_mapping.h"
-#include "components/power_scheduler/power_mode_arbiter.h"
-#include "components/power_scheduler/power_mode_voter.h"
 #include "components/viz/common/features.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkCanvas.h"
@@ -20,9 +18,6 @@ namespace blink {
 SynchronousCompositorProxy::SynchronousCompositorProxy(
     InputHandlerProxy* input_handler_proxy)
     : input_handler_proxy_(input_handler_proxy),
-      animation_power_mode_voter_(
-          power_scheduler::PowerModeArbiter::GetInstance()->NewVoter(
-              "PowerModeVoter.SynchronousCompositorProxy")),
       viz_frame_submission_enabled_(
           features::IsUsingVizFrameSubmissionForWebView()),
       page_scale_factor_(0.f),
@@ -138,8 +133,8 @@ void SynchronousCompositorProxy::DemandDrawHw(
   if (hardware_draw_reply_) {
     // Did not swap.
     std::move(hardware_draw_reply_)
-        .Run(PopulateNewCommonParams(), 0u, 0u, absl::nullopt, absl::nullopt,
-             absl::nullopt);
+        .Run(PopulateNewCommonParams(), 0u, 0u, std::nullopt, std::nullopt,
+             std::nullopt);
   }
 }
 
@@ -168,8 +163,8 @@ void SynchronousCompositorProxy::ZeroSharedMemory() {
   if (software_draw_shm_->zeroed)
     return;
 
-  memset(software_draw_shm_->shared_memory.memory(), 0,
-         software_draw_shm_->buffer_size);
+  base::span<uint8_t> mem(software_draw_shm_->shared_memory);
+  std::ranges::fill(mem.first(software_draw_shm_->buffer_size), 0u);
   software_draw_shm_->zeroed = true;
 }
 
@@ -192,7 +187,7 @@ void SynchronousCompositorProxy::DemandDrawSw(
   if (software_draw_reply_) {
     // Did not swap.
     std::move(software_draw_reply_)
-        .Run(PopulateNewCommonParams(), 0u, absl::nullopt);
+        .Run(PopulateNewCommonParams(), 0u, std::nullopt);
   }
 }
 
@@ -208,9 +203,10 @@ void SynchronousCompositorProxy::DoDemandDrawSw(
   size_t buffer_size = info.computeByteSize(stride);
   DCHECK_EQ(software_draw_shm_->buffer_size, buffer_size);
 
+  base::span<uint8_t> mem(software_draw_shm_->shared_memory);
+  CHECK_GE(mem.size(), buffer_size);
   SkBitmap bitmap;
-  if (!bitmap.installPixels(info, software_draw_shm_->shared_memory.memory(),
-                            stride)) {
+  if (!bitmap.installPixels(info, mem.data(), stride)) {
     return;
   }
   SkCanvas canvas(bitmap);
@@ -223,8 +219,8 @@ void SynchronousCompositorProxy::DoDemandDrawSw(
 void SynchronousCompositorProxy::SubmitCompositorFrame(
     uint32_t layer_tree_frame_sink_id,
     const viz::LocalSurfaceId& local_surface_id,
-    absl::optional<viz::CompositorFrame> frame,
-    absl::optional<viz::HitTestRegionList> hit_test_region_list) {
+    std::optional<viz::CompositorFrame> frame,
+    std::optional<viz::HitTestRegionList> hit_test_region_list) {
   // Verify that exactly one of these is true.
   DCHECK(hardware_draw_reply_.is_null() ^ software_draw_reply_.is_null());
   mojom::blink::SyncCompositorCommonRendererParamsPtr common_renderer_params =
@@ -260,6 +256,17 @@ void SynchronousCompositorProxy::SinkDestroyed() {
   layer_tree_frame_sink_ = nullptr;
 }
 
+void SynchronousCompositorProxy::SetThreads(
+    const Vector<viz::Thread>& threads) {
+  if (threads_ == threads) {
+    return;
+  }
+  threads_ = threads;
+  if (host_) {
+    host_->SetThreads(threads_);
+  }
+}
+
 void SynchronousCompositorProxy::SetBeginFrameSourcePaused(bool paused) {
   begin_frame_paused_ = paused;
   if (layer_tree_frame_sink_)
@@ -269,16 +276,6 @@ void SynchronousCompositorProxy::SetBeginFrameSourcePaused(bool paused) {
 void SynchronousCompositorProxy::BeginFrame(
     const viz::BeginFrameArgs& args,
     const HashMap<uint32_t, viz::FrameTimingDetails>& timing_details) {
-  if (!layer_tree_frame_sink_ || !needs_begin_frames_) {
-    // Received a BeginFrame without the needs_begin_frames_ signal present,
-    // so the PowerModeVoter in SynchronousLayerTreeFrameSink will not cover
-    // this IPC. Track it via a one-off vote here instead.
-    animation_power_mode_voter_->VoteFor(
-        power_scheduler::PowerMode::kAnimation);
-    animation_power_mode_voter_->ResetVoteAfterTimeout(
-        power_scheduler::PowerModeVoter::kAnimationTimeout);
-  }
-
   if (layer_tree_frame_sink_) {
     base::flat_map<uint32_t, viz::FrameTimingDetails> timings;
     for (const auto& pair : timing_details) {
@@ -361,9 +358,9 @@ void SynchronousCompositorProxy::SendDemandDrawHwAsyncReply(
     mojom::blink::SyncCompositorCommonRendererParamsPtr,
     uint32_t layer_tree_frame_sink_id,
     uint32_t metadata_version,
-    const absl::optional<viz::LocalSurfaceId>& local_surface_id,
-    absl::optional<viz::CompositorFrame> frame,
-    absl::optional<viz::HitTestRegionList> hit_test_region_list) {
+    const std::optional<viz::LocalSurfaceId>& local_surface_id,
+    std::optional<viz::CompositorFrame> frame,
+    std::optional<viz::HitTestRegionList> hit_test_region_list) {
   control_host_->ReturnFrame(layer_tree_frame_sink_id, metadata_version,
                              local_surface_id, std::move(frame),
                              std::move(hit_test_region_list));
@@ -409,6 +406,9 @@ void SynchronousCompositorProxy::BindChannel(
 
   if (needs_begin_frames_)
     host_->SetNeedsBeginFrames(true);
+  if (!threads_.empty()) {
+    host_->SetThreads(threads_);
+  }
 }
 
 void SynchronousCompositorProxy::HostDisconnected() {
