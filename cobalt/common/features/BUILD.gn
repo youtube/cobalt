@@ -32,6 +32,6 @@ static_library("features") {
   ]
 
   if (is_android) {
-    deps += [ "//cobalt/android:cobalt_features_jni" ]
+    deps += [ "//cobalt/android:jni_headers" ]
   }
 }

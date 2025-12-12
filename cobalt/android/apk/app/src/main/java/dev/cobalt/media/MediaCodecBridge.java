@@ -885,10 +885,10 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int queueInputBuffer(
-      int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
+      int index, int offset, int size, long presentationTimeUs, int flags, boolean is_decode_only) {
     try {
       if (isDecodeOnlyFlagEnabled()
-          && isDecodeOnly
+          && is_decode_only
           && (flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) == 0) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
@@ -913,7 +913,7 @@ class MediaCodecBridge {
       int blocksToEncrypt,
       int blocksToSkip,
       long presentationTimeUs,
-      boolean isDecodeOnly) {
+      boolean is_decode_only) {
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
@@ -927,7 +927,7 @@ class MediaCodecBridge {
       }
 
       int flags = 0;
-      if (isDecodeOnlyFlagEnabled() && isDecodeOnly) {
+      if (isDecodeOnlyFlagEnabled() && is_decode_only) {
         flags |= MediaCodec.BUFFER_FLAG_DECODE_ONLY;
       }
 

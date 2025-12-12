@@ -17,7 +17,6 @@
 
 #include "base/feature_list.h"
 
-// Features defined here will be used in Cobalt's Java code.
 namespace cobalt::features {
 
 // |BUFFER_FLAG_DECODE_ONLY| is only used in tunnel playbacks

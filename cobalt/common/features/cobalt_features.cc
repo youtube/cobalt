@@ -14,7 +14,6 @@
 
 #include "cobalt/common/features/cobalt_features.h"
 
-// Features defined here are features experiments relevant to cobalt java code.
 namespace cobalt::features {
 
 BASE_FEATURE(kNonTunneledDecodeOnly,
