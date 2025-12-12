@@ -13,7 +13,7 @@ jinja_template("cobalt_manifest") {
     "manifest_package=dev.cobalt.coat",
     "build_type=$build_type",
   ]
-  if (is_debug) {
+  if (is_official_build) {
     variables += [ "debuggable=true" ]
   } else {
     variables += [ "debuggable=false" ]
