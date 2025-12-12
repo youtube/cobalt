@@ -36,7 +36,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ inputs.artifact_name }}
+        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}/${{ matrix.platform }}_qa/${{ inputs.artifact_name }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}

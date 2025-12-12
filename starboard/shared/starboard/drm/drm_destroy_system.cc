@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/drm.h"
-
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmDestroySystem(SbDrmSystem drm_system) {

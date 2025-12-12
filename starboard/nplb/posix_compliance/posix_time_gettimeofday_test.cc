@@ -66,7 +66,7 @@ static_assert(
 #endif
 
 TEST(PosixTimeGettimeofdayTests, SunnyDay) {
-  struct timeval tv {};
+  struct timeval tv{};
   errno = 0;
   ASSERT_EQ(0, gettimeofday(&tv, nullptr))
       << "gettimeofday() failed. errno: " << errno << " " << strerror(errno);
@@ -80,8 +80,8 @@ TEST(PosixTimeGettimeofdayTests, SunnyDay) {
 }
 
 TEST(PosixTimeGettimeofdayTests, NonNullTzIsIgnoredOrCausesEinval) {
-  struct timeval tv {};
-  struct timezone tz {};
+  struct timeval tv{};
+  struct timezone tz{};
 
   errno = 0;
   int result = gettimeofday(&tv, &tz);
@@ -118,7 +118,7 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
   // but small enough to not make the test excessively long.
   const int kNumIterations = 100;
   for (int i = 0; i < kNumIterations; ++i) {
-    struct timespec monotonic_ts_start {};
+    struct timespec monotonic_ts_start{};
     ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &monotonic_ts_start))
         << "clock_gettime(CLOCK_MONOTONIC) for timerStart failed. errno: "
         << errno;
@@ -126,7 +126,7 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
         (static_cast<int64_t>(monotonic_ts_start.tv_sec) * 1'000'000LL) +
         (static_cast<int64_t>(monotonic_ts_start.tv_nsec) / 1'000LL);
 
-    struct timeval posix_tv_initial {};
+    struct timeval posix_tv_initial{};
     ASSERT_EQ(0, gettimeofday(&posix_tv_initial, nullptr))
         << "gettimeofday() for initialTime failed. errno: " << errno << " "
         << strerror(errno);
@@ -139,7 +139,7 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
     const int64_t kMaxResolutionMicroseconds = 100'000LL;  // 100ms
     // Loop until the time reported by gettimeofday changes.
     while (currentTime == initialTime) {
-      struct timeval posix_tv_current {};
+      struct timeval posix_tv_current{};
       ASSERT_EQ(0, gettimeofday(&posix_tv_current, nullptr))
           << "gettimeofday() in loop failed. errno: " << errno << " "
           << strerror(errno);
@@ -147,7 +147,7 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
           (static_cast<int64_t>(posix_tv_current.tv_sec) * 1000000LL) +
           posix_tv_current.tv_usec;
 
-      struct timespec monotonic_ts_current {};
+      struct timespec monotonic_ts_current{};
       ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &monotonic_ts_current))
           << "clock_gettime(CLOCK_MONOTONIC) in loop failed. errno: " << errno
           << " " << strerror(errno);

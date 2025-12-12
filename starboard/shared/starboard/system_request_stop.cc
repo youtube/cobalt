@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
 #include "starboard/shared/starboard/application.h"
+#include "starboard/system.h"
 
 void SbSystemRequestStop(int error_level) {
   starboard::Application::Get()->Stop(error_level);

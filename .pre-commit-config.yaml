@@ -38,13 +38,12 @@ repos:
     -   id: trailing-whitespace
 -   repo: local
     hooks:
-    -   id: chromium-pre-commit # To test: pre-commit run --hook-stage manual chromium-pre-commit
+    -   id: chromium-pre-commit
         name: Chromium presubmit bridge
         entry: ./third_party/depot_tools/vpython3 --vpython-spec=./third_party/depot_tools/.vpython3 ./cobalt/precommit/run_chromium_presubmits.py
         language: system
         types: [file]
         files: ^.*$ # Apply to all file paths
-        stages: [manual] # Require manual run for testing
     -   id: clang-format
         name: clang-format
         entry: clang-format
@@ -57,7 +56,7 @@ repos:
                 ^starboard/shared/uikit/accessibility_extension.cc$|
                 ^starboard/shared/uikit/player_configuration.cc$
             )
-        additional_dependencies: ['clang-format==17.0.1']
+        additional_dependencies: ['clang-format==21.1.0']
     -   id: cpplint
         name: cpplint
         entry: cpplint

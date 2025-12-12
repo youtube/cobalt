@@ -1,6 +1,16 @@
-// Copyright 2013 The Chromium Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/testing/browser_tests/media_browsertest.h"
 
@@ -51,19 +61,19 @@ void MediaBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
 
   std::vector<base::test::FeatureRef> enabled_features = {
 #if BUILDFLAG(IS_ANDROID)
-    features::kLogJsConsoleMessages,
+      features::kLogJsConsoleMessages,
 #endif
   };
 
   std::vector<base::test::FeatureRef> disabled_features = {
-    // Disable fallback after decode error to avoid unexpected test pass on
-    // the fallback path.
-    media::kFallbackAfterDecodeError,
+      // Disable fallback after decode error to avoid unexpected test pass on
+      // the fallback path.
+      media::kFallbackAfterDecodeError,
 
 #if BUILDFLAG(IS_LINUX)
-    // Disable out of process audio on Linux due to process spawn
-    // failures. http://crbug.com/986021
-    features::kAudioServiceOutOfProcess,
+      // Disable out of process audio on Linux due to process spawn
+      // failures. http://crbug.com/986021
+      features::kAudioServiceOutOfProcess,
 #endif
   };
 

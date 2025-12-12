@@ -19,6 +19,7 @@
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/version.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/pref_names.h"
 
@@ -80,17 +81,25 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
 
 }  // namespace
 
+ExperimentConfigManager::ExperimentConfigManager(
+    PrefService* experiment_config,
+    PrefService* metrics_local_state)
+    : experiment_config_(experiment_config),
+      metrics_local_state_(metrics_local_state) {
+  DCHECK(experiment_config_);
+  DCHECK(metrics_local_state_);
+}
+
 ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // First, determine the config type based on the crash streak.
-  DCHECK(experiment_config_);
+  DCHECK(metrics_local_state_);
   DCHECK(!called_store_safe_config_);
-  int num_crashes =
-      experiment_config_->GetInteger(variations::prefs::kVariationsCrashStreak);
+  int num_crashes = metrics_local_state_->GetInteger(
+      variations::prefs::kVariationsCrashStreak);
   static_assert(
       kCrashStreakEmptyConfigThreshold > kCrashStreakSafeConfigThreshold,
       "Threshold to use an empty experiment config should be larger "
       "than to use the safe one.");
-
   if (num_crashes >= kCrashStreakEmptyConfigThreshold) {
     return ExperimentConfigType::kEmptyConfig;
   }
@@ -116,6 +125,19 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // If the feature is enabled and the config is expired, override the result to
   // treat it as an empty config.
   if (HasConfigExpired(experiment_config_) && expiration_enabled) {
+    return ExperimentConfigType::kEmptyConfig;
+  }
+
+  // Check if a rollback happened. If so, apply the empty config.
+  std::string recorded_cobalt_version =
+      use_safe_config
+          ? experiment_config_->GetString(kSafeConfigMinVersion)
+          : experiment_config_->GetString(kExperimentConfigMinVersion);
+
+  // Min version prefs are added later than other prefs, so it might be missing
+  // for some users.
+  if (!recorded_cobalt_version.empty() &&
+      recorded_cobalt_version > COBALT_VERSION) {
     return ExperimentConfigType::kEmptyConfig;
   }
 
@@ -147,6 +169,9 @@ void ExperimentConfigManager::StoreSafeConfig() {
   experiment_config_->SetString(
       kSafeConfigActiveConfigData,
       experiment_config_->GetString(kExperimentConfigActiveConfigData));
+  experiment_config_->SetString(
+      kSafeConfigMinVersion,
+      experiment_config_->GetString(kExperimentConfigMinVersion));
   experiment_config_->CommitPendingWrite();
   called_store_safe_config_ = true;
 }

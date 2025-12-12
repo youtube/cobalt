@@ -17,7 +17,6 @@ package org.chromium.content_browsertests_apk;
 import android.os.Bundle;
 
 import org.chromium.base.test.util.UrlUtils;
-import org.chromium.content_shell.browsertests.ContentShellBrowserTestActivity;
 
 import java.io.File;
 

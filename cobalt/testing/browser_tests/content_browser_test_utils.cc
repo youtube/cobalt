@@ -24,8 +24,9 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
-#include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
+#include "cobalt/testing/browser_tests/browser/test_shell.h"
+#include "cobalt/testing/browser_tests/content_browser_test_utils_internal.h"
 #include "content/browser/browser_main_loop.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/renderer_host/media/media_stream_manager.h"
@@ -35,7 +36,6 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
-#include "content/public/browser/notification_source.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_paths.h"
@@ -67,7 +67,7 @@ GURL GetTestUrl(const char* dir, const char* file) {
 }
 
 void NavigateToURLBlockUntilNavigationsComplete(
-    Shell* window,
+    TestShell* window,
     const GURL& url,
     int number_of_navigations,
     bool ignore_uncommitted_navigations) {
@@ -76,7 +76,7 @@ void NavigateToURLBlockUntilNavigationsComplete(
                                              ignore_uncommitted_navigations);
 }
 
-void ReloadBlockUntilNavigationsComplete(Shell* window,
+void ReloadBlockUntilNavigationsComplete(TestShell* window,
                                          int number_of_navigations) {
   WaitForLoadStop(window->web_contents());
   TestNavigationObserver same_tab_observer(window->web_contents(),
@@ -87,7 +87,7 @@ void ReloadBlockUntilNavigationsComplete(Shell* window,
 }
 
 void ReloadBypassingCacheBlockUntilNavigationsComplete(
-    Shell* window,
+    TestShell* window,
     int number_of_navigations) {
   WaitForLoadStop(window->web_contents());
   TestNavigationObserver same_tab_observer(window->web_contents(),
@@ -97,17 +97,17 @@ void ReloadBypassingCacheBlockUntilNavigationsComplete(
   same_tab_observer.Wait();
 }
 
-bool NavigateToURL(Shell* window, const GURL& url) {
+bool NavigateToURL(TestShell* window, const GURL& url) {
   return NavigateToURL(window, url, url);
 }
 
-bool NavigateToURL(Shell* window,
+bool NavigateToURL(TestShell* window,
                    const GURL& url,
                    const GURL& expected_commit_url) {
   return NavigateToURL(window->web_contents(), url, expected_commit_url);
 }
 
-bool NavigateToURLAndExpectNoCommit(Shell* window, const GURL& url) {
+bool NavigateToURLAndExpectNoCommit(TestShell* window, const GURL& url) {
   NavigationEntry* old_entry =
       window->web_contents()->GetController().GetLastCommittedEntry();
   NavigateToURLBlockUntilNavigationsComplete(
@@ -119,7 +119,7 @@ bool NavigateToURLAndExpectNoCommit(Shell* window, const GURL& url) {
   return old_entry == new_entry;
 }
 
-AppModalDialogWaiter::AppModalDialogWaiter(Shell* shell) : shell_(shell) {
+AppModalDialogWaiter::AppModalDialogWaiter(TestShell* shell) : shell_(shell) {
   Restart();
 }
 
@@ -149,7 +149,7 @@ void AppModalDialogWaiter::EarlyCallback() {
   was_dialog_request_callback_called_ = true;
 }
 
-RenderFrameHost* ConvertToRenderFrameHost(Shell* shell) {
+RenderFrameHost* ConvertToRenderFrameHost(TestShell* shell) {
   return shell->web_contents()->GetPrimaryMainFrame();
 }
 
@@ -190,13 +190,13 @@ void LookupAndLogNameAndIdOfFirstCamera() {
 }
 
 ShellAddedObserver::ShellAddedObserver() {
-  Shell::SetShellCreatedCallback(base::BindOnce(
+  TestShell::SetShellCreatedCallback(base::BindOnce(
       &ShellAddedObserver::ShellCreated, base::Unretained(this)));
 }
 
 ShellAddedObserver::~ShellAddedObserver() = default;
 
-Shell* ShellAddedObserver::GetShell() {
+TestShell* ShellAddedObserver::GetShell() {
   if (shell_) {
     return shell_;
   }
@@ -206,7 +206,7 @@ Shell* ShellAddedObserver::GetShell() {
   return shell_;
 }
 
-void ShellAddedObserver::ShellCreated(Shell* shell) {
+void ShellAddedObserver::ShellCreated(TestShell* shell) {
   DCHECK(!shell_);
   shell_ = shell;
   if (runner_) {
@@ -279,5 +279,11 @@ void SetMockCursorPositionForTesting(WebContents* web_contents,
 }
 
 #endif  // BUILDFLAG(IS_WIN)
+
+// TODO(crbug.com/40278950): Use
+// `WebFrameWidgetImpl::NotifySwapAndPresentationTime` instead.
+void WaitForCopyableView(WebContents* web_contents) {
+  WaitForCopyableViewInWebContents(web_contents);
+}
 
 }  // namespace content

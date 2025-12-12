@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string.h>
+
 #include "starboard/cpu_features.h"
 #include "starboard/shared/starboard/cpu_features.h"
-
-#include <string.h>
 
 bool SbCPUFeaturesGet(SbCPUFeatures* features) {
   memset(features, 0, sizeof(*features));

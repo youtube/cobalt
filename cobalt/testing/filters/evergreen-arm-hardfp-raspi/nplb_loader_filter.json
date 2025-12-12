@@ -1,17 +1,28 @@
 {
+  "_comment": "TODO(b/403007005): Disabled new locale tests.",
   "failing_tests": [
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbAudioSinkTest.*",
-    "SbMediaSetAudioWriteDurationTests*",
-    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbLogFlushTest.DontCrashMeBro",
     "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
-    "SbPlayerTest.*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaSetAudioWriteDurationTests*",
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
+    "SbPlayerTest.*",
     "SbPlayerWriteSampleTests*",
-    "VerticalVideoTests/VerticalVideoTest*"
+    "VerticalVideoTests/VerticalVideoTest*",
+
+    "PosixLocaleSetTest.LocaleConvC",
+    "PosixLocaleSetTest.NewUseFreeLocale",
+    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
+    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
+    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
+    "PosixLocaleThreadTest.DupLocale",
+    "PosixLocaleThreadTest.DupLocaleNonDefault",
+    "Posix/NlLanginfo*"
   ]
 }

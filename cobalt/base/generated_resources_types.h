@@ -15,9 +15,8 @@
 #ifndef COBALT_BASE_GENERATED_RESOURCES_TYPES_H_
 #define COBALT_BASE_GENERATED_RESOURCES_TYPES_H_
 
-#include <string>
-
 #include <map>
+#include <string>
 
 struct FileContents {
   FileContents() {}

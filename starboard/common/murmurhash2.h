@@ -16,7 +16,6 @@
 #define STARBOARD_COMMON_MURMURHASH2_H_
 
 #include <cstdint>
-#include <memory>
 
 namespace starboard {
 

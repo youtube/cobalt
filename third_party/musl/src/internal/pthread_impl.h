@@ -13,6 +13,78 @@
 
 #include "pthread_arch.h"
 
+#if defined(STARBOARD)
+// Implement a macro to allow '__pthread_self()->tid' to
+// be used unchanged from musl internal code.
+
+// Include the necessary Starboard header for SbThreadGetId().
+#include "starboard/thread.h"
+
+// Define a minimal stub structure that only has the 'tid' member.
+// The original code expects __pthread_self() to return a pointer
+// to a struct that has a 'tid' field.
+typedef struct {
+  SbThreadId tid;
+} StarboardPthreadStub;
+
+// Define the __pthread_self() macro.
+// This uses a C99 "compound literal" to create a temporary, anonymous
+// StarboardPthreadStub object on the stack and returns a pointer to it.
+// We initialize its 'tid' member by calling SbThreadGetId().
+#define __pthread_self() \
+  (&(StarboardPthreadStub){ .tid = SbThreadGetId() })
+
+typedef struct {
+	volatile int lock;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+} StarboardPthreadCondMutex;
+
+static inline void __cond_mutex_pair_init(StarboardPthreadCondMutex* pair) {
+	pthread_mutexattr_t attr;
+	pthread_mutexattr_init(&attr);
+	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+	pthread_mutex_init(&pair->mutex, &attr);
+	pthread_mutexattr_destroy(&attr);
+	pthread_cond_init(&pair->cond, NULL);
+}
+
+static inline void __cond_mutex_pair_destroy(StarboardPthreadCondMutex* pair) {
+	pthread_cond_destroy(&pair->cond);
+	pthread_mutex_destroy(&pair->mutex);
+}
+
+static inline void __wake(volatile void *addr, int cnt, int priv)
+{
+	StarboardPthreadCondMutex* lock = (StarboardPthreadCondMutex*)(addr);
+	// Signal threads that are waiting on the condition variable. It is safe
+	// to call pthread_cond_broadcast without holding the associated mutex.
+	// Waiting threads will be woken up, and they will then attempt to
+	// re-acquire the mutex within their call to pthread_cond_wait.
+	pthread_cond_broadcast(&lock->cond);
+}
+
+static inline void __futexwait(volatile void *addr, int val, int priv)
+{
+	StarboardPthreadCondMutex* lock = (StarboardPthreadCondMutex*)(addr);
+	// Lock the mutex to safely check the condition.
+	pthread_mutex_lock(&lock->mutex);
+
+	// Check if the condition for waiting is still true. If the
+	// value at the address has changed, we should not wait.
+	if (*(volatile int*)addr == val) {
+		// Atomically unlock the mutex and wait for a signal. When
+		// woken, the thread will re-acquire the mutex before
+		// proceeding.
+		pthread_cond_wait(&lock->cond, &lock->mutex);
+	}
+
+	// The wait is over (or was not needed). Unlock the mutex.
+	pthread_mutex_unlock(&lock->mutex);
+}
+
+#else  // defined(STARBOARD)
+
 #define pthread __pthread
 
 struct pthread {
@@ -202,4 +274,5 @@ extern hidden unsigned __default_guardsize;
 
 #define __ATTRP_C11_THREAD ((void*)(uintptr_t)-1)
 
-#endif
+#endif  // defined(STARBOARD)
+#endif  // _PTHREAD_IMPL_H

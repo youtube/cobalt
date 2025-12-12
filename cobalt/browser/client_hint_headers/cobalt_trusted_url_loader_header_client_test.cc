@@ -21,6 +21,7 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -50,14 +51,15 @@ class CobaltTrustedURLLoaderHeaderClientTest : public ::testing::Test {
 TEST_F(CobaltTrustedURLLoaderHeaderClientTest,
        OnLoaderCreatedCreatesAndBindsClient) {
   mojo::Remote<network::mojom::TrustedURLLoaderHeaderClient> remote;
-  CobaltTrustedURLLoaderHeaderClient url_loader_client(
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<CobaltTrustedURLLoaderHeaderClient>(),
       remote.BindNewPipeAndPassReceiver());
 
   mojo::Remote<network::mojom::TrustedHeaderClient>
       trusted_header_client_remote;
   int32_t request_id = 123;
 
-  url_loader_client.OnLoaderCreated(
+  remote->OnLoaderCreated(
       request_id, trusted_header_client_remote.BindNewPipeAndPassReceiver());
 
   task_environment_.RunUntilIdle();
@@ -72,14 +74,15 @@ TEST_F(CobaltTrustedURLLoaderHeaderClientTest,
 TEST_F(CobaltTrustedURLLoaderHeaderClientTest,
        OnLoaderForCorsPreflightCreatedCreatesAndBindsClient) {
   mojo::Remote<network::mojom::TrustedURLLoaderHeaderClient> remote;
-  CobaltTrustedURLLoaderHeaderClient url_loader_client(
+  mojo::MakeSelfOwnedReceiver(
+      std::make_unique<CobaltTrustedURLLoaderHeaderClient>(),
       remote.BindNewPipeAndPassReceiver());
 
   mojo::Remote<network::mojom::TrustedHeaderClient>
       trusted_header_client_remote;
   network::ResourceRequest request;
 
-  url_loader_client.OnLoaderForCorsPreflightCreated(
+  remote->OnLoaderForCorsPreflightCreated(
       request, trusted_header_client_remote.BindNewPipeAndPassReceiver());
 
   task_environment_.RunUntilIdle();

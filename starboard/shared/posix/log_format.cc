@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
-
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
 
+#include "starboard/common/log.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
 void SbLogFormat(const char* format, va_list arguments) {
