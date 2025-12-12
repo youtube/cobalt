@@ -161,6 +161,7 @@ class AudioCallback : public media::AudioInputStream::AudioInputCallback {
               base::TimeTicks capture_time,
               double volume,
               const media::AudioGlitchInfo& glitch_info) override {
+    LOG(INFO) << "YO THOR! FIRST ONDATA CALLED IN INPUT CONTROLLER";
     TRACE_EVENT1("audio", "InputController::OnData", "capture time (ms)",
                  (capture_time - base::TimeTicks()).InMillisecondsF());
 
@@ -371,6 +372,7 @@ void InputController::Record() {
     output_tapper_->Start();
 #endif
 
+  LOG(INFO) << "YO THOR - - INPUT CONTROL - RECORD - START STREAM! (with callbacl)";
   stream_->Start(audio_callback_.get());
   return;
 }
@@ -739,6 +741,7 @@ void InputController::OnData(const media::AudioBus* source,
                              double volume,
                              const media::AudioGlitchInfo& glitch_info) {
   const bool key_pressed = CheckForKeyboardInput();
+  LOG(INFO) << "YO THOR InputController::OnData - 2nd ON DATA?";
 #if BUILDFLAG(CHROME_WIDE_ECHO_CANCELLATION)
   if (processing_fifo_) {
     DCHECK(audio_processor_handler_);
@@ -750,6 +753,7 @@ void InputController::OnData(const media::AudioBus* source,
   } else
 #endif
   {
+    LOG(INFO) << "YO THOR InputController::OnData - CALL SYNC WRITER _ WRITE!";
     sync_writer_->Write(source, volume, key_pressed, capture_time, glitch_info);
   }
 

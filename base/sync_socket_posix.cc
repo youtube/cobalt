@@ -174,7 +174,8 @@ size_t SyncSocket::ReceiveWithTimeout(void* buffer,
 #if BUILDFLAG(IS_STARBOARD)
 size_t SyncSocket::Peek() {
   DCHECK(IsValid());
-  ssize_t number_chars = recv(handle_.get(), nullptr, 0, MSG_PEEK | MSG_TRUNC);
+  ssize_t number_chars =
+      recv(handle_.get(), nullptr, 0, MSG_PEEK | MSG_TRUNC | MSG_DONTWAIT);
   if (number_chars == -1) {
     // An error occurred (e.g., connection closed).
     return 0;
@@ -203,6 +204,12 @@ SyncSocket::Handle SyncSocket::handle() const {
 
 SyncSocket::Handle SyncSocket::Release() {
   return handle_.release();
+}
+
+CancelableSyncSocket::~CancelableSyncSocket() {
+  LOG(INFO) << "YO THOR - CancelableSyncSocket DESTRUCTOR CALLED for fd "
+            << handle();
+  Close();
 }
 
 bool CancelableSyncSocket::Shutdown() {
