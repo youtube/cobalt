@@ -36,7 +36,7 @@ class StubPlayerComponentsFactory : public PlayerComponents::Factory {
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       components.video = CreateStubVideoComponents(creation_parameters);
     }
-    return Result<MediaComponents>(std::move(components));
+    return components;
   }
 
  private:
