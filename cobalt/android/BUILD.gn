@@ -13,6 +13,11 @@ jinja_template("cobalt_manifest") {
     "manifest_package=dev.cobalt.coat",
     "build_type=$build_type",
   ]
+  if (is_debug) {
+    variables += [ "debuggable=true" ]
+  } else {
+    variables += [ "debuggable=false" ]
+  }
 }
 
 generate_jni("jni_headers") {
