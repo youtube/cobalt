@@ -271,4 +271,9 @@ void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
   Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
 }
 
+SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
+}
+
 }  // namespace starboard::android::shared

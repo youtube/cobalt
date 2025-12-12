@@ -777,4 +777,12 @@ public class StarboardBridge {
     cobaltMediaSession.setWebContents(webContents);
     volumeStateReceiver.setWebContents(webContents);
   }
+
+  @CalledByNative
+  public void closeApp() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      ((CobaltActivity) activity).finishAffinity();
+    }
+  }
 }
