@@ -51,6 +51,7 @@ int GetBitsPerPixel(const std::string& mime_type) {
   return 8;
 }
 
+#if ENABLE_IAMF_DECODE
 int GetMaxChannelCount() {
   int channels = 2;
   int index = 0;
@@ -60,6 +61,7 @@ int GetMaxChannelCount() {
   }
   return std::min(channels, SbAudioSinkGetMaxChannels());
 }
+#endif  // ENABLE_IAMF_DECODE
 
 }  // namespace
 

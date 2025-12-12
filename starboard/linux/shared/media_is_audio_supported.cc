@@ -16,8 +16,11 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/iamf_util.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+
+#if ENABLE_IAMF_DECODE
+#include "starboard/shared/starboard/media/iamf_util.h"
+#endif  // ENABLE_IAMF_DECODE
 
 namespace starboard::shared::starboard::media {
 
