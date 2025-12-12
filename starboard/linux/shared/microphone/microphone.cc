@@ -132,18 +132,12 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   }
 
   int Read(void* out_audio_data, int audio_data_size) override {
-    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::Read - audio_data_size: "
-                 << audio_data_size;
     if (!handle_ || !out_audio_data || audio_data_size <= 0) {
       return -1;
     }
 
     int frames_to_read = audio_data_size / (kChannels * sizeof(int16_t));
-    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::Read - frames_to_read: "
-                 << frames_to_read;
     int frames_read = snd_pcm_readi(handle_, out_audio_data, frames_to_read);
-    SB_LOG(INFO) << "YO THOR - SbMicrophoneImpl::Read - frames_read: "
-                 << frames_read;
 
     if (frames_read < 0) {
       // Recover from the error.

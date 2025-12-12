@@ -147,8 +147,6 @@ void InputSyncWriter::Write(const media::AudioBus* data,
                (capture_time - base::TimeTicks()).InMillisecondsF());
   CheckTimeSinceLastWrite();
 
-  LOG(INFO) << "YO THOR! InputSyncWriter::Write";
-
   pending_glitch_info_ += glitch_info;
 
   // Check that the renderer side has read data so that we don't overwrite data
@@ -328,18 +326,14 @@ bool InputSyncWriter::WriteDataToCurrentSegment(
 
 bool InputSyncWriter::SignalDataWrittenAndUpdateCounters() {
 
-  LOG(INFO) << "YO THOR - InputSyncWriter: PRE-SEND on socket->Send()";
-
   size_t sent_bytes =  socket_->Send(&current_segment_id_, sizeof(current_segment_id_));
-
-  LOG(INFO) << "YO THOR - InputSyncWriter: POST-SEND on socket->Send() -- Bytes sent:" << sent_bytes;
 
   if (sent_bytes != sizeof(current_segment_id_)) {
     // Ensure we don't log consecutive errors as this can lead to a large
     // amount of logs.
     if (!had_socket_error_) {
       had_socket_error_ = true;
-      static const char* error_message = "AISW: No room in socket buffer.";
+      static const char* error_message = "YO THOR - AISW: No room in socket buffer.";
       PLOG(WARNING) << error_message;
       log_callback_.Run(error_message);
       TRACE_EVENT_INSTANT0(

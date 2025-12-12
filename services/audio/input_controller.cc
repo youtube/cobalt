@@ -161,7 +161,6 @@ class AudioCallback : public media::AudioInputStream::AudioInputCallback {
               base::TimeTicks capture_time,
               double volume,
               const media::AudioGlitchInfo& glitch_info) override {
-    LOG(INFO) << "YO THOR - INPUT CONTROLLER - ON DATA!";
     TRACE_EVENT1("audio", "InputController::OnData", "capture time (ms)",
                  (capture_time - base::TimeTicks()).InMillisecondsF());
 
@@ -751,7 +750,6 @@ void InputController::OnData(const media::AudioBus* source,
   } else
 #endif
   {
-    LOG(INFO) << "YO THOR - INPUT CONTROLLER - ON DATA - CALLING SYNC WRITE WITH SOURCE!";
     sync_writer_->Write(source, volume, key_pressed, capture_time, glitch_info);
   }
 

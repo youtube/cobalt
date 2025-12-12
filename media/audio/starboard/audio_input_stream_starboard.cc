@@ -135,7 +135,6 @@ void AudioInputStreamStarboard::SetOutputDeviceForAec(
     const std::string& output_device_id) {}
 
 void AudioInputStreamStarboard::ReadAudio() {
-  LOG(INFO) << "YO THOR - AUDIO INPUT READ AUDIO!";
   if (stop_event_.IsSignaled()) {
     return;
   }
@@ -174,17 +173,13 @@ void AudioInputStreamStarboard::ReadAudio() {
   if (bytes_read > 0) {
     int frames_read = bytes_read / sizeof(int16_t);
     DCHECK_LE(frames_read, buffer_size_frames);
-    LOG(INFO) << "YO THOR - Read " << bytes_read << " bytes for " << frames_read
-              << " frames.";
 
     // If |frames_read| is less than |buffer_size_frames|, the remainder of
     // the audio_bus will be filled with silence.
     audio_bus->FromInterleaved<SignedInt16SampleTypeTraits>(mono_buffer.data(),
                                                             frames_read);
 
-    LOG(INFO) << "YO THOR - Calling OnData with mono bus.";
     callback_->OnData(audio_bus.get(), base::TimeTicks::Now(), 0.0, {});
-    LOG(INFO) << "YO THOR - Returned from OnData.";
   } else {
     LOG(WARNING) << "YO THOR SbMicrophoneRead returned " << bytes_read
                  << ". Dropping this buffer.";
