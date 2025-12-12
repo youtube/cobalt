@@ -13,6 +13,7 @@
 # limitations under the License.
 
 static_library("oom_intervention") {
+  testonly = true
   sources = [
     "oom_intervention_config.cc",
     "oom_intervention_config.h",
