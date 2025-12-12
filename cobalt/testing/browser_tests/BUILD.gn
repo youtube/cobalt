@@ -82,6 +82,8 @@ static_library("cobalt_browsertests_test_runner") {
     "content_test_launcher.cc",
     "resource_load_observer.cc",
     "resource_load_observer.h",
+    "web_contents_delegate_stub.cc",
+    "web_contents_delegate_stub.h",
     "webrtc_content_browsertest_base.cc",
     "webrtc_content_browsertest_base.h",
   ]
@@ -222,6 +224,7 @@ test("cobalt_browsertests") {
 
   deps = [
     ":cobalt_browsertests_test_runner",
+    ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
@@ -251,7 +254,6 @@ test("cobalt_browsertests") {
     "//content/browser/background_sync:background_sync_proto",
     "//content/child:for_content_tests",
     "//content/gpu",
-    "//content/public/browser",
     "//content/public/gpu",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
@@ -447,6 +449,8 @@ static_library("cobalt_shell_test_lib") {
 source_set("cobalt_browsertests_support") {
   testonly = true
   sources = [
+    "//content/test/did_commit_navigation_interceptor.cc",
+    "//content/test/did_commit_navigation_interceptor.h",
     "common/main_frame_counter_test_impl.cc",
     "common/main_frame_counter_test_impl.h",
     "common/power_monitor_test_impl.cc",
@@ -464,6 +468,7 @@ source_set("cobalt_browsertests_support") {
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/services/storage/test_api",
+    "//content/browser",
     "//content/common:main_frame_counter",
     "//content/public/child",
     "//content/public/common",
