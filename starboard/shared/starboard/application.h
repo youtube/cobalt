@@ -420,8 +420,7 @@ class SB_EXPORT_ANDROID Application {
   // The error_level set by the last call to Stop().
   int error_level_;
 
-  // The thread that this application was created on, which is assumed to be the
-  // main thread.
+  // To check if the current method is called on the main thread.
   ThreadChecker thread_checker_;
 
   // CommandLine instance initialized in |Run|.
