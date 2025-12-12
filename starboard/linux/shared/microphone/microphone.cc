@@ -51,7 +51,8 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       return false;
     }
 
-    int error = snd_pcm_open(&handle_, device_name, SND_PCM_STREAM_CAPTURE, 0);
+    int error = snd_pcm_open(&handle_, device_name, SND_PCM_STREAM_CAPTURE,
+                             SND_PCM_NONBLOCK);
     if (error < 0) {
       handle_ = NULL;
       return false;

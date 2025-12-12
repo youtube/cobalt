@@ -23,6 +23,8 @@ AudioInputStreamStarboard::AudioInputStreamStarboard(
     AudioManagerStarboard* audio_manager,
     const AudioParameters& params)
     : params_(params), thread_("AudioInputStreamStarboard") {
+  thread_.StartWithOptions(
+      base::Thread::Options(base::ThreadType::kRealtimeAudio));
   LOG(INFO) << "YO THOR - AudioInputStreamStarboard::AudioInputStreamStarboard"
             << " sample_rate: " << params_.sample_rate()
             << " channels: " << params_.channels()
@@ -72,7 +74,6 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   LOG(INFO) << "YO THOR - AUDIO INPUT - START !";
   DCHECK(callback);
-  DCHECK(!thread_.IsRunning());
   callback_ = callback;
   stop_event_.Reset();
 
@@ -82,7 +83,6 @@ void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   base::TimeDelta initial_delay = params_.GetBufferDuration() / 2;
   next_read_time_ = base::TimeTicks::Now() + initial_delay;
 
-  thread_.Start();
   base::TimeDelta delay = next_read_time_ - base::TimeTicks::Now();
   thread_.task_runner()->PostDelayedTask(
       FROM_HERE,
