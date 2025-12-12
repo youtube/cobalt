@@ -244,38 +244,39 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
 
   void OnCacheMatched(blink::mojom::MatchResultPtr result) {
-    if (result->is_response()) {
-      LOG(INFO) << "Found valid splash video in cache.";
-      auto& response = result->get_response();
-      if (response->blob) {
-        std::string mime_type = response->blob->content_type;
-        mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
-            std::move(response->blob->blob);
-        blob_reader_ = std::make_unique<BlobReader>(
-            std::move(pending_blob_remote),
-            base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
-                           weak_factory_.GetWeakPtr(), mime_type));
-      } else {
-        LOG(INFO) << "Splash video cache is empty. Fallback to builtin.";
-        SendResponse(content_, "text/html");
-      }
-    } else {
+    if (!result->is_response()) {
       LOG(ERROR) << "Failed to match cache for splash video"
                  << ", error: " << result->get_status();
       SendResponse(content_, "text/html");
+      return;
     }
+    LOG(INFO) << "Found splash video in cache.";
+    auto& response = result->get_response();
+    if (response->blob->size == 0) {
+      LOG(ERROR) << "Splash video cache is empty. Fallback to builtin.";
+      SendResponse(content_, "text/html");
+      return;
+    }
+    mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
+        std::move(response->blob->blob);
+    blob_reader_ = std::make_unique<BlobReader>(
+        std::move(pending_blob_remote),
+        base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
+                       weak_factory_.GetWeakPtr(), "text/html",
+                       response->blob->size));
   }
 
   void SendBlobContent(const std::string& mime_type,
+                       uint64_t expected_size,
                        std::vector<uint8_t> content) {
-    if (content.empty()) {
-      LOG(ERROR) << "Empty cache. Fallback to built-in splash.";
-      SendResponse(content_, "text/html");
+    if (content.size() != expected_size) {
+      LOG(ERROR) << "Failed to read splash cache. Fallback to builtin.";
+      SendResponse(content_, mime_type);
       return;
     }
     std::string cached_html(reinterpret_cast<const char*>(content.data()),
                             content.size());
-    SendResponse(cached_html, "text/html");
+    SendResponse(cached_html, mime_type);
   }
 
  private:

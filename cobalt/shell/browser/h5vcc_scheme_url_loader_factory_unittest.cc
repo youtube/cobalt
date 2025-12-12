@@ -204,7 +204,7 @@ TEST_F(H5vccSchemeURLLoaderFactoryTest, LoadNonExistingResource) {
   ASSERT_TRUE(client->response_head());
   EXPECT_EQ(net::HTTP_NOT_FOUND,
             client->response_head()->headers->response_code());
-  EXPECT_EQ("text/plain", client->response_head()->mime_type);
+  EXPECT_EQ("text/html", client->response_head()->mime_type);
 
   client->WaitForCompletion();
   ASSERT_TRUE(client->completion_status());
