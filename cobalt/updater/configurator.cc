@@ -179,6 +179,7 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   base::flat_map<std::string, std::string> params;
   params.insert(std::make_pair("SABI", SB_SABI_JSON_ID));
   params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
+  params.insert(std::make_pair("egversion", GetCurrentEvergreenVersion()));
 
   // The flag name to force an update is changed to `is_forced_update_` to
   // cover the cases where update is requested by client but channel stays the
