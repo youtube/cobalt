@@ -8,6 +8,8 @@
 #include "base/containers/contains.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
@@ -47,6 +49,14 @@ namespace contextual_tasks {
 namespace {
 constexpr char kAiPageHost[] = "https://google.com";
 constexpr char kTaskQueryParam[] = "task";
+
+// Search parameters for the AI page.
+// TODO(crbug.com/466149941): These should be more robust to be able to handle
+// changes in the URL format.
+constexpr char kUdmParam[] = "udm";
+constexpr char kUdmAiValue[] = "50";
+constexpr char kNemParam[] = "nem";
+constexpr char kNemAiValue[] = "143";
 
 bool IsContextualTasksHost(const GURL& url) {
   return url.scheme() == content::kChromeUIScheme &&
@@ -156,10 +166,12 @@ void ContextualTasksUiService::OnThreadLinkClicked(
     return;
   }
 
-  base::UmaHistogramBoolean(
+  std::string ai_response_link_clicked_metric_name =
       base::StrCat({"ContextualTasks.AiResponse.UserAction.LinkClicked.",
-                    (tab ? "Panel" : "Tab")}),
-      true);
+                    (tab ? "Tab" : "Panel")});
+  base::UmaHistogramBoolean(ai_response_link_clicked_metric_name, true);
+  base::RecordAction(
+      base::UserMetricsAction(ai_response_link_clicked_metric_name.c_str()));
 
   TabStripModel* tab_strip_model = browser->GetTabStripModel();
   std::unique_ptr<content::WebContents> new_contents =
@@ -373,7 +385,9 @@ std::optional<GURL> ContextualTasksUiService::GetInitialUrlForTask(
     const base::Uuid& uuid) {
   auto it = task_id_to_creation_url_.find(uuid);
   if (it != task_id_to_creation_url_.end()) {
-    return it->second;
+    GURL url = it->second;
+    task_id_to_creation_url_.erase(it);
+    return std::move(url);
   }
   return std::nullopt;
 }
@@ -407,10 +421,10 @@ void ContextualTasksUiService::GetThreadUrlFromTaskId(
                      // URL. A query parameter needs to be present, but its
                      // value is not used for continued threads.
                      url = net::AppendQueryParameter(url, "q", thread->title);
-                     url = net::AppendQueryParameter(url, "mstk",
-                                                     thread->server_id);
                      url = net::AppendQueryParameter(
-                         url, "mtid", thread->conversation_turn_id);
+                         url, "mstk", thread->conversation_turn_id);
+                     url = net::AppendQueryParameter(url, "mtid",
+                                                     thread->server_id);
 
                      std::move(callback).Run(url);
                    },
@@ -508,6 +522,22 @@ void ContextualTasksUiService::MoveTaskUiToNewTab(
   coordinator->Close();
 }
 
+void ContextualTasksUiService::StartTaskUiInSidePanel(
+    BrowserWindowInterface* browser_window_interface,
+    tabs::TabInterface* tab_interface,
+    const GURL& url) {
+  CHECK(context_controller_);
+
+  // Create a task for the URL that was just intercepted.
+  ContextualTask task = context_controller_->CreateTaskFromUrl(url);
+  task_id_to_creation_url_[task.GetTaskId()] = url;
+
+  // Associate the task with the active tab.
+  AssociateWebContentsToTask(tab_interface->GetContents(), task.GetTaskId());
+
+  ContextualTasksSidePanelCoordinator::From(browser_window_interface)->Show();
+}
+
 bool ContextualTasksUiService::IsAiUrl(const GURL& url) {
   if (!url.is_valid() || !url.SchemeIsHTTPOrHTTPS() ||
       !net::SchemefulSite::IsSameSite(url, ai_page_host_)) {
@@ -518,13 +548,21 @@ bool ContextualTasksUiService::IsAiUrl(const GURL& url) {
     return false;
   }
 
-  // AI pages are identified by the "udm" URL param having a value of 50.
+  // AI pages are identified by the "udm" URL param having a value of "50" or
+  // "nem" having a value of "143".
   std::string udm_value;
-  if (!net::GetValueForKeyInQuery(url, "udm", &udm_value)) {
-    return false;
+  if (net::GetValueForKeyInQuery(url, kUdmParam, &udm_value) &&
+      udm_value == kUdmAiValue) {
+    return true;
   }
 
-  return udm_value == "50";
+  std::string nem_value;
+  if (net::GetValueForKeyInQuery(url, kNemParam, &nem_value) &&
+      nem_value == kNemAiValue) {
+    return true;
+  }
+
+  return false;
 }
 
 bool ContextualTasksUiService::IsSearchResultsPage(const GURL& url) {

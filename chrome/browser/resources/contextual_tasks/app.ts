@@ -65,18 +65,11 @@ export class ContextualTasksAppElement extends CrLitElement {
         new PostMessageHandler(this.$.threadFrame, this.browserProxy_);
   }
 
-  // TODO(crbug.com/454388385): Remove this once the authentication flow is
-  // implemented. Removing the gsc param renders the OGB header, which allows
-  // the user to press "Sign In" to authenticate.
-  protected removeGsc_() {
-    const url = new URL(this.threadUrl_);
-    url.searchParams.delete('gsc');
-    this.threadUrl_ = url.toString();
-  }
-
   protected async onNewThreadClick_() {
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.OpenNewThread');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenNewThread', true);
     const {url} = await this.browserProxy_.handler.getThreadUrl();
     this.threadUrl_ = url.url;
   }
@@ -84,6 +77,8 @@ export class ContextualTasksAppElement extends CrLitElement {
   protected async onThreadHistoryClick_() {
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.OpenThreadHistory');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenThreadHistory', true);
     const {threads} = await this.browserProxy_.handler.showThreadHistory();
     this.historyThreads_ = threads;
     // TODO(crbug.com/445469925): Display the threads in a drawer.

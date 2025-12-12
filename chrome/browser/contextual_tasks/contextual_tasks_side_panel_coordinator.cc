@@ -229,7 +229,8 @@ bool ContextualTasksSidePanelCoordinator::IsSidePanelOpen() {
       SidePanelEntry::PanelType::kToolbar);
 }
 
-bool ContextualTasksSidePanelCoordinator::IsSidePanelOpenForContextualTask() {
+bool ContextualTasksSidePanelCoordinator::IsSidePanelOpenForContextualTask()
+    const {
   return browser_window_->GetFeatures()
       .side_panel_ui()
       ->IsSidePanelEntryShowing(
@@ -239,6 +240,12 @@ bool ContextualTasksSidePanelCoordinator::IsSidePanelOpenForContextualTask() {
 void ContextualTasksSidePanelCoordinator::TransferWebContentsFromTab(
     const base::Uuid& task_id,
     std::unique_ptr<content::WebContents> web_contents) {
+  // Clear the back stack whenever a WebContents is moved to the side panel.
+  // This helps prevent any unintended back/forward navigation.
+  if (web_contents->GetController().CanPruneAllButLastCommitted()) {
+    web_contents->GetController().PruneAllButLastCommitted();
+  }
+
   SetBrowserWindowInterface(web_contents.get(), browser_window_);
   auto it = task_id_to_web_contents_cache_.find(task_id);
   if (it == task_id_to_web_contents_cache_.end()) {

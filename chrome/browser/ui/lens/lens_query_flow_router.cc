@@ -10,11 +10,14 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/lens/core/mojom/lens.mojom.h"
+#include "chrome/browser/ui/lens/lens_overlay_image_helper.h"
 #include "chrome/browser/ui/lens/lens_search_contextualization_controller.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
+#include "components/contextual_search/contextual_search_context_controller.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_overlay_mime_type.h"
+#include "components/lens/ref_counted_lens_overlay_client_logs.h"
 #include "components/sessions/content/session_tab_helper.h"
 
 namespace {
@@ -39,6 +42,17 @@ LensQueryFlowRouter::LensQueryFlowRouter(
 
 LensQueryFlowRouter::~LensQueryFlowRouter() = default;
 
+std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+LensQueryFlowRouter::CreateContextualSearchSessionHandle() {
+  auto* contextual_search_service =
+      ContextualSearchServiceFactory::GetForProfile(profile());
+  // TODO(crbug.com/463400248): Use contextual tasks config params for Lens
+  // requests.
+  return contextual_search_service->CreateSession(
+      ntp_composebox::CreateQueryControllerConfigParams(),
+      contextual_search::ContextualSearchSource::kLens);
+}
+
 bool LensQueryFlowRouter::IsOff() const {
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
     // TODO(crbug.com/461909986): If the pending session handle is not present, then
@@ -61,14 +75,8 @@ void LensQueryFlowRouter::StartQueryFlow(
     base::TimeTicks invocation_time) {
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
     // Create a contextual session for this WebContents if one does not exist.
-    auto* contextual_search_service =
-        ContextualSearchServiceFactory::GetForProfile(profile());
-    // TODO(crbug.com/463400248): Use contextual tasks config params for Lens
-    // requests.
     CHECK(!pending_session_handle_);
-    pending_session_handle_ = contextual_search_service->CreateSession(
-        ntp_composebox::CreateQueryControllerConfigParams(),
-        contextual_search::ContextualSearchSource::kLens);
+    pending_session_handle_ = CreateContextualSearchSessionHandle();
     pending_session_handle_->NotifySessionStarted();
     // Start uploading the current viewport and page content.
     UploadContextualInputData(
@@ -97,11 +105,10 @@ void LensQueryFlowRouter::SendRegionSearch(
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params,
     std::optional<SkBitmap> region_bytes) {
-  // TODO(crbug.com/456472761): When interaction requests are supported, send
-  // these to the contextual search service. For now, open the contextual tasks
-  // panel in the zero state.
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
-    OpenContextualTasksPanel();
+    SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
+        std::move(region), std::move(region_bytes), /*query_text=*/std::nullopt,
+        lens_selection_type, additional_search_query_params, query_start_time));
     return;
   }
 
@@ -115,11 +122,10 @@ void LensQueryFlowRouter::SendTextOnlyQuery(
     const std::string& query_text,
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params) {
-  // TODO(crbug.com/456472761): When interaction requests are supported, send
-  // these to the contextual search service. For now, open the contextual tasks
-  // panel in the zero state.
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
-    OpenContextualTasksPanel();
+    SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
+        /*region=*/nullptr, /*region_bytes=*/std::nullopt, query_text,
+        lens_selection_type, additional_search_query_params, query_start_time));
     return;
   }
 
@@ -133,11 +139,10 @@ void LensQueryFlowRouter::SendContextualTextQuery(
     const std::string& query_text,
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params) {
-  // TODO(crbug.com/456472761): When interaction requests are supported, send
-  // these to the contextual search service. For now, open the contextual tasks
-  // panel in the zero state.
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
-    OpenContextualTasksPanel();
+    SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
+        /*region=*/nullptr, /*region_bytes=*/std::nullopt, query_text,
+        lens_selection_type, additional_search_query_params, query_start_time));
     return;
   }
 
@@ -153,11 +158,10 @@ void LensQueryFlowRouter::SendMultimodalRequest(
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params,
     std::optional<SkBitmap> region_bytes) {
-  // TODO(crbug.com/456472761): When interaction requests are supported, send
-  // these to the contextual search service. For now, open the contextual tasks
-  // panel in the zero state.
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
-    OpenContextualTasksPanel();
+    SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
+        std::move(region), std::move(region_bytes), query_text,
+        lens_selection_type, additional_search_query_params, query_start_time));
     return;
   }
 
@@ -166,14 +170,28 @@ void LensQueryFlowRouter::SendMultimodalRequest(
       additional_search_query_params, region_bytes);
 }
 
-void LensQueryFlowRouter::OpenContextualTasksPanel() {
-  // TODO(crbug.com/461909986): This should instead do an appropriate
-  // interaction request which should then open the response URL in the panel.
+void LensQueryFlowRouter::SendInteractionToContextualTasks(
+    std::unique_ptr<CreateSearchUrlRequestInfo> request_info) {
+  // TODO(crbug.com/461911257): Currently, follow up visual selections that are
+  // made once the contextual tasks panel is already open / session handle has
+  // been moved will do nothing. In the future, they should grab the current
+  // open session handle and use that to send the interaction request.
+  if (!pending_session_handle_) {
+    return;
+  }
+
+  auto search_url =
+      pending_session_handle_->CreateSearchUrl(std::move(request_info));
+  OpenContextualTasksPanel(search_url);
+}
+
+void LensQueryFlowRouter::OpenContextualTasksPanel(const GURL& url) {
   // Show the side panel. This will create a new task and associate it with the
   // active tab.
-  contextual_tasks::ContextualTasksSidePanelCoordinator::From(
-      browser_window_interface())
-      ->Show();
+  contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
+      web_contents()->GetBrowserContext())
+      ->StartTaskUiInSidePanel(browser_window_interface(), tab_interface(),
+                               url);
 }
 
 void LensQueryFlowRouter::UploadContextualInputData(
@@ -225,11 +243,41 @@ LensQueryFlowRouter::CreateContextualInputData(
   contextual_input_data->pdf_current_page = pdf_current_page;
   contextual_input_data->viewport_screenshot = screenshot;
   contextual_input_data->is_page_context_eligible =
-      lens_search_controller_->lens_search_contextualization_controller()
+      lens_search_contextualization_controller()
           ->GetCurrentPageContextEligibility();
   contextual_input_data->tab_session_id =
       sessions::SessionTabHelper::IdForTab(web_contents());
   return contextual_input_data;
+}
+
+std::unique_ptr<CreateSearchUrlRequestInfo>
+LensQueryFlowRouter::CreateSearchUrlRequestInfoFromInteraction(
+    lens::mojom::CenterRotatedBoxPtr region,
+    std::optional<SkBitmap> region_bytes,
+    std::optional<std::string> query_text,
+    lens::LensOverlaySelectionType lens_selection_type,
+    std::map<std::string, std::string> additional_search_query_params,
+    base::Time query_start_time) {
+  auto request_info = std::make_unique<CreateSearchUrlRequestInfo>();
+  request_info->search_url_type = SearchUrlType::kStandard;
+  if (query_text.has_value()) {
+    request_info->query_text = query_text.value();
+  }
+  request_info->query_start_time = query_start_time;
+  request_info->lens_overlay_selection_type = lens_selection_type;
+  request_info->additional_params = additional_search_query_params;
+
+  if (region) {
+    auto client_logs =
+        base::MakeRefCounted<lens::RefCountedLensOverlayClientLogs>();
+    auto image_crop_and_bitmap = lens::DownscaleAndEncodeBitmapRegionIfNeeded(
+        lens_search_contextualization_controller()->viewport_screenshot(),
+        region->Clone(), region_bytes, client_logs);
+    if (image_crop_and_bitmap) {
+      request_info->image_crop = std::move(image_crop_and_bitmap->image_crop);
+    }
+  }
+  return request_info;
 }
 
 }  // namespace lens

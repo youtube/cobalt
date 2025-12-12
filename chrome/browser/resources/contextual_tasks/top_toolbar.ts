@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import './icons.html.js';
 import '//resources/cr_elements/cr_icon/cr_icon.js';
 import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
@@ -23,6 +24,7 @@ export interface TopToolbarElement {
   $: {
     menu: CrLazyRenderLitElement<CrActionMenuElement>,
     sourcesMenu: CrLazyRenderLitElement<CrActionMenuElement>,
+    topToolbarLogo: HTMLImageElement,
   };
 }
 
@@ -37,26 +39,25 @@ export class TopToolbarElement extends CrLitElement {
 
   static override get properties() {
     return {
+      attachedTabs: {type: Array},
+      logoImageUrl_: {type: String},
       title: {type: String},
-      attachedTabs_: {type: Array},
     };
   }
 
   override accessor title: string = '';
-  accessor attachedTabs_: Tab[] = [];
+  accessor attachedTabs: Tab[] = [];
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
 
   override render() {
     return getHtml.bind(this)();
   }
 
-  protected onSigninClick_() {
-    this.fire('signin-click');
-  }
-
   protected onCloseButtonClick_() {
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.CloseSidePanel');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.CloseSidePanel', true);
     this.browserProxy_.handler.closeSidePanel();
   }
 
@@ -80,6 +81,8 @@ export class TopToolbarElement extends CrLitElement {
     this.$.sourcesMenu.get().close();
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.TabFromSourcesMenuClicked');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.TabFromSourcesMenuClicked', true);
     this.browserProxy_.handler.onTabClickedFromSourcesMenu(tab.tabId, tab.url);
   }
 
@@ -87,6 +90,8 @@ export class TopToolbarElement extends CrLitElement {
     this.$.menu.get().close();
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.OpenInNewTab');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenInNewTab', true);
     this.browserProxy_.handler.moveTaskUiToNewTab();
   }
 
@@ -94,6 +99,8 @@ export class TopToolbarElement extends CrLitElement {
     this.$.menu.get().close();
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.OpenMyActivity');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenMyActivity', true);
     this.browserProxy_.handler.openMyActivityUi();
   }
 
@@ -101,6 +108,8 @@ export class TopToolbarElement extends CrLitElement {
     this.$.menu.get().close();
     chrome.metricsPrivate.recordUserAction(
         'ContextualTasks.WebUI.UserAction.OpenHelp');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenHelp', true);
     this.browserProxy_.handler.openHelpUi();
   }
 
@@ -109,7 +118,7 @@ export class TopToolbarElement extends CrLitElement {
   }
 
   protected shouldHideSourcesButton_() {
-    return this.attachedTabs_.length === 0;
+    return this.attachedTabs.length === 0;
   }
 }
 
