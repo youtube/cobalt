@@ -1,7 +1,7 @@
 {
     "archive_datas": [
         {
-            "tar_path": [
+            "tar_paths": [
                 {
                     "from_path": "lib.unstripped/libcobalt.so",
                     "to_tar": "symbols/libcobalt.so.tar.gz"
