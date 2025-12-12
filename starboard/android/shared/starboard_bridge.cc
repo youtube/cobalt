@@ -242,7 +242,6 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   return limit_ad_tracking_java;
 }
 
-<<<<<<< HEAD
 std::string StarboardBridge::GetUserAgentAuxField(JNIEnv* env) const {
   SB_DCHECK(env);
   return ConvertJavaStringToUTF8(
@@ -272,14 +271,9 @@ void StarboardBridge::CloseAllCobaltService(JNIEnv* env) const {
   Java_StarboardBridge_closeAllCobaltService(env, j_starboard_bridge_);
 }
 
-}  // namespace starboard::android::shared
-=======
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
->>>>>>> 021c3dae1e2 (Implement window.close() for Chrobalt ATV (#5640))
+}  // namespace starboard::android::shared
