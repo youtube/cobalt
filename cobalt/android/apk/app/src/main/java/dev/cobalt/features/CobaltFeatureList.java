@@ -44,6 +44,4 @@ public class CobaltFeatureList {
     interface Natives {
         boolean isEnabled(String featureName);
     }
-
-    public static final String NON_TUNNELED_DECODE_ONLY = "NonTunneledDecodeOnly";
 }

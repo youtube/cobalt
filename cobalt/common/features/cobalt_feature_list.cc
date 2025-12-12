@@ -18,7 +18,7 @@
 #include "cobalt/common/features/cobalt_features.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
-#include "cobalt/android/cobalt_features_jni/CobaltFeatureList_jni.h"
+#include "cobalt/android/jni_headers/CobaltFeatureList_jni.h"
 
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaParamRef;
@@ -30,7 +30,7 @@ namespace {
 const base::Feature* const kFeaturesExposedToJava[] = {
     &kNonTunneledDecodeOnly,
 };
-// static
+
 const base::Feature* FindFeatureExposedToJava(const std::string& feature_name) {
   for (const base::Feature* feature : kFeaturesExposedToJava) {
     if (feature->name == feature_name) {
