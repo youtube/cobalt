@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/font.h"
@@ -19,7 +23,6 @@
 #include "starboard/stub/configuration.h"
 #include "starboard/stub/font.h"
 #include "starboard/stub/javascript_cache.h"
-#include "starboard/system.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
