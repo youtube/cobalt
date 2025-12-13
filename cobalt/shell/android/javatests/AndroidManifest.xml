@@ -1,5 +1,4 @@
 {% extends "cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2" %}
-
 {#
 Copyright 2025 The Cobalt Authors. All Rights Reserved.
 
@@ -16,21 +15,50 @@ See the License for the specific language governing permissions and
 limitations under the License.
 #}
 
+{% block application_name %}org.chromium.content_browsertests_apk.ContentBrowserTestsApplication{% endblock %}
+
 {% block application_label %}Cobalt Shell Test{% endblock %}
+
+{% block main_activity %}{% endblock %}
+
+{% block debuggable %}true{% endblock %}
 
 {% block extra_uses_permissions %}
     <uses-permission android:name="android.permission.RUN_INSTRUMENTATION" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 {% endblock %}
 
 {% block extra_application_definitions_for_test %}
         <uses-library android:name="android.test.runner" />
         <activity android:name="org.chromium.test.broker.OnDeviceInstrumentationBroker"
             android:exported="true"/>
+        <activity android:name="ContentBrowserTestsActivity"
+                  android:launchMode="singleTask"
+                  android:theme="@android:style/Theme.Holo.Light.NoActionBar"
+                  android:configChanges="orientation|keyboardHidden|keyboard|screenSize"
+                  android:hardwareAccelerated="true"
+                  android:exported="true"
+                  android:process=":test_process">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="{{ manifest_package }}.FileProvider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 {% endblock %}
 
 {% block extra_root_definitions %}
-    <instrumentation android:name="org.chromium.base.test.BaseChromiumAndroidJUnitRunner"
-        android:targetPackage="{{manifest_package}}"
-        android:label="JUnit4-based tests for cobalt shell" />
+    <instrumentation android:name="org.chromium.build.gtest_apk.NativeTestInstrumentationTestRunner"
+        android:label="ContentBrowserTests"
+        android:targetPackage="{{ manifest_package }}"
+        chromium-junit3="true"/>
 {% endblock %}
