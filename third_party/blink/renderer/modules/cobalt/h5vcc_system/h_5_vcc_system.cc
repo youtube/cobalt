@@ -149,6 +149,11 @@ uint32_t H5vccSystem::userOnExitStrategy() {
   NOTREACHED_NORETURN() << "Invalid userOnExitStrategy: " << strategy;
 }
 
+void H5vccSystem::hideSplashScreen() {
+  EnsureReceiverIsBound();
+  remote_h5vcc_system_->HideSplashScreen();
+}
+
 void H5vccSystem::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 

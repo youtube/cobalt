@@ -59,4 +59,6 @@ interface H5vccSystem : EventTarget {
   //   - "minimize" maps to 1.
   //   - "no-exit" maps to 2.
   readonly attribute unsigned long userOnExitStrategy;
+
+  void hideSplashScreen();
 };
