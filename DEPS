@@ -316,7 +316,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '4996016b043e0046ee4feff8152c94d4e62a3fca',
+  'v8_revision': 'cc734a457000bbeb441db4a79f7920698d730fe2',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -400,7 +400,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling devtools-frontend
   # and whatever else without interference from each other.
-  'devtools_frontend_revision': 'c6eec630676e9e6841c4d99327ce9e3291918281',
+  'devtools_frontend_revision': '2e0197f7a0be0e7b562df1fb43be3f097590133c',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling libprotobuf-mutator
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'wHRFaoso1KSi2yMiitoQY5Kq51qV9u4J06ptAFboY-AC',
+              'version': 'Ly0e6fpESqQJPs9YJ5BrVVdWVcj36e2Ue9vUwzQ3v3IC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': 'nIY2dXfiVjHliQ-WaUZOEOniBHHQTw7TZpfQJLynFqMC',
+              'version': 'AT8uYHBiO2EbF6AufsGlXEbCPlsUDAG7-Zv7Q2Md8skC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'UxHmhmfEIi-XpxOIYImH_JebfpB05tGv3dVis_2N1bwC',
+              'version': 'b94rD_j7MMqStjw8a4P5kjL1t92w6bq9DVd-sf1rmsYC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -3488,7 +3488,7 @@ deps = {
 
   'src/chrome/browser/actor/resources/internal': {
       'url': Var('chrome_git') + '/chrome/browser/actor/resources/internal.git' + '@' +
-        '7196ce812d7488380c95e2140655a92acd20c208',
+        '76e477f31abbf97a366511ed4e938f39b5029e1f',
       'condition': 'checkout_src_internal',
   },
 
@@ -3769,7 +3769,7 @@ deps = {
 
   'src/ios_internal':  {
       'url': Var('chrome_git') + '/chrome/ios_internal.git' + '@' +
-        'bc4cd9c20cd48c4271afea50f4d177014ac8d110',
+        '25254dc5b56959fb28b961ae707be7b985709542',
       'condition': 'checkout_ios and checkout_src_internal',
   },
 

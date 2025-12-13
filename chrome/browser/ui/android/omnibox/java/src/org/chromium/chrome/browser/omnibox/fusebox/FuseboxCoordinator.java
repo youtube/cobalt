@@ -28,6 +28,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
+import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
 import org.chromium.chrome.browser.profiles.Profile;
@@ -52,8 +53,6 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Collections;
-import java.util.List;
 
 /** Coordinator for the Fusebox component. */
 @NullMarked
@@ -87,8 +86,7 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
     private final ObservableSupplier<Profile> mProfileSupplier;
     private final Callback<Profile> mProfileObserver = this::onProfileAvailable;
     private final SnackbarManager mSnackbarManager;
-    private final ObservableSupplierImpl<Boolean> mAttachmentsPresentSupplier =
-            new ObservableSupplierImpl<>(false);
+    private final @Nullable ViewportRectProvider mViewportRectProvider;
 
     public FuseboxCoordinator(
             Context context,
@@ -114,6 +112,7 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
             mViewHolder = null;
             mLocationBarDataProvider = null;
             mModel = new PropertyModel(FuseboxProperties.ALL_KEYS);
+            mViewportRectProvider = null;
             return;
         }
 
@@ -129,7 +128,7 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
                 0,
                 0);
         var popupView = LayoutInflater.from(context).inflate(R.layout.fusebox_context_popup, null);
-        @Nullable RectProvider viewportRectProvider = new ViewportRectProvider(mContext);
+        mViewportRectProvider = new ViewportRectProvider(mContext);
 
         var popupWindowBuilder =
                 new AnchoredPopupWindow.Builder(
@@ -142,7 +141,7 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         popupWindowBuilder.setAnimateFromAnchor(true);
         popupWindowBuilder.setPreferredHorizontalOrientation(
                 HorizontalOrientation.LAYOUT_DIRECTION);
-        popupWindowBuilder.setViewportRectProvider(viewportRectProvider);
+        popupWindowBuilder.setViewportRectProvider(mViewportRectProvider);
 
         var popup = new FuseboxPopup(mContext, popupWindowBuilder.build(), popupView);
         mViewHolder = new FuseboxViewHolder(parent, popup);
@@ -203,7 +202,6 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
                         mTabModelSelectorSupplier,
                         mComposeBoxQueryControllerBridge,
                         mFuseboxStateSupplier,
-                        mAttachmentsPresentSupplier,
                         mSnackbarManager,
                         () -> mTemplateUrlService);
         if (mLastBrandedColorScheme != null) {
@@ -226,6 +224,9 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         if (mComposeBoxQueryControllerBridge != null) {
             mComposeBoxQueryControllerBridge.destroy();
             mComposeBoxQueryControllerBridge = null;
+        }
+        if (mViewportRectProvider != null) {
+            mViewportRectProvider.destroy();
         }
     }
 
@@ -344,16 +345,6 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
     }
 
     /**
-     * @return List of attachment tokens, empty if no attachments or mediator unavailable.
-     */
-    public List<String> getAttachmentTokens() {
-        if (mMediator == null) {
-            return Collections.emptyList();
-        }
-        return mMediator.getAttachmentTokens();
-    }
-
-    /**
      * Whether the given mode allows "conventional" fulfillment of a valid typed url, i.e.
      * navigating to that url directly. As an example of where this might return false: if if the
      * user types www.foo.com and presses enter with this mode active, they will be taken to some
@@ -376,9 +367,19 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
         return mFuseboxStateSupplier;
     }
 
-    /** Returns whether the Fusebox Attachments list contains any user-added entries. */
-    public ObservableSupplier<Boolean> getAttachmentsPresentSupplier() {
-        return mAttachmentsPresentSupplier;
+    /** Registers the listener notified whenever attachments list is changed. */
+    public void addAttachmentChangeListener(FuseboxAttachmentChangeListener listener) {
+        mModelList.addAttachmentChangeListener(listener);
+    }
+
+    /** Unregisters the listener from being notified that attachments list has been changed. */
+    public void removeAttachmentChangeListener(FuseboxAttachmentChangeListener listener) {
+        mModelList.removeAttachmentChangeListener(listener);
+    }
+
+    /** Returns the number of attachments in the Fusebox Attachments list. */
+    public int getAttachmentsCount() {
+        return mModelList.size();
     }
 
     /**
@@ -407,5 +408,9 @@ public class FuseboxCoordinator implements UrlFocusChangeListener, TemplateUrlSe
 
         @Override
         public void onLowMemory() {}
+
+        public void destroy() {
+            mContext.unregisterComponentCallbacks(this);
+        }
     }
 }

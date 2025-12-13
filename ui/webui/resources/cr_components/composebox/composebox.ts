@@ -261,8 +261,8 @@ export class ComposeboxElement extends I18nMixinLit
           this.refreshTabSuggestions_.bind(this)),
       this.searchboxCallbackRouter_.addFileContext.addListener(
           this.addFileContextFromBrowser_.bind(this)),
-      this.searchboxCallbackRouter_.updateSuggestedTabContext.addListener(
-          this.updateSuggestedTabContext_.bind(this)),
+      this.searchboxCallbackRouter_.updateAutoSuggestedTabContext.addListener(
+          this.updateAutoSuggestedTabContext_.bind(this)),
     ];
 
     this.eventTracker_.add(this.$.input, 'input', () => {
@@ -515,7 +515,9 @@ export class ComposeboxElement extends I18nMixinLit
     this.receivedSpeech_ = true;
   }
 
-  protected async deleteContext_(e: CustomEvent<{uuid: UnguessableToken}>) {
+  protected async deleteContext_(
+      e: CustomEvent<
+          {uuid: UnguessableToken, fromAutoSuggestedChip?: boolean}>) {
     // If we're in create image mode, notify that image is gone.
     if (this.inCreateImageMode_) {
       await this.setCreateImageMode_({
@@ -525,7 +527,8 @@ export class ComposeboxElement extends I18nMixinLit
         },
       } as CustomEvent<{inCreateImageMode: boolean, imagePresent: boolean}>);
     }
-    this.searchboxHandler_.deleteContext(e.detail.uuid);
+    this.searchboxHandler_.deleteContext(
+        e.detail.uuid, e.detail.fromAutoSuggestedChip || false);
     this.focusInput();
     this.queryAutocomplete(/* clearMatches= */ true);
   }
@@ -586,8 +589,8 @@ export class ComposeboxElement extends I18nMixinLit
     this.$.context.onFileContextAdded(attachment);
   }
 
-  private updateSuggestedTabContext_(tab: TabInfo|null) {
-    this.$.context.updateSuggestedTabContext(tab);
+  private updateAutoSuggestedTabContext_(tab: TabInfo|null) {
+    this.$.context.updateAutoActiveTabContext(tab);
   }
 
   protected async addTabContext_(e: CustomEvent<{
@@ -653,7 +656,13 @@ export class ComposeboxElement extends I18nMixinLit
     e.detail.onPreviewFetched(previewDataUrl || '');
   }
 
+  protected voiceSearchEndCleanup_() {
+    this.inVoiceSearchMode_ = false;
+    this.animationState = GlowAnimationState.NONE;
+  }
+
   protected onVoiceSearchFinalResult_(e: CustomEvent<string>) {
+    this.voiceSearchEndCleanup_();
     this.searchboxHandler_.submitQuery(
         e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
         /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
@@ -666,8 +675,7 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   protected onVoiceSearchClose_() {
-    this.inVoiceSearchMode_ = false;
-    this.animationState = GlowAnimationState.NONE;
+    this.voiceSearchEndCleanup_();
     this.receivedSpeech_ = false;
   }
 

@@ -64,12 +64,6 @@ constexpr ui::ColorId kTextDisabled = ui::kColorLabelForegroundDisabled;
 constexpr ui::ColorId kForeground = kColorNewTabButtonForegroundFrameActive;
 constexpr ui::ColorId kForegroundOnAltBackground = ui::kColorSysOnSurface;
 
-// TODO(crbug.com/453739403): Update with final color IDs.
-constexpr ui::ColorId kBackgroundWhenGlicOpenActive =
-    ui::kColorSysStateHeaderHover;
-constexpr ui::ColorId kBackgroundWhenGlicOpenInactive =
-    ui::kColorSysStateDisabledContainer;
-
 constexpr int kIconSize = 16;
 // TODO(crbug.com/460400955): Move this constant to a shared location.
 // This should mirror the tween used for TabStripNudgeAnimationSession.
@@ -127,11 +121,11 @@ ui::ImageModel GetIconForHighlight() {
   return {};
 }
 
-gfx::Insets GetIconMargins() {
+gfx::Insets GetIconMargins(bool label_shown) {
   int left = 6 - kHighlightMargin;
   int right = 4;
 
-  if (ShouldShowLabel()) {
+  if (label_shown) {
     // Extra left margin if the label is shown.
     left += 2;
   }
@@ -175,9 +169,9 @@ GlicButton::GlicButton(TabStripController* tab_strip_controller,
   layer()->SetFillsBoundsOpaquely(false);
 
   UpdateIcon();
+  OnLabelVisibilityChanged();
   auto* image_view = static_cast<views::ImageView*>(image_container_view());
   image_view->SetImageSize({kIconSize, kIconSize});
-  image_view->SetProperty(views::kMarginsKey, GetIconMargins());
   image_view->SetPaintToLayer();
   image_view->layer()->SetFillsBoundsOpaquely(false);
 
@@ -294,8 +288,10 @@ void GlicButton::RestoreDefaultLabel() {
 }
 
 void GlicButton::SetGlicPanelIsOpen(bool open) {
-  glic_panel_is_open_ = open;
-  UpdateTextAndBackgroundColors();
+  if (glic_panel_is_open_ != open) {
+    glic_panel_is_open_ = open;
+    UpdateTextAndBackgroundColors();
+  }
 }
 
 void GlicButton::OnFreWebUiStateChanged(mojom::FreWebUiState new_state) {
@@ -476,6 +472,8 @@ void GlicButton::AnimationEnded(const gfx::Animation* animation) {
     }
 
     expansion_animation_done_callback_.Run();
+
+    OnLabelVisibilityChanged();
   }
   if (is_animating_text_) {
     is_animating_text_ = false;
@@ -548,21 +546,24 @@ void GlicButton::UpdateTextAndBackgroundColors() {
     SetTextColor(STATE_DISABLED, kTextDisabled);
   }
 
-  if (base::FeatureList::IsEnabled(features::kGlicButtonPressedState)) {
-    if (glic_panel_is_open_) {
-      SetBackgroundFrameActiveColorId(kBackgroundWhenGlicOpenActive);
-      SetBackgroundFrameInactiveColorId(kBackgroundWhenGlicOpenInactive);
-    } else {
-      // Active frame background color is set above depending on highlight and
-      // icon.
-      // TODO(crbug.com/453739403): When GlicButtonPressedState is cleaned up,
-      // consolidate the button background logic.
-      SetBackgroundFrameInactiveColorId(
-          kColorNewTabButtonCRBackgroundFrameInactive);
-    }
+  if (base::FeatureList::IsEnabled(features::kGlicButtonPressedState) &&
+      GetWidget()) {
+    SetHighlighted(glic_panel_is_open_);
   }
 
   UpdateColors();
+}
+
+void GlicButton::NotifyClick(const ui::Event& event) {
+  if (base::FeatureList::IsEnabled(features::kGlicButtonPressedState)) {
+    // TabStripControlButton manipulates the ink drop in its NotifyClick(), so
+    // if we're using the ink drop to show the button's pressed state, skip
+    // TabStripControlButton::NotifyClick() and just call the base
+    // NotifyClick().
+    LabelButton::NotifyClick(event);
+  } else {
+    TabStripNudgeButton::NotifyClick(event);
+  }
 }
 
 void GlicButton::UpdateIcon() {
@@ -836,6 +837,12 @@ void GlicButton::SetCloseButtonVisible(bool visible) {
 
 void GlicButton::RefreshBackground() {
   UpdateColors();
+}
+
+void GlicButton::OnLabelVisibilityChanged() {
+  image_container_view()->SetProperty(
+      views::kMarginsKey,
+      GetIconMargins(ShouldShowLabel() && !is_animating_text_));
 }
 
 gfx::SlideAnimation* GlicButton::GetExpansionAnimationForTesting() {

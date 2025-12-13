@@ -122,7 +122,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
 
   // Add required resources for the searchbox.
   SearchboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui),
-                                         /*enable_voice_search=*/false,
+                                         /*enable_voice_search=*/true,
                                          /*enable_lens_search=*/false);
   // Add strings.js
   source->UseStringsJs();
@@ -192,8 +192,12 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxShowRecentTabChip", false);
   source->AddBoolean("composeboxShowSubmit", true);
   source->AddBoolean("composeboxContextDragAndDropEnabled", false);
-  source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
-  source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
+  source->AddBoolean(
+      "steadyComposeboxShowVoiceSearch",
+      contextual_tasks::GetIsExpandedComposeboxVoiceSearchEnabled());
+  source->AddBoolean(
+      "expandedComposeboxShowVoiceSearch",
+      contextual_tasks::GetIsSteadyComposeboxVoiceSearchEnabled());
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", false);
   source->AddString(
@@ -404,9 +408,17 @@ void ContextualTasksUI::OnSidePanelStateChanged() {
   page_->OnSidePanelStateChanged();
 }
 
+void ContextualTasksUI::DisableActiveTabContextSuggestion() {
+  ui_service_->set_auto_tab_context_suggestion_enabled(false);
+}
+
 void ContextualTasksUI::OnActiveTabContextStatusChanged(
     TabContextStatus status) {
   if (!composebox_handler_) {
+    return;
+  }
+
+  if (!ui_service_->auto_tab_context_suggestion_enabled()) {
     return;
   }
 

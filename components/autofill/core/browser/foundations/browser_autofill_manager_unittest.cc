@@ -2285,6 +2285,7 @@ class BrowserAutofillManagerTestValuables : public BrowserAutofillManagerTest {
     autofill_client().set_valuables_data_manager(
         std::make_unique<ValuablesDataManager>(
             web_data_service_helper_->autofill_webdata_service(),
+            autofill_client().GetPrefs(),
             /*image_fetcher=*/nullptr));
     web_data_service_helper_->WaitUntilIdle();
   }
@@ -2310,6 +2311,8 @@ TEST_F(BrowserAutofillManagerTestValuables, GetSuggestions_LoyaltyCards) {
       features::kAutofillEnableLoyaltyCardsFilling};
 
   SetLoyaltyCards({test::CreateLoyaltyCard()});
+  autofill_client().set_last_committed_primary_main_frame_url(
+      GURL("https://www.domain.example/"));
 
   FormData form =
       test::GetFormData({.fields = {{.role = LOYALTY_MEMBERSHIP_ID}}});
@@ -2374,6 +2377,8 @@ TEST_F(BrowserAutofillManagerTestValuables,
       {});
 
   SetLoyaltyCards({test::CreateLoyaltyCard()});
+  autofill_client().set_last_committed_primary_main_frame_url(
+      GURL("https://www.domain.example/"));
 
   FormData form_data =
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
@@ -2451,6 +2456,8 @@ TEST_F(BrowserAutofillManagerTestValuables,
       {});
 
   SetLoyaltyCards({test::CreateLoyaltyCard()});
+  autofill_client().set_last_committed_primary_main_frame_url(
+      GURL("https://www.domain.example/"));
   personal_data().test_address_data_manager().ClearProfiles();
 
   FormData form_data =
@@ -2493,6 +2500,8 @@ TEST_F(BrowserAutofillManagerTestValuables,
       {});
 
   SetLoyaltyCards({test::CreateLoyaltyCard()});
+  autofill_client().set_last_committed_primary_main_frame_url(
+      GURL("https://www.domain.example/"));
 
   FormData form_data =
       test::GetFormData({.fields = {{.role = EMAIL_OR_LOYALTY_MEMBERSHIP_ID},
