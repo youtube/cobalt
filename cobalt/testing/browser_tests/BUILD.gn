@@ -101,6 +101,7 @@ static_library("cobalt_browsertests_test_runner") {
     "//base/test:test_config",
     "//build:chromeos_buildflags",
     "//cobalt/shell:cobalt_shell_app",
+    "//cobalt/shell:shell_test_switches_lib",
     "//components/network_session_configurator/common:common",
     "//components/services/storage:storage",
     "//content/app:for_content_tests",
@@ -230,6 +231,7 @@ test("cobalt_browsertests") {
     "//build:chromeos_buildflags",
     "//cc/slim",
     "//cobalt/shell:pak",
+    "//cobalt/shell:shell_test_switches_lib",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
     "//components/discardable_memory/common",
@@ -416,9 +418,11 @@ static_library("cobalt_shell_test_lib") {
 
   deps = [
     ":cobalt_browsertests_support",
+    ":cobalt_browsertests_support_mojom",
     "//cc/base",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
+    "//cobalt/shell:shell_test_switches_lib",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
@@ -449,14 +453,10 @@ static_library("cobalt_shell_test_lib") {
 source_set("cobalt_browsertests_support") {
   testonly = true
   sources = [
-    "//content/test/did_commit_navigation_interceptor.cc",
-    "//content/test/did_commit_navigation_interceptor.h",
     "common/main_frame_counter_test_impl.cc",
     "common/main_frame_counter_test_impl.h",
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
-    "renderer/render_frame_test_helper.cc",
-    "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
     "renderer/shell_render_frame_observer.h",
   ]
