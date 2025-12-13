@@ -113,6 +113,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
     "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
+    "apk/app/src/main/java/dev/cobalt/util/AppExitScheduler.java",
     "apk/app/src/main/java/dev/cobalt/util/AssetLoader.java",
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",

@@ -227,4 +227,10 @@ void H5vccSystemImpl::Exit() {
   cookie_manager->FlushCookieStore(base::BindOnce(&PerformExitStrategy));
 }
 
+void H5vccSystemImpl::HideSplashScreen() {
+  LOG(INFO) << "H5vccSystem HideSplashScreen.";
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->HideSplashScreen(env);
+}
+
 }  // namespace h5vcc_system
