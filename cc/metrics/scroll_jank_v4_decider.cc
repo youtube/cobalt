@@ -6,15 +6,17 @@
 
 #include <algorithm>
 #include <optional>
+#include <utility>
 #include <variant>
 
 #include "base/check.h"
 #include "base/check_op.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/time/time.h"
 #include "cc/base/features.h"
-#include "cc/metrics/event_metrics.h"
 #include "cc/metrics/scroll_jank_v4_frame.h"
 #include "cc/metrics/scroll_jank_v4_frame_stage.h"
+#include "cc/metrics/scroll_jank_v4_result.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
 namespace cc {
@@ -27,8 +29,7 @@ using ScrollUpdates = ScrollJankV4FrameStage::ScrollUpdates;
 
 }  // namespace
 
-ScrollUpdateEventMetrics::ScrollJankV4Result
-ScrollJankV4Decider::DecideJankForFrameWithRealScrollUpdates(
+ScrollJankV4Result ScrollJankV4Decider::DecideJankForFrameWithRealScrollUpdates(
     const ScrollJankV4FrameStage::ScrollUpdates& updates,
     const ScrollJankV4Frame::ScrollDamage& damage,
     const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args) {
@@ -37,7 +38,7 @@ ScrollJankV4Decider::DecideJankForFrameWithRealScrollUpdates(
                                              IsFastScroll(*updates.real()));
 }
 
-ScrollUpdateEventMetrics::ScrollJankV4Result
+ScrollJankV4Result
 ScrollJankV4Decider::DecideJankForFrameWithSyntheticScrollUpdatesOnly(
     const ScrollJankV4FrameStage::ScrollUpdates& updates,
     const ScrollJankV4Frame::ScrollDamage& damage,
@@ -49,8 +50,7 @@ ScrollJankV4Decider::DecideJankForFrameWithSyntheticScrollUpdatesOnly(
       future_real_frame_is_fast_scroll_or_sufficiently_fast_fling);
 }
 
-ScrollUpdateEventMetrics::ScrollJankV4Result
-ScrollJankV4Decider::DecideJankForFrameWithScrollUpdates(
+ScrollJankV4Result ScrollJankV4Decider::DecideJankForFrameWithScrollUpdates(
     const ScrollUpdates& updates,
     const ScrollDamage& damage,
     const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args,
@@ -62,18 +62,10 @@ ScrollJankV4Decider::DecideJankForFrameWithScrollUpdates(
   base::TimeDelta vsync_interval = args.interval;
   const DamagingFrame* damaging_frame = std::get_if<DamagingFrame>(&damage);
 
-  ScrollUpdateEventMetrics::ScrollJankV4Result result = {
-      .is_damaging_frame = !!damaging_frame,
+  auto first_scroll_update = GetFirstScrollUpdate(updates);
+  ScrollJankV4Result result = {
+      .first_scroll_update = first_scroll_update,
   };
-  if (updates.real().has_value()) {
-    result.abs_total_raw_delta_pixels =
-        updates.real()->abs_total_raw_delta_pixels;
-    result.max_abs_inertial_raw_delta_pixels =
-        updates.real()->max_abs_inertial_raw_delta_pixels;
-  }
-
-  std::optional<base::TimeTicks> earliest_input_generation_ts =
-      GetEarliestScrollUpdateGenerationTs(updates);
 
   bool is_janky = false;
   int vsyncs_since_previous_frame = 0;
@@ -91,8 +83,9 @@ ScrollJankV4Decider::DecideJankForFrameWithScrollUpdates(
             ? damaging_frame->presentation_ts -
                   *prev_frame_data_->presentation_ts
             : args.frame_time - prev_frame_data_->begin_frame_ts;
-    vsyncs_since_previous_frame =
-        std::max<int>((delta + (vsync_interval / 2)) / vsync_interval, 1);
+    vsyncs_since_previous_frame = std::clamp(
+        base::ClampFloor((delta + (vsync_interval / 2)) / vsync_interval), 1,
+        ScrollJankV4Result::kMaxVsyncsSincePreviousFrame);
     result.vsyncs_since_previous_frame = vsyncs_since_previous_frame;
 
     if (vsyncs_since_previous_frame > 1) {
@@ -101,6 +94,17 @@ ScrollJankV4Decider::DecideJankForFrameWithScrollUpdates(
       // Chrome should have presented its first inputs (`earliest_event`) in an
       // earlier VSync based on the rules described in
       // https://docs.google.com/document/d/1AaBvTIf8i-c-WTKkjaL4vyhQMkSdynxo3XEiwpofdeA.
+      std::optional<base::TimeTicks> earliest_input_generation_ts = std::visit(
+          absl::Overload{
+              [](const ScrollJankV4Result::RealFirstScrollUpdate& real)
+                  -> std::optional<base::TimeTicks> {
+                return real.actual_input_generation_ts;
+              },
+              [](const ScrollJankV4Result::SyntheticFirstScrollUpdate&
+                     synthetic) {
+                return synthetic.extrapolated_input_generation_ts;
+              }},
+          first_scroll_update);
       JankReasonArray<int> missed_vsyncs_per_reason =
           CalculateMissedVsyncsPerReason(
               vsyncs_since_previous_frame, earliest_input_generation_ts,
@@ -115,6 +119,26 @@ ScrollJankV4Decider::DecideJankForFrameWithScrollUpdates(
       result.missed_vsyncs_per_reason = std::move(missed_vsyncs_per_reason);
     }
   }
+
+  auto presentation = [&]() -> ScrollJankV4Result::Presentation {
+    if (damaging_frame) {
+      return ScrollJankV4Result::DamagingPresentation{
+          .actual_presentation_ts = damaging_frame->presentation_ts};
+    }
+    if (!prev_frame_data_.has_value() ||
+        !prev_frame_data_->presentation_ts.has_value() || is_janky) {
+      return ScrollJankV4Result::NonDamagingPresentation{
+          .extrapolated_presentation_ts = std::nullopt};
+    }
+    // If this is a non-damaging frame, we assume that it had the same
+    // duration between its begin frame and presentation timestamps as the
+    // most recent damaging frame.
+    return ScrollJankV4Result::NonDamagingPresentation{
+        .extrapolated_presentation_ts =
+            *prev_frame_data_->presentation_ts +
+            (args.frame_time - prev_frame_data_->begin_frame_ts)};
+  }();
+  result.presentation = presentation;
 
   // Finally, update internal state for the next iteration.
   prev_frame_data_ = {
@@ -145,20 +169,17 @@ ScrollJankV4Decider::DecideJankForFrameWithScrollUpdates(
                 prev_frame_data_->begin_frame_ts);
       }(),
       .begin_frame_ts = args.frame_time,
-      .presentation_ts = [&]() -> std::optional<base::TimeTicks> {
-        if (damaging_frame) {
-          return damaging_frame->presentation_ts;
-        }
-        if (!prev_frame_data_.has_value() ||
-            !prev_frame_data_->presentation_ts.has_value() || is_janky) {
-          return std::nullopt;
-        }
-        // If this is a non-damaging frame, we assume that it had the same
-        // duration between its begin frame and presentation timestamps as the
-        // most recent damaging frame.
-        return *prev_frame_data_->presentation_ts +
-               (args.frame_time - prev_frame_data_->begin_frame_ts);
-      }(),
+      .presentation_ts = std::visit(
+          absl::Overload{
+              [](const ScrollJankV4Result::DamagingPresentation& damaging)
+                  -> std::optional<base::TimeTicks> {
+                return damaging.actual_presentation_ts;
+              },
+              [](const ScrollJankV4Result::NonDamagingPresentation&
+                     non_damaging) {
+                return non_damaging.extrapolated_presentation_ts;
+              }},
+          presentation),
       .running_delivery_cutoff = CalculateRunningDeliveryCutoff(
           vsyncs_since_previous_frame, is_janky, updates, damage, args, result),
   };
@@ -171,6 +192,10 @@ bool ScrollJankV4Decider::IsValidFrame(
     const ScrollJankV4FrameStage::ScrollUpdates& updates,
     const ScrollJankV4Frame::ScrollDamage& damage,
     const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args) {
+  if (!args.interval.is_positive()) {
+    return false;
+  }
+
   if (const DamagingFrame* damaging_frame =
           std::get_if<DamagingFrame>(&damage)) {
     base::TimeTicks presentation_ts = damaging_frame->presentation_ts;
@@ -242,8 +267,10 @@ JankReasonArray<int> ScrollJankV4Decider::CalculateMissedVsyncsPerReason(
     const ScrollJankV4Frame::ScrollDamage& damage,
     const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args,
     bool treat_as_fast_scroll,
-    ScrollUpdateEventMetrics::ScrollJankV4Result& result) const {
+    ScrollJankV4Result& result) const {
   DCHECK_GT(vsyncs_since_previous_frame, 1);
+  DCHECK_LE(vsyncs_since_previous_frame,
+            ScrollJankV4Result::kMaxVsyncsSincePreviousFrame);
 
   static const double kStabilityCorrection =
       features::kScrollJankV4MetricStabilityCorrection.Get();
@@ -287,13 +314,20 @@ JankReasonArray<int> ScrollJankV4Decider::CalculateMissedVsyncsPerReason(
     result.adjusted_delivery_cutoff = adjusted_delivery_cutoff;
     base::TimeDelta first_input_to_presentation =
         presentation_ts - *first_input_generation_ts;
+    // How much is the current frame's first input delayed compared to Chrome's
+    // past performance (`adjusted_delivery_cutoff`)? If positive, input→frame
+    // delivery is decelerating. If negative, input→frame delivery is
+    // accelerating. Note that we divide by `(1 - kDiscountFactor)` because we
+    // need to reverse the discounting as we consider earlier VSyncs.
+    base::TimeDelta first_input_delay_compared_to_past_performance =
+        (first_input_to_presentation - adjusted_delivery_cutoff) /
+        (1 - kDiscountFactor);
     // Based on Chrome's past performance (`adjusted_delivery_cutoff`), how many
     // VSyncs ago could Chrome have presented the current frame's first input?
-    // Note that we divide by `(1 - kDiscountFactor)` because we need to reverse
-    // the discounting as we consider earlier VSyncs.
-    int missed_vsyncs_due_to_deceleration =
-        (first_input_to_presentation - adjusted_delivery_cutoff) /
-        ((1 - kDiscountFactor) * vsync_interval);
+    int missed_vsyncs_due_to_deceleration = std::clamp(
+        base::ClampFloor(first_input_delay_compared_to_past_performance /
+                         vsync_interval),
+        0, ScrollJankV4Result::kMaxMissedVsyncs);
     if (missed_vsyncs_due_to_deceleration > 0) {
       missed_vsyncs_per_reason[static_cast<int>(
           JankReason::kMissedVsyncDueToDeceleratingInputFrameDelivery)] =
@@ -335,7 +369,7 @@ ScrollJankV4Decider::CalculateRunningDeliveryCutoff(
     const ScrollUpdates& updates,
     const ScrollJankV4Frame::ScrollDamage& damage,
     const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args,
-    ScrollUpdateEventMetrics::ScrollJankV4Result& result) const {
+    ScrollJankV4Result& result) const {
   // We should consider Chrome's past performance
   // (`*prev_frame_data_->running_delivery_cutoff`) to update
   // the running delivery cut-off as long as there's data available for the
@@ -380,8 +414,7 @@ ScrollJankV4Decider::CalculateRunningDeliveryCutoff(
   return discounted_prev_delivery_cutoff;
 }
 
-std::optional<base::TimeTicks>
-ScrollJankV4Decider::GetEarliestScrollUpdateGenerationTs(
+ScrollJankV4Result::FirstScrollUpdate ScrollJankV4Decider::GetFirstScrollUpdate(
     const ScrollUpdates& updates) const {
   std::optional<base::TimeTicks>
       extrapolated_first_synthetic_input_generation_ts =
@@ -398,9 +431,13 @@ ScrollJankV4Decider::GetEarliestScrollUpdateGenerationTs(
       (!extrapolated_first_synthetic_input_generation_ts.has_value() ||
        updates.real()->first_input_generation_ts <=
            *extrapolated_first_synthetic_input_generation_ts)) {
-    return updates.real()->first_input_generation_ts;
+    return ScrollJankV4Result::RealFirstScrollUpdate{
+        .actual_input_generation_ts =
+            updates.real()->first_input_generation_ts};
   }
-  return extrapolated_first_synthetic_input_generation_ts;
+  return ScrollJankV4Result::SyntheticFirstScrollUpdate{
+      .extrapolated_input_generation_ts =
+          extrapolated_first_synthetic_input_generation_ts};
 }
 
 void ScrollJankV4Decider::Reset() {

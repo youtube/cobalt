@@ -9,6 +9,7 @@
 #include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
 #include "base/uuid.h"
+#include "build/branding_buildflags.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
@@ -35,6 +36,7 @@
 #include "chrome/grit/contextual_tasks_resources.h"
 #include "chrome/grit/contextual_tasks_resources_map.h"
 #include "chrome/grit/generated_resources.h"
+#include "chrome/grit/theme_resources.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/features.h"
@@ -132,6 +134,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"myActivity", IDS_CONTEXTUAL_TASKS_MENU_MY_ACTIVITY},
       {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
       {"sourcesMenuTabsHeader", IDS_CONTEXTUAL_TASKS_SOURCES_MENU_TABS_HEADER},
+      {"title", IDS_CONTEXTUAL_TASKS_AI_MODE_TITLE},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
   source->AddLocalizedString(
@@ -246,15 +249,16 @@ void ContextualTasksUI::CreatePageHandler(
   page_.Bind(std::move(page));
   page_handler_ = std::make_unique<ContextualTasksPageHandler>(
       std::move(page_handler), this, ui_service_, context_controller_);
-  // TODO(crbug.com/461595196): Currently, this grabs the OAuth token once,
-  // but it should be refreshed if it expires.
+
+  // Request the initial OAuth token to be used by the embedded page.
   RequestOAuthToken();
 }
 
 void ContextualTasksUI::RequestOAuthToken() {
+  token_refresh_timer_.Stop();
+
   auto* profile = Profile::FromWebUI(web_ui());
   auto* identity_manager = IdentityManagerFactory::GetForProfile(profile);
-
   if (!identity_manager ||
       !identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin)) {
     if (page_) {
@@ -292,6 +296,13 @@ void ContextualTasksUI::OnOAuthTokenReceived(
     return;
   }
   page_->SetOAuthToken(access_token_info.token);
+
+  if (!access_token_info.expiration_time.is_null()) {
+    token_refresh_timer_.Start(
+        FROM_HERE, access_token_info.expiration_time - base::Time::Now(),
+        base::BindOnce(&ContextualTasksUI::RequestOAuthToken,
+                       weak_ptr_factory_.GetWeakPtr()));
+  }
 }
 
 const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
@@ -602,6 +613,23 @@ void ContextualTasksUI::CreatePageHandler(
       std::make_unique<ContextualTasksInternalsPageHandler>(
           context_service, optimization_guide_keyed_service,
           std::move(receiver), std::move(page));
+}
+
+// static
+base::RefCountedMemory* ContextualTasksUI::GetFaviconResourceBytes(
+    ui::ResourceScaleFactor scale_factor) {
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  // Use the Google G favicon for Google Chrome branded builds.
+  // TODO(crbug.com/467038817): Update to 16px gradient PNG.
+  return static_cast<base::RefCountedMemory*>(
+      ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytesForScale(
+          IDR_GOOGLE_G, scale_factor));
+#else
+  // Use the Chromium favicon for Chromium builds.
+  return static_cast<base::RefCountedMemory*>(
+      ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytesForScale(
+          IDR_NTP_FAVICON, scale_factor));
+#endif
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(ContextualTasksUI)

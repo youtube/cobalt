@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'Ly0e6fpESqQJPs9YJ5BrVVdWVcj36e2Ue9vUwzQ3v3IC',
+              'version': '1mYeM_BvAH935EffDub1gT1dhBG4AfKOrE-KTt5tpRsC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': 'AT8uYHBiO2EbF6AufsGlXEbCPlsUDAG7-Zv7Q2Md8skC',
+              'version': 'yZ_bTaeQZhoX77GTbpX51UFrESK4K1BcV2fxK2gaxrwC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'b94rD_j7MMqStjw8a4P5kjL1t92w6bq9DVd-sf1rmsYC',
+              'version': '1sqZtPJ7UTS0xfKcp7WAKvk3Xk9lldrnzDr7VK5FMYsC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -3769,7 +3769,7 @@ deps = {
 
   'src/ios_internal':  {
       'url': Var('chrome_git') + '/chrome/ios_internal.git' + '@' +
-        '25254dc5b56959fb28b961ae707be7b985709542',
+        '40472474c5bf240e7d8c1f0db333867dfd3ff411',
       'condition': 'checkout_ios and checkout_src_internal',
   },
 

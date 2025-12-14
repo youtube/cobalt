@@ -109,6 +109,14 @@ should be able to be added at any place in this file.
   <variant name=".UnpinItem" summary="Remove a custom item."/>
 </variants>
 
+<variants name="ContextualSearchSource">
+  <variant name="ContextualTasks" summary="Contextual tasks"/>
+  <variant name="Lens" summary="Lens"/>
+  <variant name="NewTabPage" summary="New tab page"/>
+  <variant name="Omnibox" summary="Omnibox"/>
+  <variant name="Unknown" summary="Unknown"/>
+</variants>
+
 <variants name="Crow_Type">
   <variant name="" summary="aggregated"/>
   <variant name=".AppMenu" summary="via App Menu entry point"/>
@@ -10195,6 +10203,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action
+    name="ContextualSearch.UserAction.DeleteAutoSuggestedTab.{ContextualSearchSource}">
+  <owner>sophiechang@chromium.org</owner>
+  <description>
+    A user deleted the auto-suggested tab context when using the composebox on
+    {ContextualSearchSource}.
+  </description>
+  <token key="ContextualSearchSource" variants="ContextualSearchSource"/>
+</action>
+
 <action name="ContextualSearch.ViewLessThanOneSecond">
   <owner>donnd@chromium.org</owner>
   <description>
@@ -10281,6 +10299,20 @@ should be able to be added at any place in this file.
   <token key="SurfaceType">
     <variant name=".Panel" summary="The user clicked on a link in the panel."/>
     <variant name=".Tab" summary="The user clicked on a link in a tab."/>
+  </token>
+</action>
+
+<action name="ContextualTasks.TabChange.UserAction{ActionType}">
+  <owner>sophiechang@chromium.org</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>The user changed the active tab. {ActionType}</description>
+  <token key="ActionType">
+    <variant name=".ChangedThreads"
+        summary="The user changed the active thread."/>
+    <variant name=".CloseSidePanel" summary="The user closed the side panel."/>
+    <variant name=".OpenSidePanel" summary="The user opened the side panel."/>
+    <variant name=".StayedOnThread"
+        summary="The user stayed on the same thread."/>
   </token>
 </action>
 

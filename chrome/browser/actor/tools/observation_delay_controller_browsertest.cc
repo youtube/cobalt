@@ -55,7 +55,7 @@ class ObservationDelayControllerTest : public ObservationDelayTest {
 };
 
 class ObservationDelayControllerNavigateTest
-    : public ObservationDelayTest,
+    : public ObservationDelayControllerTest,
       public base::test::WithFeatureOverride {
  public:
   ObservationDelayControllerNavigateTest()
@@ -63,8 +63,6 @@ class ObservationDelayControllerNavigateTest
             kActorRestartObservationDelayControllerOnNavigate) {}
 };
 
-// Ensure that a navigation while the page stability monitor is in-progress
-// moves the controller to wait on the load.
 IN_PROC_BROWSER_TEST_P(ObservationDelayControllerNavigateTest,
                        NavigateDuringPageStabilization) {
   ASSERT_TRUE(
@@ -105,8 +103,6 @@ IN_PROC_BROWSER_TEST_P(ObservationDelayControllerNavigateTest,
   }
 }
 
-// Ensure that a navigation while the page stability monitor is in-progress
-// moves the controller to wait on the load.
 IN_PROC_BROWSER_TEST_P(ObservationDelayControllerNavigateTest,
                        NavigateWithTooManyRestarts) {
   ASSERT_TRUE(

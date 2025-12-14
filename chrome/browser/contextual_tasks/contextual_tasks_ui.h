@@ -11,6 +11,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
+#include "base/timer/timer.h"
 #include "base/uuid.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_internals.mojom.h"
@@ -26,6 +27,7 @@
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "ui/base/resource/resource_scale_factor.h"
 #include "ui/webui/mojo_web_ui_controller.h"
 #include "ui/webui/resources/cr_components/composebox/composebox.mojom.h"
 
@@ -154,6 +156,9 @@ class ContextualTasksUI : public TaskInfoDelegate,
 
   static constexpr std::string_view GetWebUIName() { return "ContextualTasks"; }
 
+  static base::RefCountedMemory* GetFaviconResourceBytes(
+      ui::ResourceScaleFactor scale_factor);
+
   // Notify the UI that the WebContents has moved to or from the side panel or
   // tab.
   void OnSidePanelStateChanged();
@@ -210,7 +215,14 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // the embedded remote page.
   void OnInnerWebContentsCreated(content::WebContents* inner_contents);
 
+  // The OAuth token fetcher is used to fetch the OAuth token for the signed in
+  // user. This is used to authenticate the user when making requests in the
+  // embedded page.
   std::unique_ptr<signin::AccessTokenFetcher> oauth_token_fetcher_;
+
+  // A timer used to refresh the OAuth token before it expires.
+  base::OneShotTimer token_refresh_timer_;
+
   std::unique_ptr<ContextualTasksComposeboxHandler> composebox_handler_;
   raw_ptr<contextual_tasks::ContextualTasksUiService> ui_service_;
 

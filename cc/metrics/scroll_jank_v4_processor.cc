@@ -14,6 +14,8 @@
 #include "cc/metrics/scroll_jank_v4_frame.h"
 #include "cc/metrics/scroll_jank_v4_frame_stage.h"
 #include "cc/metrics/scroll_jank_v4_histogram_emitter.h"
+#include "cc/metrics/scroll_jank_v4_result.h"
+#include "cc/metrics/scroll_jank_v4_tracing_recorder.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
 #include "third_party/abseil-cpp/absl/functional/overload.h"
 
@@ -24,17 +26,17 @@ namespace {
 class ProcessorResultConsumer
     : public ScrollJankV4DecisionQueue::ResultConsumer {
  public:
-  void OnFrameResult(ScrollUpdateEventMetrics::ScrollJankV4Result result,
-                     ScrollUpdateEventMetrics* earliest_event) override {
+  void OnFrameResult(const ScrollJankV4FrameStage::ScrollUpdates& updates,
+                     const ScrollJankV4Frame::ScrollDamage& damage,
+                     const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args,
+                     const ScrollJankV4Result& result) override {
     bool counts_towards_histogram_frame_count =
-        result.is_damaging_frame ||
+        std::holds_alternative<ScrollJankV4Frame::DamagingFrame>(damage) ||
         features::kCountNonDamagingFramesTowardsHistogramFrameCount.Get();
     histogram_emitter_.OnFrameWithScrollUpdates(
         result.missed_vsyncs_per_reason, counts_towards_histogram_frame_count);
-    if (earliest_event) {
-      CHECK(!earliest_event->scroll_jank_v4().has_value());
-      earliest_event->set_scroll_jank_v4(result);
-    }
+    ScrollJankV4TracingRecorder::RecordTraceEvents(updates, damage, args,
+                                                   result);
   }
 
   void OnScrollStarted() override { histogram_emitter_.OnScrollStarted(); }
@@ -51,7 +53,7 @@ ScrollJankV4Processor::ScrollJankV4Processor()
     : decision_queue_(std::make_unique<ProcessorResultConsumer>()) {}
 
 void ScrollJankV4Processor::ProcessEventsMetricsForPresentedFrame(
-    EventMetrics::List& events_metrics,
+    const EventMetrics::List& events_metrics,
     base::TimeTicks presentation_ts,
     const viz::BeginFrameArgs& args) {
   static const bool scroll_jank_v4_metric_enabled =
@@ -79,15 +81,15 @@ void ScrollJankV4Processor::ProcessEventsMetricsForPresentedFrame(
 }
 
 void ScrollJankV4Processor::HandleFrame(
-    ScrollJankV4FrameStage::List& stages,
+    const ScrollJankV4FrameStage::List& stages,
     const ScrollJankV4Frame::ScrollDamage& damage,
     const ScrollJankV4Frame::BeginFrameArgsForScrollJank& args) {
-  for (ScrollJankV4FrameStage& stage : stages) {
+  for (const ScrollJankV4FrameStage& stage : stages) {
     std::visit(absl::Overload{
-                   [&](ScrollJankV4FrameStage::ScrollStart& end) {
+                   [&](const ScrollJankV4FrameStage::ScrollStart& end) {
                      decision_queue_.OnScrollStarted();
                    },
-                   [&](ScrollJankV4FrameStage::ScrollUpdates& updates) {
+                   [&](const ScrollJankV4FrameStage::ScrollUpdates& updates) {
                      if (!decision_queue_.ProcessFrameWithScrollUpdates(
                              updates, damage, args)) {
                        TRACE_EVENT(
@@ -95,7 +97,7 @@ void ScrollJankV4Processor::HandleFrame(
                            "ScrollJankV4Processor::HandleFrame: Invalid frame");
                      }
                    },
-                   [&](ScrollJankV4FrameStage::ScrollEnd& end) {
+                   [&](const ScrollJankV4FrameStage::ScrollEnd& end) {
                      decision_queue_.OnScrollEnded();
                    },
                },

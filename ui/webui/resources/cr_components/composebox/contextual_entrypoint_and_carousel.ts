@@ -372,6 +372,15 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   updateAutoActiveTabContext(tab: TabInfo|null) {
     // If there is already a suggested tab context, remove it.
     if (this.automaticActiveTabChipToken_) {
+      // In rare cases chrome.metricsPrivate is not available. See
+      // crbug.com/40162029.
+      if (chrome.metricsPrivate) {
+        const metricName =
+            'ContextualSearch.UserAction.DeleteAutoSuggestedTab.' +
+            this.composeboxSource_;
+        chrome.metricsPrivate.recordUserAction(metricName);
+        chrome.metricsPrivate.recordBoolean(metricName, true);
+      }
       this.onDeleteFile_(new CustomEvent('deleteTabContext', {
         detail: {
           uuid: this.automaticActiveTabChipToken_,
@@ -528,9 +537,14 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   private isFileAllowed_(file: File, acceptedFileTypes: string): boolean {
+    // TODO(crbug.com/466876679):refractor isFileAllowed_ to use pre-split string arrays
     const fileType = file.type.toLowerCase();
     const allowedTypes = acceptedFileTypes.split(',');
     return allowedTypes.some(type => {
+      if (type.endsWith('/*')) {
+        const prefix = type.slice(0, -1);
+        return fileType.startsWith(prefix);
+      }
       return fileType === type;
     });
   }
