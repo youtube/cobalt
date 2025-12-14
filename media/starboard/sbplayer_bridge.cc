@@ -613,9 +613,10 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     const char* init_data_type,
     const unsigned char* init_data,
     unsigned int init_data_length) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  DCHECK(!helper->on_encrypted_media_init_data_encountered_cb_.is_null());
-  helper->on_encrypted_media_init_data_encountered_cb_.Run(
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  DCHECK(
+      !sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.is_null());
+  sbplayer_bridge->on_encrypted_media_init_data_encountered_cb_.Run(
       init_data_type, init_data, init_data_length);
 }
 
@@ -1155,11 +1156,14 @@ void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
                                      SbMediaType type,
                                      SbPlayerDecoderState state,
                                      int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  sbplayer_bridge->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::OnDecoderStatusTask,
-                     helper->weak_factory_.GetWeakPtr(),
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     // SAFETY: The `player` handle refers to `player_`, a
+                     // member of SbPlayerBridge. Its validity is guaranteed by
+                     // the WeakPtr check for SbPlayerBridge's lifetime.
                      static_cast<void*>(player), type, state, ticket));
 }
 
@@ -1174,11 +1178,15 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
                                     void* context,
                                     SbPlayerState state,
                                     int ticket) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&SbPlayerBridge::OnPlayerStatusTask,
-                                helper->weak_factory_.GetWeakPtr(),
-                                static_cast<void*>(player), state, ticket));
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  sbplayer_bridge->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::OnPlayerStatusTask,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     // SAFETY: The `player` handle refers to `player_`, a
+                     // member of SbPlayerBridge. Its validity is guaranteed by
+                     // the WeakPtr check for SbPlayerBridge's lifetime.
+                     static_cast<void*>(player), state, ticket));
 }
 
 void SbPlayerBridge::OnPlayerErrorTask(void* player,
@@ -1192,19 +1200,23 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
                                    void* context,
                                    SbPlayerError error,
                                    const char* message) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
     // TryToSetPlayerCreationErrorMessage() with OnPlayerError().
-    if (helper->TryToSetPlayerCreationErrorMessage(message)) {
+    if (sbplayer_bridge->TryToSetPlayerCreationErrorMessage(message)) {
       return;
     }
   }
-  helper->task_runner_->PostTask(
-      FROM_HERE, base::BindOnce(&SbPlayerBridge::OnPlayerErrorTask,
-                                helper->weak_factory_.GetWeakPtr(),
-                                static_cast<void*>(player), error,
-                                message ? std::string(message) : ""));
+  sbplayer_bridge->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&SbPlayerBridge::OnPlayerErrorTask,
+                     sbplayer_bridge->weak_factory_.GetWeakPtr(),
+                     // SAFETY: The `player` handle refers to `player_`, a
+                     // member of SbPlayerBridge. Its validity is guaranteed by
+                     // the WeakPtr check for SbPlayerBridge's lifetime.
+                     static_cast<void*>(player), error,
+                     message ? std::string(message) : ""));
 }
 
 void SbPlayerBridge::OnDeallocateSampleTask(const void* sample_buffer) {
@@ -1215,11 +1227,16 @@ void SbPlayerBridge::OnDeallocateSampleTask(const void* sample_buffer) {
 void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
                                         void* context,
                                         const void* sample_buffer) {
-  SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
-  helper->task_runner_->PostTask(
+  SbPlayerBridge* sbplayer_bridge = static_cast<SbPlayerBridge*>(context);
+  sbplayer_bridge->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::OnDeallocateSampleTask,
-                     helper->weak_factory_.GetWeakPtr(), sample_buffer));
+      base::BindOnce(
+          &SbPlayerBridge::OnDeallocateSampleTask,
+          sbplayer_bridge->weak_factory_.GetWeakPtr(),
+          // SAFETY: `sample_buffer` points to memory owned by
+          // `decoding_buffers_`, a member of SbPlayerBridge. Its validity is
+          // guaranteed by the WeakPtr check for SbPlayerBridge's lifetime.
+          sample_buffer));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
