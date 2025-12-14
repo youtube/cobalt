@@ -124,9 +124,9 @@ SbPlayerBridge::SbPlayerBridge(
   CreateUrlPlayer(url_);
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
-  task_runner->PostTask(
-      FROM_HERE, base::BindRepeatedly(&SbPlayerBridge::ClearDecoderBufferCache,
-                                      weak_factory_.GetWeakPtr()));
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&SbPlayerBridge::ClearDecoderBufferCache,
+                                       weak_factory_.GetWeakPtr()));
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -209,9 +209,8 @@ SbPlayerBridge::SbPlayerBridge(
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   if (SbPlayerIsValid(player_)) {
     task_runner->PostTask(
-        FROM_HERE,
-        base::BindRepeatedly(&SbPlayerBridge::ClearDecoderBufferCache,
-                             weak_factory_.GetWeakPtr()));
+        FROM_HERE, base::BindOnce(&SbPlayerBridge::ClearDecoderBufferCache,
+                                  weak_factory_.GetWeakPtr()));
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
