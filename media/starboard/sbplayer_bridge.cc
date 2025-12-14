@@ -1271,8 +1271,8 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_, sample_buffer));
+      base::BindOnce(&SbPlayerBridge::OnDeallocateSample,
+                     helper->weak_factory_.GetWeakPtr(), sample_buffer));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

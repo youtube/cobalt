@@ -23,6 +23,7 @@
 #include "base/atomic_sequence_num.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -377,6 +378,8 @@ class SbPlayerBridge {
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+
+  base::WeakPtrFactory<SbPlayerBridge> weak_factory_{this};
 };
 
 }  // namespace media
