@@ -90,72 +90,6 @@ void SetDiscardPadding(
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 #endif  // COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING
 
-SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
-    : player_bridge_(player_bridge) {}
-
-void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->ClearDecoderBufferCache();
-}
-
-void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
-                                                     SbMediaType type,
-                                                     SbPlayerDecoderState state,
-                                                     int ticket) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
-                                  ticket);
-}
-
-void SbPlayerBridge::CallbackHelper::OnPlayerStatus(void* player,
-                                                    SbPlayerState state,
-                                                    int ticket) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
-}
-
-void SbPlayerBridge::CallbackHelper::OnPlayerError(void* player,
-                                                   SbPlayerError error,
-                                                   const std::string& message) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnPlayerError(static_cast<SbPlayer>(player), error, message);
-}
-
-void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
-    const void* sample_buffer) {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_->OnDeallocateSample(sample_buffer);
-}
-
-void SbPlayerBridge::CallbackHelper::ResetPlayer() {
-  if (!player_bridge_) {
-    return;
-  }
-  CHECK(player_bridge_->task_runner_->RunsTasksInCurrentSequence());
-
-  player_bridge_ = nullptr;
-}
-
 #if SB_HAS(PLAYER_WITH_URL)
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
@@ -172,8 +106,6 @@ SbPlayerBridge::SbPlayerBridge(
     : url_(url),
       sbplayer_interface_(interface),
       task_runner_(task_runner),
-      callback_helper_(
-          new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
       window_(window),
       host_(host),
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
@@ -193,9 +125,8 @@ SbPlayerBridge::SbPlayerBridge(
 
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   task_runner->PostTask(
-      FROM_HERE, base::BindRepeatedly(
-                     &SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                     callback_helper_));
+      FROM_HERE, base::BindRepeatedly(&SbPlayerBridge::ClearDecoderBufferCache,
+                                      weak_factory_.GetWeakPtr()));
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -228,7 +159,6 @@ SbPlayerBridge::SbPlayerBridge(
       task_runner_(task_runner),
       get_decode_target_graphics_context_provider_func_(
           get_decode_target_graphics_context_provider_func),
-      callback_helper_(new CallbackHelper(this)),
       window_(window),
       drm_system_(drm_system),
       host_(host),
@@ -279,9 +209,9 @@ SbPlayerBridge::SbPlayerBridge(
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   if (SbPlayerIsValid(player_)) {
     task_runner->PostTask(
-        FROM_HERE, base::BindRepeatedly(
-                       &SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                       callback_helper_));
+        FROM_HERE,
+        base::BindRepeatedly(&SbPlayerBridge::ClearDecoderBufferCache,
+                             weak_factory_.GetWeakPtr()));
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
@@ -289,7 +219,7 @@ SbPlayerBridge::SbPlayerBridge(
 SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  callback_helper_->ResetPlayer();
+  weak_factory_.InvalidateWeakPtrs();
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -686,7 +616,6 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
     unsigned int init_data_length) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   DCHECK(!helper->on_encrypted_media_init_data_encountered_cb_.is_null());
-  // TODO: Use callback_helper here.
   helper->on_encrypted_media_init_data_encountered_cb_.Run(
       init_data_type, init_data, init_data_length);
 }
@@ -1066,8 +995,8 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
 
   task_runner_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                 callback_helper_),
+      base::BindOnce(&SbPlayerBridge::ClearDecoderBufferCache,
+                     weak_factory_.GetWeakPtr()),
       TimeDelta::FromMilliseconds(kClearDecoderCacheIntervalInMilliseconds));
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 }
@@ -1214,6 +1143,13 @@ bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
   return false;
 }
 
+void SbPlayerBridge::OnDecoderStatusTask(void* player,
+                                         SbMediaType type,
+                                         SbPlayerDecoderState state,
+                                         int ticket) {
+  OnDecoderStatus(static_cast<SbPlayer>(player), type, state, ticket);
+}
+
 // static
 void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
                                      void* context,
@@ -1223,10 +1159,15 @@ void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
-                     helper->callback_helper_,
-                     base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
-                     type, state, ticket));
+      base::BindOnce(&SbPlayerBridge::OnDecoderStatusTask,
+                     helper->weak_factory_.GetWeakPtr(),
+                     static_cast<void*>(player), type, state, ticket));
+}
+
+void SbPlayerBridge::OnPlayerStatusTask(void* player,
+                                        SbPlayerState state,
+                                        int ticket) {
+  OnPlayerStatus(static_cast<SbPlayer>(player), state, ticket);
 }
 
 // static
@@ -1236,11 +1177,15 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
                                     int ticket) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
-                     helper->callback_helper_,
-                     base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
-                     state, ticket));
+      FROM_HERE, base::BindOnce(&SbPlayerBridge::OnPlayerStatusTask,
+                                helper->weak_factory_.GetWeakPtr(),
+                                static_cast<void*>(player), state, ticket));
+}
+
+void SbPlayerBridge::OnPlayerErrorTask(void* player,
+                                       SbPlayerError error,
+                                       const std::string& message) {
+  OnPlayerError(static_cast<SbPlayer>(player), error, message);
 }
 
 // static
@@ -1257,11 +1202,14 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
     }
   }
   helper->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError,
-                     helper->callback_helper_,
-                     base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
-                     error, message ? std::string(message) : ""));
+      FROM_HERE, base::BindOnce(&SbPlayerBridge::OnPlayerErrorTask,
+                                helper->weak_factory_.GetWeakPtr(),
+                                static_cast<void*>(player), error,
+                                message ? std::string(message) : ""));
+}
+
+void SbPlayerBridge::OnDeallocateSampleTask(const void* sample_buffer) {
+  OnDeallocateSample(sample_buffer);
 }
 
 // static
@@ -1271,7 +1219,7 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&SbPlayerBridge::OnDeallocateSample,
+      base::BindOnce(&SbPlayerBridge::OnDeallocateSampleTask,
                      helper->weak_factory_.GetWeakPtr(), sample_buffer));
 }
 
