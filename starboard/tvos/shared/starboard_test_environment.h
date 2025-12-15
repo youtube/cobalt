@@ -22,7 +22,7 @@
 
 namespace starboard {
 
-class ApplicationDarwin;
+class QueueApplication; // Forward declare QueueApplication
 
 class StarboardTestEnvironment final : public ::testing::Environment {
  public:
@@ -33,7 +33,7 @@ class StarboardTestEnvironment final : public ::testing::Environment {
   void TearDown() final;
 
  private:
-  std::unique_ptr<ApplicationDarwin> application_darwin_;
+  std::unique_ptr<QueueApplication> application_; // Changed type and name
   CommandLine command_line_;
 };
 
