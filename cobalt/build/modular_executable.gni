@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/compiled_action.gni")
+import("//starboard/content/fonts/variables.gni")
 import("//third_party/icu/config.gni")
 import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
 
@@ -89,15 +90,22 @@ template("evergreen_final_target") {
   group("${original_target_name}_loader") {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
     data_deps = [
+      ":${original_target_name}_loaded_content",
       ":${original_target_name}_runfile_gen",
-      ":copy_${original_target_name}_content",
-      ":copy_${original_target_name}_lib",
-      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
       "//starboard/loader_app($starboard_toolchain)",
     ]
     deps = [ "//starboard/loader_app($starboard_toolchain)" ]
     write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
+  }
+
+  group("${original_target_name}_loaded_content") {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    data_deps = [
+      ":copy_${original_target_name}_content",
+      ":copy_${original_target_name}_lib",
+      "//starboard/content/ssl:copy_ssl_certificates_prod_cobalt",
+    ]
   }
 
   action("${original_target_name}_runfile_gen") {
@@ -126,6 +134,14 @@ template("evergreen_final_target") {
       "//cobalt/shell:pak",
       "//third_party/icu:icudata",
     ]
+    data_deps = [ ":copy_${original_target_name}_empty_fonts" ]
+  }
+
+  copy("copy_${original_target_name}_empty_fonts") {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    sources = [ "$source_font_config_dir/fonts.xml" ]
+    outputs =
+        [ "$root_out_dir/app/${original_target_name}/content/fonts/fonts.xml" ]
   }
 
   compiled_action("copy_${original_target_name}_lib") {
