@@ -68,6 +68,8 @@ class StarboardBridge {
 
   void CloseAllCobaltService(JNIEnv* env) const;
 
+  void HideSplashScreen(JNIEnv* env) const;
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;

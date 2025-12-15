@@ -41,4 +41,7 @@ interface H5vccSystem {
   GetUserOnExitStrategy() => (UserOnExitStrategy userOnExitStrategy);
   // Platform-specific conceal or stop depending on strategy.
   Exit();
+
+  // Kabuki request to hide the splash screen.
+  HideSplashScreen();
 };

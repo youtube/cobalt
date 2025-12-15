@@ -44,6 +44,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.util.AppExitScheduler;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -83,6 +84,9 @@ public abstract class CobaltActivity extends Activity {
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
+
+  // How many seconds before the app exits if it fails to land Kabuki home page.
+  private static final int HANG_APP_EXIT_SECONDS = 60;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -478,6 +482,9 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
+
+    AppExitScheduler.getInstance().scheduleCrash(HANG_APP_EXIT_SECONDS);
+
     cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
