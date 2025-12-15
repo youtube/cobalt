@@ -400,6 +400,10 @@
                     "to_file": "jar/cobalt_android_cobalt_main_java.jar"
                 },
                 {
+                    "from_file": "obj/cobalt/android/cobalt_browser_java.javac.jar",
+                    "to_file": "jar/cobalt_android_cobalt_browser_java.jar"
+                },
+                {
                     "from_file": "obj/cobalt/browser/crash_annotator/public/mojom/mojom_java.javac.jar",
                     "to_file": "jar/cobalt_browser_crash_annotator_public_mojom_mojom_java.jar"
                 },
