@@ -8,9 +8,6 @@ cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 jinja_template("cobalt_manifest") {
   input = "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2"
   output = cobalt_manifest
-<<<<<<< HEAD
-  variables = [ "manifest_package=dev.cobalt.coat" ]
-=======
   variables = [
     "manifest_package=dev.cobalt.coat",
     "build_type=$build_type",
@@ -20,7 +17,6 @@ jinja_template("cobalt_manifest") {
   } else {
     variables += [ "debuggable=false" ]
   }
->>>>>>> caa8bb79135 (Refactor Android manifests for browser tests (#8347))
 }
 
 generate_jni("jni_headers") {
