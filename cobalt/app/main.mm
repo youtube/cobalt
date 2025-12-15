@@ -57,7 +57,7 @@ static const char** g_argv = nullptr;
 @interface CobaltAppDelegate : UIResponder <UIApplicationDelegate> {
  @private
   std::unique_ptr<content::ContentMainRunner> _mainRunner;
-  std::unique_ptr<content::ShellMainDelegate> _mainDelegate;
+  std::unique_ptr<cobalt::CobaltMainDelegate> _mainDelegate;
 }
 @end
 
