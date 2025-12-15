@@ -267,6 +267,7 @@ static_library("starboard_platform") {
     #"speech_synthesis_speak.cc",
     "starboard_bridge.cc",
     "starboard_bridge.h",
+    "starboard_feature_list.cc",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
     "system_get_path.cc",

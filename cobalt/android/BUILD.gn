@@ -25,7 +25,7 @@ java_cpp_features("java_features_srcjar") {
   sources = [ "//starboard/extension/feature_config.h" ]
 
   deps = [ "//starboard/extension:feature_config_header" ]
-  template = "//cobalt/android/java_templates/CobaltFeatures.java.tmpl"
+  template = "//cobalt/android/java_templates/StarboardFeatures.java.tmpl"
 }
 
 generate_jni("jni_headers") {
@@ -33,7 +33,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
-    "apk/app/src/main/java/dev/cobalt/features/CobaltFeatureList.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
   ]
@@ -119,7 +119,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/H5vccPlatformService.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
-    "apk/app/src/main/java/dev/cobalt/features/CobaltFeatureList.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",

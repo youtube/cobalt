@@ -32,8 +32,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
 import androidx.annotation.Nullable;
-import dev.cobalt.features.CobaltFeatureList;
-import dev.cobalt.features.CobaltFeatures;
+import dev.cobalt.features.StarboardFeatureList;
+import dev.cobalt.features.StarboardFeatures;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import dev.cobalt.util.UsedByNative;
@@ -519,7 +519,7 @@ class MediaCodecBridge {
     // We enable BUFFER_FLAG_DECODE_ONLY for non-tunneling playback if the
     // cobalt experiment for it is enabled.
     boolean enableNonTunnelDecodeOnly =
-        CobaltFeatureList.isEnabled(CobaltFeatures.NON_TUNNELED_DECODE_ONLY);
+        StarboardFeatureList.isEnabled(StarboardFeatures.NON_TUNNELED_DECODE_ONLY);
     if (!(mIsTunnelingPlayback || enableNonTunnelDecodeOnly)) {
       return false;
     }
