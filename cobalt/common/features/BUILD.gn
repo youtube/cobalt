@@ -20,10 +20,6 @@ static_library("features") {
     "starboard_features_initialization.h",
   ]
 
-  if (is_android) {
-    sources += [ "cobalt_feature_list.cc" ]
-  }
-
   deps = [
     "//base",
     "//starboard/common:common",
