@@ -17,16 +17,12 @@
 #include <memory>
 
 #include "base/path_service.h"
-#include "base/run_loop.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "content/public/browser/browser_context.h"
 #include "content/public/browser/browser_thread.h"
-#include "content/public/browser/storage_partition.h"
-#include "services/network/public/mojom/cookie_manager.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -52,21 +48,6 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   StartMetricsRecording();
   return ShellBrowserMainParts::PreMainMessageLoopRun();
-}
-
-void CobaltBrowserMainParts::PostMainMessageLoopRun() {
-  if (browser_context()) {
-    content::StoragePartition* partition =
-        browser_context()->GetDefaultStoragePartition();
-    if (partition) {
-      base::RunLoop run_loop;
-      partition->GetCookieManagerForBrowserProcess()->FlushCookieStore(
-          run_loop.QuitClosure());
-      run_loop.Run();
-      partition->Flush();
-    }
-  }
-  ShellBrowserMainParts::PostMainMessageLoopRun();
 }
 
 void CobaltBrowserMainParts::PostDestroyThreads() {
