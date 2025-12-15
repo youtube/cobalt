@@ -186,6 +186,54 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
   }
 }
 
+// Copied from SbSystemGetPathTest.CanWriteAndReadCache.
+TEST(SbSystemGetPathTest, CanWriteAndReadFilesStorage) {
+  std::vector<char> path(kPathSize);
+  memset(path.data(), 0xCD, kPathSize);
+  bool result =
+      SbSystemGetPath(kSbSystemPathFilesDirectory, path.data(), kPathSize);
+  EXPECT_TRUE(result);
+  if (result) {
+    EXPECT_NE('\xCD', path[0]);
+    int len = static_cast<int>(strlen(path.data()));
+    EXPECT_GT(len, 0);
+    // Delete a file and confirm that it does not exist.
+    std::string sub_path =
+        kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
+    EXPECT_GT(starboard::strlcat(path.data(), sub_path.c_str(), kPathSize), 0);
+    // unlink return -1 when directory does not exist.
+    EXPECT_TRUE(unlink(path.data()) == 0 || !FileExists(path.data()));
+    EXPECT_FALSE(FileExists(path.data()));
+
+    // Write to the file and check that we can read from it.
+    std::string content_to_write = "test content";
+    {
+      starboard::ScopedFile test_file_writer(path.data(),
+                                             O_CREAT | O_TRUNC | O_WRONLY);
+      EXPECT_GT(
+          test_file_writer.WriteAll(content_to_write.c_str(),
+                                    static_cast<int>(content_to_write.size())),
+          0);
+    }
+    EXPECT_TRUE(FileExists(path.data()));
+    struct stat info;
+    EXPECT_TRUE(stat(path.data(), &info) == 0);
+    const int kFileSize = static_cast<int>(info.st_size);
+    EXPECT_GT(kFileSize, 0);
+    const int kBufferLength = 16 * 1024;
+    char content_read[kBufferLength] = {0};
+    {
+      starboard::ScopedFile test_file_reader(path.data(), 0);
+      EXPECT_GT(test_file_reader.ReadAll(content_read, kFileSize), 0);
+    }
+    EXPECT_EQ(content_read, content_to_write);
+
+    // Lastly, delete the file.
+    EXPECT_TRUE(unlink(path.data()) == 0);
+    EXPECT_FALSE(FileExists(path.data()));
+  }
+}
+
 constexpr int64_t kMicrosecond = 1'000'000;
 auto ToMicroseconds(const struct timespec& ts) {
   return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
