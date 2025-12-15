@@ -143,7 +143,6 @@ void InputSyncWriter::Write(const media::AudioBus* data,
                             bool key_pressed,
                             base::TimeTicks capture_time,
                             const media::AudioGlitchInfo& glitch_info) {
-  LOG(INFO) << "YO THOR -  InputSyncWriter::Write! I GOTS DA DATA!";
   TRACE_EVENT1("audio", "InputSyncWriter::Write", "capture time (ms)",
                (capture_time - base::TimeTicks()).InMillisecondsF());
   CheckTimeSinceLastWrite();
@@ -154,10 +153,7 @@ void InputSyncWriter::Write(const media::AudioBus* data,
   // that hasn't been read yet. The renderer side sends a signal over the socket
   // each time it has read data. Here, we read those verifications before
   // writing. We verify that each buffer index is in sequence.
-  LOG(INFO) << "YO THOR - PEEK AT SOCKET - WJHAT HAPPENDS...";
   size_t number_of_indices_available = socket_->Peek() / sizeof(uint32_t);
-  LOG(INFO) << "YO THOR -** POST  **PEEK AT SOCKET - WJHAT HAPPENDS...";
-  LOG(INFO) << "YO THOR - number_of_indices_available:" << number_of_indices_available;
   if (number_of_indices_available > 0) {
     auto indices = std::make_unique<uint32_t[]>(number_of_indices_available);
     size_t bytes_received = socket_->Receive(
@@ -234,7 +230,6 @@ void InputSyncWriter::Close() {
 }
 
 void InputSyncWriter::CheckTimeSinceLastWrite() {
-  LOG(INFO) << "YO THOR - CheckTimeSinceLastWrite";
 #if !BUILDFLAG(IS_ANDROID)
   static const base::TimeDelta kLogDelayThreadhold = base::Milliseconds(500);
 

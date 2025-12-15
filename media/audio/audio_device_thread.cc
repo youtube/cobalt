@@ -94,21 +94,12 @@ void AudioDeviceThread::ThreadMain() {
   uint32_t buffer_index = 0;
   while (true) {
 
-    int fd = socket_.handle();
-    int fcntl_ret = fcntl(fd, F_GETFL);
-    int fcntl_errno = errno;
-    LOG(INFO) << "YO THOR - AudioDeviceThread: PRE-WAIT check. fd=" << fd
-              << ", fcntl ret=" << fcntl_ret << ", errno=" << fcntl_errno
-              << " (" << (fcntl_ret == -1 ? strerror(fcntl_errno) : "VALID") << ")";
-
     uint32_t pending_data = 0;
     size_t bytes_read = socket_.Receive(&pending_data, sizeof(pending_data));
     if (bytes_read != sizeof(pending_data)) {
       LOG(INFO) << "YO THOR - AUDIO DEVICE THREAD _ THREWAD MAIN - WHILE TRUE - BYTES-READ:" << bytes_read << " PENDINGDATA:" << pending_data;
       break;
     }
-
-    LOG(INFO) << "YO THOR - AudioDeviceThread::ThreadMain - received pending_data: " << pending_data;
 
     // std::numeric_limits<uint32_t>::max() is a special signal which is
     // returned after the browser stops the output device in response to a

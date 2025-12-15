@@ -437,7 +437,6 @@ void AudioInputDevice::AudioThreadCallback::MapSharedMemory() {
 
 void AudioInputDevice::AudioThreadCallback::Process(uint32_t pending_data) {
   TRACE_EVENT_BEGIN0("audio", "AudioInputDevice::AudioThreadCallback::Process");
-  LOG(INFO) << "YO THOR - AudioInputDevice::AudioThreadCallback::Process - pending_data: " << pending_data;
   // The shared memory represents parameters, size of the data buffer and the
   // actual data buffer containing audio data. Map the memory into this
   // structure and parse out parameters and the data area.
