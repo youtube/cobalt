@@ -15,13 +15,15 @@
 #include "base/android/jni_string.h"
 #include "base/feature_list.h"
 #include "base/notreached.h"
-#include "cobalt/common/features/cobalt_features.h"
+#include "cobalt/common/features/features.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltFeatureList_jni.h"
 
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
+using base::android::ScopedJavaLocalRef;
 
 namespace cobalt::features {
 namespace {
@@ -49,5 +51,54 @@ static jboolean JNI_CobaltFeatureList_IsEnabled(
   const base::Feature* feature =
       FindFeatureExposedToJava(ConvertJavaStringToUTF8(env, jfeature_name));
   return base::FeatureList::IsEnabled(*feature);
+}
+
+static ScopedJavaLocalRef<jstring>
+JNI_CobaltFeatureList_GetFieldTrialParamByFeature(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& jfeature_name,
+    const JavaParamRef<jstring>& jparam_name) {
+  const base::Feature* feature =
+      FindFeatureExposedToJava(ConvertJavaStringToUTF8(env, jfeature_name));
+  const std::string& param_name = ConvertJavaStringToUTF8(env, jparam_name);
+  const std::string& param_value =
+      base::GetFieldTrialParamValueByFeature(*feature, param_name);
+  return ConvertUTF8ToJavaString(env, param_value);
+}
+
+static jint JNI_CobaltFeatureList_GetFieldTrialParamByFeatureAsInt(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& jfeature_name,
+    const JavaParamRef<jstring>& jparam_name,
+    const jint jdefault_value) {
+  const base::Feature* feature =
+      FindFeatureExposedToJava(ConvertJavaStringToUTF8(env, jfeature_name));
+  const std::string& param_name = ConvertJavaStringToUTF8(env, jparam_name);
+  return base::GetFieldTrialParamByFeatureAsInt(*feature, param_name,
+                                                jdefault_value);
+}
+
+static jdouble JNI_CobaltFeatureList_GetFieldTrialParamByFeatureAsDouble(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& jfeature_name,
+    const JavaParamRef<jstring>& jparam_name,
+    const jdouble jdefault_value) {
+  const base::Feature* feature =
+      FindFeatureExposedToJava(ConvertJavaStringToUTF8(env, jfeature_name));
+  const std::string& param_name = ConvertJavaStringToUTF8(env, jparam_name);
+  return base::GetFieldTrialParamByFeatureAsDouble(*feature, param_name,
+                                                   jdefault_value);
+}
+
+static jboolean JNI_CobaltFeatureList_GetFieldTrialParamByFeatureAsBoolean(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& jfeature_name,
+    const JavaParamRef<jstring>& jparam_name,
+    const jboolean jdefault_value) {
+  const base::Feature* feature =
+      FindFeatureExposedToJava(ConvertJavaStringToUTF8(env, jfeature_name));
+  const std::string& param_name = ConvertJavaStringToUTF8(env, jparam_name);
+  return base::GetFieldTrialParamByFeatureAsBool(*feature, param_name,
+                                                 jdefault_value);
 }
 }  // namespace cobalt::features
