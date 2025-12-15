@@ -28,7 +28,7 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.ConnectionType;
 import org.chromium.net.NetworkChangeNotifier;
 
-/** 
+/**
  * Detects network connectivity with a guaranteed timeout by using a generate_204 ping,
  * a special fast-loading URL to check for internet connectivity, similar to Chrome's
  * ConnectivityDetector.java. This class raises a platform error if it cannot verify a
