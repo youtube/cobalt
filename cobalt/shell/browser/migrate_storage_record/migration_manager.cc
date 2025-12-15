@@ -84,10 +84,10 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   }
 
   auto bytes = std::vector<uint8_t>(record->GetSize());
-  const int read_result =
+  const int64_t read_result =
       record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
   record->Delete();
-  if (static_cast<size_t>(read_result) != bytes.size()) {
+  if (read_result < 0 || static_cast<size_t>(read_result) != bytes.size()) {
     return nullptr;
   }
 
