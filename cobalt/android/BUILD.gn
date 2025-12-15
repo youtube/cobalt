@@ -8,7 +8,15 @@ cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 jinja_template("cobalt_manifest") {
   input = "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2"
   output = cobalt_manifest
-  variables = [ "manifest_package=dev.cobalt.coat" ]
+  variables = [
+    "manifest_package=dev.cobalt.coat",
+    "build_type=$build_type",
+  ]
+  if (is_official_build) {
+    variables += [ "debuggable=true" ]
+  } else {
+    variables += [ "debuggable=false" ]
+  }
 }
 
 generate_jni("jni_headers") {

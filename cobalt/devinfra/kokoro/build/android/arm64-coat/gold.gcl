@@ -6,19 +6,10 @@
 import 'common.gcl' as common
 
 config build = common.build {
-  build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
       key = 'CONFIG'
       value = 'gold'
-    },
-    {
-      key = 'PLATFORM'
-      value = 'evergreen-arm-softfp-sbversion-17'
-    },
-    {
-      key = 'SB_API_VERSION'
-      value = 'sb_api_version=17'
     },
   ]
   action = [
