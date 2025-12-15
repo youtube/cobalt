@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,23 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Add the script's directory to the Python path."""
 
-static_library("oom_intervention") {
-  testonly = true
-  sources = [
-    "oom_intervention_config.cc",
-    "oom_intervention_config.h",
-    "oom_intervention_features.cc",
-    "oom_intervention_features.h",
-    "oom_intervention_tab_helper.cc",
-    "oom_intervention_tab_helper.h",
-  ]
+import os
+import sys
 
-  deps = [
-    "//base",
-    "//cobalt/browser:global_features",
-    "//cobalt/common/features",
-    "//components/prefs",
-    "//content/public/browser",
-  ]
-}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
