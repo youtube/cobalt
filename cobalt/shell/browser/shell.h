@@ -237,6 +237,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
   void PrimaryMainDocumentElementAvailable() override;
   void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void DidStopLoading() override;
 
   void RegisterInjectedJavaScript();
 
