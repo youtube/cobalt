@@ -119,8 +119,6 @@ jobs:
           set -x
           test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
           echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
-<<<<<<< HEAD
-=======
       - name: Set YTS tests
         id: set-test-yts
         shell: bash
@@ -128,14 +126,6 @@ jobs:
           set -x
           test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
           echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
-      - name: Set web tests
-        id: set-web-tests
-        shell: bash
-        run: |
-          set -x
-          web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
-          echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
->>>>>>> f17fbc6f952 (CI: Add YTS test support (#8360))
       - name: Set root target for unit tests
         id: set-test-root-target
         shell: bash
@@ -199,11 +189,7 @@ jobs:
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
-<<<<<<< HEAD
-=======
       test_yts: ${{ steps.set-test-yts.outputs.test_yts }}
-      web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
->>>>>>> f17fbc6f952 (CI: Add YTS test support (#8360))
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
       yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
@@ -320,30 +306,8 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-<<<<<<< HEAD
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && ( needs.initialize.outputs.test_on_device == 'true' || needs.initialize.outputs.test_e2e == 'true' ) }}
-=======
-
-      - name: Release Package
-        if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
-        uses: ./cobalt/src/.github/actions/package
-        with:
-          package_dir: out/test-package
-
-      - name: Upload Test Artifacts
-        uses: ./cobalt/src/.github/actions/upload_test_artifacts
-        with:
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && (needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.web_tests == 'true') }}
-          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
-          upload_e2e_test_artifacts: ${{ matrix.config == 'qa' && (needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true') }}
-          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
-
-      - name: Run API Leak Detector
-        uses: ./cobalt/src/.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
->>>>>>> f17fbc6f952 (CI: Add YTS test support (#8360))
 
   on-device-test:
     needs: [initialize, build]
