@@ -31,7 +31,7 @@ public class AppExitScheduler {
             @Override
             public void run() {
                 throw new RuntimeException(
-                        "The user may stuck on the black screen. Crash triggered by AppExitScheduler.");
+                        "The user may have stuck on the black screen. Crash triggered by AppExitScheduler.");
             }
         };
     }
