@@ -30,8 +30,6 @@
 
 static int g_argc = 0;
 static const char** g_argv = nullptr;
-static std::unique_ptr<content::ContentMainRunner> g_main_runner;
-static std::unique_ptr<content::ShellMainDelegate> g_main_delegate;
 
 @interface CobaltAppSceneDelegate : UIResponder <UIWindowSceneDelegate>
 @end
@@ -56,7 +54,11 @@ static std::unique_ptr<content::ShellMainDelegate> g_main_delegate;
 
 @end
 
-@interface CobaltAppDelegate : UIResponder <UIApplicationDelegate>
+@interface CobaltAppDelegate : UIResponder <UIApplicationDelegate> {
+ @private
+  std::unique_ptr<content::ContentMainRunner> _mainRunner;
+  std::unique_ptr<content::ShellMainDelegate> _mainDelegate;
+}
 @end
 
 @implementation CobaltAppDelegate
@@ -86,12 +88,12 @@ static std::unique_ptr<content::ShellMainDelegate> g_main_delegate;
   std::ranges::transform(processed_argv, std::back_inserter(char_argv),
                          [](const std::string& arg) { return arg.c_str(); });
 
-  g_main_delegate = std::make_unique<cobalt::CobaltMainDelegate>();
-  g_main_runner = content::ContentMainRunner::Create();
-  content::ContentMainParams params(g_main_delegate.get());
+  _mainDelegate = std::make_unique<cobalt::CobaltMainDelegate>();
+  _mainRunner = content::ContentMainRunner::Create();
+  content::ContentMainParams params(_mainDelegate.get());
   params.argc = char_argv.size();
   params.argv = char_argv.data();
-  content::RunContentProcess(std::move(params), g_main_runner.get());
+  content::RunContentProcess(std::move(params), _mainRunner.get());
 
   return YES;
 }
