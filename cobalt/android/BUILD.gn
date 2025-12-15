@@ -22,7 +22,9 @@ jinja_template("cobalt_manifest") {
 java_cpp_features("java_features_srcjar") {
   # External code should depend on ":cobalt_features_java" instead.
   visibility = [ ":*" ]
-  sources = [ "//cobalt/common/features/cobalt_features.cc" ]
+  sources = [ "//starboard/extension/feature_config.h" ]
+
+  deps = [ "//starboard/extension:feature_config_header" ]
   template = "//cobalt/android/java_templates/CobaltFeatures.java.tmpl"
 }
 
