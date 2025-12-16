@@ -152,10 +152,23 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
-  Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size());
+  Shell* shell = nullptr;
+#if defined(RUN_BROWSER_TESTS)
+  if (switches::IsRunWebTestsSwitchPresent()) {
+    // browser_tests and web_tests build with the same set of source files, but
+    // web_tests should not bring up a window. But we need a valid shell object
+    // to host the web contents.
+    shell = Shell::CreateNewWindow(browser_context_.get(), GURL(), nullptr,
+                                   gfx::Size());
+  } else {
+#endif  // defined(RUN_BROWSER_TESTS)
+    shell = Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(),
+                                   nullptr, gfx::Size());
+#if defined(RUN_BROWSER_TESTS)
+  }
+#endif  // defined(RUN_BROWSER_TESTS)
+  Shell::Post_Launch(shell->web_contents());
 }
-
 void ShellBrowserMainParts::ToolkitInitialized() {
 #if defined(RUN_BROWSER_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {

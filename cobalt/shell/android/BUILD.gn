@@ -48,6 +48,7 @@ android_resources("cobalt_shell_java_resources") {
   sources = [
     "java/res/drawable-xhdpi/app_banner.png",
     "java/res/layout/coat_error_dialog.xml",
+    "java/res/layout/shell_view.xml",
     "java/res/mipmap-hdpi/ic_app.png",
     "java/res/mipmap-mdpi/ic_app.png",
     "java/res/mipmap-xhdpi/ic_app.png",
