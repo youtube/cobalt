@@ -106,7 +106,7 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   AlsaAudioSink(const AlsaAudioSink&) = delete;
   AlsaAudioSink& operator=(const AlsaAudioSink&) = delete;
 
-  void AudioThreadFunc();
+  void ProcessAudio();
   // Write silence to ALSA when there is not enough data in source or when the
   // sink is paused.
   // Return true to continue to play.  Return false when destroying.
@@ -190,7 +190,7 @@ AlsaAudioSink::AlsaAudioSink(
   std::unique_lock lock(mutex_);
   audio_out_thread_ = std::make_unique<JobThread>("alsa_audio_out", 0,
                                                   kSbThreadPriorityRealTime);
-  audio_out_thread_->Schedule([this] { AudioThreadFunc(); });
+  audio_out_thread_->Schedule([this] { ProcessAudio(); });
   creation_signal_.wait(lock, [this] { return audio_thread_created_; });
 }
 
@@ -204,7 +204,7 @@ AlsaAudioSink::~AlsaAudioSink() {
   delete[] static_cast<uint8_t*>(silence_frames_);
 }
 
-void AlsaAudioSink::AudioThreadFunc() {
+void AlsaAudioSink::ProcessAudio() {
   snd_pcm_format_t alsa_sample_type =
       sample_type_ == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
                                                      : SND_PCM_FORMAT_S16;
