@@ -56,8 +56,12 @@ def layout(archive_data, out_dir, base_dir):
       zf.extractall(out_dir)
 
   for z in archive_data.get('tar_paths', []):
-    with tarfile.open(z['to_tar'], 'w:gz') as tar:
-      tar.add(z['from_path'], arcname=os.path.basename(z['from_path']))
+    tar_file = os.path.join(base_dir, z['to_tar'])
+    os.makedirs(os.path.dirname(tar_file), exist_ok=True)
+    with tarfile.open(tar_file, 'w:gz') as tar:
+      tar.add(
+          os.path.join(out_dir, z['from_path']),
+          arcname=os.path.basename(z['from_path']))
 
   for f in archive_data.get('files', []):
     if isinstance(f, dict):

@@ -19,7 +19,6 @@
 #include <algorithm>
 
 #import "starboard/common/log.h"
-#import "starboard/tvos/shared/application_window.h"
 #import "starboard/tvos/shared/defines.h"
 #import "starboard/tvos/shared/media/application_player.h"
 #import "starboard/tvos/shared/starboard_application.h"
