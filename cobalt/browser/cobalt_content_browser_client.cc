@@ -163,6 +163,15 @@ CobaltContentBrowserClient::CreateThrottlesForNavigation(
   return throttles;
 }
 
+std::unique_ptr<content::DevToolsManagerDelegate>
+CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
+#if defined(COBALT_IS_RELEASE_BUILD)
+  return nullptr;
+#else
+  return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
+#endif
+}
+
 content::GeneratedCodeCacheSettings
 CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
     content::BrowserContext* context) {
