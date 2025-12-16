@@ -89,7 +89,8 @@ import shlex
 import shutil
 import subprocess
 
-from urllib.request import urlopen
+from urllib.request import urlopen, Request
+from urllib.error import URLError
 
 sys.path.append(
     os.path.join(
@@ -922,6 +923,32 @@ def _GetBinaryPathForWebTests():
     assert False, 'This platform is not supported for web tests.'
 
 
+def _GetComponentMappings(component_mappings_file):
+  """Returns a dictionary of component mappings.
+
+  If a local file is provided, it is loaded directly. Otherwise, the mapping
+  is fetched from a GCP URL, attempting to use gcloud for authentication.
+  """
+  if component_mappings_file:
+    component_mappings = json.load(component_mappings_file)
+    component_mappings_file.close()
+    return component_mappings
+
+  try:
+    gcloud_token_command = ['gcloud', 'auth', 'print-access-token']
+    token = subprocess.check_output(gcloud_token_command,
+                                    stderr=subprocess.PIPE).strip()
+    req = Request(
+        COMPONENT_MAPPING_URL,
+        headers={'Authorization': 'Bearer ' + token.decode('utf-8')})
+    return json.load(urlopen(req))
+  except (subprocess.CalledProcessError, OSError, URLError) as e:
+    logging.warning(
+        'Could not get gcloud auth token. Falling back to unauthenticated '
+        'request. This may fail if the bucket is not public. Error: %s', e)
+    return json.load(urllib.request.urlopen(COMPONENT_MAPPING_URL))
+
+
 def _GenerateCoverageReport(args, binary_paths, profdata_file_path,
                             absolute_filter_paths):
   """Generate the coverage report in the supported format."""
@@ -947,7 +974,7 @@ def _GenerateCoverageReport(args, binary_paths, profdata_file_path,
                                              args.format)
   component_mappings = None
   if not args.no_component_view:
-    component_mappings = json.load(urlopen(COMPONENT_MAPPING_URL))
+    component_mappings = _GetComponentMappings(args.component_mappings_file)
 
   # Call prepare here.
   processor = coverage_utils.CoverageReportPostProcessor(
@@ -1063,6 +1090,12 @@ def _ParseCommandArguments():
       '--no-component-view',
       action='store_true',
       help='Don\'t generate the component view in the coverage report.')
+
+  arg_parser.add_argument(
+      '--component-mappings-file',
+      type=argparse.FileType('r'),
+      help='Path to a local component map JSON file. If provided, this file '
+      'is used instead of fetching from the network.')
 
   arg_parser.add_argument(
       '--no-report',
