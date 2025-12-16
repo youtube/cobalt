@@ -89,6 +89,15 @@ base::TimeDelta AudioDeviceThread::GetRealtimePeriod() {
 void AudioDeviceThread::ThreadMain() {
   base::PlatformThread::SetName(thread_name_);
   LOG(INFO) << "YO THOR - AudioDeviceThread::ThreadMain - thread_name: " << thread_name_;
+
+  // Check the handle again right before we start using it.
+  int fd = socket_.handle();
+  int fcntl_ret = fcntl(fd, F_GETFL);
+  int fcntl_errno = errno;
+  LOG(INFO) << "YO THOR - AudioDeviceThread: ThreadMain check. fd=" << fd
+            << ", fcntl ret=" << fcntl_ret << ", errno=" << fcntl_errno
+            << " (" << (fcntl_ret == -1 ? strerror(fcntl_errno) : "VALID") << ")";
+
   callback_->InitializeOnAudioThread();
 
   uint32_t buffer_index = 0;

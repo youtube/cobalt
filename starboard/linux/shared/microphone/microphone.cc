@@ -81,7 +81,7 @@ void write_wav_header(FILE* file,
 class SbMicrophoneImpl : public SbMicrophonePrivate {
  public:
   SbMicrophoneImpl(SbMicrophoneId id, int sample_rate_in_hz, int buffer_size)
-      : id_(id),
+      :  // id_(id),
         sample_rate_in_hz_(sample_rate_in_hz),
         buffer_size_(buffer_size),
         handle_(NULL),
@@ -111,15 +111,11 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
       SB_LOG(ERROR) << "YO THOR - Failed to open debug WAV file.";
     }
 
-    // Get the device name for the given ID.
-    char device_name[256];
-    if (!GetDeviceName(id_, device_name, sizeof(device_name))) {
-      return false;
-    }
-
-    int error = snd_pcm_open(&handle_, "hw:2,0", SND_PCM_STREAM_CAPTURE, 0);
+    // Open the default capture device.
+    int error = snd_pcm_open(&handle_, "default", SND_PCM_STREAM_CAPTURE, 0);
     if (error < 0) {
       handle_ = NULL;
+      SB_LOG(ERROR) << "YO THOR - snd_pcm_open failed: " << snd_strerror(error);
       return false;
     }
 
@@ -330,7 +326,7 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
     return false;
   }
 
-  SbMicrophoneId id_;
+  // SbMicrophoneId id_;
   int sample_rate_in_hz_;
   int buffer_size_;
   snd_pcm_t* handle_;

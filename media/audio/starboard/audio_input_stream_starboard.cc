@@ -139,29 +139,6 @@ void AudioInputStreamStarboard::ReadAudio() {
     return;
   }
 
-  int available_frames = SbMicrophoneGetAvailableFrames(microphone_);
-  if (available_frames < 0) {
-    LOG(ERROR) << "SbMicrophoneGetAvailableFrames failed: " << available_frames;
-    // An error occurred. Schedule a retry shortly to avoid busy-looping on
-    // a permanent error.
-    thread_.task_runner()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                       base::Unretained(this)),
-        params_.GetBufferDuration() / 2);
-    return;
-  }
-
-  if (available_frames < params_.frames_per_buffer()) {
-    // Not enough data yet. Check again in a little bit.
-    thread_.task_runner()->PostDelayedTask(
-        FROM_HERE,
-        base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
-                       base::Unretained(this)),
-        params_.GetBufferDuration() / 2);
-    return;
-  }
-
   // At least one full buffer is available. Read one buffer.
   auto audio_bus = AudioBus::Create(params_);
   const int buffer_size_frames = params_.frames_per_buffer();
@@ -186,14 +163,7 @@ void AudioInputStreamStarboard::ReadAudio() {
   }
 
   // Schedule the next read.
-  next_read_time_ += params_.GetBufferDuration();
-  base::TimeTicks now = base::TimeTicks::Now();
-  if (next_read_time_ < now) {
-    // If we are behind, schedule the next read immediately.
-    next_read_time_ = now;
-  }
-
-  base::TimeDelta delay = next_read_time_ - base::TimeTicks::Now();
+  base::TimeDelta delay = params_.GetBufferDuration();
   thread_.task_runner()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
