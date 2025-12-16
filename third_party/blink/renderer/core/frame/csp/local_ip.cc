@@ -10,6 +10,20 @@
 
 #include "third_party/blink/public/platform/platform.h"
 
+namespace {
+
+std::string SanitizeIPAddressStr(const std::string& ip_str) {
+  std::string clean_ip = ip_str;
+  size_t start = clean_ip.find('[');
+  size_t end = clean_ip.find(']');
+  if (start != std::string::npos && end != std::string::npos) {
+      clean_ip = clean_ip.substr(start + 1, end - start - 1);
+  }
+  return clean_ip;
+}
+
+}
+
 namespace blink {
 // Queries host IP address and matches against netmask of target ip to determine.
 bool IsIPInLocalNetwork(const std::string& target_ip_str) {
@@ -52,7 +66,10 @@ bool IsIPInLocalNetwork(const std::string& target_ip_str) {
     return is_local;
 }
 
-bool IsIPInPrivateRange(const std::string& ip_str) {
+bool IsIPInPrivateRange(const std::string& raw_ip_str) {
+  // Removes enclosing '[]' if present.
+  std::string ip_str = SanitizeIPAddressStr(raw_ip_str);
+
   // For IPv4, the private address range is defined by RFC 1918
   // available at https://tools.ietf.org/html/rfc1918#section-3.
   struct in_addr ipv4_addr;
@@ -61,13 +78,16 @@ bool IsIPInPrivateRange(const std::string& ip_str) {
       uint32_t addr = ntohl(ipv4_addr.s_addr);
 
       // 10.0.0.0/8
-      if ((addr & 0xFF000000) == 0x0A000000) return true;
+      if ((addr & 0xFF000000) == 0x0A000000)
+        return true;
 
       // 172.16.0.0/12 (172.16.0.0 to 172.31.255.255)
-      if ((addr & 0xFFF00000) == 0xAC100000) return true;
+      if ((addr & 0xFFF00000) == 0xAC100000)
+        return true;
 
       // 192.168.0.0/16
-      if ((addr & 0xFFFF0000) == 0xC0A80000) return true;
+      if ((addr & 0xFFFF0000) == 0xC0A80000)
+        return true;
 
       return false;
   }
@@ -76,10 +96,22 @@ bool IsIPInPrivateRange(const std::string& ip_str) {
   // See https://tools.ietf.org/html/rfc4193#section-3 for details.
   struct in6_addr ipv6_addr;
   if (inet_pton(AF_INET6, ip_str.c_str(), &ipv6_addr) == 1) {
-    // RFC 4193: fc00::/7 (The first 7 bits must be 1111110)
-    // This covers both fc00::/8 and fd00::/8
-    // We check the first byte: (byte & 11111110) == 11111100
-    return (ipv6_addr.s6_addr[0] & 0xFE) == 0xFC;
+    // Check for the 2002::/16 prefix
+    // The first two bytes must be 0x20 and 0x02
+    if (ipv6_addr.s6_addr[0] != 0x20 || ipv6_addr.s6_addr[1] != 0x02) {
+      // RFC 4193: fc00::/7 (The first 7 bits must be 1111110)
+      // This covers both fc00::/8 and fd00::/8
+      // We check the first byte: (byte & 11111110) == 11111100
+      return (ipv6_addr.s6_addr[0] & 0xFE) == 0xFC;
+    }
+
+    // Treat ipv6_addr as ipv4.
+    // Extract the 4 bytes following the prefix (indices 2, 3, 4, 5)
+    uint32_t ipv4_network_order;
+    std::memcpy(&ipv4_network_order, &ipv6_addr.s6_addr[2], sizeof(uint32_t));
+
+    // Convert from Network Byte Order to Host Byte Order (uint32_t)
+    return ntohl(ipv4_network_order);
   }
 
   // Not a valid IPv4 or IPv6 address
