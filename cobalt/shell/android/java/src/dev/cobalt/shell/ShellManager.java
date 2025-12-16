@@ -15,6 +15,9 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
+import android.view.LayoutInflater;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
@@ -44,15 +47,17 @@ public class ShellManager {
     // The target for all content rendering.
     private @Nullable ContentViewRenderView mContentViewRenderView;
 
-    private Context mContext;
+    private final Context mContext;
+    private final ViewGroup mShellContainer;
 
     private boolean mIsActivityVisible;
 
     /**
-     * Constructor for inflating via XML.
+     * Constructor
      */
-    public ShellManager(final Context context) {
+    public ShellManager(final Context context, ViewGroup shellContainer) {
         mContext = context;
+        mShellContainer = shellContainer;
         if (sNatives == null) {
             sNatives = ShellManagerJni.get();
         }
@@ -121,7 +126,9 @@ public class ShellManager {
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
         sNatives.launchShell(url);
-        if (previousShell != null) previousShell.close();
+        if (previousShell != null) {
+            previousShell.close();
+        }
     }
 
     @CalledByNative
@@ -131,14 +138,18 @@ public class ShellManager {
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
         }
 
-        Shell shellView = new Shell(getContext());
+        LayoutInflater inflater =
+                (LayoutInflater) getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        Shell shellView = (Shell) inflater.inflate(R.layout.shell_view, null);
         shellView.initialize(nativeShellPtr, mWindow);
         shellView.onActivityVisible(mIsActivityVisible);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
-        if (mActiveShell != null) removeShell(mActiveShell);
+        if (mActiveShell != null) {
+            removeShell(mActiveShell);
+        }
 
         showShell(shellView);
         return shellView;
@@ -146,10 +157,10 @@ public class ShellManager {
 
     @RequiresNonNull("mContentViewRenderView")
     private void showShell(Shell shellView) {
-        if (mActiveShell != null) {
-            mActiveShell.setContentViewRenderView(null);
-        }
         shellView.setContentViewRenderView(mContentViewRenderView);
+        mShellContainer.addView(shellView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
@@ -162,8 +173,14 @@ public class ShellManager {
 
     @CalledByNative
     private void removeShell(Shell shellView) {
-        if (shellView == mActiveShell) mActiveShell = null;
+        if (shellView == mActiveShell) {
+            mActiveShell = null;
+        }
+        if (shellView.getParent() == null) {
+            return;
+        }
         shellView.setContentViewRenderView(null);
+        mShellContainer.removeView(shellView);
     }
 
     /**
@@ -175,7 +192,8 @@ public class ShellManager {
     public void destroy() {
         // Remove active shell (Currently single shell support only available).
         if (mActiveShell != null) {
-            removeShell(mActiveShell);
+            mActiveShell.close();
+            mActiveShell = null;
         }
         if (mContentViewRenderView != null) {
             mContentViewRenderView.destroy();
