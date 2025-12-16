@@ -27,6 +27,7 @@
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "components/js_injection/browser/js_communication_host.h"
 #include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -182,6 +183,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       WebContents* web_contents) override;
   bool ShouldResumeRequestsForCreatedWindow() override;
   void SetContentsBounds(WebContents* source, const gfx::Rect& bounds) override;
+  void RequestMediaAccessPermission(WebContents*,
+                                    const MediaStreamRequest&,
+                                    MediaResponseCallback) override;
+  bool CheckMediaAccessPermission(RenderFrameHost*,
+                                  const GURL&,
+                                  blink::mojom::MediaStreamType) override;
 
   static gfx::Size GetShellDefaultSize();
 
@@ -225,6 +232,10 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 #endif
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
+  void PrimaryMainDocumentElementAvailable() override;
+  void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+
+  void RegisterInjectedJavaScript();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
@@ -237,6 +248,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   gfx::Size content_size_;
 
   bool delay_popup_contents_delegate_for_testing_ = false;
+
+  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 
   // A container of all the open windows. We use a vector so we can keep track
   // of ordering.

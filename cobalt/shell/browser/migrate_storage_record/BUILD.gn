@@ -7,9 +7,6 @@ proto_library("storage_proto") {
 }
 
 source_set("migrate_storage_record") {
-  # Needed to depend on |//cobalt/shell:cobalt_shell_lib|.
-  testonly = true
-
   sources = [
     "migration_manager.cc",
     "migration_manager.h",
@@ -18,14 +15,17 @@ source_set("migrate_storage_record") {
     ":storage_proto",
     "//base",
     "//cobalt/browser:switches",
-    "//cobalt/shell:cobalt_shell_lib",
+    "//cobalt/shell:cobalt_shell_switches",
     "//components/url_matcher",
     "//net",
     "//services/network/public/mojom:cookies_mojom",
     "//starboard/common",
     "//url",
   ]
-  public_deps = [ "//skia" ]
+  public_deps = [
+    "//content/public/browser",
+    "//skia",
+  ]
 }
 
 source_set("unittest") {
