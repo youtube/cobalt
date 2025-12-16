@@ -24,15 +24,19 @@
     return;
   }
 
+  static constexpr NSString* const kYTApplicationURLKey = @"YTApplicationURL";
   NSString* urlBase =
-      [[NSBundle mainBundle] objectForInfoDictionaryKey:@"YTApplicationURL"];
+      [[NSBundle mainBundle] objectForInfoDictionaryKey:kYTApplicationURLKey];
   if (!urlBase) {
     LOG(WARNING) << "YTApplicationURL not in plist, ignoring AppIntent.";
     return;
   }
 
-  NSString* urlAction = isSearch ? @"?launch=voice&vs=11&va=search&vaa="
-                                 : @"?launch=voice&vs=11&va=play&vaa=";
+  static constexpr NSString* const kSearchUrlAction =
+      @"?launch=voice&vs=11&va=search&vaa=";
+  static constexpr NSString* const kPlayUrlAction =
+      @"?launch=voice&vs=11&va=play&vaa=";
+  NSString* urlAction = isSearch ? kSearchUrlAction : kPlayUrlAction;
 
   const std::string deep_link = [[NSString
       stringWithFormat:@"%@%@%@", urlBase, urlAction, query] UTF8String];
