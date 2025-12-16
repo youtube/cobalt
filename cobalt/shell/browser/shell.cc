@@ -352,6 +352,13 @@ void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
 }
 
+void Shell::DidStopLoading() {
+  // Set initial focus to the web content.
+  if (web_contents()->GetRenderWidgetHostView()) {
+    web_contents()->GetRenderWidgetHostView()->Focus();
+  }
+}
+
 void Shell::RegisterInjectedJavaScript() {
   // Get the embedded header resource
   GeneratedResourceMap resource_map;
