@@ -15,8 +15,8 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
-import android.util.AttributeSet;
 import android.view.LayoutInflater;
+import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import org.chromium.base.ThreadUtils;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
@@ -32,7 +32,7 @@ import org.jni_zero.NativeMethods;
  * Container and generator of ShellViews.
  */
 @JNINamespace("content")
-public class ShellManager extends FrameLayout {
+public class ShellManager {
     private static final String TAG = "cobalt";
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
@@ -45,15 +45,23 @@ public class ShellManager extends FrameLayout {
     // The target for all content rendering.
     private ContentViewRenderView mContentViewRenderView;
 
+    private final Context mContext;
+    private final ViewGroup mShellContainer;
+
     /**
-     * Constructor for inflating via XML.
+     * Constructor
      */
-    public ShellManager(final Context context, AttributeSet attrs) {
-        super(context, attrs);
+    public ShellManager(final Context context, ViewGroup shellContainer) {
+        mContext = context;
+        mShellContainer = shellContainer;
         if (sNatives == null) {
             sNatives = ShellManagerJni.get();
         }
         sNatives.init(this);
+    }
+
+    public Context getContext() {
+        return mContext;
     }
 
     /**
@@ -113,7 +121,9 @@ public class ShellManager extends FrameLayout {
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
         sNatives.launchShell(url);
-        if (previousShell != null) previousShell.close();
+        if (previousShell != null) {
+            previousShell.close();
+        }
     }
 
     @CalledByNative
@@ -131,7 +141,9 @@ public class ShellManager extends FrameLayout {
         mNextWebContentsReadyListener = null;
 
         // TODO(tedchoc): Allow switching back to these inactive shells.
-        if (mActiveShell != null) removeShell(mActiveShell);
+        if (mActiveShell != null) {
+            removeShell(mActiveShell);
+        }
 
         showShell(shellView);
         return shellView;
@@ -139,7 +151,7 @@ public class ShellManager extends FrameLayout {
 
     private void showShell(Shell shellView) {
         shellView.setContentViewRenderView(mContentViewRenderView);
-        addView(shellView,
+        mShellContainer.addView(shellView,
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mActiveShell = shellView;
@@ -152,10 +164,14 @@ public class ShellManager extends FrameLayout {
 
     @CalledByNative
     private void removeShell(Shell shellView) {
-        if (shellView == mActiveShell) mActiveShell = null;
-        if (shellView.getParent() == null) return;
+        if (shellView == mActiveShell) {
+            mActiveShell = null;
+        }
+        if (shellView.getParent() == null) {
+            return;
+        }
         shellView.setContentViewRenderView(null);
-        removeView(shellView);
+        mShellContainer.removeView(shellView);
     }
 
     /**
@@ -167,7 +183,8 @@ public class ShellManager extends FrameLayout {
     public void destroy() {
         // Remove active shell (Currently single shell support only available).
         if (mActiveShell != null) {
-            removeShell(mActiveShell);
+            mActiveShell.close();
+            mActiveShell = null;
         }
         if (mContentViewRenderView != null) {
             mContentViewRenderView.destroy();

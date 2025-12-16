@@ -92,6 +92,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       const scoped_refptr<SiteInstance>& site_instance,
       const gfx::Size& initial_size);
 
+  static void Post_Launch(WebContents* web_contents);
+
   // Returns the Shell object corresponding to the given WebContents.
   static Shell* FromWebContents(WebContents* web_contents);
 

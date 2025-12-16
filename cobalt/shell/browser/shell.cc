@@ -325,6 +325,12 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
   return shell;
 }
 
+// static
+void Shell::Post_Launch(WebContents* web_contents) {
+  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
+      web_contents);
+}
+
 void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   if (frame_host == web_contents_->GetPrimaryMainFrame()) {
     g_platform->MainFrameCreated(this);
@@ -332,8 +338,8 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
-  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-      web_contents());
+  // After the main document element is available, we can access the cookie
+  // store.
 }
 
 void Shell::DidStopLoading() {
