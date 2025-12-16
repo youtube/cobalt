@@ -62,7 +62,9 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -107,7 +109,8 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
-  private CobaltConnectivityDetector cobaltConnectivityDetector;
+  private CobaltConnectivityDetector mCobaltConnectivityDetector;
+  private WebContentsObserver mWebContentsObserver;
 
   private Boolean isMainFrameLoaded = false;
   private final Object lock = new Object();
@@ -245,6 +248,32 @@ public abstract class CobaltActivity extends Activity {
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getAppShell().loadUrl(mStartupUrl);
+
+            // Initialize and register a WebContentsObserver.
+            mWebContentsObserver =
+                new org.chromium.content_public.browser.WebContentsObserver(
+                    getActiveWebContents()) {
+                  @Override
+                  public void didStartNavigationInPrimaryMainFrame(
+                      NavigationHandle navigationHandle) {
+                    if (!navigationHandle.isSameDocument()) {
+                      mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
+                    }
+                  }
+
+                  @Override
+                  public void didFinishNavigationInPrimaryMainFrame(
+                      NavigationHandle navigationHandle) {
+                    // The connectivity detector will consider the app has loaded if the navigation
+                    // has
+                    // committed successfully with a valid internet connection.
+                    if (navigationHandle.hasCommitted()
+                        && !navigationHandle.isErrorPage()
+                        && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
+                      mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
+                    }
+                  }
+                };
           }
 
           @Override
@@ -255,23 +284,27 @@ public abstract class CobaltActivity extends Activity {
             if (mShowAppShellRunnable != null) {
               mShowAppShellHandler.removeCallbacks(mShowAppShellRunnable);
             }
-            mShowAppShellRunnable = new Runnable() {
-                      @Override
-                      public void run() {
-                        if (isFinishing() || isDestroyed()) {
-                          Log.w(TAG, "NativeSplash: activity is finishing or destroyed, skipping showAppShell.");
-                          return;
-                        }
-                        synchronized (lock) {
-                          if (isMainFrameLoaded == false) {
-                            // Main app loaded in App shell, switch to it.
-                            Log.i(TAG, "NativeSplash: main shell is loaded");
-                            isMainFrameLoaded = true;
-                            mShellManager.showAppShell();
-                          }
-                        }
+            mShowAppShellRunnable =
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    if (isFinishing() || isDestroyed()) {
+                      Log.w(
+                          TAG,
+                          "NativeSplash: activity is finishing or destroyed, skipping"
+                              + " showAppShell.");
+                      return;
+                    }
+                    synchronized (lock) {
+                      if (isMainFrameLoaded == false) {
+                        // Main app loaded in App shell, switch to it.
+                        Log.i(TAG, "NativeSplash: main shell is loaded");
+                        isMainFrameLoaded = true;
+                        mShellManager.showAppShell();
                       }
-                    };
+                    }
+                  }
+                };
             mShowAppShellHandler.postDelayed(mShowAppShellRunnable, mSplashTimeoutMs);
           }
         });
@@ -478,10 +511,11 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
-    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
+    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
+    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     videoSurfaceView = new VideoSurfaceView(this);
@@ -541,7 +575,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public CobaltConnectivityDetector getCobaltConnectivityDetector() {
-    return cobaltConnectivityDetector;
+    return mCobaltConnectivityDetector;
   }
 
   @Override
@@ -604,7 +638,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    cobaltConnectivityDetector.activeNetworkCheck();
+    mCobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -618,13 +652,16 @@ public abstract class CobaltActivity extends Activity {
     if (mShowAppShellHandler != null && mShowAppShellRunnable != null) {
       mShowAppShellHandler.removeCallbacks(mShowAppShellRunnable);
     }
-    if (cobaltConnectivityDetector != null) {
-      cobaltConnectivityDetector.destroy();
+    if (mCobaltConnectivityDetector != null) {
+      mCobaltConnectivityDetector.destroy();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (mWebContentsObserver != null) {
+      mWebContentsObserver.destroy();
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
