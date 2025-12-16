@@ -17,14 +17,16 @@
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
+#include "starboard/loader_app/startup_timer.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
 using ::starboard::StarboardBridge;
 #elif BUILDFLAG(IS_STARBOARD)
-#include "starboard/common/time.h"
+// #include "starboard/common/time.h" // Removed as not directly used here.
 #endif
 
 namespace performance {
@@ -60,9 +62,8 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   auto startup_duration = starboard_bridge->GetAppStartDuration(env);
 #elif BUILDFLAG(IS_STARBOARD)
-  // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
-  NOTIMPLEMENTED();
-  int64_t startup_duration = 0;
+  int64_t startup_duration = loader_app::StartupTimer::GetAppStartupTime() /
+                             1000;  // Convert microseconds to milliseconds
 #else
 #error Unsupported platform.
 #endif
