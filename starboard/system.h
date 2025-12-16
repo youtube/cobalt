@@ -66,10 +66,6 @@ typedef enum SbSystemPathId {
   // The directory should be used only for storing the updates.
   // See starboard/doc/evergreen/cobalt_evergreen_overview.md
   kSbSystemPathStorageDirectory,
-
-  // Path to the directory for permanent files. Used for cookies and
-  // localStorage.
-  kSbSystemPathFilesDirectory,
 } SbSystemPathId;
 
 // System properties that can be queried for. Many of these are used in

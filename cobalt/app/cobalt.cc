@@ -100,6 +100,19 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
     params.argv = args.data();
   }
 
+  base::FilePath content_shell_data_path;
+  base::PathService::Get(base::DIR_CACHE, &content_shell_data_path);
+  constexpr char cobalt_subdir[] = "cobalt";
+  if (content_shell_data_path.BaseName().value() != cobalt_subdir) {
+    content_shell_data_path = content_shell_data_path.Append(cobalt_subdir);
+    base::PathService::OverrideAndCreateIfNeeded(
+        base::DIR_CACHE, content_shell_data_path,
+        /*is_absolute=*/true, /*create=*/true);
+  }
+  base::PathService::OverrideAndCreateIfNeeded(
+      content::SHELL_DIR_USER_DATA, content_shell_data_path,
+      /*is_absolute=*/true, /*create=*/true);
+
   return RunContentProcess(std::move(params), GetContentMainRunner());
 }
 
