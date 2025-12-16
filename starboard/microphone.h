@@ -190,12 +190,6 @@ SB_EXPORT int SbMicrophoneRead(SbMicrophone microphone,
                                void* out_audio_data,
                                int audio_data_size);
 
-// Returns the number of available frames that can be read from the microphone.
-// A negative return value indicates that an error occurred.
-//
-// |microphone|: The microphone to query.
-SB_EXPORT int SbMicrophoneGetAvailableFrames(SbMicrophone microphone);
-
 // Destroys a microphone. If the microphone is in started state, it is first
 // stopped and then destroyed. Any data that has been recorded and not read
 // is thrown away.

@@ -15,7 +15,6 @@
 #include <sys/types.h>
 
 #include "base/check_op.h"
-#include "base/logging.h"
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/numerics/safe_conversions.h"
@@ -51,7 +50,6 @@ size_t SendHelper(SyncSocket::Handle handle,
 
 // static
 bool SyncSocket::CreatePair(SyncSocket* socket_a, SyncSocket* socket_b) {
-  LOG(INFO) << "YO THOR - BASE SYNC SOCKET CREATE PAIR!";
   DCHECK_NE(socket_a, socket_b);
   DCHECK(!socket_a->IsValid());
   DCHECK(!socket_b->IsValid());
@@ -64,7 +62,6 @@ bool SyncSocket::CreatePair(SyncSocket* socket_a, SyncSocket* socket_b) {
 
   {
     Handle raw_handles[2] = {kInvalidHandle, kInvalidHandle};
-    LOG(INFO) << "YO THOR - SOCKETPAIR BEING CALLED";
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, raw_handles) != 0) {
       return false;
     }
@@ -169,6 +166,17 @@ size_t SyncSocket::ReceiveWithTimeout(void* buffer,
   return bytes_read_total;
 }
 
+//#if BUILDFLAG(IS_STARBOARD)
+//size_t SyncSocket::Peek() {
+//  DCHECK(IsValid());
+//  ssize_t number_chars = recv(handle_.get(), nullptr, 0, MSG_PEEK | MSG_TRUNC);
+//  if (number_chars == -1) {
+//    // An error occurred (e.g., connection closed).
+//    return 0;
+//  }
+//  return checked_cast<size_t>(number_chars);
+//}
+//#else
 size_t SyncSocket::Peek() {
   DCHECK(IsValid());
   int number_chars = 0;
@@ -178,6 +186,7 @@ size_t SyncSocket::Peek() {
   }
   return checked_cast<size_t>(number_chars);
 }
+//#endif
 
 bool SyncSocket::IsValid() const {
   return handle_.is_valid();
@@ -189,12 +198,6 @@ SyncSocket::Handle SyncSocket::handle() const {
 
 SyncSocket::Handle SyncSocket::Release() {
   return handle_.release();
-}
-
-CancelableSyncSocket::~CancelableSyncSocket() {
-  LOG(INFO) << "YO THOR - CancelableSyncSocket DESTRUCTOR CALLED for fd "
-            << handle();
-  Close();
 }
 
 bool CancelableSyncSocket::Shutdown() {

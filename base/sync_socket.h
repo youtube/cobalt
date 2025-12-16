@@ -97,7 +97,7 @@ class BASE_EXPORT CancelableSyncSocket : public SyncSocket {
   explicit CancelableSyncSocket(ScopedHandle handle);
   CancelableSyncSocket(const CancelableSyncSocket&) = delete;
   CancelableSyncSocket& operator=(const CancelableSyncSocket&) = delete;
-  ~CancelableSyncSocket() override;
+  ~CancelableSyncSocket() override = default;
 
   // Initializes a pair of cancelable sockets.  See documentation for
   // SyncSocket::CreatePair for more details.

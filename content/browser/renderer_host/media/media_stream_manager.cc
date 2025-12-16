@@ -1787,7 +1787,6 @@ void MediaStreamManager::GenerateStreams(
     DeviceCaptureConfigurationChangeCallback
         device_capture_configuration_change_cb,
     DeviceCaptureHandleChangeCallback device_capture_handle_change_cb) {
-  LOG(INFO) << "YO THOR - MediaStreamManager::GenerateStreams";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   SendLogMessage(GetGenerateStreamsLogString(render_process_id, render_frame_id,
                                              requester_id, page_request_id));

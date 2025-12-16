@@ -144,8 +144,6 @@ class MODULES_EXPORT MediaDevices final
 
  private:
   FRIEND_TEST_ALL_PREFIXES(MediaDevicesTest, ObserveDeviceChangeEvent);
-
-  base::SequenceChecker sequence_checker_;
   void ScheduleDispatchEvent(Event*);
   void DispatchScheduledEvents();
   void StartObserving();

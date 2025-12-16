@@ -8,9 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include <fcntl.h>
-#include <cerrno>
-
 #include "audio_device_stats_reporter.h"
 #include "base/format_macros.h"
 #include "base/functional/bind.h"
@@ -138,7 +135,6 @@ void AudioInputDevice::Start() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback_) << "Initialize hasn't been called";
   TRACE_EVENT0("audio", "AudioInputDevice::Start");
-  LOG(INFO) << "YO THOR - AudioInputDevice::Start";
 
   // Make sure we don't call Start() more than once.
   if (state_ != IDLE)
@@ -240,14 +236,6 @@ void AudioInputDevice::OnStreamCreated(
   DCHECK(socket_handle.is_valid());
 #endif
   DCHECK_GT(shared_memory_region.GetSize(), 0u);
-
-  LOG(INFO) << "YO THOR! AUDIO INPUT DEVICE - ON STREAM CREATED!";
-  int fd = socket_handle.get();
-  int fcntl_ret = fcntl(fd, F_GETFL);
-  int fcntl_errno = errno;
-  LOG(INFO) << "YO THOR - AudioInputDevice: Received handle. fd=" << fd
-            << ", fcntl ret=" << fcntl_ret << ", errno=" << fcntl_errno
-            << " (" << (fcntl_ret == -1 ? strerror(fcntl_errno) : "VALID") << ")";
 
   if (state_ != CREATING_STREAM)
     return;

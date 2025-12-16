@@ -25,10 +25,6 @@ AudioInputStreamStarboard::AudioInputStreamStarboard(
     : params_(params), thread_("AudioInputStreamStarboard") {
   thread_.StartWithOptions(
       base::Thread::Options(base::ThreadType::kRealtimeAudio));
-  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::AudioInputStreamStarboard"
-            << " sample_rate: " << params_.sample_rate()
-            << " channels: " << params_.channels()
-            << " frames_per_buffer: " << params_.frames_per_buffer();
 }
 
 AudioInputStreamStarboard::~AudioInputStreamStarboard() {
@@ -36,17 +32,14 @@ AudioInputStreamStarboard::~AudioInputStreamStarboard() {
 }
 
 AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
-  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open";
   if (microphone_) {
-    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - Already open";
     return OpenOutcome::kAlreadyOpen;
   }
 
   SbMicrophoneInfo info;
 
   if (SbMicrophoneGetAvailable(&info, 1) < 1) {
-    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - "
-                 "SbMicrophoneGetAvailable failed";
+    DLOG(ERROR) << "SbMicrophoneGetAvailable failed";
     return OpenOutcome::kFailed;
   }
 
@@ -54,15 +47,13 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
                                    params_.frames_per_buffer() * 2);
 
   if (!SbMicrophoneIsValid(microphone_)) {
-    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - "
-                 "SbMicrophoneCreate failed. Sample rate: "
-              << params_.sample_rate();
+    DLOG(ERROR) << "SbMicrophoneCreate failed. Sample rate: "
+                << params_.sample_rate();
     return OpenOutcome::kFailed;
   }
 
   if (!SbMicrophoneOpen(microphone_)) {
-    LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open - SbMicrophoneOpen "
-                 "failed";
+    DLOG(ERROR) << "SbMicrophoneOpen failed";
     SbMicrophoneDestroy(microphone_);
     microphone_ = kSbMicrophoneInvalid;
     return OpenOutcome::kFailed;
@@ -72,18 +63,11 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 }
 
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
-  LOG(INFO) << "YO THOR - AUDIO INPUT - START !";
   DCHECK(callback);
   callback_ = callback;
   stop_event_.Reset();
 
-  // We start reading data half |buffer_duration_| later than when the
-  // buffer might have got filled, to accommodate some delays in the audio
-  // driver. This could also give us a smooth read sequence going forward.
-  base::TimeDelta initial_delay = params_.GetBufferDuration() / 2;
-  next_read_time_ = base::TimeTicks::Now() + initial_delay;
-
-  base::TimeDelta delay = next_read_time_ - base::TimeTicks::Now();
+  base::TimeDelta delay = params_.GetBufferDuration();
   thread_.task_runner()->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
@@ -158,8 +142,8 @@ void AudioInputStreamStarboard::ReadAudio() {
 
     callback_->OnData(audio_bus.get(), base::TimeTicks::Now(), 0.0, {});
   } else {
-    LOG(WARNING) << "YO THOR SbMicrophoneRead returned " << bytes_read
-                 << ". Dropping this buffer.";
+    DLOG(WARNING) << "SbMicrophoneRead returned " << bytes_read
+                  << ". Dropping this buffer.";
   }
 
   // Schedule the next read.

@@ -71,10 +71,6 @@ AudioInputStream* AudioManagerStarboard::MakeAudioInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
-  LOG(INFO) << "YO THOR - AudioManagerStarboard::MakeAudioInputStream"
-            << " sample_rate: " << params.sample_rate()
-            << " channels: " << params.channels()
-            << " frames_per_buffer: " << params.frames_per_buffer();
   return new AudioInputStreamStarboard(this, params);
 }
 

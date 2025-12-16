@@ -199,7 +199,6 @@ InputController::InputController(
       sync_writer_(sync_writer),
       type_(type),
       user_input_monitor_(user_input_monitor) {
-        LOG(INFO) << "YO THOR - INPUT CONTROLLER CTOR";
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK(event_handler_);
   DCHECK(sync_writer_);
@@ -333,7 +332,6 @@ std::unique_ptr<InputController> InputController::Create(
 void InputController::Record() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   SCOPED_UMA_HISTOGRAM_TIMER("Media.AudioInputController.RecordTime");
-  LOG(INFO) << "YO THOR - INPUT CONTROLLER -- RECORD";
 
   if (!stream_ || audio_callback_)
     return;
@@ -371,7 +369,6 @@ void InputController::Record() {
     output_tapper_->Start();
 #endif
 
-  LOG(INFO) << "YO THOR - - INPUT CONTROL - RECORD - START STREAM! (with callbacl)";
   stream_->Start(audio_callback_.get());
   return;
 }

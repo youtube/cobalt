@@ -422,7 +422,6 @@ void MediaStreamDispatcherHost::GenerateStreams(
     bool user_gesture,
     blink::mojom::StreamSelectionInfoPtr audio_stream_selection_info_ptr,
     GenerateStreamsCallback callback) {
-  LOG(INFO) << "YO THOR - MediaStreamDispatcherHost::GenerateStreams";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   const absl::optional<bad_message::BadMessageReason> bad_message =

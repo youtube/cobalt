@@ -6,9 +6,6 @@
 
 #include <utility>
 
-#include <fcntl.h>
-#include <cerrno>
-
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/histogram_macros.h"
@@ -120,8 +117,6 @@ void MojoAudioInputIPC::StreamCreated(
   DCHECK(!stream_);
   DCHECK(!stream_client_receiver_.is_bound());
 
-  LOG(INFO) << "YO THOR - MojoAudioInputIPC::StreamCreated";
-
   stream_.Bind(std::move(stream));
   stream_client_receiver_.Bind(std::move(stream_client_receiver));
 
@@ -131,13 +126,6 @@ void MojoAudioInputIPC::StreamCreated(
 
   DCHECK(data_pipe->socket.is_valid_platform_file());
   base::ScopedPlatformFile socket_handle = data_pipe->socket.TakePlatformFile();
-
-  int fd = socket_handle.get();
-  int fcntl_ret = fcntl(fd, F_GETFL);
-  int fcntl_errno = errno;
-  LOG(INFO) << "YO THOR - MojoAudioInputIPC: Received handle. fd=" << fd
-            << ", fcntl ret=" << fcntl_ret << ", errno=" << fcntl_errno
-            << " (" << (fcntl_ret == -1 ? strerror(fcntl_errno) : "VALID") << ")";
 
   base::ReadOnlySharedMemoryRegion& shared_memory_region =
       data_pipe->shared_memory;

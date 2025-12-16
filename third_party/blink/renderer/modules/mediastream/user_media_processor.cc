@@ -581,7 +581,6 @@ UserMediaRequest* UserMediaProcessor::CurrentRequest() {
 
 void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
                                         base::OnceClosure callback) {
-  LOG(INFO) << "YO THOR - UserMediaProcessor::ProcessRequest";
   DCHECK(!request_completed_cb_);
   DCHECK(!current_request_info_);
   request_completed_cb_ = std::move(callback);
@@ -604,12 +603,6 @@ void UserMediaProcessor::SetupAudioInput() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(current_request_info_);
   DCHECK(current_request_info_->request()->Audio());
-
-  LOG(INFO) << "YO THOR - UserMediaProcessor::SetupAudioInput - constraints "
-            << current_request_info_->request()
-                   ->AudioConstraints()
-                   .ToString()
-                   .Utf8();
 
   UserMediaRequest* const request = current_request_info_->request();
 

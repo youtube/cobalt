@@ -99,12 +99,12 @@ InputSyncWriter::InputSyncWriter(
 
 InputSyncWriter::~InputSyncWriter() = default;
 
+// static
 std::unique_ptr<InputSyncWriter> InputSyncWriter::Create(
     base::RepeatingCallback<void(const std::string&)> log_callback,
     uint32_t shared_memory_segment_count,
     const media::AudioParameters& params,
     base::CancelableSyncSocket* foreign_socket) {
-  LOG(INFO) << "YO THOR - InputSyncWriter::Create";
   // Having no shared memory doesn't make sense, so fail creation in that case.
   if (shared_memory_segment_count == 0)
     return nullptr;
@@ -236,7 +236,6 @@ void InputSyncWriter::CheckTimeSinceLastWrite() {
   base::TimeTicks new_write_time = base::TimeTicks::Now();
   std::ostringstream oss;
   if (last_write_time_.is_null()) {
-  LOG(INFO) << "YO THOR - FIRST TIME WRITE";
     // This is the first time Write is called.
     base::TimeDelta interval = new_write_time - creation_time_;
     oss << "AISW::Write: audio input data received for the first time: delay "
@@ -326,15 +325,13 @@ bool InputSyncWriter::WriteDataToCurrentSegment(
 }
 
 bool InputSyncWriter::SignalDataWrittenAndUpdateCounters() {
-
-  size_t sent_bytes =  socket_->Send(&current_segment_id_, sizeof(current_segment_id_));
-
-  if (sent_bytes != sizeof(current_segment_id_)) {
+  if (socket_->Send(&current_segment_id_, sizeof(current_segment_id_)) !=
+      sizeof(current_segment_id_)) {
     // Ensure we don't log consecutive errors as this can lead to a large
     // amount of logs.
     if (!had_socket_error_) {
       had_socket_error_ = true;
-      static const char* error_message = "YO THOR - AISW: No room in socket buffer.";
+      static const char* error_message = "AISW: No room in socket buffer.";
       PLOG(WARNING) << error_message;
       log_callback_.Run(error_message);
       TRACE_EVENT_INSTANT0(

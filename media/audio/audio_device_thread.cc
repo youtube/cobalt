@@ -7,11 +7,7 @@
 #include <limits>
 #include <ostream>
 
-#include <fcntl.h>
-#include <cerrno>
-
 #include "base/check_op.h"
-#include "base/logging.h"
 #include "base/system/sys_info.h"
 #include "build/build_config.h"
 
@@ -64,13 +60,6 @@ AudioDeviceThread::AudioDeviceThread(Callback* callback,
                                              thread_type));
 
   DCHECK(!thread_handle_.is_null());
-  LOG(INFO) << "YO THOR - AUDIO DEVICE TRHEAD! CTOR";
-  int fd = socket_.handle();
-  int fcntl_ret = fcntl(fd, F_GETFL);
-  int fcntl_errno = errno;
-  LOG(INFO) << "YO THOR - AudioDeviceThread: CTOR check. fd=" << fd
-            << ", fcntl ret=" << fcntl_ret << ", errno=" << fcntl_errno
-            << " (" << (fcntl_ret == -1 ? strerror(fcntl_errno) : "VALID") << ")";
 }
 
 AudioDeviceThread::~AudioDeviceThread() {
@@ -88,27 +77,14 @@ base::TimeDelta AudioDeviceThread::GetRealtimePeriod() {
 
 void AudioDeviceThread::ThreadMain() {
   base::PlatformThread::SetName(thread_name_);
-  LOG(INFO) << "YO THOR - AudioDeviceThread::ThreadMain - thread_name: " << thread_name_;
-
-  // Check the handle again right before we start using it.
-  int fd = socket_.handle();
-  int fcntl_ret = fcntl(fd, F_GETFL);
-  int fcntl_errno = errno;
-  LOG(INFO) << "YO THOR - AudioDeviceThread: ThreadMain check. fd=" << fd
-            << ", fcntl ret=" << fcntl_ret << ", errno=" << fcntl_errno
-            << " (" << (fcntl_ret == -1 ? strerror(fcntl_errno) : "VALID") << ")";
-
   callback_->InitializeOnAudioThread();
 
   uint32_t buffer_index = 0;
   while (true) {
-
     uint32_t pending_data = 0;
     size_t bytes_read = socket_.Receive(&pending_data, sizeof(pending_data));
-    if (bytes_read != sizeof(pending_data)) {
-      LOG(INFO) << "YO THOR - AUDIO DEVICE THREAD _ THREWAD MAIN - WHILE TRUE - BYTES-READ:" << bytes_read << " PENDINGDATA:" << pending_data;
+    if (bytes_read != sizeof(pending_data))
       break;
-    }
 
     // std::numeric_limits<uint32_t>::max() is a special signal which is
     // returned after the browser stops the output device in response to a
@@ -133,11 +109,8 @@ void AudioDeviceThread::ThreadMain() {
     // AudioSyncReader::WaitUntilDataIsReady().
     ++buffer_index;
     size_t bytes_sent = socket_.Send(&buffer_index, sizeof(buffer_index));
-    if (bytes_sent != sizeof(buffer_index)) {
-      // This can happen if the browser process is blocked, the renderer will
-      // just have to wait for the browser to unblock.
-      DLOG(WARNING) << "AudioDeviceThread::ThreadMain: Send failed.";
-    }
+    if (bytes_sent != sizeof(buffer_index))
+      break;
   }
 }
 
