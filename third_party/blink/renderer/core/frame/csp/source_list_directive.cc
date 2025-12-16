@@ -79,17 +79,17 @@ bool CSPSourceListAllows(
                                 redirect_status);
   }
 #if BUILDFLAG(IS_COBALT)
-  if (source_list.cobalt_insecure_local_network) {
-    // Allow websocket connection to host ip within the local network.
-    if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
-      return IsIPInLocalNetwork(url.Host().Utf8());
-    }
+  // Allow websocket connection to host ip within the private range.
+  if (source_list.cobalt_insecure_private_range &&
+      (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
+      IsIPInPrivateRange(url.Host().Utf8())) {
+    return true
   }
-  if (source_list.cobalt_insecure_private_range) {
-    // Allow websocket connection to host ip within the local network.
-    if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
-      return IsIPInPrivateRange(url.Host().Utf8());
-    }
+  // Allow websocket connection to host ip within the local network.
+  if (source_list.cobalt_insecure_local_network &&
+      (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
+      IsIPInLocalNetwork(url.Host().Utf8())) {
+    return true
   }
 #endif
   if (source_list.allow_self && CSPSourceMatchesAsSelf(self_source, url)) {
