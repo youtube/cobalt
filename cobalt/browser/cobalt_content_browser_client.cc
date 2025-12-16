@@ -153,7 +153,6 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   return browser_main_parts;
 }
 
-<<<<<<< HEAD
 std::vector<std::unique_ptr<content::NavigationThrottle>>
 CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationHandle* handle) {
@@ -162,7 +161,8 @@ CobaltContentBrowserClient::CreateThrottlesForNavigation(
   throttles.push_back(
       std::make_unique<content::CobaltSecureNavigationThrottle>(handle));
   return throttles;
-=======
+}
+
 std::unique_ptr<content::DevToolsManagerDelegate>
 CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
 #if defined(COBALT_IS_RELEASE_BUILD)
@@ -170,15 +170,6 @@ CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
 #else
   return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
 #endif
-}
-
-void CobaltContentBrowserClient::CreateThrottlesForNavigation(
-    content::NavigationThrottleRegistry& registry) {
-  content::NavigationHandle& navigation_handle = registry.GetNavigationHandle();
-  registry.AddThrottle(
-      std::make_unique<content::CobaltSecureNavigationThrottle>(
-          &navigation_handle));
->>>>>>> b95ed16882d (Disable devtools for gold builds. (#8384))
 }
 
 content::GeneratedCodeCacheSettings
