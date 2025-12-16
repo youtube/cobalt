@@ -16,6 +16,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/memory/ptr_util.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/notreached.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
@@ -153,7 +154,8 @@ WriteCallbacksObserver::GetAndResetObservationState() {
 
 class ImportantFileWriterTest : public testing::Test {
  public:
-  ImportantFileWriterTest() = default;
+  ImportantFileWriterTest() :
+    recorder_for_testing_(StatisticsRecorder::CreateTemporaryForTesting()) {}
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     file_ = temp_dir_.GetPath().AppendASCII("test-file");
@@ -166,6 +168,8 @@ class ImportantFileWriterTest : public testing::Test {
 
  private:
   ScopedTempDir temp_dir_;
+
+  std::unique_ptr<StatisticsRecorder> recorder_for_testing_;
 };
 
 TEST_F(ImportantFileWriterTest, Basic) {
