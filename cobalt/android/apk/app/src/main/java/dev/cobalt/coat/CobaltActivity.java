@@ -189,7 +189,10 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    mShellManager = new ShellManager(this);
+    // Create a new FrameLayout to hold the Shell view.
+    FrameLayout shellContainer = new FrameLayout(this);
+    setContentView(shellContainer);
+    mShellManager = new ShellManager(this, shellContainer);
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid =
