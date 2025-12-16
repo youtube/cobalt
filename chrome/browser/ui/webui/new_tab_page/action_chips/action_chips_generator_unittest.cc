@@ -125,7 +125,7 @@ ActionChipPtr CreateStaticRecentTabChip(TabInfoPtr tab) {
 
 const ActionChipPtr& GetStaticDeepSearchChip() {
   static const base::NoDestructor<ActionChipPtr> kInstance(ActionChip::New(
-      /*title=*/"Research a topic",
+      /*title=*/"Deep Search",
       /*suggestion=*/"Dive deep into something new",
       /*type=*/ChipType::kDeepSearch, /*tab=*/nullptr));
   return *kInstance;
@@ -257,7 +257,7 @@ class GeneratorFixture {
       mock_optimization_guide_;
   TestingPrefServiceSyncable pref_service_;
   MockAimEligibilityService mock_aim_eligibility_service_{
-      pref_service_, nullptr, nullptr, nullptr};
+      pref_service_, nullptr, nullptr, nullptr, false};
 };
 
 using ActionChipGeneratorWithNoRecentTabTest = ::testing::TestWithParam<bool>;
@@ -767,6 +767,61 @@ TEST_P(
   }
 
   EXPECT_THAT(actual, ElementsAreArray(expected));
+}
+
+struct SimplifiedUIParamTestCase {
+  std::string test_name;
+  std::string url;
+  std::string expected_host;
+};
+
+using ActionChipGeneratorSimplifiedUITest =
+    testing::TestWithParam<SimplifiedUIParamTestCase>;
+
+INSTANTIATE_TEST_SUITE_P(
+    ActionChipGeneratorTests,
+    ActionChipGeneratorSimplifiedUITest,
+    ::testing::ValuesIn(
+        {SimplifiedUIParamTestCase{.test_name = "WithWWW",
+                                   .url = "https://www.google.com/",
+                                   .expected_host = "google.com"},
+         SimplifiedUIParamTestCase{.test_name = "WithoutWWW",
+                                   .url = "https://news.google.com/",
+                                   .expected_host = "news.google.com"}}),
+    [](const testing::TestParamInfo<SimplifiedUIParamTestCase>& param) {
+      return param.param.test_name;
+    });
+
+TEST_P(ActionChipGeneratorSimplifiedUITest,
+       GenerateSimplifiedRecentTabChipWhenSimplificationUIParamIsTrue) {
+  EnvironmentFixture env;
+  const GURL page_url(GetParam().url);
+  const std::u16string page_title(u"Some Title");
+  TabFixture tab_fixture(page_url, page_title);
+  GeneratorFixture generator_fixture;
+
+  base::test::ScopedFeatureList list;
+  list.InitAndEnableFeatureWithParameters(
+      ntp_features::kNtpNextFeatures,
+      {{ntp_features::kNtpNextShowStaticTextParam.name, "true"},
+       {ntp_features::kNtpNextShowSimplificationUIParam.name, "true"}});
+
+  base::RunLoop run_loop;
+  std::vector<ActionChipPtr> actual;
+  generator_fixture.GenerateActionChips(&tab_fixture.mock_tab(), run_loop,
+                                        actual);
+  run_loop.Run();
+
+  TabInfoPtr tab_info = CreateTabInfo(&tab_fixture.mock_tab());
+  ActionChipPtr expected_recent_tab_chip =
+      ActionChip::New(/*title=*/"Ask about this tab",
+                      /*suggestion=*/GetParam().expected_host,
+                      /*type=*/ChipType::kRecentTab, /*tab=*/tab_info->Clone());
+
+  EXPECT_THAT(actual,
+              ElementsAre(Eq(std::cref(expected_recent_tab_chip)),
+                          Eq(std::cref(GetStaticDeepSearchChip())),
+                          Eq(std::cref(GetStaticImageGenerationChip()))));
 }
 
 }  // namespace

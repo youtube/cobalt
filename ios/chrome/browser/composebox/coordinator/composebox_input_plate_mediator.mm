@@ -457,7 +457,7 @@ CreateInputDataFromAnnotatedPageContent(
         _contextualSearchSession->ClearFiles();
       }
       [_items removeAllObjects];
-      [self.consumer setItems:_items];
+      [self updateConsumerItems];
       break;
     case ComposeboxMode::kAIM:
       break;
@@ -1146,6 +1146,8 @@ CreateInputDataFromAnnotatedPageContent(
   switch (_modeHolder.mode) {
     case ComposeboxMode::kRegularSearch:
       [self.URLLoader loadURLParams:URLLoadParams];
+      [self.metricsRecorder recordAutocompleteRequestTypeAtNavigation:
+                                AutocompleteRequestType::kSearch];
       break;
     case ComposeboxMode::kAIM:
       [self.metricsRecorder recordAutocompleteRequestTypeAtNavigation:
@@ -1188,10 +1190,15 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL allowsMultimodalActions = dseGoogle && eligibleToAIM;
   BOOL canSend = hasContent && !compactMode;
   BOOL showShortcuts = !hasContent && !canSend;
+  BOOL showLeadingImage = !compactMode || !allowsMultimodalActions;
 
   ComposeboxInputPlateControls leadingAction =
       allowsMultimodalActions ? ComposeboxInputPlateControls::kPlus
                               : ComposeboxInputPlateControls::kNone;
+
+  ComposeboxInputPlateControls leadingImage =
+      showLeadingImage ? ComposeboxInputPlateControls::kLeadingImage
+                       : ComposeboxInputPlateControls::kNone;
 
   ComposeboxInputPlateControls modeSwitchButton;
   switch (_modeHolder.mode) {
@@ -1218,7 +1225,7 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   ComposeboxInputPlateControls visibleControls =
-      (leadingAction | modeSwitchButton | trailingAction);
+      (leadingImage | leadingAction | modeSwitchButton | trailingAction);
 
   [self.consumer updateVisibleControls:visibleControls];
 }

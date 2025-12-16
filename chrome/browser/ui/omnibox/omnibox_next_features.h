@@ -81,7 +81,9 @@ extern const base::FeatureParam<bool> kShowContextMenuDescription;
 extern const base::FeatureParam<bool> kShowContextMenuTabPreviews;
 // Whether to show the create image button in the composebox context menu.
 extern const base::FeatureParam<bool> kShowCreateImageTool;
-// Whether to show the recent tab chip in the realbox and composebox.
+// Whether to show the lens search chip in the composebox.
+extern const base::FeatureParam<bool> kShowLensSearchChip;
+// Whether to show the recent tab chip in the composebox.
 extern const base::FeatureParam<bool> kShowRecentTabChip;
 // Whether to show the smart compose in the composebox.
 extern const base::FeatureParam<bool> kShowSmartCompose;
@@ -89,6 +91,10 @@ extern const base::FeatureParam<bool> kShowSmartCompose;
 extern const base::FeatureParam<bool> kShowSubmit;
 // Whether to show the tools and models picker in the composebox.
 extern const base::FeatureParam<bool> kShowToolsAndModels;
+// Whether to show the voice search button in steady state composebox.
+extern const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox;
+// Whether to show the voice search button in expanded composebox.
+extern const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox;
 // If kSendLnsSurfaceParam is true, whether to suppress the `lns_surface`
 // parameter if there is no image upload. Does nothing if kSendLnsSurfaceParam
 // is false.

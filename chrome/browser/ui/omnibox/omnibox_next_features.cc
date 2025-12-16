@@ -288,10 +288,15 @@ const base::FeatureParam<bool> kShowCreateImageTool(
     &internal::kWebUIOmniboxAimPopup,
     "ShowCreateImageTool",
     false);
+// TODO(crbug.com/462739330): Enable lens chip.
+const base::FeatureParam<bool> kShowLensSearchChip(
+    &internal::kWebUIOmniboxAimPopup,
+    "ShowLensSearchChip",
+    false);
 const base::FeatureParam<bool> kShowRecentTabChip(
     &internal::kWebUIOmniboxAimPopup,
     "ShowRecentTabChip",
-    true);
+    false);
 const base::FeatureParam<bool> kShowSmartCompose(
     &internal::kWebUIOmniboxAimPopup,
     "ShowSmartCompose",
@@ -302,6 +307,14 @@ const base::FeatureParam<bool> kShowSubmit(&internal::kWebUIOmniboxAimPopup,
 const base::FeatureParam<bool> kShowToolsAndModels(
     &internal::kWebUIOmniboxAimPopup,
     "ShowToolsAndModels",
+    false);
+const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox(
+    &internal::kWebUIOmniboxAimPopup,
+    "ShowVoiceSearchInSteadyComposebox",
+    false);
+const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox(
+    &internal::kWebUIOmniboxAimPopup,
+    "ShowVoiceSearchInExpandedComposebox",
     false);
 const base::FeatureParam<bool> kSuppressLnsSurfaceParamIfNoImage(
     &internal::kWebUIOmniboxAimPopup,

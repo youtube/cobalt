@@ -4,6 +4,7 @@
 
 import './composebox_tool_chip.js';
 import './context_menu_entrypoint.js';
+import './composebox_lens_search.js';
 import './file_carousel.js';
 import './icons.html.js';
 import './recent_tab_chip.js';
@@ -175,6 +176,8 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       loadTimeData.getBoolean('composeboxShowPdfUpload');
   protected accessor showContextMenuDescription_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenuDescription');
+  protected showLensSearchChip_: boolean =
+      loadTimeData.getBoolean('composeboxShowLensSearchChip');
   protected accessor showRecentTabChip_: boolean =
       loadTimeData.getBoolean('composeboxShowRecentTabChip');
   protected accessor showFileCarousel_: boolean = false;
@@ -306,6 +309,9 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
           default:
             break;
         }
+        if (this.contextMenuEnabled_) {
+          this.$.contextEntrypoint.closeMenu();
+        }
       } else {
         file = {...file, status: status};
         this.files_.set(token, file);
@@ -372,15 +378,6 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   updateAutoActiveTabContext(tab: TabInfo|null) {
     // If there is already a suggested tab context, remove it.
     if (this.automaticActiveTabChipToken_) {
-      // In rare cases chrome.metricsPrivate is not available. See
-      // crbug.com/40162029.
-      if (chrome.metricsPrivate) {
-        const metricName =
-            'ContextualSearch.UserAction.DeleteAutoSuggestedTab.' +
-            this.composeboxSource_;
-        chrome.metricsPrivate.recordUserAction(metricName);
-        chrome.metricsPrivate.recordBoolean(metricName, true);
-      }
       this.onDeleteFile_(new CustomEvent('deleteTabContext', {
         detail: {
           uuid: this.automaticActiveTabChipToken_,
@@ -435,7 +432,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }));
   }
 
-  setStateFromSearchContext(context: SearchContextStub) {
+  addSearchContext(context: SearchContextStub) {
     for (const attachment of context.attachments) {
       if (attachment.fileAttachment) {
         this.addFileFromAttachment_(attachment.fileAttachment);
@@ -492,6 +489,15 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         e.detail.uuid === this.automaticActiveTabChipToken_ &&
         (e.detail.fromUserAction === true);
     if (fromAutoSuggestedChip) {
+      // In rare cases chrome.metricsPrivate is not available. See
+      // crbug.com/40162029.
+      if (chrome.metricsPrivate) {
+        const metricName =
+            'ContextualSearch.UserAction.DeleteAutoSuggestedTab.' +
+            this.composeboxSource_;
+        chrome.metricsPrivate.recordUserAction(metricName);
+        chrome.metricsPrivate.recordBoolean(metricName, true);
+      }
       this.automaticActiveTabChipToken_ = null;
     }
 
@@ -531,6 +537,9 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
     }
 
     this.recordFileValidationMetric_(metric);
+    if (this.contextMenuEnabled_) {
+      this.$.contextEntrypoint.closeMenu();
+    }
     this.fire('on-file-validation-error', {
       errorMessage: this.i18n(errorMessage),
     });
@@ -631,12 +640,22 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   protected openImageUpload_() {
-    assert(this.$.imageInput);
-    this.$.imageInput.click();
+    if (this.entrypointName === 'ContextualTasks') {
+      // Open file dialog using top level primary window
+      // in contextual tasks composebox.
+      this.fire('open-file-dialog', {isImage: true});
+    } else {
+      assert(this.$.imageInput);
+      this.$.imageInput.click();
+    }
   }
 
   protected openFileUpload_() {
-    if (this.$.fileInput) {
+    if (this.entrypointName === 'ContextualTasks') {
+      // Open file dialog using top level primary window
+      // in contextual tasks composebox.
+      this.fire('open-file-dialog', {isImage: false});
+    } else if (this.$.fileInput) {
       this.$.fileInput.click();
     }
   }

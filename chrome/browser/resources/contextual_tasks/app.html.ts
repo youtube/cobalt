@@ -14,12 +14,12 @@ export function getHtml(this: ContextualTasksAppElement) {
   ${this.isShownInTab_ ? '' : html`
       <top-toolbar .title="${this.threadTitle_}"
           .attachedTabs="${this.contextTabs_}"
-          @new-thread-click="${this.onNewThreadClick_}"
-          @thread-history-click="${this.onThreadHistoryClick_}">
+          @new-thread-click="${this.onNewThreadClick_}">
       </top-toolbar>
   `}
   <webview id="threadFrame" src="${this.threadUrl_}"></webview>
-  <contextual-tasks-composebox id="composebox"></contextual-tasks-composebox>
+  <contextual-tasks-composebox id="composebox"
+      ?hidden="${!this.showComposebox_}"></contextual-tasks-composebox>
   <!--_html_template_end_-->`;
 }
 // clang-format on

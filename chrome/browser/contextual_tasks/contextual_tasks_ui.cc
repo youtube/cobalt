@@ -90,6 +90,8 @@ std::string GetEncodedHandshakeMessage() {
   lens::ClientToAimMessage message;
   lens::HandshakePing* ping = message.mutable_handshake_ping();
   ping->add_capabilities(lens::FeatureCapability::DEFAULT);
+  ping->add_capabilities(lens::FeatureCapability::OPEN_THREADS_VIEW);
+  ping->add_capabilities(lens::FeatureCapability::COBROWSING_DISPLAY_CONTROL);
   const size_t size = message.ByteSizeLong();
   std::vector<uint8_t> serialized_message(size);
   message.SerializeToArray(&serialized_message[0], size);
@@ -192,6 +194,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddString("composeCreateImagePlaceholder", "[i18n] Create image...");
   source->AddBoolean("composeboxSmartComposeEnabled", false);
   AddContextMenuItemEligibilityLoadTimeData(source, Profile::FromWebUI(web_ui));
+  source->AddBoolean("composeboxShowLensSearchChip", false);
   source->AddBoolean("composeboxShowRecentTabChip", false);
   source->AddBoolean("composeboxShowSubmit", true);
   source->AddBoolean("composeboxContextDragAndDropEnabled", false);
@@ -417,6 +420,18 @@ void ContextualTasksUI::OnInnerWebContentsCreated(
 
 void ContextualTasksUI::OnSidePanelStateChanged() {
   page_->OnSidePanelStateChanged();
+
+  lens::ClientToAimMessage message;
+  auto* display_mode_msg = message.mutable_set_cobrowsing_display_mode();
+  if (IsShownInTab()) {
+    display_mode_msg->mutable_payload()->set_display_mode(
+        lens::CobrowsingDisplayModeParams::COBROWSING_TAB);
+  } else {
+    display_mode_msg->mutable_payload()->set_display_mode(
+        lens::CobrowsingDisplayModeParams::COBROWSING_SIDEPANEL);
+  }
+
+  PostMessageToWebview(message);
 }
 
 void ContextualTasksUI::DisableActiveTabContextSuggestion() {
@@ -447,7 +462,8 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged(
   content::WebContents* web_contents = tab->GetContents();
   GURL last_committed_url = web_contents->GetLastCommittedURL();
 
-  if (!last_committed_url.is_valid() || last_committed_url.is_empty()) {
+  if (!last_committed_url.is_valid() ||
+      !last_committed_url.SchemeIsHTTPOrHTTPS()) {
     composebox_handler_->UpdateSuggestedTabContext(nullptr);
     return;
   }

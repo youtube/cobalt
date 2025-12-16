@@ -864,30 +864,41 @@ const FeatureEntry::FeatureParam kWebUIOmniboxAimPopupAddContextButtonNone[] = {
     {"AddContextButtonVariant", "none"},
     {"ShowCreateImageTool", "true"},
     {"ShowToolsAndModels", "true"},
+    {"ShowVoiceSearchInSteadyComposebox","true"},
+    {"ShowVoiceSearchInExpandedComposebox","true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonBelowResults[] = {
         {"AddContextButtonVariant", "below_results"},
         {"ShowCreateImageTool", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowToolsAndModels", "true"},
+        {"ShowVoiceSearchInSteadyComposebox","true"},
+        {"ShowVoiceSearchInExpandedComposebox","true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonAboveResults[] = {
         {"AddContextButtonVariant", "above_results"},
         {"ShowCreateImageTool", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowToolsAndModels", "true"},
-
+        {"ShowVoiceSearchInSteadyComposebox","true"},
+        {"ShowVoiceSearchInExpandedComposebox","true"},
 };
 const FeatureEntry::FeatureParam kWebUIOmniboxAimPopupAddContextButtonInline[] =
     {
         {"AddContextButtonVariant", "inline"},
         {"ShowCreateImageTool", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowToolsAndModels", "true"},
+        {"ShowVoiceSearchInSteadyComposebox","true"},
+        {"ShowVoiceSearchInExpandedComposebox","true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonMultiFile[] = {
         {"AddContextButtonVariant", "below_results"},
         {"ShowCreateImageTool", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowToolsAndModels", "true"},
         {"MaxNumFiles", "5"},
 };
@@ -1723,6 +1734,21 @@ const FeatureEntry::FeatureParam kComposeboxNextForRealboxNext[] = {
     {"ShowSubmit", "true"},
     {"SendLnsSurfaceParam", "true"},
 };
+const FeatureEntry::FeatureParam
+    kComposeboxNextForRealboxNextWithContextIdMigration[] = {
+        {"MaxNumFiles", "10"},
+        {"ShowContextMenu", "true"},
+        {"ShowComposeboxZps", "true"},
+        {"ShowComposeboxTypedSuggest", "true"},
+        {"ShowToolsAndModels", "true"},
+        {"ShowCreateImageTool", "true"},
+        {"ShowRecentTabChip", "true"},
+        {"ContextMenuEnableMultiTabSelection", "true"},
+        {"ShowSubmit", "true"},
+        {"SendLnsSurfaceParam", "true"},
+        {"EnableContextIdMigration", "true"},
+        {"UseSeparateRequestIdsForMultiContextViewportImages", "true"},
+};
 
 const FeatureEntry::FeatureVariation kNtpComposeboxVariations[] = {
     {"- Show Contextual Input Menu and Suggest, 5 File Limit",
@@ -1750,6 +1776,9 @@ const FeatureEntry::FeatureVariation kNtpComposeboxVariations[] = {
     {"- Next Experience Single Context for Realbox Next",
      kComposeboxNextSingleContextForRealboxNext,
      std::size(kComposeboxNextSingleContextForRealboxNext), nullptr},
+    {"- Next Experience for Realbox Next with Context ID Migration",
+     kComposeboxNextForRealboxNextWithContextIdMigration,
+     std::size(kComposeboxNextForRealboxNextWithContextIdMigration), nullptr},
 };
 
 const FeatureEntry::FeatureParam kShowNextRealboxTallBottomContext[] = {
@@ -1834,11 +1863,9 @@ const FeatureEntry::FeatureParam kNtpFeatureOptimizationTesting[] = {
 };
 
 const FeatureEntry::FeatureVariation kNtpFeatureOptimizationVariations[] = {
-    {"- Default Auto-Removal Timing",
-     kNtpFeatureOptimizationDefault,
+    {"- Default Auto-Removal Timing", kNtpFeatureOptimizationDefault,
      std::size(kNtpFeatureOptimizationDefault), nullptr},
-    {"- Auto-Removal Timing for Testing",
-     kNtpFeatureOptimizationTesting,
+    {"- Auto-Removal Timing for Testing", kNtpFeatureOptimizationTesting,
      std::size(kNtpFeatureOptimizationTesting), nullptr},
 };
 
@@ -4619,6 +4646,21 @@ const FeatureEntry::FeatureVariation kGlicEntrypointVariations[] = {
      kGlicEntrypointVariationsLabelAndIconAndHighlight,
      std::size(kGlicEntrypointVariationsLabelAndIconAndHighlight), nullptr},
 };
+
+const FeatureEntry::FeatureParam kGlicButtonAltLabelVariant0[] = {
+    {"glic-button-alt-label-variant", "0"}};
+const FeatureEntry::FeatureParam kGlicButtonAltLabelVariant1[] = {
+    {"glic-button-alt-label-variant", "1"}};
+const FeatureEntry::FeatureParam kGlicButtonAltLabelVariant2[] = {
+    {"glic-button-alt-label-variant", "2"}};
+
+const FeatureEntry::FeatureVariation kGlicButtonAltLabelVariations[] = {
+    {"A", kGlicButtonAltLabelVariant0, std::size(kGlicButtonAltLabelVariant0),
+     nullptr},
+    {"B", kGlicButtonAltLabelVariant1, std::size(kGlicButtonAltLabelVariant1),
+     nullptr},
+    {"C", kGlicButtonAltLabelVariant2, std::size(kGlicButtonAltLabelVariant2),
+     nullptr}};
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 const FeatureEntry::FeatureParam kAutofillShowTypePredictionsAsTitle[] = {
@@ -7758,8 +7800,7 @@ const FeatureEntry kFeatureEntries[] = {
      FEATURE_VALUE_TYPE(ntp_features::kNtpDummyModules)},
 #endif
 
-    {"ntp-feature-optimization",
-     flag_descriptions::kNtpFeatureOptimizationName,
+    {"ntp-feature-optimization", flag_descriptions::kNtpFeatureOptimizationName,
      flag_descriptions::kNtpFeatureOptimizationDescription, kOsDesktop,
      FEATURE_WITH_PARAMS_VALUE_TYPE(ntp_features::kNtpFeatureOptimization,
                                     kNtpFeatureOptimizationVariations,
@@ -11776,6 +11817,11 @@ const FeatureEntry kFeatureEntries[] = {
      flag_descriptions::kGlicButtonPressedStateName,
      flag_descriptions::kGlicButtonPressedStateDescription, kOsDesktop,
      FEATURE_VALUE_TYPE(features::kGlicButtonPressedState)},
+    {"glic-button-alt-label", flag_descriptions::kGlicButtonAltLabelName,
+     flag_descriptions::kGlicButtonAltLabelDescription, kOsDesktop,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(features::kGlicButtonAltLabel,
+                                    kGlicButtonAltLabelVariations,
+                                    "GlicButtonAltLabel")},
     {"glic-capture-region", flag_descriptions::kGlicCaptureRegionName,
      flag_descriptions::kGlicCaptureRegionDescription, kOsAll,
      FEATURE_VALUE_TYPE(features::kGlicCaptureRegion)},

@@ -8,6 +8,7 @@ import '//resources/cr_elements/cr_icon_button/cr_icon_button.js';
 import '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import '//resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
 import '//resources/cr_elements/icons.html.js';
+import './favicon_group.js';
 
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrLazyRenderLitElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
@@ -66,7 +67,11 @@ export class TopToolbarElement extends CrLitElement {
   }
 
   protected onThreadHistoryClick_() {
-    this.fire('thread-history-click');
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.OpenThreadHistory');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenThreadHistory', true);
+    this.browserProxy_.handler.showThreadHistory();
   }
 
   protected onMoreClick_(e: Event) {

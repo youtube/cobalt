@@ -739,9 +739,7 @@ BASE_FEATURE(kGlicScrollTo, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicCaptureRegion, base::FEATURE_DISABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_CHROMEOS)
 BASE_FEATURE(kGlicUseNonClient, base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 // Controls whether we enforce that documentId (an optional parameter) is set
 // when trying to scroll all documents except PDFs (and fail the request if
@@ -834,6 +832,9 @@ extern const base::FeatureParam<std::string>
         "glic-record-actor-journal-feedback-category-tag",
         "gemini_in_chrome_actor_tt_df"};
 
+BASE_FEATURE(kGlicRecordMemoryFootprintMetrics,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kGlicWebClientUnresponsiveMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -903,6 +904,10 @@ const base::FeatureParam<bool> kGlicEntrypointVariationsAltIcon{
 const base::FeatureParam<bool> kGlicEntrypointVariationsHighlightNudge{
     &kGlicEntrypointVariations, "glic-entrypoint-variations-highlight-nudge",
     false};
+
+BASE_FEATURE(kGlicButtonAltLabel, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int> kGlicButtonAltLabelVariant{
+    &kGlicButtonAltLabel, "glic-button-alt-label-variant", 0};
 
 BASE_FEATURE(kGlicDaisyChainNewTabs, base::FEATURE_DISABLED_BY_DEFAULT);
 

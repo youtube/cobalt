@@ -883,7 +883,7 @@ constexpr base::FeatureParam<double> kProcessPerSiteMainFrameTotalMemoryLimit{
 // it doesn't require a developer opt-in.
 //
 // crbug.com/1472634 for more details.
-BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // crbug.com/374606637: When this is enabled, race-network-and-fetch-hander will
 // prioritize the response processing for the network request over the
@@ -1194,6 +1194,15 @@ const base::FeatureParam<bool> kWebUIBundledCodeCacheGenerateResourceMap{
 // of regressions.
 BASE_FEATURE(kWebUIJSErrorReportingExtended, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
+
+// If enabled, WebUI will optimize resources loading by piping a dictionary of
+// URL paths to materialized WebUI resource content to the renderer via
+// LocalResourceLoaderConfig.
+// This is an extension of `kWebUIInProcessResourceLoading` which previously
+// serves only resources in resource bundle.
+// See crbug.com/459528908.
+BASE_FEATURE(kWebUIInProcessResourceLoadingV2,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the WebUSB API is enabled:
 // https://wicg.github.io/webusb

@@ -129,7 +129,10 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                      omnibox::IsDeepSearchEnabled(profile_));
   source->AddBoolean("composeboxShowImageSuggest",
                      omnibox::kShowComposeboxImageSuggestions.Get());
-  source->AddBoolean("composeboxShowRecentTabChip", false);
+  source->AddBoolean("composeboxShowLensSearchChip",
+                     omnibox::kShowLensSearchChip.Get());
+  source->AddBoolean("composeboxShowRecentTabChip",
+                     omnibox::kShowRecentTabChip.Get());
   source->AddBoolean("composeboxShowSubmit", omnibox::kShowSubmit.Get());
   source->AddBoolean("composeboxShowTypedSuggestWithContext", false);
   source->AddBoolean("composeboxShowTypedSuggest",
@@ -137,13 +140,15 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxShowZps", omnibox::kShowComposeboxZps.Get());
   source->AddBoolean("composeboxSmartComposeEnabled",
                      omnibox::kShowSmartCompose.Get());
-  source->AddBoolean("expandedComposeboxShowVoiceSearch", false);
-  source->AddBoolean("expandedSearchboxShowVoiceSearch", false);
+  source->AddBoolean("expandedComposeboxShowVoiceSearch",
+                     omnibox::kShowVoiceSearchInExpandedComposebox.Get());
+  source->AddBoolean("expandedSearchboxShowVoiceSearch",
+                     false);
   const std::string searchbox_layout_mode =
       AddContextButtonVariantToSearchboxLayoutMode(
           omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get());
   source->AddString("searchboxLayoutMode", searchbox_layout_mode);
-  source->AddBoolean("steadyComposeboxShowVoiceSearch", false);
+  source->AddBoolean("steadyComposeboxShowVoiceSearch", omnibox::kShowVoiceSearchInSteadyComposebox.Get());
   source->AddString(
       "composeboxSource",
       contextual_search::ContextualSearchMetricsRecorder::
