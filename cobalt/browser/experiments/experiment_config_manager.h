@@ -36,6 +36,10 @@ class ExperimentConfigManager {
   // whether the config has expired.
   ExperimentConfigType GetExperimentConfigType();
 
+  // Given the feature map of an experiment config, checks if it supports
+  // config expiration. Returns true if the config expiration feature is
+  // enabled and the config has expired.
+  bool HasConfigExpired(bool use_safe_config);
   // If regular config is used in the current run, save the active config as
   // safe config.
   // This should only be called before any modification to
