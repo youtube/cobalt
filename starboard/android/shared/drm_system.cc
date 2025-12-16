@@ -19,6 +19,7 @@
 #include <string_view>
 #include <utility>
 
+#include "base/trace_event/trace_event.h"
 #include "starboard/android/shared/drm_session_id_mapper.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
@@ -73,6 +74,8 @@ DrmSystem::DrmSystem(
       session_id_mapper_(enable_app_provisioning_
                              ? std::make_unique<DrmSessionIdMapper>()
                              : nullptr) {
+  TRACE_EVENT("media", "DrmSystem::Ctor");
+
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
   media_drm_bridge_ = std::make_unique<MediaDrmBridge>(

@@ -25,6 +25,7 @@
 #include <list>
 
 #include "base/android/jni_android.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
@@ -330,6 +331,8 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    TRACE_EVENT0("media", "MediaCodecVideoDecoder::Sink::Draw");
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);

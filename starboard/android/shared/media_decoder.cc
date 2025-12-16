@@ -19,6 +19,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
@@ -105,6 +106,9 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
       flush_delay_usec_(0) {
   SB_CHECK(host_);
 
+  TRACE_EVENT("media", "MediaCodecDecoder::MediaCodecDecoder", "drm_system",
+              (uint64_t)drm_system_);
+
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
@@ -153,6 +157,9 @@ MediaCodecDecoder::MediaCodecDecoder(
       flush_delay_usec_(flush_delay_usec) {
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
+
+  TRACE_EVENT("media", "MediaCodecDecoder::MediaCodecDecoder", "drm_system",
+              (uint64_t)drm_system_);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =

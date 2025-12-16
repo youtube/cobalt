@@ -1008,7 +1008,6 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
                                      SbPlayerDecoderState state,
                                      int ticket) {
   TRACE_EVENT0("media", "SbPlayerBridge::OnDecoderStatus");
-  LOG(INFO) << "media" << ":" << "SbPlayerBridge::OnDecoderStatus";
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)

@@ -29,6 +29,7 @@ import android.media.MediaDrmException;
 import android.media.NotProvisionedException;
 import android.media.UnsupportedSchemeException;
 import android.os.Build;
+import android.os.Trace;
 import android.util.Base64;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
@@ -160,22 +161,30 @@ public class MediaDrmBridge {
 
     MediaDrmBridge mediaDrmBridge = null;
     try {
+      Trace.beginSection("MediaDrmBridge.new");
       mediaDrmBridge = new MediaDrmBridge(keySystem, cryptoScheme, enableAppProvisioning, nativeMediaDrmBridge);
+      Trace.endSection();
       Log.d(TAG, "MediaDrmBridge successfully created.");
     } catch (UnsupportedSchemeException e) {
+      Trace.endSection();
       Log.e(TAG, "Unsupported DRM scheme", e);
       return null;
     } catch (IllegalArgumentException e) {
+      Trace.endSection();
       Log.e(TAG, "Failed to create MediaDrmBridge", e);
       return null;
     } catch (IllegalStateException e) {
+      Trace.endSection();
       Log.e(TAG, "Failed to create MediaDrmBridge", e);
       return null;
     }
 
+    Trace.beginSection("MediaDrmBridge.createMediaCrypto");
     if (!mediaDrmBridge.createMediaCrypto()) {
+      Trace.endSection();
       return null;
     }
+    Trace.endSection();
 
     return mediaDrmBridge;
   }
@@ -413,12 +422,16 @@ public class MediaDrmBridge {
   private MediaDrmBridge(String keySystem, UUID schemeUUID, boolean enableAppProvisioning, long nativeMediaDrmBridge)
       throws android.media.UnsupportedSchemeException {
     mSchemeUUID = schemeUUID;
+    Trace.beginSection("MediaDrm.new");
     mMediaDrm = new MediaDrm(schemeUUID);
+    Trace.endSection();
     mEnableAppProvisioning = enableAppProvisioning;
 
     // Get info of hdcp connection
     if (Build.VERSION.SDK_INT >= 29) {
+      Trace.beginSection("MediaDrmBridge.getConnectedHdcpLevelInfoV29");
       getConnectedHdcpLevelInfoV29(mMediaDrm);
+      Trace.endSection();
     }
 
     mNativeMediaDrmBridge = nativeMediaDrmBridge;
@@ -508,12 +521,14 @@ public class MediaDrmBridge {
         },
         null);
 
+    Trace.beginSection("MediaDrmBridge.setProperties");
     mMediaDrm.setPropertyString("privacyMode", "disable");
     mMediaDrm.setPropertyString("sessionSharing", "enable");
     if (keySystem.equals("com.youtube.widevine.l3")
         && !mMediaDrm.getPropertyString("securityLevel").equals("L3")) {
       mMediaDrm.setPropertyString("securityLevel", "L3");
     }
+    Trace.endSection();
   }
 
   private static String bytesToString(byte[] bytes) {
