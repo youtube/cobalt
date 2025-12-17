@@ -12,30 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#import "cobalt/shell/app/ios/shell_application_ios.h"
+#import <UIKit/UIKit.h>
 
-#if !defined(__has_feature) || !__has_feature(objc_arc)
-#error "This file requires ARC support."
-#endif
+#include <algorithm>
+#include <iterator>
+#include <memory>
+#include <string>
+#include <vector>
 
+#include "base/at_exit.h"
 #include "base/command_line.h"
-#include "cobalt/shell/app/shell_main_delegate.h"
+#include "cobalt/app/cobalt_main_delegate.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_browser_context.h"
-#include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
-#include "ui/gfx/geometry/size.h"
 
 static int g_argc = 0;
 static const char** g_argv = nullptr;
-static std::unique_ptr<content::ContentMainRunner> g_main_runner;
-static std::unique_ptr<content::ShellMainDelegate> g_main_delegate;
 
-@interface ShellAppSceneDelegate : UIResponder <UIWindowSceneDelegate>
+@interface CobaltAppSceneDelegate : UIResponder <UIWindowSceneDelegate>
 @end
 
-@implementation ShellAppSceneDelegate
+@implementation CobaltAppSceneDelegate
 
 - (void)scene:(UIScene*)scene
     willConnectToSession:(UISceneSession*)session
@@ -55,7 +54,14 @@ static std::unique_ptr<content::ShellMainDelegate> g_main_delegate;
 
 @end
 
-@implementation ShellAppDelegate
+@interface CobaltAppDelegate : UIResponder <UIApplicationDelegate> {
+ @private
+  std::unique_ptr<content::ContentMainRunner> _mainRunner;
+  std::unique_ptr<cobalt::CobaltMainDelegate> _mainDelegate;
+}
+@end
+
+@implementation CobaltAppDelegate
 
 - (UISceneConfiguration*)application:(UIApplication*)application
     configurationForConnectingSceneSession:
@@ -64,18 +70,31 @@ static std::unique_ptr<content::ShellMainDelegate> g_main_delegate;
   UISceneConfiguration* configuration =
       [[UISceneConfiguration alloc] initWithName:nil
                                      sessionRole:connectingSceneSession.role];
-  configuration.delegateClass = ShellAppSceneDelegate.class;
+  configuration.delegateClass = CobaltAppSceneDelegate.class;
   return configuration;
 }
 
 - (BOOL)application:(UIApplication*)application
     willFinishLaunchingWithOptions:(NSDictionary*)launchOptions {
-  g_main_delegate = std::make_unique<content::ShellMainDelegate>();
-  content::ContentMainParams params(g_main_delegate.get());
-  params.argc = g_argc;
-  params.argv = g_argv;
-  g_main_runner = content::ContentMainRunner::Create();
-  content::RunContentProcess(std::move(params), g_main_runner.get());
+  const cobalt::CommandLinePreprocessor cobalt_cmd_line(g_argc, g_argv);
+  const base::CommandLine::StringVector& processed_argv =
+      cobalt_cmd_line.argv();
+
+  // content::ContentMainParams::argv uses regular char** for `argv`, so perform
+  // a type conversion here. Note that even though `char_argv` is dependent on
+  // the function-scoped `processed_argv`, content::RunContentProcess() copies
+  // the data by creating its own base::CommandLine instance.
+  std::vector<const char*> char_argv;
+  std::ranges::transform(processed_argv, std::back_inserter(char_argv),
+                         [](const std::string& arg) { return arg.c_str(); });
+
+  _mainDelegate = std::make_unique<cobalt::CobaltMainDelegate>();
+  _mainRunner = content::ContentMainRunner::Create();
+  content::ContentMainParams params(_mainDelegate.get());
+  params.argc = char_argv.size();
+  params.argv = char_argv.data();
+  content::RunContentProcess(std::move(params), _mainRunner.get());
+
   return YES;
 }
 
@@ -112,11 +131,18 @@ static std::unique_ptr<content::ShellMainDelegate> g_main_delegate;
 
 @end
 
-int RunShellApplication(int argc, const char** argv) {
+int main(int argc, const char** argv) {
+  // Create this here since it's needed to start the crash handler.
+  base::AtExitManager at_exit;
+
+  // Even though it is possible to just use `[[NSProcessInfo processInfo]
+  // arguments]` later to get the same data, this is simpler since there is no
+  // need to convert the data from an NSArray<NSString*>*.
   g_argc = argc;
   g_argv = argv;
+
   @autoreleasepool {
     return UIApplicationMain(argc, const_cast<char**>(argv), nil,
-                             NSStringFromClass([ShellAppDelegate class]));
+                             NSStringFromClass([CobaltAppDelegate class]));
   }
 }

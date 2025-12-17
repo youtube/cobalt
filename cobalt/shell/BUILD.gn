@@ -339,12 +339,6 @@ static_library("cobalt_shell_app") {
       "app/paths_mac.mm",
     ]
   }
-  if (is_ios) {
-    sources += [
-      "app/ios/shell_application_ios.h",
-      "app/ios/shell_application_ios.mm",
-    ]
-  }
   defines = [
     "CONTENT_SHELL_VERSION=\"1.0.0\"",
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",

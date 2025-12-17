@@ -87,7 +87,7 @@ if (is_ios && target_platform == "tvos") {
   ios_app_bundle("cobalt") {
     testonly = true
 
-    sources = [ "app/main.mm" ]
+    sources = [ "app/tvos/main.mm" ]
 
     deps = [
       ":common",
