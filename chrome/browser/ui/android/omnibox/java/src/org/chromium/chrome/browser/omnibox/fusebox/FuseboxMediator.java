@@ -43,7 +43,6 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
-import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.ui.base.Clipboard;
 import org.chromium.ui.base.MimeTypeUtils;
 import org.chromium.ui.base.WindowAndroid;
@@ -58,7 +57,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
 
 /** Mediator for the Fusebox component. */
 @NullMarked
@@ -88,7 +86,6 @@ public class FuseboxMediator {
     private final Callback<@AutocompleteRequestType Integer> mOnAutocompleteRequestTypeChanged =
             this::onAutocompleteRequestTypeChanged;
     private final SnackbarManager mSnackbarManager;
-    private final Supplier<@Nullable TemplateUrlService> mTemplateUrlServiceSupplier;
     private final Snackbar mAttachmentLimitSnackbar;
     private final Snackbar mAttachmentUploadFailedSnackbar;
 
@@ -104,8 +101,7 @@ public class FuseboxMediator {
             ObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             ComposeBoxQueryControllerBridge composeBoxQueryControllerBridge,
             ObservableSupplierImpl<@FuseboxState Integer> fuseboxStateSupplier,
-            SnackbarManager snackbarManager,
-            Supplier<@Nullable TemplateUrlService> templateUrlServiceSupplier) {
+            SnackbarManager snackbarManager) {
         mContext = context;
         mProfile = profile;
         mWindowAndroid = windowAndroid;
@@ -118,7 +114,6 @@ public class FuseboxMediator {
         mComposeBoxQueryControllerBridge = composeBoxQueryControllerBridge;
         mFuseboxStateSupplier = fuseboxStateSupplier;
         mSnackbarManager = snackbarManager;
-        mTemplateUrlServiceSupplier = templateUrlServiceSupplier;
 
         mAutocompleteRequestTypeSupplier.addObserver(mOnAutocompleteRequestTypeChanged);
 
@@ -299,11 +294,11 @@ public class FuseboxMediator {
         TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
         assumeNonNull(tabModelSelector);
         Tab currentTab = assumeNonNull(tabModelSelector.getCurrentTab());
-        TemplateUrlService templateUrlService = mTemplateUrlServiceSupplier.get();
         boolean tabIsEligible =
-                FuseboxTabUtils.isTabEligibleForAttachment(currentTab, templateUrlService)
+                FuseboxTabUtils.isTabEligibleForAttachment(currentTab)
                         && FuseboxTabUtils.isTabActive(currentTab)
                         && !currentTab.isIncognitoBranded();
+
         if (tabIsEligible) {
             mModel.set(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE, true);
             mModel.set(
@@ -329,6 +324,36 @@ public class FuseboxMediator {
         if (!mModelList.add(attachment)) {
             warnForMaxAttachments();
         }
+    }
+
+    /**
+     * Check whether additional attachments of a specific kind are allowed, showing a snackbar when
+     * limit is reached.
+     */
+    @VisibleForTesting
+    /* package */ boolean isMaxAttachmentCountReached(@FuseboxAttachmentType int attachmentType) {
+        boolean isImageGenerationUsed =
+                mAutocompleteRequestTypeSupplier.get() == AutocompleteRequestType.IMAGE_GENERATION;
+
+        // Permit image reselection when image generation is picked.
+        if (attachmentType == FuseboxAttachmentType.ATTACHMENT_IMAGE && isImageGenerationUsed) {
+            return false;
+        }
+
+        // Permit tab reselection (except image generation).
+        if (attachmentType == FuseboxAttachmentType.ATTACHMENT_TAB
+                && !isImageGenerationUsed
+                && !mModelList.getAttachedTabIds().isEmpty()) {
+            return false;
+        }
+
+        // Permit additional attachments, except when creating images.
+        if (mModelList.getRemainingAttachments() > 0 && !isImageGenerationUsed) {
+            return false;
+        }
+
+        warnForMaxAttachments();
+        return true;
     }
 
     private void onAttachmentsChanged() {
@@ -359,10 +384,8 @@ public class FuseboxMediator {
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.TAB_PICKER);
         int remainingAttachments = mModelList.getRemainingAttachments();
-        if (remainingAttachments < 1) {
-            warnForMaxAttachments();
-            return;
-        }
+        if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB)) return;
+
         Intent intent;
         ArrayList<Integer> preselectedTabIds = new ArrayList<>(mModelList.getAttachedTabIds());
         try {
@@ -446,10 +469,8 @@ public class FuseboxMediator {
     void onCameraClicked() {
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CAMERA);
-        if (mModelList.getRemainingAttachments() < 1) {
-            warnForMaxAttachments();
-            return;
-        }
+        if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
+
         if (mPermissionDelegate.hasPermission(Manifest.permission.CAMERA)) {
             launchCamera();
         } else {
@@ -511,10 +532,7 @@ public class FuseboxMediator {
     void onImagePickerClicked() {
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.GALLERY);
-        if (mModelList.getRemainingAttachments() < 1) {
-            warnForMaxAttachments();
-            return;
-        }
+        if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
 
         boolean allowMultipleAttachments =
                 mAutocompleteRequestTypeSupplier.get() != AutocompleteRequestType.IMAGE_GENERATION;
@@ -557,10 +575,8 @@ public class FuseboxMediator {
     void onFilePickerClicked() {
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.FILES);
-        if (mModelList.getRemainingAttachments() < 1) {
-            warnForMaxAttachments();
-            return;
-        }
+        if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_FILE)) return;
+
         var i =
                 new Intent(Intent.ACTION_OPEN_DOCUMENT)
                         .addCategory(Intent.CATEGORY_OPENABLE)
@@ -592,10 +608,8 @@ public class FuseboxMediator {
     void onClipboardClicked() {
         mPopup.dismiss();
         FuseboxMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CLIPBOARD);
-        if (mModelList.getRemainingAttachments() < 1) {
-            warnForMaxAttachments();
-            return;
-        }
+        if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
+
         new AsyncTask<byte[]>() {
             @Override
             protected byte[] doInBackground() {

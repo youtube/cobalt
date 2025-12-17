@@ -28,7 +28,6 @@ const canShowSecondarySideMediaQueryList =
 
 export interface OmniboxPopupAppElement {
   $: {
-    matches: SearchboxDropdownElement,
     context: ContextualEntrypointAndCarouselElement,
   };
 }
@@ -89,6 +88,8 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       result_: {type: Object},
       searchboxLayoutMode_: {type: String},
       showContextEntrypoint_: {type: Boolean},
+      isLensSearchEnabled_: {type: Boolean},
+      isLensSearchEligible_: {type: Boolean},
     };
   }
 
@@ -102,6 +103,9 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   protected accessor searchboxLayoutMode_: string =
       loadTimeData.getString('searchboxLayoutMode');
   protected accessor showContextEntrypoint_: boolean = false;
+  protected accessor isLensSearchEnabled_: boolean =
+      loadTimeData.getBoolean('composeboxShowLensSearchChip');
+  protected accessor isLensSearchEligible_: boolean = false;
 
   private callbackRouter_: PageCallbackRouter;
   private eventTracker_ = new EventTracker();
@@ -127,6 +131,10 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       this.callbackRouter_.setKeywordSelected.addListener(
           (isKeywordSelected: boolean) => {
             this.isInKeywordMode_ = isKeywordSelected;
+          }),
+      this.callbackRouter_.updateLensSearchEligibility.addListener(
+          (eligible: boolean) => {
+            this.isLensSearchEligible_ = this.isLensSearchEnabled_ && eligible;
           }),
     ];
     canShowSecondarySideMediaQueryList.addEventListener(
@@ -168,6 +176,13 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     }
   }
 
+  getDropdown(): SearchboxDropdownElement {
+    // Because there are 2 different cr-searchbox-dropdown instances that can be
+    // exclusively shown, should always query the DOM to get the relevant one
+    // and can't use this.$ to access it.
+    return this.shadowRoot.querySelector('cr-searchbox-dropdown')!;
+  }
+
   private computeShowContextEntrypoint_(): boolean {
     const isTallSearchbox = this.searchboxLayoutMode_.startsWith('Tall');
     return loadTimeData.getBoolean('showContextMenuEntrypoint') &&
@@ -188,9 +203,9 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     this.result_ = result;
 
     if (result.matches[0]?.allowedToBeDefaultMatch) {
-      this.$.matches.selectFirst();
-    } else if (this.$.matches.selectedMatchIndex >= result.matches.length) {
-      this.$.matches.unselect();
+      this.getDropdown().selectFirst();
+    } else if (this.getDropdown().selectedMatchIndex >= result.matches.length) {
+      this.getDropdown().unselect();
     }
   }
 
@@ -216,7 +231,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
 
   private onUpdateSelection_(
       oldSelection: OmniboxPopupSelection, selection: OmniboxPopupSelection) {
-    this.$.matches.updateSelection(oldSelection, selection);
+    this.getDropdown().updateSelection(oldSelection, selection);
   }
 
   protected onHasSecondarySideChanged_(e: CustomEvent<{value: boolean}>) {

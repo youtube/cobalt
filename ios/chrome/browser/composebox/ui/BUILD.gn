@@ -11,6 +11,8 @@ source_set("ui") {
     "composebox_input_item.mm",
     "composebox_input_item_cell.h",
     "composebox_input_item_cell.mm",
+    "composebox_input_item_collection.h",
+    "composebox_input_item_collection.mm",
     "composebox_input_item_view.h",
     "composebox_input_item_view.mm",
     "composebox_input_plate_consumer.h",
@@ -41,6 +43,7 @@ source_set("ui") {
     "//ios/chrome/browser/composebox/public:features",
     "//ios/chrome/browser/composebox/public:input_plate_controls",
     "//ios/chrome/browser/composebox/public:theme",
+    "//ios/chrome/browser/omnibox/public:constants",
     "//ios/chrome/browser/omnibox/ui:omnibox_internal",
     "//ios/chrome/browser/omnibox/ui/popup",
     "//ios/chrome/browser/shared/model/browser",
@@ -77,5 +80,15 @@ source_set("eg2_tests") {
     "//ios/chrome/test/earl_grey:eg_test_support+eg2",
     "//ios/testing/earl_grey:eg_test_support+eg2",
     "//net:test_support",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "composebox_metrics_recorder_unittest.mm" ]
+  deps = [
+    ":ui",
+    "//base/test:test_support",
+    "//testing/gtest",
   ]
 }

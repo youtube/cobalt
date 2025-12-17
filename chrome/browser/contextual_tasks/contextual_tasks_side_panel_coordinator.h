@@ -16,6 +16,7 @@
 class BrowserWindowInterface;
 class SidePanelEntryScope;
 class SidePanelRegistry;
+class SidePanelUI;
 class PrefService;
 
 namespace base {
@@ -33,6 +34,7 @@ class ContextualTask;
 class ContextualTasksContextController;
 class ContextualTasksUiService;
 class ContextualTasksWebView;
+class ActiveTaskContextProvider;
 
 class ContextualTasksSidePanelCoordinator : public TabStripModelObserver,
                                             content::WebContentsObserver {
@@ -55,6 +57,12 @@ class ContextualTasksSidePanelCoordinator : public TabStripModelObserver,
 
   explicit ContextualTasksSidePanelCoordinator(
       BrowserWindowInterface* browser_window);
+
+  // For testing only.
+  ContextualTasksSidePanelCoordinator(
+      BrowserWindowInterface* browser_window,
+      SidePanelUI* side_panel_ui,
+      ActiveTaskContextProvider* active_task_context_provider);
   ContextualTasksSidePanelCoordinator(
       const ContextualTasksSidePanelCoordinator&) = delete;
   ContextualTasksSidePanelCoordinator& operator=(
@@ -102,6 +110,9 @@ class ContextualTasksSidePanelCoordinator : public TabStripModelObserver,
   // In both cases, the cache needs to be updated.
   void OnTaskChanged(content::WebContents* web_contents, base::Uuid task_id);
 
+  // Returns the number of active tasks tracked by `this`.
+  size_t GetNumberOfActiveTasks() const;
+
  private:
   // Get the task associated with the active tab.
   std::optional<ContextualTask> GetCurrentTask();
@@ -145,7 +156,7 @@ class ContextualTasksSidePanelCoordinator : public TabStripModelObserver,
   // Called when active tab has been updated.
   void ObserveWebContentsOnActiveTab();
 
-  // Update the statucs of active tab context on the side panel.
+  // Update the status of active tab context on the side panel.
   void UpdateContextualTaskUI();
 
   // Disassociate the tab from the task if it's associated with it.
@@ -167,6 +178,9 @@ class ContextualTasksSidePanelCoordinator : public TabStripModelObserver,
   contextual_search::ContextualSearchSessionHandle*
   GetContextualSearchSessionHandleForSidePanel();
 
+  // Closes any active Lens sessions for tabs associated with the given task.
+  void CloseLensSessionsForTask(const ContextualTask& task);
+
   // Browser window of the current side panel.
   const raw_ptr<BrowserWindowInterface> browser_window_ = nullptr;
 
@@ -180,6 +194,10 @@ class ContextualTasksSidePanelCoordinator : public TabStripModelObserver,
 
   // Pref service for the current profile.
   const raw_ptr<PrefService> pref_service_;
+
+  const raw_ptr<SidePanelUI> side_panel_ui_;
+
+  const raw_ptr<ActiveTaskContextProvider> active_task_context_provider_;
 
   // WebView of the current side panel. It's owned by side panel framework so
   // weak pointer is needed in case it's destroyed. The WebContents in the

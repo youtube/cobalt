@@ -30,7 +30,7 @@
 @property(nonatomic, readonly) NSUInteger numberOfLines;
 
 // Hide the leading image in the omnibox.
-- (void)hideLeadingImage:(BOOL)hideLeadingImage;
+@property(nonatomic, assign) BOOL leadingImageHidden;
 
 // Sets the alpha value for the leading image.
 - (void)setLeadingImageAlpha:(BOOL)alpha;
@@ -45,6 +45,9 @@
 // If the custom placeholder is `nil` the system will fallback to the default
 // placeholder.
 - (void)setCustomPlaceholderText:(NSString*)customPlaceholderText;
+
+// The minimum height of the text field.
+- (void)setMinimumHeight:(CGFloat)minimumHeight;
 
 @end
 

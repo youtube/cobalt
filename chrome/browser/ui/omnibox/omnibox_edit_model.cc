@@ -1601,8 +1601,14 @@ void OmniboxEditModel::GetInfoForCurrentText(AutocompleteMatch* match,
     } else if (controller_->IsPopupOpen() &&
                GetPopupSelection().line != OmniboxPopupSelection::kNoMatch) {
       const OmniboxPopupSelection selection = GetPopupSelection();
-      *match = autocomplete_controller()->result().match_at(selection.line);
-      found_match_for_text = true;
+      // TODO(crbug.com/468047546): https://crrev.com/c/7191448 introduced a
+      // change in events that makes it possible for the selection to be out of
+      // bounds here. Follow up to figure out why this is and fix in a wholistic
+      // way.
+      if (selection.line < autocomplete_controller()->result().size()) {
+        *match = autocomplete_controller()->result().match_at(selection.line);
+        found_match_for_text = true;
+      }
     }
     if (found_match_for_text && alternate_nav_url &&
         (!popup_view_ || IsPopupSelectionOnInitialLine())) {
@@ -2946,12 +2952,7 @@ void OmniboxEditModel::SetKeywordPlaceholder(
 }
 
 void OmniboxEditModel::SetIsKeywordHint(bool is_keyword_hint) {
-  const bool old_keyword_selected = is_keyword_selected();
   is_keyword_hint_ = is_keyword_hint;
-  const bool new_keyword_selected = is_keyword_selected();
-  if (old_keyword_selected != new_keyword_selected) {
-    observers_.Notify(&Observer::OnKeywordStateChanged, new_keyword_selected);
-  }
 }
 
 void OmniboxEditModel::RecordAiModeMetrics(const std::u16string& query_text,

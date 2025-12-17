@@ -22,18 +22,20 @@
 #include "chrome/browser/ui/hats/hats_service.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/survey_config.h"
+#include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_scope.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_registry.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_ui.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_web_ui_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/contextual_tasks/public/features.h"
+#include "components/lens/lens_overlay_dismissal_source.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/strings/grit/components_strings.h"
@@ -122,6 +124,16 @@ class ContextualTasksWebView : public views::WebView {
 
 ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
     BrowserWindowInterface* browser_window)
+    : ContextualTasksSidePanelCoordinator(
+          browser_window,
+          browser_window->GetFeatures().side_panel_ui(),
+          browser_window->GetFeatures()
+              .contextual_tasks_active_task_context_provider()) {}
+
+ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
+    BrowserWindowInterface* browser_window,
+    SidePanelUI* side_panel_ui,
+    ActiveTaskContextProvider* active_task_context_provider)
     : browser_window_(browser_window),
       context_controller_(
           ContextualTasksContextControllerFactory::GetForProfile(
@@ -129,6 +141,8 @@ ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
       ui_service_(ContextualTasksUiServiceFactory::GetForBrowserContext(
           browser_window->GetProfile())),
       pref_service_(browser_window->GetProfile()->GetPrefs()),
+      side_panel_ui_(side_panel_ui),
+      active_task_context_provider_(active_task_context_provider),
       scoped_unowned_user_data_(browser_window->GetUnownedUserDataHost(),
                                 *this) {
   CreateAndRegisterEntry(SidePanelRegistry::From(browser_window_));
@@ -207,43 +221,38 @@ void ContextualTasksSidePanelCoordinator::Show(bool transition_from_tab) {
             ->RetrieveView(kActiveContentsWebViewRetrievalId);
     gfx::Rect content_bounds_in_browser_coordinates =
         content->ConvertRectToWidget(content->GetContentsBounds());
-    browser_window_->GetFeatures().side_panel_ui()->ShowFrom(
+    side_panel_ui_->ShowFrom(
         SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks),
         content_bounds_in_browser_coordinates);
   } else {
-    browser_window_->GetFeatures().side_panel_ui()->Show(
+    side_panel_ui_->Show(
         SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks));
   }
   UpdateOpenState(/*is_open=*/true);
   UpdateContextualTaskUI();
   ObserveWebContentsOnActiveTab();
-  browser_window_->GetFeatures()
-      .contextual_tasks_active_task_context_provider()
-      ->OnSidePanelStateUpdated(GetContextualSearchSessionHandleForSidePanel());
+  active_task_context_provider_->OnSidePanelStateUpdated(
+      GetContextualSearchSessionHandleForSidePanel());
 }
 
 void ContextualTasksSidePanelCoordinator::Close() {
   UpdateOpenState(/*is_open=*/false);
-  browser_window_->GetFeatures().side_panel_ui()->Close(
-      SidePanelEntry::PanelType::kToolbar);
+  side_panel_ui_->Close(SidePanelEntry::PanelType::kToolbar);
   Observe(nullptr);
 
-  browser_window_->GetFeatures()
-      .contextual_tasks_active_task_context_provider()
-      ->OnSidePanelStateUpdated(/*session_handle=*/nullptr);
+  active_task_context_provider_->OnSidePanelStateUpdated(
+      /*session_handle=*/nullptr);
 }
 
 bool ContextualTasksSidePanelCoordinator::IsSidePanelOpen() {
-  return browser_window_->GetFeatures().side_panel_ui()->IsSidePanelShowing(
+  return side_panel_ui_->IsSidePanelShowing(
       SidePanelEntry::PanelType::kToolbar);
 }
 
 bool ContextualTasksSidePanelCoordinator::IsSidePanelOpenForContextualTask()
     const {
-  return browser_window_->GetFeatures()
-      .side_panel_ui()
-      ->IsSidePanelEntryShowing(
-          SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks));
+  return side_panel_ui_->IsSidePanelEntryShowing(
+      SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks));
 }
 
 void ContextualTasksSidePanelCoordinator::TransferWebContentsFromTab(
@@ -463,12 +472,10 @@ void ContextualTasksSidePanelCoordinator::OnActiveTabChanged(
 
   ObserveWebContentsOnActiveTab();
 
-  browser_window_->GetFeatures()
-      .contextual_tasks_active_task_context_provider()
-      ->OnSidePanelStateUpdated(
-          IsSidePanelOpenForContextualTask()
-              ? GetContextualSearchSessionHandleForSidePanel()
-              : nullptr);
+  active_task_context_provider_->OnSidePanelStateUpdated(
+      IsSidePanelOpenForContextualTask()
+          ? GetContextualSearchSessionHandleForSidePanel()
+          : nullptr);
 }
 
 void ContextualTasksSidePanelCoordinator::OnTabStripModelChanged(
@@ -560,32 +567,25 @@ content::WebContents* ContextualTasksSidePanelCoordinator::
 }
 
 void ContextualTasksSidePanelCoordinator::Hide() {
-  auto* side_panel_ui = static_cast<SidePanelCoordinator*>(
-      browser_window_->GetFeatures().side_panel_ui());
-  side_panel_ui->Close(SidePanelEntry::PanelType::kToolbar,
-                       SidePanelEntryHideReason::kSidePanelClosed,
-                       /*suppress_animations=*/true);
+  side_panel_ui_->Close(SidePanelEntry::PanelType::kToolbar,
+                        SidePanelEntryHideReason::kSidePanelClosed,
+                        /*suppress_animations=*/true);
   Observe(nullptr);
 
-  browser_window_->GetFeatures()
-      .contextual_tasks_active_task_context_provider()
-      ->OnSidePanelStateUpdated(/*session_handle=*/nullptr);
+  active_task_context_provider_->OnSidePanelStateUpdated(
+      /*session_handle=*/nullptr);
 }
 
 void ContextualTasksSidePanelCoordinator::Unhide() {
-  auto* side_panel_ui = static_cast<SidePanelCoordinator*>(
-      browser_window_->GetFeatures().side_panel_ui());
-  side_panel_ui->Show(
-      SidePanelUIBase::UniqueKey{
-          /*tab_handle=*/std::nullopt,
-          SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks)},
-      /*open_trigger=*/std::nullopt, /*suppress_animations=*/true);
+  side_panel_ui_->Show(
+      SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks),
+      /*open_trigger=*/std::nullopt,
+      /*suppress_animations=*/true);
   UpdateContextualTaskUI();
   ObserveWebContentsOnActiveTab();
 
-  browser_window_->GetFeatures()
-      .contextual_tasks_active_task_context_provider()
-      ->OnSidePanelStateUpdated(GetContextualSearchSessionHandleForSidePanel());
+  active_task_context_provider_->OnSidePanelStateUpdated(
+      GetContextualSearchSessionHandleForSidePanel());
 }
 
 void ContextualTasksSidePanelCoordinator::ObserveWebContentsOnActiveTab() {
@@ -662,6 +662,10 @@ void ContextualTasksSidePanelCoordinator::UpdateOpenState(bool is_open) {
     if (it != task_id_to_web_contents_cache_.end()) {
       it->second->is_open = is_open;
     }
+
+    if (!is_open) {
+      CloseLensSessionsForTask(*task);
+    }
   } else {
     tabs::TabInterface* active_tab = browser_window_->GetActiveTabInterface();
     if (!active_tab) {
@@ -674,6 +678,13 @@ void ContextualTasksSidePanelCoordinator::UpdateOpenState(bool is_open) {
       it->second = is_open;
     } else {
       tab_scoped_open_state_[tab_id] = is_open;
+    }
+
+    if (auto* lens_controller = LensSearchController::From(active_tab)) {
+      if (!is_open && !lens_controller->IsOff()) {
+        lens_controller->CloseLensAsync(
+            lens::LensOverlayDismissalSource::kSidePanelCloseButton);
+      }
     }
   }
 }
@@ -720,6 +731,31 @@ bool ContextualTasksSidePanelCoordinator::ShouldBeOpen() {
     }
     return false;
   }
+}
+
+void ContextualTasksSidePanelCoordinator::CloseLensSessionsForTask(
+    const ContextualTask& task) {
+  TabStripModel* tab_strip_model = browser_window_->GetTabStripModel();
+  const auto associated_tab_ids =
+      context_controller_->GetTabsAssociatedWithTask(task.GetTaskId());
+
+  for (int i = 0; i < tab_strip_model->count(); ++i) {
+    tabs::TabInterface* tab = tab_strip_model->GetTabAtIndex(i);
+    auto it =
+        std::find(associated_tab_ids.begin(), associated_tab_ids.end(),
+                  sessions::SessionTabHelper::IdForTab(tab->GetContents()));
+    if (it != associated_tab_ids.end()) {
+      if (auto* lens_controller = LensSearchController::From(tab);
+          !lens_controller->IsOff()) {
+        lens_controller->CloseLensAsync(
+            lens::LensOverlayDismissalSource::kSidePanelCloseButton);
+      }
+    }
+  }
+}
+
+size_t ContextualTasksSidePanelCoordinator::GetNumberOfActiveTasks() const {
+  return task_id_to_web_contents_cache_.size();
 }
 
 }  // namespace contextual_tasks

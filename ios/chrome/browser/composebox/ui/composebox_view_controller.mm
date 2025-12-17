@@ -8,6 +8,7 @@
 
 #import "base/check_op.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_view_controller.h"
+#import "ios/chrome/browser/omnibox/public/omnibox_constants.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -15,7 +16,7 @@
 
 namespace {
 /// The padding for the close button.
-const CGFloat kCloseButtonTopMargin = 3.0f;
+const CGFloat kCloseButtonTopMargin = 6.0f;
 const CGFloat kCloseButtonDefaultPadding = 10.0f;
 /// The horizontal and bottom padding for the input plate container.
 const CGFloat kInputPlatePadding = 10.0f;
@@ -86,6 +87,7 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
   [super viewDidLoad];
 
   self.view.backgroundColor = _theme.composeboxBackgroundColor;
+  self.view.keyboardLayoutGuide.usesBottomSafeArea = NO;
 
   // Close button.
   UIColor* closeButtonBackgroundColor = _theme.closeButtonBackgroundColor;
@@ -95,6 +97,8 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
   config.contentInsets = NSDirectionalEdgeInsetsZero;
   _closeButton = [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
   _closeButton.translatesAutoresizingMaskIntoConstraints = NO;
+  _closeButton.accessibilityIdentifier =
+      kOmniboxCancelButtonAccessibilityIdentifier;
   _closeButton.configuration = config;
   _closeButton.configurationUpdateHandler = ^(UIButton* button) {
     UIButtonConfiguration* updatedConfig = button.configuration;
@@ -191,17 +195,19 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
 
   [_constraintsForCurrentPosition addObjectsFromArray:@[
     [_omniboxPopupContainer.leadingAnchor
-        constraintEqualToAnchor:self.view.leadingAnchor],
+        constraintEqualToAnchor:safeAreaGuide.leadingAnchor],
     [_omniboxPopupContainer.trailingAnchor
-        constraintEqualToAnchor:self.view.trailingAnchor],
+        constraintEqualToAnchor:safeAreaGuide.trailingAnchor],
     [_omniboxPopupContainer.bottomAnchor
-        constraintEqualToAnchor:safeAreaGuide.bottomAnchor],
+        constraintEqualToAnchor:self.view.bottomAnchor],
+    [_omniboxPopupContainer.topAnchor
+        constraintEqualToAnchor:safeAreaGuide.topAnchor],
   ]];
 
   [_progressiveBlurEffect removeFromSuperview];
 
   switch ([self currentInputPlatePosition]) {
-    case ComposeboxInputPlatePosition::kBottom:
+    case ComposeboxInputPlatePosition::kBottom: {
       _progressiveBlurEffect = [self
           createBlurBackgroundEffectForPosition:[self
                                                     currentInputPlatePosition]];
@@ -211,29 +217,36 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
           _progressiveBlurEffect, _inputViewController.view, LayoutSides::kTop,
           NSDirectionalEdgeInsetsMake(-20, 0, 0, 0));
       AddSameConstraintsToSides(_progressiveBlurEffect, safeAreaGuide,
-                                LayoutSides::kBottom | LayoutSides::kLeading |
-                                    LayoutSides::kTrailing);
+                                LayoutSides::kLeading | LayoutSides::kTrailing);
+
+      NSLayoutConstraint* attachInputPlateToKeyboard =
+          [_inputViewController.view.bottomAnchor
+              constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor
+                             constant:-kInputPlatePadding];
+      attachInputPlateToKeyboard.priority = UILayoutPriorityDefaultHigh;
 
       [_constraintsForCurrentPosition addObjectsFromArray:@[
+        [_progressiveBlurEffect.bottomAnchor
+            constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor],
         [_closeButton.topAnchor
             constraintEqualToAnchor:safeAreaGuide.topAnchor
                            constant:kCloseButtonDefaultPadding],
-        [_omniboxPopupContainer.topAnchor
-            constraintEqualToAnchor:_closeButton.bottomAnchor],
         [_inputViewController.view.leadingAnchor
             constraintEqualToAnchor:safeAreaGuide.leadingAnchor
                            constant:kInputPlatePadding],
         [_inputViewController.view.trailingAnchor
             constraintEqualToAnchor:safeAreaGuide.trailingAnchor
                            constant:-kInputPlatePadding],
+        attachInputPlateToKeyboard,
         [_inputViewController.view.bottomAnchor
-            constraintEqualToAnchor:self.view.keyboardLayoutGuide.topAnchor
-                           constant:-kInputPlatePadding],
+            constraintLessThanOrEqualToAnchor:safeAreaGuide.bottomAnchor
+                                     constant:-kInputPlatePadding],
         [_inputViewController.view.topAnchor
             constraintGreaterThanOrEqualToAnchor:_closeButton.bottomAnchor
                                         constant:kInputPlatePadding],
       ]];
       break;
+    }
     case ComposeboxInputPlatePosition::kTop: {
       _progressiveBlurEffect = [self
           createBlurBackgroundEffectForPosition:[self
@@ -260,8 +273,6 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
         [_closeButton.topAnchor
             constraintEqualToAnchor:_inputViewController.view.topAnchor
                            constant:kCloseButtonTopMargin],
-        [_omniboxPopupContainer.topAnchor
-            constraintEqualToAnchor:safeAreaGuide.topAnchor],
         [_omniboxPopupContainer.leadingAnchor
             constraintEqualToAnchor:safeAreaGuide.leadingAnchor],
         [_omniboxPopupContainer.trailingAnchor
@@ -412,10 +423,12 @@ UIImage* CloseButtonImage(UIColor* backgroundColor, BOOL highlighted) {
 
 - (void)popupDidOpenForPresenter:(OmniboxPopupPresenter*)presenter {
   _omniboxPopupContainer.hidden = NO;
+  [self.proxiedPresenterDelegate popupDidOpenForPresenter:presenter];
 }
 
 - (void)popupDidCloseForPresenter:(OmniboxPopupPresenter*)presenter {
   _omniboxPopupContainer.hidden = YES;
+  [self.proxiedPresenterDelegate popupDidCloseForPresenter:presenter];
 }
 
 @end

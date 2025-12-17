@@ -143,6 +143,8 @@ const CGFloat kSnackbarBottomMargin = 10;
   query_controller_config_params->send_lns_surface = false;
   query_controller_config_params->enable_multi_context_input_flow = true;
   query_controller_config_params->enable_viewport_images = true;
+  query_controller_config_params
+      ->prioritize_suggestions_for_the_first_attached_document = true;
 
   _contextualService =
       ContextualSearchServiceFactory::GetForProfile(self.profile);
@@ -260,9 +262,7 @@ const CGFloat kSnackbarBottomMargin = 10;
                 didTapLensButton:(UIButton*)lensButton {
   OpenLensInputSelectionCommand* command = [[OpenLensInputSelectionCommand
       alloc]
-          // TODO(crbug.com/452307696) : Add and update the entrypoint to
-          // reflect on the aim composebox.
-          initWithEntryPoint:LensEntrypoint::Keyboard
+          initWithEntryPoint:LensEntrypoint::Composebox
            presentationStyle:LensInputSelectionPresentationStyle::SlideFromRight
       presentationCompletion:nil];
   __weak id<LensCommands> handler =

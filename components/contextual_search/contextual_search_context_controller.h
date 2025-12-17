@@ -68,6 +68,9 @@ class ContextualSearchContextController {
     // Whether or not to support the context_id migration on the server, for
     // the multi-context input flow.
     bool enable_context_id_migration = false;
+    // Whether or not to attach the page title and url directly to the suggest
+    // request params.
+    bool attach_page_title_and_url_to_suggest_requests = false;
   };
 
   // Observer interface for the Page Handler to get updates on file upload
@@ -149,6 +152,12 @@ class ContextualSearchContextController {
     // The input source of the query text.
     lens::QueryPayload::QueryTextSource query_text_source =
         lens::QueryPayload::QUERY_TEXT_SOURCE_UNSPECIFIED;
+
+    // Whether deep search is selected.
+    bool deep_search_selected = false;
+
+    // Whether create images is selected.
+    bool create_images_selected = false;
   };
 
   virtual ~ContextualSearchContextController() = default;

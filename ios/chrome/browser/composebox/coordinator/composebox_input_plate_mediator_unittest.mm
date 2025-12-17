@@ -26,6 +26,8 @@
 #import "ios/chrome/browser/composebox/public/composebox_input_plate_controls.h"
 #import "ios/chrome/browser/composebox/public/features.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_plate_consumer.h"
+#import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
+#import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/test/fake_web_state_list_delegate.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
@@ -78,7 +80,11 @@
 }
 - (void)disableCreateImageActions:(BOOL)disabled {
 }
+- (void)hideCameraActions:(BOOL)hidden {
+}
 - (void)disableCameraActions:(BOOL)disabled {
+}
+- (void)hideGalleryActions:(BOOL)hidden {
 }
 - (void)disableGalleryActions:(BOOL)disabled {
 }
@@ -149,7 +155,7 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
     template_url_service()->Load();
     TemplateURLServiceLoadWaiter waiter;
     waiter.WaitForLoadComplete(*template_url_service());
-    SetCompactModeEnabled(NO);
+    EnableInputPlateFeatures({});
   }
 
   void TearDown() override {
@@ -167,6 +173,11 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
   }
 
  protected:
+  struct InputPlateFeatures {
+    bool compactMode;
+    bool aimNudge;
+  };
+
   TemplateURLService* template_url_service() {
     return search_engines_test_environment_.template_url_service();
   }
@@ -206,18 +217,24 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
 
   void EraseOmniboxText() { SetOmniboxText(u""); }
 
-  void SetCompactModeEnabled(bool enabled) {
-    scoped_feature_list_.Reset();
+  void EnableInputPlateFeatures(InputPlateFeatures features) {
+    std::vector<base::test::FeatureRef> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
 
-    if (enabled) {
-      scoped_feature_list_.InitWithFeatures(
-          /*enabled_features=*/{kComposeboxCompactMode},
-          /*disabled_features=*/{});
+    if (features.compactMode) {
+      enabled_features.push_back(kComposeboxCompactMode);
     } else {
-      scoped_feature_list_.InitWithFeatures(
-          /*enabled_features=*/{},
-          /*disabled_features=*/{kComposeboxCompactMode});
+      disabled_features.push_back(kComposeboxCompactMode);
     }
+
+    if (features.aimNudge) {
+      enabled_features.push_back(kComposeboxAIMNudge);
+    } else {
+      disabled_features.push_back(kComposeboxAIMNudge);
+    }
+
+    scoped_feature_list_.Reset();
+    scoped_feature_list_.InitWithFeatures(enabled_features, disabled_features);
   }
 
   base::test::TaskEnvironment task_environment_;
@@ -239,6 +256,8 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
 };
 
 TEST_F(ComposeboxInputPlateMediatorTest, ShowsSendButtonWithAttachments) {
+  SetAIMEligible(true);
+  SetDSEGoogle(true);
   EraseOmniboxText();
   EXPECT_FALSE([consumer_ showsControls:ComposeboxInputPlateControls::kSend]);
   UIImage* image = [[UIImage alloc] init];
@@ -255,7 +274,6 @@ TEST_F(ComposeboxInputPlateMediatorTest,
   EXPECT_TRUE(
       [consumer_ showsControls:ComposeboxInputPlateControls::kLeadingImage]);
   EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kVoice]);
-  EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kLens]);
   EXPECT_FALSE([consumer_ showsControls:ComposeboxInputPlateControls::kPlus]);
 }
 
@@ -265,7 +283,6 @@ TEST_F(ComposeboxInputPlateMediatorTest, ShowsExtendedControlsWithGoogleDSE) {
   SetAIMEligible(true);
   SetDSEGoogle(true);
   EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kVoice]);
-  EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kLens]);
   EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kPlus]);
 }
 
@@ -278,26 +295,32 @@ TEST_F(ComposeboxInputPlateMediatorTest,
   EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kVoice]);
   EXPECT_TRUE(
       [consumer_ showsControls:ComposeboxInputPlateControls::kLeadingImage]);
-  EXPECT_FALSE([consumer_ showsControls:ComposeboxInputPlateControls::kLens]);
   EXPECT_FALSE([consumer_ showsControls:ComposeboxInputPlateControls::kPlus]);
 }
 
 // Tests that the send button is shown when there is text in the omnibox.
 TEST_F(ComposeboxInputPlateMediatorTest, ShowsSendButtonWithText) {
   SetOmniboxText(u"some text");
+  SetAIMEligible(true);
+  SetDSEGoogle(true);
   EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kSend]);
 }
 
 // Tests that the send button is hidden when there is no text in the omnibox.
 TEST_F(ComposeboxInputPlateMediatorTest, HidesSendButtonWithoutText) {
   EraseOmniboxText();
+  SetAIMEligible(true);
+  SetDSEGoogle(true);
   EXPECT_FALSE([consumer_ showsControls:ComposeboxInputPlateControls::kSend]);
 }
 
 // Tests that the leading image is hidden when in compact mode with Google DSE.
 TEST_F(ComposeboxInputPlateMediatorTest,
        HidesLeadingImageForCompactModeWithGoogleDSE) {
-  SetCompactModeEnabled(true);
+  EnableInputPlateFeatures({
+      .compactMode = true,
+  });
+
   SetAIMEligible(true);
   SetDSEGoogle(true);
   // A text short enough it does not wrap and leds to compact mode.
@@ -306,6 +329,29 @@ TEST_F(ComposeboxInputPlateMediatorTest,
   EXPECT_FALSE(
       [consumer_ showsControls:ComposeboxInputPlateControls::kLeadingImage]);
   EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kPlus]);
+}
+
+//
+TEST_F(ComposeboxInputPlateMediatorTest, TestsAIMNudgeShownWithGoogleDSE) {
+  EnableInputPlateFeatures({.aimNudge = true});
+
+  SetAIMEligible(true);
+  SetDSEGoogle(true);
+  SetOmniboxText(u"some text");
+
+  EXPECT_TRUE([consumer_ showsControls:ComposeboxInputPlateControls::kAIM]);
+}
+
+//
+TEST_F(ComposeboxInputPlateMediatorTest,
+       TestsAIMNudgeNotShownWithDifferentDSE) {
+  EnableInputPlateFeatures({.aimNudge = true});
+
+  SetAIMEligible(true);
+  SetDSEGoogle(false);
+  SetOmniboxText(u"some text");
+
+  EXPECT_FALSE([consumer_ showsControls:ComposeboxInputPlateControls::kAIM]);
 }
 
 }  // namespace

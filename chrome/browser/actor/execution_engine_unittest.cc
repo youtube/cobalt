@@ -84,6 +84,10 @@ constexpr char kActorTaskDurationVisibleCompletedHistogram[] =
 constexpr char kActorTaskDurationNotVisibleCompletedHistogram[] =
     "Actor.Task.Duration.NotVisible.Completed";
 
+actor::mojom::ActionResultPtr MakeNotImplementedResult() {
+  return MakeResult(::actor::mojom::ActionResultCode::kNotImplemented);
+}
+
 class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
  public:
   FakeChromeRenderFrame() = default;
@@ -130,6 +134,7 @@ class FakeChromeRenderFrame : public chrome::mojom::ChromeRenderFrame {
       mojo::PendingReceiver<actor::mojom::PageStabilityMonitor> monitor,
       const TaskId& task_id,
       bool supports_paint_stability) override {}
+  void CancelTool(const TaskId& task_id) override {}
 
  private:
   void Bind(mojo::ScopedInterfaceEndpointHandle handle) {
@@ -378,23 +383,23 @@ TEST_F(ExecutionEngineTest, ActFailsOnUnsupportedUrl) {
 TEST_F(ExecutionEngineTest, UiOnPreToolFails) {
   EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool)
       .WillOnce(UiEventDispatcherCallback<ToolRequest>(
-          base::BindRepeating(MakeErrorResult)));
+          base::BindRepeating(MakeNotImplementedResult)));
   EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool).Times(0);
   EXPECT_FALSE(
       Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
-                                 mojom::ActionResultCode::kError, 1);
+                                 mojom::ActionResultCode::kNotImplemented, 1);
 }
 
 TEST_F(ExecutionEngineTest, UiOnPostToolFails) {
   EXPECT_CALL(*mock_ui_event_dispatcher_, OnPreTool).Times(1);
   EXPECT_CALL(*mock_ui_event_dispatcher_, OnPostTool)
       .WillOnce(UiEventDispatcherCallback<ToolRequest>(
-          base::BindRepeating(MakeErrorResult)));
+          base::BindRepeating(MakeNotImplementedResult)));
   EXPECT_FALSE(
       Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
-                                 mojom::ActionResultCode::kError, 1);
+                                 mojom::ActionResultCode::kNotImplemented, 1);
 }
 
 TEST_F(ExecutionEngineTest, ActFailsWhenAddTabFails) {
@@ -402,11 +407,11 @@ TEST_F(ExecutionEngineTest, ActFailsWhenAddTabFails) {
               OnActorTaskAsyncChange(VariantWith<AddTab>(_), _))
       .WillOnce(UiEventDispatcherCallback<
                 ui::UiEventDispatcher::ActorTaskAsyncChange>(
-          base::BindRepeating(MakeErrorResult)));
+          base::BindRepeating(MakeNotImplementedResult)));
   EXPECT_FALSE(
       Act(GURL("http://localhost/"), MakeClickCallback(kFakeContentNodeId)));
   histograms_.ExpectUniqueSample(kActionResultHistogram,
-                                 mojom::ActionResultCode::kError, 1);
+                                 mojom::ActionResultCode::kNotImplemented, 1);
 }
 
 TEST_F(ExecutionEngineTest, ActFailsWhenTabDestroyed) {

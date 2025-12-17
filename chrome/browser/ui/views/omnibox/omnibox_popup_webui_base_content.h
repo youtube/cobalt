@@ -66,14 +66,12 @@ class OmniboxPopupWebUIBaseContent : public views::WebView,
                              const gfx::Size& new_size) override;
   bool HandleKeyboardEvent(content::WebContents* source,
                            const input::NativeWebKeyboardEvent& event) override;
-  bool PreHandleGestureEvent(content::WebContents* source,
-                             const blink::WebGestureEvent& event) override;
 
-  // Notifies the page the widget was closed.
-  virtual void OnWidgetClosed();
+  // Notifies the page the widget was hidden.
+  virtual void OnPopupHidden();
 
-  // Returns the WebContents from within the wrapper. Don't use GetWebContents()
-  // since that may be nullptr if the popup isn't visible.
+  // Returns the WebContents from within the wrapper. Don't use
+  // GetWebContents() since that may be nullptr if the popup isn't visible.
   content::WebContents* GetWrappedWebContents();
 
  protected:

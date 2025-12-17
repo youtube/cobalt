@@ -28,6 +28,8 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -137,6 +139,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
       {"sourcesMenuTabsHeader", IDS_CONTEXTUAL_TASKS_SOURCES_MENU_TABS_HEADER},
       {"title", IDS_CONTEXTUAL_TASKS_AI_MODE_TITLE},
+      /* composeDeepSearchPlaceholder and
+       * composeCreateImagePlaceholder are defined by searchbox_handler.cc.
+       */
+      {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
   source->AddLocalizedString(
@@ -188,10 +194,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean(
       "enableThumbnailSizingTweaks",
       lens::features::GetVisualSelectionUpdatesEnableThumbnailSizingTweaks());
-  source->AddString("searchboxComposePlaceholder", "[i18n] Ask Google...");
-  source->AddString("composeDeepSearchPlaceholder",
-                    "[i18n] Search within results...");
-  source->AddString("composeCreateImagePlaceholder", "[i18n] Create image...");
+  source->AddString("searchboxComposePlaceholder",
+                    ntp_composebox::FeatureConfig::Get()
+                        .config.composebox()
+                        .input_placeholder_text());
   source->AddBoolean("composeboxSmartComposeEnabled", false);
   AddContextMenuItemEligibilityLoadTimeData(source, Profile::FromWebUI(web_ui));
   source->AddBoolean("composeboxShowLensSearchChip", false);
@@ -206,6 +212,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_tasks::GetIsSteadyComposeboxVoiceSearchEnabled());
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", false);
+  source->AddBoolean("darkMode",
+                     ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))
+                                ->BrowserUsesDarkColors());
   source->AddString(
       "composeboxSource",
       contextual_search::ContextualSearchMetricsRecorder::

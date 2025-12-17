@@ -71,7 +71,6 @@ import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
-import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.content_public.browser.RenderWidgetHostView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.Clipboard;
@@ -108,7 +107,6 @@ public class FuseboxMediatorUnitTest {
     @Mock private Function<Tab, @Nullable Bitmap> mTabFaviconFactory;
     @Mock private ProfileResolver.Natives mProfileResolverNatives;
     @Mock private SnackbarManager mSnackbarManager;
-    @Mock private TemplateUrlService mTemplateUrlService;
 
     @Captor private ArgumentCaptor<Intent> mIntentCaptor;
 
@@ -121,7 +119,6 @@ public class FuseboxMediatorUnitTest {
     private ObservableSupplierImpl<TabModelSelector> mTabModelSelectorSupplier;
     private ObservableSupplierImpl<@AutocompleteRequestType Integer>
             mAutocompleteRequestTypeSupplier;
-    private ObservableSupplierImpl<TemplateUrlService> mTemplateUrlServiceSupplier;
     private final ObservableSupplierImpl<@FuseboxState Integer> mFuseboxStateSupplier =
             new ObservableSupplierImpl<>(FuseboxState.DISABLED);
     private boolean mCompactModeEnabled;
@@ -133,7 +130,6 @@ public class FuseboxMediatorUnitTest {
         mTabModelSelectorSupplier = new ObservableSupplierImpl<>(mTabModelSelector);
         mAutocompleteRequestTypeSupplier =
                 new ObservableSupplierImpl<>(AutocompleteRequestType.SEARCH);
-        mTemplateUrlServiceSupplier = new ObservableSupplierImpl<>(mTemplateUrlService);
         mActivityController = Robolectric.buildActivity(TestActivity.class).setup();
         Activity activity = mActivityController.get();
         ConstraintLayout viewGroup = new ConstraintLayout(activity);
@@ -161,8 +157,7 @@ public class FuseboxMediatorUnitTest {
                         mTabModelSelectorSupplier,
                         mComposeBoxQueryControllerBridge,
                         mFuseboxStateSupplier,
-                        mSnackbarManager,
-                        mTemplateUrlServiceSupplier);
+                        mSnackbarManager);
         Clipboard.setInstanceForTesting(mClipboard);
         OmniboxResourceProvider.setTabFaviconFactory(mTabFaviconFactory);
         doReturn(mBitmap).when(mTabFaviconFactory).apply(any());
@@ -190,16 +185,16 @@ public class FuseboxMediatorUnitTest {
                         mTabModelSelectorSupplier,
                         mComposeBoxQueryControllerBridge,
                         mFuseboxStateSupplier,
-                        mSnackbarManager,
-                        mTemplateUrlServiceSupplier);
+                        mSnackbarManager);
     }
 
-    private void addTabAttachment(String title) {
-        addAttachment(title, "token-" + title, FuseboxAttachmentType.ATTACHMENT_TAB);
+    private void addTabAttachment(Tab tab) {
+        mMediator.uploadAndAddAttachment(FuseboxAttachment.forTab(tab, mResources));
     }
 
-    private void addAttachment(
+    private FuseboxAttachment addAttachment(
             String title, String token, @FuseboxAttachmentType int attachmentType) {
+        FuseboxAttachment attachment;
         if (attachmentType == FuseboxAttachmentType.ATTACHMENT_TAB) {
             Tab mockTab = mock(Tab.class);
             when(mockTab.getTitle()).thenReturn(title);
@@ -208,23 +203,21 @@ public class FuseboxMediatorUnitTest {
                     .thenReturn(null); // This will trigger addTabContextFromCache path
             when(mComposeBoxQueryControllerBridge.addTabContext(mockTab)).thenReturn(token);
             when(mComposeBoxQueryControllerBridge.addTabContextFromCache(0)).thenReturn(token);
-            mMediator.uploadAndAddAttachment(FuseboxAttachment.forTab(mockTab, mResources));
+            attachment = FuseboxAttachment.forTab(mockTab, mResources);
         } else if (attachmentType == FuseboxAttachmentType.ATTACHMENT_FILE) {
             doReturn(token).when(mComposeBoxQueryControllerBridge).addFile(eq(title), any(), any());
-            mMediator.uploadAndAddAttachment(
-                    FuseboxAttachment.forFile(null, title, "image/", new byte[0]));
+            attachment = FuseboxAttachment.forFile(null, title, "image/", new byte[0]);
         } else if (attachmentType == FuseboxAttachmentType.ATTACHMENT_IMAGE) {
             doReturn(token).when(mComposeBoxQueryControllerBridge).addFile(eq(title), any(), any());
-            mMediator.uploadAndAddAttachment(
+            attachment =
                     FuseboxAttachment.forCameraImage(
-                            /* thumbnail= */ null, title, "image/", new byte[0]));
+                            /* thumbnail= */ null, title, "image/", new byte[0]);
         } else {
             throw new UnsupportedOperationException();
         }
-    }
 
-    private void addTabAttachment(Tab tab) {
-        mMediator.uploadAndAddAttachment(FuseboxAttachment.forTab(tab, mResources));
+        mMediator.uploadAndAddAttachment(attachment);
+        return attachment;
     }
 
     private Tab mockTab(int id, boolean webContentsReady) {
@@ -342,15 +335,6 @@ public class FuseboxMediatorUnitTest {
         doReturn(89L).when(mTab2).getTimestampMillis();
         doReturn(false).when(mPopup).isShowing();
 
-        doReturn(true)
-                .when(mTemplateUrlService)
-                .isSearchResultsPageFromDefaultSearchProvider(any());
-        mMediator.onToggleAttachmentsPopup();
-        assertFalse(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
-
-        doReturn(false)
-                .when(mTemplateUrlService)
-                .isSearchResultsPageFromDefaultSearchProvider(any());
         mMediator.onToggleAttachmentsPopup();
         assertTrue(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_VISIBLE));
         assertNonNull(mModel.get(FuseboxProperties.CURRENT_TAB_BUTTON_FAVICON));
@@ -426,7 +410,7 @@ public class FuseboxMediatorUnitTest {
 
     @Test
     public void activateSearchMode_clearsAttachmentsAndAbandonsSession() {
-        addTabAttachment("title");
+        addAttachment("title", "token1", FuseboxAttachmentType.ATTACHMENT_TAB);
 
         mMediator.activateAiMode(AiModeActivationSource.DEDICATED_BUTTON);
         mModel.set(FuseboxProperties.ATTACHMENTS_VISIBLE, true);
@@ -539,8 +523,7 @@ public class FuseboxMediatorUnitTest {
                         mTabModelSelectorSupplier,
                         mComposeBoxQueryControllerBridge,
                         mFuseboxStateSupplier,
-                        mSnackbarManager,
-                        mTemplateUrlServiceSupplier);
+                        mSnackbarManager);
 
         // The bridge is not initialized, so no native calls should be made.
         mediator.setToolbarVisible(true);
@@ -902,6 +885,72 @@ public class FuseboxMediatorUnitTest {
     @Test
     public void testFailedUpload() {
         mMediator.onAttachmentUploadFailed();
+        verify(mSnackbarManager).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_imageInImageGeneration() {
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+        assertFalse(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE));
+        verify(mSnackbarManager, never()).showSnackbar(any());
+
+        addAttachment("title", "token", FuseboxAttachmentType.ATTACHMENT_IMAGE);
+        assertFalse(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE));
+        verify(mSnackbarManager, never()).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_nonImageInImageGeneration() {
+        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+
+        assertTrue(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB));
+        verify(mSnackbarManager).showSnackbar(any());
+
+        clearInvocations(mSnackbarManager);
+
+        assertTrue(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB));
+        verify(mSnackbarManager).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_tabReselection() {
+        assertFalse(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB));
+        verify(mSnackbarManager, never()).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_listFull_noTabs() {
+        while (mAttachments.getRemainingAttachments() > 0) {
+            addAttachment("title1", "token1", FuseboxAttachmentType.ATTACHMENT_FILE);
+        }
+
+        assertTrue(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB));
+        verify(mSnackbarManager).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_listFull_withTabs() {
+        while (mAttachments.getRemainingAttachments() > 1) {
+            addAttachment("title1", "token1", FuseboxAttachmentType.ATTACHMENT_FILE);
+        }
+        addAttachment("title2", "token2", FuseboxAttachmentType.ATTACHMENT_TAB);
+
+        assertFalse(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB));
+        verify(mSnackbarManager, never()).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_remainingAttachments() {
+        assertFalse(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_FILE));
+        verify(mSnackbarManager, never()).showSnackbar(any());
+    }
+
+    @Test
+    public void testIsMaxAttachmentCountReached_maxAttachmentsReached() {
+        for (int i = 0; i < FuseboxAttachmentModelList.MAX_ATTACHMENTS; i++) {
+            addAttachment("title" + i, "token" + i, FuseboxAttachmentType.ATTACHMENT_FILE);
+        }
+        assertTrue(mMediator.isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_FILE));
         verify(mSnackbarManager).showSnackbar(any());
     }
 }
