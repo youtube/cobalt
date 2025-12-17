@@ -10,6 +10,7 @@
 
 #include "media/engine/internal_decoder_factory.h"
 
+#include "build/build_config.h"
 #include "absl/strings/match.h"
 #include "api/video_codecs/av1_profile.h"
 #include "api/video_codecs/sdp_video_format.h"
@@ -17,8 +18,10 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
-#include "modules/video_coding/codecs/vp8/include/vp8.h"
-#include "modules/video_coding/codecs/vp9/include/vp9.h"
+#if !BUILDFLAG(IS_STARBOARD)
+#include "modules/video_coding/codecs/vp8/include/vp8.h"  // nogncheck
+#include "modules/video_coding/codecs/vp9/include/vp9.h"  // nogncheck
+#endif
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/field_trial.h"
@@ -43,9 +46,11 @@ std::unique_ptr<VideoDecoder> CreateDav1dDecoder() {
 std::vector<SdpVideoFormat> InternalDecoderFactory::GetSupportedFormats()
     const {
   std::vector<SdpVideoFormat> formats;
+#if !BUILDFLAG(IS_STARBOARD)
   formats.push_back(SdpVideoFormat(cricket::kVp8CodecName));
   for (const SdpVideoFormat& format : SupportedVP9DecoderCodecs())
     formats.push_back(format);
+#endif
   for (const SdpVideoFormat& h264_format : SupportedH264DecoderCodecs())
     formats.push_back(h264_format);
 
@@ -85,10 +90,12 @@ std::unique_ptr<VideoDecoder> InternalDecoderFactory::CreateVideoDecoder(
     return nullptr;
   }
 
+#if !BUILDFLAG(IS_STARBOARD)
   if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
     return VP8Decoder::Create();
   if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName))
     return VP9Decoder::Create();
+#endif
   if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName))
     return H264Decoder::Create();
 

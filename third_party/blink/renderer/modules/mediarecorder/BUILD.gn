@@ -54,6 +54,14 @@ blink_modules_sources("mediarecorder") {
     "//third_party/opus",
   ]
 
+  if (is_starboard) {
+    sources -= [
+      "vpx_encoder.cc",
+      "vpx_encoder.h",
+    ]
+    deps -= [ "//third_party/libvpx" ]
+  }
+
   if (rtc_use_h264) {
     sources += [
       "h264_encoder.cc",
