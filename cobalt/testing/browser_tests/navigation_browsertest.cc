@@ -6389,9 +6389,79 @@ class NavigationBrowserTestCredentiallessIframe : public NavigationBrowserTest {
   }
 };
 
-// TODO: b/432532822 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
-                       DISABLED_CredentiallessAttributeIsHonoredByNavigation) {
+                       CheckCookiesForCredentiallessIframeNavigation) {
+  GURL main_url =
+      embedded_test_server()->GetURL("/page_with_credentialless_iframe.html");
+  GURL iframe_url_1 = embedded_test_server()->GetURL("/title1.html");
+  EXPECT_TRUE(NavigateToURL(shell(), main_url));
+
+  // Set a cookie on the main frame
+  EXPECT_TRUE(ExecJs(main_frame(), "document.cookie = 'name=main;';"));
+  EXPECT_EQ("name=main", EvalJs(main_frame(), "document.cookie;"));
+
+  // The main page has a child iframe with url `iframe_url_1`.
+  EXPECT_EQ(1U, main_frame()->child_count());
+  FrameTreeNode* child = main_frame()->child_at(0);
+  EXPECT_EQ(iframe_url_1, child->current_url());
+  EXPECT_TRUE(child->Credentialless());
+  EXPECT_TRUE(child->current_frame_host()->IsCredentialless());
+  EXPECT_TRUE(ExecJs(child->current_frame_host(), "window.credentialless"));
+
+  // Set up devtools client so we can check which cookies were sent and blocked
+  // with frame navigation
+  TestDevToolsProtocolClient fenced_frame_devtools_client;
+  fenced_frame_devtools_client.AttachToFrameTreeHost(
+      child->current_frame_host());
+  fenced_frame_devtools_client.SendCommandAsync("Network.enable");
+  fenced_frame_devtools_client.ClearNotifications();
+
+  // Set a cookie on the frame and reload so we can see which cookies are
+  // included in the network request
+  EXPECT_TRUE(ExecJs(child->current_frame_host(),
+                     "document.cookie = 'name=credentialless;';"));
+
+  EXPECT_EQ("name=credentialless",
+            EvalJs(child->current_frame_host(), "document.cookie;"));
+
+  EXPECT_TRUE(ExecJs(child->current_frame_host(), "location.reload();"));
+
+  // Check associated cookies according to devtools
+  base::Value::Dict params = fenced_frame_devtools_client.WaitForNotification(
+      "Network.requestWillBeSentExtraInfo", /*allow_existing=*/true);
+
+  const base::Value::List* associated_cookies =
+      params.FindList("associatedCookies");
+
+  EXPECT_THAT(
+      associated_cookies,
+      testing::Pointee(testing::UnorderedElementsAre(
+          base::test::IsSupersetOfValue(base::test::ParseJsonDict(R"({
+                            "blockedReasons": [ "AnonymousContext" ],
+                            "cookie" : {
+                              "name": "name",
+                              "value": "main"
+                            }
+                        })")),
+          testing::AllOf(
+              base::test::IsSupersetOfValue(base::test::ParseJsonDict(R"({
+                        "blockedReasons": [ ],
+                        "cookie" : {
+                          "name": "name",
+                          "value": "credentialless"
+                        }
+                      })")),
+              testing::ResultOf(
+                  [](const base::Value& dict) {
+                    return dict.GetDict().FindList("blockedReasons");
+                  },
+                  testing::Pointee(testing::IsEmpty()))))));
+
+  fenced_frame_devtools_client.DetachProtocolClient();
+}
+
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
+                       CredentiallessAttributeIsHonoredByNavigation) {
   GURL main_url = embedded_test_server()->GetURL("/page_with_iframe.html");
   GURL iframe_url_1 = embedded_test_server()->GetURL("/title1.html");
   GURL iframe_url_2 = embedded_test_server()->GetURL("/title2.html");
@@ -6454,11 +6524,11 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
   EXPECT_TRUE(child->current_frame_host()->IsCredentialless());
   EXPECT_EQ(true, EvalJs(child->current_frame_host(), "window.credentialless"));
   // A credentialless document has a storage key with a nonce.
-  EXPECT_TRUE(child->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_TRUE(child->current_frame_host()->GetStorageKey().nonce().has_value());
   base::UnguessableToken credentialless_nonce =
-      current_frame_host()->credentialless_iframes_nonce();
+      current_frame_host()->GetPage().credentialless_iframes_nonce();
   EXPECT_EQ(credentialless_nonce,
-            child->current_frame_host()->storage_key().nonce().value());
+            child->current_frame_host()->GetStorageKey().nonce().value());
 
   // Create a grandchild iframe.
   EXPECT_TRUE(ExecJs(
@@ -6478,9 +6548,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
 
   // The storage key's nonce is the same for all credentialless documents in the
   // same page.
-  EXPECT_TRUE(child->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_TRUE(child->current_frame_host()->GetStorageKey().nonce().has_value());
   EXPECT_EQ(credentialless_nonce,
-            child->current_frame_host()->storage_key().nonce().value());
+            child->current_frame_host()->GetStorageKey().nonce().value());
 
   // Now navigate the grandchild iframe.
   EXPECT_TRUE(ExecJs(
@@ -6492,9 +6562,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
             EvalJs(grandchild->current_frame_host(), "window.credentialless"));
 
   // The storage key's nonce is still the same.
-  EXPECT_TRUE(child->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_TRUE(child->current_frame_host()->GetStorageKey().nonce().has_value());
   EXPECT_EQ(credentialless_nonce,
-            child->current_frame_host()->storage_key().nonce().value());
+            child->current_frame_host()->GetStorageKey().nonce().value());
 
   // Remove the 'credentialless' attribute from the iframe. This propagates to
   // the FrameTreeNode. The RenderFrameHost, however, is updated only on
@@ -6505,9 +6575,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
   EXPECT_FALSE(child->Credentialless());
   EXPECT_TRUE(child->current_frame_host()->IsCredentialless());
   EXPECT_EQ(true, EvalJs(child->current_frame_host(), "window.credentialless"));
-  EXPECT_TRUE(child->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_TRUE(child->current_frame_host()->GetStorageKey().nonce().has_value());
   EXPECT_EQ(credentialless_nonce,
-            child->current_frame_host()->storage_key().nonce().value());
+            child->current_frame_host()->GetStorageKey().nonce().value());
 
   // Create another grandchild iframe. Even if the parent iframe element does
   // not have the 'credentialless' attribute anymore, the grandchild document is
@@ -6524,9 +6594,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
   EXPECT_EQ(true,
             EvalJs(grandchild2->current_frame_host(), "window.credentialless"));
   EXPECT_TRUE(
-      grandchild2->current_frame_host()->storage_key().nonce().has_value());
+      grandchild2->current_frame_host()->GetStorageKey().nonce().has_value());
   EXPECT_EQ(credentialless_nonce,
-            grandchild2->current_frame_host()->storage_key().nonce().value());
+            grandchild2->current_frame_host()->GetStorageKey().nonce().value());
 
   // Navigate the child iframe. Since the iframe element does not set the
   // 'credentialless' attribute, the resulting RenderFrameHost will not be
@@ -6540,7 +6610,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
   EXPECT_FALSE(child->current_frame_host()->IsCredentialless());
   EXPECT_EQ(false,
             EvalJs(child->current_frame_host(), "window.credentialless"));
-  EXPECT_FALSE(child->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_FALSE(
+      child->current_frame_host()->GetStorageKey().nonce().has_value());
 
   // Now navigate the whole page away.
   GURL main_url_b = embedded_test_server()->GetURL(
@@ -6557,12 +6628,13 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
   EXPECT_EQ(true,
             EvalJs(child_b->current_frame_host(), "window.credentialless"));
 
-  EXPECT_TRUE(child_b->current_frame_host()->storage_key().nonce().has_value());
+  EXPECT_TRUE(
+      child_b->current_frame_host()->GetStorageKey().nonce().has_value());
   base::UnguessableToken credentialless_nonce_b =
-      current_frame_host()->credentialless_iframes_nonce();
+      current_frame_host()->GetPage().credentialless_iframes_nonce();
   EXPECT_NE(credentialless_nonce, credentialless_nonce_b);
   EXPECT_EQ(credentialless_nonce_b,
-            child_b->current_frame_host()->storage_key().nonce().value());
+            child_b->current_frame_host()->GetStorageKey().nonce().value());
 }
 
 // Ensures that OpenURLParams::FromNavigationHandle translates navigation params
@@ -6741,20 +6813,13 @@ IN_PROC_BROWSER_TEST_F(CacheTransparencyNavigationBrowserTest,
 class NavigationBrowserTestWarnSandboxIneffective
     : public NavigationBrowserTest {
  public:
-  void SetUpCommandLine(base::CommandLine* command_line) override {
-    NavigationBrowserTest::SetUpCommandLine(command_line);
-    command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
-                                    "WarnSandboxIneffective");
-  }
-
   static constexpr char kSandboxEscapeWarningMessage[] =
       "An iframe which has both allow-scripts and allow-same-origin for its "
       "sandbox attribute can escape its sandboxing.";
 };
 
-// TODO: b/432529537 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
-                       DISABLED_WarnEscapableSandboxSameOrigin) {
+                       WarnEscapableSandboxSameOrigin) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/empty.html")));
 
@@ -6771,9 +6836,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
   ASSERT_TRUE(console_observer.Wait());
 }
 
-// TODO: b/432529537 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
-                       DISABLED_WarnEscapableSandboxCrossOrigin) {
+                       WarnEscapableSandboxCrossOrigin) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/empty.html")));
 
@@ -6793,9 +6857,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
   EXPECT_EQ(console_observer.messages().size(), 0u);
 }
 
-// TODO: b/432529537 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTestWarnSandboxIneffective,
-                       DISABLED_WarnEscapableSandboxSameOriginGrandChild) {
+                       WarnEscapableSandboxSameOriginGrandChild) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/empty.html")));
 
