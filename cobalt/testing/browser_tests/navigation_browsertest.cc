@@ -15,6 +15,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <optional>
 #include <variant>
 
 #include "base/command_line.h"
@@ -163,7 +164,7 @@ class RenderFrameHostImplForHistoryBackInterceptor
 
   void GoToEntryAtOffset(int32_t offset,
                          bool has_user_gesture,
-                         absl::optional<blink::scheduler::TaskAttributionId>
+                         std::optional<blink::scheduler::TaskAttributionId>
                              soft_navigation_heuristics_task_id) override {
     if (quit_handler_) {
       std::move(quit_handler_).Run();
@@ -925,8 +926,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
   EXPECT_TRUE(NavigateToURL(shell(), url));
   monitor.WaitForUrls();
 
-  absl::optional<network::ResourceRequest> request =
-      monitor.GetRequestInfo(url);
+  std::optional<network::ResourceRequest> request = monitor.GetRequestInfo(url);
   ASSERT_TRUE(request->trusted_params);
   EXPECT_TRUE(net::IsolationInfo::Create(
                   net::IsolationInfo::RequestType::kMainFrame, origin, origin,
@@ -951,8 +951,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
   EXPECT_TRUE(NavigateToURLFromRenderer(shell(), url));
   monitor.WaitForUrls();
 
-  absl::optional<network::ResourceRequest> request =
-      monitor.GetRequestInfo(url);
+  std::optional<network::ResourceRequest> request = monitor.GetRequestInfo(url);
   ASSERT_TRUE(request->trusted_params);
   EXPECT_TRUE(net::IsolationInfo::Create(
                   net::IsolationInfo::RequestType::kMainFrame, origin, origin,
@@ -977,7 +976,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
   EXPECT_TRUE(NavigateToURL(shell(), url));
   monitor.WaitForUrls();
 
-  absl::optional<network::ResourceRequest> main_frame_request =
+  std::optional<network::ResourceRequest> main_frame_request =
       monitor.GetRequestInfo(url);
   ASSERT_TRUE(main_frame_request.has_value());
   ASSERT_TRUE(main_frame_request->trusted_params);
@@ -988,7 +987,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
                   .IsEqualForTesting(
                       main_frame_request->trusted_params->isolation_info));
 
-  absl::optional<network::ResourceRequest> iframe_request =
+  std::optional<network::ResourceRequest> iframe_request =
       monitor.GetRequestInfo(iframe_document);
   ASSERT_TRUE(iframe_request->trusted_params);
   EXPECT_TRUE(
@@ -1016,8 +1015,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   // Perform the actual navigation.
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
-  absl::optional<network::ResourceRequest> request =
-      monitor.GetRequestInfo(url);
+  std::optional<network::ResourceRequest> request = monitor.GetRequestInfo(url);
   ASSERT_TRUE(request.has_value());
   ASSERT_FALSE(request->request_initiator.has_value());
 }
@@ -1045,8 +1043,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   // Perform the actual navigation.
   EXPECT_TRUE(NavigateToURLFromRenderer(shell(), url));
 
-  absl::optional<network::ResourceRequest> request =
-      monitor.GetRequestInfo(url);
+  std::optional<network::ResourceRequest> request = monitor.GetRequestInfo(url);
   ASSERT_TRUE(request.has_value());
   EXPECT_EQ(starting_page_origin, request->request_initiator);
 }
@@ -1094,8 +1091,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   starting_page_origin = starting_page_origin.Create(starting_page);
 
   monitor.WaitForUrls();
-  absl::optional<network::ResourceRequest> request =
-      monitor.GetRequestInfo(url);
+  std::optional<network::ResourceRequest> request = monitor.GetRequestInfo(url);
   EXPECT_EQ(starting_page_origin, request->request_initiator);
 }
 
@@ -1144,8 +1140,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   url::Origin starting_page_origin;
   starting_page_origin = starting_page_origin.Create(starting_page);
 
-  absl::optional<network::ResourceRequest> request =
-      monitor.GetRequestInfo(url);
+  std::optional<network::ResourceRequest> request = monitor.GetRequestInfo(url);
   ASSERT_TRUE(request.has_value());
   EXPECT_EQ(starting_page_origin, request->request_initiator);
 }
@@ -3521,7 +3516,7 @@ class GetEffectiveUrlClient : public ContentBrowserTestContentBrowserClient {
   void set_disallowed_process(int id) { disallowed_process_id_ = id; }
 
  private:
-  absl::optional<GURL> effective_url_;
+  std::optional<GURL> effective_url_;
   int disallowed_process_id_ = 0;
 };
 
@@ -3682,7 +3677,7 @@ IN_PROC_BROWSER_TEST_F(
       web_contents(), base::BindLambdaForTesting([&](NavigationHandle* handle) {
         auto* request = NavigationRequest::From(handle);
 
-        const absl::optional<blink::LocalFrameToken>& frame_token =
+        const std::optional<blink::LocalFrameToken>& frame_token =
             request->GetInitiatorFrameToken();
         EXPECT_TRUE(frame_token.has_value());
         EXPECT_EQ(initiator_frame_token, frame_token.value());
@@ -3774,7 +3769,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
         auto* request = NavigationRequest::From(handle);
         ASSERT_TRUE(request->IsPost());
 
-        const absl::optional<blink::LocalFrameToken>& frame_token =
+        const std::optional<blink::LocalFrameToken>& frame_token =
             request->GetInitiatorFrameToken();
         EXPECT_TRUE(frame_token.has_value());
         EXPECT_EQ(initiator_frame_token, frame_token.value());
@@ -3881,7 +3876,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
         auto* request = NavigationRequest::From(handle);
         ASSERT_TRUE(request->IsPost());
 
-        const absl::optional<blink::LocalFrameToken>& frame_token =
+        const std::optional<blink::LocalFrameToken>& frame_token =
             request->GetInitiatorFrameToken();
         EXPECT_TRUE(frame_token.has_value());
         EXPECT_EQ(initiator_frame_token, frame_token.value());
@@ -4175,8 +4170,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_OriginToCommitBasic) {
   shell()->LoadURL(url);
   EXPECT_TRUE(manager.WaitForResponse());
   NavigationRequest* navigation = main_frame()->navigation_request();
-  absl::optional<url::Origin> origin_to_commit =
-      navigation->GetOriginToCommit();
+  std::optional<url::Origin> origin_to_commit = navigation->GetOriginToCommit();
   ASSERT_TRUE(origin_to_commit.has_value());
   ASSERT_TRUE(manager.WaitForNavigationFinished());
   url::Origin origin_committed = current_frame_host()->GetLastCommittedOrigin();
@@ -4193,8 +4187,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, OriginToCommit204) {
   shell()->LoadURL(url);
   EXPECT_TRUE(manager.WaitForResponse());
   NavigationRequest* navigation = main_frame()->navigation_request();
-  absl::optional<url::Origin> origin_to_commit =
-      navigation->GetOriginToCommit();
+  std::optional<url::Origin> origin_to_commit = navigation->GetOriginToCommit();
   EXPECT_FALSE(origin_to_commit.has_value());
   ASSERT_TRUE(manager.WaitForNavigationFinished());
 }

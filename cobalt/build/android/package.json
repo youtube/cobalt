@@ -64,6 +64,7 @@
                 "obj/cc/mojom/mojom_java.javac.jar",
                 "obj/cobalt/android/cobalt_apk.javac.jar",
                 "obj/cobalt/android/cobalt_apk_java.javac.jar",
+                "obj/cobalt/android/cobalt_browser_java.javac.jar",
                 "obj/cobalt/android/cobalt_main_java.javac.jar",
                 "obj/cobalt/browser/crash_annotator/public/mojom/mojom_java.javac.jar",
                 "obj/cobalt/shell/android/cobalt_shell_java.javac.jar",
