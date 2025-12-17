@@ -73,7 +73,7 @@ TEST_F(SourceListDirectiveTest, BasicMatchingUnsafeHashes) {
   EXPECT_TRUE(source_list->allow_unsafe_hashes);
 }
 
-#if BUILD_FLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
 TEST_F(SourceListDirectiveTest, BasicMatchingCobaltInsecureLocalNetwork) {
   String sources = "'cobalt-insecure-local-network'";
   network::mojom::blink::CSPSourceListPtr source_list =
@@ -89,7 +89,7 @@ TEST_F(SourceListDirectiveTest, BasicMatchingCobaltInsecurePrivateRange) {
 
   EXPECT_TRUE(source_list->cobalt_insecure_private_range);
 }
-#endif  // BUILD_FLAG(IS_COBALT)
+#endif  // BUILDFLAG(IS_COBALT)
 
 TEST_F(SourceListDirectiveTest, BasicMatchingStar) {
   KURL base;

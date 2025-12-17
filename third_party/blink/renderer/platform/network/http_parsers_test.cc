@@ -693,7 +693,7 @@ TEST(HTTPParsersTest, ParseContentSecurityPoliciesMeta) {
   EXPECT_EQ("default-src a.com", csp[0]->header->header_value);
 }
 
-#if BUILD_FLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
 TEST(HTTPParsersTest, ParseContentSecurityPoliciesCobalt) {
   auto csp = ParseContentSecurityPolicies(
       "connect-src 'cobalt-insecure-local-network' 'cobalt-insecure-private-range'",
@@ -710,7 +710,7 @@ TEST(HTTPParsersTest, ParseContentSecurityPoliciesCobalt) {
   EXPECT_TRUE(source_list->cobalt_insecure_local_network);
   EXPECT_TRUE(source_list->cobalt_insecure_private_range);
 }
-#endif  // BUILD_FLAG(IS_COBALT)
+#endif  // BUILDFLAG(IS_COBALT)
 
 TEST(HTTPParsersTest, ParseContentSecurityPoliciesReportOnly) {
   auto csp = ParseContentSecurityPolicies(
