@@ -25,17 +25,23 @@ std::string SanitizeIPAddressStr(const std::string& ip_str) {
 bool IsIPInPrivateRangeIPv4(uint32_t addr) {
   // NOTE: Input address must be in host-byte order.
 
+  // For IPv4, the private address range is defined by RFC 1918
+  // available at https://tools.ietf.org/html/rfc1918#section-3.
+
   // 10.0.0.0/8
-  if ((addr & 0xFF000000) == 0x0A000000)
+  if ((addr & 0xFF000000) == 0x0A000000) {
     return true;
+  }
 
   // 172.16.0.0/12 (172.16.0.0 to 172.31.255.255)
-  if ((addr & 0xFFF00000) == 0xAC100000)
+  if ((addr & 0xFFF00000) == 0xAC100000) {
     return true;
+  }
 
   // 192.168.0.0/16
-  if ((addr & 0xFFFF0000) == 0xC0A80000)
+  if ((addr & 0xFFFF0000) == 0xC0A80000) {
     return true;
+  }
 
   return false;
 }
@@ -106,6 +112,7 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
       // Extract the 4 bytes following the prefix (indices 2, 3, 4, 5)
       uint32_t ipv4_network_order;
       std::memcpy(&ipv4_network_order, &ipv6_addr.s6_addr[2], sizeof(uint32_t));
+
       // Convert from Network Byte Order to Host Byte Order (uint32_t)
       uint32_t addr = ntohl(ipv4_network_order);
       return IsIPInPrivateRangeIPv4(addr);
