@@ -28,7 +28,13 @@ import org.chromium.content_public.browser.WebContents;
 import org.chromium.net.ConnectionType;
 import org.chromium.net.NetworkChangeNotifier;
 
-/** Detects network connectivity with a guaranteed timeout. */
+/**
+ * Detects network connectivity with a guaranteed timeout by using a generate_204 ping,
+ * a special fast-loading URL to check for internet connectivity, similar to Chrome's
+ * ConnectivityDetector.java. This class raises a platform error if it cannot verify a
+ * valid internet connection. It also manages the dismissal of the error dialog once a
+ * valid connection is established either automatically or through user input.
+ */
 public class CobaltConnectivityDetector {
   private static final String TAG = "CobaltConnectivityDetector";
   private static final int NETWORK_CHECK_TIMEOUT_MS = 5000; // 5-second overall timeout.
@@ -120,6 +126,7 @@ public class CobaltConnectivityDetector {
     activity.runOnUiThread(
         () -> {
           Log.i(TAG, "Active Network check successful." + platformError);
+          // Dismiss the error dialog if it's currently visible.
           if (platformError != null) {
             platformError.setResponse(PlatformError.POSITIVE);
             platformError.dismiss();
@@ -131,9 +138,6 @@ public class CobaltConnectivityDetector {
             if (webContents != null) {
               webContents.getNavigationController().reload(true);
             }
-            // This is the first successful network check on a fresh app start. The
-            // WebContentsObserver will handle setting the flag to true for any subsequent reloads.
-            mAppHasSuccessfullyLoaded = true;
           }
         });
   }

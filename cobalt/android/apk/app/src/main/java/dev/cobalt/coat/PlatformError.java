@@ -32,7 +32,14 @@ import java.lang.annotation.RetentionPolicy;
 import org.jni_zero.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
 
-/** Shows an ErrorDialog to inform the user of a Starboard platform error. */
+/**
+ * Shows an ErrorDialog to inform the user of a network platform error.
+ * The dialog should appear if the device has no wifi or ethernet connection.
+ * It should also appear in cases of "weak" internet (ie. connected to a network
+ * that doesn't have internet like a router that was just unplugged) as well as if
+ * the connection is experiencing DNS resolution errors. Prompts the user to retry
+ * or to navigate to the device's network settings menu.
+*/
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
