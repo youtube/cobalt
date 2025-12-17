@@ -286,13 +286,12 @@ BlockNavigationWillProcessResponse(WebContentsImpl* web_content) {
   return std::make_unique<content::TestNavigationThrottleInserter>(
       web_content,
       base::BindLambdaForTesting(
-          [&](NavigationHandle* handle) -> std::unique_ptr<NavigationThrottle> {
-            auto throttle = std::make_unique<TestNavigationThrottle>(handle);
+          [&](NavigationThrottleRegistry& registry) -> void {
+            auto throttle = std::make_unique<TestNavigationThrottle>(registry);
             throttle->SetResponse(TestNavigationThrottle::WILL_PROCESS_RESPONSE,
                                   TestNavigationThrottle::SYNCHRONOUS,
                                   NavigationThrottle::BLOCK_RESPONSE);
-
-            return throttle;
+            registry.AddThrottle(std::move(throttle));
           }));
 }
 
@@ -1760,15 +1759,16 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest, AddRequestHeaderOnRedirect) {
   content::TestNavigationThrottleInserter throttle_inserter(
       web_contents(),
       base::BindLambdaForTesting(
-          [](NavigationHandle* handle) -> std::unique_ptr<NavigationThrottle> {
-            auto throttle = std::make_unique<TestNavigationThrottle>(handle);
-            NavigationRequest* request = NavigationRequest::From(handle);
+          [](NavigationThrottleRegistry& registry) -> void {
+            auto throttle = std::make_unique<TestNavigationThrottle>(registry);
+            NavigationRequest* request =
+                NavigationRequest::From(&registry.GetNavigationHandle());
             throttle->SetCallback(TestNavigationThrottle::WILL_REDIRECT_REQUEST,
                                   base::BindLambdaForTesting([request]() {
                                     request->SetRequestHeader("header_name",
                                                               "header_value");
                                   }));
-            return throttle;
+            registry.AddThrottle(std::move(throttle));
           }));
 
   // 1) There is no "header_name" header in the initial request.
@@ -1803,9 +1803,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
   content::TestNavigationThrottleInserter throttle_inserter(
       web_contents(),
       base::BindLambdaForTesting(
-          [](NavigationHandle* handle) -> std::unique_ptr<NavigationThrottle> {
-            auto throttle = std::make_unique<TestNavigationThrottle>(handle);
-            NavigationRequest* request = NavigationRequest::From(handle);
+          [](NavigationThrottleRegistry& registry) -> void {
+            auto throttle = std::make_unique<TestNavigationThrottle>(registry);
+            NavigationRequest* request =
+                NavigationRequest::From(&registry.GetNavigationHandle());
             throttle->SetCallback(TestNavigationThrottle::WILL_START_REQUEST,
                                   base::BindLambdaForTesting([request]() {
                                     request->SetRequestHeader("header_name",
@@ -1816,7 +1817,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
                                     request->SetRequestHeader("header_name",
                                                               "other_value");
                                   }));
-            return throttle;
+            registry.AddThrottle(std::move(throttle));
           }));
 
   // 1) The header is added to the initial request.
@@ -1846,9 +1847,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
   content::TestNavigationThrottleInserter throttle_inserter(
       web_contents(),
       base::BindLambdaForTesting(
-          [](NavigationHandle* handle) -> std::unique_ptr<NavigationThrottle> {
-            NavigationRequest* request = NavigationRequest::From(handle);
-            auto throttle = std::make_unique<TestNavigationThrottle>(handle);
+          [](NavigationThrottleRegistry& registry) -> void {
+            NavigationRequest* request =
+                NavigationRequest::From(&registry.GetNavigationHandle());
+            auto throttle = std::make_unique<TestNavigationThrottle>(registry);
             throttle->SetCallback(TestNavigationThrottle::WILL_START_REQUEST,
                                   base::BindLambdaForTesting([request]() {
                                     request->SetRequestHeader("header_name",
@@ -1858,7 +1860,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
                                   base::BindLambdaForTesting([request]() {
                                     request->RemoveRequestHeader("header_name");
                                   }));
-            return throttle;
+            registry.AddThrottle(std::move(throttle));
           }));
 
   // 1) The header is added to the initial request.
@@ -1966,18 +1968,19 @@ IN_PROC_BROWSER_TEST_F(NavigationCorsExemptBrowserTest,
   const std::string header_value = "value";
   content::TestNavigationThrottleInserter throttle_inserter(
       web_contents(),
-      base::BindLambdaForTesting([header_value](NavigationHandle* handle)
-                                     -> std::unique_ptr<NavigationThrottle> {
-        NavigationRequest* request = NavigationRequest::From(handle);
-        auto throttle = std::make_unique<TestNavigationThrottle>(handle);
-        throttle->SetCallback(
-            TestNavigationThrottle::WILL_START_REQUEST,
-            base::BindLambdaForTesting([request, header_value]() {
-              request->SetCorsExemptRequestHeader(kCorsHeaderName,
-                                                  header_value);
-            }));
-        return throttle;
-      }));
+      base::BindLambdaForTesting(
+          [header_value](NavigationThrottleRegistry& registry) -> void {
+            NavigationRequest* request =
+                NavigationRequest::From(&registry.GetNavigationHandle());
+            auto throttle = std::make_unique<TestNavigationThrottle>(registry);
+            throttle->SetCallback(
+                TestNavigationThrottle::WILL_START_REQUEST,
+                base::BindLambdaForTesting([request, header_value]() {
+                  request->SetCorsExemptRequestHeader(kCorsHeaderName,
+                                                      header_value);
+                }));
+            registry.AddThrottle(std::move(throttle));
+          }));
   shell()->LoadURL(embedded_test_server()->GetURL("/doc"));
   response.WaitForRequest();
   EXPECT_EQ(header_value, response.http_request()->headers.at(kCorsHeaderName));
@@ -4309,9 +4312,9 @@ IN_PROC_BROWSER_TEST_F(
   auto inserter = std::make_unique<TestNavigationThrottleInserter>(
       shell()->web_contents(),
       base::BindLambdaForTesting(
-          [&](NavigationHandle* handle) -> std::unique_ptr<NavigationThrottle> {
-            return std::make_unique<ShutdownThrottle>(shell()->web_contents(),
-                                                      handle);
+          [&](NavigationThrottleRegistry& registry) -> void {
+            registry.AddThrottle(std::make_unique<ShutdownThrottle>(
+                shell()->web_contents(), registry));
           }));
 
   class DoesNotReadyToCommitObserver : public WebContentsObserver {
