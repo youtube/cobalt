@@ -31,5 +31,7 @@
   <string>Allow content_shell access to microphone</string>
   <key>NSUserTrackingUsageDescription</key>
   <string>This identifier will be used to deliver personalized ads to you.</string>
+  <key>YTApplicationURL</key>
+  <string>https://www.youtube.com/tv</string>
 </dict>
 </plist>

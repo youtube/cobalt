@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TVOS_SHARED_INTENT_YTINTENT_STARBOARDAPIS_H_
-#define STARBOARD_TVOS_SHARED_INTENT_YTINTENT_STARBOARDAPIS_H_
+#ifndef COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_
+#define COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_
 
-void SBProcessAppIntent(const char* query, int isSearch);
+#import <Foundation/Foundation.h>
 
-#endif  // STARBOARD_TVOS_SHARED_INTENT_YTINTENT_STARBOARDAPIS_H_
+@interface DeepLinkSupportTvos : NSObject
+
+// Handle Siri Intent. It passes `query` to DeepLinkManager.
++ (void)handleSiriIntents:(NSString*)query isSearch:(BOOL)isSearch;
+@end
+
+#endif  // COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_

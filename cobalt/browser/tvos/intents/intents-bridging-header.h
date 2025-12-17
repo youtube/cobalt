@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TVOS_SHARED_INTENT_YTINTENT_YTINTENT_SWIFT_H_
-#define STARBOARD_TVOS_SHARED_INTENT_YTINTENT_YTINTENT_SWIFT_H_
+#ifndef COBALT_BROWSER_TVOS_INTENTS_INTENTS_BRIDGING_HEADER_H_
+#define COBALT_BROWSER_TVOS_INTENTS_INTENTS_BRIDGING_HEADER_H_
 
-#endif  // STARBOARD_TVOS_SHARED_INTENT_YTINTENT_YTINTENT_SWIFT_H_
+#import "cobalt/browser/tvos/deep_link_support_tvos.h"
 
-@class YtIntentPlaceholder;
-@class YtIntentNotifier;
+#endif  // COBALT_BROWSER_TVOS_INTENTS_INTENTS_BRIDGING_HEADER_H_

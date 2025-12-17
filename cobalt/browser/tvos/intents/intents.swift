@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,8 @@
 
 import AppIntents
 import Foundation
-import cobalt_arm64_library
 
 // Opens the given Task in the app when run.
-@available(tvOS 17.2, *)
 struct YtSearchVideoIntent: ShowInAppSearchResultsIntent {
   // NOTE:
   // The app is eligible for press-to-dictate, specially when the app is in the foreground.
@@ -31,14 +29,14 @@ struct YtSearchVideoIntent: ShowInAppSearchResultsIntent {
   var criteria: StringSearchCriteria
 
   // Called by the OS when the user performs the given intent.
+  @MainActor
   func perform() async throws -> some IntentResult {
-    SBProcessAppIntent(criteria.term, /* isSearch = */ 1)
+    DeepLinkSupportTvos.handleSiriIntents(criteria.term, isSearch: true)
     return .result()
   }
 }
 
 // Opens the given Task in the app when run.
-@available(tvOS 17.2, *)
 struct YtPlayVideoIntent: PlayVideoIntent {
   // NOTE:
   // Siri play requests. Using Siri to explicitly play video content on an app intent enabled app.
@@ -50,8 +48,9 @@ struct YtPlayVideoIntent: PlayVideoIntent {
   @Parameter(title: "Term")
   var term: String
 
+  @MainActor
   func perform() async throws -> some IntentResult {
-    SBProcessAppIntent(term, /* isSearch = */ 0)
+    DeepLinkSupportTvos.handleSiriIntents(term, isSearch: false)
     return .result()
   }
 }

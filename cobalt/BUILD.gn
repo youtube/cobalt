@@ -92,6 +92,7 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
@@ -100,6 +101,8 @@ if (is_ios && target_platform == "tvos") {
       ":cobalt_shell_framework_resources",
       "shell/app/ios/resources",
     ]
+
+    intents_target = "//cobalt/browser/tvos/intents:yt_intents"
 
     data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
 
