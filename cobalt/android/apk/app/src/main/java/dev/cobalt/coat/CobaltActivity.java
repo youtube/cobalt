@@ -80,6 +80,8 @@ public abstract class CobaltActivity extends Activity {
   private static final String META_DATA_APP_SPLASH_TIMEOUT_MS = "cobalt.APP_SPLASH_TIMEOUT_MS";
   private static final String DISABLE_NATIVE_SPLASH = "disable-native-splash";
 
+  private static final String KABUKI_URL = "https://www.youtube.com/tv";
+
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
@@ -186,6 +188,12 @@ public abstract class CobaltActivity extends Activity {
         mSplashTimeoutMs = 1500;
       }
     }
+
+    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(KABUKI_URL)) {
+      Log.i(TAG, "Non-Kabuki startup URL detected.");
+      AppExitScheduler.getInstance().cancelCrash();
+    }
+
     if (!TextUtils.isEmpty(mStartupUrl)) {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
     }
