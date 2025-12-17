@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
 
+#include <unistd.h>
+
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
@@ -37,11 +39,8 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 }
 
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
+  stop_requested_.store(true);
   job_thread_.reset();
-
-  std::lock_guard lock(mutex_);
-  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
-                                  0, 0, 0);
 }
 
 void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
@@ -50,8 +49,8 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
 
   render_cb_ = render_cb;
 
-  job_thread_.reset(new JobThread("punchoutvidsink"));
-  job_thread_->Schedule(std::bind(&PunchoutVideoRendererSink::Render, this));
+  job_thread_ = std::make_unique<JobThread>("punchoutvidsink");
+  job_thread_->Schedule(std::bind(&PunchoutVideoRendererSink::RunLoop, this));
 }
 
 void PunchoutVideoRendererSink::SetBounds(int z_index,
@@ -68,10 +67,14 @@ void PunchoutVideoRendererSink::SetBounds(int z_index,
   height_ = height;
 }
 
-void PunchoutVideoRendererSink::Render() {
-  render_cb_(std::bind(&PunchoutVideoRendererSink::DrawFrame, this, _1, _2));
-  job_thread_->Schedule(std::bind(&PunchoutVideoRendererSink::Render, this),
-                        render_interval_);
+void PunchoutVideoRendererSink::RunLoop() {
+  while (!stop_requested_.load()) {
+    render_cb_(std::bind(&PunchoutVideoRendererSink::DrawFrame, this, _1, _2));
+    usleep(render_interval_);
+  }
+  std::lock_guard lock(mutex_);
+  Application::Get()->HandleFrame(player_, VideoFrame::CreateEOSFrame(), 0, 0,
+                                  0, 0, 0);
 }
 
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(

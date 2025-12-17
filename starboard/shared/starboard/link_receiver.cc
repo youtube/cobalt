@@ -221,11 +221,13 @@ class LinkReceiverImpl {
   class ReceiverThread : public Thread {
    public:
     explicit ReceiverThread(LinkReceiverImpl* receiver)
-        : Thread("LinkReceiver"), receiver_(receiver) {}
+        : Thread("LinkReceiver"), receiver_(receiver) {
+      SB_CHECK(receiver_);
+    }
     void Run() override { receiver_->Run(); }
 
    private:
-    LinkReceiverImpl* receiver_;
+    LinkReceiverImpl* const receiver_;
   };
 
   Application* application_;

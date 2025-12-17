@@ -34,7 +34,7 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
  private:
   void SetRenderCB(RenderCB render_cb) override;
   void SetBounds(int z_index, int x, int y, int width, int height) override;
-  void Render();
+  void RunLoop();
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds);
@@ -43,6 +43,7 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
   int64_t render_interval_;  // microseconds
   RenderCB render_cb_;
   std::unique_ptr<JobThread> job_thread_;
+  std::atomic_bool stop_requested_{false};
 
   std::mutex mutex_;
   int z_index_;
