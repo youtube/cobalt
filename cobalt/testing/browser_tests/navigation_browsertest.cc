@@ -2605,7 +2605,6 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
   }
 }
 
-// TODO(b/432503432): Investigate test failure
 #if !BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_CanceledNavigationBug999932 DISABLED_CanceledNavigationBug999932
 #else
