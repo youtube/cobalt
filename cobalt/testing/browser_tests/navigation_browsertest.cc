@@ -485,9 +485,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   }
 
   RenderFrameHost* initial_rfh = current_frame_host();
-
-  blink::LocalFrameToken initial_rfh_frame_token = initial_rfh->GetFrameToken();
-  int initial_rfh_process_id = initial_rfh->GetProcess()->GetID();
+  auto initial_rfh_global_token = initial_rfh->GetGlobalFrameToken();
 
   // Simulate clicking on a same-site link.
   {
@@ -507,14 +505,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
       // RenderDocument is enabled, the navigation will result in a new RFH, so
       // we need to compare with |initial_rfh|.
       EXPECT_NE(current_frame_host(), initial_rfh);
-      EXPECT_EQ(initial_rfh_frame_token,
+      EXPECT_EQ(initial_rfh_global_token.frame_token,
                 observer.last_initiator_frame_token().value());
-      EXPECT_EQ(initial_rfh_process_id, observer.last_initiator_process_id());
+      EXPECT_EQ(initial_rfh_global_token.child_id,
+                observer.last_initiator_process_id());
     } else {
       EXPECT_EQ(current_frame_host(), initial_rfh);
       EXPECT_EQ(current_frame_host()->GetFrameToken(),
                 observer.last_initiator_frame_token().value());
-      EXPECT_EQ(current_frame_host()->GetProcess()->GetID(),
+      EXPECT_EQ(current_frame_host()->GetProcess()->GetDeprecatedID(),
                 observer.last_initiator_process_id());
     }
   }
@@ -552,8 +551,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
   RenderFrameHost* initial_rfh = current_frame_host();
   url::Origin initial_origin = initial_rfh->GetLastCommittedOrigin();
-  blink::LocalFrameToken initiator_frame_token = initial_rfh->GetFrameToken();
-  int initiator_process_id = initial_rfh->GetProcess()->GetID();
+  auto initial_rfh_global_token = initial_rfh->GetGlobalFrameToken();
 
   // Simulate clicking on a cross-site link.
   {
@@ -569,9 +567,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
     EXPECT_TRUE(observer.last_navigation_succeeded());
     EXPECT_EQ(initial_origin, observer.last_initiator_origin().value());
     EXPECT_TRUE(observer.last_initiator_frame_token().has_value());
-    EXPECT_EQ(initiator_frame_token,
+    EXPECT_EQ(initial_rfh_global_token.frame_token,
               observer.last_initiator_frame_token().value());
-    EXPECT_EQ(initiator_process_id, observer.last_initiator_process_id());
+    EXPECT_EQ(initial_rfh_global_token.child_id,
+              observer.last_initiator_process_id());
   }
 
   // The RenderFrameHost should have changed unless default SiteInstances
@@ -1158,9 +1157,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
-  blink::LocalFrameToken initiator_frame_token =
-      current_frame_host()->GetFrameToken();
-  int initiator_process_id = current_frame_host()->GetProcess()->GetID();
+  auto initiator_global_token = current_frame_host()->GetGlobalFrameToken();
 
   // Simulate clicking on a cross-site link.
   {
@@ -1178,9 +1175,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
     EXPECT_EQ(url, observer.last_navigation_url());
     EXPECT_TRUE(observer.last_navigation_succeeded());
     EXPECT_TRUE(observer.last_initiator_frame_token().has_value());
-    EXPECT_EQ(initiator_frame_token,
+    EXPECT_EQ(initiator_global_token.frame_token,
               observer.last_initiator_frame_token().value());
-    EXPECT_EQ(initiator_process_id, observer.last_initiator_process_id());
+    EXPECT_EQ(initiator_global_token.child_id,
+              observer.last_initiator_process_id());
   }
 }
 
@@ -1201,8 +1199,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
   RenderFrameHost* initial_rfh = current_frame_host();
   url::Origin initial_origin = initial_rfh->GetLastCommittedOrigin();
-  blink::LocalFrameToken initiator_frame_token = initial_rfh->GetFrameToken();
-  int initiator_process_id = initial_rfh->GetProcess()->GetID();
+  auto initiator_global_token = initial_rfh->GetGlobalFrameToken();
 
   // Simulate clicking on a cross-site link which has rel="noopener".
   {
@@ -1222,9 +1219,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
     EXPECT_TRUE(observer.last_navigation_succeeded());
     EXPECT_EQ(initial_origin, observer.last_initiator_origin().value());
     EXPECT_TRUE(observer.last_initiator_frame_token().has_value());
-    EXPECT_EQ(initiator_frame_token,
+    EXPECT_EQ(initiator_global_token.frame_token,
               observer.last_initiator_frame_token().value());
-    EXPECT_EQ(initiator_process_id, observer.last_initiator_process_id());
+    EXPECT_EQ(initiator_global_token.child_id,
+              observer.last_initiator_process_id());
   }
 }
 
@@ -1249,8 +1247,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
   RenderFrameHostImpl* subframe_rfh =
       current_frame_host()->child_at(0)->current_frame_host();
-  blink::LocalFrameToken initiator_frame_token = subframe_rfh->GetFrameToken();
-  int initiator_process_id = subframe_rfh->GetProcess()->GetID();
+  auto initiator_global_token = subframe_rfh->GetGlobalFrameToken();
 
   // Simulate clicking on a cross-site link.
   {
@@ -1268,9 +1265,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
     EXPECT_EQ(url, observer.last_navigation_url());
     EXPECT_TRUE(observer.last_navigation_succeeded());
     EXPECT_TRUE(observer.last_initiator_frame_token().has_value());
-    EXPECT_EQ(initiator_frame_token,
+    EXPECT_EQ(initiator_global_token.frame_token,
               observer.last_initiator_frame_token().value());
-    EXPECT_EQ(initiator_process_id, observer.last_initiator_process_id());
+    EXPECT_EQ(initiator_global_token.child_id,
+              observer.last_initiator_process_id());
   }
 }
 
@@ -1339,9 +1337,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   GURL url(embedded_test_server()->GetURL("/simple_links.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
-  blink::LocalFrameToken initiator_frame_token =
-      current_frame_host()->GetFrameToken();
-  int initiator_process_id = current_frame_host()->GetProcess()->GetID();
+  auto initiator_global_token = current_frame_host()->GetGlobalFrameToken();
 
   // Simulate middle-clicking on a cross-site link.
   {
@@ -1362,9 +1358,10 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
     EXPECT_EQ(url, observer.last_navigation_url());
     EXPECT_TRUE(observer.last_navigation_succeeded());
     EXPECT_TRUE(observer.last_initiator_frame_token().has_value());
-    EXPECT_EQ(initiator_frame_token,
+    EXPECT_EQ(initiator_global_token.frame_token,
               observer.last_initiator_frame_token().value());
-    EXPECT_EQ(initiator_process_id, observer.last_initiator_process_id());
+    EXPECT_EQ(initiator_global_token.child_id,
+              observer.last_initiator_process_id());
   }
 }
 
@@ -3670,8 +3667,13 @@ IN_PROC_BROWSER_TEST_F(
   RenderFrameHost* openee_rfh =
       static_cast<WebContentsImpl*>(openee_shell->web_contents())
           ->GetPrimaryMainFrame();
-  blink::LocalFrameToken initiator_frame_token = openee_rfh->GetFrameToken();
-  int initiator_process_id = openee_rfh->GetProcess()->GetID();
+  // Issue a KeepAlive for the navigation state so that the PolicyContainerHost
+  // will still exist after the initiator RenderFrameHost is gone.
+  mojo::PendingRemote<blink::mojom::NavigationStateKeepAliveHandle> keep_alive;
+  static_cast<RenderFrameHostImpl*>(openee_rfh)
+      ->IssueKeepAliveHandle(keep_alive.InitWithNewPipeAndPassReceiver());
+
+  auto initiator_global_token = openee_rfh->GetGlobalFrameToken();
   base::RunLoop loop;
   DidStartNavigationCallback callback(
       web_contents(), base::BindLambdaForTesting([&](NavigationHandle* handle) {
@@ -3680,11 +3682,12 @@ IN_PROC_BROWSER_TEST_F(
         const std::optional<blink::LocalFrameToken>& frame_token =
             request->GetInitiatorFrameToken();
         EXPECT_TRUE(frame_token.has_value());
-        EXPECT_EQ(initiator_frame_token, frame_token.value());
-        EXPECT_EQ(initiator_process_id, request->GetInitiatorProcessID());
+        EXPECT_EQ(initiator_global_token.frame_token, frame_token.value());
+        EXPECT_EQ(initiator_global_token.child_id,
+                  request->GetInitiatorProcessId());
 
         auto* initiator_rfh = RenderFrameHostImpl::FromFrameToken(
-            request->GetInitiatorProcessID(), *frame_token);
+            request->GetInitiatorProcessId(), *frame_token);
         ASSERT_FALSE(initiator_rfh);
 
         // Even if the initiator RenderFrameHost is gone, its policy container
@@ -3761,8 +3764,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
           ->GetPrimaryMainFrame()
           ->child_at(0)
           ->current_frame_host();
-  blink::LocalFrameToken initiator_frame_token = initiator_rfh->GetFrameToken();
-  int initiator_process_id = initiator_rfh->GetProcess()->GetID();
+  auto initiator_global_token = initiator_rfh->GetGlobalFrameToken();
   base::RunLoop loop;
   DidStartNavigationCallback callback(
       web_contents(), base::BindLambdaForTesting([&](NavigationHandle* handle) {
@@ -3772,8 +3774,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
         const std::optional<blink::LocalFrameToken>& frame_token =
             request->GetInitiatorFrameToken();
         EXPECT_TRUE(frame_token.has_value());
-        EXPECT_EQ(initiator_frame_token, frame_token.value());
-        EXPECT_EQ(initiator_process_id, request->GetInitiatorProcessID());
+        EXPECT_EQ(initiator_global_token.frame_token, frame_token.value());
+        EXPECT_EQ(initiator_global_token.child_id,
+                  request->GetInitiatorProcessId());
 
         auto* initiator_rfh = RenderFrameHostImpl::FromFrameToken(
             request->GetInitiatorProcessID(), frame_token.value());
@@ -3879,8 +3882,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
         const std::optional<blink::LocalFrameToken>& frame_token =
             request->GetInitiatorFrameToken();
         EXPECT_TRUE(frame_token.has_value());
-        EXPECT_EQ(initiator_frame_token, frame_token.value());
-        EXPECT_EQ(initiator_process_id, request->GetInitiatorProcessID());
+        EXPECT_EQ(initiator_global_token.frame_token, frame_token.value());
+        EXPECT_EQ(initiator_global_token.child_id,
+                  request->GetInitiatorProcessId());
 
         auto* initiator_rfh = RenderFrameHostImpl::FromFrameToken(
             request->GetInitiatorProcessID(), frame_token.value());
