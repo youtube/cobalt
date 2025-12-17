@@ -44,9 +44,7 @@ Thread::Thread(const std::string& name, int64_t stack_size) {
   d_->stack_size_ = stack_size;
 }
 
-Thread::~Thread() {
-  SB_DCHECK(d_->join_called_.load()) << "Join not called on thread.";
-}
+Thread::~Thread() = default;
 
 void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
@@ -107,9 +105,8 @@ void Thread::Join() {
   d_->join_called_.store(true);
   d_->join_sema_.Put();
 
-  if (pthread_join(d_->thread_, NULL) != 0) {
-    SB_DCHECK(false) << "Could not join thread.";
-  }
+  int result = pthread_join(d_->thread_, /*retval=*/nullptr);
+  SB_CHECK_EQ(result, 0) << "Could not join thread: " << strerror(result);
 }
 
 bool Thread::join_called() const {
