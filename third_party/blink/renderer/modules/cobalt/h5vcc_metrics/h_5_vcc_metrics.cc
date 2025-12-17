@@ -95,6 +95,21 @@ ScriptPromise<IDLUndefined> H5vccMetrics::setMetricEventInterval(
   return resolver->Promise();
 }
 
+ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+      script_state, exception_state.GetContext());
+  h5vcc_metrics_promises_.insert(resolver);
+
+  EnsureRemoteIsBound();
+
+  remote_h5vcc_metrics_->RequestHistograms(
+      WTF::BindOnce(&OnRequestHistograms, WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
 void H5vccMetrics::OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
                              const WTF::String& metric_payload) {
   // Do not upload UMA payload if execution context is destroyed.
@@ -166,6 +181,12 @@ void H5vccMetrics::OnSetMetricEventInterval(
     ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   resolver->Resolve();
+}
+
+void H5vccMetrics::OnRequestHistograms(
+    ScriptPromiseResolver<IDLString>* resolver,
+    const WTF::String& histograms_json) {
+  resolver->Resolve(histograms_json);
 }
 
 void H5vccMetrics::EnsureRemoteIsBound() {
