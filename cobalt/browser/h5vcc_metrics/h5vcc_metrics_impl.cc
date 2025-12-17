@@ -14,8 +14,12 @@
 
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 
+#include "base/json/json_writer.h"
+#include "base/metrics/histogram.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
+#include "base/values.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -64,6 +68,26 @@ void H5vccMetricsImpl::SetMetricEventInterval(
       ->metrics_service_client()
       ->SetUploadInterval(base::Seconds(interval_seconds));
   std::move(callback).Run();
+}
+
+void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Synchronously fetch subprocess histograms that live in shared memory.
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+
+  base::Value::List histograms_list;
+  for (base::HistogramBase* histogram :
+       base::StatisticsRecorder::GetHistograms()) {
+    base::Value::Dict histogram_dict = histogram->ToGraphDict();
+    if (!histogram_dict.empty()) {
+      histograms_list.Append(std::move(histogram_dict));
+    }
+  }
+
+  // Converting to json string to avoid complex Mojo interface definition.
+  std::string json_string;
+  base::JSONWriter::Write(histograms_list, &json_string);
+  std::move(callback).Run(json_string);
 }
 
 }  // namespace h5vcc_metrics

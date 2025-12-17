@@ -56,4 +56,6 @@ interface H5vccMetrics : EventTarget {
   // again with a different value."
   // This API is now Promise-based.
   [CallWith=ScriptState, RaisesException] Promise<undefined> setMetricEventInterval(unsigned long long intervalSeconds);
+
+  [CallWith=ScriptState, RaisesException] Promise<DOMString> requestHistograms();
 };
