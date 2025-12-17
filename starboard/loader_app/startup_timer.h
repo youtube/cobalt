@@ -2,6 +2,7 @@
 #define STARBOARD_LOADER_APP_STARTUP_TIMER_H_
 
 #include "starboard/common/time.h"
+#include "starboard/export.h"
 
 namespace loader_app {
 namespace StartupTimer {
@@ -16,7 +17,7 @@ int64_t TimeElapsed();
 void SetAppStartupTime();
 
 // Returns the application startup time.
-int64_t GetAppStartupTime();
+SB_EXPORT int64_t GetAppStartupTime();
 
 }  // namespace StartupTimer
 }  // namespace loader_app

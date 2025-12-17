@@ -62,7 +62,7 @@ void SetAppStartupTime() {
   Impl::Instance()->SetAppStartupTime();
 }
 
-int64_t GetAppStartupTime() {
+SB_EXPORT int64_t GetAppStartupTime() {
   return Impl::Instance()->GetAppStartupTime();
 }
 
