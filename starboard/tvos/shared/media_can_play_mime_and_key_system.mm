@@ -31,7 +31,7 @@ const char kUrlPlayerMimeType[] = "application/x-mpegURL";
 const size_t kUrlPlayerMimeTypeLength = strlen(kUrlPlayerMimeType);
 const int64_t kDefaultAudioChannels = 2;
 
-bool IsAudioCodecSupportedByUrlPlayer(const MimeType& mime_type,
+bool IsAudioCodecSupportedByUrlPlayer(const starboard::MimeType& mime_type,
                                       const std::string& codec) {
   SbMediaAudioCodec audio_codec = starboard::GetAudioCodecFromString(
       codec.c_str(), mime_type.subtype().c_str());
@@ -93,7 +93,7 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
   // "application/x-mpegURL" is for hls content and will use UrlPlayer. The
   // supported types are different from SbPlayer.
   if (strncmp(kUrlPlayerMimeType, mime, kUrlPlayerMimeTypeLength) == 0) {
-    MimeType mime_type(mime);
+    starboard::MimeType mime_type(mime);
     auto codecs = mime_type.GetCodecs();
     for (const auto& codec : codecs) {
       if (!IsAudioCodecSupportedByUrlPlayer(mime_type, codec) &&
