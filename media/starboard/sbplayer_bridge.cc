@@ -1225,6 +1225,8 @@ void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
                      helper->callback_helper_,
+                     // SAFETY: `player` is kept alive by the caller until the
+                     // callback is run.
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      type, state, ticket));
 }
@@ -1239,6 +1241,8 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
                      helper->callback_helper_,
+                     // SAFETY: `player` is kept alive by the caller until the
+                     // callback is run.
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      state, ticket));
 }
@@ -1260,6 +1264,8 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnPlayerError,
                      helper->callback_helper_,
+                     // SAFETY: `player` is kept alive by the caller until the
+                     // callback is run.
                      base::UnsafeDanglingUntriaged(static_cast<void*>(player)),
                      error, message ? std::string(message) : ""));
 }
@@ -1272,7 +1278,11 @@ void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
   helper->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                     helper->callback_helper_, sample_buffer));
+                     helper->callback_helper_,
+                     // SAFETY: `sample_buffer` is from a `DecoderBuffer` that
+                     // is kept alive by a `scoped_refptr` in `decoder_buffers_`
+                     // until this callback runs and releases it.
+                     base::UnsafeDanglingUntriaged(sample_buffer)));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)

@@ -17,12 +17,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <iterator>
 #include <memory>
 
 #include "starboard/common/log.h"
 
 namespace {
+
+// Ensure that |struct musl_sockaddr| is large enough to hold either
+// |struct sockaddr_in| or |struct sockaddr_in6| on this platform.
+static_assert(sizeof(struct musl_sockaddr) >= sizeof(struct sockaddr_in));
+static_assert(sizeof(struct musl_sockaddr) >= sizeof(struct sockaddr_in6));
 
 struct platform_iov_deleter {
   void operator()(struct iovec* ptr) const { free(ptr); }
@@ -329,17 +335,17 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
         free(musl_ai);
         return -1;
       }
-      musl_ai->ai_addrlen = ai_copy.ai_addrlen;
-      musl_ai->ai_addr =
-          (struct musl_sockaddr*)calloc(1, sizeof(struct musl_sockaddr));
+      musl_ai->ai_addrlen =
+          std::min(static_cast<uint32_t>(ai_copy.ai_addrlen),
+                   static_cast<uint32_t>(sizeof(struct musl_sockaddr)));
+      musl_ai->ai_addr = (struct musl_sockaddr*)calloc(1, musl_ai->ai_addrlen);
+      memcpy(musl_ai->ai_addr, ai_copy.ai_addr, musl_ai->ai_addrlen);
+      // Ensure that the sa_family value is translated if the platform value
+      // differs from the musl value.
       for (int i = 0; i < sizeof(PLATFORM_AF_ORDERED) / sizeof(int); i++) {
         if (ai_copy.ai_addr->sa_family == PLATFORM_AF_ORDERED[i]) {
           musl_ai->ai_addr->sa_family = MUSL_AF_ORDERED[i];
         }
-      }
-      if (ai_copy.ai_addr->sa_data != nullptr) {
-        memcpy(musl_ai->ai_addr->sa_data, ai_copy.ai_addr->sa_data,
-               sizeof(ai_copy.ai_addr->sa_data));
       }
       if (ai_copy.ai_canonname) {
         size_t canonname_len = strlen(ai_copy.ai_canonname);

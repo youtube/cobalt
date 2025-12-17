@@ -21,9 +21,11 @@
 const char kWidevineL3SystemName[] = "com.youtube.widevine.l3";
 const char kWidevineForceHdcpSystemName[] = "com.youtube.widevine.forcehdcp";
 
-bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        const char* key_system) {
+namespace starboard::shared::starboard::media {
+
+bool MediaIsSupported(SbMediaVideoCodec video_codec,
+                      SbMediaAudioCodec audio_codec,
+                      const char* key_system) {
   if (strchr(key_system, ';')) {
     // TODO: Remove this check and enable key system with attributes support.
     return false;
@@ -48,3 +50,5 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
          (audio_codec == kSbMediaAudioCodecNone ||
           audio_codec == kSbMediaAudioCodecAac);
 }
+
+}  // namespace starboard::shared::starboard::media
