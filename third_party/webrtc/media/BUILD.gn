@@ -376,22 +376,33 @@ rtc_library("rtc_internal_video_codecs") {
     "../api/video_codecs:rtc_software_fallback_wrappers",
     "../api/video_codecs:video_codecs_api",
     "../api/video_codecs:video_encoder_factory_template",
-    "../api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
-    "../api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
     "../api/video_codecs:video_encoder_factory_template_open_h264_adapter",
     "../call:call_interfaces",
     "../call:video_stream_api",
     "../modules/video_coding:video_codec_interface",
     "../modules/video_coding:webrtc_h264",
     "../modules/video_coding:webrtc_multiplex",
-    "../modules/video_coding:webrtc_vp8",
-    "../modules/video_coding:webrtc_vp9",
     "../rtc_base:checks",
     "../rtc_base:logging",
     "../rtc_base/system:rtc_export",
     "../system_wrappers:field_trial",
     "../test:fake_video_codecs",
   ]
+
+  if (rtc_libvpx_build_vp9) {
+    deps += [
+      "../modules/video_coding:webrtc_vp9",
+      "../api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
+    ]
+  }
+
+  if (rtc_build_libvpx) {
+    deps += [
+      "../modules/video_coding:webrtc_vp8",
+      "../api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
+    ]
+    defines += [ "RTC_ENABLE_VP8" ]
+  }
 
   if (enable_libaom) {
     defines += [ "RTC_USE_LIBAOM_AV1_ENCODER" ]

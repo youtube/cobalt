@@ -64,3 +64,7 @@ enable_widevine = true
 
 # Disable dav1d in webrtc to reduce binary size (~533KB)
 rtc_include_dav1d_in_internal_decoder_factory = false
+
+# Disable libvpx to reduce binary size (~700KB).
+rtc_build_libvpx = false
+rtc_libvpx_build_vp9 = false
