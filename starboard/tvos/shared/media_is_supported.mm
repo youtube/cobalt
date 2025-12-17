@@ -14,8 +14,6 @@
 
 #include "starboard/common/string.h"
 #include "starboard/media.h"
-#include "starboard/shared/starboard/media/media_support_internal.h"
-#include "starboard/shared/widevine/drm_system_widevine.h"
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 
 const char kWidevineL3SystemName[] = "com.youtube.widevine.l3";
@@ -36,15 +34,14 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
     return true;
   }
 
-  if (key_system ==
-      starboard::shared::uikit::DrmSystemPlatform::GetKeySystemName()) {
+  if (std::string_view(key_system) ==
+      ::starboard::DrmSystemPlatform::GetKeySystemName()) {
     // We don't use AVPlayer for encrypted vp9.
     return video_codec != kSbMediaVideoCodecVp9;
   }
 
   // Only encrypted VP9 and AAC are supported.
-  return starboard::shared::uikit::DrmSystemPlatform::IsKeySystemSupported(
-             key_system) &&
+  return ::starboard::DrmSystemPlatform::IsKeySystemSupported(key_system) &&
          (video_codec == kSbMediaVideoCodecNone ||
           video_codec == kSbMediaVideoCodecVp9) &&
          (audio_codec == kSbMediaAudioCodecNone ||
