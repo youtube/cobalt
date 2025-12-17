@@ -50,7 +50,7 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
   render_cb_ = render_cb;
 
   job_thread_ = std::make_unique<JobThread>("punchoutvidsink");
-  job_thread_->Schedule(std::bind(&PunchoutVideoRendererSink::RunLoop, this));
+  job_thread_->Schedule([this] { RunLoop(); });
 }
 
 void PunchoutVideoRendererSink::SetBounds(int z_index,
