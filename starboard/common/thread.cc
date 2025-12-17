@@ -17,7 +17,6 @@
 #include "starboard/common/thread.h"
 
 #include <pthread.h>
-#include <string.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -114,7 +113,8 @@ void Thread::Join() {
   d_->join_sema_.Put();
 
   if (!d_->started_.load()) {
-    SB_LOG(WARNING) << "Join is called on not started thread. Ignore it.";
+    SB_LOG(WARNING) << "Join() called on thread '" << d_->name_
+                    << "' which was not started. Ignoring.";
     return;
   }
 
