@@ -24,6 +24,7 @@ static_library("libc") {
       "locale/locale_support.cc",
       "locale/locale_support.h",
       "stdlib/environment.cc",
+      "stdlib/sdallocx.cc",
       "time/gmtime.cc",
       "time/icu_time_support.cc",
       "time/icu_time_support.h",
