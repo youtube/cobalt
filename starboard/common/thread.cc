@@ -17,6 +17,7 @@
 #include "starboard/common/thread.h"
 
 #include <pthread.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -26,6 +27,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread_platform.h"
+#include "starboard/system.h"
 
 namespace starboard {
 
@@ -44,7 +46,13 @@ Thread::Thread(const std::string& name, int64_t stack_size) {
   d_->stack_size_ = stack_size;
 }
 
-Thread::~Thread() = default;
+Thread::~Thread() {
+  // A started thread must be joined before destruction.
+  if (d_->started_.load()) {
+    SB_DCHECK(d_->join_called_.load())
+        << "Thread '" << d_->name_ << "' was not joined before destruction.";
+  }
+}
 
 void Thread::Start() {
   SB_DCHECK(!d_->started_.load());
@@ -105,8 +113,18 @@ void Thread::Join() {
   d_->join_called_.store(true);
   d_->join_sema_.Put();
 
+  if (!d_->started_.load()) {
+    SB_LOG(WARNING) << "Join is called on not started thread. Ignore it.";
+    return;
+  }
+
   int result = pthread_join(d_->thread_, /*retval=*/nullptr);
-  SB_CHECK_EQ(result, 0) << "Could not join thread: " << strerror(result);
+  if (result != 0) {
+    char error_msg[256];
+    SbSystemGetErrorString(static_cast<SbSystemError>(result), error_msg,
+                           sizeof(error_msg));
+    SB_CHECK_EQ(result, 0) << "Could not join thread: " << error_msg;
+  }
 }
 
 bool Thread::join_called() const {
