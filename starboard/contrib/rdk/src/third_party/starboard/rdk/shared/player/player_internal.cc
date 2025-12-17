@@ -774,6 +774,9 @@ static GstVideoColorPrimaries PrimaryIdToGstVideoColorPrimaries(SbMediaPrimaryId
 }
 
 static void AddColorMetadataToGstCaps(GstCaps* caps, const SbMediaColorMetadata& color_metadata) {
+  if (color_metadata.bits_per_channel < 8) {
+    return;
+  }
   if (IsSDRVideo(color_metadata.bits_per_channel,
                  color_metadata.primaries,
                  color_metadata.transfer,
