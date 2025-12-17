@@ -97,13 +97,17 @@ void LoadLibraryAndInitialize(const std::string& alternative_content_path,
     SB_LOG(ERROR) << "Failed to get the content dir";
     return;
   }
+  SB_LOG(INFO) << "getting content_dir" << content_dir;
   std::string content_path;
   if (alternative_content_path.empty()) {
     content_path = content_dir;
     content_path += kSbFileSepString;
     content_path += kSystemImageContentPath;
+    SB_LOG(INFO) << "getting content_path" << content_path
+                 << "alternative_content_path" << alternative_content_path;
   } else {
     content_path = alternative_content_path.c_str();
+    SB_LOG(INFO) << "getting content_path" << content_path;
   }
   std::string library_path = content_dir;
   library_path += kSbFileSepString;
