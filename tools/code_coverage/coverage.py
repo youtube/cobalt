@@ -204,8 +204,9 @@ def _GetTargetOS():
 
 
 def _IsAndroid():
-  """Returns true if the target_os specified in args.gn file is android"""
-  return _GetTargetOS() == 'android'
+  """Returns true if the target_os is android or build dir suggests so."""
+  return _GetTargetOS() == 'android' or (BUILD_DIR and
+                                         'android' in BUILD_DIR.lower())
 
 
 def _IsIOS():
