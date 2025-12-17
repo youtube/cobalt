@@ -153,6 +153,10 @@ TEST(ContentSecurityPolicyConversionUtilTest,
         source_list.allow_unsafe_hashes = true;
       },
       [](CSPSourceList& source_list) { source_list.report_sample = true; },
+#if BUILD_FLAG(IS_COBALT)
+      [](CSPSourceList& source_list) { source_list.cobalt_insecure_local_network = true; },
+      [](CSPSourceList& source_list) { source_list.cobalt_insecure_private_range = true; },
+#endif   // BUILD_FLAG(IS_COBALT)
   };
 
   for (const auto& modify_csp : test_cases) {
