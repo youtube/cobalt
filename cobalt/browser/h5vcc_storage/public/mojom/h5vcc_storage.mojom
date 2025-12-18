@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_CRASH_HANDLER_H_
-#define STARBOARD_SHARED_STARBOARD_CRASH_HANDLER_H_
+module h5vcc_storage.mojom;
 
-namespace starboard {
-
-const void* GetCrashHandlerApi();
-
-}  // namespace starboard
-
-#endif  // STARBOARD_SHARED_STARBOARD_CRASH_HANDLER_H_
+// The browser process must provide an implementation of this interface so that
+// the renderer process can implement the H5vccStorage Blink API.
+interface H5vccStorage {
+  // Only intended to be used by tests.
+  ClearCrashpadDatabase() => ();
+};

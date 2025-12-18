@@ -34,6 +34,7 @@ static_assert(LC_ALL == 6, "Cobalt expects this value from musl.");
 // Convenient constexpr string for the C locale. All conforming systems must
 // support the "C" locale.
 constexpr char kCLocale[] = "C";
+constexpr char kPosixLocale[] = "POSIX";
 
 // |kAllValidCategoriesMask| combines all bit masks together. It is used in
 // newlocale() and UpdateLocaleSettings() as an alias for LC_ALL.

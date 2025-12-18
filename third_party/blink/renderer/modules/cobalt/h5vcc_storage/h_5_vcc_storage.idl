@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_CRASH_HANDLER_H_
-#define STARBOARD_SHARED_STARBOARD_CRASH_HANDLER_H_
-
-namespace starboard {
-
-const void* GetCrashHandlerApi();
-
-}  // namespace starboard
-
-#endif  // STARBOARD_SHARED_STARBOARD_CRASH_HANDLER_H_
+// This interface mirrors subset of the H5vccStorage Web IDL defined in Cobalt
+// LTS 25:
+// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_storage.idl
+[
+  Exposed=Window,
+  SecureContext
+]
+interface H5vccStorage {
+  // Only intended to be used by tests.
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> clearCrashpadDatabase();
+};
