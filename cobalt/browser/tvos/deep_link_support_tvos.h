@@ -12,22 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
-#define COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
+#ifndef COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_
+#define COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_
 
-#ifdef __OBJC__
-#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
 
-NS_ASSUME_NONNULL_BEGIN
+@interface DeepLinkSupportTvos : NSObject
 
-// UIApplicationDelegate implementation for web_view_shell.
-@interface ShellAppDelegate : UIResponder <UIApplicationDelegate>
-
+// Handle Siri Intent. It passes `query` to DeepLinkManager.
++ (void)handleSiriIntents:(NSString*)query isSearch:(BOOL)isSearch;
 @end
 
-NS_ASSUME_NONNULL_END
-#endif
-
-int RunShellApplication(int argc, const char* _Nullable* _Nullable argv);
-
-#endif  // COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
+#endif  // COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_

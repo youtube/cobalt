@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/at_exit.h"
-#include "cobalt/shell/app/ios/shell_application_ios.h"
+module h5vcc_storage.mojom;
 
-int main(int argc, const char** argv) {
-  // Create this here since it's needed to start the crash handler.
-  base::AtExitManager at_exit;
-  // For now, just launch the default application from the shell.
-  return RunShellApplication(argc, argv);
-}
+// The browser process must provide an implementation of this interface so that
+// the renderer process can implement the H5vccStorage Blink API.
+interface H5vccStorage {
+  // Only intended to be used by tests.
+  ClearCrashpadDatabase() => ();
+};
