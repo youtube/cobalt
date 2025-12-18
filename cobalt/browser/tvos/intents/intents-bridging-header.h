@@ -12,22 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
-#define COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
+#ifndef COBALT_BROWSER_TVOS_INTENTS_INTENTS_BRIDGING_HEADER_H_
+#define COBALT_BROWSER_TVOS_INTENTS_INTENTS_BRIDGING_HEADER_H_
 
-#ifdef __OBJC__
-#import <UIKit/UIKit.h>
+#import "cobalt/browser/tvos/deep_link_support_tvos.h"
 
-NS_ASSUME_NONNULL_BEGIN
-
-// UIApplicationDelegate implementation for web_view_shell.
-@interface ShellAppDelegate : UIResponder <UIApplicationDelegate>
-
-@end
-
-NS_ASSUME_NONNULL_END
-#endif
-
-int RunShellApplication(int argc, const char* _Nullable* _Nullable argv);
-
-#endif  // COBALT_SHELL_APP_IOS_SHELL_APPLICATION_IOS_H_
+#endif  // COBALT_BROWSER_TVOS_INTENTS_INTENTS_BRIDGING_HEADER_H_

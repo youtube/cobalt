@@ -24,7 +24,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
@@ -164,12 +163,8 @@ void FfmpegVideoDecoderImpl<FFMPEG>::WriteInputBuffers(
   }
 
   if (!decoder_thread_) {
-    pthread_t thread;
-    const int result =
-        pthread_create(&thread, nullptr,
-                       &FfmpegVideoDecoderImpl<FFMPEG>::ThreadEntryPoint, this);
-    SB_CHECK_EQ(result, 0);
-    decoder_thread_ = thread;
+    decoder_thread_ = std::make_unique<DecoderThread>(this);
+    decoder_thread_->Start();
   }
   queue_.Put(Event(input_buffer));
 }
@@ -195,14 +190,14 @@ void FfmpegVideoDecoderImpl<FFMPEG>::Reset() {
   // Join the thread to ensure that all callbacks in process are finished.
   if (decoder_thread_) {
     queue_.Put(Event(kReset));
-    pthread_join(*decoder_thread_, nullptr);
+    decoder_thread_->Join();
+    decoder_thread_.reset();
   }
 
   if (codec_context_ != NULL) {
     ffmpeg_->avcodec_flush_buffers(codec_context_);
   }
 
-  decoder_thread_ = std::nullopt;
   stream_ended_ = false;
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -217,17 +212,6 @@ void FfmpegVideoDecoderImpl<FFMPEG>::Reset() {
 
 bool FfmpegVideoDecoderImpl<FFMPEG>::is_valid() const {
   return (ffmpeg_ != NULL) && ffmpeg_->is_valid() && (codec_context_ != NULL);
-}
-
-// static
-void* FfmpegVideoDecoderImpl<FFMPEG>::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "ff_video_dec");
-  SbThreadSetPriority(kSbThreadPriorityHigh);
-  SB_DCHECK(context);
-  FfmpegVideoDecoderImpl<FFMPEG>* decoder =
-      reinterpret_cast<FfmpegVideoDecoderImpl<FFMPEG>*>(context);
-  decoder->DecoderThreadFunc();
-  return NULL;
 }
 
 void FfmpegVideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {

@@ -88,10 +88,6 @@
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
 
-#if BUILDFLAG(IS_IOS)
-#include "cobalt/shell/app/ios/shell_application_ios.h"
-#endif
-
 namespace {
 
 enum class LoggingDest {
