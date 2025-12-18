@@ -31,11 +31,11 @@ class ApplicationDarwin final {
   static void DecrementIdleTimerLockCount();
 
  private:
-  struct ObjCStorage;
-  std::unique_ptr<ObjCStorage> objc_storage_;
-
   class ApplicationDarwinInternal;
   std::unique_ptr<ApplicationDarwinInternal> application_darwin_internal_;
+
+  struct ObjCStorage;
+  std::unique_ptr<ObjCStorage> objc_storage_;
 };
 
 }  // namespace starboard

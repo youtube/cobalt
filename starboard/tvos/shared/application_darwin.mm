@@ -86,9 +86,9 @@ class ApplicationDarwin::ApplicationDarwinInternal final
 
 ApplicationDarwin::ApplicationDarwin(
     std::unique_ptr<::starboard::CommandLine> command_line)
-    : objc_storage_(std::make_unique<ObjCStorage>()),
-      application_darwin_internal_(std::make_unique<ApplicationDarwinInternal>(
-          std::move(command_line))) {
+    : application_darwin_internal_(
+          std::make_unique<ApplicationDarwinInternal>(std::move(command_line))),
+      objc_storage_(std::make_unique<ObjCStorage>()) {
   objc_storage_->objc_application = [[ObjCApplication alloc] init];
   SB_CHECK(objc_storage_->objc_application);
   g_starboard_application_ = objc_storage_->objc_application;
