@@ -1996,13 +1996,15 @@ void LocationBarView::OnLocationIconPressed(const ui::MouseEvent& event) {
       GetOmniboxController()->edit_model()->ShouldShowAddContextButton()) {
     if (!omnibox_popup_aim_presenter_ ||
         !omnibox_popup_aim_presenter_->GetWebUIContent() ||
-        !omnibox_popup_aim_presenter_->GetWebUIContent()->GetWebContents()) {
+        !omnibox_popup_aim_presenter_->GetWebUIContent()
+             ->GetWrappedWebContents()) {
       return;
     }
 
     omnibox_context_menu_ = std::make_unique<OmniboxContextMenu>(
         GetWidget(), omnibox_popup_file_selector_.get(),
-        omnibox_popup_aim_presenter_->GetWebUIContent()->GetWebContents());
+        omnibox_popup_aim_presenter_->GetWebUIContent()
+            ->GetWrappedWebContents());
     gfx::Point point(0, location_icon_view_->height());
     views::View::ConvertPointToScreen(location_icon_view_, &point);
     run_omnibox_context_menu_callback_.Run(omnibox_context_menu_.get(), point);
