@@ -1687,14 +1687,11 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // when history.pushState() and history.back() are called in a loop.
 // Failing to do so causes the browser to become unresponsive.
 // See https://crbug.com/882238
+// TODO(crbug.com/379844650): Disabled on Linux sanitizer bots due to flakiness.
 // TODO: b/432503432 - Investigate test failure
-#if !BUILDFLAG(IS_ANDROIDTV)
-#define MAYBE_IPCFlood_GoToEntryAtOffset DISABLED_IPCFlood_GoToEntryAtOffset
-#else
-#define MAYBE_IPCFlood_GoToEntryAtOffset IPCFlood_GoToEntryAtOffset
-#endif
+
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       MAYBE_IPCFlood_GoToEntryAtOffset) {
+                       DISABLED_IPCFlood_GoToEntryAtOffset) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -1749,7 +1746,14 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, MAYBE_IPCFlood_Navigation) {
 }
 
 // Add header on redirect.
-IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest, AddRequestHeaderOnRedirect) {
+// TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_AddRequestHeaderOnRedirect DISABLED_AddRequestHeaderOnRedirect
+#else
+#define MAYBE_AddRequestHeaderOnRedirect AddRequestHeaderOnRedirect
+#endif
+IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
+                       MAYBE_AddRequestHeaderOnRedirect) {
   net::test_server::ControllableHttpResponse response_1(embedded_test_server(),
                                                         "", true);
   net::test_server::ControllableHttpResponse response_2(embedded_test_server(),
@@ -1791,9 +1795,16 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest, AddRequestHeaderOnRedirect) {
                     .size());
 }
 
+// TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_AddRequestHeaderModifyOnRedirect \
+  DISABLED_AddRequestHeaderModifyOnRedirect
+#else
+#define MAYBE_AddRequestHeaderModifyOnRedirect AddRequestHeaderModifyOnRedirect
+#endif
 // Add header on request start, modify it on redirect.
 IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
-                       AddRequestHeaderModifyOnRedirect) {
+                       MAYBE_AddRequestHeaderModifyOnRedirect) {
   net::test_server::ControllableHttpResponse response_1(embedded_test_server(),
                                                         "", true);
   net::test_server::ControllableHttpResponse response_2(embedded_test_server(),
@@ -1835,9 +1846,16 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
             response_2.http_request()->headers.at("header_name"));
 }
 
+// TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_AddRequestHeaderRemoveOnRedirect \
+  DISABLED_AddRequestHeaderRemoveOnRedirect
+#else
+#define MAYBE_AddRequestHeaderRemoveOnRedirect AddRequestHeaderRemoveOnRedirect
+#endif
 // Add header on request start, remove it on redirect.
 IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
-                       AddRequestHeaderRemoveOnRedirect) {
+                       MAYBE_AddRequestHeaderRemoveOnRedirect) {
   net::test_server::ControllableHttpResponse response_1(embedded_test_server(),
                                                         "", true);
   net::test_server::ControllableHttpResponse response_2(embedded_test_server(),
@@ -1957,10 +1975,16 @@ class NavigationCorsExemptBrowserTest : public NavigationBaseBrowserTest {
   std::unique_ptr<CorsContentBrowserClient> cors_content_browser_client_;
 };
 
+// TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_SetCorsExemptRequestHeader DISABLED_SetCorsExemptRequestHeader
+#else
+#define MAYBE_SetCorsExemptRequestHeader SetCorsExemptRequestHeader
+#endif
 // Verifies a header added by way of SetRequestHeader() makes it into
 // |cors_exempt_headers|.
 IN_PROC_BROWSER_TEST_F(NavigationCorsExemptBrowserTest,
-                       SetCorsExemptRequestHeader) {
+                       MAYBE_SetCorsExemptRequestHeader) {
   net::test_server::ControllableHttpResponse response(embedded_test_server(),
                                                       "", true);
   ASSERT_TRUE(embedded_test_server()->Start());
@@ -1987,63 +2011,9 @@ IN_PROC_BROWSER_TEST_F(NavigationCorsExemptBrowserTest,
   EXPECT_EQ(header_value, last_cors_header_value());
 }
 
-struct NewWebContentsData {
-  NewWebContentsData() = default;
-  NewWebContentsData(NewWebContentsData&& other)
-      : new_web_contents(std::move(other.new_web_contents)),
-        manager(std::move(other.manager)) {}
-
-  std::unique_ptr<WebContents> new_web_contents;
-  std::unique_ptr<TestNavigationManager> manager;
-};
-
-class CreateWebContentsOnCrashObserver : public NotificationObserver {
- public:
-  CreateWebContentsOnCrashObserver(const GURL& url,
-                                   WebContents* first_web_contents)
-      : url_(url), first_web_contents_(first_web_contents) {}
-
-  CreateWebContentsOnCrashObserver(const CreateWebContentsOnCrashObserver&) =
-      delete;
-  CreateWebContentsOnCrashObserver& operator=(
-      const CreateWebContentsOnCrashObserver&) = delete;
-
-  void Observe(int type,
-               const NotificationSource& source,
-               const NotificationDetails& details) override {
-    EXPECT_EQ(content::NOTIFICATION_RENDERER_PROCESS_CLOSED, type);
-
-    // Only do this once in the test.
-    if (observed_) {
-      return;
-    }
-    observed_ = true;
-
-    WebContents::CreateParams new_contents_params(
-        first_web_contents_->GetBrowserContext(),
-        first_web_contents_->GetSiteInstance());
-    data_.new_web_contents = WebContents::Create(new_contents_params);
-    data_.manager = std::make_unique<TestNavigationManager>(
-        data_.new_web_contents.get(), url_);
-    NavigationController::LoadURLParams load_params(url_);
-    data_.new_web_contents->GetController().LoadURLWithParams(load_params);
-  }
-
-  NewWebContentsData TakeNewWebContentsData() { return std::move(data_); }
-
- private:
-  NewWebContentsData data_;
-  bool observed_ = false;
-
-  GURL url_;
-  raw_ptr<WebContents> first_web_contents_;
-
-  ScopedAllowRendererCrashes scoped_allow_renderer_crashes_;
-};
-
 // Test NavigationRequest::CheckAboutSrcDoc()
 // TODO: b/432503432 - Investigate test failure
-#if !BUILDFLAG(IS_ANDROIDTV)
+#if BUILDFLAG(IS_ANDROIDTV)
 #define MAYBE_BlockedSrcDocBrowserInitiated \
   DISABLED_BlockedSrcDocBrowserInitiated
 #else
@@ -2488,8 +2458,16 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // 6. Start history same-document navigation, cancelling 5.
 //
 // Regression test for https://crbug.com/998284.
+// TODO: b/432503432 - Investigate test failure
+#if BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_BackForwardInOldDocumentCancelPendingNavigation \
+  DISABLED_BackForwardInOldDocumentCancelPendingNavigation
+#else
+#define MAYBE_BackForwardInOldDocumentCancelPendingNavigation \
+  BackForwardInOldDocumentCancelPendingNavigation
+#endif
 IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
-                       BackForwardInOldDocumentCancelPendingNavigation) {
+                       MAYBE_BackForwardInOldDocumentCancelPendingNavigation) {
   // This test expects a new request to be made when navigating back, which is
   // not happening with back-forward cache enabled.
   // See BackForwardCacheBrowserTest.RestoreWhilePendingCommit which covers the
@@ -2579,8 +2557,15 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
   }
 }
 
+// TODO: b/432503432 - Investigate test failure
+#if !BUILDFLAG(IS_ANDROIDTV)
+#define MAYBE_CanceledNavigationBug999932 DISABLED_CanceledNavigationBug999932
+#else
+#define MAYBE_CanceledNavigationBug999932 CanceledNavigationBug999932
+#endif
 // Regression test for https://crbug.com/999932.
-IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest, CanceledNavigationBug999932) {
+IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
+                       MAYBE_CanceledNavigationBug999932) {
   using Response = net::test_server::ControllableHttpResponse;
   Response response_A1(embedded_test_server(), "/A");
   Response response_A2(embedded_test_server(), "/A");
@@ -2731,10 +2716,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- unremarkable top-level
 // navigation case.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_NavigationRequest_GetNextPageUkmSourceId_Basic) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       NavigationRequest_GetNextPageUkmSourceId_Basic) {
   const GURL kUrl(embedded_test_server()->GetURL("/title1.html"));
   TestNavigationManager manager(web_contents(), kUrl);
   shell()->LoadURL(kUrl);
@@ -2752,10 +2735,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- child frame case.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_NavigationRequest_GetNextPageUkmSourceId_ChildFrame) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       NavigationRequest_GetNextPageUkmSourceId_ChildFrame) {
   const GURL kUrl(
       embedded_test_server()->GetURL("/frame_tree/page_with_one_frame.html"));
   const GURL kDestUrl(embedded_test_server()->GetURL("/title1.html"));
@@ -2784,10 +2765,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- same document navigation.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_NavigationRequest_GetNextPageUkmSourceId_SameDocument) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       NavigationRequest_GetNextPageUkmSourceId_SameDocument) {
   const GURL kUrl(embedded_test_server()->GetURL("/title1.html"));
   const GURL kFragment(kUrl.Resolve("#here"));
   EXPECT_TRUE(NavigateToURL(shell(), kUrl));
@@ -2805,9 +2784,8 @@ IN_PROC_BROWSER_TEST_F(
 // Test that NavigationRequest::GetNextPageUkmSourceId returns the eventual
 // value of RenderFrameHost::GetPageUkmSourceId() --- back navigation;
 // this case matters because of back-forward cache.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_NavigationRequest_GetNextPageUkmSourceId_Back) {
+                       NavigationRequest_GetNextPageUkmSourceId_Back) {
   const GURL kUrl1(embedded_test_server()->GetURL("a.com", "/title1.html"));
   const GURL kUrl2(embedded_test_server()->GetURL("b.com", "/title2.html"));
   EXPECT_TRUE(NavigateToURL(shell(), kUrl1));
@@ -3224,9 +3202,7 @@ IN_PROC_BROWSER_TEST_F(NavigationCookiesBrowserTest,
 }
 
 // Test how cookies are inherited in data-URL iframes.
-// TODO: b/432532805 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationCookiesBrowserTest,
-                       DISABLED_CookiesInheritedDataUrl) {
+IN_PROC_BROWSER_TEST_F(NavigationCookiesBrowserTest, CookiesInheritedDataUrl) {
   using Response = net::test_server::ControllableHttpResponse;
   Response response_1(https_server(), "/response_1");
   Response response_2(https_server(), "/response_2");
@@ -3395,9 +3371,7 @@ class NavigationUrlRewriteBrowserTest : public NavigationBaseBrowserTest {
 // Tests navigating to a URL that gets rewritten to a "no access" URL. This
 // mimics the behavior of navigating to special URLs like chrome://newtab and
 // chrome://history which get rewritten to "no access" chrome-native:// URLs.
-// TODO: b/432532306 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationUrlRewriteBrowserTest,
-                       DISABLED_RewriteToNoAccess) {
+IN_PROC_BROWSER_TEST_F(NavigationUrlRewriteBrowserTest, RewriteToNoAccess) {
   // Perform an initial navigation.
   {
     TestNavigationObserver observer(web_contents());
@@ -3426,8 +3400,7 @@ IN_PROC_BROWSER_TEST_F(NavigationUrlRewriteBrowserTest,
   }
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_SameDocumentNavigation) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, SameDocumentNavigation) {
   WebContents* wc = shell()->web_contents();
   GURL url1 = embedded_test_server()->GetURL("a.com", "/title1.html#frag1");
   GURL url2 = embedded_test_server()->GetURL("a.com", "/title1.html#frag2");
@@ -3509,9 +3482,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // been loaded instead. A same-document navigation in the renderer-loaded error
 // page should be performed as a cross-document navigation in order to attempt
 // to reload the page.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_SameDocumentNavigationOn404ErrorPage) {
+                       SameDocumentNavigationOn404ErrorPage) {
   // This case is a non-empty 404 page. It makes different choices about where
   // to load the page on a same-document navigation.
   {
@@ -3591,10 +3563,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   }
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_SameDocumentNavigationFromCrossDocumentRedirect) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       SameDocumentNavigationFromCrossDocumentRedirect) {
   WebContents* wc = shell()->web_contents();
   GURL url0 = embedded_test_server()->GetURL("/title1.html#frag1");
   GURL url1 =
@@ -3647,8 +3617,6 @@ IN_PROC_BROWSER_TEST_F(
 // 6. The browser will perform a cross-document navigation to a.html#foo.
 //
 // TODO(https://crbug.com/1262032): Test is flaky on various platforms.
-
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_SameDocumentNavigationRacesPushStateURLChange) {
   WebContents* wc = shell()->web_contents();
@@ -3737,10 +3705,8 @@ class GetEffectiveUrlClient : public ContentBrowserTestContentBrowserClient {
 // navigation would pick up this different SiteInstance, but a same-document
 // navigation should not. It should just navigate inside the currently loaded
 // document instead of reloading the document.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_SameDocumentNavigationWhenSiteInstanceWouldChange) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       SameDocumentNavigationWhenSiteInstanceWouldChange) {
   auto* wc = static_cast<WebContentsImpl*>(shell()->web_contents());
   GURL url0 = embedded_test_server()->GetURL("a.com", "/title1.html#ref1");
   GURL url1 = embedded_test_server()->GetURL("a.com", "/title1.html#ref2");
@@ -3777,10 +3743,9 @@ IN_PROC_BROWSER_TEST_F(
 // This tests the same ideas as the above test except in this case the same-
 // document navigation is done through a history navigation, which exercises
 // different codepaths in the NavigationControllerImpl.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
-    DISABLED_SameDocumentHistoryNavigationWhenSiteInstanceWouldChange) {
+    SameDocumentHistoryNavigationWhenSiteInstanceWouldChange) {
   auto* wc = static_cast<WebContentsImpl*>(shell()->web_contents());
   GURL url0 = embedded_test_server()->GetURL("a.com", "/title1.html#ref1");
   GURL url1 = embedded_test_server()->GetURL("a.com", "/title1.html#ref2");
@@ -3854,10 +3819,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Create two windows. When the second is deleted, it initiates a navigation in
 // the first. This is a situation where the navigation has an initiator frame
 // token, but no corresponding RenderFrameHost.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_RendererInitiatedCrossWindowNavigationInUnload) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       RendererInitiatedCrossWindowNavigationInUnload) {
   GURL url(embedded_test_server()->GetURL("/empty.html"));
   GURL always_referrer_url(embedded_test_server()->GetURL(
       "/set-header?Referrer-Policy: unsafe-url"));
@@ -3932,9 +3895,7 @@ IN_PROC_BROWSER_TEST_F(
 
 // A document initiates a form submission in another frame, then deletes itself.
 // Check the initiator frame token.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_FormSubmissionThenDeleteFrame) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, FormSubmissionThenDeleteFrame) {
   GURL url(embedded_test_server()->GetURL("/empty.html"));
   GURL always_referrer_url(embedded_test_server()->GetURL(
       "/set-header?Referrer-Policy: unsafe-url"));
@@ -4043,9 +4004,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // Same as the previous test, but for a remote frame navigation:
 // A document initiates a form submission in a cross-origin frame, then deletes
 // itself. Check the initiator frame token.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_FormSubmissionInRemoteFrameThenDeleteFrame) {
+                       FormSubmissionInRemoteFrameThenDeleteFrame) {
   GURL url(embedded_test_server()->GetURL("/empty.html"));
   GURL cross_origin_always_referrer_url(embedded_test_server()->GetURL(
       "foo.com", "/set-header?Referrer-Policy: unsafe-url"));
@@ -4381,8 +4341,7 @@ IN_PROC_BROWSER_TEST_F(DocumentPolicyBrowserTest,
   EXPECT_FALSE(last_metadata.is_scroll_offset_at_top);
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_OriginToCommitBasic) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, OriginToCommitBasic) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
   auto origin_expected = url::Origin::Create(url);
   TestNavigationManager manager(web_contents(), url);
@@ -4486,10 +4445,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, ErrorPageFromCspSandboxResponse) {
       current_frame_host()->GetLastCommittedOrigin().CanBeDerivedFrom(url));
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_ProcessShutdownDuringDeferredNavigationThrottle) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       ProcessShutdownDuringDeferredNavigationThrottle) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -4594,9 +4551,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // Sandbox flags defined by the parent must not apply to Chrome's error page.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_ErrorPageFromInSandboxedIframe) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, ErrorPageFromInSandboxedIframe) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
   EXPECT_TRUE(NavigateToURL(shell(), url));
 
@@ -4621,9 +4576,7 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
             child_rfh->active_sandbox_flags());
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_OriginToCommitSandboxFromFrame) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, OriginToCommitSandboxFromFrame) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
   EXPECT_TRUE(NavigateToURL(shell(), url));
   TestNavigationManager manager(web_contents(), url);
@@ -4647,10 +4600,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   EXPECT_NE(origin_to_commit, origin_committed);
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_NavigateToAboutBlankWhileFirstNavigationPending) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       NavigateToAboutBlankWhileFirstNavigationPending) {
   GURL url_a = embedded_test_server()->GetURL("a.com", "/empty.html");
   GURL url_b = embedded_test_server()->GetURL("b.com", "/empty.html");
 
@@ -4688,9 +4639,8 @@ class NetworkIsolationSplitCacheAppendIframeOrigin
 // test server, have the sandboxed document requests the same subresource. The
 // request should fail. To make sure the request is actually in the cache, the
 // main document should be able to request it again.
-// TODO: b/432532266 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NetworkIsolationSplitCacheAppendIframeOrigin,
-                       DISABLED_SandboxedUsesDifferentCache) {
+                       SandboxedUsesDifferentCache) {
   auto server = std::make_unique<net::EmbeddedTestServer>();
   server->AddDefaultHandlers(GetTestDataFilePath());
   EXPECT_TRUE(server->Start());
@@ -4899,9 +4849,8 @@ class SubresourceLoadingTest : public NavigationBrowserTest {
 // frame is a local frame (even in presence of site-per-process).  See also
 // GrandchildToAboutBlank_ABA_CrossSite and
 // GrandchildToAboutBlank_ABB_CrossSite.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
-                       DISABLED_GrandchildToAboutBlank_ABA_SameSite) {
+                       GrandchildToAboutBlank_ABA_SameSite) {
   GURL url(embedded_test_server()->GetURL(
       "a.example.com",
       "/cross_site_iframe_factory.html?"
@@ -4948,9 +4897,8 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // In this test case there are no process swaps and the parent of the navigated
 // frame is a remote frame (in presence of site-per-process).  See also
 // GrandchildToAboutBlank_ABA_SameSite and GrandchildToAboutBlank_ABB_CrossSite.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
-                       DISABLED_GrandchildToAboutBlank_ABA_CrossSite) {
+                       GrandchildToAboutBlank_ABA_CrossSite) {
   GURL url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(a))"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -4999,9 +4947,8 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // In this test case the navigation forces a process swap of the target frame.
 // See also GrandchildToAboutBlank_ABA_SameSite and
 // GrandchildToAboutBlank_ABA_CrossSite.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
-                       DISABLED_GrandchildToAboutBlank_ABB_CrossSite) {
+                       GrandchildToAboutBlank_ABB_CrossSite) {
   GURL url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b(b))"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -5047,9 +4994,7 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // opener of the frame targeted by the navigation.  In the
 // TopToAboutBlank_CrossSite testcase, the top-level navigation is initiated by
 // a cross-site subframe.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
-                       DISABLED_TopToAboutBlank_CrossSite) {
+IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest, TopToAboutBlank_CrossSite) {
   GURL url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b)"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -5098,9 +5043,8 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // SameSiteSiblingToAboutBlank_CrossSiteTop testcase, the navigation is
 // initiated by a same-origin sibling (notably, not by one of target frame's
 // ancestors) and both siblings are subframes of a cross-site main frame.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
-                       DISABLED_SameSiteSiblingToAboutBlank_CrossSiteTop) {
+                       SameSiteSiblingToAboutBlank_CrossSiteTop) {
   GURL url(embedded_test_server()->GetURL(
       "a.com", "/cross_site_iframe_factory.html?a(b,b)"));
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -5139,10 +5083,8 @@ IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
 // https://crbug.com/778318 and https://github.com/whatwg/html/issues/3267.
 // Note that the same behavior is expected in the ...NewFrameWithoutSrc and
 // in the ...NewFrameWithAboutBlank testcases.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewFrameWithoutSrc) {
+IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
+                       URLLoaderFactoryInInitialEmptyDoc_NewFrameWithoutSrc) {
   GURL opener_url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), opener_url));
 
@@ -5163,10 +5105,9 @@ IN_PROC_BROWSER_TEST_F(
 
 // See the doc comment for the
 // URLLoaderFactoryInInitialEmptyDoc_NewFrameWithoutSrc test case.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewFrameWithAboutBlank) {
+    URLLoaderFactoryInInitialEmptyDoc_NewFrameWithAboutBlank) {
   GURL opener_url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), opener_url));
 
@@ -5180,10 +5121,8 @@ IN_PROC_BROWSER_TEST_F(
   VerifyResultsOfAboutBlankNavigation(subframe, main_frame);
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_SameOriginFlagOfSameOriginAboutBlankNavigation) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       SameOriginFlagOfSameOriginAboutBlankNavigation) {
   GURL parent_url(embedded_test_server()->GetURL("a.com", "/empty.html"));
   GURL iframe_url(embedded_test_server()->GetURL("a.com", "/empty.html"));
   EXPECT_TRUE(NavigateToURL(shell(), parent_url));
@@ -5212,10 +5151,8 @@ IN_PROC_BROWSER_TEST_F(
   loop.Run();
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_SameOriginFlagOfCrossOriginAboutBlankNavigation) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       SameOriginFlagOfCrossOriginAboutBlankNavigation) {
   GURL parent_url(embedded_test_server()->GetURL("a.com", "/empty.html"));
   GURL iframe_url(embedded_test_server()->GetURL("b.com", "/empty.html"));
   EXPECT_TRUE(NavigateToURL(shell(), parent_url));
@@ -5244,9 +5181,8 @@ IN_PROC_BROWSER_TEST_F(
   loop.Run();
 }
 
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_SameOriginFlagOfSrcdocNavigation) {
+                       SameOriginFlagOfSrcdocNavigation) {
   GURL url = embedded_test_server()->GetURL("a.com", "/empty.html");
   GURL cross_origin = embedded_test_server()->GetURL("b.com", "/empty.html");
   EXPECT_TRUE(NavigateToURL(shell(), url));
@@ -5301,10 +5237,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
   }
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    NavigationBrowserTest,
-    DISABLED_SameOriginFlagOfAboutBlankToAboutBlankNavigation) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
+                       SameOriginFlagOfAboutBlankToAboutBlankNavigation) {
   GURL parent_url(embedded_test_server()->GetURL("a.com", "/empty.html"));
   GURL iframe_url(embedded_test_server()->GetURL("b.com", "/empty.html"));
   EXPECT_TRUE(NavigateToURL(shell(), parent_url));
@@ -5366,9 +5300,7 @@ IN_PROC_BROWSER_TEST_F(
   }
 }
 
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       DISABLED_SameOriginOfSandboxedIframe) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, SameOriginOfSandboxedIframe) {
   EXPECT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/empty.html")));
 
@@ -5393,10 +5325,8 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewPopupToEmptyUrl) {
+IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
+                       URLLoaderFactoryInInitialEmptyDoc_NewPopupToEmptyUrl) {
   GURL opener_url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), opener_url));
 
@@ -5423,10 +5353,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // See the doc comment for the
 // URLLoaderFactoryInInitialEmptyDoc_NewPopupToEmptyUrl test case.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_NewPopupToAboutBlank) {
+IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
+                       URLLoaderFactoryInInitialEmptyDoc_NewPopupToAboutBlank) {
   GURL opener_url(embedded_test_server()->GetURL("/title1.html"));
   EXPECT_TRUE(NavigateToURL(shell(), opener_url));
 
@@ -5451,9 +5379,7 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // The test below verifies that error pages have a functional URLLoaderFactory.
-// TODO: b/432513261 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
-                       DISABLED_URLLoaderFactoryInErrorPage) {
+IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest, URLLoaderFactoryInErrorPage) {
   GURL error_url(embedded_test_server()->GetURL("/close-socket"));
   EXPECT_FALSE(NavigateToURL(shell(), error_url));
   VerifyImageSubresourceLoads(shell()->web_contents()->GetPrimaryMainFrame());
@@ -5497,10 +5423,9 @@ IN_PROC_BROWSER_TEST_F(
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_HungNavigationInPopup) {
+    URLLoaderFactoryInInitialEmptyDoc_HungNavigationInPopup) {
   ASSERT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
 
@@ -5545,10 +5470,9 @@ IN_PROC_BROWSER_TEST_F(
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.  The ...WithClearedOpener testcase is a regression test for
 // https://crbug.com/1191203.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_HungNavigationInPopupWithClearedOpener) {
+    URLLoaderFactoryInInitialEmptyDoc_HungNavigationInPopupWithClearedOpener) {
   ASSERT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
 
@@ -5609,10 +5533,8 @@ IN_PROC_BROWSER_TEST_F(
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(
-    SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_204NoOpenerPopup) {
+IN_PROC_BROWSER_TEST_F(SubresourceLoadingTest,
+                       URLLoaderFactoryInInitialEmptyDoc_204NoOpenerPopup) {
   ASSERT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
 
@@ -5667,10 +5589,9 @@ IN_PROC_BROWSER_TEST_F(
 
 // The test below verifies that an initial empty document has a functional
 // URLLoaderFactory.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     SubresourceLoadingTest,
-    DISABLED_URLLoaderFactoryInInitialEmptyDoc_HungNavigationInNewWindow) {
+    URLLoaderFactoryInInitialEmptyDoc_HungNavigationInNewWindow) {
   // Open a new shell, starting at the "/hung" URL.
   const GURL hung_url = embedded_test_server()->GetURL("a.com", "/hung");
   Shell* new_shell =
@@ -6257,9 +6178,8 @@ class DetachChildFrameInCommitCallbackInterceptor
 // was in the middle of committing a navigation to a provisional frame in render
 // process B while render process A simultaneously detaches that child frame,
 // the detach message would never be received by render process B.
-// TODO: b/432536450 - Investigate test failure
 IN_PROC_BROWSER_TEST_P(CommitNavigationRaceBrowserTest,
-                       DISABLED_DetachAfterCommitNavigationInSubFrame) {
+                       DetachAfterCommitNavigationInSubFrame) {
   // This test checks an edge case that is only relevant when using
   // `UndoCommitNavigation()`.
   if (ShouldQueueNavigationsWhenPendingCommitRFHExists()) {
@@ -6323,8 +6243,7 @@ INSTANTIATE_TEST_SUITE_P(,
 // new NavigationRequest, because it was trying to access the current
 // RenderFrameHost's PolicyContainerHost, which had not been set up yet by
 // RenderFrameHostImpl::DidNavigate.
-// TODO: b/432503432 - Investigate test failure
-IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, DISABLED_Bug1210234) {
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, Bug1210234) {
   class NavigationWebContentsDelegate : public WebContentsDelegate {
    public:
     NavigationWebContentsDelegate(const GURL& url_to_intercept,
@@ -6639,10 +6558,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTestCredentiallessIframe,
 
 // Ensures that OpenURLParams::FromNavigationHandle translates navigation params
 // correctly when used to initiate a navigation in another WebContents.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
-    DISABLED_FromNavigationHandleTranslatesNavigationParamsCorrectly) {
+    FromNavigationHandleTranslatesNavigationParamsCorrectly) {
   // Test that the params are translated correctly for a redirected navigation.
   const GURL kRedirectedURL(
       embedded_test_server()->GetURL("/server-redirect?/simple_page.html"));
@@ -6657,6 +6575,13 @@ IN_PROC_BROWSER_TEST_F(
   NavigationController::LoadURLParams load_url_params(
       OpenURLParams::FromNavigationHandle(
           first_tab_manager.GetNavigationHandle()));
+
+  // Check that the FrameTreeNode id is set, but then clear it since we'll be
+  // navigating another tab with the rest of the params.
+  EXPECT_EQ(load_url_params.frame_tree_node_id,
+            main_frame()->frame_tree_node_id());
+  load_url_params.frame_tree_node_id = content::FrameTreeNodeId();
+
   Shell* second_tab = CreateBrowser();
   TestNavigationManager second_tab_manager(second_tab->web_contents(),
                                            load_url_params.url);
@@ -6788,9 +6713,8 @@ class CacheTransparencyNavigationBrowserTest : public ContentBrowserTest {
   base::HistogramTester histogram_tester_;
 };
 
-// TODO: b/432532281 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(CacheTransparencyNavigationBrowserTest,
-                       DISABLED_SuccessfulPervasivePayload) {
+                       SuccessfulPervasivePayload) {
   GURL url_main_document =
       embedded_test_server()->GetURL("/cache_transparency/pervasive.html");
 
@@ -6799,9 +6723,8 @@ IN_PROC_BROWSER_TEST_F(CacheTransparencyNavigationBrowserTest,
   ExpectCacheUsed();
 }
 
-// TODO: b/432532281 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(CacheTransparencyNavigationBrowserTest,
-                       DISABLED_NotAPervasivePayload) {
+                       NotAPervasivePayload) {
   GURL url_main_document =
       embedded_test_server()->GetURL("/cache_transparency/cacheable.html");
 
@@ -6985,9 +6908,8 @@ class NavigationSuddenTerminationDisablerTypeBrowserTest
 // have an unload handler. Then navigate one of the frames and verify that we
 // correctly record which type of frame navigates combined with whether it
 // involved an unload handler.
-// TODO: b/432530029 - Investigate test failure
 IN_PROC_BROWSER_TEST_P(NavigationSuddenTerminationDisablerTypeBrowserTest,
-                       DISABLED_RecordUma) {
+                       RecordUma) {
   ASSERT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL(
                    "a.com", "/cross_site_iframe_factory.html?a(a,a)")));
@@ -7031,10 +6953,9 @@ INSTANTIATE_TEST_SUITE_P(
 
 // Test that "SameOrigin" only considers frames that have an unbroken path of
 // same-origin frames from the frame that navigates.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
-    DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaSameOrigin) {
+    NavigationSuddenTerminationDisablerTypeRecordUmaSameOrigin) {
   ASSERT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL(
                    "a.com", "/cross_site_iframe_factory.html?a(b(a))")));
@@ -7060,10 +6981,9 @@ IN_PROC_BROWSER_TEST_F(
 // Test that we record when the navigation involves restoring from BFCache.
 // This is tested because the code path for a navigation involving activation
 // is different from one involving a pageload.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
-    DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaActivation) {
+    NavigationSuddenTerminationDisablerTypeRecordUmaActivation) {
   ASSERT_TRUE(NavigateToURL(
       shell(), embedded_test_server()->GetURL("a.com", "/title1.html")));
 
@@ -7092,10 +7012,9 @@ IN_PROC_BROWSER_TEST_F(
 // document is recorded correctly. This does not test all possibilities of
 // histogram value, just that the scenario is counted under the correct
 // histogram.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
-    DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaInitialEmptyDocument) {
+    NavigationSuddenTerminationDisablerTypeRecordUmaInitialEmptyDocument) {
   GURL url = embedded_test_server()->GetURL("a.com", "/title1.html");
   ASSERT_TRUE(NavigateToURL(shell(), url));
 
@@ -7125,10 +7044,9 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // Ensure that navigations from non-HTTP(S) pages are recorded correctly.
-// TODO: b/432503432 - Investigate test failure
 IN_PROC_BROWSER_TEST_F(
     NavigationBrowserTest,
-    DISABLED_NavigationSuddenTerminationDisablerTypeRecordUmaNotHttp) {
+    NavigationSuddenTerminationDisablerTypeRecordUmaNotHttp) {
   GURL blank_url("about:blank");
   GURL url = embedded_test_server()->GetURL("a.com", "/title1.html");
   ASSERT_TRUE(NavigateToURL(shell(), blank_url));
