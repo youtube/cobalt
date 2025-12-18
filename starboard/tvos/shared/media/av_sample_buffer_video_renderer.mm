@@ -128,6 +128,13 @@ const size_t kCachedFramesLowWatermark = 16;
 const size_t kCachedFramesHighWatermark = 40;
 const int kRequiredBuffersInDisplayLayer = 16;
 
+UIWindow* GetPlatformWindow() {
+  SB_CHECK(!UIApplication.sharedApplication.supportsMultipleScenes);
+  UIWindowScene* scene = reinterpret_cast<UIWindowScene*>(
+      UIApplication.sharedApplication.connectedScenes.anyObject);
+  return scene.keyWindow;
+}
+
 }  // namespace
 
 AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
@@ -207,9 +214,7 @@ AVSBVideoRenderer::~AVSBVideoRenderer() {
     [display_view removeFromSuperview];
 
     // Clear preferred display criteria.
-    SBDGetApplication()
-        .windowManager.currentApplicationWindow.avDisplayManager
-        .preferredDisplayCriteria = nil;
+    GetPlatformWindow().avDisplayManager.preferredDisplayCriteria = nil;
   });
 }
 
@@ -391,9 +396,7 @@ void AVSBVideoRenderer::ReportError(const std::string& message) {
 }
 
 void AVSBVideoRenderer::UpdatePreferredDisplayCriteria() {
-  AVDisplayManager* avDisplayManager =
-      SBDGetApplication()
-          .windowManager.currentApplicationWindow.avDisplayManager;
+  AVDisplayManager* avDisplayManager = GetPlatformWindow().avDisplayManager;
   if (avDisplayManager.isDisplayCriteriaMatchingEnabled == YES) {
     NSURL* url = [NSURL URLWithString:kDummyMasterPlaylistUrl];
 

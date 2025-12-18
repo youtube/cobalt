@@ -43,6 +43,8 @@ static_library("starboard_platform") {
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
+  frameworks = [ "AVKit.framework" ]
+
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
