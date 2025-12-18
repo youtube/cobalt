@@ -15,10 +15,11 @@
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("h5vcc_updater") {
-  sources = [
-    "h_5_vcc_updater.cc",
-    "h_5_vcc_updater.h",
-  ]
-
-  deps = [ "//cobalt/browser/h5vcc_updater/public/mojom:mojom_blink" ]
+  if (sb_is_evergreen) {
+    sources = [
+      "h_5_vcc_updater.cc",
+      "h_5_vcc_updater.h",
+    ]
+    deps = [ "//cobalt/browser/h5vcc_updater/public/mojom:mojom_blink" ]
+  }
 }
