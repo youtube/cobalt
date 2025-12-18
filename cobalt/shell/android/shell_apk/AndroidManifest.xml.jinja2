@@ -49,11 +49,9 @@
             android:banner="@drawable/app_banner"
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
             {# Cobalt/CoAT app is for the development only #}
-            android:debuggable="{{ debuggable }}"
+            android:debuggable="true"
             android:label="{% block application_label %}Cobalt Shell{% endblock %}">
-        {% if build_type in ['debug'] %}
         <profileable android:shell="true" android:enabled="true" />
-        {% endif %}
         {% block main_activity %}
         <activity android:name="dev.cobalt.app.MainActivity"
                   android:launchMode="singleTask"
