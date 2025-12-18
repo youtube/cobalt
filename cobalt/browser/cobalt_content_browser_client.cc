@@ -332,12 +332,6 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   }
   LOG(INFO) << "Observing and delegating WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
-  web_contents_delegate_.reset(new CobaltWebContentsDelegate());
-  content::Shell::SetShellCreatedCallback(base::BindOnce(
-      [](content::WebContentsDelegate* delegate, content::Shell* shell) {
-        shell->web_contents()->SetDelegate(delegate);
-      },
-      web_contents_delegate_.get()));
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
