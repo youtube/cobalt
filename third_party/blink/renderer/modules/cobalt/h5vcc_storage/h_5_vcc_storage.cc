@@ -30,21 +30,27 @@ void H5vccStorage::ContextDestroyed() {
   remote_h5vcc_storage_.reset();
 }
 
-ScriptPromise<IDLUndefined> H5vccStorage::clearCrashpadDatabase(
+ScriptPromise H5vccStorage::clearCrashpadDatabase(
     ScriptState* script_state,
     ExceptionState& exception_state) {
-  EnsureReceiverIsBound();
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
 #if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
   remote_h5vcc_storage_->ClearCrashpadDatabase(WTF::BindOnce(
-      [](ScriptPromiseResolver<IDLUndefined>* resolver) {
-        resolver->Resolve();
-      },
+      [](ScriptPromiseResolver* resolver) { resolver->Resolve(); },
       WrapPersistent(resolver)));
 #else
-  resolver->Reject();
+  DCHECK(GetExecutionContext());
+
+  GetExecutionContext()
+      ->GetTaskRunner(TaskType::kMiscPlatformAPI)
+      ->PostTask(FROM_HERE, WTF::BindOnce(
+                                [](ScriptPromiseResolver* resolver) {
+                                  resolver->Reject();
+                                },
+                                WrapPersistent(resolver)));
 #endif  // BUILDFLAG(USE_EVERGREEN)
 
   return resolver->Promise();

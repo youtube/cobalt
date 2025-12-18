@@ -176,11 +176,8 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
-<<<<<<< HEAD
       "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
-=======
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
->>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
     ]
   }
 

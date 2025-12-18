@@ -46,8 +46,7 @@ class MODULES_EXPORT H5vccStorage final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise<IDLUndefined> clearCrashpadDatabase(ScriptState*,
-                                                    ExceptionState&);
+  ScriptPromise clearCrashpadDatabase(ScriptState*, ExceptionState&);
 
   void Trace(Visitor*) const override;
 

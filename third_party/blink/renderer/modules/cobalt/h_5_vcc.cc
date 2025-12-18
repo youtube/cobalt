@@ -47,11 +47,8 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       metrics_(MakeGarbageCollected<H5vccMetrics>(window)),
       system_(MakeGarbageCollected<H5vccSystem>(window)),
       runtime_(MakeGarbageCollected<H5vccRuntime>(window)),
-<<<<<<< HEAD
-      updater_(MakeGarbageCollected<H5vccUpdater>(window)) {}
-=======
+      updater_(MakeGarbageCollected<H5vccUpdater>(window)),
       storage_(MakeGarbageCollected<H5vccStorage>(window)) {}
->>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
 
 void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(crash_log_);
@@ -60,11 +57,8 @@ void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(metrics_);
   visitor->Trace(system_);
   visitor->Trace(runtime_);
-<<<<<<< HEAD
   visitor->Trace(updater_);
-=======
   visitor->Trace(storage_);
->>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
   Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

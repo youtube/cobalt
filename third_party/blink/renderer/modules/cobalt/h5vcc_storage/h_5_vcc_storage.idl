@@ -22,5 +22,5 @@
 interface H5vccStorage {
   // Only intended to be used by tests.
   [CallWith=ScriptState, RaisesException]
-  Promise<undefined> clearCrashpadDatabase();
+  Promise<void> clearCrashpadDatabase();
 };
