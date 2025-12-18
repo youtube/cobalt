@@ -30,7 +30,6 @@
     "PosixUtimensatTest.OmitBothTimestamps",
     "PosixUtimensatTest.SymlinkNoFollow",
     "SbSystemGetLocaleIdTest.SunnyDay",
-    "SbSystemGetPathTest.CanWriteAndReadFilesStorage",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.SunnyDayStackDirection",
     "SbSystemGetStackTest.SunnyDay",

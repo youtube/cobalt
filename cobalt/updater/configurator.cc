@@ -305,22 +305,10 @@ std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
   if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
     return it->second;
   }
+  // All undefined channel requests go to the default EAP config.
   LOG(INFO) << "Configurator::GetAppGuidHelper updater channel and starboard "
-            << "combination is undefined with the new Omaha configs.";
-
-  // All undefined channel requests go to prod configs except for static
-  // channel requests for C24 and older.
-  // TODO(b/449024263): Replace regex matchers with substring_set_matcher or re2
-  if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
-      sb_version >= 14 && sb_version <= 16) {
-    it = kChannelAndSbVersionToOmahaIdMap.find("prod" +
-                                               std::to_string(sb_version));
-    if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
-      return it->second;
-    }
-  }
-  LOG(INFO) << __func__ << " starboard version is invalid.";
-  return kOmahaCobaltAppID;
+            << "combination is undefined.";
+  return kOmahaCobaltEAPAppID;
 }
 
 std::string Configurator::GetAppGuid() const {
