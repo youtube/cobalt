@@ -88,6 +88,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import urllib
 
 from urllib.request import urlopen, Request
 from urllib.error import URLError
