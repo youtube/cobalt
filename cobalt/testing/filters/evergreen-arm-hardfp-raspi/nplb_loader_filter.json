@@ -4,6 +4,11 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
+<<<<<<< HEAD
+=======
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+    "Posix/NlLanginfo*",
+>>>>>>> 98e881771e0 (3p: Add support to localeconv (#8306))
     "SbAudioSinkTest.*",
     "SbMediaSetAudioWriteDurationTests*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
@@ -12,15 +17,6 @@
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerWriteSampleTests*",
-    "VerticalVideoTests/VerticalVideoTest*",
-
-    "PosixLocaleSetTest.LocaleConvC",
-    "PosixLocaleSetTest.NewUseFreeLocale",
-    "PosixLocaleThreadTest.LocaleConvUsesThreadLocale",
-    "PosixLocaleThreadTest.FreeLocaleRestoresGlobalLocale",
-    "PosixLocaleThreadTest.NewLocaleFreesOrModifiesBase",
-    "PosixLocaleThreadTest.DupLocale",
-    "PosixLocaleThreadTest.DupLocaleNonDefault",
-    "Posix/NlLanginfo*"
+    "VerticalVideoTests/VerticalVideoTest*"
   ]
 }

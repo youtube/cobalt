@@ -6,6 +6,7 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+<<<<<<< HEAD
     "SbAudioSinkTest.*",
     "SbAudioSinkCreateTest.MultiSink",
     "SbMediaSetAudioWriteDurationTests*",
@@ -24,11 +25,31 @@
     "PosixLocaleThreadTest.DupLocale",
     "PosixLocaleThreadTest.DupLocaleNonDefault",
     "Posix/NlLanginfo*",
+=======
+    "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+    "PosixUtimensatTest.OmitBothTimestamps",
+    "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
+>>>>>>> 98e881771e0 (3p: Add support to localeconv (#8306))
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
     "PosixUtimensatTest.OmitBothTimestamps",
     "PosixUtimensatTest.SymlinkNoFollow",
+<<<<<<< HEAD
+=======
+    "Posix/NlLanginfo*",
+    "SbAudioSinkCreateTest.MultiSink",
+    "SbAudioSinkTest.*",
+    "SbLogFlushTest.DontCrashMeBro",
+    "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaSetAudioWriteDurationTests*",
+    "SbPlayerGetAudioConfigurationTests*",
+    "SbPlayerGetMediaTimeTests*",
+    "SbPlayerTest.*",
+    "SbPlayerWriteSampleTests*",
+>>>>>>> 98e881771e0 (3p: Add support to localeconv (#8306))
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.SunnyDayStackDirection",
