@@ -15,6 +15,9 @@
 #ifndef MEDIA_AUDIO_STARBOARD_AUDIO_MANAGER_STARBOARD_H_
 #define MEDIA_AUDIO_STARBOARD_AUDIO_MANAGER_STARBOARD_H_
 
+#include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
+#include "base/time/time.h"
 #include "media/audio/audio_manager_base.h"
 
 namespace media {
@@ -69,6 +72,13 @@ class AudioManagerStarboard : public AudioManagerBase {
       const AudioParameters& params,
       const std::string& device_id,
       const LogCallback& log_callback) override;
+
+  // The amount of time to cache device description lists.
+  static constexpr base::TimeDelta kCacheDeviceListsTimeout = base::Seconds(60);
+
+  base::Lock cache_lock_;
+  AudioDeviceNames input_device_names_cache_ GUARDED_BY(cache_lock_);
+  base::TimeTicks last_input_device_names_cache_update_ GUARDED_BY(cache_lock_);
 };
 
 }  // namespace media

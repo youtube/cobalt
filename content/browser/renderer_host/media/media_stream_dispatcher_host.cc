@@ -363,16 +363,19 @@ MediaStreamDispatcherHost::GenerateStreamsChecksOnUIThread(
     base::OnceCallback<MediaDeviceSaltAndOrigin()>
         generate_salt_and_origin_callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
+  LOG(INFO) << "YO THOR - MediaStreamDispatcherHost::GenerateStreamsChecksOnUIThread - START";
 
   if (request_all_screens &&
       !CheckRequestAllScreensAllowed(render_process_id, render_frame_id)) {
+    LOG(INFO) << "YO THOR - MediaStreamDispatcherHost::GenerateStreamsChecksOnUIThread - END (request not allowed)";
     return {.request_allowed = false,
             .salt_and_origin = MediaDeviceSaltAndOrigin()};
   }
 
-  return {
-      .request_allowed = true,
-      .salt_and_origin = std::move(generate_salt_and_origin_callback).Run()};
+  MediaDeviceSaltAndOrigin salt_and_origin =
+      std::move(generate_salt_and_origin_callback).Run();
+  LOG(INFO) << "YO THOR - MediaStreamDispatcherHost::GenerateStreamsChecksOnUIThread - END (request allowed)";
+  return {.request_allowed = true, .salt_and_origin = salt_and_origin};
 }
 
 const mojo::Remote<blink::mojom::MediaStreamDeviceObserver>&
@@ -423,6 +426,8 @@ void MediaStreamDispatcherHost::GenerateStreams(
     blink::mojom::StreamSelectionInfoPtr audio_stream_selection_info_ptr,
     GenerateStreamsCallback callback) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "YO THOR - MediaStreamDispatcherHost::GenerateStreams (received from renderer), page_request_id: "
+            << page_request_id;
 
   const absl::optional<bad_message::BadMessageReason> bad_message =
       ValidateControlsForGenerateStreams(controls);
@@ -473,6 +478,8 @@ void MediaStreamDispatcherHost::DoGenerateStreams(
     GenerateStreamsCallback callback,
     GenerateStreamsUIThreadCheckResult ui_check_result) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  LOG(INFO) << "YO THOR - MediaStreamDispatcherHost::DoGenerateStreams (after UI thread check), page_request_id: "
+            << page_request_id;
 
   if (!ui_check_result.request_allowed) {
     std::move(callback).Run(
@@ -514,6 +521,8 @@ void MediaStreamDispatcherHost::DoGenerateStreams(
     return;
   }
 
+  LOG(INFO) << "YO THOR - MediaStreamDispatcherHost::DoGenerateStreams calling MediaStreamManager::GenerateStreams, page_request_id: "
+            << page_request_id;
   media_stream_manager_->GenerateStreams(
       render_process_id_, render_frame_id_, requester_id_, page_request_id,
       controls, std::move(salt_and_origin), user_gesture,

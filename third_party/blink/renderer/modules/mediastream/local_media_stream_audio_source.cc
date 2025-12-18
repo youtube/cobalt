@@ -108,6 +108,7 @@ void LocalMediaStreamAudioSource::EnsureSourceIsStopped() {
 }
 
 void LocalMediaStreamAudioSource::OnCaptureStarted() {
+  LOG(INFO) << "YO THOR - LocalMediaStreamAudioSource::OnCaptureStarted";
   started_callback_.Run(this, mojom::MediaStreamRequestResult::OK, "");
 }
 

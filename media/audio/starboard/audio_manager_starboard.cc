@@ -14,7 +14,10 @@
 
 #include "media/audio/starboard/audio_manager_starboard.h"
 
+#include "base/debug/stack_trace.h"
+
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "media/audio/starboard/audio_input_stream_starboard.h"
 #include "starboard/microphone.h"
 
@@ -38,20 +41,70 @@ bool AudioManagerStarboard::HasAudioInputDevices() {
 
 void AudioManagerStarboard::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
+  base::AutoLock auto_lock(cache_lock_);
+  if (base::TimeTicks::Now() - last_input_device_names_cache_update_ <
+      kCacheDeviceListsTimeout) {
+    LOG(INFO) << "YO THOR - AudioManagerStarboard::GetAudioInputDeviceNames() "
+                 "- CACHE HIT";
+    *device_names = input_device_names_cache_;
+    return;
+  }
+
+  LOG(INFO) << "YO THOR - AudioManagerStarboard::GetAudioInputDeviceNames() - "
+               "CACHE MISS";
+  base::debug::StackTrace st;
+  st.Print();
+
+  base::TimeTicks start_time = base::TimeTicks::Now();
+
+  // Clear the cache before populating it.
+  input_device_names_cache_.clear();
+
+  base::TimeTicks sb_get_available_count_start = base::TimeTicks::Now();
   int microphone_count = SbMicrophoneGetAvailable(nullptr, 0);
+  LOG(INFO) << "YO THOR - SbMicrophoneGetAvailable (count) took "
+            << (base::TimeTicks::Now() - sb_get_available_count_start)
+                   .InMilliseconds()
+            << " ms. Count: " << microphone_count;
+
   if (microphone_count <= 0) {
+    LOG(INFO) << "YO THOR - AudioManagerStarboard::GetAudioInputDeviceNames() "
+                 "finished in "
+              << (base::TimeTicks::Now() - start_time).InMilliseconds()
+              << " ms.";
+    last_input_device_names_cache_update_ = base::TimeTicks::Now();
+    *device_names = input_device_names_cache_;
     return;
   }
 
   std::vector<SbMicrophoneInfo> infos(microphone_count);
+  base::TimeTicks sb_get_available_info_start = base::TimeTicks::Now();
   microphone_count = SbMicrophoneGetAvailable(infos.data(), infos.size());
+  LOG(INFO)
+      << "YO THOR - SbMicrophoneGetAvailable (info) took "
+      << (base::TimeTicks::Now() - sb_get_available_info_start).InMilliseconds()
+      << " ms. Actual count: " << microphone_count;
+
   if (microphone_count <= 0) {
+    LOG(INFO) << "YO THOR - AudioManagerStarboard::GetAudioInputDeviceNames() "
+                 "finished in "
+              << (base::TimeTicks::Now() - start_time).InMilliseconds()
+              << " ms.";
+    last_input_device_names_cache_update_ = base::TimeTicks::Now();
+    *device_names = input_device_names_cache_;
     return;
   }
 
   for (int i = 0; i < microphone_count; ++i) {
-    device_names->emplace_back(infos[i].label, "default");
+    input_device_names_cache_.emplace_back(infos[i].label, "default");
   }
+
+  LOG(INFO) << "YO THOR - AudioManagerStarboard::GetAudioInputDeviceNames() "
+               "finished in "
+            << (base::TimeTicks::Now() - start_time).InMilliseconds() << " ms.";
+
+  last_input_device_names_cache_update_ = base::TimeTicks::Now();
+  *device_names = input_device_names_cache_;
 }
 
 void AudioManagerStarboard::GetAudioOutputDeviceNames(

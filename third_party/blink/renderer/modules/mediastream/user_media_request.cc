@@ -418,6 +418,7 @@ UserMediaRequest* UserMediaRequest::Create(
     Callbacks* callbacks,
     ExceptionState& exception_state,
     IdentifiableSurface surface) {
+  LOG(INFO) << "YO THOR - UserMediaRequest::Create";
   MediaConstraints audio =
       ParseOptions(context, options->audio(), exception_state);
   if (exception_state.HadException()) {

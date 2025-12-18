@@ -163,6 +163,7 @@ void MediaStreamUIProxy::Core::OnStarted(
     bool has_source_callback,
     const std::string& label,
     std::vector<DesktopMediaID> screen_share_ids) {
+  LOG(INFO) << "YO THOR - MediaStreamUIProxy::Core::OnStarted!";
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   if (!ui_)

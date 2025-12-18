@@ -124,6 +124,7 @@ AudioInputDevice::AudioInputDevice(std::unique_ptr<AudioInputIPC> ipc,
 
 void AudioInputDevice::Initialize(const AudioParameters& params,
                                   CaptureCallback* callback) {
+  LOG(INFO) << "YO THOR - AUDIO INPUT DEVICE INITIALIZE!";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(params.IsValid());
   DCHECK(!callback_);
@@ -132,6 +133,7 @@ void AudioInputDevice::Initialize(const AudioParameters& params,
 }
 
 void AudioInputDevice::Start() {
+  LOG(INFO) << "YO THOR - AUDIO INPUT DEVICE START!";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(callback_) << "Initialize hasn't been called";
   TRACE_EVENT0("audio", "AudioInputDevice::Start");
@@ -227,6 +229,8 @@ void AudioInputDevice::OnStreamCreated(
     base::ReadOnlySharedMemoryRegion shared_memory_region,
     base::SyncSocket::ScopedHandle socket_handle,
     bool initially_muted) {
+  LOG(INFO) << "YO THOR - ON STREAM CREATED";
+
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   TRACE_EVENT0("audio", "AudioInputDevice::OnStreamCreated");
   DCHECK(shared_memory_region.IsValid());

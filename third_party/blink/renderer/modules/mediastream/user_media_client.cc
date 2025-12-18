@@ -335,6 +335,7 @@ UserMediaClient::UserMediaClient(
 
 void UserMediaClient::RequestUserMedia(UserMediaRequest* user_media_request) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  LOG(INFO) << "YO THOR - UserMediaClient::RequestUserMedia";
   DCHECK(user_media_request);
   DCHECK(user_media_request->Audio() || user_media_request->Video());
   // GetWindow() may be null if we are in a test.

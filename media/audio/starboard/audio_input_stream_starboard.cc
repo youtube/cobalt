@@ -15,9 +15,15 @@
 #include "media/audio/starboard/audio_input_stream_starboard.h"
 
 #include "base/logging.h"
+#include "base/time/time.h"
 #include "starboard/microphone.h"
 
 namespace media {
+
+namespace {
+const SbMicrophoneId kSbMicrophoneIdDefault =
+    reinterpret_cast<SbMicrophoneId>(1);
+}  // namespace
 
 AudioInputStreamStarboard::AudioInputStreamStarboard(
     AudioManagerStarboard* audio_manager,
@@ -32,37 +38,36 @@ AudioInputStreamStarboard::~AudioInputStreamStarboard() {
 }
 
 AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
+  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open()";
+  base::TimeTicks open_start_time = base::TimeTicks::Now();
   if (microphone_) {
     return OpenOutcome::kAlreadyOpen;
   }
 
-  SbMicrophoneInfo info;
+  microphone_ =
+      SbMicrophoneCreate(kSbMicrophoneIdDefault, params_.sample_rate(),
+                         params_.frames_per_buffer() * 2);
 
-  if (SbMicrophoneGetAvailable(&info, 1) < 1) {
-    DLOG(ERROR) << "SbMicrophoneGetAvailable failed";
-    return OpenOutcome::kFailed;
-  }
-
-  microphone_ = SbMicrophoneCreate(info.id, params_.sample_rate(),
-                                   params_.frames_per_buffer() * 2);
-
-  if (!SbMicrophoneIsValid(microphone_)) {
-    DLOG(ERROR) << "SbMicrophoneCreate failed. Sample rate: "
-                << params_.sample_rate();
-    return OpenOutcome::kFailed;
-  }
-
+  base::TimeTicks sb_open_start_time = base::TimeTicks::Now();
   if (!SbMicrophoneOpen(microphone_)) {
-    DLOG(ERROR) << "SbMicrophoneOpen failed";
+    LOG(ERROR) << "YO THOR - SbMicrophoneOpen failed";
     SbMicrophoneDestroy(microphone_);
     microphone_ = kSbMicrophoneInvalid;
     return OpenOutcome::kFailed;
   }
+  LOG(INFO) << "YO THOR - SbMicrophoneOpen took "
+            << (base::TimeTicks::Now() - sb_open_start_time).InMilliseconds()
+            << " ms.";
 
+  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Open() finished in "
+            << (base::TimeTicks::Now() - open_start_time).InMilliseconds()
+            << " ms.";
   return OpenOutcome::kSuccess;
 }
 
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
+  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Start()";
+  base::TimeTicks start_time = base::TimeTicks::Now();
   DCHECK(callback);
   callback_ = callback;
   stop_event_.Reset();
@@ -73,6 +78,8 @@ void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
       base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
                      base::Unretained(this)),
       delay);
+  LOG(INFO) << "YO THOR - AudioInputStreamStarboard::Start() finished in "
+            << (base::TimeTicks::Now() - start_time).InMilliseconds() << " ms.";
 }
 
 void AudioInputStreamStarboard::Stop() {
