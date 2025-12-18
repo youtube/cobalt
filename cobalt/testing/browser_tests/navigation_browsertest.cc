@@ -14,9 +14,11 @@
 
 #include <stdint.h>
 
+#include <array>
 #include <memory>
 #include <optional>
-#include <variant>
+#include <string>
+#include <string_view>
 
 #include "base/command_line.h"
 #include "base/containers/contains.h"
@@ -26,18 +28,23 @@
 #include "base/functional/callback.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/strings/stringprintf.h"
+#include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_mock_time_task_runner.h"
 #include "base/test/test_timeouts.h"
+#include "base/test/values_test_util.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_content_browser_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
@@ -46,7 +53,10 @@
 #include "content/browser/browser_url_handler_impl.h"
 #include "content/browser/child_process_security_policy_impl.h"
 #include "content/browser/renderer_host/navigation_request.h"
+#include "content/browser/renderer_host/navigation_state_keep_alive.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
+#include "content/browser/renderer_host/spare_render_process_host_manager_impl.h"
+#include "content/browser/site_instance_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/common/content_navigation_policy.h"
 #include "content/common/features.h"
@@ -59,31 +69,33 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/browser_url_handler.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/public/browser/download_manager_delegate.h"
 #include "content/public/browser/navigation_controller.h"
-#include "content/public/browser/notification_service.h"
-#include "content/public/browser/notification_types.h"
+#include "content/public/browser/network_service_util.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_client.h"
 #include "content/public/common/content_features.h"
 #include "content/public/common/content_switches.h"
-#include "content/public/common/network_service_util.h"
+#include "content/public/common/result_codes.h"
 #include "content/public/common/url_constants.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
-#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_mock_cert_verifier.h"
-#include "content/public/test/hit_test_region_observer.h"
+#include "content/public/test/fenced_frame_test_util.h"
 #include "content/public/test/navigation_handle_observer.h"
 #include "content/public/test/no_renderer_crashes_assertion.h"
-#include "content/public/test/test_navigation_observer.h"
+#include "content/public/test/slow_http_response.h"
+#include "content/public/test/test_devtools_protocol_client.h"
+#include "content/public/test/test_frame_navigation_observer.h"
 #include "content/public/test/test_navigation_throttle.h"
 #include "content/public/test/test_navigation_throttle_inserter.h"
-#include "content/public/test/test_utils.h"
 #include "content/public/test/url_loader_monitor.h"
 #include "content/test/did_commit_navigation_interceptor.h"
 #include "content/test/fake_network_url_loader_factory.h"
+#include "content/test/render_document_feature.h"
 #include "content/test/task_runner_deferring_throttle.h"
 #include "content/test/test_render_frame_host_factory.h"
 #include "ipc/ipc_security_test_util.h"
@@ -100,11 +112,15 @@
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/cpp/web_sandbox_flags.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
-#include "third_party/abseil-cpp/absl/types/optional.h"
+#include "testing/gmock/include/gmock/gmock.h"
+#include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/loader/url_loader_throttle.h"
+#include "third_party/blink/public/mojom/frame/remote_frame.mojom-test-utils.h"
 #include "third_party/blink/public/mojom/frame/sudden_termination_disabler_type.mojom-shared.h"
+#include "third_party/blink/public/mojom/navigation/navigation_params.mojom-shared.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
+#include "url/url_constants.h"
 #include "url/url_util.h"
 
 namespace content {
@@ -125,7 +141,8 @@ class InterceptAndCancelDidCommitProvisionalLoad
     }
   }
 
-  const std::vector<NavigationRequest*>& intercepted_navigations() const {
+  const std::vector<raw_ptr<NavigationRequest, VectorExperimental>>&
+  intercepted_navigations() const {
     return intercepted_navigations_;
   }
 
@@ -152,7 +169,8 @@ class InterceptAndCancelDidCommitProvisionalLoad
 
   // Note: Do not dereference the intercepted_navigations_, they are used as
   // indices in the RenderFrameHostImpl and not for themselves.
-  std::vector<NavigationRequest*> intercepted_navigations_;
+  std::vector<raw_ptr<NavigationRequest, VectorExperimental>>
+      intercepted_navigations_;
   std::vector<mojom::DidCommitProvisionalLoadParamsPtr> intercepted_messages_;
   std::unique_ptr<base::RunLoop> loop_;
 };
@@ -293,6 +311,21 @@ BlockNavigationWillProcessResponse(WebContentsImpl* web_content) {
                                   NavigationThrottle::BLOCK_RESPONSE);
             registry.AddThrottle(std::move(throttle));
           }));
+}
+
+void WaitForHistogramRecordedInChildProcess(std::string name) {
+  base::HistogramTester histogram_tester;
+
+  while (true) {
+    if (!histogram_tester.GetAllSamples(name).empty()) {
+      return;
+    }
+
+    // Retry fetching the histogram since it's not populated yet.
+    content::FetchHistogramsFromChildProcesses();
+    base::StatisticsRecorder::ImportProvidedHistogramsSync();
+    base::RunLoop().RunUntilIdle();
+  }
 }
 
 }  // namespace
@@ -572,9 +605,9 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
               observer.last_initiator_process_id());
   }
 
-  // The RenderFrameHost should have changed unless default SiteInstances
-  // are enabled and proactive BrowsingInstance swaps are disabled.
-  if (AreDefaultSiteInstancesEnabled() &&
+  // The RenderFrameHost should have changed unless full site isolation and
+  // proactive BrowsingInstance swaps are both disabled.
+  if (!AreAllSitesIsolatedForTesting() &&
       !CanCrossSiteNavigationsProactivelySwapBrowsingInstances()) {
     EXPECT_EQ(initial_rfh, current_frame_host());
   } else {
@@ -810,7 +843,7 @@ IN_PROC_BROWSER_TEST_P(NavigationBrowserTestReferrerPolicy,
   DISABLED_VerifyBlockedErrorPageURL_Reload
 #endif
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
-                       MAYBE_VerifyBlockedErrorPageURL_Reload) {
+                       VerifyBlockedErrorPageURL_Reload) {
   NavigationControllerImpl& controller = web_contents()->GetController();
 
   GURL start_url(embedded_test_server()->GetURL("/title1.html"));
@@ -928,8 +961,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
   ASSERT_TRUE(request->trusted_params);
   EXPECT_TRUE(net::IsolationInfo::Create(
                   net::IsolationInfo::RequestType::kMainFrame, origin, origin,
-                  net::SiteForCookies::FromOrigin(origin),
-                  std::set<net::SchemefulSite>())
+                  net::SiteForCookies::FromOrigin(origin))
                   .IsEqualForTesting(request->trusted_params->isolation_info));
 }
 
@@ -953,8 +985,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
   ASSERT_TRUE(request->trusted_params);
   EXPECT_TRUE(net::IsolationInfo::Create(
                   net::IsolationInfo::RequestType::kMainFrame, origin, origin,
-                  net::SiteForCookies::FromOrigin(origin),
-                  std::set<net::SchemefulSite>())
+                  net::SiteForCookies::FromOrigin(origin))
                   .IsEqualForTesting(request->trusted_params->isolation_info));
 }
 
@@ -980,8 +1011,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
   ASSERT_TRUE(main_frame_request->trusted_params);
   EXPECT_TRUE(net::IsolationInfo::Create(
                   net::IsolationInfo::RequestType::kMainFrame, origin, origin,
-                  net::SiteForCookies::FromOrigin(origin),
-                  std::set<net::SchemefulSite>())
+                  net::SiteForCookies::FromOrigin(origin))
                   .IsEqualForTesting(
                       main_frame_request->trusted_params->isolation_info));
 
@@ -991,8 +1021,7 @@ IN_PROC_BROWSER_TEST_F(NetworkIsolationNavigationBrowserTest,
   EXPECT_TRUE(
       net::IsolationInfo::Create(net::IsolationInfo::RequestType::kSubFrame,
                                  origin, iframe_origin,
-                                 net::SiteForCookies::FromOrigin(origin),
-                                 std::set<net::SchemefulSite>())
+                                 net::SiteForCookies::FromOrigin(origin))
           .IsEqualForTesting(iframe_request->trusted_params->isolation_info));
 }
 
@@ -1584,6 +1613,22 @@ IN_PROC_BROWSER_TEST_F(NavigationBaseBrowserTest,
   }
 }
 
+// Renderer initiated back/forward navigation in beforeunload should not prevent
+// the user to navigate away from a website.
+IN_PROC_BROWSER_TEST_F(NavigationBrowserTest, HistoryBackInBeforeUnload) {
+  GURL url_1(embedded_test_server()->GetURL("/title1.html"));
+  GURL url_2(embedded_test_server()->GetURL("/title2.html"));
+
+  EXPECT_TRUE(NavigateToURL(shell(), url_1));
+  EXPECT_TRUE(ExecJs(web_contents(),
+                     "onbeforeunload = function() {"
+                     "  history.pushState({}, null, '/');"
+                     "  history.back();"
+                     "};",
+                     EXECUTE_SCRIPT_NO_USER_GESTURE));
+  EXPECT_TRUE(NavigateToURL(shell(), url_2));
+}
+
 // Same as 'HistoryBackInBeforeUnload', but wraps history.back() inside
 // window.setTimeout(). Thus it is executed "outside" of its beforeunload
 // handler and thus avoid basic navigation circumventions.
@@ -1689,7 +1734,6 @@ IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
 // See https://crbug.com/882238
 // TODO(crbug.com/379844650): Disabled on Linux sanitizer bots due to flakiness.
 // TODO: b/432503432 - Investigate test failure
-
 IN_PROC_BROWSER_TEST_F(NavigationBrowserTest,
                        DISABLED_IPCFlood_GoToEntryAtOffset) {
   GURL url(embedded_test_server()->GetURL("/title1.html"));
@@ -1908,8 +1952,11 @@ class CorsInjectingUrlLoader : public blink::URLLoaderThrottle {
   // blink::URLLoaderThrottle:
   void WillStartRequest(network::ResourceRequest* request,
                         bool* defer) override {
-    if (!request->cors_exempt_headers.GetHeader(kCorsHeaderName,
-                                                last_cors_header_value_)) {
+    if (std::optional<std::string> header =
+            request->cors_exempt_headers.GetHeader(kCorsHeaderName);
+        header) {
+      last_cors_header_value_->swap(*header);
+    } else {
       last_cors_header_value_->clear();
     }
   }
@@ -1932,7 +1979,8 @@ class CorsContentBrowserClient : public ContentBrowserTestContentBrowserClient {
       BrowserContext* browser_context,
       const base::RepeatingCallback<WebContents*()>& wc_getter,
       NavigationUIData* navigation_ui_data,
-      int frame_tree_node_id) override {
+      FrameTreeNodeId frame_tree_node_id,
+      std::optional<int64_t> navigation_id) override {
     std::vector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
     throttles.push_back(
         std::make_unique<CorsInjectingUrlLoader>(last_cors_header_value_));
