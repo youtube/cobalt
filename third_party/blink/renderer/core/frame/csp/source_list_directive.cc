@@ -89,13 +89,13 @@ CSPCheckResult CSPSourceListAllows(
   if (source_list.cobalt_insecure_private_range &&
       (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
       IsIPInPrivateRange(url.Host().Utf8())) {
-    return network::CSPCheckResult::(true);
+    return network::CSPCheckResult(true);
   }
   // Allow websocket connection to host ip within the local network.
   if (source_list.cobalt_insecure_local_network &&
       (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
       IsIPInLocalNetwork(url.Host().Utf8())) {
-    return network::CSPCheckResult::(true);
+    return network::CSPCheckResult(true);
   }
 #endif
 
