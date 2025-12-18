@@ -832,6 +832,10 @@ class MediaCodecBridge {
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
+    } finally {
+      if (mFrameRateEstimator != null) {
+        mFrameRateEstimator.reset();
+      }
     }
     return MediaCodecStatus.OK;
   }
