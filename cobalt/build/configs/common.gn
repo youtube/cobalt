@@ -61,3 +61,6 @@ rtc_use_h264 = false
 
 # Enable widevine for encrypted media playback.
 enable_widevine = true
+
+# Disable dav1d in webrtc to reduce binary size (~533KB)
+rtc_include_dav1d_in_internal_decoder_factory = false
