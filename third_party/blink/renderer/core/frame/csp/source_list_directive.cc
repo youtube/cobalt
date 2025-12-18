@@ -85,11 +85,17 @@ CSPCheckResult CSPSourceListAllows(
     }
   }
 #if BUILDFLAG(IS_COBALT)
-  if (source_list.cobalt_insecure_local_network) {
-    // Allow websocket connection to host ip within the local network.
-    if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
-      return network::CSPCheckResult(IsIPInLocalNetwork(url.Host().Utf8()));
-    }
+  // Allow websocket connection to host ip within the private range.
+  if (source_list.cobalt_insecure_private_range &&
+      (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
+      IsIPInPrivateRange(url.Host().Utf8())) {
+    return network::CSPCheckResult::(true);
+  }
+  // Allow websocket connection to host ip within the local network.
+  if (source_list.cobalt_insecure_local_network &&
+      (url.ProtocolIs("ws") || url.ProtocolIs("wss")) &&
+      IsIPInLocalNetwork(url.Host().Utf8())) {
+    return network::CSPCheckResult::(true);
   }
 #endif
 
@@ -123,7 +129,8 @@ bool CSPSourceListIsNone(
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
 #if BUILDFLAG(IS_COBALT)
-         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network;
+         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network &&
+         !source_list.cobalt_insecure_private_range;
 #else
          !source_list.hashes.size();
 #endif
