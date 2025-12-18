@@ -192,13 +192,9 @@ if (!is_component_build) {
     deps = [
       "..//api/video_codecs:video_decoder_factory_template",
       "..//api/video_codecs:video_decoder_factory_template_dav1d_adapter",
-      "..//api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",
-      "..//api/video_codecs:video_decoder_factory_template_libvpx_vp9_adapter",
       "..//api/video_codecs:video_decoder_factory_template_open_h264_adapter",
       "..//api/video_codecs:video_encoder_factory_template",
       "..//api/video_codecs:video_encoder_factory_template_libaom_av1_adapter",
-      "..//api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
-      "..//api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
       "..//api/video_codecs:video_encoder_factory_template_open_h264_adapter",
       "../api:create_frame_generator",
       "../api:rtp_parameters",
@@ -232,6 +228,18 @@ if (!is_component_build) {
       "//third_party/abseil-cpp/absl/flags:usage",
       "//third_party/abseil-cpp/absl/strings",
     ]
+    if (rtc_libvpx_build_vp9) {
+      deps += [
+        "..//api/video_codecs:video_decoder_factory_template_libvpx_vp9_adapter",
+        "..//api/video_codecs:video_encoder_factory_template_libvpx_vp9_adapter",
+      ]
+    }
+    if (rtc_build_libvpx) {
+      deps += [
+        "..//api/video_codecs:video_decoder_factory_template_libvpx_vp8_adapter",
+        "..//api/video_codecs:video_encoder_factory_template_libvpx_vp8_adapter",
+      ]
+    }
     if (build_with_chromium) {
       # When building from Chromium, WebRTC's metrics and field trial
       # implementations need to be replaced by the Chromium ones.

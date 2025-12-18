@@ -17,8 +17,12 @@
 #include "media/base/codec.h"
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
+#ifdef RTC_ENABLE_VP8
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
+#endif
+#ifdef RTC_ENABLE_VP9
 #include "modules/video_coding/codecs/vp9/include/vp9.h"
+#endif
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 #include "system_wrappers/include/field_trial.h"
@@ -43,9 +47,13 @@ std::unique_ptr<VideoDecoder> CreateDav1dDecoder() {
 std::vector<SdpVideoFormat> InternalDecoderFactory::GetSupportedFormats()
     const {
   std::vector<SdpVideoFormat> formats;
+#ifdef RTC_ENABLE_VP8
   formats.push_back(SdpVideoFormat(cricket::kVp8CodecName));
+#endif
+#ifdef RTC_ENABLE_VP9
   for (const SdpVideoFormat& format : SupportedVP9DecoderCodecs())
     formats.push_back(format);
+#endif
   for (const SdpVideoFormat& h264_format : SupportedH264DecoderCodecs())
     formats.push_back(h264_format);
 
@@ -85,10 +93,14 @@ std::unique_ptr<VideoDecoder> InternalDecoderFactory::CreateVideoDecoder(
     return nullptr;
   }
 
+#ifdef RTC_ENABLE_VP8
   if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
     return VP8Decoder::Create();
+#endif
+#ifdef RTC_ENABLE_VP9
   if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName))
     return VP9Decoder::Create();
+#endif
   if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName))
     return H264Decoder::Create();
 

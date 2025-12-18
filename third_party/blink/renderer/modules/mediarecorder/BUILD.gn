@@ -38,8 +38,6 @@ blink_modules_sources("mediarecorder") {
     "vea_encoder.h",
     "video_track_recorder.cc",
     "video_track_recorder.h",
-    "vpx_encoder.cc",
-    "vpx_encoder.h",
   ]
 
   deps = [
@@ -49,10 +47,17 @@ blink_modules_sources("mediarecorder") {
     "//media/mojo/clients",
     "//media/mojo/mojom",
     "//third_party/blink/renderer/modules/mediastream",
-    "//third_party/libvpx",
     "//third_party/libyuv",
     "//third_party/opus",
   ]
+
+  if (media_use_libvpx) {
+    sources += [
+      "vpx_encoder.cc",
+      "vpx_encoder.h",
+    ]
+    deps += [ "//third_party/libvpx" ]
+  }
 
   if (rtc_use_h264) {
     sources += [
