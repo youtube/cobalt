@@ -16,7 +16,6 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
-
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
