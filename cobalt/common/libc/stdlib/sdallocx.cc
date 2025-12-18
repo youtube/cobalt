@@ -22,7 +22,7 @@ extern "C" {
 //
 // This is defined here to satisfy the weak symbol in BoringSSL and prevent it
 // from being exported as an undefined weak symbol.
-void sdallocx(void* ptr, size_t /*size*/, int /*flags*/) {
+void sdallocx(void* ptr, size_t size, int flags) {
   free(ptr);
 }
 
