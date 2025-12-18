@@ -2811,8 +2811,13 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.h",
+<<<<<<< HEAD
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_updater.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_updater.h",
+=======
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.h",
+>>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
   ]
   generated_dictionary_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.cc",

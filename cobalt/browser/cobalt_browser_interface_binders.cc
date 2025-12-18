@@ -24,7 +24,13 @@
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+<<<<<<< HEAD
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
+=======
+#include "cobalt/browser/h5vcc_storage/h5vcc_storage_impl.h"
+#include "cobalt/browser/h5vcc_storage/public/mojom/h5vcc_storage.mojom.h"
+#include "cobalt/browser/h5vcc_system/h5vcc_system_impl_base.h"
+>>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
@@ -72,8 +78,13 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_runtime::H5vccRuntimeImpl::Create));
   binder_map->Add<performance::mojom::CobaltPerformance>(
       base::BindRepeating(&performance::PerformanceImpl::Create));
+<<<<<<< HEAD
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
+=======
+  binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
+      base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
+>>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
 }
 
 }  // namespace cobalt

@@ -31,9 +31,13 @@ class H5vccExperiments;
 class H5vccMetrics;
 class H5vccSystem;
 class H5vccRuntime;
+<<<<<<< HEAD
 class H5vccUpdater;
 class H5vccSystem;
 class LocalDOMWindow;
+=======
+class H5vccStorage;
+>>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
 class ScriptState;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
@@ -60,6 +64,8 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   H5vccRuntime* runtime() { return runtime_; }
   H5vccUpdater* updater() { return updater_; }
 
+  H5vccStorage* storage() { return storage_; }
+
   void Trace(Visitor*) const override;
 
  private:
@@ -69,7 +75,11 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   Member<H5vccMetrics> metrics_;
   Member<H5vccSystem> system_;
   Member<H5vccRuntime> runtime_;
+<<<<<<< HEAD
   Member<H5vccUpdater> updater_;
+=======
+  Member<H5vccStorage> storage_;
+>>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
 };
 
 }  // namespace blink

@@ -25,5 +25,9 @@ interface H5vcc {
     readonly attribute H5vccMetrics metrics;
     readonly attribute H5vccSystem system;
     readonly attribute H5vccRuntime runtime;
+<<<<<<< HEAD
     readonly attribute H5vccUpdater updater;
+=======
+    readonly attribute H5vccStorage storage;
+>>>>>>> b8ba6e9a647 (Add h5vcc.storage.clearCrashpadDatabase() support for modular builds … (#8408))
 };
