@@ -45,6 +45,7 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
+import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
@@ -81,10 +82,6 @@ public abstract class CobaltActivity extends Activity {
   private static final String META_DATA_APP_SPLASH_TIMEOUT_MS = "cobalt.APP_SPLASH_TIMEOUT_MS";
   private static final String DISABLE_NATIVE_SPLASH = "disable-native-splash";
 
-
-  // Features
-  public static final String FEATURE_ENABLE_QUIC = "EnableQUIC";
-
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
@@ -93,7 +90,7 @@ public abstract class CobaltActivity extends Activity {
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
-  private Map<String, String> featureFlags = new HashMap<>();
+  private Map<String, String> javaSwitches = new HashMap<>();
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper a11yHelper;
@@ -132,9 +129,9 @@ public abstract class CobaltActivity extends Activity {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
 
-      Map<String, String> featureFlags = getFeatureFlags();
+      Map<String, String> javaSwitches = getJavaSwitches();
       List<String> extraCommandLineArgs = new ArrayList<>();
-      if (!featureFlags.containsKey(FEATURE_ENABLE_QUIC)) {
+      if (!javaSwitches.containsKey(JavaSwitches.ENABLE_QUIC)) {
         extraCommandLineArgs.add("--disable-quic");
       }
 
@@ -671,9 +668,11 @@ public abstract class CobaltActivity extends Activity {
         .orElse(null);
   }
 
-  // Overrided by Kimono
-  protected Map<String, String> getFeatureFlags() {
-    return this.featureFlags;
+  /** 
+   * Overridden by Kimono to provide specific Java switch configurations.  
+   */
+  protected Map<String, String> getJavaSwitches() {
+    return this.javaSwitches;
   }
 
   /**
