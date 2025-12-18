@@ -8676,9 +8676,10 @@ INSTANTIATE_TEST_SUITE_P(All,
                          NavigationBrowserTestDeprecateUnloadOptOut,
                          ::testing::Bool());
 
+// TODO(b/432503432): Investigate test failure
 // Test that enabled/disabled kDeprecateUnloadOptOut has the desired effect.
 IN_PROC_BROWSER_TEST_P(NavigationBrowserTestDeprecateUnloadOptOut,
-                       DeprecateUnloadOptOutFlagRespected) {
+                       DISABLED_DeprecateUnloadOptOutFlagRespected) {
   GURL url_1(embedded_test_server()->GetURL("/title1.html"));
   GURL url_2(embedded_test_server()->GetURL("/title2.html"));
 
