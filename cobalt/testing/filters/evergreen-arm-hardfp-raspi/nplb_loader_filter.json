@@ -4,11 +4,7 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
-<<<<<<< HEAD
-=======
-    "PosixTimeClockTests.ClockIncreasesOverTime",
     "Posix/NlLanginfo*",
->>>>>>> 98e881771e0 (3p: Add support to localeconv (#8306))
     "SbAudioSinkTest.*",
     "SbMediaSetAudioWriteDurationTests*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
