@@ -5,5 +5,6 @@
 OPENSSL_memory_alloc
 OPENSSL_memory_free
 OPENSSL_memory_get_size
+sdallocx
 TLS init function for partition_alloc::internal::g_thread_cache
 TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code
