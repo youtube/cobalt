@@ -12,6 +12,9 @@
 
 namespace {
 
+// TODO(b/470105792): Refactor the implementation of the private range IP checks
+// to avoid string manipulation and bitwise operations.
+
 std::string SanitizeIPAddressStr(const std::string& ip_str) {
   std::string clean_ip = ip_str;
   size_t start = clean_ip.find('[');
