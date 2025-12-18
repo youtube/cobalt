@@ -16,6 +16,7 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -705,8 +706,8 @@ public abstract class CobaltActivity extends Activity {
         .orElse(null);
   }
 
-  /** 
-   * Overridden by Kimono to provide specific Java switch configurations.  
+  /**
+   * Overridden by Kimono to provide specific Java switch configurations.
    */
   protected Map<String, String> getJavaSwitches() {
     return this.javaSwitches;
