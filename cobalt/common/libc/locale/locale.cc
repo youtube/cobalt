@@ -24,49 +24,27 @@
 #include <string>
 #include <vector>
 
+#include "cobalt/common/libc/locale/lconv_support.h"
 #include "cobalt/common/libc/locale/locale_support.h"
+#include "cobalt/common/libc/no_destructor.h"
+#include "starboard/common/log.h"
 
 namespace {
 constexpr char kLangEnv[] = "LANG";
 
+using cobalt::common::libc::NoDestructor;
 cobalt::LocaleImpl* GetGlobalLocale() {
-  static cobalt::LocaleImpl g_current_locale;
-  return &g_current_locale;
+  static NoDestructor<cobalt::LocaleImpl> g_current_locale;
+  return g_current_locale.get();
+}
+
+cobalt::LconvImpl* GetGlobalLconv() {
+  static NoDestructor<cobalt::LconvImpl> g_current_lconv;
+  return g_current_lconv.get();
 }
 
 thread_local cobalt::LocaleImpl* g_current_thread_locale =
     reinterpret_cast<cobalt::LocaleImpl*>(LC_GLOBAL_LOCALE);
-
-// The default locale is the C locale.
-const lconv* GetCLocaleConv() {
-  static const lconv c_locale_conv = {
-      .decimal_point = const_cast<char*>("."),
-      .thousands_sep = const_cast<char*>(""),
-      .grouping = const_cast<char*>(""),
-      .int_curr_symbol = const_cast<char*>(""),
-      .currency_symbol = const_cast<char*>(""),
-      .mon_decimal_point = const_cast<char*>(""),
-      .mon_thousands_sep = const_cast<char*>(""),
-      .mon_grouping = const_cast<char*>(""),
-      .positive_sign = const_cast<char*>(""),
-      .negative_sign = const_cast<char*>(""),
-      .int_frac_digits = CHAR_MAX,
-      .frac_digits = CHAR_MAX,
-      .p_cs_precedes = CHAR_MAX,
-      .p_sep_by_space = CHAR_MAX,
-      .n_cs_precedes = CHAR_MAX,
-      .n_sep_by_space = CHAR_MAX,
-      .p_sign_posn = CHAR_MAX,
-      .n_sign_posn = CHAR_MAX,
-      .int_p_cs_precedes = CHAR_MAX,
-      .int_p_sep_by_space = CHAR_MAX,
-      .int_n_cs_precedes = CHAR_MAX,
-      .int_n_sep_by_space = CHAR_MAX,
-      .int_p_sign_posn = CHAR_MAX,
-      .int_n_sign_posn = CHAR_MAX,
-  };
-  return &c_locale_conv;
-}
 
 }  // namespace
 
@@ -227,8 +205,34 @@ locale_t duplocale(locale_t loc) {
 }
 
 struct lconv* localeconv(void) {
-  // TODO: b/461906423 - Properly implement localeconv.
-  return const_cast<lconv*>(GetCLocaleConv());
+  cobalt::LconvImpl* current_lconv = GetGlobalLconv();
+  cobalt::LocaleImpl* current_loc;
+  if (g_current_thread_locale !=
+      reinterpret_cast<cobalt::LocaleImpl*> LC_GLOBAL_LOCALE) {
+    current_loc = g_current_thread_locale;
+  } else {
+    current_loc = GetGlobalLocale();
+  }
+
+  std::string numeric_locale = current_loc->categories[LC_NUMERIC];
+  std::string monetary_locale = current_loc->categories[LC_MONETARY];
+
+  if ((numeric_locale == cobalt::kCLocale ||
+       numeric_locale == cobalt::kPosixLocale) &&
+      (monetary_locale == cobalt::kCLocale ||
+       monetary_locale == cobalt::kPosixLocale)) {
+    current_lconv->ResetToC();
+    return &(current_lconv->result);
+  }
+
+  if (!cobalt::UpdateNumericLconv(numeric_locale, current_lconv) ||
+      !cobalt::UpdateMonetaryLconv(monetary_locale, current_lconv)) {
+    SB_LOG(WARNING) << "Failed to properly retrieve the updated lconv struct. "
+                       "Returning the C lconv.";
+    current_lconv->ResetToC();
+  }
+
+  return &(current_lconv->result);
 }
 
 char* nl_langinfo_l(nl_item item, locale_t locale) {
