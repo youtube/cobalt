@@ -52,7 +52,8 @@ WebCSPSourceList ConvertToPublic(
           source_list->allow_unsafe_hashes,
 #if BUILDFLAG(IS_COBALT)
           source_list->report_sample,
-          source_list->cobalt_insecure_local_network};
+          source_list->cobalt_insecure_local_network,
+          source_list->cobalt_insecure_private_range};
 #else
           source_list->report_sample};
 #endif
@@ -117,7 +118,9 @@ network::mojom::blink::CSPSourceListPtr ConvertToMojoBlink(
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
       source_list.allow_dynamic, source_list.allow_unsafe_hashes,
 #if BUILDFLAG(IS_COBALT)
-      source_list.report_sample, source_list.cobalt_insecure_local_network);
+      source_list.report_sample,
+      source_list.cobalt_insecure_local_network,
+      source_list.cobalt_insecure_private_range);
 #else
       source_list.report_sample);
 #endif
