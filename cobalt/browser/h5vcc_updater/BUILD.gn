@@ -21,7 +21,6 @@ source_set("h5vcc_updater") {
   deps = [
     "//base",
     "//cobalt/browser/h5vcc_updater/public/mojom",
-    "//cobalt/updater:updater",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
@@ -30,5 +29,9 @@ source_set("h5vcc_updater") {
 
   if (is_starboard) {
     deps += [ "//cobalt/configuration" ]
+  }
+
+  if (sb_is_evergreen) {
+    deps += [ "//cobalt/updater:updater" ]
   }
 }

@@ -34,10 +34,13 @@ ScriptPromise H5vccUpdater::getUpdateServerUrl(
 
   EnsureReceiverIsBound();
 
+#if BUILDFLAG(USE_EVERGREEN)
   remote_h5vcc_updater_->GetUpdateServerUrl(
       WTF::BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
                     WrapPersistent(resolver)));
-
+#else
+  resolver->Reject();
+#endif
   return resolver->Promise();
 }
 
