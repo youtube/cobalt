@@ -45,12 +45,11 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
-import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
@@ -519,8 +518,8 @@ public abstract class CobaltActivity extends Activity {
     return false;
   }
 
-  /** 
-   * Overridden by Kimono to provide specific Java switch configurations.  
+  /**
+   * Overridden by Kimono to provide specific Java switch configurations.
    */
   protected Map<String, String> getJavaSwitches() {
     return this.mJavaSwitches;
