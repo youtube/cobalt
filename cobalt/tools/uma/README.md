@@ -66,6 +66,7 @@ Launch Cobalt directly from your shell, adding the `--remote-debugging-port` and
 # Example for Linux
 path/to/cobalt --remote-debugging-port=9222 --remote-allow-origins=*
 ```
+**Note:** Linux builds have only been tested on Linux monolithic builds, not RDK builds. (TODO: b/470381238)
 
 **For Android:**
 
