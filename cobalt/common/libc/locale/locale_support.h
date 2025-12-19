@@ -15,6 +15,7 @@
 #ifndef COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_
 #define COBALT_COMMON_LIBC_LOCALE_LOCALE_SUPPORT_H_
 
+#include <langinfo.h>
 #include <locale.h>
 
 #include <array>
@@ -104,6 +105,8 @@ void RefreshCompositeString(LocaleImpl* loc);
 
 // Updates the LocaleImpl struct based on a given mask and locale string.
 void UpdateLocaleSettings(int mask, const char* locale, LocaleImpl* base);
+
+char* RetrieveLocaleDay(const nl_item& item, LocaleImpl* locale);
 
 }  // namespace cobalt
 
