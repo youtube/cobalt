@@ -192,11 +192,14 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetContentDirectory(path.data(), kPathSize)) {
         return false;
       }
+      SB_LOG(INFO) << "kSbSystemPathContentDirectory dir is" << path.data();
+
 #if SB_IS(EVERGREEN_COMPATIBLE)
       if (!GetEvergreenContentPathOverride(path.data(), kPathSize)) {
         return false;
       }
-
+      SB_LOG(INFO) << "kSbSystemPathContentDirectory dir is override "
+                   << path.data();
 #endif
       break;
 
