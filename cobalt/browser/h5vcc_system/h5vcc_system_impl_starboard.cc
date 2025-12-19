@@ -60,8 +60,10 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  // TODO: b/395650827 - Connect to Starboard extension.
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/458160672: Add implementation for AppleTV
   NOTIMPLEMENTED();
+#endif
   return "NOT_SUPPORTED";
 }
 
@@ -104,9 +106,13 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO: b/395650827 - Connect to Starboard extension.
+#if BUILDFLAG(IS_IOS_TVOS)
+  // TODO - b/458160672: Add implementation for AppleTV
   NOTIMPLEMENTED();
-  std::move(callback).Run();
+  std::move(callback).Run(true);
+#else
+  std::move(callback).Run(false);
+#endif
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(

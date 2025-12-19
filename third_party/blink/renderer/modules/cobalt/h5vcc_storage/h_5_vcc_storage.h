@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
 
-#include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom-blink.h"
+#include "cobalt/browser/h5vcc_storage/public/mojom/h5vcc_storage.mojom-blink.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -35,45 +35,29 @@ class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
 
-class MODULES_EXPORT H5vccSystem final
+class MODULES_EXPORT H5vccStorage final
     : public ScriptWrappable,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit H5vccSystem(LocalDOMWindow&);
+  explicit H5vccStorage(LocalDOMWindow&);
 
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise<IDLString> getAdvertisingId(ScriptState*, ExceptionState&);
-  const String& advertisingId();
-  ScriptPromise<IDLBoolean> getLimitAdTracking(ScriptState*, ExceptionState&);
-  absl::optional<bool> limitAdTracking();
-  ScriptPromise<IDLString> getTrackingAuthorizationStatus(ScriptState*,
-                                                          ExceptionState&);
-  const String& trackingAuthorizationStatus();
-  ScriptPromise<IDLUndefined> requestTrackingAuthorization(ScriptState*,
-                                                           ExceptionState&);
-  void exit();
-  uint32_t userOnExitStrategy();
+  ScriptPromise<IDLUndefined> clearCrashpadDatabase(ScriptState*,
+                                                    ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
-  void OnGetAdvertisingId(ScriptPromiseResolver<IDLString>*, const String&);
-  void OnGetLimitAdTracking(ScriptPromiseResolver<IDLBoolean>*, bool);
-  void OnGetTrackingAuthorizationStatus(ScriptPromiseResolver<IDLString>*,
-                                        const String&);
-  void OnRequestTrackingAuthorization(ScriptPromiseResolver<IDLUndefined>*,
-                                      bool);
   void EnsureReceiverIsBound();
-  HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
 
-  String advertising_id_;
-  String tracking_authorization_status_;
+  HeapMojoRemote<h5vcc_storage::mojom::blink::H5vccStorage>
+      remote_h5vcc_storage_;
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_STORAGE_H_5_VCC_STORAGE_H_
