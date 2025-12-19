@@ -19,7 +19,6 @@
 #include "starboard/media.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
-#import "starboard/tvos/shared/window_manager.h"
 #include "third_party/internal/ce_cdm/oemcrypto/mock/src/oemcrypto_engine_mock.h"
 
 namespace {

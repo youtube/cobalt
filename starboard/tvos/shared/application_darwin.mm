@@ -25,7 +25,6 @@
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
-#import "starboard/tvos/shared/window_manager.h"
 
 @interface ObjCApplication : NSObject <SBDStarboardApplication>
 @end
@@ -33,13 +32,11 @@
 @implementation ObjCApplication
 @synthesize drmManager = _drmManager;
 @synthesize playerManager = _playerManager;
-@synthesize windowManager = _windowManager;
 
 - (instancetype)init {
   self = [super init];
   if (self) {
     _drmManager = [[SBDDrmManager alloc] init];
-    _windowManager = [[SBDWindowManager alloc] init];
     _playerManager = [[SBDPlayerManager alloc] init];
   }
   return self;

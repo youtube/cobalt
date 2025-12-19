@@ -102,7 +102,8 @@ void H5vccSystemImpl::RequestTrackingAuthorization(
       base::SequencedTaskRunner::GetCurrentDefault(),
       base::IgnoreArgs<ATTrackingManagerAuthorizationStatus>(base::BindOnce(
           [](RequestTrackingAuthorizationCallback callback) {
-            std::move(callback).Run();
+            std::move(callback).Run(
+                /*is_tracking_authorization_supported=*/true);
           },
           std::move(callback)))));
   [ATTrackingManager
