@@ -141,7 +141,6 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
-
       commandLineArgs = appendEnableFeaturesIfNecessary(commandLineArgs);
 
       CommandLineOverrideHelper.getFlagOverrides(
