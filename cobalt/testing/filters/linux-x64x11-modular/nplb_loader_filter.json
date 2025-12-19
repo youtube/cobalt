@@ -2,6 +2,7 @@
   "_comment": "TODO(b/403007005): Disabled new locale tests.",
   "failing_tests": [
     "PosixTimeClockTests.ClockIncreasesOverTime",
+<<<<<<< HEAD
 
     "PosixLocaleSetTest.LocaleConvC",
     "PosixLocaleSetTest.NewUseFreeLocale",
@@ -36,5 +37,8 @@
     "PosixMemalignTest.FailsWithInvalidAlignment*",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
+=======
+    "Posix/NlLanginfo*"
+>>>>>>> 1c00617d829 (3p: Update locale tests and enable them on modular (#8478))
   ]
 }
