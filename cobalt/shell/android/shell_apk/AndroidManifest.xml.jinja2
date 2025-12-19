@@ -61,6 +61,8 @@
                   android:hardwareAccelerated="true"
                   android:exported="true">
             <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv/splash"/>
+            {# Cobalt/CoAT app is for the development only #}
+            <meta-data android:name="cobalt.ENABLE_PERFETTO_TRACING" android:value="true"/>
             <meta-data android:name="cobalt.EVERGREEN_LITE" android:value="false"/>
             <meta-data android:name="android.app.lib_name" android:value="cobalt"/>
             <intent-filter>

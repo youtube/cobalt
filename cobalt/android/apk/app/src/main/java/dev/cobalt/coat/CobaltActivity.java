@@ -71,6 +71,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_ENABLE_PERFETTO_TRACING = "cobalt.ENABLE_PERFETTO_TRACING";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -100,6 +101,29 @@ public abstract class CobaltActivity extends Activity {
   private CobaltConnectivityDetector mCobaltConnectivityDetector;
   private WebContentsObserver mWebContentsObserver;
 
+  private String[] appendEnablePerfettoTracingIfNecessary(String[] commandLineArgs) {
+    ActivityInfo ai = null;
+    try {
+      ai = getPackageManager()
+              .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
+    } catch (NameNotFoundException e) {
+      Log.e(TAG, "Error getting activity info", e);
+      return commandLineArgs;
+    }
+
+    if (ai == null || ai.metaData == null || !ai.metaData.getBoolean(META_DATA_ENABLE_PERFETTO_TRACING, false)) {
+      return commandLineArgs;
+    }
+
+    if (commandLineArgs == null) {
+      commandLineArgs = new String[0];
+    }
+    String[] newArgs = new String[commandLineArgs.length + 1];
+    System.arraycopy(commandLineArgs, 0, newArgs, 0, commandLineArgs.length);
+    newArgs[commandLineArgs.length] = "--enable-features=EnablePerfettoSystemTracing";
+    return newArgs;
+  }
+
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
@@ -110,6 +134,9 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
+
+      commandLineArgs = appendEnablePerfettoTracingIfNecessary(commandLineArgs);
+
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
