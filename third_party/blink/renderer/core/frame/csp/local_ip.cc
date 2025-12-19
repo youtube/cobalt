@@ -8,6 +8,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#include "base/containers/span.h"
 #include "third_party/blink/public/platform/platform.h"
 
 namespace {
@@ -114,7 +115,15 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
       // Treat this address as IPv4 and convert to it.
       // Extract the 4 bytes following the prefix (indices 2, 3, 4, 5)
       uint32_t ipv4_network_order;
-      std::memcpy(&ipv4_network_order, &ipv6_addr.s6_addr[2], sizeof(uint32_t));
+
+      // TODO(b/470105792): Refactor this implementation to avoid
+      // such operations that can be done using //net implementations.
+      //
+      // std::memcpy is unsafe buffer here. base::span::copy_from() is
+      // recommended here: See //docs/unsafe_buffers.md
+      auto src_span = base::make_span(ipv6_addr.s6_addr).subspan(2, 4);
+      auto dst_span = base::byte_span_from_ref(ipv4_network_order);
+      dst_span.copy_from(src_span);
 
       // Convert from Network Byte Order to Host Byte Order (uint32_t)
       uint32_t addr = ntohl(ipv4_network_order);
