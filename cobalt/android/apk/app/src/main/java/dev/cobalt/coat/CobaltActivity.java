@@ -72,6 +72,8 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
   private static final String META_DATA_ENABLE_PERFETTO_TRACING = "cobalt.ENABLE_PERFETTO_TRACING";
+  private static final String FLAG_ENABLE_PERFETTO_SYSTEM_TRACING =
+      "--enable-features=EnablePerfettoSystemTracing";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -115,13 +117,12 @@ public abstract class CobaltActivity extends Activity {
       return commandLineArgs;
     }
 
-    if (commandLineArgs == null) {
-      commandLineArgs = new String[0];
+    List<String> args = new ArrayList<>();
+    if (commandLineArgs != null) {
+      args.addAll(Arrays.asList(commandLineArgs));
     }
-    String[] newArgs = new String[commandLineArgs.length + 1];
-    System.arraycopy(commandLineArgs, 0, newArgs, 0, commandLineArgs.length);
-    newArgs[commandLineArgs.length] = "--enable-features=EnablePerfettoSystemTracing";
-    return newArgs;
+    args.add(FLAG_ENABLE_PERFETTO_SYSTEM_TRACING);
+    return args.toArray(new String[0]);
   }
 
   // Initially copied from ContentShellActiviy.java

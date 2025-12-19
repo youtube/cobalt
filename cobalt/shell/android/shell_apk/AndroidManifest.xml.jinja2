@@ -48,9 +48,10 @@
             android:icon="@mipmap/ic_app"
             android:banner="@drawable/app_banner"
             android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
-            {# Cobalt/CoAT app is for the development only #}
+            {# Always enable debuggable=true for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
             android:debuggable="true"
             android:label="{% block application_label %}Cobalt Shell{% endblock %}">
+        {# Always enable profileable for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
         <profileable android:shell="true" android:enabled="true" />
         {% block main_activity %}
         <activity android:name="dev.cobalt.app.MainActivity"
@@ -61,7 +62,7 @@
                   android:hardwareAccelerated="true"
                   android:exported="true">
             <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv/splash"/>
-            {# Cobalt/CoAT app is for the development only #}
+            {# Enables Perfetto system tracing by default. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
             <meta-data android:name="cobalt.ENABLE_PERFETTO_TRACING" android:value="true"/>
             <meta-data android:name="cobalt.EVERGREEN_LITE" android:value="false"/>
             <meta-data android:name="android.app.lib_name" android:value="cobalt"/>
