@@ -30,6 +30,11 @@ extern "C" {
 #define kStarboardExtensionAccessibilityName \
   "dev.starboard.extension.Accessibility"
 
+// A callback function that is called when the system's text-to-speech
+// settings have changed. The |context| parameter is the value that was
+// passed to |RegisterOnTextToSpeechStateChangedCallback|.
+typedef void (*SbOnTextToSpeechStateChangedCallback)(void* context);
+
 // A group of settings related to text-to-speech functionality, for platforms
 // that expose system settings for text-to-speech.
 typedef struct SbAccessibilityTextToSpeechSettings {
@@ -234,6 +239,13 @@ typedef struct StarboardExtensionAccessibilityApi {
   // |enabled|: A boolean indicating whether captions should be turned on (true)
   //    or off (false).
   bool (*SetCaptionsEnabled)(bool enabled);
+
+  // This function, if implemented, will be called when the system's
+  // text-to-speech settings have changed. This allows the application to
+  // respond to user changes made in the system settings.
+  void (*RegisterOnTextToSpeechStateChangedCallback)(
+      SbOnTextToSpeechStateChangedCallback callback,
+      void* context);
 } StarboardExtensionAccessibilityApi;
 
 #ifdef __cplusplus
