@@ -63,7 +63,7 @@ struct ApplicationDarwin::ObjCStorage {
 };
 
 class ApplicationDarwin::ApplicationDarwinInternal final
-    : public shared::starboard::QueueApplication {
+    : public QueueApplication {
  public:
   explicit ApplicationDarwinInternal(
       std::unique_ptr<::starboard::CommandLine> command_line)
@@ -77,8 +77,7 @@ class ApplicationDarwin::ApplicationDarwinInternal final
   // QueueApplication overrides.
   bool IsStartImmediate() override { return false; }
   bool MayHaveSystemEvents() override { return false; }
-  shared::starboard::Application::Event* WaitForSystemEventWithTimeout(
-      int64_t time) override {
+  Event* WaitForSystemEventWithTimeout(int64_t time) override {
     return nullptr;
   }
   void WakeSystemEventWait() override {}
