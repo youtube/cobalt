@@ -100,8 +100,7 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider()
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   if (job_thread_) {
-    job_thread_->ScheduleAndWait(
-        std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
+    job_thread_->ScheduleAndWait([this] { DestroyContext(); });
     job_thread_.reset();
   }
   EGL_CALL(eglDestroySurface(display_, surface_));
@@ -124,7 +123,8 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     return;
   }
 
-  job_thread_->ScheduleAndWait(std::bind(SbDecodeTargetRelease, decode_target));
+  job_thread_->ScheduleAndWait(
+      [decode_target] { SbDecodeTargetRelease(decode_target); });
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
@@ -248,8 +248,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   job_thread_ = std::make_unique<JobThread>("dt_context");
   MakeNoContextCurrent();
 
-  job_thread_->Schedule(
-      std::bind(&FakeGraphicsContextProvider::MakeContextCurrent, this));
+  job_thread_->Schedule([this] { MakeContextCurrent(); });
 }
 
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
@@ -260,8 +259,9 @@ void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     return;
   }
 
-  job_thread_->ScheduleAndWait(
-      std::bind(target_function, target_function_context));
+  job_thread_->ScheduleAndWait([target_function, target_function_context] {
+    target_function(target_function_context);
+  });
 }
 
 void FakeGraphicsContextProvider::MakeContextCurrent() {
