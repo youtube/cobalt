@@ -337,14 +337,13 @@ void AVSBVideoRenderer::SetMediaTimeOffset(int64_t media_time_offset) {
   // Flush |display_layer_| after AVSBSynchronizer set rate and time to zero in
   // AVSBSynchronizer::Seek().
   is_display_layer_flushing_ = true;
-  AVSampleBufferDisplayLayer* display_layer = display_layer_;
   base::WeakPtr<AVSBVideoRenderer> weak_this = weak_ptr_factory_.GetWeakPtr();
   onApplicationMainThread(^{
     AVSBVideoRenderer* strong_this = weak_this.get();
     if (!strong_this) {
       return;
     }
-    [display_layer flush];
+    [strong_this->display_layer_ flush];
     strong_this->is_display_layer_flushing_ = false;
   });
 }
