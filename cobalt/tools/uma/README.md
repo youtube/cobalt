@@ -4,6 +4,8 @@ This directory contains Python scripts for interacting with and analyzing Cobalt
 
 ---
 
+**Note:** These tools have been tested on Android and Linux, but the  Linux builds have only been tested on Linux monolithic builds, not RDK builds. (TODO: b/470381238)
+
 ## 1. `pull_uma_histogram_set_via_cdp.py`
 
 A script to connect to a running Cobalt instance, poll for UMA histograms at a regular interval, and save the raw data.
@@ -66,7 +68,6 @@ Launch Cobalt directly from your shell, adding the `--remote-debugging-port` and
 # Example for Linux
 path/to/cobalt --remote-debugging-port=9222 --remote-allow-origins=*
 ```
-**Note:** Linux builds have only been tested on Linux monolithic builds, not RDK builds. (TODO: b/470381238)
 
 **For Android:**
 
