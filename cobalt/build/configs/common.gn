@@ -49,7 +49,6 @@ v8_enable_atomic_object_field_writes = false
 v8_use_external_startup_data = false
 
 # Many of these come from media_options.gni.
-enable_dav1d_decoder = false
 enable_hevc_parser_and_hw_decoder = false
 enable_libaom = false
 enable_platform_iamf_audio = true
