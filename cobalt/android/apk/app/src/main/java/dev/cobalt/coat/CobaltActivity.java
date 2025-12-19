@@ -94,6 +94,7 @@ public abstract class CobaltActivity extends Activity {
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
   private Map<String, String> javaSwitches = new HashMap<>();
 
+
   @SuppressWarnings("unused")
   private CobaltA11yHelper a11yHelper;
 
