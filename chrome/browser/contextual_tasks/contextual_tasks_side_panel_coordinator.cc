@@ -146,10 +146,6 @@ ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
       scoped_unowned_user_data_(browser_window->GetUnownedUserDataHost(),
                                 *this) {
   CreateAndRegisterEntry(SidePanelRegistry::From(browser_window_));
-  active_tab_subscription_ =
-      browser_window->RegisterActiveTabDidChange(base::BindRepeating(
-          &ContextualTasksSidePanelCoordinator::OnActiveTabChanged,
-          base::Unretained(this)));
   browser_window_->GetTabStripModel()->AddObserver(this);
 }
 
@@ -440,8 +436,7 @@ bool ContextualTasksSidePanelCoordinator::UpdateWebContentsForActiveTab() {
   return prev_web_contents != web_contents;
 }
 
-void ContextualTasksSidePanelCoordinator::OnActiveTabChanged(
-    BrowserWindowInterface* browser_interface) {
+void ContextualTasksSidePanelCoordinator::OnActiveTabChanged() {
   bool was_side_panel_open = IsSidePanelOpenForContextualTask();
   bool web_contents_changed = UpdateWebContentsForActiveTab();
   UpdateSidePanelVisibility();
@@ -516,9 +511,12 @@ void ContextualTasksSidePanelCoordinator::OnTabStripModelChanged(
     }
   } else if (change.type() == TabStripModelChange::kRemoved) {
     for (const auto& content : change.GetRemove()->contents) {
-      // Do not disassociate the tab from the task if insert into side panel.
+      // Do not disassociate the tab from the task if insert into side panel or
+      // another tab strip.
       if (content.remove_reason !=
-          TabStripModelChange::RemoveReason::kInsertedIntoSidePanel) {
+              TabStripModelChange::RemoveReason::kInsertedIntoSidePanel &&
+          content.remove_reason !=
+              TabStripModelChange::RemoveReason::kInsertedIntoOtherTabStrip) {
         DisassociateTabFromTask(content.contents);
       }
     }
@@ -526,6 +524,10 @@ void ContextualTasksSidePanelCoordinator::OnTabStripModelChanged(
   } else if (change.type() == TabStripModelChange::kReplaced) {
     DisassociateTabFromTask(change.GetReplace()->old_contents);
     CleanUpUnusedWebContents();
+  }
+
+  if (selection.active_tab_changed() && !tab_strip_model->empty()) {
+    OnActiveTabChanged();
   }
 }
 
@@ -620,7 +622,7 @@ void ContextualTasksSidePanelCoordinator::UpdateContextualTaskUI() {
   content::WebContents* web_contents = web_view_->GetWebContents();
   content::WebUI* web_ui = web_contents ? web_contents->GetWebUI() : nullptr;
   ContextualTasksUI* contextual_tasks_ui = nullptr;
-  if (web_ui->GetController()) {
+  if (web_ui && web_ui->GetController()) {
     contextual_tasks_ui = web_ui->GetController()->GetAs<ContextualTasksUI>();
   }
 

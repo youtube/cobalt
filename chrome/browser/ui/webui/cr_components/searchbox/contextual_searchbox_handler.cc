@@ -83,6 +83,10 @@ ContextualOmniboxClient::GetLensOverlaySuggestInputs() const {
              : std::nullopt;
 }
 
+int ContextualSearchboxHandler::GetContextMenuMaxTabSuggestions() {
+  return ntp_composebox::kContextMenuMaxTabSuggestions.Get();
+}
+
 void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
   std::vector<searchbox::mojom::TabInfoPtr> tabs;
 
@@ -138,9 +142,8 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
 
   // Sort the tabs by last active time, and truncate to the maximum number of
   // tabs to return.
-  int max_tab_suggestions =
-      std::min(static_cast<int>(tabs.size()),
-               ntp_composebox::kContextMenuMaxTabSuggestions.Get());
+  int max_tab_suggestions = std::min(static_cast<int>(tabs.size()),
+                                     GetContextMenuMaxTabSuggestions());
   std::partial_sort(tabs.begin(), tabs.begin() + max_tab_suggestions,
                     tabs.end(),
                     [](const searchbox::mojom::TabInfoPtr& a,
@@ -520,9 +523,16 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
     search_url_request_info->additional_params = additional_params;
     search_url_request_info->aim_entry_point = aim_entry_point;
 
-    OpenUrl(contextual_session_handle->CreateSearchUrl(
-                std::move(search_url_request_info)),
-            disposition);
+    contextual_session_handle->CreateSearchUrl(
+        std::move(search_url_request_info),
+        base::BindOnce(
+            [](base::WeakPtr<ContextualSearchboxHandler> self,
+               WindowOpenDisposition disposition, GURL url) {
+              if (self) {
+                self->OpenUrl(url, disposition);
+              }
+            },
+            weak_ptr_factory_.GetWeakPtr(), disposition));
 
     file_info_list =
         contextual_session_handle->GetController()->GetFileInfoList();
