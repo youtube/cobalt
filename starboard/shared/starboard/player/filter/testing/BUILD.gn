@@ -48,6 +48,7 @@ if (current_toolchain == starboard_toolchain) {
     deps += [
       "//$starboard_path:starboard_platform",
       "//starboard/egl_and_gles:buildflags",
+      "//starboard/shared/starboard/player:job_thread",
       "//starboard/shared/starboard/player:player_test_data",
       "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     ]

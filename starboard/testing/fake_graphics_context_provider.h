@@ -15,15 +15,14 @@
 #ifndef STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 #define STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 
-#include <pthread.h>
-
 #include <functional>
+#include <memory>
 
-#include "starboard/common/queue.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
 #include "starboard/gles.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -47,9 +46,6 @@ class FakeGraphicsContextProvider {
   void Render();
 
  private:
-  static void* ThreadEntryPoint(void* context);
-  void RunLoop();
-
   void InitializeEGL();
 
   void OnDecodeTargetGlesContextRunner(
@@ -68,8 +64,7 @@ class FakeGraphicsContextProvider {
   SbEglDisplay display_;
   SbEglSurface surface_;
   SbEglContext context_;
-  Queue<std::function<void()>> functor_queue_;
-  pthread_t decode_target_context_thread_;
+  std::unique_ptr<JobThread> job_thread_;
 
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };

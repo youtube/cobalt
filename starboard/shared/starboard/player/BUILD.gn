@@ -31,6 +31,19 @@ static_library("video_dmp") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
+source_set("job_thread") {
+  check_includes = false
+  sources = [
+    "job_queue.cc",
+    "job_queue.h",
+    "job_thread.cc",
+    "job_thread.h",
+  ]
+
+  public_deps = [ "//starboard/common" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
 action("player_download_test_data") {
   visibility = [ ":player_test_data" ]
 
