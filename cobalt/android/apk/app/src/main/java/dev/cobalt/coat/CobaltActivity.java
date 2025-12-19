@@ -71,9 +71,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
-  private static final String META_DATA_ENABLE_PERFETTO_TRACING = "cobalt.ENABLE_PERFETTO_TRACING";
-  private static final String FLAG_ENABLE_PERFETTO_SYSTEM_TRACING =
-      "--enable-features=EnablePerfettoSystemTracing";
+  private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -103,7 +101,7 @@ public abstract class CobaltActivity extends Activity {
   private CobaltConnectivityDetector mCobaltConnectivityDetector;
   private WebContentsObserver mWebContentsObserver;
 
-  private String[] appendEnablePerfettoTracingIfNecessary(String[] commandLineArgs) {
+  private String[] appendEnableFeaturesIfNecessary(String[] commandLineArgs) {
     ActivityInfo ai = null;
     try {
       ai = getPackageManager()
@@ -113,7 +111,12 @@ public abstract class CobaltActivity extends Activity {
       return commandLineArgs;
     }
 
-    if (ai == null || ai.metaData == null || !ai.metaData.getBoolean(META_DATA_ENABLE_PERFETTO_TRACING, false)) {
+    if (ai == null || ai.metaData == null) {
+      return commandLineArgs;
+    }
+
+    String enableFeatures = ai.metaData.getString(META_DATA_ENABLE_FEATURES);
+    if (TextUtils.isEmpty(enableFeatures)) {
       return commandLineArgs;
     }
 
@@ -121,7 +124,7 @@ public abstract class CobaltActivity extends Activity {
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
-    args.add(FLAG_ENABLE_PERFETTO_SYSTEM_TRACING);
+    args.add("--enable-features=" + enableFeatures);
     return args.toArray(new String[0]);
   }
 
@@ -136,7 +139,7 @@ public abstract class CobaltActivity extends Activity {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
 
-      commandLineArgs = appendEnablePerfettoTracingIfNecessary(commandLineArgs);
+      commandLineArgs = appendEnableFeaturesIfNecessary(commandLineArgs);
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
