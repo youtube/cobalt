@@ -3984,8 +3984,11 @@ deps = {
   },
 
   # Dependencies for RDK (starboard/contrib/rdk)
+  #
+  # Add support for kSbSystemPathFilesDirectory.
+  # https://cobalt-review.git.corp.google.com/c/external/components/generic/cobalt/+/7490
   'src/starboard/contrib/rdk': {
-      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
+      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + 'e29c46f2b923d27172741c9bc68946632d587e35',
       'condition': 'checkout_linux',
   },
 }
