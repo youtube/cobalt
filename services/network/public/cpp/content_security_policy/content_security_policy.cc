@@ -738,6 +738,10 @@ mojom::CSPSourceListPtr ParseSourceList(
       directive->cobalt_insecure_local_network = true;
       continue;
     }
+    if (base::EqualsCaseInsensitiveASCII(expression, "'cobalt-insecure-private-range'")) {
+      directive->cobalt_insecure_private_range = true;
+      continue;
+    }
 #endif
 
     std::string nonce;
