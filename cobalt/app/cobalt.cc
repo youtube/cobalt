@@ -32,6 +32,7 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/performance/startup_time.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "content/public/app/content_main.h"
@@ -119,6 +120,7 @@ void SbEventHandle(const SbEvent* event) {
       break;
     }
     case kSbEventTypeStart: {
+      cobalt::browser::SetStartupTime(event->timestamp);
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
       init_musl();
 #endif
