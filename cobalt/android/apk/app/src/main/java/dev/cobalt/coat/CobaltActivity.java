@@ -124,6 +124,9 @@ public abstract class CobaltActivity extends Activity {
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
+    // CommandLineOverrideHelper will merge this with other --enable-features flags
+    // It also accepts semi-colon-separated list of features.
+    // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
     args.add("--enable-features=" + enableFeatures);
     return args.toArray(new String[0]);
   }
