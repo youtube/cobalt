@@ -29,6 +29,7 @@
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
     "PosixUtimensatTest.OmitBothTimestamps",
     "PosixUtimensatTest.SymlinkNoFollow",
+    "Posix/NlLanginfo*",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbSystemGetPropertyTest.ReturnsRequired",
     "SbSystemGetStackTest.SunnyDayStackDirection",
