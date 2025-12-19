@@ -85,8 +85,6 @@ void NavigatorMediaStream::getUserMedia(
   DCHECK(success_callback);
   DCHECK(error_callback);
 
-  LOG(INFO) << "YO THOR - GET USER MEDIA REQ";
-
   if (!navigator.DomWindow()) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kNotSupportedError,

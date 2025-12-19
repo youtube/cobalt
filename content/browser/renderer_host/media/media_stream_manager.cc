@@ -1788,9 +1788,6 @@ void MediaStreamManager::GenerateStreams(
         device_capture_configuration_change_cb,
     DeviceCaptureHandleChangeCallback device_capture_handle_change_cb) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  LOG(INFO) << "YO THOR - MediaStreamManager::GenerateStreams called. Audio type: "
-            << StreamTypeToString(controls.audio.stream_type)
-            << ", Video type: " << StreamTypeToString(controls.video.stream_type);
   SendLogMessage(GetGenerateStreamsLogString(render_process_id, render_frame_id,
                                              requester_id, page_request_id));
   std::unique_ptr<DeviceRequest> request =
@@ -3085,7 +3082,6 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
     return;
   }
 
-#if !BUILDFLAG(IS_STARBOARD)
 #if !BUILDFLAG(IS_ANDROID)
   // 1. Only the first call to SetCapturedDisplaySurfaceFocus() has an
   //    effect, so a direct call to SetCapturedDisplaySurfaceFocus()
@@ -3097,7 +3093,6 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
   //    that Blink schedules does so even sooner.
   // 2. Using base::Unretained is safe since MediaStreamManager is deleted on
   //    the UI thread, after the IO thread has been stopped.
-  LOG(INFO) << "YO THOR - MediaStreamManager: Posting 1-second delayed focus task.";
   GetIOThreadTaskRunner({})->PostDelayedTask(
       FROM_HERE,
       base::BindOnce(&MediaStreamManager::SetCapturedDisplaySurfaceFocus,
@@ -3106,7 +3101,6 @@ void MediaStreamManager::PanTiltZoomPermissionChecked(
                      /*is_from_timer=*/true),
       conditional_focus_window_);
 #endif
-#endif // !BUILDFLAG(IS_STARBOARD)
 
   // We only start tracking once stream generation is truly complete.
   // If the CaptureHandle observable by this capturer has changed asynchronously
@@ -4182,7 +4176,6 @@ void MediaStreamManager::SetCapturedDisplaySurfaceFocus(
     bool is_from_microtask,
     bool is_from_timer) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  LOG(INFO) << "YO THOR - MediaStreamManager: Executing delayed focus task.";
 
   DeviceRequest* const request = FindRequest(label);
   if (!request) {

@@ -402,8 +402,6 @@ MediaDevicesManager::MediaDevicesManager(
       salt_and_origin_callback_(
           base::BindRepeating(&GetMediaDeviceSaltAndOrigin)) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  LOG(INFO) << "YO THOR - --use-fake-device-for-media-stream is "
-            << (use_fake_devices_ ? "SET" : "NOT SET");
   DCHECK(audio_system_);
   DCHECK(video_capture_manager_.get());
   DCHECK(!stop_removed_input_device_cb_.is_null());
@@ -605,8 +603,6 @@ void MediaDevicesManager::StopMonitoring() {
 void MediaDevicesManager::OnDevicesChanged(
     base::SystemMonitor::DeviceType device_type) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
-  LOG(INFO) << "YO THOR - MediaDevicesManager::OnDevicesChanged, device_type: "
-            << static_cast<int>(device_type);
   switch (device_type) {
     case base::SystemMonitor::DEVTYPE_AUDIO:
       HandleDevicesChanged(MediaDeviceType::MEDIA_AUDIO_INPUT);
@@ -914,8 +910,6 @@ MediaDevicesManager::ComputeVideoInputCapabilities(
 void MediaDevicesManager::DoEnumerateDevices(MediaDeviceType type) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(blink::IsValidMediaDeviceType(type));
-  LOG(INFO) << "YO THOR - MediaDevicesManager::DoEnumerateDevices, type: "
-            << DeviceTypeToString(type);
   CacheInfo& cache_info = cache_infos_[static_cast<size_t>(type)];
   if (cache_info.is_update_ongoing())
     return;
@@ -1139,8 +1133,6 @@ bool MediaDevicesManager::IsEnumerationRequestReady(
 void MediaDevicesManager::HandleDevicesChanged(MediaDeviceType type) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   DCHECK(blink::IsValidMediaDeviceType(type));
-  LOG(INFO) << "YO THOR - MediaDevicesManager::HandleDevicesChanged, type: "
-            << DeviceTypeToString(type);
   if (!cache_infos_[static_cast<size_t>(type)].is_update_ongoing()) {
     SendLogMessage(base::StringPrintf("HandleDevicesChanged({type=%s}",
                                       DeviceTypeToString(type)));

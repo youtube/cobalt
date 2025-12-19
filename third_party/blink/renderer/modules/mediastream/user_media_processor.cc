@@ -583,7 +583,6 @@ void UserMediaProcessor::ProcessRequest(UserMediaRequest* request,
                                         base::OnceClosure callback) {
   DCHECK(!request_completed_cb_);
   DCHECK(!current_request_info_);
-  LOG(INFO) << "YO THOR - UserMediaProcessor::ProcessRequest";
   request_completed_cb_ = std::move(callback);
   current_request_info_ = MakeGarbageCollected<RequestInfo>(request);
   SendLogMessage(
@@ -692,7 +691,6 @@ void UserMediaProcessor::SelectAudioSettings(
     UserMediaRequest* user_media_request,
     const blink::AudioDeviceCaptureCapabilities& capabilities) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "YO THOR - UserMediaProcessor::SelectAudioSettings";
   // The frame might reload or |user_media_request| might be cancelled while
   // capabilities are queried. Do nothing if a different request is being
   // processed at this point.
@@ -775,7 +773,6 @@ UserMediaProcessor::DetermineExistingAudioSessionId() {
 
 void UserMediaProcessor::SetupVideoInput() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "YO THOR - UserMediaProcessor::SetupVideoInput";
   DCHECK(current_request_info_);
 
   UserMediaRequest* const request = current_request_info_->request();
@@ -947,7 +944,6 @@ void UserMediaProcessor::GenerateStreamForCurrentRequestInfo(
     absl::optional<base::UnguessableToken> requested_audio_capture_session_id,
     blink::mojom::StreamSelectionStrategy strategy) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  LOG(INFO) << "YO THOR - UserMediaProcessor::GenerateStreamForCurrentRequestInfo";
   DCHECK(current_request_info_);
   SendLogMessage(base::StringPrintf(
       "GenerateStreamForCurrentRequestInfo({request_id=%d}, "
