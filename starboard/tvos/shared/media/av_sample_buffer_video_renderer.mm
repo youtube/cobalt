@@ -306,6 +306,7 @@ bool AVSBVideoRenderer::IsEndOfStreamWritten() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_written_;
 }
+
 bool AVSBVideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
   // The number returned by GetNumberOfCachedFrames() is not accruate. It's
@@ -337,9 +338,14 @@ void AVSBVideoRenderer::SetMediaTimeOffset(int64_t media_time_offset) {
   // AVSBSynchronizer::Seek().
   is_display_layer_flushing_ = true;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
+  base::WeakPtr<AVSBVideoRenderer> weak_this = weak_ptr_factory_.GetWeakPtr();
   onApplicationMainThread(^{
+    AVSBVideoRenderer* strong_this = weak_this.get();
+    if (!strong_this) {
+      return;
+    }
     [display_layer flush];
-    is_display_layer_flushing_ = false;
+    strong_this->is_display_layer_flushing_ = false;
   });
 }
 
