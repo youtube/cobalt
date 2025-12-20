@@ -36,7 +36,10 @@ for i, arg in enumerate(cmd):
     output_dir = arg[2:]
     break
 
-proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+proc = subprocess.Popen(cmd,
+                          stdout=subprocess.PIPE,
+                          encoding='utf-8',
+                          errors='ignore')
 lines = proc.stdout.readlines()
 
 # Limit output so as to not confuse the model. It generally can work (well) on

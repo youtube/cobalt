@@ -14,7 +14,8 @@
 
 #include "cobalt/testing/browser_tests/browser/shell_test_platform_delegate.h"
 
-#include "ui/views/test/desktop_test_views_delegate.h"
+// #include "ui/views/test/desktop_test_views_delegate.h"
+#include "cobalt/shell/browser/cobalt_views_delegate.h"
 
 namespace content {
 
@@ -22,7 +23,8 @@ namespace content {
 // The base class's Initialize() method will call this version.
 std::unique_ptr<views::ViewsDelegate>
 ShellTestPlatformDelegate::CreateViewsDelegate() {
-  return std::make_unique<views::DesktopTestViewsDelegate>();
+  LOG(ERROR) << "lxn::: called test of CreateViewsDelegate";
+  return std::make_unique<views::CobaltViewsDelegate>();
 }
 
 }  // namespace content

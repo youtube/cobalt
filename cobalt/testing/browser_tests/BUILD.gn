@@ -39,7 +39,7 @@ import("//v8/gni/v8.gni")
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
-shell_use_toolkit_views = toolkit_views && !is_castos
+shell_use_toolkit_views = (toolkit_views || is_starboard) && !is_castos
 
 if (is_android) {
   import("//third_party/jni_zero/jni_zero.gni")
@@ -122,7 +122,9 @@ static_library("cobalt_browsertests_test_runner") {
   if (use_aura && toolkit_views && !is_castos) {
     deps += [ "//ui/views" ]
   }
-
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+  }
   configs += [ "//v8:external_startup_data" ]
 }
 
@@ -185,7 +187,7 @@ test("cobalt_browsertests") {
 
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
-    #"content_main_runner_impl_browsertest.cc",
+    "content_main_runner_impl_browsertest.cc",
     #"encrypted_media_browsertest.cc",
     #"frame_tree_browsertest.cc",
     #"media_browsertest.cc",
@@ -198,6 +200,7 @@ test("cobalt_browsertests") {
     #"site_per_process_browsertest.h",
     #"web_contents_impl_browsertest.cc",
     #"webrtc_getusermedia_browsertest.cc",
+    "main.cc",
   ]
 
   if (is_android) {
@@ -212,10 +215,15 @@ test("cobalt_browsertests") {
     "//content:content_resources",
     "//content/test:test_interfaces",
     "//content/test:web_ui_mojo_test_resources",
+    "//cobalt:common",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
+    "//cobalt/shell:cobalt_shell_lib",
+    "//ui/ozone/platform/starboard:starboard",
   ]
 
   deps = [
     ":cobalt_browsertests_test_runner",
+    ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
@@ -245,9 +253,13 @@ test("cobalt_browsertests") {
     "//content/browser/background_sync:background_sync_proto",
     "//content/child:for_content_tests",
     "//content/gpu",
+    "//content/public/app",
     "//content/public/browser",
     "//content/public/gpu",
     "//content/renderer:for_content_tests",
+    "//content/public/renderer",
+    "//content/public/utility",
+    "//content/test:test_support",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
     "//content/test:mojo_web_test_bindings",
     "//content/test:web_ui_managed_interface_tests_bindings",
@@ -294,6 +306,7 @@ test("cobalt_browsertests") {
     "//services/video_capture/public/mojom:constants",
     "//services/viz/privileged/mojom",
     "//services/viz/public/cpp/gpu",
+    "//starboard:starboard_headers_only",
     "//storage/browser",
     "//storage/browser:test_support",
     "//third_party/blink/public:blink",
