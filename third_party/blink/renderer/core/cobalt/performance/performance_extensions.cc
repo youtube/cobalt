@@ -19,6 +19,8 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
+#include "starboard/common/log.h" // nogncheck
+
 namespace blink {
 
 namespace {
@@ -55,13 +57,22 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
 
 ScriptPromise PerformanceExtensions::getAppStartupTime(
     ScriptState* script_state,
-    const Performance&,
+    const Performance& performance_obj,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   int64_t startup_time = 0;
   BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
   ScriptPromise promise = resolver->Promise();
+#if BUILDFLAG(IS_STARBOARD)
+  int64_t time_origin = performance_obj.GetTimeOriginInternal().ToInternalValue();
+  LOG(INFO) << "OriginTime is "<< time_origin;
+   int64_t answer = time_origin - startup_time;
+   LOG(INFO) << "startup_time is "<< startup_time;
+  startup_time = answer;
+  LOG(INFO) << "startup_time is "<< startup_time;
+#endif
+  
   resolver->Resolve(startup_time);
   return promise;
 }
