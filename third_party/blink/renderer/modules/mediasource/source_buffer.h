@@ -34,6 +34,9 @@
 #include <memory>
 
 #include "base/memory/scoped_refptr.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/time/time.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/stream_parser.h"
 #include "third_party/blink/public/platform/web_source_buffer_client.h"
 #include "third_party/blink/renderer/bindings/core/v8/active_script_wrappable.h"
@@ -235,6 +238,22 @@ class SourceBuffer final : public EventTargetWithInlineData,
   void RemovePlaceholderCrossThreadTracks(
       scoped_refptr<MediaSourceAttachmentSupplement> attachment,
       MediaSourceTracer* tracer);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void AppendBufferSyncPart();
+  void AppendBufferSyncPart_Locked(MediaSourceAttachmentSupplement::ExclusiveKey passkey);
+  void AppendBufferSyncPartSucceeded();
+  void AppendBufferSyncPartSucceeded_Locked(MediaSourceAttachmentSupplement::ExclusiveKey passkey);
+  void AppendBufferSyncPartFailed();
+  void AppendBufferSyncPartFailed_Locked(MediaSourceAttachmentSupplement::ExclusiveKey passkey);
+
+  void LogFirstSegmentAppendDelay();
+
+  const bool append_first_segment_synchronously_ = true;
+  bool first_segment_appended_ = false;
+  bool first_segment_appended_logged_ = false;
+  base::TimeTicks first_segment_append_start_time_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   std::unique_ptr<WebSourceBuffer> web_source_buffer_;
 
