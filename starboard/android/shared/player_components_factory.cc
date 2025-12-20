@@ -210,14 +210,17 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "The maximum size in bytes of a buffer of data is "
         << max_video_input_size;
 
+    void* surface_view = creation_parameters.surface_view();
+
     std::unique_ptr<VideoRenderer> video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       constexpr int kTunnelModeAudioSessionId = -1;
       constexpr bool kForceSecurePipelineUnderTunnelMode = false;
 
-      auto video_decoder = CreateVideoDecoder(
-          creation_parameters, kTunnelModeAudioSessionId,
-          kForceSecurePipelineUnderTunnelMode, max_video_input_size);
+      auto video_decoder =
+          CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
+                             kForceSecurePipelineUnderTunnelMode,
+                             max_video_input_size, surface_view);
       if (video_decoder) {
         auto video_render_algorithm = video_decoder->GetRenderAlgorithm();
         auto video_renderer_sink = video_decoder->GetSink();
@@ -392,13 +395,16 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
+      void* surface_view = creation_parameters.surface_view();
+
       if (tunnel_mode_audio_session_id == -1) {
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
-      auto video_decoder_result = CreateVideoDecoder(
-          creation_parameters, tunnel_mode_audio_session_id,
-          force_secure_pipeline_under_tunnel_mode, max_video_input_size);
+      auto video_decoder_result =
+          CreateVideoDecoder(creation_parameters, tunnel_mode_audio_session_id,
+                             force_secure_pipeline_under_tunnel_mode,
+                             max_video_input_size, surface_view);
       if (video_decoder_result) {
         auto video_decoder_impl = std::move(video_decoder_result.value());
         components.video.render_algorithm =
@@ -443,7 +449,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       const CreationParameters& creation_parameters,
       int tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
-      int max_video_input_size) {
+      int max_video_input_size,
+      void* surface_view) {
     bool force_big_endian_hdr_metadata = false;
     bool enable_flush_during_seek =
         FeatureList::IsEnabled(features::kForceFlushDecoderDuringReset);
@@ -487,7 +494,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
-        force_big_endian_hdr_metadata, max_video_input_size,
+        force_big_endian_hdr_metadata, max_video_input_size, surface_view,
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
         &error_message);
     if (!error_message.empty()) {
