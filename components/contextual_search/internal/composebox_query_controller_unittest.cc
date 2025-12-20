@@ -210,7 +210,7 @@ class ComposeboxQueryControllerTest
   void StartPdfFileUploadFlow(
       const base::UnguessableToken& file_token,
       const std::vector<uint8_t>& file_data,
-      std::optional<uint64_t> context_id = std::nullopt) {
+      std::optional<int64_t> context_id = std::nullopt) {
     std::unique_ptr<lens::ContextualInputData> input_data =
         std::make_unique<lens::ContextualInputData>();
     input_data->primary_content_type = lens::MimeType::kPdf;
@@ -227,7 +227,7 @@ class ComposeboxQueryControllerTest
       const base::UnguessableToken& file_token,
       const std::vector<uint8_t>& file_data,
       std::optional<lens::ImageEncodingOptions> image_options = std::nullopt,
-      std::optional<uint64_t> context_id = std::nullopt) {
+      std::optional<int64_t> context_id = std::nullopt) {
     std::unique_ptr<lens::ContextualInputData> input_data =
         std::make_unique<lens::ContextualInputData>();
     input_data->primary_content_type = lens::MimeType::kImage;
@@ -718,7 +718,7 @@ TEST_F(ComposeboxQueryControllerTest,
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  uint64_t context_id = 12345;
+  int64_t context_id = 12345;
   StartPdfFileUploadFlow(file_token,
                          /*file_data=*/std::vector<uint8_t>(), context_id);
 
@@ -838,7 +838,7 @@ TEST_F(ComposeboxQueryControllerTest,
 
   // Act: Start the file upload flow.
   const base::UnguessableToken file_token = base::UnguessableToken::Create();
-  uint64_t context_id = 12345;
+  int64_t context_id = 12345;
   StartPdfFileUploadFlow(file_token,
                          /*file_data=*/std::vector<uint8_t>(), context_id);
 
@@ -1846,6 +1846,138 @@ TEST_F(ComposeboxQueryControllerTest, CreateClientContextHasCorrectValues) {
   EXPECT_EQ(client_context.locale_context().language(), kLocale);
   EXPECT_EQ(client_context.locale_context().region(), kRegion);
   EXPECT_EQ(client_context.locale_context().time_zone(), kTimeZone);
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       CreateSearchUrlRequestQueuedUntilClusterInfoReceived) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Verify the controller is in the awaiting state.
+  EXPECT_EQ(QueryControllerState::kAwaitingClusterInfoResponse,
+            controller().query_controller_state());
+
+  // Act: Start the file upload flow to ensure we attempt a multimodal request.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Act: Generate the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+
+  // Assert: The callback has not been run yet because the cluster info is
+  // pending.
+  EXPECT_FALSE(url_future.IsReady());
+
+  // Act: Wait for the cluster info response.
+  WaitForClusterInfo();
+
+  // Assert: The callback has been run now that the cluster info has been
+  // received.
+  ASSERT_TRUE(url_future.Wait());
+  GURL aim_url = url_future.Take();
+
+  // Check that the timestamps are attached to the url to verify the request was
+  // processed.
+  std::string qsubts_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      aim_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
+
+  // Verify other expected parameters to ensure it's a valid AIM URL.
+  std::string udm_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSearchModeQueryParameterKey,
+                                         &udm_value));
+  EXPECT_EQ(udm_value, kAimUdmQueryParameterValue);
+}
+
+TEST_F(ComposeboxQueryControllerTest,
+       CreateSearchUrlWithInvalidClusterInfoReturnsAimUrl) {
+  // Arrange: Simulate an error in the cluster info request.
+  controller().set_next_cluster_info_request_should_return_error(true);
+
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Verify the controller is in the awaiting state.
+  EXPECT_EQ(QueryControllerState::kAwaitingClusterInfoResponse,
+            controller().query_controller_state());
+
+  // Act: Start the file upload flow to ensure we attempt a multimodal request.
+  const base::UnguessableToken file_token = base::UnguessableToken::Create();
+  StartPdfFileUploadFlow(file_token,
+                         /*file_data=*/std::vector<uint8_t>());
+
+  // Act: Generate the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  search_url_request_info->file_tokens.push_back(file_token);
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+
+  // Assert: The callback has not been run yet because the cluster info is
+  // pending.
+  EXPECT_FALSE(url_future.IsReady());
+
+  // Act: Wait for the cluster info response (which will fail).
+  WaitForClusterInfo(QueryControllerState::kClusterInfoInvalid);
+
+  // Assert: The callback should have been run with an AIM URL.
+  ASSERT_TRUE(url_future.Wait());
+  GURL aim_url = url_future.Take();
+  EXPECT_FALSE(aim_url.is_empty());
+
+  // Check that the udm parameter is set to 50 (AIM).
+  std::string udm_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSearchModeQueryParameterKey,
+                                         &udm_value));
+  EXPECT_EQ(udm_value, kAimUdmQueryParameterValue);
+}
+
+TEST_F(
+    ComposeboxQueryControllerTest,
+    CreateSearchUrlForTextOnlyQueryWhileAwaitingClusterInfoReturnsImmediately) {
+  // Act: Start the session.
+  controller().InitializeIfNeeded();
+
+  // Assert: Verify the controller is in the awaiting state.
+  EXPECT_EQ(QueryControllerState::kAwaitingClusterInfoResponse,
+            controller().query_controller_state());
+
+  // Act: Generate the destination URL for the query.
+  std::unique_ptr<CreateSearchUrlRequestInfo> search_url_request_info =
+      std::make_unique<CreateSearchUrlRequestInfo>();
+  search_url_request_info->query_text = "test";
+  search_url_request_info->query_start_time = kTestQueryStartTime;
+  base::test::TestFuture<GURL> url_future;
+  controller().CreateSearchUrl(std::move(search_url_request_info),
+                               url_future.GetCallback());
+
+  // Assert: The callback has been run immediately because text-only queries are
+  // not queued.
+  EXPECT_TRUE(url_future.IsReady());
+  GURL aim_url = url_future.Take();
+
+  // Check that the timestamps are attached to the url to verify the request was
+  // processed.
+  std::string qsubts_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(
+      aim_url, kQuerySubmissionTimeQueryParameter, &qsubts_value));
+
+  // Verify other expected parameters to ensure it's a valid AIM URL.
+  std::string udm_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(aim_url, kSearchModeQueryParameterKey,
+                                         &udm_value));
+  EXPECT_EQ(udm_value, kAimUdmQueryParameterValue);
 }
 
 TEST_F(ComposeboxQueryControllerTest,

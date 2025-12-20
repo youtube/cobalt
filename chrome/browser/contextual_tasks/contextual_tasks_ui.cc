@@ -58,6 +58,7 @@
 #include "content/public/browser/web_ui.h"
 #include "content/public/browser/web_ui_data_source.h"
 #include "google_apis/gaia/google_service_auth_error.h"
+#include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "ui/webui/webui_util.h"
 
 namespace {
@@ -94,6 +95,7 @@ std::string GetEncodedHandshakeMessage() {
   ping->add_capabilities(lens::FeatureCapability::DEFAULT);
   ping->add_capabilities(lens::FeatureCapability::OPEN_THREADS_VIEW);
   ping->add_capabilities(lens::FeatureCapability::COBROWSING_DISPLAY_CONTROL);
+  ping->add_capabilities(lens::FeatureCapability::THREAD_CONTEXT_LIBRARY);
   const size_t size = message.ByteSizeLong();
   std::vector<uint8_t> serialized_message(size);
   message.SerializeToArray(&serialized_message[0], size);
@@ -137,6 +139,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       {"openInNewTab", IDS_CONTEXTUAL_TASKS_MENU_OPEN_IN_NEW_TAB},
       {"myActivity", IDS_CONTEXTUAL_TASKS_MENU_MY_ACTIVITY},
       {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
+      {"sourcesMenuTitle", IDS_CONTEXTUAL_TASKS_SOURCES_MENU_TITLE},
       {"sourcesMenuTabsHeader", IDS_CONTEXTUAL_TASKS_SOURCES_MENU_TABS_HEADER},
       {"title", IDS_CONTEXTUAL_TASKS_AI_MODE_TITLE},
       /* composeDeepSearchPlaceholder and

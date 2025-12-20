@@ -62,10 +62,12 @@ enum class FileUploadErrorType {
 struct FileInfo {
  public:
   FileInfo();
+  FileInfo(const FileInfo& other);
+  FileInfo& operator=(const FileInfo& other);
   virtual ~FileInfo();
 
   // Gets the context id for this request.
-  uint64_t GetContextId() const { return request_id.context_id(); }
+  int64_t GetContextId() const { return request_id.context_id(); }
 
   // Client-side unique identifier.
   base::UnguessableToken file_token;

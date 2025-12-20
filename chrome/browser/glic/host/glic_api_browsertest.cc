@@ -168,6 +168,7 @@ std::vector<std::string> GetTestSuiteNames() {
       "GlicApiTestWithWebActuationSettingEnabled",
       "GlicApiTestWithGeminiActOnWebPolicy",
       "GlicApiTestHibernateAllOnMemoryPressure",
+      "GlicApiTestHibernateOnMemoryUsage",
   };
 }
 
@@ -596,6 +597,18 @@ class GlicApiTestHibernateAllOnMemoryPressure : public GlicApiTest {
  public:
   GlicApiTestHibernateAllOnMemoryPressure() {
     feature_list_.InitAndEnableFeature(kGlicHibernateAllOnMemoryPressure);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+class GlicApiTestHibernateOnMemoryUsage : public GlicApiTest {
+ public:
+  GlicApiTestHibernateOnMemoryUsage() {
+    feature_list_.InitAndEnableFeatureWithParameters(
+        kGlicHibernateOnMemoryUsage,
+        {{"threshold_mb", "1"}, {"polling_interval", "500ms"}});
   }
 
  private:
@@ -1859,20 +1872,15 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testClosedCaptioning) {
   ExecuteJsTest();
 }
 
+// TODO(crbug.com/468460949): Add new tests for ChromeOS.
+// ChromeOS doesn't support multi-profile, so these tests don't make sense.
+#if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetUserProfileInfo) {
   ExecuteJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
                        testGetUserProfileInfoDoesNotDeferWhenInactive) {
-  ExecuteJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testRefreshSignInCookies) {
-  ExecuteJsTest();
-}
-
-IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testActuationOnWebSetting) {
   ExecuteJsTest();
 }
 
@@ -1890,6 +1898,15 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testSignInPauseState) {
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return FindGlicGuestMainFrame() == nullptr; }));
   WaitForWebUiState(mojom::WebUiState::kSignIn);
+}
+#endif  // !BUILDFLAG(IS_CHROMEOS)
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testRefreshSignInCookies) {
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testActuationOnWebSetting) {
+  ExecuteJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testSetContextAccessIndicator) {
@@ -3370,6 +3387,29 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithGeminiActOnWebPolicy,
   ContinueJsTest();
 }
 
+IN_PROC_BROWSER_TEST_P(GlicApiTestHibernateOnMemoryUsage,
+                       testHibernateOnMemoryUsage) {
+  if (!GetParam().multi_instance) {
+    GTEST_SKIP() << "Only supported in multi-instance mode.";
+  }
+
+  // Open Glic, verify it's active.
+  RunTestSequence(OpenGlicWindow(GlicWindowMode::kDetached,
+                                 GlicInstrumentMode::kHostAndContents),
+                  RegisterConversation("test_id"));
+  GlicInstanceImpl* instance = GetGlicInstanceImpl();
+
+  base::HistogramTester histogram_tester;
+  // Close Glic (make it inactive).
+  RunTestSequence(CloseGlic());
+
+  // Wait and verify that IsHibernated() becomes true.
+  ASSERT_TRUE(base::test::RunUntil([&]() { return instance->IsHibernated(); }));
+
+  // Check that the histogram was recorded.
+  histogram_tester.ExpectTotalCount("Glic.Instance.MemoryUsageAtThreshold", 1);
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ,
     GlicGetHostCapabilityApiTest,
@@ -3462,6 +3502,10 @@ INSTANTIATE_TEST_SUITE_P(,
                          &WithTestParams::PrintTestVariant);
 INSTANTIATE_TEST_SUITE_P(,
                          GlicApiTestHibernateAllOnMemoryPressure,
+                         DefaultTestParamSet(),
+                         WithTestParams::PrintTestVariant);
+INSTANTIATE_TEST_SUITE_P(,
+                         GlicApiTestHibernateOnMemoryUsage,
                          DefaultTestParamSet(),
                          WithTestParams::PrintTestVariant);
 

@@ -316,7 +316,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'v8_revision': '795dcfb7d2ebbf8a9e6b935bb249d7781d645c70',
+  'v8_revision': 'ad25f9ae50a53bee50f459bfee25fb1e6f64adc3',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ANGLE
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'mb_OllAqd3hvdy7eip6qfy-fQla_L1N6o_Y8tdWrNg8C',
+              'version': 'YP05r6c5UFhftN4GRgbZ19JHAssHfR-muXDzH-bMD5YC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': 'MP2EEoX2qTk8VpdxRibCrD25mkn9nCIKuSSuEqgqPAEC',
+              'version': 'gfAdjXnfX2rBqlY533UBgKa_z3NO_Fgw6Kdmymyi6ewC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'ttEB7vZJImipmviEY6lX-tir43GuyNgcey_uZW_VSvoC',
+              'version': 'hkcDVrAzyXjMKPAftvjy9rvSLHb2S9_wBou3ULNE3R0C',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -3470,13 +3470,13 @@ deps = {
 
   'src/chrome/app/theme/default_100_percent/google_chrome': {
       'url': Var('chrome_git') + '/chrome/theme/default_100_percent/google_chrome.git' + '@' +
-        '662d6ea16a230560e47522daa2dc12497beb5157',
+        'e972ea67e970aaf8875e5b9b36d6f59b9eacba13',
       'condition': 'checkout_src_internal',
   },
 
   'src/chrome/app/theme/default_200_percent/google_chrome': {
       'url': Var('chrome_git') + '/chrome/theme/default_200_percent/google_chrome.git' + '@' +
-        'ff9817fe7776a144405959f00fcaf2b1add3154d',
+        '22338720b01c5a35f1c71bdf7696caadcadf8b19',
       'condition': 'checkout_src_internal',
   },
 
@@ -3769,7 +3769,7 @@ deps = {
 
   'src/ios_internal':  {
       'url': Var('chrome_git') + '/chrome/ios_internal.git' + '@' +
-        '8b73d0951232447c1a1591532976875cba440e1f',
+        'e2ac84a1fbeb0ae83cdd8325629e9b6b52f826c0',
       'condition': 'checkout_ios and checkout_src_internal',
   },
 

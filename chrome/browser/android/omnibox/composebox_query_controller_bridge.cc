@@ -23,6 +23,7 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/common/channel_info.h"
+#include "components/contextual_search/contextual_search_service.h"
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_bitmap_processing.h"
@@ -62,6 +63,13 @@ static jlong JNI_ComposeBoxQueryControllerBridge_Init(
     return 0L;
   }
 
+  // TODO(crbug.com/469142288): this should only disable sharing; for now the
+  // resolution is that in M144 we disable all of the fusebox.
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile->GetPrefs())) {
+    return 0L;
+  }
+
   ComposeboxQueryControllerBridge* instance =
       new ComposeboxQueryControllerBridge(profile, java_obj);
   return reinterpret_cast<intptr_t>(instance);
@@ -77,6 +85,8 @@ ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
   query_controller_config_params->enable_multi_context_input_flow =
       OmniboxFieldTrial::kOmniboxMultimodalInputMultiContext.Get();
   query_controller_config_params->enable_viewport_images = true;
+  query_controller_config_params
+      ->use_separate_request_ids_for_multi_context_viewport_images = false;
   query_controller_config_params
       ->prioritize_suggestions_for_the_first_attached_document =
       OmniboxFieldTrial::kOmniboxMultimodalPrioritizeSuggestionsForFirstDocument

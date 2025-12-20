@@ -245,6 +245,12 @@ lens::LensOverlayVisualInputType MediaTypeToVisualInputType(
   }
 }
 
+int64_t RandInt64() {
+  int64_t number;
+  base::RandBytes(base::byte_span_from_ref(number));
+  return number;
+}
+
 }  // namespace
 
 ComposeboxQueryController::ComposeboxQueryController(
@@ -328,8 +334,22 @@ void ComposeboxQueryController::CreateSearchUrl(
     base::OnceCallback<void(GURL)> callback) {
   latest_interaction_request_data_.reset();
   num_files_in_request_ = 0;
-  if (!active_files_.empty() && cluster_info_.has_value() &&
-      !search_url_request_info->file_tokens.empty()) {
+
+  bool should_create_multimodal_url =
+      !active_files_.empty() && !search_url_request_info->file_tokens.empty();
+  // If a multimodal URL is requested, but the cluster info has not been
+  // received yet, store the request info and callback for later use.
+  if (should_create_multimodal_url &&
+      query_controller_state_ ==
+          QueryControllerState::kAwaitingClusterInfoResponse) {
+    pending_search_url_request_ =
+        base::BindOnce(&ComposeboxQueryController::CreateSearchUrl,
+                       weak_ptr_factory_.GetWeakPtr(),
+                       std::move(search_url_request_info), std::move(callback));
+    return;
+  }
+
+  if (should_create_multimodal_url && cluster_info_.has_value()) {
     if (enable_multi_context_input_flow_) {
       std::unique_ptr<lens::LensOverlayContextualInputs> contextual_inputs =
           std::make_unique<lens::LensOverlayContextualInputs>();
@@ -527,9 +547,9 @@ void ComposeboxQueryController::StartFileUploadFlow(
       (!enable_multi_context_input_flow_ ||
        !use_separate_request_ids_for_multi_context_viewport_images_);
   if (enable_context_id_migration_) {
-    uint64_t context_id = contextual_input_data->context_id.has_value()
-                              ? contextual_input_data->context_id.value()
-                              : base::RandUint64();
+    int64_t context_id = contextual_input_data->context_id.has_value()
+                             ? contextual_input_data->context_id.value()
+                             : RandInt64();
     current_file_info.request_id =
         *request_id_generator_
              .GetRequestIdWithMultiContextId(
@@ -950,12 +970,18 @@ void ComposeboxQueryController::HandleClusterInfoResponse(
   cluster_info_endpoint_fetcher_.reset();
   if (response->http_status_code != google_apis::ApiErrorCode::HTTP_SUCCESS) {
     SetQueryControllerState(QueryControllerState::kClusterInfoInvalid);
+    if (pending_search_url_request_) {
+      std::move(pending_search_url_request_).Run();
+    }
     return;
   }
 
   lens::LensOverlayServerClusterInfoResponse server_response;
   if (!server_response.ParseFromString(response->response)) {
     SetQueryControllerState(QueryControllerState::kClusterInfoInvalid);
+    if (pending_search_url_request_) {
+      std::move(pending_search_url_request_).Run();
+    }
     return;
   }
 
@@ -999,6 +1025,10 @@ void ComposeboxQueryController::HandleClusterInfoResponse(
         SendUploadNetworkRequest(file_info.get(), i);
       }
     }
+  }
+
+  if (pending_search_url_request_) {
+    std::move(pending_search_url_request_).Run();
   }
 
   // Clear the cluster info after its lifetime expires.
