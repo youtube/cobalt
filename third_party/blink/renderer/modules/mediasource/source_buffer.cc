@@ -40,6 +40,9 @@
 #include "base/numerics/checked_math.h"
 #include "media/base/logging_override_if_enabled.h"
 #include "media/base/stream_parser_buffer.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h5vcc_settings_supplement.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "third_party/blink/public/platform/task_type.h"
 #include "third_party/blink/public/platform/web_source_buffer.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -195,6 +198,17 @@ scoped_refptr<media::StreamParserBuffer> MakeVideoStreamParserBuffer(
   return stream_parser_buffer;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool GetAppendFirstSegmentSynchronouslySetting(
+    const ExecutionContextLifecycleObserver* observer) {
+  if (auto* window = observer->DomWindow()) {
+    auto& settings = H5vccSettingsSupplement::From(*window);
+    return settings.GetAppendFirstSegmentSynchronously().value_or(false);
+  }
+  return false;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace
 
 SourceBuffer::SourceBuffer(std::unique_ptr<WebSourceBuffer> web_source_buffer,
@@ -202,6 +216,7 @@ SourceBuffer::SourceBuffer(std::unique_ptr<WebSourceBuffer> web_source_buffer,
                            EventQueue* async_event_queue)
     : ActiveScriptWrappable<SourceBuffer>({}),
       ExecutionContextLifecycleObserver(source->GetExecutionContext()),
+      append_first_segment_synchronously_(GetAppendFirstSegmentSynchronouslySetting(this)),
       web_source_buffer_(std::move(web_source_buffer)),
       source_(source),
       track_defaults_(MakeGarbageCollected<TrackDefaultList>()),
@@ -2040,11 +2055,28 @@ void SourceBuffer::AppendBufferInternal_Locked(
   ScheduleEvent(event_type_names::kUpdatestart);
 
   // 5. Asynchronously run the buffer append algorithm.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // We only append the first segment synchronous when
+  // `append_first_segment_synchronously_` is true.
+  bool append_synchronously = append_first_segment_synchronously_ &&
+                              !first_segment_appended_;
+  if (append_synchronously) {
+    LOG(INFO) << __func__ << ": Append first segment of " << size << " bytes synchronously.";
+
+    first_segment_appended_ = true;
+    first_segment_append_start_time_ = base::TimeTicks::Now();
+
+    AppendBufferSyncPart();
+  } else {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   append_buffer_async_task_handle_ = PostCancellableTask(
       *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
       FROM_HERE,
       WTF::BindOnce(&SourceBuffer::AppendBufferAsyncPart,
                     WrapPersistent(this)));
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   TRACE_EVENT_NESTABLE_ASYNC_END0("media", "prepareAsyncAppend",
                                   TRACE_ID_LOCAL(this));
@@ -2074,7 +2106,12 @@ void SourceBuffer::AppendBufferAsyncPart() {
   // demuxer is protected from destruction (applicable especially for
   // MSE-in-Worker case).
   DCHECK(!IsRemoved());  // So must have |source_| and it must have attachment.
-  if (!source_->RunUnlessElementGoneOrClosingUs(WTF::BindOnce(
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LogFirstSegmentAppendDelay();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+if (!source_->RunUnlessElementGoneOrClosingUs(WTF::BindOnce(
           &SourceBuffer::AppendBufferAsyncPart_Locked, WrapPersistent(this)))) {
     // TODO(https://crbug.com/878133): Determine in specification what the
     // specific, app-visible, behavior should be for this case. In this
@@ -2300,5 +2337,162 @@ void SourceBuffer::Trace(Visitor* visitor) const {
   EventTargetWithInlineData::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void SourceBuffer::AppendBufferSyncPart() {
+  // Do the async append operation only if attachment is usable and underlying
+  // demuxer is protected from destruction (applicable especially for
+  // MSE-in-Worker case).
+  DCHECK(!IsRemoved());  // So must have |source_| and it must have attachment.
+  if (!source_->RunUnlessElementGoneOrClosingUs(
+          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPart_Locked,
+                        WrapPersistent(this)))) {
+    // TODO(crbug.com/878133): Determine in specification what the specific,
+    // app-visible, behavior should be for this case. In this implementation,
+    // the safest thing to do is nothing here now. See more verbose reason in
+    // similar AppendBufferAsyncPart() implementation.
+    DVLOG(1) << __func__ << " this=" << this
+             << ": Worker MediaSource attachment is closing";
+  }
+}
+
+void SourceBuffer::AppendBufferSyncPart_Locked(
+    MediaSourceAttachmentSupplement::ExclusiveKey pass_key) {
+  DCHECK(source_);
+  source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+  DCHECK(updating_);
+
+  // Section 3.5.4 Buffer Append Algorithm
+  // https://dvcs.w3.org/hg/html-media/raw-file/default/media-source/media-source.html#sourcebuffer-buffer-append
+
+  // 1. Run the segment parser loop algorithm.
+  // Step 2 doesn't apply since we run Step 1 synchronously here.
+
+  TRACE_EVENT_NESTABLE_ASYNC_END0("media", "delay", TRACE_ID_LOCAL(this));
+  TRACE_EVENT_NESTABLE_ASYNC_BEGIN0("media", "appending", TRACE_ID_LOCAL(this));
+  // The segment parser loop may not consume all of the pending appended data,
+  // and lets us know via a distinct ParseStatus result. We parse incrementally
+  // to avoid blocking the renderer event loop for too long. Note that even in
+  // MSE-in-Worker case, we retain this behavior because some synchronous
+  // operations done by the main thread media element on our attachment block
+  // until we are finished and have exited the attachment's RunExclusively()
+  // callback scope.
+  media::StreamParser::ParseStatus parse_result =
+      web_source_buffer_->RunSegmentParserLoop(&timestamp_offset_);
+  switch (parse_result) {
+    case media::StreamParser::ParseStatus::kFailed:
+      // !!!! NOTE !!!!
+      // Per MSE spec the whole append loop should be asynchronous.  This
+      // function now appends the initial data synchronously.
+      append_buffer_async_task_handle_ = PostCancellableTask(
+          *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
+          FROM_HERE,
+          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartFailed,
+                        WrapPersistent(this)));
+      break;
+    case media::StreamParser::ParseStatus::kSuccessHasMoreData:
+      append_buffer_async_task_handle_ = PostCancellableTask(
+          *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
+          FROM_HERE,
+          WTF::BindOnce(&SourceBuffer::AppendBufferAsyncPart,
+                        WrapPersistent(this)));
+      TRACE_EVENT_NESTABLE_ASYNC_END0("media", "appending",
+                                      TRACE_ID_LOCAL(this));
+      TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("media", "delay", TRACE_ID_LOCAL(this),
+                                        "type", "nextPieceDelay");
+      return;
+    case media::StreamParser::ParseStatus::kSuccess:
+      // !!!! NOTE !!!!
+      // Per MSE spec the whole append loop should be asynchronous.  This
+      // function now appends the initial data synchronously.
+      append_buffer_async_task_handle_ = PostCancellableTask(
+          *GetExecutionContext()->GetTaskRunner(TaskType::kMediaElementEvent),
+          FROM_HERE,
+          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartSucceeded,
+                        WrapPersistent(this)));
+      break;
+  }
+
+  TRACE_EVENT_NESTABLE_ASYNC_END0("media", "appending", TRACE_ID_LOCAL(this));
+  TRACE_EVENT_NESTABLE_ASYNC_END0("media", "SourceBuffer::appendBuffer",
+                                  TRACE_ID_LOCAL(this));
+
+  double media_time = GetMediaTime();
+  DVLOG(3) << __func__ << " done. this=" << this << " media_time=" << media_time
+           << " buffered="
+           << WebTimeRangesToString(web_source_buffer_->Buffered());
+}
+
+void SourceBuffer::AppendBufferSyncPartSucceeded() {
+  DCHECK(!IsRemoved());  // So must have |source_| and it must have attachment.
+
+  LogFirstSegmentAppendDelay();
+
+  if (!source_->RunUnlessElementGoneOrClosingUs(
+          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartSucceeded_Locked,
+                        WrapPersistent(this)))) {
+    // TODO(crbug.com/878133): Determine in specification what the specific,
+    // app-visible, behavior should be for this case. In this implementation,
+    // the safest thing to do is nothing here now. See more verbose reason in
+    // similar AppendBufferAsyncPart() implementation.
+    DVLOG(1) << __func__ << " this=" << this
+             << ": Worker MediaSource attachment is closing";
+  }
+}
+
+void SourceBuffer::AppendBufferSyncPartSucceeded_Locked(MediaSourceAttachmentSupplement::ExclusiveKey pass_key) {
+  // 3. Set the updating attribute to false.
+  updating_ = false;
+
+  source_->SendUpdatedInfoToMainThreadCache();
+
+  // 4. Queue a task to fire a simple event named update at this
+  //    SourceBuffer object.
+  ScheduleEvent(event_type_names::kUpdate);
+
+  // 5. Queue a task to fire a simple event named updateend at this
+  //    SourceBuffer object.
+  ScheduleEvent(event_type_names::kUpdateend);
+}
+
+void SourceBuffer::AppendBufferSyncPartFailed() {
+  DCHECK(!IsRemoved());  // So must have |source_| and it must have attachment.
+
+  LogFirstSegmentAppendDelay();
+
+  if (!source_->RunUnlessElementGoneOrClosingUs(
+          WTF::BindOnce(&SourceBuffer::AppendBufferSyncPartFailed_Locked,
+                        WrapPersistent(this)))) {
+    // TODO(crbug.com/878133): Determine in specification what the specific,
+    // app-visible, behavior should be for this case. In this implementation,
+    // the safest thing to do is nothing here now. See more verbose reason in
+    // similar AppendBufferAsyncPart() implementation.
+    DVLOG(1) << __func__ << " this=" << this
+             << ": Worker MediaSource attachment is closing";
+  }
+}
+
+void SourceBuffer::AppendBufferSyncPartFailed_Locked(
+    MediaSourceAttachmentSupplement::ExclusiveKey pass_key) {
+  // Note that AppendError() calls NotifyDurationChanged, so a cross-thread
+  // attachment will send updated buffered and seekable information to the
+  // main thread here, too.
+  AppendError(pass_key);
+}
+
+void SourceBuffer::LogFirstSegmentAppendDelay() {
+  if (!append_first_segment_synchronously_) {
+    return;
+  }
+
+  if (!first_segment_appended_logged_) {
+    first_segment_appended_logged_ = true;
+
+    auto delay = base::TimeTicks::Now() - first_segment_append_start_time_;
+    LOG(INFO) << __func__ << ": Append synchronously avoided a delay of "
+              << delay.InMicroseconds();
+  }
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace blink
