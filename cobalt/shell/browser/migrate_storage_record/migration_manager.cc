@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 
 #include <string>
 #include <vector>
