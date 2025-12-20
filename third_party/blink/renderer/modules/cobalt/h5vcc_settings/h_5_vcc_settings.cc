@@ -23,6 +23,7 @@
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_settings/h5vcc_settings_supplement.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -47,6 +48,27 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
+  if (auto* window = DynamicTo<LocalDOMWindow>(GetExecutionContext())) {
+    if (name == "Media.AppendFirstSegmentSynchronously") {
+      if (value->IsLong()) {
+        H5vccSettingsSupplement::From(*window)
+            .SetAppendFirstSegmentSynchronously(value->GetAsLong() != 0);
+        resolver->Resolve();
+      } else {
+        resolver->Reject(MakeGarbageCollected<DOMException>(
+            DOMExceptionCode::kInvalidAccessError, "Unsupported type."));
+      }
+      return promise;
+    }
+  }
+
+  // TODO:
+  // else if (name == "Media.EnableAllocateOnDemand") {
+  //   media::DecoderBuffer::EnableAllocateOnDemand(value->GetAsLong() != 0);
+  // } else if (name == "Media.DisableAllocator") {
+  //   media::DecoderBuffer::EnableAllocator(value->GetAsLong() == 0);
+  // }
+
   EnsureReceiverIsBound();
 
   h5vcc_settings::mojom::blink::ValuePtr mojo_value;
@@ -59,7 +81,7 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
   } else {
     NOTREACHED();
     resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kInvalidAccessError, "Unsupported type."));
+        DOMExceptionCode::kTypeMismatchError, "Unsupported type."));
     return promise;
   }
 
