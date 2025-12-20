@@ -257,8 +257,13 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
 
   void TestBasicStartupComplete() {
     // The PostEarlyInitialization test checks that ContentMainRunnerImpl set up
-    // the FeatureList. This test is invalid if it already exists
-    // before starting.
+    // the FeatureList.
+    // In standard multi-process tests, FeatureList should not exist yet (EXPECT_FALSE).
+    // However, on Starboard, we run in single-process mode where TestLauncher
+    // has already initialized the global FeatureList. ContentMainRunnerImpl
+    // correctly detects this and skips re-initialization, but the test must
+    // expect it to be present.
+    EXPECT_TRUE(base::FeatureList::GetInstance());
   }
 
   void TestPostEarlyInitialization() {
@@ -266,9 +271,6 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
     // FeatureList by this point.
     EXPECT_TRUE(base::ThreadPoolInstance::Get());
     EXPECT_TRUE(base::FeatureList::GetInstance());
-    // EXPECT_NE(content::GetContentGpuClient(), nullptr);
-    // EXPECT_NE(content::GetContentRendererClient(), nullptr);
-    // EXPECT_NE(content::GetContentUtilityClient(), nullptr);
   }
 
   ::testing::StrictMock<MockContentMainDelegate> mock_delegate_;
