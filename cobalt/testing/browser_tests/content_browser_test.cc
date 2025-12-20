@@ -93,6 +93,10 @@ ContentBrowserTest::ContentBrowserTest() {
 
 ContentBrowserTest::~ContentBrowserTest() {}
 
+void ContentBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
+  command_line->AppendSwitch(switches::kContentShellHideToolbar);
+}
+
 void ContentBrowserTest::SetUp() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   SetUpCommandLine(command_line);

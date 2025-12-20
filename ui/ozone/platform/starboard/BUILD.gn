@@ -19,6 +19,7 @@ assert(is_starboard)
 source_set("starboard") {
   visibility = [
     "//cobalt:*",
+    "//cobalt/testing/browser_tests:*",
     "//ui/ozone/*",
   ]
 
