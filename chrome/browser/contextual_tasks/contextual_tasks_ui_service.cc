@@ -18,6 +18,7 @@
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/profiles/profile.h"
@@ -32,6 +33,7 @@
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/contextual_tasks/public/account_utils.h"
 #include "components/contextual_tasks/public/contextual_task.h"
+#include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/sessions/content/session_tab_helper.h"
@@ -297,8 +299,10 @@ bool ContextualTasksUiService::HandleNavigationImpl(
 
   bool is_nav_to_ai = IsAiUrl(url_params.url);
 
-  // Don't intercept URLs to AI if they're not for the primary account.
-  if (is_nav_to_ai && !IsUrlForPrimaryAccount(url_params.url)) {
+  // Don't intercept URLs to AI if they're not for the primary account, unless
+  // the user isn't signed in.
+  if (is_nav_to_ai && (IsSignedInToWebOrBrowser(url_params.url) &&
+                       !IsUrlForPrimaryAccount(url_params.url))) {
     return false;
   }
 
@@ -404,6 +408,17 @@ bool ContextualTasksUiService::HandleNavigationImpl(
 
 bool ContextualTasksUiService::IsUrlForPrimaryAccount(const GURL& url) {
   return contextual_tasks::IsUrlForPrimaryAccount(identity_manager_, url);
+}
+
+bool ContextualTasksUiService::IsSignedInToWebOrBrowser(const GURL& url) {
+  if (!identity_manager_) {
+    return false;
+  }
+
+  return IsUserSignedInToWeb(identity_manager_, url) ||
+         !identity_manager_
+              ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+              .IsEmpty();
 }
 
 GURL ContextualTasksUiService::GetContextualTaskUrlForTask(
@@ -553,6 +568,12 @@ void ContextualTasksUiService::MoveTaskUiToNewTab(
   }
 
   coordinator->Close();
+
+  ContextualTasksService* task_service =
+      contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
+          browser->GetProfile());
+  CHECK(task_service);
+  task_service->DisassociateAllTabsFromTask(task_id);
 }
 
 void ContextualTasksUiService::StartTaskUiInSidePanel(
@@ -578,7 +599,7 @@ void ContextualTasksUiService::StartTaskUiInSidePanel(
     // Associate the web contents with the task and set the session handle if
     // provided.
     content::WebContents* web_contents = coordinator->GetActiveWebContents();
-    AssociateWebContentsToTask(panel_contents, task.GetTaskId());
+    AssociateWebContentsToTask(web_contents, task.GetTaskId());
     if (session_handle) {
       ContextualSearchWebContentsHelper::GetOrCreateForWebContents(web_contents)
           ->set_session_handle(std::move(session_handle));

@@ -10,6 +10,7 @@
 #include "chrome/browser/ui/lens/lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "components/contextual_search/contextual_search_session_handle.h"
+#include "components/contextual_search/contextual_search_types.h"
 #include "components/lens/lens_overlay_invocation_source.h"
 #include "components/lens/lens_overlay_mime_type.h"
 #include "content/public/browser/web_contents.h"
@@ -49,6 +50,12 @@ class LensQueryFlowRouter {
   // Restarts the query flow if its in a state where no cluster info is
   // available or permissions were not granted.
   void MaybeRestartQueryFlow();
+
+  // Returns the suggest inputs for the current page.
+  std::optional<lens::proto::LensOverlaySuggestInputs> GetSuggestInputs();
+
+  // Sets the callback for when the suggest inputs are ready.
+  void SetSuggestInputsReadyCallback(base::RepeatingClosure callback);
 
   // Sends a region search interaction. Expected to be called multiple times. If
   // region_bytes are included, those will be sent to Lens instead of cropping
@@ -119,9 +126,6 @@ class LensQueryFlowRouter {
     return Profile::FromBrowserContext(web_contents()->GetBrowserContext());
   }
 
-  // Loads the provided query text in the contextual tasks panel.
-  void LoadQueryInContextualTasks(const std::string& query_text);
-
   // Sends the provided request info to the contextual tasks panel to create a
   // search URL which is then loaded into the contextual tasks panel.
   void SendInteractionToContextualTasks(
@@ -165,15 +169,14 @@ class LensQueryFlowRouter {
       std::map<std::string, std::string> additional_search_query_params,
       base::Time query_start_time);
 
-  // Returns the contextual search session handle for the query router. If the
-  // handle does not exist, it will create one.
-  contextual_search::ContextualSearchSessionHandle*
-  GetOrCreateContextualSearchSessionHandle();
-
   // Returns the contextual search session handle for the query router if it
   // exists.
   contextual_search::ContextualSearchSessionHandle*
   GetContextualSearchSessionHandle() const;
+
+  // Stores a pending search request to be sent to contextual tasks after the
+  // tab context is ready.
+  std::unique_ptr<CreateSearchUrlRequestInfo> pending_search_url_request_;
 
   // The contextual search session handle that is used to make requests to the
   // contextual search service. This is only stored by this query router in

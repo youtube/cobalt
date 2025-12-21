@@ -43,6 +43,21 @@ import type {ContextualEntrypointAndCarouselElement} from './contextual_entrypoi
 import {ComposeboxMode} from './contextual_entrypoint_and_carousel.js';
 import type {ErrorScrimElement} from './error_scrim.js';
 
+export enum VoiceSearchAction {
+  ACTIVATE = 0,
+  QUERY_SUBMITTED = 1,
+}
+
+const DEBOUNCE_TIMEOUT: number = 20;
+
+function debounce(context: Object, func: () => void, delay: number) {
+  let timeout: number;
+  return function(...args: []) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(context, args), delay);
+  };
+}
+
 export interface ComposeboxElement {
   $: {
     cancelIcon: CrIconButtonElement,
@@ -227,6 +242,7 @@ export class ComposeboxElement extends I18nMixinLit
   private searchboxHandler_: SearchboxPageHandlerRemote;
   private eventTracker_: EventTracker = new EventTracker();
   private searchboxListenerIds: number[] = [];
+  private resizeObservers_: ResizeObserver[] = [];
   private composeboxCloseByEscape_: boolean =
       loadTimeData.getBoolean('composeboxCloseByEscape');
   private dragAndDropEnabled_: boolean =
@@ -280,6 +296,11 @@ export class ComposeboxElement extends I18nMixinLit
           this.submitEnabled_ = this.computeSubmitEnabled_();
         });
     this.eventTracker_.add(
+        this.$.context, 'carousel-resize',
+        (e: CustomEvent<{height: number}>) => {
+          this.fire('composebox-resize', {carouselHeight: e.detail.height});
+        });
+    this.eventTracker_.add(
         this.$.context, 'add-file_context',
         (e: CustomEvent<{file: ComposeboxFile}>) => {
           this.$.context.onFileContextAdded(e.detail.file);
@@ -299,6 +320,25 @@ export class ComposeboxElement extends I18nMixinLit
         initializeComposeboxState: this.initializeState_.bind(this),
       });
     }
+
+    this.setupResizeObservers_();
+  }
+
+  private setupResizeObservers_() {
+    const composeboxResizeObserver = new ResizeObserver(debounce(this, () => {
+      this.fire('composebox-resize', {height: this.offsetHeight});
+    }, DEBOUNCE_TIMEOUT));
+    this.resizeObservers_.push(composeboxResizeObserver);
+    composeboxResizeObserver.observe(this);
+
+    const composeboxDropdownResizeObserver =
+        new ResizeObserver(debounce(this, () => {
+          this.fire(
+              'composebox-resize',
+              {dropdownHeight: this.$.matches.offsetHeight});
+        }, DEBOUNCE_TIMEOUT));
+    this.resizeObservers_.push(composeboxDropdownResizeObserver);
+    composeboxDropdownResizeObserver.observe(this.$.matches);
   }
 
   override disconnectedCallback() {
@@ -312,6 +352,11 @@ export class ComposeboxElement extends I18nMixinLit
     this.searchboxListenerIds = [];
 
     this.eventTracker_.removeAll();
+
+    for (const observer of this.resizeObservers_) {
+      observer.disconnect();
+    }
+    this.resizeObservers_ = [];
   }
 
   override willUpdate(changedProperties: PropertyValues<this>) {
@@ -651,7 +696,7 @@ export class ComposeboxElement extends I18nMixinLit
 
     if (fileList.length > 0) {
       event.preventDefault();
-      this.$.context.addFiles(fileList);
+      this.$.context.addPastedFiles(fileList);
     }
   }
 
@@ -675,7 +720,10 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   protected onVoiceSearchFinalResult_(e: CustomEvent<string>) {
+    e.stopPropagation();
     this.voiceSearchEndCleanup_();
+    this.fire(
+        'voice-search-action', {value: VoiceSearchAction.QUERY_SUBMITTED});
     this.searchboxHandler_.submitQuery(
         e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
         /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
@@ -684,6 +732,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected openAimVoiceSearch_() {
     this.inVoiceSearchMode_ = true;
     this.animationState = GlowAnimationState.LISTENING;
+    this.fire('voice-search-action', {value: VoiceSearchAction.ACTIVATE});
     this.$.voiceSearch.start();
   }
 

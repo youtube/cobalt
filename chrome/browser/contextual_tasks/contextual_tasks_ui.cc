@@ -214,7 +214,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "expandedComposeboxShowVoiceSearch",
       contextual_tasks::GetIsSteadyComposeboxVoiceSearchEnabled());
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
-  source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", false);
+  source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", true);
   source->AddBoolean("darkMode",
                      ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))
                                 ->BrowserUsesDarkColors());
@@ -235,6 +235,11 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   // Preload the serialized handshake message so it doesn't have to be fetched
   // at runtime.
   source->AddString("handshakeMessage", GetEncodedHandshakeMessage());
+
+  // Force a host for any URL opened in the embedded page. If empty, no change
+  // is made to the URL.
+  source->AddString("forcedEmbeddedPageHost",
+                    contextual_tasks::GetForcedEmbeddedPageHost());
 
   // Set up chrome://contextual-tasks/internals debug UI.
   source->AddResourcePath(
@@ -654,10 +659,9 @@ base::RefCountedMemory* ContextualTasksUI::GetFaviconResourceBytes(
     ui::ResourceScaleFactor scale_factor) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   // Use the Google G favicon for Google Chrome branded builds.
-  // TODO(crbug.com/467038817): Update to 16px gradient PNG.
   return static_cast<base::RefCountedMemory*>(
       ui::ResourceBundle::GetSharedInstance().LoadDataResourceBytesForScale(
-          IDR_GOOGLE_G, scale_factor));
+          IDR_GOOGLE_G_GRADIENT_16, scale_factor));
 #else
   // Use the Chromium favicon for Chromium builds.
   return static_cast<base::RefCountedMemory*>(

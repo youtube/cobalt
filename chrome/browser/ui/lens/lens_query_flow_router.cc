@@ -22,6 +22,7 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/lens/ref_counted_lens_overlay_client_logs.h"
+#include "components/lens/tab_contextualization_controller.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "net/base/url_util.h"
 
@@ -90,6 +91,37 @@ void LensQueryFlowRouter::MaybeRestartQueryFlow() {
   lens_overlay_query_controller()->MaybeRestartQueryFlow();
 }
 
+std::optional<lens::proto::LensOverlaySuggestInputs>
+LensQueryFlowRouter::GetSuggestInputs() {
+  if (IsOff()) {
+    return std::nullopt;
+  }
+
+  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+    // TODO(mercerd): Add support for Lens Suggest in contextual
+    // tasks.
+    return std::nullopt;
+  }
+
+  return std::make_optional(
+      lens_overlay_query_controller()->GetLensSuggestInputs());
+}
+
+void LensQueryFlowRouter::SetSuggestInputsReadyCallback(
+    base::RepeatingClosure callback) {
+  if (IsOff()) {
+    return;
+  }
+
+  if (contextual_tasks::GetEnableLensInContextualTasks()) {
+    // TODO(mercerd): Add support for Lens Suggest in contextual
+    // tasks.
+    return;
+  }
+  lens_overlay_query_controller()->SetSuggestInputsReadyCallback(
+      std::move(callback));
+}
+
 void LensQueryFlowRouter::SendRegionSearch(
     base::Time query_start_time,
     lens::mojom::CenterRotatedBoxPtr region,
@@ -131,7 +163,11 @@ void LensQueryFlowRouter::SendContextualTextQuery(
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params) {
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
-    LoadQueryInContextualTasks(query_text);
+    auto request_info = CreateSearchUrlRequestInfoFromInteraction(
+        /*region=*/nullptr, /*region_bytes=*/std::nullopt, query_text,
+        lens_selection_type, additional_search_query_params, query_start_time);
+    request_info->search_url_type = SearchUrlType::kAim;
+    SendInteractionToContextualTasks(std::move(request_info));
     return;
   }
 
@@ -176,20 +212,24 @@ const SkBitmap& LensQueryFlowRouter::GetViewportScreenshot() const {
       ->initial_screenshot();
 }
 
-void LensQueryFlowRouter::LoadQueryInContextualTasks(
-    const std::string& query_text) {
-  auto* ui_service =
-      contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
-          web_contents()->GetBrowserContext());
-  GURL ai_url = ui_service->GetDefaultAiPageUrl();
-  ai_url = net::AppendQueryParameter(ai_url, "q", query_text);
-  OpenContextualTasksPanel(ai_url);
-}
-
 void LensQueryFlowRouter::SendInteractionToContextualTasks(
     std::unique_ptr<CreateSearchUrlRequestInfo> request_info) {
-  auto* session_handle = GetOrCreateContextualSearchSessionHandle();
-  session_handle->CreateSearchUrl(
+  // If there is no existing session handle, then the search URL request will
+  // need to wait for the tab context to be added before being sent.
+  if (!GetContextualSearchSessionHandle()) {
+    pending_session_handle_ = CreateContextualSearchSessionHandle();
+    pending_session_handle_->NotifySessionStarted();
+    pending_search_url_request_ = std::move(request_info);
+    // Upload the page context when creating a session handle.
+    if (auto* controller =
+            TabContextualizationController::From(tab_interface())) {
+      controller->GetPageContext(base::BindOnce(
+          &LensQueryFlowRouter::UploadContextualInputData,
+          weak_factory_.GetWeakPtr(), pending_session_handle_.get()));
+    }
+    return;
+  }
+  GetContextualSearchSessionHandle()->CreateSearchUrl(
       std::move(request_info),
       base::BindOnce(&LensQueryFlowRouter::OpenContextualTasksPanel,
                      weak_factory_.GetWeakPtr()));
@@ -231,6 +271,17 @@ void LensQueryFlowRouter::OnFinishedAddingTabContext(
 
   session_handle->StartTabContextUploadFlow(
       token, std::move(contextual_input_data), std::move(image_options));
+
+  // While a pending search URL request does not need to wait for the tab
+  // context to upload, it does need to wait for tab context to be added to the
+  // session handle before creating the search URL so it is properly
+  // contextualized.
+  if (pending_search_url_request_) {
+    session_handle->CreateSearchUrl(
+        std::move(pending_search_url_request_),
+        base::BindOnce(&LensQueryFlowRouter::OpenContextualTasksPanel,
+                       weak_factory_.GetWeakPtr()));
+  }
 }
 
 std::unique_ptr<lens::ContextualInputData>
@@ -291,18 +342,6 @@ LensQueryFlowRouter::CreateSearchUrlRequestInfoFromInteraction(
 }
 
 contextual_search::ContextualSearchSessionHandle*
-LensQueryFlowRouter::GetOrCreateContextualSearchSessionHandle() {
-  auto* session_handle = GetContextualSearchSessionHandle();
-  if (session_handle) {
-    return session_handle;
-  }
-
-  pending_session_handle_ = CreateContextualSearchSessionHandle();
-  pending_session_handle_->NotifySessionStarted();
-  return pending_session_handle_.get();
-}
-
-contextual_search::ContextualSearchSessionHandle*
 LensQueryFlowRouter::GetContextualSearchSessionHandle() const {
   if (pending_session_handle_) {
     return pending_session_handle_.get();
@@ -320,8 +359,8 @@ LensQueryFlowRouter::GetContextualSearchSessionHandle() const {
     return nullptr;
   }
 
-  auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
-      coordinator->GetActiveWebContents());
+  auto* helper =
+      ContextualSearchWebContentsHelper::FromWebContents(web_contents);
   if (helper && helper->session_handle()) {
     return helper->session_handle();
   }
