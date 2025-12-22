@@ -16,6 +16,7 @@
 
 #include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/text_to_speech_change_event.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
 
 namespace blink {
@@ -34,8 +35,11 @@ bool H5vccAccessibility::textToSpeech() {
 }
 
 // Called by browser to dispatch kTexttospeechchange event.
-void H5vccAccessibility::NotifyTextToSpeechChange() {
-  DispatchEvent(*Event::Create(event_type_names::kTexttospeechchange));
+void H5vccAccessibility::NotifyTextToSpeechChange(bool enabled) {
+  auto* event_init = TextToSpeechChangeEventInit::Create();
+  event_init->setEnabled(enabled);
+  DispatchEvent(*TextToSpeechChangeEvent::Create(
+      event_type_names::kTexttospeechchange, event_init));
 }
 
 void H5vccAccessibility::AddedEventListener(

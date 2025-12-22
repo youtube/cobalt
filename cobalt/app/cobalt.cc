@@ -30,7 +30,13 @@
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
+<<<<<<< HEAD
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
+=======
+#include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+>>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
@@ -174,6 +180,7 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
+<<<<<<< HEAD
     case kSbEventTypeLowMemory: {
       base::MemoryPressureListener::NotifyMemoryPressure(
           base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
@@ -185,6 +192,13 @@ void SbEventHandle(const SbEvent* event) {
       if (event->data) {
         auto mem_cb = reinterpret_cast<SbEventCallback>(event->data);
         mem_cb(nullptr);
+=======
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged: {
+      if (event->data) {
+        auto* enabled = static_cast<const bool*>(event->data);
+        cobalt::browser::H5vccAccessibilityManager::GetInstance()
+            ->OnTextToSpeechStateChanged(*enabled);
+>>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
       }
       break;
     }

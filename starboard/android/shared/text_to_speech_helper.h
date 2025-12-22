@@ -18,8 +18,6 @@
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
-#include "base/observer_list.h"
-#include "starboard/android/shared/text_to_speech_observer.h"
 
 namespace starboard {
 
@@ -29,11 +27,8 @@ class CobaltTextToSpeechHelper {
   static CobaltTextToSpeechHelper* GetInstance();
   void Initialize(JNIEnv* env);
 
-  void AddObserver(TextToSpeechObserver* observer);
-  void RemoveObserver(TextToSpeechObserver* observer);
-
   bool IsTextToSpeechEnabled(JNIEnv* env) const;
-  void SendTextToSpeechChangeEvent() const;
+  void SendTextToSpeechChangeEvent(bool enabled) const;
 
  private:
   friend struct base::DefaultSingletonTraits<CobaltTextToSpeechHelper>;
@@ -42,11 +37,6 @@ class CobaltTextToSpeechHelper {
 
   CobaltTextToSpeechHelper() = default;
   ~CobaltTextToSpeechHelper() = default;
-
-  // Thread-safe observer list for H5vccAccessibilityImpl.
-  base::ObserverList<TextToSpeechObserver> observers_
-      GUARDED_BY(observers_lock_);
-  mutable base::Lock observers_lock_;
 };
 
 }  // namespace starboard

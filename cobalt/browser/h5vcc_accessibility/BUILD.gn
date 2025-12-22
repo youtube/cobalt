@@ -12,6 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source_set("manager") {
+  sources = [
+    "h5vcc_accessibility_manager.cc",
+    "h5vcc_accessibility_manager.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/browser/h5vcc_accessibility/public/mojom",
+    "//mojo/public/cpp/bindings",
+  ]
+}
+
 source_set("h5vcc_accessibility") {
   sources = [
     "h5vcc_accessibility_impl.cc",
@@ -19,6 +32,7 @@ source_set("h5vcc_accessibility") {
   ]
 
   deps = [
+    ":manager",
     "//base",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//content/public/browser",
