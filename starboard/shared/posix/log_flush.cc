@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/common/log.h"
+// clang-format on
+
 #include <stdio.h>
 #include <unistd.h>
-
-#include "starboard/common/log.h"
 
 void SbLogFlush() {
   fflush(stderr);

@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/application.h"
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
+
+#include "starboard/shared/starboard/application.h"
 
 void SbSystemRequestFreeze() {
   // There is no FreezeDone callback for stopping all thread execution

@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/common/storage.h"
+// clang-format on
+
 #include <unistd.h>
 
 #include "starboard/common/file.h"
-#include "starboard/common/storage.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
 bool SbStorageCloseRecord(SbStorageRecord record) {

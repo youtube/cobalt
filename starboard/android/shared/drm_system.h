@@ -15,6 +15,10 @@
 #ifndef STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 #define STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 
+// clang-format off
+#include "starboard/shared/starboard/drm/drm_system_internal.h"
+// clang-format on
+
 #include <jni.h>
 
 #include <atomic>
@@ -29,7 +33,6 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/thread.h"
-#include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {

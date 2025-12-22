@@ -15,8 +15,11 @@
 #ifndef STARBOARD_SHARED_STARBOARD_DECODE_TARGET_DECODE_TARGET_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_DECODE_TARGET_DECODE_TARGET_INTERNAL_H_
 
-#include "starboard/common/ref_counted.h"
+// clang-format off
 #include "starboard/decode_target.h"
+// clang-format on
+
+#include "starboard/common/ref_counted.h"
 
 struct SbDecodeTargetPrivate : starboard::RefCounted<SbDecodeTargetPrivate> {
   SbDecodeTargetPrivate() = default;

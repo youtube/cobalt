@@ -12,11 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
+// clang-format on
+
 // This file contains the creation of the specialized AudioDecoderImpl object
 // corresponding to the version of the linked ffmpeg library.
 
 #include "starboard/player.h"
-#include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"

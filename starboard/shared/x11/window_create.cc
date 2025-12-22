@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/x11/application_x11.h"
+// clang-format off
 #include "starboard/window.h"
+// clang-format on
+
+#include "starboard/shared/x11/application_x11.h"
 
 SbWindow SbWindowCreate(const SbWindowOptions* options) {
   return starboard::ApplicationX11::Get()->CreateWindow(options);
