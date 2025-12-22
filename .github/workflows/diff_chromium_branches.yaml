@@ -75,6 +75,15 @@ jobs:
       upstream_branches: ${{ steps.set-upstream-branches.outputs.upstream_branches }}
       downstream_branch: ${{ steps.set-downstream-branch.outputs.downstream_branch }}
       code_ownership: ${{ steps.set-code-ownership.outputs.code_ownership }}
+  calculate_diffs_without_upstream:
+    needs: initialize
+    runs-on: ubuntu-latest
+    if: ${{ needs.initialize.outputs.upstream_branches == '' }}
+    steps:
+      - name: BLAH
+        run: |
+          set -eux
+          echo "hello there's no upstream"
   calculate_diffs:
     needs: initialize
     # Check if there's any diff to perform
