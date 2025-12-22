@@ -40,6 +40,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/page.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/page_transition_types.h"
 #include "ui/compositor/layer.h"
@@ -227,8 +228,7 @@ void ContextualTasksSidePanelCoordinator::Show(bool transition_from_tab) {
   UpdateOpenState(/*is_open=*/true);
   UpdateContextualTaskUI();
   ObserveWebContentsOnActiveTab();
-  active_task_context_provider_->OnSidePanelStateUpdated(
-      GetContextualSearchSessionHandleForSidePanel());
+  NotifyActiveTaskContextProvider();
 }
 
 void ContextualTasksSidePanelCoordinator::Close() {
@@ -236,8 +236,7 @@ void ContextualTasksSidePanelCoordinator::Close() {
   side_panel_ui_->Close(SidePanelEntry::PanelType::kToolbar);
   Observe(nullptr);
 
-  active_task_context_provider_->OnSidePanelStateUpdated(
-      /*session_handle=*/nullptr);
+  NotifyActiveTaskContextProvider();
 }
 
 bool ContextualTasksSidePanelCoordinator::IsSidePanelOpen() {
@@ -291,6 +290,12 @@ void ContextualTasksSidePanelCoordinator::DidFinishNavigation(
 
 void ContextualTasksSidePanelCoordinator::PrimaryPageChanged(
     content::Page& page) {
+  // Hide side panel if contextual tasks pages is loaded on tab.
+  GURL url = page.GetMainDocument().GetLastCommittedURL();
+  if (ui_service_->IsContextualTasksUrl(url)) {
+    Hide();
+  }
+
   UpdateContextualTaskUI();
 }
 
@@ -467,10 +472,7 @@ void ContextualTasksSidePanelCoordinator::OnActiveTabChanged() {
 
   ObserveWebContentsOnActiveTab();
 
-  active_task_context_provider_->OnSidePanelStateUpdated(
-      IsSidePanelOpenForContextualTask()
-          ? GetContextualSearchSessionHandleForSidePanel()
-          : nullptr);
+  NotifyActiveTaskContextProvider();
 }
 
 void ContextualTasksSidePanelCoordinator::OnTabStripModelChanged(
@@ -574,8 +576,7 @@ void ContextualTasksSidePanelCoordinator::Hide() {
                         /*suppress_animations=*/true);
   Observe(nullptr);
 
-  active_task_context_provider_->OnSidePanelStateUpdated(
-      /*session_handle=*/nullptr);
+  NotifyActiveTaskContextProvider();
 }
 
 void ContextualTasksSidePanelCoordinator::Unhide() {
@@ -586,8 +587,7 @@ void ContextualTasksSidePanelCoordinator::Unhide() {
   UpdateContextualTaskUI();
   ObserveWebContentsOnActiveTab();
 
-  active_task_context_provider_->OnSidePanelStateUpdated(
-      GetContextualSearchSessionHandleForSidePanel());
+  NotifyActiveTaskContextProvider();
 }
 
 void ContextualTasksSidePanelCoordinator::ObserveWebContentsOnActiveTab() {
@@ -754,6 +754,36 @@ void ContextualTasksSidePanelCoordinator::CloseLensSessionsForTask(
       }
     }
   }
+}
+
+void ContextualTasksSidePanelCoordinator::NotifyActiveTaskContextProvider() {
+  contextual_search::ContextualSearchSessionHandle* session_handle = nullptr;
+  if (IsSidePanelOpenForContextualTask()) {
+    session_handle = GetContextualSearchSessionHandleForSidePanel();
+  } else {
+    tabs::TabInterface* active_tab_interface =
+        browser_window_->GetActiveTabInterface();
+    if (active_tab_interface) {
+      content::WebContents* active_web_contents =
+          active_tab_interface->GetContents();
+      if (active_web_contents &&
+          active_web_contents->GetLastCommittedURL().host() ==
+              chrome::kChromeUIContextualTasksHost &&
+          active_web_contents->GetWebUI() &&
+          active_web_contents->GetWebUI()->GetController() &&
+          active_web_contents->GetWebUI()
+              ->GetController()
+              ->GetAs<ContextualTasksUI>()) {
+        ContextualSearchWebContentsHelper* helper =
+            ContextualSearchWebContentsHelper::FromWebContents(
+                active_web_contents);
+        if (helper) {
+          session_handle = helper->session_handle();
+        }
+      }
+    }
+  }
+  active_task_context_provider_->OnSidePanelStateUpdated(session_handle);
 }
 
 size_t ContextualTasksSidePanelCoordinator::GetNumberOfActiveTasks() const {

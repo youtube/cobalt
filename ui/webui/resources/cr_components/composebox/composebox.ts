@@ -157,7 +157,7 @@ export class ComposeboxElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
-      tabSuggestions_: {type: Array},
+      tabSuggestions: {type: Array},
       errorScrimVisible_: {type: Boolean},
       contextFilesSize_: {
         type: Number,
@@ -190,6 +190,7 @@ export class ComposeboxElement extends I18nMixinLit
   accessor animationState: GlowAnimationState = GlowAnimationState.NONE;
   accessor entrypointName: string = '';
   accessor disableVoiceSearchAnimation: boolean = false;
+  accessor tabSuggestions: TabInfo[] = [];
   protected composeboxNoFlickerSuggestionsFix_: boolean =
       loadTimeData.getBoolean('composeboxNoFlickerSuggestionsFix');
   // If isCollapsible is set to true, the composebox will be a pill shape until
@@ -220,7 +221,6 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor inDeepSearchMode_: boolean = false;
   protected accessor showContextMenuDescription_: boolean = true;
   protected accessor lensButtonDisabled_: boolean = false;
-  protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor errorScrimVisible_: boolean = false;
   protected accessor contextFilesSize_: number = 0;
   protected accessor transcript_: string = '';
@@ -277,8 +277,6 @@ export class ComposeboxElement extends I18nMixinLit
           this.onAutocompleteResultChanged_.bind(this)),
       this.searchboxCallbackRouter_.onContextualInputStatusChanged.addListener(
           this.onContextualInputStatusChanged_.bind(this)),
-      this.searchboxCallbackRouter_.onTabStripChanged.addListener(
-          this.refreshTabSuggestions_.bind(this)),
       this.searchboxCallbackRouter_.addFileContext.addListener(
           this.addFileContextFromBrowser_.bind(this)),
       this.searchboxCallbackRouter_.updateAutoSuggestedTabContext.addListener(
@@ -313,7 +311,6 @@ export class ComposeboxElement extends I18nMixinLit
     }
 
     this.searchboxHandler_.notifySessionStarted();
-    this.refreshTabSuggestions_();
 
     if (this.ntpRealboxNextEnabled) {
       this.fire('composebox-initialized', {
@@ -698,11 +695,6 @@ export class ComposeboxElement extends I18nMixinLit
       event.preventDefault();
       this.$.context.addPastedFiles(fileList);
     }
-  }
-
-  protected async refreshTabSuggestions_() {
-    const {tabs} = await this.searchboxHandler_.getRecentTabs();
-    this.tabSuggestions_ = [...tabs];
   }
 
   protected async getTabPreview_(e: CustomEvent<{
