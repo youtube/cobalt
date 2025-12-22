@@ -21,8 +21,13 @@
 namespace blink {
 
 H5vccUpdater::H5vccUpdater(LocalDOMWindow& window)
-    : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_updater_(window.GetExecutionContext()) {}
+    : ExecutionContextLifecycleObserver(window.GetExecutionContext())
+#if BUILDFLAG(USE_EVERGREEN)
+      ,
+      remote_h5vcc_updater_(window.GetExecutionContext())
+#endif
+{
+}
 
 void H5vccUpdater::ContextDestroyed() {}
 
@@ -32,9 +37,9 @@ ScriptPromise H5vccUpdater::getUpdateServerUrl(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
+#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
-#if BUILDFLAG(USE_EVERGREEN)
   remote_h5vcc_updater_->GetUpdateServerUrl(
       WTF::BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
                     WrapPersistent(resolver)));
@@ -49,6 +54,7 @@ void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
+#if BUILDFLAG(USE_EVERGREEN)
 void H5vccUpdater::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
@@ -62,10 +68,14 @@ void H5vccUpdater::EnsureReceiverIsBound() {
       remote_h5vcc_updater_.BindNewPipeAndPassReceiver(task_runner));
 }
 
+#endif
+
 void H5vccUpdater::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
+#if BUILDFLAG(USE_EVERGREEN)
   visitor->Trace(remote_h5vcc_updater_);
+#endif
 }
 
 }  // namespace blink

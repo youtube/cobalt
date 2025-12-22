@@ -15,7 +15,11 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_UPDATER_H_5_VCC_UPDATER_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_UPDATER_H_5_VCC_UPDATER_H_
 
-#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom-blink.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(USE_EVERGREEN)
+#include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom-blink.h"  // nogncheck
+#endif
 
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -52,9 +56,11 @@ class MODULES_EXPORT H5vccUpdater final
 
  private:
   void OnGetUpdateServerUrl(ScriptPromiseResolver*, const String&);
+#if BUILDFLAG(USE_EVERGREEN)
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
+#endif
 };
 
 }  // namespace blink
