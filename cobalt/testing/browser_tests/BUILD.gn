@@ -188,6 +188,7 @@ test("cobalt_browsertests") {
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
     "content_main_runner_impl_browsertest.cc",
+
     #"encrypted_media_browsertest.cc",
     #"frame_tree_browsertest.cc",
     #"media_browsertest.cc",
@@ -212,12 +213,12 @@ test("cobalt_browsertests") {
   configs += [ "//build/config:precompiled_headers" ]
 
   public_deps = [
-    "//content:content_resources",
-    "//content/test:test_interfaces",
-    "//content/test:web_ui_mojo_test_resources",
     "//cobalt:common",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/shell:cobalt_shell_lib",
+    "//content:content_resources",
+    "//content/test:test_interfaces",
+    "//content/test:web_ui_mojo_test_resources",
     "//ui/ozone/platform/starboard:starboard",
   ]
 
@@ -256,12 +257,12 @@ test("cobalt_browsertests") {
     "//content/public/app",
     "//content/public/browser",
     "//content/public/gpu",
-    "//content/renderer:for_content_tests",
     "//content/public/renderer",
     "//content/public/utility",
-    "//content/test:test_support",
+    "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
     "//content/test:mojo_web_test_bindings",
+    "//content/test:test_support",
     "//content/test:web_ui_managed_interface_tests_bindings",
     "//content/test:web_ui_ts_test_mojo_bindings",
     "//device/base/synchronization",
@@ -436,17 +437,6 @@ static_library("cobalt_shell_test_lib") {
       "browser/shell_platform_test_data_aura.h",
     ]
     deps += [ "//ui/aura" ]
-  }
-
-  if (shell_use_toolkit_views) {
-    if (use_aura) {
-      sources += [
-        "browser/shell_test_platform_delegate.cc",
-        "browser/shell_test_platform_delegate.h",
-      ]
-
-      deps += [ "//ui/views:test_support" ]
-    }
   }
 }
 
