@@ -17,32 +17,23 @@
 
 #include <memory>
 
-#include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/queue_application.h"
-
 namespace starboard {
 
 class CommandLine;
 
-class ApplicationDarwin : public QueueApplication {
+class ApplicationDarwin final {
  public:
   explicit ApplicationDarwin(
       std::unique_ptr<::starboard::CommandLine> command_line);
-  ~ApplicationDarwin() override;
+  ~ApplicationDarwin();
 
   static void IncrementIdleTimerLockCount();
   static void DecrementIdleTimerLockCount();
 
- protected:
-  // --- Application overrides ---
-  bool IsStartImmediate() override { return false; }
-  bool MayHaveSystemEvents() override { return false; }
-  Application::Event* WaitForSystemEventWithTimeout(int64_t time) override {
-    return nullptr;
-  }
-  void WakeSystemEventWait() override {}
-
  private:
+  class ApplicationDarwinInternal;
+  std::unique_ptr<ApplicationDarwinInternal> application_darwin_internal_;
+
   struct ObjCStorage;
   std::unique_ptr<ObjCStorage> objc_storage_;
 };
