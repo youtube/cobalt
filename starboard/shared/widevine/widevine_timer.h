@@ -40,9 +40,9 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   // the specific client after this function returns.
   void cancel(IClient* client) override;
 
- private:
   class WaitEvent;
 
+ private:
   static void* ThreadFunc(void* param);
   void RunLoop(WaitEvent* wait_event);
   void CancelAllJobsOnClient(IClient* client, WaitEvent* wait_event);
