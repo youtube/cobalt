@@ -604,13 +604,13 @@ EGLAPI EGLBoolean EGLAPIENTRY eglQuerySurfacePointerANGLE(EGLDisplay dpy,
 
 #ifndef EGL_ANGLE_software_display
 #define EGL_ANGLE_software_display 1
-#define EGL_SOFTWARE_DISPLAY_ANGLE ((EGLNativeDisplayType)-1)
+#define EGL_SOFTWARE_DISPLAY_ANGLE ((EGLNativeDisplayType) - 1)
 #endif /* EGL_ANGLE_software_display */
 
 #ifndef EGL_ANGLE_direct3d_display
 #define EGL_ANGLE_direct3d_display 1
-#define EGL_D3D11_ELSE_D3D9_DISPLAY_ANGLE ((EGLNativeDisplayType)-2)
-#define EGL_D3D11_ONLY_DISPLAY_ANGLE ((EGLNativeDisplayType)-3)
+#define EGL_D3D11_ELSE_D3D9_DISPLAY_ANGLE ((EGLNativeDisplayType) - 2)
+#define EGL_D3D11_ONLY_DISPLAY_ANGLE ((EGLNativeDisplayType) - 3)
 #endif /* EGL_ANGLE_direct3d_display */
 
 #ifndef EGL_ANGLE_surface_d3d_texture_2d_share_handle
@@ -685,9 +685,9 @@ typedef EGLBoolean(EGLAPIENTRYP PFNEGLQUERYDEVICEATTRIBEXTPROC)(
     EGLDeviceEXT device,
     EGLint attribute,
     EGLAttrib* value);
-typedef const char*(EGLAPIENTRYP PFNEGLQUERYDEVICESTRINGEXTPROC)(
-    EGLDeviceEXT device,
-    EGLint name);
+typedef const char*(
+    EGLAPIENTRYP PFNEGLQUERYDEVICESTRINGEXTPROC)(EGLDeviceEXT device,
+                                                 EGLint name);
 typedef EGLBoolean(EGLAPIENTRYP PFNEGLQUERYDEVICESEXTPROC)(
     EGLint max_devices,
     EGLDeviceEXT* devices,
@@ -808,10 +808,10 @@ typedef EGLBoolean(EGLAPIENTRYP PFNEGLQUERYOUTPUTLAYERATTRIBEXTPROC)(
     EGLOutputLayerEXT layer,
     EGLint attribute,
     EGLAttrib* value);
-typedef const char*(EGLAPIENTRYP PFNEGLQUERYOUTPUTLAYERSTRINGEXTPROC)(
-    EGLDisplay dpy,
-    EGLOutputLayerEXT layer,
-    EGLint name);
+typedef const char*(
+    EGLAPIENTRYP PFNEGLQUERYOUTPUTLAYERSTRINGEXTPROC)(EGLDisplay dpy,
+                                                      EGLOutputLayerEXT layer,
+                                                      EGLint name);
 typedef EGLBoolean(EGLAPIENTRYP PFNEGLOUTPUTPORTATTRIBEXTPROC)(
     EGLDisplay dpy,
     EGLOutputPortEXT port,
@@ -822,10 +822,10 @@ typedef EGLBoolean(EGLAPIENTRYP PFNEGLQUERYOUTPUTPORTATTRIBEXTPROC)(
     EGLOutputPortEXT port,
     EGLint attribute,
     EGLAttrib* value);
-typedef const char*(EGLAPIENTRYP PFNEGLQUERYOUTPUTPORTSTRINGEXTPROC)(
-    EGLDisplay dpy,
-    EGLOutputPortEXT port,
-    EGLint name);
+typedef const char*(
+    EGLAPIENTRYP PFNEGLQUERYOUTPUTPORTSTRINGEXTPROC)(EGLDisplay dpy,
+                                                     EGLOutputPortEXT port,
+                                                     EGLint name);
 #ifdef EGL_EGLEXT_PROTOTYPES
 EGLAPI EGLBoolean EGLAPIENTRY
 eglGetOutputLayersEXT(EGLDisplay dpy,

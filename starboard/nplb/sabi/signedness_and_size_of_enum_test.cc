@@ -22,7 +22,8 @@ typedef enum GenericEnumType {
 } GenericEnumType;
 
 // TODO b/452970985 : Fix this test to work with new compiler.
-// SB_COMPILE_ASSERT((static_cast<GenericEnumType>(-1) < 0) == SB_HAS_SIGNED_ENUM,
+// SB_COMPILE_ASSERT((static_cast<GenericEnumType>(-1) < 0) ==
+// SB_HAS_SIGNED_ENUM,
 //                   SB_HAS_SIGNED_ENUM_is_inconsistent_with_sign_of_enum);
 
 SB_COMPILE_ASSERT(sizeof(GenericEnumType) == SB_SIZE_OF_ENUM,

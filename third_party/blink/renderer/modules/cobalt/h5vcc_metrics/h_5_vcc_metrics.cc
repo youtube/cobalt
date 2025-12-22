@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.h"
+
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h"
@@ -38,8 +39,9 @@ void H5vccMetrics::ContextDestroyed() {
   OnCloseConnection();
 }
 
-ScriptPromise<IDLUndefined> H5vccMetrics::enable(ScriptState* script_state,
-                                   ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> H5vccMetrics::enable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
@@ -54,8 +56,9 @@ ScriptPromise<IDLUndefined> H5vccMetrics::enable(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUndefined> H5vccMetrics::disable(ScriptState* script_state,
-                                    ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> H5vccMetrics::disable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
@@ -159,7 +162,8 @@ void H5vccMetrics::OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver) {
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver) {
+void H5vccMetrics::OnSetMetricEventInterval(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   resolver->Resolve();
 }

@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/decode_target.h"
-
 #include "starboard/common/log.h"
+#include "starboard/decode_target.h"
 #include "starboard/shared/starboard/decode_target/decode_target_internal.h"
 
 void SbDecodeTargetRelease(SbDecodeTarget decode_target) {

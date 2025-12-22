@@ -14,12 +14,18 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 
+#include <string>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/text_to_speech_observer.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/accessibility.h"
 #endif
 
 namespace h5vcc_accessibility {
@@ -59,8 +65,25 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
     IsTextToSpeechEnabledSyncCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
-  // TODO(b/391708407): Add support for Starboard.
-  std::move(callback).Run(false);
+  auto accessibility_api =
+      static_cast<const StarboardExtensionAccessibilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionAccessibilityName));
+  if (!accessibility_api ||
+      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) !=
+          0 ||
+      accessibility_api->version < 1) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  SbAccessibilityTextToSpeechSettings settings{};
+  if (!accessibility_api->GetTextToSpeechSettings(&settings)) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  std::move(callback).Run(settings.has_text_to_speech_setting &&
+                          settings.is_text_to_speech_enabled);
 #elif BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = AttachCurrentThread();
   CobaltTextToSpeechHelper::GetInstance()->Initialize(env);

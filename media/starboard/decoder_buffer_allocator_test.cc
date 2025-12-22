@@ -80,7 +80,8 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
     std::string buffer;
 
     buffer.resize(static_cast<size_t>(file_size.value()));
-    CHECK_EQ(file_size.value(), base::ReadFile(file_path, buffer.data(), file_size.value()))
+    CHECK_EQ(file_size.value(),
+             base::ReadFile(file_path, buffer.data(), file_size.value()))
         << "Failed to read '" << name << "'";
 
     auto allocations = base::SplitStringUsingSubstr(

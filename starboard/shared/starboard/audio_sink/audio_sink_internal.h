@@ -15,11 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 
-#include "starboard/audio_sink.h"
-
 #include <functional>
 #include <string>
 
+#include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 
@@ -115,13 +114,6 @@ class SbAudioSinkImpl : public SbAudioSinkPrivate {
   static void PlatformInitialize();
   static void PlatformTearDown();
 };
-
-// Alias to prevent breaking the RDK build on CI.
-// http://go/paste/4653377854242816
-// TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
-namespace shared::starboard::audio_sink {
-using ::starboard::SbAudioSinkImpl;
-}
 
 }  // namespace starboard
 

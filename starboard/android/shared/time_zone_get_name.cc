@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time_zone.h"
-
 #include <time.h>
 
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/time_zone.h"
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;

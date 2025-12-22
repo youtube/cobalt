@@ -176,9 +176,6 @@ TEST(PosixLocaleSetTest, NewLocaleInvalid) {
 }
 
 TEST(PosixLocaleSetTest, UseLocaleGlobal) {
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-  GTEST_SKIP() << "This test is curently skipped on hermetic builds";
-#endif
   ScopedLocale scoped_locale;
   setlocale(LC_ALL, kDefaultLocale);
   locale_t original_thread_locale = uselocale(LC_GLOBAL_LOCALE);
@@ -212,7 +209,7 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
   }
 
   int category = GetParam().category;
-  const char* category_locale_1 = setlocale(category, NULL);
+  char* category_locale_1 = strdup(setlocale(category, NULL));
   ASSERT_NE(nullptr, category_locale_1);
   EXPECT_STREQ(kTestLocale, category_locale_1);
 
@@ -221,12 +218,14 @@ TEST_P(PosixLocaleSetCategoryTest, SetAllThenQueryCategory) {
   const char* result = setlocale(LC_ALL, kDefaultLocale);
   ASSERT_NE(nullptr, result);
 
-  const char* category_locale_2 = setlocale(category, NULL);
+  char* category_locale_2 = strdup(setlocale(category, NULL));
   ASSERT_NE(nullptr, category_locale_2);
   EXPECT_STREQ(kDefaultLocale, category_locale_2);
 
   // Ensure the locale actually changed.
   EXPECT_STRNE(category_locale_1, category_locale_2);
+  free(category_locale_1);
+  free(category_locale_2);
 }
 
 const LocaleCategoryParam kLocaleCategories[] = {
@@ -282,7 +281,15 @@ TEST_P(PosixLocaleSetAlternativeFormatTest, HandlesLocaleStringWithCodeSet) {
   const auto& param = GetParam();
 
   std::string locale_string_with_codeset = param.locale_string;
-  locale_string_with_codeset.append(".UTF-8");
+
+  // if the locale comes with an @ modifier like "sr_RS@latin", the codeset must
+  // be added before the modifier, not after.
+  if (locale_string_with_codeset.find('@') != std::string::npos) {
+    locale_string_with_codeset.insert(locale_string_with_codeset.find('@'),
+                                      ".UTF-8");
+  } else {
+    locale_string_with_codeset.append(".UTF-8");
+  }
 
   const char* result = setlocale(LC_ALL, locale_string_with_codeset.c_str());
   ASSERT_NE(nullptr, result)

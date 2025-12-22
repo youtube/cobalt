@@ -15,15 +15,13 @@
 #include "starboard/shared/pulse/pulse_audio_sink_type.h"
 
 #include <pulse/pulseaudio.h>
-
-#include <pthread.h>
 #include <unistd.h>
-#include <atomic>
 
 #include <algorithm>
+#include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
-#include <optional>
 #include <vector>
 
 #include "starboard/audio_sink.h"
@@ -33,6 +31,7 @@
 #include "starboard/shared/pulse/pulse_dynamic_load_dispatcher.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
 #if defined(ADDRESS_SANITIZER)
@@ -46,6 +45,7 @@
 
 #if HAS_LEAK_SANITIZER
 #include <sanitizer/lsan_interface.h>
+
 #include "starboard/common/check_op.h"
 #endif  // HAS_LEAK_SANITIZER
 
@@ -156,14 +156,13 @@ class PulseAudioSinkType : public SbAudioSinkPrivate::Type {
   PulseAudioSinkType& operator=(const PulseAudioSinkType&) = delete;
 
   static void StateCallback(pa_context* context, void* userdata);
-  static void* ThreadEntryPoint(void* context);
-  void AudioThreadFunc();
+  void ProcessAudio();
 
   std::vector<PulseAudioSink*> sinks_;  // Guarded by |mutex_|.
   pa_mainloop* mainloop_ = NULL;
   pa_context* context_ = NULL;
   std::mutex mutex_;
-  std::optional<pthread_t> audio_thread_;
+  std::unique_ptr<JobThread> audio_thread_;
   bool destroying_ = false;  // Guarded by |mutex_|.
 };
 
@@ -378,7 +377,7 @@ PulseAudioSinkType::~PulseAudioSinkType() {
       std::lock_guard lock(mutex_);
       destroying_ = true;
     }
-    pthread_join(*audio_thread_, nullptr);
+    audio_thread_.reset();
   }
   SB_DCHECK(sinks_.empty());
   if (context_) {
@@ -474,18 +473,17 @@ bool PulseAudioSinkType::Initialize() {
     context_ = NULL;
     return false;
   }
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, nullptr, &PulseAudioSinkType::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
-  audio_thread_ = thread;
+
+  audio_thread_ =
+      std::make_unique<JobThread>("pulse_audio", 0, kSbThreadPriorityRealTime);
+  audio_thread_->Schedule([this] { ProcessAudio(); });
 
   return true;
 }
 
 bool PulseAudioSinkType::BelongToAudioThread() {
-  SB_DCHECK(audio_thread_);
-  return pthread_equal(pthread_self(), *audio_thread_);
+  SB_CHECK(audio_thread_);
+  return audio_thread_->BelongsToCurrentThread();
 }
 
 pa_stream* PulseAudioSinkType::CreateNewStream(
@@ -550,19 +548,7 @@ void PulseAudioSinkType::StateCallback(pa_context* context, void* userdata) {
   }
 }
 
-// static
-void* PulseAudioSinkType::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "pulse_audio");
-
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-
-  SB_DCHECK(context);
-  PulseAudioSinkType* type = static_cast<PulseAudioSinkType*>(context);
-  type->AudioThreadFunc();
-  return NULL;
-}
-
-void PulseAudioSinkType::AudioThreadFunc() {
+void PulseAudioSinkType::ProcessAudio() {
   for (;;) {
     {
       bool has_running_sink = false;

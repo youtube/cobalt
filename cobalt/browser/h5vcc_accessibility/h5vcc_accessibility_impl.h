@@ -15,8 +15,6 @@
 #ifndef COBALT_BROWSER_H5VCC_ACCESSIBILITY_H5VCC_ACCESSIBILITY_IMPL_H_
 #define COBALT_BROWSER_H5VCC_ACCESSIBILITY_H5VCC_ACCESSIBILITY_IMPL_H_
 
-#include <string>
-
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
 #include "content/public/browser/document_service.h"

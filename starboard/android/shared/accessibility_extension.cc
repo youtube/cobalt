@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/android/shared/accessibility_extension.h"
+
 #include "starboard/extension/accessibility.h"
 
 namespace starboard {
