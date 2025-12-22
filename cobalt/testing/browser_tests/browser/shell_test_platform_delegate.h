@@ -16,7 +16,9 @@
 #define COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_TEST_PLATFORM_DELEGATE_H_
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
 #include "ui/views/test/desktop_test_views_delegate.h"
+#endif
 
 namespace content {
 
@@ -26,7 +28,9 @@ class ShellTestPlatformDelegate : public ShellPlatformDelegate {
   ~ShellTestPlatformDelegate() override = default;
 
  protected:
-  std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate();
+#if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
+  std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate() override;
+#endif
 };
 
 }  // namespace content

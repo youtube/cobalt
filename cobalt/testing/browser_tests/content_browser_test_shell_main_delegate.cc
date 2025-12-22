@@ -15,10 +15,6 @@
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 
 #include <optional>
-
-#include "base/no_destructor.h"
-#include "base/test/task_environment.h"
-#include "cobalt/testing/browser_tests/browser/shell_content_browser_test_client.h"
 #include <string>
 
 #include "base/command_line.h"
@@ -85,7 +81,8 @@ void ContentBrowserTestShellMainDelegate::CreateThreadPool(
 
 ContentBrowserClient*
 ContentBrowserTestShellMainDelegate::CreateContentBrowserClient() {
-  static base::NoDestructor<ContentBrowserTestContentBrowserClient> browser_client;
+  static base::NoDestructor<ContentBrowserTestContentBrowserClient>
+      browser_client;
   return browser_client.get();
 }
 

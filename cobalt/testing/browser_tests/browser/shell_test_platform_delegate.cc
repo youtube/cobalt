@@ -21,10 +21,11 @@ namespace content {
 
 // The overridden method provides the test-specific ViewsDelegate.
 // The base class's Initialize() method will call this version.
+#if defined(USE_AURA) && defined(SHELL_USE_TOOLKIT_VIEWS)
 std::unique_ptr<views::ViewsDelegate>
 ShellTestPlatformDelegate::CreateViewsDelegate() {
-  LOG(ERROR) << "lxn::: called test of CreateViewsDelegate";
   return std::make_unique<views::CobaltViewsDelegate>();
 }
+#endif
 
 }  // namespace content
