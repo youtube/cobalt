@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "build/build_config.h"
+#include "starboard/common/log.h"
 #include "starboard/nplb/posix_compliance/posix_locale_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
