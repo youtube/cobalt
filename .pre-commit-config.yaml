@@ -36,6 +36,11 @@ repos:
     -   id: end-of-file-fixer
     -   id: mixed-line-ending
     -   id: trailing-whitespace
+-   repo: https://github.com/SortaCookie/actionlint
+    rev: v1.7.7
+    hooks:
+    -   id: actionlint
+        files: ^.github/
 -   repo: local
     hooks:
     -   id: chromium-pre-commit
