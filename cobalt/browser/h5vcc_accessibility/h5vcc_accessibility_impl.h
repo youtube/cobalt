@@ -15,15 +15,15 @@
 #ifndef COBALT_BROWSER_H5VCC_ACCESSIBILITY_H5VCC_ACCESSIBILITY_IMPL_H_
 #define COBALT_BROWSER_H5VCC_ACCESSIBILITY_H5VCC_ACCESSIBILITY_IMPL_H_
 
-#include <memory>
-
-#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/browser/h5vcc_accessibility/platform_text_to_speech_helper.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/text_to_speech_helper.h"
+#endif
 
 namespace content {
 class RenderFrameHost;
@@ -35,8 +35,18 @@ namespace h5vcc_accessibility {
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class H5vccAccessibilityImpl
-    : public content::DocumentService<mojom::H5vccAccessibilityBrowser>,
-      public PlatformTextToSpeechHelper::Client {
+    : public content::DocumentService<mojom::H5vccAccessibilityBrowser>
+#if BUILDFLAG(IS_ANDROIDTV)
+    ,  // TODO(b/407584170): Understand how many H5vccAccessibilityImpl
+       // instances are generated in the browser.
+       // TODO(b/407584348): Compare with a different design approach that
+       // implements a separate EventListener to replace TextToSpeechObserver.
+       // With this alternative, H5vccAccessibilityImpl can have a single
+       // responsibility and delegate client/listener management to another
+       // class.
+      public starboard::TextToSpeechObserver
+#endif
+{
  public:
   // Creates a H5vccAccessibilityImpl. The H5vccAccessibilityImpl is bound to
   // the receiver and its lifetime is scoped to the render_frame_host.
@@ -55,9 +65,10 @@ class H5vccAccessibilityImpl
   void RegisterClient(
       mojo::PendingRemote<mojom::H5vccAccessibilityClient> client) override;
 
-  // PlatformTextToSpeechHelper::Client APIs:
-  void NotifyTextToSpeechChange() override;
-
+#if BUILDFLAG(IS_ANDROIDTV)
+  // starboard::TextToSpeechObserver APIs:
+  void ObserveTextToSpeechChange() override;
+#endif
  private:
   H5vccAccessibilityImpl(
       content::RenderFrameHost& render_frame_host,
@@ -65,11 +76,6 @@ class H5vccAccessibilityImpl
   ~H5vccAccessibilityImpl();
 
   mojo::RemoteSet<mojom::H5vccAccessibilityClient> remote_clients_;
-
-  std::unique_ptr<PlatformTextToSpeechHelper> platform_text_to_speech_helper_;
-
-  base::WeakPtrFactory<PlatformTextToSpeechHelper::Client> weak_ptr_factory_{
-      this};
 
   THREAD_CHECKER(thread_checker_);
 };
