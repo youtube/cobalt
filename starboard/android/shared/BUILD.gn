@@ -313,6 +313,7 @@ static_library("starboard_platform") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:job_thread",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 

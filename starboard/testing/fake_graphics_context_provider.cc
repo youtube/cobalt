@@ -99,74 +99,32 @@ FakeGraphicsContextProvider::FakeGraphicsContextProvider()
 }
 
 FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
-  RunOnGlesContextThread(
-      std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
-  functor_queue_.Wake();
-  pthread_join(decode_target_context_thread_, NULL);
+  if (job_thread_) {
+    job_thread_->ScheduleAndWait([this] { DestroyContext(); });
+    job_thread_.reset();
+  }
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
 }
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (job_thread_->BelongsToCurrentThread()) {
     functor();
     return;
   }
-  std::mutex mutex;
-  std::condition_variable condition_variable;
-  std::unique_lock lock(mutex);
-  bool functor_done = false;
-  functor_queue_.Put(functor);
-  functor_queue_.Put([&]() {
-    std::lock_guard lock(mutex);
-    functor_done = true;
-    condition_variable.notify_one();
-  });
-  condition_variable.wait(lock, [&functor_done] { return functor_done; });
+  job_thread_->ScheduleAndWait(functor);
 }
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     SbDecodeTarget decode_target) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (job_thread_->BelongsToCurrentThread()) {
     SbDecodeTargetRelease(decode_target);
     return;
   }
 
-  std::mutex mutex;
-  std::condition_variable condition_variable;
-  std::unique_lock lock(mutex);
-  bool functor_done = false;
-
-  functor_queue_.Put(std::bind(SbDecodeTargetRelease, decode_target));
-  functor_queue_.Put([&]() {
-    std::lock_guard lock(mutex);
-    functor_done = true;
-    condition_variable.notify_one();
-  });
-  condition_variable.wait(lock, [&functor_done] { return functor_done; });
-}
-
-// static
-void* FakeGraphicsContextProvider::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("dt_context");
-#else
-  pthread_setname_np(pthread_self(), "dt_context");
-#endif
-  auto provider = static_cast<FakeGraphicsContextProvider*>(context);
-  provider->RunLoop();
-
-  return NULL;
-}
-
-void FakeGraphicsContextProvider::RunLoop() {
-  while (std::function<void()> functor = functor_queue_.Get()) {
-    if (!functor) {
-      break;
-    }
-    functor();
-  }
+  job_thread_->ScheduleAndWait(
+      [decode_target] { SbDecodeTargetRelease(decode_target); });
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
@@ -287,34 +245,23 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
 
-  pthread_create(&decode_target_context_thread_, nullptr,
-                 &FakeGraphicsContextProvider::ThreadEntryPoint, this);
+  job_thread_ = std::make_unique<JobThread>("dt_context");
   MakeNoContextCurrent();
 
-  functor_queue_.Put(
-      std::bind(&FakeGraphicsContextProvider::MakeContextCurrent, this));
+  job_thread_->Schedule([this] { MakeContextCurrent(); });
 }
 
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (job_thread_->BelongsToCurrentThread()) {
     target_function(target_function_context);
     return;
   }
 
-  std::mutex mutex;
-  std::condition_variable condition_variable;
-  std::unique_lock lock(mutex);
-  bool functor_done = false;
-
-  functor_queue_.Put(std::bind(target_function, target_function_context));
-  functor_queue_.Put([&]() {
-    std::lock_guard lock(mutex);
-    functor_done = true;
-    condition_variable.notify_one();
+  job_thread_->ScheduleAndWait([target_function, target_function_context] {
+    target_function(target_function_context);
   });
-  condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
 void FakeGraphicsContextProvider::MakeContextCurrent() {
