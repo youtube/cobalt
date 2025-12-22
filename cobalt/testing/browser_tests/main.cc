@@ -17,8 +17,8 @@
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "base/test/test_timeouts.h"
 #include "base/test/test_support_starboard.h"
+#include "base/test/test_timeouts.h"
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/test/test_launcher.h"
 #include "starboard/event.h"
@@ -30,13 +30,11 @@
 
 namespace {
 
-static ui::PlatformEventSourceStarboard* g_platform_event_source =
-    nullptr;
+static ui::PlatformEventSourceStarboard* g_platform_event_source = nullptr;
 
 // This delegate is the bridge between the content::LaunchTests function
 // and the Google Test framework.
-class StarboardTestLauncherDelegate
-    : public content::TestLauncherDelegate {
+class StarboardTestLauncherDelegate : public content::TestLauncherDelegate {
  public:
   // This method is called by content::LaunchTests when it's time to
   // execute the entire suite of discovered Google Tests.
@@ -65,8 +63,7 @@ void SbEventHandle(const SbEvent* event) {
     // The Starboard platform is initialized and ready. It is now safe
     // to initialize and run the Chromium/gtest framework on this
     // thread.
-    SbEventStartData* start_data =
-        static_cast<SbEventStartData*>(event->data);
+    SbEventStartData* start_data = static_cast<SbEventStartData*>(event->data);
 
     StarboardTestLauncherDelegate delegate;
     TestTimeouts::Initialize();
@@ -75,9 +72,12 @@ void SbEventHandle(const SbEvent* event) {
 
     g_platform_event_source = new ui::PlatformEventSourceStarboard();
 
-    int test_result_code = content::LaunchTests(
-        &delegate, 1, start_data->argument_count,
-        const_cast<char**>(start_data->argument_values));
+    int test_result_code =
+        content::LaunchTests(&delegate, 1, start_data->argument_count,
+                             const_cast<char**>(start_data->argument_values));
+
+    delete g_platform_event_source;
+    g_platform_event_source = nullptr;
 
     // After all tests have completed, request a graceful shutdown of
     // the Starboard application. This will cause SbRunStarboardMain to
