@@ -49,8 +49,11 @@ class ShellDevToolsManagerDelegate : public DevToolsManagerDelegate {
   void ClientDetached(
       content::DevToolsAgentHostClientChannel* channel) override;
 
+  // Intentionally leak to avoid "Dangling Pointer" checks at exit when DevToolsManager destroys this.
+  void operator delete(void* p) {}
+
  private:
-  raw_ptr<BrowserContext, DanglingUntriaged> browser_context_;
+  BrowserContext* browser_context_;
   base::flat_set<content::DevToolsAgentHostClient*> clients_;
 };
 
