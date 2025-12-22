@@ -22,6 +22,8 @@
 #include "base/functional/overloaded.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_shell_main_delegate.h"
 #include "content/public/app/content_main_delegate.h"
@@ -31,8 +33,6 @@
 #include "content/public/gpu/content_gpu_client.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "content/public/test/browser_test.h"
-#include "cobalt/shell/browser/shell_platform_delegate.h"
-#include "cobalt/shell/browser/shell.h"
 #include "content/public/utility/content_utility_client.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -213,40 +213,52 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
     const std::string kBrowserProcessType = "";
 
     EXPECT_CALL(mock_delegate_, MockBasicStartupComplete())
-        .Times(testing::AnyNumber())
-        .WillRepeatedly(DoAll(
-            Invoke(this, &Self::TestBasicStartupComplete),
-            Return(std::nullopt)));
-    
-    EXPECT_CALL(mock_delegate_, MockCreateContentBrowserClient()).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockPreSandboxStartup()).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockSandboxInitialized(kBrowserProcessType)).Times(testing::AnyNumber());
-    
+        .Times(testing::AtMost(1))
+        .WillRepeatedly(DoAll(Invoke(this, &Self::TestBasicStartupComplete),
+                              Return(std::nullopt)));
+
+    EXPECT_CALL(mock_delegate_, MockCreateVariationsIdsProvider())
+        .Times(AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockPreSandboxStartup())
+        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockSandboxInitialized(kBrowserProcessType))
+        .Times(testing::AtMost(1));
+
+    // Called once directly and once via PostEarlyInitialization.
     EXPECT_CALL(mock_delegate_, ShouldCreateFeatureList(_))
-        .Times(testing::AnyNumber())
+        .Times(testing::AtLeast(2))
         .WillRepeatedly(Return(true));
     EXPECT_CALL(mock_delegate_, ShouldInitializeMojo(_))
-        .Times(testing::AnyNumber())
+        .Times(testing::AtLeast(2))
         .WillRepeatedly(Return(true));
-        
+
     EXPECT_CALL(mock_delegate_, MockPreBrowserMain())
-        .Times(testing::AnyNumber())
+        .Times(testing::AtMost(1))
         .WillRepeatedly(Return(std::nullopt));
-        
-    EXPECT_CALL(mock_delegate_, MockPostEarlyInitialization(InvokedInMatcher(kBrowserProcessType)))
-        .Times(testing::AnyNumber())
+
+    EXPECT_CALL(mock_delegate_, MockPostEarlyInitialization(
+                                    InvokedInMatcher(kBrowserProcessType)))
+        .Times(testing::AtMost(1))
         .WillRepeatedly(DoAll(Invoke(this, &Self::TestPostEarlyInitialization),
-                        Return(std::nullopt)));
-                        
-    EXPECT_CALL(mock_delegate_, MockRunProcess(kBrowserProcessType, _)).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockProcessExiting(kBrowserProcessType)).Times(testing::AnyNumber());
-    
-    EXPECT_CALL(mock_delegate_, MockShouldLockSchemeRegistry()).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockCreateVariationsIdsProvider()).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockCreateContentClient()).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockCreateContentGpuClient()).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockCreateContentRendererClient()).Times(testing::AnyNumber());
-    EXPECT_CALL(mock_delegate_, MockCreateContentUtilityClient()).Times(testing::AnyNumber());
+                              Return(std::nullopt)));
+
+    EXPECT_CALL(mock_delegate_, MockRunProcess(kBrowserProcessType, _))
+        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockProcessExiting(kBrowserProcessType))
+        .Times(testing::AtMost(1));
+
+    EXPECT_CALL(mock_delegate_, MockShouldLockSchemeRegistry())
+        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockCreateContentClient())
+        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockCreateContentBrowserClient())
+        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockCreateContentGpuClient())
+        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockCreateContentRendererClient())
+        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockCreateContentUtilityClient())
+        .Times(testing::AtMost(1));
 
     Super::SetUp();
   }
@@ -258,11 +270,11 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
   void TestBasicStartupComplete() {
     // The PostEarlyInitialization test checks that ContentMainRunnerImpl set up
     // the FeatureList.
-    // In standard multi-process tests, FeatureList should not exist yet (EXPECT_FALSE).
-    // However, on Starboard, we run in single-process mode where TestLauncher
-    // has already initialized the global FeatureList. ContentMainRunnerImpl
-    // correctly detects this and skips re-initialization, but the test must
-    // expect it to be present.
+    // In standard multi-process tests, FeatureList should not exist yet
+    // (EXPECT_FALSE). However, on Starboard, we run in single-process mode
+    // where TestLauncher has already initialized the global FeatureList.
+    // ContentMainRunnerImpl correctly detects this and skips re-initialization,
+    // but the test must expect it to be present.
     EXPECT_TRUE(base::FeatureList::GetInstance());
   }
 
