@@ -19,7 +19,7 @@
 
 #include "build/build_config.h"
 
-namespace test_switches {
+namespace switches {
 
 // Exposes the window.internals object to JavaScript for interactive development
 // and debugging of web tests that rely on it.
@@ -33,6 +33,6 @@ extern const char kRunWebTests[];
 // meaning Cobalt Shell is running in web test mode.
 bool IsRunWebTestsSwitchPresent();
 
-}  // namespace test_switches
+}  // namespace switches
 
 #endif  // COBALT_TESTING_BROWSER_TESTS_COMMON_SHELL_TEST_SWITCHES_H_
