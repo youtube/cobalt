@@ -18,6 +18,8 @@ blink_modules_sources("h5vcc_settings") {
   sources = [
     "h_5_vcc_settings.cc",
     "h_5_vcc_settings.h",
+    "h5vcc_settings_supplement.cc",
+    "h5vcc_settings_supplement.h",
   ]
 
   deps = [
