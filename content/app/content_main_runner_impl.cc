@@ -852,6 +852,14 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
     DCHECK_NE(base::ThreadPoolInstance::Get(), nullptr);
   }
 
+#if BUILDFLAG(IS_ANDROID) && defined(IS_COBALT)
+  SbFileAndroidInitialize();
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
+      "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
+  resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
+#endif
+
 #if !BUILDFLAG(IS_WIN)
 
   [[maybe_unused]] base::GlobalDescriptors* g_fds =
