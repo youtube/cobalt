@@ -63,6 +63,7 @@ public class Shell {
             "restrictDirectWritingArea=true";
 
     private WebContents mWebContents;
+    private WebContents mSplashScreenWebContents;
     private NavigationController mNavigationController;
 
     private long mNativeShell;
@@ -72,6 +73,7 @@ public class Shell {
 
     private boolean mLoading;
     private boolean mIsFullscreen;
+    private boolean mIsActivityVisible;
 
     private OnWebContentsReadyListener mWebContentsReadyListener;
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
@@ -128,6 +130,14 @@ public class Shell {
     public void close() {
         if (mNativeShell == 0) return;
         ShellJni.get().closeShell(mNativeShell);
+    }
+
+    /**
+     * Load splash screen.
+     */
+    public void loadSplashScreenWebContents() {
+        if (mNativeShell == 0) return;
+        ShellJni.get().loadSplashScreenWebContents(mNativeShell);
     }
 
     @CalledByNative
@@ -209,6 +219,7 @@ public class Shell {
      */
     @CalledByNative
     private void initFromNativeTabContents(WebContents webContents) {
+        if (webContents == null || mContentViewRenderView == null) return;
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
         if (mWebContents != null) mWebContents.clearNativeReference();
@@ -216,11 +227,53 @@ public class Shell {
                 "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
         mNavigationController = mWebContents.getNavigationController();
-        mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+        if (mIsActivityVisible) {
+            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+        }
         mContentViewRenderView.setCurrentWebContents(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }
+    }
+
+    /**
+     * Load the native splash screen contents.
+     * @param webContents A {@link WebContents} object.
+     */
+    @CalledByNative
+    private void loadSplashScreenNativeTabContents(WebContents webContents) {
+        if (webContents == null || mContentViewRenderView == null) return;
+        mSplashScreenWebContents = webContents;
+        webContents.setDelegates(
+                "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
+        if (mIsActivityVisible) {
+            webContents.updateWebContentsVisibility(Visibility.VISIBLE);
+        }
+        mContentViewRenderView.setCurrentWebContents(webContents);
+    }
+
+    /**
+     * Update native contents.
+     * @param webContents A {@link WebContents} object.
+     */
+    @CalledByNative
+    private void updateNativeTabContents(WebContents webContents) {
+        if (webContents == null || mContentViewRenderView == null) return;
+        mWebContents = webContents;
+        mSplashScreenWebContents = null;
+        mNavigationController = mWebContents.getNavigationController();
+        if (mIsActivityVisible) {
+            mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
+        }
+        mContentViewRenderView.setCurrentWebContents(mWebContents);
+    }
+
+    public void onActivityStateChange(boolean visible) {
+        mIsActivityVisible = visible;
+    }
+
+    public WebContents getSplashScreenWebContents() {
+        return mSplashScreenWebContents;
     }
 
     /**
@@ -299,6 +352,7 @@ public class Shell {
 
     @NativeMethods
     interface Natives {
+        void loadSplashScreenWebContents(long shellPtr);
         void closeShell(long shellPtr);
     }
 }
