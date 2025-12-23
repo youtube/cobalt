@@ -31,11 +31,8 @@ import org.jni_zero.NativeMethods;
 @JNINamespace("content")
 public class ShellManager {
     private static final String TAG = "cobalt";
-    public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
-
-    private String mStartupUrl = DEFAULT_SHELL_URL;
 
     private Shell.OnWebContentsReadyListener mNextWebContentsReadyListener;
 
@@ -81,13 +78,6 @@ public class ShellManager {
      */
     public ContentViewRenderView getContentViewRenderView() {
         return mContentViewRenderView;
-    }
-
-    /**
-     * Sets the startup URL for new shell windows.
-     */
-    public void setStartupUrl(String url) {
-        mStartupUrl = url;
     }
 
     /**
