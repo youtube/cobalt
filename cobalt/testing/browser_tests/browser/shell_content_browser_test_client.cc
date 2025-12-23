@@ -30,6 +30,7 @@
 #include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/common/shell_controller.test-mojom.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
+#include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
