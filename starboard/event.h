@@ -227,6 +227,9 @@ typedef enum SbEventType {
   // as a change in the timezone setting). This should trigger the application
   // to re-query the relevant APIs to update the date and time.
   kSbEventDateTimeConfigurationChanged,
+
+  // The platform's text-to-speech settings have changed.
+  kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
 } SbEventType;
 
 // Structure representing a Starboard event and its data.

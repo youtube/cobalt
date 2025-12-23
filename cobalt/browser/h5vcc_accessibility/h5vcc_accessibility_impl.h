@@ -21,11 +21,7 @@
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/remote_set.h"
-
-#if BUILDFLAG(IS_ANDROIDTV)
-#include "starboard/android/shared/text_to_speech_helper.h"
-#endif
+#include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace content {
 class RenderFrameHost;
@@ -37,6 +33,7 @@ namespace h5vcc_accessibility {
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class H5vccAccessibilityImpl
+<<<<<<< HEAD
     : public content::DocumentService<mojom::H5vccAccessibilityBrowser>
 #if BUILDFLAG(IS_ANDROIDTV)
     ,  // TODO(b/407584170): Understand how many H5vccAccessibilityImpl
@@ -49,6 +46,9 @@ class H5vccAccessibilityImpl
       public starboard::android::shared::TextToSpeechObserver
 #endif
 {
+=======
+    : public content::DocumentService<mojom::H5vccAccessibilityBrowser> {
+>>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
  public:
   // Creates a H5vccAccessibilityImpl. The H5vccAccessibilityImpl is bound to
   // the receiver and its lifetime is scoped to the render_frame_host.
@@ -67,17 +67,18 @@ class H5vccAccessibilityImpl
   void RegisterClient(
       mojo::PendingRemote<mojom::H5vccAccessibilityClient> client) override;
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_ANDROIDTV)
   // starboard::android::shared::TextToSpeechObserver APIs:
   void ObserveTextToSpeechChange() override;
 #endif
+=======
+>>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
  private:
   H5vccAccessibilityImpl(
       content::RenderFrameHost& render_frame_host,
       mojo::PendingReceiver<mojom::H5vccAccessibilityBrowser> receiver);
-  ~H5vccAccessibilityImpl();
-
-  mojo::RemoteSet<mojom::H5vccAccessibilityClient> remote_clients_;
+  ~H5vccAccessibilityImpl() override;
 
   THREAD_CHECKER(thread_checker_);
 };

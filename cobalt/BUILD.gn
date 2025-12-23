@@ -49,6 +49,11 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+<<<<<<< HEAD
+=======
+      "//cobalt/browser/h5vcc_accessibility:manager",
+      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
+>>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
