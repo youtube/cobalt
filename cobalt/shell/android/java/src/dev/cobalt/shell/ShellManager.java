@@ -16,6 +16,10 @@ package dev.cobalt.shell;
 
 import android.content.Context;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
+import org.chromium.build.annotations.RequiresNonNull;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
@@ -29,18 +33,19 @@ import org.jni_zero.NativeMethods;
  * Container and generator of ShellViews.
  */
 @JNINamespace("content")
+@NullMarked
 public class ShellManager {
     private static final String TAG = "cobalt";
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
-    private Shell mActiveShell;
+    private @Nullable Shell mActiveShell;
 
     private String mStartupUrl = DEFAULT_SHELL_URL;
 
-    private Shell.OnWebContentsReadyListener mNextWebContentsReadyListener;
+    private Shell.@Nullable OnWebContentsReadyListener mNextWebContentsReadyListener;
 
     // The target for all content rendering.
-    private ContentViewRenderView mContentViewRenderView;
+    private @Nullable ContentViewRenderView mContentViewRenderView;
 
     private Context mContext;
 
@@ -62,6 +67,7 @@ public class ShellManager {
     /**
      * @param window The window used to generate all shells.
      */
+    @Initializer
     public void setWindow(WindowAndroid window) {
         assert window != null;
         mWindow = window;
@@ -79,7 +85,7 @@ public class ShellManager {
     /**
      * Get the ContentViewRenderView.
      */
-    public ContentViewRenderView getContentViewRenderView() {
+    public @Nullable ContentViewRenderView getContentViewRenderView() {
         return mContentViewRenderView;
     }
 
@@ -93,7 +99,7 @@ public class ShellManager {
     /**
      * @return The currently visible shell view or null if one is not showing.
      */
-    public Shell getActiveShell() {
+    public @Nullable Shell getActiveShell() {
         return mActiveShell;
     }
 
@@ -138,6 +144,7 @@ public class ShellManager {
         return shellView;
     }
 
+    @RequiresNonNull("mContentViewRenderView")
     private void showShell(Shell shellView) {
         if (mActiveShell != null) {
             mActiveShell.setContentViewRenderView(null);
