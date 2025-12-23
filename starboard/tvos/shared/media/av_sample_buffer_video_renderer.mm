@@ -153,8 +153,7 @@ AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
     display_layer_.videoGravity = AVLayerVideoGravityResizeAspect;
 
     id<SBDStarboardApplication> application = SBDGetApplication();
-    SBDWindowManager* windowManager = application.windowManager;
-    [windowManager.currentApplicationWindow attachPlayerView:display_view_];
+    [application attachPlayerView:display_view_];
   });
 
   ObserverRegistry::RegisterObserver(&observer_);

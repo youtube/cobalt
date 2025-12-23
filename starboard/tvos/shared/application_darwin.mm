@@ -29,7 +29,10 @@
 @interface ObjCApplication : NSObject <SBDStarboardApplication>
 @end
 
-@implementation ObjCApplication
+@implementation ObjCApplication {
+  UIView* __weak _playerContainerView;
+}
+
 @synthesize drmManager = _drmManager;
 @synthesize playerManager = _playerManager;
 
@@ -40,6 +43,16 @@
     _playerManager = [[SBDPlayerManager alloc] init];
   }
   return self;
+}
+
+- (void)setPlayerContainerView:(UIView*)view {
+  SB_CHECK(!_playerContainerView);
+  _playerContainerView = view;
+}
+
+- (void)attachPlayerView:(UIView*)subView {
+  SB_CHECK(_playerContainerView);
+  [_playerContainerView addSubview:subView];
 }
 
 @end
