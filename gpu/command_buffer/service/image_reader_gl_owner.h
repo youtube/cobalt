@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include "base/android/requires_api.h"
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
@@ -25,14 +26,17 @@ class ScopedHardwareBufferFenceSync;
 
 namespace gpu {
 
+// Android API 26 came out with Android 8 a.k.a. Oreo.
+#define AIMAGEREADER_MIN_API 26
 // This class wraps the AImageReader usage and is used to create a GL texture
 // using the current platform GL context and returns a new ImageReaderGLOwner
 // attached to it. The surface handle of the AImageReader is attached to
 // decoded media frames. Media frames can update the attached surface handle
 // with image data and this class helps to create an eglImage using that image
 // data present in the surface.
-class GPU_GLES2_EXPORT ImageReaderGLOwner : public TextureOwner,
-                                            public RefCountedLockHelperDrDc {
+class REQUIRES_ANDROID_API(AIMAGEREADER_MIN_API) GPU_GLES2_EXPORT
+    ImageReaderGLOwner : public TextureOwner,
+                         public RefCountedLockHelperDrDc {
  public:
   ImageReaderGLOwner(const ImageReaderGLOwner&) = delete;
   ImageReaderGLOwner& operator=(const ImageReaderGLOwner&) = delete;
