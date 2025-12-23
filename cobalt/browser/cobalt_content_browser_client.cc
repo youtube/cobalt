@@ -40,7 +40,6 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/shell/common/url_constants.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -322,15 +321,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (web_contents->GetPrimaryMainFrame() &&
-      web_contents->GetPrimaryMainFrame()->GetFrameName() ==
-          content::kCobaltSplashMainFrameName) {
-    // Don't observe and delegate WebContents if it's splash screen.
-    LOG(INFO) << "Skip observing and delegating WebContents for "
-                 "kCobaltSplashMainFrameName.";
-    return;
-  }
-  LOG(INFO) << "Observing and delegating WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
   web_contents_delegate_.reset(new CobaltWebContentsDelegate());
   content::Shell::SetShellCreatedCallback(base::BindOnce(

@@ -48,7 +48,6 @@ public class Shell {
      */
     public interface OnWebContentsReadyListener {
         void onWebContentsReady();
-        void onWebContentsLoaded();
     }
 
     private static final String TAG = "cobalt";
@@ -71,7 +70,6 @@ public class Shell {
 
     private boolean mLoading;
     private boolean mIsFullscreen;
-    private boolean mProgressLoaded;
 
     private OnWebContentsReadyListener mWebContentsReadyListener;
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
@@ -119,7 +117,6 @@ public class Shell {
     public void initialize(long nativeShell, WindowAndroid window) {
         mNativeShell = nativeShell;
         mWindow = window;
-        mProgressLoaded = false;
     }
 
     /**
@@ -162,7 +159,6 @@ public class Shell {
     public void loadUrl(String url) {
         if (url == null) return;
 
-        mProgressLoaded = false;
         if (TextUtils.equals(url, mWebContents.getLastCommittedUrl().getSpec())) {
             mNavigationController.reload(true);
         } else {
@@ -185,12 +181,7 @@ public class Shell {
     private void onUpdateUrl(String url) {}
 
     @CalledByNative
-    private void onLoadProgressChanged(double progress) {
-        if (progress >= 1.0 && mWebContentsReadyListener != null && mProgressLoaded == false) {
-            mProgressLoaded = true;
-            mWebContentsReadyListener.onWebContentsLoaded();
-        }
-    }
+    private void onLoadProgressChanged(double progress) {}
 
     @CalledByNative
     private void toggleFullscreenModeForTab(boolean enterFullscreen) {
@@ -216,7 +207,6 @@ public class Shell {
      */
     @CalledByNative
     private void initFromNativeTabContents(WebContents webContents) {
-        mProgressLoaded = false;
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
         if (mWebContents != null) mWebContents.clearNativeReference();
@@ -225,9 +215,7 @@ public class Shell {
         mWebContents = webContents;
         mNavigationController = mWebContents.getNavigationController();
         mWebContents.onShow();
-        if (mContentViewRenderView != null) {
-            mContentViewRenderView.setCurrentWebContents(mWebContents);
-        }
+        mContentViewRenderView.setCurrentWebContents(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }
@@ -273,9 +261,7 @@ public class Shell {
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {
-        if (mContentViewRenderView != null) {
-            mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
-        }
+        mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
         if (mOverlayModeChangedCallbackForTesting != null) {
             mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
         }
