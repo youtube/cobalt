@@ -14,6 +14,9 @@
 
 #include "starboard/tvos/shared/media/oemcrypto_engine_device_properties_uikit.h"
 
+#include <atomic>
+
+#include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
