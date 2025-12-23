@@ -322,6 +322,13 @@ const char kComposeboxAutoattachTabDescription[] =
     "When enabled, the composebox will automatically attach curent tab as "
     "context.";
 
+const char kComposeboxCloseButtonTopAlignName[] =
+    "Align the close button in composebox to the top edge of the view";
+const char kComposeboxCloseButtonTopAlignDescription[] =
+    "If the user preference is set to top, enabling this feature aligns the "
+    "compose box close button with the top edge of the input plate instead of "
+    "centering.";
+
 const char kComposeboxCompactModeName[] = "ComposeboxCompactMode";
 const char kComposeboxCompactModeDescription[] =
     "Enables the compact composebox, adding attachment or enabling AIM will "
@@ -1111,6 +1118,12 @@ const char kMigrateIOSKeychainAccessibilityDescription[] =
 const char kMobilePromoOnDesktopName[] = "Mobile Promo On Desktop";
 const char kMobilePromoOnDesktopDescription[] =
     "When enabled, shows a mobile promo on the desktop new tab page.";
+
+const char kMobilePromoOnDesktopRecordActiveDaysName[] =
+    "Mobile Promo On Desktop Record Active Days";
+const char kMobilePromoOnDesktopRecordActiveDaysDescription[] =
+    "When enabled, records the user's number of active days for the mobile "
+    "promo on desktop.";
 
 const char kMostVisitedTilesCustomizationName[] =
     "Most Visited Tiles Customization on iOS";

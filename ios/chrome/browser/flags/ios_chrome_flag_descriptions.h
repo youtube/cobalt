@@ -191,6 +191,9 @@ extern const char kComposeboxAttachmentsTypedStateDescription[];
 extern const char kComposeboxAutoattachTabName[];
 extern const char kComposeboxAutoattachTabDescription[];
 
+extern const char kComposeboxCloseButtonTopAlignName[];
+extern const char kComposeboxCloseButtonTopAlignDescription[];
+
 extern const char kComposeboxCompactModeName[];
 extern const char kComposeboxCompactModeDescription[];
 
@@ -669,6 +672,9 @@ extern const char kMigrateIOSKeychainAccessibilityDescription[];
 
 extern const char kMobilePromoOnDesktopName[];
 extern const char kMobilePromoOnDesktopDescription[];
+
+extern const char kMobilePromoOnDesktopRecordActiveDaysName[];
+extern const char kMobilePromoOnDesktopRecordActiveDaysDescription[];
 
 extern const char kMostVisitedTilesCustomizationName[];
 extern const char kMostVisitedTilesCustomizationDescription[];

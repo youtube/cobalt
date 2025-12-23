@@ -21,6 +21,7 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
+#include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
 #include "chrome/browser/ui/tab_ui_helper.h"
 #include "chrome/browser/ui/tabs/alert/tab_alert_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -35,7 +36,6 @@
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
 #include "components/contextual_search/contextual_search_service.h"
 #include "components/contextual_search/internal/test_composebox_query_controller.h"
-#include "components/lens/tab_contextualization_controller.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "content/public/browser/navigation_entry.h"
@@ -951,11 +951,11 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
   // Expect all three tabs to be returned.
   ASSERT_EQ(tabs.size(), 3u);
   EXPECT_EQ(tabs[0]->tab_id, chromium_tab->GetHandle().raw_value());
-  EXPECT_TRUE(tabs[0]->show_in_recent_tab_chip);
+  EXPECT_TRUE(tabs[0]->show_in_previous_tab_chip);
   EXPECT_EQ(tabs[1]->tab_id, search_tab->GetHandle().raw_value());
-  EXPECT_FALSE(tabs[1]->show_in_recent_tab_chip);
+  EXPECT_FALSE(tabs[1]->show_in_previous_tab_chip);
   EXPECT_EQ(tabs[2]->tab_id, example_tab->GetHandle().raw_value());
-  EXPECT_TRUE(tabs[2]->show_in_recent_tab_chip);
+  EXPECT_TRUE(tabs[2]->show_in_previous_tab_chip);
 }
 
 TEST_F(ContextualSearchboxHandlerTestTabsTest, DuplicateTabsShownMetric) {

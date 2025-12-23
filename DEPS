@@ -400,7 +400,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling devtools-frontend
   # and whatever else without interference from each other.
-  'devtools_frontend_revision': '965fc280d30971f42898f7f43a59d1b78c15a08e',
+  'devtools_frontend_revision': 'acd000d9130cdf8b6e02329ab632500665703596',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling libprotobuf-mutator
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'Edupfcx7MKySQ8Q3Eknl27VWUqXKjhcQgOc0kbSecTwC',
+              'version': 'FmBz0JxwDv8M-fwi-JWvfNkyHB7mhl2EzkoUIfRvFzoC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': 'b0jHnY_o1ypau_OGZxoTKgKYVyNdm_GMVbF1tCMZIL0C',
+              'version': 'Rs19wQD7JksBZRUvnqmaskP4YXHesU-0j1ifWxRYZiIC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'okx_Nyk284n5SsUEm9WDFZe65fOaRZp13R5MomQSgAAC',
+              'version': 'ug4PIQw34COdoaBvgRfzTMJ5_ilUlaugn7dgvRMkFOEC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -2987,7 +2987,7 @@ deps = {
     Var('chromium_git') + '/webpagereplay.git' + '@' + Var('webpagereplay_revision'),
 
   'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '49d44a2a548b307eb3184b56b5ff98ad7bfda2ba',
+    Var('webrtc_git') + '/src.git' + '@' + '8f3537ef5b85b4c7dabed2676d4b72214c69c494',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.

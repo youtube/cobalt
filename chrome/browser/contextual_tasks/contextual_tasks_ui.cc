@@ -25,11 +25,11 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
+#include "chrome/browser/themes/theme_service.h"
+#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/themes/theme_service.h"
-#include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -45,6 +45,7 @@
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
+#include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/signin/public/base/consent_level.h"
 #include "components/signin/public/identity_manager/access_token_info.h"
@@ -146,12 +147,18 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
        * composeCreateImagePlaceholder are defined by searchbox_handler.cc.
        */
       {"composeboxPlaceholderText", IDS_NTP_COMPOSE_PLACEHOLDER_TEXT},
+      {"onboardingTitle", IDS_CONTEXTUAL_TASKS_FIRST_RUN_EXPERIENCE_TITLE},
+      {"onboardingBody", IDS_CONTEXTUAL_TASKS_FIRST_RUN_EXPERIENCE_DESCRIPTION},
+      {"onboardingLink", IDS_CONTEXTUAL_TASKS_FIRST_RUN_EXPERIENCE_LEARN_MORE},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
   source->AddLocalizedString(
       "lensSearchButtonLabel",
       IDS_TOOLTIP_LENS_REINVOKE_VISUAL_SELECTION_A11Y_LABEL);
 
+  source->AddString(
+      "onboardingLinkUrl",
+      contextual_tasks::GetContextualTasksOnboardingTooltipHelpUrl());
   source->AddString(
       "composeboxImageFileTypes",
       contextual_tasks::kContextualTasksNextboxImageFileTypes.Get());
@@ -180,10 +187,13 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean(
       "composeboxShowContextMenu",
       contextual_tasks::GetIsContextualTasksNextboxContextMenuEnabled());
-  source->AddBoolean("composeboxShowContextMenuDescription", true);
+  source->AddBoolean("composeboxShowContextMenuDescription", false);
   // Send event when escape is pressed.
   source->AddBoolean("composeboxCloseByEscape", true);
-
+  source->AddBoolean(
+      "showOnboardingTooltip",
+      base::FeatureList::IsEnabled(
+          contextual_tasks::kContextualTasksShowOnboardingTooltip));
   source->AddBoolean("isLensSearchbox", true);
   source->AddBoolean(
       "forceHideEllipsis",
@@ -215,9 +225,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_tasks::GetIsSteadyComposeboxVoiceSearchEnabled());
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", true);
-  source->AddBoolean("darkMode",
-                     ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))
-                                ->BrowserUsesDarkColors());
+  source->AddBoolean(
+      "darkMode", ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))
+                      ->BrowserUsesDarkColors());
   source->AddString(
       "composeboxSource",
       contextual_search::ContextualSearchMetricsRecorder::
@@ -240,6 +250,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   // is made to the URL.
   source->AddString("forcedEmbeddedPageHost",
                     contextual_tasks::GetForcedEmbeddedPageHost());
+  source->AddString(
+      "contextualTasksSignInDomains",
+      base::JoinString(contextual_tasks::GetContextualTasksSignInDomains(),
+                       ","));
 
   // Set up chrome://contextual-tasks/internals debug UI.
   source->AddResourcePath(
@@ -261,7 +275,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
         ContextualSearchServiceFactory::GetForProfile(profile);
     auto contextual_session_handle = contextual_search_service->CreateSession(
         ntp_composebox::CreateQueryControllerConfigParams(),
-        contextual_search::ContextualSearchSource::kNewTabPage);
+        contextual_search::ContextualSearchSource::kContextualTasks);
     contextual_search_web_contents_helper->set_session_handle(
         std::move(contextual_session_handle));
   }
@@ -272,6 +286,11 @@ ContextualTasksUI::~ContextualTasksUI() = default;
 void ContextualTasksUI::CreatePageHandler(
     mojo::PendingRemote<contextual_tasks::mojom::Page> page,
     mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> page_handler) {
+  // Reset the page and page handler before binding in case they already exists
+  // (like on a reload). Not resetting them can cause unintended behavior.
+  page_.reset();
+  page_handler_.reset();
+
   page_.Bind(std::move(page));
   page_handler_ = std::make_unique<ContextualTasksPageHandler>(
       std::move(page_handler), this, ui_service_, context_controller_);

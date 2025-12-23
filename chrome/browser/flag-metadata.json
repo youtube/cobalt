@@ -1942,6 +1942,11 @@
     "expiry_milestone": 145
   },
   {
+    "name": "composebox-close-button-top-align",
+    "owners": [ "radunitescu@google.com", "bling-search@google.com" ],
+    "expiry_milestone": 149
+  },
+  {
     "name": "composebox-compact-mode",
     "owners": [ "christianxu@google.com", "bling-search@google.com" ],
     "expiry_milestone": 149
@@ -7152,6 +7157,11 @@
     "name": "mobile-promo-on-desktop",
     "owners": ["hiramahmood@google.com", "scottyoder@google.com", "bling-get-set-up@google.com"],
     "expiry_milestone": 145
+  },
+  {
+    "name": "mobile-promo-on-desktop-data-collection",
+    "owners": ["hiramahmood@google.com", "scottyoder@google.com", "bling-get-set-up@google.com"],
+    "expiry_milestone": 148
   },
   {
     "name": "mojo-use-eventfd",
