@@ -20,6 +20,12 @@
 #include "media/base/eme_constants.h"
 #include "media/base/media_export.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <atomic>
+
+#include "build/build_config.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class MediaLog;
@@ -59,6 +65,11 @@ class MEDIA_EXPORT StreamParser {
     kSuccessHasMoreData,
   };
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  
+  static std::atomic<int> kMaxPendingBytesPerParse;
+  static void SetMaxPendingBytesPerParse(int new_bytes_per_parse);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Incremental parse of a potentially large pending data considers up to this
   // many further bytes from the pending bytes during the Parse() call. Moved
   // from older incremental append+parse logic in SourceBuffer, this size value
@@ -70,6 +81,7 @@ class MEDIA_EXPORT StreamParser {
   // generally improved.
   // TODO(crbug.com/1379177): Tune this experimentally.
   static constexpr int kMaxPendingBytesPerParse = 128 * 1024;  // 128KiB
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Stream parameters passed in InitCB.
   struct MEDIA_EXPORT InitParameters {

@@ -21,6 +21,7 @@
 #include "media/base/media_log.h"
 #include "media/base/media_switches.h"
 #include "media/base/renderer_factory.h"
+#include "media/base/stream_parser.h"
 #include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/bind_host_receiver_callback.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
@@ -36,6 +37,8 @@ const char kH5vccSettingsKeyMediaEnableAllocateOnDemand[] =
     "Media.EnableAllocateOnDemand";
 const char kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback[] =
     "Media.NotifyMemoryPressureBeforePlayback";
+const char kH5vccSettingsKeyMediaSourceBufferIncrementalAppendSizeKb[] =
+    "Media.SourceBufferIncrementalAppendSizeKb";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 
@@ -173,6 +176,13 @@ void ProcessH5vccSettings(
           settings, kH5vccSettingsKeyMediaEnableAllocateOnDemand)) {
     bool enable_allocate_on_demand = *val != 0;
     media::DecoderBuffer::EnableAllocateOnDemand(enable_allocate_on_demand);
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings,
+          kH5vccSettingsKeyMediaSourceBufferIncrementalAppendSizeKb)) {
+    int experimental_increment_size = *val;
+    media::StreamParser::SetMaxPendingBytesPerParse(
+        experimental_increment_size);
   }
 
   for (const auto& [setting_name, setting_value] : settings) {
