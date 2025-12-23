@@ -13,7 +13,7 @@ pylint.
 To install them, run the following command:
 
 ```
-sudo apt install python3-pandas python3-numpy python3-matplotlib 
+sudo apt install python3-pandas python3-numpy python3-matplotlib
 ```
 
 ### Usage
