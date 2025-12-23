@@ -15,6 +15,9 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
 
+#include <optional>
+
+#include "base/gtest_prod_util.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -31,7 +34,7 @@ namespace blink {
 class LocalDOMWindow;
 class ScriptState;
 
-class MODULES_EXPORT H5vccAccessibility final
+class MODULES_EXPORT H5vccAccessibility
     : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient {
@@ -62,8 +65,18 @@ class MODULES_EXPORT H5vccAccessibility final
   void Trace(Visitor* visitor) const override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(H5vccAccessibilityTest,
+                           IsTextToSpeechEnabledSyncWithCachedValue);
+
   void EnsureRemoteIsBound();
   void EnsureReceiverIsBound();
+
+  // TODO(b/458102489): Remove this value caching when Kabuki uses the Event
+  // exclusively.
+  std::optional<bool> last_text_to_speech_enabled_;
+  void set_last_text_to_speech_enabled_for_testing(bool value) {
+    last_text_to_speech_enabled_ = value;
+  }
 
   // Proxy to the browser process’s H5vccAccessibilityBrowser implementation.
   HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>
