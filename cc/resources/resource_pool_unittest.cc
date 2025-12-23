@@ -95,6 +95,9 @@ TEST_F(ResourcePoolTest, AcquireRelease) {
 }
 
 TEST_F(ResourcePoolTest, EventuallyEvictAndFlush) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   gfx::Size size(100, 100);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
@@ -108,9 +111,13 @@ TEST_F(ResourcePoolTest, EventuallyEvictAndFlush) {
   test_task_runner_->FastForwardBy(ResourcePool::kDefaultExpirationDelay +
                                    ResourcePool::kDefaultMaxFlushDelay);
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, FlushEvenIfMoreUnusedToEvict) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   gfx::Size size(100, 100);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
@@ -153,9 +160,13 @@ TEST_F(ResourcePoolTest, FlushEvenIfMoreUnusedToEvict) {
   EXPECT_CALL(*context_support_, FlushPendingWork()).Times(testing::AtLeast(1));
   test_task_runner_->FastForwardBy(ResourcePool::kDefaultExpirationDelay * 100);
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, AccountingSingleResource) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -189,9 +200,13 @@ TEST_F(ResourcePoolTest, AccountingSingleResource) {
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
   EXPECT_EQ(0u, resource_pool_->resource_count());
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, SimpleResourceReuse) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -228,9 +243,13 @@ TEST_F(ResourcePoolTest, SimpleResourceReuse) {
   CheckAndReturnResource(std::move(resource));
   EXPECT_EQ(3u, resource_pool_->GetTotalResourceCountForTesting());
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, LostResource) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -260,9 +279,13 @@ TEST_F(ResourcePoolTest, LostResource) {
   EXPECT_EQ(1u, resource_pool_->GetTotalResourceCountForTesting());
   resource_pool_->ReleaseResource(std::move(resource));
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, BusyResourcesNotFreed) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -306,9 +329,13 @@ TEST_F(ResourcePoolTest, BusyResourcesNotFreed) {
   EXPECT_EQ(40000u, resource_pool_->GetTotalMemoryUsageForTesting());
   EXPECT_EQ(0u, resource_pool_->memory_usage_bytes());
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, UnusedResourcesEventuallyFreed) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -352,9 +379,13 @@ TEST_F(ResourcePoolTest, UnusedResourcesEventuallyFreed) {
   test_task_runner_->FastForwardBy(ResourcePool::kDefaultExpirationDelay * 10);
 
   EXPECT_EQ(0u, resource_pool_->GetTotalMemoryUsageForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, UpdateContentId) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   gfx::Size size(100, 100);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space;
@@ -377,9 +408,13 @@ TEST_F(ResourcePoolTest, UpdateContentId) {
   EXPECT_EQ(original_id, reacquired_resource.unique_id_for_testing());
   EXPECT_EQ(new_invalidated_rect, invalidated_rect);
   resource_pool_->ReleaseResource(std::move(reacquired_resource));
+#endif
 }
 
 TEST_F(ResourcePoolTest, UpdateContentIdAndInvalidatedRect) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   gfx::Size size(100, 100);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space;
@@ -423,9 +458,13 @@ TEST_F(ResourcePoolTest, UpdateContentIdAndInvalidatedRect) {
   EXPECT_EQ(original_id, reacquired_resource.unique_id_for_testing());
   EXPECT_EQ(expected_total_invalidated_rect, total_invalidated_rect);
   resource_pool_->ReleaseResource(std::move(reacquired_resource));
+#endif
 }
 
 TEST_F(ResourcePoolTest, LargeInvalidatedRect) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   gfx::Size size(100, 100);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space;
@@ -457,9 +496,13 @@ TEST_F(ResourcePoolTest, LargeInvalidatedRect) {
       &new_invalidated_rect, color_space);
   EXPECT_TRUE(!!resource);
   resource_pool_->ReleaseResource(std::move(resource));
+#endif
 }
 
 TEST_F(ResourcePoolTest, ReuseResource) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
 
@@ -522,9 +565,13 @@ TEST_F(ResourcePoolTest, ReuseResource) {
   EXPECT_EQ(nullptr, resource_pool_->ReuseResource(gfx::Size(100, 100), format,
                                                    color_space));
   CheckAndReturnResource(std::move(resource));
+#endif
 }
 
 TEST_F(ResourcePoolTest, PurgedMemory) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -576,9 +623,13 @@ TEST_F(ResourcePoolTest, PurgedMemory) {
       base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, InvalidateResources) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -649,9 +700,13 @@ TEST_F(ResourcePoolTest, InvalidateResources) {
   resource_pool_->ReleaseResource(std::move(in_use_resource));
   EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
   EXPECT_EQ(0u, resource_pool_->GetBusyResourceCountForTesting());
+#endif
 }
 
 TEST_F(ResourcePoolTest, ExactRequestsRespected) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
   gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
 
@@ -679,9 +734,13 @@ TEST_F(ResourcePoolTest, ExactRequestsRespected) {
   EXPECT_EQ(nullptr, resource_pool_->ReuseResource(gfx::Size(100, 100), format,
                                                    color_space));
   CheckAndReturnResource(std::move(resource));
+#endif
 }
 
 TEST_F(ResourcePoolTest, MetadataSentToDisplayCompositor) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -733,9 +792,13 @@ TEST_F(ResourcePoolTest, MetadataSentToDisplayCompositor) {
   EXPECT_TRUE(transfer[0].is_overlay_candidate);
 
   resource_pool_->ReleaseResource(std::move(resource));
+#endif
 }
 
 TEST_F(ResourcePoolTest, InvalidResource) {
+#if BUILDFLAG(IS_COBALT)
+  GTEST_SKIP() << "Cobalt doesn't support resource reuse.";
+#else
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
   size_t count_limit = 100;
@@ -767,6 +830,7 @@ TEST_F(ResourcePoolTest, InvalidResource) {
   resource = resource_pool_->AcquireResource(size, format, color_space);
   EXPECT_FALSE(resource.gpu_backing());
   resource_pool_->ReleaseResource(std::move(resource));
+#endif
 }
 
 }  // namespace cc
