@@ -169,9 +169,10 @@ size_t SyncSocket::ReceiveWithTimeout(void* buffer,
 #if BUILDFLAG(IS_STARBOARD)
 size_t SyncSocket::Peek() {
   DCHECK(IsValid());
-  ssize_t number_chars = recv(handle_.get(), nullptr, 0, MSG_PEEK | MSG_TRUNC);
-  if (number_chars == -1) {
-    // An error occurred (e.g., connection closed).
+  char buffer[4096];
+  ssize_t number_chars = recv(handle_.get(), buffer, sizeof(buffer),
+                              MSG_PEEK | MSG_TRUNC | MSG_DONTWAIT);
+  if (number_chars < 0) {
     return 0;
   }
   return checked_cast<size_t>(number_chars);
