@@ -253,6 +253,8 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       test_cmd_args = []
       files = [f'cobalt_path={args.cobalt_path}']
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
+      if args.gcs_archive_path:
+        params.append(f'gcs_cobalt_archive={args.gcs_archive_path}')
 
     else:
       raise ValueError(f'Unsupported test type: {args.test_type}')
@@ -367,6 +369,12 @@ def main() -> int:
       default='900',
       help='Timeout in seconds for the test to start.',
   )
+  trigger_args.add_argument(
+      '-a',
+      '--gcs_archive_path',
+      type=str,
+      help='Path to Cobalt archive to be tested. Must be on GCS.',
+  )
 
   # --- Unit Test Arguments ---
   unit_test_group = trigger_parser.add_argument_group('Unit Test Arguments')
@@ -374,12 +382,6 @@ def main() -> int:
       '--filter_json_dir',
       type=str,
       help='Directory containing filter JSON files for test selection.',
-  )
-  unit_test_group.add_argument(
-      '-a',
-      '--gcs_archive_path',
-      type=str,
-      help='Path to Cobalt archive to be tested. Must be on GCS.',
   )
   unit_test_group.add_argument(
       '--gcs_result_path',
