@@ -251,7 +251,9 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-      files = [f'cobalt_path={args.cobalt_path}']
+      files = []
+      if args.cobalt_path:
+        files.append(f'cobalt_path={args.cobalt_path}')
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
       if args.gcs_archive_path:
         params.append(f'gcs_cobalt_archive={args.gcs_archive_path}')
@@ -411,9 +413,6 @@ def main() -> int:
   args = parser.parse_args()
 
   # TODO(b/428961033): Let argparse handle these checks as required arguments.
-  if args.test_type in ('e2e_test', 'yts_test'):
-    if not args.cobalt_path:
-      raise ValueError('--cobalt_path is required for e2e_test or yts_test')
   elif args.test_type == 'unit_test':
     if not args.device_family:
       raise ValueError('--device_family is required for unit_test')
