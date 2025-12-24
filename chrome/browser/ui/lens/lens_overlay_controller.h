@@ -266,7 +266,7 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
   void SendObjects(std::vector<lens::mojom::OverlayObjectPtr> objects);
 
   // Send message to overlay notifying that the results side panel opened.
-  void NotifyResultsPanelOpened();
+  virtual void NotifyResultsPanelOpened();
 
   // Send message to overlay to copy the currently selection if any.
   void TriggerCopy();
@@ -534,7 +534,8 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
       const std::string& search_box_text,
       AutocompleteMatchType::Type match_type,
       bool is_zero_prefix_suggestion,
-      std::map<std::string, std::string> additional_query_params);
+      std::map<std::string, std::string> additional_query_params,
+      std::optional<lens::LensOverlayInvocationSource> invocation_source);
 
   // Issues a contextual text request to the query controller.
   void IssueContextualTextRequest(
@@ -903,7 +904,8 @@ class LensOverlayController : public lens::mojom::LensPageHandler,
       const std::string& search_box_text,
       AutocompleteMatchType::Type match_type,
       bool is_zero_prefix_suggestion,
-      std::map<std::string, std::string> additional_query_params);
+      std::map<std::string, std::string> additional_query_params,
+      std::optional<lens::LensOverlayInvocationSource> invocation_source);
 
   // Launches the Lens overlay HaTS survey if eligible.
   void MaybeLaunchSurvey();

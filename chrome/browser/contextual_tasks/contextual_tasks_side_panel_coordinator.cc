@@ -9,7 +9,6 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
-#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/active_task_context_provider.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
@@ -297,6 +296,7 @@ void ContextualTasksSidePanelCoordinator::PrimaryPageChanged(
   // Hide side panel if contextual tasks pages is loaded on tab.
   GURL url = page.GetMainDocument().GetLastCommittedURL();
   if (ui_service_->IsContextualTasksUrl(url)) {
+    UpdateOpenState(/*is_open=*/false);
     Hide();
   }
 
@@ -366,9 +366,15 @@ ContextualTasksSidePanelCoordinator::
   if (!web_view_ || !web_view_->GetWebContents()) {
     return nullptr;
   }
-  auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
-      web_view_->GetWebContents());
-  return helper ? helper->session_handle() : nullptr;
+  auto* web_contents = web_view_->GetWebContents();
+  auto* web_ui = web_contents->GetWebUI();
+  if (!web_ui) {
+    return nullptr;
+  }
+  auto* contextual_tasks_ui =
+      web_ui->GetController()->GetAs<ContextualTasksUI>();
+  return contextual_tasks_ui ? contextual_tasks_ui->GetContextualSessionHandle()
+                             : nullptr;
 }
 
 std::optional<ContextualTask>
@@ -802,15 +808,13 @@ void ContextualTasksSidePanelCoordinator::NotifyActiveTaskContextProvider() {
           active_web_contents->GetLastCommittedURL().host() ==
               chrome::kChromeUIContextualTasksHost &&
           active_web_contents->GetWebUI() &&
-          active_web_contents->GetWebUI()->GetController() &&
-          active_web_contents->GetWebUI()
-              ->GetController()
-              ->GetAs<ContextualTasksUI>()) {
-        ContextualSearchWebContentsHelper* helper =
-            ContextualSearchWebContentsHelper::FromWebContents(
-                active_web_contents);
-        if (helper) {
-          session_handle = helper->session_handle();
+          active_web_contents->GetWebUI()->GetController()) {
+        ContextualTasksUI* contextual_tasks_ui =
+            active_web_contents->GetWebUI()
+                ->GetController()
+                ->GetAs<ContextualTasksUI>();
+        if (contextual_tasks_ui) {
+          session_handle = contextual_tasks_ui->GetContextualSessionHandle();
         }
       }
     }

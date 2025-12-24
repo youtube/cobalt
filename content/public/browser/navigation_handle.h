@@ -802,6 +802,17 @@ class CONTENT_EXPORT NavigationHandle : public base::SupportsUserData {
   // the discarding. See `NavigationDiscardReason` for the various cases.
   virtual std::optional<NavigationDiscardReason>
   GetNavigationDiscardReason() = 0;
+
+  virtual bool NeedsUrlLoader() = 0;
+
+  // Returns true if the navigation to the initial WebUI, which is used to
+  // render the browser's UI, instead of general web content, and it should go
+  // synchronously from start to CommitNavigation. This navigation is treated
+  // specially in some cases, such as skipping NavigationThrottles.
+  // Note: This is exposed in NavigationHandle because it needs to be present on
+  // both NavigationRequest and MockNavigationHandle. It's not actually needed
+  // outside of //content.
+  virtual bool IsInitialWebUISyncNavigation() = 0;
 };
 
 }  // namespace content

@@ -9,17 +9,17 @@ import type {TopToolbarElement} from './top_toolbar.js';
 // clang-format off
 export function getHtml(this: TopToolbarElement) {
   return html`<!--_html_template_start_-->
-  <if expr="_google_chrome">
+<if expr="_google_chrome">
     <img src="chrome://resources/cr_components/searchbox/icons/google_g_gradient.svg"
         class="top-toolbar-logo">
-  </if>
-  <if expr="not _google_chrome">
+</if>
+<if expr="not _google_chrome">
     <img class="top-toolbar-logo chrome-logo-light"
         src="chrome://resources/cr_components/searchbox/icons/chrome_product.svg"
         alt="Chrome Logo">
     <img class="top-toolbar-logo chrome-logo-dark"
         src="chrome://resources/images/chrome_logo_dark.svg" alt="Chrome Logo">
-  </if>
+</if>
   <div class="top-toolbar-title">
     ${this.title}
   </div>
@@ -49,13 +49,17 @@ export function getHtml(this: TopToolbarElement) {
   <cr-lazy-render-lit id="menu" .template="${() => html`
     <cr-action-menu>
       <button class="dropdown-item" @click="${this.onOpenInNewTabClick_}">
-        <cr-icon icon="cr:open-in-new"></cr-icon>
+        <cr-icon icon="contextual_tasks:open_in_full_tab"></cr-icon>
         $i18n{openInNewTab}
       </button>
-      <hr>
-      <!-- TODO(crbug.com/459817232): Provide G icon. -->
+      <div class="dropdown-divider"></div>
       <button class="dropdown-item" @click="${this.onMyActivityClick_}">
+<if expr="_google_chrome">
+        <div class="cr-icon google-g-icon"></div>
+</if>
+<if expr="not _google_chrome">
         <cr-icon icon="cr:history"></cr-icon>
+</if>
         $i18n{myActivity}
       </button>
       <button class="dropdown-item" @click="${this.onHelpClick_}">

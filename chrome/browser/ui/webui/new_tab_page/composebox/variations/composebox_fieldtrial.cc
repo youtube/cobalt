@@ -13,6 +13,7 @@
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/contextual_search/contextual_search_metrics_recorder.h"
+#include "components/contextual_search/contextual_search_service.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "ui/base/l10n/l10n_util.h"
 
@@ -132,6 +133,11 @@ bool IsNtpComposeboxEnabled(Profile* profile) {
     return false;
   }
 
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile->GetPrefs())) {
+    return false;
+  }
+
   // The `AimEligibilityService` depends on the `TemplateURLService`. If the
   // `TemplateURLService` does not exist for this profile, then the
   // `AimEligibilityService` cannot be created.
@@ -158,7 +164,7 @@ bool IsDeepSearchEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get() && kForceToolsAndModels.Get()) {
+  if (kShowToolsAndModels.Get()) {
     return true;
   }
 
@@ -177,8 +183,7 @@ bool IsCreateImagesEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get() && kShowCreateImageTool.Get() &&
-      kForceToolsAndModels.Get()) {
+  if (kShowToolsAndModels.Get() && kShowCreateImageTool.Get()) {
     return true;
   }
 
@@ -194,9 +199,7 @@ std::unique_ptr<
 CreateQueryControllerConfigParams() {
   auto config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
-  config_params->send_lns_surface = kSendLnsSurfaceParam.Get();
-  config_params->suppress_lns_surface_param_if_no_image =
-      kSuppressLnsSurfaceParamIfNoImage.Get();
+  config_params->send_lns_surface = true;
   config_params->enable_multi_context_input_flow = kMaxNumFiles.Get() > 1;
   config_params->enable_viewport_images = kEnableViewportImages.Get();
   config_params->use_separate_request_ids_for_multi_context_viewport_images =
@@ -212,15 +215,6 @@ BASE_FEATURE(kNtpComposebox, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<std::string> kConfigParam(&kNtpComposebox,
                                                    "ConfigParam",
                                                    "");
-
-const base::FeatureParam<bool> kSendLnsSurfaceParam(&kNtpComposebox,
-                                                    "SendLnsSurfaceParam",
-                                                    true);
-
-const base::FeatureParam<bool> kSuppressLnsSurfaceParamIfNoImage(
-    &kNtpComposebox,
-    "SuppressLnsSurfaceParamIfNoImage",
-    true);
 
 const base::FeatureParam<bool>
     kUseSeparateRequestIdsForMultiContextViewportImages(
@@ -295,10 +289,6 @@ const base::FeatureParam<bool> kShowSmartCompose(&kNtpComposebox,
                                                  "ShowSmartCompose",
                                                  true);
 
-const base::FeatureParam<bool> kForceToolsAndModels(&kNtpComposebox,
-                                                    "ForceToolsAndModels",
-                                                    false);
-
 const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
     &kNtpComposebox,
     "ContextMenuMaxTabSuggestions",
@@ -349,6 +339,11 @@ bool IsNtpRealboxNextEnabled(Profile* profile) {
   }
 
   if (!ntp_composebox::IsNtpComposeboxEnabled(profile)) {
+    return false;
+  }
+
+  if (!contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile->GetPrefs())) {
     return false;
   }
 

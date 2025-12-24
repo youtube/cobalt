@@ -862,56 +862,50 @@ const FeatureEntry::FeatureVariation
 #if !BUILDFLAG(IS_ANDROID)
 const FeatureEntry::FeatureParam kWebUIOmniboxAimPopupAddContextButtonNone[] = {
     {"AddContextButtonVariant", "none"},
-    {"ShowCreateImageTool", "true"},
-    {"ShowToolsAndModels", "true"},
     {"ShowVoiceSearchInSteadyComposebox", "true"},
     {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonBelowResults[] = {
         {"AddContextButtonVariant", "below_results"},
-        {"ShowCreateImageTool", "true"},
         {"ShowLensSearchChip", "true"},
-        {"ShowToolsAndModels", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowVoiceSearchInSteadyComposebox", "true"},
         {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonAboveResults[] = {
         {"AddContextButtonVariant", "above_results"},
-        {"ShowCreateImageTool", "true"},
         {"ShowLensSearchChip", "true"},
-        {"ShowToolsAndModels", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowVoiceSearchInSteadyComposebox", "true"},
         {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 const FeatureEntry::FeatureParam kWebUIOmniboxAimPopupAddContextButtonInline[] =
     {
         {"AddContextButtonVariant", "inline"},
-        {"ShowCreateImageTool", "true"},
         {"ShowLensSearchChip", "true"},
-        {"ShowToolsAndModels", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowVoiceSearchInSteadyComposebox", "true"},
         {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonMultiFile[] = {
         {"AddContextButtonVariant", "below_results"},
-        {"ShowCreateImageTool", "true"},
         {"ShowLensSearchChip", "true"},
-        {"ShowToolsAndModels", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowVoiceSearchInSteadyComposebox", "true"},
         {"ShowVoiceSearchInExpandedComposebox", "true"},
         {"MaxNumFiles", "5"},
 };
 const FeatureEntry::FeatureParam
-    kWebUIOmniboxAimPopupAddContextButtonBelowResultsRecentTabChip[] = {
+    kWebUIOmniboxAimPopupAddContextButtonDragAndDrop[] = {
         {"AddContextButtonVariant", "below_results"},
-        {"ShowCreateImageTool", "true"},
-        {"ShowToolsAndModels", "true"},
+        {"EnableContextDragAndDrop", "true"},
+        {"ShowLensSearchChip", "true"},
+        {"ShowRecentTabChip", "true"},
         {"ShowVoiceSearchInSteadyComposebox", "true"},
         {"ShowVoiceSearchInExpandedComposebox", "true"},
-        {"ShowRecentTabChip", "true"},
 };
 
 const FeatureEntry::FeatureVariation kWebUIOmniboxAimPopupVariations[] = {
@@ -929,10 +923,9 @@ const FeatureEntry::FeatureVariation kWebUIOmniboxAimPopupVariations[] = {
     {"- \"Add Context\" Button below results, 5 File Limit",
      kWebUIOmniboxAimPopupAddContextButtonMultiFile,
      std::size(kWebUIOmniboxAimPopupAddContextButtonMultiFile), nullptr},
-    {"- \"Add Context\" Button below results, Recent Tab Chip",
-     kWebUIOmniboxAimPopupAddContextButtonBelowResultsRecentTabChip,
-     std::size(kWebUIOmniboxAimPopupAddContextButtonBelowResultsRecentTabChip),
-     nullptr}};
+    {"- \"Add Context\" Button enable drag and drop",
+     kWebUIOmniboxAimPopupAddContextButtonDragAndDrop,
+     std::size(kWebUIOmniboxAimPopupAddContextButtonDragAndDrop), nullptr}};
 
 const FeatureEntry::FeatureParam kWebUIOmniboxPopupDebugSxS[] = {
     {"SxS", "true"}};
@@ -1691,12 +1684,13 @@ const FeatureEntry::FeatureParam
 const FeatureEntry::FeatureParam kShowToolsAndModels[] = {
     {"ShowContextMenu", "true"},     {"ShowToolsAndModels", "true"},
     {"ShowComposeboxZps", "true"},   {"ShowComposeboxTypedSuggest", "true"},
-    {"ForceToolsAndModels", "true"},
 };
 const FeatureEntry::FeatureParam kShowCreateImageTool[] = {
-    {"ShowContextMenu", "true"},     {"ShowToolsAndModels", "true"},
-    {"ShowCreateImageTool", "true"}, {"ShowComposeboxZps", "true"},
-    {"ForceToolsAndModels", "true"}, {"ShowComposeboxTypedSuggest", "true"},
+    {"ShowContextMenu", "true"},
+    {"ShowToolsAndModels", "true"},
+    {"ShowCreateImageTool", "true"},
+    {"ShowComposeboxZps", "true"},
+    {"ShowComposeboxTypedSuggest", "true"},
 };
 const FeatureEntry::FeatureParam kComposeboxNext[] = {
     {"MaxNumFiles", "5"},
@@ -1706,7 +1700,6 @@ const FeatureEntry::FeatureParam kComposeboxNext[] = {
     {"ShowComposeboxTypedSuggest", "true"},
     {"ShowToolsAndModels", "true"},
     {"ShowCreateImageTool", "true"},
-    {"ForceToolsAndModels", "true"},
     {"ShowRecentTabChip", "true"},
     {"CloseComposeboxByEscape", "false"},
     {"CloseComposeboxByClickOutside", "false"},
@@ -1720,7 +1713,6 @@ const FeatureEntry::FeatureParam kComposeboxNextSingleContext[] = {
     {"ShowComposeboxTypedSuggest", "true"},
     {"ShowToolsAndModels", "true"},
     {"ShowCreateImageTool", "true"},
-    {"ForceToolsAndModels", "true"},
     {"ShowRecentTabChip", "true"},
     {"CloseComposeboxByEscape", "false"},
     {"CloseComposeboxByClickOutside", "false"},
@@ -1735,7 +1727,6 @@ const FeatureEntry::FeatureParam kComposeboxNextSingleContextForRealboxNext[] =
         {"ShowCreateImageTool", "true"},
         {"ShowRecentTabChip", "true"},
         {"ShowSubmit", "true"},
-        {"SendLnsSurfaceParam", "true"},
 };
 const FeatureEntry::FeatureParam kComposeboxNextForRealboxNext[] = {
     {"MaxNumFiles", "10"},
@@ -1747,7 +1738,6 @@ const FeatureEntry::FeatureParam kComposeboxNextForRealboxNext[] = {
     {"ShowRecentTabChip", "true"},
     {"ContextMenuEnableMultiTabSelection", "true"},
     {"ShowSubmit", "true"},
-    {"SendLnsSurfaceParam", "true"},
 };
 const FeatureEntry::FeatureParam
     kComposeboxNextForRealboxNextWithContextIdMigration[] = {

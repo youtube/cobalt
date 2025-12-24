@@ -11,6 +11,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
+#include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/test_lens_overlay_query_controller.h"
 #include "chrome/browser/ui/lens/test_lens_search_contextualization_controller.h"
 #include "chrome/browser/ui/lens/test_lens_search_controller.h"
@@ -159,6 +160,23 @@ class MockTabContextualizationController
               (override));
 };
 
+class MockLensOverlayController : public LensOverlayController {
+ public:
+  MockLensOverlayController(tabs::TabInterface* tab,
+                            LensSearchController* search_controller,
+                            Profile* profile)
+      : LensOverlayController(tab,
+                              search_controller,
+                              nullptr,
+                              nullptr,
+                              profile->GetPrefs(),
+                              nullptr,
+                              nullptr) {}
+  ~MockLensOverlayController() override = default;
+
+  MOCK_METHOD(void, NotifyResultsPanelOpened, (), (override));
+};
+
 class MockContextualTasksUiService
     : public contextual_tasks::ContextualTasksUiService {
  public:
@@ -219,6 +237,9 @@ class LensQueryFlowRouterTest : public testing::Test {
         gen204_controller_.get());
     mock_lens_search_controller_ =
         std::make_unique<MockLensSearchController>(&mock_tab_interface_);
+    mock_lens_overlay_controller_ = std::make_unique<MockLensOverlayController>(
+        &mock_tab_interface_, mock_lens_search_controller_.get(),
+        profile_.get());
     contextualization_controller_ =
         std::make_unique<TestLensSearchContextualizationController>(
             mock_lens_search_controller_.get());
@@ -227,6 +248,7 @@ class LensQueryFlowRouterTest : public testing::Test {
   void TearDown() override {
     mock_query_controller_.reset();
     gen204_controller_.reset();
+    mock_lens_overlay_controller_.reset();
     contextualization_controller_.reset();
     mock_lens_search_controller_.reset();
     mock_browser_window_interface_.reset();
@@ -246,6 +268,7 @@ class LensQueryFlowRouterTest : public testing::Test {
   ui::UnownedUserDataHost user_data_host_;
   tabs::MockTabInterface mock_tab_interface_;
   std::unique_ptr<MockBrowserWindowInterface> mock_browser_window_interface_;
+  std::unique_ptr<MockLensOverlayController> mock_lens_overlay_controller_;
   std::unique_ptr<LensSearchContextualizationController>
       contextualization_controller_;
   std::unique_ptr<MockLensOverlayQueryController> mock_query_controller_;
@@ -307,7 +330,8 @@ TEST_F(LensQueryFlowRouterTest, SendRegionSearch_RoutesToLensQueryController) {
 
   // Act: Call the method.
   router.SendRegionSearch(query_start_time, std::move(region), selection_type,
-                          additional_params, region_bytes);
+                          additional_params, region_bytes,
+                          lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 TEST_F(LensQueryFlowRouterTest, SendTextOnlyQuery_RoutesToLensQueryController) {
@@ -330,7 +354,8 @@ TEST_F(LensQueryFlowRouterTest, SendTextOnlyQuery_RoutesToLensQueryController) {
 
   // Act: Call the method.
   router.SendTextOnlyQuery(query_start_time, query_text, selection_type,
-                           additional_params);
+                           additional_params,
+                           lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 TEST_F(LensQueryFlowRouterTest, GetSuggestInputs_RoutesToLensQueryController) {
@@ -393,7 +418,8 @@ TEST_F(LensQueryFlowRouterTest,
 
   // Act: Call the method.
   router.SendContextualTextQuery(query_start_time, query_text, selection_type,
-                                 additional_params);
+                                 additional_params,
+                                 lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 TEST_F(LensQueryFlowRouterTest,
@@ -421,7 +447,8 @@ TEST_F(LensQueryFlowRouterTest,
 
   // Act: Call the method.
   router.SendMultimodalRequest(query_start_time, std::move(region), query_text,
-                               selection_type, additional_params, region_bytes);
+                               selection_type, additional_params, region_bytes,
+                               lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 class LensQueryFlowRouterContextualTaskEnabledTest
@@ -447,6 +474,9 @@ class LensQueryFlowRouterContextualTaskEnabledTest
     mock_tab_contextualization_controller_ =
         std::make_unique<MockTabContextualizationController>(
             &mock_tab_interface_);
+
+    ON_CALL(*mock_lens_search_controller_, lens_overlay_controller())
+        .WillByDefault(Return(mock_lens_overlay_controller_.get()));
   }
 
   void TearDown() override {
@@ -504,6 +534,9 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
               StartTabContextUploadFlow(
                   _, ContextualInputDataMatches(expected_input_data),
                   ImageEncodingOptionsMatches(expected_image_options)));
+  // Assert: Expect NotifyResultsPanelOpened to not be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(0);
 
   // Act: Start query flow.
   router.StartQueryFlow(router.GetViewportScreenshot(), example_url, page_title,
@@ -525,6 +558,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   std::map<std::string, std::string> additional_params;
   SkBitmap region_bytes;
   region_bytes.allocN32Pixels(10, 10);
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
 
   // Arrange: Create expected request info.
   auto expected_request_info = std::make_unique<CreateSearchUrlRequestInfo>();
@@ -565,7 +602,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 
   // Act: Call the method.
   router.SendRegionSearch(query_start_time, std::move(region), selection_type,
-                          additional_params, region_bytes);
+                          additional_params, region_bytes,
+                          lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
@@ -593,6 +631,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   expected_request_info->lens_overlay_selection_type = selection_type;
   expected_request_info->additional_params = additional_params;
   expected_request_info->image_crop = std::nullopt;
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
 
   // Assert: Create expectation to call CreateSearchUrl.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
@@ -623,7 +665,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 
   // Act: Call the method.
   router.SendTextOnlyQuery(query_start_time, query_text, selection_type,
-                           additional_params);
+                           additional_params,
+                           lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
@@ -648,6 +691,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   expected_request_info->lens_overlay_selection_type = selection_type;
   expected_request_info->additional_params = additional_params;
   expected_request_info->image_crop = std::nullopt;
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
 
   // Assert: Create expectation to call CreateSearchUrl.
   EXPECT_CALL(*router.mock_session_handle(), NotifySessionStarted());
@@ -678,7 +725,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 
   // Act: Call the method.
   router.SendContextualTextQuery(query_start_time, query_text, selection_type,
-                                 additional_params);
+                                 additional_params,
+                                 lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
@@ -706,6 +754,10 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
   expected_request_info->lens_overlay_selection_type = selection_type;
   expected_request_info->additional_params = additional_params;
   expected_request_info->image_crop = lens::ImageCrop();
+
+  // Assert: Expect NotifyResultsPanelOpened to be called.
+  EXPECT_CALL(*mock_lens_overlay_controller_, NotifyResultsPanelOpened())
+      .Times(1);
 
   // Assert: Create expectation to call CreateSearchUrl. We also expect a call
   // to open the side panel, but that is harder to mock, so we omit it for now.
@@ -737,7 +789,8 @@ TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,
 
   // Act: Call the method.
   router.SendMultimodalRequest(query_start_time, std::move(region), query_text,
-                               selection_type, additional_params, region_bytes);
+                               selection_type, additional_params, region_bytes,
+                               lens::LensOverlayInvocationSource::kAppMenu);
 }
 
 TEST_F(LensQueryFlowRouterContextualTaskEnabledTest,

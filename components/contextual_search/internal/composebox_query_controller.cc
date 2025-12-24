@@ -20,6 +20,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_mime_type.h"
@@ -282,6 +283,20 @@ ComposeboxQueryController::ComposeboxQueryController(
   prioritize_suggestions_for_the_first_attached_document_ =
       feature_params->prioritize_suggestions_for_the_first_attached_document;
   enable_context_id_migration_ = feature_params->enable_context_id_migration;
+  attach_page_title_and_url_to_suggest_requests_ =
+      feature_params->attach_page_title_and_url_to_suggest_requests;
+
+  // Enable multi-context input with the context id migration if the contextual
+  // tasks feature is enabled. This allows the query controller to behave
+  // consistently for co-browsing enabled users, even if the NTP or
+  // Omnibox entrypoints have different configurations.
+  if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
+      contextual_tasks::ShouldForceContextIdMigration()) {
+    enable_multi_context_input_flow_ = true;
+    use_separate_request_ids_for_multi_context_viewport_images_ = true;
+    enable_context_id_migration_ = true;
+  }
+
   // The context id migration requires that viewport images use a separate
   // request id, so this flag should be enabled if the context id migration is
   // enabled.
@@ -429,6 +444,7 @@ void ComposeboxQueryController::CreateSearchUrl(
             search_url_request_info->aim_entry_point,
             search_url_request_info->query_start_time,
             cluster_info_->search_session_id(), std::move(contextual_inputs),
+            search_url_request_info->invocation_source,
             should_send_lns_surface ? kLnsSurfaceParameterValue : std::string(),
             base::UTF8ToUTF16(search_url_request_info->query_text),
             std::move(search_url_request_info->additional_params)));
@@ -478,7 +494,7 @@ void ComposeboxQueryController::CreateSearchUrl(
             request_id_generator_.GetNextRequestId(
                 lens::RequestIdUpdateMode::kSearchUrl,
                 last_file->request_id.media_type()),
-            last_file->mime_type,
+            last_file->mime_type, search_url_request_info->invocation_source,
             should_send_lns_surface ? kLnsSurfaceParameterValue : std::string(),
             base::UTF8ToUTF16(search_url_request_info->query_text),
             std::move(search_url_request_info->additional_params)));
@@ -1207,6 +1223,8 @@ void ComposeboxQueryController::CreateUploadRequestBodiesAndContinue(
     case lens::MimeType::kAnnotatedPageContent:
       CHECK(contextual_input_data->context_input.has_value() &&
             contextual_input_data->context_input->size() > 0);
+      [[fallthrough]];
+    case lens::MimeType::kUnknown:
       // Call CreateContentextualDataUploadPayload off the main thread to avoid
       // blocking the main thread on compression.
       create_request_task_runner_->PostTaskAndReplyWithResult(
@@ -1551,8 +1569,8 @@ void ComposeboxQueryController::AddEncodedVisualSearchInteractionLogDataParam(
     const std::optional<std::string>& query_text,
     std::optional<lens::LensOverlaySelectionType> lens_overlay_selection_type,
     std::map<std::string, std::string>& url_params_map) {
-  if (!file_info || !IsValidFileUploadStatusForMultimodalRequest(
-                          file_info->upload_status)) {
+  if (!file_info ||
+      !IsValidFileUploadStatusForMultimodalRequest(file_info->upload_status)) {
     return;
   }
 
@@ -1590,6 +1608,8 @@ void ComposeboxQueryController::AddEncodedVisualSearchInteractionLogDataParam(
       interaction_data.set_interaction_type(
           lens::LensOverlayInteractionRequestMetadata::WEBPAGE_QUERY);
       break;
+    case lens::MimeType::kUnknown:
+      [[fallthrough]];
     case lens::MimeType::kImage:
       interaction_data.set_interaction_type(
           lens::LensOverlayInteractionRequestMetadata::REGION);

@@ -185,8 +185,7 @@ bool IsCreateImagesEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get() && kShowCreateImageTool.Get() &&
-      kForceToolsAndModels.Get()) {
+  if (kShowToolsAndModels.Get() && kShowCreateImageTool.Get()) {
     return true;
   }
 
@@ -206,7 +205,7 @@ bool IsDeepSearchEnabled(Profile* profile) {
     return false;
   }
 
-  if (kShowToolsAndModels.Get() && kForceToolsAndModels.Get()) {
+  if (kShowToolsAndModels.Get()) {
     return true;
   }
 
@@ -221,13 +220,13 @@ std::unique_ptr<
 CreateQueryControllerConfigParams() {
   auto config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
-  config_params->send_lns_surface = kSendLnsSurfaceParam.Get();
-  config_params->suppress_lns_surface_param_if_no_image =
-      kSuppressLnsSurfaceParamIfNoImage.Get();
+  config_params->send_lns_surface = true;
   config_params->enable_multi_context_input_flow = kMaxNumFiles.Get() > 1;
   config_params->enable_viewport_images = kEnableViewportImages.Get();
   config_params->use_separate_request_ids_for_multi_context_viewport_images =
       kUseSeparateRequestIdsForMultiContextViewportImages.Get();
+  config_params->attach_page_title_and_url_to_suggest_requests =
+      kAttachPageTitleAndUrlToSuggestRequest.Get();
   return config_params;
 }
 
@@ -253,17 +252,9 @@ const base::FeatureParam<bool> kEnableViewportImages(
     &internal::kWebUIOmniboxAimPopup,
     "EnableViewportImages",
     true);
-const base::FeatureParam<bool> kForceToolsAndModels(
-    &internal::kWebUIOmniboxAimPopup,
-    "ForceToolsAndModels",
-    false);
 const base::FeatureParam<int> kMaxNumFiles(&internal::kWebUIOmniboxAimPopup,
                                            "MaxNumFiles",
                                            1);
-const base::FeatureParam<bool> kSendLnsSurfaceParam(
-    &internal::kWebUIOmniboxAimPopup,
-    "SendLnsSurfaceParam",
-    true);
 const base::FeatureParam<bool> kShowComposeboxImageSuggestions(
     &internal::kWebUIOmniboxAimPopup,
     "ShowComposeboxImageSuggestions",
@@ -289,7 +280,7 @@ const base::FeatureParam<bool> kShowContextMenuTabPreviews(
 const base::FeatureParam<bool> kShowCreateImageTool(
     &internal::kWebUIOmniboxAimPopup,
     "ShowCreateImageTool",
-    false);
+    true);
 // TODO(crbug.com/462739330): Enable lens chip.
 const base::FeatureParam<bool> kShowLensSearchChip(
     &internal::kWebUIOmniboxAimPopup,
@@ -298,7 +289,7 @@ const base::FeatureParam<bool> kShowLensSearchChip(
 const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
     &internal::kWebUIOmniboxAimPopup,
     "AddTabUploadDelayOnRecentTabChipClick",
-    false);
+    true);
 const base::FeatureParam<bool> kShowRecentTabChip(
     &internal::kWebUIOmniboxAimPopup,
     "ShowRecentTabChip",
@@ -313,7 +304,7 @@ const base::FeatureParam<bool> kShowSubmit(&internal::kWebUIOmniboxAimPopup,
 const base::FeatureParam<bool> kShowToolsAndModels(
     &internal::kWebUIOmniboxAimPopup,
     "ShowToolsAndModels",
-    false);
+    true);
 const base::FeatureParam<bool> kShowVoiceSearchInSteadyComposebox(
     &internal::kWebUIOmniboxAimPopup,
     "ShowVoiceSearchInSteadyComposebox",
@@ -322,15 +313,18 @@ const base::FeatureParam<bool> kShowVoiceSearchInExpandedComposebox(
     &internal::kWebUIOmniboxAimPopup,
     "ShowVoiceSearchInExpandedComposebox",
     false);
-const base::FeatureParam<bool> kSuppressLnsSurfaceParamIfNoImage(
-    &internal::kWebUIOmniboxAimPopup,
-    "SuppressLnsSurfaceParamIfNoImage",
-    true);
+const base::FeatureParam<bool> kEnableContextDragAndDrop(&internal::kWebUIOmniboxAimPopup,
+                                                  "EnableContextDragAndDrop",
+                                                  false);
 const base::FeatureParam<bool>
     kUseSeparateRequestIdsForMultiContextViewportImages(
         &internal::kWebUIOmniboxAimPopup,
         "UseSeparateRequestIdsForMultiContextViewportImages",
         false);
+const base::FeatureParam<bool> kAttachPageTitleAndUrlToSuggestRequest(
+    &internal::kWebUIOmniboxAimPopup,
+    "AttachPageTitleAndUrlToSuggestRequest",
+    false);
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 

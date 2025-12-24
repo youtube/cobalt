@@ -6,7 +6,6 @@
 
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
-#include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
@@ -122,16 +121,10 @@ LensQueryFlowRouter::GetSuggestInputs() {
 
 void LensQueryFlowRouter::SetSuggestInputsReadyCallback(
     base::RepeatingClosure callback) {
-  // If Lens in contextual tasks is enabled, setup a callback to be called when
-  // the file upload status changes, which can then be used to know if the
-  // suggest inputs are ready.
-  if (IsOff()) {
-    return;
-  }
-
   // Return the callback immediately if the suggest inputs are already ready.
   if (AreLensSuggestInputsReady(GetSuggestInputs())) {
     callback.Run();
+    return;
   }
 
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
@@ -154,11 +147,13 @@ void LensQueryFlowRouter::SendRegionSearch(
     lens::mojom::CenterRotatedBoxPtr region,
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params,
-    std::optional<SkBitmap> region_bytes) {
+    std::optional<SkBitmap> region_bytes,
+    lens::LensOverlayInvocationSource invocation_source) {
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
     SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
         std::move(region), std::move(region_bytes), /*query_text=*/std::nullopt,
-        lens_selection_type, additional_search_query_params, query_start_time));
+        lens_selection_type, additional_search_query_params, query_start_time,
+        invocation_source));
     return;
   }
 
@@ -171,11 +166,13 @@ void LensQueryFlowRouter::SendTextOnlyQuery(
     base::Time query_start_time,
     const std::string& query_text,
     lens::LensOverlaySelectionType lens_selection_type,
-    std::map<std::string, std::string> additional_search_query_params) {
+    std::map<std::string, std::string> additional_search_query_params,
+    lens::LensOverlayInvocationSource invocation_source) {
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
     SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
         /*region=*/nullptr, /*region_bytes=*/std::nullopt, query_text,
-        lens_selection_type, additional_search_query_params, query_start_time));
+        lens_selection_type, additional_search_query_params, query_start_time,
+        invocation_source));
     return;
   }
 
@@ -188,11 +185,13 @@ void LensQueryFlowRouter::SendContextualTextQuery(
     base::Time query_start_time,
     const std::string& query_text,
     lens::LensOverlaySelectionType lens_selection_type,
-    std::map<std::string, std::string> additional_search_query_params) {
+    std::map<std::string, std::string> additional_search_query_params,
+    lens::LensOverlayInvocationSource invocation_source) {
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
     auto request_info = CreateSearchUrlRequestInfoFromInteraction(
         /*region=*/nullptr, /*region_bytes=*/std::nullopt, query_text,
-        lens_selection_type, additional_search_query_params, query_start_time);
+        lens_selection_type, additional_search_query_params, query_start_time,
+        invocation_source);
     request_info->search_url_type = SearchUrlType::kAim;
     SendInteractionToContextualTasks(std::move(request_info));
     return;
@@ -209,11 +208,13 @@ void LensQueryFlowRouter::SendMultimodalRequest(
     const std::string& query_text,
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params,
-    std::optional<SkBitmap> region_bytes) {
+    std::optional<SkBitmap> region_bytes,
+    lens::LensOverlayInvocationSource invocation_source) {
   if (contextual_tasks::GetEnableLensInContextualTasks()) {
     SendInteractionToContextualTasks(CreateSearchUrlRequestInfoFromInteraction(
         std::move(region), std::move(region_bytes), query_text,
-        lens_selection_type, additional_search_query_params, query_start_time));
+        lens_selection_type, additional_search_query_params, query_start_time,
+        invocation_source));
     return;
   }
 
@@ -248,7 +249,7 @@ void LensQueryFlowRouter::OnFileUploadStatusChanged(
   if (!suggest_inputs.has_value()) {
     return;
   }
-  if (AreLensSuggestInputsReady(GetSuggestInputs())) {
+  if (AreLensSuggestInputsReady(*suggest_inputs)) {
     if (suggest_inputs_ready_callback_) {
       suggest_inputs_ready_callback_.Run();
     }
@@ -290,6 +291,10 @@ void LensQueryFlowRouter::OpenContextualTasksPanel(GURL url) {
       web_contents()->GetBrowserContext())
       ->StartTaskUiInSidePanel(browser_window_interface(), tab_interface(), url,
                                std::move(pending_session_handle_));
+  // Notify the overlay controller that the side panel was opened so it can
+  // update its UI state.
+  lens_search_controller_->lens_overlay_controller()
+      ->NotifyResultsPanelOpened();
 }
 
 void LensQueryFlowRouter::UploadContextualInputData(
@@ -366,7 +371,8 @@ LensQueryFlowRouter::CreateSearchUrlRequestInfoFromInteraction(
     std::optional<std::string> query_text,
     lens::LensOverlaySelectionType lens_selection_type,
     std::map<std::string, std::string> additional_search_query_params,
-    base::Time query_start_time) {
+    base::Time query_start_time,
+    lens::LensOverlayInvocationSource invocation_source) {
   auto request_info = std::make_unique<CreateSearchUrlRequestInfo>();
   request_info->search_url_type = SearchUrlType::kStandard;
   if (query_text.has_value()) {
@@ -375,6 +381,7 @@ LensQueryFlowRouter::CreateSearchUrlRequestInfoFromInteraction(
   request_info->query_start_time = query_start_time;
   request_info->lens_overlay_selection_type = lens_selection_type;
   request_info->additional_params = additional_search_query_params;
+  request_info->invocation_source = invocation_source;
 
   if (region) {
     auto client_logs =
@@ -398,21 +405,11 @@ LensQueryFlowRouter::GetContextualSearchSessionHandle() const {
   auto* coordinator =
       contextual_tasks::ContextualTasksSidePanelCoordinator::From(
           browser_window_interface());
-  if (!coordinator) {
+  if (!coordinator || !coordinator->IsSidePanelOpenForContextualTask()) {
     return nullptr;
   }
 
-  auto* web_contents = coordinator->GetActiveWebContents();
-  if (!web_contents || !coordinator->IsSidePanelOpenForContextualTask()) {
-    return nullptr;
-  }
-
-  auto* helper =
-      ContextualSearchWebContentsHelper::FromWebContents(web_contents);
-  if (helper && helper->session_handle()) {
-    return helper->session_handle();
-  }
-  return nullptr;
+  return coordinator->GetContextualSearchSessionHandleForSidePanel();
 }
 
 }  // namespace lens

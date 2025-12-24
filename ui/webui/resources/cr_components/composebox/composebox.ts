@@ -153,7 +153,21 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
+      /**
+       * Feature flag for New Tab Page Realbox Next.
+       */
       ntpRealboxNextEnabled: {
+        type: Boolean,
+        // NOTE: Do not reflect this property. For shared UI, use
+        // `searchboxNextEnabled`. For NTP-specific styling, use CSS from the
+        // embedding component (e.g., `new_tab_page/app.css`).
+      },
+      /**
+       * Generic flag indicating a "Next" searchbox (Realbox Next, Omnibox Next,
+       * etc.). Used for all styling and behavior shared across 'Next' searchbox
+       * implementations.
+       */
+      searchboxNextEnabled: {
         type: Boolean,
         reflect: true,
       },
@@ -184,6 +198,7 @@ export class ComposeboxElement extends I18nMixinLit
 
   accessor maxSuggestions: number|null = null;
   accessor ntpRealboxNextEnabled: boolean = false;
+  accessor searchboxNextEnabled: boolean = false;
   accessor searchboxLayoutMode: string = '';
   accessor carouselOnTop_: boolean = false;
   accessor isDraggingFile: boolean = false;
@@ -247,6 +262,10 @@ export class ComposeboxElement extends I18nMixinLit
       loadTimeData.getBoolean('composeboxCloseByEscape');
   private dragAndDropEnabled_: boolean =
       loadTimeData.getBoolean('composeboxContextDragAndDropEnabled');
+  private clearAllInputsWhenSubmittingQuery_: boolean =
+      loadTimeData.valueExists('clearAllInputsWhenSubmittingQuery') ?
+      loadTimeData.getBoolean('clearAllInputsWhenSubmittingQuery') :
+      false;
   protected accessor inVoiceSearchMode_: boolean = false;
   private selectedMatch_: AutocompleteMatch|null = null;
   // Whether the composebox is actively waiting for an autocomplete response. If
@@ -277,6 +296,8 @@ export class ComposeboxElement extends I18nMixinLit
           this.onAutocompleteResultChanged_.bind(this)),
       this.searchboxCallbackRouter_.onContextualInputStatusChanged.addListener(
           this.onContextualInputStatusChanged_.bind(this)),
+      this.searchboxCallbackRouter_.onTabStripChanged.addListener(
+          this.refreshTabSuggestions_.bind(this)),
       this.searchboxCallbackRouter_.addFileContext.addListener(
           this.addFileContextFromBrowser_.bind(this)),
       this.searchboxCallbackRouter_.updateAutoSuggestedTabContext.addListener(
@@ -304,13 +325,14 @@ export class ComposeboxElement extends I18nMixinLit
           this.$.context.onFileContextAdded(e.detail.file);
         });
     this.focusInput();
-    // For realbox next, the zps autocomplete query is triggered after
-    // the state has been initialized.
-    if (this.showZps && !this.ntpRealboxNextEnabled) {
+    // For "next" searchboxes (Realbox Next, Omnibox Next, etc.), the zps
+    // autocomplete query is triggered after the state has been initialized.
+    if (this.showZps && !this.searchboxNextEnabled) {
       this.queryAutocomplete(/* clearMatches= */ false);
     }
 
     this.searchboxHandler_.notifySessionStarted();
+    this.refreshTabSuggestions_();
 
     if (this.ntpRealboxNextEnabled) {
       this.fire('composebox-initialized', {
@@ -697,6 +719,11 @@ export class ComposeboxElement extends I18nMixinLit
     }
   }
 
+  protected async refreshTabSuggestions_() {
+    const {tabs} = await this.searchboxHandler_.getRecentTabs();
+    this.tabSuggestions = [...tabs];
+  }
+
   protected async getTabPreview_(e: CustomEvent<{
     tabId: number,
     onPreviewFetched: (previewDataUrl: string) => void,
@@ -1052,8 +1079,11 @@ export class ComposeboxElement extends I18nMixinLit
 
     // If the composebox is expandable, collapse it and clear the input after
     // submitting.
-    if (this.isCollapsible) {
+    if (this.isCollapsible || this.clearAllInputsWhenSubmittingQuery_) {
       this.clearAllInputs();
+    }
+
+    if (this.isCollapsible) {
       this.submitEnabled_ = false;
       this.$.input.blur();
     }

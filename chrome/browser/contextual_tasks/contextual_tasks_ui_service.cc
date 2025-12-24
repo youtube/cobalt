@@ -80,6 +80,35 @@ base::Uuid GetTaskIdFromHostURL(const GURL& url) {
   net::GetValueForKeyInQuery(url, kTaskQueryParam, &task_id);
   return base::Uuid::ParseLowercase(task_id);
 }
+
+// LINT.IfChange(EntrypointSource)
+
+enum class EntrypointSource {
+  kFromWeb = 0,
+  kFromOmnibox = 1,
+  kFromNewTabPage = 2,
+
+  kMaxValue = kFromNewTabPage,
+};
+
+// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_tasks/enums.xml:EntrypointSource)
+
+EntrypointSource ConvertContextualSearchSourceToEntrypointSource(
+    contextual_search::ContextualSearchSource source) {
+  switch (source) {
+    case contextual_search::ContextualSearchSource::kOmnibox:
+      return EntrypointSource::kFromOmnibox;
+    case contextual_search::ContextualSearchSource::kNewTabPage:
+      return EntrypointSource::kFromNewTabPage;
+    case contextual_search::ContextualSearchSource::kLens:
+    case contextual_search::ContextualSearchSource::kContextualTasks:
+      // These shouldn't happen but if they do - just fall through to say it's
+      // from web.
+    case contextual_search::ContextualSearchSource::kUnknown:
+      return EntrypointSource::kFromWeb;
+  }
+}
+
 }  // namespace
 
 ContextualTasksUiService::ContextualTasksUiService(
@@ -100,13 +129,18 @@ void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
     bool is_to_new_tab) {
   CHECK(context_controller_);
 
-  // Get the session handle from the source web contents.
+  // Get the session handle from the source web contents, if provided, to
+  // propagate context from the source WebUI.
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
       session_handle;
+  contextual_search::ContextualSearchSource source =
+      contextual_search::ContextualSearchSource::kUnknown;
   if (source_tab) {
     auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
         source_tab->GetContents());
     if (helper && helper->session_handle()) {
+      source = helper->session_handle()->GetMetricsRecorder()->source();
+
       auto* service =
           ContextualSearchServiceFactory::GetForProfile(profile_.get());
       if (service) {
@@ -119,6 +153,9 @@ void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
       }
     }
   }
+  base::UmaHistogramEnumeration(
+      "ContextualTasks.AiPage.NavigationInterceptionSource",
+      ConvertContextualSearchSourceToEntrypointSource(source));
 
   // Create a task for the URL that was just intercepted.
   ContextualTask task = context_controller_->CreateTaskFromUrl(url);
@@ -132,7 +169,23 @@ void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
   GURL ui_url = GetContextualTaskUrlForTask(task.GetTaskId());
 
   content::WebContents* contextual_task_web_contents = nullptr;
-  if (!is_to_new_tab) {
+  // If the current tab is included in the context list, this navigation should
+  // open in the side panel.
+  // TODO(crbug.com/462773224): Add test that navigation with current tab in
+  // context leads to side panel.
+  if (session_handle && source_tab &&
+      session_handle->IsTabInContext(
+          SessionTabHelper::IdForTab(source_tab->GetContents()))) {
+    AssociateWebContentsToTask(source_tab->GetContents(), task.GetTaskId());
+    BrowserWindow* window = BrowserWindow::FindBrowserWindowWithWebContents(
+        source_tab->GetContents());
+    if (window) {
+      auto* coordinator = ContextualTasksSidePanelCoordinator::From(
+          window->AsBrowserView()->browser());
+      coordinator->Show();
+      contextual_task_web_contents = coordinator->GetActiveWebContents();
+    }
+  } else if (!is_to_new_tab) {
     source_tab->GetContents()->GetController().LoadURLWithParams(
         content::NavigationController::LoadURLParams(ui_url));
     contextual_task_web_contents = source_tab->GetContents();
@@ -143,17 +196,14 @@ void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
     Navigate(&params);
     contextual_task_web_contents = params.navigated_or_inserted_contents;
   }
-  // Attach the session Id of the ai page to the task.
+  // Associate the web contents with the task and set the session handle if
+  // provided.
   if (contextual_task_web_contents) {
     AssociateWebContentsToTask(contextual_task_web_contents, task.GetTaskId());
     if (session_handle) {
-      ContextualSearchWebContentsHelper::CreateForWebContents(
-          contextual_task_web_contents);
-      auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
-          contextual_task_web_contents);
-      // Give the created session handle to the new web contents. Allows WebUI
-      // to propagate context from initial web contents.
-      helper->set_session_handle(std::move(session_handle));
+      ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
+          contextual_task_web_contents)
+          ->set_session_handle(std::move(session_handle));
     }
   }
 }
@@ -179,6 +229,14 @@ void ContextualTasksUiService::OnThreadLinkClicked(
       content::WebContents::Create(
           content::WebContents::CreateParams(profile_));
   content::WebContents* new_contents_ptr = new_contents.get();
+
+  // Copy navigation entries from the current tab to the new tab to support back
+  // button navigation. See crbug.com/467042329 for detail.
+  if (tab) {
+    new_contents->GetController().CopyStateFrom(
+        &tab->GetContents()->GetController(), /*needs_reload=*/false);
+  }
+
   new_contents->GetController().LoadURLWithParams(
       content::NavigationController::LoadURLParams(url));
 
