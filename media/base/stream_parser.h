@@ -21,8 +21,6 @@
 #include "media/base/media_export.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <atomic>
-
 #include "build/build_config.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -66,8 +64,10 @@ class MEDIA_EXPORT StreamParser {
   };
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // We drop the use of constexpr here to allow for experimentation.
+  static int kMaxPendingBytesPerParse;
   
-  static std::atomic<int> kMaxPendingBytesPerParse;
+  // Sets |kMaxPendingBytesPerParse| to |new_bytes_per_parse|.
   static void SetMaxPendingBytesPerParse(int new_bytes_per_parse);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Incremental parse of a potentially large pending data considers up to this
