@@ -25,14 +25,10 @@ bool StreamParser::ProcessChunks(std::unique_ptr<BufferQueue> buffer_queue) {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// [Flag Enabled]
-// Initialize the atomic variable with the default value (128KiB).
-// This solves the "must be initialized out of line" error.
-std::atomic<int> StreamParser::kMaxPendingBytesPerParse{128 * 1024};
+int StreamParser::kMaxPendingBytesPerParse = 128 * 1024;
 
-// Implement the setter
 void StreamParser::SetMaxPendingBytesPerParse(int new_bytes_per_parse) {
-  kMaxPendingBytesPerParse.store(new_bytes_per_parse * 1024, std::memory_order_relaxed);
+  kMaxPendingBytesPerParse = new_bytes_per_parse;
 }
 #endif
 
