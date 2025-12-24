@@ -20,6 +20,9 @@
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
+using starboard::DrmSystemPlatform;
+using starboard::DrmSystemWidevine;
+
 void SbDrmCloseSession(SbDrmSystem drm_system,
                        const void* session_id,
                        int session_id_size) {
@@ -35,8 +38,6 @@ void SbDrmCloseSession(SbDrmSystem drm_system,
     }
   }
 
-  using starboard::shared::uikit::DrmSystemPlatform;
-  using starboard::shared::widevine::DrmSystemWidevine;
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->CloseSession(session_id, session_id_size);
