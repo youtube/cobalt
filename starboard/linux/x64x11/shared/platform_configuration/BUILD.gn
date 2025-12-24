@@ -34,6 +34,9 @@ config("platform_configuration") {
 
 config("libraries") {
   configs = [ "//starboard/linux/shared/platform_configuration:libraries" ]
+  if (enable_iamf_decode) {
+    libs = [ "//third_party/libiamf/platforms/linux/libiamf.a" ]
+  }
 }
 
 config("linker_flags") {
