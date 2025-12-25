@@ -50,6 +50,8 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
+#include <sys/system_properties.h>
+
 namespace starboard::android::shared {
 
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
@@ -538,7 +540,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_LOG(INFO) << "`kFlushDelayUsecOverride` is set to > 0, force a delay"
                    << " of " << flush_delay_usec << "us during Flush().";
     }
-
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -548,7 +549,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        error_message);
+        VideoDecoder::FlowControlOptions{}, error_message);
     if ((*error_message).empty() &&
         (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
          video_decoder->is_decoder_created())) {
