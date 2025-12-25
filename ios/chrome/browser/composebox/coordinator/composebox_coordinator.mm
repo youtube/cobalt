@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/composebox/coordinator/composebox_coordinator.h"
 
 #import "components/omnibox/browser/omnibox_pref_names.h"
+#import "components/open_from_clipboard/clipboard_recent_content.h"
 #import "components/prefs/pref_service.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_entrypoint.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_input_plate_coordinator.h"
@@ -20,6 +21,8 @@
 #import "ios/chrome/browser/composebox/ui/composebox_present_animator.h"
 #import "ios/chrome/browser/composebox/ui/composebox_view_controller.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
+#import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
+#import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -74,8 +77,8 @@
 }
 
 - (void)start {
-  _viewController =
-      [[ComposeboxViewController alloc] initWithTheme:[self createTheme]];
+  ComposeboxTheme* theme = [self createTheme];
+  _viewController = [[ComposeboxViewController alloc] initWithTheme:theme];
   _viewController.modalPresentationStyle = UIModalPresentationCustom;
   _viewController.transitioningDelegate = self;
   if (self.isOffTheRecord) {
@@ -112,6 +115,10 @@
 
   [_viewController
       addInputViewController:_aimComposeboxCoordinator.inputViewController];
+
+  if (theme.useIncognitoViewFallback) {
+    [self checkClipboardContent];
+  }
 
   [self.baseViewController presentViewController:_viewController
                                         animated:YES
@@ -218,9 +225,17 @@
 }
 
 - (ComposeboxTheme*)createTheme {
+  BOOL isNTP = NO;
+  web::WebState* activeWebState =
+      self.browser->GetWebStateList()->GetActiveWebState();
+  if (activeWebState && IsVisibleURLNewTabPage(activeWebState)) {
+    isNTP = YES;
+  }
+
   return [[ComposeboxTheme alloc]
       initWithInputPlatePosition:[self inputPlatePositionPreference]
-                       incognito:self.isOffTheRecord];
+                       incognito:self.isOffTheRecord
+                           isNTP:isNTP];
 }
 
 - (ComposeboxInputPlatePosition)inputPlatePositionPreference {
@@ -237,6 +252,33 @@
   return ComposeboxInputPlatePosition::kTop;
 }
 
+#pragma mark - Clipboard checks
+
+- (void)checkClipboardContent {
+  ClipboardRecentContent* clipboardRecentContent =
+      ClipboardRecentContent::GetInstance();
+  if (!clipboardRecentContent) {
+    [self onClipboardMatchedTypesReceived:{}];
+    return;
+  }
+
+  std::set<ClipboardContentType> desired_types = {ClipboardContentType::URL,
+                                                  ClipboardContentType::Text,
+                                                  ClipboardContentType::Image};
+  __weak __typeof(self) weakSelf = self;
+  clipboardRecentContent->HasRecentContentFromClipboard(
+      desired_types,
+      base::BindOnce(^(std::set<ClipboardContentType> matched_types) {
+        [weakSelf onClipboardMatchedTypesReceived:matched_types];
+      }));
+}
+
+- (void)onClipboardMatchedTypesReceived:
+    (std::set<ClipboardContentType>)matchedTypes {
+  BOOL hasClipboardContent = !matchedTypes.empty();
+  [_viewController setExpectsClipboardSuggestion:hasClipboardContent];
+}
+
 #pragma mark - ComposeboxAnimationContext
 
 - (UIView*)inputPlateViewForAnimation {
@@ -250,6 +292,10 @@
 
 - (UIView*)popupViewForAnimation {
   return _viewController.omniboxPopupContainer;
+}
+
+- (UIView*)incognitoViewForAnimation {
+  return _viewController.incognitoView;
 }
 
 - (void)setComposeboxMode:(ComposeboxMode)mode {

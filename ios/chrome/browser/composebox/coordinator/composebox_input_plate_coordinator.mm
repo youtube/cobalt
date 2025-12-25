@@ -67,7 +67,7 @@
 namespace {
 const size_t kMaxURLDisplayChars = 32 * 1024;
 const CGFloat kSnackbarBottomMargin = 10;
-}
+}  // namespace
 
 @interface ComposeboxInputPlateCoordinator () <
     ComposeboxInputPlateMediatorDelegate,
@@ -170,7 +170,9 @@ const CGFloat kSnackbarBottomMargin = 10;
                            modeHolder:_modeHolder
                    templateURLService:templateURLService
                 aimEligibilityService:IOSChromeAimEligibilityServiceFactory::
-                                          GetForProfile(self.profile)];
+                                          GetForProfile(self.profile)
+                          prefService:self.profile->GetPrefs()];
+
   _mediator.URLLoader = _URLLoader;
   _mediator.consumer = _viewController;
   _mediator.delegate = self;
@@ -296,8 +298,7 @@ const CGFloat kSnackbarBottomMargin = 10;
     [self showMaxAttachmentSnackbarError];
     return;
   }
-    [self
-        composeboxViewControllerMayShowGalleryPicker:composeboxViewController];
+  [self composeboxViewControllerMayShowGalleryPicker:composeboxViewController];
   [_viewController presentViewController:_picker animated:YES completion:nil];
 }
 

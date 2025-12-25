@@ -150,6 +150,12 @@ void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
         // handle).
         session_handle =
             service->GetSession(helper->session_handle()->session_id());
+        if (session_handle) {
+          // TODO(crbug.com/469877869): Determine what to do with the return
+          // value of this call, or move this call to a different location.
+          session_handle->CheckSearchContentSharingSettings(
+              profile_->GetPrefs());
+        }
       }
     }
   }
@@ -208,6 +214,25 @@ void ContextualTasksUiService::OnNavigationToAiPageIntercepted(
   }
 }
 
+bool ContextualTasksUiService::MaybeFocusExistingOpenTab(
+    const GURL& url,
+    TabStripModel* tab_strip_model,
+    const base::Uuid& task_id) {
+  for (int i = 0; i < tab_strip_model->count(); ++i) {
+    content::WebContents* web_contents =
+        tab_strip_model->GetTabAtIndex(i)->GetContents();
+    std::optional<ContextualTask> task =
+        context_controller_->GetContextualTaskForTab(
+            SessionTabHelper::IdForTab(web_contents));
+    if (web_contents->GetLastCommittedURL() == url && task &&
+        task->GetTaskId() == task_id) {
+      tab_strip_model->ActivateTabAt(i);
+      return true;
+    }
+  }
+  return false;
+}
+
 void ContextualTasksUiService::OnThreadLinkClicked(
     const GURL& url,
     base::Uuid task_id,
@@ -232,7 +257,7 @@ void ContextualTasksUiService::OnThreadLinkClicked(
 
   // Copy navigation entries from the current tab to the new tab to support back
   // button navigation. See crbug.com/467042329 for detail.
-  if (tab) {
+  if (tab && kOpenSidePanelOnLinkClicked.Get()) {
     new_contents->GetController().CopyStateFrom(
         &tab->GetContents()->GetController(), /*needs_reload=*/false);
   }
@@ -244,17 +269,21 @@ void ContextualTasksUiService::OnThreadLinkClicked(
   // tab.
   // TODO(crbug.com/458139141): Split this API so we can assume `tab` non-null.
   if (!tab) {
-    // Creates the Tab so session ID is created for the WebContents.
-    auto tab_to_insert = std::make_unique<tabs::TabModel>(
-        std::move(new_contents), tab_strip_model);
-    if (task_id.is_valid()) {
-      AssociateWebContentsToTask(new_contents_ptr, task_id);
+    // Attempt to focus an existing tab prior to creating a new one.
+    if (!MaybeFocusExistingOpenTab(url, tab_strip_model, task_id)) {
+      // Creates the Tab so session ID is created for the WebContents.
+      auto tab_to_insert = std::make_unique<tabs::TabModel>(
+          std::move(new_contents), tab_strip_model);
+      if (task_id.is_valid()) {
+        AssociateWebContentsToTask(new_contents_ptr, task_id);
+      }
+      // Insert the WebContents after the current active.
+      int active_tab_index = tab_strip_model->active_index();
+      tab_strip_model->AddTab(std::move(tab_to_insert), active_tab_index + 1,
+                              ui::PAGE_TRANSITION_LINK,
+                              AddTabTypes::ADD_ACTIVE);
     }
 
-    // Insert the WebContents after the current active tab.
-    int active_tab_index = tab_strip_model->active_index();
-    tab_strip_model->AddTab(std::move(tab_to_insert), active_tab_index + 1,
-                            ui::PAGE_TRANSITION_LINK, AddTabTypes::ADD_ACTIVE);
     return;
   }
 
@@ -269,6 +298,14 @@ void ContextualTasksUiService::OnThreadLinkClicked(
                                         tab->GetGroup().value());
   }
 
+  CHECK(new_contents_ptr == tab_strip_model->GetActiveWebContents());
+  AssociateWebContentsToTask(new_contents_ptr, task_id);
+
+  // Do not open side panel if kOpenSidePanelOnLinkClicked is not set.
+  if (!kOpenSidePanelOnLinkClicked.Get()) {
+    return;
+  }
+
   // Detach the WebContents from tab.
   std::unique_ptr<content::WebContents> contextual_task_contents =
       tab_strip_model->DetachWebContentsAtForInsertion(
@@ -276,9 +313,6 @@ void ContextualTasksUiService::OnThreadLinkClicked(
           TabStripModelChange::RemoveReason::kInsertedIntoSidePanel);
   content::WebContents* contextual_task_contents_ptr =
       contextual_task_contents.get();
-
-  CHECK(new_contents_ptr == tab_strip_model->GetActiveWebContents());
-  AssociateWebContentsToTask(new_contents_ptr, task_id);
 
   // Transfer the contextual task contents into the side panel cache.
   ContextualTasksSidePanelCoordinator::From(browser.get())
