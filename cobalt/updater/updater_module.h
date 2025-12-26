@@ -19,6 +19,8 @@
 #include <memory>
 #include <string>
 
+#include "base/no_destructor.h"
+
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
@@ -83,9 +85,14 @@ class Observer : public update_client::UpdateClient::Observer {
 // thread.
 class UpdaterModule {
  public:
-  explicit UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
-                         base::TimeDelta update_check_delay);
-  ~UpdaterModule();
+  static void CreateInstance(
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      base::TimeDelta update_check_delay);
+
+  static UpdaterModule* GetInstance();
+
+  UpdaterModule(const UpdaterModule&) = delete;
+  UpdaterModule& operator=(const UpdaterModule&) = delete;
 
   void Suspend();
   void Resume();
@@ -120,6 +127,14 @@ class UpdaterModule {
   void MarkSuccessful();
 
  private:
+  // Private constructor and destructor to enforce singleton pattern.
+  explicit UpdaterModule(scoped_refptr<network::SharedURLLoaderFactory>,
+                         base::TimeDelta update_check_delay);
+  ~UpdaterModule();
+
+  // TODO: b/454440974 Investigate whether singleton is necessary.
+  friend class base::NoDestructor<UpdaterModule>;
+
   std::unique_ptr<base::Thread> updater_thread_;
   scoped_refptr<update_client::UpdateClient> update_client_;
   std::unique_ptr<Observer> updater_observer_;
@@ -137,6 +152,9 @@ class UpdaterModule {
   void Finalize();
   void MarkSuccessfulImpl();
   void Update();
+
+  // Holds the single instance of UpdaterModule.
+  static base::NoDestructor<UpdaterModule>* updater_module_;
 };
 
 }  // namespace updater

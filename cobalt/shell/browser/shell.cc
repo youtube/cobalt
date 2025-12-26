@@ -65,7 +65,7 @@
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/updater_module.h"
+#include "cobalt/updater/updater_module.h"  //nogncheck
 #include "content/public/browser/storage_partition.h"
 #endif
 
@@ -207,14 +207,14 @@ void Shell::FinishShellInitialization(Shell* shell) {
     GetPlatform()->MainFrameCreated(shell);
   }
 #if BUILDFLAG(USE_EVERGREEN)
-  // Create the updater module
+  // Create the updater module singleton.
   auto* storage_partition =
       raw_web_contents->GetPrimaryMainFrame()->GetStoragePartition();
   if (storage_partition) {
-    LOG(INFO) << "Creating updater_module_ for Shell";
-    shell->updater_module_.reset(new cobalt::updater::UpdaterModule(
+    LOG(INFO) << "Creating UpdaterModule singleton for Shell.";
+    cobalt::updater::UpdaterModule::CreateInstance(
         storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-        cobalt::updater::kDefaultUpdateCheckDelay));
+        cobalt::updater::kDefaultUpdateCheckDelay);
   }
 #endif
 
@@ -565,10 +565,12 @@ WebContents* Shell::OpenURLFromTab(WebContents* source,
   target->GetController().LoadURLWithParams(
       NavigationController::LoadURLParams(params));
 #if BUILDFLAG(USE_EVERGREEN)
-  if (updater_module_) {
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
     // Mark the current installation as successful.
     // TODO(b/458770751): investigate moving this to after load is finished
-    updater_module_->MarkSuccessful();
+    updater_module->MarkSuccessful();
   }
 #endif
   return target;
