@@ -17,6 +17,7 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -34,6 +35,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
@@ -102,10 +104,15 @@ public abstract class CobaltActivity extends Activity {
   private WebContentsObserver mWebContentsObserver;
 
   private Bundle getActivityMetaData() {
+    ComponentName componentName = getIntent().getComponent();
+    if (componentName == null) {
+      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
+      return null;
+    }
     ActivityInfo ai;
     try {
       ai = getPackageManager()
-                .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
+                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
     } catch (NameNotFoundException e) {
       Log.e(TAG, "Error getting activity info", e);
       return null;
@@ -116,6 +123,7 @@ public abstract class CobaltActivity extends Activity {
     return ai.metaData;
   }
 
+  @VisibleForTesting
   static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
     if (metaData == null) {
       return commandLineArgs;
@@ -561,30 +569,29 @@ public abstract class CobaltActivity extends Activity {
    * dev.cobalt.coat/dev.cobalt.app.MainActivity
    */
   protected String[] getArgs() {
-    ArrayList<String> args = new ArrayList<>();
     String[] commandLineArgs = null;
+    Intent intent = getIntent();
     if (!isReleaseBuild()) {
-      commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+      commandLineArgs = getCommandLineParamsFromIntent(intent, COMMAND_LINE_ARGS_KEY);
     }
+    return constructArgs(commandLineArgs, getActivityMetaData(), intent.getExtras());
+  }
+
+  @VisibleForTesting
+  static String[] constructArgs(String[] commandLineArgs, Bundle metaData, Bundle extras) {
+    ArrayList<String> args = new ArrayList<>();
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasUrlArg = hasArg(args, URL_ARG);
-    if (!hasUrlArg) {
-      Bundle metaData = getActivityMetaData();
-      if (metaData == null) {
-        throw new RuntimeException("Error getting activity metaData");
-      }
-
+    if (!hasArg(args, URL_ARG) && metaData != null) {
       String url = metaData.getString(META_DATA_APP_URL);
       if (url != null) {
         args.add(URL_ARG + url);
       }
     }
 
-    Bundle extras = getIntent().getExtras();
     CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
     if (urlParams != null) {
       appendUrlParamsToUrl(args, urlParams);
@@ -593,7 +600,8 @@ public abstract class CobaltActivity extends Activity {
     return args.toArray(new String[0]);
   }
 
-  private void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
+  @VisibleForTesting
+  static void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
     int idx = -1;
     for (int i = 0; i < args.size(); i++) {
       if (args.get(i).startsWith(URL_ARG)) {
