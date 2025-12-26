@@ -64,7 +64,11 @@ class MockTaskInfoDelegate : public TaskInfoDelegate {
     return &mock_browser_window_interface_;
   }
 
+  void SetIsAiPage(bool is_ai_page) override {}
+
   content::WebContents* GetWebUIWebContents() override { return nullptr; }
+
+  void OnZeroStateChange(bool is_zero_state) override {}
 
  private:
   std::optional<base::Uuid> task_id_;

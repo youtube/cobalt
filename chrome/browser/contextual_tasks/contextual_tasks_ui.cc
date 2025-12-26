@@ -8,9 +8,11 @@
 #include "base/check_deref.h"
 #include "base/feature_list.h"
 #include "base/memory/raw_ref.h"
+#include "base/strings/string_split.h"
 #include "base/uuid.h"
 #include "build/branding_buildflags.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
@@ -24,6 +26,8 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/profiles/profile_attributes_storage.h"
+#include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
@@ -63,6 +67,7 @@
 #include "content/public/browser/web_ui_data_source.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/webui/webui_util.h"
 
 namespace {
@@ -106,6 +111,44 @@ std::string GetEncodedHandshakeMessage() {
   return base::Base64Encode(serialized_message);
 }
 }  // namespace
+
+void AddDefaultZeroStateStrings(content::WebUIDataSource* source) {
+  source->AddString("friendlyZeroStateTitle",
+                    l10n_util::GetStringUTF16(
+                        IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE_WITHOUT_NAME));
+  source->AddString("friendlyZeroStateSubtitle", "");
+}
+
+void AddZeroStateStrings(content::WebUIDataSource* source, Profile* profile) {
+  if (!profile) {
+    AddDefaultZeroStateStrings(source);
+    return;
+  }
+
+  ProfileAttributesEntry* entry =
+      g_browser_process->profile_manager()
+          ->GetProfileAttributesStorage()
+          .GetProfileAttributesWithPath(profile->GetPath());
+  if (!entry) {
+    AddDefaultZeroStateStrings(source);
+    return;
+  }
+
+  std::u16string gaia_name = entry->GetGAIANameToDisplay();
+  std::u16string full_string;
+  if (gaia_name.empty()) {
+    full_string = l10n_util::GetStringUTF16(
+        IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE_WITHOUT_NAME);
+  } else {
+    full_string = l10n_util::GetStringFUTF16(
+        IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE, gaia_name, u"<br>");
+  }
+  std::vector<std::u16string> parts = base::SplitStringUsingSubstr(
+      full_string, u"<br>", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  source->AddString("friendlyZeroStateTitle", parts.empty() ? u"" : parts[0]);
+  source->AddString("friendlyZeroStateSubtitle",
+                    parts.size() > 1 ? parts[1] : u"");
+}
 
 ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
     : TopChromeWebUIController(web_ui),
@@ -270,6 +313,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "internals/",
       IDR_CONTEXTUAL_TASKS_INTERNALS_CONTEXTUAL_TASKS_INTERNALS_HTML);
 
+  Profile* profile = Profile::FromWebUI(web_ui);
+  AddZeroStateStrings(source, profile);
+
   // Check if a session handle was provided through the web contents. If so,
   // take ownership. Otherwise create a new session.
   auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
@@ -360,6 +406,10 @@ void ContextualTasksUI::OnOAuthTokenReceived(
   }
 }
 
+void ContextualTasksUI::OnZeroStateChange(bool is_zero_state) {
+  page_->OnZeroStateChange(is_zero_state);
+}
+
 const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
   return task_id_;
 }
@@ -384,6 +434,12 @@ void ContextualTasksUI::SetThreadTitle(std::optional<std::string> title) {
   thread_title_ = title;
   if (page_) {
     page_->SetThreadTitle(thread_title_.value_or(std::string()));
+  }
+}
+
+void ContextualTasksUI::SetIsAiPage(bool is_ai_page) {
+  if (page_) {
+    page_->OnAiPageStatusChanged(is_ai_page);
   }
 }
 
@@ -620,6 +676,24 @@ ContextualTasksUI::FrameNavObserver::FrameNavObserver(
       context_controller_(context_controller),
       task_info_delegate_(CHECK_DEREF(task_info_delegate)) {}
 
+void ContextualTasksUI::FrameNavObserver::DidStartNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!ui_service_ || !context_controller_) {
+    return;
+  }
+
+  const GURL& url = navigation_handle->GetURL();
+
+  if (!ui_service_->IsAiUrl(url)) {
+    return;
+  }
+
+  std::string query_value;
+  net::GetValueForKeyInQuery(url, "q", &query_value);
+  task_info_delegate_->OnZeroStateChange(
+      /*is_zero_state=*/query_value.empty());
+}
+
 void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   if (!ui_service_ || !context_controller_) {
@@ -632,10 +706,14 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     return;
   }
 
-  // TODO(456245130): Consider making this next part a CHECK since it should be
-  //                  impossible for this to not be an AI URL.
+  // Notify the WebUI if the new page is an AI page so it can adjust the UI
+  // accordingly.
   const GURL& url = navigation_handle->GetURL();
-  if (!ui_service_->IsAiUrl(url)) {
+  bool is_ai_page = ui_service_->IsAiUrl(url);
+  task_info_delegate_->SetIsAiPage(is_ai_page);
+
+  // The below logic is only relevant for the AI page.
+  if (!is_ai_page) {
     return;
   }
 
