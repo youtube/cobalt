@@ -62,6 +62,7 @@
                   android:hardwareAccelerated="true"
                   android:exported="true">
             <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv/splash"/>
+            <meta-data android:name="cobalt.EVERGREEN_LITE" android:value="false"/>
             {# ENABLE_FEATURES accepts a semi-colon-separated list of Chromium features. #}
             {# Always enable Perfetto tracing for development. This manifest is only used for the development shell (CoAT) and does not affect the production Kimono app. #}
             <meta-data android:name="cobalt.ENABLE_FEATURES" android:value="EnablePerfettoSystemTracing"/>
