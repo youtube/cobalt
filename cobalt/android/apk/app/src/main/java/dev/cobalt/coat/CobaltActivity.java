@@ -101,21 +101,27 @@ public abstract class CobaltActivity extends Activity {
   private CobaltConnectivityDetector mCobaltConnectivityDetector;
   private WebContentsObserver mWebContentsObserver;
 
-  private String[] appendEnableFeaturesIfNecessary(String[] commandLineArgs) {
-    ActivityInfo ai = null;
+  private Bundle getActivityMetaData() {
+    ActivityInfo ai;
     try {
       ai = getPackageManager()
-              .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
+                .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
     } catch (NameNotFoundException e) {
       Log.e(TAG, "Error getting activity info", e);
+      return null;
+    }
+    if (ai == null) {
+      return null;
+    }
+    return ai.metaData;
+  }
+
+  static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
+    if (metaData == null) {
       return commandLineArgs;
     }
 
-    if (ai == null || ai.metaData == null) {
-      return commandLineArgs;
-    }
-
-    String enableFeatures = ai.metaData.getString(META_DATA_ENABLE_FEATURES);
+    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
     if (TextUtils.isEmpty(enableFeatures)) {
       return commandLineArgs;
     }
@@ -141,7 +147,7 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
-      commandLineArgs = appendEnableFeaturesIfNecessary(commandLineArgs);
+      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
@@ -567,20 +573,14 @@ public abstract class CobaltActivity extends Activity {
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
     boolean hasUrlArg = hasArg(args, URL_ARG);
     if (!hasUrlArg) {
-      try {
-        ActivityInfo ai =
-            getPackageManager()
-                .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
-        if (ai.metaData != null) {
-          if (!hasUrlArg) {
-            String url = ai.metaData.getString(META_DATA_APP_URL);
-            if (url != null) {
-              args.add(URL_ARG + url);
-            }
-          }
-        }
-      } catch (NameNotFoundException e) {
-        throw new RuntimeException("Error getting activity info", e);
+      Bundle metaData = getActivityMetaData();
+      if (metaData == null) {
+        throw new RuntimeException("Error getting activity metaData");
+      }
+
+      String url = metaData.getString(META_DATA_APP_URL);
+      if (url != null) {
+        args.add(URL_ARG + url);
       }
     }
 
