@@ -48,6 +48,7 @@
 #include "components/contextual_tasks/public/contextual_task.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/utils.h"
+#include "components/contextual_tasks/public/prefs.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/searchbox.mojom-forward.h"
@@ -110,6 +111,19 @@ std::string GetEncodedHandshakeMessage() {
   message.SerializeToArray(&serialized_message[0], size);
   return base::Base64Encode(serialized_message);
 }
+
+// Attempts to take ownership of a session handle from the WebContents helper
+// and return it. Returns nullptr if no helper or session handle is available.
+std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+TryTakeSessionHandleFromWebContents(content::WebUI* web_ui) {
+  auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
+      web_ui->GetWebContents());
+  if (helper && helper->session_handle()) {
+    return helper->TakeSessionHandle();
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 void AddDefaultZeroStateStrings(content::WebUIDataSource* source) {
@@ -242,6 +256,15 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "showOnboardingTooltip",
       base::FeatureList::IsEnabled(
           contextual_tasks::kContextualTasksShowOnboardingTooltip));
+  source->AddInteger(
+      "composeboxShowOnboardingTooltipSessionImpressionCap",
+      contextual_tasks::
+          GetContextualTasksShowOnboardingTooltipSessionImpressionCap());
+  source->AddBoolean(
+      "isOnboardingTooltipDismissCountBelowCap",
+      Profile::FromWebUI(web_ui)->GetPrefs()->GetInteger(
+          contextual_tasks::kContextualTasksOnboardingTooltipDismissedCount) <
+          contextual_tasks::GetContextualTasksOnboardingTooltipDismissedCap());
   source->AddBoolean("isLensSearchbox", true);
   source->AddBoolean(
       "forceHideEllipsis",
@@ -316,25 +339,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   Profile* profile = Profile::FromWebUI(web_ui);
   AddZeroStateStrings(source, profile);
 
-  // Check if a session handle was provided through the web contents. If so,
-  // take ownership. Otherwise create a new session.
-  auto* helper = ContextualSearchWebContentsHelper::FromWebContents(
-      web_ui->GetWebContents());
-  if (helper && helper->session_handle()) {
-    session_handle_ = helper->TakeSessionHandle();
-  } else {
-    auto* service = ContextualSearchServiceFactory::GetForProfile(
-        Profile::FromWebUI(web_ui));
-    if (service) {
-      session_handle_ = service->CreateSession(
-          ntp_composebox::CreateQueryControllerConfigParams(),
-          contextual_search::ContextualSearchSource::kContextualTasks);
-      // TODO(crbug.com/469875164): Determine what to do with the return value
-      // of this call, or move this call to a different location.
-      session_handle_->CheckSearchContentSharingSettings(
-          Profile::FromWebUI(web_ui)->GetPrefs());
-    }
-  }
+  // Take ownership of a session handle if one was already provided. Otherwise,
+  // one will be lazily created in GetOrCreateContextualSessionHandle().
+  session_handle_ = TryTakeSessionHandleFromWebContents(web_ui);
 }
 
 ContextualTasksUI::~ContextualTasksUI() = default;
@@ -416,6 +423,7 @@ const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
 
 void ContextualTasksUI::SetTaskId(std::optional<base::Uuid> id) {
   task_id_ = id;
+  PushTaskDetailsToPage();
 }
 
 const std::optional<std::string>& ContextualTasksUI::GetThreadId() {
@@ -424,6 +432,12 @@ const std::optional<std::string>& ContextualTasksUI::GetThreadId() {
 
 void ContextualTasksUI::SetThreadId(std::optional<std::string> id) {
   thread_id_ = id;
+  PushTaskDetailsToPage();
+}
+
+void ContextualTasksUI::SetThreadTurnId(std::optional<std::string> id) {
+  thread_turn_id_ = id;
+  PushTaskDetailsToPage();
 }
 
 const std::optional<std::string>& ContextualTasksUI::GetThreadTitle() {
@@ -506,12 +520,34 @@ void ContextualTasksUI::CreatePageHandler(
   composebox_handler_ = std::make_unique<ContextualTasksComposeboxHandler>(
       this, Profile::FromWebUI(web_ui()), web_ui()->GetWebContents(),
       std::move(pending_page_handler), std::move(pending_page),
-      std::move(pending_searchbox_handler));
+      std::move(pending_searchbox_handler),
+      base::BindRepeating(
+          &ContextualTasksUI::GetOrCreateContextualSessionHandle,
+          base::Unretained(this)));
   composebox_handler_->SetPage(std::move(pending_searchbox_page));
 }
 
 contextual_search::ContextualSearchSessionHandle*
-ContextualTasksUI::GetContextualSessionHandle() {
+ContextualTasksUI::GetOrCreateContextualSessionHandle() {
+  if (!session_handle_) {
+    // Take ownership of a session handle if one was already provided. The
+    // session handle may have been set in the WebContents helper by Lens after
+    // `this` is initialized. Otherwise, create a new session.
+    session_handle_ = TryTakeSessionHandleFromWebContents(web_ui());
+    if (!session_handle_) {
+      auto* service = ContextualSearchServiceFactory::GetForProfile(
+          Profile::FromWebUI(web_ui()));
+      if (service) {
+        session_handle_ = service->CreateSession(
+            ntp_composebox::CreateQueryControllerConfigParams(),
+            contextual_search::ContextualSearchSource::kContextualTasks);
+        // TODO(crbug.com/469875164): Determine what to do with the return value
+        // of this call, or move this call to a different location.
+        session_handle_->CheckSearchContentSharingSettings(
+            Profile::FromWebUI(web_ui())->GetPrefs());
+      }
+    }
+  }
   return session_handle_.get();
 }
 
@@ -633,14 +669,14 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged() {
     return;
   }
 
-  if (!GetContextualSessionHandle()) {
+  if (!GetOrCreateContextualSessionHandle()) {
     return;
   }
 
   auto context_decoration_params =
       std::make_unique<contextual_tasks::ContextDecorationParams>();
   context_decoration_params->contextual_search_session_handle =
-      GetContextualSessionHandle()->AsWeakPtr();
+      GetOrCreateContextualSessionHandle()->AsWeakPtr();
   context_controller_->GetContextForTask(
       GetTaskId().value(),
       {contextual_tasks::ContextualTaskContextSource::kPendingContextDecorator},
@@ -664,6 +700,11 @@ void ContextualTasksUI::TransferNavigationToEmbeddedPage(
   params.frame_tree_node_id =
       embedded_web_contents_->GetPrimaryMainFrame()->GetFrameTreeNodeId();
   embedded_web_contents_->OpenURL(params, /*navigation_handle_callback=*/{});
+}
+
+void ContextualTasksUI::PushTaskDetailsToPage() {
+  page_->SetTaskDetails(task_id_.value_or(base::Uuid()),
+                        thread_id_.value_or(""), thread_turn_id_.value_or(""));
 }
 
 ContextualTasksUI::FrameNavObserver::FrameNavObserver(
@@ -775,6 +816,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       task_info_delegate_->GetTaskId().value(),
       contextual_tasks::ThreadType::kAiMode, url_thread_id, mstk,
       task_info_delegate_->GetThreadTitle());
+  task_info_delegate_->SetThreadTurnId(mstk);
 
   if (task_changed && !task_info_delegate_->IsShownInTab() &&
       task_info_delegate_->GetBrowser()) {
