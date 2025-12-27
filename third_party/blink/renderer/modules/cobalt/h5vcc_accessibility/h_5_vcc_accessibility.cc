@@ -29,13 +29,19 @@ H5vccAccessibility::H5vccAccessibility(LocalDOMWindow& window)
 bool H5vccAccessibility::textToSpeech() {
   EnsureRemoteIsBound();
 
+  if (last_text_to_speech_enabled_.has_value()) {
+    return last_text_to_speech_enabled_.value();
+  }
+
   bool text_to_speech_enabled = false;
   remote_->IsTextToSpeechEnabledSync(&text_to_speech_enabled);
+  last_text_to_speech_enabled_ = text_to_speech_enabled;
   return text_to_speech_enabled;
 }
 
 // Called by browser to dispatch kTexttospeechchange event.
 void H5vccAccessibility::NotifyTextToSpeechChange(bool enabled) {
+  last_text_to_speech_enabled_ = enabled;
   auto* event_init = TextToSpeechChangeEventInit::Create();
   event_init->setEnabled(enabled);
   DispatchEvent(*TextToSpeechChangeEvent::Create(
