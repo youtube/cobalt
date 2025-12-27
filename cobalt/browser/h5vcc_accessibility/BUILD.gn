@@ -12,42 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/buildflags.gni")  # For is_androidtv.
+source_set("manager") {
+  sources = [
+    "h5vcc_accessibility_manager.cc",
+    "h5vcc_accessibility_manager.h",
+  ]
 
-if (is_ios) {
-  import("//build/config/apple/mobile_config.gni")
+  deps = [
+    "//base",
+    "//cobalt/browser/h5vcc_accessibility/public/mojom",
+    "//mojo/public/cpp/bindings",
+  ]
 }
 
 source_set("h5vcc_accessibility") {
   sources = [
     "h5vcc_accessibility_impl.cc",
     "h5vcc_accessibility_impl.h",
-    "platform_text_to_speech_helper.cc",
-    "platform_text_to_speech_helper.h",
   ]
 
   deps = [
+    ":manager",
     "//base",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
   ]
-
-  if (is_androidtv) {
-    sources += [
-      "platform_text_to_speech_helper_android.cc",
-      "platform_text_to_speech_helper_android.h",
-    ]
-  } else if (is_starboard) {
-    sources += [
-      "platform_text_to_speech_helper_starboard.cc",
-      "platform_text_to_speech_helper_starboard.h",
-    ]
-  } else if (is_ios && target_platform == "tvos") {
-    sources += [
-      "platform_text_to_speech_helper_tvos.cc",
-      "platform_text_to_speech_helper_tvos.h",
-    ]
-  }
 }

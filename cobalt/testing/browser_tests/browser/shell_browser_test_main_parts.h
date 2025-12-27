@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/h5vcc_accessibility/platform_text_to_speech_helper_tvos.h"
+#ifndef COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_BROWSER_TEST_MAIN_PARTS_H_
+#define COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_BROWSER_TEST_MAIN_PARTS_H_
 
-#include "base/notimplemented.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 
-namespace h5vcc_accessibility {
+namespace content {
 
-PlatformTextToSpeechHelperTvos::PlatformTextToSpeechHelperTvos(
-    base::WeakPtr<PlatformTextToSpeechHelper::Client> client)
-    : PlatformTextToSpeechHelper(client) {}
+class ShellBrowserTestMainParts : public ShellBrowserMainParts {
+ public:
+  ShellBrowserTestMainParts();
+  ~ShellBrowserTestMainParts() override;
 
-PlatformTextToSpeechHelperTvos::~PlatformTextToSpeechHelperTvos() = default;
+  // content::BrowserMainParts overrides.
+  void ToolkitInitialized() override;
+};
 
-bool PlatformTextToSpeechHelperTvos::IsTextToSpeechEnabled() {
-  // TODO: b/447135715 - Implement text-to-speech availability check for tvOS.
-  NOTIMPLEMENTED();
-  return false;
-}
+}  // namespace content
 
-}  // namespace h5vcc_accessibility
+#endif  // COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_BROWSER_TEST_MAIN_PARTS_H_
