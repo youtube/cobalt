@@ -390,6 +390,25 @@ def main_win(output_directory, results_collector, size_path):
   return 0
 
 
+def main_cobalt_evergreen(output_directory, results_collector, size_path):
+  """Print appropriate size information about built Cobalt Evergreen targets."""
+  assert size_path is None
+  binaries = [
+      'libcobalt.so',
+  ]
+
+  result = 0
+
+  for binary in binaries:
+    this_result, this_sizes = check_linux_binary(binary, output_directory)
+    if result == 0:
+      result = this_result
+    for name, identifier, _, value, units in this_sizes:
+      results_collector.add_result(name, identifier, value, units)
+
+  return result
+
+
 def format_for_histograms_conversion(data):
   # We need to do two things to the provided data to make it compatible with the
   # conversion script:
@@ -416,6 +435,7 @@ def main():
   main_map = {
       'android': main_android,
       'android-cronet': main_android_cronet,
+      'cobalt-evergreen': main_cobalt_evergreen,
       'linux': main_linux,
       'mac': main_mac,
       'win': main_win,
