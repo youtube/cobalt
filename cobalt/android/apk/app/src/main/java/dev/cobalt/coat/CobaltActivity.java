@@ -35,6 +35,11 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+<<<<<<< HEAD
+=======
+import androidx.annotation.VisibleForTesting;
+import dev.cobalt.browser.CobaltContentBrowserClient;
+>>>>>>> 06a3718738a (android: Enable Perfetto system tracing by default for CoAT (#8485))
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -76,8 +81,12 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+<<<<<<< HEAD
   private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
+=======
+  private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
+>>>>>>> 06a3718738a (android: Enable Perfetto system tracing by default for CoAT (#8485))
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -134,6 +143,48 @@ public abstract class CobaltActivity extends Activity {
     return ai.metaData;
   }
 
+  private Bundle getActivityMetaData() {
+    ComponentName componentName = getIntent().getComponent();
+    if (componentName == null) {
+      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
+      return null;
+    }
+    ActivityInfo ai;
+    try {
+      ai = getPackageManager()
+                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
+    } catch (NameNotFoundException e) {
+      Log.e(TAG, "Error getting activity info", e);
+      return null;
+    }
+    if (ai == null) {
+      return null;
+    }
+    return ai.metaData;
+  }
+
+  @VisibleForTesting
+  static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
+    if (metaData == null) {
+      return commandLineArgs;
+    }
+
+    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
+    if (TextUtils.isEmpty(enableFeatures)) {
+      return commandLineArgs;
+    }
+
+    List<String> args = new ArrayList<>();
+    if (commandLineArgs != null) {
+      args.addAll(Arrays.asList(commandLineArgs));
+    }
+    // CommandLineOverrideHelper will merge this with other --enable-features flags
+    // It also accepts semi-colon-separated list of features.
+    // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
+    args.add("--enable-features=" + enableFeatures);
+    return args.toArray(new String[0]);
+  }
+
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
@@ -144,6 +195,7 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
+<<<<<<< HEAD
 
       List<String> extraCommandLineArgs = JavaSwitches.getExtraCommandLineArgs(getJavaSwitches());
 
@@ -151,6 +203,9 @@ public abstract class CobaltActivity extends Activity {
         // Add all array elements to index 0 of the list
         extraCommandLineArgs.addAll(0, Arrays.asList(commandLineArgs));
       }
+=======
+      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
+>>>>>>> 06a3718738a (android: Enable Perfetto system tracing by default for CoAT (#8485))
 
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
@@ -557,36 +612,29 @@ public abstract class CobaltActivity extends Activity {
    * dev.cobalt.coat/dev.cobalt.app.MainActivity
    */
   protected String[] getArgs() {
-    ArrayList<String> args = new ArrayList<>();
     String[] commandLineArgs = null;
+    Intent intent = getIntent();
     if (!isReleaseBuild()) {
-      commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+      commandLineArgs = getCommandLineParamsFromIntent(intent, COMMAND_LINE_ARGS_KEY);
     }
+    return constructArgs(commandLineArgs, getActivityMetaData(), intent.getExtras());
+  }
+
+  @VisibleForTesting
+  static String[] constructArgs(String[] commandLineArgs, Bundle metaData, Bundle extras) {
+    ArrayList<String> args = new ArrayList<>();
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasUrlArg = hasArg(args, URL_ARG);
-    if (!hasUrlArg) {
-      try {
-        ActivityInfo ai =
-            getPackageManager()
-                .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
-        if (ai.metaData != null) {
-          if (!hasUrlArg) {
-            String url = ai.metaData.getString(META_DATA_APP_URL);
-            if (url != null) {
-              args.add(URL_ARG + url);
-            }
-          }
-        }
-      } catch (NameNotFoundException e) {
-        throw new RuntimeException("Error getting activity info", e);
+    if (!hasArg(args, URL_ARG) && metaData != null) {
+      String url = metaData.getString(META_DATA_APP_URL);
+      if (url != null) {
+        args.add(URL_ARG + url);
       }
     }
 
-    Bundle extras = getIntent().getExtras();
     CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
     if (urlParams != null) {
       appendUrlParamsToUrl(args, urlParams);
@@ -595,7 +643,8 @@ public abstract class CobaltActivity extends Activity {
     return args.toArray(new String[0]);
   }
 
-  private void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
+  @VisibleForTesting
+  static void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
     int idx = -1;
     for (int i = 0; i < args.size(); i++) {
       if (args.get(i).startsWith(URL_ARG)) {
