@@ -1343,6 +1343,7 @@ void OmniboxEditModel::OnPopupDataChanged(
     if (view_) {
       view_->OnKeywordPlaceholderTextChange();
     }
+    observers_.Notify(&Observer::OnKeywordStateChanged, is_keyword_hint);
 
     // |is_keyword_hint_| should always be false if |keyword_| is empty.
     DCHECK(!keyword_.empty() || !is_keyword_hint_);
@@ -1803,11 +1804,11 @@ std::u16string OmniboxEditModel::GetSuggestionGroupHeaderText(
         autocomplete_controller()
             ->contextual_search_provider()
             ->HasToolbeltLensAction();
+    const auto* client =
+        autocomplete_controller()->autocomplete_provider_client();
     bool has_lens_search_chip =
-        controller_->client()->IsAimPopupEnabled() &&
-        omnibox::kShowLensSearchChip.Get() &&
-        ContextualSearchProvider::LensEntrypointEligible(
-            input, autocomplete_controller()->autocomplete_provider_client());
+        client->IsOmniboxNextLensSearchChipEnabled() &&
+        ContextualSearchProvider::LensEntrypointEligible(input, client);
     // Show contextual search suggestion group header if the Lens action has
     // been moved to the Omnibox toolbelt OR the "Omnibox Next" Lens search chip
     // is currently active.
@@ -2962,12 +2963,7 @@ std::u16string OmniboxEditModel::GetText() const {
 }
 
 void OmniboxEditModel::SetKeyword(const std::u16string& keyword) {
-  const bool old_keyword_selected = is_keyword_selected();
   keyword_ = keyword;
-  const bool new_keyword_selected = is_keyword_selected();
-  if (old_keyword_selected != new_keyword_selected) {
-    observers_.Notify(&Observer::OnKeywordStateChanged, new_keyword_selected);
-  }
 }
 
 void OmniboxEditModel::SetKeywordPlaceholder(
