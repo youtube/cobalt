@@ -33,22 +33,7 @@ namespace h5vcc_accessibility {
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class H5vccAccessibilityImpl
-<<<<<<< HEAD
-    : public content::DocumentService<mojom::H5vccAccessibilityBrowser>
-#if BUILDFLAG(IS_ANDROIDTV)
-    ,  // TODO(b/407584170): Understand how many H5vccAccessibilityImpl
-       // instances are generated in the browser.
-       // TODO(b/407584348): Compare with a different design approach that
-       // implements a separate EventListener to replace TextToSpeechObserver.
-       // With this alternative, H5vccAccessibilityImpl can have a single
-       // responsibility and delegate client/listener management to another
-       // class.
-      public starboard::android::shared::TextToSpeechObserver
-#endif
-{
-=======
     : public content::DocumentService<mojom::H5vccAccessibilityBrowser> {
->>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
  public:
   // Creates a H5vccAccessibilityImpl. The H5vccAccessibilityImpl is bound to
   // the receiver and its lifetime is scoped to the render_frame_host.
@@ -67,13 +52,6 @@ class H5vccAccessibilityImpl
   void RegisterClient(
       mojo::PendingRemote<mojom::H5vccAccessibilityClient> client) override;
 
-<<<<<<< HEAD
-#if BUILDFLAG(IS_ANDROIDTV)
-  // starboard::android::shared::TextToSpeechObserver APIs:
-  void ObserveTextToSpeechChange() override;
-#endif
-=======
->>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
  private:
   H5vccAccessibilityImpl(
       content::RenderFrameHost& render_frame_host,
