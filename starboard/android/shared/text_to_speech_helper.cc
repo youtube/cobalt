@@ -14,13 +14,8 @@
 
 #include "starboard/android/shared/text_to_speech_helper.h"
 
-<<<<<<< HEAD
-#include "starboard/android/shared/application_android.h"
-=======
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
->>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
 #include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/memory.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
