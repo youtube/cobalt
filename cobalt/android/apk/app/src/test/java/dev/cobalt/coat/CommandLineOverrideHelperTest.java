@@ -57,6 +57,20 @@ public class CommandLineOverrideHelperTest {
         String overrides =
             CommandLineOverrideHelper.getDefaultDisableFeatureOverridesList().toString();
         assertThat(overrides.contains("AImageReader")).isTrue();
+        assertThat(overrides.contains("BackForwardCache")).isTrue();
+        assertThat(overrides.contains("DigitalGoodsApi")).isTrue();
+        assertThat(overrides.contains("DrawCutoutEdgeToEdge")).isTrue();
+        assertThat(overrides.contains("FedCm")).isTrue();
+        assertThat(overrides.contains("FedCmAlternativeIdentifiers")).isTrue();
+        assertThat(overrides.contains("FedCmIframeOrigin")).isTrue();
+        assertThat(overrides.contains("InstalledApp")).isTrue();
+        assertThat(overrides.contains("InstalledAppProvider")).isTrue();
+        assertThat(overrides.contains("SecurePaymentConfirmation")).isTrue();
+        assertThat(overrides.contains("WebOTP")).isTrue();
+        assertThat(overrides.contains("WebPayments")).isTrue();
+        assertThat(overrides.contains("WebPermissionsApi")).isTrue();
+        assertThat(overrides.contains("WebUSB")).isTrue();
+        assertThat(overrides.contains("WebXR")).isTrue();
     }
 
     @Test
@@ -64,6 +78,37 @@ public class CommandLineOverrideHelperTest {
         String overrides =
             CommandLineOverrideHelper.getDefaultBlinkEnableFeatureOverridesList().toString();
         assertThat(overrides.contains("PreciseMemoryInfo")).isTrue();
+    }
+
+    @Test
+    public void testDefaultBlinkDisableFeatureOverridesList() {
+        String overrides =
+            CommandLineOverrideHelper.getDefaultBlinkDisableFeatureOverridesList().toString();
+        assertThat(overrides.contains("CSSTypedArithmetic")).isTrue();
+        assertThat(overrides.contains("FedCm")).isTrue();
+        assertThat(overrides.contains("FencedFrames")).isTrue();
+        assertThat(overrides.contains("HTMLPrintingArtifactAnnotations")).isTrue();
+        assertThat(overrides.contains("InstalledApp")).isTrue();
+        assertThat(overrides.contains("Notifications")).isTrue();
+        assertThat(overrides.contains("PaymentLinkDetection")).isTrue();
+        assertThat(overrides.contains("PaymentMethodChangeEvent")).isTrue();
+        assertThat(overrides.contains("PeriodicBackgroundSync")).isTrue();
+        assertThat(overrides.contains("Presentation")).isTrue();
+        assertThat(overrides.contains("ScrollbarColor")).isTrue();
+        assertThat(overrides.contains("ScrollbarWidth")).isTrue();
+        assertThat(overrides.contains("ScrollTopLeftInterop")).isTrue();
+        assertThat(overrides.contains("SecurePaymentConfirmationAvailabilityAPI")).isTrue();
+        assertThat(overrides.contains("SecurePaymentConfirmationOptOut")).isTrue();
+        assertThat(overrides.contains("Serial")).isTrue();
+        assertThat(overrides.contains("WebAppLaunchQueue")).isTrue();
+        assertThat(overrides.contains("WebAuth")).isTrue();
+        assertThat(overrides.contains("WebGPUTextureComponentSwizzle")).isTrue();
+        assertThat(overrides.contains("WebNFC")).isTrue();
+        assertThat(overrides.contains("WebOTP")).isTrue();
+        assertThat(overrides.contains("WebShare")).isTrue();
+        assertThat(overrides.contains("WebSocketStream")).isTrue();
+        assertThat(overrides.contains("WebUSB")).isTrue();
+        assertThat(overrides.contains("WebXR")).isTrue();
     }
 
     @Test
