@@ -12,6 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/base_configuration.gni")
+import("//build/config/arm.gni")
 
-sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+if (current_toolchain == default_toolchain) {
+  if (current_cpu == "arm64") {
+    import(
+        "//starboard/evergreen/arm64/platform_configuration/configuration.gni")
+  } else if (current_cpu == "arm" && arm_float_abi == "softfp") {
+    import(
+        "//starboard/evergreen/arm/softfp/platform_configuration/configuration.gni")
+  } else {
+    assert(false, "Unsupported architecture.")
+  }
+} else {
+  import("//starboard/build/config/base_configuration.gni")
+
+  sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+}
