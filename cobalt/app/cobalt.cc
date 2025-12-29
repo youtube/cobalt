@@ -30,11 +30,8 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
-<<<<<<< HEAD
-=======
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
->>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "content/public/app/content_main.h"
@@ -176,14 +173,11 @@ void SbEventHandle(const SbEvent* event) {
     }
     case kSbEventTypeUnfreeze:
       break;
-    case kSbEventTypeInput:
+    case kSbEventTypeInput: {
       if (g_platform_event_source) {
         g_platform_event_source->HandleEvent(event);
       }
       break;
-<<<<<<< HEAD
-    case kSbEventTypeLink:
-=======
     }
     case kSbEventTypeAccessibilityTextToSpeechSettingsChanged: {
       if (event->data) {
@@ -193,7 +187,7 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
->>>>>>> 6f01687ef65 (Add enabled to TextToSpeechChangeEvent and integrate with kSbEventTyp… (#8324))
+    case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
     case kSbEventTypeLowMemory:
