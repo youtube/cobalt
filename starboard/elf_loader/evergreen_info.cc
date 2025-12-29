@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/evergreen_info.h"
 
 #include <string.h>
+
 #include <atomic>
 
 static EvergreenInfo g_evergreen_info;

@@ -6,7 +6,7 @@
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
     "PosixFileReadTest/*",
     "PosixFileWriteTest/*",
-    "PosixLocale*",
+    "Posix/NlLanginfo*",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "SbAudioSinkTest.*",
     "SbLogFlushTest.DontCrashMeBro",

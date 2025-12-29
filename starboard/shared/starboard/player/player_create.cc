@@ -16,13 +16,12 @@
 #include <string>
 #include <utility>
 
-#include "starboard/player.h"
-
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/player.h"
 #include "starboard/shared/media_session/playback_state.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"

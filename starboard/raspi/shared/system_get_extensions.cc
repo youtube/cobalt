@@ -60,7 +60,7 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
-    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+    return starboard::GetLoaderAppMetricsApi();
   }
 #endif
   return NULL;

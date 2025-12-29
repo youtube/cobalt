@@ -131,13 +131,6 @@ class QueueApplication : public Application {
   EventQueue event_queue_;
 };
 
-// Alias to prevent breaking the RDK build on CI.
-// See https://paste.googleplex.com/4776103591936000
-// TODO: b/441955897 - Remove this alias once RDK build on CI is updated
-namespace shared::starboard {
-using QueueApplication = ::starboard::QueueApplication;
-}
-
 }  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_QUEUE_APPLICATION_H_

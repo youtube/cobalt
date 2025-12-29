@@ -14,6 +14,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 
@@ -41,13 +42,6 @@ static SB_C_FORCE_INLINE bool MemoryIsZero(const void* buffer, size_t count) {
   const char* char_buffer = (const char*)(buffer);
   return char_buffer[0] == 0 &&
          memcmp(char_buffer, char_buffer + 1, count - 1) == 0;
-}
-
-// Aliases not to break CI tests.
-// See https://paste.googleplex.com/4527409416241152
-// TODO: b/441955897 - Update CI test to use flattened namespace
-namespace common {
-using ::starboard::MemoryIsZero;
 }
 
 }  // namespace starboard

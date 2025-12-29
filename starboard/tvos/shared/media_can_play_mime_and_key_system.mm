@@ -25,19 +25,16 @@
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 
-using ::starboard::shared::starboard::media::MimeType;
-
 namespace {
 
 const char kUrlPlayerMimeType[] = "application/x-mpegURL";
 const size_t kUrlPlayerMimeTypeLength = strlen(kUrlPlayerMimeType);
 const int64_t kDefaultAudioChannels = 2;
 
-bool IsAudioCodecSupportedByUrlPlayer(const MimeType& mime_type,
+bool IsAudioCodecSupportedByUrlPlayer(const starboard::MimeType& mime_type,
                                       const std::string& codec) {
-  SbMediaAudioCodec audio_codec =
-      starboard::shared::starboard::media::GetAudioCodecFromString(
-          codec.c_str(), mime_type.subtype().c_str());
+  SbMediaAudioCodec audio_codec = starboard::GetAudioCodecFromString(
+      codec.c_str(), mime_type.subtype().c_str());
   if (audio_codec != kSbMediaAudioCodecAac &&
       audio_codec != kSbMediaAudioCodecAc3 &&
       audio_codec != kSbMediaAudioCodecEac3) {
@@ -69,7 +66,7 @@ bool IsVideoCodecSupportedByUrlPlayer(const std::string& codec) {
     return true;
   }
   if (video_codec == kSbMediaVideoCodecVp9) {
-    return starboard::shared::uikit::PlaybackCapabilities::IsHwVp9Supported();
+    return starboard::PlaybackCapabilities::IsHwVp9Supported();
   }
   return false;
 }
@@ -96,7 +93,7 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
   // "application/x-mpegURL" is for hls content and will use UrlPlayer. The
   // supported types are different from SbPlayer.
   if (strncmp(kUrlPlayerMimeType, mime, kUrlPlayerMimeTypeLength) == 0) {
-    MimeType mime_type(mime);
+    starboard::MimeType mime_type(mime);
     auto codecs = mime_type.GetCodecs();
     for (const auto& codec : codecs) {
       if (!IsAudioCodecSupportedByUrlPlayer(mime_type, codec) &&
@@ -106,14 +103,12 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
     }
     // UrlPlayer only supports what DrmSystemPlatform supports.
     if (strlen(key_system) > 0 &&
-        key_system !=
-            starboard::shared::uikit::DrmSystemPlatform::GetKeySystemName()) {
+        key_system != starboard::DrmSystemPlatform::GetKeySystemName()) {
       return kSbMediaSupportTypeNotSupported;
     }
 
     return kSbMediaSupportTypeProbably;
   }
 
-  return starboard::shared::starboard::media::CanPlayMimeAndKeySystem(
-      mime, key_system);
+  return starboard::CanPlayMimeAndKeySystem(mime, key_system);
 }

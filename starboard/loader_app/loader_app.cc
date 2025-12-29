@@ -18,12 +18,15 @@
 #include <vector>
 
 #include "cobalt/version.h"
+#include "starboard/common/check_op.h"
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/crashpad_wrapper/annotations.h"
+#include "starboard/crashpad_wrapper/wrapper.h"
 #include "starboard/elf_loader/elf_loader.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/evergreen_info.h"
@@ -37,10 +40,6 @@
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
-
-#include "starboard/common/check_op.h"
-#include "starboard/crashpad_wrapper/annotations.h"
-#include "starboard/crashpad_wrapper/wrapper.h"
 
 namespace {
 

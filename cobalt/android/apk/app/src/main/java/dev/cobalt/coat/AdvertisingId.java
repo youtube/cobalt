@@ -28,30 +28,30 @@ import java.util.concurrent.Executors;
 
 /** A class for managing the IfA for CoAT. https://developer.android.com/training/articles/ad-id */
 public class AdvertisingId {
-  private final Context context;
-  private final ExecutorService singleThreadExecutor;
+  private final Context mContext;
+  private final ExecutorService mSingleThreadExecutor;
 
-  @GuardedBy("advertisingIdInfoLock")
-  private volatile AdvertisingIdClient.Info advertisingIdInfo;
+  @GuardedBy("mAdvertisingIdInfoLock")
+  private volatile AdvertisingIdClient.Info mAdvertisingIdInfo;
 
-  // Controls access to advertisingIdInfo
-  private final Object advertisingIdInfoLock = new Object();
+  // Controls access to mAdvertisingIdInfo
+  private final Object mAdvertisingIdInfoLock = new Object();
 
   public AdvertisingId(Context context) {
-    this.context = context;
-    this.singleThreadExecutor = Executors.newSingleThreadExecutor();
-    this.advertisingIdInfo = null;
+    mContext = context;
+    mSingleThreadExecutor = Executors.newSingleThreadExecutor();
+    mAdvertisingIdInfo = null;
     refresh();
   }
 
   public void refresh() {
-    singleThreadExecutor.execute(
+    mSingleThreadExecutor.execute(
         () -> {
           try {
             // The following statement may be slow.
-            AdvertisingIdClient.Info info = AdvertisingIdClient.getAdvertisingIdInfo(context);
-            synchronized (advertisingIdInfoLock) {
-              advertisingIdInfo = info;
+            AdvertisingIdClient.Info info = AdvertisingIdClient.getAdvertisingIdInfo(mContext);
+            synchronized (mAdvertisingIdInfoLock) {
+              mAdvertisingIdInfo = info;
             }
             Log.i(TAG, "Successfully retrieved Advertising ID (IfA).");
           } catch (IOException
@@ -64,9 +64,9 @@ public class AdvertisingId {
 
   public String getId() {
     String result = "";
-    synchronized (advertisingIdInfoLock) {
-      if (advertisingIdInfo != null) {
-        result = advertisingIdInfo.getId();
+    synchronized (mAdvertisingIdInfoLock) {
+      if (mAdvertisingIdInfo != null) {
+        result = mAdvertisingIdInfo.getId();
       }
     }
     refresh();
@@ -76,9 +76,9 @@ public class AdvertisingId {
 
   public boolean isLimitAdTrackingEnabled() {
     boolean result = false;
-    synchronized (advertisingIdInfoLock) {
-      if (advertisingIdInfo != null) {
-        result = advertisingIdInfo.isLimitAdTrackingEnabled();
+    synchronized (mAdvertisingIdInfoLock) {
+      if (mAdvertisingIdInfo != null) {
+        result = mAdvertisingIdInfo.isLimitAdTrackingEnabled();
       }
     }
     refresh();

@@ -78,35 +78,36 @@ CommandLinePreprocessor::GetCobaltToggleSwitches() {
 
 const base::CommandLine::SwitchMap&
 CommandLinePreprocessor::GetCobaltParamSwitchDefaults() {
-  static const base::CommandLine::SwitchMap kCobaltSwitchDefaults {
-    // Disable Vulkan.
-    {::switches::kDisableFeatures, "Vulkan"},
-        // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
-        // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
-        // creation, but egl extension required to support the attribute is
-        // missing and causes errors. So Enable it by default.
-        {::switches::kEnableFeatures,
-         "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
-    // Force some ozone settings.
+  static const base::CommandLine::SwitchMap kCobaltSwitchDefaults{
+      // Disable Vulkan.
+      {::switches::kDisableFeatures, "Vulkan"},
+      // When DefaultEnableANGLEValidation is disabled (e.g gold/qa), EGL
+      // attribute EGL_CONTEXT_OPENGL_NO_ERROR_KHR is set during egl context
+      // creation, but egl extension required to support the attribute is
+      // missing and causes errors. So Enable it by default.
+      {::switches::kEnableFeatures,
+       "LimitImageDecodeCacheSize:mb/24, DefaultEnableANGLEValidation"},
+  // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
-        {::switches::kUseGL, "angle"}, {::switches::kUseANGLE, "gles-egl"},
+      {::switches::kUseGL, "angle"},
+      {::switches::kUseANGLE, "gles-egl"},
 #endif
-        // Use passthrough command decoder.
-        {::switches::kUseCmdDecoder, "passthrough"},
-        // Set the default size for the content shell/starboard window.
-        {::switches::kContentShellHostWindowSize, "1920x1080"},
-        // Enable remote Devtools access.
-        {::switches::kRemoteDebuggingPort, "9222"},
-        {::switches::kRemoteAllowOrigins, "http://localhost:9222"},
-        // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
-        // we set it explicitly just in case.
-        {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
-        // Enable precise memory info so we can make accurate client-side
-        // measurements.
-        {::switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
-        // Enable autoplay video/audio, as Cobalt may launch directly into media
-        // playback before user interaction.
-        {::switches::kAutoplayPolicy, "no-user-gesture-required"},
+      // Use passthrough command decoder.
+      {::switches::kUseCmdDecoder, "passthrough"},
+      // Set the default size for the content shell/starboard window.
+      {::switches::kContentShellHostWindowSize, "1920x1080"},
+      // Enable remote Devtools access.
+      {::switches::kRemoteDebuggingPort, "9222"},
+      {::switches::kRemoteAllowOrigins, "http://localhost:9222"},
+      // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
+      // we set it explicitly just in case.
+      {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
+      // Enable precise memory info so we can make accurate client-side
+      // measurements.
+      {::switches::kEnableBlinkFeatures, "PreciseMemoryInfo"},
+      // Enable autoplay video/audio, as Cobalt may launch directly into media
+      // playback before user interaction.
+      {::switches::kAutoplayPolicy, "no-user-gesture-required"},
   };
   return kCobaltSwitchDefaults;
 }
