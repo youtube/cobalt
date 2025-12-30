@@ -7,8 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.SystemClock;
-import android.util.Log;
 import android.view.KeyEvent;
+import org.chromium.base.Log;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.WebContents;
 
