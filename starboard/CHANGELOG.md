@@ -14,7 +14,6 @@ Starboard 17 fully switches to POSIX APIs.
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
 * `kSbEventTypeAccessibilityCaptionSettingsChanged`
-* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 * `kSbEventTypeOnScreenKeyboardShown`
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
