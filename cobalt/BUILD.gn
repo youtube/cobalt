@@ -50,7 +50,6 @@ if (!is_android) {
       ":common",
       "//base",
       "//cobalt/browser/h5vcc_accessibility:manager",
-      "//cobalt/browser/h5vcc_runtime:deep_link_manager",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
