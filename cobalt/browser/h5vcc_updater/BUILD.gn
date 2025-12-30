@@ -30,4 +30,8 @@ source_set("h5vcc_updater") {
   if (is_starboard) {
     deps += [ "//cobalt/configuration" ]
   }
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater:updater" ]
+  }
 }
