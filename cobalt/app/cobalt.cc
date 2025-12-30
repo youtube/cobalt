@@ -31,7 +31,6 @@
 #include "cobalt/app/cobalt_switch_defaults_starboard.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
-#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_paths.h"
 #include "content/public/app/content_main.h"
