@@ -92,7 +92,7 @@ namespace updater {
 const base::TimeDelta kDefaultUpdateCheckDelay = base::Seconds(30);
 
 // static
-UpdaterModule* UpdaterModule::updater_module_ = nullptr;
+base::NoDestructor<UpdaterModule>* UpdaterModule::updater_module_ = nullptr;
 
 void UpdaterModule::CreateInstance(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
@@ -103,8 +103,8 @@ void UpdaterModule::CreateInstance(
            "to get the instance.";
     return;
   }
-  updater_module_ =
-      new UpdaterModule(std::move(url_loader_factory), update_check_delay);
+  updater_module_ = new base::NoDestructor<UpdaterModule>(
+      std::move(url_loader_factory), update_check_delay);
 }
 
 UpdaterModule* UpdaterModule::GetInstance() {
@@ -113,7 +113,7 @@ UpdaterModule* UpdaterModule::GetInstance() {
                     "retrieved by UpdaterModule::GetInstance().";
     return nullptr;
   }
-  return updater_module_;
+  return updater_module_->get();
 }
 
 void Observer::OnEvent(const update_client::CrxUpdateItem& item) {

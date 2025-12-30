@@ -72,8 +72,8 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"  //nogncheck
+#include "content/public/browser/storage_partition.h"
 #endif
-
 #if BUILDFLAG(IS_ANDROID)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/android/shared/audio_permission_requester.h"
@@ -341,6 +341,17 @@ void Shell::FinishShellInitialization(Shell* shell) {
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive()) {
     GetPlatform()->MainFrameCreated(shell);
   }
+#if BUILDFLAG(USE_EVERGREEN)
+  // Create the updater module singleton.
+  auto* storage_partition =
+      raw_web_contents->GetPrimaryMainFrame()->GetStoragePartition();
+  if (storage_partition) {
+    LOG(INFO) << "Creating UpdaterModule singleton for Shell.";
+    cobalt::updater::UpdaterModule::CreateInstance(
+        storage_partition->GetURLLoaderFactoryForBrowserProcess(),
+        cobalt::updater::kDefaultUpdateCheckDelay);
+  }
+#endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
@@ -858,6 +869,16 @@ WebContents* Shell::OpenURLFromTab(
   if (navigation_handle_callback && navigation_handle) {
     std::move(navigation_handle_callback).Run(*navigation_handle);
   }
+
+#if BUILDFLAG(USE_EVERGREEN)
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    // Mark the current installation as successful.
+    // TODO(b/458770751): investigate moving this to after load is finished
+    updater_module->MarkSuccessful();
+  }
+#endif
 
   return target;
 }

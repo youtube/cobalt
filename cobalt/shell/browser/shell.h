@@ -318,7 +318,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static std::vector<Shell*> windows_;
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
-
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.
   // See base/memory/weak_ptr.h.
