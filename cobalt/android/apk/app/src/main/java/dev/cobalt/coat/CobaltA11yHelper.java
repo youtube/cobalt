@@ -17,7 +17,6 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
@@ -27,6 +26,7 @@ import androidx.customview.widget.ExploreByTouchHelper;
 import java.lang.ref.WeakReference;
 import java.util.BitSet;
 import java.util.List;
+import org.chromium.base.Log;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.ViewAndroidDelegate;
 

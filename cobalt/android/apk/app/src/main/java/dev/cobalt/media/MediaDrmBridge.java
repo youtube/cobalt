@@ -32,7 +32,6 @@ import android.os.Build;
 import android.util.Base64;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
-import dev.cobalt.util.Log;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -40,6 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import org.chromium.base.Log;
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
@@ -124,11 +124,11 @@ public class MediaDrmBridge {
     }
 
     public static OperationResult operationFailed(String errorMessage, Throwable e) {
-      return operationFailed(String.format("%s StackTrace: %s", errorMessage, android.util.Log.getStackTraceString(e)));
+      return operationFailed(String.format("%s StackTrace: %s", errorMessage, Log.getStackTraceString(e)));
     }
 
     public static OperationResult notProvisioned(Throwable e) {
-      return new OperationResult(DrmOperationStatus.NOT_PROVISIONED, String.format("Device is not provisioned. StackTrace: %s", android.util.Log.getStackTraceString(e)));
+      return new OperationResult(DrmOperationStatus.NOT_PROVISIONED, String.format("Device is not provisioned. StackTrace: %s", Log.getStackTraceString(e)));
     }
 
     @CalledByNative("OperationResult")
