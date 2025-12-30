@@ -104,7 +104,7 @@ export class ContextualTasksAppElement extends CrLitElement {
   protected accessor contextTabs_: Tab[] = [];
   protected accessor showComposebox_: boolean = true;
   protected accessor isErrorPageVisible_: boolean = false;
-  protected accessor isZeroState_: boolean = true;
+  protected accessor isZeroState_: boolean = false;
   private listenerIds_: number[] = [];
   // The OAuth token to use for embedded page requests. Null if not yet set.
   // Can be empty if the user is not signed in or the token couldn't be fetched.
@@ -202,9 +202,9 @@ export class ContextualTasksAppElement extends CrLitElement {
     this.listenerIds_.forEach(
         id => this.browserProxy_.callbackRouter.removeListener(id));
     this.$.threadFrame.request.onBeforeSendHeaders.removeListener(
-        this.onBeforeSendHeaders.bind(this));
+        this.onBeforeSendHeaders);
     this.$.threadFrame.request.onBeforeRequest.removeListener(
-        this.onBeforeRequest.bind(this));
+        this.onBeforeRequest);
   }
 
   override updated(changedProperties: PropertyValues<this>) {
@@ -258,7 +258,7 @@ export class ContextualTasksAppElement extends CrLitElement {
     // Setup the webview request overrides to add the OAuth token to the request
     // headers.
     this.$.threadFrame.request.onBeforeSendHeaders.addListener(
-        this.onBeforeSendHeaders.bind(this), {
+        this.onBeforeSendHeaders, {
           // These should be valid values from web_request.d.ts.
           types: 'main_frame,xmlhttprequest,websocket'.split(',') as any,
           urls: ['<all_urls>'],
@@ -266,7 +266,7 @@ export class ContextualTasksAppElement extends CrLitElement {
         ['blocking', 'requestHeaders', 'extraHeaders']);
 
     this.$.threadFrame.request.onBeforeRequest.addListener(
-        this.onBeforeRequest.bind(this), {
+        this.onBeforeRequest, {
           types: ['main_frame'] as any,
           urls: ['<all_urls>'],
         },

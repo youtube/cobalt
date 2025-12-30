@@ -869,44 +869,29 @@ const FeatureEntry::FeatureParam kWebUIOmniboxAimPopupAddContextButtonNone[] = {
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonBelowResults[] = {
         {"AddContextButtonVariant", "below_results"},
-        {"ShowLensSearchChip", "true"},
-        {"ShowRecentTabChip", "true"},
         {"ShowVoiceSearchInSteadyComposebox", "true"},
         {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonAboveResults[] = {
         {"AddContextButtonVariant", "above_results"},
-        {"ShowLensSearchChip", "true"},
-        {"ShowRecentTabChip", "true"},
-        {"ShowVoiceSearchInSteadyComposebox", "true"},
-        {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 const FeatureEntry::FeatureParam kWebUIOmniboxAimPopupAddContextButtonInline[] =
     {
         {"AddContextButtonVariant", "inline"},
-        {"ShowLensSearchChip", "true"},
         {"ShowRecentTabChip", "true"},
-        {"ShowVoiceSearchInSteadyComposebox", "true"},
-        {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonMultiFile[] = {
         {"AddContextButtonVariant", "below_results"},
-        {"ShowLensSearchChip", "true"},
         {"ShowRecentTabChip", "true"},
-        {"ShowVoiceSearchInSteadyComposebox", "true"},
-        {"ShowVoiceSearchInExpandedComposebox", "true"},
         {"MaxNumFiles", "5"},
 };
 const FeatureEntry::FeatureParam
     kWebUIOmniboxAimPopupAddContextButtonDragAndDrop[] = {
         {"AddContextButtonVariant", "below_results"},
         {"EnableContextDragAndDrop", "true"},
-        {"ShowLensSearchChip", "true"},
         {"ShowRecentTabChip", "true"},
-        {"ShowVoiceSearchInSteadyComposebox", "true"},
-        {"ShowVoiceSearchInExpandedComposebox", "true"},
 };
 
 const FeatureEntry::FeatureVariation kWebUIOmniboxAimPopupVariations[] = {
@@ -1839,9 +1824,17 @@ const FeatureEntry::FeatureParam kNtpNextShowStaticText[] = {
 const FeatureEntry::FeatureParam kNtpNextShowDeepDiveSuggestions[] = {
     {"NtpNextShowDeepDiveSuggestionsParam", "true"},
     {"NtpNextSuggestionsFromNewSearchSuggestionsEndpointParam", "false"},
+    {"NtpNextClientSensitivityCheckParam", "true"},
 };
 const FeatureEntry::FeatureParam kNtpNextShowSimplificationUI[] = {
     {"NtpNextShowSimplificationUIParam", "true"},
+    {"NtpNextClientSensitivityCheckParam", "true"},
+};
+const FeatureEntry::FeatureParam kNtpNextShowSimplificationUIWithDeepDive[] = {
+    {"NtpNextShowSimplificationUIParam", "true"},
+    {"NtpNextShowDeepDiveSuggestionsParam", "true"},
+    {"NtpNextSuggestionsFromNewSearchSuggestionsEndpointParam", "false"},
+    {"NtpNextClientSensitivityCheckParam", "true"},
 };
 
 const FeatureEntry::FeatureVariation kNtpNextVariations[] = {
@@ -1849,8 +1842,10 @@ const FeatureEntry::FeatureVariation kNtpNextVariations[] = {
      std::size(kNtpNextShowStaticText), nullptr},
     {"- Show Deep Dive Suggestions", kNtpNextShowDeepDiveSuggestions,
      std::size(kNtpNextShowDeepDiveSuggestions), nullptr},
-    {"- Show NTP Simplification", kNtpNextShowSimplificationUI,
+    {"- Show Row UI", kNtpNextShowSimplificationUI,
      std::size(kNtpNextShowSimplificationUI), nullptr},
+    {"- Show Row UI With Deep Dive", kNtpNextShowSimplificationUIWithDeepDive,
+     std::size(kNtpNextShowSimplificationUIWithDeepDive), nullptr},
 };
 
 const FeatureEntry::FeatureParam
