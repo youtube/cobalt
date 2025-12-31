@@ -44,6 +44,10 @@ const base::FeatureParam<AddContextButtonVariant>
     kWebUIOmniboxAimPopupAddContextButtonVariantParam{
         &internal::kWebUIOmniboxAimPopup, "AddContextButtonVariant",
         AddContextButtonVariant::kNone, &kAddContextButtonVariantOptions};
+// When enabled, clicking aim button in omnibox always navigates directly to
+// g.com/aimode, e.g. instead of opening the AI Mode popup
+// (`omnibox::internal::kWebUIOmniboxAimPopup`).
+BASE_FEATURE(kAiModeEntryPointAlwaysNavigates, DISABLED);
 // If enabled, removes the cutout for the location bar and fills the entire
 // popup content with the WebUI WebView.
 BASE_FEATURE(kWebUIOmniboxFullPopup, DISABLED);
@@ -261,7 +265,7 @@ const base::FeatureParam<bool> kEnableViewportImages(
     true);
 const base::FeatureParam<int> kMaxNumFiles(&internal::kWebUIOmniboxAimPopup,
                                            "MaxNumFiles",
-                                           1);
+                                           10);
 const base::FeatureParam<bool> kShowComposeboxImageSuggestions(
     &internal::kWebUIOmniboxAimPopup,
     "ShowComposeboxImageSuggestions",

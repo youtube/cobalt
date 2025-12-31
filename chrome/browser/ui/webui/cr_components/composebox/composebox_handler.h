@@ -50,6 +50,7 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
 
   void HandleLensButtonClick() override;
   void HandleFileUpload(bool is_image) override;
+  void NavigateUrl(const GURL& url) override;
 
   // searchbox::mojom::PageHandler:
   void ExecuteAction(uint8_t line,
@@ -88,6 +89,10 @@ class ComposeboxHandler : public composebox::mojom::PageHandler,
   virtual void UpdateSuggestedTabContext(searchbox::mojom::TabInfoPtr tab_info);
 
  protected:
+  // ContextualSearchboxHandler:
+  std::optional<lens::LensOverlayInvocationSource> GetInvocationSource()
+      const override;
+
   ComposeboxHandler(
       mojo::PendingReceiver<composebox::mojom::PageHandler> pending_handler,
       mojo::PendingRemote<composebox::mojom::Page> pending_page,

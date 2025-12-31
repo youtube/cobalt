@@ -240,6 +240,12 @@ LenOverlayEntryPointFromInvocationSource(
     case lens::LensOverlayInvocationSource::kContextMenu:
     case lens::LensOverlayInvocationSource::kAIHub:
     case lens::LensOverlayInvocationSource::kFREPromo:
+    // TODO(crbug.com/469929036): Potentially add a new client log enum for
+    // NTP / omnibox contextual query flows. For now, since this method is only
+    // used by the Lens overlay query controller, which is not used by those
+    // flows, it is not necessary.
+    case lens::LensOverlayInvocationSource::kNtpContextualQuery:
+    case lens::LensOverlayInvocationSource::kOmniboxContextualQuery:
       NOTREACHED() << "Invocation source not supported.";
   }
   return lens::LensOverlayClientLogs::UNKNOWN_ENTRY_POINT;
@@ -440,7 +446,9 @@ void LensOverlayQueryController::StartQueryFlow(
 
 void LensOverlayQueryController::EndQuery() {
   ResetPageContentData();
-  gen204_controller_->OnQueryFlowEnd();
+  if (gen204_id_ != 0) {
+    gen204_controller_->OnQueryFlowEnd();
+  }
   full_image_endpoint_fetcher_.reset();
   interaction_endpoint_fetcher_.reset();
   pending_interaction_callback_.Reset();

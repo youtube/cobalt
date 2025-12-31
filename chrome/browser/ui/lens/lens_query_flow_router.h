@@ -53,8 +53,21 @@ class LensQueryFlowRouter
   // available or permissions were not granted.
   void MaybeRestartQueryFlow();
 
+  // If the query flow is pending because permissions were not granted, resume
+  // it.
+  void MaybeResumeQueryFlow();
+
+  // Sends a task completion Gen204 ping for certain user actions.
+  void SendTaskCompletionGen204IfEnabled(lens::mojom::UserAction user_action);
+
+  // Sends a semantic event Gen204 ping.
+  void SendSemanticEventGen204IfEnabled(lens::mojom::SemanticEvent event);
+
   // Returns the suggest inputs for the current page.
   std::optional<lens::proto::LensOverlaySuggestInputs> GetSuggestInputs();
+
+  // Returns the current gen204 id.
+  uint64_t gen204_id() const { return gen204_id_; }
 
   // Sets the callback for when the suggest inputs are ready.
   void SetSuggestInputsReadyCallback(base::RepeatingClosure callback);
@@ -126,6 +139,10 @@ class LensQueryFlowRouter
     return lens_search_controller_->lens_overlay_query_controller();
   }
 
+  LensOverlayGen204Controller* gen204_controller() const {
+    return lens_search_controller_->gen204_controller();
+  }
+
   LensSearchContextualizationController*
   lens_search_contextualization_controller() const {
     return lens_search_controller_->lens_search_contextualization_controller();
@@ -159,9 +176,9 @@ class LensQueryFlowRouter
   // Opens the contextual tasks panel to a provided URL.
   void OpenContextualTasksPanel(GURL url);
 
-  // Uploads the viewport and page context using the provided session handle.
+  // Uploads the viewport and page context using the contextual search session
+  // handle for the query router.
   void UploadContextualInputData(
-      contextual_search::ContextualSearchSessionHandle* session_handle,
       std::unique_ptr<lens::ContextualInputData> contextual_input_data);
 
   // Called when the tab context has been added to the session handle, allowing
@@ -215,12 +232,19 @@ class LensQueryFlowRouter
   // The callback for when the suggest inputs are ready.
   base::RepeatingClosure suggest_inputs_ready_callback_;
 
+  // The current gen204 id for logging, set on each overlay invocation.
+  uint64_t gen204_id_ = 0;
+
   // An optional value representing the file token for the tab and full image
   // viewport uploaded when the overlay first opens.
   std::optional<base::UnguessableToken> overlay_tab_context_file_token_ =
       std::nullopt;
 
   raw_ptr<LensSearchController> lens_search_controller_;
+
+  // Closure of UploadContextualInputData to be called by
+  // MaybeResumeQueryFlow().
+  base::OnceClosure pending_upload_request_;
 
   base::WeakPtrFactory<LensQueryFlowRouter> weak_factory_{this};
 };

@@ -344,6 +344,12 @@ void AddSysColorMixer(ColorProvider* provider, const ColorProviderKey& key) {
   mixer[kColorSysIlloNeutralMax] = {dark_mode ? kColorRefNeutral100
                                               : kColorRefNeutral0};
 
+  // ActorUi
+  mixer[kColorSysActorUiBorder] = {ui::kColorRefPrimary50};
+  mixer[kColorSysActorUiGradientStart] = {ui::kColorRefPrimary70};
+  mixer[kColorSysActorUiGradientMiddle] = {ui::kColorRefPrimary40};
+  mixer[kColorSysActorUiGradientEnd] = {ui::kColorRefPrimary60};
+
   // AI.
   mixer[kColorSysAiIllustrationShapeSurface1] = {
       dark_mode ? ui::kColorRefPrimary40 : ui::kColorRefPrimary70};

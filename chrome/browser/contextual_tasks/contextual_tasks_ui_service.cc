@@ -395,13 +395,19 @@ bool ContextualTasksUiService::HandleNavigationImpl(
 
   bool is_nav_to_ai = IsAiUrl(url_params.url);
 
-  // Don't intercept URLs to AI if they're not for the primary account, unless
-  // the user isn't signed in.
-  if (is_nav_to_ai && (IsSignedInToWebOrBrowser(url_params.url) &&
-                       !IsUrlForPrimaryAccount(url_params.url))) {
+  // If the user is not signed in to Chrome, do not intercept.
+  if (!IsSignedInToBrowser(url_params.url)) {
     return false;
   }
 
+  // If the user is not signed in to the account that is using the URL, do not
+  // intercept.
+  if (is_nav_to_ai && !IsUrlForPrimaryAccount(url_params.url)) {
+    return false;
+  }
+
+  // At this point, the user is signed in to Chrome and signed into the account
+  // that is using the URL. From here on out, the navigation can be intercepted.
   bool is_nav_to_sign_in = IsSignInDomain(url_params.url);
 
   BrowserWindowInterface* browser =
@@ -501,7 +507,7 @@ bool ContextualTasksUiService::IsUrlForPrimaryAccount(const GURL& url) {
   return contextual_tasks::IsUrlForPrimaryAccount(identity_manager_, url);
 }
 
-bool ContextualTasksUiService::IsSignedInToWebOrBrowser(const GURL& url) {
+bool ContextualTasksUiService::IsSignedInToBrowser(const GURL& url) {
   if (!identity_manager_) {
     return false;
   }
@@ -696,17 +702,27 @@ void ContextualTasksUiService::StartTaskUiInSidePanel(
     content::WebContents* web_contents = coordinator->GetActiveWebContents();
     AssociateWebContentsToTask(web_contents, task.GetTaskId());
     if (session_handle) {
-      ContextualSearchWebContentsHelper::GetOrCreateForWebContents(web_contents)
-          ->set_session_handle(std::move(session_handle));
+      if (web_contents->GetWebUI()) {
+        ContextualTasksUI* webui_controller = webui_controller =
+            web_contents->GetWebUI()
+                ->GetController()
+                ->GetAs<ContextualTasksUI>();
+        webui_controller->set_session_handle(std::move(session_handle));
+      } else {
+        // If the WebUI is not yet created, set the session handle on the helper
+        // so it can be transferred when the WebUI is created.
+        ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
+            web_contents)
+            ->set_session_handle(std::move(session_handle));
+      }
     }
     return;
   }
 
   // If the side panel contents already exist, get the WebUI controller to
   // load the URL into the already loaded contextual tasks UI.
-  ContextualTasksUI* webui_controller = nullptr;
   if (panel_contents->GetWebUI()) {
-    webui_controller =
+    ContextualTasksUI* webui_controller = webui_controller =
         panel_contents->GetWebUI()->GetController()->GetAs<ContextualTasksUI>();
     content::OpenURLParams url_params(
         url, content::Referrer(), WindowOpenDisposition::CURRENT_TAB,

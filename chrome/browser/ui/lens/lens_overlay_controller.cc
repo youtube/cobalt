@@ -739,13 +739,12 @@ void LensOverlayController::RecordUkmAndTaskCompletionForLensOverlayInteraction(
   ukm::builders::Lens_Overlay_Overlay_UserAction(source_id)
       .SetUserAction(static_cast<int64_t>(user_action))
       .Record(ukm::UkmRecorder::Get());
-  GetLensOverlayQueryController()->SendTaskCompletionGen204IfEnabled(
-      user_action);
+  GetLensQueryFlowRouter()->SendTaskCompletionGen204IfEnabled(user_action);
 }
 
 void LensOverlayController::RecordLensOverlaySemanticEvent(
     lens::mojom::SemanticEvent event) {
-  GetLensOverlayQueryController()->SendSemanticEventGen204IfEnabled(event);
+  GetLensQueryFlowRouter()->SendSemanticEventGen204IfEnabled(event);
 }
 
 void LensOverlayController::SaveAsImage(
@@ -3024,6 +3023,7 @@ void LensOverlayController::MaybeGrantLensOverlayPermissionsForSession() {
   if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
       !lens::DidUserGrantLensOverlayNeededPermissions(pref_service_)) {
     GetLensOverlayQueryController()->GrantPermissionForSession();
+    GetLensQueryFlowRouter()->MaybeResumeQueryFlow();
     user_interacted_without_accepting_privacy_notice = true;
     lens::RecordNonBlockingPrivacyNoticeAccepted(
         lens::LensOverlayNonBlockingPrivacyNoticeUserAction::kLensInteraction,
@@ -3038,6 +3038,7 @@ void LensOverlayController::AcceptPrivacyNotice() {
   lens::RecordNonBlockingPrivacyNoticeAccepted(
       lens::LensOverlayNonBlockingPrivacyNoticeUserAction::kAccepted,
       invocation_source_);
+  GetLensQueryFlowRouter()->MaybeResumeQueryFlow();
   GetLensQueryFlowRouter()->MaybeRestartQueryFlow();
   GetContextualizationController()->TryUpdatePageContextualization(
       base::BindOnce(&LensOverlayController::NotifyPageContentUpdated,

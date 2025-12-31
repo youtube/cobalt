@@ -400,7 +400,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling devtools-frontend
   # and whatever else without interference from each other.
-  'devtools_frontend_revision': 'acd000d9130cdf8b6e02329ab632500665703596',
+  'devtools_frontend_revision': 'd5efa4236f8676254c9f39ccfef18bd633de5fd3',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling libprotobuf-mutator
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'yWLOyIFkSlagfdFn7B22oYN_ZndyMbbfKgvzz8DfO3gC',
+              'version': 'k3cyJ1zuOwf__VYQoXur_OwUnrg9dyed4siQ9XHuM6MC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': 'mRDESNrsfHbKXN4VWE7R0dxRgepyjglhDDMTM2CFbRcC',
+              'version': 'ew8GXw25z4bF0Jx4Z9L12LyE3kvoXZxUxqpoNsgBf9QC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'bFb9whFcvLUm5Am3PV9X-gWFzc_d-5OesBsNDrfxlqgC',
+              'version': 'xPMmlmpM70uv9NadlVeCITxBzI4k3JfQPH9_dWhq2OAC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -3549,6 +3549,12 @@ deps = {
   'src/chrome/browser/resources/downloads/internal': {
       'url': Var('chrome_git') + '/chrome/browser/resources/downloads_internal.git' + '@' +
         '4fefb8a24ae6c421f640b9ef028e4b4ca75df729',
+      'condition': 'checkout_src_internal',
+  },
+
+  'src/chrome/browser/resources/history/internal': {
+      'url': Var('chrome_git') + '/chrome/browser/resources/history/internal.git' + '@' +
+        '5b789f9b11c2415368d107cd8fa9c5ed86b35a50',
       'condition': 'checkout_src_internal',
   },
 

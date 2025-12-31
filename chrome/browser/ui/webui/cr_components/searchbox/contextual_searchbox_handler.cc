@@ -18,8 +18,10 @@
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
+#include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
+#include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
@@ -39,6 +41,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "ui/base/webui/web_ui_util.h"
 #include "ui/base/window_open_disposition.h"
@@ -119,8 +122,12 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
     tab_data->show_in_current_tab_chip =
         tab_strip_model->GetActiveWebContents()->GetLastCommittedURL() ==
         last_committed_url;
+
+    lens::TabContextualizationController* tab_context_controller =
+        tab->GetTabFeatures()->tab_contextualization_controller();
     tab_data->show_in_previous_tab_chip =
-        !google_util::IsGoogleSearchUrl(last_committed_url);
+        !google_util::IsGoogleSearchUrl(last_committed_url) &&
+        tab_context_controller->GetInitialPageContextEligibility();
     tab_data->last_active =
         std::max(web_contents->GetLastActiveTimeTicks(),
                  web_contents->GetLastInteractionTimeTicks());
@@ -637,6 +644,7 @@ void ContextualSearchboxHandler::ComputeAndOpenQueryUrl(
     search_url_request_info->query_text = query_text;
     search_url_request_info->additional_params = additional_params;
     search_url_request_info->aim_entry_point = aim_entry_point;
+    search_url_request_info->invocation_source = GetInvocationSource();
 
     contextual_session_handle->CreateSearchUrl(
         std::move(search_url_request_info),
@@ -735,6 +743,11 @@ void ContextualSearchboxHandler::OpenUrl(
       new_contextual_session_handle = contextual_session_service->GetSession(
           contextual_session_handle->session_id());
 
+  // TODO(crbug.com/470404040): Determine what to do with the return
+  // value of this call, or move this call to a different location.
+  new_contextual_session_handle->CheckSearchContentSharingSettings(
+      profile_->GetPrefs());
+
   auto navigation_handle_callback = base::BindOnce(
       [](std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
              handle,
@@ -756,9 +769,47 @@ void ContextualSearchboxHandler::OpenUrl(
         webui::GetBrowserWindowInterface(web_contents_);
     content::OpenURLParams params(url, content::Referrer(), disposition,
                                   ui::PAGE_TRANSITION_LINK, false);
-    browser_window_interface->GetTabStripModel()
-        ->GetActiveWebContents()
-        ->OpenURL(params, std::move(navigation_handle_callback));
+    // If the current tab is part of the context list, navigate in the lens side
+    // panel if co-browsing is disabled.
+    auto* active_web_contents =
+        browser_window_interface->GetTabStripModel()->GetActiveWebContents();
+    auto* eligibility_manager =
+        contextual_tasks::EntryPointEligibilityManager::From(
+            browser_window_interface);
+    if ((!eligibility_manager ||
+         !eligibility_manager->AreEntryPointsEligible()) &&
+        contextual_session_handle->IsTabInContext(
+            sessions::SessionTabHelper::IdForTab(active_web_contents))) {
+      // Open in AIM in lens side panel.
+      if (auto* lens_search_controller =
+              LensSearchController::FromWebUIWebContents(active_web_contents)) {
+        // There technically might not be a match associated with this query
+        // since a user can submit a query with just a file.
+        std::string query_text;
+        net::GetValueForKeyInQuery(url, "q", &query_text);
+        lens_search_controller->IssueContextualSearchRequest(
+            lens::LensOverlayInvocationSource::kOmniboxContextualSuggestion,
+            url,
+            query_text.empty()
+                ? AutocompleteMatchType::Type::SEARCH_SUGGEST
+                : AutocompleteMatchType::Type::SEARCH_WHAT_YOU_TYPED,
+            /*is_zero_prefix_suggestion=*/query_text.empty());
+        // TODO(crbug.com/469458346): Fix bug where omnibox remains open after
+        // navigation.
+        return;
+      }
+    }
+
+    auto* target_web_contents = active_web_contents->OpenURL(
+        params, std::move(navigation_handle_callback));
+
+    // Manually set the focus to the newly navigated content. Without this,
+    // the focus is re-captured by the Omnibox after query submission (see:
+    // http://crbug.com/469458346).
+    if (target_web_contents &&
+        disposition != WindowOpenDisposition::NEW_BACKGROUND_TAB) {
+      target_web_contents->Focus();
+    }
   } else {
     content::OpenURLParams params(url, content::Referrer(), disposition,
                                   ui::PAGE_TRANSITION_LINK, false);

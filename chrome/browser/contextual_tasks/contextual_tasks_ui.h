@@ -90,6 +90,9 @@ class ContextualTasksUI : public TaskInfoDelegate,
     raw_ptr<contextual_tasks::ContextualTasksContextController>
         context_controller_;
     raw_ref<TaskInfoDelegate> task_info_delegate_;
+
+    // Last committed URL used to check if URL changes.
+    GURL last_committed_url_;
   };
 
   explicit ContextualTasksUI(content::WebUI* web_ui);
@@ -189,6 +192,12 @@ class ContextualTasksUI : public TaskInfoDelegate,
   // lens.ClientToAimMessage protobuf) and using the <webview> postMessage API
   // to send it to the guest content.
   virtual void PostMessageToWebview(const lens::ClientToAimMessage& message);
+
+  void set_session_handle(
+      std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
+          session_handle) {
+    session_handle_ = std::move(session_handle);
+  }
 
   mojo::Remote<contextual_tasks::mojom::Page>& page() { return page_; }
 

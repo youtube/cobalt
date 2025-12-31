@@ -61,6 +61,36 @@ suite('Scrim', function() {
     assertFalse(page.classList.contains('background-visible'));
   });
 
+  test('SetTheme', async function() {
+    const mockTheme = {
+      borderColor: {value: 0xFFFF0000},
+      borderGlowColor: {value: 0xFF0000FF},
+      scrimColors: [
+        {value: 0xFF00FF00},
+        {value: 0xFFFFFF00},
+        {value: 0xFF00FFFF},
+      ],
+    };
+    testRemote.setTheme(mockTheme);
+    await microtasksFinished();
+
+    assertEquals(
+        'rgba(255, 0, 0, 1.00)',
+        page.style.getPropertyValue('--actor-border-color'));
+    assertEquals(
+        'rgba(0, 0, 255, 1.00)',
+        page.style.getPropertyValue('--actor-border-glow-color'));
+    assertEquals(
+        'rgba(0, 255, 0, 1.00)',
+        page.style.getPropertyValue('--actor-scrim-background-val1'));
+    assertEquals(
+        'rgba(255, 255, 0, 1.00)',
+        page.style.getPropertyValue('--actor-scrim-background-val2'));
+    assertEquals(
+        'rgba(0, 255, 255, 1.00)',
+        page.style.getPropertyValue('--actor-scrim-background-val3'));
+  });
+
   test('MagicCursorDisabled', function() {
     const magicCursor =
         page.shadowRoot.querySelector<HTMLElement>('#magicCursor');

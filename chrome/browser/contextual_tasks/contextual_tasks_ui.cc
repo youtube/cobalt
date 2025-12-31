@@ -532,22 +532,16 @@ void ContextualTasksUI::CreatePageHandler(
 contextual_search::ContextualSearchSessionHandle*
 ContextualTasksUI::GetOrCreateContextualSessionHandle() {
   if (!session_handle_) {
-    // Take ownership of a session handle if one was already provided. The
-    // session handle may have been set in the WebContents helper by Lens after
-    // `this` is initialized. Otherwise, create a new session.
-    session_handle_ = TryTakeSessionHandleFromWebContents(web_ui());
-    if (!session_handle_) {
-      auto* service = ContextualSearchServiceFactory::GetForProfile(
-          Profile::FromWebUI(web_ui()));
-      if (service) {
-        session_handle_ = service->CreateSession(
-            ntp_composebox::CreateQueryControllerConfigParams(),
-            contextual_search::ContextualSearchSource::kContextualTasks);
-        // TODO(crbug.com/469875164): Determine what to do with the return value
-        // of this call, or move this call to a different location.
-        session_handle_->CheckSearchContentSharingSettings(
-            Profile::FromWebUI(web_ui())->GetPrefs());
-      }
+    auto* service = ContextualSearchServiceFactory::GetForProfile(
+        Profile::FromWebUI(web_ui()));
+    if (service) {
+      session_handle_ = service->CreateSession(
+          ntp_composebox::CreateQueryControllerConfigParams(),
+          contextual_search::ContextualSearchSource::kContextualTasks);
+      // TODO(crbug.com/469875164): Determine what to do with the return value
+      // of this call, or move this call to a different location.
+      session_handle_->CheckSearchContentSharingSettings(
+          Profile::FromWebUI(web_ui())->GetPrefs());
     }
   }
   return session_handle_.get();
@@ -752,8 +746,30 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   bool is_ai_page = ui_service_->IsAiUrl(url);
   task_info_delegate_->SetIsAiPage(is_ai_page);
 
-  // The below logic is only relevant for the AI page.
-  if (!is_ai_page) {
+  bool is_url_changed = false;
+  if (url != last_committed_url_) {
+    last_committed_url_ = url;
+    is_url_changed = true;
+  }
+
+  // If this navigation is inside the same document, do nothing.
+  if (navigation_handle->IsSameDocument()) {
+    return;
+  }
+
+  if (!is_url_changed) {
+    return;
+  }
+
+  if (url == ui_service_->GetDefaultAiPageUrl()) {
+    ui_service_->OnTaskChanged(task_info_delegate_->GetBrowser(),
+                               task_info_delegate_->GetWebUIWebContents(),
+                               base::Uuid(),
+                               task_info_delegate_->IsShownInTab());
+    return;
+  }
+
+  if (!ui_service_->IsAiUrl(url)) {
     return;
   }
 

@@ -48,7 +48,7 @@ export enum VoiceSearchAction {
   QUERY_SUBMITTED = 1,
 }
 
-const DEBOUNCE_TIMEOUT: number = 20;
+const DEBOUNCE_TIMEOUT_MS: number = 20;
 
 function debounce(context: Object, func: () => void, delay: number) {
   let timeout: number;
@@ -148,7 +148,6 @@ export class ComposeboxElement extends I18nMixinLit
         reflect: true,
         type: Boolean,
       },
-      showContextMenuDescription_: {type: Boolean},
       lensButtonDisabled_: {
         reflect: true,
         type: Boolean,
@@ -234,7 +233,6 @@ export class ComposeboxElement extends I18nMixinLit
   protected accessor showFileCarousel_: boolean = false;
   protected accessor inCreateImageMode_: boolean = false;
   protected accessor inDeepSearchMode_: boolean = false;
-  protected accessor showContextMenuDescription_: boolean = true;
   protected accessor lensButtonDisabled_: boolean = false;
   protected accessor errorScrimVisible_: boolean = false;
   protected accessor contextFilesSize_: number = 0;
@@ -346,7 +344,7 @@ export class ComposeboxElement extends I18nMixinLit
   private setupResizeObservers_() {
     const composeboxResizeObserver = new ResizeObserver(debounce(this, () => {
       this.fire('composebox-resize', {height: this.offsetHeight});
-    }, DEBOUNCE_TIMEOUT));
+    }, DEBOUNCE_TIMEOUT_MS));
     this.resizeObservers_.push(composeboxResizeObserver);
     composeboxResizeObserver.observe(this);
 
@@ -355,7 +353,7 @@ export class ComposeboxElement extends I18nMixinLit
           this.fire(
               'composebox-resize',
               {dropdownHeight: this.$.matches.offsetHeight});
-        }, DEBOUNCE_TIMEOUT));
+        }, DEBOUNCE_TIMEOUT_MS));
     this.resizeObservers_.push(composeboxDropdownResizeObserver);
     composeboxDropdownResizeObserver.observe(this.$.matches);
   }
