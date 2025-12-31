@@ -816,12 +816,16 @@ void SbPlayerBridge::CreatePlayer() {
     LOG(INFO) << "Playing in punch-out mode.";
   }
 
+  LOG(INFO) << "Set output with decode target provider";
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
+  LOG(INFO) << "Set bounds helper";
   set_bounds_helper_->SetPlayerBridge(this);
 
   base::AutoLock auto_lock(lock_);
+  LOG(INFO) << "Calling update bounds";
   UpdateBounds_Locked();
+  LOG(INFO) << "Ending update bounds";
 }
 
 void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
@@ -1031,14 +1035,18 @@ void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
 void SbPlayerBridge::UpdateBounds_Locked() {
   lock_.AssertAcquired();
   DCHECK(SbPlayerIsValid(player_));
+  LOG(INFO) << "Called update bounds";
 
   if (!set_bounds_z_index_ || !set_bounds_rect_) {
+    LOG(INFO) << "returning early";
     return;
   }
 
   auto& rect = *set_bounds_rect_;
+  LOG(INFO) << "Calling interface setbounds";
   sbplayer_interface_->SetBounds(player_, *set_bounds_z_index_, rect.x(),
                                  rect.y(), rect.width(), rect.height());
+  LOG(INFO) << "Ending interface setbounds";
 }
 
 void SbPlayerBridge::ClearDecoderBufferCache() {
@@ -1108,8 +1116,9 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   TRACE_EVENT1("cobalt::media", "SbPlayerBridge::OnPlayerStatus", "state",
                state);
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
+  LOG(INFO) << "Called OnPlayerStatus";
   if (player_ != player) {
+    LOG(INFO) << "Returning early due to player mismatch";
     return;
   }
 
@@ -1121,13 +1130,17 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
 
   if (state == kSbPlayerStateInitialized) {
     if (ticket_ == SB_PLAYER_INITIAL_TICKET) {
+      LOG(INFO) << "Initial ticket";
       ++ticket_;
     }
     if (sb_player_state_initialized_time_.is_null()) {
       sb_player_state_initialized_time_ = Time::Now();
     }
+    LOG(INFO) << "Calling interface seek";
     sbplayer_interface_->Seek(player_, preroll_timestamp_, ticket_);
+    LOG(INFO) << "Setting volume";
     SetVolume(volume_);
+    LOG(INFO) << "Setting Playback rate";
     sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
     return;
   }

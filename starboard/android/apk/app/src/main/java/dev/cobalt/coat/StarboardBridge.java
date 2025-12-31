@@ -39,6 +39,7 @@ import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.ExoPlayerBridge;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -73,6 +74,7 @@ public class StarboardBridge {
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
   private CrashContextUpdateHandler crashContextUpdateHandler;
+  private ExoPlayerBridge exoPlayerBridge;
 
   static {
     // Even though NativeActivity already loads our library from C++,
@@ -139,6 +141,7 @@ public class StarboardBridge {
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
+    this.exoPlayerBridge = new ExoPlayerBridge(appContext);
   }
 
   private native boolean nativeInitialize();
@@ -639,6 +642,12 @@ public class StarboardBridge {
   @UsedByNative
   AudioOutputManager getAudioOutputManager() {
     return audioOutputManager;
+  }
+
+    @SuppressWarnings("unused")
+  @UsedByNative
+  ExoPlayerBridge getExoPlayerBridge() {
+    return exoPlayerBridge;
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */

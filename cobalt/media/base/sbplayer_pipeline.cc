@@ -873,11 +873,13 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         this, set_bounds_helper_.get(), allow_resume_after_suspend_,
         default_output_mode_, decode_target_provider_, max_video_capabilities_,
         max_video_input_size_, pipeline_identifier_));
+    LOG(INFO) << "Done creating SbPlayerBridge";
     if (player_bridge_->IsValid()) {
 #if SB_API_VERSION >= 15
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
       // returns no audio configurations, update the write durations again
       // before the SbPlayer reaches `kSbPlayerStatePresenting`.
+      LOG(INFO) << "Requesting audio configurations";
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
@@ -885,7 +887,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
       LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
                 << audio_write_duration_for_preroll_;
 #endif  // SB_API_VERSION >= 15
-
+      LOG(INFO) << "About to set playback rate";
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
     } else {

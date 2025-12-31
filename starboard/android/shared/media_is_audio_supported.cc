@@ -29,6 +29,8 @@ using starboard::shared::starboard::media::MimeType;
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const MimeType* mime_type,
                              int64_t bitrate) {
+  if (audio_codec != kSbMediaAudioCodecOpus)
+    return false;
   if (bitrate >= kSbMediaMaxAudioBitrateInBitsPerSecond) {
     return false;
   }
