@@ -25,6 +25,7 @@
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/time.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android/android_overlay.h"
@@ -583,6 +584,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   player_bridge_.reset();
 
   LOG(INFO) << "Creating SbPlayerBridge.";
+  int64_t baseline_us = starboard::CurrentMonotonicTime();
 
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
@@ -597,7 +599,7 @@ void StarboardRenderer::CreatePlayerBridge() {
       // TODO(b/326825450): Revisit 360 videos.
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1));
+      -1, baseline_us));
   if (player_bridge_->IsValid()) {
     // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
     // returns no audio configurations, update the write durations again

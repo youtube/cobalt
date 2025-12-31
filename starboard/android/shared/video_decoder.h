@@ -71,7 +71,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          bool enable_flush_during_seek,
                          int64_t reset_delay_usec,
                          int64_t flush_delay_usec,
-                         std::string* error_message);
+                         std::string* error_message,
+                         int64_t baseline_us);
   ~MediaCodecVideoDecoder() override;
 
   scoped_refptr<VideoRendererSink> GetSink();
@@ -155,6 +156,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
   const int64_t flush_delay_usec_;
+  const int64_t baseline_us_;
 
   // Force resetting the video surface after every playback.
   const bool force_reset_surface_;

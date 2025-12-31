@@ -75,7 +75,8 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       output_mode_(creation_param->output_mode),
       max_video_input_size_(0),
       decode_target_graphics_context_provider_(provider),
-      video_stream_info_(creation_param->video_stream_info) {
+      video_stream_info_(creation_param->video_stream_info),
+      baseline_us_(creation_param->baseline_us) {
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 
@@ -125,7 +126,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
       max_video_input_size_, decode_target_graphics_context_provider_,
-      drm_system_);
+      drm_system_, baseline_us_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);

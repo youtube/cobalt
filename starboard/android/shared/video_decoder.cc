@@ -36,6 +36,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/size.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
@@ -310,6 +311,8 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
 
 class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
  public:
+  explicit Sink(int64_t baseline_us) : baseline_us_(baseline_us) {}
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -333,6 +336,32 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
                             int64_t release_time_in_nanoseconds) {
     TRACE_EVENT0("media", "MediaCodecVideoDecoder::Sink::Draw");
 
+    if (!first_frame_logged_) {
+      int64_t elapsed_us = CurrentMonotonicTime() - baseline_us_;
+      SB_LOG(INFO) << "elapsed(us) to first frame="
+                   << FormatWithDigitSeparators(elapsed_us);
+      first_frame_logged_ = true;
+    }
+    log_count_++;
+
+    if (!first_pts_ms_) {
+      first_pts_ms_ = frame->timestamp() / 1'000;
+    }
+
+    if (log_count_ < 10) {
+      int64_t release_ms = release_time_in_nanoseconds / 1'000'000;
+      int64_t now_ms = CurrentMonotonicTime() / 1'000;
+      int64_t pts_ms = frame->timestamp() / 1'000;
+      int64_t relative_pts_ms = pts_ms - *first_pts_ms_;
+
+      SB_LOG(INFO) << "now_ms=" << FormatWithDigitSeparators(now_ms)
+                   << ", release_ms=" << FormatWithDigitSeparators(release_ms)
+                   << ", gap(ms)=" << (release_ms - now_ms)
+                   << ", pts(ms)=" << FormatWithDigitSeparators(pts_ms)
+                   << ", relative pts(ms)="
+                   << FormatWithDigitSeparators(relative_pts_ms);
+    }
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
@@ -340,8 +369,13 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
     return kReleased;
   }
 
+  const int64_t baseline_us_;
   RenderCB render_cb_;
   bool rendered_;
+
+  bool first_frame_logged_ = false;
+  std::optional<int64_t> first_pts_ms_;
+  int log_count_ = 0;
 };
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
@@ -360,7 +394,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     bool enable_flush_during_seek,
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
-    std::string* error_message)
+    std::string* error_message,
+    int64_t baseline_us)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
@@ -376,6 +411,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                                                             : 0),
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
                                                             : 0),
+      baseline_us_(baseline_us),
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
@@ -435,7 +471,7 @@ MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
   if (sink_ == nullptr) {
-    sink_ = make_scoped_refptr<Sink>();
+    sink_ = make_scoped_refptr<Sink>(baseline_us_);
   }
   return sink_;
 }

@@ -149,7 +149,8 @@ SbPlayerBridge::SbPlayerBridge(
     DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
     const std::string& max_video_capabilities,
-    int max_video_input_size
+    int max_video_input_size,
+    int64_t baseline_us
 #if COBALT_MEDIA_ENABLE_CVAL
     ,
     std::string pipeline_identifier
@@ -174,6 +175,7 @@ SbPlayerBridge::SbPlayerBridge(
       // TODO: b/326654546 - Reorder this variable once enabled.
       max_video_input_size_(max_video_input_size),
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+      baseline_us_(baseline_us),
 #if COBALT_MEDIA_ENABLE_CVAL
       cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
@@ -693,6 +695,7 @@ void SbPlayerBridge::CreatePlayer() {
   creation_param.drm_system = drm_system_;
   creation_param.audio_stream_info = audio_stream_info_;
   creation_param.video_stream_info = video_stream_info_;
+  creation_param.baseline_us = baseline_us_;
 
   // TODO: This is temporary for supporting background media playback.
   //       Need to be removed with media refactor.
@@ -1060,9 +1063,10 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
                                     SbPlayerState state,
                                     int ticket) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  TRACE_EVENT1("media", "SbPlayerBridge::OnPlayerStatus", "state", state);
+  TRACE_EVENT1("media", "SbPlayerBridge::OnPlayerStatus", "state",
+               TRACE_STR_COPY(starboard::GetPlayerStateName(state)));
   LOG(INFO) << "media" << ":" << "SbPlayerBridge::OnPlayerStatus" << ":"
-            << "state=" << state;
+            << "state=" << starboard::GetPlayerStateName(state);
 
   if (player_ != player) {
     return;
