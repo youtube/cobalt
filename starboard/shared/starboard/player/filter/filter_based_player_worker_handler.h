@@ -112,6 +112,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const VideoStreamInfo video_stream_info_;
+  const int64_t baseline_us_;
 };
 
 }  // namespace starboard

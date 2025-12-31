@@ -106,8 +106,7 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
       flush_delay_usec_(0) {
   SB_CHECK(host_);
 
-  TRACE_EVENT("media", "MediaCodecDecoder::MediaCodecDecoder", "drm_system",
-              (uint64_t)drm_system_);
+  TRACE_EVENT("media", "Creating audio MediaCodecDecoder");
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
@@ -158,8 +157,7 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
-  TRACE_EVENT("media", "MediaCodecDecoder::MediaCodecDecoder", "drm_system",
-              (uint64_t)drm_system_);
+  TRACE_EVENT("media", "Creating video MediaCodecDecoder");
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =
