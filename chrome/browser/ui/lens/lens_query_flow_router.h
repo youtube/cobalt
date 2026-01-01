@@ -118,6 +118,11 @@ class LensQueryFlowRouter
       contextual_search::FileUploadStatus file_upload_status,
       const std::optional<contextual_search::FileUploadErrorType>& error_type);
 
+  // Handles the interaction response from the server.
+  void HandleInteractionResponse(
+      std::optional<lens::ImageCrop> image_crop,
+      lens::LensOverlayInteractionResponse interaction_response);
+
  protected:
   // Creates a contextual search session handle. Virtual for testing.
   virtual std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
@@ -137,6 +142,10 @@ class LensQueryFlowRouter
 
   LensOverlayQueryController* lens_overlay_query_controller() const {
     return lens_search_controller_->lens_overlay_query_controller();
+  }
+
+  bool ShouldRouteToContextualTasks() const {
+    return lens_search_controller_->should_route_to_contextual_tasks();
   }
 
   LensOverlayGen204Controller* gen204_controller() const {

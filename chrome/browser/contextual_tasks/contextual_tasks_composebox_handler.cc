@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 
+#include <set>
+
 #include "base/barrier_closure.h"
 #include "base/base64.h"
 #include "base/containers/span.h"
@@ -12,8 +14,7 @@
 #include "base/task/thread_pool.h"
 #include "base/unguessable_token.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_context_controller_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -27,6 +28,7 @@
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "components/contextual_tasks/public/context_decoration_params.h"
 #include "components/contextual_tasks/public/contextual_task_context.h"
+#include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/contextual_tasks/public/utils.h"
 #include "components/lens/contextual_input.h"
@@ -153,9 +155,9 @@ ContextualTasksComposeboxHandler::ContextualTasksComposeboxHandler(
                                                              this)),
           std::move(get_session_callback)),
       web_ui_controller_(ui_controller),
-      context_controller_(
-          contextual_tasks::ContextualTasksContextControllerFactory::
-              GetForProfile(profile)) {
+      contextual_tasks_service_(
+          contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
+              profile)) {
   // Set the callback for getting suggest inputs from the session.
   // The session is owned by WebUI controller and accessed via callback.
   // It is safe to use Unretained because omnibox client is owned by `this`.
@@ -166,6 +168,36 @@ ContextualTasksComposeboxHandler::ContextualTasksComposeboxHandler(
 }
 
 ContextualTasksComposeboxHandler::~ContextualTasksComposeboxHandler() = default;
+
+void ContextualTasksComposeboxHandler::OnFileUploadStatusChanged(
+    const base::UnguessableToken& file_token,
+    lens::MimeType mime_type,
+    contextual_search::FileUploadStatus file_upload_status,
+    const std::optional<contextual_search::FileUploadErrorType>& error_type) {
+  ContextualSearchboxHandler::OnFileUploadStatusChanged(
+      file_token, mime_type, file_upload_status, error_type);
+
+  // Associate tab with task.
+  if (file_upload_status ==
+      contextual_search::FileUploadStatus::kUploadSuccessful) {
+    auto* contextual_session_handle = GetContextualSessionHandle();
+    if (!contextual_session_handle) {
+      return;
+    }
+
+    const contextual_search::FileInfo* file_info =
+        contextual_session_handle->GetController()->GetFileInfo(file_token);
+    if (!file_info || !file_info->tab_session_id.has_value()) {
+      return;
+    }
+
+    auto task_id = web_ui_controller_->GetTaskId();
+    if (task_id.has_value() && contextual_tasks_service_) {
+      contextual_tasks_service_->AssociateTabWithTask(
+          task_id.value(), file_info->tab_session_id.value());
+    }
+  }
+}
 
 void ContextualTasksComposeboxHandler::SubmitQuery(
     const std::string& query_text,
@@ -180,8 +212,8 @@ void ContextualTasksComposeboxHandler::SubmitQuery(
 void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
     const std::string& query) {
   std::optional<base::Uuid> task_id = web_ui_controller_->GetTaskId();
-  auto* context_controller = GetContextController();
-  if (!task_id.has_value() || !context_controller) {
+  auto* contextual_tasks_service = GetContextualTasksService();
+  if (!task_id.has_value() || !contextual_tasks_service) {
     ContinueCreateAndSendQueryMessage(query);
     return;
   }
@@ -211,7 +243,7 @@ void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
   }
   // TODO(crbug.com/468453630): The context needs to actually be populated
   // with tab data from the server-managed context list.
-  context_controller->GetContextForTask(
+  contextual_tasks_service->GetContextForTask(
       *task_id,
       {contextual_tasks::ContextualTaskContextSource::kPendingContextDecorator},
       std::move(context_decoration_params),
@@ -219,9 +251,9 @@ void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
                      weak_factory_.GetWeakPtr(), query, active_tab_handle));
 }
 
-contextual_tasks::ContextualTasksContextController*
-ContextualTasksComposeboxHandler::GetContextController() {
-  return context_controller_;
+contextual_tasks::ContextualTasksService*
+ContextualTasksComposeboxHandler::GetContextualTasksService() {
+  return contextual_tasks_service_;
 }
 
 void ContextualTasksComposeboxHandler::OnContextRetrieved(
@@ -320,21 +352,31 @@ std::vector<tabs::TabInterface*>
 ContextualTasksComposeboxHandler::GetTabsToUpdate(
     const contextual_tasks::ContextualTaskContext& context,
     tabs::TabInterface* active_tab) {
-  std::vector<tabs::TabInterface*> tabs_to_update;
+  std::set<tabs::TabInterface*> tabs_to_update;
   // TODO(crbug.com/469807132): Add suggested tabs to the list of tabs to
   // update.
+
+  // Add delayed tabs to the list of tabs to update.
+  for (const auto& [token, tab_id] : delayed_tabs_) {
+    tabs::TabHandle handle = tabs::TabHandle(tab_id);
+    if (tabs::TabInterface* tab = handle.Get()) {
+      tabs_to_update.insert(tab);
+    }
+  }
 
   // TODO(crbug.com/468430623): Support updating multiple tabs.
   // Currently this only checks the active tab.
   if (!active_tab) {
-    return tabs_to_update;
+    return std::vector<tabs::TabInterface*>(tabs_to_update.begin(),
+                                            tabs_to_update.end());
   }
 
   // Check if the active tab is in the context.
   SessionID active_tab_session_id =
       sessions::SessionTabHelper::IdForTab(active_tab->GetContents());
   if (!active_tab_session_id.is_valid()) {
-    return tabs_to_update;
+    return std::vector<tabs::TabInterface*>(tabs_to_update.begin(),
+                                            tabs_to_update.end());
   }
 
   std::unique_ptr<url_deduplication::URLDeduplicationHelper>
@@ -347,12 +389,13 @@ ContextualTasksComposeboxHandler::GetTabsToUpdate(
 
   for (const auto* attachment : matching_attachments) {
     if (attachment->GetTabSessionId() == active_tab_session_id) {
-      tabs_to_update.push_back(active_tab);
+      tabs_to_update.insert(active_tab);
       break;
     }
   }
 
-  return tabs_to_update;
+  return std::vector<tabs::TabInterface*>(tabs_to_update.begin(),
+                                          tabs_to_update.end());
 }
 
 std::optional<int64_t> ContextualTasksComposeboxHandler::GetContextIdForTab(
@@ -363,7 +406,7 @@ std::optional<int64_t> ContextualTasksComposeboxHandler::GetContextIdForTab(
   }
   SessionID tab_session_id = page_content_data.tab_session_id.value();
 
-  auto* controller = GetContextController();
+  auto* controller = GetContextualTasksService();
   if (!controller) {
     return std::nullopt;
   }
@@ -528,11 +571,77 @@ void ContextualTasksComposeboxHandler::FileSelectionCanceled() {
   file_dialog_.reset();
 }
 
+void ContextualTasksComposeboxHandler::AddTabContext(
+    int32_t tab_id,
+    bool delay_upload,
+    AddTabContextCallback callback) {
+  // The delay_upload flag is used to indicate that the tab was auto-added
+  // via the composebox. In the contextual-tasks case, added tabs should be
+  // contextualized as late as possible so that the viewport and APC are
+  // as recent as possible, put the tab in delayed_tabs_ instead of using the
+  // superclass method that contextualizes immediately and caches the tab
+  // context for uploading in UploadSnapshotTabContextIfPresent.
+  if (delay_upload) {
+    base::UnguessableToken token = base::UnguessableToken::Create();
+    delayed_tabs_[token] = tab_id;
+    std::move(callback).Run(token);
+    return;
+  }
+
+  ContextualSearchboxHandler::AddTabContext(tab_id, delay_upload,
+                                            std::move(callback));
+}
+
 void ContextualTasksComposeboxHandler::DeleteContext(
     const base::UnguessableToken& file_token,
     bool from_automatic_chip) {
-  ComposeboxHandler::DeleteContext(file_token, from_automatic_chip);
+  // Get file info before deletion.
+  std::optional<SessionID> associated_tab_id;
+  auto* contextual_session_handle = GetContextualSessionHandle();
+  if (contextual_session_handle) {
+    const contextual_search::FileInfo* file_info =
+        contextual_session_handle->GetController()->GetFileInfo(file_token);
+    if (file_info && file_info->tab_session_id.has_value()) {
+      associated_tab_id = file_info->tab_session_id.value();
+    }
+  }
+
+  if (!delayed_tabs_.erase(file_token)) {
+    ComposeboxHandler::DeleteContext(file_token, from_automatic_chip);
+
+    // Disassociate the tab from the task.
+    if (contextual_tasks_service_ && associated_tab_id.has_value()) {
+      auto task_id = web_ui_controller_->GetTaskId();
+      if (task_id.has_value()) {
+        contextual_tasks_service_->DisassociateTabFromTask(
+            task_id.value(), associated_tab_id.value());
+      }
+    }
+  }
+
   if (from_automatic_chip) {
     web_ui_controller_->DisableActiveTabContextSuggestion();
   }
+}
+
+void ContextualTasksComposeboxHandler::ClearFiles() {
+  // Disassociate all tabs from task.
+  if (contextual_tasks_service_) {
+    auto task_id = web_ui_controller_->GetTaskId();
+    if (task_id.has_value()) {
+      auto* contextual_session_handle = GetContextualSessionHandle();
+      if (contextual_session_handle) {
+        auto file_info_list =
+            contextual_session_handle->GetController()->GetFileInfoList();
+
+        for (const auto* file_info : file_info_list) {
+          if (file_info->tab_session_id.has_value()) {
+            contextual_tasks_service_->DisassociateTabFromTask(
+                task_id.value(), file_info->tab_session_id.value());
+          }
+        }
+      }
+    }
+  }
+  ComposeboxHandler::ClearFiles();
 }

@@ -9,6 +9,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
+#include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/lens/core/mojom/geometry.mojom.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
@@ -38,6 +39,7 @@
 #include "chrome/browser/ui/webui/util/image_util.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/branded_strings.h"
+#include "components/contextual_tasks/public/features.h"
 #include "components/desktop_to_mobile_promos/features.h"
 #include "components/lens/lens_features.h"
 #include "components/lens/lens_overlay_permission_utils.h"
@@ -510,6 +512,9 @@ bool LensSearchController::IsHandshakeComplete() {
   return suggest_inputs.has_value() &&
          AreLensSuggestInputsReady(*suggest_inputs);
 }
+bool LensSearchController::should_route_to_contextual_tasks() const {
+  return should_route_to_contextual_tasks_;
+}
 
 tabs::TabInterface* LensSearchController::GetTabInterface() {
   return tab_;
@@ -699,6 +704,16 @@ void LensSearchController::StartLensSession(
   state_ = State::kInitializing;
   invocation_source_ = invocation_source;
 
+  // Check if contextual tasks is currently available. If so, route through
+  // results to the contextual tasks side panel.
+  auto* const entry_point_eligibility_manager =
+      contextual_tasks::EntryPointEligibilityManager::From(
+          tab_->GetBrowserWindowInterface());
+  should_route_to_contextual_tasks_ =
+      contextual_tasks::GetEnableLensInContextualTasks() &&
+      entry_point_eligibility_manager &&
+      entry_point_eligibility_manager->AreEntryPointsEligible();
+
   // Create the query controller to be used for the current invocation.
   CHECK(!lens_overlay_query_controller_);
   lens_overlay_query_controller_ = CreateLensQueryController(invocation_source);
@@ -887,11 +902,6 @@ void LensSearchController::HandleInteractionURLResponse(
   MaybeShowMobilePromo();
 }
 
-void LensSearchController::HandleInteractionResponse(
-    lens::mojom::TextPtr text) {
-  lens_overlay_controller_->HandleInteractionResponse(std::move(text));
-}
-
 void LensSearchController::OnSuggestInputsReady() {
   if (IsOff()) {
     return;
@@ -943,6 +953,11 @@ void LensSearchController::HandleThumbnailCreatedBitmap(
       base::BindOnce(&LensSearchController::OnThumbnailProcessed,
                      weak_ptr_factory_.GetWeakPtr(),
                      /*is_region_selection=*/false));
+}
+
+void LensSearchController::HandleInteractionResponse(
+    lens::mojom::TextPtr text) {
+  lens_overlay_controller_->HandleInteractionResponse(std::move(text));
 }
 
 void LensSearchController::HandleThumbnailCreated(

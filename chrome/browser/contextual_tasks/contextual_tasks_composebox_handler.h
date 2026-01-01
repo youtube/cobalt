@@ -4,6 +4,7 @@
 #ifndef CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_COMPOSEBOX_HANDLER_H_
 #define CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_COMPOSEBOX_HANDLER_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
@@ -29,7 +30,7 @@ class TabInterface;
 
 namespace contextual_tasks {
 struct ContextualTaskContext;
-class ContextualTasksContextController;
+class ContextualTasksService;
 }  // namespace contextual_tasks
 
 // Struct to store file data and mime type.
@@ -62,12 +63,24 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
                    bool ctrl_key,
                    bool meta_key,
                    bool shift_key) override;
+  void ClearFiles() override;
   void DeleteContext(const base::UnguessableToken& file_token,
                      bool from_automatic_chip) override;
   void HandleFileUpload(bool is_image) override;
   void AddFileContext(searchbox::mojom::SelectedFileInfoPtr file_info,
                       mojo_base::BigBuffer file_bytes,
                       AddFileContextCallback callback) override;
+  void AddTabContext(int32_t tab_id,
+                     bool delay_upload,
+                     AddTabContextCallback callback) override;
+
+  // ContextualSearchboxHandler:
+  void OnFileUploadStatusChanged(
+      const base::UnguessableToken& file_token,
+      lens::MimeType mime_type,
+      contextual_search::FileUploadStatus file_upload_status,
+      const std::optional<contextual_search::FileUploadErrorType>& error_type)
+      override;
 
   void CreateAndSendQueryMessage(const std::string& query);
 
@@ -80,8 +93,7 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   void OnFileRead(std::unique_ptr<FileData> file_data);
 
  protected:
-  virtual contextual_tasks::ContextualTasksContextController*
-  GetContextController();
+  virtual contextual_tasks::ContextualTasksService* GetContextualTasksService();
 
  private:
   void OnFileAddedToSession(searchbox::mojom::SelectedFileInfoPtr file_info,
@@ -130,9 +142,13 @@ class ContextualTasksComposeboxHandler : public ComposeboxHandler,
   raw_ptr<ContextualTasksUI> web_ui_controller_;
   // The context controller for the current profile. The profile will outlive
   // this class.
-  raw_ptr<contextual_tasks::ContextualTasksContextController>
-      context_controller_;
+  raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
   scoped_refptr<ui::SelectFileDialog> file_dialog_;
+
+  // Map of context tokens to tab IDs for tabs that are delayed for upload.
+  // These tabs will be contextualized and added to the context after user
+  // submits the query in the composebox.
+  std::map<base::UnguessableToken, int32_t> delayed_tabs_;
 
   base::WeakPtrFactory<ContextualTasksComposeboxHandler> weak_factory_{this};
 };

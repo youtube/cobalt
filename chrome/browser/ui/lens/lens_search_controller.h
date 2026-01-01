@@ -188,6 +188,10 @@ class LensSearchController {
   // Returns whether the handshake with the Lens backend is complete.
   bool IsHandshakeComplete();
 
+  // Returns whether the current Lens session should be routed to the contextual
+  // tasks side panel.
+  virtual bool should_route_to_contextual_tasks() const;
+
   // Returns the tab interface that owns this controller.
   tabs::TabInterface* GetTabInterface();
 
@@ -199,6 +203,11 @@ class LensSearchController {
 
   // Handles the creation of a new thumbnail from a bitmap.
   void HandleThumbnailCreatedBitmap(const SkBitmap& thumbnail);
+
+  // Callback used by the query controller to notify the search controller of
+  // the response of an interaction request. If this is a visual interaction
+  // request, the response will contain the text container within that image.
+  virtual void HandleInteractionResponse(lens::mojom::TextPtr text);
 
   // Clears the visual selection thumbnail on the searchbox.
   void ClearVisualSelectionThumbnail();
@@ -390,11 +399,6 @@ class LensSearchController {
   void HandleInteractionURLResponse(
       lens::proto::LensOverlayUrlResponse response);
 
-  // Callback used by the query controller to notify the search controller of
-  // the response of an interaction request. If this is a visual interaction
-  // request, the response will contain the text container within that image.
-  void HandleInteractionResponse(lens::mojom::TextPtr text);
-
   // Callback used by the query controller to notify the search controller when
   // the suggest inputs response is ready.
   void OnSuggestInputsReady();
@@ -435,6 +439,11 @@ class LensSearchController {
 
   // Tracks the internal state machine.
   State state_ = State::kOff;
+
+  // Whether the current Lens session should be routed to the contextual tasks
+  // side panel. This is set when the Lens session is initialized and is used to
+  // determine whether to route the queries and results to the contextual tasks.
+  bool should_route_to_contextual_tasks_ = false;
 
   // Tracks the state of the Lens Search feature when the tab is backgrounded.
   // This state is used to restore the Lens Search feature to the same state

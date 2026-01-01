@@ -85,13 +85,14 @@ export class OmniboxPopupAppElement extends I18nMixinLit
       },
 
       isInKeywordMode_: {type: Boolean},
-
       result_: {type: Object},
       searchboxLayoutMode_: {type: String},
       showContextEntrypoint_: {type: Boolean},
+      showAiModePrefEnabled_: {type: Boolean},
       isLensSearchEnabled_: {type: Boolean},
       isLensSearchEligible_: {type: Boolean},
       isAimEligible_: {type: Boolean},
+      isRecentTabChipEnabled_: {type: Boolean},
       tabSuggestions_: {type: Array},
     };
   }
@@ -101,6 +102,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   accessor hasSecondarySide: boolean = false;
   accessor isDebug: boolean = false;
   protected accessor isInKeywordMode_: boolean = false;
+  protected accessor showAiModePrefEnabled_: boolean = false;
   protected accessor hasVisibleMatches_: boolean = false;
   protected accessor result_: AutocompleteResult|null = null;
   protected accessor searchboxLayoutMode_: string =
@@ -108,6 +110,8 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   protected accessor showContextEntrypoint_: boolean = false;
   protected accessor isLensSearchEnabled_: boolean =
       loadTimeData.getBoolean('composeboxShowLensSearchChip');
+  protected accessor isRecentTabChipEnabled_: boolean =
+      loadTimeData.getBoolean('composeboxShowRecentTabChip');
   protected accessor isLensSearchEligible_: boolean = false;
   protected accessor isAimEligible_: boolean = false;
   protected accessor tabSuggestions_: TabInfo[] = [];
@@ -150,6 +154,10 @@ export class OmniboxPopupAppElement extends I18nMixinLit
           (eligible: boolean) => {
             this.isAimEligible_ = eligible;
           }),
+      this.callbackRouter_.onShowAiModePrefChanged.addListener(
+          (canShow: boolean) => {
+            this.showAiModePrefEnabled_ = canShow;
+          }),
     ];
     canShowSecondarySideMediaQueryList.addEventListener(
         'change', this.onCanShowSecondarySideChanged_.bind(this));
@@ -188,7 +196,11 @@ export class OmniboxPopupAppElement extends I18nMixinLit
 
     if (changedPrivateProperties.has('isAimEligible_') ||
         changedPrivateProperties.has('searchboxLayoutMode_') ||
-        changedPrivateProperties.has('isInKeywordMode_')) {
+        changedPrivateProperties.has('isInKeywordMode_') ||
+        changedPrivateProperties.has('showAiModePrefEnabled_') ||
+        changedPrivateProperties.has('tabSuggestions_') ||
+        changedPrivateProperties.has('result_') ||
+        changedPrivateProperties.has('isLensSearchEligible_')) {
       this.showContextEntrypoint_ = this.computeShowContextEntrypoint_();
     }
   }
@@ -200,9 +212,19 @@ export class OmniboxPopupAppElement extends I18nMixinLit
     return this.shadowRoot.querySelector('cr-searchbox-dropdown')!;
   }
 
+  protected get shouldHideEntrypointButton_(): boolean {
+    return this.searchboxLayoutMode_ === 'Compact';
+  }
+
   private computeShowContextEntrypoint_(): boolean {
     const isTallSearchbox = this.searchboxLayoutMode_.startsWith('Tall');
-    return this.isAimEligible_ && isTallSearchbox && !this.isInKeywordMode_;
+    const showRecentTabChip = this.computeShowRecentTabChip_();
+    const showContextualChips = showRecentTabChip || this.isLensSearchEligible_;
+    const showContextualChipsInCompactMode =
+        showContextualChips && this.searchboxLayoutMode_ === 'Compact';
+    return this.isAimEligible_ && this.showAiModePrefEnabled_
+        && (isTallSearchbox || showContextualChipsInCompactMode) &&
+        !this.isInKeywordMode_;
   }
 
   private onCanShowSecondarySideChanged_(e: MediaQueryListEvent) {

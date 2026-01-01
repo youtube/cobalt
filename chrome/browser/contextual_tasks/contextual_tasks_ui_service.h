@@ -38,17 +38,17 @@ class TabInterface;
 }  // namespace tabs
 
 namespace contextual_tasks {
-
-class ContextualTasksContextController;
+class ContextualTasksService;
 
 // A service used to coordinate all of the side panel instances showing an AI
 // thread. Events like tab switching and Intercepted navigations from both the
 // sidepanel and omnibox will be routed here.
 class ContextualTasksUiService : public KeyedService {
  public:
-  ContextualTasksUiService(Profile* profile,
-                           ContextualTasksContextController* context_controller,
-                           signin::IdentityManager* identity_manager);
+  ContextualTasksUiService(
+      Profile* profile,
+      contextual_tasks::ContextualTasksService* contextual_tasks_service,
+      signin::IdentityManager* identity_manager);
   ContextualTasksUiService(const ContextualTasksUiService&) = delete;
   ContextualTasksUiService operator=(const ContextualTasksUiService&) = delete;
   ~ContextualTasksUiService() override;
@@ -176,9 +176,9 @@ class ContextualTasksUiService : public KeyedService {
   // Returns whether the provided URL is for the primary account in Chrome.
   virtual bool IsUrlForPrimaryAccount(const GURL& url);
 
-  // Return whether there is a user is either signed into the browser or has
-  // an account tied to the provided URL.
-  virtual bool IsSignedInToBrowser(const GURL& url);
+  // Return whether there is a user signed into the browser with valid
+  // credentials (aka, an OAuth token can be obtained).
+  virtual bool IsSignedInToBrowserWithValidCredentials();
 
  private:
   // Focus an existing tab based on the provided URL if it exists. The URLs must
@@ -189,8 +189,7 @@ class ContextualTasksUiService : public KeyedService {
 
   const raw_ptr<Profile> profile_;
 
-  raw_ptr<contextual_tasks::ContextualTasksContextController>
-      context_controller_;
+  raw_ptr<contextual_tasks::ContextualTasksService> contextual_tasks_service_;
 
   raw_ptr<signin::IdentityManager> identity_manager_;
 
