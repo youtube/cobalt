@@ -90,6 +90,7 @@ struct CSPSourceList {
   bool allow_unsafe_hashes = false;
   bool report_sample = false;
   [EnableIf=cobalt_custom_csp]bool cobalt_insecure_local_network = false;
+  [EnableIf=cobalt_custom_csp]bool cobalt_insecure_private_range = false;
 };
 
 enum CSPDirectiveName {
