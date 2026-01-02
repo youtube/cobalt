@@ -10,7 +10,7 @@ import android.util.Log;
  * A watchdog scheduler designed to mitigate "black screen" issues during app startup.
  *
  * This class schedules a forced runtime exception if the Kabuki app fails to
- * transition past the splash screen within a safety timeout. 
+ * transition past the splash screen within a safety timeout.
  * Kabuki calls window.h5vcc.system.hideSplashScreen() for this transition.
  *
  * Intentionally crashing allows the system to capture a stack trace and potentially
@@ -26,7 +26,7 @@ public class AppExitScheduler {
     private AppExitScheduler() {
         // We attach the handler to the Main Looper to ensure the crash occurs on the UI thread
         handler = new Handler(Looper.getMainLooper());
-        
+
         crashRunnable = new Runnable() {
             @Override
             public void run() {
