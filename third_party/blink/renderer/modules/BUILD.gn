@@ -373,10 +373,10 @@ generate_event_interfaces("modules_event_interfaces") {
 
   if (is_cobalt) {
     sources += [
+      "cobalt/h5vcc_accessibility/text_to_speech_change_event.idl",
       "cobalt/h5vcc_metrics/metrics_event.idl",
       "cobalt/h5vcc_runtime/deep_link_event.idl",
       "cobalt/h5vcc_system/h_5_vcc_system.idl",
-      "cobalt/h5vcc_accessibility/text_to_speech_change_event.idl",
     ]
   }
 
