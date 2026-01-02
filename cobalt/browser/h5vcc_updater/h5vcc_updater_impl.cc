@@ -47,13 +47,72 @@ void H5vccUpdaterImpl::Create(
   new H5vccUpdaterImpl(*render_frame_host, std::move(receiver));
 }
 
+void H5vccUpdaterImpl::GetUpdaterChannel(GetUpdaterChannelCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
+                                         SetUpdaterChannelCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::GetUpdateStatus(GetUpdateStatusCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::ResetInstallations() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::GetInstallationIndex(
+    GetInstallationIndexCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
+    GetAllowSelfSignedPackagesCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::SetAllowSelfSignedPackages(
+    bool allow_self_signed_packages) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
 void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(USE_EVERGREEN)
   std::string url =
       cobalt::updater::UpdaterModule::GetInstance()->GetUpdateServerUrl();
   std::move(callback).Run(url);
+#else
+  NOTREACHED();
 #endif
+}
+
+void H5vccUpdaterImpl::SetUpdateServerUrl(
+    const std::string& update_server_url) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::GetRequireNetworkEncryption(
+    GetRequireNetworkEncryptionCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
+void H5vccUpdaterImpl::SetRequireNetworkEncryption(
+    bool require_network_encryption) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
 }
 
 }  // namespace h5vcc_updater
