@@ -17,8 +17,8 @@
 #include <iostream>
 
 #include "base/command_line.h"
-#include "cobalt/shell/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/common/shell_content_test_client.h"
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/utility/shell_content_utility_client.h"
 
 namespace content {

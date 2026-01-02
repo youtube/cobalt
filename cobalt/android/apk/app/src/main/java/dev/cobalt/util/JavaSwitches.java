@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/shell/common/shell_test_switches.h"
+package dev.cobalt.util;
 
-#include "base/command_line.h"
-
-namespace switches {
-
-const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
-
-const char kRunWebTests[] = "run-web-tests";
-
-bool IsRunWebTestsSwitchPresent() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kRunWebTests);
+/**
+ * Defines the constant names for feature switches used in Kimono.
+ */
+public class JavaSwitches {
+  public static final String ENABLE_QUIC = "EnableQUIC";
 }
-
-}  // namespace switches

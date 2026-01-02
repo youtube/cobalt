@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
+#ifndef COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_BROWSER_TEST_MAIN_PARTS_H_
+#define COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_BROWSER_TEST_MAIN_PARTS_H_
 
-#include "base/command_line.h"
+#include "cobalt/shell/browser/shell_browser_main_parts.h"
 
-namespace switches {
+namespace content {
 
-const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
+class ShellBrowserTestMainParts : public ShellBrowserMainParts {
+ public:
+  ShellBrowserTestMainParts();
+  ~ShellBrowserTestMainParts() override;
 
-const char kRunWebTests[] = "run-web-tests";
+  // content::BrowserMainParts overrides.
+  void ToolkitInitialized() override;
+};
 
-bool IsRunWebTestsSwitchPresent() {
-  return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      switches::kRunWebTests);
-}
+}  // namespace content
 
-}  // namespace switches
+#endif  // COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_BROWSER_TEST_MAIN_PARTS_H_
