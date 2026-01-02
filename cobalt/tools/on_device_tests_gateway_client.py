@@ -237,7 +237,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       files = _unit_test_files(args, target_name)
       params = _unit_test_params(args, target_name, dir_on_device)
 
-    elif args.test_type == 'e2e_test':
+    elif args.test_type in ('e2e_test', 'yts_test'):
       test_target = target_data['target']
       test_attempts = target_data.get('test_attempts', '')
       if test_attempts:
@@ -302,7 +302,7 @@ def main() -> int:
       '--test_type',
       type=str,
       required=True,
-      choices=['unit_test', 'e2e_test'],
+      choices=['unit_test', 'e2e_test', 'yts_test'],
       help='Type of test to run.',
   )
   trigger_args.add_argument(
@@ -401,9 +401,9 @@ def main() -> int:
   args = parser.parse_args()
 
   # TODO(b/428961033): Let argparse handle these checks as required arguments.
-  if args.test_type == 'e2e_test':
+  if args.test_type in ('e2e_test', 'yts_test'):
     if not args.cobalt_path:
-      raise ValueError('--cobalt_path is required for e2e_test')
+      raise ValueError('--cobalt_path is required for e2e_test or yts_test')
   elif args.test_type == 'unit_test':
     if not args.device_family:
       raise ValueError('--device_family is required for unit_test')

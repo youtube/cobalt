@@ -130,12 +130,18 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 
   content_browsertests_manifest =
-      "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
+      "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
 
-  jinja_template("content_browsertests_manifest") {
+  jinja_template("cobalt_browsertests_manifest_gen") {
     testonly = true
-    input = "//cobalt/testing/browser_tests/browsertests_apk/AndroidManifest.xml.jinja2"
+    input = "//cobalt/shell/android/javatests/AndroidManifest.xml"
     output = content_browsertests_manifest
+    includes = [ "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2" ]
+    variables = [
+      "debuggable=true",
+      "manifest_package=org.chromium.content_browsertests_apk",
+      "build_type=$build_type",
+    ]
   }
 
   generate_jni("content_browsertests_jni_headers") {
@@ -152,7 +158,7 @@ if (is_android) {
       "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
     ]
     deps = [
-      ":content_browsertests_manifest",
+      ":cobalt_browsertests_manifest_gen",
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
@@ -375,8 +381,8 @@ test("cobalt_browsertests") {
       "//ui/touch_selection:touch_selection",
     ]
     android_manifest =
-        "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
-    android_manifest_dep = ":content_browsertests_manifest"
+        "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
+    android_manifest_dep = ":cobalt_browsertests_manifest_gen"
     use_default_launcher = false
   }
 

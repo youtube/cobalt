@@ -66,9 +66,6 @@ public final class CommandLineOverrideHelper {
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
         paramOverrides.add("--disable-rgba-4444-textures");
-        // Disable QUIC to save CPU budgets on m114.
-        // Remove below if Cobalt rebase to m138+.
-        paramOverrides.add("--disable-quic");
 
         return paramOverrides;
     }

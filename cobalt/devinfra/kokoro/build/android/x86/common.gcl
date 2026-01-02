@@ -8,8 +8,16 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
+      key = 'PACKAGE_PLATFORM'
+      value = 'android'
+    },
+    {
       key = 'EXTRA_GN_ARGUMENTS'
-      value = 'is_internal_build=true'
+      value = 'is_cobalt_on_google3=true'
+    },
+    {
+      key = 'GN_TARGET'
+      value = 'cobalt:gn_all'
     },
     {
       key = 'PLATFORM'
@@ -18,18 +26,6 @@ build = common.build {
     {
       key = 'REGISTRY_IMAGE_NAME'
       value = 'cobalt-build-android-x86'
-    },
-    {
-      key = 'GN_TARGET'
-      value = 'cobalt:gn_all'
-    },
-    {
-      key = 'TARGET_CPU'
-      value = 'target_cpu=\"x86\"'
-    },
-    {
-      key = 'TARGET_OS'
-      value = 'target_os=\"android\"'
     },
     {
       key = 'TARGET_PLATFORM'

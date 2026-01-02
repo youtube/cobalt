@@ -119,6 +119,13 @@ jobs:
           set -x
           test_e2e=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_e2e')
           echo "test_e2e=${test_e2e}" >> $GITHUB_OUTPUT
+      - name: Set YTS tests
+        id: set-test-yts
+        shell: bash
+        run: |
+          set -x
+          test_yts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_yts')
+          echo "test_yts=${test_yts}" >> $GITHUB_OUTPUT
       - name: Set root target for unit tests
         id: set-test-root-target
         shell: bash
@@ -133,6 +140,13 @@ jobs:
           set -x
           test_device_family=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_device_family // empty')
           echo "test_device_family=${test_device_family}" >> $GITHUB_OUTPUT
+      - name: Set YTS test targets
+        id: set-yts-test-targets
+        shell: bash
+        run: |
+          set -x
+          yts_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.yts_test_targets // []')
+          echo "yts_test_targets=${yts_test_targets}" >> $GITHUB_OUTPUT
       - name: Set E2E test targets
         id: set-e2e-test-targets
         shell: bash
@@ -140,13 +154,6 @@ jobs:
           set -x
           e2e_test_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.e2e_test_targets // []')
           echo "e2e_test_targets=${e2e_test_targets}" >> $GITHUB_OUTPUT
-      - name: Set E2E test attempts
-        id: set-e2e-test-attempts
-        shell: bash
-        run: |
-          set -x
-          e2e_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.e2e_test_attempts // empty')
-          echo "e2e_test_attempts=${e2e_test_attempts}" >> $GITHUB_OUTPUT
       - name: Set test device dimensions
         id: set-test-dimensions
         shell: bash
@@ -182,10 +189,11 @@ jobs:
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
       test_e2e: ${{ steps.set-test-e2e.outputs.test_e2e }}
+      test_yts: ${{ steps.set-test-yts.outputs.test_yts }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_device_family: ${{ steps.set-test-device-family.outputs.test_device_family }}
+      yts_test_targets: ${{ steps.set-yts-test-targets.outputs.yts_test_targets }}
       e2e_test_targets: ${{ steps.set-e2e-test-targets.outputs.e2e_test_targets }}
-      e2e_test_attempts: ${{ steps.set-e2e-test-attempts.outputs.e2e_test_attempts }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
@@ -344,7 +352,7 @@ jobs:
 
   e2e-test:
     needs: [initialize, build]
-    # Run E2E tests when on_device label is applied to PR.
+    # Run E2E tests for presumit.
     # Also, run E2E tests on push and schedule if not explicitly disabled via repo vars.
     if: |
       needs.initialize.outputs.test_e2e == 'true' &&
@@ -366,11 +374,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Run E2E Tests
-        uses: ./.github/actions/e2e_tests
+        uses: ./.github/actions/internal_tests
         with:
-          e2e_test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
-          test_attempts: '${{ needs.initialize.outputs.e2e_test_attempts }}'
+          test_type: 'e2e_test'
+          test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+
+  yts-test:
+    needs: [initialize, build]
+    # Run YTS tests via presumit.
+    # Also, run YTS tests on push and schedule if not explicitly disabled via repo vars.
+    if: |
+      needs.initialize.outputs.test_yts == 'true' &&
+        (
+          (github.event_name == 'pull_request' && github.event.pull_request.draft == false ) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_yts_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run YTS Tests
+        uses: ./.github/actions/internal_tests
+        with:
+          test_type: 'yts_test'
+          test_targets: '${{ needs.initialize.outputs.yts_test_targets }}'
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
