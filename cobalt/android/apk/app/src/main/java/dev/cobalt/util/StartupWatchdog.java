@@ -16,14 +16,14 @@ import android.util.Log;
  * Intentionally crashing allows the system to capture a stack trace and potentially
  * restart the application, rather than leaving the user stuck on an unresponsive black screen.
  */
-public class AppExitScheduler {
-    private static volatile AppExitScheduler instance;
+public class StartupWatchdog {
+    private static volatile StartupWatchdog instance;
 
     private final Handler handler;
     private final Runnable crashRunnable;
 
     // Private constructor prevents direct instantiation from other classes
-    private AppExitScheduler() {
+    private StartupWatchdog() {
         // We attach the handler to the Main Looper to ensure the crash occurs on the UI thread
         handler = new Handler(Looper.getMainLooper());
 
@@ -31,20 +31,20 @@ public class AppExitScheduler {
             @Override
             public void run() {
                 throw new RuntimeException(
-                        "The user may have stuck on the black screen. Crash triggered by AppExitScheduler.");
+                        "The user may have stuck on the black screen. Crash triggered by StartupWatchdog.");
             }
         };
     }
 
     /**
-     * Returns the single instance of AppExitScheduler.
+     * Returns the single instance of StartupWatchdog.
      * Uses double-checked locking for thread safety.
      */
-    public static AppExitScheduler getInstance() {
+    public static StartupWatchdog getInstance() {
         if (instance == null) {
-            synchronized (AppExitScheduler.class) {
+            synchronized (StartupWatchdog.class) {
                 if (instance == null) {
-                    instance = new AppExitScheduler();
+                    instance = new StartupWatchdog();
                 }
             }
         }
@@ -57,16 +57,16 @@ public class AppExitScheduler {
      */
     public void scheduleCrash(long delaySeconds) {
         handler.postDelayed(crashRunnable, delaySeconds * 1000);
-        Log.i(TAG, "AppExitScheduler scheduled crash in " + delaySeconds + " seconds.");
+        Log.i(TAG, "StartupWatchdog scheduled crash in " + delaySeconds + " seconds.");
     }
 
     /**
      * Cancels the pending crash job.
      */
-    public void cancelCrash() {
+    public void disarm() {
         if (handler.hasCallbacks(crashRunnable)) {
             handler.removeCallbacks(crashRunnable);
-            Log.i(TAG, "AppExitScheduler cancelled crash.");
+            Log.i(TAG, "StartupWatchdog cancelled crash.");
         }
     }
 }

@@ -781,6 +781,6 @@ public class StarboardBridge {
 
   @CalledByNative
   protected void hideSplashScreen() {
-    StartupWatchdog.getInstance().cancelCrash();
+    StartupWatchdog.getInstance().disarm();
   }
 }

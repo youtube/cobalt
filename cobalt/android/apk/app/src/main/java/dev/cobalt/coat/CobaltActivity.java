@@ -45,7 +45,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
-import dev.cobalt.util.AppExitScheduler;
+import dev.cobalt.util.StartupWatchdog;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
@@ -211,7 +211,7 @@ public abstract class CobaltActivity extends Activity {
 
     if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(KABUKI_URL)) {
       Log.i(TAG, "Non-Kabuki startup URL detected.");
-      AppExitScheduler.getInstance().cancelCrash();
+      StartupWatchdog.getInstance().disarm();
     }
 
     if (!TextUtils.isEmpty(mStartupUrl)) {
@@ -541,7 +541,7 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
-    AppExitScheduler.getInstance().scheduleCrash(HANG_APP_EXIT_SECONDS);
+    StartupWatchdog.getInstance().scheduleCrash(HANG_APP_EXIT_SECONDS);
 
     mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
@@ -612,6 +612,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_WATCHDOG)) {
+      Log.i(TAG, "StartupWatchdog is disabled by Java switch.");
+      StartupWatchdog.getInstance().disarm();
+    }
+
     if (!isReleaseBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
