@@ -34,7 +34,7 @@
 #include "v8/include/v8-version-string.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/util.h"
+#include "cobalt/updater/util.h"  //nogncheck
 #include "starboard/extension/installation_manager.h"
 #endif
 
