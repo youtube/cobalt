@@ -32,6 +32,7 @@ source_set("contextual_tasks") {
     "//chrome/browser/profiles:profile",
     "//components/contextual_tasks/public",
     "//components/keyed_service/core",
+    "//content/public/browser",
   ]
   if (!is_android) {
     public_deps += [
@@ -151,6 +152,8 @@ if (!is_android) {
 
   source_set("ui_impl") {
     sources = [
+      "contextual_search_session_finder.cc",
+      "contextual_search_session_finder.h",
       "contextual_tasks_composebox_handler.cc",
       "contextual_tasks_internals_page_handler.cc",
       "contextual_tasks_navigation_throttle.cc",
@@ -242,6 +245,7 @@ if (!is_android) {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/signin",
       "//chrome/browser/ui",
+      "//chrome/browser/ui/lens",
       "//chrome/test:test_support",
       "//chrome/test:test_support_ui",
       "//components/contextual_tasks/public:feature_list",
@@ -310,6 +314,7 @@ source_set("unit_tests") {
       "//chrome/browser/search_engines",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/contextual_search",
+      "//chrome/browser/ui/lens",
       "//chrome/browser/ui/tabs:test_support",
       "//chrome/browser/ui/webui:webui_util",
       "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",

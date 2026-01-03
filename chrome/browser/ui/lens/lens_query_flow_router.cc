@@ -27,6 +27,7 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/lens/ref_counted_lens_overlay_client_logs.h"
+#include "components/omnibox/browser/lens_suggest_inputs_utils.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
@@ -87,6 +88,14 @@ void LensQueryFlowRouter::StartQueryFlow(
 
     // Create a contextual session for this WebContents if one does not exist.
     CHECK(!pending_session_handle_);
+
+    // If a session handle is already being observed (e.g. from the side panel),
+    // remove the observer before creating a new session handle.
+    auto* session_handle = GetContextualSearchSessionHandle();
+    if (session_handle && session_handle->GetController()) {
+      session_handle->GetController()->RemoveObserver(this);
+    }
+
     pending_session_handle_ = CreateContextualSearchSessionHandle();
     pending_session_handle_->NotifySessionStarted();
 
@@ -416,6 +425,14 @@ void LensQueryFlowRouter::SendInteractionToContextualTasks(
 }
 
 void LensQueryFlowRouter::OpenContextualTasksPanel(GURL url) {
+  // If the invocation source was the contextual tasks composebox, avoid
+  // navigating the side panel URL to preserve the current
+  // conversation.
+  if (lens_search_controller_->invocation_source() ==
+      lens::LensOverlayInvocationSource::kContextualTasksComposebox) {
+    url = GURL();
+  }
+
   // Show the side panel. This will create a new task and associate it with the
   // active tab.
   contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(

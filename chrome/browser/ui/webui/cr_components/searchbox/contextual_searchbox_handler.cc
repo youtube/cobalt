@@ -117,15 +117,17 @@ void ContextualSearchboxHandler::GetRecentTabs(GetRecentTabsCallback callback) {
     tab_data->tab_id = tab->GetHandle().raw_value();
     tab_data->title = base::UTF16ToUTF8(tab_renderer_data.title);
     tab_data->url = last_committed_url;
-    tab_data->show_in_current_tab_chip =
+    const bool show_in_current_tab_chip =
         tab_strip_model->GetActiveWebContents()->GetLastCommittedURL() ==
         last_committed_url;
+    tab_data->show_in_current_tab_chip = show_in_current_tab_chip;
 
     lens::TabContextualizationController* tab_context_controller =
         tab->GetTabFeatures()->tab_contextualization_controller();
     tab_data->show_in_previous_tab_chip =
         !google_util::IsGoogleSearchUrl(last_committed_url) &&
-        tab_context_controller->GetInitialPageContextEligibility();
+        tab_context_controller->GetInitialPageContextEligibility() &&
+        !show_in_current_tab_chip;
     tab_data->last_active =
         std::max(web_contents->GetLastActiveTimeTicks(),
                  web_contents->GetLastInteractionTimeTicks());
@@ -553,11 +555,13 @@ void ContextualSearchboxHandler::OnFileUploadStatusChanged(
     lens::MimeType mime_type,
     contextual_search::FileUploadStatus file_upload_status,
     const std::optional<contextual_search::FileUploadErrorType>& error_type) {
-  page_->OnContextualInputStatusChanged(
-      file_token, contextual_search::ToMojom(file_upload_status),
-      error_type.has_value()
-          ? std::make_optional(contextual_search::ToMojom(error_type.value()))
-          : std::nullopt);
+  if (IsRemoteBound()) {
+    page_->OnContextualInputStatusChanged(
+        file_token, contextual_search::ToMojom(file_upload_status),
+        error_type.has_value()
+            ? std::make_optional(contextual_search::ToMojom(error_type.value()))
+            : std::nullopt);
+  }
 }
 
 std::string ContextualSearchboxHandler::AutocompleteIconToResourceName(
@@ -693,7 +697,6 @@ void ContextualSearchboxHandler::OpenUrl(
           contextual_session_handle->session_id());
   new_contextual_session_handle->set_submitted_context_tokens(
       contextual_session_handle->GetSubmittedContextTokens());
-  contextual_session_handle->ClearSubmittedContextTokens();
 
   // TODO(crbug.com/470404040): Determine what to do with the return
   // value of this call, or move this call to a different location.
@@ -708,7 +711,7 @@ void ContextualSearchboxHandler::OpenUrl(
             navigation_handle.GetWebContents();
         ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
             new_web_contents)
-            ->set_session_handle(std::move(handle));
+            ->SetTaskSession(std::nullopt, std::move(handle));
       },
       std::move(new_contextual_session_handle));
   // TODO(crbug.com/469137247): Consider moving this logic to the specific
@@ -747,6 +750,7 @@ void ContextualSearchboxHandler::OpenUrl(
                 : AutocompleteMatchType::Type::SEARCH_WHAT_YOU_TYPED,
             /*is_zero_prefix_suggestion=*/query_text.empty());
         active_web_contents->Focus();
+        contextual_session_handle->ClearSubmittedContextTokens();
         return;
       }
     }
@@ -766,4 +770,5 @@ void ContextualSearchboxHandler::OpenUrl(
                                   ui::PAGE_TRANSITION_LINK, false);
     web_contents_->OpenURL(params, std::move(navigation_handle_callback));
   }
+  contextual_session_handle->ClearSubmittedContextTokens();
 }
