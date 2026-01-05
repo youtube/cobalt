@@ -77,8 +77,6 @@ static const char kAllTracingCategories[] = "*";
 @property(nonatomic, strong) UIStackView* toolbarBackgroundView;
 // Toolbar containing navigation buttons and |urlField|.
 @property(nonatomic, strong) UIStackView* toolbarContentView;
-// Height constraint for `toolbarContentView`.
-@property(nonatomic, strong) NSLayoutConstraint* headerHeightConstraint;
 // Button to navigate backwards.
 @property(nonatomic, strong) UIButton* backButton;
 // Button to navigate forwards.
@@ -122,7 +120,6 @@ static const char kAllTracingCategories[] = "*";
 @synthesize menuButton = _menuButton;
 @synthesize toolbarBackgroundView = _toolbarBackgroundView;
 @synthesize toolbarContentView = _toolbarContentView;
-@synthesize headerHeightConstraint = _headerHeightConstraint;
 @synthesize tracingHandler = _tracingHandler;
 
 + (UIColor*)backgroundColorDefault {
@@ -642,10 +639,6 @@ void ShellPlatformDelegate::ToggleFullscreenModeForTab(
     return;
   }
   shell_data.fullscreen = enter_fullscreen;
-  float height = enter_fullscreen ? 0.0 : 56.0;
-  [((ContentShellWindowDelegate*)shell_data.window.rootViewController)
-      headerHeightConstraint]
-      .constant = height;
   [((ContentShellWindowDelegate*)shell_data.window.rootViewController)
       toolbarContentView]
       .hidden = enter_fullscreen;
