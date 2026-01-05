@@ -280,8 +280,10 @@ public class StarboardBridge {
     }
   }
 
-  // TODO(cobalt): remove when Kimono fully switches to Chrobalt.
-  public void requestStop(int errorLevel) {}
+  /* Immediate shutdown, used at least by StandalonePlayerActivity. */
+  public void requestStop(int errorLevel) {
+    System.exit(0);
+  }
 
   public boolean onSearchRequested() {
     return false;
