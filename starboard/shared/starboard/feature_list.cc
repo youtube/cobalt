@@ -145,6 +145,11 @@ void FeatureList::ValidateParam(const std::string& feature_name,
 
 // static
 bool FeatureList::IsEnabled(const SbFeature& feature) {
+  return IsEnabledByName(feature.name);
+}
+
+// static
+bool FeatureList::IsEnabledByName(const std::string& feature_name) {
   FeatureList* instance = GetInstance();
   ScopedLock lock(instance->mutex_);
 
@@ -153,9 +158,9 @@ bool FeatureList::IsEnabled(const SbFeature& feature) {
       << "Starboard features and parameters are not initialized.";
 
   const auto& feature_map = instance->features_;
-  auto feature_it = feature_map.find(feature.name);
+  auto feature_it = feature_map.find(feature_name);
   SB_CHECK(feature_it != feature_map.end())
-      << "Feature " << feature.name
+      << "Feature " << feature_name
       << " is not initialized in the Starboard level. Is the feature "
          "initialized in starboard/extension/feature_config.h?";
   return feature_it->second;

@@ -19,11 +19,21 @@ jinja_template("cobalt_manifest") {
   }
 }
 
+java_cpp_features("java_features_srcjar") {
+  # External code should depend on ":cobalt_features_java" instead.
+  visibility = [ ":*" ]
+  sources = [ "//starboard/extension/feature_config.h" ]
+
+  deps = [ "//starboard/extension:feature_config_header" ]
+  template = "//cobalt/android/java_templates/StarboardFeatures.java.tmpl"
+}
+
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
   ]
@@ -74,7 +84,10 @@ android_library("cobalt_main_java") {
     ]
   }
 
-  srcjar_deps = [ "//starboard/android/shared:java_enums" ]
+  srcjar_deps = [
+    ":java_features_srcjar",
+    "//starboard/android/shared:java_enums",
+  ]
 
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
@@ -106,6 +119,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/H5vccPlatformService.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
