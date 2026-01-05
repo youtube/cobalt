@@ -34,9 +34,21 @@ SKIPPED_PRESUBMIT_CHECKS = [
     "CheckChangeWasUploaded",
     "CheckLicense",
     "CheckOwners",
+    "CheckChangeHasBugFieldFromChange",
+    "CheckForCommitObjects",
+    # Currently ignores "NOLINT(build/header_guard)"
+    "CheckForIncludeGuards",
+    "CheckForTooLargeFiles",
+    # This should be re-enabled when we have a good way to run chromium
+    # precommits with local chromium PRESUBMIT.py files considered
+    "CheckLongLines",
     "CheckOwnersFormat",
     "CheckOwnersOnCommit",
     "CheckOwnersOnUpload",
+    "CheckPatchFormatted",
+    "CheckSecurityOwners",
+    # Prevents the "Tree state is: closed" errors
+    "CheckTreeIsOpen",
 ]
 
 # --- Monkey-patching to remove Gerrit dependencies ---

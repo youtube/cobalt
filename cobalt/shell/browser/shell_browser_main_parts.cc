@@ -72,10 +72,6 @@
 #include "ui/linux/linux_ui_factory.h"  // nogncheck
 #endif
 
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
-
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/shell/common/device_authentication.h"
 #endif
@@ -153,16 +149,16 @@ void ShellBrowserMainParts::InitializeBrowserContexts() {
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
   Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
-                         gfx::Size());
+                         gfx::Size(),
+#if BUILDFLAG(IS_ANDROID)
+                         false /* create_splash_screen_web_contents */
+#else
+                         true /* create_splash_screen_web_contents */
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {
-#if defined(RUN_BROWSER_TESTS)
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    return;
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
-
 #if BUILDFLAG(IS_LINUX)
   ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
 #endif

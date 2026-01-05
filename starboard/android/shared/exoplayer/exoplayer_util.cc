@@ -228,7 +228,7 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
   ScopedJavaLocalRef<jstring> j_mime(
       ConvertUTF8ToJavaString(env, mime_str.c_str()));
 
-  starboard::shared::starboard::media::MimeType mime_type(stream_info.mime);
+  starboard::MimeType mime_type(stream_info.mime);
   if (mime_type.is_valid()) {
     framerate = mime_type.GetParamIntValue("framerate", -1);
     bitrate = mime_type.GetParamIntValue("bitrate", -1);

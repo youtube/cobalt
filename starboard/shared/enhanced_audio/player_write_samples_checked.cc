@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
-
 #include "starboard/common/log.h"
+#include "starboard/player.h"
 
 // Special implementation of `SbPlayerWriteSample2()` for EnhancedAudio, where
 // all sample writes should use the `PlayerWriteSamples()` function provided by

@@ -577,6 +577,10 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   //  setContents:web_contents_view];
 }
 
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
+
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   DCHECK(base::Contains(shell_data_map_, shell));

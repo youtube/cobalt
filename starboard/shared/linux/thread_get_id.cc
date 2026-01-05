@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
-
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include "starboard/thread.h"
 
 SbThreadId SbThreadGetId() {
   // This is not portable outside of Linux.

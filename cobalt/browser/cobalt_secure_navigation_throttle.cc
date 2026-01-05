@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
+
 #include "cobalt/browser/switches.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/http/http_response_headers.h"
 
@@ -64,7 +66,7 @@ bool CobaltSecureNavigationThrottle::ShouldEnforceHTTPS(
 content::NavigationThrottle::ThrottleCheckResult
 CobaltSecureNavigationThrottle::EnforceHTTPS() {
   const GURL& url = navigation_handle()->GetURL();
-  if (url.SchemeIs(url::kHttpsScheme)) {
+  if (url.SchemeIs(url::kHttpsScheme) || url.SchemeIs(kH5vccEmbeddedScheme)) {
     return content::NavigationThrottle::PROCEED;
   }
   LOG(WARNING) << "Navigation throttle canceling navigation due to "

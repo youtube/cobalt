@@ -29,6 +29,8 @@
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -98,19 +100,6 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
     params.argv = args.data();
   }
 
-  base::FilePath content_shell_data_path;
-  base::PathService::Get(base::DIR_CACHE, &content_shell_data_path);
-  constexpr char cobalt_subdir[] = "cobalt";
-  if (content_shell_data_path.BaseName().value() != cobalt_subdir) {
-    content_shell_data_path = content_shell_data_path.Append(cobalt_subdir);
-    base::PathService::OverrideAndCreateIfNeeded(
-        base::DIR_CACHE, content_shell_data_path,
-        /*is_absolute=*/true, /*create=*/true);
-  }
-  base::PathService::OverrideAndCreateIfNeeded(
-      content::SHELL_DIR_USER_DATA, content_shell_data_path,
-      /*is_absolute=*/true, /*create=*/true);
-
   return RunContentProcess(std::move(params), GetContentMainRunner());
 }
 
@@ -163,14 +152,34 @@ void SbEventHandle(const SbEvent* event) {
       g_exit_manager = nullptr;
       break;
     }
-    case kSbEventTypeBlur:
-    case kSbEventTypeFocus:
+    case kSbEventTypeBlur: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->DispatchBlur();
+      }
       CHECK(g_platform_event_source);
       g_platform_event_source->HandleFocusEvent(event);
       break;
+    }
+    case kSbEventTypeFocus: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->DispatchFocus();
+      }
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleFocusEvent(event);
+      break;
+    }
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
-    case kSbEventTypeFreeze:
+      break;
+    case kSbEventTypeFreeze: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->FlushCookiesAndLocalStorage();
+      }
+      break;
+    }
     case kSbEventTypeUnfreeze:
       break;
     case kSbEventTypeInput:
@@ -182,6 +191,14 @@ void SbEventHandle(const SbEvent* event) {
       auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
       if (link) {
         manager->OnDeepLink(link);
+      }
+      break;
+    }
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged: {
+      if (event->data) {
+        auto* enabled = static_cast<const bool*>(event->data);
+        cobalt::browser::H5vccAccessibilityManager::GetInstance()
+            ->OnTextToSpeechStateChanged(*enabled);
       }
       break;
     }

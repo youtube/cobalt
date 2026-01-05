@@ -22,8 +22,6 @@
 @class SBDDrmManager;
 @class SBDEglAdapter;
 @class SBDPlayerManager;
-@class SBDSpeechSynthesizer;
-@class SBDWindowManager;
 @protocol SBDStarboardApplication;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -53,29 +51,9 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 @property(nonatomic, readonly) SBDDrmManager* drmManager;
 
 /**
- *  @brief Enables Starboard to manage platform windows.
- */
-@property(nonatomic, readonly) SBDWindowManager* windowManager;
-
-/**
  *  @brief Enables Starboard to manage platform players.
  */
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
-
-/**
- *  @brief Enables Starboard to partially implement the EGL API.
- */
-@property(nonatomic, readonly) SBDEglAdapter* eglAdapter;
-
-/**
- *  @brief Enables Starboard to speak text.
- */
-@property(nonatomic, readonly) SBDSpeechSynthesizer* speechSynthesizer;
-
-/**
- *  @brief Returns display refresh rate.
- */
-@property(nonatomic, readonly) double displayRefreshRate;
 
 /**
  *  @brief Called when Starboard requests the application to be suspended.

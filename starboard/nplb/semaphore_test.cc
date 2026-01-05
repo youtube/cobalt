@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/semaphore.h"
+
 #include <unistd.h>
 
-#include "starboard/common/semaphore.h"
 #include "starboard/common/time.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"

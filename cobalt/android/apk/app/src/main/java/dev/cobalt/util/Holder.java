@@ -16,7 +16,11 @@ package dev.cobalt.util;
 
 import androidx.annotation.Nullable;
 
-/** Holds a mutable reference to an object, or null. */
+/**
+ * Holds a mutable reference to an object, or null.
+ *
+ * @param <T> The type of the object to hold.
+ */
 public class Holder<T> {
   private T mInstance;
 

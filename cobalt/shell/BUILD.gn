@@ -47,16 +47,20 @@ group("cobalt_shell_lib_deps") {
 
   public_deps = [
     ":android_shell_descriptors",
+    ":embed_loader_resources_as_header_files",
+    ":embed_polyfilled_javascript",
     ":resources",
     "//base",
     "//base:base_static",
     "//cc/base",
+    "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
     "//components/crash/core/app",
     "//components/custom_handlers",
     "//components/embedder_support:embedder_support",
     "//components/embedder_support:user_agent",
+    "//components/js_injection/browser:browser",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
@@ -159,6 +163,10 @@ group("cobalt_shell_lib_deps") {
       public_deps += [ "//starboard/android/shared:starboard_platform" ]
     }
   }
+
+  if (is_androidtv) {
+    public_deps += [ "//cobalt/android/oom_intervention" ]
+  }
 }
 
 static_library("cobalt_shell_switches") {
@@ -175,6 +183,8 @@ static_library("cobalt_shell_lib") {
     ":cobalt_shell_switches",
   ]
   sources = [
+    "browser/h5vcc_scheme_url_loader_factory.cc",
+    "browser/h5vcc_scheme_url_loader_factory.h",
     "browser/shell.cc",
     "browser/shell.h",
     "browser/shell_browser_context.cc",
@@ -200,10 +210,15 @@ static_library("cobalt_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "browser/splash_screen_web_contents_delegate.cc",
+    "browser/splash_screen_web_contents_delegate.h",
+    "browser/splash_screen_web_contents_observer.cc",
+    "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/shell_paths.cc",
     "common/shell_paths.h",
+    "common/url_constants.h",
     "renderer/shell_content_renderer_client.cc",
     "renderer/shell_content_renderer_client.h",
   ]
@@ -241,10 +256,7 @@ static_library("cobalt_shell_lib") {
   if (run_browser_tests) {
     defines += [ "RUN_BROWSER_TESTS=1" ]
 
-    public_deps += [
-      ":shell_test_switches_lib",
-      "//content/test:test_support",
-    ]
+    public_deps += [ "//content/test:test_support" ]
   }
 
   if (shell_use_toolkit_views) {
@@ -291,15 +303,6 @@ static_library("cobalt_shell_lib") {
   }
 }
 
-source_set("shell_test_switches_lib") {
-  testonly = true
-  sources = [
-    "common/shell_test_switches.cc",
-    "common/shell_test_switches.h",
-  ]
-  deps = [ "//base:base" ]
-}
-
 # This component provides a ContentMainDelegate for Content Shell and derived
 # applications. This delegate is the central place that creates interfaces for
 # each type of process (browser, renderer, etc). This implementation of
@@ -326,12 +329,6 @@ static_library("cobalt_shell_app") {
     sources += [
       "app/paths_mac.h",
       "app/paths_mac.mm",
-    ]
-  }
-  if (is_ios) {
-    sources += [
-      "app/ios/shell_application_ios.h",
-      "app/ios/shell_application_ios.mm",
     ]
   }
   defines = [
@@ -455,4 +452,33 @@ copy("copy_shell_resources") {
 
 group("resources") {
   public_deps = [ ":copy_shell_resources" ]
+}
+
+action("embed_loader_resources_as_header_files") {
+  script = "//cobalt/build/generate_data_header.py"
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_resources.h" ]
+
+  args = [
+    "LoaderEmbeddedResources",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources/loader_embedded_resources", root_build_dir),
+  ]
+}
+
+config("embed_polyfilled_javascript_config") {
+  include_dirs = [ root_gen_dir ]
+}
+
+# TODO(cobalt, b/390710539): migrate to GRIT.
+action("embed_polyfilled_javascript") {
+  script = "//cobalt/build/generate_data_header.py"
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_js.h" ]
+  public_configs = [ ":embed_polyfilled_javascript_config" ]
+
+  args = [
+    "CobaltJavaScriptPolyfill",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources/cobalt_java_script_polyfill",
+                root_build_dir),
+  ]
 }

@@ -20,7 +20,6 @@ package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
-import android.media.AudioFormat;
 import android.media.MediaCodec;
 import android.media.MediaCodec.CryptoInfo;
 import android.media.MediaCodec.CryptoInfo.Pattern;
@@ -46,14 +45,6 @@ import org.jni_zero.NativeMethods;
 /** A wrapper of the MediaCodec class. */
 @JNINamespace("starboard")
 class MediaCodecBridge {
-  // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
-  // for several frames. As a result, the player may find that the time does not increase
-  // after decoding a frame. To detect this, we check whether the presentation timestamp from
-  // dequeueOutputBuffer() is larger than input_timestamp - MAX_PRESENTATION_TIMESTAMP_SHIFT_US
-  // after a flush. And we set the presentation timestamp from dequeueOutputBuffer() to be
-  // non-decreasing for the remaining frames.
-  private static final long MAX_PRESENTATION_TIMESTAMP_SHIFT_US = 100000;
-
   // TODO: Use MediaFormat constants when part of the public API.
   private static final String KEY_CROP_LEFT = "crop-left";
   private static final String KEY_CROP_RIGHT = "crop-right";
@@ -69,8 +60,6 @@ class MediaCodecBridge {
       new SynchronizedHolder<>(() -> new IllegalStateException("MediaCodec was destroyed"));
 
   private MediaCodec.Callback mCallback;
-  private boolean mFlushed;
-  private long mLastPresentationTimeUs;
   private double mPlaybackRate = 1.0;
   private int mFps = 30;
   private final boolean mIsTunnelingPlayback;
@@ -254,8 +243,6 @@ class MediaCodecBridge {
     }
     mNativeMediaCodecBridge = nativeMediaCodecBridge;
     mMediaCodec.set(mediaCodec);
-    mLastPresentationTimeUs = 0;
-    mFlushed = true;
     mIsTunnelingPlayback = tunnelModeAudioSessionId != -1;
     mCallback =
         new MediaCodec.Callback() {
@@ -642,11 +629,14 @@ class MediaCodecBridge {
   @CalledByNative
   private int flush() {
     try {
-      mFlushed = true;
       mMediaCodec.get().flush();
     } catch (Exception e) {
       Log.e(TAG, "Failed to flush MediaCodec", e);
       return MediaCodecStatus.ERROR;
+    } finally {
+      if (mFrameRateEstimator != null) {
+        mFrameRateEstimator.reset();
+      }
     }
     return MediaCodecStatus.OK;
   }
@@ -719,7 +709,6 @@ class MediaCodecBridge {
   @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags, boolean isDecodeOnly) {
-    resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       if (isDecodeOnlyFlagEnabled()
           && isDecodeOnly
@@ -748,7 +737,6 @@ class MediaCodecBridge {
       int blocksToSkip,
       long presentationTimeUs,
       boolean isDecodeOnly) {
-    resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
@@ -1003,32 +991,6 @@ class MediaCodecBridge {
       Log.e(TAG, "Cannot configure the audio codec", e);
     }
     return false;
-  }
-
-  private void resetLastPresentationTimeIfNeeded(long presentationTimeUs) {
-    if (mFlushed) {
-      mLastPresentationTimeUs =
-          Math.max(presentationTimeUs - MAX_PRESENTATION_TIMESTAMP_SHIFT_US, 0);
-      mFlushed = false;
-    }
-  }
-
-  @SuppressWarnings("deprecation")
-  private int getAudioFormat(int channelCount) {
-    switch (channelCount) {
-      case 1:
-        return AudioFormat.CHANNEL_OUT_MONO;
-      case 2:
-        return AudioFormat.CHANNEL_OUT_STEREO;
-      case 4:
-        return AudioFormat.CHANNEL_OUT_QUAD;
-      case 6:
-        return AudioFormat.CHANNEL_OUT_5POINT1;
-      case 8:
-        return AudioFormat.CHANNEL_OUT_7POINT1_SURROUND;
-      default:
-        return AudioFormat.CHANNEL_OUT_DEFAULT;
-    }
   }
 
   @NativeMethods

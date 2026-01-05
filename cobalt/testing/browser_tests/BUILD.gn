@@ -130,24 +130,30 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 
   content_browsertests_manifest =
-      "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
+      "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
 
-  jinja_template("content_browsertests_manifest") {
+  jinja_template("cobalt_browsertests_manifest_gen") {
     testonly = true
-    input = "//cobalt/testing/browser_tests/browsertests_apk/AndroidManifest.xml.jinja2"
+    input = "//cobalt/shell/android/javatests/AndroidManifest.xml"
     output = content_browsertests_manifest
+    includes = [ "//cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2" ]
+    variables = [
+      "debuggable=true",
+      "manifest_package=org.chromium.content_browsertests_apk",
+      "build_type=$build_type",
+    ]
   }
 
   android_library("content_browsertests_java") {
     testonly = true
-    resources_package = "dev.cobalt.coat"
+    resources_package = "org.chromium.content_browsertests_apk"
     sources = [
-      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsActivity.java",
-      "browsertests_apk/src/dev/cobalt/coat/ContentBrowserTestsApplication.java",
-      "browsertests_apk/src/dev/cobalt/coat/ContentShellBrowserTestActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsActivity.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentBrowserTestsApplication.java",
+      "browsertests_apk/src/org/chromium/content_browsertests_apk/ContentShellBrowserTestActivity.java",
     ]
     deps = [
-      ":content_browsertests_manifest",
+      ":cobalt_browsertests_manifest_gen",
       ":content_browsertests_resources",
       "//base:base_java",
       "//base:base_java_test_support",
@@ -328,7 +334,7 @@ test("cobalt_browsertests") {
   ]
 
   data = [
-    "$root_build_dir/cobalt/testing/browser_tests/data",
+    "//content/test/data/",
     "//media/test/data/",
   ]
 
@@ -352,8 +358,8 @@ test("cobalt_browsertests") {
       "//ui/touch_selection:touch_selection",
     ]
     android_manifest =
-        "${target_gen_dir}/content_browsertests_manifest/AndroidManifest.xml"
-    android_manifest_dep = ":content_browsertests_manifest"
+        "${target_gen_dir}/cobalt_browsertests_apk/AndroidManifest.xml"
+    android_manifest_dep = ":cobalt_browsertests_manifest_gen"
     use_default_launcher = false
   }
 
@@ -391,6 +397,10 @@ static_library("cobalt_shell_test_lib") {
   sources = [
     "app/shell_main_test_delegate.cc",
     "app/shell_main_test_delegate.h",
+    "browser/shell_browser_test_context.cc",
+    "browser/shell_browser_test_context.h",
+    "browser/shell_browser_test_main_parts.cc",
+    "browser/shell_browser_test_main_parts.h",
     "browser/shell_content_browser_test_client.cc",
     "browser/shell_content_browser_test_client.h",
     "browser/test_shell.cc",
@@ -435,12 +445,6 @@ static_library("cobalt_shell_test_lib") {
   }
 }
 
-action("copy_test_data") {
-  script = "data/update_build_gn.py"
-  outputs = [ "$target_gen_dir/copy_test_data.stamp" ]
-  args = [ rebase_path(root_out_dir, root_build_dir) ]
-}
-
 source_set("cobalt_browsertests_support") {
   testonly = true
   sources = [
@@ -448,6 +452,8 @@ source_set("cobalt_browsertests_support") {
     "common/main_frame_counter_test_impl.h",
     "common/power_monitor_test_impl.cc",
     "common/power_monitor_test_impl.h",
+    "common/shell_test_switches.cc",
+    "common/shell_test_switches.h",
     "renderer/render_frame_test_helper.cc",
     "renderer/render_frame_test_helper.h",
     "renderer/shell_render_frame_observer.cc",
@@ -457,7 +463,6 @@ source_set("cobalt_browsertests_support") {
   public_deps = [
     ":cobalt_browsertests_support_mojom",
     ":shell_controller_mojom",
-    "//cobalt/shell:shell_test_switches_lib",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/services/storage/test_api",

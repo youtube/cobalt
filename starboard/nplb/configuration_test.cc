@@ -16,6 +16,7 @@
 // configuration.h work for the current toolchain.
 
 #include "starboard/configuration.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {
