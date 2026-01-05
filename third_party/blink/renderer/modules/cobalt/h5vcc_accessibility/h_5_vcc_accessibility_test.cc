@@ -23,6 +23,8 @@
 
 namespace blink {
 
+using ::testing::_;
+
 class FakeH5vccAccessibilityService
     : public h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser {
  public:
@@ -102,17 +104,15 @@ TEST_F(H5vccAccessibilityTest, ConstructDestroy) {
   ASSERT_TRUE(h5vcc_accessibility);
 }
 
-
+// Verifies that textToSpeech() triggers a Mojo "remote" query.
 TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSync) {
-  base::RunLoop loop;
-  auto closure = loop.QuitClosure();
-
   auto* window = GetFrame().DomWindow();
   auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
 
+  base::RunLoop loop;
+  auto closure = loop.QuitClosure();
   constexpr bool kValue = true;
-  EXPECT_CALL(*h5vcc_accessibility_service(),
-              IsTextToSpeechEnabledSync(::testing::_))
+  EXPECT_CALL(*h5vcc_accessibility_service(), IsTextToSpeechEnabledSync(_))
       .WillOnce(::testing::WithArg<0>(
           ::testing::Invoke([&closure](base::OnceCallback<void(bool)> cb) {
             // For some reason base::test::RunOnceCallback() didn't work here.
@@ -123,23 +123,39 @@ TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSync) {
   loop.Run();
 }
 
-
+// Verifies that H5vccAccessibility won't query the "remote"
+// h5vcc_accessibility_service() if it has queried it at least once.
 TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSyncWithCachedValue) {
-  // base::RunLoop loop;
-  // auto closure = loop.QuitClosure();
-
   auto* window = GetFrame().DomWindow();
   auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
 
-  constexpr bool kLastReceivedValue = false;
-  h5vcc_accessibility->set_last_text_to_speech_enabled_for_testing(
-      kLastReceivedValue);
+  constexpr bool kValue = true;
+  // First time around, textToSpeech() triggers a Mojo call.
+  {
+    base::RunLoop loop;
+    auto closure = loop.QuitClosure();
 
-  EXPECT_CALL(*h5vcc_accessibility_service(),
-              IsTextToSpeechEnabledSync(::testing::_))
-      .Times(0);
-  EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kLastReceivedValue);
-  // loop.Run();
+    EXPECT_CALL(*h5vcc_accessibility_service(), IsTextToSpeechEnabledSync(_))
+        .WillOnce(::testing::WithArg<0>(
+            ::testing::Invoke([&closure](base::OnceCallback<void(bool)> cb) {
+              // For some reason base::test::RunOnceCallback() didn't work here.
+              std::move(cb).Run(kValue);
+              closure.Run();
+            })));
+    EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
+    loop.Run();
+  }
+  // Second time around, textToSpeech() does not trigger trigger a Mojo call:
+  // last read value is cached.
+  {
+    base::RunLoop loop;
+    auto closure = loop.QuitClosure();
+
+    EXPECT_CALL(*h5vcc_accessibility_service(), IsTextToSpeechEnabledSync(_))
+        .Times(0);
+    EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
+    loop.RunUntilIdle();
+  }
 }
 
 }  // namespace blink

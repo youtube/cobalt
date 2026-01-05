@@ -65,18 +65,12 @@ class MODULES_EXPORT H5vccAccessibility
   void Trace(Visitor* visitor) const override;
 
  private:
-  FRIEND_TEST_ALL_PREFIXES(H5vccAccessibilityTest,
-                           IsTextToSpeechEnabledSyncWithCachedValue);
-
   void EnsureRemoteIsBound();
   void EnsureReceiverIsBound();
 
   // TODO(b/458102489): Remove this value caching when Kabuki uses the Event
   // exclusively.
   std::optional<bool> last_text_to_speech_enabled_;
-  void set_last_text_to_speech_enabled_for_testing(bool value) {
-    last_text_to_speech_enabled_ = value;
-  }
 
   // Proxy to the remote H5vccAccessibilityBrowser implementation.
   HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>
