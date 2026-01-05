@@ -21,37 +21,14 @@
 #include "cobalt/android/jni_headers/StarboardFeatureList_jni.h"
 
 using base::android::ConvertJavaStringToUTF8;
-using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
-using base::android::ScopedJavaLocalRef;
 
 namespace starboard::features {
-namespace {
-
-// Array of features exposed through the Java StarboardFeatureList API. Entries
-// in this array refer to features defined in
-// starboard/extension/feature_config.h.
-const SbFeature* const kFeaturesExposedToJava[] = {
-    &kNonTunneledDecodeOnly,
-};
-
-const SbFeature* FindFeatureExposedToJava(const std::string& feature_name) {
-  for (const SbFeature* feature : kFeaturesExposedToJava) {
-    if (feature->name == feature_name) {
-      return feature;
-    }
-  }
-  NOTREACHED() << "Queried feature cannot be found in StarboardFeatureList: "
-               << feature_name;
-  return nullptr;
-}
-}  // namespace
 
 static jboolean JNI_StarboardFeatureList_IsEnabled(
     JNIEnv* env,
     const JavaParamRef<jstring>& jfeature_name) {
-  const SbFeature* feature =
-      FindFeatureExposedToJava(ConvertJavaStringToUTF8(env, jfeature_name));
-  return FeatureList::IsEnabled(*feature);
+  std::string feature_name = ConvertJavaStringToUTF8(env, jfeature_name);
+  return FeatureList::IsEnabledByName(feature_name);
 }
 }  // namespace starboard::features

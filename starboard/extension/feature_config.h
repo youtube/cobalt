@@ -126,12 +126,6 @@ STARBOARD_FEATURE(kUseStubVideoDecoder, "UseStubVideoDecoder", false)
 // By default, the platform Opus decoder is only enabled for encrypted playback.
 // Set the following variable to true to force it for clear playback.
 STARBOARD_FEATURE(kForcePlatformOpusDecoder, "ForcePlatformOpusDecoder", false)
-
-// |BUFFER_FLAG_DECODE_ONLY| is only used in tunnel playbacks
-// to explicitly skip video frames before the seek time so that they won't
-// be rendered. Set the following variable to true to use
-// |BUFFER_FLAG_DECODE_ONLY| for non-tunneled playbacks as well.
-STARBOARD_FEATURE(kNonTunneledDecodeOnly, "NonTunneledDecodeOnly", false)
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
