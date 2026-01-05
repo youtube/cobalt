@@ -19,7 +19,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
 
-#include "starboard/common/log.h" // nogncheck
+#include "starboard/common/log.h"  // nogncheck
 
 namespace blink {
 
@@ -65,11 +65,14 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
   BindRemotePerformance(script_state)->GetAppStartupTime(&startup_time);
   ScriptPromise promise = resolver->Promise();
 #if BUILDFLAG(IS_STARBOARD)
-  int64_t time_origin = performance_obj.GetTimeOriginInternal().ToInternalValue();
-  LOG(INFO) << "OriginTime is "<< time_origin;
-  LOG(INFO) << "startup_time variable  value  is "<< startup_time;
-  double startup_time_ms = static_cast<double>(startup_time - time_origin) / 1000.0;
-  LOG(INFO) << "actual startup time is "<< startup_time_ms;
+  base::TimeTicks time_origin = performance_obj.GetTimeOriginInternal();
+  base::TimeTicks startup_time_from_starboard =
+      base::TimeTicks::FromInternalValue(startup_time);
+  base::TimeDelta startup_delta = startup_time_from_starboard - time_origin;
+  LOG(INFO) << "OriginTime is " << time_origin.ToInternalValue();
+  LOG(INFO) << "startup_time variable  value  is " << startup_time;
+  double startup_time_ms = startup_delta.InMillisecondsF();
+  LOG(INFO) << "actual startup time is " << startup_time_ms;
   resolver->Resolve(startup_time_ms);
 #else
   resolver->Resolve(startup_time);

@@ -121,8 +121,8 @@ void SbEventHandle(const SbEvent* event) {
       break;
     }
     case kSbEventTypeStart: {
-      cobalt::browser::SetStartupTime(event->timestamp);
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      cobalt::browser::SetStartupTime(event->timestamp);
       init_musl();
 #endif
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
