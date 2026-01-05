@@ -14,21 +14,23 @@
 
 #include "cobalt/browser/performance/startup_time.h"
 
+#include <atomic>
+
 #include "base/time/time.h"
 
 namespace cobalt {
 namespace browser {
 
 namespace {
-int64_t g_startup_time = 0;
+std::atomic<int64_t> g_startup_time{0};
 }  // namespace
 
 void SetStartupTime(int64_t startup_time) {
-  g_startup_time = startup_time;
+  g_startup_time.store(startup_time);
 }
 
 int64_t GetStartupTime() {
-  return g_startup_time;
+  return g_startup_time.load();
 }
 
 }  // namespace browser
