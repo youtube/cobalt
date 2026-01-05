@@ -92,8 +92,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       BrowserContext* browser_context,
       const GURL& url,
       const scoped_refptr<SiteInstance>& site_instance,
-      const gfx::Size& initial_size,
-      const std::string& main_frame_name = "");
+      const gfx::Size& initial_size);
 
   // Returns the Shell object corresponding to the given WebContents.
   static Shell* FromWebContents(WebContents* web_contents);

@@ -303,22 +303,8 @@ gfx::Size Shell::AdjustWindowSize(const gfx::Size& initial_size) {
 Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const GURL& url,
                               const scoped_refptr<SiteInstance>& site_instance,
-                              const gfx::Size& initial_size,
-                              const std::string& main_frame_name) {
+                              const gfx::Size& initial_size) {
   WebContents::CreateParams create_params(browser_context, site_instance);
-#if BUILDFLAG(IS_ANDROID)
-  // Workaround to determine if WebContents is for main app or splash screen.
-  // As a result, CobaltContentBrowserClient::OnWebContentsCreated() only
-  // observes WebContents on main app.
-  if (!main_frame_name.empty()) {
-    // Set |main_frame_name| for splash screen, where
-    // ShellBrowserMainParts::InitializeMessageLoopContext() creates
-    // WebContents, and it loads splash screen. On the other hand,
-    // JNI_ShellManager_LaunchShell() should not set |main_frame_name|.
-    create_params.main_frame_name = main_frame_name;
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
