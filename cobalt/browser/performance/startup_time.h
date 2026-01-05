@@ -26,4 +26,4 @@ int64_t GetStartupTime();
 }  // namespace browser
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_STARTUP_TIME_H_
+#endif  // COBALT_BROWSER_PERFORMANCE_STARTUP_TIME_H_
