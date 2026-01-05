@@ -547,6 +547,26 @@ ContextualTasksUI::GetOrCreateContextualSessionHandle() {
     return existing_session;
   }
 
+  // Create a new session if there's no task ID yet.
+  if (!task_id_) {
+    auto* service = ContextualSearchServiceFactory::GetForProfile(
+        Profile::FromWebUI(web_ui()));
+    if (service) {
+      auto session_handle = service->CreateSession(
+          ntp_composebox::CreateQueryControllerConfigParams(),
+          contextual_search::ContextualSearchSource::kContextualTasks);
+      // TODO(crbug.com/469875164): Determine what to do with the return value
+      // of this call, or move this call to a different location.
+      session_handle->CheckSearchContentSharingSettings(
+          Profile::FromWebUI(web_ui())->GetPrefs());
+      helper->SetTaskSession(std::nullopt, std::move(session_handle));
+      return helper->session_handle();
+    }
+  }
+
+  // TODO(crbug.com/469837027): Figure out what the below is doing. It does not
+  // seem quite right.
+
   // If no valid session exists, maintains context continuity by trying to find
   // one from affiliated tabs or side panel WebContents.
   auto* coordinator = GetSidePanelCoordinator();
@@ -648,6 +668,12 @@ void ContextualTasksUI::OnSidePanelStateChanged() {
 
 void ContextualTasksUI::DisableActiveTabContextSuggestion() {
   ui_service_->set_auto_tab_context_suggestion_enabled(false);
+}
+
+void ContextualTasksUI::OnLensOverlayStateChanged(bool is_showing) {
+  if (page_) {
+    page_->OnLensOverlayStateChanged(is_showing);
+  }
 }
 
 void ContextualTasksUI::OnActiveTabContextStatusChanged() {
@@ -790,7 +816,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
 
     ui_service_->OnTaskChanged(task_info_delegate_->GetBrowser(),
                                task_info_delegate_->GetWebUIWebContents(),
-                               base::Uuid(),
+                               new_task_id,
                                task_info_delegate_->IsShownInTab());
     return;
   }
@@ -815,7 +841,7 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   bool is_pending_task =
       task_info_delegate_->GetTaskId().has_value() && !webui_thread_id;
 
-  // In cases where the webui doesn't know about an existing threaad ID or
+  // In cases where the webui doesn't know about an existing thread ID or
   // there's a mismatch, either create a new task or update to use an existing
   // one (if it exists).
   if (!is_pending_task &&

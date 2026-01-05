@@ -55,9 +55,6 @@
     + var(--composebox-margin-bottom));
 
   align-items: center;
-  background: linear-gradient(to top,
-    rgba(var(--search-background-color-rgb), 1)
-    var(--composebox-container-height), transparent);
   height: var(--composebox-container-height);
   inset-block-end: 0;
   justify-content: flex-end;
@@ -100,6 +97,19 @@
   position: absolute;
   /* 100% - (24px right indent + left indent), up to max width. */
   width: calc(100% - (24px + var(--inset-start-indent_)));
+}
+
+#composebox::before {
+  content: '';
+  background: var(--search-background-color);
+  border-radius: 24px;
+  content: "";
+  display: block;
+  /* Expand past the bottom of the screen. */
+  height: 40vh;
+  display: block;
+  position: absolute;
+  width: 100%;
 }
 
 /* TODO(crbug.com/466201452): Check this logic
@@ -267,6 +277,8 @@
   --cr-icon-button-fill-color: var(--color-composebox-voice-lens-button);
   --cr-icon-button-icon-size: var(--icon-menu-icon-size);
   --cr-icon-button-size: var(--icon-menu-button-size);
+  /* Override the expanding fade in animation to make the icon appear instantly. */
+  animation: none;
   bottom: var(--composebox-icon-menu-bottom);
   display: block;
   inset-inline-end: var(--composebox-last-icon-inline-end);
@@ -372,7 +384,7 @@
 }
 
 /* Lens is only shown in side panel, so adjust spacing. */
-#composebox[show-submit_][is-side-panel][submit-enabled_]::part(voice-icon) {
+:host([is-side-panel]) #composebox[show-submit_][submit-enabled_]::part(voice-icon) {
   inset-inline-end: calc(var(--composebox-submit-container-size)
       + var(--icon-menu-button-size)
       + 2 * var(--icon-menu-spacing)
@@ -391,7 +403,7 @@
 }
 
 /* Lens is only shown in side panel, so adjust spacing. */
-#composebox[is-side-panel]::part(voice-icon) {
+:host([is-side-panel]) #composebox::part(voice-icon) {
   inset-inline-end: calc(
       var(--icon-menu-button-size)
       + var(--icon-menu-spacing)

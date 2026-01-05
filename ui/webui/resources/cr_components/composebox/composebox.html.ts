@@ -107,6 +107,7 @@ export function getHtml(this: ComposeboxElement) {
             .result="${this.result_}"
             .selectedMatchIndex="${this.selectedMatchIndex_}"
             .maxSuggestions="${this.maxSuggestions}"
+            .inDeepSearchMode="${this.inDeepSearchMode_}"
             @selected-match-index-changed="${this.onSelectedMatchIndexChanged_}"
             @match-focusin="${this.onMatchFocusin_}"
             @match-click="${this.onMatchClick_}"
@@ -135,7 +136,7 @@ export function getHtml(this: ComposeboxElement) {
         part="action-icon lens-icon"
         title="${this.i18n('lensSearchButtonLabel')}"
         @click="${this.onLensClick_}"
-        ?disabled="${this.lensButtonDisabled_}"
+        ?disabled="${this.lensButtonDisabled}"
         @mousedown="${this.onLensIconMouseDown_}">
     </cr-icon-button>` : ''}
     <!-- Elements rendered under the input container. -->

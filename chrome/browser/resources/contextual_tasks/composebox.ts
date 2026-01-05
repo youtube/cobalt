@@ -44,6 +44,10 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
+      isLensOverlayShowing: {
+        type: Boolean,
+        reflect: true,
+      },
       composeboxHeight_: {type: Number},
       composeboxDropdownHeight_: {type: Number},
       isComposeboxFocused_: {
@@ -64,6 +68,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
 
   accessor isZeroState: boolean = false;
   accessor isSidePanel: boolean = false;
+  accessor isLensOverlayShowing: boolean = false;
   protected accessor composeboxHeight_: number = 0;
   protected accessor composeboxDropdownHeight_: number = 0;
   protected accessor isComposeboxFocused_: boolean = false;
@@ -115,7 +120,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       });
       this.eventTracker_.add(composebox, 'composebox-submit', () => {
         // Clear the composebox text after submitting.
-        this.clearInputAndFocus();
+        this.clearInputAndFocus(/* querySubmitted= */ true);
       });
       this.eventTracker_.add(
           composebox, 'composebox-resize', (e: CustomEvent) => {
@@ -152,7 +157,8 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       tooltip.target = this.$.composebox;
     }
 
-    if (this.onboardingTooltipIsVisible_ && !this.$.composebox.getHasAutomaticActiveTabChipToken()) {
+    if (this.onboardingTooltipIsVisible_ &&
+        !this.$.composebox.getHasAutomaticActiveTabChipToken()) {
       tooltip.hide();
       this.onboardingTooltipIsVisible_ = false;
     } else if (this.$.composebox.getHasAutomaticActiveTabChipToken()) {
@@ -195,9 +201,9 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     this.updateTooltipVisibility_();
   }
 
-  clearInputAndFocus(): void {
+  clearInputAndFocus(querySubmitted: boolean = false): void {
     // Clear text from composebox and focus.
-    this.$.composebox.clearAllInputs(/* querySubmitted= */ false);
+    this.$.composebox.clearAllInputs(querySubmitted);
     this.$.composebox.focusInput();
     this.$.composebox.clearAutocompleteMatches();
   }
