@@ -27,8 +27,8 @@ public class StarboardFeatureList {
     /**
      * Returns whether the specified feature is enabled or not.
      *
-     * Note: Features queried through this API must be added to the array
-     * |kFeaturesExposedToJava| in //starboard/android/shared/starboard_feature_list.cc
+     * Note: This queries features defined with STARBOARD_FEATURE in
+     * //starboard/extension/feature_config.h
      *
      * @param featureName The name of the feature to query.
      * @return Whether the feature is enabled or not.

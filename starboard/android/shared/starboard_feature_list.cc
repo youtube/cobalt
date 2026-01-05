@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "base/android/jni_string.h"
-#include "base/notreached.h"
 #include "starboard/shared/starboard/feature_list.h"
 #include "starboard/shared/starboard/features.h"
 
