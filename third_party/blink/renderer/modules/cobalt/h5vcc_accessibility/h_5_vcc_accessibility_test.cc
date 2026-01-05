@@ -71,7 +71,10 @@ class H5vccAccessibilityTest : public PageTestBase {
   H5vccAccessibilityTest()
       : h5vcc_accessibility_service_(
             std::make_unique<
-                ::testing::StrictMock<FakeH5vccAccessibilityService>>()) {}
+                ::testing::StrictMock<FakeH5vccAccessibilityService>>()) {
+    auto* window = GetFrame().DomWindow();
+    h5vcc_accessibility_ = MakeGarbageCollected<H5vccAccessibility>(*window);
+  }
 
   void SetUp() override {
     PageTestBase::SetUp(gfx::Size());
@@ -93,22 +96,18 @@ class H5vccAccessibilityTest : public PageTestBase {
     return h5vcc_accessibility_service_.get();
   }
 
- private:
+ protected:
   std::unique_ptr<::testing::StrictMock<FakeH5vccAccessibilityService>>
       h5vcc_accessibility_service_;
+  H5vccAccessibility* h5vcc_accessibility_;
 };
 
 TEST_F(H5vccAccessibilityTest, ConstructDestroy) {
-  auto* window = GetFrame().DomWindow();
-  auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
-  ASSERT_TRUE(h5vcc_accessibility);
+  ASSERT_TRUE(h5vcc_accessibility_);
 }
 
 // Verifies that textToSpeech() triggers a Mojo "remote" query.
 TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSync) {
-  auto* window = GetFrame().DomWindow();
-  auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
-
   base::RunLoop loop;
   auto closure = loop.QuitClosure();
   constexpr bool kValue = true;
@@ -119,16 +118,13 @@ TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSync) {
             std::move(cb).Run(kValue);
             closure.Run();
           })));
-  EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
+  EXPECT_EQ(h5vcc_accessibility_->textToSpeech(), kValue);
   loop.Run();
 }
 
 // Verifies that H5vccAccessibility won't query the "remote"
 // h5vcc_accessibility_service() if it has queried it at least once.
 TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSyncWithCachedValue) {
-  auto* window = GetFrame().DomWindow();
-  auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
-
   constexpr bool kValue = true;
   // First time around, textToSpeech() triggers a Mojo call.
   {
@@ -142,7 +138,7 @@ TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSyncWithCachedValue) {
               std::move(cb).Run(kValue);
               closure.Run();
             })));
-    EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
+    EXPECT_EQ(h5vcc_accessibility_->textToSpeech(), kValue);
     loop.Run();
   }
   // Second time around, textToSpeech() does not trigger trigger a Mojo call:
@@ -153,7 +149,7 @@ TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSyncWithCachedValue) {
 
     EXPECT_CALL(*h5vcc_accessibility_service(), IsTextToSpeechEnabledSync(_))
         .Times(0);
-    EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
+    EXPECT_EQ(h5vcc_accessibility_->textToSpeech(), kValue);
     loop.RunUntilIdle();
   }
 }
