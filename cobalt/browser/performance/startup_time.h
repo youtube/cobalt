@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_STARTUP_TIME_H_
-#define COBALT_BROWSER_STARTUP_TIME_H_
+#ifndef COBALT_BROWSER_PERFORMANCE_STARTUP_TIME_H_
+#define COBALT_BROWSER_PERFORMANCE_STARTUP_TIME_H_
 
 #include "starboard/types.h"
 
