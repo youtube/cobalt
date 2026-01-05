@@ -260,6 +260,9 @@ public abstract class CobaltActivity extends Activity {
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
+
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
@@ -449,6 +452,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
+    updateShellActivityVisible(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
@@ -473,6 +477,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
@@ -781,6 +786,12 @@ public abstract class CobaltActivity extends Activity {
             }
           });
       isKeepScreenOnEnabled = keepOn;
+    }
+  }
+
+  private void updateShellActivityVisible(boolean isVisible) {
+    if (mShellManager != null) {
+      mShellManager.onActivityVisible(isVisible);
     }
   }
 
