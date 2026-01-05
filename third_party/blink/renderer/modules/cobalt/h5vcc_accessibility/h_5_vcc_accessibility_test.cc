@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@
 
 namespace blink {
 
-class FakeH5vccAccessibilityService final
+class FakeH5vccAccessibilityService
     : public h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser {
  public:
   FakeH5vccAccessibilityService() : receiver_(this) {}
@@ -66,10 +66,10 @@ class FakeH5vccAccessibilityService final
 
 class H5vccAccessibilityTest : public PageTestBase {
  public:
-  H5vccAccessibilityTest() {
-    h5vcc_accessibility_service_ =
-        std::make_unique<FakeH5vccAccessibilityService>();
-  }
+  H5vccAccessibilityTest()
+      : h5vcc_accessibility_service_(
+            std::make_unique<
+                ::testing::StrictMock<FakeH5vccAccessibilityService>>()) {}
 
   void SetUp() override {
     PageTestBase::SetUp(gfx::Size());
@@ -86,47 +86,60 @@ class H5vccAccessibilityTest : public PageTestBase {
         {});
   }
 
-  FakeH5vccAccessibilityService* h5vcc_accessibility_service() {
+  ::testing::StrictMock<FakeH5vccAccessibilityService>*
+  h5vcc_accessibility_service() {
     return h5vcc_accessibility_service_.get();
   }
 
  private:
-  std::unique_ptr<FakeH5vccAccessibilityService> h5vcc_accessibility_service_;
+  std::unique_ptr<::testing::StrictMock<FakeH5vccAccessibilityService>>
+      h5vcc_accessibility_service_;
 };
 
-TEST_F(H5vccAccessibilityTest, ConstructDestroy) {}
+TEST_F(H5vccAccessibilityTest, ConstructDestroy) {
+  auto* window = GetFrame().DomWindow();
+  auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
+  ASSERT_TRUE(h5vcc_accessibility);
+}
+
 
 TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSync) {
   base::RunLoop loop;
+  auto closure = loop.QuitClosure();
 
   auto* window = GetFrame().DomWindow();
-  H5vccAccessibility h5vcc_accessibility(*window);
+  auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
 
   constexpr bool kValue = true;
   EXPECT_CALL(*h5vcc_accessibility_service(),
               IsTextToSpeechEnabledSync(::testing::_))
-      .WillOnce(base::test::RunOnceCallback<0>(kValue))
-      .WillOnce(base::test::RunClosure(loop.QuitClosure()));
-  EXPECT_EQ(h5vcc_accessibility.textToSpeech(), kValue);
+      .WillOnce(::testing::WithArg<0>(
+          ::testing::Invoke([&closure](base::OnceCallback<void(bool)> cb) {
+            // For some reason base::test::RunOnceCallback() didn't work here.
+            std::move(cb).Run(kValue);
+            closure.Run();
+          })));
+  EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
   loop.Run();
 }
 
+
 TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSyncWithCachedValue) {
-  base::RunLoop loop;
+  // base::RunLoop loop;
+  // auto closure = loop.QuitClosure();
 
   auto* window = GetFrame().DomWindow();
-  H5vccAccessibility h5vcc_accessibility(*window);
+  auto* h5vcc_accessibility = MakeGarbageCollected<H5vccAccessibility>(*window);
 
-  constexpr bool kValue = true;
-  constexpr bool kOverwrite = false;
-  h5vcc_accessibility.set_last_text_to_speech_enabled_for_testing(kOverwrite);
+  constexpr bool kLastReceivedValue = false;
+  h5vcc_accessibility->set_last_text_to_speech_enabled_for_testing(
+      kLastReceivedValue);
 
   EXPECT_CALL(*h5vcc_accessibility_service(),
               IsTextToSpeechEnabledSync(::testing::_))
-      .WillOnce(base::test::RunOnceCallback<0>(kValue))
-      .WillOnce(base::test::RunClosure(loop.QuitClosure()));
-  EXPECT_EQ(h5vcc_accessibility.textToSpeech(), kOverwrite);
-  loop.Run();
+      .Times(0);
+  EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kLastReceivedValue);
+  // loop.Run();
 }
 
 }  // namespace blink

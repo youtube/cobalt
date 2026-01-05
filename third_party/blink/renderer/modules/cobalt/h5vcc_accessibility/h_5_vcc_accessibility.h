@@ -78,10 +78,10 @@ class MODULES_EXPORT H5vccAccessibility
     last_text_to_speech_enabled_ = value;
   }
 
-  // Proxy to the browser process’s H5vccAccessibilityBrowser implementation.
+  // Proxy to the remote H5vccAccessibilityBrowser implementation.
   HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>
       remote_;
-  // Handles incoming browser-to-renderer calls.
+  // Pipe to receive notifications from the remove interface implementation.
   HeapMojoReceiver<h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient,
                    H5vccAccessibility>
       notification_receiver_;
