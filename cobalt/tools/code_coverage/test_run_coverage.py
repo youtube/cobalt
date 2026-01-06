@@ -288,29 +288,39 @@ class RunCoverageTest(unittest.TestCase):
     mock_discover_targets.assert_called_with('android-arm64')
 
   @mock.patch('os.makedirs')
+  @mock.patch('os.path.exists', return_value=True)
+  @mock.patch('builtins.open', new_callable=mock.mock_open)
   @mock.patch('subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
-  def test_run_coverage_multiple_filters(self, mock_arg_parser, mock_check_call,
-                                         mock_makedirs):
+  def test_run_coverage_with_test_filters(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_check_call, mock_open, mock_exists,
+      mock_makedirs):
     """
-    Tests successful execution when multiple filters are provided.
+    Tests successful execution when test filters are applied.
     """
+    del mock_exists  # unused
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
-    filters = ['cobalt/browser', 'cobalt/renderer']
     target = 'cobalt:unittests'
     sanitized_target = 'cobalt_unittests'
     executable_name = 'unittests'
     build_dir = f'out/{platform}_devel-coverage'
-    expected_command = os.path.join(build_dir, executable_name)
+    base_command = os.path.join(build_dir, executable_name)
     target_output_dir = os.path.join(output_dir, sanitized_target)
+    filter_file_path = os.path.join(run_coverage.SRC_ROOT_PATH, 'cobalt',
+                                    'testing', 'filters', 'android-arm',
+                                    f'{executable_name}_filter.json')
+    mock_filter_content = '{"failing_tests": ["Test.Fails", "Test.Crashes"]}'
+    mock_open.side_effect = lambda path, *args, **kwargs: mock.mock_open(
+        read_data=mock_filter_content
+    ).return_value if path == filter_file_path else mock.DEFAULT
 
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
         platform=platform,
         output_dir=output_dir,
         targets=[target],
-        filters=filters)
+        filters=None)
 
     result = run_coverage.main()
 
@@ -326,11 +336,7 @@ class RunCoverageTest(unittest.TestCase):
         '-o',
         target_output_dir,
         '-c',
-        expected_command,
-        '-f',
-        'cobalt/browser',
-        '-f',
-        'cobalt/renderer',
+        f'{base_command} --gtest_filter=-Test.Fails.Test.Crashes',
         '--format=lcov',
         executable_name,
     ]

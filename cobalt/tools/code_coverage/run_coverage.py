@@ -119,6 +119,19 @@ def main():
 
     executable_name = target.split(':')[-1]
     command = os.path.join(build_dir, executable_name)
+
+    # Add the test filters to the command.
+    gtest_filter = None
+    filter_file = os.path.join(SRC_ROOT_PATH, 'cobalt', 'testing', 'filters',
+                               discovery_platform,
+                               f'{executable_name}_filter.json')
+    if os.path.exists(filter_file):
+      with open(filter_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        if 'failing_tests' in data and data['failing_tests']:
+          gtest_filter = f'--gtest_filter=-{".".join(data["failing_tests"])}'  # pylint: disable=inconsistent-quotes
+          command += f' {gtest_filter}'
+
     coverage_command = [
         sys.executable,
         COVERAGE_TOOL_PATH,
