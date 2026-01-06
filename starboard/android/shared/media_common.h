@@ -17,7 +17,6 @@
 
 #include <jni.h>
 
-#include <algorithm>
 #include <cstring>
 #include <optional>
 
@@ -29,6 +28,8 @@
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 
 namespace starboard {
+
+const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
@@ -127,18 +128,21 @@ inline int GetAudioFormatSampleType(
   return 0u;
 }
 
-inline bool IsSDR(const SbMediaColorMetadata& color_metadata) {
-  // Convenience HDR mastering metadata.
-  const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
+  auto is_identity = [](const SbMediaMasteringMetadata& metadata) {
+    static const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+    return memcmp(&metadata, &kEmptyMasteringMetadata,
+                  sizeof(SbMediaMasteringMetadata)) == 0;
+  };
+
   return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
          color_metadata.transfer == kSbMediaTransferIdBt709 &&
          color_metadata.matrix == kSbMediaMatrixIdBt709 &&
          color_metadata.range == kSbMediaRangeIdLimited &&
-         memcmp(&color_metadata, &kEmptyMasteringMetadata,
-                sizeof(SbMediaMasteringMetadata)) == 0;
+         is_identity(color_metadata.mastering_metadata);
 }
 
-inline jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
+jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
   switch (primary_id) {
     case kSbMediaPrimaryIdBt709:
       return COLOR_STANDARD_BT709;
@@ -149,7 +153,7 @@ inline jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
   }
 }
 
-inline jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
+jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
   switch (transfer_id) {
     case kSbMediaTransferIdBt709:
       return COLOR_TRANSFER_SDR_VIDEO;
@@ -162,7 +166,7 @@ inline jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
   }
 }
 
-inline jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
+jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
   switch (range_id) {
     case kSbMediaRangeIdLimited:
       return COLOR_RANGE_LIMITED;
