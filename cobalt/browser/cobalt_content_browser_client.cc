@@ -323,10 +323,10 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
 #if BUILDFLAG(USE_EVERGREEN)
-  // Create the updater module singleton.
+  // Create the updater module singleton if not already created.
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
-  if (storage_partition) {
+  if (storage_partition and !updater::UpdaterModule::GetInstance()) {
     LOG(INFO) << "Creating UpdaterModule singleton.";
     updater::UpdaterModule::CreateInstance(
         storage_partition->GetURLLoaderFactoryForBrowserProcess(),
