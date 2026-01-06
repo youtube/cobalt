@@ -26,7 +26,6 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -217,9 +216,6 @@ public abstract class CobaltActivity extends Activity {
               .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
               .orElse(null);
     }
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
-    }
 
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
@@ -290,6 +286,9 @@ public abstract class CobaltActivity extends Activity {
                   }
                 }
               };
+
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
@@ -482,6 +481,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
+    updateShellActivityVisible(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
@@ -503,6 +503,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
@@ -762,6 +763,12 @@ public abstract class CobaltActivity extends Activity {
             }
           });
       mIsKeepScreenOnEnabled = keepOn;
+    }
+  }
+
+  private void updateShellActivityVisible(boolean isVisible) {
+    if (mShellManager != null) {
+      mShellManager.onActivityVisible(isVisible);
     }
   }
 }

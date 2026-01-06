@@ -31,11 +31,8 @@ import org.jni_zero.NativeMethods;
 @JNINamespace("content")
 public class ShellManager {
     private static final String TAG = "cobalt";
-    public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
-
-    private String mStartupUrl = DEFAULT_SHELL_URL;
 
     private Shell.OnWebContentsReadyListener mNextWebContentsReadyListener;
 
@@ -43,6 +40,8 @@ public class ShellManager {
     private ContentViewRenderView mContentViewRenderView;
 
     private Context mContext;
+
+    private boolean mIsActivityVisible;
 
     /**
      * Constructor for inflating via XML.
@@ -53,6 +52,13 @@ public class ShellManager {
             sNatives = ShellManagerJni.get();
         }
         sNatives.init(this);
+    }
+
+    public void onActivityVisible(boolean visible) {
+        mIsActivityVisible = visible;
+        if (mActiveShell != null) {
+            mActiveShell.onActivityVisible(visible);
+        }
     }
 
     public Context getContext() {
@@ -81,13 +87,6 @@ public class ShellManager {
      */
     public ContentViewRenderView getContentViewRenderView() {
         return mContentViewRenderView;
-    }
-
-    /**
-     * Sets the startup URL for new shell windows.
-     */
-    public void setStartupUrl(String url) {
-        mStartupUrl = url;
     }
 
     /**
@@ -128,6 +127,7 @@ public class ShellManager {
 
         Shell shellView = new Shell(getContext());
         shellView.initialize(nativeShellPtr, mWindow);
+        shellView.onActivityVisible(mIsActivityVisible);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
 
@@ -147,7 +147,9 @@ public class ShellManager {
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
             mContentViewRenderView.setCurrentWebContents(webContents);
-            webContents.updateWebContentsVisibility(Visibility.VISIBLE);
+            if (mIsActivityVisible) {
+                webContents.updateWebContentsVisibility(Visibility.VISIBLE);
+            }
         }
     }
 

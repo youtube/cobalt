@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SHELL_COMMON_URL_CONSTANTS_H_
-#define COBALT_SHELL_COMMON_URL_CONSTANTS_H_
+#include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
 
 namespace content {
 
-inline constexpr char kCobaltSplashMainFrameName[] = "Splash";
-inline constexpr char kH5vccEmbeddedScheme[] = "h5vcc-embedded";
+SplashScreenWebContentsObserver::SplashScreenWebContentsObserver(
+    WebContents* web_contents)
+    : WebContentsObserver(web_contents) {}
+
+SplashScreenWebContentsObserver::~SplashScreenWebContentsObserver() = default;
+
+void SplashScreenWebContentsObserver::WebContentsDestroyed() {
+  Observe(nullptr);
+}
+
+// Intentionally empty.
+void SplashScreenWebContentsObserver::LoadProgressChanged(double progress) {}
 
 }  // namespace content
-
-#endif  // COBALT_SHELL_COMMON_URL_CONSTANTS_H_
