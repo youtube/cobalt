@@ -129,10 +129,6 @@ void H5vccSystem::OnRequestTrackingAuthorization(
     ScriptPromiseResolver<IDLUndefined>* resolver,
     bool is_tracking_authorization_supported) {
   if (is_tracking_authorization_supported) {
-#if BUILDFLAG(IS_IOS_TVOS)
-    // TODO - b/458160672: Reject when this fails.
-    NOTIMPLEMENTED();
-#endif
     resolver->Resolve();
   } else {
     resolver->Reject();

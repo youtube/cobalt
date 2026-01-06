@@ -123,7 +123,6 @@ The functionality is migrated to use `getauxval` instead.
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
 * `kSbEventTypeAccessibilityCaptionSettingsChanged`
-* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 * `kSbEventTypeOnScreenKeyboardShown`
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`

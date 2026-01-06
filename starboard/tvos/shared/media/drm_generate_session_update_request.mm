@@ -21,6 +21,9 @@
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
+using starboard::DrmSystemPlatform;
+using starboard::DrmSystemWidevine;
+
 namespace {
 
 /**
@@ -92,8 +95,6 @@ void SbDrmGenerateSessionUpdateRequest(SbDrmSystem drm_system,
     }
   }
 
-  using starboard::shared::uikit::DrmSystemPlatform;
-  using starboard::shared::widevine::DrmSystemWidevine;
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->GenerateSessionUpdateRequest(ticket, type, initialization_data,

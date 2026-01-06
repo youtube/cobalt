@@ -16,9 +16,7 @@
 
 #include "base/command_line.h"
 
-// TODO(b/452256746): rename namespace test_switches to switches when all
-// references to switches are migrated.
-namespace test_switches {
+namespace switches {
 
 const char kExposeInternalsForTesting[] = "expose-internals-for-testing";
 
@@ -26,7 +24,7 @@ const char kRunWebTests[] = "run-web-tests";
 
 bool IsRunWebTestsSwitchPresent() {
   return base::CommandLine::ForCurrentProcess()->HasSwitch(
-      test_switches::kRunWebTests);
+      switches::kRunWebTests);
 }
 
-}  // namespace test_switches
+}  // namespace switches

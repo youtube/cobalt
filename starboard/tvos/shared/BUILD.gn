@@ -180,6 +180,7 @@ static_library("starboard_platform") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    "//base",
     "//starboard/shared/starboard/player:video_dmp",
     "//third_party/angle:includes",
     "//third_party/libvpx",
