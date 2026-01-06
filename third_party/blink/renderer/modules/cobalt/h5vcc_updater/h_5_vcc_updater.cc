@@ -31,9 +31,8 @@ H5vccUpdater::H5vccUpdater(LocalDOMWindow& window)
 
 void H5vccUpdater::ContextDestroyed() {}
 
-ScriptPromise<IDLString> H5vccUpdater::getUpdaterChannel(
-    ScriptState* script_state,
-    ExceptionState& exception_state) {
+ScriptPromise H5vccUpdater::getUpdaterChannel(ScriptState* script_state,
+                                              ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
@@ -49,10 +48,9 @@ ScriptPromise<IDLString> H5vccUpdater::getUpdaterChannel(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUndefined> H5vccUpdater::setUpdaterChannel(
-    ScriptState* script_state,
-    const String& channel,
-    ExceptionState& exception_state) {
+ScriptPromise H5vccUpdater::setUpdaterChannel(ScriptState* script_state,
+                                              const String& channel,
+                                              ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
@@ -68,9 +66,8 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setUpdaterChannel(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLString> H5vccUpdater::getUpdateStatus(
-    ScriptState* script_state,
-    ExceptionState& exception_state) {
+ScriptPromise H5vccUpdater::getUpdateStatus(ScriptState* script_state,
+                                            ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
@@ -86,7 +83,7 @@ ScriptPromise<IDLString> H5vccUpdater::getUpdateStatus(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUndefined> H5vccUpdater::resetInstallations(
+ScriptPromise H5vccUpdater::resetInstallations(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -103,7 +100,7 @@ ScriptPromise<IDLUndefined> H5vccUpdater::resetInstallations(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUnsignedShort> H5vccUpdater::getInstallationIndex(
+ScriptPromise H5vccUpdater::getInstallationIndex(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -121,7 +118,7 @@ ScriptPromise<IDLUnsignedShort> H5vccUpdater::getInstallationIndex(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLBoolean> H5vccUpdater::getAllowSelfSignedPackages(
+ScriptPromise H5vccUpdater::getAllowSelfSignedPackages(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -139,7 +136,7 @@ ScriptPromise<IDLBoolean> H5vccUpdater::getAllowSelfSignedPackages(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUndefined> H5vccUpdater::setAllowSelfSignedPackages(
+ScriptPromise H5vccUpdater::setAllowSelfSignedPackages(
     ScriptState* script_state,
     bool allow_self_signed_packages,
     ExceptionState& exception_state) {
@@ -157,7 +154,7 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setAllowSelfSignedPackages(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLString> H5vccUpdater::getUpdateServerUrl(
+ScriptPromise H5vccUpdater::getUpdateServerUrl(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -175,7 +172,7 @@ ScriptPromise<IDLString> H5vccUpdater::getUpdateServerUrl(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUndefined> H5vccUpdater::setUpdateServerUrl(
+ScriptPromise H5vccUpdater::setUpdateServerUrl(
     ScriptState* script_state,
     const String& update_server_url,
     ExceptionState& exception_state) {
@@ -193,7 +190,7 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setUpdateServerUrl(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLBoolean> H5vccUpdater::getRequireNetworkEncryption(
+ScriptPromise H5vccUpdater::getRequireNetworkEncryption(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -211,7 +208,7 @@ ScriptPromise<IDLBoolean> H5vccUpdater::getRequireNetworkEncryption(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUndefined> H5vccUpdater::setRequireNetworkEncryption(
+ScriptPromise H5vccUpdater::setRequireNetworkEncryption(
     ScriptState* script_state,
     bool require_network_encryption,
     ExceptionState& exception_state) {
@@ -230,10 +227,9 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setRequireNetworkEncryption(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLString> H5vccUpdater::getLibrarySha256(
-    ScriptState* script_state,
-    unsigned short index,
-    ExceptionState& exception_state) {
+ScriptPromise H5vccUpdater::getLibrarySha256(ScriptState* script_state,
+                                             unsigned short index,
+                                             ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 

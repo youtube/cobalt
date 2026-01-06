@@ -31,7 +31,7 @@ interface H5vccUpdater {
   Promise<unsigned short> getInstallationIndex();
 
   [CallWith=ScriptState, RaisesException]
-  Promise<DOMString> getLibrarySha256();
+  Promise<DOMString> getLibrarySha256(unsigned short index);
 
   // Toggles the ability to load self-signed packages in the updater. This
   // should only be used for testing and should not be available in production.

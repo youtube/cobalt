@@ -50,43 +50,35 @@ class MODULES_EXPORT H5vccUpdater final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise<IDLString> getUpdaterChannel(ScriptState* script_state,
-                                             ExceptionState& exception_state);
-  ScriptPromise<IDLUndefined> setUpdaterChannel(
-      ScriptState* script_state,
-      const String& channel,
-      ExceptionState& exception_state);
-  ScriptPromise<IDLString> getUpdateStatus(ScriptState* script_state,
+  ScriptPromise getUpdaterChannel(ScriptState* script_state,
+                                  ExceptionState& exception_state);
+  ScriptPromise setUpdaterChannel(ScriptState* script_state,
+                                  const String& channel,
+                                  ExceptionState& exception_state);
+  ScriptPromise getUpdateStatus(ScriptState* script_state,
+                                ExceptionState& exception_state);
+  ScriptPromise resetInstallations(ScriptState* script_state,
+                                   ExceptionState& exception_state);
+  ScriptPromise getInstallationIndex(ScriptState* script_state,
+                                     ExceptionState& exception_state);
+  ScriptPromise getLibrarySha256(ScriptState* script_state,
+                                 unsigned short index,
+                                 ExceptionState& exception_state);
+  ScriptPromise getAllowSelfSignedPackages(ScriptState* script_state,
                                            ExceptionState& exception_state);
-  ScriptPromise<IDLUndefined> resetInstallations(
-      ScriptState* script_state,
-      ExceptionState& exception_state);
-  ScriptPromise<IDLUnsignedShort> getInstallationIndex(
-      ScriptState* script_state,
-      ExceptionState& exception_state);
-  ScriptPromise<IDLString> getLibrarySha256(ScriptState* script_state,
-                                            unsigned short index,
+  ScriptPromise setAllowSelfSignedPackages(ScriptState* script_state,
+                                           bool allow_self_signed_packages,
+                                           ExceptionState& exception_state);
+  ScriptPromise getUpdateServerUrl(ScriptState* script_state,
+                                   ExceptionState& exception_state);
+  ScriptPromise setUpdateServerUrl(ScriptState* script_state,
+                                   const String& update_server_url,
+                                   ExceptionState& exception_state);
+  ScriptPromise getRequireNetworkEncryption(ScriptState* script_state,
                                             ExceptionState& exception_state);
-  ScriptPromise<IDLBoolean> getAllowSelfSignedPackages(
-      ScriptState* script_state,
-      ExceptionState& exception_state);
-  ScriptPromise<IDLUndefined> setAllowSelfSignedPackages(
-      ScriptState* script_state,
-      bool allow_self_signed_packages,
-      ExceptionState& exception_state);
-  ScriptPromise<IDLString> getUpdateServerUrl(ScriptState* script_state,
-                                              ExceptionState& exception_state);
-  ScriptPromise<IDLUndefined> setUpdateServerUrl(
-      ScriptState* script_state,
-      const String& update_server_url,
-      ExceptionState& exception_state);
-  ScriptPromise<IDLBoolean> getRequireNetworkEncryption(
-      ScriptState* script_state,
-      ExceptionState& exception_state);
-  ScriptPromise<IDLUndefined> setRequireNetworkEncryption(
-      ScriptState* script_state,
-      bool require_network_encryption,
-      ExceptionState& exception_state);
+  ScriptPromise setRequireNetworkEncryption(ScriptState* script_state,
+                                            bool require_network_encryption,
+                                            ExceptionState& exception_state);
 
   void Trace(Visitor*) const override;
 
