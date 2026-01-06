@@ -18,13 +18,13 @@ interface H5vccUpdater {
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getUpdaterChannel();
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setUpdaterChannel(DOMString channel);
+  Promise<undefined> setUpdaterChannel(DOMString channel);
 
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getUpdateStatus();
 
   [CallWith=ScriptState, RaisesException]
-  Promise<void> resetInstallations();
+  Promise<undefined> resetInstallations();
   [CallWith=ScriptState, RaisesException]
   Promise<unsigned short> getInstallationIndex();
 
@@ -33,19 +33,19 @@ interface H5vccUpdater {
   [CallWith=ScriptState, RaisesException]
   Promise<boolean> getAllowSelfSignedPackages();
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setAllowSelfSignedPackages(boolean allow_self_signed_packages);
+  Promise<undefined> setAllowSelfSignedPackages(boolean allow_self_signed_packages);
 
   // Gets the URL the updater will use for updates. This should only be used for
   // testing and should not be available in production.
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getUpdateServerUrl();
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setUpdateServerUrl(DOMString update_server_url);
+  Promise<undefined> setUpdateServerUrl(DOMString update_server_url);
 
   // Sets if network encryption is required for the update server. This should
   // only be used for testing and should not be available in production.
   [CallWith=ScriptState, RaisesException]
   Promise<boolean> getRequireNetworkEncryption();
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setRequireNetworkEncryption(boolean require_network_encryption);
+  Promise<undefined> setRequireNetworkEncryption(boolean require_network_encryption);
 };
