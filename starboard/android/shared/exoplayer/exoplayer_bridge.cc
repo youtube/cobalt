@@ -206,6 +206,9 @@ bool ExoPlayerBridge::Seek(int64_t timestamp) {
 
 bool ExoPlayerBridge::WriteSamples(const InputBuffers& input_buffers,
                                    SbMediaType type) {
+  // TODO: It's possible that a video sample may containg valid
+  // SbMediaColorMetadata after codec creation. When that happens,
+  // we should recreate the video decoder to use the new metadata.
   if (ShouldAbortOperation()) {
     return false;
   }
