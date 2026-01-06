@@ -254,6 +254,8 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
         .Times(AtMost(1));
 #endif
 
+    // This will call ContentMain(), which should satisfy the expectations
+    // above.
     EXPECT_CALL(mock_delegate_, MockShouldLockSchemeRegistry())
         .Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockCreateContentClient()).Times(AtMost(1));
