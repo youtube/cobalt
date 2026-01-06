@@ -33,6 +33,7 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/command_line_debugging_test_support.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
@@ -91,6 +92,13 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+void LogCommandLineForDebugging(const base::CommandLine& command_line) {
+  // Note: this should only be called for debugging purposes, since this is
+  // *very* spammy.
+  LOG(INFO) << "CobaltCommandLine: "
+            << FormatCommandLineSwitchesForDebugging(command_line);
+}
 
 }  // namespace
 
@@ -534,6 +542,7 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << "], disable_features=["
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
             << "]";
+  LogCommandLineForDebugging(*base::CommandLine::ForCurrentProcess());
 
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();

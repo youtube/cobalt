@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//starboard/build/buildflags.gni")
+import("//testing/test.gni")
 
 source_set("browser") {
   # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
@@ -42,6 +43,7 @@ source_set("browser") {
   public_deps = [ "//content/public/browser" ]
 
   deps = [
+    ":command_line_debugging_test_support",
     ":features",
     ":global_features",
     ":metrics",
@@ -149,4 +151,13 @@ source_set("metrics") {
     "//third_party/metrics_proto",
     "//url",
   ]
+}
+
+source_set("command_line_debugging_test_support") {
+  testonly = true
+  sources = [
+    "command_line_debugging_test_support.cc",
+    "command_line_debugging_test_support.h",
+  ]
+  deps = [ "//base" ]
 }
