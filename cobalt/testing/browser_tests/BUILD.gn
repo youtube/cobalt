@@ -40,6 +40,7 @@ import("//v8/gni/v8.gni")
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
 shell_use_toolkit_views = toolkit_views && !is_castos
+not_needed([ "shell_use_toolkit_views" ])
 
 if (is_android) {
   import("//third_party/jni_zero/jni_zero.gni")
