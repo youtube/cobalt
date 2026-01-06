@@ -45,7 +45,7 @@ class H5vccMetricsImpl : public content::DocumentService<mojom::H5vccMetrics> {
   void Enable(bool enable, EnableCallback) override;
   void SetMetricEventInterval(uint64_t interval_seconds,
                               SetMetricEventIntervalCallback) override;
-  void RequestHistograms(RequestHistogramsCallback) override;
+  void RequestHistograms(RequestHistogramsCallback callback) override;
 
  private:
   H5vccMetricsImpl(content::RenderFrameHost& render_frame_host,

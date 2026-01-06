@@ -105,7 +105,8 @@ ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
   EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->RequestHistograms(
-      WTF::BindOnce(&OnRequestHistograms, WrapPersistent(resolver)));
+      WTF::BindOnce(&H5vccMetrics::OnRequestHistograms, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -185,8 +186,9 @@ void H5vccMetrics::OnSetMetricEventInterval(
 
 void H5vccMetrics::OnRequestHistograms(
     ScriptPromiseResolver<IDLString>* resolver,
-    const WTF::String& histograms_json) {
-  resolver->Resolve(histograms_json);
+    const WTF::String& histograms_proto_base64) {
+  CleanupPromise(resolver);
+  resolver->Resolve(histograms_proto_base64);
 }
 
 void H5vccMetrics::EnsureRemoteIsBound() {

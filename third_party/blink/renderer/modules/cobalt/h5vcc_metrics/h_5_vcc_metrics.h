@@ -86,8 +86,8 @@ class MODULES_EXPORT H5vccMetrics final
   void OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver);
   void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
   void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
-  static void OnRequestHistograms(ScriptPromiseResolver<IDLString>* resolver,
-                                  const WTF::String& histograms_json);
+  void OnRequestHistograms(ScriptPromiseResolver<IDLString>* resolver,
+                           const WTF::String& histograms_json);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
