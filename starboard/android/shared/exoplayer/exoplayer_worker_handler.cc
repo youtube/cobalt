@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -44,7 +44,8 @@ ExoPlayerWorkerHandler::ExoPlayerWorkerHandler(
                                             creation_param->video_stream_info)),
       audio_eos_written_(false),
       video_eos_written_(false) {
-  SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut);
+  SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut)
+      << "ExoPlayer only supports punch-out playback.";
 }
 
 Result<void> ExoPlayerWorkerHandler::Init(
@@ -72,7 +73,8 @@ Result<void> ExoPlayerWorkerHandler::Init(
       !bridge_->Init(std::bind(&ExoPlayerWorkerHandler::OnError, this, _1, _2),
                      std::bind(&ExoPlayerWorkerHandler::OnPrerolled, this),
                      std::bind(&ExoPlayerWorkerHandler::OnEnded, this))) {
-    return Failure("Failed to initialize the ExoPlayer.");
+    return Failure("Failed to initialize the ExoPlayer: " +
+                   bridge_->GetInitErrorMessage());
   }
 
   update_job_token_ = Schedule(update_job_, kUpdateIntervalUsec);
@@ -86,9 +88,9 @@ Result<void> ExoPlayerWorkerHandler::Seek(int64_t seek_to_time, int ticket) {
   audio_eos_written_ = false;
   video_eos_written_ = false;
 
-  return bridge_->SetPause(true /* pause */) && bridge_->Seek(seek_to_time)
-             ? Success()
-             : Failure("Failed ExoPlayer seek.");
+  bridge_->Seek(seek_to_time);
+
+  return Success();
 }
 
 Result<void> ExoPlayerWorkerHandler::WriteSamples(
@@ -98,6 +100,8 @@ Result<void> ExoPlayerWorkerHandler::WriteSamples(
   SB_CHECK(!input_buffers.empty());
   SB_CHECK(bridge_->is_valid());
   SB_CHECK(samples_written);
+  SB_DCHECK_EQ(input_buffers.size(), 1U)
+      << "ExoPlayer accepts only one sample per write";
 
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -113,9 +117,7 @@ Result<void> ExoPlayerWorkerHandler::WriteSamples(
     if (!bridge_->CanAcceptMoreData(sample_type)) {
       return Success();
     }
-    if (!bridge_->WriteSamples(input_buffers, sample_type)) {
-      return Failure("Failed to write samples to the ExoPlayer.");
-    }
+    bridge_->WriteSamples(input_buffers, sample_type);
     *samples_written = static_cast<int>(input_buffers.size());
   }
 
@@ -126,34 +128,33 @@ Result<void> ExoPlayerWorkerHandler::WriteEndOfStream(SbMediaType sample_type) {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(bridge_->is_valid());
 
-  if (bridge_->WriteEOS(sample_type)) {
-    if (sample_type == kSbMediaTypeAudio) {
-      audio_eos_written_ = true;
-    } else {
-      video_eos_written_ = true;
-    }
-    return Success();
+  bridge_->WriteEOS(sample_type);
+
+  if (sample_type == kSbMediaTypeAudio) {
+    audio_eos_written_ = true;
+  } else {
+    video_eos_written_ = true;
   }
 
-  return Failure("Failed to write end of stream to ExoPlayer.");
+  return Success();
 }
 
 Result<void> ExoPlayerWorkerHandler::SetPause(bool pause) {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(bridge_->is_valid());
 
-  return bridge_->SetPause(pause)
-             ? Success()
-             : Failure("Failed to execute ExoPlayerWorkerHandler::SetPause().");
+  bridge_->SetPause(pause);
+
+  return Success();
 }
 
 Result<void> ExoPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(bridge_->is_valid());
 
-  return bridge_->SetPlaybackRate(playback_rate)
-             ? Success()
-             : Failure("Failed to set ExoPlayer playback rate.");
+  bridge_->SetPlaybackRate(playback_rate);
+
+  return Success();
 }
 
 void ExoPlayerWorkerHandler::SetVolume(double volume) {

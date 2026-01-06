@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,10 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-#include "cobalt/android/jni_headers/ExoPlayerCodecUtil_jni.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
+#pragma GCC diagnostic pop
 
 namespace starboard {
 namespace {
@@ -34,7 +37,7 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
-ScopedJavaLocalRef<jobject> CreateHdrColorInfo(
+ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
     const SbMediaColorMetadata& metadata) {
   if (IsIdentity(metadata)) {
     return ScopedJavaLocalRef<jobject>();
@@ -51,7 +54,7 @@ ScopedJavaLocalRef<jobject> CreateHdrColorInfo(
   }
 
   const auto& mastering_metadata = metadata.mastering_metadata;
-  return Java_ExoPlayerCodecUtil_createHdrColorInfo(
+  return Java_ExoPlayerManager_createExoPlayerColorInfo(
       AttachCurrentThread(), color_range, color_standard, color_transfer,
       mastering_metadata.primary_r_chromaticity_x,
       mastering_metadata.primary_r_chromaticity_y,
@@ -65,30 +68,13 @@ ScopedJavaLocalRef<jobject> CreateHdrColorInfo(
       metadata.max_cll, metadata.max_fall);
 }
 
-bool ValidateMimeType(std::string_view mime_type_str) {
-  if (!mime_type_str.empty()) {
-    return MimeType(mime_type_str.data()).is_valid();
-  }
-
-  return true;
-}
-
 }  // namespace
 
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
-  if (stream_info.codec == kSbMediaVideoCodecNone ||
-      !ValidateMimeType(stream_info.mime)) {
-    return false;
-  }
-
   MimeType mime_type(stream_info.mime);
-  if (stream_info.mime) {
-    if (!mime_type.is_valid() ||
-        !mime_type.ValidateBoolParameter("tunnelmode")) {
-      SB_LOG(WARNING) << "Invalid video MIME: '" << stream_info.mime
-                      << "', defaulting to non-tunneled playback.";
-      return false;
-    }
+  if (stream_info.codec == kSbMediaVideoCodecNone || !mime_type.is_valid() ||
+      !mime_type.ValidateBoolParameter("tunnelmode")) {
+    return false;
   }
 
   return mime_type.GetParamBoolValue("tunnelmode", false);
@@ -102,7 +88,7 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  if (!ValidateMimeType(stream_info.mime)) {
+  if (!MimeType(stream_info.mime).is_valid()) {
     SB_LOG(ERROR) << "Invalid audio MIME: '" << stream_info.mime << "'";
     return ScopedJavaLocalRef<jobject>();
   }
@@ -122,12 +108,10 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
 
   bool is_passthrough = stream_info.codec == kSbMediaAudioCodecEac3 ||
                         stream_info.codec == kSbMediaAudioCodecAc3;
-  std::string j_audio_mime_str =
-      SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough);
-  ScopedJavaLocalRef<jstring> j_audio_mime =
-      ConvertUTF8ToJavaString(env, j_audio_mime_str.c_str());
+  ScopedJavaLocalRef<jstring> j_audio_mime = ConvertUTF8ToJavaString(
+      env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
 
-  return Java_ExoPlayerCodecUtil_createAudioMediaSource(
+  return Java_ExoPlayerManager_createAudioMediaSource(
       env, j_audio_mime, configuration_data, samplerate, channels);
 }
 
@@ -139,7 +123,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  if (!ValidateMimeType(stream_info.mime)) {
+  starboard::MimeType mime_type(stream_info.mime);
+  if (!mime_type.is_valid()) {
     SB_LOG(ERROR) << "Invalid video MIME: '" << stream_info.mime << "'";
     return ScopedJavaLocalRef<jobject>();
   }
@@ -151,20 +136,16 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
 
   JNIEnv* env = AttachCurrentThread();
 
-  std::string mime_str = SupportedVideoCodecToMimeType(stream_info.codec);
-  ScopedJavaLocalRef<jstring> j_mime(
-      ConvertUTF8ToJavaString(env, mime_str.c_str()));
+  ScopedJavaLocalRef<jstring> j_mime(ConvertUTF8ToJavaString(
+      env, SupportedVideoCodecToMimeType(stream_info.codec)));
 
-  starboard::shared::starboard::media::MimeType mime_type(stream_info.mime);
-  if (mime_type.is_valid()) {
-    framerate = mime_type.GetParamIntValue("framerate", -1);
-    bitrate = mime_type.GetParamIntValue("bitrate", -1);
-  }
+  framerate = mime_type.GetParamIntValue("framerate", -1);
+  bitrate = mime_type.GetParamIntValue("bitrate", -1);
 
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
-      CreateHdrColorInfo(stream_info.color_metadata);
+      CreateExoPlayerColorInfo(stream_info.color_metadata);
 
-  return Java_ExoPlayerCodecUtil_createVideoMediaSource(
+  return Java_ExoPlayerManager_createVideoMediaSource(
       env, j_mime, width, height, framerate, bitrate, j_hdr_color_info);
 }
 
