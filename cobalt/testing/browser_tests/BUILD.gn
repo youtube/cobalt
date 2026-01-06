@@ -218,17 +218,21 @@ test("cobalt_browsertests") {
   configs += [ "//build/config:precompiled_headers" ]
 
   public_deps = [
-    "//cobalt:common",
-    "//cobalt/shell:cobalt_shell_lib",
     "//content:content_resources",
     "//content/test:test_interfaces",
     "//content/test:web_ui_mojo_test_resources",
-    "//ui/ozone/platform/starboard:starboard",
   ]
+
+  if (is_starboard) {
+    public_deps += [
+      "//cobalt:common",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//ui/ozone/platform/starboard:starboard",
+    ]
+  }
 
   deps = [
     ":cobalt_browsertests_test_runner",
-    ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
@@ -263,7 +267,6 @@ test("cobalt_browsertests") {
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
     "//content/test:mojo_web_test_bindings",
-    "//content/test:test_support",
     "//content/test:web_ui_managed_interface_tests_bindings",
     "//content/test:web_ui_ts_test_mojo_bindings",
     "//device/base/synchronization",
@@ -308,7 +311,6 @@ test("cobalt_browsertests") {
     "//services/video_capture/public/mojom:constants",
     "//services/viz/privileged/mojom",
     "//services/viz/public/cpp/gpu",
-    "//starboard:starboard_headers_only",
     "//storage/browser",
     "//storage/browser:test_support",
     "//third_party/blink/public:blink",
@@ -373,7 +375,12 @@ test("cobalt_browsertests") {
   }
 
   if (is_linux) {
-    deps += [ "//third_party/libyuv" ]
+    deps += [
+      ":cobalt_shell_test_lib",
+      "//content/test:test_support",
+      "//starboard:starboard_headers_only",
+      "//third_party/libyuv",
+    ]
     data += [
       "//net/tools/testserver/",
       "//third_party/pywebsocket3/src/mod_pywebsocket/",
