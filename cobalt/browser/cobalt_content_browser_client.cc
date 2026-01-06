@@ -33,7 +33,7 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
-#include "cobalt/browser/command_line_debugging_test_support.h"
+#include "cobalt/browser/command_line_debugging_helper.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"

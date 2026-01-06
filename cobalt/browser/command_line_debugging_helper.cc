@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/command_line_debugging_test_support.h"
+#include "cobalt/browser/command_line_debugging_helper.h"
 
 #include "base/strings/string_util.h"
 

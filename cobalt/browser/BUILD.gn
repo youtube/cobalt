@@ -43,7 +43,7 @@ source_set("browser") {
   public_deps = [ "//content/public/browser" ]
 
   deps = [
-    ":command_line_debugging_test_support",
+    ":command_line_debugging_helper",
     ":features",
     ":global_features",
     ":metrics",
@@ -153,11 +153,10 @@ source_set("metrics") {
   ]
 }
 
-source_set("command_line_debugging_test_support") {
-  testonly = true
+source_set("command_line_debugging_helper") {
   sources = [
-    "command_line_debugging_test_support.cc",
-    "command_line_debugging_test_support.h",
+    "command_line_debugging_helper.cc",
+    "command_line_debugging_helper.h",
   ]
   deps = [ "//base" ]
 }

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_COMMAND_LINE_DEBUGGING_TEST_SUPPORT_H_
-#define COBALT_BROWSER_COMMAND_LINE_DEBUGGING_TEST_SUPPORT_H_
+#ifndef COBALT_BROWSER_COMMAND_LINE_DEBUGGING_HELPER_H_
+#define COBALT_BROWSER_COMMAND_LINE_DEBUGGING_HELPER_H_
 
 #include <string>
 
@@ -27,4 +27,4 @@ std::string FormatCommandLineSwitchesForDebugging(
 
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_COMMAND_LINE_DEBUGGING_TEST_SUPPORT_H_
+#endif  // COBALT_BROWSER_COMMAND_LINE_DEBUGGING_HELPER_H_

@@ -271,7 +271,7 @@ test("cobalt_unittests") {
     ":common",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
-    "//cobalt/browser:command_line_debugging_test_support",
+    "//cobalt/browser:command_line_debugging_helper",
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser/client_hint_headers",
