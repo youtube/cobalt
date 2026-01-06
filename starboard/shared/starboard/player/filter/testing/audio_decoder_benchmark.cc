@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "starboard/common/log.hh"
+#include "starboard/common/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
