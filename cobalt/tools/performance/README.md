@@ -5,8 +5,6 @@ and plots the results using matplotlib.
 
 ## Android Monitoring Script
 
-**Note:** The use of this script is done primarily via vpython3.
-
 ### Setup
 
 This script requires a few dependencies - pandas, matplotlib, numpy, and
@@ -15,7 +13,7 @@ pylint.
 To install them, run the following command:
 
 ```
-vpython3 -m pip install pandas numpy matplotlib
+sudo apt install python3-pandas python3-numpy python3-matplotlib
 ```
 
 ### Usage
@@ -40,7 +38,7 @@ need to specify those if you want something specific.
 Below is a simple usage command:
 
 ```
-vpython3 $HOME/chromium/src/cobalt/tools/performance/android_monitor.py
+python3 $HOME/chromium/src/cobalt/tools/performance/android_monitor.py
 ```
 
 **Tip:** To avoid the script from placing the resulting plots and csv files into
@@ -53,7 +51,7 @@ In order to execute Python unit tests, the command below will use the python uni
 module to run any tests named after a specific pattern:
 
 ```
-vpython3 -m unittest discover -s </path/to/test/directory> -p '*TEST PATTERN*.py'
+python3 -m unittest discover -s </path/to/test/directory> -p '*TEST PATTERN*.py'
 ```
 
 
@@ -79,7 +77,7 @@ python3 $HOME/chromium/tools/depot_tools/pylint_main.py $HOME/chromium/src/cobal
 Installations of python3 and vpython3 may not have pylint installed:
 
 ```
-vpython3 -m pip install pylint
+sudo apt install pylint
 ```
 
 #### Original error was: No module named 'numpy.core._multiarray_umath'

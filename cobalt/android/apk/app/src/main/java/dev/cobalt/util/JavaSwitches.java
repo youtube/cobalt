@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TVOS_SHARED_INTENT_YTINTENT_STARBOARDAPIS_H_
-#define STARBOARD_TVOS_SHARED_INTENT_YTINTENT_STARBOARDAPIS_H_
+package dev.cobalt.util;
 
-void SBProcessAppIntent(const char* query, int isSearch);
-
-#endif  // STARBOARD_TVOS_SHARED_INTENT_YTINTENT_STARBOARDAPIS_H_
+/**
+ * Defines the constant names for feature switches used in Kimono.
+ */
+public class JavaSwitches {
+  public static final String ENABLE_QUIC = "EnableQUIC";
+}

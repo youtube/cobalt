@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/at_exit.h"
-#include "cobalt/shell/app/ios/shell_application_ios.h"
+#ifndef COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_
+#define COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_
 
-int main(int argc, const char** argv) {
-  // Create this here since it's needed to start the crash handler.
-  base::AtExitManager at_exit;
-  // For now, just launch the default application from the shell.
-  return RunShellApplication(argc, argv);
-}
+#import <Foundation/Foundation.h>
+
+@interface DeepLinkSupportTvos : NSObject
+
+// Handle Siri Intent. It passes `query` to DeepLinkManager.
++ (void)handleSiriIntents:(NSString*)query isSearch:(BOOL)isSearch;
+@end
+
+#endif  // COBALT_BROWSER_TVOS_DEEP_LINK_SUPPORT_TVOS_H_

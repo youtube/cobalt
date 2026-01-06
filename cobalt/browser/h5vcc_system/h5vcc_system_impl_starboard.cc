@@ -60,8 +60,6 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  // TODO: b/395650827 - Connect to Starboard extension.
-  NOTIMPLEMENTED();
   return "NOT_SUPPORTED";
 }
 
@@ -104,9 +102,7 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO: b/395650827 - Connect to Starboard extension.
-  NOTIMPLEMENTED();
-  std::move(callback).Run();
+  std::move(callback).Run(false);
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(

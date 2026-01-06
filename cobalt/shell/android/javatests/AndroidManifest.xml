@@ -21,8 +21,6 @@ limitations under the License.
 
 {% block main_activity %}{% endblock %}
 
-{% block debuggable %}true{% endblock %}
-
 {% block extra_uses_permissions %}
     <uses-permission android:name="android.permission.RUN_INSTRUMENTATION" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />

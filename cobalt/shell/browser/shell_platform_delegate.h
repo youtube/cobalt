@@ -73,6 +73,12 @@ class ShellPlatformDelegate {
   // Links the WebContents into the newly created window.
   virtual void SetContents(Shell* shell);
 
+  // Load the splash screen WebContents.
+  virtual void LoadSplashScreenContents(Shell* shell);
+
+  // Update WebContents into the newly created window.
+  virtual void UpdateContents(Shell* shell);
+
   // Resize the web contents in the shell window to the given size.
   virtual void ResizeWebContent(Shell* shell, const gfx::Size& content_size);
 
@@ -135,6 +141,10 @@ class ShellPlatformDelegate {
 
   // Forwarded from WebContentsObserver.
   void LoadProgressChanged(Shell* shell, double progress);
+
+  void SetSkipForTesting(bool skip_for_testing) {
+    skip_for_testing_ = skip_for_testing;
+  }
 #endif
 
  protected:
@@ -166,6 +176,8 @@ class ShellPlatformDelegate {
   // implementation.
   struct PlatformData;
   std::unique_ptr<PlatformData> platform_;
+
+  bool skip_for_testing_ = false;
 };
 
 }  // namespace content

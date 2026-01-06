@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_TVOS_SHARED_INTENT_YTINTENT_YTINTENT_SWIFT_H_
-#define STARBOARD_TVOS_SHARED_INTENT_YTINTENT_YTINTENT_SWIFT_H_
+#include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 
-#endif  // STARBOARD_TVOS_SHARED_INTENT_YTINTENT_YTINTENT_SWIFT_H_
+namespace content {
 
-@class YtIntentPlaceholder;
-@class YtIntentNotifier;
+SplashScreenWebContentsDelegate::SplashScreenWebContentsDelegate(
+    base::OnceClosure on_close)
+    : on_close_(std::move(on_close)) {}
+
+SplashScreenWebContentsDelegate::~SplashScreenWebContentsDelegate() = default;
+
+void SplashScreenWebContentsDelegate::CloseContents(WebContents* source) {
+  DCHECK(on_close_);
+  std::move(on_close_).Run();
+}
+
+}  // namespace content
