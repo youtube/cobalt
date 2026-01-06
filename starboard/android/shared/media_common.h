@@ -125,7 +125,7 @@ inline int GetAudioFormatSampleType(
   return 0u;
 }
 
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
+inline bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
   auto is_identity = [](const SbMediaMasteringMetadata& metadata) {
     static const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
     return memcmp(&metadata, &kEmptyMasteringMetadata,
@@ -139,7 +139,7 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
          is_identity(color_metadata.mastering_metadata);
 }
 
-jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
+inline jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
   switch (primary_id) {
     case kSbMediaPrimaryIdBt709:
       return COLOR_STANDARD_BT709;
@@ -150,7 +150,7 @@ jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
   }
 }
 
-jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
+inline jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
   switch (transfer_id) {
     case kSbMediaTransferIdBt709:
       return COLOR_TRANSFER_SDR_VIDEO;
@@ -163,7 +163,7 @@ jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
   }
 }
 
-jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
+inline jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
   switch (range_id) {
     case kSbMediaRangeIdLimited:
       return COLOR_RANGE_LIMITED;
