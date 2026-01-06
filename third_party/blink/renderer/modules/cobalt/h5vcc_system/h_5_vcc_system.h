@@ -46,13 +46,15 @@ class MODULES_EXPORT H5vccSystem final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLString> getAdvertisingId(ScriptState*, ExceptionState&);
   const String& advertisingId();
-  ScriptPromise getLimitAdTracking(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLBoolean> getLimitAdTracking(ScriptState*, ExceptionState&);
   absl::optional<bool> limitAdTracking();
-  ScriptPromise getTrackingAuthorizationStatus(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLString> getTrackingAuthorizationStatus(ScriptState*,
+                                                          ExceptionState&);
   const String& trackingAuthorizationStatus();
-  ScriptPromise requestTrackingAuthorization(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> requestTrackingAuthorization(ScriptState*,
+                                                           ExceptionState&);
   void exit();
   uint32_t userOnExitStrategy();
 

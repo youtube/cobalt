@@ -54,10 +54,12 @@ class MODULES_EXPORT H5vccMetrics final
 
   // Web-exposed interface:
   DEFINE_ATTRIBUTE_EVENT_LISTENER(metrics, kMetrics)
-  ScriptPromise enable(ScriptState*, ExceptionState&);
-  ScriptPromise disable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> enable(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> disable(ScriptState*, ExceptionState&);
   bool isEnabled();
-  ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
+  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*,
+                                                     uint64_t,
+                                                     ExceptionState&);
 
   // EventTargetWithInlineData impl.
   ExecutionContext* GetExecutionContext() const override {

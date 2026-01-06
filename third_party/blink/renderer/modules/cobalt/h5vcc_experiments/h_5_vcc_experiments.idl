@@ -31,12 +31,12 @@ dictionary ExperimentConfiguration {
 ]
 interface H5vccExperiments {
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setExperimentState(ExperimentConfiguration experiment_configuration);
+  Promise<undefined> setExperimentState(ExperimentConfiguration experiment_configuration);
 
   // Instructs Cobalt to delete its current cached experiment configuration.
   // Returns a promise that resolves/rejects in the event of success/failure.
   [CallWith=ScriptState, RaisesException]
-  Promise<void> resetExperimentState();
+  Promise<undefined> resetExperimentState();
 
   // The following APIs fetch Cobalt's current value for the given feature name
   // or feature param.
@@ -58,9 +58,9 @@ interface H5vccExperiments {
   // but the Finch experiment state is unchanged. Used for server-side
   // processing.
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setLatestExperimentConfigHashData(DOMString hashData);
+  Promise<undefined> setLatestExperimentConfigHashData(DOMString hashData);
 
   // Sets Finch parameters.
   [CallWith=ScriptState, RaisesException]
-  Promise<void> setFinchParameters(record<DOMString, (DOMString or long or double or boolean)> settings);
+  Promise<undefined> setFinchParameters(record<DOMString, (DOMString or long or double or boolean)> settings);
 };
