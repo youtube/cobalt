@@ -143,7 +143,7 @@ ScriptPromise H5vccUpdater::setAllowSelfSignedPackages(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->SetAllowSelfSignedPackages(allow_self_signed_packages);
@@ -179,7 +179,7 @@ ScriptPromise H5vccUpdater::setUpdateServerUrl(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->SetUpdateServerUrl(update_server_url);
@@ -215,7 +215,7 @@ ScriptPromise H5vccUpdater::setRequireNetworkEncryption(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->SetRequireNetworkEncryption(
