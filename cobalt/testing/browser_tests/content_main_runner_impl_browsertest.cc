@@ -44,7 +44,6 @@ namespace content {
 namespace {
 
 using ::testing::_;
-using ::testing::AtLeast;
 using ::testing::AtMost;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -208,8 +207,10 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
   using Super = ContentBrowserTest;
 
   void SetUp() override {
+    // Empty process name means the browser process.
     const std::string kBrowserProcessType = "";
 
+    // These methods may or may not be called, depending on configuration.
     EXPECT_CALL(mock_delegate_, MockBasicStartupComplete())
         .Times(AtMost(1))
         .WillRepeatedly(DoAll(Invoke(this, &Self::TestBasicStartupComplete),
@@ -217,15 +218,24 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
 
     EXPECT_CALL(mock_delegate_, MockCreateVariationsIdsProvider())
         .Times(AtMost(1));
+    // CreateContentClient() is only called if GetContentClient() returns null.
     EXPECT_CALL(mock_delegate_, MockPreSandboxStartup()).Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockSandboxInitialized(kBrowserProcessType))
         .Times(AtMost(1));
 
+    // ContentBrowserTestShellMainDelegate calls these internally, so allow
+    // extra calls to them out of sequence.
     EXPECT_CALL(mock_delegate_, ShouldCreateFeatureList(_))
         .WillRepeatedly(Return(true));
     EXPECT_CALL(mock_delegate_, ShouldInitializeMojo(_))
         .WillRepeatedly(Return(true));
 
+    // Expect the following entry points to be called, in order.
+    //
+    // BrowserTestBase::SetUp() calls ContentMain(), which instantiates a
+    // ContentMainRunnerImpl, which calls the entry points in
+    // ContentMainDelegate. So test expectations must be installed before
+    // calling the inherited SetUp().
     EXPECT_CALL(mock_delegate_, MockPreBrowserMain())
         .Times(AtMost(1))
         .WillRepeatedly(Return(std::nullopt));
@@ -235,11 +245,14 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
         .Times(AtMost(1))
         .WillRepeatedly(DoAll(Invoke(this, &Self::TestPostEarlyInitialization),
                               Return(std::nullopt)));
-
+#if !BUILDFLAG(IS_ANDROID)
+    // Android never calls ProcessExiting, since it leaks its ContentMainRunner
+    // and ProcessExiting is called from the destructor.
     EXPECT_CALL(mock_delegate_, MockRunProcess(kBrowserProcessType, _))
         .Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockProcessExiting(kBrowserProcessType))
         .Times(AtMost(1));
+#endif
 
     EXPECT_CALL(mock_delegate_, MockShouldLockSchemeRegistry())
         .Times(AtMost(1));
