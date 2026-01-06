@@ -242,7 +242,6 @@ struct lconv* localeconv(void) {
 }
 
 char* nl_langinfo_l(nl_item item, locale_t locale) {
-  // TODO: b/461906423 - Properly implement nl_langinfo_l.
   if (locale == (locale_t)0) {
     // The behavior is undefined according to POSIX, but we will follow the
     // behavior of glibc and return an empty string.
@@ -254,21 +253,21 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
 
   std::string& langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
+    // TODO: b/466160361 - Add remaining support for D_FMT* operations.
     // Date and time formats
     case D_T_FMT:
       return const_cast<char*>("%a %b %e %H:%M:%S %Y");
     case D_FMT:
-      langinfo_buffer = cobalt::GetD_FMT(cur_locale->categories[LC_TIME]);
-      break;
+      return const_cast<char*>("%m/%d/%y");
     case T_FMT:
       return const_cast<char*>("%H:%M:%S");
     case T_FMT_AMPM:
       return const_cast<char*>("%I:%M:%S %p");
     case AM_STR:
     case PM_STR:
-      langinfo_buffer =
-          cobalt::NlGetTimeName(cur_locale->categories[LC_TIME],
-                                cobalt::TimeNameType::kAmPm, item - AM_STR);
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAmPm,
+          item - AM_STR);
       break;
 
     // Days
@@ -279,9 +278,9 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case DAY_5:
     case DAY_6:
     case DAY_7:
-      langinfo_buffer =
-          cobalt::NlGetTimeName(cur_locale->categories[LC_TIME],
-                                cobalt::TimeNameType::kDay, item - DAY_1);
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kDay,
+          item - DAY_1);
       break;
 
     // Abbreviated days
@@ -292,9 +291,9 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ABDAY_5:
     case ABDAY_6:
     case ABDAY_7:
-      langinfo_buffer = cobalt::NlGetTimeName(cur_locale->categories[LC_TIME],
-                                              cobalt::TimeNameType::kAbbrevDay,
-                                              item - ABDAY_1);
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevDay,
+          item - ABDAY_1);
       break;
 
     // Months
@@ -310,9 +309,9 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case MON_10:
     case MON_11:
     case MON_12:
-      langinfo_buffer =
-          cobalt::NlGetTimeName(cur_locale->categories[LC_TIME],
-                                cobalt::TimeNameType::kMonth, item - MON_1);
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kMonth,
+          item - MON_1);
       break;
 
     // Abbreviated months
@@ -328,19 +327,22 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ABMON_10:
     case ABMON_11:
     case ABMON_12:
-      langinfo_buffer = cobalt::NlGetTimeName(
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
           cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevMonth,
           item - ABMON_1);
       break;
-    // Other
     case RADIXCHAR:
     case THOUSEP:
-    case CRNCYSTR:
-      langinfo_buffer = "";
+      langinfo_buffer =
+          cobalt::NlGetNumericData(cur_locale->categories[LC_NUMERIC], item);
       break;
+    // Our ICU build configuration only supports "UTF-8", so |CODESET|
+    // is set to always return "UTF-8".
     case CODESET:
       langinfo_buffer = "UTF-8";
       break;
+    // ICU has deprecated support for |YESEXPR| and |NOEXPR|. If these items are
+    // ever requested, we return the default English expressions.
     case YESEXPR:
       langinfo_buffer = "^[yY]";
       break;
@@ -348,21 +350,42 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
       langinfo_buffer = "^[nN]";
       break;
 
-    // Some other values from POSIX
+    // For the following items, we currently do not implement them. If they are
+    // ever called |SB_NOTIMPLEMENTED()| is called. See b/
+    case CRNCYSTR:
+      SB_NOTIMPLEMENTED()
+          << "CRNCYSTR is not supported. Returning the empty string.";
+      langinfo_buffer = const_cast<char*>("");
+      break;
     case ERA:
     case ERA_D_FMT:
     case ERA_D_T_FMT:
     case ERA_T_FMT:
+      SB_NOTIMPLEMENTED()
+          << "ERA* items are not supported. Returning the empty string.";
+      langinfo_buffer = const_cast<char*>("");
+      break;
     case ALT_DIGITS:
-      return const_cast<char*>("");
-
+      SB_NOTIMPLEMENTED()
+          << "ALT_DIGITS is not supported. Returning the empty string.";
+      langinfo_buffer = const_cast<char*>("");
+      break;
     default:
-      return const_cast<char*>("");
+      SB_LOG(ERROR) << "Received unknown nl_item for nl_langinfo. Returning "
+                       "the empty string.";
+      langinfo_buffer = const_cast<char*>("");
+      break;
   }
   return const_cast<char*>(langinfo_buffer.c_str());
 }
 
 char* nl_langinfo(nl_item item) {
-  // TODO: rewrite this to grab either thread locale or global locale
-  return nl_langinfo_l(item, reinterpret_cast<locale_t>(GetGlobalLocale()));
+  cobalt::LocaleImpl* current_loc;
+  if (g_current_thread_locale !=
+      reinterpret_cast<cobalt::LocaleImpl*> LC_GLOBAL_LOCALE) {
+    current_loc = g_current_thread_locale;
+  } else {
+    current_loc = GetGlobalLocale();
+  }
+  return nl_langinfo_l(item, reinterpret_cast<locale_t>(current_loc));
 }

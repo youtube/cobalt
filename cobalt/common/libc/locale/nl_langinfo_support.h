@@ -17,17 +17,24 @@
 
 #include <langinfo.h>
 
+#include "cobalt/common/libc/locale/lconv_support.h"
 #include "cobalt/common/libc/locale/locale_support.h"
 
 namespace cobalt {
 
+// Enum types for GetLocalizedDateSymbol to easily distinguish which nl_item we
+// should be retrieving.
 enum class TimeNameType { kDay, kAbbrevDay, kMonth, kAbbrevMonth, kAmPm };
 
-std::string NlGetTimeName(const std::string& locale,
-                          TimeNameType type,
-                          int index);
+// Will retrieve the corresponding locale data in relation to the types in
+// TimeNameType. This includes |DAY*|, |AB
+std::string GetLocalizedDateSymbol(const std::string& locale,
+                                   TimeNameType type,
+                                   int index);
 
-std::string GetD_FMT(const std::string& locale);
+// Will retrieve the corresponding Numeric data for a given locale. This mainly
+// supports the |RADIXCHAR| and |THOUSEP| nl_items.
+std::string NlGetNumericData(const std::string& locale, const nl_item& type);
 
 }  //  namespace cobalt
 

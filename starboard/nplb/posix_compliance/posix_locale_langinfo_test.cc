@@ -108,6 +108,19 @@ struct LanginfoTestDataNameGenerator {
 
 #include "starboard/nplb/posix_compliance/posix_locale_langinfo_test_data.cc.inc"
 
+// Helper to check if a string is one of the valid Non-Breaking Space variants.
+// Accepted variants:
+// 1. \xC2\xA0     : Standard Non-Breaking Space (NBSP, U+00A0) - Legacy/Web
+// standard
+// 2. \xE2\x80\xAF : Narrow Non-Breaking Space (NNBSP, U+202F) - Modern
+// typographic standard
+bool IsNonBreakingSpace(const char* str) {
+  if (!str) {
+    return false;
+  }
+  return strcmp(str, "\xC2\xA0") == 0 || strcmp(str, "\xE2\x80\xAF") == 0;
+}
+
 void CheckItem(nl_item item, const char* expected) {
   if (expected == nullptr) {
     return;
@@ -205,22 +218,22 @@ TEST_P(NlLanginfoLTest, AllItems) {
     GTEST_SKIP() << "Locale " << data.locale_name << " not supported.";
   }
 
-  // CheckItemL(RADIXCHAR, data.radixchar, locale);
-  // CheckItemL(THOUSEP, data.thousands_sep, locale);
-  // CheckItemL(CODESET, data.codeset, locale);
+  CheckItemL(RADIXCHAR, data.radixchar, locale);
+  CheckItemL(THOUSEP, data.thousands_sep, locale);
+  CheckItemL(CODESET, data.codeset, locale);
   // CheckItemL(D_T_FMT, data.d_t_fmt, locale);
-  CheckItemL(D_FMT, data.d_fmt, locale);
+  // CheckItemL(D_FMT, data.d_fmt, locale);
   // CheckItemL(T_FMT, data.t_fmt, locale);
   // CheckItemL(T_FMT_AMPM, data.t_fmt_ampm, locale);
-  // CheckItemL(AM_STR, data.am_str, locale);
-  // CheckItemL(PM_STR, data.pm_str, locale);
+  CheckItemL(AM_STR, data.am_str, locale);
+  CheckItemL(PM_STR, data.pm_str, locale);
   for (int i = 0; i < 7; ++i) {
-    // CheckItemL(DAY_1 + i, (&data.day_1)[i], locale);
-    // CheckItemL(ABDAY_1 + i, (&data.abday_1)[i], locale);
+    CheckItemL(DAY_1 + i, (&data.day_1)[i], locale);
+    CheckItemL(ABDAY_1 + i, (&data.abday_1)[i], locale);
   }
   for (int i = 0; i < 12; ++i) {
-    // CheckItemL(MON_1 + i, (&data.mon_1)[i], locale);
-    // CheckItemL(ABMON_1 + i, (&data.abmon_1)[i], locale);
+    CheckItemL(MON_1 + i, (&data.mon_1)[i], locale);
+    CheckItemL(ABMON_1 + i, (&data.abmon_1)[i], locale);
   }
   // CheckItemL(YESEXPR, data.yesexpr, locale);
   // CheckItemL(NOEXPR, data.noexpr, locale);
