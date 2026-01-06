@@ -126,8 +126,12 @@ def main():
     genhtml_cmd = [
         "genhtml",
         str(normalized_file), "--output-directory",
-        str(report_dir), "--ignore-errors", "inconsistent"
+        str(report_dir), "--ignore-errors", "inconsistent,range"
     ]
+    # The extract command is only needed if we want to filter the input file.
+    # For a single file report, we assume the input file is already filtered.
+    # If further filtering is needed, we would need to run lcov --extract here.
+    # For now, we directly use genhtml.
     if not run_command(genhtml_cmd, cwd=base_dir):
       print("ERROR: Failed to generate HTML report. Exiting.")
       return
@@ -167,7 +171,9 @@ def main():
 
     extract_cmd = [
         "lcov", "--extract",
-        str(lcov_file), "*/cobalt/*", "--exclude", "*/out/*", "--output-file",
+        str(lcov_file), "*/cobalt/*", "*/starboard/*", "*/components/*",
+        "*/content/*", "*/third_party/blink/*", "--exclude", "*/out/*",
+        "--output-file",
         str(cleaned_file), "--ignore-errors",
         "inconsistent,corrupt,unsupported,empty,unused"
     ]
@@ -202,7 +208,7 @@ def main():
   genhtml_cmd = [
       "genhtml",
       str(final_lcov_file), "--output-directory",
-      str(report_dir), "--ignore-errors", "inconsistent"
+      str(report_dir), "--ignore-errors", "inconsistent,range"
   ]
   if not run_command(genhtml_cmd, cwd=base_dir):
     print("ERROR: Failed to generate HTML report. Exiting.")
