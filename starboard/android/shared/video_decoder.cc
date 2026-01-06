@@ -229,27 +229,6 @@ const int kMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
-// Convenience HDR mastering metadata.
-const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-
-// Determine if two |SbMediaMasteringMetadata|s are equal.
-bool Equal(const SbMediaMasteringMetadata& lhs,
-           const SbMediaMasteringMetadata& rhs) {
-  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
-}
-
-// TODO: For whatever reason, Cobalt will always pass us this us for
-// color metadata, regardless of whether HDR is on or not.  Find out if this
-// is intentional or not.  It would make more sense if it were NULL.
-// Determine if |color_metadata| is "empty", or "null".
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
-         color_metadata.transfer == kSbMediaTransferIdBt709 &&
-         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
-         color_metadata.range == kSbMediaRangeIdLimited &&
-         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
-}
-
 void StubDrmSessionUpdateRequestFunc(SbDrmSystem drm_system,
                                      void* context,
                                      int ticket,

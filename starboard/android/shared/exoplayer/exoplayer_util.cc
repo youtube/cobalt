@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -37,76 +37,6 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 
-// From //starboard/android/shared/video_decoder.cc.
-const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-
-constexpr jint COLOR_RANGE_FULL = 1;
-constexpr jint COLOR_RANGE_LIMITED = 2;
-// Not defined in MediaFormat. Represents unspecified color ID range.
-constexpr jint COLOR_RANGE_UNSPECIFIED = 0;
-
-constexpr jint COLOR_STANDARD_BT2020 = 6;
-constexpr jint COLOR_STANDARD_BT709 = 1;
-
-constexpr jint COLOR_TRANSFER_HLG = 7;
-constexpr jint COLOR_TRANSFER_SDR_VIDEO = 3;
-constexpr jint COLOR_TRANSFER_ST2084 = 6;
-
-// A special value to represent that no mapping between an SbMedia* HDR
-// metadata value and Android HDR metadata value is possible.  This value
-// implies that HDR playback should not be attempted.
-constexpr jint COLOR_VALUE_UNKNOWN = -1;
-
-bool Equal(const SbMediaMasteringMetadata& lhs,
-           const SbMediaMasteringMetadata& rhs) {
-  return memcmp(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
-}
-
-bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
-  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
-         color_metadata.transfer == kSbMediaTransferIdBt709 &&
-         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
-         color_metadata.range == kSbMediaRangeIdLimited &&
-         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
-}
-
-jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
-  switch (primary_id) {
-    case kSbMediaPrimaryIdBt709:
-      return COLOR_STANDARD_BT709;
-    case kSbMediaPrimaryIdBt2020:
-      return COLOR_STANDARD_BT2020;
-    default:
-      return COLOR_VALUE_UNKNOWN;
-  }
-}
-
-jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
-  switch (transfer_id) {
-    case kSbMediaTransferIdBt709:
-      return COLOR_TRANSFER_SDR_VIDEO;
-    case kSbMediaTransferIdSmpteSt2084:
-      return COLOR_TRANSFER_ST2084;
-    case kSbMediaTransferIdAribStdB67:
-      return COLOR_TRANSFER_HLG;
-    default:
-      return COLOR_VALUE_UNKNOWN;
-  }
-}
-
-jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
-  switch (range_id) {
-    case kSbMediaRangeIdLimited:
-      return COLOR_RANGE_LIMITED;
-    case kSbMediaRangeIdFull:
-      return COLOR_RANGE_FULL;
-    case kSbMediaRangeIdUnspecified:
-      return COLOR_RANGE_UNSPECIFIED;
-    default:
-      return COLOR_VALUE_UNKNOWN;
-  }
-}
-
 ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
     const SbMediaColorMetadata& metadata) {
   if (IsIdentity(metadata)) {
@@ -138,30 +68,13 @@ ScopedJavaLocalRef<jobject> CreateExoPlayerColorInfo(
       metadata.max_cll, metadata.max_fall);
 }
 
-bool ValidateMimeType(std::string_view mime_type_str) {
-  if (!mime_type_str.empty()) {
-    return MimeType(mime_type_str.data()).is_valid();
-  }
-
-  return true;
-}
-
 }  // namespace
 
 bool ShouldEnableTunneledPlayback(const SbMediaVideoStreamInfo& stream_info) {
-  if (stream_info.codec == kSbMediaVideoCodecNone ||
-      !ValidateMimeType(stream_info.mime)) {
-    return false;
-  }
-
   MimeType mime_type(stream_info.mime);
-  if (stream_info.mime) {
-    if (!mime_type.is_valid() ||
-        !mime_type.ValidateBoolParameter("tunnelmode")) {
-      SB_LOG(WARNING) << "Invalid video MIME: '" << stream_info.mime
-                      << "', defaulting to non-tunneled playback.";
-      return false;
-    }
+  if (stream_info.codec == kSbMediaVideoCodecNone || !mime_type.is_valid() ||
+      !mime_type.ValidateBoolParameter("tunnelmode")) {
+    return false;
   }
 
   return mime_type.GetParamBoolValue("tunnelmode", false);
@@ -175,7 +88,7 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  if (!ValidateMimeType(stream_info.mime)) {
+  if (!MimeType(stream_info.mime).is_valid()) {
     SB_LOG(ERROR) << "Invalid audio MIME: '" << stream_info.mime << "'";
     return ScopedJavaLocalRef<jobject>();
   }
@@ -195,10 +108,8 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
 
   bool is_passthrough = stream_info.codec == kSbMediaAudioCodecEac3 ||
                         stream_info.codec == kSbMediaAudioCodecAc3;
-  std::string j_audio_mime_str =
-      SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough);
-  ScopedJavaLocalRef<jstring> j_audio_mime =
-      ConvertUTF8ToJavaString(env, j_audio_mime_str.c_str());
+  ScopedJavaLocalRef<jstring> j_audio_mime = ConvertUTF8ToJavaString(
+      env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
 
   return Java_ExoPlayerManager_createAudioMediaSource(
       env, j_audio_mime, configuration_data, samplerate, channels);
@@ -212,7 +123,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  if (!ValidateMimeType(stream_info.mime)) {
+  starboard::MimeType mime_type(stream_info.mime);
+  if (!mime_type.is_valid()) {
     SB_LOG(ERROR) << "Invalid video MIME: '" << stream_info.mime << "'";
     return ScopedJavaLocalRef<jobject>();
   }
@@ -224,15 +136,11 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
 
   JNIEnv* env = AttachCurrentThread();
 
-  std::string mime_str = SupportedVideoCodecToMimeType(stream_info.codec);
-  ScopedJavaLocalRef<jstring> j_mime(
-      ConvertUTF8ToJavaString(env, mime_str.c_str()));
+  ScopedJavaLocalRef<jstring> j_mime(ConvertUTF8ToJavaString(
+      env, SupportedVideoCodecToMimeType(stream_info.codec)));
 
-  starboard::MimeType mime_type(stream_info.mime);
-  if (mime_type.is_valid()) {
-    framerate = mime_type.GetParamIntValue("framerate", -1);
-    bitrate = mime_type.GetParamIntValue("bitrate", -1);
-  }
+  framerate = mime_type.GetParamIntValue("framerate", -1);
+  bitrate = mime_type.GetParamIntValue("bitrate", -1);
 
   ScopedJavaLocalRef<jobject> j_hdr_color_info =
       CreateExoPlayerColorInfo(stream_info.color_metadata);

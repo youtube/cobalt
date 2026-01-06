@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+#include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
 
@@ -57,11 +58,11 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   bool Init(ErrorCB error_cb, PrerolledCB prerolled_cb, EndedCB ended_cb);
 
-  bool Seek(int64_t timestamp);
-  bool WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
-  bool WriteEOS(SbMediaType type) const;
-  bool SetPause(bool pause) const;
-  bool SetPlaybackRate(const double playback_rate) const;
+  void Seek(int64_t timestamp);
+  void WriteSamples(const InputBuffers& input_buffers, SbMediaType type);
+  void WriteEOS(SbMediaType type) const;
+  void SetPause(bool pause) const;
+  void SetPlaybackRate(const double playback_rate) const;
   void SetVolume(const double volume) const;
   void Stop() const;
 
@@ -76,19 +77,22 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void OnDroppedVideoFrames(JNIEnv* env, jint count);
   void OnIsPlayingChanged(JNIEnv*, jboolean is_playing);
 
-  bool is_valid() const { return j_exoplayer_manager_ && j_exoplayer_bridge_; }
+  bool is_valid() const { return !!j_exoplayer_bridge_; }
+
+  std::string GetInitErrorMessage() const { return init_error_msg_; }
 
  private:
   bool ShouldAbortOperation() const;
-  void ReportError(JNIEnv* env,
-                   SbPlayerError error,
-                   const std::string& msg) const;
+  void ReportError(const std::string& msg) const;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
   base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
 
-  std::atomic_bool player_is_releasing_;
+  bool player_is_releasing_;
+
+  // The following variables may be accessed by the ExoPlayer Looper
+  // thread.
   std::atomic_bool playback_error_occurred_;
   std::atomic_bool initialized_;
   std::atomic_bool seeking_;
@@ -104,6 +108,8 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   bool owns_surface_;
   std::string init_error_msg_;
+
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace starboard
