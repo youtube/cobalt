@@ -87,11 +87,12 @@ if (is_ios && target_platform == "tvos") {
   ios_app_bundle("cobalt") {
     testonly = true
 
-    sources = [ "app/main.mm" ]
+    sources = [ "app/tvos/main.mm" ]
 
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/tvos/intents:yt_intents",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
@@ -100,6 +101,8 @@ if (is_ios && target_platform == "tvos") {
       ":cobalt_shell_framework_resources",
       "shell/app/ios/resources",
     ]
+
+    intents_target = "//cobalt/browser/tvos/intents:yt_intents"
 
     data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
 
@@ -132,6 +135,7 @@ if (is_ios && target_platform == "tvos") {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/h5vcc_accessibility:manager",
       "//cobalt/browser/h5vcc_runtime:deep_link_manager",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
@@ -256,6 +260,10 @@ test("cobalt_unittests") {
     ]
   }
 
+  if (!is_android) {
+    sources += [ "//cobalt/shell/browser/splash_screen_unittest.cc" ]
+  }
+
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 
   deps = [
@@ -292,10 +300,25 @@ test("cobalt_unittests") {
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
     "//cobalt/shell:cobalt_shell_lib",
+    "//content/browser:for_content_tests",
     "//content/public/common:switches",
+    "//content/test:test_support",
     "//gpu/config",
     "//sandbox/policy:policy",
+    "//ui/events/devices",
   ]
+
+  if (is_android) {
+    deps += [
+      "//base:base_java_test_support",
+      "//content/public/android:content_java",
+      "//ui/android:ui_java",
+    ]
+  }
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
+  }
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]

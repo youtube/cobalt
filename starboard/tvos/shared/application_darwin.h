@@ -15,7 +15,6 @@
 #ifndef STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
 #define STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
 
-#include <cstdint>
 #include <memory>
 
 #include "starboard/shared/internal_only.h"
@@ -30,30 +29,6 @@ class ApplicationDarwin : public QueueApplication {
   explicit ApplicationDarwin(
       std::unique_ptr<::starboard::CommandLine> command_line);
   ~ApplicationDarwin() override;
-
-  static ApplicationDarwin* Get() {
-    Application* application = Application::Get();
-    return static_cast<ApplicationDarwin*>(application);
-  }
-
-  // These are helper functions to simplify injecting application events.
-  template <typename T>
-  static void InjectEvent(SbEventType type, T* data);
-  static void InjectEvent(SbEventType type) {
-    Get()->Inject(new Event{type, nullptr, nullptr});
-  }
-  static void InjectEvent(SbEventType type,
-                          void* data,
-                          SbEventDataDestructor data_destructor) {
-    Get()->Inject(new Event{type, data, data_destructor});
-  }
-
-  static void InjectEvent(SbEventType type,
-                          int64_t timestamp,
-                          void* data,
-                          SbEventDataDestructor data_destructor) {
-    Get()->Inject(new Event{type, timestamp, data, data_destructor});
-  }
 
   static void IncrementIdleTimerLockCount();
   static void DecrementIdleTimerLockCount();
@@ -71,17 +46,6 @@ class ApplicationDarwin : public QueueApplication {
   struct ObjCStorage;
   std::unique_ptr<ObjCStorage> objc_storage_;
 };
-
-template <typename T>
-inline void ApplicationDarwin::InjectEvent(SbEventType type, T* data) {
-  Get()->Inject(new Event{type, data, &ApplicationDarwin::DeleteDestructor<T>});
-}
-
-template <>
-inline void ApplicationDarwin::InjectEvent<char>(SbEventType type, char* data) {
-  Get()->Inject(
-      new Event{type, data, &ApplicationDarwin::DeleteArrayDestructor<char>});
-}
 
 }  // namespace starboard
 

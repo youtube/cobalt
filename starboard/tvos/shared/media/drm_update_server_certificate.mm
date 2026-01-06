@@ -18,6 +18,9 @@
 #include "starboard/shared/widevine/drm_system_widevine.h"
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 
+using starboard::DrmSystemPlatform;
+using starboard::DrmSystemWidevine;
+
 void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
                                   int ticket,
                                   const void* certificate,
@@ -32,8 +35,6 @@ void SbDrmUpdateServerCertificate(SbDrmSystem drm_system,
     return;
   }
 
-  using starboard::shared::uikit::DrmSystemPlatform;
-  using starboard::shared::widevine::DrmSystemWidevine;
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->UpdateServerCertificate(ticket, certificate, certificate_size);

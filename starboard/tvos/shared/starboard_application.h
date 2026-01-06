@@ -22,7 +22,6 @@
 @class SBDDrmManager;
 @class SBDEglAdapter;
 @class SBDPlayerManager;
-@class SBDWindowManager;
 @protocol SBDStarboardApplication;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -50,11 +49,6 @@ id<SBDStarboardApplication> SBDGetApplication(void);
  *  @brief Enables Starboard to manage DRM playback.
  */
 @property(nonatomic, readonly) SBDDrmManager* drmManager;
-
-/**
- *  @brief Enables Starboard to manage platform windows.
- */
-@property(nonatomic, readonly) SBDWindowManager* windowManager;
 
 /**
  *  @brief Enables Starboard to manage platform players.

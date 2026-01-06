@@ -14,12 +14,14 @@
 
 #include "starboard/tvos/shared/media/oemcrypto_engine_device_properties_uikit.h"
 
+#include <atomic>
+
+#include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
-#import "starboard/tvos/shared/window_manager.h"
 #include "third_party/internal/ce_cdm/oemcrypto/mock/src/oemcrypto_engine_mock.h"
 
 namespace {

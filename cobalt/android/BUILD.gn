@@ -153,6 +153,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
     "apk/app/src/main/java/dev/cobalt/util/Log.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
