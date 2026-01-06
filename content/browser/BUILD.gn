@@ -3777,7 +3777,22 @@ group("for_content_tests") {
     visibility += [
       "//cobalt/testing:*",
       "//cobalt/testing/browser_tests:*",
+      "//cobalt:cobalt_unittests",
     ]
+
+    if (is_android) {
+      visibility += [
+        "//cobalt:cobalt_unittests__apk__compile_java",
+        "//cobalt:cobalt_unittests__apk__compile_resources",
+        "//cobalt:cobalt_unittests__apk__create",
+        "//cobalt:cobalt_unittests__apk__java",
+        "//cobalt:cobalt_unittests__apk__java__dex",
+        "//cobalt:cobalt_unittests__apk__java__header",
+        "//cobalt:cobalt_unittests__apk__java__validate",
+        "//cobalt:cobalt_unittests__library",
+        "//cobalt:cobalt_unittests__library__jni_registration__native_sources",
+      ]
+    }
   }
   if (!is_component_build) {
     public_deps = [ ":browser" ]
