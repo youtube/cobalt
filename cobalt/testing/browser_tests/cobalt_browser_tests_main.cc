@@ -93,7 +93,5 @@ int main(int argc, char** argv) {
   // TODO(b/433354983): Support more platforms.
   ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
 
-  // The test logic will be kicked off from within SbEventHandle
-  // when the kSbEventTypeStart event is received.
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }

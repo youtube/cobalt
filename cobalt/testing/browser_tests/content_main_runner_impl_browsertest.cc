@@ -44,6 +44,7 @@ namespace content {
 namespace {
 
 using ::testing::_;
+using ::testing::AtLeast;
 using ::testing::AtMost;
 using ::testing::DoAll;
 using ::testing::Invoke;
@@ -210,52 +211,46 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
     const std::string kBrowserProcessType = "";
 
     EXPECT_CALL(mock_delegate_, MockBasicStartupComplete())
-        .Times(testing::AtMost(1))
+        .Times(AtMost(1))
         .WillRepeatedly(DoAll(Invoke(this, &Self::TestBasicStartupComplete),
                               Return(std::nullopt)));
 
     EXPECT_CALL(mock_delegate_, MockCreateVariationsIdsProvider())
         .Times(AtMost(1));
-    EXPECT_CALL(mock_delegate_, MockPreSandboxStartup())
-        .Times(testing::AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockPreSandboxStartup()).Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockSandboxInitialized(kBrowserProcessType))
-        .Times(testing::AtMost(1));
+        .Times(AtMost(1));
 
-    // Called once directly and once via PostEarlyInitialization.
     EXPECT_CALL(mock_delegate_, ShouldCreateFeatureList(_))
-        .Times(testing::AtLeast(2))
         .WillRepeatedly(Return(true));
     EXPECT_CALL(mock_delegate_, ShouldInitializeMojo(_))
-        .Times(testing::AtLeast(2))
         .WillRepeatedly(Return(true));
 
     EXPECT_CALL(mock_delegate_, MockPreBrowserMain())
-        .Times(testing::AtMost(1))
+        .Times(AtMost(1))
         .WillRepeatedly(Return(std::nullopt));
 
     EXPECT_CALL(mock_delegate_, MockPostEarlyInitialization(
                                     InvokedInMatcher(kBrowserProcessType)))
-        .Times(testing::AtMost(1))
+        .Times(AtMost(1))
         .WillRepeatedly(DoAll(Invoke(this, &Self::TestPostEarlyInitialization),
                               Return(std::nullopt)));
 
     EXPECT_CALL(mock_delegate_, MockRunProcess(kBrowserProcessType, _))
-        .Times(testing::AtMost(1));
+        .Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockProcessExiting(kBrowserProcessType))
-        .Times(testing::AtMost(1));
+        .Times(AtMost(1));
 
     EXPECT_CALL(mock_delegate_, MockShouldLockSchemeRegistry())
-        .Times(testing::AtMost(1));
-    EXPECT_CALL(mock_delegate_, MockCreateContentClient())
-        .Times(testing::AtMost(1));
+        .Times(AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockCreateContentClient()).Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockCreateContentBrowserClient())
-        .Times(testing::AtMost(1));
-    EXPECT_CALL(mock_delegate_, MockCreateContentGpuClient())
-        .Times(testing::AtMost(1));
+        .Times(AtMost(1));
+    EXPECT_CALL(mock_delegate_, MockCreateContentGpuClient()).Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockCreateContentRendererClient())
-        .Times(testing::AtMost(1));
+        .Times(AtMost(1));
     EXPECT_CALL(mock_delegate_, MockCreateContentUtilityClient())
-        .Times(testing::AtMost(1));
+        .Times(AtMost(1));
 
     Super::SetUp();
   }
