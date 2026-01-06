@@ -17,7 +17,8 @@ import("//build/config/arm.gni")
 config("platform_configuration") {
   if (current_toolchain == default_toolchain) {
     if (current_cpu == "arm64") {
-      configs = [ "//starboard/evergreen/arm64/platform_configuration" ]
+      # TODO: b/473814802 - Use the correct configuration here once musl is fixed.
+      configs = [ ":no_platform_configuration" ]
     } else if (current_cpu == "arm" && arm_float_abi == "softfp") {
       configs = [ "//starboard/evergreen/arm/softfp/platform_configuration" ]
     } else {
