@@ -344,14 +344,19 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     // ICU has deprecated support for |YESEXPR| and |NOEXPR|. If these items are
     // ever requested, we return the default English expressions.
     case YESEXPR:
+      SB_LOG(WARNING) << "nl_item YESEXPR was requested, but is not supported "
+                         "by ICU. Returning ^[yY].";
       langinfo_buffer = "^[yY]";
       break;
     case NOEXPR:
+      SB_LOG(WARNING) << "nl_item NOEXPR was requested, but is not supported "
+                         "by ICU. Returning ^[nN].";
       langinfo_buffer = "^[nN]";
       break;
 
     // For the following items, we currently do not implement them. If they are
-    // ever called |SB_NOTIMPLEMENTED()| is called. See b/
+    // ever called, |SB_NOTIMPLEMENTED()| is called. See b/466160361 for more
+    // info.
     case CRNCYSTR:
       SB_NOTIMPLEMENTED()
           << "CRNCYSTR is not supported. Returning the empty string.";

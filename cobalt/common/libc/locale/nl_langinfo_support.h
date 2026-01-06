@@ -27,7 +27,7 @@ namespace cobalt {
 enum class TimeNameType { kDay, kAbbrevDay, kMonth, kAbbrevMonth, kAmPm };
 
 // Will retrieve the corresponding locale data in relation to the types in
-// TimeNameType. This includes |DAY*|, |AB
+// TimeNameType. This includes |DAY*|, |ABDAY*|, |AM/PM_STR|, |MON*|, |ABMON*|.
 std::string GetLocalizedDateSymbol(const std::string& locale,
                                    TimeNameType type,
                                    int index);
