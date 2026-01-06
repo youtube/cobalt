@@ -360,7 +360,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case CRNCYSTR:
       SB_NOTIMPLEMENTED()
           << "CRNCYSTR is not supported. Returning the empty string.";
-      langinfo_buffer = const_cast<char*>("");
+      langinfo_buffer = "";
       break;
     case ERA:
     case ERA_D_FMT:
@@ -368,17 +368,17 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ERA_T_FMT:
       SB_NOTIMPLEMENTED()
           << "ERA* items are not supported. Returning the empty string.";
-      langinfo_buffer = const_cast<char*>("");
+      langinfo_buffer = "";
       break;
     case ALT_DIGITS:
       SB_NOTIMPLEMENTED()
           << "ALT_DIGITS is not supported. Returning the empty string.";
-      langinfo_buffer = const_cast<char*>("");
+      langinfo_buffer = "";
       break;
     default:
       SB_LOG(ERROR) << "Received unknown nl_item for nl_langinfo. Returning "
                        "the empty string.";
-      langinfo_buffer = const_cast<char*>("");
+      langinfo_buffer = "";
       break;
   }
   return const_cast<char*>(langinfo_buffer.c_str());

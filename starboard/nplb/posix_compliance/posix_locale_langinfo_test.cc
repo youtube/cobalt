@@ -108,19 +108,6 @@ struct LanginfoTestDataNameGenerator {
 
 #include "starboard/nplb/posix_compliance/posix_locale_langinfo_test_data.cc.inc"
 
-// Helper to check if a string is one of the valid Non-Breaking Space variants.
-// Accepted variants:
-// 1. \xC2\xA0     : Standard Non-Breaking Space (NBSP, U+00A0) - Legacy/Web
-// standard
-// 2. \xE2\x80\xAF : Narrow Non-Breaking Space (NNBSP, U+202F) - Modern
-// typographic standard
-bool IsNonBreakingSpace(const char* str) {
-  if (!str) {
-    return false;
-  }
-  return strcmp(str, "\xC2\xA0") == 0 || strcmp(str, "\xE2\x80\xAF") == 0;
-}
-
 void CheckItem(nl_item item, const char* expected) {
   if (expected == nullptr) {
     return;

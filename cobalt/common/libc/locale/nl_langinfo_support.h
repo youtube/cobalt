@@ -34,7 +34,7 @@ std::string GetLocalizedDateSymbol(const std::string& locale,
 
 // Will retrieve the corresponding Numeric data for a given locale. This mainly
 // supports the |RADIXCHAR| and |THOUSEP| nl_items.
-std::string NlGetNumericData(const std::string& locale, const nl_item& type);
+std::string NlGetNumericData(const std::string& locale, nl_item type);
 
 }  //  namespace cobalt
 

@@ -15,20 +15,14 @@
 #include "cobalt/common/libc/locale/nl_langinfo_support.h"
 
 #include <algorithm>
-#include <cctype>
-#include <sstream>
 #include <string>
 
 #include "cobalt/common/libc/locale/lconv_support.h"
 #include "third_party/icu/source/common/unicode/localebuilder.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
-#include "third_party/icu/source/i18n/unicode/datefmt.h"
 #include "third_party/icu/source/i18n/unicode/dcfmtsym.h"
-#include "third_party/icu/source/i18n/unicode/decimfmt.h"
 #include "third_party/icu/source/i18n/unicode/dtfmtsym.h"
-#include "third_party/icu/source/i18n/unicode/smpdtfmt.h"
-#include "third_party/icu/source/i18n/unicode/unum.h"
 
 namespace cobalt {
 namespace {
@@ -99,7 +93,7 @@ std::string GetLocalizedDateSymbol(const std::string& locale,
 
   icu::DateFormatSymbols syms(icu_locale, status);
   if (U_FAILURE(status)) {
-    return const_cast<char*>("");
+    return "";
   }
 
   int count = 0;
@@ -131,7 +125,7 @@ std::string GetLocalizedDateSymbol(const std::string& locale,
   return result;
 }
 
-std::string NlGetNumericData(const std::string& locale, const nl_item& type) {
+std::string NlGetNumericData(const std::string& locale, nl_item type) {
   std::string result;
 
   UErrorCode status = U_ZERO_ERROR;
@@ -139,7 +133,7 @@ std::string NlGetNumericData(const std::string& locale, const nl_item& type) {
 
   icu::DecimalFormatSymbols syms(icu_locale, status);
   if (U_FAILURE(status)) {
-    return const_cast<char*>("");
+    return "";
   }
 
   switch (type) {
