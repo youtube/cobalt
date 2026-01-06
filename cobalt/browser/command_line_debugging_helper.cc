@@ -14,26 +14,21 @@
 
 #include "cobalt/browser/command_line_debugging_helper.h"
 
+#include <vector>
+
 #include "base/strings/string_util.h"
 
 namespace cobalt {
 
 std::string FormatCommandLineSwitchesForDebugging(
     const base::CommandLine& command_line) {
-  std::string formatted_switches;
+  std::vector<std::string> formatted_switches;
   for (const auto& pair : command_line.GetSwitches()) {
     const std::string& key = pair.first;
     const base::CommandLine::StringType& value = pair.second;
-    formatted_switches += "'";
-    formatted_switches += key;
-    formatted_switches += "': '";
-    formatted_switches += value;
-    formatted_switches += "' ";
+    formatted_switches.push_back("'" + key + "': '" + value + "'");
   }
-  if (!formatted_switches.empty()) {
-    formatted_switches.pop_back();  // Remove trailing space
-  }
-  return formatted_switches;
+  return base::JoinString(formatted_switches, "\n");
 }
 
 }  // namespace cobalt

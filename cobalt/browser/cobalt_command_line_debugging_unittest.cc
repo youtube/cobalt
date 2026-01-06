@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/command_line.h"
+#include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "cobalt/browser/command_line_debugging_helper.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -47,10 +48,12 @@ TEST(CommandLineDebuggingTest, MultipleSwitches) {
 
   std::string formatted_switches =
       FormatCommandLineSwitchesForDebugging(command_line);
-  EXPECT_TRUE(formatted_switches.find("'switch1': ''") != std::string::npos);
-  EXPECT_TRUE(formatted_switches.find("'switch2': 'value2'") !=
-              std::string::npos);
-  EXPECT_TRUE(formatted_switches.find("'switch3': ''") != std::string::npos);
+  std::vector<std::string> parts =
+      base::SplitString(formatted_switches, "\n", base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_NONEMPTY);
+  EXPECT_THAT(parts,
+              testing::UnorderedElementsAre(
+                  "'switch1': ''", "'switch2': 'value2'", "'switch3': ''"));
 }
 
 TEST(CommandLineDebuggingTest, SwitchesWithSpacesAndQuotes) {
@@ -61,10 +64,12 @@ TEST(CommandLineDebuggingTest, SwitchesWithSpacesAndQuotes) {
   // Note: CommandLine::AppendSwitchASCII handles internal quoting if needed.
   std::string formatted_switches =
       FormatCommandLineSwitchesForDebugging(command_line);
-  EXPECT_TRUE(formatted_switches.find("'path': '/usr/local/bin/my app'") !=
-              std::string::npos);
-  EXPECT_TRUE(formatted_switches.find("'message': 'Hello World'") !=
-              std::string::npos);
+  std::vector<std::string> parts =
+      base::SplitString(formatted_switches, "\n", base::TRIM_WHITESPACE,
+                        base::SPLIT_WANT_NONEMPTY);
+  EXPECT_THAT(parts,
+              testing::UnorderedElementsAre("'path': '/usr/local/bin/my app'",
+                                            "'message': 'Hello World'"));
 }
 
 }  // namespace
