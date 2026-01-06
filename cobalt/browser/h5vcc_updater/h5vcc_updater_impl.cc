@@ -115,4 +115,9 @@ void H5vccUpdaterImpl::SetRequireNetworkEncryption(
   NOTREACHED();
 }
 
+void H5vccUpdaterImpl::GetLibrarySha256(GetLibrarySha256Callback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  NOTREACHED();
+}
+
 }  // namespace h5vcc_updater

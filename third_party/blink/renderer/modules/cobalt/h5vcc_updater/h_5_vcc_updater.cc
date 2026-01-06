@@ -230,6 +230,25 @@ ScriptPromise<IDLUndefined> H5vccUpdater::setRequireNetworkEncryption(
   return resolver->Promise();
 }
 
+ScriptPromise<IDLString> H5vccUpdater::getLibrarySha256(
+    ScriptState* script_state,
+    unsigned short index,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->GetLibrarySha256(
+      WTF::BindOnce(&H5vccUpdater::OnGetLibrarySha256, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
 void H5vccUpdater::OnGetUpdaterChannel(ScriptPromiseResolver* resolver,
                                        const String& result) {
   resolver->Resolve(result);
@@ -255,6 +274,11 @@ void H5vccUpdater::OnGetBool(ScriptPromiseResolver* resolver, bool result) {
 
 void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
                                         const String& result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnGetLibrarySha256(ScriptPromiseResolver* resolver,
+                                      const String& result) {
   resolver->Resolve(result);
 }
 

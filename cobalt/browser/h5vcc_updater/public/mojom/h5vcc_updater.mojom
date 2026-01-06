@@ -26,4 +26,5 @@ interface H5vccUpdater {
   SetUpdateServerUrl(string update_server_url);
   GetRequireNetworkEncryption() => (bool require_network_encryption);
   SetRequireNetworkEncryption(bool require_network_encryption);
+  GetLibrarySha256() => (string sha256);
 };

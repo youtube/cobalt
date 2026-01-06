@@ -64,6 +64,9 @@ class MODULES_EXPORT H5vccUpdater final
   ScriptPromise<IDLUnsignedShort> getInstallationIndex(
       ScriptState* script_state,
       ExceptionState& exception_state);
+  ScriptPromise<IDLString> getLibrarySha256(ScriptState* script_state,
+                                            unsigned short index,
+                                            ExceptionState& exception_state);
   ScriptPromise<IDLBoolean> getAllowSelfSignedPackages(
       ScriptState* script_state,
       ExceptionState& exception_state);
@@ -93,6 +96,8 @@ class MODULES_EXPORT H5vccUpdater final
   void OnVoidResult(ScriptPromiseResolver* resolver);
   void OnGetUpdateStatus(ScriptPromiseResolver* resolver, const String& result);
   void OnGetInstallationIndex(ScriptPromiseResolver* resolver, uint16_t result);
+  void OnGetLibrarySha256(ScriptPromiseResolver* script_state,
+                          const String& result);
   void OnGetBool(ScriptPromiseResolver* resolver, bool result);
   void OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
                             const String& result);

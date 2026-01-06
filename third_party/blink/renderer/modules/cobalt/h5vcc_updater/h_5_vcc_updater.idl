@@ -17,6 +17,7 @@
 interface H5vccUpdater {
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getUpdaterChannel();
+
   [CallWith=ScriptState, RaisesException]
   Promise<undefined> setUpdaterChannel(DOMString channel);
 
@@ -25,13 +26,18 @@ interface H5vccUpdater {
 
   [CallWith=ScriptState, RaisesException]
   Promise<undefined> resetInstallations();
+
   [CallWith=ScriptState, RaisesException]
   Promise<unsigned short> getInstallationIndex();
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getLibrarySha256();
 
   // Toggles the ability to load self-signed packages in the updater. This
   // should only be used for testing and should not be available in production.
   [CallWith=ScriptState, RaisesException]
   Promise<boolean> getAllowSelfSignedPackages();
+
   [CallWith=ScriptState, RaisesException]
   Promise<undefined> setAllowSelfSignedPackages(boolean allow_self_signed_packages);
 
@@ -39,6 +45,7 @@ interface H5vccUpdater {
   // testing and should not be available in production.
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getUpdateServerUrl();
+
   [CallWith=ScriptState, RaisesException]
   Promise<undefined> setUpdateServerUrl(DOMString update_server_url);
 
@@ -46,6 +53,7 @@ interface H5vccUpdater {
   // only be used for testing and should not be available in production.
   [CallWith=ScriptState, RaisesException]
   Promise<boolean> getRequireNetworkEncryption();
+
   [CallWith=ScriptState, RaisesException]
   Promise<undefined> setRequireNetworkEncryption(boolean require_network_encryption);
 };

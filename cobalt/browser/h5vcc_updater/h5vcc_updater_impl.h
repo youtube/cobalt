@@ -55,6 +55,7 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   void GetRequireNetworkEncryption(
       GetRequireNetworkEncryptionCallback callback) override;
   void SetRequireNetworkEncryption(bool require_network_encryption) override;
+  void GetLibrarySha256(GetLibrarySha256Callback callback) override;
 
  private:
   H5vccUpdaterImpl(content::RenderFrameHost& render_frame_host,
