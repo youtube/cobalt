@@ -82,6 +82,7 @@ class JobThread {
 
     return job_queue_->RemoveJobByToken(job_token);
   }
+
  private:
   ~JobThread();
   static void* ThreadEntryPoint(void* context);
@@ -94,29 +95,22 @@ class JobThread {
 };
 
 // The ScopedJobThreadPtr class guarantees that the pointer to JobThread object
-// is valid during JobThread destructor. This prevents issues of accessing nullified
-// JobThread pointer, as per b/372515171
+// is valid during JobThread destructor. This prevents issues of accessing
+// nullified JobThread pointer, as per b/372515171
 class ScopedJobThreadPtr {
  public:
-  explicit ScopedJobThreadPtr(JobThread* p = nullptr): job_thread_(p) {
-  }
+  explicit ScopedJobThreadPtr(JobThread* p = nullptr) : job_thread_(p) {}
 
-  ~ScopedJobThreadPtr() {
-    delete job_thread_;
-  }
+  ~ScopedJobThreadPtr() { delete job_thread_; }
 
   void reset(JobThread* p = nullptr) {
     delete job_thread_;
     job_thread_ = p;
   }
 
-  JobThread* operator->() const {
-    return job_thread_;
-  }
+  JobThread* operator->() const { return job_thread_; }
 
-  explicit operator bool() const { 
-    return job_thread_ != nullptr;
-  }
+  explicit operator bool() const { return job_thread_ != nullptr; }
 
  private:
   JobThread* job_thread_;
