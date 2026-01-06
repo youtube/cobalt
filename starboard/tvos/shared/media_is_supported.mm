@@ -14,6 +14,7 @@
 
 #include <string_view>
 
+#include "base/containers/contains.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/tvos/shared/media/drm_system_platform.h"
@@ -28,19 +29,17 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  constexpr std::string_view kWidevineL3SystemName{"com.youtube.widevine.l3"};
-  constexpr std::string_view kWidevineForceHdcpSystemName{
-      "com.youtube.widevine.forcehdcp"};
-  constexpr std::string_view kWidevineAlphaSystemName{"com.widevine.alpha"};
-  std::string_view key_system_sv{key_system};
+  constexpr std::string_view kSupportedWidevineSystems[] = {
+      "com.youtube.widevine.l3",
+      "com.youtube.widevine.forcehdcp",
+      "com.widevine.alpha",
+  };
 
-  if (key_system_sv == kWidevineL3SystemName ||
-      key_system_sv == kWidevineForceHdcpSystemName ||
-      key_system_sv == kWidevineAlphaSystemName) {
+  if (base::Contains(kSupportedWidevineSystems, key_system)) {
     return true;
   }
 
-  if (key_system_sv == ::starboard::DrmSystemPlatform::GetKeySystemName()) {
+  if (key_system == ::starboard::DrmSystemPlatform::GetKeySystemName()) {
     // We don't use AVPlayer for encrypted vp9.
     return video_codec != kSbMediaVideoCodecVp9;
   }
