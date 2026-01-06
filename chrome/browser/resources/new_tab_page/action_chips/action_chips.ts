@@ -163,6 +163,19 @@ export class ActionChipsElement extends CrLitElement {
         ComposeboxMode.CREATE_IMAGE);
   }
 
+  protected onDeepDiveClick_(chip: ActionChip) {
+    recordClick(ChipType.kDeepDive);
+    const tab = chip.tab!;
+    const deepDiveTabInfo: TabUpload = {
+      tabId: tab.tabId,
+      url: tab.url,
+      title: tab.title,
+      delayUpload: this.delayTabUploads_,
+    };
+    this.onActionChipClick_(
+        chip.suggestion, [deepDiveTabInfo], ComposeboxMode.DEFAULT);
+  }
+
   protected onDeepSearchClick_() {
     recordClick(ChipType.kDeepSearch);
     this.onActionChipClick_(
@@ -194,6 +207,9 @@ export class ActionChipsElement extends CrLitElement {
       case ChipType.kRecentTab:
         this.onTabContextClick_(chip.tab!);
         break;
+      case ChipType.kDeepDive:
+        this.onDeepDiveClick_(chip);
+        break;
       default:
         // Do nothing yet...
     }
@@ -215,6 +231,15 @@ export class ActionChipsElement extends CrLitElement {
   private onActionChipClick_(
       query: string, contextFiles: ContextualUpload[], mode: ComposeboxMode) {
     this.fire('action-chip-click', {searchboxText: query, contextFiles, mode});
+  }
+
+  protected recentTabChipTitle_(chip: ActionChip) {
+    if (!chip.tab) {
+      return '';
+    }
+    const url = new URL(chip.tab.url.url);
+    const domain = url.hostname.replace(/^www\./, '');
+    return `${chip.title} - ${domain}`;
   }
 
   protected isDeepDiveChip_(chip: ActionChip) {

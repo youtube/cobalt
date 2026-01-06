@@ -124,9 +124,9 @@ TabInfoPtr CreateTabInfo(const tabs::TabInterface* tab) {
 }
 
 ActionChipPtr CreateStaticRecentTabChip(TabInfoPtr tab) {
-  const std::string title = tab->title;
-  return ActionChip::New(title, "Ask Google about this tab",
-                         ChipType::kRecentTab, std::move(tab));
+  const std::string title = "Ask about previous tab";
+  return ActionChip::New(title, tab->title, ChipType::kRecentTab,
+                         std::move(tab));
 }
 
 const ActionChipPtr& GetStaticDeepSearchChip() {
@@ -672,7 +672,7 @@ TEST(ActionChipGeneratorTest,
 
   TabInfoPtr tab_info = CreateTabInfo(&tab_fixture.mock_tab());
   ActionChipPtr expected_recent_tab_chip =
-      ActionChip::New(/*title=*/"Ask Google about this tab",
+      ActionChip::New(/*title=*/"Ask about previous tab",
                       /*suggestion=*/"Some Title",
                       /*type=*/ChipType::kRecentTab, /*tab=*/tab_info->Clone());
 

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ActionChipsHandlerRemote, ChipType, PageCallbackRouter as ActionChipsPageCallbackRouter, type TabInfo} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
+import {ActionChipsHandlerRemote, ChipType, PageCallbackRouter as ActionChipsPageCallbackRouter} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
+import type {PageRemote as ActionChipsPageRemote, TabInfo} from 'chrome://new-tab-page/action_chips.mojom-webui.js';
 import type {CustomizeButtonsDocumentRemote} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
 import {CustomizeButtonsDocumentCallbackRouter, CustomizeButtonsHandlerRemote, SidePanelOpenTrigger} from 'chrome://new-tab-page/customize_buttons.mojom-webui.js';
 import {CustomizeChromeSection} from 'chrome://new-tab-page/customize_chrome.mojom-webui.js';
@@ -1886,6 +1887,129 @@ suite('NewTabPageAppTest', () => {
             }));
   });
 
+  suite('AutoRemovalToast', () => {
+    suiteSetup(() => {
+      loadTimeData.overrideValues({
+        modulesEnabled: true,
+        shortcutsEnabled: true,
+      });
+    });
+
+    test('displays single toast', async () => {
+      // Arrange.
+      const modules = app.shadowRoot.querySelector('ntp-modules');
+      assertTrue(!!modules);
+
+      // Act.
+      modules.dispatchEvent(new CustomEvent('modules-auto-removed', {
+        detail: {message: 'Module removed', undo: () => {}},
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      // Assert.
+      assertTrue(app.$.undoToast.open);
+      assertEquals('Module removed', app.$.undoToastMessage.textContent.trim());
+    });
+
+    test('queues multiple toasts', async () => {
+      // Arrange.
+      const modules = app.shadowRoot.querySelector('ntp-modules');
+      assertTrue(!!modules);
+      const mostVisited = app.shadowRoot.querySelector('cr-most-visited');
+      assertTrue(!!mostVisited);
+
+      // Act - dispatch the first toast.
+      modules.dispatchEvent(new CustomEvent('modules-auto-removed', {
+        detail: {message: 'Modules hidden', undo: () => {}},
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      // Act - dispatch the second toast.
+      mostVisited.dispatchEvent(new CustomEvent('most-visited-auto-removed', {
+        detail: {message: 'Shortcuts hidden', undo: () => {}},
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      // Assert.
+      assertTrue(app.$.undoToast.open);
+      assertEquals('Modules hidden', app.$.undoToastMessage.textContent.trim());
+
+      // Act - clicking undo on the first toast.
+      let undoButton = app.shadowRoot.querySelector<HTMLElement>('#undoButton');
+      assertTrue(!!undoButton);
+      undoButton.click();
+      await microtasksFinished();
+
+      // Assert.
+      assertTrue(app.$.undoToast.open);
+      assertEquals(
+          'Shortcuts hidden', app.$.undoToastMessage.textContent.trim());
+
+      // Act - clicking undo on the second toast.
+      undoButton = app.shadowRoot.querySelector<HTMLElement>('#undoButton');
+      assertTrue(!!undoButton);
+      undoButton.click();
+      await microtasksFinished();
+
+      // Assert.
+      assertFalse(app.$.undoToast.open);
+    });
+
+    test('toast with null undo callback', async () => {
+      // Arrange.
+      const modules = app.shadowRoot.querySelector('ntp-modules');
+      assertTrue(!!modules);
+      const mostVisited = app.shadowRoot.querySelector('cr-most-visited');
+      assertTrue(!!mostVisited);
+
+      // Act - dispatch the first toast with null callback.
+      modules.dispatchEvent(new CustomEvent('modules-auto-removed', {
+        detail: {message: 'Module removed', undo: null},
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      // Act - dispatch the second toast with non-null callback.
+      mostVisited.dispatchEvent(new CustomEvent('most-visited-auto-removed', {
+        detail: {message: 'Shortcuts hidden', undo: () => {}},
+        bubbles: true,
+        composed: true,
+      }));
+      await microtasksFinished();
+
+      // Assert.
+      assertTrue(app.$.undoToast.open);
+      assertEquals('Module removed', app.$.undoToastMessage.textContent.trim());
+
+      // Act - clicking undo on the first toast does not crash.
+      let undoButton = app.shadowRoot.querySelector<HTMLElement>('#undoButton');
+      assertTrue(!!undoButton);
+      undoButton.click();
+      await microtasksFinished();
+
+      // Assert.
+      assertTrue(app.$.undoToast.open);
+      assertEquals(
+          'Shortcuts hidden', app.$.undoToastMessage.textContent.trim());
+
+      // Act - clicking undo on the second toast.
+      undoButton = app.shadowRoot.querySelector<HTMLElement>('#undoButton');
+      assertTrue(!!undoButton);
+      undoButton.click();
+      await microtasksFinished();
+
+      // Assert - no crash and toast closed.
+      assertFalse(app.$.undoToast.open);
+    });
+  });
+
   suite('NewTabFooter', () => {
     test('hide/show customize chrome and attribution buttons', async () => {
       // Arrange.
@@ -1982,6 +2106,7 @@ suite('NewTabPageAppTest', () => {
   });
 
   suite('ActionChips', () => {
+    let actionChipsPageRemote: ActionChipsPageRemote;
     suiteSetup(() => {
       loadTimeData.overrideValues({
         ntpNextFeaturesEnabled: true,
@@ -2002,7 +2127,7 @@ suite('NewTabPageAppTest', () => {
         url: {url: 'https://example.com/test'},
         lastActiveTime: {internalValue: BigInt(12345)},
       };
-      const actionChipsPageRemote =
+      actionChipsPageRemote =
           actionChipsCallbackRouter.$.bindNewPipeAndPassRemote();
       actionChipshandler.setResultMapperFor('startActionChipsRetrieval', () => {
         actionChipsPageRemote.onActionChipsChanged([
@@ -2130,5 +2255,45 @@ suite('NewTabPageAppTest', () => {
       assertEquals(1, tabId);
       assertEquals(true, delayUpload);
     });
+    test(
+        'Deep dive chip click opens composebox with context and suggestion',
+        async () => {
+          const suggestion = 'Help me with this page';
+          actionChipsPageRemote.onActionChipsChanged([{
+            title: 'Deep dive',
+            suggestion: suggestion,
+            type: ChipType.kDeepDive,
+            tab: {
+              tabId: 1,
+              title: 'Test Title',
+              url: {url: 'https://example.com/test'},
+              lastActiveTime: {internalValue: BigInt(0)},
+            },
+          }]);
+          await microtasksFinished();
+          const actionChipsElement =
+              app.shadowRoot.querySelector('ntp-action-chips');
+          assertTrue(!!actionChipsElement);
+
+          // Setup.
+          const deepDiveChip =
+              actionChipsElement.shadowRoot.getElementById('deep-dive-0');
+          assertTrue(!!deepDiveChip);
+
+          // Act.
+          deepDiveChip.click();
+          await microtasksFinished();
+
+          // Assert.
+          const composebox = app.shadowRoot.querySelector('cr-composebox');
+          assertTrue(!!composebox);
+          assertEquals(1, searchboxHandler.getCallCount('addTabContext'));
+          const [tabId, delayUpload] =
+              searchboxHandler.getArgs('addTabContext')[0];
+          assertEquals(1, tabId);
+          assertEquals(true, delayUpload);
+          assertTrue(!!composebox.$.input);
+          assertEquals(suggestion, composebox.$.input.value);
+        });
   });
 });

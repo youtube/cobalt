@@ -424,7 +424,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling feed
   # and whatever else without interference from each other.
-  'dawn_revision': '9bd45159352393f34bf70b4558d1ce75c2b1a574',
+  'dawn_revision': 'a8d1e554a9bd35b0418ba7fd6b0bc005250a7703',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling feed
   # and whatever else without interference from each other.
@@ -520,7 +520,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling ffmpeg
   # and whatever else without interference from each other.
-  'ffmpeg_revision': '8d855ef50e30da5c3660ddcde4df37bf31f5cdb3',
+  'ffmpeg_revision': 'e18f48eba6b367ac68b9c477ae6cbe224e36b031',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling webpagereplay
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'jnRogMsw-rWd1OxlSsPwv_h1F5Dif184X8hHFaaWNeYC',
+              'version': 'Q-1Zb2tbnvSeQLbRrUyM3wP8FOq-JoB_cwlu-jRJ8wgC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': '11BRatbostMWYHCfL7x5aP-HQqgqmfQTLfKrxlj_BwMC',
+              'version': 'AFcn9_jkoysttOcUv9ypxm_VoNTnCbUB0IHwwr0BQsYC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1624,7 +1624,7 @@ deps = {
 
   'src/clank': {
     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
-    '4648de8c6b983bb41c16c7d78468ce14070433d6',
+    '0761b3dc00fc7ca3ce13d4695684fd39a2e91ad9',
     'condition': 'checkout_android and checkout_src_internal',
   },
 

@@ -5,7 +5,6 @@
 import './composebox.js';
 import './error_page.js';
 import './top_toolbar.js';
-import './zero_state_overlay.js';
 
 import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -21,7 +20,6 @@ import type {Tab} from './contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import {PostMessageHandler} from './post_message_handler.js';
-import type {ZeroStateOverlayElement} from './zero_state_overlay.js';
 
 type ChromeEventFunctionType<T> =
     T extends ChromeEvent<infer ListenerType>? ListenerType : never;
@@ -34,7 +32,6 @@ export interface ContextualTasksAppElement {
   $: {
     threadFrame: chrome.webviewTag.WebView,
     composebox: ContextualTasksComposeboxElement,
-    zeroStateOverlay: ZeroStateOverlayElement,
   };
 }
 
@@ -133,7 +130,7 @@ export class ContextualTasksAppElement extends CrLitElement {
   }
 
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
-  protected accessor isAiPage_: boolean = false;
+  protected accessor isAiPage_: boolean = true;
   protected accessor isLensOverlayShowing_: boolean = false;
   // Indicates if in tab mode. Most start in a tab.
   protected accessor isShownInTab_: boolean = true;
@@ -173,7 +170,6 @@ export class ContextualTasksAppElement extends CrLitElement {
     const {url} = await this.browserProxy_.handler.getThreadUrl();
     this.$.threadFrame.src = url.url;
     this.$.composebox.startExpandAnimation();
-    this.$.zeroStateOverlay.startOverlayAnimation();
     this.$.composebox.clearInputAndFocus();
   }
 

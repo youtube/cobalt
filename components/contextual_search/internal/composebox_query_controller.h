@@ -99,6 +99,7 @@ class ComposeboxQueryController
   const contextual_search::FileInfo* GetFileInfo(
       const base::UnguessableToken& file_token) override;
   std::vector<const contextual_search::FileInfo*> GetFileInfoList() override;
+  base::WeakPtr<ContextualSearchContextController> AsWeakPtr() override;
 
   // Returns a request id to use for the viewport image upload request for the
   // given file info, setting the viewport request id on the file info if it is
@@ -501,10 +502,6 @@ class ComposeboxQueryController
   // attachments are available (true), or the only attachment if exactly one
   // attachment is available (false).
   bool prioritize_suggestions_for_the_first_attached_document_;
-
-  // Whether or not to support the context_id migration on the server, for
-  // the multi-context input flow.
-  bool enable_context_id_migration_;
 
   // Whether or not to attach the page title and url directly to the suggest
   // request params.
