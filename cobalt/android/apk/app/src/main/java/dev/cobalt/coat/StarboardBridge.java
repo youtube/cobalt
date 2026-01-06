@@ -199,7 +199,7 @@ public class StarboardBridge {
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       StarboardBridgeJni.get().closeNativeStarboard(nativeApp);
       closeAllServices();
-      System.exit(0);
+      activity.finishAndRemoveTask();
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
     }
@@ -282,7 +282,7 @@ public class StarboardBridge {
 
   /* Immediate shutdown, used at least by StandalonePlayerActivity. */
   public void requestStop(int errorLevel) {
-    System.exit(0);
+    activity.finishAndRemoveTask();
   }
 
   public boolean onSearchRequested() {
