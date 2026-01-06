@@ -196,35 +196,30 @@ void ExoPlayerWorkerHandler::Update() {
 
 void ExoPlayerWorkerHandler::OnError(SbPlayerError error,
                                      const std::string& error_message) {
+  SB_CHECK(update_player_error_cb_);
   ScheduleOnWorker([this, error, error_message]() {
-    if (update_player_error_cb_) {
-      update_player_error_cb_(error, error_message.empty()
-                                         ? "ExoPlayerWorkerHandler error"
-                                         : error_message);
-    }
+    update_player_error_cb_(error, error_message.empty()
+                                       ? "ExoPlayerWorkerHandler error"
+                                       : error_message);
   });
 }
 
 void ExoPlayerWorkerHandler::OnPrerolled() {
+  SB_CHECK(get_player_state_cb_);
+  SB_CHECK(update_player_state_cb_);
   ScheduleOnWorker([this]() {
-    if (get_player_state_cb_) {
-      SB_CHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
-          << "Invalid player state "
-          << GetPlayerStateName(get_player_state_cb_());
-    }
+    SB_CHECK_EQ(get_player_state_cb_(), kSbPlayerStatePrerolling)
+        << "Invalid player state "
+        << GetPlayerStateName(get_player_state_cb_());
 
-    if (update_player_state_cb_) {
-      update_player_state_cb_(kSbPlayerStatePresenting);
-    }
+    update_player_state_cb_(kSbPlayerStatePresenting);
   });
 }
 
 void ExoPlayerWorkerHandler::OnEnded() {
-  ScheduleOnWorker([this]() {
-    if (update_player_state_cb_) {
-      update_player_state_cb_(kSbPlayerStateEndOfStream);
-    }
-  });
+  SB_CHECK(update_player_state_cb_);
+  ScheduleOnWorker(
+      [this]() { update_player_state_cb_(kSbPlayerStateEndOfStream); });
 }
 
 bool ExoPlayerWorkerHandler::IsEOSWritten(SbMediaType type) const {
