@@ -22,10 +22,12 @@
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/i18n/rtl.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/path_service.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -42,6 +44,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "cobalt/version.h"
 #include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -52,9 +55,14 @@
 #include "components/variations/pref_names.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/render_view_host.h"
+#include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
@@ -63,11 +71,8 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/locale_utils.h"
+#include "cobalt/android/browser_jni_headers/CobaltContentBrowserClient_jni.h"
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if defined(RUN_BROWSER_TESTS)
-#include "cobalt/shell/common/shell_test_switches.h"  // nogncheck
-#endif  // defined(RUN_BROWSER_TESTS)
 
 namespace cobalt {
 
@@ -88,6 +93,33 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
 }  // namespace
+
+#if BUILDFLAG(IS_ANDROID)
+static void JNI_CobaltContentBrowserClient_FlushCookiesAndLocalStorage(
+    JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+static void JNI_CobaltContentBrowserClient_DispatchBlur(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchBlur();
+}
+
+static void JNI_CobaltContentBrowserClient_DispatchFocus(JNIEnv*) {
+  auto* client = CobaltContentBrowserClient::Get();
+  if (!client) {
+    return;
+  }
+  client->DispatchFocus();
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 std::string GetCobaltUserAgent() {
   const UserAgentPlatformInfo platform_info;
@@ -124,6 +156,12 @@ CobaltContentBrowserClient::CobaltContentBrowserClient()
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
 
+// static
+CobaltContentBrowserClient* CobaltContentBrowserClient::Get() {
+  return static_cast<CobaltContentBrowserClient*>(
+      content::ShellContentBrowserClient::Get());
+}
+
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
@@ -131,6 +169,15 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
+}
+
+std::unique_ptr<content::DevToolsManagerDelegate>
+CobaltContentBrowserClient::CreateDevToolsManagerDelegate() {
+#if defined(COBALT_IS_RELEASE_BUILD)
+  return nullptr;
+#else
+  return content::ShellContentBrowserClient::CreateDevToolsManagerDelegate();
+#endif
 }
 
 void CobaltContentBrowserClient::CreateThrottlesForNavigation(
@@ -147,8 +194,10 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
   // Default compiled javascript quota in Cobalt 25.
   // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
   constexpr size_t size = 3 * 1024 * 1024;
+  base::FilePath cache_path;
+  CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
   return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
-                                             context->GetPath());
+                                             cache_path);
 }
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
@@ -162,6 +211,12 @@ std::string CobaltContentBrowserClient::GetApplicationLocale() {
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if !defined(OFFICIAL_BUILD)
+  const auto custom_ua = embedder_support::GetUserAgentFromCommandLine();
+  if (custom_ua.has_value()) {
+    return custom_ua.value();
+  }
+#endif  // !defined(OFFICIAL_BUILD)
   return GetCobaltUserAgent();
 }
 
@@ -203,8 +258,6 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-  base::FilePath base_cache_path = context->GetPath();
-  base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
   network_context_params->accept_language = GetApplicationLocale();
@@ -223,12 +276,16 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths =
         ::network::mojom::NetworkContextFilePaths::New();
 
+    base::FilePath cache_path;
+    CHECK(base::PathService::Get(base::DIR_CACHE, &cache_path));
     network_context_params->file_paths->http_cache_directory =
-        base_cache_path.Append(kCacheDirname);
+        cache_path.Append(kCacheDirname);
 
+    base::FilePath user_data_dir =
+        context->GetPath().Append(relative_partition_path);
     network_context_params->file_paths->data_directory =
-        path.Append(kNetworkDataDirname);
-    network_context_params->file_paths->unsandboxed_data_path = path;
+        user_data_dir.Append(kNetworkDataDirname);
+    network_context_params->file_paths->unsandboxed_data_path = user_data_dir;
 
     // Currently this just contains HttpServerProperties, but that will likely
     // change.
@@ -239,7 +296,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network_context_params->file_paths->trust_token_database_name =
         base::FilePath(kTrustTokenFilename);
 
-    network_context_params->restore_old_session_cookies = false;
+    // Always try to restore old session cookies.
+    network_context_params->restore_old_session_cookies = true;
     network_context_params->persist_session_cookies = true;
 
     network_context_params->file_paths->transport_security_persister_file_name =
@@ -262,13 +320,16 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (web_contents->GetPrimaryMainFrame() &&
+      web_contents->GetPrimaryMainFrame()->GetFrameName() ==
+          content::kCobaltSplashMainFrameName) {
+    // Don't observe WebContents if it's splash screen.
+    VLOG(1) << "NativeSplash: Skip observing WebContents for "
+               "kCobaltSplashMainFrameName.";
+    return;
+  }
+  VLOG(1) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
-  web_contents_delegate_.reset(new CobaltWebContentsDelegate());
-  content::Shell::SetShellCreatedCallback(base::BindOnce(
-      [](content::WebContentsDelegate* delegate, content::Shell* shell) {
-        shell->web_contents()->SetDelegate(delegate);
-      },
-      web_contents_delegate_.get()));
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
@@ -331,12 +392,48 @@ void CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     network::mojom::URLLoaderFactoryOverridePtr* factory_override,
     scoped_refptr<base::SequencedTaskRunner> navigation_response_task_runner) {
   if (header_client) {
-    auto receiver = header_client->InitWithNewPipeAndPassReceiver();
-    auto cobalt_header_client =
-        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(
-            std::move(receiver));
-    cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+    mojo::MakeSelfOwnedReceiver(
+        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(),
+        header_client->InitWithNewPipeAndPassReceiver());
   }
+}
+
+void CobaltContentBrowserClient::DispatchBlur() {
+  if (web_contents_observer_) {
+    auto* web_contents = web_contents_observer_->web_contents();
+    if (web_contents) {
+      web_contents->GetRenderViewHost()->GetWidget()->Blur();
+    }
+  }
+  FlushCookiesAndLocalStorage(base::DoNothing());
+}
+
+void CobaltContentBrowserClient::DispatchFocus() {
+  if (web_contents_observer_) {
+    auto* web_contents = web_contents_observer_->web_contents();
+    if (web_contents) {
+      web_contents->GetRenderViewHost()->GetWidget()->Focus();
+    }
+  }
+}
+
+void CobaltContentBrowserClient::FlushCookiesAndLocalStorage(
+    base::OnceClosure callback) {
+  if (!web_contents_observer_) {
+    std::move(callback).Run();
+    return;
+  }
+  auto* web_contents = web_contents_observer_->web_contents();
+  CHECK(web_contents);
+  content::RenderFrameHost* rfh = web_contents->GetPrimaryMainFrame();
+  CHECK(rfh);
+  auto* storage_partition = rfh->GetStoragePartition();
+  CHECK(storage_partition);
+  // Flushes localStorage.
+  storage_partition->Flush();
+  auto* cookie_manager = storage_partition->GetCookieManagerForBrowserProcess();
+  CHECK(cookie_manager);
+  cookie_manager->FlushCookieStore(std::move(callback));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
@@ -417,20 +514,6 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
       content::GetSwitchDependentFeatureOverrides(command_line);
-
-#if defined(RUN_BROWSER_TESTS)
-  // Overrides for --run-web-tests.
-  if (switches::IsRunWebTestsSwitchPresent()) {
-    // Disable artificial timeouts for PNA-only preflights in warning-only mode
-    // for web tests. We do not exercise this behavior with web tests as it is
-    // intended to be a temporary rollout stage, and the short timeout causes
-    // flakiness when the test server takes just a tad too long to respond.
-    feature_overrides.emplace_back(
-        std::cref(
-            network::features::kPrivateNetworkAccessPreflightShortTimeout),
-        base::FeatureList::OVERRIDE_DISABLE_FEATURE);
-  }
-#endif  // defined(RUN_BROWSER_TESTS)
 
   feature_list->InitFromCommandLine(
       command_line.GetSwitchValueASCII(::switches::kEnableFeatures),

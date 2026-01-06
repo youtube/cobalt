@@ -28,16 +28,22 @@
 #include "base/nix/xdg_util.h"
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/configuration_constants.h"  // nogncheck
+#include "starboard/system.h"                   // nogncheck
+#endif
+
 namespace content {
 
 namespace {
 
 bool GetDefaultUserDataDirectory(base::FilePath* result) {
-#if BUILDFLAG(IS_LINUX)
-  std::unique_ptr<base::Environment> env(base::Environment::Create());
-  base::FilePath config_dir(base::nix::GetXDGDirectory(
-      env.get(), base::nix::kXdgConfigHomeEnvVar, base::nix::kDotConfigDir));
-  *result = config_dir.Append("content_shell");
+#if BUILDFLAG(IS_STARBOARD)
+  std::vector<char> path(kSbFileMaxPath, 0);
+  bool success =
+      SbSystemGetPath(kSbSystemPathFilesDirectory, path.data(), path.size());
+  CHECK(success) << "kSbSystemPathFilesDirectory not defined.";
+  *result = base::FilePath(path.data());
 #elif BUILDFLAG(IS_APPLE)
   CHECK(base::PathService::Get(base::DIR_APP_DATA, result));
   *result = result->Append("Chromium Content Shell");
@@ -67,18 +73,20 @@ bool ShellPathProvider(int key, base::FilePath* result) {
   switch (key) {
     case SHELL_DIR_USER_DATA: {
       base::CommandLine* cmd_line = base::CommandLine::ForCurrentProcess();
-        if (cmd_line->HasSwitch(switches::kContentShellUserDataDir)) {
-          base::FilePath path_ = cmd_line->GetSwitchValuePath(switches::kContentShellUserDataDir);
-          if (base::DirectoryExists(path_) || base::CreateDirectory(path_))  {
-            if (!path_.IsAbsolute()) {
-              path_ = base::MakeAbsoluteFilePath(path_);
-            }
-            if (!path_.empty()) {
-              *result = path_;
-              return true;
-            }
-          } else {
-            LOG(WARNING) << "Unable to create data-path directory: " << path_.value();
+      if (cmd_line->HasSwitch(switches::kContentShellUserDataDir)) {
+        base::FilePath path_ =
+            cmd_line->GetSwitchValuePath(switches::kContentShellUserDataDir);
+        if (base::DirectoryExists(path_) || base::CreateDirectory(path_)) {
+          if (!path_.IsAbsolute()) {
+            path_ = base::MakeAbsoluteFilePath(path_);
+          }
+          if (!path_.empty()) {
+            *result = path_;
+            return true;
+          }
+        } else {
+          LOG(WARNING) << "Unable to create data-path directory: "
+                       << path_.value();
         }
       }
       bool rv = GetDefaultUserDataDirectory(result);

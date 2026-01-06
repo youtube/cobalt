@@ -15,8 +15,6 @@
 #ifndef COBALT_GPU_COBALT_CONTENT_GPU_CLIENT_H_
 #define COBALT_GPU_COBALT_CONTENT_GPU_CLIENT_H_
 
-#include <memory>
-
 #include "base/task/single_thread_task_runner.h"
 #include "content/public/gpu/content_gpu_client.h"
 

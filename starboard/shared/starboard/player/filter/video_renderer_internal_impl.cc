@@ -64,7 +64,7 @@ VideoRendererImpl::VideoRendererImpl(
 }
 
 VideoRendererImpl::~VideoRendererImpl() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   sink_ = NULL;
 
@@ -85,7 +85,7 @@ VideoRendererImpl::~VideoRendererImpl() {
 void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
                                    const PrerolledCB& prerolled_cb,
                                    const EndedCB& ended_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
   SB_DCHECK(!prerolled_cb_);
@@ -102,7 +102,7 @@ void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
 }
 
 void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -134,7 +134,7 @@ void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
 }
 
 void VideoRendererImpl::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG_IF(WARNING, end_of_stream_written_.load())
       << "Try to write EOS after EOS is reached";
@@ -149,7 +149,7 @@ void VideoRendererImpl::WriteEndOfStream() {
 }
 
 void VideoRendererImpl::Seek(int64_t seek_to_time) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_GE(seek_to_time, 0);
 
   if (first_input_written_) {
@@ -188,7 +188,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
 }
 
 bool VideoRendererImpl::CanAcceptMoreData() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   bool can_accept_more_data =
       number_of_frames_.load() <
           static_cast<int32_t>(decoder_->GetMaxNumberOfCachedFrames()) &&
@@ -352,7 +352,7 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
 }
 
 void VideoRendererImpl::OnSeekTimeout() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   if (number_of_frames_.load() > 0) {
     if (seeking_.exchange(false)) {
       Schedule(prerolled_cb_);

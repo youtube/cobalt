@@ -153,7 +153,7 @@ void ExoPlayerBridge::OnSurfaceDestroyed() {
     std::string msg = "ExoPlayer surface is destroyed before playback ended";
     SB_LOG(ERROR) << msg;
     playback_error_occurred_.store(true);
-    ReportError(AttachCurrentThread(), kSbPlayerErrorDecode, msg);
+    ReportError(msg);
   }
 }
 
@@ -172,7 +172,7 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
   ended_cb_ = std::move(ended_cb);
 
   if (!init_error_msg_.empty()) {
-    ReportError(AttachCurrentThread(), kSbPlayerErrorDecode, init_error_msg_);
+    ReportError(init_error_msg_);
   }
 
   bool completed_init;
@@ -186,7 +186,7 @@ bool ExoPlayerBridge::Init(ErrorCB error_cb,
   if (!completed_init) {
     std::string msg = "ExoPlayer failed to initialize in time";
     SB_LOG(ERROR) << msg;
-    ReportError(AttachCurrentThread(), kSbPlayerErrorDecode, msg);
+    ReportError(msg);
     return false;
   }
 
@@ -330,7 +330,7 @@ void ExoPlayerBridge::OnError(JNIEnv* env, jstring msg) {
   playback_error_occurred_.store(true);
   std::string error_msg = ConvertJavaStringToUTF8(env, msg);
   SB_LOG(ERROR) << "Reporting playback error with message " << error_msg;
-  ReportError(env, kSbPlayerErrorDecode, error_msg);
+  ReportError(error_msg);
 }
 
 void ExoPlayerBridge::OnEnded(JNIEnv*) const {
@@ -355,9 +355,7 @@ bool ExoPlayerBridge::ShouldAbortOperation() const {
   return false;
 }
 
-void ExoPlayerBridge::ReportError(JNIEnv* env,
-                                  SbPlayerError error,
-                                  const std::string& msg) const {
+void ExoPlayerBridge::ReportError(const std::string& msg) const {
   SB_CHECK(error_cb_);
   error_cb_(kSbPlayerErrorDecode, msg);
 }

@@ -15,8 +15,6 @@
 #include <string>
 #include <utility>
 
-#include "starboard/player.h"
-
 #include "starboard/android/shared/exoplayer/exoplayer_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_window.h"
@@ -25,6 +23,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
+#include "starboard/player.h"
 #include "starboard/shared/starboard/features.h"
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"

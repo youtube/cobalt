@@ -17,12 +17,18 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
 #include <iterator>
 #include <memory>
 
 #include "starboard/common/log.h"
 
 namespace {
+
+// Ensure that |struct musl_sockaddr| is large enough to hold either
+// |struct sockaddr_in| or |struct sockaddr_in6| on this platform.
+static_assert(sizeof(struct musl_sockaddr) >= sizeof(struct sockaddr_in));
+static_assert(sizeof(struct musl_sockaddr) >= sizeof(struct sockaddr_in6));
 
 struct platform_iov_deleter {
   void operator()(struct iovec* ptr) const { free(ptr); }
@@ -253,6 +259,49 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
     return -1;
   }
 
+  // Recognize "localhost" as special and resolve to the loopback address.
+  // https://datatracker.ietf.org/doc/html/rfc6761#section-6.3
+  // Note: This returns the IPv4 localhost first, and falls back to system
+  // resolution when a service is supplied.
+  // Use case insensitive match: https://datatracker.ietf.org/doc/html/rfc4343.
+  if (!service && node && strcasecmp("localhost", node) == 0) {
+    struct musl_addrinfo* last_ai = nullptr;
+    *res = nullptr;
+    const int ai_family[2] = {MUSL_AF_INET, MUSL_AF_INET6};
+    for (int family_idx = 0; family_idx < 2; ++family_idx) {
+      int family = ai_family[family_idx];
+      if (!hints || hints->ai_family == AF_UNSPEC ||
+          hints->ai_family == family) {
+        struct musl_addrinfo* musl_ai =
+            (struct musl_addrinfo*)calloc(1, sizeof(struct musl_addrinfo));
+        musl_ai->ai_addrlen = family == MUSL_AF_INET
+                                  ? sizeof(struct sockaddr_in)
+                                  : sizeof(struct sockaddr_in6);
+        musl_ai->ai_addr = reinterpret_cast<struct musl_sockaddr*>(
+            calloc(1, sizeof(struct musl_sockaddr)));
+        musl_ai->ai_addr->sa_family = family;
+
+        if (family == MUSL_AF_INET) {
+          struct sockaddr_in* address =
+              reinterpret_cast<struct sockaddr_in*>(musl_ai->ai_addr);
+          address->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        } else if (family == MUSL_AF_INET6) {
+          struct sockaddr_in6* address =
+              reinterpret_cast<struct sockaddr_in6*>(musl_ai->ai_addr);
+          address->sin6_addr = IN6ADDR_LOOPBACK_INIT;
+        }
+        if (*res == nullptr) {
+          *res = musl_ai;
+          last_ai = musl_ai;
+        } else {
+          last_ai->ai_next = musl_ai;
+          last_ai = musl_ai;
+        }
+      }
+    }
+    return 0;
+  }
+
   // musl addrinfo definition might differ from platform definition.
   // So we need to do a manual conversion to avoid header mismatches.
   struct addrinfo new_hints = {0};
@@ -286,17 +335,17 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
         free(musl_ai);
         return -1;
       }
-      musl_ai->ai_addrlen = ai_copy.ai_addrlen;
-      musl_ai->ai_addr =
-          (struct musl_sockaddr*)calloc(1, sizeof(struct musl_sockaddr));
+      musl_ai->ai_addrlen =
+          std::min(static_cast<uint32_t>(ai_copy.ai_addrlen),
+                   static_cast<uint32_t>(sizeof(struct musl_sockaddr)));
+      musl_ai->ai_addr = (struct musl_sockaddr*)calloc(1, musl_ai->ai_addrlen);
+      memcpy(musl_ai->ai_addr, ai_copy.ai_addr, musl_ai->ai_addrlen);
+      // Ensure that the sa_family value is translated if the platform value
+      // differs from the musl value.
       for (int i = 0; i < sizeof(PLATFORM_AF_ORDERED) / sizeof(int); i++) {
         if (ai_copy.ai_addr->sa_family == PLATFORM_AF_ORDERED[i]) {
           musl_ai->ai_addr->sa_family = MUSL_AF_ORDERED[i];
         }
-      }
-      if (ai_copy.ai_addr->sa_data != nullptr) {
-        memcpy(musl_ai->ai_addr->sa_data, ai_copy.ai_addr->sa_data,
-               sizeof(ai_copy.ai_addr->sa_data));
       }
       if (ai_copy.ai_canonname) {
         size_t canonname_len = strlen(ai_copy.ai_canonname);

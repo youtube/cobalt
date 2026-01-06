@@ -18,13 +18,12 @@
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
+#include "starboard/egl.h"
 #include "starboard/event.h"
+#include "starboard/gles.h"
 #include "starboard/input.h"
 #include "starboard/system.h"
 #include "starboard/window.h"
-
-#include "starboard/egl.h"
-#include "starboard/gles.h"
 
 #define EGL_CALL(x)                                                     \
   do {                                                                  \

@@ -15,12 +15,11 @@
 #include "starboard/shared/alsa/alsa_audio_sink_type.h"
 
 #include <alsa/asoundlib.h>
-
-#include <pthread.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <condition_variable>
+#include <memory>
 #include <mutex>
 #include <vector>
 
@@ -30,6 +29,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/alsa/alsa_util.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -106,8 +106,7 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   AlsaAudioSink(const AlsaAudioSink&) = delete;
   AlsaAudioSink& operator=(const AlsaAudioSink&) = delete;
 
-  static void* ThreadEntryPoint(void* context);
-  void AudioThreadFunc();
+  void ProcessAudio();
   // Write silence to ALSA when there is not enough data in source or when the
   // sink is paused.
   // Return true to continue to play.  Return false when destroying.
@@ -135,7 +134,7 @@ class AlsaAudioSink : public SbAudioSinkImpl {
   int sampling_frequency_hz_;
   SbMediaAudioSampleType sample_type_;
 
-  pthread_t audio_out_thread_;
+  std::unique_ptr<JobThread> audio_out_thread_;
   std::mutex mutex_;
   std::condition_variable creation_signal_;
   bool audio_thread_created_ = false;  // Guarded by |mutex_|.
@@ -172,7 +171,6 @@ AlsaAudioSink::AlsaAudioSink(
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
-      audio_out_thread_(0),
       time_to_wait_(kFramesPerRequest * 1'000'000LL / sampling_frequency_hz /
                     2),
       destroying_(false),
@@ -190,9 +188,9 @@ AlsaAudioSink::AlsaAudioSink(
          channels * kFramesPerRequest * GetSampleSize(sample_type));
 
   std::unique_lock lock(mutex_);
-  const int result = pthread_create(&audio_out_thread_, nullptr,
-                                    &AlsaAudioSink::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
+  audio_out_thread_ = std::make_unique<JobThread>("alsa_audio_out", 0,
+                                                  kSbThreadPriorityRealTime);
+  audio_out_thread_->Schedule([this] { ProcessAudio(); });
   creation_signal_.wait(lock, [this] { return audio_thread_created_; });
 }
 
@@ -201,23 +199,12 @@ AlsaAudioSink::~AlsaAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  pthread_join(audio_out_thread_, NULL);
+  audio_out_thread_.reset();
 
   delete[] static_cast<uint8_t*>(silence_frames_);
 }
 
-// static
-void* AlsaAudioSink::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "alsa_audio_out");
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-  SB_DCHECK(context);
-  AlsaAudioSink* sink = reinterpret_cast<AlsaAudioSink*>(context);
-  sink->AudioThreadFunc();
-
-  return NULL;
-}
-
-void AlsaAudioSink::AudioThreadFunc() {
+void AlsaAudioSink::ProcessAudio() {
   snd_pcm_format_t alsa_sample_type =
       sample_type_ == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
                                                      : SND_PCM_FORMAT_S16;

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/decoded_audio_internal.h"
-
 #include <cmath>
 #include <utility>
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

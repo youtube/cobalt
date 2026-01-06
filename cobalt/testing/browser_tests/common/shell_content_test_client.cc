@@ -14,14 +14,14 @@
 
 #include "cobalt/testing/browser_tests/common/shell_content_test_client.h"
 
-#include "cobalt/shell/common/shell_test_switches.h"
+#include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 
 namespace content {
 
-ShellContentTestClient::ShellContentTestClient() {}
+ShellContentTestClient::ShellContentTestClient() = default;
 
-ShellContentTestClient::~ShellContentTestClient() {}
+ShellContentTestClient::~ShellContentTestClient() = default;
 
 std::u16string ShellContentTestClient::GetLocalizedString(int message_id) {
   if (switches::IsRunWebTestsSwitchPresent()) {

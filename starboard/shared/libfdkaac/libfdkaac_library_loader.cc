@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
+
 #include <dlfcn.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
-#include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
 
 namespace starboard {
 

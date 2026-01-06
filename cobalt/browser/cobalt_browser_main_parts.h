@@ -15,8 +15,6 @@
 #ifndef COBALT_BROWSER_COBALT_BROWSER_MAIN_PARTS_H_
 #define COBALT_BROWSER_COBALT_BROWSER_MAIN_PARTS_H_
 
-#include <memory>
-
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "cobalt/shell/browser/shell_browser_main_parts.h"

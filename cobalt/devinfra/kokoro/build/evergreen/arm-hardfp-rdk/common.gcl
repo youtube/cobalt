@@ -8,8 +8,12 @@ build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
     {
+      key = 'PACKAGE_PLATFORM'
+      value = 'evergreen-arm-hardfp-rdk'
+    },
+    {
       key = 'PLATFORM'
-      value = 'evergreen-arm-hardfp-rdk-sbversion-17'
+      value = 'evergreen-arm-hardfp-rdk-sbversion-18'
     },
     {
       key = 'GN_TARGET'

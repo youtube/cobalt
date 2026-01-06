@@ -112,7 +112,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 }
 
 // static
-std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
+NonNullResult<std::unique_ptr<MediaCodecBridge>>
+MediaCodecBridge::CreateVideoMediaCodecBridge(
     SbMediaVideoCodec video_codec,
     int width_hint,
     int height_hint,
@@ -127,17 +128,15 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     bool require_software_codec,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    std::string* error_message) {
-  SB_DCHECK(error_message);
+    int max_video_input_size) {
   SB_DCHECK_EQ(max_width.has_value(), max_height.has_value());
   SB_DCHECK_GT(max_width.value_or(1920), 0);
   SB_DCHECK_GT(max_height.value_or(1080), 0);
 
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
-    *error_message = FormatString("Unsupported mime for codec %d", video_codec);
-    return nullptr;
+    return Failure(std::string("Unsupported mime for codec: ") +
+                   GetMediaVideoCodecName(video_codec));
   }
 
   const bool must_support_secure = require_secured_decoder;
@@ -175,10 +174,10 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   }
 
   if (decoder_name.empty()) {
-    *error_message =
-        FormatString("Failed to find decoder: %s, mustSupportSecure: %d.", mime,
-                     !!j_media_crypto);
-    return nullptr;
+    return Failure(
+        FormatString("Failed to find decoder: mime=%s, mustSupportSecure=%s",
+                     static_cast<const char*>(mime),
+                     starboard::to_string(!!j_media_crypto).data()));
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -239,8 +238,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     ScopedJavaLocalRef<jstring> j_error_message(
         Java_CreateMediaCodecBridgeResult_errorMessage(
             env, j_create_media_codec_bridge_result));
-    *error_message = ConvertJavaStringToUTF8(env, j_error_message);
-    return nullptr;
+    return Failure(ConvertJavaStringToUTF8(env, j_error_message));
   }
 
   SB_LOG(INFO)

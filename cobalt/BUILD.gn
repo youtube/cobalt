@@ -20,7 +20,11 @@ import("//ui/base/ui_features.gni")
 
 if (!toolchain_for_rust_host_build_tools) {
   assert(!cobalt_is_release_build || is_official_build,
-        "Release builds are only available in official builds.")
+         "Release builds are only available in official builds.")
+}
+
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
 }
 
 # This arg temporarily enables or disables the updater_sandbox target.
@@ -28,19 +32,29 @@ if (!toolchain_for_rust_host_build_tools) {
 # locally, set it to true before building the target.
 declare_args() {
   build_updater_sandbox = false
+
+  if (is_ios && target_platform == "tvos") {
+    # tvOS: Default app bundle identifier.
+    cobalt_bundle_identifier = "dev.cobalt.tvos"
+
+    # tvOS: Default Info.plist path for the bundle.
+    cobalt_info_plist = "//cobalt/shell/app/tvos-Info.plist"
+  }
 }
 
 group("gn_all") {
   testonly = true
 
   # TODO(b/371589344): Fix android build configs.
-  deps = [
-    "//starboard:starboard_group",
-    "//starboard/nplb",
-  ]
+  deps = [ "//starboard:starboard_group" ]
+  if (!cobalt_is_release_build) {
+    deps += [ "//starboard/nplb" ]
+  }
   if (is_android) {
     # TODO(cobalt): reuse build rules below to define Android target.
     deps += [ "android:cobalt_apk" ]
+  } else if (is_ios && target_platform == "tvos") {
+    deps += [ ":cobalt" ]
   } else if (!is_cobalt_hermetic_build) {
     deps += [ ":strip_cobalt_binary" ]
   }
@@ -69,7 +83,43 @@ group("cobalt_browsertests") {
   deps = [ "testing:cobalt_browsertests" ]
 }
 
-if (!is_android) {
+if (is_ios && target_platform == "tvos") {
+  ios_app_bundle("cobalt") {
+    testonly = true
+
+    sources = [ "app/tvos/main.mm" ]
+
+    deps = [
+      ":common",
+      "//base",
+      "//cobalt/browser/tvos/intents:yt_intents",
+      "//cobalt/shell:cobalt_shell_app",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//content/public/app",
+    ]
+    bundle_deps = [
+      ":cobalt_shell_framework_resources",
+      "shell/app/ios/resources",
+    ]
+
+    intents_target = "//cobalt/browser/tvos/intents:yt_intents"
+
+    data_deps = [ "//tools/v8_context_snapshot:v8_context_snapshot" ]
+
+    bundle_identifier = cobalt_bundle_identifier
+    entitlements_path = "//cobalt/shell/app/tvos-entitlements.plist"
+    info_plist = cobalt_info_plist
+  }
+
+  bundle_data("cobalt_shell_framework_resources") {
+    testonly = true
+    sources = [ "$root_out_dir/cobalt_shell.pak" ]
+
+    public_deps = [ "//cobalt/shell:pak" ]
+
+    outputs = [ "{{bundle_resources_dir}}/{{source_file_part}}" ]
+  }
+} else if (!is_android) {
   if (is_cobalt_hermetic_build) {
     cobalt_target_type = "modular_executable"
   } else {
@@ -85,6 +135,7 @@ if (!is_android) {
     deps = [
       ":common",
       "//base",
+      "//cobalt/browser/h5vcc_accessibility:manager",
       "//cobalt/browser/h5vcc_runtime:deep_link_manager",
       "//cobalt/shell:cobalt_shell_app",
       "//cobalt/shell:cobalt_shell_lib",
@@ -121,13 +172,14 @@ source_set("common") {
   sources = [
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
+    "app/cobalt_switch_defaults.cc",
+    "app/cobalt_switch_defaults.h",
   ]
 
   if (is_starboard) {
-    sources += [
-      "app/cobalt_switch_defaults_starboard.cc",
-      "app/cobalt_switch_defaults_starboard.h",
-    ]
+    sources += [ "app/cobalt_switch_defaults_starboard.cc" ]
+  } else if (is_ios && target_platform == "tvos") {
+    sources += [ "app/cobalt_switch_defaults_tvos.cc" ]
   }
 
   if (use_evergreen) {
@@ -198,6 +250,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_unittest.cc",
   ]
 
   if (is_starboard) {
@@ -205,6 +258,10 @@ test("cobalt_unittests") {
       "//cobalt/app/cobalt_switch_defaults_starboard_test.cc",
       "//cobalt/shell/common/device_authentication_test.cc",
     ]
+  }
+
+  if (!is_android) {
+    sources += [ "//cobalt/shell/browser/splash_screen_unittest.cc" ]
   }
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
@@ -219,14 +276,16 @@ test("cobalt_unittests") {
     "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
-    "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
     "//cobalt/common/libc:libc_test",
+    "//cobalt/shell/browser/migrate_storage_record:unittest",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//mojo/core/embedder",
+    "//net/traffic_annotation:test_support",
     "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",
@@ -241,10 +300,25 @@ test("cobalt_unittests") {
     # better to find more well-scoped targets to depend on to provide the
     # switch constants definitions.
     "//cobalt/shell:cobalt_shell_lib",
+    "//content/browser:for_content_tests",
     "//content/public/common:switches",
+    "//content/test:test_support",
     "//gpu/config",
     "//sandbox/policy:policy",
+    "//ui/events/devices",
   ]
+
+  if (is_android) {
+    deps += [
+      "//base:base_java_test_support",
+      "//content/public/android:content_java",
+      "//ui/android:ui_java",
+    ]
+  }
+
+  if (use_aura) {
+    deps += [ "//ui/aura" ]
+  }
 
   if (use_ozone) {
     deps += [ "//ui/ozone:ozone_switches" ]

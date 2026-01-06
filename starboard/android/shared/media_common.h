@@ -28,8 +28,6 @@
 
 namespace starboard {
 
-const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
-
 // See
 // https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
 constexpr jint COLOR_RANGE_FULL = 1;

@@ -14,9 +14,8 @@
 
 #include "starboard/linux/shared/ifa.h"
 
-#include "starboard/extension/ifa.h"
-
 #include "starboard/common/string.h"
+#include "starboard/extension/ifa.h"
 #include "starboard/shared/environment.h"
 
 namespace starboard {

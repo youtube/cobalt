@@ -116,17 +116,6 @@ class LogMessageVoidify {
   void operator&(std::ostream&);
 };
 
-// Aliases not to break CI tests.
-// See https://paste.googleplex.com/4527409416241152
-// TODO: b/441955897 - Update CI test to use flattened namespace
-namespace logging {
-using ::starboard::SB_LOG_0;
-using ::starboard::SB_LOG_ERROR;
-using ::starboard::SB_LOG_FATAL;
-using ::starboard::SB_LOG_INFO;
-using ::starboard::SB_LOG_WARNING;
-}  // namespace logging
-
 }  // namespace starboard
 
 #define SB_LOG_MESSAGE_INFO \

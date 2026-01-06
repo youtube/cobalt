@@ -22,7 +22,6 @@
 #include "starboard/tvos/shared/media/avutil/utils.h"
 #import "starboard/tvos/shared/media/player_manager.h"
 #import "starboard/tvos/shared/starboard_application.h"
-#import "starboard/tvos/shared/window_manager.h"
 
 static NSString* kAVSBDLStatusKeyPath = @"status";
 static NSString* kAVSBDLOutputObscuredKeyPath =
@@ -129,6 +128,13 @@ const size_t kCachedFramesLowWatermark = 16;
 const size_t kCachedFramesHighWatermark = 40;
 const int kRequiredBuffersInDisplayLayer = 16;
 
+UIWindow* GetPlatformWindow() {
+  SB_CHECK(!UIApplication.sharedApplication.supportsMultipleScenes);
+  UIWindowScene* scene = reinterpret_cast<UIWindowScene*>(
+      UIApplication.sharedApplication.connectedScenes.anyObject);
+  return scene.keyWindow;
+}
+
 }  // namespace
 
 AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
@@ -203,25 +209,12 @@ AVSBVideoRenderer::~AVSBVideoRenderer() {
 
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
+  onApplicationMainThread(^{
     [display_layer flush];
     [display_view removeFromSuperview];
 
     // Clear preferred display criteria.
-    SBDGetApplication()
-        .windowManager.currentApplicationWindow.avDisplayManager
-        .preferredDisplayCriteria = nil;
-
-    // One stability bug was fixed in tvOS 13.1. For prior version, Apple
-    // engineer suggested us to release AVSampleBufferDisplayLayer 100 ms later
-    // after set rate to zero.
-    if (@available(tvOS 13.1, *)) {
-    } else {
-      dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100.0 * NSEC_PER_MSEC),
-                     dispatch_get_main_queue(), ^{
-                       display_layer.delegate = nil;
-                     });
-    }
+    GetPlatformWindow().avDisplayManager.preferredDisplayCriteria = nil;
   });
 }
 
@@ -313,6 +306,7 @@ bool AVSBVideoRenderer::IsEndOfStreamWritten() const {
   SB_DCHECK(BelongsToCurrentThread());
   return eos_written_;
 }
+
 bool AVSBVideoRenderer::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
   // The number returned by GetNumberOfCachedFrames() is not accruate. It's
@@ -328,7 +322,7 @@ void AVSBVideoRenderer::SetBounds(int z_index,
                                   int height) {
   SBDAVSampleBufferDisplayView* display_view = display_view_;
   AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
+  onApplicationMainThread(^{
     float scale = [UIScreen mainScreen].scale;
     display_view.frame =
         CGRectMake(x / scale, y / scale, width / scale, height / scale);
@@ -343,10 +337,14 @@ void AVSBVideoRenderer::SetMediaTimeOffset(int64_t media_time_offset) {
   // Flush |display_layer_| after AVSBSynchronizer set rate and time to zero in
   // AVSBSynchronizer::Seek().
   is_display_layer_flushing_ = true;
-  AVSampleBufferDisplayLayer* display_layer = display_layer_;
-  dispatch_async(dispatch_get_main_queue(), ^{
-    [display_layer flush];
-    is_display_layer_flushing_ = false;
+  base::WeakPtr<AVSBVideoRenderer> weak_this = weak_ptr_factory_.GetWeakPtr();
+  onApplicationMainThread(^{
+    AVSBVideoRenderer* strong_this = weak_this.get();
+    if (!strong_this) {
+      return;
+    }
+    [strong_this->display_layer_ flush];
+    strong_this->is_display_layer_flushing_ = false;
   });
 }
 
@@ -403,9 +401,7 @@ void AVSBVideoRenderer::ReportError(const std::string& message) {
 }
 
 void AVSBVideoRenderer::UpdatePreferredDisplayCriteria() {
-  AVDisplayManager* avDisplayManager =
-      SBDGetApplication()
-          .windowManager.currentApplicationWindow.avDisplayManager;
+  AVDisplayManager* avDisplayManager = GetPlatformWindow().avDisplayManager;
   if (avDisplayManager.isDisplayCriteriaMatchingEnabled == YES) {
     NSURL* url = [NSURL URLWithString:kDummyMasterPlaylistUrl];
 
@@ -421,7 +417,7 @@ void AVSBVideoRenderer::UpdatePreferredDisplayCriteria() {
     // delegate cannot be performed on the resource loader's queue thread.
     // Otherwise, it will cause deadlock.
     AVDisplayCriteria* criteria = asset.preferredDisplayCriteria;
-    dispatch_async(dispatch_get_main_queue(), ^{
+    onApplicationMainThread(^{
       avDisplayManager.preferredDisplayCriteria = criteria;
     });
   }
@@ -489,37 +485,35 @@ void AVSBVideoRenderer::OnSampleBufferBuilderOutput(
     }
   }
 
-  if (@available(tvOS 14.5, *)) {
-    const SbDrmSampleInfo* drm_info = sample_buffer->input_buffer()->drm_info();
-    if (drm_system_ && drm_info) {
-      // Attach content key and cryptor data to sample buffer.
-      AVContentKey* content_key = drm_system_->GetContentKey(
-          drm_info->identifier, drm_info->identifier_size);
-      SB_DCHECK(content_key);
+  const SbDrmSampleInfo* drm_info = sample_buffer->input_buffer()->drm_info();
+  if (drm_system_ && drm_info) {
+    // Attach content key and cryptor data to sample buffer.
+    AVContentKey* content_key = drm_system_->GetContentKey(
+        drm_info->identifier, drm_info->identifier_size);
+    SB_DCHECK(content_key);
 
-      NSError* error;
-      BOOL result = AVSampleBufferAttachContentKey(
-          sample_buffer->cm_sample_buffer(), content_key, &error);
-      if (!result) {
-        std::stringstream ss;
-        ss << "Failed to attach content key.";
-        avutil::AppendAVErrorDetails(error, &ss);
-        ReportError(ss.str());
-        return;
-      }
-
-      static NSString* kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData =
-          @"CryptorSubsampleAuxiliaryData";
-      CFDataRef cryptor_info = CFDataCreate(
-          NULL,
-          reinterpret_cast<const unsigned char*>(drm_info->subsample_mapping),
-          drm_info->subsample_count * sizeof(SbDrmSubSampleMapping));
-      CFDictionarySetValue(
-          attachment,
-          (__bridge CFStringRef)
-              kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData,
-          cryptor_info);
+    NSError* error;
+    BOOL result = AVSampleBufferAttachContentKey(
+        sample_buffer->cm_sample_buffer(), content_key, &error);
+    if (!result) {
+      std::stringstream ss;
+      ss << "Failed to attach content key.";
+      avutil::AppendAVErrorDetails(error, &ss);
+      ReportError(ss.str());
+      return;
     }
+
+    static NSString* kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData =
+        @"CryptorSubsampleAuxiliaryData";
+    CFDataRef cryptor_info = CFDataCreate(
+        NULL,
+        reinterpret_cast<const unsigned char*>(drm_info->subsample_mapping),
+        drm_info->subsample_count * sizeof(SbDrmSubSampleMapping));
+    CFDictionarySetValue(
+        attachment,
+        (__bridge CFStringRef)
+            kCMSampleAttachmentKey_CryptorSubsampleAuxiliaryData,
+        cryptor_info);
   }
 
   // If the output of sample builder is already decoded, we can skip the frames
@@ -728,12 +722,9 @@ void AVSBVideoRenderer::OnStatusChanged(NSString* key_path) {
     avutil::AppendAVErrorDetails(display_layer_.error, &ss);
     Schedule(std::bind(&AVSBVideoRenderer::ReportError, this, ss.str()));
   }
-  if (@available(tvOS 14.5, *)) {
-    if (drm_system_ &&
-        [key_path isEqualToString:kAVSBDLOutputObscuredKeyPath]) {
-      drm_system_->OnOutputObscuredChanged(
-          display_layer_.outputObscuredDueToInsufficientExternalProtection);
-    }
+  if (drm_system_ && [key_path isEqualToString:kAVSBDLOutputObscuredKeyPath]) {
+    drm_system_->OnOutputObscuredChanged(
+        display_layer_.outputObscuredDueToInsufficientExternalProtection);
   }
   ObserverRegistry::UnlockObserver(lock_slot);
 }

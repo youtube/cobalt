@@ -47,11 +47,17 @@ static wint_t __fgetwc_unlocked_internal(FILE *f)
 
 wint_t __fgetwc_unlocked(FILE *f)
 {
+#if !defined(STARBOARD)
+	// Skip locale set and restore for the file, since that is only necessary 
+	// after calls to fwide() which is not included with Starboard.
 	locale_t *ploc = &CURRENT_LOCALE, loc = *ploc;
 	if (f->mode <= 0) fwide(f, 1);
 	*ploc = f->locale;
+#endif
 	wchar_t wc = __fgetwc_unlocked_internal(f);
+#if !defined(STARBOARD)
 	*ploc = loc;
+#endif
 	return wc;
 }
 

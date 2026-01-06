@@ -80,9 +80,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
  private:
   bool ShouldAbortOperation() const;
-  void ReportError(JNIEnv* env,
-                   SbPlayerError error,
-                   const std::string& msg) const;
+  void ReportError(const std::string& msg) const;
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;

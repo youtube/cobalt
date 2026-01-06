@@ -24,6 +24,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
+#include "cobalt/shell/browser/cobalt_views_delegate.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/context_factory.h"
@@ -54,8 +55,6 @@
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/wm/core/wm_state.h"
-
-#include "cobalt/shell/browser/cobalt_views_delegate.h"
 
 namespace content {
 
@@ -382,6 +381,21 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
       ->SetWebContents(shell->web_contents(), shell_data.content_size);
   shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
   shell_data.window_widget->Show();
+}
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  ShellViewForWidget(shell_data.window_widget)
+      ->SetWebContents(shell->splash_screen_web_contents(),
+                       shell_data.content_size);
+  shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+  shell_data.window_widget->Show();
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  SetContents(shell);
 }
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,

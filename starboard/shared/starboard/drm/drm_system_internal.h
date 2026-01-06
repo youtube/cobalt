@@ -21,11 +21,6 @@
 
 struct SbDrmSystemPrivate {
  public:
-  // Alias to prevent breaking the RDK build on CI.
-  // http://go/paste/5401222962085888
-  // TODO: b/441955897 - Remove this alias once RDK build on CI is updated.
-  using InputBuffer = starboard::InputBuffer;
-
   enum DecryptStatus { kSuccess, kRetry, kFailure };
 
   virtual ~SbDrmSystemPrivate() {}

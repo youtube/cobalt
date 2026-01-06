@@ -15,45 +15,20 @@
 #ifndef STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
 #define STARBOARD_TVOS_SHARED_APPLICATION_DARWIN_H_
 
-#include <GLES2/gl2.h>
+#include <memory>
 
-#include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/queue_application.h"
-#include "starboard/types.h"
 
 namespace starboard {
 
-class ApplicationDarwin : public shared::starboard::QueueApplication {
+class CommandLine;
+
+class ApplicationDarwin : public QueueApplication {
  public:
-  explicit ApplicationDarwin(SbEventHandleCallback sb_event_handle_callback)
-      : QueueApplication(sb_event_handle_callback) {}
-  static ApplicationDarwin* Get() {
-    shared::starboard::Application* application =
-        shared::starboard::Application::Get();
-    return static_cast<ApplicationDarwin*>(application);
-  }
-
-  // These are helper functions to simplify injecting application events.
-  template <typename T>
-  static void InjectEvent(SbEventType type, T* data);
-  static void InjectEvent(SbEventType type) {
-    Get()->Inject(new Event{type, nullptr, nullptr});
-  }
-  static void InjectEvent(SbEventType type,
-                          void* data,
-                          SbEventDataDestructor data_destructor) {
-    Get()->Inject(new Event{type, data, data_destructor});
-  }
-
-  static void InjectEvent(SbEventType type,
-                          int64_t timestamp,
-                          void* data,
-                          SbEventDataDestructor data_destructor) {
-    Get()->Inject(new Event{type, timestamp, data, data_destructor});
-  }
+  explicit ApplicationDarwin(
+      std::unique_ptr<::starboard::CommandLine> command_line);
+  ~ApplicationDarwin() override;
 
   static void IncrementIdleTimerLockCount();
   static void DecrementIdleTimerLockCount();
@@ -62,25 +37,15 @@ class ApplicationDarwin : public shared::starboard::QueueApplication {
   // --- Application overrides ---
   bool IsStartImmediate() override { return false; }
   bool MayHaveSystemEvents() override { return false; }
-  shared::starboard::Application::Event* WaitForSystemEventWithTimeout(
-      int64_t time) override {
+  Application::Event* WaitForSystemEventWithTimeout(int64_t time) override {
     return nullptr;
   }
   void WakeSystemEventWait() override {}
-  void Initialize() override;
-  void Teardown() override;
+
+ private:
+  struct ObjCStorage;
+  std::unique_ptr<ObjCStorage> objc_storage_;
 };
-
-template <typename T>
-inline void ApplicationDarwin::InjectEvent(SbEventType type, T* data) {
-  Get()->Inject(new Event{type, data, &ApplicationDarwin::DeleteDestructor<T>});
-}
-
-template <>
-inline void ApplicationDarwin::InjectEvent<char>(SbEventType type, char* data) {
-  Get()->Inject(
-      new Event{type, data, &ApplicationDarwin::DeleteArrayDestructor<char>});
-}
 
 }  // namespace starboard
 
