@@ -8,7 +8,6 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-#include "base/notreached.h"
 #include "net/base/ip_address.h"
 #include "net/base/url_util.h"
 #include "third_party/blink/public/platform/platform.h"
@@ -96,7 +95,6 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     return IPAddressMatchesPrefix(address, kUla, 7);
   }
 
-  NOTREACHED();
   return false;
 }
 
