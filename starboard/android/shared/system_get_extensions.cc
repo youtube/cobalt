@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"

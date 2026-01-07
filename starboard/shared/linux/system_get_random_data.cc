@@ -14,7 +14,9 @@
 
 // Adapted from base/rand_util_posix.cc
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
 #include <fcntl.h>
 #include <pthread.h>

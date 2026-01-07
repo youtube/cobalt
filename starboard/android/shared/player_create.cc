@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/player.h"
+// clang-format on
+
 #include <string>
 #include <utility>
 
