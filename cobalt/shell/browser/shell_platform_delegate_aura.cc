@@ -78,6 +78,10 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   content->Show();
 }
 
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
+
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   shell->web_contents()->GetRenderWidgetHostView()->SetSize(content_size);
