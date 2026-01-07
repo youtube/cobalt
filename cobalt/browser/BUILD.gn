@@ -84,6 +84,10 @@ source_set("browser") {
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
   }
+
+  if (use_evergreen) {
+    deps += [ "//cobalt/updater" ]
+  }
 }
 
 source_set("features") {

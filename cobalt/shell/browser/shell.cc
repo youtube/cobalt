@@ -67,11 +67,6 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 
-#if BUILDFLAG(USE_EVERGREEN)
-#include "cobalt/updater/updater_module.h"  //nogncheck
-#include "content/public/browser/storage_partition.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -232,19 +227,6 @@ void Shell::FinishShellInitialization(Shell* shell) {
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive()) {
     GetPlatform()->MainFrameCreated(shell);
   }
-#if BUILDFLAG(USE_EVERGREEN)
-  if (!shell->skip_for_testing()) {
-    // Create the updater module singleton.
-    auto* storage_partition =
-        raw_web_contents->GetPrimaryMainFrame()->GetStoragePartition();
-    if (storage_partition) {
-      LOG(INFO) << "Creating UpdaterModule singleton for Shell.";
-      cobalt::updater::UpdaterModule::CreateInstance(
-          storage_partition->GetURLLoaderFactoryForBrowserProcess(),
-          cobalt::updater::kDefaultUpdateCheckDelay);
-    }
-  }
-#endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
@@ -656,15 +638,6 @@ WebContents* Shell::OpenURLFromTab(WebContents* source,
 
   target->GetController().LoadURLWithParams(
       NavigationController::LoadURLParams(params));
-#if BUILDFLAG(USE_EVERGREEN)
-  cobalt::updater::UpdaterModule* updater_module =
-      cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    // Mark the current installation as successful.
-    // TODO(b/458770751): investigate moving this to after load is finished
-    updater_module->MarkSuccessful();
-  }
-#endif
   return target;
 }
 
