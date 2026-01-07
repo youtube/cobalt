@@ -58,9 +58,28 @@ Once the script finishes, you can open the generated report in your browser:
 file:///path/to/your/checkout/src/out/cobalt_coverage_report/index.html
 ```
 
-## Generating a Report from a Single LCOV File
+## Test Filtering
 
-If you want to view the coverage report for a single test target without merging it with others, you can use the `--input-file` argument.
+The `run_coverage.py` script automatically discovers and applies test filters located in `cobalt/testing/filters/`. For each test target, the script looks for a corresponding `<target_name>_filter.json` file in the appropriate platform-specific directory.
+
+If a filter file is found, the tests listed in the `failing_tests` section will be excluded from the coverage run using the `--gtest_filter` flag.
+
+### Example Filter File
+
+`cobalt/testing/filters/android-arm/net_unittests_filter.json`:
+
+```json
+{
+  "comment": "Failing on missing libgio-2.0.so.0",
+  "failing_tests": [
+    "*"
+  ]
+}
+```
+
+In this example, all tests in the `net_unittests` target will be excluded from the coverage run.
+
+
 
 ### Usage
 
