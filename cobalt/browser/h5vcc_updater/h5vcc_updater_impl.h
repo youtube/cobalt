@@ -45,17 +45,23 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   void SetUpdaterChannel(const std::string& channel,
                          SetUpdaterChannelCallback callback) override;
   void GetUpdateStatus(GetUpdateStatusCallback callback) override;
-  void ResetInstallations() override;
+  void ResetInstallations(ResetInstallationsCallback callback) override;
   void GetInstallationIndex(GetInstallationIndexCallback callback) override;
   void GetAllowSelfSignedPackages(
       GetAllowSelfSignedPackagesCallback callback) override;
-  void SetAllowSelfSignedPackages(bool allow_self_signed_packages) override;
+  void SetAllowSelfSignedPackages(
+      bool allow_self_signed_packages,
+      SetAllowSelfSignedPackagesCallback callback) override;
   void GetUpdateServerUrl(GetUpdateServerUrlCallback callback) override;
-  void SetUpdateServerUrl(const std::string& update_server_url) override;
+  void SetUpdateServerUrl(const std::string& update_server_url,
+                          SetUpdateServerUrlCallback callback) override;
   void GetRequireNetworkEncryption(
       GetRequireNetworkEncryptionCallback callback) override;
-  void SetRequireNetworkEncryption(bool require_network_encryption) override;
-  void GetLibrarySha256(GetLibrarySha256Callback callback) override;
+  void SetRequireNetworkEncryption(
+      bool require_network_encryption,
+      SetRequireNetworkEncryptionCallback callback) override;
+  void GetLibrarySha256(unsigned short index,
+                        GetLibrarySha256Callback callback) override;
 
  private:
   H5vccUpdaterImpl(content::RenderFrameHost& render_frame_host,

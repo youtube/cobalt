@@ -63,7 +63,7 @@ void H5vccUpdaterImpl::GetUpdateStatus(GetUpdateStatusCallback callback) {
   NOTREACHED();
 }
 
-void H5vccUpdaterImpl::ResetInstallations() {
+void H5vccUpdaterImpl::ResetInstallations(ResetInstallationsCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   NOTREACHED();
 }
@@ -81,7 +81,8 @@ void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
 }
 
 void H5vccUpdaterImpl::SetAllowSelfSignedPackages(
-    bool allow_self_signed_packages) {
+    bool allow_self_signed_packages,
+    SetAllowSelfSignedPackagesCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   NOTREACHED();
 }
@@ -97,8 +98,8 @@ void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
 #endif
 }
 
-void H5vccUpdaterImpl::SetUpdateServerUrl(
-    const std::string& update_server_url) {
+void H5vccUpdaterImpl::SetUpdateServerUrl(const std::string& update_server_url,
+                                          SetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   NOTREACHED();
 }
@@ -110,12 +111,14 @@ void H5vccUpdaterImpl::GetRequireNetworkEncryption(
 }
 
 void H5vccUpdaterImpl::SetRequireNetworkEncryption(
-    bool require_network_encryption) {
+    bool require_network_encryption,
+    SetRequireNetworkEncryptionCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   NOTREACHED();
 }
 
-void H5vccUpdaterImpl::GetLibrarySha256(GetLibrarySha256Callback callback) {
+void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,
+                                        GetLibrarySha256Callback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   NOTREACHED();
 }

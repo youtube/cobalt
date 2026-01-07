@@ -58,8 +58,8 @@ ScriptPromise H5vccUpdater::setUpdaterChannel(ScriptState* script_state,
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->SetUpdaterChannel(
-      channel, WTF::BindOnce(&H5vccUpdater::OnVoidResult, WrapPersistent(this),
-                             WrapPersistent(resolver)));
+      channel, WTF::BindOnce(&H5vccUpdater::OnSetUpdaterChannel,
+                             WrapPersistent(this), WrapPersistent(resolver)));
 #else
   resolver->Reject();
 #endif
@@ -92,8 +92,9 @@ ScriptPromise H5vccUpdater::resetInstallations(
 #if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
-  remote_h5vcc_updater_->ResetInstallations();
-  resolver->Resolve();
+  remote_h5vcc_updater_->ResetInstallations(
+      WTF::BindOnce(&H5vccUpdater::OnResetInstallations, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 #else
   resolver->Reject();
 #endif
@@ -128,8 +129,8 @@ ScriptPromise H5vccUpdater::getAllowSelfSignedPackages(
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetAllowSelfSignedPackages(
-      WTF::BindOnce(&H5vccUpdater::OnGetBool, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      WTF::BindOnce(&H5vccUpdater::OnGetAllowSelfSignedPackages,
+                    WrapPersistent(this), WrapPersistent(resolver)));
 #else
   resolver->Reject();
 #endif
@@ -146,8 +147,10 @@ ScriptPromise H5vccUpdater::setAllowSelfSignedPackages(
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   EnsureReceiverIsBound();
 
-  remote_h5vcc_updater_->SetAllowSelfSignedPackages(allow_self_signed_packages);
-  resolver->Resolve();
+  remote_h5vcc_updater_->SetAllowSelfSignedPackages(
+      allow_self_signed_packages,
+      WTF::BindOnce(&H5vccUpdater::OnSetAllowSelfSignedPackages,
+                    WrapPersistent(this), WrapPersistent(resolver)));
 #else
   resolver->Reject();
 #endif
@@ -182,8 +185,10 @@ ScriptPromise H5vccUpdater::setUpdateServerUrl(
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   EnsureReceiverIsBound();
 
-  remote_h5vcc_updater_->SetUpdateServerUrl(update_server_url);
-  resolver->Resolve();
+  remote_h5vcc_updater_->SetUpdateServerUrl(
+      update_server_url,
+      WTF::BindOnce(&H5vccUpdater::OnSetUpdateServerUrl, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 #else
   resolver->Reject();
 #endif
@@ -200,8 +205,8 @@ ScriptPromise H5vccUpdater::getRequireNetworkEncryption(
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetRequireNetworkEncryption(
-      WTF::BindOnce(&H5vccUpdater::OnGetBool, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      WTF::BindOnce(&H5vccUpdater::OnGetRequireNetworkEncryption,
+                    WrapPersistent(this), WrapPersistent(resolver)));
 #else
   resolver->Reject();
 #endif
@@ -219,7 +224,9 @@ ScriptPromise H5vccUpdater::setRequireNetworkEncryption(
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->SetRequireNetworkEncryption(
-      require_network_encryption);
+      require_network_encryption,
+      WTF::BindOnce(&H5vccUpdater::OnSetRequireNetworkEncryption,
+                    WrapPersistent(this), WrapPersistent(resolver)));
   resolver->Resolve();
 #else
   resolver->Reject();
@@ -237,8 +244,8 @@ ScriptPromise H5vccUpdater::getLibrarySha256(ScriptState* script_state,
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetLibrarySha256(
-      WTF::BindOnce(&H5vccUpdater::OnGetLibrarySha256, WrapPersistent(this),
-                    WrapPersistent(resolver)));
+      index, WTF::BindOnce(&H5vccUpdater::OnGetLibrarySha256,
+                           WrapPersistent(this), WrapPersistent(resolver)));
 #else
   resolver->Reject();
 #endif
@@ -250,7 +257,7 @@ void H5vccUpdater::OnGetUpdaterChannel(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
-void H5vccUpdater::OnVoidResult(ScriptPromiseResolver* resolver) {
+void H5vccUpdater::OnSetUpdaterChannel(ScriptPromiseResolver* resolver) {
   resolver->Resolve();
 }
 
@@ -259,13 +266,28 @@ void H5vccUpdater::OnGetUpdateStatus(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
+void H5vccUpdater::OnResetInstallations(ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
+}
+
 void H5vccUpdater::OnGetInstallationIndex(ScriptPromiseResolver* resolver,
                                           uint16_t result) {
   resolver->Resolve(result);
 }
 
-void H5vccUpdater::OnGetBool(ScriptPromiseResolver* resolver, bool result) {
+void H5vccUpdater::OnGetLibrarySha256(ScriptPromiseResolver* resolver,
+                                      const String& result) {
   resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnGetAllowSelfSignedPackages(ScriptPromiseResolver* resolver,
+                                                bool result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnSetAllowSelfSignedPackages(
+    ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
 }
 
 void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
@@ -273,9 +295,19 @@ void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
-void H5vccUpdater::OnGetLibrarySha256(ScriptPromiseResolver* resolver,
-                                      const String& result) {
+void H5vccUpdater::OnSetUpdateServerUrl(ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
+}
+
+void H5vccUpdater::OnGetRequireNetworkEncryption(
+    ScriptPromiseResolver* resolver,
+    bool result) {
   resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnSetRequireNetworkEncryption(
+    ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
 }
 
 #if BUILDFLAG(USE_EVERGREEN)

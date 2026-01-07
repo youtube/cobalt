@@ -18,13 +18,13 @@ interface H5vccUpdater {
   GetUpdaterChannel() => (string channel);
   SetUpdaterChannel(string channel) => ();
   GetUpdateStatus() => (string status);
-  ResetInstallations();
+  ResetInstallations() => ();
   GetInstallationIndex() => (uint16 index);
   GetAllowSelfSignedPackages() => (bool allow_self_signed_packages);
-  SetAllowSelfSignedPackages(bool allow_self_signed_packages);
+  SetAllowSelfSignedPackages(bool allow_self_signed_packages) => ();
   GetUpdateServerUrl() => (string update_server_url);
-  SetUpdateServerUrl(string update_server_url);
+  SetUpdateServerUrl(string update_server_url) => ();
   GetRequireNetworkEncryption() => (bool require_network_encryption);
-  SetRequireNetworkEncryption(bool require_network_encryption);
-  GetLibrarySha256() => (string sha256);
+  SetRequireNetworkEncryption(bool require_network_encryption) => ();
+  GetLibrarySha256(uint16 index) => (string sha256);
 };
