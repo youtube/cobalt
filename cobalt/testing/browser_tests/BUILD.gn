@@ -82,8 +82,6 @@ static_library("cobalt_browsertests_test_runner") {
     "content_test_launcher.cc",
     "resource_load_observer.cc",
     "resource_load_observer.h",
-    "web_contents_delegate_stub.cc",
-    "web_contents_delegate_stub.h",
     "webrtc_content_browsertest_base.cc",
     "webrtc_content_browsertest_base.h",
   ]
