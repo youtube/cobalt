@@ -15,7 +15,9 @@
 // This file contains the creation of the specialized AudioDecoderImpl object
 // corresponding to the version of the linked ffmpeg library.
 
+// clang-format off
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
+// clang-format on
 
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"

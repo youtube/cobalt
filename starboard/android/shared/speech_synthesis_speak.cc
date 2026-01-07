@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/speech_synthesis.h"
+// clang-format on
 
 #include "starboard/android/shared/starboard_bridge.h"
 
+// clang-format off
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
+// clang-format on
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;

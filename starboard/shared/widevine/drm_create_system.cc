@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"

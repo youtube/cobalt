@@ -15,7 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_AUDIO_SINK_AUDIO_SINK_INTERNAL_H_
 
+// clang-format off
 #include "starboard/audio_sink.h"
+// clang-format on
 
 #include <functional>
 #include <string>

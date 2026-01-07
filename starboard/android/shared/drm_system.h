@@ -15,7 +15,9 @@
 #ifndef STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 #define STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 
+// clang-format off
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+// clang-format on
 
 #include <jni.h>
 
