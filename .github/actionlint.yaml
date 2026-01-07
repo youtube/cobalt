@@ -1,0 +1,20 @@
+# Configuration related to self-hosted runner.
+self-hosted-runner:
+  # Labels of self-hosted runner in array of strings.
+  labels:
+    - chrobalt-linux-runner
+    - odt-runner
+
+# Path-specific configurations.
+paths:
+  # TODO: Outstanding linting failures
+  .github/workflows/main.yaml:
+    # List of regular expressions to filter errors by the error messages.
+    ignore:
+      # Ignore the specific error from shellcheck
+      - 'shellcheck reported issue in this script: (SC2004|SC2086):.+'
+  .github/workflows/label-cherry-pick.yaml:
+    # List of regular expressions to filter errors by the error messages.
+    ignore:
+      # Ignore the specific error from shellcheck
+      - 'shellcheck reported issue in this script: (SC2053|SC2076|SC2199|SC2086):.+'
