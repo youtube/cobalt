@@ -12,24 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/arm.gni")
-
 config("platform_configuration") {
-  if (current_toolchain == default_toolchain) {
-    if (current_cpu == "arm64") {
-      # TODO: b/473814802 - Use the correct configuration here once musl is fixed.
-      configs = [ ":no_platform_configuration" ]
-    } else if (current_cpu == "arm" && arm_float_abi == "softfp") {
-      configs = [ "//starboard/evergreen/arm/softfp/platform_configuration" ]
-    } else {
-      assert(false, "Unsupported architecture.")
-    }
-  } else {
-    configs = [ ":no_platform_configuration" ]
-  }
-}
-
-config("no_platform_configuration") {
   configs = [
     "//starboard/build/config/sabi",
     "//starboard/build/config:starboard",
