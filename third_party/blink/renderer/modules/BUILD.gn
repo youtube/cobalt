@@ -171,13 +171,22 @@ component("modules") {
     sub_modules += [
       "//third_party/blink/renderer/modules/cobalt:h_5_vcc",
       "//third_party/blink/renderer/modules/cobalt/crash_log",
+      "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
+<<<<<<< HEAD
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
+=======
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
+      "//third_party/blink/renderer/modules/cobalt/mediasource",
+>>>>>>> 1d41c378d46 (Refactor media dependencies in Blink modules (#8528))
     ]
   }
 
@@ -729,9 +738,7 @@ source_set("unit_tests") {
   ]
 
   if (is_cobalt) {
-    deps += [
-      "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils"
-    ]
+    deps += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils" ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
