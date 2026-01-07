@@ -43,7 +43,7 @@ source_set("browser") {
   public_deps = [ "//content/public/browser" ]
 
   deps = [
-    ":command_line_debugging_helper",
+    ":command_line_logger",
     ":features",
     ":global_features",
     ":metrics",
@@ -153,10 +153,10 @@ source_set("metrics") {
   ]
 }
 
-source_set("command_line_debugging_helper") {
+source_set("command_line_logger") {
   sources = [
-    "command_line_debugging_helper.cc",
-    "command_line_debugging_helper.h",
+    "command_line_logger.cc",
+    "command_line_logger.h",
   ]
   deps = [ "//base" ]
 }

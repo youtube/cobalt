@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_COMMAND_LINE_DEBUGGING_HELPER_H_
-#define COBALT_BROWSER_COMMAND_LINE_DEBUGGING_HELPER_H_
+#ifndef COBALT_BROWSER_COMMAND_LINE_LOGGER_H_
+#define COBALT_BROWSER_COMMAND_LINE_LOGGER_H_
 
 #include <string>
 
@@ -22,9 +22,8 @@
 namespace cobalt {
 
 // Formats command line switches into a human-readable string for debugging.
-std::string FormatCommandLineSwitchesForDebugging(
-    const base::CommandLine& command_line);
+std::string CommandLineSwitchesToString(const base::CommandLine& command_line);
 
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_COMMAND_LINE_DEBUGGING_HELPER_H_
+#endif  // COBALT_BROWSER_COMMAND_LINE_LOGGER_H_

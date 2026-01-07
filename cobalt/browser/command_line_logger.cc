@@ -12,23 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/command_line_debugging_helper.h"
+#include "cobalt/browser/command_line_logger.h"
 
 #include <vector>
 
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 
 namespace cobalt {
 
-std::string FormatCommandLineSwitchesForDebugging(
-    const base::CommandLine& command_line) {
-  std::vector<std::string> formatted_switches;
+std::string CommandLineSwitchesToString(const base::CommandLine& command_line) {
+  std::vector<std::string> switch_strings;
   for (const auto& pair : command_line.GetSwitches()) {
-    const std::string& key = pair.first;
-    const base::CommandLine::StringType& value = pair.second;
-    formatted_switches.push_back("'" + key + "': '" + value + "'");
+    switch_strings.push_back(base::StringPrintf(
+        "'%s': '%s'", pair.first.c_str(), pair.second.c_str()));
   }
-  return base::JoinString(formatted_switches, "\n");
+  return base::JoinString(switch_strings, "\n");
 }
 
 }  // namespace cobalt
