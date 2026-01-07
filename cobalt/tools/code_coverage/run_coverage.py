@@ -52,10 +52,7 @@ def discover_targets(platform):
   return discovered_targets
 
 
-def main():
-  """
-  Main function to run the end-to-end code coverage process.
-  """
+def parse_args():
   parser = argparse.ArgumentParser(
       description='Run the end-to-end code coverage process.')
 
@@ -83,7 +80,14 @@ def main():
       action='append',
       help='Directories or files to get code coverage for.')
 
-  args = parser.parse_args()
+  return parser.parse_args()
+
+
+def main():
+  """
+  Main function to run the end-to-end code coverage process.
+  """
+  args = parse_args()
 
   discovery_platform = args.platform
   if discovery_platform == 'android-x86':
@@ -147,7 +151,7 @@ def main():
         coverage_command.extend(['-f', f])
     coverage_command.extend(['--format=lcov', executable_name])
 
-    print(f"Running command: {' '.join(coverage_command)}")
+    print(f'Running command: {" ".join(coverage_command)}')  # pylint: disable=inconsistent-quotes
     try:
       subprocess.check_call(coverage_command)
     except subprocess.CalledProcessError as e:

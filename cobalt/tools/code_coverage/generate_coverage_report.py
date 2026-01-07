@@ -34,6 +34,11 @@ PLATFORM_PARSER.add_argument(
     "--input-file",
     default=None,
     help="Path to a single .lcov file to generate a report for.")
+PLATFORM_PARSER.add_argument(
+    "-f",
+    "--filters",
+    action="append",
+    help="Extraction patterns to apply to the report.")
 
 
 def run_command(command, cwd=None):
@@ -169,14 +174,14 @@ def main():
     print(f"\nProcessing: {lcov_file}")
     cleaned_file = cleaned_dir / lcov_file.name
 
-    extract_cmd = [
-        "lcov", "--extract",
-        str(lcov_file), "*/cobalt/*", "*/starboard/*", "*/components/*",
-        "*/content/*", "*/third_party/blink/*", "--exclude", "*/out/*",
-        "--output-file",
+    extract_patterns = args.filters or ["*/cobalt/*", "*/starboard/*"]
+    extract_cmd = ["lcov", "--extract", str(lcov_file)]
+    extract_cmd.extend(extract_patterns)
+    extract_cmd.extend([
+        "--exclude", "*/out/*", "--output-file",
         str(cleaned_file), "--ignore-errors",
         "inconsistent,corrupt,unsupported,empty,unused"
-    ]
+    ])
     run_command(extract_cmd)
 
     if cleaned_file.exists() and cleaned_file.stat().st_size > 0:
