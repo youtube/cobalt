@@ -1,8 +1,12 @@
-# IMPORTANT: Remember to also update requirements.txt when updating this file:
-# $ docker run -it --mount type=bind,source=${COBALT_SRC},target=/code -w /code python:3.8 /bin/bash
-# In the container:
-# $ pip3 install pip-tools
-# $ pip-compile --allow-unsafe --generate-hashes path/to/requirements.in
+# Steps to update requirements.txt:
+#
+# 1)  Build the container:
+#
+#     docker build -f cobalt/tools/python_requirements/Dockerfile -t pyreq cobalt/tools/python_requirements
+#
+# 2)  Run the container:
+#
+#     docker run -it -v .:/code pyreq
 
-grpcio==1.38.0
-grpcio-tools==1.38.0
+grpcio==1.76.0
+grpcio-tools==1.76.0
