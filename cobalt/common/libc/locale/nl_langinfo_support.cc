@@ -18,6 +18,7 @@
 #include <string>
 
 #include "cobalt/common/libc/locale/lconv_support.h"
+#include "starboard/common/log.h"
 #include "third_party/icu/source/common/unicode/localebuilder.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
@@ -144,6 +145,11 @@ std::string NlGetNumericData(const std::string& locale, nl_item type) {
     case THOUSEP:
       result = ToUtf8(
           syms.getSymbol(icu::DecimalFormatSymbols::kGroupingSeparatorSymbol));
+      break;
+    default:
+      SB_LOG(WARNING) << "Unknown nl_item type received for NlGetNumericData. "
+                         "Returning the empty string.";
+      result = "";
   }
 
   return result;
