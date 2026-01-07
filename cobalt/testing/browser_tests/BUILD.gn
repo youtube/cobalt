@@ -457,10 +457,10 @@ static_library("cobalt_shell_test_lib") {
       "browser/shell_platform_test_data_aura.h",
     ]
     deps += [ "//ui/aura" ]
+  }
 
-    if (shell_use_toolkit_views) {
-      deps += [ "//ui/views:test_support" ]
-    }
+  if (shell_use_toolkit_views) {
+    deps += [ "//ui/views:test_support" ]
   }
 }
 
