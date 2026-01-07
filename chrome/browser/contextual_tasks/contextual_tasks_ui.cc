@@ -15,6 +15,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
+#include "chrome/browser/contextual_tasks/active_task_context_provider.h"
 #include "chrome/browser/contextual_tasks/contextual_search_session_finder.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service_factory.h"
@@ -24,6 +25,7 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
+#include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_attributes_storage.h"
@@ -501,7 +503,11 @@ void ContextualTasksUI::BindInterface(
 
 bool ContextualTasksUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
-  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks);
+  // Check if the user should have landed on the WebUI via an entry point. If
+  // not, refuse to load the WebUI to prevent a broken experience.
+  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
+         contextual_tasks::EntryPointEligibilityManager::IsEligible(
+             Profile::FromBrowserContext(browser_context));
 }
 
 std::unique_ptr<content::WebUIController>
@@ -668,6 +674,18 @@ void ContextualTasksUI::OnSidePanelStateChanged() {
 
 void ContextualTasksUI::DisableActiveTabContextSuggestion() {
   ui_service_->set_auto_tab_context_suggestion_enabled(false);
+
+  // Notify the active task context provider that the side panel state has
+  // changed.
+  auto* browser = webui::GetBrowserWindowInterface(web_ui()->GetWebContents());
+  if (!browser) {
+    return;
+  }
+  auto* active_task_context_provider =
+      browser->GetFeatures().contextual_tasks_active_task_context_provider();
+  if (active_task_context_provider) {
+    active_task_context_provider->OnSidePanelStateUpdated();
+  }
 }
 
 void ContextualTasksUI::OnLensOverlayStateChanged(bool is_showing) {
@@ -687,6 +705,10 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged() {
 
   if (!ui_service_->auto_tab_context_suggestion_enabled()) {
     return;
+  }
+
+  if (contextual_tasks::GetIsProtectedPageErrorEnabled() && page_) {
+    page_->HideErrorPage();
   }
 
   tabs::TabInterface* tab = GetBrowser()->GetActiveTabInterface();
@@ -721,6 +743,18 @@ void ContextualTasksUI::OnActiveTabContextStatusChanged() {
                      tab->GetHandle().raw_value(), last_committed_url));
 }
 
+void ContextualTasksUI::OnPageContextEligibilityChecked(
+    bool is_page_context_eligible) {
+  if (!contextual_tasks::GetIsProtectedPageErrorEnabled() || !page_) {
+    return;
+  }
+  if (is_page_context_eligible) {
+    page_->HideErrorPage();
+  } else {
+    page_->ShowErrorPage();
+  }
+}
+
 void ContextualTasksUI::TransferNavigationToEmbeddedPage(
     content::OpenURLParams params) {
   bool is_allowed_url = ui_service_->IsValidSearchResultsPage(params.url) ||
@@ -735,6 +769,11 @@ void ContextualTasksUI::TransferNavigationToEmbeddedPage(
   params.frame_tree_node_id =
       embedded_web_contents_->GetPrimaryMainFrame()->GetFrameTreeNodeId();
   embedded_web_contents_->OpenURL(params, /*navigation_handle_callback=*/{});
+}
+
+bool ContextualTasksUI::IsActiveTabContextSuggestionShowing() const {
+  return composebox_handler_ &&
+         composebox_handler_->has_suggested_tab_context();
 }
 
 void ContextualTasksUI::PushTaskDetailsToPage() {

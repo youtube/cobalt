@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'Q-1Zb2tbnvSeQLbRrUyM3wP8FOq-JoB_cwlu-jRJ8wgC',
+              'version': 'DTVEPJ3EPslcIykjwlrgsYWDA6AYDbSW2cSHquCl-D4C',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1217,7 +1217,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm',
-              'version': 'GlfNIdjZldcsoz4oHkvsE3WmqiDMR96hxb55LdSO2sYC',
+              'version': '84OAUPx7Koh5zUuOta9LA62KL8yx6NXiCybLNfmm4s0C',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'AFcn9_jkoysttOcUv9ypxm_VoNTnCbUB0IHwwr0BQsYC',
+              'version': 'l2YUWqoiEQrtsWdSYEzggY_W8XP-RcH5zF4Un78VeHsC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1624,7 +1624,7 @@ deps = {
 
   'src/clank': {
     'url': Var('chrome_git') + '/clank/internal/apps.git' + '@' +
-    '0761b3dc00fc7ca3ce13d4695684fd39a2e91ad9',
+    'b2a71d19d64287f4d22af4a3fb645c06dcb88ec0',
     'condition': 'checkout_android and checkout_src_internal',
   },
 

@@ -49,8 +49,30 @@
 }
 
 :host([show-simplified-ui_]) .action-chips-container {
+  animation:
+    chips-slide var(--chip-slide-duration) 220ms
+      var(--chip-animation-curve) forwards,
+    chips-fade-in var(--chip-fade-duration) 370ms
+      var(--chip-animation-curve) forwards;
+  background-color:
+    var(--simplified-action-chip-bg, transparent);
+  border-radius: 16px;
+  box-sizing: border-box;
+  display: flex;
   flex-direction: column;
+  flex-wrap: wrap;
   gap: 4px;
+  justify-content: center;
+  min-height: 88px;
+  opacity: 0;
+  padding: 10px;
+  transform: translateY(-56px);
+  width: 100%;
+}
+
+:host([show-simplified-ui_][theme-has-background-image])
+.action-chips-container {
+  overflow: hidden;
 }
 
 .banana {
@@ -67,6 +89,11 @@
   background-color: var(--color-sys-on-surface-subtle);
   background-size: 24px;
   -webkit-mask-image: url(chrome://new-tab-page/icons/suggestion.svg);
+}
+
+:host([show-simplified-ui_]) .deep-dive {
+  background-size: 20px;
+  mask-size: 20px;
 }
 
 .deep-search {
@@ -100,9 +127,12 @@
 }
 
 :host([show-simplified-ui_]) .action-chip {
-  background-color: transparent;
-  height: 32px;
-  padding: 0px 20px;
+  background-color:
+    var(--simplified-action-chip-bg, transparent);
+  border-radius: 12px;
+  gap: 6px;
+  height: 36px;
+  padding: 0px 8px;
   width: 100%;
 }
 
@@ -174,7 +204,6 @@
   align-items: flex-start;
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
   width: 100%;
 }
@@ -194,6 +223,7 @@
   font-size: 13px;
   font-weight: 500;
   overflow: hidden;
+  line-height: 20px;
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -220,7 +250,22 @@
 
 :host([show-simplified-ui_]) .chip-body {
   font-size: 13px;
+  mask-image:
+    linear-gradient(
+      to right,
+      var(--color-sys-on-surface-subtle) 90%,
+      transparent 98.5%
+    );
+  overflow: hidden;
   text-align: start;
+  text-overflow: clip;
+  white-space: nowrap;
+  -webkit-mask-image:
+    linear-gradient(
+      to right,
+      var(--color-sys-on-surface-subtle) 90%,
+      transparent 98.5%
+    );
 }
 
 .deep-dive-chip .chip-body {

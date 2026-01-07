@@ -41,6 +41,10 @@ BASE_FEATURE(kContextualTasksShowOnboardingTooltip,
              "ContextualTasksShowOnboardingTooltip",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Overrides the value of EntryPointEligibilitymanager::IsEligible to true.
+BASE_FEATURE(kContextualTasksForceEntryPointEligibility,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Forces the country code to be US.
 BASE_FEATURE(kContextualTasksForceCountryCodeUS,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -132,6 +136,11 @@ const base::FeatureParam<std::string> kContextualTasksHelpUrl(
     "ContextualTasksHelpUrl",
     "https://support.google.com/websearch/");
 
+const base::FeatureParam<bool> kEnableProtectedPageError(
+    &kContextualTasks,
+    "EnableProtectedPageError",
+    true);
+
 const base::FeatureParam<std::string> kContextualTasksOnboardingTooltipHelpUrl(
     &kContextualTasksShowOnboardingTooltip,
     "ContextualTasksOnboardingTooltipHelpUrl",
@@ -172,6 +181,10 @@ bool GetIsSteadyComposeboxVoiceSearchEnabled() {
 
 bool GetAutoSubmitVoiceSearchQuery() {
   return kAutoSubmitVoiceSearchQuery.Get();
+}
+
+bool GetIsProtectedPageErrorEnabled() {
+  return kEnableProtectedPageError.Get();
 }
 
 bool ShouldForceGscInTabMode() {

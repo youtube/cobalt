@@ -310,7 +310,7 @@ BASE_FEATURE(kGlicActorUiTabIndicatorSpinnerIgnoreReducedMotion,
 
 // Controls theming updates for Actor UI, including the tab indicator spinner
 // and other elements.
-BASE_FEATURE(kActorUiThemed, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kActorUiThemed, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, hides handoff button when the client is in control.
 BASE_FEATURE(kGlicHandoffButtonHiddenClientControl,
@@ -425,6 +425,9 @@ const base::FeatureParam<size_t>
 // dispatched with this delay.
 const base::FeatureParam<base::TimeDelta> kGlicActorTypeToolEnterDelay{
     &kGlicActor, "glic-actor-type-tool-enter-delay", base::Milliseconds(600)};
+
+constexpr base::FeatureParam<std::string> kGlicActorEligibleTiers{
+    &kGlicActor, "glic-actor-eligible-tiers", ""};
 
 constexpr base::FeatureParam<GlicActorEnterprisePrefDefault>::Option
     kGlicActorEnterprisePrefDefaultOptions[] = {
@@ -929,6 +932,11 @@ BASE_FEATURE(kGlicWebActuationSetting, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<std::string> kGlicWebActuationAllowedTiers{
     &kGlicWebActuationSetting, "allowed_tiers", ""};
+
+// If enabled, show web actuation settings toggle if
+// kGlicWebActuationAllowedTiers is populated.
+BASE_FEATURE(kGlicWebActuationSettingsToggle,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicMetricsSession, base::FEATURE_ENABLED_BY_DEFAULT);
 // The duration of inactivity after which a session is considered ended.
