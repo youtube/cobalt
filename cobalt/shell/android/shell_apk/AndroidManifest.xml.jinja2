@@ -1,3 +1,4 @@
+{% set enable_ad_id_permission = enable_ad_id_permission | default(True) %}
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Copyright 2016 The Cobalt Authors. All Rights Reserved.
@@ -39,7 +40,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <!-- https://iabtechlab.com/OTT-IFA, AdvertisingIdClient.Info.getId() -->
+    {% if enable_ad_id_permission %}
     <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+    {% endif %}
 
     {% block extra_uses_permissions %}
     {% endblock %}

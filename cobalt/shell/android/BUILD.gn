@@ -103,6 +103,7 @@ jinja_template("cobalt_shell_test_manifest") {
   variables = [
     "manifest_package=dev.cobalt.app",
     "build_type=$build_type",
+    "enable_ad_id_permission=0",
   ]
 }
 
