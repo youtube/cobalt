@@ -17,7 +17,6 @@
 
 #include <optional>
 
-#include "base/gtest_prod_util.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -75,7 +74,7 @@ class MODULES_EXPORT H5vccAccessibility
   // Proxy to the remote H5vccAccessibilityBrowser implementation.
   HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>
       remote_;
-  // Pipe to receive notifications from the remove interface implementation.
+  // Pipe to receive notifications from the remote interface implementation.
   HeapMojoReceiver<h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient,
                    H5vccAccessibility>
       notification_receiver_;
