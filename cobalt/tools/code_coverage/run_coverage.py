@@ -133,7 +133,7 @@ def main():
       with open(filter_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
         if 'failing_tests' in data and data['failing_tests']:
-          gtest_filter = f'--gtest_filter=-{".".join(data["failing_tests"])}'  # pylint: disable=inconsistent-quotes
+          gtest_filter = f'--gtest_filter=-{":".join(data["failing_tests"])}'  # pylint: disable=inconsistent-quotes
           command += f' {gtest_filter}'
 
     coverage_command = [

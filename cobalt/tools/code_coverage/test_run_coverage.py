@@ -336,7 +336,7 @@ class RunCoverageTest(unittest.TestCase):
         '-o',
         target_output_dir,
         '-c',
-        f'{base_command} --gtest_filter=-Test.Fails.Test.Crashes',
+        f'{base_command} --gtest_filter=-Test.Fails:Test.Crashes',
         '--format=lcov',
         executable_name,
     ]
