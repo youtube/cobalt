@@ -217,9 +217,6 @@ public abstract class CobaltActivity extends Activity {
               .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
               .orElse(null);
     }
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
-    }
 
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
