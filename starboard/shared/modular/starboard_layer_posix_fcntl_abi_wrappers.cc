@@ -18,6 +18,7 @@
 #include <stdarg.h>
 
 #include "starboard/common/log.h"
+#include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 
 int convert_musl_cmd_to_platform_cmd(int musl_cmd) {
   switch (musl_cmd) {
@@ -296,4 +297,17 @@ SB_EXPORT int __abi_wrap_fcntl(int fildes, int cmd, ...) {
 
   va_end(ap);
   return result;
+}
+
+int __abi_wrap_openat(int fildes, const char* path, int oflag, ...) {
+  fildes = (fildes == MUSL_AT_FDCWD) ? AT_FDCWD : fildes;
+  if ((oflag & O_CREAT) || (oflag & O_TMPFILE) == O_TMPFILE) {
+    va_list ap;
+    va_start(ap, oflag);
+    musl_mode_t mode = va_arg(ap, mode_t);
+    return openat(fildes, path, oflag,
+                  starboard::musl_mode_to_platform_mode(mode));
+  } else {
+    return openat(fildes, path, oflag);
+  }
 }

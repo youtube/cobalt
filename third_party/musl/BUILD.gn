@@ -128,6 +128,7 @@ static_library("c_internal") {
     "src/exit/atexit.c",
     "src/exit/exit.c",
     "src/fcntl/creat.c",
+    "src/fcntl/open.c",
     "src/fenv/__flt_rounds.c",
     "src/fenv/fegetexceptflag.c",
     "src/fenv/feholdexcept.c",
@@ -428,6 +429,8 @@ static_library("c_internal") {
 
     "src/stat/futimens.c",
     "src/stat/futimesat.c",
+    "src/stat/lstat.c",
+    "src/stat/stat.c",
     "src/stdio/__fdopen.c",
     "src/stdio/__fmodeflags.c",
     "src/stdio/__lockfile.c",
@@ -575,7 +578,9 @@ static_library("c_internal") {
     "src/time/time.c",
     "src/unistd/_exit.c",
     "src/unistd/gethostname.c",
+    "src/unistd/rmdir.c",
     "src/unistd/sleep.c",
+    "src/unistd/unlink.c",
     "src/unistd/usleep.c",
   ]
 
