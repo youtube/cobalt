@@ -337,6 +337,7 @@ test("nplb") {
     "//starboard/nplb/compiler_compliance:cpp14_supported",
     "//starboard/shared/starboard/drm:drm_test_helpers",
     "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:job_thread",
     "//starboard/shared/starboard/player:player_test_data",
     "//starboard/shared/starboard/player:video_dmp",
     "//testing/gmock",

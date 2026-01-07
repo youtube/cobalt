@@ -315,6 +315,7 @@ static_library("starboard_platform") {
     "//starboard/common",
     "//starboard/extension:feature_config_header",
     "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:job_thread",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 

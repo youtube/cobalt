@@ -414,6 +414,7 @@ static_library("starboard_platform") {
 
   deps = [
     # ":build_intents_framework",
+    "//starboard/shared/starboard/player:job_thread",
     "//starboard/shared/starboard/player:video_dmp",
     "//third_party/internal/ce_cdm/cdm:widevine_cdm_core",
     "//third_party/internal/ce_cdm/cdm:widevine_ce_cdm_static",
