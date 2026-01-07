@@ -24,6 +24,14 @@ bool StreamParser::ProcessChunks(std::unique_ptr<BufferQueue> buffer_queue) {
   return false;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+int StreamParser::kMaxPendingBytesPerParse = 128 * 1024;
+
+void StreamParser::SetMaxPendingBytesPerParse(int new_bytes_per_parse) {
+  kMaxPendingBytesPerParse = new_bytes_per_parse;
+}
+#endif
+
 static bool MergeBufferQueuesInternal(
     const std::vector<const StreamParser::BufferQueue*>& buffer_queues,
     StreamParser::BufferQueue* merged_buffers) {
