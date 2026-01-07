@@ -63,15 +63,27 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     return false;
   }
 
-  // Handle 6to4 or IPv4-mapped addresses
-  // If it's an IPv6 address that encapsulates an IPv4 address,
-  // we convert it to its IPv4 form to check RFC 1918 ranges correctly.
-  if (address.IsIPv4MappedIPv6()) {
-    address = net::ConvertIPv4MappedIPv6ToIPv4(address);
-  }
-
   //  Note: we don't use IsReserved() since it includes loopback, link-local,
   //  multicast, and other special-use blocks.
+
+  // Handle 6to4 and IPv4-mapped addresses.
+  if (address.IsIPv6()) {
+    const auto& bytes = address.bytes();
+    if (bytes[0] == 0x20 && bytes[1] == 0x02) {
+      // Convert to IPv4
+      address = net::IPAddress(bytes[2], bytes[3], bytes[4], bytes[5]);
+    } else if (address.IsIPv4MappedIPv6()) {
+      // Convert to IPv4
+      address = net::ConvertIPv4MappedIPv6ToIPv4(address);
+    } else {
+      // Unique Local Addresses for IPv6 are _effectively_ fd00::/8.
+      // See https://tools.ietf.org/html/rfc4193#section-3 for details.
+      // RFC 4193: fc00::/7
+      const uint8_t kUlaPrefix[] = {0xfc, 0};
+      const net::IPAddress kUla(kUlaPrefix);
+      return IPAddressMatchesPrefix(address, kUla, 7);
+    }
+  }
 
   // For IPv4, the private address range is defined by RFC 1918
   // available at https://tools.ietf.org/html/rfc1918#section-3.
@@ -84,15 +96,6 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     return IPAddressMatchesPrefix(address, k10, 8) ||
            IPAddressMatchesPrefix(address, k172, 12) ||
            IPAddressMatchesPrefix(address, k192, 16);
-  }
-
-  // Unique Local Addresses for IPv6 are _effectively_ fd00::/8.
-  // See https://tools.ietf.org/html/rfc4193#section-3 for details.
-  if (address.IsIPv6()) {
-    // RFC 4193: fc00::/7
-    const uint8_t kUlaPrefix[] = {0xfc, 0};
-    const net::IPAddress kUla(kUlaPrefix);
-    return IPAddressMatchesPrefix(address, kUla, 7);
   }
 
   return false;
