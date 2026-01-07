@@ -122,7 +122,8 @@ const char kTestHtmlContent[] = "<html><body><h1>Test</h1></body></html>";
 class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
  public:
   H5vccSchemeURLLoaderFactoryTest()
-      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO) {}
+      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO),
+        factory_(nullptr) {}
 
   void SetUp() override {
     testing::Test::SetUp();
@@ -195,7 +196,7 @@ TEST_F(H5vccSchemeURLLoaderFactoryTest, LoadNonExistingResource) {
   ASSERT_TRUE(client->response_head());
   EXPECT_EQ(net::HTTP_NOT_FOUND,
             client->response_head()->headers->response_code());
-  EXPECT_EQ("text/plain", client->response_head()->mime_type);
+  EXPECT_EQ("text/html", client->response_head()->mime_type);
 
   client->WaitForCompletion();
   ASSERT_TRUE(client->completion_status());

@@ -130,7 +130,7 @@
 namespace content {
 
 namespace {
-
+  
 using PerformanceManagerRegistry =
     performance_manager::PerformanceManagerRegistry;
 
@@ -256,8 +256,6 @@ ShellContentBrowserClient* ShellContentBrowserClient::Get() {
 
 ShellContentBrowserClient::ShellContentBrowserClient() {
   GetShellContentBrowserClientInstancesImpl().push_back(this);
-  h5vcc_scheme_url_loader_factory_ =
-      std::make_unique<H5vccSchemeURLLoaderFactory>();
 }
 
 ShellContentBrowserClient::~ShellContentBrowserClient() {
@@ -685,8 +683,8 @@ ShellContentBrowserClient::GetShellContentBrowserClientInstances() {
 void ShellContentBrowserClient::RegisterH5vccScheme(
     NonNetworkURLLoaderFactoryMap* factories) {
   if (!h5vcc_scheme_url_loader_factory_) {
-    LOG(WARNING) << "h5vcc_scheme_url_loader_factory_ is not initialized!";
-    return;
+    h5vcc_scheme_url_loader_factory_ =
+        std::make_unique<H5vccSchemeURLLoaderFactory>(browser_context());
   }
 
   mojo::PendingRemote<network::mojom::URLLoaderFactory> remote;
