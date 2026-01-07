@@ -25,8 +25,6 @@ static_library("test_support") {
     "starboard_test_environment.h",
     "starboard_test_environment.mm",
   ]
-
-  configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
 static_library("starboard_platform") {

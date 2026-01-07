@@ -36,6 +36,11 @@ repos:
     -   id: end-of-file-fixer
     -   id: mixed-line-ending
     -   id: trailing-whitespace
+-   repo: https://github.com/rhysd/actionlint
+    rev: 03d0035246f3e81f36aed592ffb4bebf33a03106
+    hooks:
+    -   id: actionlint
+        files: ^.github/workflows
 -   repo: local
     hooks:
     -   id: chromium-pre-commit
