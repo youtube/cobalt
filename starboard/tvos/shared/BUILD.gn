@@ -182,6 +182,7 @@ static_library("starboard_platform") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    "//starboard/shared/starboard/player:job_thread",
     "//starboard/shared/starboard/player:video_dmp",
     "//third_party/angle:includes",
     "//third_party/libvpx",
@@ -202,7 +203,6 @@ static_library("starboard_platform") {
     "//starboard:starboard_headers_only",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
-    "//starboard/shared/starboard/player:job_thread",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 }

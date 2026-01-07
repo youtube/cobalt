@@ -40,7 +40,7 @@ source_set("job_thread") {
     "job_thread.h",
   ]
 
-  public_deps = [ "//starboard/common" ]
+  deps = [ "//starboard/common" ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
 
