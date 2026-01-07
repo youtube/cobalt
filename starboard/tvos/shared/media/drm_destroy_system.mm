@@ -20,6 +20,9 @@
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
+using starboard::DrmSystemPlatform;
+using starboard::DrmSystemWidevine;
+
 void SbDrmDestroySystem(SbDrmSystem drm_system) {
   if (!SbDrmSystemIsValid(drm_system)) {
     SB_LOG(WARNING) << "Destroying an invalid drm system.";
@@ -36,8 +39,6 @@ void SbDrmDestroySystem(SbDrmSystem drm_system) {
     }
   }
 
-  using starboard::shared::uikit::DrmSystemPlatform;
-  using starboard::shared::widevine::DrmSystemWidevine;
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   delete drm_system;

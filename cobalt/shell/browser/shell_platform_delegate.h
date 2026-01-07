@@ -21,7 +21,6 @@
 #include "base/containers/flat_map.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
-#include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
@@ -38,7 +37,6 @@ class ViewsDelegate;
 class GURL;
 
 namespace content {
-class FileSelectListener;
 class JavaScriptDialogManager;
 class Shell;
 class ShellPlatformDataAura;
@@ -75,6 +73,12 @@ class ShellPlatformDelegate {
   // Links the WebContents into the newly created window.
   virtual void SetContents(Shell* shell);
 
+  // Load the splash screen WebContents.
+  virtual void LoadSplashScreenContents(Shell* shell);
+
+  // Update WebContents into the newly created window.
+  virtual void UpdateContents(Shell* shell);
+
   // Resize the web contents in the shell window to the given size.
   virtual void ResizeWebContent(Shell* shell, const gfx::Size& content_size);
 
@@ -102,8 +106,8 @@ class ShellPlatformDelegate {
   virtual std::unique_ptr<JavaScriptDialogManager>
   CreateJavaScriptDialogManager(Shell* shell);
 
-  // Requests handling of locking the mouse pointer. This returns true if the request
-  // has been handled, otherwise false.
+  // Requests handling of locking the mouse pointer. This returns true if the
+  // request has been handled, otherwise false.
   virtual bool HandlePointerLockRequest(Shell* shell,
                                         WebContents* web_contents,
                                         bool user_gesture,
@@ -116,13 +120,6 @@ class ShellPlatformDelegate {
   // Destroy the Shell. Returns true if the ShellPlatformDelegate did the
   // destruction. Returns false if the Shell should destroy itself.
   virtual bool DestroyShell(Shell* shell);
-
-  // Called when a file selection is to be done.
-  // This function is responsible for calling listener->FileSelected() or
-  // listener->FileSelectionCanceled().
-  virtual void RunFileChooser(RenderFrameHost* render_frame_host,
-                              scoped_refptr<FileSelectListener> listener,
-                              const blink::mojom::FileChooserParams& params);
 
 #if !BUILDFLAG(IS_ANDROID)
   // Returns the native window. Valid after calling CreatePlatformWindow().
@@ -144,6 +141,10 @@ class ShellPlatformDelegate {
 
   // Forwarded from WebContentsObserver.
   void LoadProgressChanged(Shell* shell, double progress);
+
+  void SetSkipForTesting(bool skip_for_testing) {
+    skip_for_testing_ = skip_for_testing;
+  }
 #endif
 
  protected:
@@ -175,6 +176,8 @@ class ShellPlatformDelegate {
   // implementation.
   struct PlatformData;
   std::unique_ptr<PlatformData> platform_;
+
+  bool skip_for_testing_ = false;
 };
 
 }  // namespace content

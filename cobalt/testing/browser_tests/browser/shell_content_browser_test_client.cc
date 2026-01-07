@@ -26,9 +26,9 @@
 #include "build/build_config.h"
 #include "cc/base/switches.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/common/shell_controller.test-mojom.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/testing/browser_tests/common/shell_controller.test-mojom.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
@@ -191,8 +191,8 @@ void ShellContentBrowserTestClient::AppendExtraCommandLineSwitches(
   ShellContentBrowserClient::AppendExtraCommandLineSwitches(command_line,
                                                             child_process_id);
   static const char* kForwardTestSwitches[] = {
-      test_switches::kExposeInternalsForTesting,
-      test_switches::kRunWebTests,
+      switches::kExposeInternalsForTesting,
+      switches::kRunWebTests,
   };
 
   command_line->CopySwitchesFrom(*base::CommandLine::ForCurrentProcess(),
@@ -266,7 +266,7 @@ void ShellContentBrowserTestClient::SetUpFieldTrials() {
   // Overrides for content/shell switches.
 
   // Overrides for --run-web-tests.
-  if (test_switches::IsRunWebTestsSwitchPresent()) {
+  if (switches::IsRunWebTestsSwitchPresent()) {
     // Disable artificial timeouts for PNA-only preflights in warning-only mode
     // for web tests. We do not exercise this behavior with web tests as it is
     // intended to be a temporary rollout stage, and the short timeout causes

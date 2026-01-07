@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/nplb/maximum_player_configuration_explorer.h"
+
 #include <set>
 #include <string>
 #include <vector>
@@ -19,7 +21,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/nplb/drm_helpers.h"
-#include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"

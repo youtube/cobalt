@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
-
 #include <ucontext.h>
 
 #include "starboard/common/log.h"
 #include "starboard/shared/pthread/thread_context_internal.h"
+#include "starboard/thread.h"
 
 bool SbThreadContextGetPointer(SbThreadContext context,
                                SbThreadContextProperty property,

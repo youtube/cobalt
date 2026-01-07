@@ -16,6 +16,7 @@
 // it compiles and runs without crashing.
 
 #include "starboard/common/log.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace nplb {

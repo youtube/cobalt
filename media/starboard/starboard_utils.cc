@@ -337,7 +337,8 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
     sb_media_color_metadata.mastering_metadata = sb_media_mastering_metadata;
 
     if (hdr_metadata->cta_861_3) {
-      sb_media_color_metadata.max_cll = hdr_metadata->cta_861_3->max_content_light_level;
+      sb_media_color_metadata.max_cll =
+          hdr_metadata->cta_861_3->max_content_light_level;
       sb_media_color_metadata.max_fall =
           hdr_metadata->cta_861_3->max_frame_average_light_level;
     }

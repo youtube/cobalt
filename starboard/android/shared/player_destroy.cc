@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/player.h"
-
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerDestroy(SbPlayer player) {

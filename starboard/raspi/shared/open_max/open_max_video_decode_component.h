@@ -15,9 +15,6 @@
 #ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_VIDEO_DECODE_COMPONENT_H_
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_OPEN_MAX_VIDEO_DECODE_COMPONENT_H_
 
-#include <map>
-#include <queue>
-
 #include "starboard/common/ref_counted.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/raspi/shared/open_max/open_max_component.h"

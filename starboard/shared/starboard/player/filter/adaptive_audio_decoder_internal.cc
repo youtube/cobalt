@@ -59,7 +59,7 @@ AdaptiveAudioDecoder::AdaptiveAudioDecoder(
 }
 
 AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
     TeardownAudioDecoder();
@@ -69,7 +69,7 @@ AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
 
 void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
                                       const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -83,7 +83,7 @@ void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
                                   const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
@@ -128,7 +128,7 @@ void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 void AdaptiveAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!stream_ended_);
   SB_DCHECK(output_cb_);
   SB_DCHECK(error_cb_);
@@ -146,7 +146,7 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
 
 scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
     int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoded_audios_.empty());
 
   scoped_refptr<DecodedAudio> ret = decoded_audios_.front();
@@ -166,7 +166,7 @@ scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
 }
 
 void AdaptiveAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (audio_decoder_) {
     if (enable_reset_audio_decoder_) {
@@ -227,7 +227,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     Schedule(std::bind(&AdaptiveAudioDecoder::OnDecoderOutput, this));
     return;
   }
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   int decoded_sample_rate;

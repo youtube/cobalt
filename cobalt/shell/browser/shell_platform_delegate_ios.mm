@@ -22,7 +22,6 @@
 #include "base/trace_event/trace_config.h"
 #include "cobalt/shell/app/resource.h"
 #include "cobalt/shell/browser/shell.h"
-#include "cobalt/shell/browser/shell_file_select_helper.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
@@ -578,6 +577,10 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   //  setContents:web_contents_view];
 }
 
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
+
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {
   DCHECK(base::Contains(shell_data_map_, shell));
@@ -639,14 +642,6 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
 
   [shell_data.window resignKeyWindow];
   return true;  // The performClose() will do the destruction of Shell.
-}
-
-void ShellPlatformDelegate::RunFileChooser(
-    RenderFrameHost* render_frame_host,
-    scoped_refptr<FileSelectListener> listener,
-    const blink::mojom::FileChooserParams& params) {
-  ShellFileSelectHelper::RunFileChooser(render_frame_host, std::move(listener),
-                                        params);
 }
 
 void ShellPlatformDelegate::ToggleFullscreenModeForTab(

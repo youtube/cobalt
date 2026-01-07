@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <dirent.h>
-
 #include <android/asset_manager.h>
+#include <dirent.h>
 
 #include <map>
 #include <mutex>

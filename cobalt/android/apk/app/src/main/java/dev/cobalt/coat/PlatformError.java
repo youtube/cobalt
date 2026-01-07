@@ -30,8 +30,16 @@ import dev.cobalt.util.Log;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import org.jni_zero.NativeMethods;
+import org.chromium.content_public.browser.WebContents;
 
-/** Shows an ErrorDialog to inform the user of a Starboard platform error. */
+/**
+ * Shows an ErrorDialog to inform the user of a network platform error.
+ * The dialog should appear if the device has no wifi or ethernet connection.
+ * It should also appear in cases of "weak" internet (ie. connected to a network
+ * that doesn't have internet like a router that was just unplugged) as well as if
+ * the connection is experiencing DNS resolution errors. Prompts the user to retry
+ * or to navigate to the device's network settings menu.
+*/
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -128,7 +136,6 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.mShouldReloadOnResume = true;
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
@@ -140,9 +147,8 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+            cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
-          cobaltActivity.activeNetworkCheck();
           mDialog.dismiss();
           break;
         default: // fall out
@@ -155,7 +161,6 @@ public class PlatformError
     mDialog = null;
       CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       if (cobaltActivity != null && mResponse == CANCELLED) {
-        cobaltActivity.mShouldReloadOnResume = true;
         cobaltActivity.getStarboardBridge().requestSuspend();
       }
   }
