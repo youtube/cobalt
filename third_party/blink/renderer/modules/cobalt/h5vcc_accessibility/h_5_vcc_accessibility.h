@@ -33,7 +33,7 @@ namespace blink {
 class LocalDOMWindow;
 class ScriptState;
 
-class MODULES_EXPORT H5vccAccessibility
+class MODULES_EXPORT H5vccAccessibility final
     : public EventTarget,
       public ExecutionContextLifecycleObserver,
       public h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient {
