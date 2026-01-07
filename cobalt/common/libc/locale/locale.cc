@@ -248,8 +248,12 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     return const_cast<char*>("");
   }
 
-  cobalt::LocaleImpl* cur_locale =
-      reinterpret_cast<cobalt::LocaleImpl*>(locale);
+  cobalt::LocaleImpl* cur_locale;
+  if (locale == LC_GLOBAL_LOCALE) {
+    cur_locale = GetGlobalLocale();
+  } else {
+    cur_locale = reinterpret_cast<cobalt::LocaleImpl*>(locale);
+  }
 
   std::string& langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
@@ -342,7 +346,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
       langinfo_buffer = "UTF-8";
       break;
     // ICU has deprecated support for |YESEXPR| and |NOEXPR|. If these items are
-    // ever requested, we return the default English expressions.
+    // ever requested, we return the default "C" locale expressions.
     case YESEXPR:
       SB_LOG(WARNING) << "nl_item YESEXPR was requested, but is not supported "
                          "by ICU. Returning ^[yY].";
@@ -366,13 +370,13 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case ERA_D_FMT:
     case ERA_D_T_FMT:
     case ERA_T_FMT:
-      SB_NOTIMPLEMENTED()
-          << "ERA* items are not supported. Returning the empty string.";
+      SB_NOTIMPLEMENTED() << "ERA* items are currently not supported. "
+                             "Returning the empty string.";
       langinfo_buffer = "";
       break;
     case ALT_DIGITS:
-      SB_NOTIMPLEMENTED()
-          << "ALT_DIGITS is not supported. Returning the empty string.";
+      SB_NOTIMPLEMENTED() << "ALT_DIGITS is currently not supported. Returning "
+                             "the empty string.";
       langinfo_buffer = "";
       break;
     default:
@@ -385,12 +389,6 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
 }
 
 char* nl_langinfo(nl_item item) {
-  cobalt::LocaleImpl* current_loc;
-  if (g_current_thread_locale !=
-      reinterpret_cast<cobalt::LocaleImpl*> LC_GLOBAL_LOCALE) {
-    current_loc = g_current_thread_locale;
-  } else {
-    current_loc = GetGlobalLocale();
-  }
-  return nl_langinfo_l(item, reinterpret_cast<locale_t>(current_loc));
+  return nl_langinfo_l(item,
+                       reinterpret_cast<locale_t>(g_current_thread_locale));
 }

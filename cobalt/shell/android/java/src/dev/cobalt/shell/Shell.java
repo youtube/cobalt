@@ -14,6 +14,9 @@
 
 package dev.cobalt.shell;
 
+import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
@@ -25,6 +28,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import org.chromium.base.Callback;
+import org.chromium.base.ResettersForTesting;
+import org.chromium.build.annotations.Initializer;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -44,6 +51,7 @@ import org.jni_zero.NativeMethods;
  *  Container for the various UI components that make up a shell window.
  */
 @JNINamespace("content")
+@NullMarked
 public class Shell {
     /**
      * Interface for notifying observers of WebContents readiness.
@@ -67,16 +75,16 @@ public class Shell {
     private NavigationController mNavigationController;
 
     private long mNativeShell;
-    private ContentViewRenderView mContentViewRenderView;
-    private WindowAndroid mWindow;
-    private ShellViewAndroidDelegate mViewAndroidDelegate;
+    private @Nullable ContentViewRenderView mContentViewRenderView;
+    private @Nullable WindowAndroid mWindow;
+    private @Nullable ShellViewAndroidDelegate mViewAndroidDelegate;
 
     private boolean mLoading;
     private boolean mIsFullscreen;
     private boolean mIsActivityVisible;
 
-    private OnWebContentsReadyListener mWebContentsReadyListener;
-    private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
+    private @Nullable OnWebContentsReadyListener mWebContentsReadyListener;
+    private @Nullable Callback<Boolean> mOverlayModeChangedCallbackForTesting;
     private ViewGroup mRootView;
 
     /**
@@ -91,14 +99,14 @@ public class Shell {
         mRootView = view;
     }
 
-    public void setWebContentsReadyListener(OnWebContentsReadyListener listener) {
+    public void setWebContentsReadyListener(@Nullable OnWebContentsReadyListener listener) {
         mWebContentsReadyListener = listener;
     }
 
     /**
      * Set the SurfaceView being rendered to as soon as it is available.
      */
-    public void setContentViewRenderView(ContentViewRenderView contentViewRenderView) {
+    public void setContentViewRenderView(@Nullable ContentViewRenderView contentViewRenderView) {
         if (contentViewRenderView == null) {
             if (mContentViewRenderView != null) {
                 mRootView.removeView(mContentViewRenderView);
@@ -140,6 +148,7 @@ public class Shell {
         ShellJni.get().loadSplashScreenWebContents(mNativeShell);
     }
 
+    @SuppressWarnings("NullAway")
     @CalledByNative
     private void onNativeDestroyed() {
         mWindow = null;
@@ -209,7 +218,7 @@ public class Shell {
         mLoading = loading;
     }
 
-    public ShellViewAndroidDelegate getViewAndroidDelegate() {
+    public @Nullable ShellViewAndroidDelegate getViewAndroidDelegate() {
         return mViewAndroidDelegate;
     }
 
@@ -218,6 +227,7 @@ public class Shell {
      * @param webContents A {@link WebContents} object.
      */
     @CalledByNative
+    @Initializer
     private void initFromNativeTabContents(WebContents webContents) {
         if (webContents == null || mContentViewRenderView == null) return;
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
@@ -226,11 +236,11 @@ public class Shell {
         webContents.setDelegates(
                 "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
-        mNavigationController = mWebContents.getNavigationController();
+        mNavigationController = assertNonNull(mWebContents.getNavigationController());
         if (mIsActivityVisible) {
             mWebContents.updateWebContentsVisibility(Visibility.VISIBLE);
         }
-        mContentViewRenderView.setCurrentWebContents(mWebContents);
+        assumeNonNull(mContentViewRenderView).setCurrentWebContents(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }
@@ -319,7 +329,7 @@ public class Shell {
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {
-        mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
+        assumeNonNull(mContentViewRenderView).setOverlayVideoMode(useOverlayMode);
         if (mOverlayModeChangedCallbackForTesting != null) {
             mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
         }
@@ -327,6 +337,7 @@ public class Shell {
 
     public void setOverayModeChangedCallbackForTesting(Callback<Boolean> callback) {
         mOverlayModeChangedCallbackForTesting = callback;
+        ResettersForTesting.register(() -> mOverlayModeChangedCallbackForTesting = null);
     }
 
     /**
@@ -341,7 +352,7 @@ public class Shell {
     /**
      * @return The {@link View} currently shown by this Shell.
      */
-    public View getContentView() {
+    public @Nullable View getContentView() {
         ViewAndroidDelegate viewDelegate = mWebContents.getViewAndroidDelegate();
         return viewDelegate != null ? viewDelegate.getContainerView() : null;
     }
