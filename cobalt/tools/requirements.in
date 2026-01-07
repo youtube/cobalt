@@ -2,11 +2,11 @@
 #
 # 1)  Build the container:
 #
-#     docker build -f cobalt/tools/python_requirements/Dockerfile -t pyreq cobalt/tools/python_requirements
+#     docker build -f cobalt/tools/Dockerfile.pyreq -t pyreq cobalt/tools/
 #
 # 2)  Run the container:
 #
 #     docker run -it -v .:/code pyreq
 
-grpcio==1.76.0
-grpcio-tools==1.76.0
+grpcio==1.70.0
+grpcio-tools==1.70.0

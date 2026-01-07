@@ -1,4 +1,0 @@
-FROM python:3.11.14-trixie
-RUN pip3 install pip-tools==7.5.2
-WORKDIR /code
-CMD pip-compile --allow-unsafe --generate-hashes /code/cobalt/tools/requirements.in
