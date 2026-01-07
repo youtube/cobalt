@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "cobalt/browser/performance/startup_time.h" // nogncheck
 #include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
@@ -68,12 +69,26 @@ ScriptPromise PerformanceExtensions::getAppStartupTime(
   base::TimeTicks time_origin = performance_obj.GetTimeOriginInternal();
   base::TimeTicks startup_time_from_starboard =
       base::TimeTicks::FromInternalValue(startup_time);
-  base::TimeDelta startup_delta = startup_time_from_starboard - time_origin;
-  LOG(INFO) << "OriginTime is " << time_origin.ToInternalValue();
-  LOG(INFO) << "startup_time variable  value  is " << startup_time;
-  double startup_time_ms = startup_delta.InMillisecondsF();
-  LOG(INFO) << "actual startup time is " << startup_time_ms;
-  resolver->Resolve(startup_time_ms);
+  base::TimeTicks startup_time_from_shell =
+      base::TimeTicks::FromInternalValue(cobalt::browser::GetStartupTime1());
+  base::TimeDelta startup_delta_from_starboard =
+      startup_time_from_starboard - time_origin;
+  base::TimeDelta startup_delta_from_shell =
+      startup_time_from_shell - time_origin;
+  base::TimeDelta startup_delta_between_shell_and_starboard =
+      startup_time_from_starboard - startup_time_from_shell;
+  LOG(INFO) << "OriginTime is " << time_origin.ToInternalValue()
+            << "startup time from shell is "
+            << startup_time_from_shell.ToInternalValue()
+            << "startup time from starboard  is "
+            << startup_time_from_starboard.ToInternalValue();
+  LOG(INFO) << "startup_delta_from_starboard variable  value  is "
+            << startup_delta_from_starboard.InMillisecondsF()
+            << "startup_delta_from_shell val is "
+            << startup_delta_from_shell.InMillisecondsF()
+            << "startup_delta_between_shell_and_starboard"
+            << startup_delta_between_shell_and_starboard.InMillisecondsF();
+  resolver->Resolve(startup_delta_from_starboard.InMillisecondsF());
 #else
   resolver->Resolve(startup_time);
 #endif

@@ -21,7 +21,9 @@ namespace cobalt {
 namespace browser {
 
 void SetStartupTime(int64_t startup_time);
+void SetStartupTime1(int64_t startup_time);
 int64_t GetStartupTime();
+int64_t GetStartupTime1();
 
 }  // namespace browser
 }  // namespace cobalt

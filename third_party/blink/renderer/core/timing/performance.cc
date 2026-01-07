@@ -285,6 +285,7 @@ Performance::Performance(
           task_runner_,
           this,
           &Performance::FireResourceTimingBufferFull) {
+  LOG(INFO) << "time_origin_ value in constructor  is " << time_origin_ ;
   unix_at_zero_monotonic_ =
       GetUnixAtZeroMonotonic(base::DefaultClock::GetInstance(), tick_clock_);
   // |context| may be null in tests.
@@ -1331,6 +1332,7 @@ void Performance::SetClocksForTesting(const base::Clock* clock,
 }
 
 void Performance::ResetTimeOriginForTesting(base::TimeTicks time_origin) {
+  LOG(INFO) << "time_origin old value " << time_origin_ << "time_origin_ new val" << time_origin;
   time_origin_ = time_origin;
 }
 

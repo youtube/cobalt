@@ -18,19 +18,32 @@
 
 #include "base/time/time.h"
 
+#include "starboard/common/log.h" // nogncheck
+
 namespace cobalt {
 namespace browser {
 
 namespace {
 std::atomic<int64_t> g_startup_time{0};
+std::atomic<int64_t> g_startup_time1{0};
 }  // namespace
 
 void SetStartupTime(int64_t startup_time) {
   g_startup_time.store(startup_time);
 }
 
+void SetStartupTime1(int64_t startup_time1) {
+  g_startup_time1.store(startup_time1);
+}
+
 int64_t GetStartupTime() {
+  SB_LOG(INFO) << "potential startup time"
+               << g_startup_time.load() - g_startup_time1.load();
   return g_startup_time.load();
+}
+
+int64_t GetStartupTime1() {
+  return g_startup_time1.load();
 }
 
 }  // namespace browser
