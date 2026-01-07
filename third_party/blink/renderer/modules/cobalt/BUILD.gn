@@ -21,7 +21,6 @@ blink_modules_sources("h_5_vcc") {
   ]
   deps = [
     "//third_party/blink/renderer/modules/cobalt/crash_log",
-    "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
@@ -29,6 +28,5 @@ blink_modules_sources("h_5_vcc") {
     "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
-    "//third_party/blink/renderer/modules/cobalt/mediasource",
   ]
 }
