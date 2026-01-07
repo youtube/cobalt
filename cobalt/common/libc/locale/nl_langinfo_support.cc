@@ -15,6 +15,7 @@
 #include "cobalt/common/libc/locale/nl_langinfo_support.h"
 
 #include <algorithm>
+#include <sstream>
 #include <string>
 
 #include "cobalt/common/libc/locale/lconv_support.h"
@@ -80,6 +81,142 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
   }
 
   return loc;
+}
+
+bool IsPatternChar(UChar c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
+  std::stringstream result;
+  bool in_quote = false;
+
+  for (int32_t i = 0; i < pattern.length(); ++i) {
+    UChar c = pattern[i];
+
+    // 1. Handle Quotes (Literal Text)
+    if (c == '\'') {
+      // Check for escaped quote ('')
+      if (i + 1 < pattern.length() && pattern[i + 1] == '\'') {
+        result << '\'';
+        ++i;  // Skip next
+      } else {
+        in_quote = !in_quote;  // Toggle state
+      }
+      continue;
+    }
+    if (in_quote) {
+      result << (char)c;  // Copy literal
+      continue;
+    }
+
+    // 2. Handle Non-Pattern (Separators like / . - space)
+    if (!IsPatternChar(c)) {
+      result << (char)c;
+      continue;
+    }
+
+    // 3. Parse Token (Count repetitions: e.g., "yyyy" -> count=4)
+    int count = 1;
+    while (i + 1 < pattern.length() && pattern[i + 1] == c) {
+      count++;
+      i++;
+    }
+
+    // 4. Map ICU Token to POSIX
+    switch (c) {
+      case 'y':  // Year
+        // POSIX usually treats 'y' (1 count) as full year too.
+        // yy = %y (2 digit), yyyy = %Y (4 digit).
+        if (count == 2) {
+          result << "%y";
+        } else {
+          result << "%Y";
+        }
+        break;
+      case 'M':  // Month
+      case 'L':  // Stand-alone Month (treated same in POSIX fmt)
+        if (count >= 4) {
+          result << "%B";  // Full name
+        } else if (count == 3) {
+          result << "%b";  // Abbrev
+        } else {
+          result << "%m";  // Number
+        }
+        break;
+      case 'd':  // Day
+        // POSIX %d usually implies zero-padding (01), %e is space-padding ( 1).
+        // ICU 'd' is minimal digits (1), 'dd' is zero-padded (01).
+        // Standard D_FMT usually expects %d for both.
+        result << "%d";
+        break;
+      case 'E':  // Day of Week
+        if (count >= 4) {
+          result << "%A";  // Full
+        } else {
+          result << "%a";  // Abbrev
+        }
+        break;
+      case 'a':  // AM/PM
+        result << "%p";
+        break;
+      case 'H':  // 0-23 Hour
+      case 'k':  // 1-24 Hour
+        result << "%H";
+        break;
+      case 'h':  // 1-12 Hour
+      case 'K':  // 0-11 Hour
+        result << "%I";
+        break;
+      case 'm':  // Minute
+        result << "%M";
+        break;
+      case 's':  // Second
+        result << "%S";
+        break;
+      default:
+        // Unknown token? Ignore or output raw.
+        break;
+    }
+  }
+  return result.str();
+}
+
+icu::UnicodeString GetPatternFromStyle(const std::string& locale_id,
+                                       UDateFormatStyle date_style,
+                                       UDateFormatStyle time_style) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  // 1. Open C-API Formatter
+  UDateFormat* fmt = udat_open(time_style, date_style, locale_id.c_str(),
+                               nullptr, 0, nullptr, 0, &status);
+
+  if (U_FAILURE(status)) {
+    return icu::UnicodeString();
+  }
+
+  // 2. Pre-flight: Get length needed
+  // 'false' means we want canonical pattern chars (y, M, d), not localized
+  // ones.
+  int32_t len = udat_toPattern(fmt, false, nullptr, 0, &status);
+
+  status = U_ZERO_ERROR;  // Clear the expected buffer overflow warning
+
+  // 3. Allocate Buffer
+  std::vector<UChar> buffer(len + 1);
+
+  // 4. Fetch the Pattern
+  udat_toPattern(fmt, false, buffer.data(), len + 1, &status);
+
+  // 5. Cleanup
+  udat_close(fmt);
+
+  if (U_FAILURE(status)) {
+    return icu::UnicodeString();
+  }
+
+  // 6. Return UnicodeString directly
+  return icu::UnicodeString(buffer.data(), len);
 }
 }  // namespace
 
@@ -147,6 +284,16 @@ std::string NlGetNumericData(const std::string& locale, nl_item type) {
   }
 
   return result;
+}
+
+std::string GetD_FMT(const std::string& locale) {
+  icu::UnicodeString icu_pattern =
+      GetPatternFromStyle(locale,
+                          UDAT_SHORT,  // Date Style
+                          UDAT_NONE);  // Time Style
+
+  // 3. Convert
+  return IcuPatternToPosix(icu_pattern);
 }
 
 }  // namespace cobalt
