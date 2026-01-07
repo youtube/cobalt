@@ -22,7 +22,7 @@ import sys
 import unittest
 from unittest import mock
 
-# pylint: disable=redefined-outer-name, unused-argument, line-too-long, missing-class-docstring, missing-function-docstring, inconsistent-quotes, too-many-positional-arguments
+# pylint: disable=inconsistent-quotes
 
 
 class GnTest(unittest.TestCase):
@@ -43,8 +43,9 @@ class GnTest(unittest.TestCase):
   @mock.patch('os.rename')
   @mock.patch('builtins.open', new_callable=mock.mock_open)
   @mock.patch('subprocess.check_call')
-  def test_coverage_flag(self, mock_check_call, mock_open, mock_rename,
-                         mock_exists, mock_mkdir):
+  def test_coverage_flag(  # pylint: disable=too-many-positional-arguments
+      self, mock_check_call, mock_open, mock_rename, mock_exists, mock_mkdir):
+    del mock_rename, mock_exists  # unused
     platform = 'android-x86'
     build_type = 'devel'
     expected_out_dir = f'out/{platform}_{build_type}-coverage'
@@ -95,8 +96,9 @@ class GnTest(unittest.TestCase):
   @mock.patch('os.rename')
   @mock.patch('builtins.open', new_callable=mock.mock_open)
   @mock.patch('subprocess.check_call')
-  def test_no_coverage_flag(self, mock_check_call, mock_open, mock_rename,
-                            mock_exists, mock_mkdir):
+  def test_no_coverage_flag(  # pylint: disable=too-many-positional-arguments
+      self, mock_check_call, mock_open, mock_rename, mock_exists, mock_mkdir):
+    del mock_rename, mock_exists  # unused
     platform = 'android-x86'
     build_type = 'devel'
     expected_out_dir = f'out/{platform}_{build_type}'
