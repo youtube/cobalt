@@ -56,4 +56,7 @@ const char kOmitDeviceAuthenticationQueryParameters[] =
 // risk.
 const char kRemoteDebuggingAddress[] = "remote-debugging-address";
 
+// The delay in milliseconds before shutting down the splash screen.
+const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
+
 }  // namespace switches
