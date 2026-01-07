@@ -79,7 +79,8 @@ _COBALT_TVOS_PLATFORMS = [
 ]
 
 
-def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
+def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
+                     use_coverage):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
@@ -92,10 +93,16 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
     f.write(f'import("//{platform_args_path}")\n')
+    if use_coverage:
+      f.write('\n# Coverage args\n')
+      f.write('use_clang_coverage=true\n')
+      f.write('is_component_build=false\n')
+      f.write('is_debug=false\n')
 
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
-                            use_rbe: bool, gn_gen_args: List[str]):
+                            use_rbe: bool, gn_gen_args: List[str], *,
+                            use_coverage: bool):
   Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
@@ -108,7 +115,8 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
     print('WARNING: Existing args.gn was overwritten. '
           'Old file was copied to stale_args.gn.')
 
-  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe)
+  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe,
+                   use_coverage)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print('Running', ' '.join(gn_command))
@@ -152,6 +160,11 @@ def parse_args():
       default=False,
       action='store_true',
       help='Pass this flag to disable Remote Build Execution.')
+  parser.add_argument(
+      '--coverage',
+      default=False,
+      action='store_true',
+      help='Pass this flag to enable code coverage instrumentation.')
 
   # Consume --args to avoid passing to gn gen, overriding args.gn file.
   parser.add_argument('--args', help=argparse.SUPPRESS)
@@ -177,9 +190,15 @@ def main():
   else:
     builds_out_directory = os.path.join(
         _BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
-  configure_out_directory(builds_out_directory, script_args.platform,
-                          script_args.build_type, not script_args.no_rbe,
-                          gen_args)
+    if script_args.coverage:
+      builds_out_directory += '-coverage'
+  configure_out_directory(
+      builds_out_directory,
+      script_args.platform,
+      script_args.build_type,
+      not script_args.no_rbe,
+      gen_args,
+      use_coverage=script_args.coverage)
 
 
 if __name__ == '__main__':
