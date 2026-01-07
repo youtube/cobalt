@@ -146,11 +146,9 @@ TEST_F(H5vccAccessibilityTest, IsTextToSpeechEnabledSyncWithCachedValue) {
     loop.Run();
   }
   // Second time around, textToSpeech() does not trigger trigger a Mojo call:
-  // last read value is cached.
+  // last fetched value is cached.
   {
     base::RunLoop loop;
-    auto closure = loop.QuitClosure();
-
     EXPECT_CALL(*h5vcc_accessibility_service(), IsTextToSpeechEnabledSync(_))
         .Times(0);
     EXPECT_EQ(h5vcc_accessibility->textToSpeech(), kValue);
