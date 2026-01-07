@@ -3,7 +3,6 @@
   "disabled": {
     "cobalt:cobalt_unittests": "b/453909269 - Devtools missing inputs",
     "gpu:gpu_benchmark": "b/453909269 - Devtools missing inputs",
-    "third_party/blink/renderer/controller:blink_unittests": "b/453909269 - Devtools missing inputs",
     "third_party/blink/renderer/platform:blink_platform_nocompile_tests": "b/453909269 - Packaging issue",
     "third_party/blink/renderer/platform/heap:blink_heap_perftests": "b/453909269 - crashes on startup",
     "net:net_unittests": "b/453909269 - Fails remotely",
@@ -31,6 +30,7 @@
     "sql:sql_unittests",
     "starboard:starboard_unittests_wrapper",
     "starboard/nplb:nplb",
+    "third_party/blink/renderer/controller:blink_unittests",
     "third_party/blink/renderer/platform:blink_platform_perftests",
     "third_party/blink/renderer/platform:blink_platform_unittests",
     "third_party/blink/renderer/platform/heap:blink_heap_unittests",
