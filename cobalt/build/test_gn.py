@@ -121,7 +121,9 @@ class GnTest(unittest.TestCase):
     # Verify args.gn content
     mock_open.assert_called_once()
     handle = mock_open()
-    self.assertNotIn(unexpected_args_content_part, handle.write.call_args[0][0])
+    actual_content = "".join(
+        [call.args[0] for call in handle.write.call_args_list])
+    self.assertNotIn(unexpected_args_content_part, actual_content)
 
     # Verify gn gen command
     mock_check_call.assert_called_once_with([
