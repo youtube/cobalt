@@ -1,12 +1,11 @@
-# Steps to update requirements.txt:
+# IMPORTANT: Remember to also update requirements.txt when updating this file:
 #
-# 1)  Build the container:
+#   docker run -it -v .:/code -w /code python:3.11 /bin/bash
 #
-#     docker build -f cobalt/tools/Dockerfile.pyreq -t pyreq cobalt/tools/
+# In the container:
 #
-# 2)  Run the container:
+#   pip3 install pip-tools
+#   pip-compile --allow-unsafe --generate-hashes cobalt/tools/requirements.in
 #
-#     docker run -it -v .:/code pyreq
-
 grpcio==1.70.0
 grpcio-tools==1.70.0
