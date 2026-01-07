@@ -30,9 +30,6 @@
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 namespace {
-
-static ui::PlatformEventSourceStarboard* g_platform_event_source = nullptr;
-
 // This delegate is the bridge between the content::LaunchTests function
 // and the Google Test framework.
 class StarboardTestLauncherDelegate : public content::TestLauncherDelegate {
@@ -63,8 +60,6 @@ void SbEventHandle(const SbEvent* event) {
 
     base::InitStarboardTestMessageLoop();
 
-    g_platform_event_source = new ui::PlatformEventSourceStarboard();
-
     int test_result_code =
         content::LaunchTests(&delegate, 1, start_data->argument_count,
                              const_cast<char**>(start_data->argument_values));
@@ -75,9 +70,6 @@ void SbEventHandle(const SbEvent* event) {
     // are not stopped automatically. If we don't stop them here, they remain
     // alive at AtExit, causing a "Dangling Pointer" crash.
     content::ShellDevToolsManagerDelegate::StopHttpHandler();
-
-    delete g_platform_event_source;
-    g_platform_event_source = nullptr;
 
     SbSystemRequestStop(test_result_code);
   }
