@@ -28,10 +28,7 @@ blink_modules_sources("h_5_vcc") {
     "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
-<<<<<<< HEAD
     "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
-=======
->>>>>>> 1d41c378d46 (Refactor media dependencies in Blink modules (#8528))
   ]
 
   if (use_starboard_media) {
