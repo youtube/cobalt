@@ -175,18 +175,11 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
-<<<<<<< HEAD
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
-=======
-      "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
-      "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
-      "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
-      "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
       "//third_party/blink/renderer/modules/cobalt/mediasource",
->>>>>>> 1d41c378d46 (Refactor media dependencies in Blink modules (#8528))
     ]
   }
 
