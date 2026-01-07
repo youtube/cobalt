@@ -16,7 +16,6 @@ package org.chromium.content_browsertests_apk;
 
 import android.app.Activity;
 import android.app.Service;
-import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 
@@ -73,9 +72,7 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
             LibraryLoader.getInstance().ensureInitialized();
         }
 
-        setContentView(getTestActivityViewId());
-        ViewGroup shellContainer = (ViewGroup) findViewById(getShellManagerViewId());
-        mShellManager = new ShellManager(this, shellContainer);
+        mShellManager = new ShellManager(this);
         IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
         mWindowAndroid =
                 new ActivityWindowAndroid(
@@ -142,7 +139,5 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
         return "user-data-dir";
     }
 
-    protected abstract int getTestActivityViewId();
 
-    protected abstract int getShellManagerViewId();
 }

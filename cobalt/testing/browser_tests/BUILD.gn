@@ -173,10 +173,7 @@ if (is_android) {
 
   android_resources("content_browsertests_resources") {
     testonly = true
-    sources = [
-      "browsertests_apk/res/layout/test_activity.xml",
-      "browsertests_apk/res/xml/file_paths.xml",
-    ]
+    sources = [ "browsertests_apk/res/xml/file_paths.xml" ]
   }
 }
 

@@ -21,7 +21,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
 import android.text.TextUtils;
-import android.util.AttributeSet;
 import android.view.ActionMode;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -91,17 +90,9 @@ public class Shell {
     /**
      * Constructor for inflating via XML.
      */
-    public Shell(Context context, AttributeSet attrs) {
-        super(context, attrs);
+    public Shell(Context context) {
         Activity activity = (Activity) context;
         mRootView = activity.findViewById(android.R.id.content);
-    }
-
-    /**
-     * Constructor for inflating via XML.
-     */
-    public Shell(Context context) {
-        this(context, null);
     }
 
     public void setRootViewForTesting(ViewGroup view) {
@@ -145,9 +136,7 @@ public class Shell {
      * dependencies.
      */
     public void close() {
-        if (mNativeShell == 0) {
-            return;
-        }
+        if (mNativeShell == 0) return;
         ShellJni.get().closeShell(mNativeShell);
     }
 
@@ -189,9 +178,7 @@ public class Shell {
      * @param url The URL to be loaded by the shell.
      */
     public void loadUrl(String url) {
-        if (url == null) {
-            return;
-        }
+        if (url == null) return;
 
         if (TextUtils.equals(url, mWebContents.getLastCommittedUrl().getSpec())) {
             mNavigationController.reload(true);
@@ -206,12 +193,8 @@ public class Shell {
      * @return The sanitized URL.
      */
     public static String sanitizeUrl(String url) {
-        if (url == null) {
-            return null;
-        }
-        if (url.startsWith("www.") || url.indexOf(":") == -1) {
-            url = "http://" + url;
-        }
+        if (url == null) return null;
+        if (url.startsWith("www.") || url.indexOf(":") == -1) url = "http://" + url;
         return url;
     }
 
@@ -249,9 +232,7 @@ public class Shell {
         if (webContents == null || mContentViewRenderView == null) return;
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
-        if (mWebContents != null) {
-            mWebContents.clearNativeReference();
-        }
+        if (mWebContents != null) mWebContents.clearNativeReference();
         webContents.setDelegates(
                 "", mViewAndroidDelegate, null, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
