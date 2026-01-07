@@ -1,4 +1,4 @@
-FROM python:3.11.14-trixie
+FROM python:3.11.14-trixie@sha256:a59271513fb0937fe3aac14c5178ab68b8125c39f7c503628a6ac9e9906c45cf
 RUN pip3 install pip-tools==7.5.2
 WORKDIR /code
 CMD pip-compile --allow-unsafe --generate-hashes ./cobalt/tools/requirements.in
