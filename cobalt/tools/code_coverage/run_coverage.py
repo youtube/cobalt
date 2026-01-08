@@ -105,7 +105,7 @@ def main():
     print(f'Discovered targets: {", ".join(targets)}')  # pylint: disable=inconsistent-quotes
 
   # 1. Run gn.py with --coverage
-  build_dir = os.path.join('out', f'{args.platform}_devel-coverage')
+  build_dir = os.path.join('out', f'{args.platform}_devel')
   gn_command = [sys.executable, GN_PY_PATH, '-p', args.platform, '--coverage']
   print(f"Running command: {' '.join(gn_command)}")
   try:

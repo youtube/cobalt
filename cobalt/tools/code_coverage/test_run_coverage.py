@@ -44,7 +44,7 @@ class RunCoverageTest(unittest.TestCase):
     target = 'cobalt:unittests'
     sanitized_target = 'cobalt_unittests'
     executable_name = 'unittests'
-    build_dir = f'out/{platform}_devel-coverage'
+    build_dir = f'out/{platform}_devel'
     expected_command = os.path.join(build_dir, executable_name)
     target_output_dir = os.path.join(output_dir, sanitized_target)
 
@@ -96,7 +96,7 @@ class RunCoverageTest(unittest.TestCase):
     del mock_makedirs  # Unused argument.
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
-    build_dir = f'out/{platform}_devel-coverage'
+    build_dir = f'out/{platform}_devel'
 
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -304,7 +304,7 @@ class RunCoverageTest(unittest.TestCase):
     target = 'cobalt:unittests'
     sanitized_target = 'cobalt_unittests'
     executable_name = 'unittests'
-    build_dir = f'out/{platform}_devel-coverage'
+    build_dir = f'out/{platform}_devel'
     base_command = os.path.join(build_dir, executable_name)
     target_output_dir = os.path.join(output_dir, sanitized_target)
     filter_file_path = os.path.join(run_coverage.SRC_ROOT_PATH, 'cobalt',
