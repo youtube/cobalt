@@ -49,42 +49,42 @@ void H5vccUpdaterImpl::Create(
 
 void H5vccUpdaterImpl::GetUpdaterChannel(GetUpdaterChannelCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
                                          SetUpdaterChannelCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::GetUpdateStatus(GetUpdateStatusCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::ResetInstallations(ResetInstallationsCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::GetInstallationIndex(
     GetInstallationIndexCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
     GetAllowSelfSignedPackagesCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::SetAllowSelfSignedPackages(
     bool allow_self_signed_packages,
     SetAllowSelfSignedPackagesCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
@@ -94,33 +94,33 @@ void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
       cobalt::updater::UpdaterModule::GetInstance()->GetUpdateServerUrl();
   std::move(callback).Run(url);
 #else
-  NOTREACHED();
+  NOTIMPLEMENTED();
 #endif
 }
 
 void H5vccUpdaterImpl::SetUpdateServerUrl(const std::string& update_server_url,
                                           SetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::GetRequireNetworkEncryption(
     GetRequireNetworkEncryptionCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::SetRequireNetworkEncryption(
     bool require_network_encryption,
     SetRequireNetworkEncryptionCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,
                                         GetLibrarySha256Callback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTREACHED();
+  NOTIMPLEMENTED();
 }
 
 }  // namespace h5vcc_updater
