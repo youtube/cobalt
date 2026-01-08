@@ -460,9 +460,10 @@ void Shell::LoadURL(const GURL& url) {
       url, std::string(),
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS)
   // Load splash screen on linux/3p platforms. On ATV, it is called by
-  // JNI_Shell_LoadSplashScreenWebContents().
+  // JNI_Shell_LoadSplashScreenWebContents(). On tvOS, it is called by
+  // -viewDidLoad.
   LoadSplashScreenWebContents();
 #endif
 }
