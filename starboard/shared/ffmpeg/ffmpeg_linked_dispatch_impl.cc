@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
+// clang-format on
+
 // This file implements the FFMPEGDispatch interface for a library linked
 // directly, or which the symbols are already available in the global namespace.
 
@@ -24,7 +28,6 @@
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
-#include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
 namespace starboard {

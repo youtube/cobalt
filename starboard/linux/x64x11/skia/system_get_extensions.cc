@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/linux/x64x11/skia/configuration.h"
-#include "starboard/system.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
