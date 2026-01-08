@@ -16,6 +16,8 @@ package dev.cobalt.shell;
 
 import android.graphics.Bitmap;
 import android.view.ViewGroup;
+import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.ui.base.ViewAndroidDelegate;
 import org.chromium.ui.mojom.CursorType;
 
@@ -24,6 +26,7 @@ import org.chromium.ui.mojom.CursorType;
  * Implementation of the abstract class {@link ViewAndroidDelegate} for content shell.
  * Extended for testing.
  */
+@NullMarked
 public class ShellViewAndroidDelegate extends ViewAndroidDelegate {
     /**
      * An interface delegates a {@link CallbackHelper} for cursor update. see more in {@link
@@ -37,7 +40,7 @@ public class ShellViewAndroidDelegate extends ViewAndroidDelegate {
         void notifyCalled(int type);
     }
 
-    private OnCursorUpdateHelper mOnCursorUpdateHelper;
+    private @Nullable OnCursorUpdateHelper mOnCursorUpdateHelper;
 
     public ShellViewAndroidDelegate(ViewGroup containerView) {
         super(containerView);
@@ -47,7 +50,7 @@ public class ShellViewAndroidDelegate extends ViewAndroidDelegate {
         mOnCursorUpdateHelper = helper;
     }
 
-    public OnCursorUpdateHelper getOnCursorUpdateHelper() {
+    public @Nullable OnCursorUpdateHelper getOnCursorUpdateHelper() {
         return mOnCursorUpdateHelper;
     }
 

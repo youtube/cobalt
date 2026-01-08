@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "cobalt/shell/browser/shell_platform_delegate.h"
+// clang-format on
+
 #include "base/containers/contains.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
-#include "cobalt/shell/browser/shell_platform_delegate.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/aura/env.h"

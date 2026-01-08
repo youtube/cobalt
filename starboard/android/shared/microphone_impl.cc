@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/shared/starboard/microphone/microphone_internal.h"
+// clang-format on
+
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
 
@@ -25,7 +29,6 @@
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/microphone/microphone_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
