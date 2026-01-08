@@ -586,8 +586,8 @@ void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
 
   UIView* web_contents_view =
       shell->splash_screen_web_contents()->GetNativeView().Get();
-  [((ContentShellWindowDelegate*)shell_data.window.rootViewController)
-      setContents:web_contents_view];
+  [static_cast<ContentShellWindowDelegate*>(
+      shell_data.window.rootViewController) setContents:web_contents_view];
 }
 
 void ShellPlatformDelegate::UpdateContents(Shell* shell) {
@@ -601,8 +601,8 @@ void ShellPlatformDelegate::UpdateContents(Shell* shell) {
     web_contents->WasShown();
   }
   UIView* web_contents_view = web_contents->GetNativeView().Get();
-  [((ContentShellWindowDelegate*)shell_data.window.rootViewController)
-      setContents:web_contents_view];
+  [static_cast<ContentShellWindowDelegate*>(
+      shell_data.window.rootViewController) setContents:web_contents_view];
 }
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
