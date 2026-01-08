@@ -27,6 +27,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace blink {
 
@@ -69,7 +70,7 @@ class MODULES_EXPORT H5vccAccessibility final
 
   // TODO(b/458102489): Remove this value caching when Kabuki uses the Event
   // exclusively.
-  std::optional<bool> last_text_to_speech_enabled_;
+  std::optional<bool> cached_text_to_speech_enabled_;
 
   // Proxy to the remote H5vccAccessibilityBrowser implementation.
   HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>
