@@ -54,12 +54,6 @@ declare_args() {
   enable_coverage = false
 }
 
-if (enable_coverage) {
-  use_clang_coverage = true
-  is_component_build = false
-  is_debug = false
-}
-
 # Disable hls_demuxer so that enable_mse_mpeg2ts_stream_parser=false
 enable_hls_demuxer = false
 

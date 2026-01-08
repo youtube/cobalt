@@ -94,7 +94,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
       f.write(f'{key} = {value} {gen_comment}\n')
     f.write(f'import("//{platform_args_path}")\n')
     if use_coverage:
-      f.write(f'enable_coverage = true {gen_comment}\n')
+      f.write(f'import("//cobalt/build/configs/coverage.gn") {gen_comment}\n')
 
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
