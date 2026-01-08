@@ -39,6 +39,7 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/log_format.cc",
     "//starboard/shared/posix/log_raw.cc",
     "//starboard/shared/posix/system_break_into_debugger.cc",
+    "//starboard/shared/posix/system_get_error_string.cc",
     "//starboard/shared/starboard/application.cc",
     "//starboard/shared/starboard/application.h",
     "//starboard/shared/starboard/audio_sink/audio_sink_create.cc",
