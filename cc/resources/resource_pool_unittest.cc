@@ -94,6 +94,8 @@ TEST_F(ResourcePoolTest, AcquireRelease) {
   resource_pool_->ReleaseResource(std::move(resource));
 }
 
+// Cobalt avoids resource reuse to save memory.
+#if !BUILDFLAG(IS_COBALT)
 TEST_F(ResourcePoolTest, EventuallyEvictAndFlush) {
   gfx::Size size(100, 100);
   viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
@@ -768,5 +770,6 @@ TEST_F(ResourcePoolTest, InvalidResource) {
   EXPECT_FALSE(resource.gpu_backing());
   resource_pool_->ReleaseResource(std::move(resource));
 }
+#endif
 
 }  // namespace cc
