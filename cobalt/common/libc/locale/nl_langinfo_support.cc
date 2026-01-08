@@ -85,6 +85,7 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
 }
 
 std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
+  // --- DATE (Existing) ---
   if (token == "yyyy") {
     return "%Y";
   }
@@ -124,12 +125,66 @@ std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
   if (token == "E") {
     return "%a";
   }
-
   if (token.startsWith("G")) {
-    return "";
+    return "";  // Strip Era
   }
 
-  // If unknown, return raw UTF-8
+  // --- TIME (New) ---
+
+  // Hours
+  if (token == "HH") {
+    return "%H";  // 00-23
+  }
+  if (token == "H") {
+    return "%k";  // 0-23 (GNU) or "%H" (POSIX)
+  }
+  if (token == "kk") {
+    return "%H";  // 01-24 (Map to %H usually)
+  }
+  if (token == "k") {
+    return "%H";
+  }
+  if (token == "hh") {
+    return "%I";  // 01-12
+  }
+  if (token == "h") {
+    return "%l";  // 1-12 (GNU) or "%I" (POSIX)
+  }
+  if (token == "K") {
+    return "%l";  // 0-11
+  }
+  if (token == "KK") {
+    return "%I";
+  }
+
+  // Minutes
+  if (token == "mm") {
+    return "%M";  // 00-59
+  }
+  if (token == "m") {
+    return "%M";
+  }
+
+  // Seconds
+  if (token == "ss") {
+    return "%S";  // 00-59
+  }
+  if (token == "s") {
+    return "%S";
+  }
+
+  // AM/PM
+  if (token == "a" || token == "aa" || token == "aaa" || token == "aaaa") {
+    return "%p";
+  }
+
+  // Timezone (Generic)
+  // POSIX usually handles %Z or %z. ICU 'z', 'v', 'V' map loosely here.
+  if (token.startsWith("z") || token.startsWith("v") || token.startsWith("V")) {
+    return "%Z";
+  }
+
+  // Default
   std::string s;
   token.toUTF8String(s);
   return s;
@@ -174,7 +229,10 @@ std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
     // 3. Handle Format Characters
     // (y, M, d, E, etc.)
     bool isFormatChar =
-        (c == 'y' || c == 'M' || c == 'd' || c == 'E' || c == 'L' || c == 'G');
+        (c == 'y' || c == 'M' || c == 'd' || c == 'E' || c == 'L' || c == 'G' ||
+         // NEW TIME CHARS:
+         c == 'H' || c == 'h' || c == 'k' || c == 'K' || c == 'm' || c == 's' ||
+         c == 'a' || c == 'z' || c == 'v');
 
     if (isFormatChar) {
       // If this char matches the current token (e.g. "y" -> "yy"), append it
@@ -315,15 +373,20 @@ std::string NlGetNumericData(const std::string& locale, nl_item type) {
   return result;
 }
 
-std::string GetD_FMT(const std::string& locale) {
-  icu::UnicodeString icu_pattern =
-      GetPatternFromStyle(locale,
-                          UDAT_SHORT,  // Date Style
-                          UDAT_NONE);  // Time Style
+std::string GetPosixFormat(const std::string& locale, nl_item item) {
+  icu::UnicodeString icu_pattern;
 
-  SB_LOG(INFO) << "This is the pattern: " << ToUtf8(icu_pattern);
-  // 3. Convert
+  switch (item) {
+    case D_FMT:
+      icu_pattern = GetPatternFromStyle(locale, UDAT_SHORT, UDAT_NONE);
+      break;
+    case T_FMT:
+      icu_pattern = GetPatternFromStyle(locale, UDAT_NONE, UDAT_MEDIUM);
+      break;
+    default:
+      icu_pattern = "";
+  }
+
   return IcuPatternToPosix(icu_pattern);
 }
-
 }  // namespace cobalt

@@ -193,7 +193,7 @@ TEST_P(NlLanginfoTest, AllItems) {
   // TODO: b/466160361 - Add remaining support for D_FMT* operations.
   // CheckItem(D_T_FMT, data.d_t_fmt);
   CheckItem(D_FMT, data.d_fmt);
-  // CheckItem(T_FMT, data.t_fmt);
+  CheckItem(T_FMT, data.t_fmt);
   // CheckItem(T_FMT_AMPM, data.t_fmt_ampm);
   CheckItem(AM_STR, data.am_str);
   CheckItem(PM_STR, data.pm_str);
@@ -244,7 +244,7 @@ TEST_P(NlLanginfoLTest, AllItems) {
   // TODO: b/466160361 - Add remaining support for D_FMT* operations.
   // CheckItemL(D_T_FMT, data.d_t_fmt, locale);
   CheckItemL(D_FMT, data.d_fmt, locale);
-  // CheckItemL(T_FMT, data.t_fmt, locale);
+  CheckItemL(T_FMT, data.t_fmt, locale);
   // CheckItemL(T_FMT_AMPM, data.t_fmt_ampm, locale);
   CheckItemL(AM_STR, data.am_str, locale);
   CheckItemL(PM_STR, data.pm_str, locale);

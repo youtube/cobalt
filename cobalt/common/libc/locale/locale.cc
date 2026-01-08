@@ -262,10 +262,10 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case D_T_FMT:
       return const_cast<char*>("%a %b %e %H:%M:%S %Y");
     case D_FMT:
-      langinfo_buffer = cobalt::GetD_FMT(cur_locale->categories[LC_TIME]);
-      break;
     case T_FMT:
-      return const_cast<char*>("%H:%M:%S");
+      langinfo_buffer =
+          cobalt::GetPosixFormat(cur_locale->categories[LC_TIME], item);
+      break;
     case T_FMT_AMPM:
       return const_cast<char*>("%I:%M:%S %p");
     case AM_STR:
