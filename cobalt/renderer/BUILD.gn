@@ -38,6 +38,7 @@ source_set("renderer") {
     "//media",
     "//media/mojo:buildflags",
     "//starboard:starboard_headers_only",
+    "//third_party/blink/renderer/platform",
     "//v8",
   ]
 
