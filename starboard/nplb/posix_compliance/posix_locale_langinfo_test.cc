@@ -192,7 +192,7 @@ TEST_P(NlLanginfoTest, AllItems) {
   CheckItem(CODESET, data.codeset);
   // TODO: b/466160361 - Add remaining support for D_FMT* operations.
   // CheckItem(D_T_FMT, data.d_t_fmt);
-  // CheckItem(D_FMT, data.d_fmt);
+  CheckItem(D_FMT, data.d_fmt);
   // CheckItem(T_FMT, data.t_fmt);
   // CheckItem(T_FMT_AMPM, data.t_fmt_ampm);
   CheckItem(AM_STR, data.am_str);

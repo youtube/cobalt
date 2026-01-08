@@ -19,6 +19,7 @@
 #include <string>
 
 #include "cobalt/common/libc/locale/lconv_support.h"
+#include "starboard/common/log.h"
 #include "third_party/icu/source/common/unicode/localebuilder.h"
 #include "third_party/icu/source/common/unicode/locid.h"
 #include "third_party/icu/source/common/unicode/uscript.h"
@@ -83,103 +84,131 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
   return loc;
 }
 
-bool IsPatternChar(UChar c) {
-  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
+  if (token == "yyyy") {
+    return "%Y";
+  }
+  if (token == "yy") {
+    return "%y";
+  }
+  if (token == "y") {
+    return "%Y";
+  }
+  if (token == "MMMM") {
+    return "%B";
+  }
+  if (token == "MMM") {
+    return "%b";
+  }
+  if (token == "MM") {
+    return "%m";
+  }
+  if (token == "M") {
+    return "%m";
+  }
+  if (token == "dd") {
+    return "%d";
+  }
+  if (token == "d") {
+    return "%d";
+  }
+  if (token == "EEEE") {
+    return "%A";
+  }
+  if (token == "EEE") {
+    return "%a";
+  }
+  if (token == "EE") {
+    return "%a";
+  }
+  if (token == "E") {
+    return "%a";
+  }
+
+  if (token.startsWith("G")) {
+    return "";
+  }
+
+  // If unknown, return raw UTF-8
+  std::string s;
+  token.toUTF8String(s);
+  return s;
 }
 
 std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
-  std::stringstream result;
-  bool in_quote = false;
+  std::string result;
+  bool inQuote = false;
+  icu::UnicodeString currentToken;
 
   for (int32_t i = 0; i < pattern.length(); ++i) {
     UChar c = pattern[i];
 
-    // 1. Handle Quotes (Literal Text)
+    // 1. Handle Quotes (The logic that fixes bg_BG)
     if (c == '\'') {
-      // Check for escaped quote ('')
+      // Check for escaped quote (two single quotes in a row: '')
       if (i + 1 < pattern.length() && pattern[i + 1] == '\'') {
-        result << '\'';
-        ++i;  // Skip next
+        result += "'";  // It's just a literal single quote
+        i++;            // Skip the second quote
       } else {
-        in_quote = !in_quote;  // Toggle state
+        // Toggle quote mode
+        inQuote = !inQuote;
       }
       continue;
     }
-    if (in_quote) {
-      result << (char)c;  // Copy literal
+
+    // 2. Handle Quoted Literals (Copy exactly)
+    if (inQuote) {
+      // If we have pending format tokens, flush them first
+      if (!currentToken.isEmpty()) {
+        result += MapIcuTokenToPosix(currentToken);
+        currentToken.remove();
+      }
+
+      // Append the literal char (convert to UTF-8)
+      std::string temp;
+      icu::UnicodeString(c).toUTF8String(temp);
+      result += temp;
       continue;
     }
 
-    // 2. Handle Non-Pattern (Separators like / . - space)
-    if (!IsPatternChar(c)) {
-      result << (char)c;
-      continue;
-    }
+    // 3. Handle Format Characters
+    // (y, M, d, E, etc.)
+    bool isFormatChar =
+        (c == 'y' || c == 'M' || c == 'd' || c == 'E' || c == 'L' || c == 'G');
 
-    // 3. Parse Token (Count repetitions: e.g., "yyyy" -> count=4)
-    int count = 1;
-    while (i + 1 < pattern.length() && pattern[i + 1] == c) {
-      count++;
-      i++;
-    }
-
-    // 4. Map ICU Token to POSIX
-    switch (c) {
-      case 'y':  // Year
-        // POSIX usually treats 'y' (1 count) as full year too.
-        // yy = %y (2 digit), yyyy = %Y (4 digit).
-        if (count == 2) {
-          result << "%y";
-        } else {
-          result << "%Y";
-        }
-        break;
-      case 'M':  // Month
-      case 'L':  // Stand-alone Month (treated same in POSIX fmt)
-        if (count >= 4) {
-          result << "%B";  // Full name
-        } else if (count == 3) {
-          result << "%b";  // Abbrev
-        } else {
-          result << "%m";  // Number
-        }
-        break;
-      case 'd':  // Day
-        // POSIX %d usually implies zero-padding (01), %e is space-padding ( 1).
-        // ICU 'd' is minimal digits (1), 'dd' is zero-padded (01).
-        // Standard D_FMT usually expects %d for both.
-        result << "%d";
-        break;
-      case 'E':  // Day of Week
-        if (count >= 4) {
-          result << "%A";  // Full
-        } else {
-          result << "%a";  // Abbrev
-        }
-        break;
-      case 'a':  // AM/PM
-        result << "%p";
-        break;
-      case 'H':  // 0-23 Hour
-      case 'k':  // 1-24 Hour
-        result << "%H";
-        break;
-      case 'h':  // 1-12 Hour
-      case 'K':  // 0-11 Hour
-        result << "%I";
-        break;
-      case 'm':  // Minute
-        result << "%M";
-        break;
-      case 's':  // Second
-        result << "%S";
-        break;
-      default:
-        // Unknown token? Ignore or output raw.
-        break;
+    if (isFormatChar) {
+      // If this char matches the current token (e.g. "y" -> "yy"), append it
+      if (currentToken.isEmpty() || currentToken[0] == c) {
+        currentToken.append(c);
+      } else {
+        // Different char started (e.g. "MM" -> "d"), flush old token
+        result += MapIcuTokenToPosix(currentToken);
+        currentToken.remove();
+        currentToken.append(c);
+      }
+    } else {
+      // It's a separator (., /, space), flush pending token
+      if (!currentToken.isEmpty()) {
+        result += MapIcuTokenToPosix(currentToken);
+        currentToken.remove();
+      }
+      // Append the separator literal
+      std::string temp;
+      icu::UnicodeString(c).toUTF8String(temp);
+      result += temp;
     }
   }
-  return result.str();
+
+  // Flush any remaining token
+  if (!currentToken.isEmpty()) {
+    result += MapIcuTokenToPosix(currentToken);
+  }
+
+  if (!result.empty() && result.back() == ' ') {
+    result.pop_back();
+  }
+
+  return result;
 }
 
 icu::UnicodeString GetPatternFromStyle(const std::string& locale_id,
@@ -292,6 +321,7 @@ std::string GetD_FMT(const std::string& locale) {
                           UDAT_SHORT,  // Date Style
                           UDAT_NONE);  // Time Style
 
+  SB_LOG(INFO) << "This is the pattern: " << ToUtf8(icu_pattern);
   // 3. Convert
   return IcuPatternToPosix(icu_pattern);
 }
