@@ -88,6 +88,11 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
   auto* service_client = manager_client->metrics_service_client();
   auto* state_manager = manager_client->GetMetricsStateManager();
 
+  if (state_manager->client_id().empty()) {
+    std::move(callback).Run(std::string());
+    return;
+  }
+
   ::metrics::ChromeUserMetricsExtension uma_proto;
   // We create a temporary MetricsLog object to facilitate serializing
   // histograms. This class requires a session ID in its constructor, but the
@@ -95,13 +100,16 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
   // stored in the system profile, but this function only extracts the
   // histogram data, and the rest of the log (including the system profile) is
   // discarded. Therefore, a placeholder value of 1 is sufficient.
-  metrics::MetricsLog log(state_manager->client_id(), 1,
+  metrics::MetricsLog log(state_manager->client_id(), /*session_id=*/1,
                           metrics::MetricsLog::LogType::ONGOING_LOG,
                           service_client);
   for (base::HistogramBase* const histogram :
        base::StatisticsRecorder::GetHistograms()) {
-    log.RecordHistogramDelta(histogram->histogram_name(),
-                             *histogram->SnapshotSamples());
+    auto samples = histogram->SnapshotSamples();
+    if (samples->TotalCount() == 0) {
+      continue;
+    }
+    log.RecordHistogramDelta(histogram->histogram_name(), *samples);
   }
   std::string encoded_log;
   log.FinalizeLog(false, service_client->GetVersionString(),
@@ -110,8 +118,6 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
 
   cobalt::browser::metrics::CobaltUMAEvent cobalt_proto;
   cobalt_proto.mutable_histogram_event()->CopyFrom(uma_proto.histogram_event());
-
-  DLOG(INFO) << "Cobalt UMA Event: " << cobalt_proto.DebugString();
 
   std::string serialized_proto;
   cobalt_proto.SerializeToString(&serialized_proto);
