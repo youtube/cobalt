@@ -10,12 +10,15 @@
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
-// limitations under the License.
+// limitations under the.
+
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
 
 #include <unistd.h>
 
 #include "starboard/common/log.h"
-#include "starboard/system.h"
 
 int SbSystemGetNumberOfProcessors() {
   // It seems that sysconf returns the number of "logical" processors on both
