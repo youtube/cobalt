@@ -15,15 +15,17 @@
 #ifndef STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 #define STARBOARD_TESTING_FAKE_GRAPHICS_CONTEXT_PROVIDER_H_
 
-#include <pthread.h>
-
 #include <functional>
+#include <memory>
 
 #include "starboard/common/queue.h"
+#include "starboard/common/thread.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/egl.h"
 #include "starboard/gles.h"
+#include "starboard/shared/starboard/thread_checker.h"
+#include "starboard/thread.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -31,7 +33,7 @@ namespace starboard {
 // This class provides a SbDecodeTargetGraphicsContextProvider implementation
 // used by SbPlayer related tests.  It creates a thread and forwards decode
 // target creation/destruction to the thread.
-class FakeGraphicsContextProvider {
+class FakeGraphicsContextProvider : public Thread {
  public:
   FakeGraphicsContextProvider();
   ~FakeGraphicsContextProvider();
@@ -47,7 +49,8 @@ class FakeGraphicsContextProvider {
   void Render();
 
  private:
-  static void* ThreadEntryPoint(void* context);
+  bool IsRunningOnDecoderContextThread() const;
+  void Run() override;
   void RunLoop();
 
   void InitializeEGL();
@@ -69,7 +72,7 @@ class FakeGraphicsContextProvider {
   SbEglSurface surface_;
   SbEglContext context_;
   Queue<std::function<void()>> functor_queue_;
-  pthread_t decode_target_context_thread_;
+  std::unique_ptr<ThreadChecker> thread_checker_;
 
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };

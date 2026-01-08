@@ -92,7 +92,8 @@
 namespace starboard {
 
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
-    : display_(EGL_NO_DISPLAY),
+    : Thread("dt_context"),
+      display_(EGL_NO_DISPLAY),
       surface_(EGL_NO_SURFACE),
       context_(EGL_NO_CONTEXT) {
   InitializeEGL();
@@ -102,14 +103,18 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   RunOnGlesContextThread(
       std::bind(&FakeGraphicsContextProvider::DestroyContext, this));
   functor_queue_.Wake();
-  pthread_join(decode_target_context_thread_, NULL);
+  Join();
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
 }
 
+bool FakeGraphicsContextProvider::IsRunningOnDecoderContextThread() const {
+  return thread_checker_ && thread_checker_->CalledOnValidThread();
+}
+
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (IsRunningOnDecoderContextThread()) {
     functor();
     return;
   }
@@ -128,7 +133,7 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     SbDecodeTarget decode_target) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (IsRunningOnDecoderContextThread()) {
     SbDecodeTargetRelease(decode_target);
     return;
   }
@@ -147,17 +152,9 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
   condition_variable.wait(lock, [&functor_done] { return functor_done; });
 }
 
-// static
-void* FakeGraphicsContextProvider::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("dt_context");
-#else
-  pthread_setname_np(pthread_self(), "dt_context");
-#endif
-  auto provider = static_cast<FakeGraphicsContextProvider*>(context);
-  provider->RunLoop();
-
-  return NULL;
+void FakeGraphicsContextProvider::Run() {
+  thread_checker_.reset(new ThreadChecker());
+  RunLoop();
 }
 
 void FakeGraphicsContextProvider::RunLoop() {
@@ -287,8 +284,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
 
-  pthread_create(&decode_target_context_thread_, nullptr,
-                 &FakeGraphicsContextProvider::ThreadEntryPoint, this);
+  Start();
   MakeNoContextCurrent();
 
   functor_queue_.Put(
@@ -298,7 +294,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
-  if (pthread_equal(pthread_self(), decode_target_context_thread_)) {
+  if (IsRunningOnDecoderContextThread()) {
     target_function(target_function_context);
     return;
   }
