@@ -30,7 +30,8 @@ SRC_ROOT_PATH = os.path.join(
     os.path.pardir)
 GN_PY_PATH = os.path.join(SRC_ROOT_PATH, 'cobalt', 'build', 'gn.py')
 COVERAGE_TOOL_PATH = os.path.join(SRC_ROOT_PATH, 'cobalt', 'tools',
-                                  'code_coverage', 'code_coverage_tool.py')
+                                  'code_coverage',
+                                  'cobalt_code_coverage_bridge.py')
 TEST_TARGETS_DIR = os.path.join(SRC_ROOT_PATH, 'cobalt', 'build', 'testing',
                                 'targets')
 
