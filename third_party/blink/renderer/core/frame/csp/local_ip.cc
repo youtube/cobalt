@@ -58,7 +58,7 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
   net::IPAddress address;
 
   // Parse the string into an IPAddress object
-  if (net::ParseURLHostnameToAddress(raw_ip_str, &address)) {
+  if (!net::ParseURLHostnameToAddress(raw_ip_str, &address)) {
     LOG(ERROR) << "Received IP address is not valid: " << raw_ip_str;
     return false;
   }
@@ -79,7 +79,7 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
       // Unique Local Addresses for IPv6 are _effectively_ fd00::/8.
       // See https://tools.ietf.org/html/rfc4193#section-3 for details.
       // RFC 4193: fc00::/7
-      const uint8_t kUlaPrefix[] = {0xfc, 0};
+      const uint8_t kUlaPrefix[] = {0xfc, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
       const net::IPAddress kUla(kUlaPrefix);
       return IPAddressMatchesPrefix(address, kUla, 7);
     }
@@ -91,6 +91,10 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     const net::IPAddress k10(10, 0, 0, 0);
     const net::IPAddress k172(172, 16, 0, 0);
     const net::IPAddress k192(192, 168, 0, 0);
+
+
+    bool res = IPAddressMatchesPrefix(address, k10, 8);
+    LOG(ERROR) << "ARJUN: ipv4 " << res;
 
     // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
     return IPAddressMatchesPrefix(address, k10, 8) ||
