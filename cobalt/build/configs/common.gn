@@ -49,6 +49,17 @@ v8_enable_atomic_object_field_writes = false
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
 
+declare_args() {
+  # Enable code coverage instrumentation.
+  enable_coverage = false
+}
+
+if (enable_coverage) {
+  use_clang_coverage = true
+  is_component_build = false
+  is_debug = false
+}
+
 # Disable hls_demuxer so that enable_mse_mpeg2ts_stream_parser=false
 enable_hls_demuxer = false
 
