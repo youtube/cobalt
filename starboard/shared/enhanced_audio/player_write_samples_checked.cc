@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+// clang-format off
 #include "starboard/player.h"
+// clang-format on
+
+#include "starboard/common/log.h"
 
 // Special implementation of `SbPlayerWriteSample2()` for EnhancedAudio, where
 // all sample writes should use the `PlayerWriteSamples()` function provided by

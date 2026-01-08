@@ -1,3 +1,4 @@
+{% set enable_ad_id_permission = False %}
 {% extends "cobalt/shell/android/shell_apk/AndroidManifest.xml.jinja2" %}
 {#
 Copyright 2025 The Cobalt Authors. All Rights Reserved.
@@ -28,6 +29,8 @@ limitations under the License.
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 {% endblock %}
+
+{% block ad_id_permission_block %}{% endblock %}
 
 {% block extra_application_definitions_for_test %}
         <uses-library android:name="android.test.runner" />

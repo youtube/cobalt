@@ -16,9 +16,9 @@ package org.chromium.content_browsertests_apk;
 
 import android.os.Bundle;
 
-import org.chromium.base.test.util.UrlUtils;
-
 import java.io.File;
+
+import org.chromium.base.test.util.UrlUtils;
 
 /**
  * Android activity for running content_public.browser.tests
@@ -40,15 +40,4 @@ public class ContentBrowserTestsActivity extends ContentShellBrowserTestActivity
         return new File(UrlUtils.getIsolatedTestRoot(),
                 ContentBrowserTestsApplication.PRIVATE_DATA_DIRECTORY_SUFFIX);
     }
-
-    @Override
-    protected int getTestActivityViewId() {
-        return R.layout.test_activity;
-    }
-
-    @Override
-    protected int getShellManagerViewId() {
-        return R.id.shell_container;
-    }
-
 }

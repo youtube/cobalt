@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
+// clang-format off
 #include "starboard/drm.h"
+// clang-format on
+
+#include "starboard/common/log.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
 void SbDrmCloseSession(SbDrmSystem drm_system,
