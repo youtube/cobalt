@@ -27,6 +27,7 @@ source_set("renderer") {
   deps = [
     "//cobalt/browser:switches",
     "//cobalt/media/audio:webaudio",
+    "//cobalt/shell:cobalt_shell_lib",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",
@@ -37,6 +38,7 @@ source_set("renderer") {
     "//media",
     "//media/mojo:buildflags",
     "//starboard:starboard_headers_only",
+    "//third_party/blink/renderer/platform",
     "//v8",
   ]
 
