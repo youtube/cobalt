@@ -16,8 +16,6 @@
 
 #include <jni.h>
 
-#include <string_view>
-
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
@@ -93,7 +91,7 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
     return ScopedJavaLocalRef<jobject>();
   }
 
-  int samplerate = stream_info.samples_per_second;
+  int sample_rate = stream_info.samples_per_second;
   int channels = stream_info.number_of_channels;
 
   JNIEnv* env = AttachCurrentThread();
@@ -106,13 +104,12 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
         stream_info.audio_specific_config_size);
   }
 
-  bool is_passthrough = stream_info.codec == kSbMediaAudioCodecEac3 ||
-                        stream_info.codec == kSbMediaAudioCodecAc3;
+  bool is_passthrough;
   ScopedJavaLocalRef<jstring> j_audio_mime = ConvertUTF8ToJavaString(
       env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
 
   return Java_ExoPlayerManager_createAudioMediaSource(
-      env, j_audio_mime, configuration_data, samplerate, channels);
+      env, j_audio_mime, configuration_data, sample_rate, channels);
 }
 
 ScopedJavaLocalRef<jobject> CreateVideoMediaSource(

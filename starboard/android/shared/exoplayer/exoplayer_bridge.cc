@@ -25,6 +25,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
@@ -37,6 +38,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
+#pragma GCC diagnostic pop
 
 namespace starboard {
 namespace {
@@ -118,7 +120,8 @@ ExoPlayerBridge::ExoPlayerBridge(
       Java_ExoPlayerManager_createExoPlayerBridge(
           env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
           j_audio_media_source, j_video_media_source, j_output_surface,
-          ShouldEnableTunneledPlayback(video_stream_info) ||
+          (ShouldEnableTunneledPlayback(video_stream_info) &&
+           audio_stream_info.codec != kSbMediaAudioCodecNone) ||
               kForceTunneledPlayback);
   if (!j_exoplayer_bridge) {
     init_error_msg_ = "Could not create Java ExoPlayerBridge";

@@ -15,7 +15,7 @@
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/exoplayer/exoplayer_worker_handler.h"
+#include "starboard/android/shared/exoplayer/exoplayer_player_worker_handler.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/log.h"
@@ -29,7 +29,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-using starboard::ExoPlayerWorkerHandler;
+using starboard::ExoPlayerPlayerWorkerHandler;
 using starboard::FilterBasedPlayerWorkerHandler;
 using starboard::PlayerWorker;
 
@@ -199,11 +199,19 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
     }
   }
 
+  bool should_use_exoplayer = starboard::features::FeatureList::IsEnabled(
+                                  starboard::features::kEnableExoPlayer) &&
+                              creation_param->drm_system == kSbDrmSystemInvalid;
+  if (should_use_exoplayer &&
+      creation_param->output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    SB_LOG(WARNING) << "ExoPlayer does not support decode-to-texture mode, "
+                       "defaulting to FilterBasedPlayerWorkerHandler.";
+    should_use_exoplayer = false;
+  }
+
   std::unique_ptr<PlayerWorker::Handler> handler;
-  if (creation_param->drm_system == kSbDrmSystemInvalid &&
-      starboard::features::FeatureList::IsEnabled(
-          starboard::features::kEnableExoPlayer)) {
-    handler = std::make_unique<ExoPlayerWorkerHandler>(creation_param);
+  if (should_use_exoplayer) {
+    handler = std::make_unique<ExoPlayerPlayerWorkerHandler>(creation_param);
   } else {
     handler = std::make_unique<FilterBasedPlayerWorkerHandler>(creation_param,
                                                                provider);
