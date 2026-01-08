@@ -14,9 +14,17 @@
 
 module h5vcc_updater.mojom;
 
-// The browser process must provide an implementation of this interface so that
-// the renderer process can implement the H5vccUpdater Blink API.
 interface H5vccUpdater {
-  // Get the update server url for the device.
+  GetUpdaterChannel() => (string channel);
+  SetUpdaterChannel(string channel) => ();
+  GetUpdateStatus() => (string status);
+  ResetInstallations() => ();
+  GetInstallationIndex() => (uint16 index);
+  GetAllowSelfSignedPackages() => (bool allow_self_signed_packages);
+  SetAllowSelfSignedPackages(bool allow_self_signed_packages) => ();
   GetUpdateServerUrl() => (string update_server_url);
+  SetUpdateServerUrl(string update_server_url) => ();
+  GetRequireNetworkEncryption() => (bool require_network_encryption);
+  SetRequireNetworkEncryption(bool require_network_encryption) => ();
+  GetLibrarySha256(uint16 index) => (string sha256);
 };

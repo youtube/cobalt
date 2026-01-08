@@ -50,12 +50,38 @@ class MODULES_EXPORT H5vccUpdater final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
+  ScriptPromise getUpdaterChannel(ScriptState*, ExceptionState&);
+  ScriptPromise setUpdaterChannel(ScriptState*, const String&, ExceptionState&);
+  ScriptPromise getUpdateStatus(ScriptState*, ExceptionState&);
+  ScriptPromise resetInstallations(ScriptState*, ExceptionState&);
+  ScriptPromise getInstallationIndex(ScriptState*, ExceptionState&);
+  ScriptPromise getLibrarySha256(ScriptState*, unsigned short, ExceptionState&);
+  ScriptPromise getAllowSelfSignedPackages(ScriptState*, ExceptionState&);
+  ScriptPromise setAllowSelfSignedPackages(ScriptState*, bool, ExceptionState&);
   ScriptPromise getUpdateServerUrl(ScriptState*, ExceptionState&);
+  ScriptPromise setUpdateServerUrl(ScriptState*,
+                                   const String&,
+                                   ExceptionState&);
+  ScriptPromise getRequireNetworkEncryption(ScriptState*, ExceptionState&);
+  ScriptPromise setRequireNetworkEncryption(ScriptState*,
+                                            bool,
+                                            ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
+  void OnGetUpdaterChannel(ScriptPromiseResolver*, const String&);
+  void OnSetUpdaterChannel(ScriptPromiseResolver*);
+  void OnGetUpdateStatus(ScriptPromiseResolver*, const String&);
+  void OnResetInstallations(ScriptPromiseResolver*);
+  void OnGetInstallationIndex(ScriptPromiseResolver*, uint16_t);
+  void OnGetLibrarySha256(ScriptPromiseResolver*, const String&);
+  void OnGetAllowSelfSignedPackages(ScriptPromiseResolver*, bool);
+  void OnSetAllowSelfSignedPackages(ScriptPromiseResolver*);
   void OnGetUpdateServerUrl(ScriptPromiseResolver*, const String&);
+  void OnSetUpdateServerUrl(ScriptPromiseResolver*);
+  void OnGetRequireNetworkEncryption(ScriptPromiseResolver*, bool);
+  void OnSetRequireNetworkEncryption(ScriptPromiseResolver*);
 #if BUILDFLAG(USE_EVERGREEN)
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>

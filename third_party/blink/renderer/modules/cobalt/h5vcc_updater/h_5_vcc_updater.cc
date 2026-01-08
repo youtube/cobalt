@@ -31,6 +31,132 @@ H5vccUpdater::H5vccUpdater(LocalDOMWindow& window)
 
 void H5vccUpdater::ContextDestroyed() {}
 
+ScriptPromise H5vccUpdater::getUpdaterChannel(ScriptState* script_state,
+                                              ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->GetUpdaterChannel(
+      WTF::BindOnce(&H5vccUpdater::OnGetUpdaterChannel, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::setUpdaterChannel(ScriptState* script_state,
+                                              const String& channel,
+                                              ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->SetUpdaterChannel(
+      channel, WTF::BindOnce(&H5vccUpdater::OnSetUpdaterChannel,
+                             WrapPersistent(this), WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::getUpdateStatus(ScriptState* script_state,
+                                            ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->GetUpdateStatus(
+      WTF::BindOnce(&H5vccUpdater::OnGetUpdateStatus, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::resetInstallations(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->ResetInstallations(
+      WTF::BindOnce(&H5vccUpdater::OnResetInstallations, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::getInstallationIndex(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->GetInstallationIndex(
+      WTF::BindOnce(&H5vccUpdater::OnGetInstallationIndex, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::getAllowSelfSignedPackages(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->GetAllowSelfSignedPackages(
+      WTF::BindOnce(&H5vccUpdater::OnGetAllowSelfSignedPackages,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::setAllowSelfSignedPackages(
+    ScriptState* script_state,
+    bool allow_self_signed_packages,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->SetAllowSelfSignedPackages(
+      allow_self_signed_packages,
+      WTF::BindOnce(&H5vccUpdater::OnSetAllowSelfSignedPackages,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
 ScriptPromise H5vccUpdater::getUpdateServerUrl(
     ScriptState* script_state,
     ExceptionState& exception_state) {
@@ -49,9 +175,139 @@ ScriptPromise H5vccUpdater::getUpdateServerUrl(
   return resolver->Promise();
 }
 
+ScriptPromise H5vccUpdater::setUpdateServerUrl(
+    ScriptState* script_state,
+    const String& update_server_url,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->SetUpdateServerUrl(
+      update_server_url,
+      WTF::BindOnce(&H5vccUpdater::OnSetUpdateServerUrl, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::getRequireNetworkEncryption(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->GetRequireNetworkEncryption(
+      WTF::BindOnce(&H5vccUpdater::OnGetRequireNetworkEncryption,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::setRequireNetworkEncryption(
+    ScriptState* script_state,
+    bool require_network_encryption,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->SetRequireNetworkEncryption(
+      require_network_encryption,
+      WTF::BindOnce(&H5vccUpdater::OnSetRequireNetworkEncryption,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+  resolver->Resolve();
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccUpdater::getLibrarySha256(ScriptState* script_state,
+                                             unsigned short index,
+                                             ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+#if BUILDFLAG(USE_EVERGREEN)
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_updater_->GetLibrarySha256(
+      index, WTF::BindOnce(&H5vccUpdater::OnGetLibrarySha256,
+                           WrapPersistent(this), WrapPersistent(resolver)));
+#else
+  resolver->Reject();
+#endif
+  return resolver->Promise();
+}
+
+void H5vccUpdater::OnGetUpdaterChannel(ScriptPromiseResolver* resolver,
+                                       const String& result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnSetUpdaterChannel(ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
+}
+
+void H5vccUpdater::OnGetUpdateStatus(ScriptPromiseResolver* resolver,
+                                     const String& result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnResetInstallations(ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
+}
+
+void H5vccUpdater::OnGetInstallationIndex(ScriptPromiseResolver* resolver,
+                                          uint16_t result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnGetLibrarySha256(ScriptPromiseResolver* resolver,
+                                      const String& result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnGetAllowSelfSignedPackages(ScriptPromiseResolver* resolver,
+                                                bool result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnSetAllowSelfSignedPackages(
+    ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
+}
+
 void H5vccUpdater::OnGetUpdateServerUrl(ScriptPromiseResolver* resolver,
                                         const String& result) {
   resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnSetUpdateServerUrl(ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
+}
+
+void H5vccUpdater::OnGetRequireNetworkEncryption(
+    ScriptPromiseResolver* resolver,
+    bool result) {
+  resolver->Resolve(result);
+}
+
+void H5vccUpdater::OnSetRequireNetworkEncryption(
+    ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
 }
 
 #if BUILDFLAG(USE_EVERGREEN)
