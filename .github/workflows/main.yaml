@@ -13,7 +13,6 @@ on:
         description: 'Nightly workflow.'
         required: true
         type: string
-        default: 'false'
       run_api_leak_detector:
         description: 'Whether to run the api leak detector.'
         required: false
