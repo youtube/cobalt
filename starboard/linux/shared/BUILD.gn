@@ -24,6 +24,7 @@ group("starboard_platform") {
     "//starboard/common",
     "//starboard/shared/ffmpeg:ffmpeg_dynamic_load",
     "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:job_thread",
   ]
 
   deps = [
