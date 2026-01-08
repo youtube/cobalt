@@ -32,20 +32,20 @@
 #include "mojo/public/cpp/system/simple_watcher.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
-#include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/document_isolation_policy.h"
+#include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
-#include "url/gurl.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom.h"
 #include "third_party/blink/public/mojom/cache_storage/cache_storage.mojom.h"
+#include "url/gurl.h"
 #include "url/origin.h"
 
 // TODO(b/454630524): Move below constants to command args.
 namespace {
 const std::string kSplashDomain = "https://www.youtube.com";
-const std::string kSplashPath = "static/splash.html";
-const char16_t kSplashCacheName[] = u"splash-cache";
+const std::string kSplashVideoPath = "splash.webm";
+const char16_t kSplashCacheName[] = u"ytvlr";
 }  // namespace
 
 namespace content {
@@ -174,27 +174,35 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LoaderEmbeddedResources::GenerateMap(resource_map);
     }
 
-    if (resource_map.find(key) == resource_map.end()) {
-      LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
-                   << " not found.";
-      SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
-      return;
+    if (resource_map.find(key) != resource_map.end()) {
+      FileContents file_contents = resource_map[key];
+      content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
+                             file_contents.size);
     }
 
-    FileContents file_contents = resource_map[key];
     std::string mime_type = "application/octet-stream";
-    content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
-                           file_contents.size);
-
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
-      if (browser_context_) {
-        ReadSplashCache();
+      if (content_.empty()) {
+        LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
+                     << " not found.";
+        SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
         return;
       }
-      mime_type = "text/html";
+      // For html file, return from embedded resources.
+      SendResponse(content_, "text/html");
+      return;
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
-      // TODO(b/454630524): Support cached webm files.
+      // For webm file, return from cache.
+      if (browser_context_) {
+        ReadSplashCache(kSplashVideoPath, "video/webm");
+        return;
+      }
       mime_type = "video/webm";
+    }
+
+    if (content_.empty()) {
+      LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
+                   << " not found.";
     }
     SendResponse(content_, mime_type);
   }
@@ -208,7 +216,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       const std::optional<GURL>& new_url) override {}
   void SetPriority(net::RequestPriority priority,
                    int32_t intra_priority_value) override {}
-void ReadSplashCache() {
+
+  void ReadSplashCache(const std::string& path, const std::string& mime_type) {
     auto spc = content::StoragePartitionConfig::CreateDefault(browser_context_);
 
     content::StoragePartition* storage_partition =
@@ -222,12 +231,12 @@ void ReadSplashCache() {
 
     cache_storage_control->AddReceiver(
         network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-        network::DocumentIsolationPolicy(), mojo::NullRemote(),
-        bucket_locator, storage::mojom::CacheStorageOwner::kCacheAPI,
+        network::DocumentIsolationPolicy(), mojo::NullRemote(), bucket_locator,
+        storage::mojom::CacheStorageOwner::kCacheAPI,
         cache_storage_remote_.BindNewPipeAndPassReceiver());
 
     auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
-    fetch_api_request->url = GURL(kSplashDomain).Resolve(kSplashPath);
+    fetch_api_request->url = GURL(kSplashDomain).Resolve(path);
     fetch_api_request->method = "GET";
 
     auto match_options = blink::mojom::MultiCacheQueryOptions::New();
@@ -240,20 +249,22 @@ void ReadSplashCache() {
         false, /* in_range_fetch_event */
         0,     // trace_id
         base::BindOnce(&H5vccSchemeURLLoader::OnCacheMatched,
-                       weak_factory_.GetWeakPtr()));
+                       weak_factory_.GetWeakPtr(), mime_type));
   }
-  void OnCacheMatched(blink::mojom::MatchResultPtr result) {
+
+  void OnCacheMatched(const std::string& mime_type,
+                      blink::mojom::MatchResultPtr result) {
     if (!result->is_response()) {
       LOG(ERROR) << "Failed to match cache for splash video"
                  << ", error: " << result->get_status();
-      SendResponse(content_, "text/html");
+      SendResponse(content_, mime_type);
       return;
     }
     LOG(INFO) << "Found splash video in cache.";
     auto& response = result->get_response();
     if (response->blob->size == 0) {
       LOG(ERROR) << "Splash video cache is empty. Fallback to builtin.";
-      SendResponse(content_, "text/html");
+      SendResponse(content_, mime_type);
       return;
     }
     mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
@@ -261,7 +272,7 @@ void ReadSplashCache() {
     blob_reader_ = std::make_unique<BlobReader>(
         std::move(pending_blob_remote),
         base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
-                       weak_factory_.GetWeakPtr(), "text/html",
+                       weak_factory_.GetWeakPtr(), mime_type,
                        response->blob->size));
   }
 
@@ -277,6 +288,7 @@ void ReadSplashCache() {
                             content.size());
     SendResponse(cached_html, mime_type);
   }
+
  private:
   void SendResponse(const std::string& data_content,
                     const std::string& mime_type,
