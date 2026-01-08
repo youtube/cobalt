@@ -26,14 +26,13 @@ jobs:
         shell: bash
         run: |
           set +x
+          # If the MAX_ATTEMPTS-th attempt exists we are done.
           if gh run view --repo "${REPO}" ${WORKFLOW} --attempt ${MAX_ATTEMPTS}; then
             echo "Done retrying ${WORKFLOW_NAME}. It is still failing after ${MAX_ATTEMPTS} attempts."
             exit 0
           fi
 
-          echo "Fetching failed '_tests' jobs for workflow run ${WORKFLOW}"
-
-          # Fetch failed jobs ending with _tests
+          # Fetch failed jobs containing _tests.
           failed_job_ids=$(gh run view --repo "${REPO}" "${WORKFLOW}" --json jobs --jq '.jobs[] | select(.conclusion=="failure") | select(.name | contains("_tests")) | .databaseId')
 
           if [ -z "$failed_job_ids" ]; then
