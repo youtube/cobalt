@@ -54,7 +54,7 @@ class FrameTreeNode;
 class RenderFrameHost;
 class RenderFrameHostImpl;
 class RenderWidgetHostImpl;
-class TestShell;
+class Shell;
 class SiteInstance;
 class SiteInstanceGroup;
 class ToRenderFrameHost;
@@ -66,9 +66,7 @@ bool NavigateFrameToURL(FrameTreeNode* node, const GURL& url);
 
 // Sets the DialogManager to proceed by default or not when showing a
 // BeforeUnload dialog, and if it proceeds, what value to return.
-void SetShouldProceedOnBeforeUnload(TestShell* shell,
-                                    bool proceed,
-                                    bool success);
+void SetShouldProceedOnBeforeUnload(Shell* shell, bool proceed, bool success);
 
 // Extends the ToRenderFrameHost mechanism to FrameTreeNodes.
 RenderFrameHost* ConvertToRenderFrameHost(FrameTreeNode* frame_tree_node);
@@ -78,7 +76,7 @@ RenderFrameHost* ConvertToRenderFrameHost(FrameTreeNode* frame_tree_node);
 // browser-initiated navigations swap BrowsingInstances, but some tests need a
 // navigation to swap processes for cross-site URLs (even outside of
 // --site-per-process) while staying in the same BrowsingInstance.
-[[nodiscard]] bool NavigateToURLInSameBrowsingInstance(TestShell* window,
+[[nodiscard]] bool NavigateToURLInSameBrowsingInstance(Shell* window,
                                                        const GURL& url);
 
 // Helper function to checks for a subframe navigation starting  in
@@ -128,12 +126,12 @@ CollectAllRenderFrameHostsIncludingSpeculative(WebContentsImpl* web_contents);
 // Open a new popup passing no URL to window.open, which results in a blank page
 // and only the initial entry. Returns the newly created shell. Also saves the
 // reference to the opened window in the "last_opened_window" variable in JS.
-TestShell* OpenBlankWindow(WebContentsImpl* web_contents);
+Shell* OpenBlankWindow(WebContentsImpl* web_contents);
 
 // Pop open a new window that navigates to |url|. Returns the newly created
 // shell. Also saves the reference to the opened window in the
 // "last_opened_window" variable in JS.
-TestShell* OpenWindow(WebContentsImpl* web_contents, const GURL& url);
+Shell* OpenWindow(WebContentsImpl* web_contents, const GURL& url);
 
 // Creates compact textual representations of the state of the frame tree that
 // is appropriate for use in assertions.
@@ -219,17 +217,17 @@ std::string DepictFrameTree(FrameTreeNode& root);
 // Waits for the navigation to |url| to finish and then returns the new popup's
 // Shell.  Note that since this navigation to |url| is renderer-initiated, it
 // won't cause a process swap unless used in --site-per-process mode.
-TestShell* OpenPopup(const ToRenderFrameHost& opener,
-                     const GURL& url,
-                     const std::string& name,
-                     const std::string& features,
-                     bool expect_return_from_window_open);
+Shell* OpenPopup(const ToRenderFrameHost& opener,
+                 const GURL& url,
+                 const std::string& name,
+                 const std::string& features,
+                 bool expect_return_from_window_open);
 
 // Same as above, but with an empty |features| and
 // |expect_return_from_window_open| assumed to be true..
-TestShell* OpenPopup(const ToRenderFrameHost& opener,
-                     const GURL& url,
-                     const std::string& name);
+Shell* OpenPopup(const ToRenderFrameHost& opener,
+                 const GURL& url,
+                 const std::string& name);
 
 // This class is a TestNavigationManager that only monitors notifications within
 // the given frame tree node.
