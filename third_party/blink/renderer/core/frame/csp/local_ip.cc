@@ -92,10 +92,6 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     const net::IPAddress k172(172, 16, 0, 0);
     const net::IPAddress k192(192, 168, 0, 0);
 
-
-    bool res = IPAddressMatchesPrefix(address, k10, 8);
-    LOG(ERROR) << "ARJUN: ipv4 " << res;
-
     // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
     return IPAddressMatchesPrefix(address, k10, 8) ||
            IPAddressMatchesPrefix(address, k172, 12) ||
