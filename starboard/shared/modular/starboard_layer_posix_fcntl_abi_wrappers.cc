@@ -304,7 +304,7 @@ int __abi_wrap_openat(int fildes, const char* path, int oflag, ...) {
   if ((oflag & O_CREAT) || (oflag & O_TMPFILE) == O_TMPFILE) {
     va_list ap;
     va_start(ap, oflag);
-    musl_mode_t mode = va_arg(ap, mode_t);
+    musl_mode_t mode = va_arg(ap, musl_mode_t);
     return openat(fildes, path, oflag,
                   starboard::musl_mode_to_platform_mode(mode));
   } else {
