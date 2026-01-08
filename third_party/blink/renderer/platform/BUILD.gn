@@ -332,7 +332,6 @@ source_set("image_headers") {
 component("platform") {
   visibility = []  # Allow re-assignment of list.
   visibility = [
-    "//cobalt/renderer/*",
     "//third_party/blink/*",
     "//tools/privacy_budget/font_indexer:*",
   ]

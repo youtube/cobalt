@@ -23,8 +23,8 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
-#include "third_party/blink/renderer/platform/weborigin/scheme_registry.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
 namespace cobalt {
@@ -113,8 +113,8 @@ void CobaltContentRendererClient::RenderFrameCreated(
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
-  blink::SchemeRegistry::RegisterURLSchemeAsSupportingFetchAPI(
-      content::kH5vccEmbeddedScheme);
+  blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
+      blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 }
 
 void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
