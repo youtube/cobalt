@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>
 
 #include "starboard/common/queue.h"
 #include "starboard/common/thread.h"
@@ -25,7 +26,6 @@
 #include "starboard/egl.h"
 #include "starboard/gles.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/thread.h"
 #include "starboard/window.h"
 
 namespace starboard {
@@ -51,7 +51,6 @@ class FakeGraphicsContextProvider : public Thread {
  private:
   bool IsRunningOnDecoderContextThread() const;
   void Run() override;
-  void RunLoop();
 
   void InitializeEGL();
 
@@ -72,7 +71,9 @@ class FakeGraphicsContextProvider : public Thread {
   SbEglSurface surface_;
   SbEglContext context_;
   Queue<std::function<void()>> functor_queue_;
-  std::unique_ptr<ThreadChecker> thread_checker_;
+
+  mutable std::mutex mutex_;
+  std::unique_ptr<ThreadChecker> thread_checker_;  // Guarded by |mutex_|.
 
   SbDecodeTargetGraphicsContextProvider decoder_target_provider_;
 };

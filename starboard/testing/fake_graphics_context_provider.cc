@@ -109,6 +109,7 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 }
 
 bool FakeGraphicsContextProvider::IsRunningOnDecoderContextThread() const {
+  std::lock_guard lock(mutex_);
   return thread_checker_ && thread_checker_->CalledOnValidThread();
 }
 
@@ -153,11 +154,10 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
 }
 
 void FakeGraphicsContextProvider::Run() {
-  thread_checker_.reset(new ThreadChecker());
-  RunLoop();
-}
-
-void FakeGraphicsContextProvider::RunLoop() {
+  {
+    std::lock_guard lock(mutex_);
+    thread_checker_ = std::make_unique<ThreadChecker>();
+  }
   while (std::function<void()> functor = functor_queue_.Get()) {
     if (!functor) {
       break;
