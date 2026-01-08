@@ -114,7 +114,6 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 
   job_thread_ = std::make_unique<JobThread>("player_worker", kPlayerStackSize,
                                             kSbThreadPriorityHigh);
-  SB_DCHECK(job_thread_);
   job_thread_->Schedule(std::bind(&PlayerWorker::DoInit, this));
 }
 

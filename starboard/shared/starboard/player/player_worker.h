@@ -25,6 +25,9 @@
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
+#include "starboard/media.h"
+#include "starboard/player.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
