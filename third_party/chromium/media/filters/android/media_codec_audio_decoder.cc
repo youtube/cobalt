@@ -92,6 +92,7 @@ void MediaCodecAudioDecoder::Initialize(const AudioDecoderConfig& config,
                                   config.codec() == AudioCodec::kFLAC ||
                                   config.codec() == AudioCodec::kAAC ||
                                   config.codec() == AudioCodec::kOpus ||
+                                  config.codec() == AudioCodec::kIAMF ||
                                   is_passthrough_;
   if (!is_codec_supported) {
     DVLOG(1) << "Unsuported codec " << GetCodecName(config.codec());
