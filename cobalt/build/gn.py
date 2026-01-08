@@ -94,10 +94,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
       f.write(f'{key} = {value} {gen_comment}\n')
     f.write(f'import("//{platform_args_path}")\n')
     if use_coverage:
-      f.write('\n# Coverage args\n')
-      f.write('use_clang_coverage=true\n')
-      f.write('is_component_build=false\n')
-      f.write('is_debug=false\n')
+      f.write(f'enable_coverage = true {gen_comment}\n')
 
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
@@ -190,8 +187,6 @@ def main():
   else:
     builds_out_directory = os.path.join(
         _BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
-    if script_args.coverage:
-      builds_out_directory += '-coverage'
   configure_out_directory(
       builds_out_directory,
       script_args.platform,

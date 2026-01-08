@@ -48,7 +48,7 @@ class GnTest(unittest.TestCase):
     del mock_rename, mock_exists  # unused
     platform = 'android-x86'
     build_type = 'devel'
-    expected_out_dir = f'out/{platform}_{build_type}-coverage'
+    expected_out_dir = f'out/{platform}_{build_type}'
     expected_args_content_part = (
         'use_siso = false # Set by gn.py\n'
         'use_remoteexec = true # Set by gn.py\n'
@@ -57,10 +57,7 @@ class GnTest(unittest.TestCase):
         'symbol_level = 1 # Set by gn.py\n'
         'is_debug = false # Set by gn.py\n'
         'import("//cobalt/build/configs/android-x86/args.gn")\n'
-        '\n# Coverage args\n'
-        'use_clang_coverage=true\n'
-        'is_component_build=false\n'
-        'is_debug=false\n')
+        'enable_coverage = true # Set by gn.py\n')
 
     sys.argv = [
         'gn.py',
@@ -102,10 +99,7 @@ class GnTest(unittest.TestCase):
     platform = 'android-x86'
     build_type = 'devel'
     expected_out_dir = f'out/{platform}_{build_type}'
-    unexpected_args_content_part = ('# Coverage args\n'
-                                    'use_clang_coverage=true\n'
-                                    'is_component_build=false\n'
-                                    'is_debug=false\n')
+    unexpected_args_content_part = 'enable_coverage = true # Set by gn.py\n'
 
     sys.argv = [
         'gn.py',
