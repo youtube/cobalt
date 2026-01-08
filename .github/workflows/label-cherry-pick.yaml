@@ -114,7 +114,7 @@ jobs:
             ${{ github.event.pull_request.body }}
 
       - name: Comment on failure
-        uses: actions/github-script@v6
+        uses: actions/github-script@v8
         with:
           github-token: ${{ secrets.CHERRY_PICK_TOKEN }}
           script: |
