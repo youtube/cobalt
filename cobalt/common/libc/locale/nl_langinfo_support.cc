@@ -25,6 +25,7 @@
 #include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/icu/source/i18n/unicode/dcfmtsym.h"
 #include "third_party/icu/source/i18n/unicode/dtfmtsym.h"
+#include "third_party/icu/source/i18n/unicode/dtptngen.h"
 
 namespace cobalt {
 namespace {
@@ -190,6 +191,51 @@ std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
   return s;
 }
 
+std::string CollapseSpaces(const std::string& input) {
+  std::string result;
+  result.reserve(input.length());  // Optimization
+
+  bool lastWasSpace = false;
+  for (char c : input) {
+    if (c == ' ') {
+      if (!lastWasSpace) {
+        result += ' ';
+        lastWasSpace = true;
+      }
+    } else {
+      result += c;
+      lastWasSpace = false;
+    }
+  }
+
+  // Trim trailing space if any
+  if (!result.empty() && result.back() == ' ') {
+    result.pop_back();
+  }
+
+  return result;
+}
+
+icu::UnicodeString GetPatternFromSkeleton(const std::string& locale_id,
+                                          const icu::UnicodeString& skeleton) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale locale = GetCorrectICULocale(locale_id);
+
+  // 1. Create the Generator for this locale
+  icu::DateTimePatternGenerator* generator =
+      icu::DateTimePatternGenerator::createInstance(locale, status);
+
+  if (U_FAILURE(status)) {
+    return "";
+  }
+
+  // 2. Ask it to build the best pattern for your ingredients (skeleton)
+  icu::UnicodeString pattern = generator->getBestPattern(skeleton, status);
+
+  delete generator;
+  return pattern;
+}
+
 std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
   std::string result;
   bool inQuote = false;
@@ -198,28 +244,23 @@ std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
   for (int32_t i = 0; i < pattern.length(); ++i) {
     UChar c = pattern[i];
 
-    // 1. Handle Quotes (The logic that fixes bg_BG)
+    // 1. Handle Quotes
     if (c == '\'') {
-      // Check for escaped quote (two single quotes in a row: '')
       if (i + 1 < pattern.length() && pattern[i + 1] == '\'') {
-        result += "'";  // It's just a literal single quote
-        i++;            // Skip the second quote
+        result += "'";
+        i++;
       } else {
-        // Toggle quote mode
         inQuote = !inQuote;
       }
       continue;
     }
 
-    // 2. Handle Quoted Literals (Copy exactly)
+    // 2. Handle Quoted Literals
     if (inQuote) {
-      // If we have pending format tokens, flush them first
       if (!currentToken.isEmpty()) {
         result += MapIcuTokenToPosix(currentToken);
         currentToken.remove();
       }
-
-      // Append the literal char (convert to UTF-8)
       std::string temp;
       icu::UnicodeString(c).toUTF8String(temp);
       result += temp;
@@ -227,41 +268,62 @@ std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
     }
 
     // 3. Handle Format Characters
-    // (y, M, d, E, etc.)
     bool isFormatChar =
         (c == 'y' || c == 'M' || c == 'd' || c == 'E' || c == 'L' || c == 'G' ||
-         // NEW TIME CHARS:
          c == 'H' || c == 'h' || c == 'k' || c == 'K' || c == 'm' || c == 's' ||
          c == 'a' || c == 'z' || c == 'v');
 
     if (isFormatChar) {
-      // If this char matches the current token (e.g. "y" -> "yy"), append it
       if (currentToken.isEmpty() || currentToken[0] == c) {
         currentToken.append(c);
       } else {
-        // Different char started (e.g. "MM" -> "d"), flush old token
         result += MapIcuTokenToPosix(currentToken);
         currentToken.remove();
         currentToken.append(c);
       }
     } else {
-      // It's a separator (., /, space), flush pending token
+      // --- FIXED LOGIC STARTS HERE ---
+
+      // STEP 1: Flush the token BEFORE doing anything else!
+      // This ensures "ss" becomes "%S" before we handle the space after it.
       if (!currentToken.isEmpty()) {
         result += MapIcuTokenToPosix(currentToken);
         currentToken.remove();
       }
-      // Append the separator literal
+
+      // STEP 2: Filter Commas
+      if (c == ',' || c == 0x104A || c == 0x060C) {
+        continue;
+      }
+
+      // STEP 3: Filter "Space after Colon" (The fil_PH specific fix)
+      // If we just appended a colon, and now we see a space, skip it.
+      // This prevents "12: 30".
+      if (c == ' ' && !result.empty() && result.back() == ':') {
+        continue;
+      }
+
+      // STEP 4: Normalize "Weird" Spaces
+      // Now that %S is safely in the string, we can append the space *after*
+      // it.
+      if (c == 0x00A0 || c == 0x202F) {
+        result += " ";
+        continue;
+      }
+
+      // STEP 5: Standard Append (for . / : - etc)
       std::string temp;
       icu::UnicodeString(c).toUTF8String(temp);
       result += temp;
     }
   }
 
-  // Flush any remaining token
+  // Flush any remaining token at end of string
   if (!currentToken.isEmpty()) {
     result += MapIcuTokenToPosix(currentToken);
   }
 
+  // Final Cleanup: Trim trailing space
   if (!result.empty() && result.back() == ' ') {
     result.pop_back();
   }
@@ -383,10 +445,16 @@ std::string GetPosixFormat(const std::string& locale, nl_item item) {
     case T_FMT:
       icu_pattern = GetPatternFromStyle(locale, UDAT_NONE, UDAT_MEDIUM);
       break;
+    case D_T_FMT:
+      icu_pattern = GetPatternFromSkeleton(locale, "yMMMEdjmsz");
+      break;
+    case T_FMT_AMPM:
+      icu_pattern = GetPatternFromSkeleton(locale, "ahms");
+      break;
     default:
       icu_pattern = "";
   }
 
-  return IcuPatternToPosix(icu_pattern);
+  return CollapseSpaces(IcuPatternToPosix(icu_pattern));
 }
 }  // namespace cobalt
