@@ -17,3 +17,6 @@ import("//starboard/build/config/base_configuration.gni")
 sabi_path = "//starboard/sabi/$target_cpu/sabi-v$sb_api_version.json"
 
 gl_type = "angle"
+
+# Widevine platform identifier for keybox selection
+sb_widevine_platform = "tvos"
