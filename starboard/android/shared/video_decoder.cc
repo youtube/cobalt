@@ -23,6 +23,7 @@
 #include <functional>
 #include <limits>
 #include <list>
+#include <mutex>
 
 #include "base/android/jni_android.h"
 #include "base/trace_event/trace_event.h"
@@ -53,6 +54,53 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
+
+class VideoDecoderCache {
+ public:
+  static VideoDecoderCache* GetInstance() {
+    static VideoDecoderCache* instance = new VideoDecoderCache();
+    return instance;
+  }
+
+  void Put(std::unique_ptr<MediaCodecDecoder> decoder,
+           SbMediaVideoCodec codec,
+           SbPlayerOutputMode output_mode) {
+    if (!decoder) {
+      return;
+    }
+    SB_LOG(INFO) << "Caching video decoder for "
+                 << GetMediaVideoCodecName(codec);
+    std::lock_guard lock(mutex_);
+    if (cache_.size() >= kMaxCacheSize) {
+      cache_.pop_front();
+    }
+    cache_.push_back({std::move(decoder), codec, output_mode});
+  }
+
+  std::unique_ptr<MediaCodecDecoder> Get(SbMediaVideoCodec codec,
+                                         SbPlayerOutputMode output_mode) {
+    std::lock_guard lock(mutex_);
+    for (auto it = cache_.begin(); it != cache_.end(); ++it) {
+      if (it->codec == codec && it->output_mode == output_mode) {
+        std::unique_ptr<MediaCodecDecoder> decoder = std::move(it->decoder);
+        cache_.erase(it);
+        return decoder;
+      }
+    }
+    return nullptr;
+  }
+
+ private:
+  struct CacheEntry {
+    std::unique_ptr<MediaCodecDecoder> decoder;
+    SbMediaVideoCodec codec;
+    SbPlayerOutputMode output_mode;
+  };
+
+  static constexpr int kMaxCacheSize = 4;
+  std::mutex mutex_;
+  std::list<CacheEntry> cache_;
+};
 
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
@@ -337,34 +385,11 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
-    TRACE_EVENT0("media", "MediaCodecVideoDecoder::Sink::Draw");
-
     if (!first_frame_logged_) {
-      TRACE_EVENT("media", "MediaCodecVideoDecoder:First frame rendered",
-                  perfetto::TerminatingFlow::ProcessScoped(baseline_us_));
       int64_t elapsed_us = CurrentMonotonicTime() - baseline_us_;
-      SB_LOG(INFO) << "elapsed(us) to first frame="
-                   << FormatWithDigitSeparators(elapsed_us);
+      SB_LOG(INFO) << "Time to First Frame (TTFF): "
+                   << FormatWithDigitSeparators(elapsed_us) << " us";
       first_frame_logged_ = true;
-    }
-    log_count_++;
-
-    if (!first_pts_ms_) {
-      first_pts_ms_ = frame->timestamp() / 1'000;
-    }
-
-    if (log_count_ < 10) {
-      int64_t release_ms = release_time_in_nanoseconds / 1'000'000;
-      int64_t now_ms = CurrentMonotonicTime() / 1'000;
-      int64_t pts_ms = frame->timestamp() / 1'000;
-      int64_t relative_pts_ms = pts_ms - *first_pts_ms_;
-
-      SB_LOG(INFO) << "now_ms=" << FormatWithDigitSeparators(now_ms)
-                   << ", release_ms=" << FormatWithDigitSeparators(release_ms)
-                   << ", gap(ms)=" << (release_ms - now_ms)
-                   << ", pts(ms)=" << FormatWithDigitSeparators(pts_ms)
-                   << ", relative pts(ms)="
-                   << FormatWithDigitSeparators(relative_pts_ms);
     }
 
     rendered_ = true;
@@ -377,10 +402,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   const int64_t baseline_us_;
   RenderCB render_cb_;
   bool rendered_;
-
   bool first_frame_logged_ = false;
-  std::optional<int64_t> first_pts_ms_;
-  int log_count_ = 0;
 };
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
@@ -779,18 +801,40 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size,
                      &max_width, &max_height);
 
+  // Reuse the existing decoder if possible.
+  if (tunnel_mode_audio_session_id_ == -1 && !require_software_codec_) {
+    // TODO: Support reusing decoder for tunnel mode and software decoder.
+    media_decoder_ =
+        VideoDecoderCache::GetInstance()->Get(video_codec_, output_mode_);
+    if (media_decoder_) {
+      SB_LOG(INFO) << "Reusing cached video decoder for "
+                   << GetMediaVideoCodecName(video_codec_);
+      media_decoder_->ResetForReuse();
+      media_decoder_->ResetHost(this);
+      media_decoder_->UpdateFrameRenderedCB(
+          std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1));
+      media_decoder_->UpdateFirstTunnelFrameReadyCB(
+          std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this));
+      media_decoder_->UpdateOutputSurface(j_output_surface);
+    }
+  }
+
   std::string error_message;
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(
-      this, video_stream_info.codec, video_stream_info.frame_size.width,
-      video_stream_info.frame_size.height, max_width, max_height, video_fps_,
-      j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
-      std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
-      std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
-      tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, &error_message);
+  if (!media_decoder_) {
+    media_decoder_ = std::make_unique<MediaCodecDecoder>(
+        this, video_stream_info.codec, video_stream_info.frame_size.width,
+        video_stream_info.frame_size.height, max_width, max_height, video_fps_,
+        j_output_surface, drm_system_,
+        color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+        std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
+        std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
+        tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
+        max_video_input_size_, flush_delay_usec_, &error_message);
+  }
+
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
+      media_decoder_->UpdateErrorCB(error_cb_);
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
     }
@@ -816,6 +860,13 @@ void MediaCodecVideoDecoder::TeardownCodec() {
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
+  }
+  if (media_decoder_ && media_decoder_->Flush()) {
+    media_decoder_->ResetHost(nullptr);
+    media_decoder_->UpdateFrameRenderedCB([](int64_t) {});
+    media_decoder_->UpdateFirstTunnelFrameReadyCB([]() {});
+    VideoDecoderCache::GetInstance()->Put(std::move(media_decoder_),
+                                          video_codec_, output_mode_);
   }
   media_decoder_.reset();
   color_metadata_ = std::nullopt;

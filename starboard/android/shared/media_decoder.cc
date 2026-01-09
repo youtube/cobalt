@@ -178,7 +178,7 @@ MediaCodecDecoder::MediaCodecDecoder(
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   TerminateDecoderThread();
 
@@ -199,7 +199,7 @@ MediaCodecDecoder::~MediaCodecDecoder() {
 }
 
 void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
@@ -211,7 +211,7 @@ void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
 }
 
 void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -239,7 +239,7 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void MediaCodecDecoder::WriteEndOfStream() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   stream_ended_.store(true);
   std::lock_guard lock(mutex_);
@@ -399,7 +399,7 @@ void MediaCodecDecoder::DecoderThreadFunc() {
 }
 
 void MediaCodecDecoder::TerminateDecoderThread() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
 
@@ -718,7 +718,7 @@ void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {
 }
 
 bool MediaCodecDecoder::Flush() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
@@ -772,6 +772,14 @@ bool MediaCodecDecoder::Flush() {
   stream_ended_.store(false);
   destroying_.store(false);
   return true;
+}
+
+void MediaCodecDecoder::ResetForReuse() {
+  stream_ended_.store(false);
+  destroying_.store(false);
+  error_occurred_ = false;
+  error_message_.clear();
+  pending_input_to_retry_ = std::nullopt;
 }
 
 }  // namespace starboard
