@@ -15,7 +15,7 @@
 #include "base/android/jni_android.h"
 #include "cobalt/app/cobalt_main_delegate.h"
 #include "content/public/app/content_jni_onload.h"
-#include "content/public/app/content_main.h"
+#include "content/public/app/content_main.h"  // test comment
 
 // This is called by the VM when the shared library is first loaded.
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {

@@ -14,7 +14,7 @@
 
 package dev.cobalt.app;
 
-import android.app.Application;
+import android.app.Application; // Test comment
 import android.content.Context;
 import dev.cobalt.coat.StarboardBridge;
 import org.chromium.base.ApplicationStatus;
