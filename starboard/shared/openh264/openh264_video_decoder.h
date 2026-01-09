@@ -45,8 +45,7 @@ class OpenH264VideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
                            decode_target_graphics_context_provider);
   ~OpenH264VideoDecoder() override;
 
-  void Initialize(const DecoderStatusCB& decoder_status_cb,
-                  const ErrorCB& error_cb) override;
+  void Initialize(DecoderStatusCB decoder_status_cb, ErrorCB error_cb) override;
 
   // TODO: Verify if these values are correct.
   size_t GetPrerollFrameCount() const override { return 8; }

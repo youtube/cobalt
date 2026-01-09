@@ -97,10 +97,10 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   AttachToCurrentThread();
 
   player_ = player;
-  update_media_info_cb_ = update_media_info_cb;
-  get_player_state_cb_ = get_player_state_cb;
-  update_player_state_cb_ = update_player_state_cb;
-  update_player_error_cb_ = update_player_error_cb;
+  update_media_info_cb_ = std::move(update_media_info_cb);
+  get_player_state_cb_ = std::move(get_player_state_cb);
+  update_player_state_cb_ = std::move(update_player_state_cb);
+  update_player_error_cb_ = std::move(update_player_error_cb);
 
   std::unique_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();

@@ -99,7 +99,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
                     std::string* error_message);
   ~MediaCodecDecoder();
 
-  void Initialize(const ErrorCB& error_cb);
+  void Initialize(ErrorCB error_cb);
   void WriteInputBuffers(const InputBuffers& input_buffers);
   void WriteEndOfStream();
 

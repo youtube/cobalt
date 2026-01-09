@@ -447,17 +447,16 @@ MediaCodecVideoDecoder::GetRenderAlgorithm() {
       video_frame_tracker_.get());
 }
 
-void MediaCodecVideoDecoder::Initialize(
-    const DecoderStatusCB& decoder_status_cb,
-    const ErrorCB& error_cb) {
+void MediaCodecVideoDecoder::Initialize(DecoderStatusCB decoder_status_cb,
+                                        ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
-  decoder_status_cb_ = decoder_status_cb;
-  error_cb_ = error_cb;
+  decoder_status_cb_ = std::move(decoder_status_cb);
+  error_cb_ = std::move(error_cb);
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null

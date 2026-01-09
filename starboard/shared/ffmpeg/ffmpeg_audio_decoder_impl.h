@@ -48,7 +48,7 @@ class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
   bool is_valid() const override;
 
   // From: AudioDecoder
-  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
+  void Initialize(OutputCB output_cb, ErrorCB error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;

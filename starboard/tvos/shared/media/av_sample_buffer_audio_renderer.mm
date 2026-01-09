@@ -97,9 +97,9 @@ AVSBAudioRenderer::~AVSBAudioRenderer() {
   ObserverRegistry::UnregisterObserver(&observer_);
 }
 
-void AVSBAudioRenderer::Initialize(const ErrorCB& error_cb,
-                                   const PrerolledCB& prerolled_cb,
-                                   const EndedCB& ended_cb) {
+void AVSBAudioRenderer::Initialize(ErrorCB error_cb,
+                                   PrerolledCB prerolled_cb,
+                                   EndedCB ended_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
@@ -108,9 +108,9 @@ void AVSBAudioRenderer::Initialize(const ErrorCB& error_cb,
   SB_DCHECK(!prerolled_cb_);
   SB_DCHECK(!ended_cb_);
 
-  error_cb_ = error_cb;
-  prerolled_cb_ = prerolled_cb;
-  ended_cb_ = ended_cb;
+  error_cb_ = std::move(error_cb);
+  prerolled_cb_ = std::move(prerolled_cb);
+  ended_cb_ = std::move(ended_cb);
 
   // SampleBufferBuilder may have error during initialization.
   if (sample_buffer_builder_->HasError()) {

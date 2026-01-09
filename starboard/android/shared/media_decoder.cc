@@ -193,12 +193,12 @@ MediaCodecDecoder::~MediaCodecDecoder() {
   }
 }
 
-void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
+void MediaCodecDecoder::Initialize(ErrorCB error_cb) {
   SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
-  error_cb_ = error_cb;
+  error_cb_ = std::move(error_cb);
 
   if (error_occurred_) {
     Schedule(std::bind(error_cb_, error_, error_message_));

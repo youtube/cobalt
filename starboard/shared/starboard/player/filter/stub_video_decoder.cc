@@ -22,12 +22,12 @@
 
 namespace starboard {
 
-void StubVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
-                                  const ErrorCB& error_cb) {
+void StubVideoDecoder::Initialize(DecoderStatusCB decoder_status_cb,
+                                  ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
-  decoder_status_cb_ = decoder_status_cb;
+  decoder_status_cb_ = std::move(decoder_status_cb);
 }
 
 size_t StubVideoDecoder::GetPrerollFrameCount() const {

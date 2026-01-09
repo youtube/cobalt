@@ -111,16 +111,16 @@ FfmpegAudioDecoder* FfmpegAudioDecoderImpl<FFMPEG>::Create(
   return new FfmpegAudioDecoderImpl<FFMPEG>(audio_stream_info);
 }
 
-void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
-                                                const ErrorCB& error_cb) {
+void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(OutputCB output_cb,
+                                                ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
-  output_cb_ = output_cb;
-  error_cb_ = error_cb;
+  output_cb_ = std::move(output_cb);
+  error_cb_ = std::move(error_cb);
 }
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,

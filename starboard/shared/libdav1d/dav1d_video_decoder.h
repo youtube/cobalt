@@ -42,8 +42,7 @@ class Dav1dVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
                     bool may_reduce_quality_for_speed);
   ~Dav1dVideoDecoder() override;
 
-  void Initialize(const DecoderStatusCB& decoder_status_cb,
-                  const ErrorCB& error_cb) override;
+  void Initialize(DecoderStatusCB decoder_status_cb, ErrorCB error_cb) override;
 
   // TODO: Verify if these values are correct.
   size_t GetPrerollFrameCount() const override { return 8; }

@@ -77,8 +77,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   scoped_refptr<VideoRendererSink> GetSink();
   std::unique_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();
 
-  void Initialize(const DecoderStatusCB& decoder_status_cb,
-                  const ErrorCB& error_cb) override;
+  void Initialize(DecoderStatusCB decoder_status_cb, ErrorCB error_cb) override;
   size_t GetPrerollFrameCount() const override;
   int64_t GetPrerollTimeout() const override;
   // As we hold output buffers received from MediaCodec, the max number of
