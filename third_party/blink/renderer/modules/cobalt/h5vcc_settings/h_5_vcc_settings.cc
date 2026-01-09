@@ -21,10 +21,10 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
-#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -60,6 +60,12 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
     NOTREACHED();
+<<<<<<< HEAD
+=======
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), "Unsupported type."));
+    return promise;
+>>>>>>> c109afca1b (cobalt: Replace DOMException with ECMAScript TypeError (#8601))
   }
 
   ongoing_requests_.insert(resolver);
