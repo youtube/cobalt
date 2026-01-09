@@ -21,6 +21,7 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioTimestamp;
 import android.media.AudioTrack;
+import android.media.PlaybackParams;
 import android.os.Build;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.util.Log;
@@ -41,6 +42,12 @@ public class AudioTrackBridge {
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
+  private int defaultBufferSize = 0;
+
+// Max/min supported playback rates for fast/slow audio. Audio at very low or very
+// high playback rates are muted to preserve quality.
+  private static final double minPlaybackRate = .25;
+  private static final double maxPlaybackRate = 4.0;
 
   private final boolean tunnelModeEnabled;
   // The following variables are used only when |tunnelModeEnabled| is true.
@@ -146,7 +153,7 @@ public class AudioTrackBridge {
             new AudioTrack(
                 attributes,
                 format,
-                audioTrackBufferSize,
+                audioTrackBufferSize * 2, /* Multiplied by 2 due to setPlaybackParams needing more buffer size for faster playbacks */
                 AudioTrack.MODE_STREAM,
                 tunnelModeEnabled
                     ? tunnelModeAudioSessionId
@@ -164,6 +171,11 @@ public class AudioTrackBridge {
       }
       audioTrackBufferSize /= 2;
     }
+
+    // set the |defaultBufferSize| to half of what was set in the creation of the
+    // AudioTrack. This will be used as a base when we have to dynamically change the buffer size
+    // based on the selected playback rate.
+    defaultBufferSize = (int) (audioTrack.getBufferSizeInFrames() / 2);
 
     String sampleTypeString = "ENCODING_INVALID";
     if (isAudioTrackValid()) {
@@ -224,6 +236,35 @@ public class AudioTrackBridge {
       return 0;
     }
     return audioTrack.setVolume(gain);
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  public int setPlaybackRate(float playbackRate) {
+    if (audioTrack == null) {
+      Log.e(TAG, "Unable to setPlaybackRate with NULL audio track.");
+      return 0;
+    }
+    try {
+      audioTrack.setBufferSizeInFrames((int) (defaultBufferSize * playbackRate));
+      PlaybackParams params = audioTrack.getPlaybackParams();
+      params.setSpeed(playbackRate);
+      audioTrack.setPlaybackParams(params);
+      // Mute the audio if the playback is too slow or fast
+      if (playbackRate <= minPlaybackRate || playbackRate >= maxPlaybackRate){
+        audioTrack.setVolume(0);
+      }
+      else {
+        audioTrack.setVolume(1);
+      }
+    } catch (IllegalArgumentException e){
+      Log.e(TAG, String.format("Unable to set playbackRate, error: %s.", e.toString()));
+      return 0;
+    } catch (IllegalStateException e) {
+      Log.e(TAG, String.format("Unable to set playbackRate, error: %s", e.toString()));
+      return 0;
+    }
+    return 1;
   }
 
   // TODO (b/262608024): Have this method return a boolean and return false on failure.

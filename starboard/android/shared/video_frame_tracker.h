@@ -30,8 +30,6 @@ class VideoFrameTracker {
   explicit VideoFrameTracker(int max_pending_frames_size)
       : max_pending_frames_size_(max_pending_frames_size) {}
 
-  int64_t seek_to_time() const;
-
   void OnInputBuffer(int64_t timestamp);
 
   void OnFrameRendered(int64_t frame_timestamp);

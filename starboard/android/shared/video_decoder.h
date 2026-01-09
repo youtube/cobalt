@@ -97,6 +97,8 @@ class VideoDecoder
   void UpdateDecodeTargetSizeAndContentRegion_Locked();
   void SetPlaybackRate(double playback_rate);
 
+  void Seek(int64_t seek_to_time);
+
   void OnNewTextureAvailable();
 
   bool is_decoder_created() const { return media_decoder_ != NULL; }
@@ -118,7 +120,9 @@ class VideoDecoder
 
   void TryToSignalPrerollForTunnelMode();
   bool IsFrameRenderedCallbackEnabled();
+  bool IsFirstTunnelFrameReadyCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
+  void OnFirstTunnelFrameRendered();
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
@@ -168,6 +172,8 @@ class VideoDecoder
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   atomic_bool tunnel_mode_prerolling_{true};
   atomic_bool tunnel_mode_frame_rendered_;
+  atomic_bool first_tunnel_frame_ready_{false};
+  starboard::shared::starboard::player::JobQueue::JobToken job_token_;
 
   // If decode-to-texture is enabled, then we store the decode target texture
   // inside of this |decode_target_| member.
@@ -201,6 +207,7 @@ class VideoDecoder
   bool end_of_stream_written_ = false;
   volatile int64_t first_buffer_timestamp_;  // microseconds
   atomic_bool has_new_texture_available_;
+  int64_t seek_to_time_ = 0;
 
   // Use |owns_video_surface_| only on decoder thread, to avoid unnecessary
   // invocation of ReleaseVideoSurface(), though ReleaseVideoSurface() would
