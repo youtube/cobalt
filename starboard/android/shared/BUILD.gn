@@ -122,7 +122,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
     "//starboard/shared/starboard/microphone/microphone_open.cc",
     "//starboard/shared/starboard/microphone/microphone_read.cc",
-    "//starboard/shared/starboard/new.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/queue_application.h",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
