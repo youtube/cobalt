@@ -105,7 +105,9 @@ class SbPlayerBridge {
                  DecodeTargetProvider* const decode_target_provider,
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
-                 int max_video_input_size
+                 int max_video_input_size,
+                 bool flush_decoder_during_reset,
+                 bool reset_audio_decoder
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -336,6 +338,9 @@ class SbPlayerBridge {
 
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
+
+  const bool flush_decoder_during_reset_;
+  const bool reset_audio_decoder_;
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;

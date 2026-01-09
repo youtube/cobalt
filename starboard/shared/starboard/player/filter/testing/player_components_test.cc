@@ -90,7 +90,7 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
+          max_video_input_size_, false, false,
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
@@ -107,7 +107,7 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
-          max_video_input_size_,
+          max_video_input_size_, false, false,
           fake_graphics_context_provider_.decoder_target_provider());
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);

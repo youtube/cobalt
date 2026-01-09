@@ -131,8 +131,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_, decode_target_graphics_context_provider_,
-      drm_system_);
+      max_video_input_size_, flush_decoder_during_reset_, reset_audio_decoder_,
+      decode_target_graphics_context_provider_, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -548,6 +548,21 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
                << " to " << max_video_input_size;
   max_video_input_size_ = max_video_input_size;
+}
+
+void FilterBasedPlayerWorkerHandler::SetFlushDecoderDuringReset(
+    bool flush_decoder_during_reset) {
+  SB_LOG(INFO) << "Set flush_decoder_during_reset from "
+               << flush_decoder_during_reset_ << " to "
+               << flush_decoder_during_reset;
+  flush_decoder_during_reset_ = flush_decoder_during_reset;
+}
+
+void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
+    bool reset_audio_decoder) {
+  SB_LOG(INFO) << "Set reset_audio_decoder from " << reset_audio_decoder_
+               << " to " << reset_audio_decoder;
+  reset_audio_decoder_ = reset_audio_decoder;
 }
 
 }  // namespace starboard::shared::starboard::player::filter
