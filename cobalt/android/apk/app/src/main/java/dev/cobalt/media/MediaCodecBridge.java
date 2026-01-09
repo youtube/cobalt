@@ -32,6 +32,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
 import androidx.annotation.Nullable;
+import dev.cobalt.features.StarboardFeatureList;
+import dev.cobalt.features.StarboardFeatures;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import dev.cobalt.util.UsedByNative;
@@ -1004,7 +1006,7 @@ class MediaCodecBridge {
         format.setInteger(MediaFormat.KEY_MAX_HEIGHT, Math.min(2160, maxSupportedHeight));
       }
 
-      maybeSetMaxVideoInputSize(format);
+      maybeSetMaxVideoInputSize(format, crypto);
       mMediaCodec.get().configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;
@@ -1041,10 +1043,21 @@ class MediaCodecBridge {
     return ceilDivide * alignment;
   }
 
+  /**
+   * Returns the maximum sample size assuming three channel 4:2:0 subsampled input frames with the
+   * specified {@code minCompressionRatio}
+   *
+   * @param pixelCount The number of pixels
+   * @param minCompressionRatio The minimum compression ratio
+   */
+  private static int getMaxSampleSize(int pixelCount, int minCompressionRatio) {
+    return (pixelCount * 3) / (2 * minCompressionRatio);
+  }
+
   // Use some heuristics to set KEY_MAX_INPUT_SIZE (the size of the input buffers).
   // Taken from ExoPlayer:
   // https://github.com/google/ExoPlayer/blob/8595c65678a181296cdf673eacb93d8135479340/library/src/main/java/com/google/android/exoplayer/MediaCodecVideoTrackRenderer.java
-  private void maybeSetMaxVideoInputSize(MediaFormat format) {
+  private void maybeSetMaxVideoInputSize(MediaFormat format, MediaCrypto crypto) {
     if (format.containsKey(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)) {
       try {
         Log.i(
@@ -1066,36 +1079,72 @@ class MediaCodecBridge {
     if (format.containsKey(MediaFormat.KEY_MAX_WIDTH)) {
       maxWidth = Math.max(maxWidth, format.getInteger(MediaFormat.KEY_MAX_WIDTH));
     }
-    int maxPixels;
-    int minCompressionRatio;
-    switch (format.getString(MediaFormat.KEY_MIME)) {
-      case MimeTypes.VIDEO_H264:
-        if ("BRAVIA 4K 2015".equals(Build.MODEL)) {
-          // The Sony BRAVIA 4k TV has input buffers that are too small for the calculated
-          // 4k video maximum input size, so use the default value.
-          return;
-        }
-        // Round up width/height to an integer number of macroblocks.
-        maxPixels = ((maxWidth + 15) / 16) * ((maxHeight + 15) / 16) * 16 * 16;
-        minCompressionRatio = 2;
-        break;
-      case MimeTypes.VIDEO_VP8:
-        // VPX does not specify a ratio so use the values from the platform's SoftVPX.cpp.
-        maxPixels = maxWidth * maxHeight;
-        minCompressionRatio = 2;
-        break;
-      case MimeTypes.VIDEO_H265:
-      case MimeTypes.VIDEO_VP9:
+    int pixelCount = -1;
+    int minCompressionRatio = -1;
+    String mime = format.getString(MediaFormat.KEY_MIME);
+    boolean experimentalVideoSizeCalculation = StarboardFeatureList.isEnabled(StarboardFeatures.EXPERIMENTAL_VIDEO_SIZE_CALCULATION);
+
+    if (experimentalVideoSizeCalculation) {
+      switch (mime) {
+        case MimeTypes.VIDEO_H264:
+          if ("BRAVIA 4K 2015".equals(Build.MODEL) // Sony Bravia 4K
+              || ("Amazon".equals(Build.MANUFACTURER)
+                  && ("KFSOWI".equals(Build.MODEL) // Kindle Soho
+                      || ("AFTS".equals(Build.MODEL) && crypto != null)))) { // Fire TV Gen 2
+              // Use the default value for cases where platform limitations may prevent buffers of the
+              // calculated maximum input size from being allocated.
+              return;
+          }
+          pixelCount = alignDimension(maxWidth, 16) * alignDimension(maxHeight, 16);
+          minCompressionRatio = 2;
+          break;
       case MimeTypes.VIDEO_AV1:
-        maxPixels = maxWidth * maxHeight;
-        minCompressionRatio = 4;
-        break;
+      // Assume a min compression of 2 similar to the platform's C2SoftAomDec.cpp.
+      case MimeTypes.VIDEO_VP8:
+      // Assume a min compression of 2 similar to the platform's SoftVPX.cpp.
+      case MimeTypes.VIDEO_H265:
+      // Assume a min compression of 2 similar to the platform's C2SoftHevcDec.cpp, but restrict
+      // the minimum size.
+          pixelCount = maxWidth * maxHeight;
+          minCompressionRatio = 2;
+          break;
+      case MimeTypes.VIDEO_VP9:
+          pixelCount = maxWidth * maxHeight;
+          minCompressionRatio = 4;
+          break;
       default:
-        // Leave the default max input size.
-        return;
+          // Leave the default max input size.
+          return;
+      }
+    } else {
+      switch (mime) {
+        case MimeTypes.VIDEO_H264:
+          if ("BRAVIA 4K 2015".equals(Build.MODEL)) {
+            // The Sony BRAVIA 4k TV has input buffers that are too small for the calculated
+            // 4k video maximum input size, so use the default value.
+            return;
+          }
+          // Round up width/height to an integer number of macroblocks.
+          pixelCount = ((maxWidth + 15) / 16) * ((maxHeight + 15) / 16) * 16 * 16;
+          minCompressionRatio = 2;
+          break;
+        case MimeTypes.VIDEO_VP8:
+          // VPX does not specify a ratio so use the values from the platform's SoftVPX.cpp.
+          pixelCount = maxWidth * maxHeight;
+          minCompressionRatio = 2;
+          break;
+        case MimeTypes.VIDEO_H265:
+        case MimeTypes.VIDEO_VP9:
+        case MimeTypes.VIDEO_AV1:
+          pixelCount = maxWidth * maxHeight;
+          minCompressionRatio = 4;
+          break;
+        default:
+          return;
+      }
     }
     // Estimate the maximum input size assuming three channel 4:2:0 subsampled input frames.
-    int maxVideoInputSize = (maxPixels * 3) / (2 * minCompressionRatio);
+    int maxVideoInputSize = getMaxSampleSize(pixelCount, minCompressionRatio);
     format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
     try {
       Log.i(

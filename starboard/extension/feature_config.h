@@ -101,6 +101,12 @@ FEATURE_LIST_START
 // #endif // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 
 #if BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
+// By default, Cobalt calculates the maximum video size for videos using
+// calculations as old as 2018. Set the following variable to true to force use
+// calculations from the latest exoplayer code found in cl/467641494.
+STARBOARD_FEATURE(kExperimentalVideoSizeCalculation,
+                  "ExperimentalVideoSizeCalculation",
+                  false)
 // By default, Cobalt recreates MediaCodec when Reset() during Seek().
 // Set the following variable to true to force it Flush() MediaCodec
 // during Seek().
