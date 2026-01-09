@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_WORKER_HANDLER_H_
-#define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_WORKER_HANDLER_H_
+#ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_PLAYER_WORKER_HANDLER_H_
+#define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_PLAYER_WORKER_HANDLER_H_
 
 #include <memory>
 #include <string>
@@ -27,10 +27,11 @@
 
 namespace starboard {
 
-class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
-                               private JobQueue::JobOwner {
+class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
+                                     private JobQueue::JobOwner {
  public:
-  explicit ExoPlayerWorkerHandler(const SbPlayerCreationParam* creation_param);
+  explicit ExoPlayerPlayerWorkerHandler(
+      const SbPlayerCreationParam* creation_param);
 
  private:
   Result<void> Init(SbPlayer player,
@@ -61,7 +62,7 @@ class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
 
   bool IsEOSWritten(SbMediaType type) const;
 
-  void ScheduleOnWorker(std::function<void()> task);
+  void RunOnWorker(std::function<void()> task);
 
   UpdateMediaInfoCB update_media_info_cb_;
   GetPlayerStateCB get_player_state_cb_;
@@ -73,10 +74,10 @@ class ExoPlayerWorkerHandler : public PlayerWorker::Handler,
 
   const std::unique_ptr<ExoPlayerBridge> bridge_;
 
-  bool audio_eos_written_;
-  bool video_eos_written_;
+  bool audio_eos_written_ = false;
+  bool video_eos_written_ = false;
 };
 
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_WORKER_HANDLER_H_
+#endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_PLAYER_WORKER_HANDLER_H_
