@@ -113,6 +113,7 @@ void CobaltContentRendererClient::RenderFrameCreated(
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 }
