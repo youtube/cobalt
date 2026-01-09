@@ -93,8 +93,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       SbDrmSystem drm_system,
       const SbMediaColorMetadata* color_metadata,
       bool require_software_codec,
-      const FrameRenderedCB& frame_rendered_cb,
-      const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+      FrameRenderedCB frame_rendered_cb,
+      FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
@@ -117,8 +117,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
                     SbDrmSystem drm_system,
                     const SbMediaColorMetadata* color_metadata,
                     bool require_software_codec,
-                    const FrameRenderedCB& frame_rendered_cb,
-                    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+                    FrameRenderedCB frame_rendered_cb,
+                    FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb,
                     int tunnel_mode_audio_session_id,
                     bool force_big_endian_hdr_metadata,
                     int max_video_input_size,
@@ -210,8 +210,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   DrmSystem* const drm_system_;
   const FrameRenderedCB frame_rendered_cb_;
   const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
-  const bool tunnel_mode_enabled_;
-  const int64_t flush_delay_usec_;
+  const bool tunnel_mode_enabled_ = false;
+  const int64_t flush_delay_usec_ = 0;
 
   ErrorCB error_cb_;
 
@@ -238,7 +238,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   // Working thread to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
-  std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
+  std::string creation_error_message_;
+  const std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
 }  // namespace starboard

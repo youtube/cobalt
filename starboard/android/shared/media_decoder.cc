@@ -121,8 +121,8 @@ NonNullResult<std::unique_ptr<MediaCodecDecoder>> MediaCodecDecoder::Create(
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
-    const FrameRenderedCB& frame_rendered_cb,
-    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+    FrameRenderedCB frame_rendered_cb,
+    FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
@@ -130,11 +130,11 @@ NonNullResult<std::unique_ptr<MediaCodecDecoder>> MediaCodecDecoder::Create(
   auto media_decoder = std::make_unique<MediaCodecDecoder>(
       host, video_codec, width_hint, height_hint, max_width, max_height, fps,
       j_output_surface, drm_system, color_metadata, require_software_codec,
-      frame_rendered_cb, first_tunnel_frame_ready_cb,
+      std::move(frame_rendered_cb), std::move(first_tunnel_frame_ready_cb),
       tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
       max_video_input_size, flush_delay_usec);
   if (!media_decoder->media_codec_bridge_) {
-    return Failure(media_decoder->error_message_);
+    return Failure(media_decoder->creation_error_message_);
   }
   return media_decoder;
 }
@@ -145,18 +145,20 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
     : media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      tunnel_mode_enabled_(false),
-      flush_delay_usec_(0) {
-  SB_CHECK(host_);
-
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
-  SB_DCHECK(!drm_system_ || j_media_crypto);
-  media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
-      audio_stream_info, this, j_media_crypto);
+      media_codec_bridge_([&] {
+        jobject j_media_crypto =
+            drm_system_ ? drm_system_->GetMediaCrypto() : nullptr;
+        SB_CHECK(!drm_system_ || j_media_crypto);
+        return MediaCodecBridge::CreateAudioMediaCodecBridge(
+            audio_stream_info, /*handler*/ this, j_media_crypto);
+      }()) {
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create audio media codec bridge.";
     return;
   }
+
+  SB_CHECK(host_);
+
   // When |audio_stream_info.codec| == kSbMediaAudioCodecOpus, we instead send
   // the audio specific configuration when we create the MediaCodec object in
   // the call to MediaCodecBridge::CreateAudioMediaCodecBridge() above.
@@ -181,8 +183,8 @@ MediaCodecDecoder::MediaCodecDecoder(
     SbDrmSystem drm_system,
     const SbMediaColorMetadata* color_metadata,
     bool require_software_codec,
-    const FrameRenderedCB& frame_rendered_cb,
-    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+    FrameRenderedCB frame_rendered_cb,
+    FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb,
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
@@ -190,29 +192,35 @@ MediaCodecDecoder::MediaCodecDecoder(
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      frame_rendered_cb_(frame_rendered_cb),
-      first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
+      frame_rendered_cb_(std::move(frame_rendered_cb)),
+      first_tunnel_frame_ready_cb_(std::move(first_tunnel_frame_ready_cb)),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
-      flush_delay_usec_(flush_delay_usec) {
-  SB_DCHECK(frame_rendered_cb_);
-  SB_DCHECK(first_tunnel_frame_ready_cb_);
-
-  jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
-  const bool require_secured_decoder =
-      drm_system_ && drm_system_->require_secured_decoder();
-  SB_DCHECK(!drm_system_ || j_media_crypto);
-  auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec, width_hint, height_hint, fps, max_width, max_height, this,
-      j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
-      require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size);
-  if (media_codec_bridge) {
-    media_codec_bridge_ = std::move(media_codec_bridge.value());
-  } else {
-    error_message_ = media_codec_bridge.error();
-    SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
-                  << error_message_;
+      flush_delay_usec_(flush_delay_usec),
+      media_codec_bridge_([&] {
+        jobject j_media_crypto =
+            drm_system_ ? drm_system_->GetMediaCrypto() : nullptr;
+        const bool require_secured_decoder =
+            drm_system_ && drm_system_->require_secured_decoder();
+        SB_CHECK(!drm_system_ || j_media_crypto);
+        auto result = MediaCodecBridge::CreateVideoMediaCodecBridge(
+            video_codec, width_hint, height_hint, fps, max_width, max_height,
+            /*handler=*/this, j_output_surface, j_media_crypto, color_metadata,
+            require_secured_decoder, require_software_codec,
+            tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
+            max_video_input_size);
+        if (!result) {
+          creation_error_message_ = result.error();
+          return nullptr;
+        }
+        return std::move(result.value());
+      }()) {
+  if (!media_codec_bridge_) {
+    SB_LOG(ERROR) << "Failed to create video media codec bridge.";
+    return;
   }
+
+  SB_CHECK(frame_rendered_cb_);
+  SB_CHECK(first_tunnel_frame_ready_cb_);
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
