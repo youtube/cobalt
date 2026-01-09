@@ -81,8 +81,8 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       SbMediaVideoCodec video_codec,
       // `frame_size_hint` are used to create the Android video format, which
       // don't have to be directly related to the resolution of the video.
-      Size frame_size_hint,
-      std::optional<Size> max_frame_size,
+      const Size& frame_size_hint,
+      const std::optional<Size>& max_frame_size,
       int fps,
       jobject j_output_surface,
       SbDrmSystem drm_system,

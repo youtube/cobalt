@@ -134,7 +134,7 @@ std::optional<Size> ParseMaxResolution(
     return std::nullopt;
   }
   if (width != -1 && height != -1) {
-    const Size max_size = {width, height};
+    Size max_size = {width, height};
     SB_LOG(INFO) << "Parsed max resolution=" << max_size;
     return max_size;
   }
@@ -148,20 +148,16 @@ std::optional<Size> ParseMaxResolution(
   }
 
   if (width > 0) {
-    const Size max_size = {width, width * frame_size.height / frame_size.width};
+    Size max_size = {width, width * frame_size.height / frame_size.width};
     SB_LOG(INFO) << "Inferred max size=" << max_size
                  << ", frame resolution=" << frame_size;
     return max_size;
   }
 
-  if (height > 0) {
-    const Size max_size = {height * frame_size.width / frame_size.height,
-                           height};
-    SB_LOG(INFO) << "Inferred max size=" << max_size
-                 << ", frame resolution=" << frame_size;
-    return max_size;
-  }
-  return std::nullopt;
+  Size max_size = {height * frame_size.width / frame_size.height, height};
+  SB_LOG(INFO) << "Inferred max size=" << max_size
+               << ", frame resolution=" << frame_size;
+  return max_size;
 }
 
 class VideoFrameImpl : public VideoFrame {
