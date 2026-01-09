@@ -85,7 +85,6 @@ android_library("cobalt_main_java") {
     "//third_party/androidx:androidx_media3_media3_datasource_java",
     "//third_party/androidx:androidx_media3_media3_decoder_java",
     "//third_party/androidx:androidx_media3_media3_exoplayer_java",
-    "//third_party/androidx:androidx_media3_media3_extractor_java",
     "//third_party/androidx:androidx_media_media_java",
     "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
