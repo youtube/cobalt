@@ -132,7 +132,7 @@ ExoPlayerBridge::~ExoPlayerBridge() {
   SB_CHECK(thread_checker_.CalledOnValidThread());
 
   ON_INSTANCE_RELEASED(ExoPlayerBridge);
-  player_is_releasing_ = true;
+  player_is_releasing_.store(true);
 
   if (is_valid()) {
     Java_ExoPlayerBridge_release(AttachCurrentThread(), j_exoplayer_bridge_);
@@ -145,7 +145,7 @@ ExoPlayerBridge::~ExoPlayerBridge() {
 }
 
 void ExoPlayerBridge::OnSurfaceDestroyed() {
-  if (!player_is_releasing_) {
+  if (!player_is_releasing_.load()) {
     std::string msg = "ExoPlayer surface is destroyed before playback ended";
     SB_LOG(ERROR) << msg;
     playback_error_occurred_.store(true);
