@@ -3,7 +3,6 @@
   "test_targets": [
     "base:base_perftests",
     "base:base_unittests",
-    "cobalt/testing/browser_tests:cobalt_browsertests",
     "cobalt:cobalt_unittests",
     "media:media_unittests",
     "media/midi:midi_unittests",

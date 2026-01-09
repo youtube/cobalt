@@ -14,4 +14,11 @@
 
 declare_args() {
   rdk_starboard_root = "/"
+  rdk_arm_call_convention = "hardfp"
 }
+
+rdk_home_dir = getenv("RDK_HOME")
+assert(rdk_home_dir != "",
+       "RDK builds require the 'RDK_HOME' environment variable to be set.")
+
+rdk_sysroot = "$rdk_home_dir/sysroots/aarch64-rdk-linux"

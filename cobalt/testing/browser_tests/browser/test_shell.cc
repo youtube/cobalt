@@ -29,6 +29,8 @@
 
 namespace content {
 
+// TODO(b/433354983): Figure out how to support splash webcontents in
+// cobalt_browsertests.
 TestShell::TestShell(std::unique_ptr<WebContents> web_contents,
                      bool should_set_delegate)
     : Shell(std::move(web_contents), nullptr, should_set_delegate) {}
