@@ -27,15 +27,23 @@ H5vccAccessibility::H5vccAccessibility(LocalDOMWindow& window)
       notification_receiver_(this, window.GetExecutionContext()) {}
 
 bool H5vccAccessibility::textToSpeech() {
+  CHECK(WTF::IsMainThread());
   EnsureRemoteIsBound();
+
+  if (cached_text_to_speech_enabled_.has_value()) {
+    return cached_text_to_speech_enabled_.value();
+  }
 
   bool text_to_speech_enabled = false;
   remote_->IsTextToSpeechEnabledSync(&text_to_speech_enabled);
+  cached_text_to_speech_enabled_ = text_to_speech_enabled;
   return text_to_speech_enabled;
 }
 
 // Called by browser to dispatch kTexttospeechchange event.
 void H5vccAccessibility::NotifyTextToSpeechChange(bool enabled) {
+  CHECK(WTF::IsMainThread());
+  cached_text_to_speech_enabled_ = enabled;
   auto* event_init = TextToSpeechChangeEventInit::Create();
   event_init->setEnabled(enabled);
   DispatchEvent(*TextToSpeechChangeEvent::Create(
@@ -45,6 +53,7 @@ void H5vccAccessibility::NotifyTextToSpeechChange(bool enabled) {
 void H5vccAccessibility::AddedEventListener(
     const AtomicString& event_type,
     RegisteredEventListener& registered_listener) {
+  CHECK(WTF::IsMainThread());
   // Enforce that only "texttospeechchange" events are allowed.
   DCHECK(event_type == event_type_names::kTexttospeechchange)
       << "H5vccAccessibility only supports 'texttospeechchange' events.";
@@ -63,6 +72,7 @@ void H5vccAccessibility::AddedEventListener(
 void H5vccAccessibility::RemovedEventListener(
     const AtomicString& event_type,
     const RegisteredEventListener& registered_listener) {
+  CHECK(WTF::IsMainThread());
   EventTarget::RemovedEventListener(event_type, registered_listener);
 
   if (event_type == event_type_names::kTexttospeechchange &&
