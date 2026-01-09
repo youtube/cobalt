@@ -95,6 +95,50 @@ class MediaCodecDecoder::DecoderThread : public Thread {
   MediaCodecDecoder* decoder_;
 };
 
+// static
+NonNullResult<std::unique_ptr<MediaCodecDecoder>> MediaCodecDecoder::Create(
+    Host* host,
+    const AudioStreamInfo& audio_stream_info,
+    SbDrmSystem drm_system) {
+  auto media_decoder =
+      std::make_unique<MediaCodecDecoder>(host, audio_stream_info, drm_system);
+  if (!media_decoder->media_codec_bridge_) {
+    return Failure("Failed to create audio media codec bridge.");
+  }
+  return media_decoder;
+}
+
+// static
+NonNullResult<std::unique_ptr<MediaCodecDecoder>> MediaCodecDecoder::Create(
+    Host* host,
+    SbMediaVideoCodec video_codec,
+    int width_hint,
+    int height_hint,
+    std::optional<int> max_width,
+    std::optional<int> max_height,
+    int fps,
+    jobject j_output_surface,
+    SbDrmSystem drm_system,
+    const SbMediaColorMetadata* color_metadata,
+    bool require_software_codec,
+    const FrameRenderedCB& frame_rendered_cb,
+    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+    int tunnel_mode_audio_session_id,
+    bool force_big_endian_hdr_metadata,
+    int max_video_input_size,
+    int64_t flush_delay_usec) {
+  auto media_decoder = std::make_unique<MediaCodecDecoder>(
+      host, video_codec, width_hint, height_hint, max_width, max_height, fps,
+      j_output_surface, drm_system, color_metadata, require_software_codec,
+      frame_rendered_cb, first_tunnel_frame_ready_cb,
+      tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
+      max_video_input_size, flush_delay_usec);
+  if (!media_decoder->media_codec_bridge_) {
+    return Failure(media_decoder->error_message_);
+  }
+  return media_decoder;
+}
+
 MediaCodecDecoder::MediaCodecDecoder(Host* host,
                                      const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system)
@@ -142,8 +186,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     int tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
-    int64_t flush_delay_usec,
-    std::string* error_message)
+    int64_t flush_delay_usec)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -166,9 +209,9 @@ MediaCodecDecoder::MediaCodecDecoder(
   if (media_codec_bridge) {
     media_codec_bridge_ = std::move(media_codec_bridge.value());
   } else {
-    *error_message = media_codec_bridge.error();
+    error_message_ = media_codec_bridge.error();
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
-                  << *error_message;
+                  << error_message_;
   }
 }
 
@@ -177,7 +220,7 @@ MediaCodecDecoder::~MediaCodecDecoder() {
 
   TerminateDecoderThread();
 
-  if (is_valid()) {
+  if (media_codec_bridge_) {
     host_->OnFlushing();
     // After |decoder_thread_| is ended and before |media_codec_bridge_| is
     // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
@@ -726,7 +769,7 @@ bool MediaCodecDecoder::Flush() {
   TerminateDecoderThread();
 
   // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
-  if (is_valid()) {
+  if (media_codec_bridge_) {
     // 2.1. Flush() |media_codec_bridge_|.
     host_->OnFlushing();
     jint status = media_codec_bridge_->Flush();
