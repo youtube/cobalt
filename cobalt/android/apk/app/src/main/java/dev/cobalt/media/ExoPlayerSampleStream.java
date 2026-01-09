@@ -33,61 +33,84 @@ import java.io.IOException;
 @UnstableApi
 public class ExoPlayerSampleStream implements SampleStream {
     // The player maintains a copy of each sample in the SampleQueue to read asynchronously.
-    private final SampleQueue sampleQueue;
-    private volatile boolean endOfStream = false;
-    private final ParsableByteArray sampleData = new ParsableByteArray();
+    private final SampleQueue mSampleQueue;
+    private volatile boolean mEndOfStream = false;
+    private final ParsableByteArray mSampleData = new ParsableByteArray();
     // The memory here is managed by Java rather than the native allocator, which may increase
     // memory pressure.
     // TODO: Have the SampleQueue read directly from native memory, rather than manage its own
     // memory.
     private static final long MAX_BUFFER_DURATION_US = 5 * 1000 * 1000; // 5 seconds.
+    // CanAcceptMoreData() returns false when the total queued media duration is more than MAX_BUFFER_DURATION_US - MEMORY_PRESSURE_THRESHOLD_US. This allows time for the queue to empty before it can accept more samples, without overfilling the queue.
     private static final long MEMORY_PRESSURE_THRESHOLD_US = 250 * 1000; //  250 milliseconds.
 
     ExoPlayerSampleStream(Allocator allocator, Format format) {
-        sampleQueue = SampleQueue.createWithoutDrm(allocator);
-        sampleQueue.format(format);
+        mSampleQueue = SampleQueue.createWithoutDrm(allocator);
+        mSampleQueue.format(format);
     }
 
     void discardBuffer(long positionUs, boolean toKeyframe) {
-        sampleQueue.discardTo(positionUs, toKeyframe, false);
+        mSampleQueue.discardTo(positionUs, toKeyframe, false);
     }
 
+    /**
+     * Queues samples to decode, along with related flags and relevant metadata.
+     * @param samples The sample data.
+     * @param size The size of the sample data.
+     * @param timestamp The timestamp of the sample in microseconds.
+     * @param isKeyFrame Whether the sample is a keyframe.
+     */
     public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        sampleData.reset(samples, size);
+        mSampleData.reset(samples, size);
         int flags = 0;
         if (isKeyFrame) {
             flags |= C.BUFFER_FLAG_KEY_FRAME;
         }
 
         // TODO: Optimize by avoiding an extra sample copy here.
-        sampleQueue.sampleData(sampleData, size);
-        sampleQueue.sampleMetadata(timestamp, flags, size, 0, null);
+        mSampleQueue.sampleData(mSampleData, size);
+        mSampleQueue.sampleMetadata(timestamp, flags, size, 0, null);
     }
 
     public void writeEndOfStream() {
-        sampleQueue.sampleMetadata(
-                sampleQueue.getLargestQueuedTimestampUs(), C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
-        endOfStream = true;
+        mSampleQueue.sampleMetadata(
+                mSampleQueue.getLargestQueuedTimestampUs(), C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
+        mEndOfStream = true;
     }
 
+    /**
+     * Returns whether the sample queue is ready to provide samples.
+     * @return Whether the sample queue is ready.
+     */
     @Override
     public boolean isReady() {
-        return sampleQueue.isReady(endOfStream);
+        return mSampleQueue.isReady(mEndOfStream);
     }
 
+    /**
+     * Throws an error if the sample stream has failed.
+     * @throws IOException If an error occurred.
+     */
     @Override
     public void maybeThrowError() throws IOException {}
 
+    /**
+     * Reads data from the sample queue.
+     * @param formatHolder A holder for the format of the data.
+     * @param buffer The buffer to write the data to.
+     * @param readFlags Flags controlling the read operation.
+     * @return The result of the read operation.
+     */
     @Override
     public int readData(
             @NonNull FormatHolder formatHolder, @NonNull DecoderInputBuffer buffer, int readFlags) {
-        if (!sampleQueue.isReady(endOfStream)) {
+        if (!mSampleQueue.isReady(mEndOfStream)) {
             return C.RESULT_NOTHING_READ;
         }
 
         int read = C.RESULT_NOTHING_READ;
         try {
-            read = sampleQueue.read(formatHolder, buffer, readFlags, endOfStream);
+            read = mSampleQueue.read(formatHolder, buffer, readFlags, mEndOfStream);
         } catch (DecoderInputBuffer.InsufficientCapacityException e) {
             Log.i(TAG,
                     String.format(
@@ -97,36 +120,56 @@ public class ExoPlayerSampleStream implements SampleStream {
         return read;
     }
 
+    /**
+     * Skips data in the sample queue.
+     * @param positionUs The position in microseconds to skip to.
+     * @return The number of samples skipped.
+     */
     @Override
     public int skipData(long positionUs) {
-        int skipCount = sampleQueue.getSkipCount(positionUs, endOfStream);
-        sampleQueue.skip(skipCount);
+        int skipCount = mSampleQueue.getSkipCount(positionUs, mEndOfStream);
+        mSampleQueue.skip(skipCount);
         return skipCount;
     }
 
+    /**
+     * Returns the timestamp of the most advanced queued buffer.
+     * @return The buffered position in microseconds.
+     */
     public long getBufferedPositionUs() {
-        return endOfStream ? C.TIME_END_OF_SOURCE : sampleQueue.getLargestQueuedTimestampUs();
+        return mEndOfStream ? C.TIME_END_OF_SOURCE : mSampleQueue.getLargestQueuedTimestampUs();
     }
 
+    /**
+     * Attempts to seek within all queued samples to the seek position. If this fails, the queue is
+     * reset to prepare for new samples.
+     * @param timestampUs The position in microseconds to seek to.
+     * @param format The format of the samples.
+     */
     public void seek(long timestampUs, Format format) {
-        if (!sampleQueue.seekTo(timestampUs, true)) {
-            sampleQueue.reset();
-            sampleQueue.format(format);
+        if (!mSampleQueue.seekTo(timestampUs, true)) {
+            mSampleQueue.reset();
+            mSampleQueue.format(format);
         }
-        endOfStream = false;
+        mEndOfStream = false;
     }
 
     public void destroy() {
-        sampleQueue.release();
+        mSampleQueue.release();
     }
 
+    /**
+     * Returns true if the queue can accept more samples. Returns false if the queue size approaches
+     * its maximum to allow time for samples to be dequeued before queueing new ones.
+     * @return Whether the queue can accept more data.
+     */
     public boolean canAcceptMoreData() {
         long bufferedDurationUs =
-                sampleQueue.getLargestQueuedTimestampUs() - sampleQueue.getFirstTimestampUs();
+                mSampleQueue.getLargestQueuedTimestampUs() - mSampleQueue.getFirstTimestampUs();
         return bufferedDurationUs < MAX_BUFFER_DURATION_US - MEMORY_PRESSURE_THRESHOLD_US;
     }
 
     public boolean endOfStreamWritten() {
-        return endOfStream;
+        return mEndOfStream;
     }
 }

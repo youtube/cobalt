@@ -38,10 +38,10 @@ import org.jni_zero.JNINamespace;
  */
 @JNINamespace("starboard")
 public class ExoPlayerManager {
-    private Context context;
-    private DefaultRenderersFactory renderersFactory;
+    private final Context mContext;
+    private final DefaultRenderersFactory mRenderersFactory;
 
-    /** Filters software video codecs from ExoPlayer codec selection. */
+    /** Filters software video codecs from ExoPlayer codec selection for non-emulator devices. */
     private static final class FilteringMediaCodecSelector implements MediaCodecSelector {
         @Override
         public List<MediaCodecInfo> getDecoderInfos(
@@ -81,12 +81,25 @@ public class ExoPlayerManager {
         }
     }
 
+    /**
+     * Initializes a new ExoPlayerManager.
+     * @param context The application context.
+     */
     public ExoPlayerManager(Context context) {
-        this.context = context;
-        renderersFactory = new DefaultRenderersFactory(context).setMediaCodecSelector(
+        this.mContext = context;
+        mRenderersFactory = new DefaultRenderersFactory(mContext).setMediaCodecSelector(
                 new FilteringMediaCodecSelector());
     }
 
+    /**
+     * Creates and initializes a new ExoPlayerBridge.
+     * @param nativeExoPlayerBridge The pointer to the native ExoPlayerBridge.
+     * @param audioSource The audio source.
+     * @param videoSource The video source.
+     * @param surface The rendering surface.
+     * @param enableTunnelMode Whether to enable tunnel mode.
+     * @return A new ExoPlayerBridge instance.
+     */
     @CalledByNative
     public synchronized ExoPlayerBridge createExoPlayerBridge(long nativeExoPlayerBridge,
             ExoPlayerMediaSource audioSource, ExoPlayerMediaSource videoSource, Surface surface,
@@ -96,10 +109,18 @@ public class ExoPlayerManager {
             return null;
         }
 
-        return new ExoPlayerBridge(nativeExoPlayerBridge, context, renderersFactory, audioSource,
+        return new ExoPlayerBridge(nativeExoPlayerBridge, mContext, mRenderersFactory, audioSource,
                 videoSource, surface, enableTunnelMode);
     }
 
+    /**
+     * Creates an audio MediaSource for playback.
+     * @param mime The audio mime type.
+     * @param audioConfigurationData The audio configuration data for Opus or AAC.
+     * @param sampleRate The audio sample rate.
+     * @param channelCount The number of audio channels.
+     * @return A new ExoPlayerMediaSource instance.
+     */
     @CalledByNative
     public static ExoPlayerMediaSource createAudioMediaSource(
             String mime, byte[] audioConfigurationData, int sampleRate, int channelCount) {
@@ -130,6 +151,16 @@ public class ExoPlayerManager {
         return new ExoPlayerMediaSource(builder.build());
     }
 
+    /**
+     * Creates a video MediaSource for playback.
+     * @param mime The video mime type.
+     * @param width The video width.
+     * @param height The video height.
+     * @param fps The video frame rate.
+     * @param bitrate The video bitrate.
+     * @param colorInfo The video color info.
+     * @return A new ExoPlayerMediaSource instance.
+     */
     @CalledByNative
     public static ExoPlayerMediaSource createVideoMediaSource(
             String mime, int width, int height, int fps, int bitrate, ColorInfo colorInfo) {
@@ -151,6 +182,25 @@ public class ExoPlayerManager {
         return new ExoPlayerMediaSource(builder.build());
     }
 
+    /**
+     * Creates a ColorInfo object from the given HDR metadata.
+     * @param colorRange The color range.
+     * @param colorSpace The color space.
+     * @param colorTransfer The color transfer.
+     * @param primaryRChromaticityX The red primary chromaticity x-coordinate.
+     * @param primaryRChromaticityY The red primary chromaticity y-coordinate.
+     * @param primaryGChromaticityX The green primary chromaticity x-coordinate.
+     * @param primaryGChromaticityY The green primary chromaticity y-coordinate.
+     * @param primaryBChromaticityX The blue primary chromaticity x-coordinate.
+     * @param primaryBChromaticityY The blue primary chromaticity y-coordinate.
+     * @param whitePointChromaticityX The white point chromaticity x-coordinate.
+     * @param whitePointChromaticityY The white point chromaticity y-coordinate.
+     * @param maxMasteringLuminance The maximum mastering luminance.
+     * @param minMasteringLuminance The minimum mastering luminance.
+     * @param maxCll The maximum content light level.
+     * @param maxFall The maximum frame-average light level.
+     * @return A new ColorInfo instance.
+     */
     @CalledByNative
     public static ColorInfo createExoPlayerColorInfo(int colorRange, int colorSpace,
             int colorTransfer, float primaryRChromaticityX, float primaryRChromaticityY,
