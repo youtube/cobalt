@@ -133,12 +133,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
     "//starboard/shared/starboard/microphone/microphone_open.cc",
     "//starboard/shared/starboard/microphone/microphone_read.cc",
-<<<<<<< HEAD
-    "//starboard/shared/starboard/new.cc",
-    "//starboard/shared/starboard/queue_application.cc",
-    "//starboard/shared/starboard/queue_application.h",
-=======
->>>>>>> 3dcab472c45 (starboard: Remove not-used files from Android starboard_platform build target (#8575))
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
