@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include "cobalt/common/libc/locale/lconv_support.h"
 #include "starboard/common/log.h"
@@ -86,109 +87,57 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
 }
 
 std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
-  // --- DATE (Existing) ---
-  if (token == "yyyy") {
-    return "%Y";
+  // A static map is initialized only once, providing efficient lookups.
+  static const std::unordered_map<std::string, const char*> kIcuToPosixMap = {
+      // Date
+      {"yyyy", "%Y"},
+      {"yy", "%y"},
+      {"y", "%Y"},
+      {"MMMM", "%B"},
+      {"MMM", "%b"},
+      {"MM", "%m"},
+      {"M", "%m"},
+      {"dd", "%d"},
+      {"d", "%d"},
+      {"EEEE", "%A"},
+      {"EEE", "%a"},
+      {"EE", "%a"},
+      {"E", "%a"},
+      // Time
+      {"HH", "%H"},
+      {"H", "%k"},
+      {"kk", "%H"},
+      {"k", "%H"},
+      {"hh", "%I"},
+      {"h", "%l"},
+      {"K", "%l"},
+      {"KK", "%I"},
+      {"mm", "%M"},
+      {"m", "%M"},
+      {"ss", "%S"},
+      {"s", "%S"},
+      // AM/PM (all variants map to the same POSIX token)
+      {"a", "%p"},
+      {"aa", "%p"},
+      {"aaa", "%p"},
+      {"aaaa", "%p"}};
+
+  std::string token_str = ToUtf8(token);
+  auto it = kIcuToPosixMap.find(token_str);
+  if (it != kIcuToPosixMap.end()) {
+    return it->second;
   }
-  if (token == "yy") {
-    return "%y";
-  }
-  if (token == "y") {
-    return "%Y";
-  }
-  if (token == "MMMM") {
-    return "%B";
-  }
-  if (token == "MMM") {
-    return "%b";
-  }
-  if (token == "MM") {
-    return "%m";
-  }
-  if (token == "M") {
-    return "%m";
-  }
-  if (token == "dd") {
-    return "%d";
-  }
-  if (token == "d") {
-    return "%d";
-  }
-  if (token == "EEEE") {
-    return "%A";
-  }
-  if (token == "EEE") {
-    return "%a";
-  }
-  if (token == "EE") {
-    return "%a";
-  }
-  if (token == "E") {
-    return "%a";
-  }
+
+  // Handle special cases that are not direct key-value mappings.
   if (token.startsWith("G")) {
     return "";  // Strip Era
   }
-
-  // --- TIME (New) ---
-
-  // Hours
-  if (token == "HH") {
-    return "%H";  // 00-23
-  }
-  if (token == "H") {
-    return "%k";  // 0-23 (GNU) or "%H" (POSIX)
-  }
-  if (token == "kk") {
-    return "%H";  // 01-24 (Map to %H usually)
-  }
-  if (token == "k") {
-    return "%H";
-  }
-  if (token == "hh") {
-    return "%I";  // 01-12
-  }
-  if (token == "h") {
-    return "%l";  // 1-12 (GNU) or "%I" (POSIX)
-  }
-  if (token == "K") {
-    return "%l";  // 0-11
-  }
-  if (token == "KK") {
-    return "%I";
-  }
-
-  // Minutes
-  if (token == "mm") {
-    return "%M";  // 00-59
-  }
-  if (token == "m") {
-    return "%M";
-  }
-
-  // Seconds
-  if (token == "ss") {
-    return "%S";  // 00-59
-  }
-  if (token == "s") {
-    return "%S";
-  }
-
-  // AM/PM
-  if (token == "a" || token == "aa" || token == "aaa" || token == "aaaa") {
-    return "%p";
-  }
-
-  // Timezone (Generic)
-  // POSIX usually handles %Z or %z. ICU 'z', 'v', 'V' map loosely here.
   if (token.startsWith("z") || token.startsWith("v") || token.startsWith("V")) {
-    return "%Z";
+    return "%Z";  // Timezone
   }
 
-  // Default
-  std::string s;
-  token.toUTF8String(s);
-  return s;
+  // If no mapping is found, return the original token.
+  return token_str;
 }
 
 std::string CollapseSpaces(const std::string& input) {
@@ -236,92 +185,63 @@ icu::UnicodeString GetPatternFromSkeleton(const std::string& locale_id,
   return pattern;
 }
 
+// Helper to process the current token and append it to the result.
+void FlushToken(icu::UnicodeString& currentToken, std::string& result) {
+  if (!currentToken.isEmpty()) {
+    result += MapIcuTokenToPosix(currentToken);
+    currentToken.remove();
+  }
+}
+
 std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
   std::string result;
   bool inQuote = false;
   icu::UnicodeString currentToken;
+  const std::string kFormatChars = "yMdELGHhKkmaszv";
 
   for (int32_t i = 0; i < pattern.length(); ++i) {
-    UChar c = pattern[i];
+    const UChar c = pattern[i];
 
-    // 1. Handle Quotes
+    // 1. Handle quotes, which toggle the inQuote state.
     if (c == '\'') {
       if (i + 1 < pattern.length() && pattern[i + 1] == '\'') {
+        FlushToken(currentToken, result);  // Flush before adding literal
         result += "'";
-        i++;
+        i++;  // Skip the second quote
       } else {
         inQuote = !inQuote;
       }
-      continue;
-    }
-
-    // 2. Handle Quoted Literals
-    if (inQuote) {
-      if (!currentToken.isEmpty()) {
-        result += MapIcuTokenToPosix(currentToken);
-        currentToken.remove();
-      }
-      std::string temp;
-      icu::UnicodeString(c).toUTF8String(temp);
-      result += temp;
-      continue;
-    }
-
-    // 3. Handle Format Characters
-    bool isFormatChar =
-        (c == 'y' || c == 'M' || c == 'd' || c == 'E' || c == 'L' || c == 'G' ||
-         c == 'H' || c == 'h' || c == 'k' || c == 'K' || c == 'm' || c == 's' ||
-         c == 'a' || c == 'z' || c == 'v');
-
-    if (isFormatChar) {
+      // 2. Handle characters inside a quoted section.
+    } else if (inQuote) {
+      FlushToken(currentToken, result);  // Flush before adding literal
+      result += ToUtf8(icu::UnicodeString(c));
+      // 3. Handle special ICU format characters.
+    } else if (kFormatChars.find(c) != std::string::npos) {
       if (currentToken.isEmpty() || currentToken[0] == c) {
         currentToken.append(c);
       } else {
-        result += MapIcuTokenToPosix(currentToken);
-        currentToken.remove();
+        FlushToken(currentToken, result);
         currentToken.append(c);
       }
+      // 4. Handle all other characters (literals like ':', '/', etc.).
     } else {
-      // --- FIXED LOGIC STARTS HERE ---
+      FlushToken(currentToken, result);
 
-      // STEP 1: Flush the token BEFORE doing anything else!
-      // This ensures "ss" becomes "%S" before we handle the space after it.
-      if (!currentToken.isEmpty()) {
-        result += MapIcuTokenToPosix(currentToken);
-        currentToken.remove();
-      }
-
-      // STEP 2: Filter Commas
-      if (c == ',' || c == 0x104A || c == 0x060C) {
+      // Filter out commas and certain types of spaces.
+      if (c == ',' || c == 0x104A || c == 0x060C ||
+          (c == ' ' && !result.empty() && result.back() == ':')) {
         continue;
       }
-
-      // STEP 3: Filter "Space after Colon" (The fil_PH specific fix)
-      // If we just appended a colon, and now we see a space, skip it.
-      // This prevents "12: 30".
-      if (c == ' ' && !result.empty() && result.back() == ':') {
-        continue;
-      }
-
-      // STEP 4: Normalize "Weird" Spaces
-      // Now that %S is safely in the string, we can append the space *after*
-      // it.
       if (c == 0x00A0 || c == 0x202F) {
         result += " ";
-        continue;
+      } else {
+        result += ToUtf8(icu::UnicodeString(c));
       }
-
-      // STEP 5: Standard Append (for . / : - etc)
-      std::string temp;
-      icu::UnicodeString(c).toUTF8String(temp);
-      result += temp;
     }
   }
 
-  // Flush any remaining token at end of string
-  if (!currentToken.isEmpty()) {
-    result += MapIcuTokenToPosix(currentToken);
-  }
+  // Flush any remaining token at the end of the string.
+  FlushToken(currentToken, result);
 
   // Final Cleanup: Trim trailing space
   if (!result.empty() && result.back() == ' ') {
