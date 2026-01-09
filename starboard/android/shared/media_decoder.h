@@ -76,27 +76,25 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   MediaCodecDecoder(Host* host,
                     const AudioStreamInfo& audio_stream_info,
                     SbDrmSystem drm_system);
-  MediaCodecDecoder(Host* host,
-                    SbMediaVideoCodec video_codec,
-                    // `width_hint` and `height_hint` are used to create the
-                    // Android video format, which don't have to be directly
-                    // related to the resolution of the video.
-                    int width_hint,
-                    int height_hint,
-                    std::optional<int> max_width,
-                    std::optional<int> max_height,
-                    int fps,
-                    jobject j_output_surface,
-                    SbDrmSystem drm_system,
-                    const SbMediaColorMetadata* color_metadata,
-                    bool require_software_codec,
-                    const FrameRenderedCB& frame_rendered_cb,
-                    const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
-                    int tunnel_mode_audio_session_id,
-                    bool force_big_endian_hdr_metadata,
-                    int max_video_input_size,
-                    int64_t flush_delay_usec,
-                    std::string* error_message);
+  MediaCodecDecoder(
+      Host* host,
+      SbMediaVideoCodec video_codec,
+      // `frame_size_hint` are used to create the Android video format, which
+      // don't have to be directly related to the resolution of the video.
+      Size frame_size_hint,
+      std::optional<Size> max_frame_size,
+      int fps,
+      jobject j_output_surface,
+      SbDrmSystem drm_system,
+      const SbMediaColorMetadata* color_metadata,
+      bool require_software_codec,
+      const FrameRenderedCB& frame_rendered_cb,
+      const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+      int tunnel_mode_audio_session_id,
+      bool force_big_endian_hdr_metadata,
+      int max_video_input_size,
+      int64_t flush_delay_usec,
+      std::string* error_message);
   ~MediaCodecDecoder();
 
   void Initialize(const ErrorCB& error_cb);
