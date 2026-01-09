@@ -32,14 +32,6 @@ config("platform_configuration") {
   ]
 }
 
-config("size") {
-  cflags = [ "-Os" ]
-}
-
-config("speed") {
-  cflags = [ "-O2" ]
-}
-
 config("pedantic_warnings") {
   cflags = [
     "-Wall",
