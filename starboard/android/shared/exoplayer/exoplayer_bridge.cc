@@ -25,7 +25,6 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
-#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
 #include "starboard/android/shared/exoplayer/exoplayer_util.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/check_op.h"
@@ -35,6 +34,8 @@
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
+
+#include "cobalt/android/jni_headers/ExoPlayerBridge_jni.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #include "cobalt/android/jni_headers/ExoPlayerManager_jni.h"
@@ -67,14 +68,7 @@ int GetSampleOffset(SbMediaType type, scoped_refptr<InputBuffer> input_buffer) {
 
 ExoPlayerBridge::ExoPlayerBridge(
     const SbMediaAudioStreamInfo& audio_stream_info,
-    const SbMediaVideoStreamInfo& video_stream_info)
-    : player_is_releasing_(false),
-      playback_error_occurred_(false),
-      initialized_(false),
-      seeking_(false),
-      is_playing_(false),
-      dropped_frames_(0),
-      owns_surface_(false) {
+    const SbMediaVideoStreamInfo& video_stream_info) {
   ON_INSTANCE_CREATED(ExoPlayerBridge);
 
   ScopedJavaLocalRef<jobject> j_audio_media_source;

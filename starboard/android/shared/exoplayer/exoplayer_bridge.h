@@ -77,7 +77,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void OnDroppedVideoFrames(JNIEnv* env, jint count);
   void OnIsPlayingChanged(JNIEnv*, jboolean is_playing);
 
-  bool is_valid() const { return !!j_exoplayer_bridge_; }
+  bool is_valid() const { return !j_exoplayer_bridge_.is_null(); }
 
   std::string GetInitErrorMessage() const { return init_error_msg_; }
 
@@ -93,11 +93,11 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   // The following variables may be accessed by the ExoPlayer Looper
   // thread.
-  std::atomic_bool playback_error_occurred_;
-  std::atomic_bool initialized_;
-  std::atomic_bool seeking_;
-  std::atomic_bool is_playing_;
-  std::atomic_int32_t dropped_frames_;
+  std::atomic_bool playback_error_occurred_ = false;
+  std::atomic_bool initialized_ = false;
+  std::atomic_bool seeking_ = false;
+  std::atomic_bool is_playing_ = false;
+  std::atomic_int32_t dropped_frames_ = 0;
 
   ErrorCB error_cb_;
   PrerolledCB prerolled_cb_;
@@ -106,7 +106,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   std::mutex mutex_;
   std::condition_variable initialized_cv_;  // Guarded by |mutex_|.
 
-  bool owns_surface_;
+  bool owns_surface_ = false;
   std::string init_error_msg_;
 
   ThreadChecker thread_checker_;
