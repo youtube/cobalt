@@ -12,17 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/testing/browser_tests/browser/shell_test_platform_delegate.h"
+ package dev.cobalt.features;
 
-#include "ui/views/test/desktop_test_views_delegate.h"
+ /**
+  * Contains features that are specific to Starboard code.
+  */
+ public final class StarboardFeatures {{
 
-namespace content {
+ {NATIVE_FEATURES}
 
-// The overridden method provides the test-specific ViewsDelegate.
-// The base class's Initialize() method will call this version.
-std::unique_ptr<views::ViewsDelegate>
-ShellTestPlatformDelegate::CreateViewsDelegate() {
-  return std::make_unique<views::DesktopTestViewsDelegate>();
-}
-
-}  // namespace content
+     // Prevents instantiation.
+     private StarboardFeatures() {{}}
+ }}

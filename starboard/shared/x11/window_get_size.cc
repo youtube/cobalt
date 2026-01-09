@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/window.h"
+// clang-format on
+
 #include "starboard/common/log.h"
 #include "starboard/shared/x11/window_internal.h"
-#include "starboard/window.h"
 
 bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   if (!SbWindowIsValid(window)) {

@@ -15,6 +15,15 @@ jinja_template("cobalt_manifest") {
   ]
 }
 
+java_cpp_features("java_features_srcjar") {
+  # External code should depend on ":cobalt_features_java" instead.
+  visibility = [ ":*" ]
+  sources = [ "//starboard/extension/feature_config.h" ]
+
+  deps = [ "//starboard/extension:feature_config_header" ]
+  template = "//cobalt/android/java_templates/StarboardFeatures.java.tmpl"
+}
+
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
@@ -26,6 +35,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/ExoPlayerBridge.java",
@@ -106,6 +116,7 @@ android_library("cobalt_main_java") {
   }
 
   srcjar_deps = [
+    ":java_features_srcjar",
     ":jni_headers",
     "//starboard/android/shared:java_enums",
   ]
@@ -140,6 +151,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/H5vccPlatformService.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",

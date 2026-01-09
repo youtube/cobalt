@@ -27,6 +27,8 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "starboard/common/command_line.h"
+#include "starboard/tvos/shared/application_darwin.h"
 
 static int g_argc = 0;
 static const char** g_argv = nullptr;
@@ -58,6 +60,7 @@ static const char** g_argv = nullptr;
  @private
   std::unique_ptr<content::ContentMainRunner> _mainRunner;
   std::unique_ptr<cobalt::CobaltMainDelegate> _mainDelegate;
+  std::unique_ptr<starboard::ApplicationDarwin> _starboardApplication;
 }
 @end
 
@@ -79,6 +82,13 @@ static const char** g_argv = nullptr;
   const cobalt::CommandLinePreprocessor cobalt_cmd_line(g_argc, g_argv);
   const base::CommandLine::StringVector& processed_argv =
       cobalt_cmd_line.argv();
+
+  // Initialize ApplicationDarwin before the content layer. This is required to
+  // enable audio playback via the audio sink, initialize PlaybackCapabilities,
+  // and set a valid command line, all of which are essential for proper
+  // operation of the Starboard media renderer.
+  _starboardApplication = std::make_unique<starboard::ApplicationDarwin>(
+      std::make_unique<starboard::CommandLine>(processed_argv));
 
   // content::ContentMainParams::argv uses regular char** for `argv`, so perform
   // a type conversion here. Note that even though `char_argv` is dependent on

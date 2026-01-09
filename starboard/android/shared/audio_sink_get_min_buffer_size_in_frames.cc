@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/audio_sink.h"
+// clang-format on
+
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/android/shared/runtime_resource_overlay.h"
-#include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 
 int SbAudioSinkGetMinBufferSizeInFrames(int channels,

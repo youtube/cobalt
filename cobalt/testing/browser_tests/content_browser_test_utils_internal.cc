@@ -91,9 +91,7 @@ bool NavigateFrameToURL(FrameTreeNode* node, const GURL& url) {
   return true;
 }
 
-void SetShouldProceedOnBeforeUnload(TestShell* shell,
-                                    bool proceed,
-                                    bool success) {
+void SetShouldProceedOnBeforeUnload(Shell* shell, bool proceed, bool success) {
   ShellJavaScriptDialogManager* manager =
       static_cast<ShellJavaScriptDialogManager*>(
           shell->GetJavaScriptDialogManager(shell->web_contents()));
@@ -104,7 +102,7 @@ RenderFrameHost* ConvertToRenderFrameHost(FrameTreeNode* frame_tree_node) {
   return frame_tree_node->current_frame_host();
 }
 
-bool NavigateToURLInSameBrowsingInstance(TestShell* window, const GURL& url) {
+bool NavigateToURLInSameBrowsingInstance(Shell* window, const GURL& url) {
   TestNavigationObserver observer(window->web_contents());
   // Using a PAGE_TRANSITION_LINK transition with a browser-initiated
   // navigation forces it to stay in the current BrowsingInstance, as normally
@@ -241,11 +239,11 @@ CollectAllRenderFrameHostsIncludingSpeculative(WebContentsImpl* web_contents) {
   return visited_frames;
 }
 
-TestShell* OpenBlankWindow(WebContentsImpl* web_contents) {
+Shell* OpenBlankWindow(WebContentsImpl* web_contents) {
   FrameTreeNode* root = web_contents->GetPrimaryFrameTree().root();
   ShellAddedObserver new_shell_observer;
   EXPECT_TRUE(ExecJs(root, "last_opened_window = window.open()"));
-  TestShell* new_shell = new_shell_observer.GetShell();
+  Shell* new_shell = new_shell_observer.GetShell();
   EXPECT_NE(new_shell->web_contents(), web_contents);
   EXPECT_TRUE(new_shell->web_contents()
                   ->GetController()
@@ -255,12 +253,12 @@ TestShell* OpenBlankWindow(WebContentsImpl* web_contents) {
   return new_shell;
 }
 
-TestShell* OpenWindow(WebContentsImpl* web_contents, const GURL& url) {
+Shell* OpenWindow(WebContentsImpl* web_contents, const GURL& url) {
   FrameTreeNode* root = web_contents->GetPrimaryFrameTree().root();
   ShellAddedObserver new_shell_observer;
   EXPECT_TRUE(
       ExecJs(root, JsReplace("last_opened_window = window.open($1)", url)));
-  TestShell* new_shell = new_shell_observer.GetShell();
+  Shell* new_shell = new_shell_observer.GetShell();
   EXPECT_NE(new_shell->web_contents(), web_contents);
   return new_shell;
 }
@@ -519,17 +517,17 @@ std::string DepictFrameTree(FrameTreeNode& root) {
   return FrameTreeVisualizer().DepictFrameTree(&root);
 }
 
-TestShell* OpenPopup(const ToRenderFrameHost& opener,
-                     const GURL& url,
-                     const std::string& name) {
+Shell* OpenPopup(const ToRenderFrameHost& opener,
+                 const GURL& url,
+                 const std::string& name) {
   return OpenPopup(opener, url, name, "", true);
 }
 
-TestShell* OpenPopup(const ToRenderFrameHost& opener,
-                     const GURL& url,
-                     const std::string& name,
-                     const std::string& features,
-                     bool expect_return_from_window_open) {
+Shell* OpenPopup(const ToRenderFrameHost& opener,
+                 const GURL& url,
+                 const std::string& name,
+                 const std::string& features,
+                 bool expect_return_from_window_open) {
   TestNavigationObserver observer(url);
   observer.StartWatchingNewWebContents();
 
@@ -544,7 +542,7 @@ TestShell* OpenPopup(const ToRenderFrameHost& opener,
 
   observer.Wait();
 
-  TestShell* new_shell = new_shell_observer.GetShell();
+  Shell* new_shell = new_shell_observer.GetShell();
   EXPECT_EQ(
       url,
       new_shell->web_contents()->GetPrimaryMainFrame()->GetLastCommittedURL());
