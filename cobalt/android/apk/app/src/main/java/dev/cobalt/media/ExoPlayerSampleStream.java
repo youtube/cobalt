@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+ppackage dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
@@ -41,7 +41,9 @@ public class ExoPlayerSampleStream implements SampleStream {
     // TODO: Have the SampleQueue read directly from native memory, rather than manage its own
     // memory.
     private static final long MAX_BUFFER_DURATION_US = 5 * 1000 * 1000; // 5 seconds.
-    // CanAcceptMoreData() returns false when the total queued media duration is more than MAX_BUFFER_DURATION_US - MEMORY_PRESSURE_THRESHOLD_US. This allows time for the queue to empty before it can accept more samples, without overfilling the queue.
+    // CanAcceptMoreData() returns false when the total queued media duration is more than
+    // MAX_BUFFER_DURATION_US - MEMORY_PRESSURE_THRESHOLD_US. This allows time for the queue to
+    // empty before it can accept more samples, without overfilling the queue.
     private static final long MEMORY_PRESSURE_THRESHOLD_US = 250 * 1000; //  250 milliseconds.
 
     ExoPlayerSampleStream(Allocator allocator, Format format) {
@@ -73,8 +75,8 @@ public class ExoPlayerSampleStream implements SampleStream {
     }
 
     public void writeEndOfStream() {
-        mSampleQueue.sampleMetadata(
-                mSampleQueue.getLargestQueuedTimestampUs(), C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
+        mSampleQueue.sampleMetadata(mSampleQueue.getLargestQueuedTimestampUs(),
+                C.BUFFER_FLAG_END_OF_STREAM, 0, 0, null);
         mEndOfStream = true;
     }
 

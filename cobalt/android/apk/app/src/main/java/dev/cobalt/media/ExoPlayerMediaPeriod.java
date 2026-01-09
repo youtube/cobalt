@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -67,7 +67,8 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     /**
      * Selects tracks for playback.
      * @param selections The track selections.
-     * @param mayRetainStreamFlags Flags indicating whether the corresponding stream may be retained.
+     * @param mayRetainStreamFlags Flags indicating whether the corresponding stream may be
+     *         retained.
      * @param streams The streams to be updated with the selected tracks.
      * @param streamResetFlags Flags indicating whether the corresponding stream has been reset.
      * @param positionUs The position in microseconds to start playback from.
@@ -102,7 +103,8 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     }
 
     /**
-     * Reads a discontinuity, which can occur after seeking. This is ignored as it's handled in native code.
+     * Reads a discontinuity, which can occur after seeking. This is ignored as it's handled in
+     * native code.
      * @return The position of the discontinuity in microseconds, or C.TIME_UNSET if no
      *     discontinuity was read.
      */
@@ -123,7 +125,8 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     }
 
     /**
-     * Returns the adjusted seek position, in cases where the requested seek position is not available.
+     * Returns the adjusted seek position, in cases where the requested seek position is not
+     * available.
      * @param positionUs The requested seek position in microseconds.
      * @param seekParameters The seek parameters.
      * @return The adjusted seek position in microseconds.
