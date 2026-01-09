@@ -170,9 +170,9 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
 NonNullResult<std::unique_ptr<MediaCodecBridge>>
 MediaCodecBridge::CreateVideoMediaCodecBridge(
     SbMediaVideoCodec video_codec,
-    const Size frame_size_hint,
+    const Size& frame_size_hint,
     int fps,
-    const std::optional<Size> max_frame_size,
+    const std::optional<Size>& max_frame_size,
     Handler* handler,
     jobject j_surface,
     jobject j_media_crypto,

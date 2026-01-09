@@ -159,6 +159,7 @@ std::optional<Size> ParseMaxResolution(
                            height};
     SB_LOG(INFO) << "Inferred max size=" << max_size
                  << ", frame resolution=" << frame_size;
+    return max_size;
   }
   return std::nullopt;
 }
