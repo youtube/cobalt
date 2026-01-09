@@ -28,6 +28,7 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/command_line_logger.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_settings_impl.h"
@@ -554,6 +555,9 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << "], disable_features=["
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
             << "]";
+  LOG(INFO) << "CobaltCommandLine: "
+            << CommandLineSwitchesToString(
+                   *base::CommandLine::ForCurrentProcess());
 
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();
