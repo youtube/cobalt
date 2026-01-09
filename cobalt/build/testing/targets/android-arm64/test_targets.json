@@ -31,7 +31,7 @@
   "executables": [
     "out/android-arm64_devel/base_perftests_apk/base_perftests-debug.apk",
     "out/android-arm64_devel/base_unittests_apk/base_unittests-debug.apk",
-    "out/android-arm64_devel/cobalt_unittests_apk/cobalt_browsertests-debug.apk",
+    "out/android-arm64_devel/cobalt_browsertests_apk/cobalt_browsertests-debug.apk",
     "out/android-arm64_devel/cobalt_unittests_apk/cobalt_unittests-debug.apk",
     "out/android-arm64_devel/media_unittests_apk/media_unittests-debug.apk",
     "out/android-arm64_devel/midi_unittests_apk/midi_unittests-debug.apk",
