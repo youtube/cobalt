@@ -87,9 +87,9 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
 
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_manager_;
   base::android::ScopedJavaGlobalRef<jobject> j_exoplayer_bridge_;
-  base::android::ScopedJavaGlobalRef<jobject> j_sample_data_;
+  base::android::ScopedJavaGlobalRef<jbyteArray> j_sample_data_;
 
-  bool player_is_releasing_;
+  std::atomic_bool player_is_releasing_ = false;
 
   // The following variables may be accessed by the ExoPlayer Looper
   // thread.
