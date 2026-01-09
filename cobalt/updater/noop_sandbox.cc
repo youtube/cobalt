@@ -20,7 +20,7 @@
 #include "starboard/event.h"
 #include "starboard/system.h"
 
-void SbEventHandle(const SbEvent* event) {
+void SbEventHandle(const SbEvent* /*event*/) {
   // No-op app. Exit after 1s.
   usleep(1 * base::Time::kMicrosecondsPerSecond);
   SbSystemRequestStop(0);
