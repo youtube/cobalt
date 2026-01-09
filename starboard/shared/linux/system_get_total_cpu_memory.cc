@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include <unistd.h>
 
 #include "starboard/common/log.h"
-#include "starboard/system.h"
 
 int64_t SbSystemGetTotalCPUMemory() {
   long pages = sysconf(_SC_PHYS_PAGES);     // NOLINT[runtime/int]
