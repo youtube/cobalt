@@ -28,9 +28,9 @@
 /components/viz/service/display/starboard/ @youtube/cobalt-starboard-owners
 /ui/ozone/platform/starboard/              @youtube/cobalt-starboard-owners
 
-/cobalt/app/tvos               @youtube/cobalt-tvos
-/starboard/tvos                @youtube/cobalt-tvos
-/cobalt/shell/browser/*_ios.mm @youtube/cobalt-tvos
+/cobalt/app/tvos @youtube/cobalt-tvos
+/starboard/tvos  @youtube/cobalt-tvos
+/cobalt/**/*.mm  @youtube/cobalt-tvos
 
 /cobalt/build/gn.py @youtube/cobalt-build
 
