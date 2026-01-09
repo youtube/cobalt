@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/speechd/speechd_internal.h"
+// clang-format off
 #include "starboard/speech_synthesis.h"
+// clang-format on
+
+#include "starboard/shared/speechd/speechd_internal.h"
 
 using starboard::shared::speechd::SpeechDispatcher;
 

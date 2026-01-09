@@ -256,6 +256,7 @@ static_library("starboard_platform") {
     #"speech_synthesis_speak.cc",
     "starboard_bridge.cc",
     "starboard_bridge.h",
+    "starboard_feature_list.cc",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
     "system_get_path.cc",
@@ -318,6 +319,7 @@ static_library("starboard_platform") {
     "//cobalt/browser/h5vcc_accessibility:manager",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//starboard/common",
+    "//starboard/extension:feature_config_header",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]

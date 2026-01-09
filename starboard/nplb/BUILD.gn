@@ -43,8 +43,6 @@ test("nplb") {
 
   # TODO(b/432821616): Move |media_sources| to a source_set.
   media_sources = [
-    "//starboard/testing/fake_graphics_context_provider.cc",
-    "//starboard/testing/fake_graphics_context_provider.h",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -339,6 +337,7 @@ test("nplb") {
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:player_test_data",
     "//starboard/shared/starboard/player:video_dmp",
+    "//starboard/testing:fake_graphics_context_provider",
     "//testing/gmock",
     "//testing/gtest",
   ]
