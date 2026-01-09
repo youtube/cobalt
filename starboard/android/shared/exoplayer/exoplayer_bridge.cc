@@ -121,7 +121,8 @@ ExoPlayerBridge::ExoPlayerBridge(
       Java_ExoPlayerManager_createExoPlayerBridge(
           env, j_exoplayer_manager_, reinterpret_cast<jlong>(this),
           j_audio_media_source, j_video_media_source, j_output_surface,
-          ShouldEnableTunneledPlayback(video_stream_info) ||
+          (ShouldEnableTunneledPlayback(video_stream_info) &&
+           audio_stream_info.codec != kSbMediaAudioCodecNone) ||
               kForceTunneledPlayback);
   if (!j_exoplayer_bridge) {
     init_error_msg_ = "Could not create Java ExoPlayerBridge";

@@ -29,20 +29,24 @@
 namespace starboard {
 namespace {
 
+using std::placeholders::_1;
+using std::placeholders::_2;
+
 const int64_t kUpdateIntervalUsec = 200'000;  // 200ms
 }  // namespace
 
 ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
-      update_job_([this]() { Update(); }),
-      creation_param_(*creation_param) {
+      update_job_(std::bind(&ExoPlayerPlayerWorkerHandler::Update, this)),
+      bridge_(std::make_unique<ExoPlayerBridge>(
+          creation_param->audio_stream_info,
+          creation_param->video_stream_info)) {
   SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut)
       << "ExoPlayer only supports punch-out playback.";
 }
 
 Result<void> ExoPlayerPlayerWorkerHandler::Init(
-    JobQueue* job_queue,
     SbPlayer player,
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
@@ -61,17 +65,13 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
   update_player_state_cb_ = update_player_state_cb;
   update_player_error_cb_ = update_player_error_cb;
 
-  Attach(job_queue);
-
-  bridge_ = std::make_unique<ExoPlayerBridge>(
-      creation_param_.audio_stream_info, creation_param_.video_stream_info);
+  AttachToCurrentThread();
 
   if (!bridge_->is_valid() ||
       !bridge_->Init(
-          [this](SbPlayerError error, const std::string& error_message) {
-            OnError(error, error_message);
-          },
-          [this]() { OnPrerolled(); }, [this]() { OnEnded(); })) {
+          std::bind(&ExoPlayerPlayerWorkerHandler::OnError, this, _1, _2),
+          std::bind(&ExoPlayerPlayerWorkerHandler::OnPrerolled, this),
+          std::bind(&ExoPlayerPlayerWorkerHandler::OnEnded, this))) {
     return Failure("Failed to initialize the ExoPlayer: " +
                    bridge_->GetInitErrorMessage());
   }
@@ -206,13 +206,11 @@ void ExoPlayerPlayerWorkerHandler::Update() {
 void ExoPlayerPlayerWorkerHandler::OnError(SbPlayerError error,
                                            const std::string& error_message) {
   SB_CHECK(update_player_error_cb_);
-  if (!reported_error_.exchange(true)) {
-    RunOnWorker([this, error, error_message]() {
-      update_player_error_cb_(error, error_message.empty()
-                                         ? "ExoPlayerPlayerWorkerHandler error"
-                                         : error_message);
-    });
-  }
+  RunOnWorker([this, error, error_message]() {
+    update_player_error_cb_(error, error_message.empty()
+                                       ? "ExoPlayerPlayerWorkerHandler error"
+                                       : error_message);
+  });
 }
 
 void ExoPlayerPlayerWorkerHandler::OnPrerolled() {
