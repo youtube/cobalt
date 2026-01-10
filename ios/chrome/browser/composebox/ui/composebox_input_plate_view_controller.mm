@@ -223,16 +223,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   if (self) {
     _omniboxContainer = [[UIView alloc] init];
     _theme = theme;
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-           selector:@selector(keyboardWillShow:)
-               name:UIKeyboardWillShowNotification
-             object:nil];
-    [[NSNotificationCenter defaultCenter]
-        addObserver:self
-           selector:@selector(keyboardWillHide:)
-               name:UIKeyboardWillHideNotification
-             object:nil];
   }
   return self;
 }
@@ -299,6 +289,25 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
         _inputPlateContainerView.layer.cornerRadius;
   }
   [self updateCarouselFade];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+  [super viewWillAppear:animated];
+  [[NSNotificationCenter defaultCenter]
+      addObserver:self
+         selector:@selector(keyboardWillShow:)
+             name:UIKeyboardWillShowNotification
+           object:nil];
+  [[NSNotificationCenter defaultCenter]
+      addObserver:self
+         selector:@selector(keyboardWillHide:)
+             name:UIKeyboardWillHideNotification
+           object:nil];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+  [super viewWillDisappear:animated];
+  [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
 
 #pragma mark - Public
@@ -677,6 +686,29 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 
 #pragma mark - UICollectionViewDelegate
 
+- (void)collectionView:(UICollectionView*)collectionView
+    didEndDisplayingCell:(UICollectionViewCell*)cell
+      forItemAtIndexPath:(NSIndexPath*)indexPath {
+  if (![cell isKindOfClass:[ComposeboxInputItemCell class]]) {
+    return;
+  }
+
+  // If the evicted cell’s associated input item is no longer in the data
+  // source, it was likely removed by the user.
+  // Proactively prepare the cell for reuse now to help alleviate memory
+  // pressure.
+  ComposeboxInputItemCell* composeboxCell = (ComposeboxInputItemCell*)cell;
+  if (ComposeboxInputItem* associatedItem = composeboxCell.associatedItem) {
+    for (ComposeboxInputItem* item in _dataSource.snapshot.itemIdentifiers) {
+      if (item.identifier == associatedItem.identifier) {
+        return;
+      }
+    }
+  }
+
+  [composeboxCell prepareForReuse];
+}
+
 - (void)scrollViewDidScroll:(UIScrollView*)scrollView {
   [self updateCarouselFade];
 }
@@ -703,6 +735,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (UICollectionViewDiffableDataSource<NSString*, ComposeboxInputItem*>*)
     createDataSource {
   __weak ComposeboxTheme* theme = _theme;
+  __weak __typeof(self) weakSelf = self;
   return [[UICollectionViewDiffableDataSource alloc]
       initWithCollectionView:_carouselView
                 cellProvider:^UICollectionViewCell*(
@@ -714,7 +747,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                               kItemCellReuseIdentifier
                                                     forIndexPath:indexPath];
                   [cell configureWithItem:item theme:theme];
-                  cell.delegate = self;
+                  cell.delegate = weakSelf;
                   return cell;
                 }];
 }
