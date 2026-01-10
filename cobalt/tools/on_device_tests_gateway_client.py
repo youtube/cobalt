@@ -372,12 +372,6 @@ def main() -> int:
       default='900',
       help='Timeout in seconds for the test to start.',
   )
-  trigger_args.add_argument(
-      '-a',
-      '--gcs_archive_path',
-      type=str,
-      help='Path to Cobalt archive to be tested. Must be on GCS.',
-  )
 
   # --- Unit Test Arguments ---
   unit_test_group = trigger_parser.add_argument_group('Unit Test Arguments')
@@ -385,6 +379,12 @@ def main() -> int:
       '--filter_json_dir',
       type=str,
       help='Directory containing filter JSON files for test selection.',
+  )
+  unit_test_group.add_argument(
+      '-a',
+      '--gcs_archive_path',
+      type=str,
+      help='Path to Cobalt archive to be tested. Must be on GCS.',
   )
   unit_test_group.add_argument(
       '--gcs_result_path',
@@ -425,6 +425,9 @@ def main() -> int:
   args = parser.parse_args()
 
   # TODO(b/428961033): Let argparse handle these checks as required arguments.
+  if args.test_type in ('e2e_test', 'yts_test'):
+    if not args.cobalt_path:
+      raise ValueError('--cobalt_path is required for e2e_test or yts_test')
   elif args.test_type == 'unit_test':
     if not args.device_family:
       raise ValueError('--device_family is required for unit_test')
