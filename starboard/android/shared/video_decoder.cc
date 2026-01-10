@@ -735,8 +735,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size,
                      &max_width, &max_height);
 
-  std::string error_message;
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(
+  auto media_decoder = MediaCodecDecoder::Create(
       this, video_stream_info.codec, video_stream_info.frame_size.width,
       video_stream_info.frame_size.height, max_width, max_height, video_fps_,
       j_output_surface, drm_system_,
@@ -744,27 +743,29 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, &error_message);
-  if (media_decoder_->is_valid()) {
-    if (error_cb_) {
-      media_decoder_->Initialize(
-          std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
-    }
-    media_decoder_->SetPlaybackRate(playback_rate_);
-
-    if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
-      SB_DCHECK(!pending_input_buffers_.empty());
-    } else {
-      SB_DCHECK(pending_input_buffers_.empty());
-    }
-    if (!pending_input_buffers_.empty()) {
-      WriteInputBuffersInternal(pending_input_buffers_);
-      pending_input_buffers_.clear();
-    }
-    return Success();
+      max_video_input_size_, flush_delay_usec_);
+  if (!media_decoder) {
+    return Failure("Media Decoder is not valid: " + media_decoder.error());
   }
-  media_decoder_.reset();
-  return Failure("Media Decoder is not valid: " + error_message);
+
+  if (error_cb_) {
+    media_decoder->Initialize(
+        std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
+  }
+  media_decoder->SetPlaybackRate(playback_rate_);
+
+  if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
+    SB_DCHECK(!pending_input_buffers_.empty());
+  } else {
+    SB_DCHECK(pending_input_buffers_.empty());
+  }
+  if (!pending_input_buffers_.empty()) {
+    WriteInputBuffersInternal(pending_input_buffers_);
+    pending_input_buffers_.clear();
+  }
+
+  media_decoder_ = std::move(media_decoder.value());
+  return Success();
 }
 
 void MediaCodecVideoDecoder::TeardownCodec() {

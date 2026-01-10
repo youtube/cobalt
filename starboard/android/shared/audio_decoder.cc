@@ -194,17 +194,20 @@ void MediaCodecAudioDecoder::Reset() {
 
 bool MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(this, audio_stream_info_,
-                                                       drm_system_);
-  if (media_decoder_->is_valid()) {
-    if (error_cb_) {
-      media_decoder_->Initialize(
-          std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
-    }
-    return true;
+  auto media_decoder =
+      MediaCodecDecoder::Create(this, audio_stream_info_, drm_system_);
+  if (!media_decoder) {
+    SB_LOG(WARNING) << "MediaCodecDecoder::Create failed: "
+                    << media_decoder.error();
+    return false;
   }
-  media_decoder_.reset();
-  return false;
+
+  if (error_cb_) {
+    media_decoder->Initialize(
+        std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
+  }
+  media_decoder_ = std::move(media_decoder.value());
+  return true;
 }
 
 void MediaCodecAudioDecoder::ProcessOutputBuffer(
