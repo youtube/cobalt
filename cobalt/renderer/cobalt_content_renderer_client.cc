@@ -114,6 +114,7 @@ void CobaltContentRendererClient::RenderFrameCreated(
 
 void CobaltContentRendererClient::RenderThreadStarted() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Register h5vcc scheme for renders to use Fetch API.
   blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
       blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 }

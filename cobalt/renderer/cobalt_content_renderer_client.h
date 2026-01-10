@@ -44,7 +44,6 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
-  // Register h5vcc scheme for renders to use Fetch API.
   void RenderThreadStarted() override;
   virtual std::unique_ptr<::media::KeySystemSupportRegistration>
   GetSupportedKeySystems(content::RenderFrame* render_frame,
