@@ -15,37 +15,21 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
-<<<<<<< HEAD
 #include <atomic>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/queue_application.h"
-#include "starboard/types.h"
-=======
-#include "starboard/android/shared/runtime_resource_overlay.h"
-#include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/command_line.h"
-#include "starboard/shared/starboard/application.h"
->>>>>>> cd2300f75b3 (starboard: Remove QueueApplication dependencies from ApplicationAndroid (#7164))
 
 namespace starboard::android::shared {
 
 using ::starboard::shared::starboard::CommandLine;
 
-<<<<<<< HEAD
-class ApplicationAndroid
-    : public ::starboard::shared::starboard::QueueApplication {
-=======
-class ApplicationAndroid : public Application {
->>>>>>> cd2300f75b3 (starboard: Remove QueueApplication dependencies from ApplicationAndroid (#7164))
+class ApplicationAndroid : public ::starboard::shared::starboard::Application {
  public:
   ApplicationAndroid(std::unique_ptr<CommandLine> command_line,
                      ScopedJavaGlobalRef<jobject> asset_manager,

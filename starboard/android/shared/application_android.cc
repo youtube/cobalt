@@ -44,6 +44,8 @@
 
 namespace starboard::android::shared {
 
+using ::starboard::shared::starboard::Application;
+
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
   SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
