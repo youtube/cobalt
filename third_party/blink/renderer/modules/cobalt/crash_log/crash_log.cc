@@ -58,6 +58,15 @@ void CrashLog::triggerCrash() {
   CHECK(false) << "Intentionally triggered crash";
 }
 
+bool CrashLog::testValue() {
+  LOG(INFO) << "CrashLog::testValue";
+  EnsureReceiverIsBound();
+  LOG(INFO) << "CrashLog::testValue - receiver is bound";
+  remote_crash_annotator_->GetTestValueSync(&test_value_);
+  LOG(INFO) << "CrashLog::testValue - remote call finished";
+  return test_value_;
+}
+
 void CrashLog::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 

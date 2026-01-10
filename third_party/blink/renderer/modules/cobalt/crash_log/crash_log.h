@@ -48,11 +48,15 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
                                       ExceptionState&);
   void triggerCrash();
 
+  bool testValue();
+
   void Trace(Visitor*) const override;
 
  private:
   void OnSetString(ScriptPromiseResolver<IDLBoolean>*, bool);
   void EnsureReceiverIsBound();
+
+  bool test_value_;
 
   // TODO(cobalt, b/383301493): consider renaming the web interface and
   // associated Blink types from "crash log" to the preferred "crash annotator"
