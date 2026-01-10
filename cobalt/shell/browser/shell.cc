@@ -373,12 +373,14 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
+  LOG(INFO) << "PrimaryMainDocumentElementAvailable, do storage migration.";
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
+  LOG(INFO) << "PrimaryMainDocumentElementAvailable, storage migration done.";
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
-  VLOG(1) << "NativeSplash: Navigated to " << navigation_handle->GetURL();
+  LOG(INFO) << "NativeSplash: Navigated to " << navigation_handle->GetURL();
 }
 
 void Shell::DidStopLoading() {
@@ -389,7 +391,7 @@ void Shell::DidStopLoading() {
 
   if (!is_main_frame_loaded_ &&
       splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
-    VLOG(1) << "NativeSplash: Main frame WebContents DidStopLoading.";
+    LOG(INFO) << "NativeSplash: Main frame WebContents DidStopLoading.";
     is_main_frame_loaded_ = true;
 
     if (splash_state_ < STATE_SPLASH_SCREEN_STARTED) {
@@ -431,7 +433,7 @@ void Shell::RegisterInjectedJavaScript() {
 void Shell::LoadSplashScreenWebContents() {
   if (splash_screen_web_contents_) {
     // Display splash screen.
-    VLOG(1) << "NativeSplash: Loading splash screen WebContents.";
+    LOG(INFO) << "NativeSplash: Loading splash screen WebContents.";
     splash_state_ = STATE_SPLASH_SCREEN_STARTED;
     splash_screen_start_time_ = base::TimeTicks::Now();
     GetPlatform()->LoadSplashScreenContents(this);
@@ -445,7 +447,7 @@ void Shell::LoadSplashScreenWebContents() {
 
     if (is_main_frame_loaded_) {
       // Main frame loaded before splash screen started.
-      VLOG(1) << "NativeSplash: Main frame loaded before splash start.";
+      LOG(INFO) << "NativeSplash: Main frame loaded before splash start.";
       ScheduleSwitchToMainWebContents();
     }
   }
@@ -935,7 +937,7 @@ void Shell::LoadProgressChanged(double progress) {
     }
 
     if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
-      VLOG(1) << "NativeSplash: Main frame WebContents is loaded.";
+      LOG(INFO) << "NativeSplash: Main frame WebContents is loaded.";
       SwitchToMainWebContents();
     } else {
       ScheduleSwitchToMainWebContents();
@@ -965,11 +967,11 @@ void Shell::ScheduleSwitchToMainWebContents() {
     remaining_delay = base::TimeDelta();
   }
 
-  VLOG(1) << "NativeSplash: Main frame WebContents is loaded, splash "
-             "screen elapsed: "
-          << splash_screen_elapsed.InMilliseconds()
-          << "ms, remaining delay: " << remaining_delay.InMilliseconds()
-          << "ms.";
+  LOG(INFO) << "NativeSplash: Main frame WebContents is loaded, splash "
+               "screen elapsed: "
+            << splash_screen_elapsed.InMilliseconds()
+            << "ms, remaining delay: " << remaining_delay.InMilliseconds()
+            << "ms.";
   if (web_contents_) {
     web_contents_->WasHidden();
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
@@ -992,7 +994,7 @@ void Shell::SwitchToMainWebContents() {
   // instead of a lock due to it is on a single thread.
   // This could be called multiple times.
   if (!has_switched_to_main_frame_) {
-    VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
+    LOG(INFO) << "NativeSplash: Switching to main frame WebContents.";
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
@@ -1009,7 +1011,7 @@ void Shell::SwitchToMainWebContents() {
 }
 
 void Shell::ClosingSplashScreenWebContents() {
-  VLOG(1) << "NativeSplash: Closing splash screen WebContents.";
+  LOG(INFO) << "NativeSplash: Closing splash screen WebContents.";
   splash_state_ = STATE_SPLASH_SCREEN_ENDED;
   if (is_main_frame_loaded_) {
     // If main frame WebContents is loaded, switch to it.
