@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
