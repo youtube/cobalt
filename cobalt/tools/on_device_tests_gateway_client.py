@@ -251,12 +251,13 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       elif args.test_attempts:
         test_args.extend([f'test_attempts={args.test_attempts}'])
       test_cmd_args = []
-      files = []
-      if args.cobalt_path:
-        files.append(f'cobalt_path={args.cobalt_path}')
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
-      if args.gcs_archive_path:
-        params.append(f'gcs_cobalt_archive={args.gcs_archive_path}')
+      files = []
+      if args.workflow == 'evergreen':
+        params.append(f'gcs_cobalt_archive=gs://{args.gcs_archive_path}.zip')
+      else:
+        bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
+        files.append(f'cobalt_path={bigstore_path}')
 
     else:
       raise ValueError(f'Unsupported test type: {args.test_type}')
@@ -397,6 +398,17 @@ def main() -> int:
       '--cobalt_path',
       type=str,
       help='Path to Cobalt apk.',
+  )
+  e2e_test_group.add_argument(
+      '--workflow',
+      type=str,
+      help='Workflow name.',
+  )
+  e2e_test_group.add_argument(
+      '--artifact_name',
+      type=str,
+      help=('Artifact name, used to specify the cobalt path in non-evergreen'
+            ' workflows'),
   )
 
   # Watch command
