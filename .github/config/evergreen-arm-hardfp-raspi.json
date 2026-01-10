@@ -26,7 +26,11 @@
   "e2e_test_targets": [
     {
       "target": "//video/youtube/web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_cobalt_26_eap_raspi",
-      "test_attempts": "3"
+      "test_attempts": "6"
+    },
+    {
+      "target": "//video/youtube/web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_cobalt_raspi",
+      "test_attempts": "6"
     }
   ]
 }
