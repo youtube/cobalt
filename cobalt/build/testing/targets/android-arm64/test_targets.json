@@ -5,6 +5,7 @@
     "base:base_unittests",
     "cobalt/testing/browser_tests:cobalt_browsertests",
     "cobalt:cobalt_unittests",
+    "cobalt/android:cobalt_coat_junit_tests",
     "media:media_unittests",
     "media/midi:midi_unittests",
     "mojo:mojo_perftests",
