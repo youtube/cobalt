@@ -18,6 +18,10 @@
   </body>
   <footer>
     <script>
+      function objectUrlFromSafeSource(source) {
+        return URL.createObjectURL(source);
+      }
+
       const maybeDestroyVideoInstance = () => {};
       const getPlaceholderEl = () => document.getElementById('placeholder');
       const getVideoEl = () => document.getElementById('video');
@@ -52,9 +56,35 @@
         if (!videoEl) {
           return;
         }
-        videoEl.src = 'h5vcc-embedded://splash.webm';
-        videoEl.play();
-        afterVideoStart && afterVideoStart();
+
+        const mediaSource = new MediaSource();
+        mediaSource.addEventListener('sourceopen', () => {
+          const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
+          // Get cache from the html itself's URL parameter.
+          // Set the fallback suffix depending on the device spec.
+          fetch('h5vcc-embedded://splash.webm?cache=music&fallback=splash_1080.webm')
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Network response was not ok');
+              }
+              return response.arrayBuffer();
+            })
+            .then(data => {
+              sourceBuffer.addEventListener('updateend', () => {
+                if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                  mediaSource.endOfStream();
+                  videoEl.play();
+                  afterVideoStart && afterVideoStart();
+                }
+              });
+              sourceBuffer.appendBuffer(data);
+            })
+            .catch(error => {
+              console.error('Failed to fetch splash video:', error);
+            });
+        });
+
+        videoEl.src = objectUrlFromSafeSource(mediaSource).toString();
       }
 
       animate(() => console.log('splash animation completed!'));

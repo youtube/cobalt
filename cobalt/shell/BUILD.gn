@@ -457,6 +457,12 @@ group("resources") {
 action("embed_loader_resources_as_header_files") {
   script = "//cobalt/build/generate_data_header.py"
   outputs = [ "$target_gen_dir/embedded_resources/embedded_resources.h" ]
+  sources = [
+    "embedded_resources/loader_embedded_resources/splash.html",
+
+    # "embedded_resources/loader_embedded_resources/splash.webm",
+    "embedded_resources/loader_embedded_resources/splash_1080.webm",
+  ]
 
   args = [
     "LoaderEmbeddedResources",

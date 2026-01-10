@@ -19,6 +19,7 @@
 
 #include "base/base64.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "components/services/storage/public/cpp/buckets/bucket_locator.h"
 #include "components/services/storage/public/mojom/cache_storage_control.mojom.h"
@@ -30,6 +31,7 @@
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "mojo/public/cpp/system/data_pipe.h"
 #include "mojo/public/cpp/system/simple_watcher.h"
+#include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/document_isolation_policy.h"
@@ -44,8 +46,7 @@
 // TODO(b/454630524): Move below constants to command args.
 namespace {
 const std::string kSplashDomain = "https://www.youtube.com";
-const std::string kSplashVideoPath = "splash.webm";
-const char16_t kSplashCacheName[] = u"ytvlr";
+const char16_t kDefaultSplashCacheName[] = u"default";
 }  // namespace
 
 namespace content {
@@ -57,8 +58,8 @@ const char kH5vccContentSecurityPolicy[] =
     "script-src 'self' 'unsafe-inline'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; "
-    "media-src 'self' data: blob:; "
-    "connect-src 'self' blob: data:;";
+    "media-src 'self' data: blob: h5vcc-embedded:; "
+    "connect-src 'self' blob: data: h5vcc-embedded:;";
 }  // namespace
 
 class BlobReader : public blink::mojom::BlobReaderClient {
@@ -174,6 +175,15 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       LoaderEmbeddedResources::GenerateMap(resource_map);
     }
 
+    // Specify the built-in video if the cache is unavailable.
+    // Only for webm.
+    std::string fallback;
+    if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
+        (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE))) {
+      LOG(INFO) << "Fallback splash: " << fallback;
+      key = std::move(fallback);
+    }
+
     if (resource_map.find(key) != resource_map.end()) {
       FileContents file_contents = resource_map[key];
       content_ = std::string(reinterpret_cast<const char*>(file_contents.data),
@@ -192,14 +202,12 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       SendResponse(content_, "text/html");
       return;
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
-      // For webm file, return from cache.
+      mime_type = "video/webm";
       if (browser_context_) {
-        ReadSplashCache(kSplashVideoPath, "video/webm");
+        ReadSplashCache(key, mime_type);
         return;
       }
-      mime_type = "video/webm";
     }
-
     if (content_.empty()) {
       LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
                    << " not found.";
@@ -241,7 +249,12 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     auto match_options = blink::mojom::MultiCacheQueryOptions::New();
     match_options->query_options = blink::mojom::CacheQueryOptions::New();
-    match_options->cache_name = kSplashCacheName;
+    std::string cache_name;
+    if (net::GetValueForKeyInQuery(url_, "cache", &cache_name)) {
+      match_options->cache_name = base::UTF8ToUTF16(cache_name);
+    } else {
+      match_options->cache_name = kDefaultSplashCacheName;
+    }
 
     cache_storage_remote_->Match(
         std::move(fetch_api_request), std::move(match_options),
@@ -284,9 +297,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       SendResponse(content_, mime_type);
       return;
     }
-    std::string cached_html(reinterpret_cast<const char*>(content.data()),
-                            content.size());
-    SendResponse(cached_html, mime_type);
+    std::string cached_splash(reinterpret_cast<const char*>(content.data()),
+                              content.size());
+    SendResponse(cached_splash, mime_type);
   }
 
  private:
