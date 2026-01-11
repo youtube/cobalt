@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,4 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// TODO: Remove this file. The code has been moved to starboard/common/new.cc
+#ifndef COBALT_BROWSER_COMMAND_LINE_LOGGER_H_
+#define COBALT_BROWSER_COMMAND_LINE_LOGGER_H_
+
+#include <string>
+
+#include "base/command_line.h"
+
+namespace cobalt {
+
+// Formats command line switches into a human-readable string for debugging.
+std::string CommandLineSwitchesToString(const base::CommandLine& command_line);
+
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_COMMAND_LINE_LOGGER_H_

@@ -1,4 +1,4 @@
-# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+# Copyright 2026 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-declare_args() {
-  rdk_starboard_root = "/"
+static_library("fake_graphics_context_provider") {
+  testonly = true
+
+  sources = [
+    "fake_graphics_context_provider.cc",
+    "fake_graphics_context_provider.h",
+  ]
+
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common",
+    "//starboard/egl_and_gles:buildflags",
+  ]
 }

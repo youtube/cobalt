@@ -135,7 +135,9 @@ if (is_cobalt_hermetic_build) {
 } else {
   group("starboard_group") {
     public_deps = [ ":starboard_headers_only" ]
-    if (is_android) {
+    if (is_android || is_ios) {
+      # Both Android and tvOS use platform-specific headers in at least
+      # //cobalt.
       public_deps += [ "//starboard($starboard_toolchain)" ]
     } else {
       deps = [ "//starboard($starboard_toolchain)" ]
