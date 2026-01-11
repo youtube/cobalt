@@ -282,7 +282,10 @@ public class StarboardBridge {
 
   /* Immediate shutdown, used at least by StandalonePlayerActivity. */
   public void requestStop(int errorLevel) {
-    activity.finishAndRemoveTask();
+    Activity activity = activityHolder.get();
+    if (activity != null) {
+      activity.finishAndRemoveTask();
+    }
   }
 
   public boolean onSearchRequested() {
