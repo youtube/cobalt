@@ -46,7 +46,6 @@ import dev.cobalt.shell.ShellManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -422,7 +421,6 @@ public abstract class CobaltActivity extends Activity {
    */
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
-  @UsedByNative
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }

@@ -68,6 +68,8 @@ class StarboardBridge {
 
   void CloseAllCobaltService(JNIEnv* env) const;
 
+  void CloseApp(JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
