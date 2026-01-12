@@ -33,17 +33,17 @@
 @implementation ObjCApplication {
   UIView* __weak _playerContainerView;
 
-  // The last "menu" press began received.
-  UIPress* _lastMenuPress;
+  // The last "menu" press from a `pressesBegan` event.
+  UIPress* _lastMenuPressBegan;
 
-  // The last press began event received with `_lastMenuPress`.
-  UIPressesEvent* _lastMenuPressEvent;
+  // The `pressesBegan` event that contained `_lastMenuPressBegan`.
+  UIPressesEvent* _lastMenuPressBeganEvent;
 
-  // The last "menu" press ended received.
-  UIPress* _lastMenuPressEnd;
+  // The last "menu" press from a `pressesEnded` event.
+  UIPress* _lastMenuPressEnded;
 
-  // The last press ended event received with `_lastMenuPressEnd`.
-  UIPressesEvent* _lastMenuPressEventEnd;
+  // The `pressesEnded` event that contained `_lastMenuPressEnded`.
+  UIPressesEvent* _lastMenuPressEndedEvent;
 }
 
 @synthesize drmManager = _drmManager;
@@ -70,29 +70,29 @@
 
 - (void)registerMenuPressBegan:(UIPress*)press
                   pressesEvent:(UIPressesEvent*)pressesEvent {
-  _lastMenuPress = press;
-  _lastMenuPressEvent = pressesEvent;
+  _lastMenuPressBegan = press;
+  _lastMenuPressBeganEvent = pressesEvent;
 }
 
 - (void)registerMenuPressEnded:(UIPress*)press
                   pressesEvent:(UIPressesEvent*)pressesEvent {
-  _lastMenuPressEnd = press;
-  _lastMenuPressEventEnd = pressesEvent;
+  _lastMenuPressEnded = press;
+  _lastMenuPressEndedEvent = pressesEvent;
 }
 
 - (void)suspendApplication {
-  if (_lastMenuPress && _lastMenuPressEvent && _lastMenuPressEnd &&
-      _lastMenuPressEventEnd) {
+  if (_lastMenuPressBegan && _lastMenuPressBeganEvent && _lastMenuPressEnded &&
+      _lastMenuPressEndedEvent) {
     UIApplication* app = [UIApplication sharedApplication];
-    NSSet<UIPress*>* menuPress = [NSSet setWithObject:_lastMenuPress];
-    [app pressesBegan:menuPress withEvent:_lastMenuPressEvent];
-    NSSet<UIPress*>* menuPressEnd = [NSSet setWithObject:_lastMenuPressEnd];
-    [app pressesEnded:menuPressEnd withEvent:_lastMenuPressEventEnd];
+    NSSet<UIPress*>* menuPress = [NSSet setWithObject:_lastMenuPressBegan];
+    [app pressesBegan:menuPress withEvent:_lastMenuPressBeganEvent];
+    NSSet<UIPress*>* menuPressEnd = [NSSet setWithObject:_lastMenuPressEnded];
+    [app pressesEnded:menuPressEnd withEvent:_lastMenuPressEndedEvent];
   }
-  _lastMenuPress = nil;
-  _lastMenuPressEvent = nil;
-  _lastMenuPressEnd = nil;
-  _lastMenuPressEventEnd = nil;
+  _lastMenuPressBegan = nil;
+  _lastMenuPressBeganEvent = nil;
+  _lastMenuPressEnded = nil;
+  _lastMenuPressEndedEvent = nil;
 }
 
 @end
