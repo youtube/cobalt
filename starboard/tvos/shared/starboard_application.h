@@ -62,13 +62,6 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 // `registerMenuPressBegan` and `registerMenuPressEnded` to UIKit.
 - (void)suspendApplication;
 
-// Sets the UIView to which player views will be added to.
-- (void)setPlayerContainerView:(UIView*)view;
-
-// Attaches a video player view that will be shown as an underlay of the web
-// contents. Does nothing if setPlayerContainerView() has not been called.
-- (void)attachPlayerView:(UIView*)subView;
-
 // Registers the menu press events got on pressesBegan to use them at the
 // application suspension.
 - (void)registerMenuPressBegan:(UIPress*)press
