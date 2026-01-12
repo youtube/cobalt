@@ -19,9 +19,7 @@ This script orchestrates the code coverage process by:
 """
 
 import argparse
-import concurrent.futures
 import json
-import multiprocessing
 import os
 import subprocess
 import sys
@@ -86,10 +84,26 @@ def parse_args():
       '-j',
       '--jobs',
       type=int,
-      default=multiprocessing.cpu_count(),
+      default=1,
       help='The number of parallel jobs to run.')
 
   return parser.parse_args()
+
+
+def is_target_skipped(target, discovery_platform):
+  """
+  Check if a target should be skipped based on its filter file.
+  """
+  executable_name = target.split(':')[-1]
+  filter_file = os.path.join(SRC_ROOT_PATH, 'cobalt', 'testing', 'filters',
+                             discovery_platform,
+                             f'{executable_name}_filter.json')
+  if os.path.exists(filter_file):
+    with open(filter_file, 'r', encoding='utf-8') as f:
+      data = json.load(f)
+      if 'failing_tests' in data and '*' in data['failing_tests']:
+        return True
+  return False
 
 
 def run_coverage_for_target(target, args, build_dir, discovery_platform):
@@ -158,7 +172,21 @@ def main():
     if not targets:
       print(f'No test targets found for platform {args.platform}.')
       return 1
-    print(f'Discovered targets: {", ".join(targets)}')  # pylint: disable=inconsistent-quotes
+
+  # Filter out targets that have all tests skipped via filter files.
+  # Also explicitly skip blink_unittests as they have linking
+  # issues in coverage builds. Also skip perftests as they are not
+  # suitable for coverage.
+  targets = [
+      t for t in targets if not is_target_skipped(t, discovery_platform) and
+      'blink_unittests' not in t and 'perftests' not in t
+  ]
+
+  if not targets:
+    print('All targets were filtered out.')
+    return 0
+
+  print(f'Final target list: {", ".join(targets)}')  # pylint: disable=inconsistent-quotes
 
   # 1. Run gn.py with --coverage
   build_dir = os.path.join('out', f'{args.platform}_devel')
@@ -170,14 +198,24 @@ def main():
     print(f'Error running gn.py: {e}')
     return 1
 
-  # 2. Run code_coverage_tool.py for each target in parallel
-  print(f'Running coverage for {len(targets)} targets with {args.jobs} jobs...')
-  with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as executor:
-    futures = [
-        executor.submit(run_coverage_for_target, target, args, build_dir,
-                        discovery_platform) for target in targets
-    ]
-    results = [future.result() for future in futures]
+  # 2. Build all targets
+  print(f"Building targets: {', '.join(targets)}")
+  build_command = ['autoninja', '-C', build_dir
+                  ] + [target.split(':')[-1] for target in targets]
+  print(f"Running command: {' '.join(build_command)}")
+  try:
+    subprocess.check_call(build_command)
+  except subprocess.CalledProcessError as e:
+    print(f'Error building targets: {e}')
+    return 1
+
+  # 3. Run code_coverage_tool.py for each target
+  # TODO(b/382508397): Implement parallelization using multiple Android devices.
+  print(f'Running coverage for {len(targets)} targets...')
+  results = []
+  for target in targets:
+    results.append(
+        run_coverage_for_target(target, args, build_dir, discovery_platform))
 
   if all(results):
     print('Code coverage process completed successfully.')

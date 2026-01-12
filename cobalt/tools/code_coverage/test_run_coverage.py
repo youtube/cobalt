@@ -62,6 +62,7 @@ class RunCoverageTest(unittest.TestCase):
     expected_gn_command = [
         sys.executable, run_coverage.GN_PY_PATH, '-p', platform, '--coverage'
     ]
+    expected_build_command = ['autoninja', '-C', build_dir, executable_name]
     expected_coverage_command = [
         sys.executable,
         run_coverage.COVERAGE_TOOL_PATH,
@@ -76,9 +77,11 @@ class RunCoverageTest(unittest.TestCase):
         '--format=lcov',
         executable_name,
     ]
-    mock_check_call.assert_has_calls(
-        [mock.call(expected_gn_command),
-         mock.call(expected_coverage_command)])
+    mock_check_call.assert_has_calls([
+        mock.call(expected_gn_command),
+        mock.call(expected_build_command),
+        mock.call(expected_coverage_command)
+    ])
     self.assertEqual(result, 0)
 
   @mock.patch('os.makedirs')
@@ -113,7 +116,13 @@ class RunCoverageTest(unittest.TestCase):
     expected_gn_command = [
         sys.executable, run_coverage.GN_PY_PATH, '-p', platform, '--coverage'
     ]
-    expected_calls = [mock.call(expected_gn_command)]
+    expected_build_command = [
+        'autoninja', '-C', build_dir, 'target1', 'target2'
+    ]
+    expected_calls = [
+        mock.call(expected_gn_command),
+        mock.call(expected_build_command)
+    ]
     for target in ['target1', 'target2']:
       target_output_dir = os.path.join(output_dir, target)
       expected_command = os.path.join(build_dir, target)
@@ -194,7 +203,7 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.subprocess.check_call',
       side_effect=[
-          0, subprocess.CalledProcessError(1, 'code_coverage_tool.py')
+          0, 0, subprocess.CalledProcessError(1, 'code_coverage_tool.py')
       ])
   @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
@@ -215,7 +224,7 @@ class RunCoverageTest(unittest.TestCase):
 
     result = run_coverage.main()
 
-    self.assertEqual(mock_check_call.call_count, 2)
+    self.assertEqual(mock_check_call.call_count, 3)
     mock_print.assert_any_call(
         'Error running code_coverage_tool.py for target target: '
         f"{subprocess.CalledProcessError(1, 'code_coverage_tool.py')}")
@@ -345,6 +354,7 @@ class RunCoverageTest(unittest.TestCase):
     expected_gn_command = [
         sys.executable, run_coverage.GN_PY_PATH, '-p', platform, '--coverage'
     ]
+    expected_build_command = ['autoninja', '-C', build_dir, executable_name]
     expected_coverage_command = [
         sys.executable,
         run_coverage.COVERAGE_TOOL_PATH,
@@ -357,7 +367,38 @@ class RunCoverageTest(unittest.TestCase):
         '--format=lcov',
         executable_name,
     ]
-    mock_check_call.assert_has_calls(
-        [mock.call(expected_gn_command),
-         mock.call(expected_coverage_command)])
+    mock_check_call.assert_has_calls([
+        mock.call(expected_gn_command),
+        mock.call(expected_build_command),
+        mock.call(expected_coverage_command)
+    ])
+    self.assertEqual(result, 0)
+
+  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
+  @mock.patch('argparse.ArgumentParser')
+  def test_run_coverage_skips_fully_filtered_target(self, mock_arg_parser,
+                                                    mock_check_call):
+    """
+    Tests that a target is skipped if all its tests are filtered out.
+    """
+    platform = 'android-x86'
+    target = 'cobalt:unittests'
+
+    mock_parser = mock_arg_parser.return_value
+    mock_parser.parse_args.return_value = argparse.Namespace(
+        platform=platform,
+        output_dir='out/report',
+        targets=[target],
+        filters=None,
+        jobs=1)
+
+    # Patch at the source where 'main' will find it.
+    with mock.patch(
+        'cobalt.tools.code_coverage.run_coverage.is_target_skipped',
+        return_value=True):
+      result = run_coverage.main()
+
+    # NOTHING should run because the only target was filtered out before any
+    # external commands.
+    self.assertEqual(mock_check_call.call_count, 0)
     self.assertEqual(result, 0)
