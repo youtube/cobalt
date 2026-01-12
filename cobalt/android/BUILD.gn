@@ -241,9 +241,11 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/MockShellManagerNatives.java",
     "apk/app/src/test/java/dev/cobalt/coat/ShellManagerTest.java",
+    "apk/app/src/test/java/dev/cobalt/util/StartupGuardTest.java",
   ]
   deps = [
     ":cobalt_apk_java",
+    ":cobalt_main_java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
