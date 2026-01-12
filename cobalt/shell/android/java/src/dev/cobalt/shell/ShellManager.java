@@ -15,7 +15,6 @@
 package dev.cobalt.shell;
 
 import android.content.Context;
-import org.chromium.base.Log;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
@@ -33,8 +32,6 @@ public class ShellManager {
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
-    private Shell mSplashShell;
-    private Shell mAppShell;
 
     private String mStartupUrl = DEFAULT_SHELL_URL;
 
@@ -45,6 +42,8 @@ public class ShellManager {
 
     private Context mContext;
 
+    private boolean mIsActivityVisible;
+
     /**
      * Constructor for inflating via XML.
      */
@@ -54,6 +53,13 @@ public class ShellManager {
             sNatives = ShellManagerJni.get();
         }
         sNatives.init(this);
+    }
+
+    public void onActivityVisible(boolean visible) {
+        mIsActivityVisible = visible;
+        if (mActiveShell != null) {
+            mActiveShell.onActivityVisible(visible);
+        }
     }
 
     public Context getContext() {
@@ -95,21 +101,7 @@ public class ShellManager {
      * @return The currently visible shell view or null if one is not showing.
      */
     public Shell getActiveShell() {
-        return mSplashShell == null? mAppShell : mSplashShell;
-    }
-
-    /**
-     * @return The current Splash shell.
-     */
-    public Shell getSplashShell() {
-        return mSplashShell;
-    }
-
-    /**
-     * @return The current App shell.
-     */
-    public Shell getAppShell() {
-        return mAppShell;
+        return mActiveShell;
     }
 
     /**
@@ -131,6 +123,7 @@ public class ShellManager {
         mNextWebContentsReadyListener = listener;
         Shell previousShell = mActiveShell;
         sNatives.launchShell(url);
+        if (previousShell != null) previousShell.close();
     }
 
     @CalledByNative
@@ -141,20 +134,15 @@ public class ShellManager {
         }
 
         Shell shellView = new Shell(getContext());
-        if (mActiveShell == null) {
-            Log.i(TAG, "SplashShell is created.");
-            mSplashShell = shellView;
-        } else {
-            Log.i(TAG, "AppShell is created.");
-            mAppShell = shellView;
-        }
         shellView.initialize(nativeShellPtr, mWindow);
+        shellView.onActivityVisible(mIsActivityVisible);
         shellView.setWebContentsReadyListener(mNextWebContentsReadyListener);
         mNextWebContentsReadyListener = null;
 
-        if (mActiveShell == null) {
-            showSplashShell();
-        }
+        // TODO(tedchoc): Allow switching back to these inactive shells.
+        if (mActiveShell != null) removeShell(mActiveShell);
+
+        showShell(shellView);
         return shellView;
     }
 
@@ -167,22 +155,10 @@ public class ShellManager {
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
             mContentViewRenderView.setCurrentWebContents(webContents);
-            webContents.onShow();
+            if (mIsActivityVisible) {
+                webContents.onShow();
+            }
         }
-    }
-
-    private void showSplashShell() {
-        // mActiveShell will be mSplashShell.
-        showShell(mSplashShell);
-    }
-
-    public void showAppShell() {
-        // mActiveShell will be mAppShell, and close mSplashShell.
-        if (mSplashShell != null) {
-            mSplashShell.close();
-        }
-        showShell(mAppShell);
-        mSplashShell = null;
     }
 
     @CalledByNative

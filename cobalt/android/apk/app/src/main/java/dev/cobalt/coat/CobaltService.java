@@ -104,25 +104,13 @@ public abstract class CobaltService {
     // Use Base64.NO_WRAP instead of Base64.DEFAULT to avoid adding a new line.
     String base64Data = Base64.encodeToString(data, Base64.NO_WRAP);
 
-    String jsCodeTemplate;
-    if (this.cobaltActivity.isDisableNativeSplash()) {
-      // TODO(b/403638702): - Cobalt: Migrate away from Java Bridge for H5vccPlatformService.
-      // Workaround: Explicitly target the 'anchor' iframe for H5vccPlatformService callbacks.
-      // This is necessary because the polyfill is injected broadly, but callbacks
-      // are registered within the Kabuki app's iframe, which needs to be the
-      // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
-      jsCodeTemplate =
-          "((w) => {\n"
-              + "  let targetWindow = w;\n"
-              + "  const appIframe = document.getElementById('anchor');\n"
-              + "  if (appIframe?.contentWindow) {\n"
-              + "    targetWindow = appIframe.contentWindow;\n"
-              + "  }\n"
-              + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
-              + "})(window)";
-    } else {
-      jsCodeTemplate = "window.H5vccPlatformService.callbackFromAndroid(%d, '%s');";
-    }
+    // TODO(b/403638702): - Cobalt: Migrate away from Java Bridge for H5vccPlatformService.
+    // Workaround: Explicitly target the 'anchor' iframe for H5vccPlatformService callbacks.
+    // This is necessary because the polyfill is injected broadly, but callbacks
+    // are registered within the Kabuki app's iframe, which needs to be the
+    // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
+    String jsCodeTemplate =
+        "window.H5vccPlatformService.callbackFromAndroid(%d, '%s');";
 
     String jsCode = String.format(Locale.US, jsCodeTemplate, nativeService, base64Data);
     this.cobaltActivity.evaluateJavaScript(jsCode);

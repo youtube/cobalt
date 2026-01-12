@@ -25,7 +25,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.SystemClock;
 import android.text.TextUtils;
 import android.view.KeyEvent;
@@ -80,14 +79,6 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
 
-  private static final String SPLASH_URL_ARG = "--splash-url=";
-  private static final String META_DATA_APP_SPLASH_URL = "cobalt.APP_SPLASH_URL";
-  private static final String SPLASH_TIMEOUT_MS_ARG = "--splash-timeout-ms=";
-  private static final String META_DATA_APP_SPLASH_TIMEOUT_MS = "cobalt.APP_SPLASH_TIMEOUT_MS";
-  private static final String DISABLE_NATIVE_SPLASH = "disable-native-splash";
-
-  private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
-
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
@@ -114,19 +105,11 @@ public abstract class CobaltActivity extends Activity {
   private ActivityWindowAndroid mWindowAndroid;
   private Intent mLastSentIntent;
   private String mStartupUrl;
-  private String mSplashUrl;
-  private int mSplashTimeoutMs;
-  private boolean mDisableNativeSplash;
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector mCobaltConnectivityDetector;
   private WebContentsObserver mWebContentsObserver;
-
-  private Boolean isMainFrameLoaded = false;
-  private final Object lock = new Object();
-  private Handler mShowAppShellHandler;
-  private Runnable mShowAppShellRunnable;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -154,7 +137,6 @@ public abstract class CobaltActivity extends Activity {
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), extraCommandLineArgs.toArray(new String[0])));
     }
-    mDisableNativeSplash = CommandLine.getInstance().hasSwitch(DISABLE_NATIVE_SPLASH);
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
 
@@ -193,20 +175,14 @@ public abstract class CobaltActivity extends Activity {
     a11yHelper =
         new CobaltA11yHelper(this, mShellManager.getContentViewRenderView().getSurfaceView());
 
-    if (mStartupUrl == null
-        || mStartupUrl.isEmpty()
-        || mSplashUrl == null
-        || mSplashUrl.isEmpty()) {
+    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
-      mStartupUrl = parseArg(args, URL_ARG);
-      mSplashUrl = parseArg(args, SPLASH_URL_ARG);
-      String splashTimeoutMsStr = parseArg(args, SPLASH_TIMEOUT_MS_ARG);
-      try {
-        mSplashTimeoutMs = Integer.parseInt(splashTimeoutMsStr);
-      } catch (NumberFormatException e) {
-        Log.w(TAG, "Invalid splash timeout value: " + splashTimeoutMsStr + ", using default.");
-        mSplashTimeoutMs = 1500;
-      }
+      mStartupUrl =
+          Arrays.stream(args)
+              .filter(line -> line.contains(URL_ARG))
+              .findAny()
+              .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
+              .orElse(null);
     }
 
     if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
@@ -249,34 +225,20 @@ public abstract class CobaltActivity extends Activity {
     // trials are initialized in CobaltContentBrowserClient::CreateFeatureListAndFieldTrials().
     getStarboardBridge().initializePlatformAudioSink();
 
-    // Load an empty page to let shell create WebContents. Override Shell.java's
-    // onWebContentsReady() to only continue with initializeJavaBridge() and setting the
-    // webContents once it's confirmed that the webContents are correctly created and not null.
-    // Two shells workflow:
-    //   - App shell: Created by launchShell(), loads an empty URL (" ") initially. This shell is
-    //     intended to load the main application URL in the background.
-    //   - Splash shell: Created by default. If native splash is disabled, it does nothing.
-    //     Otherwise, it loads the native splash screen URL.
-    //   - mShellManager.showAppShell() switches the visible shell from
-    //     the active shell to the App shell.
-    if (mShellManager.getSplashShell() == null) {
-      // If splash shell is not created by default, create one. This also allows to show splash
-      // screen after swtiching ATV accounts.
-      Log.i(TAG, "NativeSplash: create splash shell");
-      mShellManager.launchShell("");
-    }
-    mShellManager.launchShell(
-        "",
+    // Load an empty page to let shell create WebContents. Override Shell.java's onWebContentsReady()
+    // to only continue with initializeJavaBridge() and setting the webContents once it's confirmed
+    // that the webContents are correctly created not null.
+    mShellManager.launchShell("",
         new Shell.OnWebContentsReadyListener() {
           @Override
           public void onWebContentsReady() {
             // Inject JavaBridge objects to the WebContents.
             initializeJavaBridge();
-            getStarboardBridge().setWebContents(getAppWebContents());
+            getStarboardBridge().setWebContents(getActiveWebContents());
 
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
-            mShellManager.getAppShell().loadUrl(mStartupUrl);
+            mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
             // Initialize and register a WebContentsObserver.
             mWebContentsObserver =
@@ -303,117 +265,11 @@ public abstract class CobaltActivity extends Activity {
                     }
                   }
                 };
-          }
 
-          @Override
-          public void onWebContentsLoaded() {
-            if (mShowAppShellHandler == null) {
-              mShowAppShellHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-            }
-            if (mShowAppShellRunnable != null) {
-              mShowAppShellHandler.removeCallbacks(mShowAppShellRunnable);
-            }
-            mShowAppShellRunnable =
-                new Runnable() {
-                  @Override
-                  public void run() {
-                    if (isFinishing() || isDestroyed()) {
-                      Log.w(
-                          TAG,
-                          "NativeSplash: activity is finishing or destroyed, skipping"
-                              + " showAppShell.");
-                      return;
-                    }
-                    synchronized (lock) {
-                      if (isMainFrameLoaded == false) {
-                        // Main app loaded in App shell, switch to it.
-                        Log.i(TAG, "NativeSplash: main shell is loaded");
-                        isMainFrameLoaded = true;
-                        mShellManager.showAppShell();
-                      }
-                    }
-                  }
-                };
-            mShowAppShellHandler.postDelayed(mShowAppShellRunnable, mSplashTimeoutMs);
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
-    if (mDisableNativeSplash) {
-      // No native splash, show the App shell (main app) immediately.
-      Log.i(TAG, "Show main app without splash screen.");
-      mShellManager.showAppShell();
-    } else {
-      // Native splash enabled: Load splash in active shell and set a timeout to switch to App
-      // shell.
-      mShellManager
-          .getSplashShell()
-          .setWebContentsReadyListener(
-              new Shell.OnWebContentsReadyListener() {
-                @Override
-                public void onWebContentsReady() {}
-
-                @Override
-                public void onWebContentsLoaded() {
-                  // Switch to pending shell after a timeout, or when the main app finishes loading,
-                  // whichever comes first.
-                  Log.i(
-                      TAG,
-                      String.format(
-                          "NativeSplash: shellManager load splash timeout %dms", mSplashTimeoutMs));
-                  final android.os.Handler handler =
-                      new android.os.Handler(android.os.Looper.getMainLooper());
-                  handler.postDelayed(
-                      new SwitchRunnable(CobaltActivity.this, handler), mSplashTimeoutMs);
-                }
-              });
-      Log.i(TAG, "shellManager load splash url:" + mSplashUrl);
-      mShellManager.getSplashShell().loadUrl(mSplashUrl);
-    }
-  }
-
-  private static class SwitchRunnable implements Runnable {
-    private final java.lang.ref.WeakReference<CobaltActivity> activityReference;
-    private final android.os.Handler handler;
-    private int retries = 0;
-    private static final int MAX_RETRIES = 50; // max timeout is 5s
-    private static final int RETRY_DELAY_MS = 100;
-
-    SwitchRunnable(CobaltActivity activity, android.os.Handler handler) {
-      this.activityReference = new java.lang.ref.WeakReference<>(activity);
-      this.handler = handler;
-    }
-
-    @Override
-    public void run() {
-      CobaltActivity activity = activityReference.get();
-      if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
-        Log.w(TAG, "Activity is no longer valid, cancelling SwitchRunnable.");
-        return;
-      }
-
-      synchronized (activity.lock) {
-        if (activity.isMainFrameLoaded) {
-          return;
-        }
-        if (activity.mShellManager.getAppShell() != null
-            && (activity.mShellManager.getSplashShell() == null
-                || activity.mShellManager.getSplashShell().isDestroyed())) {
-          Log.i(
-              TAG,
-              String.format(
-                  "NativeSplash: switch to main shell after timeout %dms",
-                  activity.mSplashTimeoutMs));
-          activity.isMainFrameLoaded = true;
-          activity.mShellManager.showAppShell();
-        } else if (retries < MAX_RETRIES) {
-          retries++;
-          handler.postDelayed(this, RETRY_DELAY_MS);
-        } else {
-          Log.w(
-              TAG,
-              "Timed out waiting for AppShell. Deferring to onWebContentsLoaded() on AppShell.");
-        }
-      }
-    }
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -497,29 +353,12 @@ public abstract class CobaltActivity extends Activity {
   }
 
   /**
-   * @return The current app shell.
-   */
-  public Shell getAppShell() {
-    return mShellManager != null ? mShellManager.getAppShell() : null;
-  }
-
-  /**
    * @return The {@link WebContents} owned by the currently visible {@link Shell} or null if one is
    *     not showing.
    */
   @Nullable
   public WebContents getActiveWebContents() {
     Shell shell = getActiveShell();
-    return shell != null ? shell.getWebContents() : null;
-  }
-
-  /**
-   * @return The {@link WebContents} owned by the currently visible {@link Shell} or null if one is
-   *     not showing.
-   */
-  @Nullable
-  public WebContents getAppWebContents() {
-    Shell shell = getAppShell();
     return shell != null ? shell.getWebContents() : null;
   }
 
@@ -562,11 +401,7 @@ public abstract class CobaltActivity extends Activity {
   private void initializeJavaBridge() {
     Log.i(TAG, "initializeJavaBridge");
 
-    if (mShellManager == null || mShellManager.getAppShell() == null) {
-      throw new RuntimeException(
-          "mShellManager or mAppShell is null in initializeJavaBridge. This should never happen.");
-    }
-    WebContents webContents = getAppWebContents();
+    WebContents webContents = getActiveWebContents();
     if (webContents == null) {
       throw new RuntimeException(
           "webContents is null in initializeJavaBridge. This should never happen.");
@@ -633,6 +468,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
+    updateShellActivityVisible(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
@@ -654,6 +490,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
@@ -686,9 +523,6 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (mShowAppShellHandler != null && mShowAppShellRunnable != null) {
-      mShowAppShellHandler.removeCallbacks(mShowAppShellRunnable);
-    }
     if (mCobaltConnectivityDetector != null) {
       mCobaltConnectivityDetector.destroy();
     }
@@ -718,14 +552,6 @@ public abstract class CobaltActivity extends Activity {
     return false;
   }
 
-  private String parseArg(String[] args, String argName) {
-    return Arrays.stream(args)
-        .filter(line -> line.startsWith(argName))
-        .findAny()
-        .map(arg -> arg.substring(argName.length()))
-        .orElse(null);
-  }
-
   /**
    * Overridden by Kimono to provide specific Java switch configurations.
    */
@@ -751,11 +577,7 @@ public abstract class CobaltActivity extends Activity {
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
     boolean hasUrlArg = hasArg(args, URL_ARG);
-    // If the SPLASH_URL arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasSplashUrlArg = hasArg(args, SPLASH_URL_ARG);
-    // If the SPLASH_TIMEOUT_MS arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasSplashTimeoutMsArg = hasArg(args, SPLASH_TIMEOUT_MS_ARG);
-    if (!hasUrlArg || !hasSplashUrlArg || !hasSplashTimeoutMsArg) {
+    if (!hasUrlArg) {
       try {
         ActivityInfo ai =
             getPackageManager()
@@ -764,21 +586,8 @@ public abstract class CobaltActivity extends Activity {
           if (!hasUrlArg) {
             String url = ai.metaData.getString(META_DATA_APP_URL);
             if (url != null) {
-              if (mDisableNativeSplash) {
-                url += "/splash";
-              }
               args.add(URL_ARG + url);
             }
-          }
-          if (!hasSplashUrlArg) {
-            String splash_url = ai.metaData.getString(META_DATA_APP_SPLASH_URL);
-            if (splash_url != null) {
-              args.add(SPLASH_URL_ARG + splash_url);
-            }
-          }
-          if (!hasSplashTimeoutMsArg) {
-            int timeout = ai.metaData.getInt(META_DATA_APP_SPLASH_TIMEOUT_MS, 1500);
-            args.add(SPLASH_TIMEOUT_MS_ARG + timeout);
           }
         }
       } catch (NameNotFoundException e) {
@@ -922,7 +731,7 @@ public abstract class CobaltActivity extends Activity {
         new Runnable() {
           @Override
           public void run() {
-            WebContents webContents = getAppWebContents();
+            WebContents webContents = getActiveWebContents();
             if (webContents != null) {
               webContents.evaluateJavaScript(jsCode, null);
             }
@@ -949,8 +758,10 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  public boolean isDisableNativeSplash() {
-    return mDisableNativeSplash;
+  private void updateShellActivityVisible(boolean isVisible) {
+    if (mShellManager != null) {
+      mShellManager.onActivityVisible(isVisible);
+    }
   }
 
   @NativeMethods

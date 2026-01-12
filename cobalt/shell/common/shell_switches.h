@@ -21,6 +21,9 @@
 
 namespace switches {
 
+inline constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+inline constexpr char kSplashScreenURL[] = "h5vcc-embedded://splash.html";
+
 extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];
 extern const char kDisableSystemFontCheck[];
@@ -31,6 +34,7 @@ extern const char kContentShellDevToolsTabTarget[];
 #endif
 extern const char kIsolatedContextOrigins[];
 extern const char kRemoteDebuggingAddress[];
+extern const char kSplashScreenShutdownDelayMs[];
 
 }  // namespace switches
 

@@ -43,10 +43,13 @@ class FeatureList {
                                     const SbFeatureParam* params,
                                     size_t number_of_params);
 
-  // Check to see if the given SbFeature is enabled or not. SbFeatures must be
-  // initialized before use. There's an SB_CHECK() to ensure that the given
-  // SbFeature must exist in the FeatureList.
+  // Check to see if the given SbFeature is enabled or not.
   static bool IsEnabled(const SbFeature& feature);
+
+  // Check to see if the given SbFeature is enabled or not by name. SbFeatures
+  // must be initialized before use. There's an SB_CHECK() to ensure that the
+  // given SbFeature must exist in the FeatureList.
+  static bool IsEnabledByName(const std::string& feature_name);
 
   // Template function to retrieve a parameter based on the value type of the
   // parameter.SbParams must be initialized before use. There's an SB_CHECK() to

@@ -21,9 +21,9 @@ import static org.mockito.MockitoAnnotations.initMocks;
 import android.app.Activity;
 import android.widget.FrameLayout;
 
+import dev.cobalt.shell.ContentViewRenderView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
-import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

@@ -51,4 +51,7 @@ const char kIsolatedContextOrigins[] = "isolated-context-origins";
 // risk.
 const char kRemoteDebuggingAddress[] = "remote-debugging-address";
 
+// The delay in milliseconds before shutting down the splash screen.
+const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
+
 }  // namespace switches

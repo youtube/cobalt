@@ -29,25 +29,33 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/bind_post_task.h"
 #include "build/build_config.h"
 #include "cobalt/shell/app/resource.h"
+#include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/shell_content_browser_client.h"
 #include "cobalt/shell/browser/shell_devtools_frontend.h"
 #include "cobalt/shell/browser/shell_javascript_dialog_manager.h"
 #include "cobalt/shell/common/shell_switches.h"
+#include "cobalt/shell/common/url_constants.h"
+#include "cobalt/shell/embedded_resources/embedded_js.h"
 #include "components/custom_handlers/protocol_handler.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 
 #include "content/public/browser/browser_context.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/file_select_listener.h"
+#include "content/public/browser/media_capture_devices.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/navigation_entry.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/picture_in_picture_window_controller.h"
 #include "content/public/browser/presentation_receiver_flags.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/renderer_preferences_util.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
@@ -55,7 +63,20 @@
 #include "third_party/blink/public/common/peerconnection/webrtc_ip_handling_policy.h"
 #include "third_party/blink/public/common/renderer_preferences/renderer_preferences.h"
 #include "third_party/blink/public/mojom/choosers/file_chooser.mojom-forward.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
+#include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/jni_env_ext.h"
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/android/oom_intervention/oom_intervention_tab_helper.h"
+#include "starboard/android/shared/starboard_bridge.h"
+
+using starboard::android::shared::StarboardBridge;
+#endif
 
 namespace content {
 
@@ -66,8 +87,44 @@ base::OnceClosure& GetMainMessageLoopQuitClosure() {
   return *closure;
 }
 
+bool RequestRecordAudioPermission() {
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  auto* env = starboard::android::shared::JniEnvExt::Get();
+  jobject j_audio_permission_requester =
+      static_cast<jobject>(env->CallStarboardObjectMethodOrAbort(
+          "getAudioPermissionRequester",
+          "()Ldev/cobalt/coat/AudioPermissionRequester;"));
+  jboolean j_permission = env->CallBooleanMethodOrAbort(
+      j_audio_permission_requester, "requestRecordAudioPermission", "()Z");
+
+  return j_permission == JNI_TRUE;
+#else
+  // It is expected that all 3P will have system-level permissions.
+  return true;
+#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
+    const blink::MediaStreamDevices& devices,
+    const std::string& requested_device_id) {
+  if (devices.empty()) {
+    return nullptr;
+  }
+  if (requested_device_id.empty()) {
+    return &devices[0];
+  }
+  auto it = base::ranges::find(devices, requested_device_id,
+                               &blink::MediaStreamDevice::id);
+  if (it != devices.end()) {
+    return &(*it);
+  }
+  return &devices[0];
+}
+
 constexpr int kDefaultTestWindowWidthDip = 800;
 constexpr int kDefaultTestWindowHeightDip = 600;
+
+constexpr int kSplashTimeoutMs = 1500;
 
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
@@ -79,9 +136,14 @@ std::vector<Shell*> Shell::windows_;
 base::OnceCallback<void(Shell*)> Shell::shell_created_callback_;
 
 Shell::Shell(std::unique_ptr<WebContents> web_contents,
-             bool should_set_delegate)
+             std::unique_ptr<WebContents> splash_screen_web_contents,
+             bool should_set_delegate,
+             bool skip_for_testing)
     : WebContentsObserver(web_contents.get()),
-      web_contents_(std::move(web_contents)) {
+      web_contents_(std::move(web_contents)),
+      splash_screen_web_contents_(std::move(splash_screen_web_contents)),
+      splash_state_(STATE_SPLASH_SCREEN_UNINITIALIZED),
+      skip_for_testing_(skip_for_testing) {
   if (should_set_delegate) {
     web_contents_->SetDelegate(this);
   }
@@ -90,6 +152,36 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
       web_contents_->GetMutableRendererPrefs());
 
   windows_.push_back(this);
+
+  // Create browser-side mojo service component
+  js_communication_host_ =
+      std::make_unique<js_injection::JsCommunicationHost>(web_contents_.get());
+
+  if (!skip_for_testing_) {
+    RegisterInjectedJavaScript();
+  }
+
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (OomInterventionTabHelper::IsEnabled()) {
+    OomInterventionTabHelper::CreateForWebContents(web_contents_.get());
+  }
+#endif
+
+  if (splash_screen_web_contents_) {
+    splash_state_ = STATE_SPLASH_SCREEN_INITIALIZED;
+    splash_screen_web_contents_observer_ =
+        std::make_unique<SplashScreenWebContentsObserver>(
+            splash_screen_web_contents_.get(),
+            base::BindOnce(&Shell::OnSplashScreenLoadComplete,
+                           weak_factory_.GetWeakPtr()));
+    splash_screen_web_contents_delegate_ =
+        std::make_unique<SplashScreenWebContentsDelegate>(
+            base::BindPostTaskToCurrentDefault(
+                base::BindOnce(&Shell::ClosingSplashScreenWebContents,
+                               weak_factory_.GetWeakPtr())));
+    splash_screen_web_contents_->SetDelegate(
+        splash_screen_web_contents_delegate_.get());
+  }
 
   if (shell_created_callback_) {
     std::move(shell_created_callback_).Run(this);
@@ -141,15 +233,22 @@ void Shell::FinishShellInitialization(Shell* shell) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_ANDROID)
   // TODO(b/390021478): Revisit this when decoupling from content_shell.
-  GetPlatform()->SetOverlayMode(shell, true);
+  if (!shell->skip_for_testing()) {
+    GetPlatform()->SetOverlayMode(shell, true);
+  }
+  GetPlatform()->SetSkipForTesting(shell->skip_for_testing());
 #endif  // BUILDFLAG(IS_ANDROID)
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
-Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
-                          const gfx::Size& initial_size,
-                          bool should_set_delegate) {
-  Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
+Shell* Shell::CreateShell(
+    std::unique_ptr<WebContents> web_contents,
+    std::unique_ptr<WebContents> splash_screen_web_contents,
+    const gfx::Size& initial_size,
+    bool should_set_delegate) {
+  Shell* shell =
+      new Shell(std::move(web_contents), std::move(splash_screen_web_contents),
+                should_set_delegate);
   GetPlatform()->CreatePlatformWindow(shell, initial_size);
   FinishShellInitialization(shell);
   return shell;
@@ -240,30 +339,28 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const GURL& url,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size,
-                              const std::string& main_frame_name) {
+                              const bool create_splash_screen_web_contents) {
   WebContents::CreateParams create_params(browser_context, site_instance);
-#if BUILDFLAG(IS_ANDROID)
-  // Workaround to determine if WebContents is for main app or splash screen.
-  // As a result, CobaltContentBrowserClient::OnWebContentsCreated() only
-  // observes WebContents on main app.
-  if (!main_frame_name.empty()) {
-    // Set |main_frame_name| for splash screen, where
-    // ShellBrowserMainParts::InitializeMessageLoopContext() creates
-    // WebContents, and it loads splash screen. On the other hand,
-    // JNI_ShellManager_LaunchShell() should not set |main_frame_name|.
-    create_params.main_frame_name = main_frame_name;
-  }
-#endif  // BUILDFLAG(IS_ANDROID)
-
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
   }
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
-  Shell* shell =
-      CreateShell(std::move(web_contents), AdjustWindowSize(initial_size),
-                  true /* should_set_delegate */);
+  std::unique_ptr<WebContents> splash_screen_web_contents;
+  if (create_splash_screen_web_contents) {
+    // Create splash screen WebContents. ATV creates splash screen WebContents
+    // in JNI_ShellManager_LaunchShell(), whereas other platforms create it in
+    // ShellBrowserMainParts::InitializeMessageLoopContext().
+    WebContents::CreateParams splash_screen_create_params(browser_context,
+                                                          nullptr);
+    splash_screen_create_params.main_frame_name = kCobaltSplashMainFrameName;
+    splash_screen_web_contents =
+        WebContents::Create(splash_screen_create_params);
+  }
+  Shell* shell = CreateShell(
+      std::move(web_contents), std::move(splash_screen_web_contents),
+      AdjustWindowSize(initial_size), true /* should_set_delegate */);
 
   if (!url.is_empty()) {
     shell->LoadURL(url);
@@ -277,11 +374,96 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
   }
 }
 
+void Shell::PrimaryMainDocumentElementAvailable() {
+  LOG(INFO) << "PrimaryMainDocumentElementAvailable, do storage migration.";
+  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
+      web_contents());
+  LOG(INFO) << "PrimaryMainDocumentElementAvailable, storage migration done.";
+}
+
+void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
+  LOG(INFO) << "NativeSplash: Navigated to " << navigation_handle->GetURL();
+}
+
+void Shell::DidStopLoading() {
+  // Set initial focus to the web content.
+  if (web_contents()->GetRenderWidgetHostView()) {
+    web_contents()->GetRenderWidgetHostView()->Focus();
+  }
+
+  if (!is_main_frame_loaded_ &&
+      splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
+    LOG(INFO) << "NativeSplash: Main frame WebContents DidStopLoading.";
+    is_main_frame_loaded_ = true;
+
+    if (splash_state_ < STATE_SPLASH_SCREEN_STARTED) {
+      return;
+    }
+
+    if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
+      SwitchToMainWebContents();
+    } else {
+      ScheduleSwitchToMainWebContents();
+    }
+  }
+}
+
+void Shell::RegisterInjectedJavaScript() {
+  // Get the embedded header resource
+  GeneratedResourceMap resource_map;
+  CobaltJavaScriptPolyfill::GenerateMap(resource_map);
+
+  for (const auto& [file_name, file_contents] : resource_map) {
+    LOG(INFO) << "JS injection for filename: " << file_name;
+    std::string js(reinterpret_cast<const char*>(file_contents.data),
+                   file_contents.size);
+
+    // Inject a script at document start for all origins
+    const std::u16string script(base::UTF8ToUTF16(js));
+    const std::vector<std::string> allowed_origins({"*"});
+    auto result = js_communication_host_->AddDocumentStartJavaScript(
+        script, allowed_origins);
+
+    if (result.error_message.has_value()) {
+      // error_message contains a value
+      LOG(WARNING) << "Failed to register JS injection for:" << file_name
+                   << ", error message: " << result.error_message.value();
+    }
+  }
+}
+
+void Shell::LoadSplashScreenWebContents() {
+  if (splash_screen_web_contents_) {
+    // Display splash screen.
+    LOG(INFO) << "NativeSplash: Loading splash screen WebContents.";
+    splash_state_ = STATE_SPLASH_SCREEN_STARTED;
+    GetPlatform()->LoadSplashScreenContents(this);
+
+    GURL splash_screen_url = GURL(switches::kSplashScreenURL);
+    NavigationController::LoadURLParams params(splash_screen_url);
+    params.frame_name = std::string();
+    params.transition_type = ui::PageTransitionFromInt(
+        ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+    splash_screen_web_contents_->GetController().LoadURLWithParams(params);
+
+    if (is_main_frame_loaded_) {
+      // Main frame loaded before splash screen started.
+      LOG(INFO) << "NativeSplash: Main frame loaded before splash start.";
+      ScheduleSwitchToMainWebContents();
+    }
+  }
+}
+
 void Shell::LoadURL(const GURL& url) {
   LoadURLForFrame(
       url, std::string(),
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
+#if !BUILDFLAG(IS_ANDROID)
+  // Load splash screen on linux/3p platforms. On ATV, it is called by
+  // JNI_Shell_LoadSplashScreenWebContents().
+  LoadSplashScreenWebContents();
+#endif
 }
 
 void Shell::LoadURLForFrame(const GURL& url,
@@ -345,7 +527,8 @@ void Shell::AddNewContents(WebContents* source,
                            bool user_gesture,
                            bool* was_blocked) {
   CreateShell(
-      std::move(new_contents), AdjustWindowSize(window_features.bounds.size()),
+      std::move(new_contents), nullptr /* splash_screen_web_contents */,
+      AdjustWindowSize(window_features.bounds.size()),
       !delay_popup_contents_delegate_for_testing_ /* should_set_delegate */);
 }
 
@@ -666,6 +849,50 @@ void Shell::SetContentsBounds(WebContents* source, const gfx::Rect& bounds) {
   DCHECK(source == web_contents());  // There's only one WebContents per Shell.
 }
 
+void Shell::RequestMediaAccessPermission(WebContents* web_contents,
+                                         const MediaStreamRequest& request,
+                                         MediaResponseCallback callback) {
+  if (request.audio_type !=
+      blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE) {
+    std::move(callback).Run(
+        blink::mojom::StreamDevicesSet(),
+        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
+        /*ui=*/nullptr);
+    return;
+  }
+  bool can_record_audio = RequestRecordAudioPermission();
+  if (!can_record_audio) {
+    std::move(callback).Run(
+        blink::mojom::StreamDevicesSet(),
+        blink::mojom::MediaStreamRequestResult::PERMISSION_DENIED,
+        /*ui=*/nullptr);
+    return;
+  }
+  auto audio_devices =
+      MediaCaptureDevices::GetInstance()->GetAudioCaptureDevices();
+  const blink::MediaStreamDevice* device = GetRequestedDeviceOrDefault(
+      audio_devices, request.requested_audio_device_id);
+  if (!device) {
+    std::move(callback).Run(blink::mojom::StreamDevicesSet(),
+                            blink::mojom::MediaStreamRequestResult::NO_HARDWARE,
+                            /*ui=*/nullptr);
+    return;
+  }
+  blink::mojom::StreamDevicesSet stream_devices_set;
+  stream_devices_set.stream_devices.emplace_back(
+      blink::mojom::StreamDevices::New());
+  stream_devices_set.stream_devices[0]->audio_device = *device;
+  std::move(callback).Run(stream_devices_set,
+                          blink::mojom::MediaStreamRequestResult::OK,
+                          std::unique_ptr<MediaStreamUI>());
+}
+
+bool Shell::CheckMediaAccessPermission(RenderFrameHost*,
+                                       const GURL&,
+                                       blink::mojom::MediaStreamType) {
+  return true;
+}
+
 gfx::Size Shell::GetShellDefaultSize() {
   static gfx::Size default_shell_size;  // Only go through this method once.
 
@@ -694,15 +921,117 @@ gfx::Size Shell::GetShellDefaultSize() {
   return default_shell_size;
 }
 
-#if BUILDFLAG(IS_ANDROID)
 void Shell::LoadProgressChanged(double progress) {
-  g_platform->LoadProgressChanged(this, progress);
-}
+#if BUILDFLAG(IS_ANDROID)
+  if (!skip_for_testing_) {
+    g_platform->LoadProgressChanged(this, progress);
+  }
 #endif
+  if (progress >= 1.0 && !is_main_frame_loaded_ &&
+      splash_state_ != STATE_SPLASH_SCREEN_UNINITIALIZED) {
+    is_main_frame_loaded_ = true;
+
+    // If splash screen hasn't started yet, we don't need to do anything here.
+    // The switch logic will be handled in LoadSplashScreenWebContents().
+    if (splash_state_ < STATE_SPLASH_SCREEN_STARTED) {
+      return;
+    }
+
+    if (splash_state_ >= STATE_SPLASH_SCREEN_ENDED) {
+      LOG(INFO) << "NativeSplash: Main frame WebContents is loaded.";
+      SwitchToMainWebContents();
+    } else {
+      ScheduleSwitchToMainWebContents();
+    }
+  }
+}
+
+void Shell::ScheduleSwitchToMainWebContents() {
+  if (splash_screen_start_time_.is_null()) {
+    LOG(INFO) << "NativeSplash: Splash screen not loaded yet, waiting.";
+    return;
+  }
+  base::TimeDelta splash_screen_elapsed =
+      base::TimeTicks::Now() - splash_screen_start_time_;
+
+  int splash_timeout_ms = kSplashTimeoutMs;
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(switches::kSplashScreenShutdownDelayMs)) {
+    std::string switch_value = command_line->GetSwitchValueASCII(
+        switches::kSplashScreenShutdownDelayMs);
+    base::StringToInt(switch_value, &splash_timeout_ms);
+  }
+
+  base::TimeDelta min_splash_screen_duration =
+      base::Milliseconds(splash_timeout_ms);
+  base::TimeDelta remaining_delay =
+      min_splash_screen_duration - splash_screen_elapsed;
+
+  if (remaining_delay.is_negative()) {
+    // No more delay needed
+    remaining_delay = base::TimeDelta();
+  }
+
+  LOG(INFO) << "NativeSplash: Main frame WebContents is loaded, splash "
+               "screen elapsed: "
+            << splash_screen_elapsed.InMilliseconds()
+            << "ms, remaining delay: " << remaining_delay.InMilliseconds()
+            << "ms.";
+  if (web_contents_) {
+    web_contents_->WasHidden();
+    content::GetUIThreadTaskRunner({})->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&Shell::SwitchToMainWebContents,
+                       weak_factory_.GetWeakPtr()),
+        remaining_delay);
+  }
+}
 
 void Shell::TitleWasSet(NavigationEntry* entry) {
   if (entry) {
     g_platform->SetTitle(this, entry->GetTitle());
+  }
+}
+
+void Shell::SwitchToMainWebContents() {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  // It is safe to use |has_switched_to_main_frame_|
+  // instead of a lock due to it is on a single thread.
+  // This could be called multiple times.
+  if (!has_switched_to_main_frame_) {
+    LOG(INFO) << "NativeSplash: Switching to main frame WebContents.";
+    has_switched_to_main_frame_ = true;
+    if (web_contents_) {
+      GetPlatform()->UpdateContents(this);
+      web_contents_->WasShown();
+      if (web_contents()->GetRenderWidgetHostView()) {
+        web_contents()->GetRenderWidgetHostView()->Focus();
+      }
+    }
+    if (splash_screen_web_contents_) {
+      splash_screen_web_contents_.reset();
+      splash_screen_web_contents_observer_.reset();
+      splash_screen_web_contents_delegate_.reset();
+    }
+  }
+}
+
+void Shell::OnSplashScreenLoadComplete() {
+  if (splash_state_ >= STATE_SPLASH_SCREEN_STARTED &&
+      splash_screen_start_time_.is_null()) {
+    splash_screen_start_time_ = base::TimeTicks::Now();
+    if (is_main_frame_loaded_) {
+      ScheduleSwitchToMainWebContents();
+    }
+  }
+}
+
+void Shell::ClosingSplashScreenWebContents() {
+  LOG(INFO) << "NativeSplash: Closing splash screen WebContents.";
+  splash_state_ = STATE_SPLASH_SCREEN_ENDED;
+  if (is_main_frame_loaded_) {
+    // If main frame WebContents is loaded, switch to it.
+    SwitchToMainWebContents();
   }
 }
 

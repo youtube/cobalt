@@ -48,7 +48,6 @@ public class Shell {
      */
     public interface OnWebContentsReadyListener {
         void onWebContentsReady();
-        void onWebContentsLoaded();
     }
 
     private static final String TAG = "cobalt";
@@ -62,6 +61,7 @@ public class Shell {
             "restrictDirectWritingArea=true";
 
     private WebContents mWebContents;
+    private WebContents mSplashScreenWebContents;
     private NavigationController mNavigationController;
 
     private long mNativeShell;
@@ -71,7 +71,7 @@ public class Shell {
 
     private boolean mLoading;
     private boolean mIsFullscreen;
-    private boolean mProgressLoaded;
+    private boolean mIsActivityVisible;
 
     private OnWebContentsReadyListener mWebContentsReadyListener;
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
@@ -119,7 +119,6 @@ public class Shell {
     public void initialize(long nativeShell, WindowAndroid window) {
         mNativeShell = nativeShell;
         mWindow = window;
-        mProgressLoaded = false;
     }
 
     /**
@@ -129,6 +128,14 @@ public class Shell {
     public void close() {
         if (mNativeShell == 0) return;
         ShellJni.get().closeShell(mNativeShell);
+    }
+
+    /**
+     * Load splash screen.
+     */
+    public void loadSplashScreenWebContents() {
+        if (mNativeShell == 0) return;
+        ShellJni.get().loadSplashScreenWebContents(mNativeShell);
     }
 
     @CalledByNative
@@ -162,7 +169,6 @@ public class Shell {
     public void loadUrl(String url) {
         if (url == null) return;
 
-        mProgressLoaded = false;
         if (TextUtils.equals(url, mWebContents.getLastCommittedUrl().getSpec())) {
             mNavigationController.reload(true);
         } else {
@@ -185,12 +191,7 @@ public class Shell {
     private void onUpdateUrl(String url) {}
 
     @CalledByNative
-    private void onLoadProgressChanged(double progress) {
-        if (progress >= 1.0 && mWebContentsReadyListener != null && mProgressLoaded == false) {
-            mProgressLoaded = true;
-            mWebContentsReadyListener.onWebContentsLoaded();
-        }
-    }
+    private void onLoadProgressChanged(double progress) {}
 
     @CalledByNative
     private void toggleFullscreenModeForTab(boolean enterFullscreen) {
@@ -216,7 +217,7 @@ public class Shell {
      */
     @CalledByNative
     private void initFromNativeTabContents(WebContents webContents) {
-        mProgressLoaded = false;
+        if (webContents == null || mContentViewRenderView == null) return;
         mViewAndroidDelegate = new ShellViewAndroidDelegate(mRootView);
         assert (mWebContents != webContents);
         if (mWebContents != null) mWebContents.clearNativeReference();
@@ -224,12 +225,55 @@ public class Shell {
                 "", mViewAndroidDelegate, null /* ContentView */, mWindow, WebContents.createDefaultInternalsHolder());
         mWebContents = webContents;
         mNavigationController = mWebContents.getNavigationController();
-        mWebContents.onShow();
-        if (mContentViewRenderView != null) {
-            mContentViewRenderView.setCurrentWebContents(mWebContents);
+        if (mIsActivityVisible) {
+            mWebContents.onShow();
         }
+        mContentViewRenderView.setCurrentWebContents(mWebContents);
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
+        }
+    }
+
+    /**
+     * Load the native splash screen contents.
+     * @param webContents A {@link WebContents} object.
+     */
+    @CalledByNative
+    private void loadSplashScreenNativeTabContents(WebContents splashWebContents) {
+        if (splashWebContents == null || mContentViewRenderView == null) return;
+        mSplashScreenWebContents = splashWebContents;
+        splashWebContents.initialize(
+                "", mViewAndroidDelegate, null /* ContentView */, mWindow, WebContents.createDefaultInternalsHolder());
+        if (mIsActivityVisible) {
+            splashWebContents.onShow();;
+        }
+        mContentViewRenderView.setCurrentWebContents(splashWebContents);
+    }
+
+    /**
+     * Update native contents.
+     * @param webContents A {@link WebContents} object.
+     */
+    @CalledByNative
+    private void updateNativeTabContents(WebContents webContents) {
+        if (webContents == null || mContentViewRenderView == null) return;
+        mWebContents = webContents;
+        mSplashScreenWebContents = null;
+        mNavigationController = mWebContents.getNavigationController();
+        if (mIsActivityVisible) {
+            mWebContents.onShow();
+        }
+        mContentViewRenderView.setCurrentWebContents(mWebContents);
+    }
+
+    public void onActivityVisible(boolean visible) {
+        mIsActivityVisible = visible;
+        if (mWebContents != null) {
+            if (visible) {
+                mWebContents.onShow();
+            } else {
+                mWebContents.onHide();
+            }
         }
     }
 
@@ -273,9 +317,7 @@ public class Shell {
 
     @CalledByNative
     public void setOverlayMode(boolean useOverlayMode) {
-        if (mContentViewRenderView != null) {
-            mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
-        }
+        mContentViewRenderView.setOverlayVideoMode(useOverlayMode);
         if (mOverlayModeChangedCallbackForTesting != null) {
             mOverlayModeChangedCallbackForTesting.onResult(useOverlayMode);
         }
@@ -311,6 +353,7 @@ public class Shell {
 
     @NativeMethods
     interface Natives {
+        void loadSplashScreenWebContents(long shellPtr);
         void closeShell(long shellPtr);
     }
 }

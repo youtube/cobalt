@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,14 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
 
-namespace cobalt {
+namespace content {
 
-CobaltWebContentsObserver::CobaltWebContentsObserver(
-    content::WebContents* web_contents)
-    : content::WebContentsObserver(web_contents) {}
+SplashScreenWebContentsDelegate::SplashScreenWebContentsDelegate(
+    base::OnceClosure on_close)
+    : on_close_(std::move(on_close)) {}
 
-CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+SplashScreenWebContentsDelegate::~SplashScreenWebContentsDelegate() = default;
 
-}  // namespace cobalt
+void SplashScreenWebContentsDelegate::CloseContents(WebContents* source) {
+  DCHECK(on_close_);
+  std::move(on_close_).Run();
+}
+
+}  // namespace content

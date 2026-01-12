@@ -20,16 +20,22 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
-#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
+namespace {
+
+constexpr char kMediaAppendFirstSegmentSynchronously[] =
+    "Media.AppendFirstSegmentSynchronously";
+
+}  // namespace
 
 H5vccSettings::H5vccSettings(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
@@ -47,6 +53,27 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
+  if (name == kMediaAppendFirstSegmentSynchronously) {
+    if (value->IsLong()) {
+      append_first_segment_synchronously_ = (value->GetAsLong() != 0);
+      if (append_first_segment_synchronously_) {
+        LOG(INFO) << "Enable synchronous append of first media source segment.";
+      } else {
+        LOG(INFO) << "Disable synchronous append of first media source"
+                  << " segment.";
+      }
+      resolver->Resolve();
+    } else {
+      LOG(WARNING) << "The value for '" << kMediaAppendFirstSegmentSynchronously
+                   << "' must be a number.";
+      resolver->Reject(V8ThrowException::CreateTypeError(
+          script_state->GetIsolate(),
+          String("The value for '") + kMediaAppendFirstSegmentSynchronously +
+                 "' must be a number."));
+    }
+    return promise;
+  }
+
   EnsureReceiverIsBound();
 
   h5vcc_settings::mojom::blink::ValuePtr mojo_value;
@@ -58,8 +85,8 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
     NOTREACHED();
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kInvalidAccessError, "Unsupported type."));
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), "Unsupported type."));
     return promise;
   }
 

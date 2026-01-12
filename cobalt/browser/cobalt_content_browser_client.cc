@@ -28,6 +28,7 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/command_line_logger.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/h5vcc_settings_impl.h"
@@ -325,19 +326,13 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   if (web_contents->GetPrimaryMainFrame() &&
       web_contents->GetPrimaryMainFrame()->GetFrameName() ==
           content::kCobaltSplashMainFrameName) {
-    // Don't observe and delegate WebContents if it's splash screen.
-    LOG(INFO) << "Skip observing and delegating WebContents for "
+    // Don't observe WebContents if it's splash screen.
+    LOG(INFO) << "NativeSplash: Skip observing WebContents for "
                  "kCobaltSplashMainFrameName.";
     return;
   }
-  LOG(INFO) << "Observing and delegating WebContents.";
+  LOG(INFO) << "NativeSplash: Observing main frame WebContents.";
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
-  web_contents_delegate_.reset(new CobaltWebContentsDelegate());
-  content::Shell::SetShellCreatedCallback(base::BindOnce(
-      [](content::WebContentsDelegate* delegate, content::Shell* shell) {
-        shell->web_contents()->SetDelegate(delegate);
-      },
-      web_contents_delegate_.get()));
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
@@ -560,6 +555,9 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
             << "], disable_features=["
             << command_line.GetSwitchValueASCII(::switches::kDisableFeatures)
             << "]";
+  LOG(INFO) << "CobaltCommandLine: "
+            << CommandLineSwitchesToString(
+                   *base::CommandLine::ForCurrentProcess());
 
   // Push the initialized features and params down to Starboard.
   features::InitializeStarboardFeatures();

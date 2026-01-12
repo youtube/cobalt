@@ -48,15 +48,19 @@ group("cobalt_shell_lib_deps") {
   public_deps = [
     ":android_shell_descriptors",
     ":embed_loader_resources_as_header_files",
+    ":embed_polyfilled_javascript",
     ":resources",
     "//base",
     "//base:base_static",
     "//base/third_party/dynamic_annotations",
     "//cc/base",
+    "//cobalt/android/oom_intervention",
+    "//cobalt/shell/browser/migrate_storage_record",
     "//components/cdm/renderer",
     "//components/crash/content/browser",
     "//components/crash/core/app",
     "//components/custom_handlers",
+    "//components/js_injection/browser:browser",
     "//components/keyed_service/content",
     "//components/metrics",
     "//components/metrics:net",
@@ -253,6 +257,10 @@ static_library("cobalt_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "browser/splash_screen_web_contents_delegate.cc",
+    "browser/splash_screen_web_contents_delegate.h",
+    "browser/splash_screen_web_contents_observer.cc",
+    "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/url_constants.h",
@@ -501,13 +509,29 @@ mojom("shell_controller_mojom") {
 
 action("embed_loader_resources_as_header_files") {
   script = "//cobalt/build/generate_data_header.py"
-
-  inputs = [ "embedded_resources/splash.html" ]
   outputs = [ "$target_gen_dir/embedded_resources/embedded_resources.h" ]
 
   args = [
     "LoaderEmbeddedResources",
     rebase_path(outputs[0], root_build_dir),
-    rebase_path("embedded_resources", root_build_dir),
+    rebase_path("embedded_resources/loader_embedded_resources", root_build_dir),
+  ]
+}
+
+config("embed_polyfilled_javascript_config") {
+  include_dirs = [ root_gen_dir ]
+}
+
+# TODO(cobalt, b/390710539): migrate to GRIT.
+action("embed_polyfilled_javascript") {
+  script = "//cobalt/build/generate_data_header.py"
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_js.h" ]
+  public_configs = [ ":embed_polyfilled_javascript_config" ]
+
+  args = [
+    "CobaltJavaScriptPolyfill",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources/cobalt_java_script_polyfill",
+                root_build_dir),
   ]
 }

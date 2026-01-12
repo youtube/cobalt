@@ -17,9 +17,8 @@
 
 namespace content {
 
-inline constexpr char kH5vccEmbeddedScheme[] = "h5vcc-embedded";
-
 inline constexpr char kCobaltSplashMainFrameName[] = "Splash";
+inline constexpr char kH5vccEmbeddedScheme[] = "h5vcc-embedded";
 
 }  // namespace content
 
