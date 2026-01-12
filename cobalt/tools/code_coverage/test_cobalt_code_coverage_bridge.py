@@ -107,6 +107,13 @@ class CodeCoverageToolTest(unittest.TestCase):
     Tests that the tool prints an error message and returns 1 when the
     --package argument is provided.
     """
+    del _mock_listdir  # Unused argument, as per user instruction.
+    del _mock_isdir  # Unused argument, as per user instruction.
+    sys.argv = ['cobalt_code_coverage_bridge.py', '--package', 'some_package']
+    exit_code = cobalt_code_coverage_bridge.main()
+    self.assertEqual(exit_code, 1)
+    mock_print.assert_called_with(
+        'Error: This tool should not be used to call update.py --package.')
 
 
 if __name__ == '__main__':
