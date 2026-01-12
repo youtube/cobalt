@@ -73,13 +73,9 @@ void H5vccAccessibility::AddedEventListener(
 void H5vccAccessibility::RemovedEventListener(
     const AtomicString& event_type,
     const RegisteredEventListener& registered_listener) {
-<<<<<<< HEAD
+  CHECK(WTF::IsMainThread());
   EventTargetWithInlineData::RemovedEventListener(event_type,
                                                   registered_listener);
-=======
-  CHECK(WTF::IsMainThread());
-  EventTarget::RemovedEventListener(event_type, registered_listener);
->>>>>>> c382b915387 (cobalt: Cache H5vccAccessibility text-to-speech state (#8510))
 
   if (event_type == event_type_names::kTexttospeechchange &&
       !HasEventListeners(event_type)) {
