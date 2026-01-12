@@ -175,7 +175,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/media/media_is_audio_supported_aac_and_opus.cc",
     "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
     "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
-    "//starboard/shared/starboard/new.cc",
     "//starboard/shared/starboard/queue_application.cc",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_request_blur.cc",

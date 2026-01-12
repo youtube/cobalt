@@ -20,10 +20,10 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_union_long_string.h"
-#include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/v8_throw_exception.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
@@ -58,8 +58,8 @@ ScriptPromise H5vccSettings::set(ScriptState* script_state,
         h5vcc_settings::mojom::blink::Value::NewIntValue(value->GetAsLong());
   } else {
     NOTREACHED();
-    resolver->Reject(MakeGarbageCollected<DOMException>(
-        DOMExceptionCode::kInvalidAccessError, "Unsupported type."));
+    resolver->Reject(V8ThrowException::CreateTypeError(
+        script_state->GetIsolate(), "Unsupported type."));
     return promise;
   }
 
