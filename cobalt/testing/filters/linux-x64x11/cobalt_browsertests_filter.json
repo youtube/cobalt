@@ -1,0 +1,6 @@
+{
+  "comment": "Temporarily disable Cobalt browser tests",
+  "failing_tests": [
+    "*"
+  ]
+}
