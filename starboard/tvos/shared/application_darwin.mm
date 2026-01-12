@@ -22,6 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/queue_application.h"
+#include "starboard/shared/starboard/thread_checker.h"
 #import "starboard/tvos/shared/media/drm_manager.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 #import "starboard/tvos/shared/media/player_manager.h"
@@ -44,6 +45,10 @@
 
   // The `pressesEnded` event that contained `_lastMenuPressEnded`.
   UIPressesEvent* _lastMenuPressEndedEvent;
+
+  // Used for checking that certain methods are invoked from the UI thread (so
+  // that UIKit calls can be made directly, for example).
+  starboard::ThreadChecker _uiThreadChecker;
 }
 
 @synthesize drmManager = _drmManager;
@@ -70,17 +75,20 @@
 
 - (void)registerMenuPressBegan:(UIPress*)press
                   pressesEvent:(UIPressesEvent*)pressesEvent {
+  SB_CHECK(_uiThreadChecker.CalledOnValidThread());
   _lastMenuPressBegan = press;
   _lastMenuPressBeganEvent = pressesEvent;
 }
 
 - (void)registerMenuPressEnded:(UIPress*)press
                   pressesEvent:(UIPressesEvent*)pressesEvent {
+  SB_CHECK(_uiThreadChecker.CalledOnValidThread());
   _lastMenuPressEnded = press;
   _lastMenuPressEndedEvent = pressesEvent;
 }
 
 - (void)suspendApplication {
+  SB_CHECK(_uiThreadChecker.CalledOnValidThread());
   if (_lastMenuPressBegan && _lastMenuPressBeganEvent && _lastMenuPressEnded &&
       _lastMenuPressEndedEvent) {
     UIApplication* app = [UIApplication sharedApplication];
