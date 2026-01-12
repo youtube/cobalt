@@ -144,24 +144,30 @@ static const char kAllTracingCategories[] = "*";
 // and only forward it when suspendApplication is invoked.
 - (void)pressesBegan:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses = [presses mutableCopy];
   for (UIPress* press in presses) {
     if (press.type == UIPressTypeMenu) {
       [SBDGetApplication() registerMenuPressBegan:press pressesEvent:event];
-      return;
+      [nonMenuPresses removeObject:press];
     }
   }
-  [super pressesBegan:presses withEvent:event];
+  if (nonMenuPresses.count > 0) {
+    [super pressesBegan:nonMenuPresses withEvent:event];
+  }
 }
 
 - (void)pressesEnded:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses = [presses mutableCopy];
   for (UIPress* press in presses) {
     if (press.type == UIPressTypeMenu) {
       [SBDGetApplication() registerMenuPressEnded:press pressesEvent:event];
-      return;
+      [nonMenuPresses removeObject:press];
     }
   }
-  [super pressesEnded:presses withEvent:event];
+  if (nonMenuPresses.count > 0) {
+    [super pressesEnded:nonMenuPresses withEvent:event];
+  }
 }
 #endif  // BUILDFLAG(IS_IOS_TVOS)
 
