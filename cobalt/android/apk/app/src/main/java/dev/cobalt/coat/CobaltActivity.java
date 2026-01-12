@@ -45,7 +45,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
-import dev.cobalt.util.StartupWatchdog;
+import dev.cobalt.util.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
@@ -86,15 +86,15 @@ public abstract class CobaltActivity extends Activity {
   private static final String META_DATA_APP_SPLASH_TIMEOUT_MS = "cobalt.APP_SPLASH_TIMEOUT_MS";
   private static final String DISABLE_NATIVE_SPLASH = "disable-native-splash";
 
-  private static final String KABUKI_URL = "https://www.youtube.com/tv";
+  private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
-  // How many seconds before the app exits if it fails to land Kabuki home page.
-  private static final int HANG_APP_EXIT_SECONDS = 60;
+  // How many seconds before the app exits if it fails to land YouTube home page.
+  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 60;
 
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -209,9 +209,9 @@ public abstract class CobaltActivity extends Activity {
       }
     }
 
-    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(KABUKI_URL)) {
-      Log.i(TAG, "Non-Kabuki startup URL detected.");
-      StartupWatchdog.getInstance().disarm();
+    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
+      Log.i(TAG, "Non-Youtube startup URL detected.");
+      StartupGuard.getInstance().disarm();
     }
 
     if (!TextUtils.isEmpty(mStartupUrl)) {
@@ -541,7 +541,7 @@ public abstract class CobaltActivity extends Activity {
 
     super.onCreate(savedInstanceState);
 
-    StartupWatchdog.getInstance().scheduleCrash(HANG_APP_EXIT_SECONDS);
+    StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
 
     mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
@@ -612,9 +612,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
-    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_WATCHDOG)) {
-      Log.i(TAG, "StartupWatchdog is disabled by Java switch.");
-      StartupWatchdog.getInstance().disarm();
+    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      StartupGuard.getInstance().disarm();
     }
 
     if (!isReleaseBuild()) {

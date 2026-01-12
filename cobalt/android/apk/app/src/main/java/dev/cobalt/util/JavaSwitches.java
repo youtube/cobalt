@@ -19,5 +19,5 @@ package dev.cobalt.util;
  */
 public class JavaSwitches {
   public static final String ENABLE_QUIC = "EnableQUIC";
-  public static final String DISABLE_STARTUP_WATCHDOG = "DisableStartupWatchdog";
+  public static final String DISABLE_STARTUP_GUARD = "DisableStartupGuard";
 }
