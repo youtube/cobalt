@@ -254,7 +254,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
       files = []
       if args.workflow == 'evergreen':
-        params.append(f'gcs_cobalt_archive=gs://{args.gcs_archive_path}.zip')
+        params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
       else:
         bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
         files.append(f'cobalt_path={bigstore_path}')
