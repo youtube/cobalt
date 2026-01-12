@@ -44,6 +44,8 @@
 
 namespace starboard::android::shared {
 
+using ::starboard::shared::starboard::Application;
+
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
   SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
@@ -55,7 +57,7 @@ ApplicationAndroid::ApplicationAndroid(
     const std::string& files_dir,
     const std::string& cache_dir,
     const std::string& native_library_dir)
-    : QueueApplication(stubSbEventHandle) {
+    : Application(stubSbEventHandle) {
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
@@ -123,6 +125,46 @@ Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
   SB_LOG(INFO) << __func__ << " (" << mime_type << ", " << key_system
                << ") --> " << ret;
   return env->NewStringStandardUTFOrAbort(ret);
+}
+
+Application::Event* ApplicationAndroid::GetNextEvent() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return nullptr;
+}
+
+void ApplicationAndroid::Inject(Application::Event* event) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+void ApplicationAndroid::InjectTimedEvent(
+    Application::TimedEvent* timed_event) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+void ApplicationAndroid::CancelTimedEvent(SbEventId event_id) {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+}
+
+Application::TimedEvent* ApplicationAndroid::GetNextDueTimedEvent() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return nullptr;
+}
+
+int64_t ApplicationAndroid::GetNextTimedEventTargetTime() {
+  SB_LOG(FATAL) << __func__
+                << " should not be called since Android doesn't utilize "
+                   "Starboard's event handling";
+  return std::numeric_limits<int64_t>::max();
 }
 
 }  // namespace starboard::android::shared
