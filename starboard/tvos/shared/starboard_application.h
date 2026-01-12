@@ -62,13 +62,13 @@ id<SBDStarboardApplication> SBDGetApplication(void);
 // `registerMenuPressBegan` and `registerMenuPressEnded` to UIKit.
 - (void)suspendApplication;
 
-// Registers the menu press events got on pressesBegan to use them at the
-// application suspension.
+// Caches the menu press from a pressesBegan event for later use when
+// suspending the application.
 - (void)registerMenuPressBegan:(UIPress*)press
                   pressesEvent:(UIPressesEvent*)pressesEvent;
 
-// Registers the menu press events got on pressesEnded to use them at the
-// application suspension.
+// Caches the menu press from a pressesEnded event for later use when
+// suspending the application.
 - (void)registerMenuPressEnded:(UIPress*)press
                   pressesEvent:(UIPressesEvent*)pressesEvent;
 @end
