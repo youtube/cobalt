@@ -63,5 +63,5 @@ interface H5vccMetrics : EventTarget {
   // being sent as part of the onmetrics Event. Remove this API when Cobalt
   // and client web apps have fully migrated to said Event.
   [CallWith=ScriptState, RaisesException]
-  Promise<DOMString> requestHistograms();
+  Promise<DOMString> requestHistograms(boolean monitor_mode);
 };

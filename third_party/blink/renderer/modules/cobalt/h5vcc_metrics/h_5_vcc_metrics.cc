@@ -97,6 +97,7 @@ ScriptPromise<IDLUndefined> H5vccMetrics::setMetricEventInterval(
 
 ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
     ScriptState* script_state,
+    bool monitor_mode,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
       script_state, exception_state.GetContext());
@@ -105,6 +106,7 @@ ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
   EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->RequestHistograms(
+      monitor_mode,
       WTF::BindOnce(&H5vccMetrics::OnRequestHistograms, WrapPersistent(this),
                     WrapPersistent(resolver)));
 

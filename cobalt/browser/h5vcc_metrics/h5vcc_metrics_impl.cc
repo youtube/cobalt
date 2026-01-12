@@ -76,7 +76,8 @@ void H5vccMetricsImpl::SetMetricEventInterval(
   std::move(callback).Run();
 }
 
-void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
+void H5vccMetricsImpl::RequestHistograms(bool monitor_mode,
+                                         RequestHistogramsCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Synchronously fetch subprocess histograms that live in shared memory.
   // This is the only mechanism available to embedders like Cobalt, as the
@@ -87,6 +88,7 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
       cobalt::GlobalFeatures::GetInstance()->metrics_services_manager_client();
   auto* service_client = manager_client->metrics_service_client();
   auto* state_manager = manager_client->GetMetricsStateManager();
+  CHECK(state_manager);
 
   if (state_manager->client_id().empty()) {
     std::move(callback).Run(std::string());
@@ -103,13 +105,33 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
   metrics::MetricsLog log(state_manager->client_id(), /*session_id=*/1,
                           metrics::MetricsLog::LogType::ONGOING_LOG,
                           service_client);
+
+  if (!monitor_mode) {
+    last_histogram_samples_.clear();
+  }
+
   for (base::HistogramBase* const histogram :
        base::StatisticsRecorder::GetHistograms()) {
     auto samples = histogram->SnapshotSamples();
     if (samples->TotalCount() == 0) {
       continue;
     }
-    log.RecordHistogramDelta(histogram->histogram_name(), *samples);
+
+    if (monitor_mode) {
+      auto it = last_histogram_samples_.find(
+          std::string(histogram->histogram_name()));
+      if (it != last_histogram_samples_.end()) {
+        samples->Subtract(*it->second);
+        it->second = histogram->SnapshotSamples();
+      } else {
+        last_histogram_samples_.emplace(
+            std::string(histogram->histogram_name()),
+            histogram->SnapshotSamples());
+      }
+    }
+    if (samples->TotalCount() > 0) {
+      log.RecordHistogramDelta(histogram->histogram_name(), *samples);
+    }
   }
   std::string encoded_log;
   log.FinalizeLog(false, service_client->GetVersionString(),
