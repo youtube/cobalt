@@ -84,10 +84,10 @@
   if (_lastMenuPressBegan && _lastMenuPressBeganEvent && _lastMenuPressEnded &&
       _lastMenuPressEndedEvent) {
     UIApplication* app = [UIApplication sharedApplication];
-    NSSet<UIPress*>* menuPress = [NSSet setWithObject:_lastMenuPressBegan];
-    [app pressesBegan:menuPress withEvent:_lastMenuPressBeganEvent];
-    NSSet<UIPress*>* menuPressEnd = [NSSet setWithObject:_lastMenuPressEnded];
-    [app pressesEnded:menuPressEnd withEvent:_lastMenuPressEndedEvent];
+    NSSet<UIPress*>* beganPresses = [NSSet setWithObject:_lastMenuPressBegan];
+    [app pressesBegan:beganPresses withEvent:_lastMenuPressBeganEvent];
+    NSSet<UIPress*>* endedPresses = [NSSet setWithObject:_lastMenuPressEnded];
+    [app pressesEnded:endedPresses withEvent:_lastMenuPressEndedEvent];
   }
   _lastMenuPressBegan = nil;
   _lastMenuPressBeganEvent = nil;
