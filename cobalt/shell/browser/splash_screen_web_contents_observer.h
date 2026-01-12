@@ -15,13 +15,15 @@
 #ifndef COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 #define COBALT_SHELL_BROWSER_SPLASH_SCREEN_WEB_CONTENTS_OBSERVER_H_
 
+#include "base/functional/callback.h"
 #include "content/public/browser/web_contents_observer.h"
 
 namespace content {
 
 class SplashScreenWebContentsObserver : public WebContentsObserver {
  public:
-  SplashScreenWebContentsObserver(WebContents* web_contents);
+  SplashScreenWebContentsObserver(WebContents* web_contents,
+                                  base::OnceClosure on_load_complete);
 
   SplashScreenWebContentsObserver(const SplashScreenWebContentsObserver&) =
       delete;
@@ -33,8 +35,9 @@ class SplashScreenWebContentsObserver : public WebContentsObserver {
   void WebContentsDestroyed() override;
 
  private:
-  // Intentionally empty to ignore load progress from the splash screen.
   void LoadProgressChanged(double progress) override;
+
+  base::OnceClosure on_load_complete_;
 };
 
 }  // namespace content
