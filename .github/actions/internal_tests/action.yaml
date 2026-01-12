@@ -80,7 +80,7 @@ runs:
           --label branch:${GITHUB_REF_NAME} \
           --dimensions '${{ inputs.test_dimensions }}' \
           --artifact_name '${{ inputs.artifact_name }}' \
-          --workflow '${GITHUB_WORKFLOW}' \
+          --workflow "${GITHUB_WORKFLOW}" \
           --cobalt_path "${GCS_ARTIFACTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
