@@ -74,6 +74,25 @@ class CodeCoverageToolTest(unittest.TestCase):
         'test_arg',
     ])
 
+  @mock.patch('subprocess.check_call')
+  def test_coverage_tools_dir_provided_with_equals(self, mock_check_call):
+    """
+    Tests that the tool doesn't add the --coverage-tools-dir argument when it's
+    already provided using an equals sign.
+    """
+    sys.argv = [
+        'cobalt_code_coverage_bridge.py',
+        '--coverage-tools-dir=/my/custom/dir',
+        'test_arg',
+    ]
+    cobalt_code_coverage_bridge.main()
+    mock_check_call.assert_called_once_with([
+        sys.executable,
+        cobalt_code_coverage_bridge.COVERAGE_PY_PATH,
+        '--coverage-tools-dir=/my/custom/dir',
+        'test_arg',
+    ])
+
   @mock.patch('os.path.isdir', return_value=True)
   @mock.patch(
       'os.listdir',
