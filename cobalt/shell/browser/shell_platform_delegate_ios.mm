@@ -144,11 +144,13 @@ static const char kAllTracingCategories[] = "*";
 // and only forward it when suspendApplication is invoked.
 - (void)pressesBegan:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
-  NSMutableSet<UIPress*>* nonMenuPresses = [presses mutableCopy];
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
   for (UIPress* press in presses) {
     if (press.type == UIPressTypeMenu) {
       [SBDGetApplication() registerMenuPressBegan:press pressesEvent:event];
-      [nonMenuPresses removeObject:press];
+    } else {
+      [nonMenuPresses addObject:press];
     }
   }
   if (nonMenuPresses.count > 0) {
@@ -158,11 +160,13 @@ static const char kAllTracingCategories[] = "*";
 
 - (void)pressesEnded:(NSSet<UIPress*>*)presses
            withEvent:(UIPressesEvent*)event {
-  NSMutableSet<UIPress*>* nonMenuPresses = [presses mutableCopy];
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
   for (UIPress* press in presses) {
     if (press.type == UIPressTypeMenu) {
       [SBDGetApplication() registerMenuPressEnded:press pressesEvent:event];
-      [nonMenuPresses removeObject:press];
+    } else {
+      [nonMenuPresses addObject:press];
     }
   }
   if (nonMenuPresses.count > 0) {
