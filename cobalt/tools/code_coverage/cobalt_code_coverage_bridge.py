@@ -38,7 +38,7 @@ def main():
   Main function for the code coverage tool.
   """
   args = sys.argv[1:]
-  if '--coverage-tools-dir' not in args:
+  if not any(arg.startswith('--coverage-tools-dir') for arg in args):
     expected_entries = [
         'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
     ]
