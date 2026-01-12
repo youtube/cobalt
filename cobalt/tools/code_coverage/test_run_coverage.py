@@ -31,7 +31,7 @@ class RunCoverageTest(unittest.TestCase):
   """
 
   @mock.patch('os.makedirs')
-  @mock.patch('subprocess.check_call')
+  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_success_with_targets(self, mock_arg_parser,
                                              mock_check_call, mock_makedirs):
@@ -53,7 +53,8 @@ class RunCoverageTest(unittest.TestCase):
         platform=platform,
         output_dir=output_dir,
         targets=[target],
-        filters=[filters])
+        filters=[filters],
+        jobs=1)
 
     result = run_coverage.main()
 
@@ -84,7 +85,7 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1', 'target2'])
-  @mock.patch('subprocess.check_call')
+  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_success_no_targets(self, mock_arg_parser,
                                            mock_check_call,
@@ -100,7 +101,11 @@ class RunCoverageTest(unittest.TestCase):
 
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
-        platform=platform, output_dir=output_dir, targets=[], filters=None)
+        platform=platform,
+        output_dir=output_dir,
+        targets=[],
+        filters=None,
+        jobs=1)
 
     result = run_coverage.main()
 
@@ -142,7 +147,11 @@ class RunCoverageTest(unittest.TestCase):
     platform = 'android-x86'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
-        platform=platform, output_dir='out/report', targets=[], filters=None)
+        platform=platform,
+        output_dir='out/report',
+        targets=[],
+        filters=None,
+        jobs=1)
 
     result = run_coverage.main()
 
@@ -155,7 +164,7 @@ class RunCoverageTest(unittest.TestCase):
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1'])
   @mock.patch(
-      'subprocess.check_call',
+      'cobalt.tools.code_coverage.run_coverage.subprocess.check_call',
       side_effect=subprocess.CalledProcessError(1, 'gn.py'))
   @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
@@ -167,7 +176,11 @@ class RunCoverageTest(unittest.TestCase):
     platform = 'android-x86'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
-        platform=platform, output_dir='out/report', targets=[], filters=None)
+        platform=platform,
+        output_dir='out/report',
+        targets=[],
+        filters=None,
+        jobs=1)
 
     result = run_coverage.main()
 
@@ -179,7 +192,7 @@ class RunCoverageTest(unittest.TestCase):
 
   @mock.patch('os.makedirs')
   @mock.patch(
-      'subprocess.check_call',
+      'cobalt.tools.code_coverage.run_coverage.subprocess.check_call',
       side_effect=[
           0, subprocess.CalledProcessError(1, 'code_coverage_tool.py')
       ])
@@ -197,7 +210,8 @@ class RunCoverageTest(unittest.TestCase):
         platform='android-x86',
         output_dir='out/report',
         targets=[target],
-        filters=None)
+        filters=None,
+        jobs=1)
 
     result = run_coverage.main()
 
@@ -259,7 +273,7 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1', 'target2'])
-  @mock.patch('subprocess.check_call')
+  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
   def test_platform_reuse(self, mock_arg_parser, mock_check_call,
                           mock_discover_targets):
@@ -274,7 +288,8 @@ class RunCoverageTest(unittest.TestCase):
         platform='android-x86',
         output_dir='out/report',
         targets=[],
-        filters=None)
+        filters=None,
+        jobs=1)
     run_coverage.main()
     mock_discover_targets.assert_called_with('android-arm')
 
@@ -283,14 +298,15 @@ class RunCoverageTest(unittest.TestCase):
         platform='android-x64',
         output_dir='out/report',
         targets=[],
-        filters=None)
+        filters=None,
+        jobs=1)
     run_coverage.main()
     mock_discover_targets.assert_called_with('android-arm64')
 
   @mock.patch('os.makedirs')
   @mock.patch('os.path.exists', return_value=True)
   @mock.patch('builtins.open', new_callable=mock.mock_open)
-  @mock.patch('subprocess.check_call')
+  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_with_test_filters(  # pylint: disable=too-many-positional-arguments
       self, mock_arg_parser, mock_check_call, mock_open, mock_exists,
@@ -320,7 +336,8 @@ class RunCoverageTest(unittest.TestCase):
         platform=platform,
         output_dir=output_dir,
         targets=[target],
-        filters=None)
+        filters=None,
+        jobs=1)
 
     result = run_coverage.main()
 

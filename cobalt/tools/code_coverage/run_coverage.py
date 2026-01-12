@@ -19,7 +19,9 @@ This script orchestrates the code coverage process by:
 """
 
 import argparse
+import concurrent.futures
 import json
+import multiprocessing
 import os
 import subprocess
 import sys
@@ -80,8 +82,61 @@ def parse_args():
       '--filters',
       action='append',
       help='Directories or files to get code coverage for.')
+  parser.add_argument(
+      '-j',
+      '--jobs',
+      type=int,
+      default=multiprocessing.cpu_count(),
+      help='The number of parallel jobs to run.')
 
   return parser.parse_args()
+
+
+def run_coverage_for_target(target, args, build_dir, discovery_platform):
+  """
+  Run code coverage for a single target.
+  """
+  print(f'--- Running coverage for target: {target} ---')
+  sanitized_target = target.replace(':', '_').replace('/', '_')
+  target_output_dir = os.path.join(args.output_dir, sanitized_target)
+  os.makedirs(target_output_dir, exist_ok=True)
+
+  executable_name = target.split(':')[-1]
+  command = os.path.join(build_dir, executable_name)
+
+  # Add the test filters to the command.
+  filter_file = os.path.join(SRC_ROOT_PATH, 'cobalt', 'testing', 'filters',
+                             discovery_platform,
+                             f'{executable_name}_filter.json')
+  if os.path.exists(filter_file):
+    with open(filter_file, 'r', encoding='utf-8') as f:
+      data = json.load(f)
+      if 'failing_tests' in data and data['failing_tests']:
+        gtest_filter = f'--gtest_filter=-{":".join(data["failing_tests"])}'  # pylint: disable=inconsistent-quotes
+        command += f' {gtest_filter}'
+
+  coverage_command = [
+      sys.executable,
+      COVERAGE_TOOL_PATH,
+      '-b',
+      build_dir,
+      '-o',
+      target_output_dir,
+      '-c',
+      command,
+  ]
+  if args.filters:
+    for f in args.filters:
+      coverage_command.extend(['-f', f])
+  coverage_command.extend(['--format=lcov', executable_name])
+
+  print(f'Running command: {" ".join(coverage_command)}')  # pylint: disable=inconsistent-quotes
+  try:
+    subprocess.check_call(coverage_command)
+    return True
+  except subprocess.CalledProcessError as e:
+    print(f'Error running code_coverage_tool.py for target {target}: {e}')
+    return False
 
 
 def main():
@@ -115,52 +170,20 @@ def main():
     print(f'Error running gn.py: {e}')
     return 1
 
-  # 2. Run code_coverage_tool.py for each target
-  for target in targets:
-    print(f'--- Running coverage for target: {target} ---')
-    sanitized_target = target.replace(':', '_').replace('/', '_')
-    target_output_dir = os.path.join(args.output_dir, sanitized_target)
-    os.makedirs(target_output_dir, exist_ok=True)
-
-    executable_name = target.split(':')[-1]
-    command = os.path.join(build_dir, executable_name)
-
-    # Add the test filters to the command.
-    gtest_filter = None
-    filter_file = os.path.join(SRC_ROOT_PATH, 'cobalt', 'testing', 'filters',
-                               discovery_platform,
-                               f'{executable_name}_filter.json')
-    if os.path.exists(filter_file):
-      with open(filter_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        if 'failing_tests' in data and data['failing_tests']:
-          gtest_filter = f'--gtest_filter=-{":".join(data["failing_tests"])}'  # pylint: disable=inconsistent-quotes
-          command += f' {gtest_filter}'
-
-    coverage_command = [
-        sys.executable,
-        COVERAGE_TOOL_PATH,
-        '-b',
-        build_dir,
-        '-o',
-        target_output_dir,
-        '-c',
-        command,
+  # 2. Run code_coverage_tool.py for each target in parallel
+  print(f'Running coverage for {len(targets)} targets with {args.jobs} jobs...')
+  with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as executor:
+    futures = [
+        executor.submit(run_coverage_for_target, target, args, build_dir,
+                        discovery_platform) for target in targets
     ]
-    if args.filters:
-      for f in args.filters:
-        coverage_command.extend(['-f', f])
-    coverage_command.extend(['--format=lcov', executable_name])
+    results = [future.result() for future in futures]
 
-    print(f'Running command: {" ".join(coverage_command)}')  # pylint: disable=inconsistent-quotes
-    try:
-      subprocess.check_call(coverage_command)
-    except subprocess.CalledProcessError as e:
-      print(f'Error running code_coverage_tool.py for target {target}: {e}')
-      # Continue to the next target
-      continue
+  if all(results):
+    print('Code coverage process completed successfully.')
+  else:
+    print('Code coverage process completed with some errors.')
 
-  print('Code coverage process completed.')
   return 0
 
 
