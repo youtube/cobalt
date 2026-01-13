@@ -253,7 +253,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       test_cmd_args = []
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
       files = []
-      if args.workflow == 'evergreen':
+      if args.device_family in ['rdk', 'raspi']:
         params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
       else:
         bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
@@ -398,11 +398,6 @@ def main() -> int:
       '--cobalt_path',
       type=str,
       help='Path to Cobalt apk.',
-  )
-  e2e_test_group.add_argument(
-      '--workflow',
-      type=str,
-      help='Workflow name.',
   )
   e2e_test_group.add_argument(
       '--artifact_name',
