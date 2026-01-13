@@ -116,8 +116,8 @@ class MediaCodecBridge {
   static NonNullResult<std::unique_ptr<MediaCodecBridge>>
   CreateVideoMediaCodecBridge(
       SbMediaVideoCodec video_codec,
-      // `frame_size_hint` are used to create the Android video format, which
-      // don't have to be directly related to the resolution of the video.
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
       const Size& frame_size_hint,
       int fps,
       // `max_frame_size` can be set to positive values to specify the maximum
