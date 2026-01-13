@@ -130,7 +130,7 @@
 namespace content {
 
 namespace {
-  
+
 using PerformanceManagerRegistry =
     performance_manager::PerformanceManagerRegistry;
 
