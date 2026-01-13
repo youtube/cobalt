@@ -168,7 +168,7 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/audio_sink_get_max_channels.cc",
     "//starboard/shared/stub/audio_sink_is_audio_frame_storage_type_supported.cc",
     "//starboard/shared/stub/audio_sink_is_audio_sample_type_supported.cc",
-     "//starboard/shared/stub/media_get_audio_output_count.cc",
+    "//starboard/shared/stub/media_get_audio_output_count.cc",
     "//starboard/shared/stub/player_get_preferred_output_mode.cc",
     "//starboard/shared/stub/storage_write_record.cc",
     "//starboard/shared/stub/system_symbolize.cc",
