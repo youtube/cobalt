@@ -157,11 +157,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       const network::ResourceRequest& request,
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       BrowserContext* browser_context,
-      const GeneratedResourceMap* resource_map_test)
+      const GeneratedResourceMap* resource_map_test,
+      const std::string& splash_domain)
       : client_(std::move(client)),
         url_(request.url),
         browser_context_(browser_context),
-        resource_map_test_(resource_map_test) {
+        resource_map_test_(resource_map_test),
+        splash_domain_(splash_domain) {
     client_.set_disconnect_handler(
         base::BindOnce(&H5vccSchemeURLLoader::OnClientDisconnected,
                        weak_factory_.GetWeakPtr()));
@@ -232,7 +234,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         browser_context_->GetStoragePartition(spc);
     storage::mojom::CacheStorageControl* cache_storage_control =
         storage_partition->GetCacheStorageControl();
-    url::Origin origin = url::Origin::Create(GURL(kSplashDomain));
+    url::Origin origin = url::Origin::Create(GURL(splash_domain_));
     blink::StorageKey storage_key = blink::StorageKey::CreateFirstParty(origin);
     storage::BucketLocator bucket_locator =
         storage::BucketLocator::ForDefaultBucket(storage_key);
@@ -244,7 +246,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
         cache_storage_remote_.BindNewPipeAndPassReceiver());
 
     auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
-    fetch_api_request->url = GURL(kSplashDomain).Resolve(path);
+    fetch_api_request->url = GURL(splash_domain_).Resolve(path);
     fetch_api_request->method = "GET";
 
     auto match_options = blink::mojom::MultiCacheQueryOptions::New();
@@ -374,12 +376,17 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   std::string content_;
   std::unique_ptr<BlobReader> blob_reader_;
   const GeneratedResourceMap* resource_map_test_ = nullptr;
+  std::string splash_domain_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
+std::optional<std::string>
+    H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
+
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : browser_context_(browser_context) {}
+    : splash_domain_(global_splash_domain_test_.value_or(kSplashDomain)),
+      browser_context_(browser_context) {}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
 
@@ -392,7 +399,8 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<H5vccSchemeURLLoader>(
-          url_request, std::move(client), browser_context_, resource_map_test_),
+          url_request, std::move(client), browser_context_, resource_map_test_,
+          global_splash_domain_test_.value_or(kSplashDomain)),
       std::move(receiver));
 }
 
@@ -406,6 +414,11 @@ void H5vccSchemeURLLoaderFactory::Clone(
 void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
     const GeneratedResourceMap* resource_map_test) {
   resource_map_test_ = resource_map_test;
+}
+
+void H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
+    const std::optional<std::string>& domain) {
+  global_splash_domain_test_ = domain;
 }
 
 }  // namespace content

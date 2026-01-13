@@ -15,6 +15,9 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <optional>
+#include <string>
+
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
 #include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -61,9 +64,13 @@ class H5vccSchemeURLLoaderFactory final
 
   // Testing seam to inject a resource map.
   void SetResourceMapForTesting(const GeneratedResourceMap* resource_map_test);
+  static void SetSplashDomainForTesting(
+      const std::optional<std::string>& domain);
 
  private:
   const GeneratedResourceMap* resource_map_test_ = nullptr;
+  std::string splash_domain_;
+  static std::optional<std::string> global_splash_domain_test_;
   BrowserContext* browser_context_;
 };
 

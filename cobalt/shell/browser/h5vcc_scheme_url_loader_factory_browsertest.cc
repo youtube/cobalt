@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/strings/stringprintf.h"
+#include "base/test/scoped_feature_list.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
@@ -31,8 +32,14 @@ namespace content {
 
 class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
  public:
-  H5vccSchemeURLLoaderFactoryBrowserTest() = default;
+  H5vccSchemeURLLoaderFactoryBrowserTest() {
+    scoped_feature_list_.InitFromCommandLine(
+        "DisableExclusiveLockingOnDipsDatabase", "");
+  }
   ~H5vccSchemeURLLoaderFactoryBrowserTest() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest, LoadSplashHtml) {
@@ -60,7 +67,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
-                       LoadSplashVideo) {
+                       LoadSplashVideoWithFallbackParameter) {
   GURL splash_url("h5vcc-embedded://splash.html");
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
@@ -69,7 +76,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   std::string script = R"(
     (async () => {
       try {
-        const response = await fetch('h5vcc-embedded://splash.webm?fallback=splash_480.webm');
+        const response = await fetch('h5vcc-embedded://splash.webm?fallback=splash_1080.webm');
         if (!response.ok) {
           return 'Fetch failed: ' + response.status;
         }
@@ -88,8 +95,56 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   )";
 
   // Expect failure because the file doesn't exist
-  EXPECT_EQ("Empty body", EvalJs(shell(), script));
-  EXPECT_TRUE(false);
+  EXPECT_EQ("Success", EvalJs(shell(), script));
+}
+
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       LoadSplashVideoFromCache) {
+  ASSERT_TRUE(embedded_test_server()->Start());
+  H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
+      embedded_test_server()->base_url().spec());
+
+  // 1. Populate the cache.
+  // We navigate to the "splash domain" (test server) to access its cache.
+  GURL setup_url = embedded_test_server()->GetURL("/title1.html");
+  EXPECT_TRUE(NavigateToURL(shell(), setup_url));
+
+  // Put a video into the cache.
+  std::string script = R"(
+    (async () => {
+      try {
+        const cache = await caches.open('default');
+        const response = new Response('aaabbbccc');
+        await cache.put('splash.webm', response);
+        return 'Success';
+      } catch (e) {
+        return 'Exception: ' + e.toString();
+      }
+    })();
+  )";
+  EXPECT_EQ("Success", EvalJs(shell(), script));
+
+  // 2. Fetch via h5vcc-embedded scheme.
+  // The loader should find the cached content from the test domain.
+  GURL splash_url("h5vcc-embedded://splash.html");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  std::string fetch_script = R"(
+    (async () => {
+      try {
+        const response = await fetch('h5vcc-embedded://splash.webm');
+        if (!response.ok) {
+          return 'Fetch failed: ' + response.status;
+        }
+        const text = await response.text();
+        return text;
+      } catch (e) {
+        return 'Exception: ' + e.toString();
+      }
+    })();
+  )";
+
+  EXPECT_EQ("aaabbbccc", EvalJs(shell(), fetch_script));
 }
 
 }  // namespace content
