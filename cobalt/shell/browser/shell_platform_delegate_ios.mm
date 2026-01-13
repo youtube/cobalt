@@ -24,6 +24,7 @@
 #include "cobalt/shell/browser/shell.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
+#import "starboard/tvos/shared/starboard_application.h"
 #include "third_party/perfetto/include/perfetto/tracing/core/trace_config.h"
 #include "third_party/perfetto/include/perfetto/tracing/tracing.h"
 #include "ui/display/screen.h"
@@ -208,6 +209,17 @@ static const char kAllTracingCategories[] = "*";
         constraintEqualToAnchor:self.view.trailingAnchor],
     [_contentView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
   ]];
+
+  // UIView that will contain the video rendered by SbPlayer. The non-tvOS code
+  // path renders the video as an underlay, so add it before the web contents
+  // view. Each video will be rendered as a subview of this view.
+  // Note that the actual size and and position of this view are irrelevant at
+  // this point: it will be changed in starboard's
+  // AVSBVideoRenderer::SetBounds() when necessary.
+  UIView* playerContainerView = [[UIView alloc] init];
+  playerContainerView.accessibilityIdentifier = @"Player Container";
+  [_contentView addSubview:playerContainerView];
+  [SBDGetApplication() setPlayerContainerView:playerContainerView];
 
   UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
   [_contentView addSubview:web_contents_view];
