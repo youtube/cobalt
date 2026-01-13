@@ -159,11 +159,10 @@ def main():
   """
   args = parse_args()
 
-  discovery_platform = args.platform
-  if discovery_platform == 'android-x86':
-    discovery_platform = 'android-arm'
-  elif discovery_platform == 'android-x64':
-    discovery_platform = 'android-arm64'
+  discovery_platform = {
+      'android-x86': 'android-arm',
+      'android-x64': 'android-arm64',
+  }.get(args.platform, args.platform)
 
   targets = args.targets
   if not targets:
