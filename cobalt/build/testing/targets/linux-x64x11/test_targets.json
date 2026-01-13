@@ -57,7 +57,6 @@
     "out/linux-x64x11_devel/capture_unittests",
     "out/linux-x64x11_devel/cc_perftests",
     "out/linux-x64x11_devel/cc_unittests",
-    "out/linux-x64x11_devel/cobalt_browsertests",
     "out/linux-x64x11_devel/command_buffer_perftests",
     "out/linux-x64x11_devel/crypto_unittests",
     "out/linux-x64x11_devel/gcm_unit_tests",

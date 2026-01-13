@@ -624,7 +624,6 @@ jobs:
               echo "skipped=true" >> $GITHUB_OUTPUT
             else
               echo "skipped=false" >> $GITHUB_OUTPUT
-              echo "Test Filter is: ${test_filter}"
             fi
           fi
         shell: bash
