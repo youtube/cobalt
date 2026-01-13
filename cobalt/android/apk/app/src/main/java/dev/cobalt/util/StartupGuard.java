@@ -7,11 +7,11 @@ import android.os.Looper;
 import android.util.Log;
 
 /**
- * A scheduler designed to mitigate "black screen" issues during app startup.
+ * This class crashes the application if scheduled and not disarmed
+ * before its timer expires.
  *
- * This class schedules a forced runtime exception if the Youtube app fails to
- * transition past the splash screen within a safety timeout.
- * Youtube calls window.h5vcc.system.hideSplashScreen() for this transition.
+ * This can be used to mitigate applications being stuck and not
+ * able to make progress.
  *
  * Intentionally crashing allows the system to capture a stack trace and potentially
  * restart the application, rather than leaving the user stuck on an unresponsive black screen.
@@ -40,7 +40,7 @@ public class StartupGuard {
 
     /**
      * Returns the single instance of StartupGuard.
-     * Uses double-checked locking for thread safety.
+     * Uses the Initialization-on-demand holder idiom for thread-safe lazy loading.
      */
     public static StartupGuard getInstance() {
         return LazyHolder.INSTANCE;
@@ -51,8 +51,12 @@ public class StartupGuard {
      * @param delaySeconds The delay in seconds before the crash is triggered.
      */
     public void scheduleCrash(long delaySeconds) {
-        handler.postDelayed(crashRunnable, delaySeconds * 1000);
-        Log.i(TAG, "StartupGuard scheduled crash in " + delaySeconds + " seconds.");
+        if (!handler.hasCallbacks(crashRunnable)) {
+            handler.postDelayed(crashRunnable, delaySeconds * 1000);
+            Log.i(TAG, "StartupGuard scheduled crash in " + delaySeconds + " seconds.");
+        } else {
+            Log.w(TAG, "StartupGuard fail to schedule crash, because there is already a pending crash scheduled.");
+        }
     }
 
     /**
