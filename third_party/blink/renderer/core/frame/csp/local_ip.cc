@@ -32,7 +32,7 @@ std::optional<net::IPAddress> ExtractIPv4From6to4(const net::IPAddress& addr) {
   return net::IPAddress(bytes[2], bytes[3], bytes[4], bytes[5]);
 }
 
-}
+}  // namespace
 
 // Queries host IP address and matches against netmask of target ip to determine.
 bool IsIPInLocalNetwork(const std::string& target_ip_str) {

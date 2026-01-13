@@ -1,5 +1,6 @@
 #include "third_party/blink/renderer/core/frame/csp/local_ip.h"
 
+#include "base/strings/string_util.h"
 #include "net/base/ip_address.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -13,9 +14,7 @@ struct TestCase {
 class IsIPInPrivateRangeTest : public testing::TestWithParam<TestCase> {};
 
 TEST_P(IsIPInPrivateRangeTest, CheckRanges) {
-  const TestCase& test_case = GetParam();
-  EXPECT_EQ(test_case.expected_result, IsIPInPrivateRange(test_case.ip_str))
-      << "Failed for IP: " << test_case.ip_str;
+  EXPECT_EQ(GetParam().expected_result, IsIPInPrivateRange(GetParam().ip_str));
 }
 
 const TestCase kTestCases[] = {
@@ -52,6 +51,16 @@ const TestCase kTestCases[] = {
 
 INSTANTIATE_TEST_SUITE_P(All,
                          IsIPInPrivateRangeTest,
-                         testing::ValuesIn(kTestCases));
+                         testing::ValuesIn(kTestCases),
+                         [](const testing::TestParamInfo<IsIPInPrivateRangeTest::ParamType>& info) {
+                           std::string ip = info.param.ip_str;
+                           bool is_private = info.param.expected_result;
+                           base::ReplaceChars(ip, "[]", "", &ip);
+                           base::ReplaceChars(ip, "[]:.", "_", &ip);
+                           if (ip == "") {
+                             ip = "empty";
+                           }
+                           return ip + "_" + (is_private ? "IsPrivate" : "IsNotPrivate");
+                         });
 
 }  // namespace
