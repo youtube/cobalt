@@ -33,6 +33,7 @@ import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.util.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -749,5 +750,10 @@ public class StarboardBridge {
     public int getHeight() {
       return mHeight;
     }
+  }
+
+  @CalledByNative
+  protected void hideSplashScreen() {
+    StartupGuard.getInstance().disarm();
   }
 }
