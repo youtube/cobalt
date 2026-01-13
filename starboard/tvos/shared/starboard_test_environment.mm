@@ -14,35 +14,9 @@
 
 #include "starboard/tvos/shared/starboard_test_environment.h"
 
-#include "starboard/shared/starboard/queue_application.h"
-#include "starboard/common/log.h" // For SB_UNREFERENCED_PARAMETER
-#include "starboard/event.h" // For SbEventHandleCallback
-
-namespace {
-// A dummy event handler for the StubApplication.
-void DummyEventHandleCallback(const SbEvent* event) {
-  SB_UNREFERENCED_PARAMETER(event);
-}
-} // namespace
+#import "starboard/tvos/shared/application_darwin.h"
 
 namespace starboard {
-
-// A minimal concrete implementation of QueueApplication for testing.
-// This is used to allow nplb tests to build without pulling in a full
-// application implementation.
-class StubApplication : public QueueApplication {
- public:
-  StubApplication() : QueueApplication(DummyEventHandleCallback) {}
-  ~StubApplication() override = default;
-
- private:
-  bool MayHaveSystemEvents() override { return false; }
-  Event* WaitForSystemEventWithTimeout(int64_t time) override {
-    SB_UNREFERENCED_PARAMETER(time);
-    return nullptr;
-  }
-  void WakeSystemEventWait() override {}
-};
 
 StarboardTestEnvironment::StarboardTestEnvironment(int argc, char** argv)
     : command_line_(argc, argv) {}
@@ -50,11 +24,12 @@ StarboardTestEnvironment::StarboardTestEnvironment(int argc, char** argv)
 StarboardTestEnvironment::~StarboardTestEnvironment() = default;
 
 void StarboardTestEnvironment::SetUp() {
-  application_ = std::make_unique<StubApplication>();
+  application_darwin_ = std::make_unique<ApplicationDarwin>(
+      std::make_unique<CommandLine>(command_line_));
 }
 
 void StarboardTestEnvironment::TearDown() {
-  application_.reset();
+  application_darwin_.reset();
 }
 
 }  // namespace starboard
