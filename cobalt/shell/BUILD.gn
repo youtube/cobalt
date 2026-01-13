@@ -23,9 +23,6 @@ import("//tools/grit/repack.gni")
 # true.
 shell_use_toolkit_views = toolkit_views && !is_castos
 
-# Web test support only built for the linux-x64x11-no-starboard target.
-support_web_tests = !is_android && !is_ios && !is_starboard
-
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("cobalt_shell_lib_warnings") {
   if (is_clang) {
@@ -177,7 +174,6 @@ static_library("cobalt_shell_switches") {
 }
 
 static_library("cobalt_shell_lib") {
-  testonly = true
   public_deps = [
     ":cobalt_shell_lib_deps",
     ":cobalt_shell_switches",
@@ -251,14 +247,6 @@ static_library("cobalt_shell_lib") {
     "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
   ]
 
-  # TODO(b/440376024): run_browser_tests and RUN_BROWSER_TESTS gate all test logic which should not be in
-  # an official build, including not only browser tests but also web tests or render tests.
-  if (run_browser_tests) {
-    defines += [ "RUN_BROWSER_TESTS=1" ]
-
-    public_deps += [ "//content/test:test_support" ]
-  }
-
   if (shell_use_toolkit_views) {
     # All cobalt_shell code should use this define instead of TOOLKIT_VIEWS,
     # since any transitive dependency on //ui/views from another component will
@@ -316,7 +304,6 @@ static_library("cobalt_shell_lib") {
 # cobalt_shell_lib component will not, to avoid circular deps, as web_test
 # inherits from things in cobalt_shell_lib.
 static_library("cobalt_shell_app") {
-  testonly = true
   sources = [
     "app/shell_crash_reporter_client.cc",
     "app/shell_crash_reporter_client.h",
@@ -342,24 +329,16 @@ group("cobalt_shell_app_deps") {
     "//cobalt/shell:*",
     "//cobalt/testing:*",
   ]
-  testonly = true
+
   public_deps = [
     ":cobalt_shell_lib",
     "//components/crash/core/app",
-    "//components/crash/core/app:test_support",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
     "//content/public/renderer",
     "//v8",
   ]
-  if (support_web_tests) {
-    public_deps += [
-      "//content/web_test:web_test_browser",
-      "//content/web_test:web_test_common",
-      "//content/web_test:web_test_renderer",
-    ]
-  }
 }
 
 repack("pak") {

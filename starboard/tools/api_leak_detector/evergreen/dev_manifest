@@ -7,7 +7,6 @@ ZSTD_trace_compress_begin
 ZSTD_trace_compress_end
 ZSTD_trace_decompress_begin
 ZSTD_trace_decompress_end
-_Exit
 __cxa_thread_atexit_impl
 __gcov_dump
 __gcov_flush

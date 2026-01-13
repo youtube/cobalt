@@ -16,10 +16,6 @@ import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 source_set("browser") {
-  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # cobalt_shell_lib.
-  testonly = true
-
   sources = [
     "cobalt_browser_interface_binders.cc",
     "cobalt_browser_interface_binders.h",
@@ -72,7 +68,6 @@ source_set("browser") {
     "//cobalt/shell:cobalt_shell_lib",
     "//components/embedder_support:user_agent",
     "//components/metrics",
-    "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
@@ -84,6 +79,7 @@ source_set("browser") {
     deps += [
       "//cobalt/android:browser_jni_headers",
       "//cobalt/android:jni_headers",
+      "//components/variations:variations_associated_data",
     ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
