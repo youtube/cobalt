@@ -15,13 +15,11 @@
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 
 #include "base/base64url.h"
-#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "base/values.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_log.h"
@@ -76,8 +74,7 @@ void H5vccMetricsImpl::SetMetricEventInterval(
   std::move(callback).Run();
 }
 
-void H5vccMetricsImpl::RequestHistograms(bool monitor_mode,
-                                         RequestHistogramsCallback callback) {
+void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // Synchronously fetch subprocess histograms that live in shared memory.
   // This is the only mechanism available to embedders like Cobalt, as the
@@ -106,10 +103,6 @@ void H5vccMetricsImpl::RequestHistograms(bool monitor_mode,
                           metrics::MetricsLog::LogType::ONGOING_LOG,
                           service_client);
 
-  if (!monitor_mode) {
-    last_histogram_samples_.clear();
-  }
-
   for (base::HistogramBase* const histogram :
        base::StatisticsRecorder::GetHistograms()) {
     auto samples = histogram->SnapshotSamples();
@@ -117,17 +110,14 @@ void H5vccMetricsImpl::RequestHistograms(bool monitor_mode,
       continue;
     }
 
-    if (monitor_mode) {
-      auto it = last_histogram_samples_.find(
-          std::string(histogram->histogram_name()));
-      if (it != last_histogram_samples_.end()) {
-        samples->Subtract(*it->second);
-        it->second = histogram->SnapshotSamples();
-      } else {
-        last_histogram_samples_.emplace(
-            std::string(histogram->histogram_name()),
-            histogram->SnapshotSamples());
-      }
+    auto it =
+        last_histogram_samples_.find(std::string(histogram->histogram_name()));
+    if (it != last_histogram_samples_.end()) {
+      samples->Subtract(*it->second);
+      it->second = histogram->SnapshotSamples();
+    } else {
+      last_histogram_samples_.emplace(std::string(histogram->histogram_name()),
+                                      histogram->SnapshotSamples());
     }
     if (samples->TotalCount() > 0) {
       log.RecordHistogramDelta(histogram->histogram_name(), *samples);

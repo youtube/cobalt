@@ -58,9 +58,7 @@ class MODULES_EXPORT H5vccMetrics final
   ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*,
                                                      uint64_t,
                                                      ExceptionState&);
-  ScriptPromise<IDLString> requestHistograms(ScriptState*,
-                                             bool,
-                                             ExceptionState&);
+  ScriptPromise<IDLString> requestHistograms(ScriptState*, ExceptionState&);
 
   // EventTarget impl.
   ExecutionContext* GetExecutionContext() const override {
