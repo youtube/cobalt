@@ -19,6 +19,12 @@
 #include <string>
 #include <utility>
 
+<<<<<<< HEAD
+=======
+#include "starboard/player.h"
+
+#include "starboard/android/shared/configurate_seek.h"
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -202,9 +208,19 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
       std::make_unique<starboard::FilterBasedPlayerWorkerHandler>(
           creation_param, provider);
   handler->SetMaxVideoInputSize(
+<<<<<<< HEAD
       starboard::GetMaxVideoInputSizeForCurrentThread());
   handler->SetVideoSurfaceView(starboard::GetSurfaceViewForCurrentThread());
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
+=======
+      starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
+  handler->SetFlushDecoderDuringReset(
+      starboard::android::shared::
+          GetForceFlushDecoderDuringResetForCurrentThread());
+  handler->SetResetAudioDecoder(
+      starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
+  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
   if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {

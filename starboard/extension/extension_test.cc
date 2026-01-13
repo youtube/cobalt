@@ -29,6 +29,7 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/player_configurate_seek.h"
 #include "starboard/extension/player_configuration.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/player_set_video_surface_view.h"
@@ -438,9 +439,15 @@ TEST(ExtensionTest, PlayerSetMaxVideoInputSize) {
       << "Extension struct should be a singleton";
 }
 
+<<<<<<< HEAD
 TEST(ExtensionTest, PlayerSetVideoSurfaceView) {
   typedef StarboardExtensionPlayerSetVideoSurfaceViewApi ExtensionApi;
   const char* kExtensionName = kStarboardExtensionPlayerSetVideoSurfaceViewName;
+=======
+TEST(ExtensionTest, PlayerConfigurateSeek) {
+  typedef StarboardExtensionPlayerConfigurateSeekApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionPlayerConfigurateSeekName;
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 
   const ExtensionApi* extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -450,7 +457,13 @@ TEST(ExtensionTest, PlayerSetVideoSurfaceView) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
+<<<<<<< HEAD
   EXPECT_NE(extension_api->SetVideoSurfaceViewForCurrentThread, nullptr);
+=======
+  EXPECT_NE(extension_api->SetForceFlushDecoderDuringResetForCurrentThread,
+            nullptr);
+  EXPECT_NE(extension_api->SetForceResetAudioDecoderForCurrentThread, nullptr);
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

@@ -65,6 +65,7 @@ class MockStarboardRenderer : public StarboardRenderer {
                           audio_write_duration_local,
                           audio_write_duration_remote,
                           max_video_capabilities,
+<<<<<<< HEAD
                           viewport_size
 #if BUILDFLAG(IS_ANDROID)
                           ,
@@ -72,6 +73,10 @@ class MockStarboardRenderer : public StarboardRenderer {
 #endif  // BUILDFLAG(IS_ANDROID)
         ) {
   }
+=======
+                          /*enable_flush_during_seek=*/false,
+                          /*enable_reset_audio_decoder=*/false) {}
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 
   MockStarboardRenderer(const MockStarboardRenderer&) = delete;
   MockStarboardRenderer& operator=(const MockStarboardRenderer&) = delete;
@@ -170,9 +175,17 @@ class StarboardRendererWrapperTest : public testing::Test {
     StarboardRendererTraits traits(
         task_environment_.GetMainThreadTaskRunner(),
         task_environment_.GetMainThreadTaskRunner(),
+<<<<<<< HEAD
         std::move(media_log_remote), &video_geometry_setter_service_,
         base::UnguessableToken::Create(), base::Seconds(1), base::Seconds(1),
         std::string(), gfx::Size(), std::move(renderer_extension_receiver),
+=======
+        std::move(media_log_remote), base::UnguessableToken::Create(),
+        base::Seconds(1), base::Seconds(1), std::string(),
+        /*enable_flush_during_seek=*/false,
+        /*enable_reset_audio_decoder=*/false,
+        std::move(renderer_extension_receiver),
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =
         std::make_unique<StarboardRendererWrapper>(std::move(traits));

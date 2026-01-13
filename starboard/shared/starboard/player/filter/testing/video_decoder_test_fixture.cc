@@ -78,13 +78,22 @@ void VideoDecoderTestFixture::Initialize() {
   ASSERT_TRUE(PlayerComponents::Factory::OutputModeSupported(
       output_mode, dmp_reader_.video_codec(), kSbDrmSystemInvalid));
   int max_video_input_size = 0;
+  bool flush_decoder_during_reset = false;
+  bool reset_audio_decoder = false;
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
+<<<<<<< HEAD
       max_video_input_size,
       fake_graphics_context_provider_->decoder_target_provider(), nullptr,
       job_queue_);
+=======
+      max_video_input_size, flush_decoder_during_reset, reset_audio_decoder,
+      fake_graphics_context_provider_->decoder_target_provider(), nullptr);
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
+  ASSERT_EQ(creation_parameters.flush_decoder_during_reset(), flush_decoder_during_reset);
+  ASSERT_EQ(creation_parameters.reset_audio_decoder(), reset_audio_decoder);
 
   std::unique_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder_) {

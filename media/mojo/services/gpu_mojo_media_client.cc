@@ -97,7 +97,12 @@ StarboardRendererTraits::StarboardRendererTraits(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
+<<<<<<< HEAD
     const gfx::Size& viewport_size,
+=======
+    const bool enable_flush_during_seek,
+    const bool enable_reset_audio_decoder,
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -111,7 +116,12 @@ StarboardRendererTraits::StarboardRendererTraits(
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
       max_video_capabilities(max_video_capabilities),
+<<<<<<< HEAD
       viewport_size(viewport_size),
+=======
+      enable_flush_during_seek(enable_flush_during_seek),
+      enable_reset_audio_decoder(enable_reset_audio_decoder),
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)),
       get_starboard_command_buffer_stub_cb(
@@ -299,9 +309,15 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
         client_extension_remote) {
   StarboardRendererTraits traits(
       task_runner, gpu_task_runner_, std::move(media_log_remote),
+<<<<<<< HEAD
       video_geometry_setter_service_, config.overlay_plane_id,
       config.audio_write_duration_local, config.audio_write_duration_remote,
       config.max_video_capabilities, config.viewport_size,
+=======
+      config.overlay_plane_id, config.audio_write_duration_local,
+      config.audio_write_duration_remote, config.max_video_capabilities,
+      config.enable_flush_during_seek, config.enable_reset_audio_decoder,
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote), base::BindRepeating(
         &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));

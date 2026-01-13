@@ -145,7 +145,12 @@ class MediaServiceTest : public testing::Test {
                                  base::Microseconds(0),
                                  base::Microseconds(0),
                                  "width=1920; height=1080; framerate=15;",
+<<<<<<< HEAD
                                  gfx::Size(1920, 1080));
+=======
+                                 /*enable_flush_during_seek=*/false,
+                                 /*enable_reset_audio_decoder=*/false);
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),
       config, renderer_.BindNewPipeAndPassReceiver(),

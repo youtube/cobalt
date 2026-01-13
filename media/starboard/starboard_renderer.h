@@ -56,12 +56,17 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
+<<<<<<< HEAD
                     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,
                     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
 #endif  // BUILDFLAG(IS_ANDROID)
   );
+=======
+                    bool enable_flush_during_seek,
+                    bool enable_reset_audio_decoder);
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -187,6 +192,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+<<<<<<< HEAD
   const int max_samples_per_write_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
@@ -197,6 +203,11 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   jobject surface_view_ = nullptr;
   std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
+=======
+  const bool enable_flush_during_seek_;
+  const bool enable_reset_audio_decoder_;
+  const bool notify_memory_pressure_before_playback_;
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;

@@ -83,7 +83,12 @@ struct StarboardRendererTraits {
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
   const std::string& max_video_capabilities;
+<<<<<<< HEAD
   const gfx::Size& viewport_size;
+=======
+  const bool enable_flush_during_seek;
+  const bool enable_reset_audio_decoder;
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -104,7 +109,12 @@ struct StarboardRendererTraits {
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
       const std::string& max_video_capabilities,
+<<<<<<< HEAD
       const gfx::Size& viewport_size,
+=======
+      const bool enable_flush_during_seek,
+      const bool enable_reset_audio_decoder,
+>>>>>>> 5cb34c4af0 (android: Use h5vcc settings to enable flush during seek (#8589))
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
