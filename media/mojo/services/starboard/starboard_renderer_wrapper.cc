@@ -38,7 +38,9 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.overlay_plane_id,
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
-          traits.max_video_capabilities) {
+          traits.max_video_capabilities,
+          traits.enable_flush_during_seek,
+          traits.enable_reset_audio_decoder) {
   DETACH_FROM_THREAD(thread_checker_);
   base::SequenceBound<StarboardGpuFactoryImpl> gpu_factory_impl(
       traits.gpu_task_runner,

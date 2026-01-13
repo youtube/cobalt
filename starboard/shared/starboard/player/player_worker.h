@@ -109,6 +109,10 @@ class PlayerWorker {
 
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
 
+    virtual void SetFlushDecoderDuringReset(
+        bool flush_decoder_during_reset) = 0;
+    virtual void SetResetAudioDecoder(bool reset_audio_decoder) = 0;
+
    private:
     Handler(const Handler&) = delete;
     Handler& operator=(const Handler&) = delete;

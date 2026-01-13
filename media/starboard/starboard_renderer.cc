@@ -135,7 +135,9 @@ StarboardRenderer::StarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    const std::string& max_video_capabilities)
+    const std::string& max_video_capabilities,
+    bool enable_flush_during_seek,
+    bool enable_reset_audio_decoder)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -145,6 +147,8 @@ StarboardRenderer::StarboardRenderer(
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
       max_video_capabilities_(max_video_capabilities),
+      enable_flush_during_seek_(enable_flush_during_seek),
+      enable_reset_audio_decoder_(enable_reset_audio_decoder),
       notify_memory_pressure_before_playback_(
           base::FeatureList::IsEnabled(
               media::kCobaltNotifyMemoryPressureBeforePlayback) ||
@@ -560,7 +564,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1));
+        -1, enable_flush_during_seek_, enable_reset_audio_decoder_));
     if (player_bridge_->IsValid()) {
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
       // returns no audio configurations, update the write durations again

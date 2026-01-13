@@ -53,7 +53,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote,
-                    const std::string& max_video_capabilities);
+                    const std::string& max_video_capabilities,
+                    bool enable_flush_during_seek,
+                    bool enable_reset_audio_decoder);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -178,6 +180,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const bool enable_flush_during_seek_;
+  const bool enable_reset_audio_decoder_;
   const bool notify_memory_pressure_before_playback_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;

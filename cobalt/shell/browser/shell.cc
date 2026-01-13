@@ -978,7 +978,6 @@ void Shell::ScheduleSwitchToMainWebContents() {
             << "ms, remaining delay: " << remaining_delay.InMilliseconds()
             << "ms.";
   if (web_contents_) {
-    web_contents_->WasHidden();
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&Shell::SwitchToMainWebContents,
@@ -1003,7 +1002,6 @@ void Shell::SwitchToMainWebContents() {
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
-      web_contents_->WasShown();
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }

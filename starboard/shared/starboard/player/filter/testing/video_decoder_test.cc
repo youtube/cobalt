@@ -154,7 +154,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                 kSbMediaAudioCodecNone};
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
-                &players[i], output_mode, max_video_input_size,
+                &players[i], output_mode, max_video_input_size, false, false,
                 fake_graphics_context_provider_.decoder_target_provider(),
                 nullptr);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
