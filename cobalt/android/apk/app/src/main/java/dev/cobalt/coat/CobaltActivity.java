@@ -43,6 +43,7 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
+import dev.cobalt.util.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
@@ -76,12 +77,15 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
+  // How many seconds before the app exits if it fails to land YouTube home page.
+  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 60;
   public static final String SPLASH_ARGS_KEY = "disableNativeSplash";
   private boolean disableNativeSplash;
 
@@ -183,6 +187,12 @@ public abstract class CobaltActivity extends Activity {
               .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
               .orElse(null);
     }
+
+    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
+      Log.i(TAG, "Non-Youtube startup URL detected.");
+      StartupGuard.getInstance().disarm();
+    }
+
     if (!TextUtils.isEmpty(mStartupUrl)) {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
     }
@@ -374,6 +384,9 @@ public abstract class CobaltActivity extends Activity {
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
     super.onCreate(savedInstanceState);
+
+    StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
+
     mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
@@ -439,6 +452,11 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    if (getJavaSwitches().containsKey(JavaSwitches.DISABLE_STARTUP_GUARD)) {
+      Log.i(TAG, "StartupGuard is disabled by Java switch.");
+      StartupGuard.getInstance().disarm();
+    }
+
     if (!isReleaseBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();

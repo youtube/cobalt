@@ -55,6 +55,7 @@ class MODULES_EXPORT H5vccSystem final
   ScriptPromise requestTrackingAuthorization(ScriptState*, ExceptionState&);
   void exit();
   uint32_t userOnExitStrategy();
+  void hideSplashScreen();
 
   void Trace(Visitor*) const override;
 

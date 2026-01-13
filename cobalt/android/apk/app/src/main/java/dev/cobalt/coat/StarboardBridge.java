@@ -35,6 +35,7 @@ import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.util.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -781,5 +782,10 @@ public class StarboardBridge {
   public void setWebContents(WebContents webContents) {
     cobaltMediaSession.setWebContents(webContents);
     volumeStateReceiver.setWebContents(webContents);
+  }
+
+  @CalledByNative
+  protected void hideSplashScreen() {
+    StartupGuard.getInstance().disarm();
   }
 }
