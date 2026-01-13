@@ -468,6 +468,7 @@ jobs:
           test_type: 'e2e_test'
           test_targets: '${{ needs.initialize.outputs.e2e_test_targets }}'
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+          test_device_family: '${{ needs.initialize.outputs.test_device_family}}'
 
   yts-test:
     needs: [initialize, build]
