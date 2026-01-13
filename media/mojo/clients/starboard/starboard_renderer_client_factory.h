@@ -73,6 +73,8 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const std::string max_video_capabilities_;
+  const bool enable_flush_during_seek_;
+  const bool enable_reset_audio_decoder_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
 };
 

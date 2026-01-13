@@ -57,7 +57,9 @@ class MockStarboardRenderer : public StarboardRenderer {
                           overlay_plane_id,
                           audio_write_duration_local,
                           audio_write_duration_remote,
-                          max_video_capabilities) {}
+                          max_video_capabilities,
+                          /*enable_flush_during_seek=*/false,
+                          /*enable_reset_audio_decoder=*/false) {}
 
   MockStarboardRenderer(const MockStarboardRenderer&) = delete;
   MockStarboardRenderer& operator=(const MockStarboardRenderer&) = delete;
@@ -152,6 +154,8 @@ class StarboardRendererWrapperTest : public testing::Test {
         task_environment_.GetMainThreadTaskRunner(),
         std::move(media_log_remote), base::UnguessableToken::Create(),
         base::Seconds(1), base::Seconds(1), std::string(),
+        /*enable_flush_during_seek=*/false,
+        /*enable_reset_audio_decoder=*/false,
         std::move(renderer_extension_receiver),
         std::move(client_extension_remote), base::NullCallback());
     renderer_wrapper_ =

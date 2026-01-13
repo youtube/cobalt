@@ -231,6 +231,8 @@ IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
   IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_local)
   IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_remote)
   IPC_STRUCT_TRAITS_MEMBER(max_video_capabilities)
+  IPC_STRUCT_TRAITS_MEMBER(enable_flush_during_seek)
+  IPC_STRUCT_TRAITS_MEMBER(enable_reset_audio_decoder)
 IPC_STRUCT_TRAITS_END()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
