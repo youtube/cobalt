@@ -299,8 +299,7 @@ void SbPlayerBridge::WriteBuffers(
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &audio_stream_info_,
-                                           &video_stream_info_);
+  WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
 
 void SbPlayerBridge::SetBounds(const gfx::Rect& rect) {
@@ -772,13 +771,7 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
     decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
                                       &stream_info);
     if (buffers.size() > 0) {
-      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
-            type, buffers, &stream_info, nullptr);
-      } else {
-        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &stream_info,
-                                                 nullptr);
-      }
+      WriteBuffersInternal(type, buffers, &stream_info, nullptr);
     }
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
@@ -787,19 +780,12 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
     decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
                                       &stream_info);
     if (buffers.size() > 0) {
-      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
-            type, buffers, nullptr, &stream_info);
-      } else {
-        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, nullptr,
-                                                 &stream_info);
-      }
+      WriteBuffersInternal(type, buffers, nullptr, &stream_info);
     }
   }
 }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-template <typename PlayerSampleInfo>
 void SbPlayerBridge::WriteBuffersInternal(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
@@ -816,7 +802,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     return;
   }
 
-  std::vector<PlayerSampleInfo> gathered_sbplayer_sample_infos;
+  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos;
   std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
   std::vector<SbDrmSubSampleMapping>
       gathered_sbplayer_sample_infos_subsample_mapping;
@@ -871,7 +857,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     SbPlayerSampleSideData* side_data =
         &gathered_sbplayer_sample_infos_side_data[i];
 
-    PlayerSampleInfo sample_info = {};
+    SbPlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
     sample_info.buffer = buffer->data();
     sample_info.buffer_size = buffer->size();
