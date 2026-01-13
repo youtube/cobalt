@@ -662,7 +662,10 @@ source_set("unit_tests") {
   ]
 
   if (is_cobalt) {
-    sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
+    sources += [
+      "cobalt/h5vcc_accessibility/h_5_vcc_accessibility_test.cc",
+      "cobalt/h5vcc_experiments/experiments_utils_test.cc",
+    ]
   }
 
   if (rtc_use_h264) {
