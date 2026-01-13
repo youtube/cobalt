@@ -55,7 +55,7 @@ public class StartupGuard {
             handler.postDelayed(crashRunnable, delaySeconds * 1000);
             Log.i(TAG, "StartupGuard scheduled crash in " + delaySeconds + " seconds.");
         } else {
-            Log.w(TAG, "StartupGuard fail to schedule crash, because there is already a pending crash scheduled.");
+            Log.w(TAG, "StartupGuard failed to schedule crash, because there is already a pending crash scheduled.");
         }
     }
 
