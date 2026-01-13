@@ -168,29 +168,6 @@ config("libraries") {
   ]
 }
 
-config("speed") {
-  cflags = [ "-O2" ]
-
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
-}
-
-config("size") {
-  cflags = [ "-Os" ]
-  if (is_qa || is_gold) {
-    cflags += [
-      # Compile symbols in separate sections
-      "-ffunction-sections",
-      "-fdata-sections",
-    ]
-  }
-}
-
 config("pedantic_warnings") {
   cflags = [
     "-Wall",

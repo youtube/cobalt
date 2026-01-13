@@ -36,10 +36,8 @@ static_library("oemcrypto") {
   ]
 
   public_configs = [ ":oemcrypto_external" ]
-  configs -= [ "//starboard/build/config:size" ]
   configs += [
     ":oemcrypto_internal",
-    "//starboard/build/config:speed",
     "//third_party/internal/ce_cdm/cdm:shared_config",
   ]
 
