@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """
-Init tests for the run_coverage.py script.
+Initialization for the code_coverage package.
+
+This adds the project's root directory to the system path to allow for absolute
+imports of other modules in the project.
 """
 
 import os
