@@ -39,6 +39,7 @@
             "docker-compose.yaml",
             "media/formats/mp4/ac3_unittest.cc",
             "media/formats/mp4/eac3_unittest.cc",
+            "third_party/blink/renderer/core/frame/csp/local_ip_test.cc",
             "third_party/blink/renderer/core/frame/csp/local_ip.cc",
             "third_party/blink/renderer/core/frame/csp/local_ip.h",
             "third_party/blink/renderer/platform/media/web_content_decryption_module_impl_unittest.cc",

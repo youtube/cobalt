@@ -307,3 +307,10 @@ blink_core_tests_frame = [
   "web_frame_widget_test.cc",
   "web_local_frame_client_test.cc",
 ]
+
+if (is_cobalt) {
+  blink_core_tests_frame += [
+    "csp/local_ip_test.cc",
+  ]
+}
+
