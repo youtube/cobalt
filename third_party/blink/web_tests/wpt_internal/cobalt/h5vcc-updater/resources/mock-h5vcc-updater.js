@@ -2,19 +2,16 @@ import {
   H5vccUpdater, H5vccUpdaterReceiver
 } from '/gen/cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.m.js';
 
-
-// Implementation of h5vcc_updater.mojom.H5vccUpdater.
+// Implementation of h5vcc_updater.mojom.H5vccUpdater
 class MockH5vccUpdater {
   constructor() {
     this.interceptor_ =
       new MojoInterfaceInterceptor(H5vccUpdater.$interfaceName);
     this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
     this.receiver_ = new H5vccUpdaterReceiver(this);
-
     this.stub_result_ = new Map();
+    this.called_reset_installations_ = false;
   }
-
-  STUB_KEY_UPDATE_SERVER_URL = 'testUpdateServerUrl';
 
   start() {
     this.interceptor_.start();
@@ -24,24 +21,68 @@ class MockH5vccUpdater {
     this.interceptor_.stop();
   }
 
+  reset() {
+    this.stub_result_ = new Map();
+    this.called_reset_installations_ = false;
+    this.receiver_.$.close();
+  }
+
   bind(handle) {
     this.receiver_.$.bindHandle(handle);
   }
 
-  reset() {
-    this.stub_result_ = new Map();
+  hasCalledResetInstallations() {
+    return this.called_reset_installations_;
   }
 
-  stubResult(key, value) {
-    this.stub_result_.set(key, value);
+  async resetInstallations() {
+    this.called_reset_installations_ = true;
   }
 
-  stubGetUpdateServerUrl(updateServerUrl) {
-    this.stubResult(this.STUB_KEY_UPDATE_SERVER_URL, updateServerUrl);
+  // --- H5vccUpdater Interface Methods Stubbed ---
+
+  async setUpdaterChannel(channel) {
+    throw new Error('Test not implemented yet');
   }
 
-  exit() {
-    incrementExitCallCount();
+  async getUpdaterChannel() {
+    throw new Error('Test not implemented yet');
+  }
+
+  async getUpdateStatus() {
+    throw new Error('Test not implemented yet');
+  }
+
+  async getInstallationIndex() {
+    throw new Error('Test not implemented yet');
+  }
+
+  async getAllowSelfSignedPackages() {
+    throw new Error('Test not implemented yet');
+  }
+
+  async setAllowSelfSignedPackages(allow) {
+    throw new Error('Test not implemented yet');
+  }
+
+  async getUpdateServerUrl() {
+    throw new Error('Test not implemented yet');
+  }
+
+  async setUpdateServerUrl(url) {
+    throw new Error('Test not implemented yet');
+  }
+
+  async getRequireNetworkEncryption() {
+    throw new Error('Test not implemented yet');
+  }
+
+  async setRequireNetworkEncryption(require) {
+    throw new Error('Test not implemented yet');
+  }
+
+  async getLibrarySha256(index) {
+    throw new Error('Test not implemented yet');
   }
 }
 
