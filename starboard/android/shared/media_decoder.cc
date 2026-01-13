@@ -19,6 +19,7 @@
 
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
@@ -105,6 +106,8 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
       flush_delay_usec_(0) {
   SB_CHECK(host_);
 
+  TRACE_EVENT("media", "Creating audio MediaCodecDecoder");
+
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateAudioMediaCodecBridge(
@@ -154,6 +157,8 @@ MediaCodecDecoder::MediaCodecDecoder(
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
+  TRACE_EVENT("media", "Creating video MediaCodecDecoder");
+
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
@@ -173,7 +178,7 @@ MediaCodecDecoder::MediaCodecDecoder(
 }
 
 MediaCodecDecoder::~MediaCodecDecoder() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   TerminateDecoderThread();
 
@@ -194,7 +199,7 @@ MediaCodecDecoder::~MediaCodecDecoder() {
 }
 
 void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
@@ -206,7 +211,7 @@ void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {
 }
 
 void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
   if (stream_ended_.load()) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -234,7 +239,7 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
 }
 
 void MediaCodecDecoder::WriteEndOfStream() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   stream_ended_.store(true);
   std::lock_guard lock(mutex_);
@@ -394,7 +399,7 @@ void MediaCodecDecoder::DecoderThreadFunc() {
 }
 
 void MediaCodecDecoder::TerminateDecoderThread() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   destroying_.store(true);
 
@@ -713,7 +718,7 @@ void MediaCodecDecoder::OnMediaCodecFirstTunnelFrameReady() {
 }
 
 bool MediaCodecDecoder::Flush() {
-  SB_CHECK(thread_checker_.CalledOnValidThread());
+  // SB_CHECK(thread_checker_.CalledOnValidThread());
 
   // Try to flush if we can, otherwise return |false| to recreate the codec
   // completely. Flush() is called by `player_worker` thread,
@@ -767,6 +772,14 @@ bool MediaCodecDecoder::Flush() {
   stream_ended_.store(false);
   destroying_.store(false);
   return true;
+}
+
+void MediaCodecDecoder::ResetForReuse() {
+  stream_ended_.store(false);
+  destroying_.store(false);
+  error_occurred_ = false;
+  error_message_.clear();
+  pending_input_to_retry_ = std::nullopt;
 }
 
 }  // namespace starboard

@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/common/drm.h"
 
 namespace media {
@@ -94,13 +95,15 @@ StarboardCdm::StarboardCdm(
     const SessionKeysChangeCB& keys_change_cb,
     const SessionExpirationUpdateCB& expiration_update_cb)
     : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
-      sb_drm_(SbDrmCreateSystem(cdm_config.key_system.c_str(),
-                                this,
-                                OnSessionUpdateRequestGeneratedFunc,
-                                OnSessionUpdatedFunc,
-                                OnSessionKeyStatusesChangedFunc,
-                                OnServerCertificateUpdatedFunc,
-                                OnSessionClosedFunc)),
+      sb_drm_([this, &cdm_config] {
+        TRACE_EVENT("media", "StarboardCdm::Creating DRM system");
+        LOG(INFO) << "Creating SbDrmSystem";
+        return SbDrmCreateSystem(
+            cdm_config.key_system.c_str(), this,
+            OnSessionUpdateRequestGeneratedFunc, OnSessionUpdatedFunc,
+            OnSessionKeyStatusesChangedFunc, OnServerCertificateUpdatedFunc,
+            OnSessionClosedFunc);
+      }()),
       message_cb_{message_cb},
       closed_cb_{closed_cb},
       keys_change_cb_{keys_change_cb},

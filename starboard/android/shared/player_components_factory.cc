@@ -489,7 +489,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        &error_message);
+        &error_message, creation_parameters.baseline_us());
     if (!error_message.empty()) {
       return Failure(error_message);
     }

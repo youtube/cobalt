@@ -22,6 +22,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "base/memory/raw_ref.h"
+#include "base/trace_event/trace_event.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 
@@ -137,21 +138,30 @@ MediaDrmBridge::MediaDrmBridge(raw_ref<MediaDrmBridge::Host> host,
                                std::string_view key_system,
                                bool enable_app_provisioning)
     : host_(host) {
+  TRACE_EVENT0("media", "MediaDrmBridge::MediaDrmBridge");
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_key_system(
       ConvertUTF8ToJavaString(env, key_system));
-  ScopedJavaLocalRef<jobject> j_media_drm_bridge(
-      Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
-                                 reinterpret_cast<jlong>(this)));
+  ScopedJavaLocalRef<jobject> j_media_drm_bridge;
+  {
+    TRACE_EVENT0("media", "Java_MediaDrmBridge_create");
+    j_media_drm_bridge =
+        Java_MediaDrmBridge_create(env, j_key_system, enable_app_provisioning,
+                                   reinterpret_cast<jlong>(this));
+  }
 
   if (j_media_drm_bridge.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
     return;
   }
 
-  ScopedJavaLocalRef<jobject> j_media_crypto(
-      Java_MediaDrmBridge_getMediaCrypto(env, j_media_drm_bridge));
+  ScopedJavaLocalRef<jobject> j_media_crypto;
+  {
+    TRACE_EVENT0("media", "Java_MediaDrmBridge_getMediaCrypto");
+    j_media_crypto =
+        Java_MediaDrmBridge_getMediaCrypto(env, j_media_drm_bridge);
+  }
 
   if (j_media_crypto.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaCrypto.";
@@ -173,6 +183,7 @@ MediaDrmBridge::~MediaDrmBridge() {
 void MediaDrmBridge::CreateSession(int ticket,
                                    std::string_view init_data,
                                    std::string_view mime) const {
+  TRACE_EVENT0("media", "MediaDrmBridge::CreateSession");
   JNIEnv* env = AttachCurrentThread();
 
   JniIntWrapper j_ticket = static_cast<jint>(ticket);
@@ -187,6 +198,7 @@ DrmOperationResult MediaDrmBridge::CreateSessionWithAppProvisioning(
     int ticket,
     std::string_view init_data,
     std::string_view mime) const {
+  TRACE_EVENT0("media", "MediaDrmBridge::CreateSessionWithAppProvisioning");
   JNIEnv* env = AttachCurrentThread();
 
   jint j_ticket = static_cast<jint>(ticket);

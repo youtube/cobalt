@@ -94,14 +94,16 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
-    SbDrmSystem drm_system)
+    SbDrmSystem drm_system,
+    int64_t baseline_us)
     : video_stream_info_(video_stream_info),
       player_(player),
       output_mode_(output_mode),
       max_video_input_size_(max_video_input_size),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
-      drm_system_(drm_system) {
+      drm_system_(drm_system),
+      baseline_us_(baseline_us) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
   SB_DCHECK_NE(output_mode_, kSbPlayerOutputModeInvalid);
@@ -115,7 +117,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     int max_video_input_size,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
-    SbDrmSystem drm_system)
+    SbDrmSystem drm_system,
+    int64_t baseline_us)
     : audio_stream_info_(audio_stream_info),
       video_stream_info_(video_stream_info),
       player_(player),
@@ -123,7 +126,8 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       max_video_input_size_(max_video_input_size),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
-      drm_system_(drm_system) {
+      drm_system_(drm_system),
+      baseline_us_(baseline_us) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
 }

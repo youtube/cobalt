@@ -25,6 +25,7 @@
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/time.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android/android_overlay.h"
@@ -583,7 +584,12 @@ void StarboardRenderer::CreatePlayerBridge() {
   player_bridge_.reset();
 
   LOG(INFO) << "Creating SbPlayerBridge.";
+  int64_t baseline_us = starboard::CurrentMonotonicTime();
 
+  {
+    TRACE_EVENT("media", "SbStart::CreatingPlayerBridge",
+                perfetto::Flow::ProcessScoped(baseline_us));
+  }
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
       // TODO(b/375070492): Implement decode-to-texture support
@@ -597,7 +603,8 @@ void StarboardRenderer::CreatePlayerBridge() {
       // TODO(b/326825450): Revisit 360 videos.
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-      -1));
+      -1, baseline_us));
+
   if (player_bridge_->IsValid()) {
     // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
     // returns no audio configurations, update the write durations again
@@ -722,6 +729,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
                        weak_factory_.GetWeakPtr(), stream, status, buffers));
     return;
   }
+  TRACE_EVENT0("media", "StarboardRenderer::OnDemuxerStreamRead");
 
   if (pending_flush_cb_) {
     if (stream == audio_stream_) {
@@ -805,6 +813,7 @@ void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
 
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                    int max_number_of_buffers_to_write) {
+  TRACE_EVENT0("media", "StarboardRenderer::OnNeedData");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if the callback is fired when creation of the `player_bridge_`
@@ -912,6 +921,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
   auto stream = (type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_);
   DCHECK(stream);
 
+  TRACE_EVENT0("media", "StarboardRenderer::OnDemuxerStreamRead:Read");
   stream->Read(max_buffers,
                base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
                               weak_factory_.GetWeakPtr(), stream));

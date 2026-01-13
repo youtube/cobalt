@@ -122,6 +122,9 @@ typedef struct SbPlayerCreationParam {
   // should be made available for the application to pull via calls to
   // SbPlayerGetCurrentFrame().
   SbPlayerOutputMode output_mode;
+
+  // Debugging only: Time when the player creation started.
+  int64_t baseline_us;
 } SbPlayerCreationParam;
 
 // Identify the type of side data accompanied with |SbPlayerSampleInfo|, as side
