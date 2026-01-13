@@ -152,9 +152,6 @@ static_library("starboard_platform") {
   sources += [
     # TODO: b/469333751, b/460479616 - the tvOS versions depend on internal
     # files.
-    "//starboard/shared/stub/audio_sink_get_max_channels.cc",
-    "//starboard/shared/stub/audio_sink_is_audio_frame_storage_type_supported.cc",
-    "//starboard/shared/stub/audio_sink_is_audio_sample_type_supported.cc",
     "//starboard/shared/stub/drm_close_session.cc",
     "//starboard/shared/stub/drm_create_system.cc",
     "//starboard/shared/stub/drm_destroy_system.cc",
@@ -163,13 +160,18 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
     "//starboard/shared/stub/drm_update_server_certificate.cc",
     "//starboard/shared/stub/drm_update_session.cc",
-    "//starboard/shared/stub/media_get_audio_output_count.cc",
-    "//starboard/shared/stub/player_get_preferred_output_mode.cc",
-    "//starboard/shared/stub/storage_write_record.cc",
-    "//starboard/shared/stub/system_symbolize.cc",
 
     # TODO: b/470021310 - get the tvOS version of this file to build.
     "//starboard/shared/stub/system_get_extensions.cc",
+
+    # TODO: b/475576000 - Stubs needed for nplb to build.
+    "//starboard/shared/stub/audio_sink_get_max_channels.cc",
+    "//starboard/shared/stub/audio_sink_is_audio_frame_storage_type_supported.cc",
+    "//starboard/shared/stub/audio_sink_is_audio_sample_type_supported.cc",
+     "//starboard/shared/stub/media_get_audio_output_count.cc",
+    "//starboard/shared/stub/player_get_preferred_output_mode.cc",
+    "//starboard/shared/stub/storage_write_record.cc",
+    "//starboard/shared/stub/system_symbolize.cc",
   ]
 
   sources -= [
