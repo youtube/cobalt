@@ -28,6 +28,18 @@ from dataclasses import dataclass
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
+PLATFORM_MAP = {
+    'android-x86': 'android-arm',
+    'android-x64': 'android-arm64',
+}
+
+GN_PY_REL_PATH = os.path.join('cobalt', 'build', 'gn.py')
+COVERAGE_PY_REL_PATH = os.path.join('tools', 'code_coverage', 'coverage.py')
+LLVM_RELEASE_ASSERTS_REL_PATH = os.path.join('third_party', 'llvm-build',
+                                             'Release+Asserts')
+LLVM_BIN_REL_PATH = os.path.join(LLVM_RELEASE_ASSERTS_REL_PATH, 'bin')
+TEST_TARGETS_REL_PATH = os.path.join('cobalt', 'build', 'testing', 'targets')
+
 
 @dataclass
 class CoverageConfig:
@@ -173,14 +185,12 @@ def main():
   args = parse_args()
 
   src_root = args.src_root
-  gn_py_path = os.path.join(src_root, 'cobalt', 'build', 'gn.py')
-  coverage_py_path = os.path.join(src_root, 'tools', 'code_coverage',
-                                  'coverage.py')
-  llvm_release_asserts_dir = os.path.join(src_root, 'third_party', 'llvm-build',
-                                          'Release+Asserts')
-  llvm_bin_dir = os.path.join(llvm_release_asserts_dir, 'bin')
-  test_targets_dir = os.path.join(src_root, 'cobalt', 'build', 'testing',
-                                  'targets')
+  gn_py_path = os.path.join(src_root, GN_PY_REL_PATH)
+  coverage_py_path = os.path.join(src_root, COVERAGE_PY_REL_PATH)
+  llvm_release_asserts_dir = os.path.join(src_root,
+                                          LLVM_RELEASE_ASSERTS_REL_PATH)
+  llvm_bin_dir = os.path.join(src_root, LLVM_BIN_REL_PATH)
+  test_targets_dir = os.path.join(src_root, TEST_TARGETS_REL_PATH)
 
   expected_entries = [
       'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
@@ -204,10 +214,7 @@ def main():
                  'to ensure a complete installation.')
     return 1
 
-  discovery_platform = {
-      'android-x86': 'android-arm',
-      'android-x64': 'android-arm64',
-  }.get(args.platform, args.platform)
+  discovery_platform = PLATFORM_MAP.get(args.platform, args.platform)
 
   targets = args.targets
   if not targets:
