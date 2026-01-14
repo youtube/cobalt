@@ -326,7 +326,7 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
           content::kCobaltSplashMainFrameName) {
     // Don't observe WebContents if it's splash screen.
     VLOG(1) << "NativeSplash: Skip observing WebContents for "
-               "kCobaltSplashMainFrameName.";
+               "kCobaltSplashMainFrameName.";  // test comment
     return;
   }
   VLOG(1) << "NativeSplash: Observing main frame WebContents.";
