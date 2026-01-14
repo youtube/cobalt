@@ -85,7 +85,7 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
   // Synchronously fetch subprocess histograms that live in shared memory.
   // This is the only mechanism available to embedders like Cobalt, as the
   // fully async HistogramSynchronizer is a content internal implementation.
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
+  base::StatisticsRecorder::ImportProvidedHistograms();
 
   auto* manager_client =
       cobalt::GlobalFeatures::GetInstance()->metrics_services_manager_client();
@@ -130,8 +130,7 @@ void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
     }
   }
   std::string encoded_log;
-  log.FinalizeLog(false, service_client->GetVersionString(),
-                  log.GetCurrentClockTime(false), &encoded_log);
+  log.FinalizeLog(false, service_client->GetVersionString(), &encoded_log);
   uma_proto.CopyFrom(*log.uma_proto());
 
   cobalt::browser::metrics::CobaltUMAEvent cobalt_proto;
