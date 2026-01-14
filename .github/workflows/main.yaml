@@ -42,11 +42,14 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
-    if: |
-      github.event.action != 'labeled' ||
-      (github.event.pull_request.merged == false && github.event.label.name == 'runtest')
-    timeout-minutes: 10
+    # Skip workflows on label event when PR is merged.
+    # if: ! (github.event.action == 'labeled' && github.event.pull_request.merged == true)
+    timeout-minutes: 15
     steps:
+      - run: |
+          echo "::error::! (github.event.action=${{github.event.action}} == 'labeled' && github.event.pull_request.merged=${{github.event.pull_request.merged}} == true) = ${{! (github.event.action == 'labeled' && github.event.pull_request.merged == true)}}"
+          echo "::error::! (github.event.action=${{github.event.action}} != 'labeled' || (github.event.pull_request.merged=${{github.event.pull_request.merged}} == false && github.event.label.name=${{github.event.label.name}} == 'runtest') = ${{github.event.action != 'labeled' || (github.event.pull_request.merged == false && github.event.label.name == 'runtest')}}"
+        shell: bash
       - name: Checkout
         uses: actions/checkout@v4
         with:
