@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -80,29 +79,6 @@ TEST(AudioStreamInfoTest, SbMediaAudioStreamInfo) {
             audio_stream_info.audio_specific_config);
 }
 
-TEST(AudioStreamInfoTest, CobaltExtensionEnhancedAudioMediaAudioStreamInfo) {
-  CobaltExtensionEnhancedAudioMediaAudioStreamInfo original = {};
-
-  original.codec = kSbMediaAudioCodecOpus;
-  original.mime = "audio/webm";
-  original.number_of_channels = 2;
-  original.samples_per_second = 24000;
-  original.bits_per_sample = 16;
-  original.audio_specific_config_size = 6;
-  original.audio_specific_config = "config";
-
-  AudioStreamInfo audio_stream_info(original);
-
-  EXPECT_EQ(original.codec, audio_stream_info.codec);
-  EXPECT_EQ(original.mime, audio_stream_info.mime);
-  EXPECT_EQ(original.number_of_channels, audio_stream_info.number_of_channels);
-  EXPECT_EQ(original.samples_per_second, audio_stream_info.samples_per_second);
-  EXPECT_EQ(original.bits_per_sample, audio_stream_info.bits_per_sample);
-  EXPECT_EQ(ToVector(original.audio_specific_config,
-                     original.audio_specific_config_size),
-            audio_stream_info.audio_specific_config);
-}
-
 TEST(VideoStreamInfoTest, DefaultCtor) {
   VideoStreamInfo video_stream_info;
 
@@ -144,6 +120,7 @@ TEST(VideoStreamInfoTest, SbMediaVideoStreamInfo) {
   EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
 }
 
+<<<<<<< HEAD
 TEST(VideoStreamInfoTest, CobaltExtensionEnhancedAudioMediaVideoStreamInfo) {
   CobaltExtensionEnhancedAudioMediaVideoStreamInfo original = {};
 
@@ -164,6 +141,8 @@ TEST(VideoStreamInfoTest, CobaltExtensionEnhancedAudioMediaVideoStreamInfo) {
   EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
 }
 
+=======
+>>>>>>> 7910c6b362f (starboard: Remove the deprecated EnhancedAudio extension (#8635))
 TEST(AudioSampleInfoTest, DefaultCtor) {
   AudioSampleInfo audio_sample_info;
 
@@ -177,34 +156,6 @@ TEST(AudioSampleInfoTest, DefaultCtor) {
 TEST(AudioSampleInfoTest, SbMediaAudioSampleInfo) {
   SbMediaAudioSampleInfo original = {};
   SbMediaAudioStreamInfo& stream_info = original.stream_info;
-
-  stream_info.codec = kSbMediaAudioCodecOpus;
-  stream_info.mime = "audio/webm";
-  stream_info.number_of_channels = 2;
-  stream_info.samples_per_second = 24000;
-  stream_info.bits_per_sample = 16;
-  stream_info.audio_specific_config_size = 6;
-  stream_info.audio_specific_config = "config";
-
-  AudioSampleInfo audio_sample_info(original);
-
-  EXPECT_EQ(stream_info.codec, audio_sample_info.stream_info.codec);
-  EXPECT_EQ(stream_info.mime, audio_sample_info.stream_info.mime);
-  EXPECT_EQ(stream_info.number_of_channels,
-            audio_sample_info.stream_info.number_of_channels);
-  EXPECT_EQ(stream_info.samples_per_second,
-            audio_sample_info.stream_info.samples_per_second);
-  EXPECT_EQ(stream_info.bits_per_sample,
-            audio_sample_info.stream_info.bits_per_sample);
-  EXPECT_EQ(ToVector(stream_info.audio_specific_config,
-                     stream_info.audio_specific_config_size),
-            audio_sample_info.stream_info.audio_specific_config);
-}
-
-TEST(AudioSampleInfoTest, CobaltExtensionEnhancedAudioMediaAudioSampleInfo) {
-  CobaltExtensionEnhancedAudioMediaAudioSampleInfo original = {};
-  CobaltExtensionEnhancedAudioMediaAudioStreamInfo& stream_info =
-      original.stream_info;
 
   stream_info.codec = kSbMediaAudioCodecOpus;
   stream_info.mime = "audio/webm";
@@ -264,6 +215,7 @@ TEST(VideoSampleInfoTest, SbMediaVideoSampleInfo) {
             video_sample_info.stream_info.color_metadata);
 }
 
+<<<<<<< HEAD
 TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
   CobaltExtensionEnhancedAudioMediaVideoSampleInfo original = {};
   CobaltExtensionEnhancedAudioMediaVideoStreamInfo& stream_info =
@@ -290,6 +242,8 @@ TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
             video_sample_info.stream_info.color_metadata);
 }
 
+=======
+>>>>>>> 7910c6b362f (starboard: Remove the deprecated EnhancedAudio extension (#8635))
 TEST(MediaUtilTest, AudioDurationToFrames) {
   EXPECT_EQ(AudioDurationToFrames(0, 48000), 0);
   EXPECT_EQ(AudioDurationToFrames(1'000'000LL / 2, 48000), 48000 / 2);
