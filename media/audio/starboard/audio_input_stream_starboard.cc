@@ -47,7 +47,8 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 
   microphone_ = SbMicrophoneCreate(
       info.id, params_.sample_rate(),
-      params_.frames_per_buffer() * kMicrophoneBufferSizeMultiplier);
+      params_.GetBytesPerBuffer(media::SampleFormat::kSampleFormatS16) *
+          kMicrophoneBufferSizeMultiplier);
 
   if (!SbMicrophoneIsValid(microphone_)) {
     microphone_ = kSbMicrophoneInvalid;

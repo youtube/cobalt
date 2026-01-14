@@ -29,7 +29,7 @@ namespace {
 constexpr int kSampleRateInHz = 48'000;
 constexpr int kChannels = 1;
 constexpr int kFramesPerBuffer = 480;
-constexpr int kBufferSizeInBytes =
+constexpr int kMinReadSizeBytes =
     kFramesPerBuffer * kChannels * sizeof(int16_t);
 
 Unexpected<std::string> SndError(const std::string& method_name, int error) {
@@ -75,8 +75,7 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
     return SndError("snd_pcm_hw_params_set_channels", error);
   }
 
-  snd_pcm_uframes_t period_size_in_frames =
-      kBufferSizeInBytes / (kChannels * sizeof(int16_t));
+  snd_pcm_uframes_t period_size_in_frames = kFramesPerBuffer;
   error = snd_pcm_hw_params_set_period_size_near(
       handle, hw_params, &period_size_in_frames, nullptr);
   if (error < 0) {
@@ -232,7 +231,7 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
         info->id = reinterpret_cast<SbMicrophoneId>(count + 1);
         info->type = kSbMicrophoneUnknown;
         info->max_sample_rate_hz = starboard::kSampleRateInHz;
-        info->min_read_size = starboard::kFramesPerBuffer;
+        info->min_read_size = starboard::kMinReadSizeBytes;
         snprintf(info->label, kSbMicrophoneLabelSize, "%s", desc ? desc : name);
       }
       count++;
@@ -263,6 +262,7 @@ bool SbMicrophonePrivate::IsMicrophoneSampleRateSupported(
 }
 
 namespace {
+constexpr int kUnusedBufferSize = 32 * 1024;
 // Only a single microphone is supported.
 SbMicrophone s_microphone = kSbMicrophoneInvalid;
 }  // namespace
@@ -273,7 +273,7 @@ SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
                                                    int buffer_bytes) {
   if (!SbMicrophoneIdIsValid(id) ||
       !IsMicrophoneSampleRateSupported(id, sample_rate_in_hz) ||
-      buffer_bytes > starboard::kBufferSizeInBytes || buffer_bytes < 0) {
+      buffer_bytes > kUnusedBufferSize || buffer_bytes <= 0) {
     return kSbMicrophoneInvalid;
   }
 
