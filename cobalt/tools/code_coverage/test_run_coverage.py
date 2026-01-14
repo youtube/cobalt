@@ -29,6 +29,8 @@ class RunCoverageTest(unittest.TestCase):
   Tests for the end-to-end code coverage script.
   """
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -41,11 +43,12 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_success_with_targets(  # pylint: disable=too-many-positional-arguments
       self, mock_arg_parser, mock_run_command, mock_makedirs, mock_isdir,
-      mock_listdir):
+      mock_listdir, mock_logging_error, mock_logging_info):
     """
     Tests successful execution when targets are provided as arguments.
     """
-    del mock_isdir, mock_listdir  # unused
+    del mock_isdir, mock_listdir  # Unused argument.
+    del mock_logging_error, mock_logging_info  # Unused argument.
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
     filters = 'cobalt/browser'
@@ -95,6 +98,8 @@ class RunCoverageTest(unittest.TestCase):
     ])
     self.assertEqual(result, 0)
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -110,11 +115,13 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_success_no_targets(  # pylint: disable=too-many-positional-arguments
       self, mock_arg_parser, mock_run_command, mock_discover_targets,
-      mock_makedirs, mock_isdir, mock_listdir):
+      mock_makedirs, mock_isdir, mock_listdir, mock_logging_error,
+      mock_logging_info):
     """
     Tests successful execution when targets are auto-discovered.
     """
-    del mock_makedirs, mock_isdir, mock_listdir  # Unused argument.
+    del mock_makedirs, mock_isdir  # Unused argument.
+    del mock_listdir, mock_logging_error, mock_logging_info  # Unused argument.
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
     build_dir = f'out/{platform}_devel'
@@ -164,6 +171,8 @@ class RunCoverageTest(unittest.TestCase):
     mock_run_command.assert_has_calls(expected_calls)
     self.assertEqual(result, 0)
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -173,15 +182,14 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=[])
-  @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
   def test_no_targets_found(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_print, mock_discover_targets, mock_isdir,
-      mock_listdir):
+      self, mock_arg_parser, mock_discover_targets, mock_isdir, mock_listdir,
+      mock_logging_error, mock_logging_info):
     """
     Tests that the script exits gracefully if no targets are found.
     """
-    del mock_isdir, mock_listdir
+    del mock_isdir, mock_listdir, mock_logging_info
     platform = 'android-x86'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -195,10 +203,12 @@ class RunCoverageTest(unittest.TestCase):
 
     mock_discover_targets.assert_called_once_with(
         '/test/src/root/cobalt/build/testing/targets', 'android-arm')
-    mock_print.assert_any_call(
-        f'No test targets found for platform {platform}.')
+    mock_logging_error.assert_any_call('No test targets found for platform %s.',
+                                       platform)
     self.assertEqual(result, 1)
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -210,15 +220,14 @@ class RunCoverageTest(unittest.TestCase):
       return_value=['target1'])
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.run_command', return_value=False)
-  @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
   def test_gn_py_failure(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_print, mock_run_command,
-      mock_discover_targets, mock_isdir, mock_listdir):
+      self, mock_arg_parser, mock_run_command, mock_discover_targets,
+      mock_isdir, mock_listdir, mock_logging_error, mock_logging_info):
     """
     Tests that the script exits gracefully if gn.py fails.
     """
-    del mock_isdir, mock_listdir  # Unused arguments.
+    del mock_isdir, mock_listdir, mock_logging_info  # Unused arguments.
     platform = 'android-x86'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -233,9 +242,11 @@ class RunCoverageTest(unittest.TestCase):
     mock_discover_targets.assert_called_once_with(
         '/test/src/root/cobalt/build/testing/targets', 'android-arm')
     mock_run_command.assert_called_once()
-    mock_print.assert_any_call('Error running gn.py')
+    mock_logging_error.assert_any_call('Error running gn.py')
     self.assertEqual(result, 1)
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -246,15 +257,15 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.run_command',
       side_effect=[True, True, False])
-  @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
   def test_coverage_tool_failure(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_print, mock_run_command, mock_makedirs,
-      mock_isdir, mock_listdir):
+      self, mock_arg_parser, mock_run_command, mock_makedirs, mock_isdir,
+      mock_listdir, mock_logging_error, mock_logging_info):
     """
     Tests that the script exits gracefully if code_coverage_tool.py fails.
     """
-    del mock_makedirs, mock_isdir, mock_listdir  # Unused argument.
+    del mock_makedirs, mock_isdir  # Unused argument.
+    del mock_listdir, mock_logging_info  # Unused argument.
     target = 'target'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -267,7 +278,7 @@ class RunCoverageTest(unittest.TestCase):
     result = run_coverage.main()
 
     self.assertEqual(mock_run_command.call_count, 3)
-    mock_print.assert_any_call(
+    mock_logging_error.assert_any_call(
         'Code coverage process completed with some errors.')
     self.assertEqual(result, 0)  # Should continue to next target
 
@@ -321,6 +332,8 @@ class RunCoverageTest(unittest.TestCase):
     mock_exists.assert_any_call(
         os.path.join(test_targets_dir, 'android-arm64', 'test_targets.json'))
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -334,13 +347,14 @@ class RunCoverageTest(unittest.TestCase):
       'cobalt.tools.code_coverage.run_coverage.run_command', return_value=True)
   @mock.patch('argparse.ArgumentParser')
   def test_platform_reuse(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_check_call, mock_discover_targets, mock_isdir,
-      mock_listdir):
+      self, mock_arg_parser, mock_run_command, mock_discover_targets,
+      mock_isdir, mock_listdir, mock_logging_error, mock_logging_info):
     """
     Tests that android-x86 and android-x64 platforms reuse android-arm and
     android-arm64 test targets respectively.
     """
-    del mock_check_call, mock_isdir, mock_listdir  # Unused argument.
+    del mock_run_command, mock_isdir  # Unused argument.
+    del mock_listdir, mock_logging_error, mock_logging_info  # Unused argument.
     # Test android-x86 reuses android-arm
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -364,6 +378,8 @@ class RunCoverageTest(unittest.TestCase):
     mock_discover_targets.assert_called_with(
         '/test/src/root/cobalt/build/testing/targets', 'android-arm64')
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -378,11 +394,13 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_with_test_filters(  # pylint: disable=too-many-positional-arguments
       self, mock_arg_parser, mock_run_command, mock_open, mock_exists,
-      mock_makedirs, mock_isdir, mock_listdir):
+      mock_makedirs, mock_isdir, mock_listdir, mock_logging_error,
+      mock_logging_info):
     """
     Tests successful execution when test filters are applied.
     """
-    del mock_exists, mock_isdir, mock_listdir  # unused
+    del mock_exists, mock_isdir  # Unused arguments.
+    del mock_listdir, mock_logging_error, mock_logging_info  # Unused arguments.
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
     target = 'cobalt:unittests'
@@ -436,6 +454,8 @@ class RunCoverageTest(unittest.TestCase):
     ])
     self.assertEqual(result, 0)
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch(
       'os.listdir',
       return_value=[
@@ -445,13 +465,14 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.run_command', return_value=True)
   @mock.patch('argparse.ArgumentParser')
-  def test_run_coverage_skips_fully_filtered_target(self, mock_arg_parser,
-                                                    mock_run_command,
-                                                    mock_isdir, mock_listdir):
+  def test_run_coverage_skips_fully_filtered_target(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_run_command, mock_isdir, mock_listdir,
+      mock_logging_error, mock_logging_info):
     """
     Tests that a target is skipped if all its tests are filtered out.
     """
     del mock_isdir, mock_listdir  # Unused arguments.
+    del mock_logging_error, mock_logging_info  # Unused arguments.
     platform = 'android-x86'
     target = 'cobalt:unittests'
 
@@ -474,10 +495,12 @@ class RunCoverageTest(unittest.TestCase):
     self.assertEqual(mock_run_command.call_count, 0)
     self.assertEqual(result, 0)
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch('os.path.isdir', return_value=False)
-  @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
-  def test_llvm_dir_missing(self, mock_arg_parser, mock_print, mock_isdir):
+  def test_llvm_dir_missing(self, mock_arg_parser, mock_isdir,
+                            mock_logging_error, mock_logging_info):
     """
     Tests that the script exits with an error if the LLVM directory is missing.
     """
@@ -491,16 +514,21 @@ class RunCoverageTest(unittest.TestCase):
         src_root='/test/src/root')
     result = run_coverage.main()
     self.assertEqual(result, 1)
-    mock_print.assert_any_call(
-        'Error: LLVM build directory not found at '
+    mock_logging_error.assert_any_call(
+        'LLVM build directory not found at %s',
         '/test/src/root/third_party/llvm-build/Release+Asserts')
+    mock_logging_info.assert_any_call(
+        'Please run `gclient sync --no-history -r $(git rev-parse @)` '
+        'to install them.')
 
+  @mock.patch('logging.info')
+  @mock.patch('logging.error')
   @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.listdir', return_value=['bin'])  # Incomplete entries
-  @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
-  def test_llvm_dir_incomplete(self, mock_arg_parser, mock_print, mock_listdir,
-                               mock_isdir):
+  def test_llvm_dir_incomplete(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_listdir, mock_isdir, mock_logging_error,
+      mock_logging_info):
     """
     Tests that the script exits with an error if the
     LLVM directory is incomplete.
@@ -515,6 +543,9 @@ class RunCoverageTest(unittest.TestCase):
         src_root='/test/src/root')
     result = run_coverage.main()
     self.assertEqual(result, 1)
-    mock_print.assert_any_call(
-        'Error: The LLVM build directory '
-        '/test/src/root/third_party/llvm-build/Release+Asserts is incomplete.')
+    mock_logging_error.assert_any_call(
+        'The LLVM build directory %s is incomplete.',
+        '/test/src/root/third_party/llvm-build/Release+Asserts')
+    mock_logging_info.assert_any_call(
+        'Please run `gclient sync --no-history -r $(git rev-parse @)` '
+        'to ensure a complete installation.')

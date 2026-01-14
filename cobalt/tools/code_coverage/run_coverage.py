@@ -20,10 +20,13 @@ This script orchestrates the code coverage process by:
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
 from dataclasses import dataclass
+
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 
 @dataclass
@@ -38,34 +41,34 @@ class CoverageConfig:
   filters: list = None
 
 
-def run_command(command):
-  """
-  Run a command and handle errors.
-  """
-  print(f"Running command: {' '.join(command)}")
-  try:
-    subprocess.check_call(command)
-    return True
-  except subprocess.CalledProcessError as e:
-    print(f'Error running command: {e}')
-    return False
-
-
 def discover_targets(test_targets_dir, platform):
   """
   Discover test targets for a given platform by scanning the build testing
   targets directory.
   """
   discovered_targets = []
-  print(f'Scanning for targets in: {test_targets_dir}')
+  logging.info('Scanning for targets in: %s', test_targets_dir)
   target_file = os.path.join(test_targets_dir, platform, 'test_targets.json')
-  print(f'Checking for target file: {target_file}')
+  logging.info('Checking for target file: %s', target_file)
   if os.path.exists(target_file):
     with open(target_file, 'r', encoding='utf-8') as f:
       data = json.load(f)
       if 'test_targets' in data:
         discovered_targets.extend(data['test_targets'])
   return discovered_targets
+
+
+def run_command(command):
+  """
+  Run a command and handle errors.
+  """
+  logging.info('Running command: %s', ' '.join(command))
+  try:
+    subprocess.check_call(command)
+    return True
+  except subprocess.CalledProcessError as e:
+    logging.error('Error running command: %s', e)
+    return False
 
 
 def parse_args():
@@ -124,7 +127,7 @@ def run_coverage_for_target(config, target):
   """
   Run code coverage for a single target.
   """
-  print(f'--- Running coverage for target: {target} ---')
+  logging.info('--- Running coverage for target: %s ---', target)
   sanitized_target = target.replace(':', '_').replace('/', '_')
   target_output_dir = os.path.join(config.output_dir, sanitized_target)
   os.makedirs(target_output_dir, exist_ok=True)
@@ -183,10 +186,10 @@ def main():
       'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
   ]
   if not os.path.isdir(llvm_release_asserts_dir):
-    print(
-        f'Error: LLVM build directory not found at {llvm_release_asserts_dir}')
-    print('Please run `gclient sync --no-history -r $(git rev-parse @)` '
-          'to install them.')
+    logging.error('LLVM build directory not found at %s',
+                  llvm_release_asserts_dir)
+    logging.info('Please run `gclient sync --no-history -r $(git rev-parse @)` '
+                 'to install them.')
     return 1
 
   actual_entries = os.listdir(llvm_release_asserts_dir)
@@ -194,11 +197,11 @@ def main():
       entry for entry in expected_entries if entry not in actual_entries
   ]
   if missing_entries:
-    print(f'Error: The LLVM build directory {llvm_release_asserts_dir} ' \
-          'is incomplete.')
-    print(f"Missing entries: {', '.join(missing_entries)}")
-    print('Please run `gclient sync --no-history -r $(git rev-parse @)` '
-          'to ensure a complete installation.')
+    logging.error('The LLVM build directory %s is incomplete.',
+                  llvm_release_asserts_dir)
+    logging.error('Missing entries: %s', ', '.join(missing_entries))
+    logging.info('Please run `gclient sync --no-history -r $(git rev-parse @)` '
+                 'to ensure a complete installation.')
     return 1
 
   discovery_platform = {
@@ -208,10 +211,10 @@ def main():
 
   targets = args.targets
   if not targets:
-    print('No targets specified, auto-discovering targets...')
+    logging.info('No targets specified, auto-discovering targets...')
     targets = discover_targets(test_targets_dir, discovery_platform)
     if not targets:
-      print(f'No test targets found for platform {args.platform}.')
+      logging.error('No test targets found for platform %s.', args.platform)
       return 1
 
   # Filter out targets that have all tests skipped via filter files.
@@ -227,24 +230,24 @@ def main():
   ]
 
   if not targets:
-    print('All targets were filtered out.')
+    logging.info('All targets were filtered out.')
     return 0
 
-  print(f'Final target list: {", ".join(targets)}')  # pylint: disable=inconsistent-quotes
+  logging.info('Final target list: %s', ', '.join(targets))
 
   # 1. Run gn.py with --coverage
   build_dir = os.path.join('out', f'{args.platform}_devel')
   gn_command = [sys.executable, gn_py_path, '-p', args.platform, '--coverage']
   if not run_command(gn_command):
-    print('Error running gn.py')
+    logging.error('Error running gn.py')
     return 1
 
   # 2. Build all targets
-  print(f"Building targets: {', '.join(targets)}")
+  logging.info('Building targets: %s', ', '.join(targets))
   build_command = ['autoninja', '-C', build_dir
                   ] + [target.split(':')[-1] for target in targets]
   if not run_command(build_command):
-    print('Error building targets')
+    logging.error('Error building targets')
     return 1
 
   config = CoverageConfig(
@@ -264,15 +267,15 @@ def main():
   # 3. Distributing the test targets evenly across the available devices.
   # 4. Running the tests for each subset serially on its assigned device.
   # 5. Aggregating the resulting LCOV files for the final report.
-  print(f'Running coverage for {len(targets)} targets...')
+  logging.info('Running coverage for %d targets...', len(targets))
   results = []
   for target in targets:
     results.append(run_coverage_for_target(config, target))
 
   if all(results):
-    print('Code coverage process completed successfully.')
+    logging.info('Code coverage process completed successfully.')
   else:
-    print('Code coverage process completed with some errors.')
+    logging.error('Code coverage process completed with some errors.')
 
   return 0
 
