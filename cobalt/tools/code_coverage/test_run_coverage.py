@@ -62,7 +62,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir=output_dir,
         targets=[target],
         filters=[filters],
-        jobs=1,
         src_root='/test/src/root')
 
     result = run_coverage.main()
@@ -125,7 +124,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir=output_dir,
         targets=[],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
 
     result = run_coverage.main()
@@ -190,7 +188,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
 
     result = run_coverage.main()
@@ -229,7 +226,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
 
     result = run_coverage.main()
@@ -269,7 +265,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[target],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
 
     result = run_coverage.main()
@@ -356,7 +351,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
     run_coverage.main()
     mock_discover_targets.assert_called_with(
@@ -368,7 +362,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
     run_coverage.main()
     mock_discover_targets.assert_called_with(
@@ -414,7 +407,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir=output_dir,
         targets=[target],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
 
     result = run_coverage.main()
@@ -470,7 +462,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[target],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
 
     # Patch at the source where 'main' will find it.
@@ -498,7 +489,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
     result = run_coverage.main()
     self.assertEqual(result, 1)
@@ -523,7 +513,6 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1,
         src_root='/test/src/root')
     result = run_coverage.main()
     self.assertEqual(result, 1)

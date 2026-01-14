@@ -70,12 +70,6 @@ def parse_args():
       action='append',
       help='Directories or files to get code coverage for.')
   parser.add_argument(
-      '-j',
-      '--jobs',
-      type=int,
-      default=1,
-      help='The number of parallel jobs to run.')
-  parser.add_argument(
       '--src-root',
       default=os.path.join(
           os.path.abspath(os.path.dirname(__file__)), os.path.pardir,
@@ -242,6 +236,12 @@ def main():
 
   # 3. Run code_coverage_tool.py for each target
   # TODO(b/382508397): Implement parallelization using multiple Android devices.
+  # This would involve:
+  # 1. Accepting a list of device serials via a command-line argument.
+  # 2. Validating that the provided serials are active and available.
+  # 3. Distributing the test targets evenly across the available devices.
+  # 4. Running the tests for each subset serially on its assigned device.
+  # 5. Aggregating the resulting LCOV files for the final report.
   print(f'Running coverage for {len(targets)} targets...')
   results = []
   for target in targets:
