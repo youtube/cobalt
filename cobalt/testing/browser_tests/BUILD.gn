@@ -483,6 +483,7 @@ source_set("cobalt_browsertests_support") {
   public_deps = [
     ":cobalt_browsertests_support_mojom",
     ":shell_controller_mojom",
+    "//cobalt/renderer",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/services/storage/test_api",
