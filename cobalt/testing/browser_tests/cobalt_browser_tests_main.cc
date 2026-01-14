@@ -17,6 +17,7 @@
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/process/process.h"
 #include "base/test/test_support_starboard.h"
 #include "base/test/test_timeouts.h"
 #include "cobalt/shell/browser/shell_devtools_manager_delegate.h"
@@ -64,14 +65,10 @@ void SbEventHandle(const SbEvent* event) {
         content::LaunchTests(&delegate, 1, start_data->argument_count,
                              const_cast<char**>(start_data->argument_values));
 
-    // Manually stop the DevTools handlers. On Starboard, the
-    // BrowserMainRunner is intentionally leaked and its Shutdown() method is
-    // never called(see ShellMainDelegate::RunProcess), hence the handlers
-    // are not stopped automatically. If we don't stop them here, they remain
-    // alive at AtExit, causing a "Dangling Pointer" crash.
-    content::ShellDevToolsManagerDelegate::StopHttpHandler();
-
-    SbSystemRequestStop(test_result_code);
+    // Terminate the process immediately to avoid a hang in
+    // ShellDevToolsManagerDelegate::StopHttpHandler() and a crash in
+    // AtExitManager (due to leaked BrowserMainRunner).
+    base::Process::TerminateCurrentProcessImmediately(test_result_code);
   }
 }
 
