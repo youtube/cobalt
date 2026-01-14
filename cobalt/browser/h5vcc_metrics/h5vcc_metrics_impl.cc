@@ -14,19 +14,11 @@
 
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 
-#include "base/base64url.h"
-#include "base/logging.h"
-#include "base/metrics/histogram.h"
-#include "base/metrics/statistics_recorder.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "components/metrics/metrics_log.h"
-#include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
-#include "third_party/metrics_proto/cobalt_uma_event.pb.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -78,73 +70,6 @@ void H5vccMetricsImpl::SetMetricEventInterval(
       ->metrics_service_client()
       ->SetUploadInterval(base::Seconds(interval_seconds));
   std::move(callback).Run();
-}
-
-void H5vccMetricsImpl::RequestHistograms(RequestHistogramsCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // Synchronously fetch subprocess histograms that live in shared memory.
-  // This is the only mechanism available to embedders like Cobalt, as the
-  // fully async HistogramSynchronizer is a content internal implementation.
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
-
-  auto* manager_client =
-      cobalt::GlobalFeatures::GetInstance()->metrics_services_manager_client();
-  auto* service_client = manager_client->metrics_service_client();
-  auto* state_manager = manager_client->GetMetricsStateManager();
-  CHECK(state_manager);
-
-  if (state_manager->client_id().empty()) {
-    std::move(callback).Run(std::string());
-    return;
-  }
-
-  ::metrics::ChromeUserMetricsExtension uma_proto;
-  // We create a temporary MetricsLog object to facilitate serializing
-  // histograms. This class requires a session ID in its constructor, but the
-  // value is not used for the purposes of this function. The session ID is
-  // stored in the system profile, but this function only extracts the
-  // histogram data, and the rest of the log (including the system profile) is
-  // discarded. Therefore, a placeholder value of 1 is sufficient.
-  metrics::MetricsLog log(state_manager->client_id(), /*session_id=*/1,
-                          metrics::MetricsLog::LogType::ONGOING_LOG,
-                          service_client);
-
-  for (base::HistogramBase* const histogram :
-       base::StatisticsRecorder::GetHistograms()) {
-    auto samples = histogram->SnapshotSamples();
-    if (samples->TotalCount() == 0) {
-      continue;
-    }
-
-    auto it =
-        last_histogram_samples_.find(std::string(histogram->histogram_name()));
-    if (it != last_histogram_samples_.end()) {
-      samples->Subtract(*it->second);
-      it->second = histogram->SnapshotSamples();
-    } else {
-      last_histogram_samples_.emplace(std::string(histogram->histogram_name()),
-                                      histogram->SnapshotSamples());
-    }
-    if (samples->TotalCount() > 0) {
-      log.RecordHistogramDelta(histogram->histogram_name(), *samples);
-    }
-  }
-  std::string encoded_log;
-  log.FinalizeLog(false, service_client->GetVersionString(),
-                  log.GetCurrentClockTime(false), &encoded_log);
-  uma_proto.CopyFrom(*log.uma_proto());
-
-  cobalt::browser::metrics::CobaltUMAEvent cobalt_proto;
-  cobalt_proto.mutable_histogram_event()->CopyFrom(uma_proto.histogram_event());
-
-  std::string serialized_proto;
-  cobalt_proto.SerializeToString(&serialized_proto);
-
-  std::string base64_encoded_proto;
-  base::Base64UrlEncode(serialized_proto,
-                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
-                        &base64_encoded_proto);
-  std::move(callback).Run(base64_encoded_proto);
 }
 
 }  // namespace h5vcc_metrics

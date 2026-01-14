@@ -58,7 +58,6 @@ class MODULES_EXPORT H5vccMetrics final
   ScriptPromise disable(ScriptState*, ExceptionState&);
   bool isEnabled();
   ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
-  ScriptPromise requestHistograms(ScriptState*, ExceptionState&);
 
   // EventTargetWithInlineData impl.
   ExecutionContext* GetExecutionContext() const override {
@@ -86,8 +85,6 @@ class MODULES_EXPORT H5vccMetrics final
   void OnEnable(ScriptPromiseResolver* resolver);
   void OnDisable(ScriptPromiseResolver* resolver);
   void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
-  void OnRequestHistograms(ScriptPromiseResolver* resolver,
-                           const WTF::String& histograms_json);
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
