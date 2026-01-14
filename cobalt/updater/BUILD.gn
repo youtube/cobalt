@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/modular_executable.gni")
+
 static_library("updater") {
   sources = [
     "configurator.cc",
@@ -51,4 +53,22 @@ static_library("updater") {
     "//url",
   ]
 }
+
 # TODO(b/446745795): add unit tests
+
+if (use_evergreen) {
+  target("modular_executable", "crash_sandbox") {
+    testonly = true
+    sources = [ "crash_sandbox.cc" ]
+    deps = [ "//starboard:starboard_group" ]
+  }
+
+  target("modular_executable", "noop_sandbox") {
+    testonly = true
+    sources = [ "noop_sandbox.cc" ]
+    deps = [
+      "//base",
+      "//starboard:starboard_group",
+    ]
+  }
+}
