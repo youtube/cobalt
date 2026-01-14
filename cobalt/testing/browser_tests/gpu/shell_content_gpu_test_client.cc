@@ -1,5 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
-
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,24 +14,26 @@
 
 #include "cobalt/testing/browser_tests/gpu/shell_content_gpu_test_client.h"
 
-#include "base/functional/bind.h"
 #include "base/task/single_thread_task_runner.h"
-#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
-#include "mojo/public/cpp/bindings/self_owned_receiver.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "components/viz/service/display/starboard/video_geometry_setter.h"
+#include "content/public/child/child_thread.h"
 
 namespace content {
 
 ShellContentGpuTestClient::ShellContentGpuTestClient() = default;
-
 ShellContentGpuTestClient::~ShellContentGpuTestClient() = default;
 
-void ShellContentGpuTestClient::ExposeInterfacesToBrowser(
-    const gpu::GpuPreferences& gpu_preferences,
-    const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
-    mojo::BinderMap* binders) {
-  binders->Add<mojom::PowerMonitorTest>(
-      base::BindRepeating(&PowerMonitorTestImpl::MakeSelfOwnedReceiver),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
+void ShellContentGpuTestClient::PostCompositorThreadCreated(
+    base::SingleThreadTaskRunner* task_runner) {
+  mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
+      video_geometry_setter;
+  content::ChildThread::Get()->BindHostReceiver(
+      video_geometry_setter.InitWithNewPipeAndPassReceiver());
+
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&viz::ConnectVideoGeometrySetter,
+                                       std::move(video_geometry_setter)));
 }
 
 }  // namespace content
