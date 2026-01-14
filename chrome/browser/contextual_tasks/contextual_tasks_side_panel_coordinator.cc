@@ -12,6 +12,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_search/contextual_search_web_contents_helper.h"
 #include "chrome/browser/contextual_tasks/active_task_context_provider.h"
@@ -199,6 +200,15 @@ ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
 
 ContextualTasksSidePanelCoordinator::~ContextualTasksSidePanelCoordinator() {
   browser_window_->GetTabStripModel()->RemoveObserver(this);
+
+  SidePanelRegistry* global_registry = SidePanelRegistry::From(browser_window_);
+  if (global_registry) {
+    auto* contextual_tasks_entry = global_registry->GetEntryForKey(
+        SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks));
+    if (contextual_tasks_entry) {
+      contextual_tasks_entry->RemoveObserver(this);
+    }
+  }
 }
 
 // static
@@ -227,6 +237,11 @@ void ContextualTasksSidePanelCoordinator::CreateAndRegisterEntry(
   entry->set_should_show_header(false);
   entry->set_should_show_outline(false);
   global_registry->Register(std::move(entry));
+
+  // Observe the side panel entry.
+  auto* registered_entry = global_registry->GetEntryForKey(
+      SidePanelEntry::Key(SidePanelEntry::Id::kContextualTasks));
+  registered_entry->AddObserver(this);
 }
 
 void ContextualTasksSidePanelCoordinator::Show(bool transition_from_tab) {
@@ -417,45 +432,12 @@ void ContextualTasksSidePanelCoordinator::OnTaskChanged(
   // ContextualSearchWebContentsHelper is updated with the task ID and session
   // handle. Note that it ContextualSearchWebContentsHelper can be from an
   // existing WebContents or a newly created one.
-  UpdateContextualSearchWebContentsHelperForTask(web_contents, new_task_id);
+  UpdateContextualSearchWebContentsHelperForTask(
+      contextual_search_service_, browser_window_, contextual_tasks_service_,
+      this, web_contents, new_task_id);
 
   // Updates the automated chip if needed.
   UpdateContextualTaskUI();
-}
-
-void ContextualTasksSidePanelCoordinator::
-    UpdateContextualSearchWebContentsHelperForTask(
-        content::WebContents* web_contents,
-        const base::Uuid& task_id) {
-  // Since the task has just changed, find if the task has an existing session,
-  // i.e. if the task is already open anywhere in the browser.
-  // If not found, create a new session for the task.
-  // Either way, update the ContextualSearchWebContentsHelper with the task ID
-  // and session handle.
-  contextual_search::ContextualSearchSessionHandle* existing_session =
-      contextual_tasks::FindSessionForTask(task_id, contextual_tasks_service_,
-                                           browser_window_, this);
-
-  std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
-      session_handle;
-  if (existing_session) {
-    session_handle =
-        contextual_search_service_->GetSession(existing_session->session_id());
-  } else {
-    session_handle = contextual_search_service_->CreateSession(
-        ntp_composebox::CreateQueryControllerConfigParams(),
-        contextual_search::ContextualSearchSource::kContextualTasks);
-    session_handle->NotifySessionStarted();
-  }
-
-  // Update the session handle with the new task ID.
-  if (session_handle) {
-    session_handle->CheckSearchContentSharingSettings(
-        browser_window_->GetProfile()->GetPrefs());
-    auto* helper = ContextualSearchWebContentsHelper::GetOrCreateForWebContents(
-        web_contents);
-    helper->SetTaskSession(task_id, std::move(session_handle));
-  }
 }
 
 contextual_search::ContextualSearchSessionHandle*
@@ -962,6 +944,14 @@ ContextualTasksSidePanelCoordinator::GetAutoSuggestedTabHandle() {
   return active_tab_interface
              ? std::make_optional(active_tab_interface->GetHandle())
              : std::nullopt;
+}
+
+void ContextualTasksSidePanelCoordinator::OnEntryShown(SidePanelEntry* entry) {
+  NotifyActiveTaskContextProvider();
+}
+
+void ContextualTasksSidePanelCoordinator::OnEntryHidden(SidePanelEntry* entry) {
+  NotifyActiveTaskContextProvider();
 }
 
 }  // namespace contextual_tasks

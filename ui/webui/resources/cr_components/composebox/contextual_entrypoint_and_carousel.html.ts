@@ -11,13 +11,11 @@ import type {ContextualEntrypointAndCarouselElement} from './contextual_entrypoi
 export function getHtml(this: ContextualEntrypointAndCarouselElement) {
   const showDescription =
       this.showContextMenuDescription_ && !this.shouldShowRecentTabChip_;
-  const toolChipsVisible = this.shouldShowRecentTabChip_ ||
-      this.inDeepSearchMode_ || this.inCreateImageMode_;
   const toolChips = html`
         ${
       this.shouldShowRecentTabChip_ ? html`
         <composebox-recent-tab-chip id="recentTabChip"
-            class="upload-button"
+            class="upload-button contextual-chip"
             .recentTab="${this.recentTabForChip_}"
             @add-tab-context="${this.addTabContext_}">
         </composebox-recent-tab-chip>
@@ -25,7 +23,7 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
                                       ''}
       ${
       this.shouldShowLensSearchChip_ ? html`
-        <cr-composebox-lens-search id="lensSearchChip" class="upload-button">
+        <cr-composebox-lens-search id="lensSearchChip" class="upload-button contextual-chip">
         </cr-composebox-lens-search>
       ` :
                                        ''}
@@ -85,7 +83,7 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
       this.searchboxLayoutMode === 'Compact' && this.showVoiceSearch ?
           voiceSearchButton :
           ''}
-        ${this.shouldShowToolChips_ ? toolChips : ''}
+        ${this.shouldShowToolChipsForTallMode_ ? toolChips : ''}
         ${
       this.searchboxLayoutMode === 'TallTopContext' && this.showVoiceSearch ?
           voiceSearchButton :
@@ -120,7 +118,7 @@ export function getHtml(this: ContextualEntrypointAndCarouselElement) {
   ` : ''}
   <!-- Suggestions are slotted in from the parent component. -->
   <slot id="dropdownMatches"></slot>
-  ${this.searchboxLayoutMode === 'Compact' && toolChipsVisible && this.entrypointName === 'Realbox' ? html`
+  ${this.shouldShowToolChipsForCompactMode_ ? html`
     <div class="context-menu-container" id="toolChipsContainer"
         part="tool-chips-container">${toolChips}</div>
   ` : ''}

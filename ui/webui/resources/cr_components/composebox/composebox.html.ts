@@ -28,14 +28,16 @@ export function getHtml(this: ComposeboxElement) {
     </div>`;
   // clang-format off
   return html`<!--_html_template_start_-->
-  <search-animated-glow
-      animation-state="${this.animationState}"
-      .entrypointName="${this.entrypointName}"
-      .requiresVoice="${this.shouldShowVoiceSearchAnimation_()}"
-      .transcript="${this.transcript_}"
-      .receivedSpeech="${this.receivedSpeech_}"
-      exportparts="composebox-background">
-  </search-animated-glow>
+  ${!this.disableComposeboxAnimation ? html`
+    <search-animated-glow
+        animation-state="${this.animationState}"
+        .entrypointName="${this.entrypointName}"
+        .requiresVoice="${this.shouldShowVoiceSearchAnimation_()}"
+        .transcript="${this.transcript_}"
+        .receivedSpeech="${this.receivedSpeech_}"
+        exportparts="composebox-background">
+    </search-animated-glow>
+  ` : ''}
   <ntp-error-scrim id="errorScrim" part="error-scrim"
     ?compact-mode="${this.searchboxLayoutMode === 'Compact' &&
                      this.contextFilesSize_ === 0}"
@@ -99,6 +101,7 @@ export function getHtml(this: ComposeboxElement) {
           searchbox-layout-mode="${this.searchboxLayoutMode}"
           ?carousel-on-top_="${this.carouselOnTop_}"
           ?show-voice-search="${this.shouldShowVoiceSearch_()}"
+          ?in-composebox="${this.inComposebox}"
           .submitButtonShown="${this.searchboxNextEnabled && this.submitEnabled_ && this.showSubmit_}">
         <cr-composebox-dropdown
             id="matches"

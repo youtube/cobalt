@@ -10,7 +10,7 @@
  * #css_wrapper_metadata_end */
 
 :host {
-  --composebox-context-menu-entrypoint-button-color: var(--color-sys-primary);
+  --composebox-context-menu-entrypoint-button-color: var(--color-sys-on-surface);
   --cr-composebox-custom-font-size: var(--omnibox-font-size);
   --cr-composebox-expanded-border-radius: 16px;
   --cr-composebox-file-thumbnail-remove-button-fill-color: var(--color-omnibox-results-icon);
@@ -26,6 +26,7 @@
   --cr-composebox-text-container-padding-block-start: 0;
   --search-animated-glif-rotation-duration: 2000ms;
   --cr-composebox-cancel-button-top: 5px;
+  --cr-composebox-voice-icon-fill-color: var(--color-sys-on-surface);
 }
 
 cr-composebox {
@@ -69,7 +70,8 @@ cr-composebox {
   --cr-composebox-submit-button-margin-inline-start: auto;
   --cr-composebox-suggestion-activity-bottom: 0;
   --cr-composebox-suggestion-activity-margin-top: 0;
-
+  --cr-composebox-submit-container-top: auto;
+  --cr-composebox-voice-icon-top: auto;
   position: relative;
 }
 
@@ -82,4 +84,37 @@ cr-composebox[searchbox-layout-mode="Compact"]::part(context-menu-entrypoint-ico
   --cr-icon-button-size: 28px;
   left: 12px;
   top: 14px;
+}
+
+cr-composebox::part(voice-icon) {
+  --cr-icon-button-fill-color: var(--cr-composebox-voice-icon-fill-color);
+}
+
+cr-composebox[searchbox-layout-mode="TallBottomContext"]::part(voice-icon) {
+  bottom: 6px;
+}
+
+cr-composebox[show-submit_][submit-enabled_][searchbox-layout-mode="TallBottomContext"]:not([show-dropdown_])::part(submit) {
+    bottom: 6px;
+}
+
+cr-composebox[searchbox-layout-mode="TallTopContext"] {
+  --cr-composebox-submit-button-margin-inline-start: 0;
+}
+
+cr-composebox[show-submit_][submit-enabled_][searchbox-layout-mode='TallBottomContext']::part(voice-icon) {
+  inset-inline-end: calc(var(--cr-composebox-submit-container-size) + 10px);
+}
+
+cr-composebox[searchbox-layout-mode="TallBottomContext"][show-dropdown_]::part(voice-icon) {
+  bottom: 9px;
+}
+
+cr-composebox[show-submit_][submit-enabled_][searchbox-layout-mode='TallBottomContext']::part(carousel-divider) {
+  display: none;
+}
+
+:host-context([dir='rtl']) cr-composebox[searchbox-layout-mode="Compact"]::part(context-menu-entrypoint-icon) {
+  left: unset;
+  right: 12px;
 }
