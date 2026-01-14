@@ -159,16 +159,20 @@ base::NoDestructor<UpdaterModule>* UpdaterModule::updater_module_ = nullptr;
 void UpdaterModule::CreateInstance(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     base::TimeDelta update_check_delay) {
-  DCHECK(!updater_module_)
-      << "UpdaterModule is already created. Use UpdaterModule::GetInstance() "
-         "to get the instance.";
+  if (updater_module_) {
+    LOG(WARNING)
+        << "UpdaterModule is already created. Use UpdaterModule::GetInstance() "
+           "to get the instance.";
+    return;
+  }
   updater_module_ = new base::NoDestructor<UpdaterModule>(
       std::move(url_loader_factory), update_check_delay);
 }
 
 UpdaterModule* UpdaterModule::GetInstance() {
-  DCHECK(updater_module_) << "UpdaterModule is not created yet, and cannot be "
-                             "retrieved by UpdaterModule::GetInstance().";
+  LOG_IF(WARNING, !updater_module_)
+      << "UpdaterModule is not created yet, and cannot be "
+         "retrieved by UpdaterModule::GetInstance().";
   return updater_module_->get();
 }
 

@@ -90,9 +90,16 @@ void H5vccUpdaterImpl::SetAllowSelfSignedPackages(
 void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(USE_EVERGREEN)
-  std::string url =
-      cobalt::updater::UpdaterModule::GetInstance()->GetUpdateServerUrl();
-  std::move(callback).Run(url);
+  auto updater_module = cobalt::updater::UpdaterModule::GetInstance();
+  if (updater_module) {
+    std::string url = updater_module->GetUpdateServerUrl();
+    std::move(callback).Run(url);
+  } else {
+    LOG(ERROR)
+        << "H5vccUpdaterImpl::GetUpdateServerUrl: UpdaterModule instance "
+           "is not available.";
+    std::move(callback).Run("");
+  }
 #else
   NOTIMPLEMENTED();
 #endif
