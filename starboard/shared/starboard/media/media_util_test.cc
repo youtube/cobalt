@@ -120,29 +120,6 @@ TEST(VideoStreamInfoTest, SbMediaVideoStreamInfo) {
   EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
 }
 
-<<<<<<< HEAD
-TEST(VideoStreamInfoTest, CobaltExtensionEnhancedAudioMediaVideoStreamInfo) {
-  CobaltExtensionEnhancedAudioMediaVideoStreamInfo original = {};
-
-  original.codec = kSbMediaVideoCodecAv1;
-  original.mime = "video/mp4";
-  original.max_video_capabilities = "width=3840";
-  original.frame_width = 1080;
-  original.frame_height = 1920;
-
-  VideoStreamInfo video_stream_info(original);
-
-  EXPECT_EQ(original.codec, video_stream_info.codec);
-  EXPECT_EQ(original.mime, video_stream_info.mime);
-  EXPECT_EQ(original.max_video_capabilities,
-            video_stream_info.max_video_capabilities);
-  EXPECT_EQ(original.frame_width, video_stream_info.frame_width);
-  EXPECT_EQ(original.frame_height, video_stream_info.frame_height);
-  EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
-}
-
-=======
->>>>>>> 7910c6b362f (starboard: Remove the deprecated EnhancedAudio extension (#8635))
 TEST(AudioSampleInfoTest, DefaultCtor) {
   AudioSampleInfo audio_sample_info;
 
@@ -215,35 +192,6 @@ TEST(VideoSampleInfoTest, SbMediaVideoSampleInfo) {
             video_sample_info.stream_info.color_metadata);
 }
 
-<<<<<<< HEAD
-TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
-  CobaltExtensionEnhancedAudioMediaVideoSampleInfo original = {};
-  CobaltExtensionEnhancedAudioMediaVideoStreamInfo& stream_info =
-      original.stream_info;
-
-  original.is_key_frame = true;
-  stream_info.codec = kSbMediaVideoCodecAv1;
-  stream_info.mime = "video/mp4";
-  stream_info.max_video_capabilities = "width=3840";
-  stream_info.frame_width = 1080;
-  stream_info.frame_height = 1920;
-
-  VideoSampleInfo video_sample_info(original);
-
-  EXPECT_EQ(original.is_key_frame, video_sample_info.is_key_frame);
-  EXPECT_EQ(stream_info.codec, video_sample_info.stream_info.codec);
-  EXPECT_EQ(stream_info.mime, video_sample_info.stream_info.mime);
-  EXPECT_EQ(stream_info.max_video_capabilities,
-            video_sample_info.stream_info.max_video_capabilities);
-  EXPECT_EQ(stream_info.frame_width, video_sample_info.stream_info.frame_width);
-  EXPECT_EQ(stream_info.frame_height,
-            video_sample_info.stream_info.frame_height);
-  EXPECT_EQ(stream_info.color_metadata,
-            video_sample_info.stream_info.color_metadata);
-}
-
-=======
->>>>>>> 7910c6b362f (starboard: Remove the deprecated EnhancedAudio extension (#8635))
 TEST(MediaUtilTest, AudioDurationToFrames) {
   EXPECT_EQ(AudioDurationToFrames(0, 48000), 0);
   EXPECT_EQ(AudioDurationToFrames(1'000'000LL / 2, 48000), 48000 / 2);
