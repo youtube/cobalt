@@ -37,7 +37,14 @@
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_graphics_context_3d_provider.h"
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder_encoder_wrapper.h"
+<<<<<<< HEAD
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder_handler.h"
+=======
+#include "third_party/blink/renderer/modules/mediarecorder/vea_encoder.h"
+#if !BUILDFLAG(IS_STARBOARD)
+#include "third_party/blink/renderer/modules/mediarecorder/vpx_encoder.h"
+#endif
+>>>>>>> 6244b85f82d (Nolibvpx (#8468))
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_util.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
@@ -1052,8 +1059,93 @@ void VideoTrackRecorderImpl::InitializeEncoder(
   auto encoder = CreateMediaVideoEncoder(encoding_task_runner, codec_profile,
                                          is_screencast, create_vea_encoder);
 
+<<<<<<< HEAD
   UmaHistogramForCodec(create_vea_encoder, codec_profile.codec_id);
   CHECK(encoder);
+=======
+  std::unique_ptr<Encoder> encoder;
+  base::WeakPtr<Encoder> weak_encoder;
+  scoped_refptr<base::SequencedTaskRunner> encoding_task_runner;
+  if (allow_vea_encoder && can_use_vea) {
+    // TODO(b/227350897): remove once codec histogram is verified working
+    UMA_HISTOGRAM_BOOLEAN("Media.MediaRecorder.VEAUsed", true);
+    UmaHistogramForCodec(true, codec_profile.codec_id);
+    encoding_task_runner =
+        Platform::Current()->GetGpuFactories()->GetTaskRunner();
+
+    const auto [vea_profile, vbr_supported] =
+        codec_profile.profile
+            ? GetCodecEnumerator()->FindSupportedVideoCodecProfile(
+                  codec_profile.codec_id, *codec_profile.profile)
+            : GetCodecEnumerator()->GetFirstSupportedVideoCodecProfile(
+                  codec_profile.codec_id);
+
+    bool use_import_mode =
+        frame->storage_type() == media::VideoFrame::STORAGE_GPU_MEMORY_BUFFER;
+    // VBR encoding is preferred.
+    media::Bitrate::Mode bitrate_mode = vbr_supported
+                                            ? media::Bitrate::Mode::kVariable
+                                            : media::Bitrate::Mode::kConstant;
+
+    auto vea_encoder = std::make_unique<VEAEncoder>(
+        encoding_task_runner, on_encoded_video_cb,
+        base::BindPostTask(
+            main_thread_task_runner_,
+            WTF::BindRepeating(&VideoTrackRecorderImpl::OnHardwareEncoderError,
+                               weak_factory_.GetWeakPtr())),
+        bitrate_mode, bits_per_second, vea_profile, codec_profile.level,
+        input_size, use_import_mode);
+    weak_encoder = vea_encoder->GetWeakPtr();
+    encoder = std::move(vea_encoder);
+  } else {
+    // TODO(b/227350897): remove once codec histogram is verified working
+    UMA_HISTOGRAM_BOOLEAN("Media.MediaRecorder.VEAUsed", false);
+    UmaHistogramForCodec(false, codec_profile.codec_id);
+    encoding_task_runner =
+        base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
+    switch (codec_profile.codec_id) {
+#if BUILDFLAG(RTC_USE_H264)
+      case CodecId::kH264: {
+        auto h264_encoder = std::make_unique<H264Encoder>(
+            encoding_task_runner, on_encoded_video_cb, codec_profile,
+            bits_per_second);
+        weak_encoder = h264_encoder->GetWeakPtr();
+        encoder = std::move(h264_encoder);
+      } break;
+#endif
+      case CodecId::kVp8:
+      case CodecId::kVp9: {
+#if !BUILDFLAG(IS_STARBOARD)
+        auto vpx_encoder = std::make_unique<VpxEncoder>(
+            encoding_task_runner, codec_profile.codec_id == CodecId::kVp9,
+            on_encoded_video_cb, bits_per_second);
+        weak_encoder = vpx_encoder->GetWeakPtr();
+        encoder = std::move(vpx_encoder);
+#else
+        NOTREACHED() << "LibVPX is not enabled";
+#endif
+      } break;
+#if BUILDFLAG(ENABLE_LIBAOM)
+      case CodecId::kAv1: {
+        CHECK(on_error_cb_);
+        // TODO(crbug.com/1424974): Use MediaRecorderEncoderWrapper for other
+        // codecs.
+        auto video_encoder = std::make_unique<MediaRecorderEncoderWrapper>(
+            encoding_task_runner,
+            codec_profile.profile.value_or(media::AV1PROFILE_PROFILE_MAIN),
+            bits_per_second,
+            GetCreateSoftwareVideoEncoderCallback(codec_profile.codec_id),
+            on_encoded_video_cb, std::move(on_error_cb_));
+        weak_encoder = video_encoder->GetWeakPtr();
+        encoder = std::move(video_encoder);
+      } break;
+#endif  // BUILDFLAG(ENABLE_LIBAOM)
+      default:
+        NOTREACHED() << "Unsupported codec "
+                     << static_cast<int>(codec_profile.codec_id);
+    }
+  }
+>>>>>>> 6244b85f82d (Nolibvpx (#8468))
 
   auto metrics_provider =
       callback_interface()->Get()
