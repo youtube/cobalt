@@ -23,6 +23,7 @@
 #include "media/base/starboard/starboard_renderer_config.h"
 #include "media/base/timestamp_constants.h"
 #include "media/starboard/bind_host_receiver_callback.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace media {
 
@@ -37,6 +38,7 @@ struct MEDIA_EXPORT RendererFactoryTraits {
   std::string max_video_capabilities;
   bool enable_flush_during_seek = false;
   bool enable_reset_audio_decoder = false;
+  gfx::Size viewport_size;
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 

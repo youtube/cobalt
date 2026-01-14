@@ -26,6 +26,8 @@
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/blink/public/web/web_view.h"
+#include "ui/gfx/geometry/size_conversions.h"
 
 namespace cobalt {
 
@@ -222,6 +224,13 @@ void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderThread::Get()->BindHostReceiver(
         h5vcc_settings_remote_.BindNewPipeAndPassReceiver());
   }
+
+  if (render_frame->GetWebView()) {
+    viewport_size_ =
+        gfx::ToCeiledSize(render_frame->GetWebView()->VisualViewportSize());
+  } else {
+    LOG(WARNING) << "RenderFrameCreated is called with no webview.";
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -328,6 +337,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->enable_reset_audio_decoder =
       parsed.enable_reset_audio_decoder;
 
+  renderer_factory_traits->viewport_size = viewport_size_;
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =
       base::BindPostTaskToCurrentDefault(
