@@ -499,9 +499,8 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
-      - name: Process Test Results
+      - name: Test Results
         if: steps.filter.outputs.skipped != 'true'
-        id: process-results
         uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
@@ -519,8 +518,13 @@ jobs:
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
+<<<<<<< HEAD
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           test_status: ${{ steps.process-results.outcome }}
+=======
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
+>>>>>>> 2906b9b78ce (ci: Improve readability for CI test results (#7850))
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
