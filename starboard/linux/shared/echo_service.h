@@ -17,8 +17,7 @@
 
 namespace starboard {
 
-const char* const kEchoServiceName =
-    "com.google.youtube.tv.Echo";
+const char* const kEchoServiceName = "com.google.youtube.tv.Echo";
 
 const void* GetEchoServiceApi();
 

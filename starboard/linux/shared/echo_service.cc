@@ -14,10 +14,11 @@
 
 #include "starboard/linux/shared/echo_service.h"
 
-#include <memory>
-#include <string>
 #include <pthread.h>
 #include <unistd.h>
+
+#include <memory>
+#include <string>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -46,9 +47,7 @@ typedef struct EchoServiceImpl : public PlatformServiceImpl {
   bool should_shutdown;
   std::vector<pthread_t> workers;
 
-  EchoServiceImpl(
-      void* context,
-      ReceiveMessageCallback receive_callback)
+  EchoServiceImpl(void* context, ReceiveMessageCallback receive_callback)
       : PlatformServiceImpl(context, receive_callback), should_shutdown(false) {
     pthread_mutex_init(&m, NULL);
     pthread_cond_init(&cv, NULL);
@@ -57,9 +56,7 @@ typedef struct EchoServiceImpl : public PlatformServiceImpl {
   // Default constructor.
   EchoServiceImpl() = default;
 
-  ~EchoServiceImpl() {
-    CleanUpWorkers();
-  }
+  ~EchoServiceImpl() { CleanUpWorkers(); }
 
   static void* AsyncResponseTrampoline(void* args) {
     std::unique_ptr<ThreadArgs> thread_args(static_cast<ThreadArgs*>(args));
@@ -76,16 +73,14 @@ typedef struct EchoServiceImpl : public PlatformServiceImpl {
     auto args = std::make_unique<ThreadArgs>();
     args->platform_service_instance = this;
     args->response = response;
-    pthread_create(&id,
-                   NULL,
-                   &EchoServiceImpl::AsyncResponseTrampoline,
+    pthread_create(&id, NULL, &EchoServiceImpl::AsyncResponseTrampoline,
                    args.release());
     workers.push_back(id);
   }
 
   void RespondAsynchronously(const std::string& response) {
     int64_t work_time_us =
-      starboard::CurrentPosixTime() + kAsyncResponseDelaySec * 1'000'000;
+        starboard::CurrentPosixTime() + kAsyncResponseDelaySec * 1'000'000;
     struct timespec work_time = {0};
     work_time.tv_sec = work_time_us / 1'000'000;
     work_time.tv_nsec = (work_time_us % 1'000'000) * 1000;
@@ -104,7 +99,8 @@ typedef struct EchoServiceImpl : public PlatformServiceImpl {
     }
 
     pthread_mutex_unlock(&m);
-    receive_callback(context, static_cast<const void*>(response.c_str()), response.length());
+    receive_callback(context, static_cast<const void*>(response.c_str()),
+                     response.length());
   }
 
   void CleanUpWorkers() {
@@ -173,7 +169,8 @@ void* Send(PlatformServiceImpl* service,
   // Rather than manage a thread pool we just create a new worker thread for
   // each Send() request. This should be fine since this service is only used
   // for testing.
-  static_cast<EchoServiceImpl*>(service)->StartAsyncResponseThread(async_response);
+  static_cast<EchoServiceImpl*>(service)->StartAsyncResponseThread(
+      async_response);
 
   // Return the sync response.
   *output_length = sync_response.length();
