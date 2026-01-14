@@ -29,9 +29,11 @@ SRC_ROOT_PATH = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), os.path.pardir, os.path.pardir,
     os.path.pardir)
 GN_PY_PATH = os.path.join(SRC_ROOT_PATH, 'cobalt', 'build', 'gn.py')
-COVERAGE_TOOL_PATH = os.path.join(SRC_ROOT_PATH, 'cobalt', 'tools',
-                                  'code_coverage',
-                                  'cobalt_code_coverage_bridge.py')
+COVERAGE_PY_PATH = os.path.join(SRC_ROOT_PATH, 'tools', 'code_coverage',
+                                'coverage.py')
+LLVM_RELEASE_ASSERTS_DIR = os.path.join(SRC_ROOT_PATH, 'third_party',
+                                        'llvm-build', 'Release+Asserts')
+LLVM_BIN_DIR = os.path.join(LLVM_RELEASE_ASSERTS_DIR, 'bin')
 TEST_TARGETS_DIR = os.path.join(SRC_ROOT_PATH, 'cobalt', 'build', 'testing',
                                 'targets')
 
@@ -131,7 +133,9 @@ def run_coverage_for_target(target, args, build_dir, discovery_platform):
 
   coverage_command = [
       sys.executable,
-      COVERAGE_TOOL_PATH,
+      COVERAGE_PY_PATH,
+      '--coverage-tools-dir',
+      LLVM_BIN_DIR,
       '-b',
       build_dir,
       '-o',
@@ -158,6 +162,28 @@ def main():
   Main function to run the end-to-end code coverage process.
   """
   args = parse_args()
+
+  expected_entries = [
+      'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+  ]
+  if not os.path.isdir(LLVM_RELEASE_ASSERTS_DIR):
+    print(
+        f'Error: LLVM build directory not found at {LLVM_RELEASE_ASSERTS_DIR}')
+    print('Please run `gclient sync --no-history -r $(git rev-parse @)` ' \
+          'to install them.')
+    return 1
+
+  actual_entries = os.listdir(LLVM_RELEASE_ASSERTS_DIR)
+  missing_entries = [
+      entry for entry in expected_entries if entry not in actual_entries
+  ]
+  if missing_entries:
+    print(f'Error: The LLVM build directory {LLVM_RELEASE_ASSERTS_DIR} ' \
+          'is incomplete.')
+    print(f"Missing entries: {', '.join(missing_entries)}")
+    print('Please run `gclient sync --no-history -r $(git rev-parse @)` ' \
+          'to ensure a complete installation.')
+    return 1
 
   discovery_platform = {
       'android-x86': 'android-arm',
