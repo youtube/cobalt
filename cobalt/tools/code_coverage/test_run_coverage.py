@@ -18,7 +18,6 @@ Tests for the run_coverage.py script.
 
 import argparse
 import os
-import subprocess
 import sys
 import unittest
 from unittest import mock
@@ -37,10 +36,11 @@ class RunCoverageTest(unittest.TestCase):
       ])
   @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.makedirs')
-  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
+  @mock.patch(
+      'cobalt.tools.code_coverage.run_coverage.run_command', return_value=True)
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_success_with_targets(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_check_call, mock_makedirs, mock_isdir,
+      self, mock_arg_parser, mock_run_command, mock_makedirs, mock_isdir,
       mock_listdir):
     """
     Tests successful execution when targets are provided as arguments.
@@ -88,7 +88,7 @@ class RunCoverageTest(unittest.TestCase):
         '--format=lcov',
         executable_name,
     ]
-    mock_check_call.assert_has_calls([
+    mock_run_command.assert_has_calls([
         mock.call(expected_gn_command),
         mock.call(expected_build_command),
         mock.call(expected_coverage_command)
@@ -105,10 +105,11 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1', 'target2'])
-  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
+  @mock.patch(
+      'cobalt.tools.code_coverage.run_coverage.run_command', return_value=True)
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_success_no_targets(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_check_call, mock_discover_targets,
+      self, mock_arg_parser, mock_run_command, mock_discover_targets,
       mock_makedirs, mock_isdir, mock_listdir):
     """
     Tests successful execution when targets are auto-discovered.
@@ -160,7 +161,7 @@ class RunCoverageTest(unittest.TestCase):
       ]
       expected_calls.append(mock.call(expected_coverage_command))
 
-    mock_check_call.assert_has_calls(expected_calls)
+    mock_run_command.assert_has_calls(expected_calls)
     self.assertEqual(result, 0)
 
   @mock.patch(
@@ -208,13 +209,12 @@ class RunCoverageTest(unittest.TestCase):
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1'])
   @mock.patch(
-      'cobalt.tools.code_coverage.run_coverage.subprocess.check_call',
-      side_effect=subprocess.CalledProcessError(1, 'gn.py'))
+      'cobalt.tools.code_coverage.run_coverage.run_command', return_value=False)
   @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
   def test_gn_py_failure(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_print, mock_check_call, mock_discover_targets,
-      mock_isdir, mock_listdir):
+      self, mock_arg_parser, mock_print, mock_run_command,
+      mock_discover_targets, mock_isdir, mock_listdir):
     """
     Tests that the script exits gracefully if gn.py fails.
     """
@@ -232,9 +232,8 @@ class RunCoverageTest(unittest.TestCase):
 
     mock_discover_targets.assert_called_once_with(
         '/test/src/root/cobalt/build/testing/targets', 'android-arm')
-    mock_check_call.assert_called_once()
-    mock_print.assert_any_call(
-        f"Error running gn.py: {subprocess.CalledProcessError(1, 'gn.py')}")
+    mock_run_command.assert_called_once()
+    mock_print.assert_any_call('Error running gn.py')
     self.assertEqual(result, 1)
 
   @mock.patch(
@@ -245,14 +244,12 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.makedirs')
   @mock.patch(
-      'cobalt.tools.code_coverage.run_coverage.subprocess.check_call',
-      side_effect=[
-          0, 0, subprocess.CalledProcessError(1, 'code_coverage_tool.py')
-      ])
+      'cobalt.tools.code_coverage.run_coverage.run_command',
+      side_effect=[True, True, False])
   @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
   def test_coverage_tool_failure(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_print, mock_check_call, mock_makedirs,
+      self, mock_arg_parser, mock_print, mock_run_command, mock_makedirs,
       mock_isdir, mock_listdir):
     """
     Tests that the script exits gracefully if code_coverage_tool.py fails.
@@ -269,10 +266,9 @@ class RunCoverageTest(unittest.TestCase):
 
     result = run_coverage.main()
 
-    self.assertEqual(mock_check_call.call_count, 3)
+    self.assertEqual(mock_run_command.call_count, 3)
     mock_print.assert_any_call(
-        'Error running code_coverage_tool.py for target target: '
-        f"{subprocess.CalledProcessError(1, 'code_coverage_tool.py')}")
+        'Code coverage process completed with some errors.')
     self.assertEqual(result, 0)  # Should continue to next target
 
   @mock.patch('os.path.exists')
@@ -334,7 +330,8 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1', 'target2'])
-  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
+  @mock.patch(
+      'cobalt.tools.code_coverage.run_coverage.run_command', return_value=True)
   @mock.patch('argparse.ArgumentParser')
   def test_platform_reuse(  # pylint: disable=too-many-positional-arguments
       self, mock_arg_parser, mock_check_call, mock_discover_targets, mock_isdir,
@@ -376,10 +373,11 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch('os.makedirs')
   @mock.patch('os.path.exists', return_value=True)
   @mock.patch('builtins.open', new_callable=mock.mock_open)
-  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
+  @mock.patch(
+      'cobalt.tools.code_coverage.run_coverage.run_command', return_value=True)
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_with_test_filters(  # pylint: disable=too-many-positional-arguments
-      self, mock_arg_parser, mock_check_call, mock_open, mock_exists,
+      self, mock_arg_parser, mock_run_command, mock_open, mock_exists,
       mock_makedirs, mock_isdir, mock_listdir):
     """
     Tests successful execution when test filters are applied.
@@ -431,7 +429,7 @@ class RunCoverageTest(unittest.TestCase):
         '--format=lcov',
         executable_name,
     ]
-    mock_check_call.assert_has_calls([
+    mock_run_command.assert_has_calls([
         mock.call(expected_gn_command),
         mock.call(expected_build_command),
         mock.call(expected_coverage_command)
@@ -444,11 +442,12 @@ class RunCoverageTest(unittest.TestCase):
           'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
       ])
   @mock.patch('os.path.isdir', return_value=True)
-  @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
+  @mock.patch(
+      'cobalt.tools.code_coverage.run_coverage.run_command', return_value=True)
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_skips_fully_filtered_target(self, mock_arg_parser,
-                                                    mock_check_call, mock_isdir,
-                                                    mock_listdir):
+                                                    mock_run_command,
+                                                    mock_isdir, mock_listdir):
     """
     Tests that a target is skipped if all its tests are filtered out.
     """
@@ -472,7 +471,7 @@ class RunCoverageTest(unittest.TestCase):
 
     # NOTHING should run because the only target was filtered out before any
     # external commands.
-    self.assertEqual(mock_check_call.call_count, 0)
+    self.assertEqual(mock_run_command.call_count, 0)
     self.assertEqual(result, 0)
 
   @mock.patch('os.path.isdir', return_value=False)

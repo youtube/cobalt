@@ -38,6 +38,19 @@ class CoverageConfig:
   filters: list = None
 
 
+def run_command(command):
+  """
+  Run a command and handle errors.
+  """
+  print(f"Running command: {' '.join(command)}")
+  try:
+    subprocess.check_call(command)
+    return True
+  except subprocess.CalledProcessError as e:
+    print(f'Error running command: {e}')
+    return False
+
+
 def discover_targets(test_targets_dir, platform):
   """
   Discover test targets for a given platform by scanning the build testing
@@ -147,13 +160,7 @@ def run_coverage_for_target(config, target):
       coverage_command.extend(['-f', f])
   coverage_command.extend(['--format=lcov', executable_name])
 
-  print(f'Running command: {" ".join(coverage_command)}')  # pylint: disable=inconsistent-quotes
-  try:
-    subprocess.check_call(coverage_command)
-    return True
-  except subprocess.CalledProcessError as e:
-    print(f'Error running code_coverage_tool.py for target {target}: {e}')
-    return False
+  return run_command(coverage_command)
 
 
 def main():
@@ -211,6 +218,8 @@ def main():
   # Also explicitly skip blink_unittests as they have linking
   # issues in coverage builds. Also skip perftests as they are not
   # suitable for coverage.
+  # TODO(b/475289841): Remove blink_unittest and
+  # possibly blink_perftest filters.
   targets = [
       t for t in targets
       if not is_target_skipped(src_root, t, discovery_platform) and
@@ -226,22 +235,16 @@ def main():
   # 1. Run gn.py with --coverage
   build_dir = os.path.join('out', f'{args.platform}_devel')
   gn_command = [sys.executable, gn_py_path, '-p', args.platform, '--coverage']
-  print(f"Running command: {' '.join(gn_command)}")
-  try:
-    subprocess.check_call(gn_command)
-  except subprocess.CalledProcessError as e:
-    print(f'Error running gn.py: {e}')
+  if not run_command(gn_command):
+    print('Error running gn.py')
     return 1
 
   # 2. Build all targets
   print(f"Building targets: {', '.join(targets)}")
   build_command = ['autoninja', '-C', build_dir
                   ] + [target.split(':')[-1] for target in targets]
-  print(f"Running command: {' '.join(build_command)}")
-  try:
-    subprocess.check_call(build_command)
-  except subprocess.CalledProcessError as e:
-    print(f'Error building targets: {e}')
+  if not run_command(build_command):
+    print('Error building targets')
     return 1
 
   config = CoverageConfig(
