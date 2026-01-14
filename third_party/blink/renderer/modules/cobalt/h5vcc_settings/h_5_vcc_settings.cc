@@ -31,12 +31,6 @@
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
-namespace {
-
-constexpr char kMediaAppendFirstSegmentSynchronously[] =
-    "Media.AppendFirstSegmentSynchronously";
-
-}  // namespace
 
 H5vccSettings::H5vccSettings(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
@@ -55,6 +49,7 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
       script_state, exception_state.GetContext());
   auto promise = resolver->Promise();
 
+<<<<<<< HEAD
   if (name == kMediaAppendFirstSegmentSynchronously) {
     if (value->IsLong()) {
       append_first_segment_synchronously_ = (value->GetAsLong() != 0);
@@ -76,6 +71,8 @@ ScriptPromise<IDLUndefined> H5vccSettings::set(
     return promise;
   }
 
+=======
+>>>>>>> 7b498a3ca5 (Revert "cobalt: Support synchronous MSE init segment append" (#8654))
   EnsureReceiverIsBound();
 
   h5vcc_settings::mojom::blink::ValuePtr mojo_value;

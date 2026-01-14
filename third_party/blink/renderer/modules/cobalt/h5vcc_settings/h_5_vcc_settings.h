@@ -15,8 +15,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_SETTINGS_H_5_VCC_SETTINGS_H_
 
-#include <optional>
-
 #include "cobalt/browser/h5vcc_settings/public/mojom/h5vcc_settings.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -49,10 +47,6 @@ class MODULES_EXPORT H5vccSettings final
                                   const V8UnionLongOrString* value,
                                   ExceptionState& exception_state);
 
-  std::optional<bool> GetAppendFirstSegmentSynchronously() const {
-    return append_first_segment_synchronously_;
-  }
-
   void Trace(Visitor*) const override;
 
  private:
@@ -65,9 +59,13 @@ class MODULES_EXPORT H5vccSettings final
   // Holds promises associated with outstanding async remote_h5vcc_settings_
   // requests so that they can be rejected in the case of a Mojo connection
   // error.
+<<<<<<< HEAD
   HeapHashSet<Member<ScriptPromiseResolver<IDLUndefined>>> ongoing_requests_;
 
   std::optional<bool> append_first_segment_synchronously_;
+=======
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
+>>>>>>> 7b498a3ca5 (Revert "cobalt: Support synchronous MSE init segment append" (#8654))
 };
 
 }  // namespace blink
