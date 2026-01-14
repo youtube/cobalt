@@ -10,7 +10,7 @@ class MockH5vccUpdater {
     this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
     this.receiver_ = new H5vccUpdaterReceiver(this);
     this.stub_result_ = new Map();
-    this.called_reset_installations_ = false;
+    this.reset();
   }
 
   start() {
@@ -24,7 +24,16 @@ class MockH5vccUpdater {
   reset() {
     this.stub_result_ = new Map();
     this.called_reset_installations_ = false;
-    this.receiver_.$.close();
+    this.updater_channel_ = "";
+    this.update_status_ = "";
+    this.installation_index_ = 0;
+    this.library_sha256_ = new Map();
+    this.allow_self_signed_packages_ = false;
+    this.update_server_url_ = "";
+    this.require_network_encryption_ = false;
+    if (this.receiver_) {
+        this.receiver_.$.close();
+    }
   }
 
   bind(handle) {
@@ -39,50 +48,64 @@ class MockH5vccUpdater {
     this.called_reset_installations_ = true;
   }
 
-  // --- H5vccUpdater Interface Methods Stubbed ---
+  // --- H5vccUpdater Interface Methods ---
 
   async setUpdaterChannel(channel) {
-    throw new Error('Test not implemented yet');
+    this.updater_channel_ = channel;
   }
 
   async getUpdaterChannel() {
-    throw new Error('Test not implemented yet');
+    return { channel: this.updater_channel_ };
+  }
+
+  setMockUpdateStatus(status) {
+    this.update_status_ = status;
   }
 
   async getUpdateStatus() {
-    throw new Error('Test not implemented yet');
+    return { status: this.update_status_ };
+  }
+
+  setMockInstallationIndex(index) {
+    console.log("setMockInstallationIndex");
+    this.installation_index_ = index;
   }
 
   async getInstallationIndex() {
-    throw new Error('Test not implemented yet');
+    return { index: this.installation_index_ };
   }
 
   async getAllowSelfSignedPackages() {
-    throw new Error('Test not implemented yet');
+    return { allow_self_signed_packages: this.allow_self_signed_packages_ };
   }
 
   async setAllowSelfSignedPackages(allow) {
-    throw new Error('Test not implemented yet');
+    throw new Error('Method is only supported for side-loading enabled release builds.');
   }
 
   async getUpdateServerUrl() {
-    throw new Error('Test not implemented yet');
+    return { update_server_url: this.update_server_url_ };
   }
 
   async setUpdateServerUrl(url) {
-    throw new Error('Test not implemented yet');
+    throw new Error('Method is only supported for side-loading enabled release builds.');
   }
 
   async getRequireNetworkEncryption() {
-    throw new Error('Test not implemented yet');
+    return { require_network_encryption: this.require_network_encryption_ };
   }
 
   async setRequireNetworkEncryption(require) {
-    throw new Error('Test not implemented yet');
+    throw new Error('Method is only supported for side-loading enabled release builds.');
+  }
+
+  setMockLibrarySha256(index, sha256) {
+    this.library_sha256_.set(index, sha256);
   }
 
   async getLibrarySha256(index) {
-    throw new Error('Test not implemented yet');
+    const sha256 = this.library_sha256_.get(index) || "";
+    return { sha256: sha256 };
   }
 }
 
