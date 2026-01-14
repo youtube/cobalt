@@ -372,6 +372,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
+                           void* surface_view,
                            bool enable_flush_during_seek,
                            int64_t reset_delay_usec,
                            int64_t flush_delay_usec,
@@ -386,6 +387,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
+      surface_view_(surface_view),
       enable_flush_during_seek_(enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
                                                             : 0),
@@ -699,7 +701,11 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   jobject j_output_surface = NULL;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
-      j_output_surface = AcquireVideoSurface();
+      if (surface_view_) {
+        j_output_surface = static_cast<jobject>(surface_view_);
+      } else {
+        j_output_surface = AcquireVideoSurface();
+      }
       if (j_output_surface) {
         owns_video_surface_ = true;
       }

@@ -67,6 +67,7 @@ class PlayerComponents {
                          int max_video_input_size,
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
+                         void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
@@ -77,6 +78,7 @@ class PlayerComponents {
                          int max_video_input_size,
                          bool flush_decoder_during_reset,
                          bool reset_audio_decoder,
+                         void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
                          SbDrmSystem drm_system = kSbDrmSystemInvalid);
@@ -126,6 +128,7 @@ class PlayerComponents {
         return flush_decoder_during_reset_;
       }
       bool reset_audio_decoder() const { return reset_audio_decoder_; }
+      void* surface_view() const { return surface_view_; }
       SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider() const {
         SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
@@ -149,6 +152,7 @@ class PlayerComponents {
       int max_video_input_size_ = 0;
       bool flush_decoder_during_reset_ = false;
       bool reset_audio_decoder_ = false;
+      void* surface_view_;
       SbDecodeTargetGraphicsContextProvider*
           decode_target_graphics_context_provider_ = nullptr;
 
