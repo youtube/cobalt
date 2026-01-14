@@ -13,9 +13,25 @@ inputs:
   num_gtest_shards:
     description: Number of gtest shards run.
     required: true
+
+outputs:
+  crash_detected:
+    description: "Whether a crash was detected in the test results."
+    value: ${{ steps.check-crashes.outputs.crash_detected }}
 runs:
   using: "composite"
   steps:
+    - name: Check for Crashes
+      id: check-crashes
+      shell: bash
+      run: |
+        set -x
+        shopt -s globstar nullglob
+        if grep -r "Test crashed" ${{ inputs.results_glob }}; then
+          echo "crash_detected=true" >> $GITHUB_OUTPUT
+        else
+          echo "crash_detected=false" >> $GITHUB_OUTPUT
+        fi
     - name: Create Test Summary
       id: test-summary
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
