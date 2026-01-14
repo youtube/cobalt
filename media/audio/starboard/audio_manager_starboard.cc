@@ -18,8 +18,8 @@
 #include "starboard/microphone.h"
 
 namespace {
-const char* kAudioManagerStarboardName = "AudioManagerStarboard";
-static const int kDefaultSampleRate = 48000;
+constexpr const char* kAudioManagerStarboardName = "AudioManagerStarboard";
+constexpr int kDefaultSampleRate = 48'000;
 }  // namespace
 
 namespace media {
@@ -36,13 +36,15 @@ bool AudioManagerStarboard::HasAudioOutputDevices() {
 }
 
 bool AudioManagerStarboard::HasAudioInputDevices() {
-  return SbMicrophoneGetAvailable(nullptr, 0) > 0;
+  return SbMicrophoneGetAvailable(/*out_info_array=*/nullptr,
+                                  /*info_array_size=*/0) > 0;
 }
 
 void AudioManagerStarboard::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
-  DCHECK(device_names->empty());
-  int microphone_count = SbMicrophoneGetAvailable(nullptr, 0);
+  CHECK(device_names->empty());
+  int microphone_count = SbMicrophoneGetAvailable(/*out_info_array=*/nullptr,
+                                                  /*info_array_size=*/0);
   if (microphone_count <= 0) {
     return;
   }

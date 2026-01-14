@@ -95,8 +95,9 @@ void AudioInputStreamStarboard::Close() {
   }
   closing_ = true;
   Stop();  // Stop the capture thread first.
-  if (microphone_) {
-    SbMicrophoneClose(microphone_);
+  if (SbMicrophoneIsValid(microphone_)) {
+    SbMicrophoneDestroy(microphone_);
+    microphone_ = kSbMicrophoneInvalid;
   }
   audio_manager_->ReleaseInputStream(this);
 }
