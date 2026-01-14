@@ -19,11 +19,7 @@
 #include "starboard/elf_loader/evergreen_config.h"
 #endif
 #include "starboard/extension/configuration.h"
-<<<<<<< HEAD
 #include "starboard/extension/crash_handler.h"
-#include "starboard/extension/enhanced_audio.h"
-=======
->>>>>>> 7910c6b362f (starboard: Remove the deprecated EnhancedAudio extension (#8635))
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -35,11 +31,7 @@
 #include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/platform_service.h"
-<<<<<<< HEAD
 #include "starboard/linux/shared/time_zone.h"
-#include "starboard/shared/enhanced_audio/enhanced_audio.h"
-=======
->>>>>>> 7910c6b362f (starboard: Remove the deprecated EnhancedAudio extension (#8635))
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 #include "starboard/shared/starboard/crash_handler.h"
