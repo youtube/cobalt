@@ -62,20 +62,22 @@ class RunCoverageTest(unittest.TestCase):
         output_dir=output_dir,
         targets=[target],
         filters=[filters],
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
 
     result = run_coverage.main()
 
     mock_makedirs.assert_called_once_with(target_output_dir, exist_ok=True)
     expected_gn_command = [
-        sys.executable, run_coverage.GN_PY_PATH, '-p', platform, '--coverage'
+        sys.executable, '/test/src/root/cobalt/build/gn.py', '-p', platform,
+        '--coverage'
     ]
     expected_build_command = ['autoninja', '-C', build_dir, executable_name]
     expected_coverage_command = [
         sys.executable,
-        run_coverage.COVERAGE_PY_PATH,
+        '/test/src/root/tools/code_coverage/coverage.py',
         '--coverage-tools-dir',
-        run_coverage.LLVM_BIN_DIR,
+        '/test/src/root/third_party/llvm-build/Release+Asserts/bin',
         '-b',
         build_dir,
         '-o',
@@ -123,13 +125,16 @@ class RunCoverageTest(unittest.TestCase):
         output_dir=output_dir,
         targets=[],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
 
     result = run_coverage.main()
 
-    mock_discover_targets.assert_called_once_with('android-arm')
+    mock_discover_targets.assert_called_once_with(
+        '/test/src/root/cobalt/build/testing/targets', 'android-arm')
     expected_gn_command = [
-        sys.executable, run_coverage.GN_PY_PATH, '-p', platform, '--coverage'
+        sys.executable, '/test/src/root/cobalt/build/gn.py', '-p', platform,
+        '--coverage'
     ]
     expected_build_command = [
         'autoninja', '-C', build_dir, 'target1', 'target2'
@@ -143,9 +148,9 @@ class RunCoverageTest(unittest.TestCase):
       expected_command = os.path.join(build_dir, target)
       expected_coverage_command = [
           sys.executable,
-          run_coverage.COVERAGE_PY_PATH,
+          '/test/src/root/tools/code_coverage/coverage.py',
           '--coverage-tools-dir',
-          run_coverage.LLVM_BIN_DIR,
+          '/test/src/root/third_party/llvm-build/Release+Asserts/bin',
           '-b',
           build_dir,
           '-o',
@@ -185,11 +190,13 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
 
     result = run_coverage.main()
 
-    mock_discover_targets.assert_called_once_with('android-arm')
+    mock_discover_targets.assert_called_once_with(
+        '/test/src/root/cobalt/build/testing/targets', 'android-arm')
     mock_print.assert_any_call(
         f'No test targets found for platform {platform}.')
     self.assertEqual(result, 1)
@@ -222,11 +229,13 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
 
     result = run_coverage.main()
 
-    mock_discover_targets.assert_called_once_with('android-arm')
+    mock_discover_targets.assert_called_once_with(
+        '/test/src/root/cobalt/build/testing/targets', 'android-arm')
     mock_check_call.assert_called_once()
     mock_print.assert_any_call(
         f"Error running gn.py: {subprocess.CalledProcessError(1, 'gn.py')}")
@@ -260,7 +269,8 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[target],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
 
     result = run_coverage.main()
 
@@ -303,21 +313,22 @@ class RunCoverageTest(unittest.TestCase):
 
     mock_open.side_effect = open_side_effect
 
+    test_targets_dir = '/test/src/root/cobalt/build/testing/targets'
+
     # Test for android-arm (remapped from android-x86)
-    targets_arm = run_coverage.discover_targets('android-arm')
+    targets_arm = run_coverage.discover_targets(test_targets_dir, 'android-arm')
     self.assertEqual(targets_arm,
                      ['android_arm_target1', 'android_arm_target2'])
     mock_exists.assert_any_call(
-        os.path.join(run_coverage.TEST_TARGETS_DIR, 'android-arm',
-                     'test_targets.json'))
+        os.path.join(test_targets_dir, 'android-arm', 'test_targets.json'))
 
     # Test for android-arm64 (remapped from android-x64)
-    targets_arm64 = run_coverage.discover_targets('android-arm64')
+    targets_arm64 = run_coverage.discover_targets(test_targets_dir,
+                                                  'android-arm64')
     self.assertEqual(targets_arm64,
                      ['android_arm64_target1', 'android_arm64_target2'])
     mock_exists.assert_any_call(
-        os.path.join(run_coverage.TEST_TARGETS_DIR, 'android-arm64',
-                     'test_targets.json'))
+        os.path.join(test_targets_dir, 'android-arm64', 'test_targets.json'))
 
   @mock.patch(
       'os.listdir',
@@ -345,9 +356,11 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
     run_coverage.main()
-    mock_discover_targets.assert_called_with('android-arm')
+    mock_discover_targets.assert_called_with(
+        '/test/src/root/cobalt/build/testing/targets', 'android-arm')
 
     # Test android-x64 reuses android-arm64
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -355,9 +368,11 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
     run_coverage.main()
-    mock_discover_targets.assert_called_with('android-arm64')
+    mock_discover_targets.assert_called_with(
+        '/test/src/root/cobalt/build/testing/targets', 'android-arm64')
 
   @mock.patch(
       'os.listdir',
@@ -385,8 +400,8 @@ class RunCoverageTest(unittest.TestCase):
     build_dir = f'out/{platform}_devel'
     base_command = os.path.join(build_dir, executable_name)
     target_output_dir = os.path.join(output_dir, sanitized_target)
-    filter_file_path = os.path.join(run_coverage.SRC_ROOT_PATH, 'cobalt',
-                                    'testing', 'filters', 'android-arm',
+    filter_file_path = os.path.join('/test/src/root', 'cobalt', 'testing',
+                                    'filters', 'android-arm',
                                     f'{executable_name}_filter.json')
     mock_filter_content = '{"failing_tests": ["Test.Fails", "Test.Crashes"]}'
     mock_open.side_effect = lambda path, *args, **kwargs: mock.mock_open(
@@ -399,20 +414,22 @@ class RunCoverageTest(unittest.TestCase):
         output_dir=output_dir,
         targets=[target],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
 
     result = run_coverage.main()
 
     mock_makedirs.assert_called_once_with(target_output_dir, exist_ok=True)
     expected_gn_command = [
-        sys.executable, run_coverage.GN_PY_PATH, '-p', platform, '--coverage'
+        sys.executable, '/test/src/root/cobalt/build/gn.py', '-p', platform,
+        '--coverage'
     ]
     expected_build_command = ['autoninja', '-C', build_dir, executable_name]
     expected_coverage_command = [
         sys.executable,
-        run_coverage.COVERAGE_PY_PATH,
+        '/test/src/root/tools/code_coverage/coverage.py',
         '--coverage-tools-dir',
-        run_coverage.LLVM_BIN_DIR,
+        '/test/src/root/third_party/llvm-build/Release+Asserts/bin',
         '-b',
         build_dir,
         '-o',
@@ -453,7 +470,8 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[target],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
 
     # Patch at the source where 'main' will find it.
     with mock.patch(
@@ -480,11 +498,13 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
     result = run_coverage.main()
     self.assertEqual(result, 1)
-    mock_print.assert_any_call(f'Error: LLVM build directory not found at '
-                               f'{run_coverage.LLVM_RELEASE_ASSERTS_DIR}')
+    mock_print.assert_any_call(
+        'Error: LLVM build directory not found at '
+        '/test/src/root/third_party/llvm-build/Release+Asserts')
 
   @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.listdir', return_value=['bin'])  # Incomplete entries
@@ -503,9 +523,10 @@ class RunCoverageTest(unittest.TestCase):
         output_dir='out/report',
         targets=[],
         filters=None,
-        jobs=1)
+        jobs=1,
+        src_root='/test/src/root')
     result = run_coverage.main()
     self.assertEqual(result, 1)
     mock_print.assert_any_call(
-        f'Error: The LLVM build directory '
-        f'{run_coverage.LLVM_RELEASE_ASSERTS_DIR} is incomplete.')
+        'Error: The LLVM build directory '
+        '/test/src/root/third_party/llvm-build/Release+Asserts is incomplete.')

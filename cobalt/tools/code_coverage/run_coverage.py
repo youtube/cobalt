@@ -24,28 +24,15 @@ import os
 import subprocess
 import sys
 
-# Absolute path to the root of the checkout.
-SRC_ROOT_PATH = os.path.join(
-    os.path.abspath(os.path.dirname(__file__)), os.path.pardir, os.path.pardir,
-    os.path.pardir)
-GN_PY_PATH = os.path.join(SRC_ROOT_PATH, 'cobalt', 'build', 'gn.py')
-COVERAGE_PY_PATH = os.path.join(SRC_ROOT_PATH, 'tools', 'code_coverage',
-                                'coverage.py')
-LLVM_RELEASE_ASSERTS_DIR = os.path.join(SRC_ROOT_PATH, 'third_party',
-                                        'llvm-build', 'Release+Asserts')
-LLVM_BIN_DIR = os.path.join(LLVM_RELEASE_ASSERTS_DIR, 'bin')
-TEST_TARGETS_DIR = os.path.join(SRC_ROOT_PATH, 'cobalt', 'build', 'testing',
-                                'targets')
 
-
-def discover_targets(platform):
+def discover_targets(test_targets_dir, platform):
   """
   Discover test targets for a given platform by scanning the build testing
   targets directory.
   """
   discovered_targets = []
-  print(f'Scanning for targets in: {TEST_TARGETS_DIR}')
-  target_file = os.path.join(TEST_TARGETS_DIR, platform, 'test_targets.json')
+  print(f'Scanning for targets in: {test_targets_dir}')
+  target_file = os.path.join(test_targets_dir, platform, 'test_targets.json')
   print(f'Checking for target file: {target_file}')
   if os.path.exists(target_file):
     with open(target_file, 'r', encoding='utf-8') as f:
@@ -88,16 +75,22 @@ def parse_args():
       type=int,
       default=1,
       help='The number of parallel jobs to run.')
+  parser.add_argument(
+      '--src-root',
+      default=os.path.join(
+          os.path.abspath(os.path.dirname(__file__)), os.path.pardir,
+          os.path.pardir, os.path.pardir),
+      help='Absolute path to the root of the checkout.')
 
   return parser.parse_args()
 
 
-def is_target_skipped(target, discovery_platform):
+def is_target_skipped(src_root, target, discovery_platform):
   """
   Check if a target should be skipped based on its filter file.
   """
   executable_name = target.split(':')[-1]
-  filter_file = os.path.join(SRC_ROOT_PATH, 'cobalt', 'testing', 'filters',
+  filter_file = os.path.join(src_root, 'cobalt', 'testing', 'filters',
                              discovery_platform,
                              f'{executable_name}_filter.json')
   if os.path.exists(filter_file):
@@ -108,7 +101,9 @@ def is_target_skipped(target, discovery_platform):
   return False
 
 
-def run_coverage_for_target(target, args, build_dir, discovery_platform):
+def run_coverage_for_target(  # pylint: disable=too-many-positional-arguments
+    src_root, coverage_py_path, llvm_bin_dir, target, args, build_dir,
+    discovery_platform):
   """
   Run code coverage for a single target.
   """
@@ -121,7 +116,7 @@ def run_coverage_for_target(target, args, build_dir, discovery_platform):
   command = os.path.join(build_dir, executable_name)
 
   # Add the test filters to the command.
-  filter_file = os.path.join(SRC_ROOT_PATH, 'cobalt', 'testing', 'filters',
+  filter_file = os.path.join(src_root, 'cobalt', 'testing', 'filters',
                              discovery_platform,
                              f'{executable_name}_filter.json')
   if os.path.exists(filter_file):
@@ -133,9 +128,9 @@ def run_coverage_for_target(target, args, build_dir, discovery_platform):
 
   coverage_command = [
       sys.executable,
-      COVERAGE_PY_PATH,
+      coverage_py_path,
       '--coverage-tools-dir',
-      LLVM_BIN_DIR,
+      llvm_bin_dir,
       '-b',
       build_dir,
       '-o',
@@ -163,22 +158,32 @@ def main():
   """
   args = parse_args()
 
+  src_root = args.src_root
+  gn_py_path = os.path.join(src_root, 'cobalt', 'build', 'gn.py')
+  coverage_py_path = os.path.join(src_root, 'tools', 'code_coverage',
+                                  'coverage.py')
+  llvm_release_asserts_dir = os.path.join(src_root, 'third_party', 'llvm-build',
+                                          'Release+Asserts')
+  llvm_bin_dir = os.path.join(llvm_release_asserts_dir, 'bin')
+  test_targets_dir = os.path.join(src_root, 'cobalt', 'build', 'testing',
+                                  'targets')
+
   expected_entries = [
       'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
   ]
-  if not os.path.isdir(LLVM_RELEASE_ASSERTS_DIR):
+  if not os.path.isdir(llvm_release_asserts_dir):
     print(
-        f'Error: LLVM build directory not found at {LLVM_RELEASE_ASSERTS_DIR}')
+        f'Error: LLVM build directory not found at {llvm_release_asserts_dir}')
     print('Please run `gclient sync --no-history -r $(git rev-parse @)` ' \
           'to install them.')
     return 1
 
-  actual_entries = os.listdir(LLVM_RELEASE_ASSERTS_DIR)
+  actual_entries = os.listdir(llvm_release_asserts_dir)
   missing_entries = [
       entry for entry in expected_entries if entry not in actual_entries
   ]
   if missing_entries:
-    print(f'Error: The LLVM build directory {LLVM_RELEASE_ASSERTS_DIR} ' \
+    print(f'Error: The LLVM build directory {llvm_release_asserts_dir} ' \
           'is incomplete.')
     print(f"Missing entries: {', '.join(missing_entries)}")
     print('Please run `gclient sync --no-history -r $(git rev-parse @)` ' \
@@ -193,7 +198,7 @@ def main():
   targets = args.targets
   if not targets:
     print('No targets specified, auto-discovering targets...')
-    targets = discover_targets(discovery_platform)
+    targets = discover_targets(test_targets_dir, discovery_platform)
     if not targets:
       print(f'No test targets found for platform {args.platform}.')
       return 1
@@ -203,7 +208,8 @@ def main():
   # issues in coverage builds. Also skip perftests as they are not
   # suitable for coverage.
   targets = [
-      t for t in targets if not is_target_skipped(t, discovery_platform) and
+      t for t in targets
+      if not is_target_skipped(src_root, t, discovery_platform) and
       'blink_unittests' not in t and 'perftests' not in t
   ]
 
@@ -215,7 +221,7 @@ def main():
 
   # 1. Run gn.py with --coverage
   build_dir = os.path.join('out', f'{args.platform}_devel')
-  gn_command = [sys.executable, GN_PY_PATH, '-p', args.platform, '--coverage']
+  gn_command = [sys.executable, gn_py_path, '-p', args.platform, '--coverage']
   print(f"Running command: {' '.join(gn_command)}")
   try:
     subprocess.check_call(gn_command)
@@ -240,7 +246,8 @@ def main():
   results = []
   for target in targets:
     results.append(
-        run_coverage_for_target(target, args, build_dir, discovery_platform))
+        run_coverage_for_target(src_root, coverage_py_path, llvm_bin_dir,
+                                target, args, build_dir, discovery_platform))
 
   if all(results):
     print('Code coverage process completed successfully.')
