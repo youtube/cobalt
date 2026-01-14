@@ -30,11 +30,6 @@ PLATFORM_PARSER.add_argument(
     default="android-x86",
     help="The platform to generate the report for.")
 PLATFORM_PARSER.add_argument(
-    "-i",
-    "--input-file",
-    default=None,
-    help="Path to a single .lcov file to generate a report for.")
-PLATFORM_PARSER.add_argument(
     "-f",
     "--filters",
     action="append",
@@ -101,9 +96,6 @@ def main():
   # Directory where the individual .lcov files are located.
   lcov_src_dir = base_dir / "out" / f"{platform}_coverage"
 
-  # Directory where the generated source files are located.
-  gen_files_dir = base_dir / "out" / f"coverage_{platform}"
-
   # Temporary directory to store cleaned-up tracefiles.
   cleaned_dir = lcov_src_dir / "cleaned"
 
@@ -113,48 +105,12 @@ def main():
   # Final output directory for the HTML report.
   report_dir = base_dir / "out" / "cobalt_coverage_report"
 
-  if args.input_file:
-    input_file = Path(args.input_file)
-    if not input_file.exists():
-      print(f"ERROR: Input file does not exist: {input_file}")
-      return
-
-    report_dir = base_dir / "out" / f"{input_file.stem}_report"
-    if report_dir.exists():
-      shutil.rmtree(report_dir)
-    report_dir.mkdir(parents=True, exist_ok=True)
-
-    normalized_file = report_dir / "normalized.lcov"
-    shutil.copy(input_file, normalized_file)
-    normalize_lcov_paths(normalized_file)
-
-    genhtml_cmd = [
-        "genhtml",
-        str(normalized_file), "--output-directory",
-        str(report_dir), "--ignore-errors", "inconsistent,range"
-    ]
-    # The extract command is only needed if we want to filter the input file.
-    # For a single file report, we assume the input file is already filtered.
-    # If further filtering is needed, we would need to run lcov --extract here.
-    # For now, we directly use genhtml.
-    if not run_command(genhtml_cmd, cwd=base_dir):
-      print("ERROR: Failed to generate HTML report. Exiting.")
-      return
-
-    print("\n--- Coverage Report Generation Complete ---")
-    print("Success! You can view the report by opening:")
-    print(f"file://{report_dir}/index.html")
-    return
-
   print("---"
         " Starting Coverage Report Generation "
         "---")
 
   if not lcov_src_dir.exists():
     print(f"ERROR: LCOV source directory does not exist: {lcov_src_dir}")
-    return
-  if not gen_files_dir.exists():
-    print(f"ERROR: Generated files directory does not exist: {gen_files_dir}")
     return
 
   if cleaned_dir.exists():
