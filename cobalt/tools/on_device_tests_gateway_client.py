@@ -320,7 +320,6 @@ def main() -> int:
   trigger_args.add_argument(
       '--device_family',
       type=str,
-      choices=['android', 'raspi', 'rdk'],
       help='Family of device to run tests on.',
   )
   trigger_args.add_argument(
