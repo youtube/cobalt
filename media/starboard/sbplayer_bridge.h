@@ -217,7 +217,6 @@ class SbPlayerBridge {
                                  int max_buffers_per_write);
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
       DemuxerStream::Type type,
       const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
