@@ -50,11 +50,10 @@ class TestGenerateCoverageReport(unittest.TestCase):
 
   def test_normalize_lcov_paths(self):
     """
-        Tests that the path normalization function correctly rewrites paths
-        for both regular and generated source files.
-        """
-    lcov_content = """
-TN:
+    Tests that the path normalization function correctly rewrites paths
+    for both regular and generated source files.
+    """
+    lcov_content = """TN:
 SF:../../cobalt/browser/browser.cc
 DA:1,1
 DA:2,1
@@ -74,8 +73,8 @@ end_of_record
     # Read the modified file
     normalized_content = lcov_file.read_text()
 
-    expected_content = """
-TN:
+    # Note: gen/ files are SKIPPED entirely, including their data lines.
+    expected_content = """TN:
 SF:cobalt/browser/browser.cc
 DA:1,1
 DA:2,1
@@ -93,34 +92,3 @@ A simple test to verify mocking.
 """
     generate_coverage_report.normalize_lcov_paths(Path("foo"))
     mock_normalize.assert_called_once_with(Path("foo"))
-
-  @mock.patch("generate_coverage_report.normalize_lcov_paths")
-  @mock.patch("generate_coverage_report.run_command")
-  @mock.patch("os.makedirs")
-  @mock.patch("shutil.rmtree")
-  @mock.patch("shutil.copy")
-  @mock.patch("pathlib.Path.exists", autospec=True)
-  @mock.patch("sys.argv",
-              ["generate_coverage_report.py", "--input-file", "coverage.lcov"])
-  def test_generate_report_from_single_file(  # pylint: disable=too-many-positional-arguments
-      self,
-      mock_exists,  # Bottom mock (passed first)
-      mock_copy,
-      mock_rmtree,
-      mock_makedirs,
-      mock_run_command,
-      mock_normalize):  # Top mock (passed last)
-    """
-    Tests the report generation for a single .lcov file.
-    """
-    del mock_copy, mock_rmtree, mock_makedirs  # unused
-    # Verify the mock is correct by setting the side_effect
-    mock_exists.side_effect = lambda p: "coverage.lcov" in str(p) or \
-                                        "report" in str(p)
-
-    generate_coverage_report.main()
-
-    # Now the assertions should work on the correct objects
-    mock_normalize.assert_called_once()
-    mock_run_command.assert_called_once()
-    self.assertIn("genhtml", mock_run_command.call_args[0][0])

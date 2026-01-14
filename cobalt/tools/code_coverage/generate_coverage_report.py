@@ -57,11 +57,8 @@ def run_command(command, cwd=None):
 
 
 def normalize_lcov_paths(filepath):
+  """Rewrites an lcov file so all source file paths are relative to root.
   """
-    Rewrites an lcov file so all source file paths (SF: lines) are relative
-    to BASE_DIR, handling regular source and generated files from their
-    distinct locations.
-    """
   print(f"Normalizing paths in {filepath} to be relative to {BASE_DIR}...")
   try:
     lines = filepath.read_text().splitlines()
@@ -69,14 +66,17 @@ def normalize_lcov_paths(filepath):
     skipping = False
     for line in lines:
       if line.startswith("SF:"):
-        skipping = line.startswith("SF:gen/")
+        # Skip generated files.
+        if line.startswith("SF:gen/"):
+          skipping = True
+        else:
+          skipping = False
+          # Normalize paths starting with ../../ to be relative to root.
+          if line.startswith("SF:../../"):
+            line = "SF:" + line[9:]
 
       if not skipping:
-        if line.startswith("SF:../../"):
-          path = Path(line[3:]).relative_to("../../")
-          new_lines.append(f"SF:{path}")
-        else:
-          new_lines.append(line)
+        new_lines.append(line)
 
     filepath.write_text("\n".join(new_lines) + "\n")
   except IOError as e:
@@ -128,7 +128,8 @@ def main():
       continue
 
     print(f"\nProcessing: {lcov_file}")
-    cleaned_file = cleaned_dir / lcov_file.name
+    relative_path = lcov_file.relative_to(lcov_src_dir)
+    cleaned_file = cleaned_dir / str(relative_path).replace("/", "_")
 
     extract_patterns = args.filters or ["*/cobalt/*", "*/starboard/*"]
     extract_cmd = ["lcov", "--extract", str(lcov_file)]
