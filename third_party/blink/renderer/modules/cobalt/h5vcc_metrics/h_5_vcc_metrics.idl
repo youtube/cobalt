@@ -55,5 +55,13 @@ interface H5vccMetrics : EventTarget {
   // and will be persisted through multiple app lifetimes unless it's called
   // again with a different value."
   // This API is now Promise-based.
-  [CallWith=ScriptState, RaisesException] Promise<undefined> setMetricEventInterval(unsigned long long intervalSeconds);
+  [CallWith=ScriptState, RaisesException]
+  Promise<undefined> setMetricEventInterval(unsigned long long intervalSeconds);
+
+  // Retrieves the current snapshot of all collected histograms.
+  // TODO(b/418011656): This is a polling version of the corresponding data
+  // being sent as part of the onmetrics Event. Remove this API when Cobalt
+  // and client web apps have fully migrated to said Event.
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> requestHistograms();
 };
