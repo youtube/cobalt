@@ -494,8 +494,9 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 }
 
 void Shell::PrimaryMainDocumentElementAvailable() {
-  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-      web_contents());
+  did_storage_migration_ =
+      cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
+          web_contents());
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
@@ -1115,7 +1116,12 @@ void Shell::SwitchToMainWebContents() {
   // instead of a lock due to it is on a single thread.
   // This could be called multiple times.
   if (!has_switched_to_main_frame_) {
-    VLOG(1) << "NativeSplash: Switching to main frame WebContents.";
+    LOG(INFO) << "NativeSplash: Switching to main frame WebContents.";
+    if (did_storage_migration_ && web_contents()) {
+      // TODO: b/474447216 - Temporary workaround to reload main app.
+      LOG(INFO) << "NativeSplash: Reloading URL due to storage migration.";
+      LoadURL(web_contents()->GetLastCommittedURL());
+    }
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       CHECK(GetPlatform());
