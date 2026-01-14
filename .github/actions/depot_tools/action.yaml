@@ -64,6 +64,13 @@ runs:
           gclient validate
         shell: bash
 
+      - name: Set target OS for tvos
+        if: ${{ contains(matrix.platform, 'tvos') }}
+        run: |
+          echo "target_os=['ios']" >> .gclient
+          gclient validate
+        shell: bash
+
       - name: Run gclient sync
         if: inputs.run_sync == 'true'
         run: |
