@@ -297,6 +297,9 @@ class ContentMainRunnerImplBrowserTest : public ContentBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(ContentMainRunnerImplBrowserTest, StartupSequence) {
   // All of the work is done in SetUp().
+  EXPECT_TRUE(base::FeatureList::GetInstance());
+  EXPECT_TRUE(base::ThreadPoolInstance::Get());
+  EXPECT_TRUE(GetContentClientForTesting());
 }
 
 }  // namespace
