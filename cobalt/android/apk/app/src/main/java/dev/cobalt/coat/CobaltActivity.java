@@ -84,11 +84,6 @@ public abstract class CobaltActivity extends Activity {
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
-  // How many seconds before the app exits if it fails to land YouTube home page.
-  private static final int HANG_APP_CRASH_TIMEOUT_SECONDS = 60;
-  public static final String SPLASH_ARGS_KEY = "disableNativeSplash";
-  private boolean disableNativeSplash;
-
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
@@ -116,7 +111,6 @@ public abstract class CobaltActivity extends Activity {
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
-    disableNativeSplash = getIntent().getBooleanExtra(SPLASH_ARGS_KEY, false);
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
@@ -269,10 +263,8 @@ public abstract class CobaltActivity extends Activity {
                   }
                 };
 
-            if (!disableNativeSplash) {
-              // Load splash screen.
-              mShellManager.getActiveShell().loadSplashScreenWebContents();
-            }
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
