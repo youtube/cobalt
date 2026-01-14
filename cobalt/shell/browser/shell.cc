@@ -380,7 +380,7 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
-  VLOG(1) << "NativeSplash: Navigated to " << navigation_handle->GetURL();
+  LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
 }
 
 void Shell::DidStopLoading() {
