@@ -2,9 +2,6 @@
 
 # This file was auto-generated using api_leak_detector.py.
 
-OPENSSL_memory_alloc
-OPENSSL_memory_free
-OPENSSL_memory_get_size
 TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code
 ZSTD_trace_compress_begin
 ZSTD_trace_compress_end

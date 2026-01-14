@@ -112,11 +112,3 @@ config("modular") {
     defines += [ "THREAD_SANITIZER" ]
   }
 }
-
-config("speed") {
-  cflags = [ "-O2" ]
-}
-
-config("size") {
-  cflags = [ "-Os" ]
-}

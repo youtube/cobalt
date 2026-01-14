@@ -58,6 +58,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetVolume(double volume) override;
   Result<void> SetBounds(const Bounds& bounds) override;
   void SetMaxVideoInputSize(int max_video_input_size) override;
+  void SetVideoSurfaceView(void* surface_view) override;
   void Stop() override;
 
   void Update();
@@ -109,6 +110,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
 
   SbPlayerOutputMode output_mode_;
   int max_video_input_size_;
+  void* surface_view_ = nullptr;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const VideoStreamInfo video_stream_info_;

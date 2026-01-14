@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
-#define STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
+#ifndef STARBOARD_ANDROID_SHARED_VIDEO_SURFACE_VIEW_H_
+#define STARBOARD_ANDROID_SHARED_VIDEO_SURFACE_VIEW_H_
 
 namespace starboard {
 
-const void* GetEnhancedAudioApi();
+// Get surface_view via SetVideoSurfaceViewForCurrentThread(),
+// it returns 0 if s_thread_local_key is invalid.
+void* GetSurfaceViewForCurrentThread();
+
+// This is used to set the SurfaceView for the subsequently created
+// SbPlayer on the current calling thread.
+void SetVideoSurfaceViewForCurrentThread(void* surface_view);
 
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
+#endif  // STARBOARD_ANDROID_SHARED_VIDEO_SURFACE_VIEW_H_

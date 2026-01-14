@@ -89,8 +89,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/drm/drm_system_internal.h",
     "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
     "//starboard/shared/starboard/drm/drm_update_session.cc",
-    "//starboard/shared/starboard/event_cancel.cc",
-    "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/feature_list.cc",
     "//starboard/shared/starboard/feature_list.h",
     "//starboard/shared/starboard/features.cc",
@@ -122,9 +120,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
     "//starboard/shared/starboard/microphone/microphone_open.cc",
     "//starboard/shared/starboard/microphone/microphone_read.cc",
-    "//starboard/shared/starboard/new.cc",
-    "//starboard/shared/starboard/queue_application.cc",
-    "//starboard/shared/starboard/queue_application.h",
     "//starboard/shared/starboard/system_get_random_uint64.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
     "//starboard/shared/starboard/thread_checker.h",
@@ -231,6 +226,8 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
+    "player_set_video_surface_view.cc",
+    "player_set_video_surface_view.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "posix_emu/dirent.cc",
@@ -279,6 +276,8 @@ static_library("starboard_platform") {
     "video_render_algorithm.h",
     "video_surface_texture_bridge.cc",
     "video_surface_texture_bridge.h",
+    "video_surface_view.cc",
+    "video_surface_view.h",
     "video_window.cc",
     "video_window.h",
 

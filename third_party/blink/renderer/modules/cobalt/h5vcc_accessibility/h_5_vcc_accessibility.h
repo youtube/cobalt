@@ -15,6 +15,8 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5VCC_ACCESSIBILITY_H_5_VCC_ACCESSIBILITY_H_
 
+#include <optional>
+
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
@@ -25,6 +27,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/wtf/wtf.h"
 
 namespace blink {
 
@@ -65,10 +68,14 @@ class MODULES_EXPORT H5vccAccessibility final
   void EnsureRemoteIsBound();
   void EnsureReceiverIsBound();
 
-  // Proxy to the browser process’s H5vccAccessibilityBrowser implementation.
+  // TODO(b/458102489): Remove this value caching when Kabuki uses the Event
+  // exclusively.
+  std::optional<bool> cached_text_to_speech_enabled_;
+
+  // Proxy to the remote H5vccAccessibilityBrowser implementation.
   HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>
       remote_;
-  // Handles incoming browser-to-renderer calls.
+  // Pipe to receive notifications from the remote interface implementation.
   HeapMojoReceiver<h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient,
                    H5vccAccessibility>
       notification_receiver_;

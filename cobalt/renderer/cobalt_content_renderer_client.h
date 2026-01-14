@@ -44,6 +44,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   // ContentRendererClient implementation.
   void RenderFrameCreated(content::RenderFrame* render_frame) override;
+  void RenderThreadStarted() override;
   virtual std::unique_ptr<::media::KeySystemSupportRegistration>
   GetSupportedKeySystems(content::RenderFrame* render_frame,
                          ::media::GetSupportedKeySystemsCB cb) override;

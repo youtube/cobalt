@@ -1,4 +1,5 @@
-# Copyright 2023 The Cobalt Authors. All Rights Reserved.
+#!/usr/bin/env python3
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,11 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Initializes the cobalt.build package."""
 
-enhanced_audio_sources = [
-  "//starboard/shared/enhanced_audio/enhanced_audio.cc",
-  "//starboard/shared/enhanced_audio/enhanced_audio.h",
-  "//starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.cc",
-  "//starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.h",
-  "//starboard/shared/enhanced_audio/player_write_samples_checked.cc",
-]
+import os
+import sys
+
+# Add the project root to the sys.path to allow importing cobalt modules.
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)))
