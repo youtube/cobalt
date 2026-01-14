@@ -57,13 +57,13 @@ static_library("updater") {
 # TODO(b/446745795): add unit tests
 
 if (use_evergreen) {
-  target("modular_executable", "crash_sandbox") {
+  modular_executable("crash_sandbox") {
     testonly = true
     sources = [ "crash_sandbox.cc" ]
     deps = [ "//starboard:starboard_group" ]
   }
 
-  target("modular_executable", "noop_sandbox") {
+  modular_executable("noop_sandbox") {
     testonly = true
     sources = [ "noop_sandbox.cc" ]
     deps = [
