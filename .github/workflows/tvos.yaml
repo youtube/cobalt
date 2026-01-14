@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build:
+  build_tvos:
     runs-on: macos-latest
     timeout-minutes: 600
     strategy:
@@ -17,6 +17,12 @@ jobs:
       matrix:
         platform: [tvos-arm64-simulator]
         config: [devel]
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
