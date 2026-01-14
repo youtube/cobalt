@@ -92,10 +92,10 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
   return resolver->Promise();
 }
 
-ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
+ScriptPromise H5vccMetrics::requestHistograms(
     ScriptState* script_state,
     ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
 
@@ -181,7 +181,7 @@ void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
 }
 
 void H5vccMetrics::OnRequestHistograms(
-    ScriptPromiseResolver<IDLString>* resolver,
+    ScriptPromiseResolver* resolver,
     const WTF::String& histograms_proto_base64) {
   CleanupPromise(resolver);
   resolver->Resolve(histograms_proto_base64);
