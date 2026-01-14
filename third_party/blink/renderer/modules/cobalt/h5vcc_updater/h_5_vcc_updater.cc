@@ -21,13 +21,8 @@
 namespace blink {
 
 H5vccUpdater::H5vccUpdater(LocalDOMWindow& window)
-    : ExecutionContextLifecycleObserver(window.GetExecutionContext())
-#if BUILDFLAG(USE_EVERGREEN)
-      ,
-      remote_h5vcc_updater_(window.GetExecutionContext())
-#endif
-{
-}
+    : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
+      remote_h5vcc_updater_(window.GetExecutionContext()) {}
 
 void H5vccUpdater::ContextDestroyed() {}
 
@@ -36,15 +31,12 @@ ScriptPromise H5vccUpdater::getUpdaterChannel(ScriptState* script_state,
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetUpdaterChannel(
       WTF::BindOnce(&H5vccUpdater::OnGetUpdaterChannel, WrapPersistent(this),
                     WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -54,15 +46,12 @@ ScriptPromise H5vccUpdater::setUpdaterChannel(ScriptState* script_state,
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->SetUpdaterChannel(
       channel, WTF::BindOnce(&H5vccUpdater::OnSetUpdaterChannel,
                              WrapPersistent(this), WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -71,15 +60,12 @@ ScriptPromise H5vccUpdater::getUpdateStatus(ScriptState* script_state,
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetUpdateStatus(
       WTF::BindOnce(&H5vccUpdater::OnGetUpdateStatus, WrapPersistent(this),
                     WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -89,15 +75,12 @@ ScriptPromise H5vccUpdater::resetInstallations(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->ResetInstallations(
       WTF::BindOnce(&H5vccUpdater::OnResetInstallations, WrapPersistent(this),
                     WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -107,15 +90,12 @@ ScriptPromise H5vccUpdater::getInstallationIndex(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetInstallationIndex(
       WTF::BindOnce(&H5vccUpdater::OnGetInstallationIndex, WrapPersistent(this),
                     WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -125,15 +105,12 @@ ScriptPromise H5vccUpdater::getAllowSelfSignedPackages(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetAllowSelfSignedPackages(
       WTF::BindOnce(&H5vccUpdater::OnGetAllowSelfSignedPackages,
                     WrapPersistent(this), WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -163,15 +140,12 @@ ScriptPromise H5vccUpdater::getUpdateServerUrl(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetUpdateServerUrl(
       WTF::BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
                     WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -201,15 +175,12 @@ ScriptPromise H5vccUpdater::getRequireNetworkEncryption(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetRequireNetworkEncryption(
       WTF::BindOnce(&H5vccUpdater::OnGetRequireNetworkEncryption,
                     WrapPersistent(this), WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -240,15 +211,12 @@ ScriptPromise H5vccUpdater::getLibrarySha256(ScriptState* script_state,
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-#if BUILDFLAG(USE_EVERGREEN)
   EnsureReceiverIsBound();
 
   remote_h5vcc_updater_->GetLibrarySha256(
       index, WTF::BindOnce(&H5vccUpdater::OnGetLibrarySha256,
                            WrapPersistent(this), WrapPersistent(resolver)));
-#else
-  resolver->Reject();
-#endif
+
   return resolver->Promise();
 }
 
@@ -310,7 +278,6 @@ void H5vccUpdater::OnSetRequireNetworkEncryption(
   resolver->Resolve();
 }
 
-#if BUILDFLAG(USE_EVERGREEN)
 void H5vccUpdater::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
@@ -322,16 +289,27 @@ void H5vccUpdater::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_updater_.BindNewPipeAndPassReceiver(task_runner));
+  remote_h5vcc_updater_.set_disconnect_handler(WTF::BindOnce(
+      &H5vccUpdater::OnConnectionError, WrapWeakPersistent(this)));
 }
 
-#endif
+void H5vccUpdater::OnConnectionError() {
+  remote_h5vcc_updater_.reset();
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_updater_promises;
+  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // concurrent modification.
+  ongoing_requests_.swap(h5vcc_updater_promises);
+  for (auto& resolver : h5vcc_updater_promises) {
+    resolver->Reject("Mojo connection error.");
+  }
+  ongoing_requests_.clear();
+}
 
 void H5vccUpdater::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
-#if BUILDFLAG(USE_EVERGREEN)
+  visitor->Trace(ongoing_requests_);
   visitor->Trace(remote_h5vcc_updater_);
-#endif
 }
 
 }  // namespace blink
