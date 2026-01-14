@@ -23,9 +23,14 @@ source_set("h5vcc_metrics") {
     "//cobalt/browser:global_features",
     "//cobalt/browser:metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//components/metrics",
     "//components/metrics_services_manager",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+<<<<<<< HEAD
     "//starboard($starboard_toolchain)",
+=======
+    "//third_party/metrics_proto",
+>>>>>>> 475649f57e0 (Add requestHistogram function to h5vcc metrics. (#8436))
   ]
 }

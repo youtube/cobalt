@@ -57,7 +57,14 @@ class MODULES_EXPORT H5vccMetrics final
   ScriptPromise enable(ScriptState*, ExceptionState&);
   ScriptPromise disable(ScriptState*, ExceptionState&);
   bool isEnabled();
+<<<<<<< HEAD
   ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
+=======
+  ScriptPromise<IDLUndefined> setMetricEventInterval(ScriptState*,
+                                                     uint64_t,
+                                                     ExceptionState&);
+  ScriptPromise<IDLString> requestHistograms(ScriptState*, ExceptionState&);
+>>>>>>> 475649f57e0 (Add requestHistogram function to h5vcc metrics. (#8436))
 
   // EventTargetWithInlineData impl.
   ExecutionContext* GetExecutionContext() const override {
@@ -82,9 +89,17 @@ class MODULES_EXPORT H5vccMetrics final
       const RegisteredEventListener& registered_listener) override;
 
  private:
+<<<<<<< HEAD
   void OnEnable(ScriptPromiseResolver* resolver);
   void OnDisable(ScriptPromiseResolver* resolver);
   void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
+=======
+  void OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
+  void OnRequestHistograms(ScriptPromiseResolver<IDLString>* resolver,
+                           const WTF::String& histograms_json);
+>>>>>>> 475649f57e0 (Add requestHistogram function to h5vcc metrics. (#8436))
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
