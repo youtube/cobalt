@@ -23,6 +23,19 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import dataclass
+
+
+@dataclass
+class CoverageConfig:
+  """Configuration for running code coverage."""
+  src_root: str
+  coverage_py_path: str
+  llvm_bin_dir: str
+  build_dir: str
+  discovery_platform: str
+  output_dir: str
+  filters: list = None
 
 
 def discover_targets(test_targets_dir, platform):
@@ -71,9 +84,8 @@ def parse_args():
       help='Directories or files to get code coverage for.')
   parser.add_argument(
       '--src-root',
-      default=os.path.join(
-          os.path.abspath(os.path.dirname(__file__)), os.path.pardir,
-          os.path.pardir, os.path.pardir),
+      default=os.path.abspath(
+          os.path.join(os.path.dirname(__file__), '..', '..', '..')),
       help='Absolute path to the root of the checkout.')
 
   return parser.parse_args()
@@ -95,23 +107,21 @@ def is_target_skipped(src_root, target, discovery_platform):
   return False
 
 
-def run_coverage_for_target(  # pylint: disable=too-many-positional-arguments
-    src_root, coverage_py_path, llvm_bin_dir, target, args, build_dir,
-    discovery_platform):
+def run_coverage_for_target(config, target):
   """
   Run code coverage for a single target.
   """
   print(f'--- Running coverage for target: {target} ---')
   sanitized_target = target.replace(':', '_').replace('/', '_')
-  target_output_dir = os.path.join(args.output_dir, sanitized_target)
+  target_output_dir = os.path.join(config.output_dir, sanitized_target)
   os.makedirs(target_output_dir, exist_ok=True)
 
   executable_name = target.split(':')[-1]
-  command = os.path.join(build_dir, executable_name)
+  command = os.path.join(config.build_dir, executable_name)
 
   # Add the test filters to the command.
-  filter_file = os.path.join(src_root, 'cobalt', 'testing', 'filters',
-                             discovery_platform,
+  filter_file = os.path.join(config.src_root, 'cobalt', 'testing', 'filters',
+                             config.discovery_platform,
                              f'{executable_name}_filter.json')
   if os.path.exists(filter_file):
     with open(filter_file, 'r', encoding='utf-8') as f:
@@ -122,18 +132,18 @@ def run_coverage_for_target(  # pylint: disable=too-many-positional-arguments
 
   coverage_command = [
       sys.executable,
-      coverage_py_path,
+      config.coverage_py_path,
       '--coverage-tools-dir',
-      llvm_bin_dir,
+      config.llvm_bin_dir,
       '-b',
-      build_dir,
+      config.build_dir,
       '-o',
       target_output_dir,
       '-c',
       command,
   ]
-  if args.filters:
-    for f in args.filters:
+  if config.filters:
+    for f in config.filters:
       coverage_command.extend(['-f', f])
   coverage_command.extend(['--format=lcov', executable_name])
 
@@ -168,7 +178,7 @@ def main():
   if not os.path.isdir(llvm_release_asserts_dir):
     print(
         f'Error: LLVM build directory not found at {llvm_release_asserts_dir}')
-    print('Please run `gclient sync --no-history -r $(git rev-parse @)` ' \
+    print('Please run `gclient sync --no-history -r $(git rev-parse @)` '
           'to install them.')
     return 1
 
@@ -180,7 +190,7 @@ def main():
     print(f'Error: The LLVM build directory {llvm_release_asserts_dir} ' \
           'is incomplete.')
     print(f"Missing entries: {', '.join(missing_entries)}")
-    print('Please run `gclient sync --no-history -r $(git rev-parse @)` ' \
+    print('Please run `gclient sync --no-history -r $(git rev-parse @)` '
           'to ensure a complete installation.')
     return 1
 
@@ -234,6 +244,15 @@ def main():
     print(f'Error building targets: {e}')
     return 1
 
+  config = CoverageConfig(
+      src_root=src_root,
+      coverage_py_path=coverage_py_path,
+      llvm_bin_dir=llvm_bin_dir,
+      build_dir=build_dir,
+      discovery_platform=discovery_platform,
+      output_dir=args.output_dir,
+      filters=args.filters)
+
   # 3. Run code_coverage_tool.py for each target
   # TODO(b/382508397): Implement parallelization using multiple Android devices.
   # This would involve:
@@ -245,9 +264,7 @@ def main():
   print(f'Running coverage for {len(targets)} targets...')
   results = []
   for target in targets:
-    results.append(
-        run_coverage_for_target(src_root, coverage_py_path, llvm_bin_dir,
-                                target, args, build_dir, discovery_platform))
+    results.append(run_coverage_for_target(config, target))
 
   if all(results):
     print('Code coverage process completed successfully.')
