@@ -137,7 +137,12 @@ StarboardRenderer::StarboardRenderer(
     TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
     bool enable_flush_during_seek,
-    bool enable_reset_audio_decoder)
+    bool enable_reset_audio_decoder
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+    )
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       media_log_(std::move(media_log)),
@@ -152,7 +157,12 @@ StarboardRenderer::StarboardRenderer(
       notify_memory_pressure_before_playback_(
           base::FeatureList::IsEnabled(
               media::kCobaltNotifyMemoryPressureBeforePlayback) ||
-          ReadCommandLineSwitchForMemoryPressureSignal()) {
+          ReadCommandLineSwitchForMemoryPressureSignal())
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
+#endif  // BUILDFLAG(IS_ANDROID)
+{
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -259,6 +269,8 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
+
+  // TODO: b/429435008 - Allow StarboardRenderer to request AndroidOverlay.
   CreatePlayerBridge();
 }
 

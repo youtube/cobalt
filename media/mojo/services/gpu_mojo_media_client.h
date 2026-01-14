@@ -154,6 +154,9 @@ struct StarboardRendererTraits {
 
   // StarboardRenderer uses this to post tasks on gpu thread.
   GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb;
+  
+  // StarboardRenderer uses this to create an AndroidOverlay.
+  AndroidOverlayMojoFactoryCB android_overlay_factory_cb;
 
   StarboardRendererTraits(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
@@ -170,7 +173,9 @@ struct StarboardRendererTraits {
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote,
       GetStarboardCommandBufferStubCB
-          get_starboard_command_buffer_stub_cb);
+          get_starboard_command_buffer_stub_cb,
+      AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+    );
   StarboardRendererTraits(StarboardRendererTraits&& that) = default;
   ~StarboardRendererTraits();
 };

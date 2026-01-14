@@ -183,7 +183,12 @@ class StarboardRendererTest : public testing::Test {
           /*audio_write_duration_remote=*/base::Seconds(1),
           /*max_video_capabilities=*/"",
           /*enable_flush_during_seek=*/false,
-          /*enable_reset_audio_decoder=*/false);
+          /*enable_reset_audio_decoder=*/false
+#if BUILDFLAG(IS_ANDROID)
+          ,
+          /*android_overlay_factory_cb=*/AndroidOverlayMojoFactoryCB()
+#endif  // BUILDFLAG(IS_ANDROID)
+      );
   base::MockOnceCallback<void(bool)> set_cdm_cb_;
   base::MockOnceCallback<void(PipelineStatus)> renderer_init_cb_;
   NiceMock<MockCdmContext> cdm_context_;
