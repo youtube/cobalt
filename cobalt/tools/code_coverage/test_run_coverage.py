@@ -30,14 +30,22 @@ class RunCoverageTest(unittest.TestCase):
   Tests for the end-to-end code coverage script.
   """
 
+  @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.makedirs')
   @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
-  def test_run_coverage_success_with_targets(self, mock_arg_parser,
-                                             mock_check_call, mock_makedirs):
+  def test_run_coverage_success_with_targets(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_check_call, mock_makedirs, mock_isdir,
+      mock_listdir):
     """
     Tests successful execution when targets are provided as arguments.
     """
+    del mock_isdir, mock_listdir  # unused
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
     filters = 'cobalt/browser'
@@ -65,7 +73,9 @@ class RunCoverageTest(unittest.TestCase):
     expected_build_command = ['autoninja', '-C', build_dir, executable_name]
     expected_coverage_command = [
         sys.executable,
-        run_coverage.COVERAGE_TOOL_PATH,
+        run_coverage.COVERAGE_PY_PATH,
+        '--coverage-tools-dir',
+        run_coverage.LLVM_BIN_DIR,
         '-b',
         build_dir,
         '-o',
@@ -84,20 +94,25 @@ class RunCoverageTest(unittest.TestCase):
     ])
     self.assertEqual(result, 0)
 
+  @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.makedirs')
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1', 'target2'])
   @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
-  def test_run_coverage_success_no_targets(self, mock_arg_parser,
-                                           mock_check_call,
-                                           mock_discover_targets,
-                                           mock_makedirs):
+  def test_run_coverage_success_no_targets(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_check_call, mock_discover_targets,
+      mock_makedirs, mock_isdir, mock_listdir):
     """
     Tests successful execution when targets are auto-discovered.
     """
-    del mock_makedirs  # Unused argument.
+    del mock_makedirs, mock_isdir, mock_listdir  # Unused argument.
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
     build_dir = f'out/{platform}_devel'
@@ -128,7 +143,9 @@ class RunCoverageTest(unittest.TestCase):
       expected_command = os.path.join(build_dir, target)
       expected_coverage_command = [
           sys.executable,
-          run_coverage.COVERAGE_TOOL_PATH,
+          run_coverage.COVERAGE_PY_PATH,
+          '--coverage-tools-dir',
+          run_coverage.LLVM_BIN_DIR,
           '-b',
           build_dir,
           '-o',
@@ -144,15 +161,23 @@ class RunCoverageTest(unittest.TestCase):
     self.assertEqual(result, 0)
 
   @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
+  @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=[])
   @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
-  def test_no_targets_found(self, mock_arg_parser, mock_print,
-                            mock_discover_targets):
+  def test_no_targets_found(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_print, mock_discover_targets, mock_isdir,
+      mock_listdir):
     """
     Tests that the script exits gracefully if no targets are found.
     """
+    del mock_isdir, mock_listdir
     platform = 'android-x86'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -170,6 +195,12 @@ class RunCoverageTest(unittest.TestCase):
     self.assertEqual(result, 1)
 
   @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
+  @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1'])
   @mock.patch(
@@ -177,11 +208,13 @@ class RunCoverageTest(unittest.TestCase):
       side_effect=subprocess.CalledProcessError(1, 'gn.py'))
   @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
-  def test_gn_py_failure(self, mock_arg_parser, mock_print, mock_check_call,
-                         mock_discover_targets):
+  def test_gn_py_failure(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_print, mock_check_call, mock_discover_targets,
+      mock_isdir, mock_listdir):
     """
     Tests that the script exits gracefully if gn.py fails.
     """
+    del mock_isdir, mock_listdir  # Unused arguments.
     platform = 'android-x86'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -199,6 +232,12 @@ class RunCoverageTest(unittest.TestCase):
         f"Error running gn.py: {subprocess.CalledProcessError(1, 'gn.py')}")
     self.assertEqual(result, 1)
 
+  @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.makedirs')
   @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.subprocess.check_call',
@@ -207,12 +246,13 @@ class RunCoverageTest(unittest.TestCase):
       ])
   @mock.patch('builtins.print')
   @mock.patch('argparse.ArgumentParser')
-  def test_coverage_tool_failure(self, mock_arg_parser, mock_print,
-                                 mock_check_call, mock_makedirs):
+  def test_coverage_tool_failure(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_print, mock_check_call, mock_makedirs,
+      mock_isdir, mock_listdir):
     """
     Tests that the script exits gracefully if code_coverage_tool.py fails.
     """
-    del mock_makedirs  # Unused argument.
+    del mock_makedirs, mock_isdir, mock_listdir  # Unused argument.
     target = 'target'
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -280,17 +320,24 @@ class RunCoverageTest(unittest.TestCase):
                      'test_targets.json'))
 
   @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
+  @mock.patch(
       'cobalt.tools.code_coverage.run_coverage.discover_targets',
       return_value=['target1', 'target2'])
   @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
-  def test_platform_reuse(self, mock_arg_parser, mock_check_call,
-                          mock_discover_targets):
+  def test_platform_reuse(  # pylint: disable=too-many-positional-arguments
+      self, mock_arg_parser, mock_check_call, mock_discover_targets, mock_isdir,
+      mock_listdir):
     """
     Tests that android-x86 and android-x64 platforms reuse android-arm and
     android-arm64 test targets respectively.
     """
-    del mock_check_call  # Unused argument.
+    del mock_check_call, mock_isdir, mock_listdir  # Unused argument.
     # Test android-x86 reuses android-arm
     mock_parser = mock_arg_parser.return_value
     mock_parser.parse_args.return_value = argparse.Namespace(
@@ -312,6 +359,12 @@ class RunCoverageTest(unittest.TestCase):
     run_coverage.main()
     mock_discover_targets.assert_called_with('android-arm64')
 
+  @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('os.makedirs')
   @mock.patch('os.path.exists', return_value=True)
   @mock.patch('builtins.open', new_callable=mock.mock_open)
@@ -319,11 +372,11 @@ class RunCoverageTest(unittest.TestCase):
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_with_test_filters(  # pylint: disable=too-many-positional-arguments
       self, mock_arg_parser, mock_check_call, mock_open, mock_exists,
-      mock_makedirs):
+      mock_makedirs, mock_isdir, mock_listdir):
     """
     Tests successful execution when test filters are applied.
     """
-    del mock_exists  # unused
+    del mock_exists, mock_isdir, mock_listdir  # unused
     platform = 'android-x86'
     output_dir = 'out/coverage_report'
     target = 'cobalt:unittests'
@@ -357,7 +410,9 @@ class RunCoverageTest(unittest.TestCase):
     expected_build_command = ['autoninja', '-C', build_dir, executable_name]
     expected_coverage_command = [
         sys.executable,
-        run_coverage.COVERAGE_TOOL_PATH,
+        run_coverage.COVERAGE_PY_PATH,
+        '--coverage-tools-dir',
+        run_coverage.LLVM_BIN_DIR,
         '-b',
         build_dir,
         '-o',
@@ -374,13 +429,21 @@ class RunCoverageTest(unittest.TestCase):
     ])
     self.assertEqual(result, 0)
 
+  @mock.patch(
+      'os.listdir',
+      return_value=[
+          'bin', 'cr_build_revision', 'lib', 'llvmobjdump_build_revision'
+      ])
+  @mock.patch('os.path.isdir', return_value=True)
   @mock.patch('cobalt.tools.code_coverage.run_coverage.subprocess.check_call')
   @mock.patch('argparse.ArgumentParser')
   def test_run_coverage_skips_fully_filtered_target(self, mock_arg_parser,
-                                                    mock_check_call):
+                                                    mock_check_call, mock_isdir,
+                                                    mock_listdir):
     """
     Tests that a target is skipped if all its tests are filtered out.
     """
+    del mock_isdir, mock_listdir  # Unused arguments.
     platform = 'android-x86'
     target = 'cobalt:unittests'
 
@@ -402,3 +465,47 @@ class RunCoverageTest(unittest.TestCase):
     # external commands.
     self.assertEqual(mock_check_call.call_count, 0)
     self.assertEqual(result, 0)
+
+  @mock.patch('os.path.isdir', return_value=False)
+  @mock.patch('builtins.print')
+  @mock.patch('argparse.ArgumentParser')
+  def test_llvm_dir_missing(self, mock_arg_parser, mock_print, mock_isdir):
+    """
+    Tests that the script exits with an error if the LLVM directory is missing.
+    """
+    del mock_isdir  # Unused argument.
+    mock_parser = mock_arg_parser.return_value
+    mock_parser.parse_args.return_value = argparse.Namespace(
+        platform='android-x86',
+        output_dir='out/report',
+        targets=[],
+        filters=None,
+        jobs=1)
+    result = run_coverage.main()
+    self.assertEqual(result, 1)
+    mock_print.assert_any_call(f'Error: LLVM build directory not found at '
+                               f'{run_coverage.LLVM_RELEASE_ASSERTS_DIR}')
+
+  @mock.patch('os.path.isdir', return_value=True)
+  @mock.patch('os.listdir', return_value=['bin'])  # Incomplete entries
+  @mock.patch('builtins.print')
+  @mock.patch('argparse.ArgumentParser')
+  def test_llvm_dir_incomplete(self, mock_arg_parser, mock_print, mock_listdir,
+                               mock_isdir):
+    """
+    Tests that the script exits with an error if the
+    LLVM directory is incomplete.
+    """
+    del mock_isdir, mock_listdir  # Unused argument.
+    mock_parser = mock_arg_parser.return_value
+    mock_parser.parse_args.return_value = argparse.Namespace(
+        platform='android-x86',
+        output_dir='out/report',
+        targets=[],
+        filters=None,
+        jobs=1)
+    result = run_coverage.main()
+    self.assertEqual(result, 1)
+    mock_print.assert_any_call(
+        f'Error: The LLVM build directory '
+        f'{run_coverage.LLVM_RELEASE_ASSERTS_DIR} is incomplete.')
