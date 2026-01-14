@@ -376,9 +376,8 @@ void Shell::RenderFrameCreated(RenderFrameHost* frame_host) {
 
 void Shell::PrimaryMainDocumentElementAvailable() {
   LOG(INFO) << "PrimaryMainDocumentElementAvailable, do storage migration.";
-  did_storage_migration_ =
-      cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
-          web_contents());
+  cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
+      web_contents());
   LOG(INFO) << "PrimaryMainDocumentElementAvailable, storage migration done.";
 }
 
@@ -979,7 +978,6 @@ void Shell::ScheduleSwitchToMainWebContents() {
             << "ms, remaining delay: " << remaining_delay.InMilliseconds()
             << "ms.";
   if (web_contents_) {
-    web_contents_->WasHidden();
     content::GetUIThreadTaskRunner({})->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&Shell::SwitchToMainWebContents,
@@ -1001,15 +999,9 @@ void Shell::SwitchToMainWebContents() {
   // This could be called multiple times.
   if (!has_switched_to_main_frame_) {
     LOG(INFO) << "NativeSplash: Switching to main frame WebContents.";
-    if (did_storage_migration_ && web_contents()) {
-      // TODO: b/474447216 - Temporary workaround to reload main app.
-      LOG(INFO) << "NativeSplash: Reloading URL due to storage migration.";
-      LoadURL(web_contents()->GetLastCommittedURL());
-    }
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
-      web_contents_->WasShown();
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }

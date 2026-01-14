@@ -226,16 +226,16 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 // TODO(b/399165612): Add metrics.
 // TODO(b/399165796): Disable and delete migration code when possible.
 // TODO(b/399166308): Add unit and/or integration tests for migration.
-bool MigrationManager::DoMigrationTasksOnce(
+void MigrationManager::DoMigrationTasksOnce(
     content::WebContents* web_contents) {
   if (migration_attempted_.test_and_set()) {
-    return false;
+    return;
   }
 
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
-    return false;
+    return;
   }
 
   web_contents->Stop();
@@ -255,7 +255,6 @@ bool MigrationManager::DoMigrationTasksOnce(
   tasks.push_back(DeleteOldCacheDirectoryTask());
   tasks.push_back(ReloadTask(weak_document_ptr));
   std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
-  return true;
 }
 
 // static

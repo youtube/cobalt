@@ -274,7 +274,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   bool is_main_frame_loaded_ = false;
   bool has_switched_to_main_frame_ = false;
   base::TimeTicks splash_screen_start_time_;
-  bool did_storage_migration_ = false;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
