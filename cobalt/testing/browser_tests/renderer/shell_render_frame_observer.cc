@@ -19,13 +19,12 @@
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
 #include "cobalt/testing/browser_tests/renderer/render_frame_test_helper.h"
 #include "content/public/renderer/render_frame.h"
-#include "content/public/renderer/render_frame_observer.h"
 #include "third_party/blink/public/web/web_testing_support.h"
 
 namespace content {
 
 ShellRenderFrameObserver::ShellRenderFrameObserver(RenderFrame* render_frame)
-    : RenderFrameObserver(render_frame) {}
+    : cobalt::CobaltRenderFrameObserver(render_frame) {}
 
 ShellRenderFrameObserver::~ShellRenderFrameObserver() = default;
 

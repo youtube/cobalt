@@ -44,8 +44,7 @@
                 encryptedMediaCallback:
                     (SbPlayerEncryptedMediaInitDataEncounteredCB)
                         encryptedMediaCallback
-                       playerErrorFunc:(SbPlayerErrorFunc)errorFunc
-                              inWindow:(SBDApplicationWindow*)window {
+                       playerErrorFunc:(SbPlayerErrorFunc)errorFunc {
   __block SBDApplicationPlayer* player;
   onApplicationMainThread(^{
     player = [[SBDApplicationPlayer alloc] initWithUrl:url
@@ -53,7 +52,7 @@
                                       playerStatusFunc:statusFunc
                                 encryptedMediaCallback:encryptedMediaCallback
                                        playerErrorFunc:errorFunc];
-    [window attachPlayerView:player.view];
+    [SBDGetApplication() attachPlayerView:player.view];
   });
 
   @synchronized(self) {
