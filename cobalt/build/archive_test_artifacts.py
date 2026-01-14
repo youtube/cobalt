@@ -42,20 +42,26 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     compression_flag = f'zstd -T0 -{compression_level}'
   else:
     raise ValueError(f'Unsupported compression: {compression}')
+
   tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
-  tmp_files = []
-  for file_list, base_dir in file_lists:
-    if not file_list:
-      continue
-    # Create temporary file to hold file list to not blow out the commandline.
-    # It will get cleaned up via implicit close.
-    # pylint: disable=consider-using-with
-    tmp_file = tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
-    tmp_files.append(tmp_file)
-    tmp_file.write('\n'.join(sorted(file_list)))
-    tmp_file.flush()
-    # Change the tar working directory and add the file list.
-    tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
+  if not any(file_list for file_list, _ in file_lists):
+    print(f'WARNING: No files to archive for {archive_path}. '
+          'Creating dummy archive.')
+    tar_cmd += ['--files-from', '/dev/null']
+  else:
+    tmp_files = []
+    for file_list, base_dir in file_lists:
+      if not file_list:
+        continue
+      # Create temporary file to hold file list to not blow out the commandline.
+      # It will get cleaned up via implicit close.
+      # pylint: disable=consider-using-with
+      tmp_file = tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
+      tmp_files.append(tmp_file)
+      tmp_file.write('\n'.join(sorted(file_list)))
+      tmp_file.flush()
+      # Change the tar working directory and add the file list.
+      tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
 
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
@@ -96,6 +102,11 @@ def create_archive(
                                  f'{target_name}.runtime_deps')
 
     print('Collecting runtime dependencies for', target)
+
+    if not os.path.exists(deps_file):
+      print(f'WARNING: deps file not found for {target}: {deps_file}')
+      continue
+
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files both in the out and source root folders
