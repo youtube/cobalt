@@ -31,8 +31,6 @@ class AudioManagerBase;
 constexpr int kMicrophoneBufferSizeMultiplier = 2;
 
 class AudioInputStreamStarboard : public AgcAudioStream<AudioInputStream> {
-  friend class base::Thread;
-
  public:
   AudioInputStreamStarboard(AudioManagerBase* audio_manager,
                             const AudioParameters& params);
