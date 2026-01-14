@@ -74,6 +74,8 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/shared/decode_target_internal.cc",
     "//starboard/linux/shared/decode_target_internal.h",
     "//starboard/linux/shared/decode_target_release.cc",
+    "//starboard/linux/shared/echo_service.cc",
+    "//starboard/linux/shared/echo_service.h",
     "//starboard/linux/shared/ifa.cc",
     "//starboard/linux/shared/ifa.h",
     "//starboard/linux/shared/media_is_audio_supported.cc",
