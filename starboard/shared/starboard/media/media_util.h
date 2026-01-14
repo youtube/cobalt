@@ -19,11 +19,6 @@
 #include <string>
 #include <vector>
 
-<<<<<<< HEAD
-#include "starboard/extension/enhanced_audio.h"
-=======
-#include "starboard/common/size.h"
->>>>>>> 7910c6b362f (starboard: Remove the deprecated EnhancedAudio extension (#8635))
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
