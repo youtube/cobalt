@@ -41,6 +41,6 @@ jobs:
       - name: Build
         uses: ./.github/actions/build
         with:
-          targets: ${{ fromJson(steps.build-config.outputs.config_json).targets }}
+          targets: ${{ toJson(fromJson(steps.build-config.outputs.config_json).targets) }}
           test_root_target: 'all'
           test_targets_json_file: 'out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json'
