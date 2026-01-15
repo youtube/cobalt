@@ -178,6 +178,8 @@ if (is_android) {
 }
 
 copy("cobalt_browsertests_runner") {
+  # TODO(433354983): Switch back to the run_browser_tests.py
+  # once the infra supports python.
   sources = [ "cobalt_browsertests_runner.sh" ]
   outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
   testonly = true
