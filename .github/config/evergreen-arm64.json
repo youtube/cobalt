@@ -6,7 +6,7 @@
   "test_package": true,
   "targets": [
     "cobalt",
-    "copy_cobalt_lib"
+    "cobalt_loaded_content"
   ],
   "build_configs": [
     "debug",
