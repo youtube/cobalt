@@ -95,6 +95,7 @@
   height: auto;
   min-height: var(--cr-searchbox-height);
   overflow: hidden;
+  position: relative;
   width: 100%;
 }
 
@@ -148,7 +149,7 @@
 }
 
 :host-context([searchbox-layout-mode='Compact']) input {
-  padding-top: 19px;
+  padding-top: 2px;
 }
 
 :host([searchbox-chrome-refresh-theming]) :is(input, textarea)::selection {
@@ -365,11 +366,6 @@ cr-searchbox-dropdown::part(dropdown-content) {
   padding-top: unset;
 }
 
-:host([ntp-realbox-next-enabled]) #inputWrapper {
-  height: auto;
-  min-height: var(--cr-searchbox-height);
-}
-
 :host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(context-menu-entrypoint-icon) {
   --cr-icon-button-icon-size: 24px;
   --cr-icon-button-margin-start: 2px;
@@ -395,7 +391,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
 
 :host([ntp-realbox-next-enabled]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
   padding-inline-end: 6px;
-  z-index: 101;
+  z-index: 100;
 }
 
 :host-context([ntp-realbox-next-enabled][context-menu-glif-animation-state="ineligible"]) contextual-entrypoint-and-carousel::part(composebox-entrypoint) {
@@ -497,7 +493,7 @@ cr-searchbox-dropdown::part(dropdown-content) {
 
 :host([searchbox-layout-mode^='Tall']) input {
   height: 44px;
-  padding-top: var(--cr-searchbox-input-padding-top_);
+  padding-top: 14px;
 }
 
 :host([multi-line-enabled][searchbox-layout-mode^='Tall']) textarea {
@@ -522,10 +518,6 @@ cr-searchbox-dropdown::part(dropdown-content) {
 
 :host-context([searchbox-layout-mode^='Tall']) #composeButton {
   --cr-button-height: 36px;
-}
-
-:host([searchbox-layout-mode='TallBottomContext'][dropdown-is-visible]) contextual-entrypoint-and-carousel::part(context-menu-and-tools) {
-  margin-top: 10px;
 }
 
 :host-context([searchbox-layout-mode='TallTopContext']) contextual-entrypoint-and-carousel::part(carousel-divider) {
