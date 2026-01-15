@@ -25,6 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
@@ -68,8 +69,17 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
     scoped_refptr<InputBuffer> input_buffer;
   };
 
+  class DecoderThread : public Thread {
+   public:
+    explicit DecoderThread(OpenMaxVideoDecoder* decoder)
+        : Thread("omx_video_decoder"), decoder_(decoder) {}
+    void Run() override { decoder_->RunLoop(); }
+
+   private:
+    OpenMaxVideoDecoder* decoder_;
+  };
+
   bool TryToDeliverOneFrame();
-  static void* ThreadEntryPoint(void* context);
   void RunLoop();
   scoped_refptr<VideoFrame> CreateFrame(const OMX_BUFFERHEADERTYPE* buffer);
 
@@ -83,7 +93,7 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   bool eos_written_;
   bool first_input_written_ = false;
 
-  std::optional<pthread_t> thread_;
+  std::unique_ptr<Thread> thread_;
   bool request_thread_termination_;
   Queue<Event*> queue_;
 
