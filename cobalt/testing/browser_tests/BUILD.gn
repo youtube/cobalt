@@ -189,8 +189,10 @@ copy("cobalt_browsertests_runner_script") {
 
 group("cobalt_browsertests_runner") {
   testonly = true
-  deps = [ ":cobalt_browsertests_runner_script" ]
-  data_deps = [ ":cobalt_browsertests" ]
+  data_deps = [
+    ":cobalt_browsertests",
+    ":cobalt_browsertests_runner_script",
+  ]
   write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
 }
 
