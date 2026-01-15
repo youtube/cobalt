@@ -14,10 +14,7 @@
 
 source_set("extension_test") {
   testonly = true
-  sources = [
-    "enhanced_audio_test.cc",
-    "extension_test.cc",
-  ]
+  sources = [ "extension_test.cc" ]
   deps = [
     "//starboard:starboard_group",
     "//testing/gmock",

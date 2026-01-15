@@ -27,7 +27,9 @@
 #include "third_party/blink/renderer/modules/mediarecorder/buildflags.h"
 #include "third_party/blink/renderer/modules/mediarecorder/media_recorder_encoder_wrapper.h"
 #include "third_party/blink/renderer/modules/mediarecorder/vea_encoder.h"
+#if !BUILDFLAG(IS_STARBOARD)
 #include "third_party/blink/renderer/modules/mediarecorder/vpx_encoder.h"
+#endif
 #include "third_party/blink/renderer/modules/mediastream/media_stream_video_track.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_util.h"
 #include "third_party/blink/renderer/platform/mediastream/media_stream_component.h"
@@ -847,11 +849,15 @@ void VideoTrackRecorderImpl::InitializeEncoderOnEncoderSupportKnown(
 #endif
       case CodecId::kVp8:
       case CodecId::kVp9: {
+#if !BUILDFLAG(IS_STARBOARD)
         auto vpx_encoder = std::make_unique<VpxEncoder>(
             encoding_task_runner, codec_profile.codec_id == CodecId::kVp9,
             on_encoded_video_cb, bits_per_second);
         weak_encoder = vpx_encoder->GetWeakPtr();
         encoder = std::move(vpx_encoder);
+#else
+        NOTREACHED() << "LibVPX is not enabled";
+#endif
       } break;
 #if BUILDFLAG(ENABLE_LIBAOM)
       case CodecId::kAv1: {
