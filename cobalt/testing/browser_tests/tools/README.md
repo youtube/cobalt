@@ -49,3 +49,27 @@ export ANDROID_SERIAL=<your_device_serial>
 ```
 
 The `run_tests.sh` script automatically manages path resolution and sets the necessary environment variables (`CHROME_SRC`) to ensure the test runner functions correctly within the isolated directory structure.
+
+## Docker Container Requirements
+
+To run the packaged tests within a Docker container, the environment must have the following:
+
+1.  **Python 3**: `python3` should be installed.
+2.  **ADB**: Required for communicating with Android devices.
+
+Note: `depot_tools` (providing `vpython3`) is bundled within the archive, so manual installation is not required.
+
+### Sample Dockerfile Snippet
+
+```dockerfile
+# Install basic dependencies
+RUN apt-get update && apt-get install -y python3 adb
+```
+
+### Execution with USB Access
+
+When running the container, ensure it has access to the host's USB devices if using a physical Android device:
+
+```bash
+docker run --privileged -v /dev/bus/usb:/dev/bus/usb ...
+```

@@ -99,6 +99,11 @@ cp -a "$BUILD_DIR/bin/run_cobalt_browsertests" "$STAGE_DIR/src/$BUILD_DIR/bin/"
 mkdir -p "$STAGE_DIR/src/build"
 find build -maxdepth 1 -name "*.py" -exec cp -a {} "$STAGE_DIR/src/build/" \;
 
+# Add depot_tools
+DEPOT_TOOLS_DIR=$(dirname $(which vpython3))
+echo "Adding depot_tools from $DEPOT_TOOLS_DIR..."
+cp -a "$DEPOT_TOOLS_DIR" "$STAGE_DIR/depot_tools"
+
 # Explicitly copy the runtime_deps file
 DEPS_FILE="out/android-arm_devel/gen.runtime/cobalt/testing/browser_tests/cobalt_browsertests__test_runner_script.runtime_deps"
 mkdir -p "$STAGE_DIR/src/$(dirname "$DEPS_FILE")"
@@ -108,16 +113,18 @@ cp -a "$DEPS_FILE" "$STAGE_DIR/src/$DEPS_FILE"
 cat <<EOF > "$STAGE_DIR/run_tests.sh"
 #!/bin/bash
 
+# Get the absolute path of the script directory
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+
+# Add bundled depot_tools to PATH
+export PATH="\$SCRIPT_DIR/depot_tools:\$PATH"
+
 # Check for vpython3
 if ! command -v vpython3 &> /dev/null; then
-  echo "Error: vpython3 not found."
-  echo "This script requires vpython3 from depot_tools."
-  echo "Please refer to the README.md for setup instructions."
+  echo "Error: vpython3 not found in bundled depot_tools."
   exit 1
 fi
 
-# Get the absolute path of the script directory
-SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 cd "\$SCRIPT_DIR/src"
 # Set CHROME_SRC to the absolute path of our isolated src/ directory
 export CHROME_SRC=\$(pwd)
@@ -128,8 +135,6 @@ DEPS_PATH="\$CHROME_SRC/out/android-arm_devel/gen.runtime/cobalt/testing/browser
 # Check if deps file exists
 if [ ! -f "\$DEPS_PATH" ]; then
   echo "Error: runtime_deps file not found at \$DEPS_PATH"
-  echo "Current directory contents:"
-  ls -R . | head -n 20
   exit 1
 fi
 
