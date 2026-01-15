@@ -40,14 +40,6 @@ runs:
         run: |
           set -x
           cd cobalt/src
-          echo "--- GIT DIAGNOSTICS START ---"
-          echo "--- git status ---"
-          git status
-          echo "--- git log ---"
-          git log -n 10 --graph --oneline
-          echo "--- git describe --all ---"
-          git describe --all
-          echo "--- GIT DIAGNOSTICS END ---"
           # GitHub's actions/checkout action, by default, checks out the merge commit when
           # a pull request event triggers a workflow. This merge commit represents the state
           # of the code as if the pull request had been merged into the base branch.
