@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_TEST_PLATFORM_DELEGATE_H_
-#define COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_TEST_PLATFORM_DELEGATE_H_
+#ifndef STARBOARD_ANDROID_SHARED_VIDEO_SURFACE_VIEW_H_
+#define STARBOARD_ANDROID_SHARED_VIDEO_SURFACE_VIEW_H_
 
-#include "cobalt/shell/browser/shell_platform_delegate.h"
+namespace starboard {
 
-namespace content {
+// Get surface_view via SetVideoSurfaceViewForCurrentThread(),
+// it returns 0 if s_thread_local_key is invalid.
+void* GetSurfaceViewForCurrentThread();
 
-class ShellTestPlatformDelegate : public ShellPlatformDelegate {
- public:
-  ShellTestPlatformDelegate() = default;
-  ~ShellTestPlatformDelegate() override = default;
+// This is used to set the SurfaceView for the subsequently created
+// SbPlayer on the current calling thread.
+void SetVideoSurfaceViewForCurrentThread(void* surface_view);
 
- protected:
-  std::unique_ptr<views::ViewsDelegate> CreateViewsDelegate() override;
-};
+}  // namespace starboard
 
-}  // namespace content
-
-#endif  // COBALT_TESTING_BROWSER_TESTS_BROWSER_SHELL_TEST_PLATFORM_DELEGATE_H_
+#endif  // STARBOARD_ANDROID_SHARED_VIDEO_SURFACE_VIEW_H_

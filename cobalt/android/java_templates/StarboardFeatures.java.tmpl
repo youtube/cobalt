@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/common/log.h"
-#include "starboard/player.h"
+ package dev.cobalt.features;
 
-// Special implementation of `SbPlayerWriteSample2()` for EnhancedAudio, where
-// all sample writes should use the `PlayerWriteSamples()` function provided by
-// the EnhancedAudio extension.
+ /**
+  * Contains features that are specific to Starboard code.
+  */
+ public final class StarboardFeatures {{
 
-void SbPlayerWriteSample2(SbPlayer player,
-                          SbMediaType sample_type,
-                          const SbPlayerSampleInfo* sample_infos,
-                          int number_of_sample_infos) {
-  SB_NOTREACHED();
-}
+ {NATIVE_FEATURES}
+
+     // Prevents instantiation.
+     private StarboardFeatures() {{}}
+ }}

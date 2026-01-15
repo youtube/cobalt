@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/common/storage.h"
+// clang-format on
+
 #include <unistd.h>
 
 #include <algorithm>
@@ -19,7 +23,6 @@
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
-#include "starboard/common/storage.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 

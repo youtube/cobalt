@@ -12,12 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+source_set("feature_config_header") {
+  # This target exists to export the feature_config.h header to other targets
+  # that need to include it for its macros.
+  visibility = [
+    "//cobalt/android:java_features_srcjar",
+    "//cobalt/common/features:features",
+    "//starboard/android/shared:starboard_platform",
+  ]
+  sources = [ "feature_config.h" ]
+
+  deps = [ "//starboard:starboard_headers_only" ]
+}
+
 source_set("extension_test") {
   testonly = true
-  sources = [
-    "enhanced_audio_test.cc",
-    "extension_test.cc",
-  ]
+  sources = [ "extension_test.cc" ]
   deps = [
     "//starboard:starboard_group",
     "//testing/gmock",

@@ -22,6 +22,9 @@
 @class SBDDrmManager;
 @class SBDEglAdapter;
 @class SBDPlayerManager;
+@class UIPress;
+@class UIPressesEvent;
+@class UIView;
 @protocol SBDStarboardApplication;
 
 NS_ASSUME_NONNULL_BEGIN
@@ -55,11 +58,19 @@ id<SBDStarboardApplication> SBDGetApplication(void);
  */
 @property(nonatomic, readonly) SBDPlayerManager* playerManager;
 
-/**
- *  @brief Called when Starboard requests the application to be suspended.
- */
+// Suspends the application by forwarding the press events stored by calls to
+// `registerMenuPressBegan` and `registerMenuPressEnded` to UIKit.
 - (void)suspendApplication;
 
+// Caches the menu press from a `pressesBegan` event for later use when
+// suspending the application.
+- (void)registerMenuPressBegan:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent;
+
+// Caches the menu press from a `pressesEnded` event for later use when
+// suspending the application.
+- (void)registerMenuPressEnded:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent;
 @end
 
 NS_ASSUME_NONNULL_END

@@ -3480,7 +3480,7 @@ source_set("browser") {
       deps += [ "//gpu/vulkan/init" ]
     }
     if (is_cobalt) {
-      deps += [ 
+      deps += [
         "//third_party/jni_zero:cobalt_for_google3_buildflags",
       ]
     }
@@ -3791,6 +3791,13 @@ group("for_content_tests") {
         "//cobalt:cobalt_unittests__apk__java__validate",
         "//cobalt:cobalt_unittests__library",
         "//cobalt:cobalt_unittests__library__jni_registration__native_sources",
+      ]
+    }
+
+    if (is_ios && target_platform == "tvos") {
+      visibility += [
+        "//cobalt:cobalt_unittests_executable",
+        "//cobalt:run_cobalt_unittests",
       ]
     }
   }

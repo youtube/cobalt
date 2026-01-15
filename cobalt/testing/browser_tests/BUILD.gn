@@ -158,6 +158,7 @@ if (is_android) {
       "//base:base_java",
       "//base:base_java_test_support",
       "//base:content_uri_utils_java",
+      "//cobalt/android:cobalt_main_java",
       "//cobalt/shell/android:cobalt_shell_java",
       "//components/download/internal/common:internal_java",
       "//components/metrics:metrics_java",
@@ -172,10 +173,7 @@ if (is_android) {
 
   android_resources("content_browsertests_resources") {
     testonly = true
-    sources = [
-      "browsertests_apk/res/layout/test_activity.xml",
-      "browsertests_apk/res/xml/file_paths.xml",
-    ]
+    sources = [ "browsertests_apk/res/xml/file_paths.xml" ]
   }
 }
 
@@ -198,7 +196,7 @@ test("cobalt_browsertests") {
     #"media_browsertest.h",
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
-    #"navigation_browsertest.cc",
+    "navigation_browsertest.cc",
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
     #"site_per_process_browsertest.h",
@@ -208,6 +206,16 @@ test("cobalt_browsertests") {
 
   if (is_android) {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
+  }
+
+  if (is_starboard) {
+    sources += [
+      "cobalt_browser_tests_main.cc",
+
+      #TODO(b/433354983): Use the shared "sources" list once cobalt_browsertests
+      # can run on other platforms.
+      "content_main_runner_impl_browsertest.cc",
+    ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -220,12 +228,22 @@ test("cobalt_browsertests") {
     "//content/test:web_ui_mojo_test_resources",
   ]
 
+  if (is_starboard) {
+    public_deps += [
+      "//cobalt:common",
+      "//cobalt/shell:cobalt_shell_lib",
+      "//ui/ozone/platform/starboard:starboard",
+    ]
+  }
+
   deps = [
     ":cobalt_browsertests_test_runner",
+    ":cobalt_shell_test_lib",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
     "//cc/slim",
+    "//cobalt/shell:cobalt_shell_lib",
     "//cobalt/shell:pak",
     "//components/attribution_reporting:mojom",
     "//components/discardable_memory/client",
@@ -251,11 +269,11 @@ test("cobalt_browsertests") {
     "//content/browser/background_sync:background_sync_proto",
     "//content/child:for_content_tests",
     "//content/gpu",
-    "//content/public/browser",
     "//content/public/gpu",
     "//content/renderer:for_content_tests",
     "//content/services/auction_worklet/public/mojom:for_content_tests",
     "//content/test:mojo_web_test_bindings",
+    "//content/test:test_support",
     "//content/test:web_ui_managed_interface_tests_bindings",
     "//content/test:web_ui_ts_test_mojo_bindings",
     "//device/base/synchronization",
@@ -371,6 +389,14 @@ test("cobalt_browsertests") {
     ]
   }
 
+  if (is_starboard) {
+    deps += [
+      ":cobalt_shell_test_lib",
+      "//content/test:test_support",
+      "//starboard:starboard_headers_only",
+    ]
+  }
+
   if (is_posix) {
     deps += [ "//services/tracing:test_utils" ]
   }
@@ -415,6 +441,7 @@ static_library("cobalt_shell_test_lib") {
 
   deps = [
     ":cobalt_browsertests_support",
+    ":cobalt_browsertests_support_mojom",
     "//cc/base",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
@@ -434,14 +461,7 @@ static_library("cobalt_shell_test_lib") {
   }
 
   if (shell_use_toolkit_views) {
-    if (use_aura) {
-      sources += [
-        "browser/shell_test_platform_delegate.cc",
-        "browser/shell_test_platform_delegate.h",
-      ]
-
-      deps += [ "//ui/views:test_support" ]
-    }
+    deps += [ "//ui/views:test_support" ]
   }
 }
 
@@ -463,9 +483,11 @@ source_set("cobalt_browsertests_support") {
   public_deps = [
     ":cobalt_browsertests_support_mojom",
     ":shell_controller_mojom",
+    "//cobalt/renderer",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/services/storage/test_api",
+    "//content/browser",
     "//content/common:main_frame_counter",
     "//content/public/child",
     "//content/public/common",

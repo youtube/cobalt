@@ -82,7 +82,7 @@ class Registry {
   }
 
  private:
-  std::mutex mutex_;
+  mutable std::mutex mutex_;
   // Use std::vector<> as usually there is only one active instance of widevine
   // drm system.
   std::vector<SbDrmSystem> drm_systems_;

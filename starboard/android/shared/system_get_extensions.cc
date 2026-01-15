@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/android/shared/android_media_session_client.h"
 #include "starboard/android/shared/configuration.h"
@@ -21,6 +25,7 @@
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_set_max_video_input_size.h"
+#include "starboard/android/shared/player_set_video_surface_view.h"
 #include "starboard/android/shared/system_info_api.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
@@ -31,8 +36,8 @@
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
+#include "starboard/extension/player_set_video_surface_view.h"
 #include "starboard/extension/system_info.h"
-#include "starboard/system.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
@@ -63,6 +68,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionPlayerSetMaxVideoInputSizeName) == 0) {
     return starboard::GetPlayerSetMaxVideoInputSizeApi();
+  }
+  if (strcmp(name, kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0) {
+    return starboard::GetPlayerSetVideoSurfaceViewApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
     // TODO(b/377052218): Re-enable
