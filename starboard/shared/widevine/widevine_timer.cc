@@ -14,6 +14,7 @@
 
 #include "starboard/shared/widevine/widevine_timer.h"
 
+#include <condition_variable>
 #include <mutex>
 
 #include "starboard/common/log.h"
@@ -60,8 +61,17 @@ void WidevineTimer::cancel(IClient* client) {
 
   SB_CHECK(job_thread_);
 
-  job_thread_->job_queue()->ScheduleAndWait(
-      [this, client] { CancelAllJobsOnClient(client); });
+  std::condition_variable cv;
+  bool done = false;
+  job_thread_->job_queue()->Schedule([&] {
+    CancelAllJobsOnClient(client);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      done = true;
+    }
+    cv.notify_one();
+  });
+  cv.wait(lock, [&done] { return done; });
 
   if (active_clients_.empty()) {
     // Kill the thread on the last |client|.
