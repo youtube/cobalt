@@ -156,9 +156,11 @@ void* Send(PlatformServiceImpl* service,
   SB_DCHECK(data);
   SB_DCHECK(output_length);
 
-  char message[length + 1];
-  std::memcpy(message, data, length);
-  message[length] = '\0';
+  // For simplicity, this service assumes the data sent to it represents a
+  // string. If there's a desire to use the service to test binary data
+  // payloads that are not necessarily strings then it would be better to use
+  // a C-style char array or std::vector<uint8_t>.
+  std::string message(static_cast<const char*>(data), length);
 
   SB_LOG(INFO) << "Send() message: " << message;
 
@@ -175,6 +177,11 @@ void* Send(PlatformServiceImpl* service,
   // Return the sync response.
   *output_length = sync_response.length();
   auto ptr = malloc(*output_length);
+  if (!ptr) {
+    SB_LOG(ERROR) << "Failed to allocate memory for sync response";
+    *output_length = 0;
+    return nullptr;
+  }
   sync_response.copy(reinterpret_cast<char*>(ptr), sync_response.length());
   return ptr;
 }
