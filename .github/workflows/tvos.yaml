@@ -42,5 +42,9 @@ jobs:
         uses: ./.github/actions/build
         with:
           targets: ${{ toJson(fromJson(steps.build-config.outputs.config_json).targets) }}
-          test_root_target: 'all'
+          test_artifacts_key: None
+          test_root_target: None
           test_targets_json_file: 'out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json'
+          upload_on_host_test_artifacts: false
+          upload_on_device_test_artifacts: false
+          upload_web_test_artifacts: false
