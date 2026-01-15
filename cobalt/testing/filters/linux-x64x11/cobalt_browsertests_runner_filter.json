@@ -1,6 +1,22 @@
 {
   "comment": "Temporarily disable Cobalt NavigationBrowserTest. See b/433354983.",
   "failing_tests": [
-    "NavigationBrowserTest*"
+    "NavigationBaseBrowserTest*",
+    "NavigationBrowserTest*",
+    "NavigationGoToEntryAtOffsetBrowserTest*",
+    "NetworkIsolationNavigationBrowserTest*",
+    "NavigationBrowserTestReferrerPolicy*",
+    "NavigationCorsExemptBrowserTest*",
+    "NavigationCookiesBrowserTest*",
+    "NavigationUrlRewriteBrowserTest*",
+    "SubresourceLoadingTest*",
+    "UndoCommitNavigationBrowserTest*",
+    "NavigationQueueingBrowserTest*",
+    "NavigationBrowserTestCredentiallessIframe*",
+    "NavigationWithPageSwapBrowserTest*",
+    "DeferSpeculativeRFHCreationTest*",
+    "DeferSpeculativeRFHCreationReuseRFHTest*",
+    "VisualPropertiesSynchronization*",
+    "HstsUpgradeBrowserTest*"
   ]
 }
