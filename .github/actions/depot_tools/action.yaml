@@ -78,8 +78,6 @@ runs:
           cd cobalt
           gclient sync \
             --verbose \
-            --shallow \
-            --no-history \
             --nohooks \
             --force \
             --delete_unversioned_trees \
