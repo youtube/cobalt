@@ -19,27 +19,27 @@ runs:
         run: |
           set -x
           # Remove and re-clone gclient.
-          rm -rf /runner-cache/depot_tools /runner-cache/cobalt/.cipd_cache
-          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /runner-cache/depot_tools
+          rm -rf ${{ runner.temp }}/depot_tools ${{ runner.temp }}/cobalt/.cipd_cache
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ runner.temp }}/depot_tools
 
           # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
-          git -C /runner-cache/cobalt/src submodule deinit -f --all
-          git -C /runner-cache/cobalt/src clean -ffdx
+          # git -C /runner-cache/cobalt/src submodule deinit -f --all
+          # git -C /runner-cache/cobalt/src clean -ffdx
         shell: bash
 
       - name: Reset Cached Depot Tools
         if: inputs.use_cache == 'true'
-        run: git -C /runner-cache/depot_tools reset --hard origin/main
+        run: git -C ${{ runner.temp }}/depot_tools reset --hard origin/main
         shell: bash
 
       - name: Add Depot Tools to PATH
-        run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
+        run: echo "${{ runner.temp }}/depot_tools" >> $GITHUB_PATH
         shell: bash
 
       - name: Bootstrap Bundled python3
         run: |
           # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-          source /runner-cache/depot_tools/bootstrap_python3 && bootstrap_python3
+          source ${{ runner.temp }}/depot_tools/bootstrap_python3 && bootstrap_python3
         shell: bash
 
       - name: Disable Chromium client side build telemetry
@@ -88,7 +88,7 @@ runs:
       - name: Run gclient runhooks
         if: inputs.run_sync == 'true'
         env:
-          CIPD_CACHE_DIR: "/runner-cache/cobalt/.cipd_cache"
+          CIPD_CACHE_DIR: "${{ runner.temp }}/cobalt/.cipd_cache"
         run: |
           cd cobalt
           gclient runhooks --verbose
