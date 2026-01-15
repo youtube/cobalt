@@ -12,22 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module h5vcc_metrics.mojom;
+#include "starboard/android/shared/player_set_video_surface_view.h"
 
-enum H5vccMetricType {
-  kUma,
-  kUkm,
-  kCobaltUma,
-};
+#include "starboard/android/shared/video_surface_view.h"
+#include "starboard/extension/player_set_video_surface_view.h"
 
-interface MetricsListener {
-  OnMetrics(H5vccMetricType metricType, string metricsPayload);
-};
+namespace starboard {
 
-interface H5vccMetrics {
-  AddListener(pending_remote<MetricsListener> listener);
+namespace {
 
-  [Sync] Enable(bool enable) => ();
-  SetMetricEventInterval(uint64 interval_seconds) => ();
-  RequestHistograms() => (string histograms_json);
-};
+const StarboardExtensionPlayerSetVideoSurfaceViewApi
+    kPlayerSetVideoSurfaceView = {
+        kStarboardExtensionPlayerSetVideoSurfaceViewName, 1,
+        &SetVideoSurfaceViewForCurrentThread};
+
+}  // namespace
+
+const void* GetPlayerSetVideoSurfaceViewApi() {
+  return &kPlayerSetVideoSurfaceView;
+}
+
+}  // namespace starboard

@@ -114,6 +114,10 @@ class SbPlayerBridge {
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size
+#if BUILDFLAG(IS_ANDROID)
+                 ,
+                 jobject surface_view
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -213,7 +217,6 @@ class SbPlayerBridge {
                                  int max_buffers_per_write);
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
       DemuxerStream::Type type,
       const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
@@ -337,6 +340,11 @@ class SbPlayerBridge {
   // Set the maximum size in bytes of an input buffer for video.
   int max_video_input_size_;
 #endif
+
+#if BUILDFLAG(IS_ANDROID)
+  // Set the surface to Android Overlay's surface view.
+  jobject surface_view_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
