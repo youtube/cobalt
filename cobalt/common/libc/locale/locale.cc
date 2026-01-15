@@ -26,6 +26,7 @@
 
 #include "cobalt/common/libc/locale/lconv_support.h"
 #include "cobalt/common/libc/locale/locale_support.h"
+#include "cobalt/common/libc/locale/nl_langinfo_support.h"
 #include "cobalt/common/libc/no_destructor.h"
 #include "starboard/common/log.h"
 
@@ -41,6 +42,11 @@ cobalt::LocaleImpl* GetGlobalLocale() {
 cobalt::LconvImpl* GetGlobalLconv() {
   static NoDestructor<cobalt::LconvImpl> g_current_lconv;
   return g_current_lconv.get();
+}
+
+std::string& GetNlLangInfoBuffer() {
+  thread_local std::string buffer;
+  return buffer;
 }
 
 thread_local cobalt::LocaleImpl* g_current_thread_locale =
@@ -236,14 +242,22 @@ struct lconv* localeconv(void) {
 }
 
 char* nl_langinfo_l(nl_item item, locale_t locale) {
-  // TODO: b/461906423 - Properly implement nl_langinfo_l.
   if (locale == (locale_t)0) {
     // The behavior is undefined according to POSIX, but we will follow the
     // behavior of glibc and return an empty string.
     return const_cast<char*>("");
   }
 
+  cobalt::LocaleImpl* cur_locale;
+  if (locale == LC_GLOBAL_LOCALE) {
+    cur_locale = GetGlobalLocale();
+  } else {
+    cur_locale = reinterpret_cast<cobalt::LocaleImpl*>(locale);
+  }
+
+  std::string& langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
+    // TODO: b/466160361 - Add remaining support for D_FMT* operations.
     // Date and time formats
     case D_T_FMT:
       return const_cast<char*>("%a %b %e %H:%M:%S %Y");
@@ -254,115 +268,127 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     case T_FMT_AMPM:
       return const_cast<char*>("%I:%M:%S %p");
     case AM_STR:
-      return const_cast<char*>("AM");
     case PM_STR:
-      return const_cast<char*>("PM");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAmPm,
+          item - AM_STR);
+      break;
 
     // Days
     case DAY_1:
-      return const_cast<char*>("Sunday");
     case DAY_2:
-      return const_cast<char*>("Monday");
     case DAY_3:
-      return const_cast<char*>("Tuesday");
     case DAY_4:
-      return const_cast<char*>("Wednesday");
     case DAY_5:
-      return const_cast<char*>("Thursday");
     case DAY_6:
-      return const_cast<char*>("Friday");
     case DAY_7:
-      return const_cast<char*>("Saturday");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kDay,
+          item - DAY_1);
+      break;
 
     // Abbreviated days
     case ABDAY_1:
-      return const_cast<char*>("Sun");
     case ABDAY_2:
-      return const_cast<char*>("Mon");
     case ABDAY_3:
-      return const_cast<char*>("Tue");
     case ABDAY_4:
-      return const_cast<char*>("Wed");
     case ABDAY_5:
-      return const_cast<char*>("Thu");
     case ABDAY_6:
-      return const_cast<char*>("Fri");
     case ABDAY_7:
-      return const_cast<char*>("Sat");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevDay,
+          item - ABDAY_1);
+      break;
 
     // Months
     case MON_1:
-      return const_cast<char*>("January");
     case MON_2:
-      return const_cast<char*>("February");
     case MON_3:
-      return const_cast<char*>("March");
     case MON_4:
-      return const_cast<char*>("April");
     case MON_5:
-      return const_cast<char*>("May");
     case MON_6:
-      return const_cast<char*>("June");
     case MON_7:
-      return const_cast<char*>("July");
     case MON_8:
-      return const_cast<char*>("August");
     case MON_9:
-      return const_cast<char*>("September");
     case MON_10:
-      return const_cast<char*>("October");
     case MON_11:
-      return const_cast<char*>("November");
     case MON_12:
-      return const_cast<char*>("December");
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kMonth,
+          item - MON_1);
+      break;
 
     // Abbreviated months
     case ABMON_1:
-      return const_cast<char*>("Jan");
     case ABMON_2:
-      return const_cast<char*>("Feb");
     case ABMON_3:
-      return const_cast<char*>("Mar");
     case ABMON_4:
-      return const_cast<char*>("Apr");
     case ABMON_5:
-      return const_cast<char*>("May");
     case ABMON_6:
-      return const_cast<char*>("Jun");
     case ABMON_7:
-      return const_cast<char*>("Jul");
     case ABMON_8:
-      return const_cast<char*>("Aug");
     case ABMON_9:
-      return const_cast<char*>("Sep");
     case ABMON_10:
-      return const_cast<char*>("Oct");
     case ABMON_11:
-      return const_cast<char*>("Nov");
     case ABMON_12:
-      return const_cast<char*>("Dec");
-
-    // Other
+      langinfo_buffer = cobalt::GetLocalizedDateSymbol(
+          cur_locale->categories[LC_TIME], cobalt::TimeNameType::kAbbrevMonth,
+          item - ABMON_1);
+      break;
+    case RADIXCHAR:
+    case THOUSEP:
+      langinfo_buffer =
+          cobalt::NlGetNumericData(cur_locale->categories[LC_NUMERIC], item);
+      break;
+    // Our ICU build configuration only supports "UTF-8", so |CODESET|
+    // is set to always return "UTF-8".
     case CODESET:
-      return const_cast<char*>("US-ASCII");
+      langinfo_buffer = "UTF-8";
+      break;
+    // ICU has deprecated support for |YESEXPR| and |NOEXPR|. If these items are
+    // ever requested, we return the default "C" locale expressions.
     case YESEXPR:
-      return const_cast<char*>("^[yY]");
+      SB_LOG(WARNING) << "nl_item YESEXPR was requested, but is not supported "
+                         "by ICU. Returning ^[yY].";
+      langinfo_buffer = "^[yY]";
+      break;
     case NOEXPR:
-      return const_cast<char*>("^[nN]");
+      SB_LOG(WARNING) << "nl_item NOEXPR was requested, but is not supported "
+                         "by ICU. Returning ^[nN].";
+      langinfo_buffer = "^[nN]";
+      break;
 
-    // Some other values from POSIX
+    // For the following items, we currently do not implement them. If they are
+    // ever called, |SB_NOTIMPLEMENTED()| is called. See b/466160361 for more
+    // info.
+    case CRNCYSTR:
+      SB_NOTIMPLEMENTED()
+          << "CRNCYSTR is not supported. Returning the empty string.";
+      langinfo_buffer = "";
+      break;
     case ERA:
     case ERA_D_FMT:
     case ERA_D_T_FMT:
     case ERA_T_FMT:
+      SB_NOTIMPLEMENTED() << "ERA* items are currently not supported. "
+                             "Returning the empty string.";
+      langinfo_buffer = "";
+      break;
     case ALT_DIGITS:
-      return const_cast<char*>("");
-
+      SB_NOTIMPLEMENTED() << "ALT_DIGITS is currently not supported. Returning "
+                             "the empty string.";
+      langinfo_buffer = "";
+      break;
     default:
-      return const_cast<char*>("");
+      SB_LOG(ERROR) << "Received unknown nl_item for nl_langinfo. Returning "
+                       "the empty string.";
+      langinfo_buffer = "";
+      break;
   }
+  return const_cast<char*>(langinfo_buffer.c_str());
 }
 
 char* nl_langinfo(nl_item item) {
-  return nl_langinfo_l(item, reinterpret_cast<locale_t>(GetGlobalLocale()));
+  return nl_langinfo_l(item,
+                       reinterpret_cast<locale_t>(g_current_thread_locale));
 }
