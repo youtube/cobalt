@@ -66,6 +66,9 @@ inline void GetTotalGpuMem(size_t* buffers,
           .total_allocation;
 }
 
+/* This intentionally uses integer output, floating point
+   output becomes far too noisy in the logs, and provides
+   no extra insight in typical use. */
 inline void DumpTotalGpuMem() {
   size_t buffers, textures, renderbuffers;
   GetTotalGpuMem(&buffers, &textures, &renderbuffers);

@@ -1414,13 +1414,13 @@ Application::CValStats::CValStats()
                       "Total CPU memory allocated via the app's allocators."),
       tracked_gpu_buffer_bytes("Memory.GPU.BufferBytes", 0,
                                "Currently allocated GPU memory estimate, "
-                               "allocated to buffer objects"),
+                               "allocated to buffer objects."),
       tracked_gpu_texture_bytes("Memory.GPU.TextureBytes", 0,
                                 "Currently allocated GPU memory estimate, "
                                 "allocated to texture objects."),
       tracked_gpu_renderbuffer_bytes("Memory.GPU.RenderBufferBytes", 0,
                                      "Currently allocated GPU memory estimate, "
-                                     "allocated to renderbuffer objects"),
+                                     "allocated to renderbuffer objects."),
       app_start_time("Time.Cobalt.Start",
                      base::StartupTimer::StartTime().ToInternalValue(),
                      "Start time of the application in microseconds."),
