@@ -215,9 +215,7 @@ test("cobalt_browsertests") {
     #"media_browsertest.h",
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
-    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "navigation_browsertest.cc",
-
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
     #"site_per_process_browsertest.h",
@@ -236,8 +234,6 @@ test("cobalt_browsertests") {
       #TODO(b/433354983): Use the shared "sources" list once cobalt_browsertests
       # can run on other platforms.
       "content_main_runner_impl_browsertest.cc",
-
-      #"//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     ]
   }
 
