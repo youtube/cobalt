@@ -17,6 +17,7 @@
 #include <mutex>
 
 #include "starboard/common/log.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 

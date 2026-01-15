@@ -19,7 +19,6 @@
 #include <memory>
 #include <mutex>
 
-#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
