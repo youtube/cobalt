@@ -118,6 +118,8 @@ SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 
 # Add bundled depot_tools to PATH
 export PATH="\$SCRIPT_DIR/depot_tools:\$PATH"
+# Disable depot_tools auto-update to save time
+export DEPOT_TOOLS_UPDATE=0
 
 # Check for vpython3
 if ! command -v vpython3 &> /dev/null; then

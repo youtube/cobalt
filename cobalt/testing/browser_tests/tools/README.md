@@ -66,10 +66,15 @@ Note: `depot_tools` (providing `vpython3`) is bundled within the archive, so man
 RUN apt-get update && apt-get install -y python3 adb
 ```
 
-### Execution with USB Access
+### Execution with USB Access and Caching
 
-When running the container, ensure it has access to the host's USB devices if using a physical Android device:
+When running the container, ensure it has access to the host's USB devices if using a physical Android device.
+
+**Pro-tip**: Mount a volume for the `vpython` cache to avoid downloading dependencies every time the container starts:
 
 ```bash
-docker run --privileged -v /dev/bus/usb:/dev/bus/usb ...
+docker run --privileged \
+  -v /dev/bus/usb:/dev/bus/usb \
+  -v ~/.cache/vpython-root:/root/.cache/vpython-root \
+  your-image-name ./run_tests.sh --list-tests
 ```
