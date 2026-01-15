@@ -56,7 +56,11 @@ typedef struct EchoServiceImpl : public PlatformServiceImpl {
   // Default constructor.
   EchoServiceImpl() = default;
 
-  ~EchoServiceImpl() { CleanUpWorkers(); }
+  ~EchoServiceImpl() {
+    CleanUpWorkers();
+    pthread_mutex_destroy(&m);
+    pthread_cond_destroy(&cv);
+  }
 
   static void* AsyncResponseTrampoline(void* args) {
     std::unique_ptr<ThreadArgs> thread_args(static_cast<ThreadArgs*>(args));
