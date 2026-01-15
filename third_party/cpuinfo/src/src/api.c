@@ -351,7 +351,7 @@ uint32_t CPUINFO_ABI cpuinfo_get_current_uarch_index(void) {
 		cpuinfo_log_fatal("cpuinfo_get_%s called before cpuinfo is initialized", "current_uarch_index");
 	}
 #if defined(ENABLE_BUILDFLAG_ENABLE_COBALT_HERMETIC_HACKS)
-  // TODO: b/476128896 - See if we need to support cpuinfo or need an alternate implementation here.
+	// TODO: b/476128896 - See if we need to support cpuinfo or need an alternate implementation here.
 	return 0;
 #else
 #if CPUINFO_ARCH_ARM || CPUINFO_ARCH_ARM64 || CPUINFO_ARCH_RISCV32 || CPUINFO_ARCH_RISCV64
@@ -391,7 +391,7 @@ uint32_t CPUINFO_ABI cpuinfo_get_current_uarch_index_with_default(uint32_t defau
 			"cpuinfo_get_%s called before cpuinfo is initialized", "current_uarch_index_with_default");
 	}
 #if defined(ENABLE_BUILDFLAG_ENABLE_COBALT_HERMETIC_HACKS)
-  // TODO: b/476128896 - See if we need to support cpuinfo or need an alternate implementation here.
+	// TODO: b/476128896 - See if we need to support cpuinfo or need an alternate implementation here.
 	return 0;
 #else
 #if CPUINFO_ARCH_ARM || CPUINFO_ARCH_ARM64 || CPUINFO_ARCH_RISCV32 || CPUINFO_ARCH_RISCV64
