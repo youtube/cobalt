@@ -72,7 +72,7 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   class DecoderThread : public Thread {
    public:
     explicit DecoderThread(OpenMaxVideoDecoder* decoder)
-        : Thread("omx_video_decoder"), decoder_(decoder) {}
+        : Thread("omx_video_dec"), decoder_(decoder) {}
     void Run() override { decoder_->RunLoop(); }
 
    private:
