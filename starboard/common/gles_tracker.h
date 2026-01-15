@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/gles.h"
 #include "starboard/shared/environment.h"
 
@@ -68,7 +69,9 @@ inline bool verbose_reporting() {
 }
 
 inline void genObjects(ObjectType type, GLsizei n, GLuint* objects) {
-  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
+  auto [tracked_objects, mutex] = getObjects();
+  TrackedMemObject& tracked_object = tracked_objects[static_cast<size_t>(type)];
+  starboard::ScopedLock lock(*mutex);
   MemObjects& map = tracked_object.objects;
   for (GLsizei i = 0; i < n; i++) {
     GLuint object_id = objects[i];
@@ -82,7 +85,9 @@ inline void genObjects(ObjectType type, GLsizei n, GLuint* objects) {
   }
 }
 inline void deleteObjects(ObjectType type, GLsizei n, const GLuint* objects) {
-  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
+  auto [tracked_objects, mutex] = getObjects();
+  TrackedMemObject& tracked_object = tracked_objects[static_cast<size_t>(type)];
+  starboard::ScopedLock lock(*mutex);
   MemObjects& map = tracked_object.objects;
   for (GLsizei i = 0; i < n; i++) {
     GLuint object_id = objects[i];
@@ -101,11 +106,14 @@ inline void deleteObjects(ObjectType type, GLsizei n, const GLuint* objects) {
   }
 }
 inline void bindObject(ObjectType type, GLuint object) {
-  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
+  auto [tracked_objects, mutex] = getObjects();
+  TrackedMemObject& tracked_object = tracked_objects[static_cast<size_t>(type)];
+  starboard::ScopedLock lock(*mutex);
   MemObjects& map = tracked_object.objects;
   tracked_object.active = object;
-  if (object == 0)
+  if (object == 0) {
     return;
+  }
   auto existing = map.find(object);
   if (existing == map.end()) {
     SB_LOG(ERROR) << "GLTRACE:  Cannot find object to bind, type:"
@@ -114,7 +122,9 @@ inline void bindObject(ObjectType type, GLuint object) {
   }
 }
 inline void reportAllocation(ObjectType type, size_t estimated_allocation) {
-  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
+  auto [tracked_objects, mutex] = getObjects();
+  TrackedMemObject& tracked_object = tracked_objects[static_cast<size_t>(type)];
+  starboard::ScopedLock lock(*mutex);
   MemObjects& map = tracked_object.objects;
   auto existing = map.find(tracked_object.active);
   SB_CHECK(existing != map.end());

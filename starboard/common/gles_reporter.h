@@ -17,7 +17,10 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include "starboard/common/mutex.h"
 
 // This module contains GLES memory tracking infra
 // parts that can be used without dependency on GLES headers
@@ -48,15 +51,17 @@ struct TrackedMemObject {
   size_t total_allocation = 0;
 };
 
-inline TrackedMemObject* getObjects() {
+inline std::pair<TrackedMemObject*, starboard::Mutex*> getObjects() {
   static TrackedMemObject objects[static_cast<size_t>(ObjectType::kCount)] = {};
-  return objects;
+  static starboard::Mutex mutex;
+  return {objects, &mutex};
 }
 
 inline void GetTotalGpuMem(size_t* buffers,
                            size_t* textures,
                            size_t* renderbuffers) {
-  TrackedMemObject* tracked_objects = getObjects();
+  auto [tracked_objects, mutex] = getObjects();
+  starboard::ScopedLock lock(*mutex);
   *buffers = tracked_objects[static_cast<size_t>(ObjectType::kBuffers)]
                  .total_allocation;
   *textures = tracked_objects[static_cast<size_t>(ObjectType::kTextures)]
