@@ -84,30 +84,7 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     return false;
   }
 
-<<<<<<< HEAD
-  struct in6_addr ipv6_addr;
-  if (inet_pton(AF_INET6, ip_str.c_str(), &ipv6_addr) == 1) {
-    // Check for the 2002::/16 prefix (6to4 address).
-    // The first two bytes must be 0x20 and 0x02
-    if (ipv6_addr.s6_addr[0] == 0x20 && ipv6_addr.s6_addr[1] == 0x02) {
-      // Treat this address as IPv4 and convert to it.
-      // Extract the 4 bytes following the prefix (indices 2, 3, 4, 5)
-      uint32_t ipv4_network_order;
-      std::memcpy(&ipv4_network_order, &ipv6_addr.s6_addr[2], sizeof(uint32_t));
 
-      // Convert from Network Byte Order to Host Byte Order (uint32_t)
-      uint32_t addr = ntohl(ipv4_network_order);
-      return IsIPInPrivateRangeIPv4(addr);
-    }
-
-    // Unique Local Addresses for IPv6 are _effectively_ fd00::/8.
-    // See https://tools.ietf.org/html/rfc4193#section-3 for details.
-    //
-    // RFC 4193: fc00::/7 (The first 7 bits must be 1111110)
-    // This covers both fc00::/8 and fd00::/8
-    // We check the first byte: (byte & 11111110) == 11111100
-    return (ipv6_addr.s6_addr[0] & 0xFE) == 0xFC;
-=======
   std::optional<net::IPAddress> addr_ipv4 = ExtractIPv4From6to4(address);
   if (addr_ipv4) {
     // This is potentially breaking convention since 6to4 addresses are
@@ -117,7 +94,6 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     // "cobalt-insecure-private-range".
     LOG(WARNING) << "Treating 6to4 address as IPv4 for Private Range check.";
     address = addr_ipv4.value();
->>>>>>> 0147fa5bd7e (Refactor IP checks for custom cobalt CSP directive (#8549))
   }
 
   return network::IPAddressToIPAddressSpace(address) == network::mojom::IPAddressSpace::kPrivate;
