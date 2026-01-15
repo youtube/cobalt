@@ -19,7 +19,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -37,12 +36,8 @@ struct AudioStreamInfo {
     *this = that;
   }
   AudioStreamInfo& operator=(const SbMediaAudioStreamInfo& that);
-  AudioStreamInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaAudioStreamInfo& that);
 
   void ConvertTo(SbMediaAudioStreamInfo* audio_stream_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaAudioStreamInfo*
-                     audio_stream_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaAudioStreamInfo` defined in `media.h`.  Please refer to the comment
@@ -69,12 +64,8 @@ struct AudioSampleInfo {
     *this = that;
   }
   AudioSampleInfo& operator=(const SbMediaAudioSampleInfo& that);
-  AudioSampleInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaAudioSampleInfo& that);
 
   void ConvertTo(SbMediaAudioSampleInfo* audio_sample_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaAudioSampleInfo*
-                     audio_sample_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaAudioSampleInfo` defined in `media.h`.  Please refer to the comment
@@ -95,12 +86,8 @@ struct VideoStreamInfo {
     *this = that;
   }
   VideoStreamInfo& operator=(const SbMediaVideoStreamInfo& that);
-  VideoStreamInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaVideoStreamInfo& that);
 
   void ConvertTo(SbMediaVideoStreamInfo* video_stream_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaVideoStreamInfo*
-                     video_stream_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaVideoStreamInfo` defined in `media.h`.  Please refer to the comment
@@ -127,12 +114,8 @@ struct VideoSampleInfo {
     *this = that;
   }
   VideoSampleInfo& operator=(const SbMediaVideoSampleInfo& that);
-  VideoSampleInfo& operator=(
-      const CobaltExtensionEnhancedAudioMediaVideoSampleInfo& that);
 
   void ConvertTo(SbMediaVideoSampleInfo* video_sample_info) const;
-  void ConvertTo(CobaltExtensionEnhancedAudioMediaVideoSampleInfo*
-                     video_sample_info) const;
 
   // The member variables are the C++ mappings of the members of
   // `SbMediaVideoSampleInfo` defined in `media.h`.  Please refer to the comment
