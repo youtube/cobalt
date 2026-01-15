@@ -49,11 +49,6 @@ if (is_ios) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
-copy("copy_run_browser_tests_script") {
-  sources = [ "run_browser_tests.sh" ]
-  outputs = [ "$root_out_dir/run_browser_tests.sh" ]
-}
-
 # cobalt_browsertests_test_runner can be used by targets that run cobalt_shell based
 # browser tests.
 static_library("cobalt_browsertests_test_runner") {
@@ -182,6 +177,13 @@ if (is_android) {
   }
 }
 
+copy("cobalt_browsertests_runner") {
+  sources = [ "cobalt_browsertests_runner.sh" ]
+  outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
+  testonly = true
+  deps = [ ":cobalt_browsertests" ]
+}
+
 # Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
@@ -244,7 +246,6 @@ test("cobalt_browsertests") {
   deps = [
     ":cobalt_browsertests_test_runner",
     ":cobalt_shell_test_lib",
-    ":copy_run_browser_tests_script",
     "//base/test:test_support",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
