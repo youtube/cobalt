@@ -111,7 +111,7 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
     const std::function<void()>& functor) {
-  if (SbThreadGetId() == gles_context_thread_id_) {
+  if (SbThreadGetId() == gles_context_thread_id_.load()) {
     functor();
     return;
   }
@@ -130,7 +130,7 @@ void FakeGraphicsContextProvider::RunOnGlesContextThread(
 
 void FakeGraphicsContextProvider::ReleaseDecodeTarget(
     SbDecodeTarget decode_target) {
-  if (SbThreadGetId() == gles_context_thread_id_) {
+  if (SbThreadGetId() == gles_context_thread_id_.load()) {
     SbDecodeTargetRelease(decode_target);
     return;
   }
@@ -150,7 +150,7 @@ void FakeGraphicsContextProvider::ReleaseDecodeTarget(
 }
 
 void FakeGraphicsContextProvider::RunLoop() {
-  gles_context_thread_id_ = SbThreadGetId();
+  gles_context_thread_id_.store(SbThreadGetId());
   while (std::function<void()> functor = functor_queue_.Get()) {
     if (!functor) {
       break;
@@ -288,7 +288,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
 void FakeGraphicsContextProvider::OnDecodeTargetGlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
-  if (SbThreadGetId() == gles_context_thread_id_) {
+  if (SbThreadGetId() == gles_context_thread_id_.load()) {
     target_function(target_function_context);
     return;
   }
