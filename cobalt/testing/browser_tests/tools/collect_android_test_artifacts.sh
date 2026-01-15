@@ -107,6 +107,15 @@ cp -a "$DEPS_FILE" "$STAGE_DIR/src/$DEPS_FILE"
 # Create the top-level runner script in the root (outside src/)
 cat <<EOF > "$STAGE_DIR/run_tests.sh"
 #!/bin/bash
+
+# Check for vpython3
+if ! command -v vpython3 &> /dev/null; then
+  echo "Error: vpython3 not found."
+  echo "This script requires vpython3 from depot_tools."
+  echo "Please refer to the README.md for setup instructions."
+  exit 1
+fi
+
 # Get the absolute path of the script directory
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 cd "\$SCRIPT_DIR/src"
