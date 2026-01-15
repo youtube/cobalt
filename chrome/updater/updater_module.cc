@@ -275,13 +275,23 @@ void UpdaterModule::Update() {
     return;
   }
 
+<<<<<<< HEAD:chrome/updater/updater_module.cc
 #if !defined(COBALT_BUILD_TYPE_GOLD)
+=======
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+>>>>>>> f1ab7282e34 (Disable Evergreen sideloading (#7955)):cobalt/updater/updater_module.cc
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
   bool require_network_encryption = GetRequireNetworkEncryption();
 #else
   bool skip_verify_public_key_hash = false;
   bool require_network_encryption = true;
+<<<<<<< HEAD:chrome/updater/updater_module.cc
 #endif // defined(COBALT_BUILD_TYPE_GOLD)
+=======
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+>>>>>>> f1ab7282e34 (Disable Evergreen sideloading (#7955)):cobalt/updater/updater_module.cc
 
   update_client_->Update(
       app_ids,
@@ -298,12 +308,20 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
+<<<<<<< HEAD:chrome/updater/updater_module.cc
 #if !defined(COBALT_BUILD_TYPE_GOLD)
+=======
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+>>>>>>> f1ab7282e34 (Disable Evergreen sideloading (#7955)):cobalt/updater/updater_module.cc
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
             component.requires_network_encryption = require_network_encryption;
+<<<<<<< HEAD:chrome/updater/updater_module.cc
 #endif // !defined(COBALT_BUILD_TYPE_GOLD)
+=======
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+>>>>>>> f1ab7282e34 (Disable Evergreen sideloading (#7955)):cobalt/updater/updater_module.cc
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
