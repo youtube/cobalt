@@ -17,6 +17,7 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -34,6 +35,7 @@ import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
@@ -48,7 +50,9 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -59,16 +63,19 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_public.browser.WebContentsObserver;
+import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
-import org.chromium.net.NetworkChangeNotifier;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
 
   // This key differs in naming format for legacy reasons
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
@@ -78,6 +85,7 @@ public abstract class CobaltActivity extends Activity {
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> mJavaScriptAndroidObjectList = new ArrayList<>();
+  private Map<String, String> mJavaSwitches = new HashMap<>();
 
   @SuppressWarnings("unused")
   private CobaltA11yHelper mA11yHelper;
@@ -96,6 +104,52 @@ public abstract class CobaltActivity extends Activity {
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean mIsKeepScreenOnEnabled = false;
   private CobaltConnectivityDetector mCobaltConnectivityDetector;
+  private WebContentsObserver mWebContentsObserver;
+
+  private boolean mIsCobaltUsingAndroidOverlay;
+  private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
+
+  private Bundle getActivityMetaData() {
+    ComponentName componentName = getIntent().getComponent();
+    if (componentName == null) {
+      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
+      return null;
+    }
+    ActivityInfo ai;
+    try {
+      ai = getPackageManager()
+                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
+    } catch (NameNotFoundException e) {
+      Log.e(TAG, "Error getting activity info", e);
+      return null;
+    }
+    if (ai == null) {
+      return null;
+    }
+    return ai.metaData;
+  }
+
+  @VisibleForTesting
+  static String[] appendEnableFeaturesIfNecessary(Bundle metaData, String[] commandLineArgs) {
+    if (metaData == null) {
+      return commandLineArgs;
+    }
+
+    String enableFeatures = metaData.getString(META_DATA_ENABLE_FEATURES);
+    if (TextUtils.isEmpty(enableFeatures)) {
+      return commandLineArgs;
+    }
+
+    List<String> args = new ArrayList<>();
+    if (commandLineArgs != null) {
+      args.addAll(Arrays.asList(commandLineArgs));
+    }
+    // CommandLineOverrideHelper will merge this with other --enable-features flags
+    // It also accepts semi-colon-separated list of features.
+    // https://github.com/youtube/cobalt/blob/6407cbdf6573f0b5fcae4a8fa6f46a3198b3d42b/cobalt/android/apk/app/src/main/java/dev/cobalt/coat/CommandLineOverrideHelper.java#L139-L167
+    args.add("--enable-features=" + enableFeatures);
+    return args.toArray(new String[0]);
+  }
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -107,10 +161,13 @@ public abstract class CobaltActivity extends Activity {
       if (!VersionInfo.isReleaseBuild()) {
         commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
       }
+      commandLineArgs = appendEnableFeaturesIfNecessary(getActivityMetaData(), commandLineArgs);
+
       CommandLineOverrideHelper.getFlagOverrides(
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
+    mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
@@ -164,9 +221,6 @@ public abstract class CobaltActivity extends Activity {
               .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
               .orElse(null);
     }
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
-    }
 
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
@@ -215,6 +269,31 @@ public abstract class CobaltActivity extends Activity {
             // Load the `url` with the same shell we created above.
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
+
+            // Initialize and register a WebContentsObserver.
+            mWebContentsObserver =
+              new org.chromium.content_public.browser.WebContentsObserver(getActiveWebContents()) {
+                @Override
+                public void didStartNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  if (!navigationHandle.isSameDocument()) {
+                    mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
+                  }
+                }
+
+                @Override
+                public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigationHandle) {
+                  // The connectivity detector will consider the app has loaded if the navigation has
+                  // committed successfully with a valid internet connection.
+                  if (navigationHandle.hasCommitted()
+                      && !navigationHandle.isErrorPage()
+                      && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
+                        mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
+                  }
+                }
+              };
+
+            // Load splash screen.
+            mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
         });
   }
@@ -330,6 +409,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
+    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     mVideoSurfaceView = new VideoSurfaceView(this);
@@ -394,7 +474,9 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (mForceCreateNewVideoSurfaceView) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
+    } else if (mForceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -406,6 +488,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
     super.onStart();
 
+    updateShellActivityVisible(true);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // document.onresume event
@@ -427,6 +510,7 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    updateShellActivityVisible(false);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
       // visibility:hidden event
@@ -466,6 +550,10 @@ public abstract class CobaltActivity extends Activity {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
+    if (mWebContentsObserver != null) {
+      mWebContentsObserver.observe(null);
+      mWebContentsObserver = null;
+    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -486,42 +574,42 @@ public abstract class CobaltActivity extends Activity {
   }
 
   /**
+   * Overridden by Kimono to provide specific Java switch configurations.
+   */
+  protected Map<String, String> getJavaSwitches() {
+    return this.mJavaSwitches;
+  }
+
+  /**
    * Get argv/argc style args, if any from intent extras. Returns empty array if there are none
    *
    * <p>To use, invoke application via, eg, adb shell am start --esa args arg1,arg2 \
    * dev.cobalt.coat/dev.cobalt.app.MainActivity
    */
   protected String[] getArgs() {
-    ArrayList<String> args = new ArrayList<>();
     String[] commandLineArgs = null;
+    Intent intent = getIntent();
     if (!isReleaseBuild()) {
-      commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
+      commandLineArgs = getCommandLineParamsFromIntent(intent, COMMAND_LINE_ARGS_KEY);
     }
+    return constructArgs(commandLineArgs, getActivityMetaData(), intent.getExtras());
+  }
+
+  @VisibleForTesting
+  static String[] constructArgs(String[] commandLineArgs, Bundle metaData, Bundle extras) {
+    ArrayList<String> args = new ArrayList<>();
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasUrlArg = hasArg(args, URL_ARG);
-    if (!hasUrlArg) {
-      try {
-        ActivityInfo ai =
-            getPackageManager()
-                .getActivityInfo(getIntent().getComponent(), PackageManager.GET_META_DATA);
-        if (ai.metaData != null) {
-          if (!hasUrlArg) {
-            String url = ai.metaData.getString(META_DATA_APP_URL);
-            if (url != null) {
-              args.add(URL_ARG + url);
-            }
-          }
-        }
-      } catch (NameNotFoundException e) {
-        throw new RuntimeException("Error getting activity info", e);
+    if (!hasArg(args, URL_ARG) && metaData != null) {
+      String url = metaData.getString(META_DATA_APP_URL);
+      if (url != null) {
+        args.add(URL_ARG + url);
       }
     }
 
-    Bundle extras = getIntent().getExtras();
     CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
     if (urlParams != null) {
       appendUrlParamsToUrl(args, urlParams);
@@ -530,7 +618,8 @@ public abstract class CobaltActivity extends Activity {
     return args.toArray(new String[0]);
   }
 
-  private void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
+  @VisibleForTesting
+  static void appendUrlParamsToUrl(List<String> args, CharSequence[] urlParams) {
     int idx = -1;
     for (int i = 0; i < args.size(); i++) {
       if (args.get(i).startsWith(URL_ARG)) {
@@ -587,6 +676,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     runOnUiThread(
         new Runnable() {
           @Override
@@ -597,6 +689,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
@@ -629,6 +724,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     ViewParent parent = mVideoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;
@@ -681,6 +779,12 @@ public abstract class CobaltActivity extends Activity {
             }
           });
       mIsKeepScreenOnEnabled = keepOn;
+    }
+  }
+
+  private void updateShellActivityVisible(boolean isVisible) {
+    if (mShellManager != null) {
+      mShellManager.onActivityVisible(isVisible);
     }
   }
 }

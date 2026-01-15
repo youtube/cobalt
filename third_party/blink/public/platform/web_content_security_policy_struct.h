@@ -73,6 +73,7 @@ struct WebCSPSourceList {
   std::optional<network::mojom::IntegrityAlgorithm> report_hash_algorithm;
 #if BUILDFLAG(IS_COBALT)
   bool cobalt_insecure_local_network;
+  bool cobalt_insecure_private_range;
 #endif
 };
 

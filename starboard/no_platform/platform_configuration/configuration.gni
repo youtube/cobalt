@@ -12,6 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/base_configuration.gni")
+if (current_toolchain == default_toolchain) {
+  if (current_cpu == "arm64") {
+    # TODO: b/473814802 - Use the correct configuration here once musl is fixed.
+    import("//starboard/build/config/base_configuration.gni")
+    sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+  } else if (current_cpu == "arm") {
+    # TODO: b/474072798 - This shouldn't assume softfp, but we can't import
+    # arm.gni here.
+    import(
+        "//starboard/evergreen/arm/softfp/platform_configuration/configuration.gni")
+  } else {
+    assert(false, "Unsupported architecture.")
+  }
+} else {
+  import("//starboard/build/config/base_configuration.gni")
 
-sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+  sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
+}

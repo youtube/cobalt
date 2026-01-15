@@ -19,7 +19,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -235,10 +234,10 @@ bool CreateAudioComponents(
   } else {
     factory = PlayerComponents::Factory::Create();
   }
-  std::string error_message;
-  if (factory->CreateSubComponents(creation_parameters, audio_decoder,
-                                   audio_renderer_sink, nullptr, nullptr,
-                                   nullptr, &error_message)) {
+  auto sub_components = factory->CreateSubComponents(creation_parameters);
+  if (sub_components) {
+    *audio_decoder = std::move(sub_components->audio.decoder);
+    *audio_renderer_sink = std::move(sub_components->audio.renderer_sink);
     SB_CHECK(*audio_decoder);
     return true;
   }

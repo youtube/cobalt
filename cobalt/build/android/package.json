@@ -1,7 +1,7 @@
 {
     "archive_datas": [
         {
-            "zipfiles": [
+            "unzip_files": [
                 "obj/cobalt/shell/android/cobalt_shell_java_resources.resources.zip"
             ],
             "files": [
@@ -64,6 +64,7 @@
                 "obj/cc/mojom/mojom_java.javac.jar",
                 "obj/cobalt/android/cobalt_apk.javac.jar",
                 "obj/cobalt/android/cobalt_apk_java.javac.jar",
+                "obj/cobalt/android/cobalt_browser_java.javac.jar",
                 "obj/cobalt/android/cobalt_main_java.javac.jar",
                 "obj/cobalt/browser/crash_annotator/public/mojom/mojom_java.javac.jar",
                 "obj/cobalt/shell/android/cobalt_shell_java.javac.jar",
@@ -398,6 +399,10 @@
                 {
                     "from_file": "obj/cobalt/android/cobalt_main_java.javac.jar",
                     "to_file": "jar/cobalt_android_cobalt_main_java.jar"
+                },
+                {
+                    "from_file": "obj/cobalt/android/cobalt_browser_java.javac.jar",
+                    "to_file": "jar/cobalt_android_cobalt_browser_java.jar"
                 },
                 {
                     "from_file": "obj/cobalt/browser/crash_annotator/public/mojom/mojom_java.javac.jar",

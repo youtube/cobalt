@@ -14,8 +14,6 @@
 
 #include "cobalt/common/libc/locale/locale_support.h"
 
-#include <langinfo.h>
-
 #include <algorithm>
 #include <cstring>
 #include <map>
@@ -183,7 +181,6 @@ bool IsSupportedThroughFallback(const char* canonical_name) {
 
   return false;
 }
-
 }  // namespace
 
 bool IsValidLcCategory(int category) {
@@ -206,7 +203,8 @@ std::string GetCanonicalLocale(const char* inputLocale) {
     return "";
   }
 
-  if (strcmp(inputLocale, "C") == 0 || strcmp(inputLocale, "POSIX") == 0) {
+  if (strcmp(inputLocale, kCLocale) == 0 ||
+      strcmp(inputLocale, kPosixLocale) == 0) {
     return inputLocale;
   }
 

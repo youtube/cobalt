@@ -123,7 +123,6 @@ The functionality is migrated to use `getauxval` instead.
 * `kSbEventTypeUser`.
 * `kSbEventTypeAccessibilitySettingsChanged`
 * `kSbEventTypeAccessibilityCaptionSettingsChanged`
-* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
 * `kSbEventTypeOnScreenKeyboardShown`
 * `kSbEventTypeOnScreenKeyboardHidden`
 * `kSbEventTypeOnScreenKeyboardFocused`
@@ -1329,3 +1328,9 @@ options have been left in Cobalt, though renamed to `cobalt_configuration.gypi`.
 
 Please see [contrib/README.md](contrib/README.md) for description of
 expectations for contents in this directory.
+
+### Introduces new system property kSbSystemPathFilesDirectory.
+
+Path to directory for permanent storage. Both read and write access are
+required. The path is used primarily for DOM localStorage and HTTP cookies
+persistance.

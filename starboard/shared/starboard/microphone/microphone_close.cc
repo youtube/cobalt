@@ -12,7 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/microphone.h"
+// clang-format on
+
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
 bool SbMicrophoneClose(SbMicrophone microphone) {

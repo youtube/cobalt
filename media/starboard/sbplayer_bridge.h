@@ -23,6 +23,7 @@
 #include "base/atomic_sequence_num.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
+#include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -113,6 +114,10 @@ class SbPlayerBridge {
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
                  int max_video_input_size
+#if BUILDFLAG(IS_ANDROID)
+                 ,
+                 jobject surface_view
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -178,32 +183,6 @@ class SbPlayerBridge {
     kResuming,
   };
 
-  // This class ensures that the callbacks posted to |task_runner_| are ignored
-  // automatically once SbPlayerBridge is destroyed.
-  class CallbackHelper : public base::RefCountedThreadSafe<CallbackHelper> {
-   public:
-    explicit CallbackHelper(SbPlayerBridge* player_bridge);
-
-    void ClearDecoderBufferCache();
-
-    // The following functions accept SbPlayer as void* to work around the
-    // requirements that types binding to Callbacks have to be complete.
-    void OnDecoderStatus(void* player,
-                         SbMediaType type,
-                         SbPlayerDecoderState state,
-                         int ticket);
-    void OnPlayerStatus(void* player, SbPlayerState state, int ticket);
-    void OnPlayerError(void* player,
-                       SbPlayerError error,
-                       const std::string& message);
-    void OnDeallocateSample(const void* sample_buffer);
-
-    void ResetPlayer();
-
-   private:
-    SbPlayerBridge* player_bridge_;
-  };
-
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
@@ -238,7 +217,6 @@ class SbPlayerBridge {
                                  int max_buffers_per_write);
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
       DemuxerStream::Type type,
       const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
@@ -258,6 +236,18 @@ class SbPlayerBridge {
                      SbPlayerError error,
                      const std::string& message);
   void OnDeallocateSample(const void* sample_buffer);
+
+  // Helper methods are used because base::Bind requires complete types for its
+  // arguments, and SbPlayer (an internal type) is an incomplete definition.
+  void OnDecoderStatusTask(void* player,
+                           SbMediaType type,
+                           SbPlayerDecoderState state,
+                           int ticket);
+  void OnPlayerStatusTask(void* player, SbPlayerState state, int ticket);
+  void OnPlayerErrorTask(void* player,
+                         SbPlayerError error,
+                         const std::string& message);
+  void OnDeallocateSampleTask(const void* sample_buffer);
 
   static void DecoderStatusCB(SbPlayer player,
                               void* context,
@@ -296,7 +286,6 @@ class SbPlayerBridge {
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
-  scoped_refptr<CallbackHelper> callback_helper_;
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
@@ -352,6 +341,11 @@ class SbPlayerBridge {
   int max_video_input_size_;
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+  // Set the surface to Android Overlay's surface view.
+  jobject surface_view_;
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
   std::string player_creation_error_message_;
@@ -377,6 +371,11 @@ class SbPlayerBridge {
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<SbPlayerBridge> weak_factory_{this};
 };
 
 }  // namespace media

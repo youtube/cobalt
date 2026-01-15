@@ -22,6 +22,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/check_op.h"
+#include "starboard/common/result.h"
 #include "starboard/common/size.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
@@ -112,22 +113,18 @@ class MediaCodecBridge {
       Handler* handler,
       jobject j_media_crypto);
 
-  // `max_width` and `max_height` can be set to positive values to specify the
-  // maximum resolutions the video can be adapted to.
-  // When they are not set, MediaCodecBridge will set them to the maximum
-  // resolutions the platform can decode.
-  // Both of them have to be set at the same time (i.e. we cannot set one of
-  // them without the other), which will be checked in the function.
-  static std::unique_ptr<MediaCodecBridge> CreateVideoMediaCodecBridge(
+  static NonNullResult<std::unique_ptr<MediaCodecBridge>>
+  CreateVideoMediaCodecBridge(
       SbMediaVideoCodec video_codec,
-      // `width_hint` and `height_hint` are used to create the Android video
-      // format, which don't have to be directly related to the resolution of
-      // the video.
-      int width_hint,
-      int height_hint,
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
+      const Size& frame_size_hint,
       int fps,
-      std::optional<int> max_width,
-      std::optional<int> max_height,
+      // `max_frame_size` can be set to positive values to specify the maximum
+      // resolutions the video can be adapted to.  When they are not set,
+      // MediaCodecBridge will set them to the maximum resolutions the platform
+      // can decode.
+      const std::optional<Size>& max_frame_size,
       Handler* handler,
       jobject j_surface,
       jobject j_media_crypto,
@@ -136,8 +133,7 @@ class MediaCodecBridge {
       bool require_software_codec,
       int tunnel_mode_audio_session_id,
       bool force_big_endian_hdr_metadata,
-      int max_video_input_size,
-      std::string* error_message);
+      int max_video_input_size);
 
   ~MediaCodecBridge();
 

@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "starboard/system.h"
+// clang-format on
+
 #include <linux/limits.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -21,7 +25,6 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/system.h"
 
 using ::base::android::ScopedJavaGlobalRef;
 using ::starboard::g_app_assets_dir;
@@ -57,6 +60,16 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
         return false;
       }
       if (starboard::strlcat(path, "/storage", kPathSize) >= kPathSize) {
+        return false;
+      }
+      mkdir(path, 0700);
+      break;
+    }
+    case kSbSystemPathFilesDirectory: {
+      if (starboard::strlcpy(path, g_app_files_dir, kPathSize) >= kPathSize) {
+        return false;
+      }
+      if (starboard::strlcat(path, "/files", kPathSize) >= kPathSize) {
         return false;
       }
       mkdir(path, 0700);
