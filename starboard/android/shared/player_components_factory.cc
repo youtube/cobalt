@@ -488,8 +488,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
-        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
-        &error_message);
+        creation_parameters.surface_view(), enable_flush_during_seek,
+        reset_delay_usec, flush_delay_usec, &error_message);
     if (!error_message.empty()) {
       return Failure(error_message);
     }
