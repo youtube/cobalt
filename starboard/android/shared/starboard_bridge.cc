@@ -150,6 +150,16 @@ void JNI_StarboardBridge_SetAndroidBuildFingerprint(
       ConvertJavaStringToUTF8(env, fingerprint));
 }
 
+void JNI_StarboardBridge_SetYoutubeCertificationScope(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& certScope) {
+  auto header_value_provider =
+      cobalt::browser::CobaltHeaderValueProvider::GetInstance();
+  header_value_provider->SetHeaderValue(
+      "Sec-CH-UA-Co-Youtube-Certification-Scope",
+      ConvertJavaStringToUTF8(env, certScope));
+}
+
 jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   return true;
