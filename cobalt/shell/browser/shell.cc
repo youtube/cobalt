@@ -382,7 +382,7 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
-  VLOG(1) << "NativeSplash: Navigated to " << navigation_handle->GetURL();
+  LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
 }
 
 void Shell::DidStopLoading() {
@@ -995,6 +995,7 @@ void Shell::SwitchToMainWebContents() {
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
+      web_contents_->WasShown();
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }

@@ -136,14 +136,23 @@ Task LogElapsedTimeTask() {
 }
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
 
-Task ReloadTask(content::WeakDocumentPtr weak_document_ptr) {
+Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
   return base::BindOnce(
-      [](content::WeakDocumentPtr weak_document_ptr,
+      [](content::WeakDocumentPtr weak_document_ptr, const GURL& url,
          base::OnceClosure callback) {
-        RenderFrameHost(weak_document_ptr)->Reload();
+        auto* rfh = RenderFrameHost(weak_document_ptr);
+        content::WebContents* web_contents =
+            content::WebContents::FromRenderFrameHost(rfh);
+        if (web_contents) {
+          LOG(INFO) << "MigrationManager: Reloading URL: " << url.spec();
+          content::NavigationController::LoadURLParams params(url);
+          params.transition_type = ui::PageTransitionFromInt(
+              ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+          web_contents->GetController().LoadURLWithParams(params);
+        }
         std::move(callback).Run();
       },
-      weak_document_ptr);
+      weak_document_ptr, url);
 }
 
 base::FilePath GetOldCachePath() {
@@ -239,6 +248,7 @@ void MigrationManager::DoMigrationTasksOnce(
     return;
   }
 
+  GURL url = web_contents->GetLastCommittedURL();
   web_contents->Stop();
 
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
@@ -254,7 +264,7 @@ void MigrationManager::DoMigrationTasksOnce(
   tasks.push_back(LogElapsedTimeTask());
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(DeleteOldCacheDirectoryTask());
-  tasks.push_back(ReloadTask(weak_document_ptr));
+  tasks.push_back(ReloadTask(weak_document_ptr, url));
   std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
 }
 

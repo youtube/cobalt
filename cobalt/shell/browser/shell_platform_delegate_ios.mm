@@ -137,6 +137,44 @@ static const char kAllTracingCategories[] = "*";
                          alpha:1.0];
 }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+// Intercept UIPressTypeMenu event and do not forward it to the
+// superclass's pressesBegan method, as it will cause the application to
+// exit immediately. Instead, we save the UIPressTypeMenu press and event
+// and only forward it when suspendApplication is invoked.
+- (void)pressesBegan:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [SBDGetApplication() registerMenuPressBegan:press pressesEvent:event];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesBegan:nonMenuPresses withEvent:event];
+  }
+}
+
+- (void)pressesEnded:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [SBDGetApplication() registerMenuPressEnded:press pressesEvent:event];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesEnded:nonMenuPresses withEvent:event];
+  }
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 - (void)viewDidLoad {
   [super viewDidLoad];
 

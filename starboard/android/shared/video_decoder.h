@@ -68,6 +68,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          bool force_reset_surface_under_tunnel_mode,
                          bool force_big_endian_hdr_metadata,
                          int max_input_size,
+                         void* surface_view,
                          bool enable_flush_during_seek,
                          int64_t reset_delay_usec,
                          int64_t flush_delay_usec,
@@ -151,6 +152,9 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
+
+  // SurfaceView from AndroidOverlay passed from StarboardRenderer to SbPlayer.
+  void* surface_view_;
 
   const bool enable_flush_during_seek_;
   const int64_t reset_delay_usec_;
