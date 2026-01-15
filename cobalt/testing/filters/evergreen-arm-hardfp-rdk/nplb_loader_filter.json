@@ -1,11 +1,30 @@
 {
-  "_comment": "TODO(b/403007005): Disabled new locale tests.",
+  "_comment": "TODO: b/467701409 - Investigate failing langinfo tests.",
   "failing_tests": [
     "CrashpadConfigTest.VerifyUploadCert",
     "MadviseTest.BadSizeValue",
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+<<<<<<< HEAD
+=======
+    "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
+    "PosixTimeClockTests.ClockIncreasesOverTime",
+    "PosixUtimensatTest.OmitBothTimestamps",
+    "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
+    "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
+    "PosixUtimensatTest.SetToSpecificTime",
+    "PosixUtimensatTest.SymlinkNoFollow",
+    "Posix/NlLanginfoTest.AllItems/as_IN",
+    "Posix/NlLanginfoTest.AllItems/be_BY",
+    "Posix/NlLanginfoTest.AllItems/bs_BA",
+    "Posix/NlLanginfoTest.AllItems/or_IN",
+    "Posix/NlLanginfoLTest.AllItems/as_IN",
+    "Posix/NlLanginfoLTest.AllItems/be_BY",
+    "Posix/NlLanginfoLTest.AllItems/bs_BA",
+    "Posix/NlLanginfoLTest.AllItems/or_IN",
+    "SbAudioSinkCreateTest.MultiSink",
+>>>>>>> e4fe21f957e (3p: Add partial nl_langinfo support (#8483))
     "SbAudioSinkTest.*",
     "SbAudioSinkCreateTest.MultiSink",
     "SbMediaSetAudioWriteDurationTests*",
