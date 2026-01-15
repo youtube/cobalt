@@ -44,13 +44,13 @@ namespace gles_tracker {
 
 #define GL_MEM_TRACE(x) trace_##x
 
-inline const char* type2str(Objects type) {
+inline const char* type2str(ObjectType type) {
   switch (type) {
-    case Buffers:
+    case ObjectType::kBuffers:
       return "buffers";
-    case Textures:
+    case ObjectType::kTextures:
       return "textures";
-    case Renderbuffers:
+    case ObjectType::kRenderbuffers:
       return "renderbuffers";
     default:
       SB_NOTREACHED();
@@ -67,8 +67,8 @@ inline bool verbose_reporting() {
   return is_verbose;
 }
 
-inline void genObjects(Objects type, GLsizei n, GLuint* objects) {
-  TrackedMemObject& tracked_object = getObjects()[type];
+inline void genObjects(ObjectType type, GLsizei n, GLuint* objects) {
+  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
   MemObjects& map = tracked_object.objects;
   for (GLsizei i = 0; i < n; i++) {
     GLuint object_id = objects[i];
@@ -81,8 +81,8 @@ inline void genObjects(Objects type, GLsizei n, GLuint* objects) {
     }
   }
 }
-inline void deleteObjects(Objects type, GLsizei n, const GLuint* objects) {
-  TrackedMemObject& tracked_object = getObjects()[type];
+inline void deleteObjects(ObjectType type, GLsizei n, const GLuint* objects) {
+  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
   MemObjects& map = tracked_object.objects;
   for (GLsizei i = 0; i < n; i++) {
     GLuint object_id = objects[i];
@@ -100,8 +100,8 @@ inline void deleteObjects(Objects type, GLsizei n, const GLuint* objects) {
     map.erase(existing);
   }
 }
-inline void bindObject(Objects type, GLuint object) {
-  TrackedMemObject& tracked_object = getObjects()[type];
+inline void bindObject(ObjectType type, GLuint object) {
+  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
   MemObjects& map = tracked_object.objects;
   tracked_object.active = object;
   if (object == 0)
@@ -113,8 +113,8 @@ inline void bindObject(Objects type, GLuint object) {
     SB_CHECK(existing != map.end());
   }
 }
-inline void reportAllocation(Objects type, size_t estimated_allocation) {
-  TrackedMemObject& tracked_object = getObjects()[type];
+inline void reportAllocation(ObjectType type, size_t estimated_allocation) {
+  TrackedMemObject& tracked_object = getObjects()[static_cast<size_t>(type)];
   MemObjects& map = tracked_object.objects;
   auto existing = map.find(tracked_object.active);
   SB_CHECK(existing != map.end());
@@ -138,36 +138,36 @@ inline void reportAllocation(Objects type, size_t estimated_allocation) {
 // Buffers
 inline void GL_MEM_TRACE(glGenBuffers)(GLsizei n, GLuint* buffers) {
   glGenBuffers(n, buffers);
-  genObjects(Buffers, n, buffers);
+  genObjects(ObjectType::kBuffers, n, buffers);
 }
 inline void GL_MEM_TRACE(glDeleteBuffers)(GLsizei n, const GLuint* buffers) {
   glDeleteBuffers(n, buffers);
-  deleteObjects(Buffers, n, buffers);
+  deleteObjects(ObjectType::kBuffers, n, buffers);
 }
 inline void GL_MEM_TRACE(glBindBuffer)(GLenum target, GLuint buffer) {
   glBindBuffer(target, buffer);
-  bindObject(Buffers, buffer);
+  bindObject(ObjectType::kBuffers, buffer);
 }
 inline void GL_MEM_TRACE(glBufferData)(GLenum target,
                                        GLsizeiptr size,
                                        const void* data,
                                        GLenum usage) {
   glBufferData(target, size, data, usage);
-  reportAllocation(Buffers, size);
+  reportAllocation(ObjectType::kBuffers, size);
 }
 
 // Textures
 inline void GL_MEM_TRACE(glGenTextures)(GLsizei n, GLuint* textures) {
   glGenTextures(n, textures);
-  genObjects(Textures, n, textures);
+  genObjects(ObjectType::kTextures, n, textures);
 }
 inline void GL_MEM_TRACE(glDeleteTextures)(GLsizei n, const GLuint* textures) {
   glDeleteTextures(n, textures);
-  deleteObjects(Textures, n, textures);
+  deleteObjects(ObjectType::kTextures, n, textures);
 }
 inline void GL_MEM_TRACE(glBindTexture)(GLenum target, GLuint texture) {
   glBindTexture(target, texture);
-  bindObject(Textures, texture);
+  bindObject(ObjectType::kTextures, texture);
 }
 
 inline size_t estimate_bytes_per_pixel(GLenum format) {
@@ -197,39 +197,42 @@ inline void GL_MEM_TRACE(glTexImage2D)(GLenum target,
                                        const void* pixels) {
   glTexImage2D(target, level, internalformat, width, height, border, format,
                type, pixels);
-  reportAllocation(Textures, width * height * estimate_bytes_per_pixel(format));
+  reportAllocation(ObjectType::kTextures,
+                   width * height * estimate_bytes_per_pixel(format));
 }
 
 // Renderbuffers
 inline void GL_MEM_TRACE(glGenRenderbuffers)(GLsizei n, GLuint* renderbuffers) {
   glGenRenderbuffers(n, renderbuffers);
-  genObjects(Renderbuffers, n, renderbuffers);
+  genObjects(ObjectType::kRenderbuffers, n, renderbuffers);
 }
 inline void GL_MEM_TRACE(glDeleteRenderbuffers)(GLsizei n,
                                                 const GLuint* renderbuffers) {
   glDeleteRenderbuffers(n, renderbuffers);
-  deleteObjects(Renderbuffers, n, renderbuffers);
+  deleteObjects(ObjectType::kRenderbuffers, n, renderbuffers);
 }
 inline void GL_MEM_TRACE(glBindRenderbuffer)(GLenum target,
                                              GLuint renderbuffer) {
   glBindRenderbuffer(target, renderbuffer);
-  bindObject(Renderbuffers, renderbuffer);
+  bindObject(ObjectType::kRenderbuffers, renderbuffer);
 }
 inline void GL_MEM_TRACE(glRenderbufferStorage)(GLenum target,
                                                 GLenum internalformat,
                                                 GLsizei width,
                                                 GLsizei height) {
   glRenderbufferStorage(target, internalformat, width, height);
-  reportAllocation(Renderbuffers, width * height * 4);
+  reportAllocation(ObjectType::kRenderbuffers, width * height * 4);
 }
 
 // Disable all extensions
 inline const GLubyte* patch_glGetString(GLenum name) {
   if (name == GL_EXTENSIONS) {
-    std::string env_val =
-        starboard::GetEnvironment("COBALT_EGL_DISABLE_EXTENSIONS");
-    // If any value is passed, we disable extensions
-    if (!env_val.empty()) {
+    static const bool kDisableExtensions = []() {
+      std::string env_val =
+          starboard::GetEnvironment("COBALT_EGL_DISABLE_EXTENSIONS");
+      return !env_val.empty();
+    }();
+    if (kDisableExtensions) {
       static const unsigned char dummy[1] = {'\0'};
       return dummy;
     }

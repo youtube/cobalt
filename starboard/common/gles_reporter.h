@@ -28,7 +28,12 @@ namespace starboard {
 namespace common {
 namespace gles_tracker {
 
-enum Objects { Buffers = 0, Textures = 1, Renderbuffers = 2 };
+enum class ObjectType {
+  kBuffers = 0,
+  kTextures = 1,
+  kRenderbuffers = 2,
+  kCount
+};
 
 struct AllocationInfo {
   size_t size;
@@ -44,11 +49,7 @@ struct TrackedMemObject {
 };
 
 inline TrackedMemObject* getObjects() {
-  static TrackedMemObject objects[3] = {
-      TrackedMemObject(),
-      TrackedMemObject(),
-      TrackedMemObject(),
-  };
+  static TrackedMemObject objects[static_cast<size_t>(ObjectType::kCount)] = {};
   return objects;
 }
 
@@ -56,9 +57,13 @@ inline void GetTotalGpuMem(size_t* buffers,
                            size_t* textures,
                            size_t* renderbuffers) {
   TrackedMemObject* tracked_objects = getObjects();
-  *buffers = tracked_objects[Buffers].total_allocation;
-  *textures = tracked_objects[Textures].total_allocation;
-  *renderbuffers = tracked_objects[Renderbuffers].total_allocation;
+  *buffers = tracked_objects[static_cast<size_t>(ObjectType::kBuffers)]
+                 .total_allocation;
+  *textures = tracked_objects[static_cast<size_t>(ObjectType::kTextures)]
+                  .total_allocation;
+  *renderbuffers =
+      tracked_objects[static_cast<size_t>(ObjectType::kRenderbuffers)]
+          .total_allocation;
 }
 
 inline void DumpTotalGpuMem() {
