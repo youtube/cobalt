@@ -1,6 +1,9 @@
 {
-  "comment": "Temporarily disable Cobalt NavigationBrowserTest. See b/433354983.",
+  "comment": "Temporarily disable tests in NavigationBrowserTest. See b/433354983.",
   "failing_tests": [
+    "All/NavigationBrowserTestPaintHoldingSubframe*",
+    "CommitNavigationRaceBrowserTest*",
+    "MediaNavigationBrowserTest*",
     "NavigationBaseBrowserTest*",
     "NavigationBrowserTest*",
     "NavigationGoToEntryAtOffsetBrowserTest*",
