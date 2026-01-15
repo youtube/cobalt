@@ -4,7 +4,7 @@
 int __lockfile(FILE *f)
 {
 	int owner = f->lock, tid = __pthread_self()->tid;
-	if ((owner & ~MAYBE_WAITERS) == tid)
+	if ((owner & ~MAYBE_WAITERS) == (tid & ~MAYBE_WAITERS))
 		return 0;
 	owner = a_cas(&f->lock, 0, tid);
 	if (!owner) return 1;

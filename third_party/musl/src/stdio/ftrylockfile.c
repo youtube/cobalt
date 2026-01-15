@@ -32,7 +32,7 @@ int ftrylockfile(FILE *f)
 	pthread_t self = __pthread_self();
 	int tid = self->tid;
 	int owner = f->lock;
-	if ((owner & ~MAYBE_WAITERS) == tid) {
+	if ((owner & ~MAYBE_WAITERS) == (tid & ~MAYBE_WAITERS)) {
 		if (f->lockcount == LONG_MAX)
 			return -1;
 		f->lockcount++;
