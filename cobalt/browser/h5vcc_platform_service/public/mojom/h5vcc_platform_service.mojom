@@ -1,0 +1,49 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+module h5vcc_platform_service.mojom;
+
+// Interface implemented in the browser process to manage H5vccPlatformService
+// instances.
+interface H5vccPlatformServiceManager {
+  // Checks if a service with the given name exists.
+  [Sync]
+  Has(string service_name) => (bool exists);
+
+  // Opens a new H5vccPlatformService instance with the given name.
+  // The |observer| and |service_receiver| are for a Mojo pipe specific to this
+  // instance, allowing for bidirectional communication.
+  [Sync]
+  Open(string service_name,
+       pending_remote<PlatformServiceObserver> observer,
+       pending_receiver<PlatformService> service_receiver) => ();
+};
+
+// Interface implemented by the browser-side H5vccPlatformService instance
+// to handle messages from the renderer process.
+interface PlatformService {
+  // Sends data to the service and optionally receives an immediate response.
+  //
+  // TODO: b/371419798 - consider using mojo_base.mojom.BigBuffer for more
+  // efficient transport, as the data and response data could be large.
+  [Sync]
+  Send(array<uint8> data) => (array<uint8> response_data);
+};
+
+// Interface implemented by the renderer-side H5vccPlatformService to receive
+// data pushed from the browser service.
+interface PlatformServiceObserver {
+  // Called when data is received from the browser service.
+  OnDataReceived(array<uint8> data);
+};
