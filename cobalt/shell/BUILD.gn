@@ -164,6 +164,10 @@ group("cobalt_shell_lib_deps") {
       public_deps += [ "//starboard/android/shared:starboard_platform" ]
     }
   }
+
+  if (is_androidtv) {
+    public_deps += [ "//cobalt/browser:hang_watcher_delegate" ]
+  }
 }
 
 source_set("browsertests_sources") {
