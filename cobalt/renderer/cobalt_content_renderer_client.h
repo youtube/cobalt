@@ -15,6 +15,7 @@
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/base/starboard/renderer_factory_traits.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "ui/gfx/geometry/size.h"
 
 namespace content {
 class RenderFrame;
@@ -65,6 +66,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   mojo::Remote<cobalt::mojom::H5vccSettings> h5vcc_settings_remote_;
 
   base::ScopedClosureRunner unregister_thread_closure;
+
+  gfx::Size viewport_size_;
 
   THREAD_CHECKER(thread_checker_);
 

@@ -55,14 +55,7 @@ blink_modules_sources("mediasource") {
     # Ensure the generated webcodecs v8 config and chunk bindings are available.
     "//third_party/blink/renderer/modules/webcodecs:webcodecs",
   ]
-  if (is_cobalt) {
-    deps += [
-      "//third_party/blink/renderer/modules/cobalt:h_5_vcc",
-      "//third_party/blink/renderer/modules/cobalt/h5vcc_settings",
-    ]
-
-    if (use_starboard_media) {
-      deps += [ "//starboard($starboard_toolchain)" ]
-    }
+  if (is_cobalt && use_starboard_media) {
+    deps += [ "//starboard($starboard_toolchain)" ]
   }
 }

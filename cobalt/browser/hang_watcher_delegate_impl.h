@@ -12,22 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module h5vcc_metrics.mojom;
+#ifndef COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_
+#define COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_
 
-enum H5vccMetricType {
-  kUma,
-  kUkm,
-  kCobaltUma,
+#include "base/threading/hang_watcher.h"
+
+namespace cobalt {
+namespace browser {
+
+class CobaltHangWatcherDelegate : public base::HangWatcher::Delegate {
+ public:
+  CobaltHangWatcherDelegate() = default;
+  ~CobaltHangWatcherDelegate() override = default;
+
+  bool IsHangReportingEnabled() override;
 };
 
-interface MetricsListener {
-  OnMetrics(H5vccMetricType metricType, string metricsPayload);
-};
+}  // namespace browser
+}  // namespace cobalt
 
-interface H5vccMetrics {
-  AddListener(pending_remote<MetricsListener> listener);
-
-  [Sync] Enable(bool enable) => ();
-  SetMetricEventInterval(uint64 interval_seconds) => ();
-  RequestHistograms() => (string histograms_json);
-};
+#endif  // COBALT_BROWSER_HANG_WATCHER_DELEGATE_IMPL_H_

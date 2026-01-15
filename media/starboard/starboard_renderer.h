@@ -37,6 +37,10 @@
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android_overlay_mojo_factory.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace media {
 using base::Time;
 using base::TimeDelta;
@@ -55,7 +59,13 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     TimeDelta audio_write_duration_remote,
                     const std::string& max_video_capabilities,
                     bool enable_flush_during_seek,
-                    bool enable_reset_audio_decoder);
+                    bool enable_reset_audio_decoder,
+                    const gfx::Size& viewport_size
+#if BUILDFLAG(IS_ANDROID)
+                    ,
+                    const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
+#endif  // BUILDFLAG(IS_ANDROID)
+  );
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -161,6 +171,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // estimate and avoid calling SbPlayerGetInfo too frequently.
   void StoreMediaTime(TimeDelta media_time);
 
+#if BUILDFLAG(IS_ANDROID)
+  // AndroidOverlay callbacks.
+  void OnOverlayReady(AndroidOverlay*);
+  void OnOverlayFailed(AndroidOverlay*);
+#endif  // BUILDFLAG(IS_ANDROID)
+
   int GetDefaultMaxBuffers(AudioCodec codec,
                            TimeDelta duration_to_write,
                            bool is_preroll);
@@ -182,7 +198,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const std::string max_video_capabilities_;
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
+  const gfx::Size viewport_size_;
   const bool notify_memory_pressure_before_playback_;
+#if BUILDFLAG(IS_ANDROID)
+  const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+  std::unique_ptr<AndroidOverlay> overlay_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
@@ -195,6 +219,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  // The current overlay info, which possibly specifies an overlay to render to.
+  OverlayInfo overlay_info_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;

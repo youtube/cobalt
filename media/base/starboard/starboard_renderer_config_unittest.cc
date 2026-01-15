@@ -34,12 +34,14 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
   StarboardRendererConfig config(
       base::UnguessableToken::Create(), audio_write_duration_local,
       audio_write_duration_remote, max_video_capabilities,
-      enable_flush_during_seek, enable_reset_audio_decoder);
+      enable_flush_during_seek, enable_reset_audio_decoder,
+      gfx::Size(1920, 1080));
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
   EXPECT_EQ(config.enable_flush_during_seek, enable_flush_during_seek);
   EXPECT_EQ(config.enable_reset_audio_decoder, enable_reset_audio_decoder);
+  EXPECT_EQ(config.viewport_size, gfx::Size(1920, 1080));
 }
 
 }  // namespace media
