@@ -109,6 +109,10 @@ source_set("starboard") {
     "//url",
   ]
 
+  if (is_android) {
+    deps += [ "//media/base/android" ]
+  }
+
   if (!media_use_ffmpeg) {
     deps += [ "//third_party/abseil-cpp:absl" ]
   }
