@@ -57,11 +57,12 @@ static inline void __cond_mutex_pair_destroy(StarboardPthreadCondMutex* pair) {
 static inline void __wake(volatile void *addr, int cnt, int priv)
 {
 	StarboardPthreadCondMutex* lock = (StarboardPthreadCondMutex*)(addr);
-	// Signal threads that are waiting on the condition variable. It is safe
-	// to call pthread_cond_broadcast without holding the associated mutex.
-	// Waiting threads will be woken up, and they will then attempt to
-	// re-acquire the mutex within their call to pthread_cond_wait.
+	// Ensure the waiter has entered the wait state (released the mutex)
+	// before we signal, by acquiring the mutex. We broadcast while holding
+	// the mutex to ensure no waiter can be in the "check-then-wait" window.
+	pthread_mutex_lock(&lock->mutex);
 	pthread_cond_broadcast(&lock->cond);
+	pthread_mutex_unlock(&lock->mutex);
 }
 
 static inline void __futexwait(volatile void *addr, int val, int priv)
