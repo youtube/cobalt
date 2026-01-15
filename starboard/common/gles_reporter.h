@@ -54,23 +54,23 @@ inline TrackedMemObject* getObjects() {
 
 inline void GetTotalGpuMem(size_t* buffers,
                            size_t* textures,
-                           size_t* render_buffers) {
+                           size_t* renderbuffers) {
   TrackedMemObject* tracked_objects = getObjects();
   *buffers = tracked_objects[Buffers].total_allocation;
   *textures = tracked_objects[Textures].total_allocation;
-  *render_buffers = tracked_objects[Renderbuffers].total_allocation;
+  *renderbuffers = tracked_objects[Renderbuffers].total_allocation;
 }
 
 inline void DumpTotalGpuMem() {
-  size_t buffers, textures, render_buffers;
-  GetTotalGpuMem(&buffers, &textures, &render_buffers);
+  size_t buffers, textures, renderbuffers;
+  GetTotalGpuMem(&buffers, &textures, &renderbuffers);
   SB_LOG(INFO) << "GLTRACE: Total GPU Memory Usage:";
   SB_LOG(INFO) << "GLTRACE:   Buffers: " << buffers << " bytes ("
                << (buffers / (1024 * 1024)) << " MB)";
   SB_LOG(INFO) << "GLTRACE:   Textures: " << textures << " bytes ("
                << (textures / (1024 * 1024)) << " MB)";
-  SB_LOG(INFO) << "GLTRACE:   Renderbuffers: " << render_buffers << " bytes ("
-               << (render_buffers / (1024 * 1024)) << " MB)";
+  SB_LOG(INFO) << "GLTRACE:   Renderbuffers: " << renderbuffers << " bytes ("
+               << (renderbuffers / (1024 * 1024)) << " MB)";
 }
 
 }  // namespace gles_tracker

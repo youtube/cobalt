@@ -74,7 +74,7 @@ inline void genObjects(Objects type, GLsizei n, GLuint* objects) {
     GLuint object_id = objects[i];
     auto existing = map.find(object_id);
     SB_CHECK(existing == map.end());
-    map.insert(std::make_pair(object_id, AllocationInfo()));
+    map.insert({object_id, AllocationInfo()});
     if (verbose_reporting()) {
       SB_LOG(INFO) << "GLTRACE: added type:" << type2str(type)
                    << " object:" << object_id << " p:" << &tracked_object;
@@ -89,13 +89,12 @@ inline void deleteObjects(Objects type, GLsizei n, const GLuint* objects) {
     auto existing = map.find(object_id);
     SB_CHECK(existing != map.end());
     if (existing->second.size != 0) {
-      if (verbose_reporting()) {
-        SB_LOG(ERROR) << "GLTRACE: Deleting object with non-zero tracked size. type:" << type2str(type)
-                      << " size: " << existing->second.size
-                      << " total:" << tracked_object.total_allocation << " (MB:"
-                      << (tracked_object.total_allocation / (1024 * 1024))
-                      << ")";
-      }
+      SB_LOG(WARNING)
+          << "GLTRACE: Deleting object with non-zero tracked size. type:"
+          << type2str(type) << " size: " << existing->second.size
+          << " total:" << tracked_object.total_allocation
+          << " (MB:" << (tracked_object.total_allocation / (1024 * 1024))
+          << ")";
     }
     tracked_object.total_allocation -= existing->second.size;
     map.erase(existing);
@@ -196,19 +195,6 @@ inline void GL_MEM_TRACE(glTexImage2D)(GLenum target,
                                        const void* pixels) {
   glTexImage2D(target, level, internalformat, width, height, border, format,
                type, pixels);
-  reportAllocation(Textures, width * height * estimate_bytes_per_pixel(format));
-}
-inline void GL_MEM_TRACE(glTexSubImage2D)(GLenum target,
-                                          GLint level,
-                                          GLint xoffset,
-                                          GLint yoffset,
-                                          GLsizei width,
-                                          GLsizei height,
-                                          GLenum format,
-                                          GLenum type,
-                                          const void* pixels) {
-  glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type,
-                  pixels);
   reportAllocation(Textures, width * height * estimate_bytes_per_pixel(format));
 }
 

@@ -332,15 +332,7 @@ typedef struct SbGlesInterface {
   void (*glTexParameteriv)(SbGlEnum target,
                            SbGlEnum pname,
                            const SbGlInt32* params);
-  void (*glTexSubImage2D)(SbGlEnum target,
-                          SbGlInt32 level,
-                          SbGlInt32 xoffset,
-                          SbGlInt32 yoffset,
-                          SbGlSizei width,
-                          SbGlSizei height,
-                          SbGlEnum format,
-                          SbGlEnum type,
-                          const void* pixels);
+
   void (*glUniform1f)(SbGlInt32 location, SbGlFloat v0);
   void (*glUniform1fv)(SbGlInt32 location,
                        SbGlSizei count,
