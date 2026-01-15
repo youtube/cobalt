@@ -18,6 +18,7 @@ exclude: |
     (?x)^(
         (
             starboard/contrib/RDK|
+            starboard/contrib/rdk|
         )/
     )
 
