@@ -55,6 +55,7 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/util/Holder.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/util/Log.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
 ]

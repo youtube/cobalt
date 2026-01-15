@@ -14,46 +14,50 @@
 
 package org.chromium.content_browsertests_apk;
 
-import android.content.Context;
-import android.net.Uri;
+import android.app.Activity;
+import android.app.Service;
 import android.view.Window;
 import android.view.WindowManager;
 
-import androidx.core.content.FileProvider;
-
-import org.chromium.base.ContextUtils;
-import org.chromium.base.FileProviderUtils;
 import org.chromium.base.StrictModeContext;
+import dev.cobalt.coat.StarboardBridge;
+import dev.cobalt.shell.ShellManager;
+import dev.cobalt.util.Holder;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.BrowserStartupController.StartupCallback;
-import dev.cobalt.shell.ShellManager;
 import org.chromium.native_test.NativeBrowserTest;
 import org.chromium.native_test.NativeBrowserTestActivity;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
 
-import java.io.File;
-
 /** An Activity base class for running browser tests against ContentShell. */
-public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestActivity {
+public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestActivity
+        implements StarboardBridge.HostApplication {
     private static final String TAG = "native_test";
 
     private ShellManager mShellManager;
     private WindowAndroid mWindowAndroid;
+    private StarboardBridge mStarboardBridge;
 
-    private static class FileProviderHelper implements FileProviderUtils.FileProviderUtil {
-        // Keep this variable in sync with the value defined in file_paths.xml.
-        private static final String API_AUTHORITY_SUFFIX = ".FileProvider";
+    @Override
+    public void setStarboardBridge(StarboardBridge starboardBridge) {
+        mStarboardBridge = starboardBridge;
+    }
 
-        @Override
-        public Uri getContentUriFromFile(File file) {
-            Context appContext = ContextUtils.getApplicationContext();
-            return FileProvider.getUriForFile(
-                    appContext, appContext.getPackageName() + API_AUTHORITY_SUFFIX, file);
+    @Override
+    public StarboardBridge getStarboardBridge() {
+        return mStarboardBridge;
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (mShellManager != null) {
+            mShellManager.destroy();
         }
+        super.onDestroy();
     }
 
     /**
@@ -68,8 +72,6 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
             LibraryLoader.getInstance().ensureInitialized();
         }
 
-        FileProviderUtils.setFileProviderUtil(new FileProviderHelper());
-        setContentView(getTestActivityViewId());
         mShellManager = new ShellManager(this);
         IntentRequestTracker intentRequestTracker = IntentRequestTracker.createFromActivity(this);
         mWindowAndroid =
@@ -80,6 +82,16 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
                         /* insetObserver= */ null,
                         /* trackOcclusion= */ true);
         mShellManager.setWindow(mWindowAndroid);
+
+        // Instantiate StarboardBridge. This is crucial for initializing the native Starboard
+        // environment that the storage migration relies on.
+        mStarboardBridge = new StarboardBridge(getApplicationContext(),
+                                               new Holder<Activity>(),
+                                               new Holder<Service>(), // Set to null below
+                                               null, // ArtworkDownloader is not needed for tests
+                                               new String[0], // args
+                                               ""); // startDeepLink
+        ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(mStarboardBridge);
 
         Window wind = this.getWindow();
         wind.addFlags(WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
@@ -127,7 +139,5 @@ public abstract class ContentShellBrowserTestActivity extends NativeBrowserTestA
         return "user-data-dir";
     }
 
-    protected abstract int getTestActivityViewId();
 
-    protected abstract int getShellManagerViewId();
 }

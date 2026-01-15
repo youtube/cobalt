@@ -210,6 +210,10 @@ static_library("cobalt_shell_lib") {
     "browser/shell_speech_recognition_manager_delegate.h",
     "browser/shell_web_contents_view_delegate.h",
     "browser/shell_web_contents_view_delegate_creator.h",
+    "browser/splash_screen_web_contents_delegate.cc",
+    "browser/splash_screen_web_contents_delegate.h",
+    "browser/splash_screen_web_contents_observer.cc",
+    "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
     "common/shell_paths.cc",
@@ -252,10 +256,7 @@ static_library("cobalt_shell_lib") {
   if (run_browser_tests) {
     defines += [ "RUN_BROWSER_TESTS=1" ]
 
-    public_deps += [
-      ":shell_test_switches_lib",
-      "//content/test:test_support",
-    ]
+    public_deps += [ "//content/test:test_support" ]
   }
 
   if (shell_use_toolkit_views) {
@@ -300,15 +301,6 @@ static_library("cobalt_shell_lib") {
       "common/device_authentication.h",
     ]
   }
-}
-
-source_set("shell_test_switches_lib") {
-  testonly = true
-  sources = [
-    "common/shell_test_switches.cc",
-    "common/shell_test_switches.h",
-  ]
-  deps = [ "//base:base" ]
 }
 
 # This component provides a ContentMainDelegate for Content Shell and derived

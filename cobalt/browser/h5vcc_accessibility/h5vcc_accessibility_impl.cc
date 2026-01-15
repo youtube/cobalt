@@ -14,10 +14,28 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 
+#include <string>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "build/build_config.h"
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/text_to_speech_helper.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/accessibility.h"
+#endif
 
 namespace h5vcc_accessibility {
+
+#if BUILDFLAG(IS_ANDROIDTV)
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using ::starboard::CobaltTextToSpeechHelper;
+#endif
 
 H5vccAccessibilityImpl::H5vccAccessibilityImpl(
     content::RenderFrameHost& render_frame_host,
@@ -26,8 +44,6 @@ H5vccAccessibilityImpl::H5vccAccessibilityImpl(
           render_frame_host,
           std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
-  platform_text_to_speech_helper_ =
-      PlatformTextToSpeechHelper::Create(weak_ptr_factory_.GetWeakPtr());
 }
 
 H5vccAccessibilityImpl::~H5vccAccessibilityImpl() {
@@ -43,21 +59,46 @@ void H5vccAccessibilityImpl::Create(
 void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
     IsTextToSpeechEnabledSyncCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  std::move(callback).Run(
-      platform_text_to_speech_helper_->IsTextToSpeechEnabled());
+#if BUILDFLAG(IS_STARBOARD)
+  auto accessibility_api =
+      static_cast<const StarboardExtensionAccessibilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionAccessibilityName));
+  if (!accessibility_api ||
+      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) !=
+          0 ||
+      accessibility_api->version < 1) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  SbAccessibilityTextToSpeechSettings settings{};
+  if (!accessibility_api->GetTextToSpeechSettings(&settings)) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  std::move(callback).Run(settings.has_text_to_speech_setting &&
+                          settings.is_text_to_speech_enabled);
+#elif BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = AttachCurrentThread();
+  CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
+  bool enabled =
+      CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
+  std::move(callback).Run(enabled);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement text-to-speech availability check for tvOS.
+  NOTIMPLEMENTED();
+  std::move(callback).Run(false);
+#else
+#error "Unsupported platform."
+#endif
 }
 
 void H5vccAccessibilityImpl::RegisterClient(
     mojo::PendingRemote<mojom::H5vccAccessibilityClient> client) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  remote_clients_.Add(std::move(client));
-}
-
-void H5vccAccessibilityImpl::NotifyTextToSpeechChange() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  for (auto& client : remote_clients_) {
-    client->NotifyTextToSpeechChange();
-  }
+  cobalt::browser::H5vccAccessibilityManager::GetInstance()->AddListener(
+      std::move(client));
 }
 
 }  // namespace h5vcc_accessibility

@@ -14,6 +14,7 @@
     "base:base_unittests",
     "cc:cc_perftests",
     "cc:cc_unittests",
+    "cobalt:cobalt_browsertests",
     "components/viz:viz_perftests",
     "components/viz:viz_unittests",
     "crypto:crypto_unittests",

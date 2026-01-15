@@ -21,6 +21,8 @@
 #include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/queue_application.h"
+#include "starboard/shared/starboard/thread_checker.h"
 #import "starboard/tvos/shared/media/drm_manager.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
 #import "starboard/tvos/shared/media/player_manager.h"
@@ -29,7 +31,26 @@
 @interface ObjCApplication : NSObject <SBDStarboardApplication>
 @end
 
-@implementation ObjCApplication
+@implementation ObjCApplication {
+  UIView* __weak _playerContainerView;
+
+  // The last "menu" press from a `pressesBegan` event.
+  UIPress* _lastMenuPressBegan;
+
+  // The `pressesBegan` event that contained `_lastMenuPressBegan`.
+  UIPressesEvent* _lastMenuPressBeganEvent;
+
+  // The last "menu" press from a `pressesEnded` event.
+  UIPress* _lastMenuPressEnded;
+
+  // The `pressesEnded` event that contained `_lastMenuPressEnded`.
+  UIPressesEvent* _lastMenuPressEndedEvent;
+
+  // Used for checking that certain methods are invoked from the UI thread (so
+  // that UIKit calls can be made directly, for example).
+  starboard::ThreadChecker _uiThreadChecker;
+}
+
 @synthesize drmManager = _drmManager;
 @synthesize playerManager = _playerManager;
 
@@ -40,6 +61,46 @@
     _playerManager = [[SBDPlayerManager alloc] init];
   }
   return self;
+}
+
+- (void)setPlayerContainerView:(UIView*)view {
+  SB_CHECK(!_playerContainerView);
+  _playerContainerView = view;
+}
+
+- (void)attachPlayerView:(UIView*)subView {
+  SB_CHECK(_playerContainerView);
+  [_playerContainerView addSubview:subView];
+}
+
+- (void)registerMenuPressBegan:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent {
+  SB_CHECK(_uiThreadChecker.CalledOnValidThread());
+  _lastMenuPressBegan = press;
+  _lastMenuPressBeganEvent = pressesEvent;
+}
+
+- (void)registerMenuPressEnded:(UIPress*)press
+                  pressesEvent:(UIPressesEvent*)pressesEvent {
+  SB_CHECK(_uiThreadChecker.CalledOnValidThread());
+  _lastMenuPressEnded = press;
+  _lastMenuPressEndedEvent = pressesEvent;
+}
+
+- (void)suspendApplication {
+  SB_CHECK(_uiThreadChecker.CalledOnValidThread());
+  if (_lastMenuPressBegan && _lastMenuPressBeganEvent && _lastMenuPressEnded &&
+      _lastMenuPressEndedEvent) {
+    UIApplication* app = [UIApplication sharedApplication];
+    NSSet<UIPress*>* beganPresses = [NSSet setWithObject:_lastMenuPressBegan];
+    [app pressesBegan:beganPresses withEvent:_lastMenuPressBeganEvent];
+    NSSet<UIPress*>* endedPresses = [NSSet setWithObject:_lastMenuPressEnded];
+    [app pressesEnded:endedPresses withEvent:_lastMenuPressEndedEvent];
+  }
+  _lastMenuPressBegan = nil;
+  _lastMenuPressBeganEvent = nil;
+  _lastMenuPressEnded = nil;
+  _lastMenuPressEndedEvent = nil;
 }
 
 @end
@@ -61,12 +122,32 @@ struct ApplicationDarwin::ObjCStorage {
   ObjCApplication* __strong objc_application;
 };
 
+class ApplicationDarwin::ApplicationDarwinInternal final
+    : public QueueApplication {
+ public:
+  explicit ApplicationDarwinInternal(
+      std::unique_ptr<::starboard::CommandLine> command_line)
+      : QueueApplication(EmptyHandleCallback) {
+    SetCommandLine(std::move(command_line));
+  }
+
+  ~ApplicationDarwinInternal() override = default;
+
+ protected:
+  // QueueApplication overrides.
+  bool IsStartImmediate() override { return false; }
+  bool MayHaveSystemEvents() override { return false; }
+  Event* WaitForSystemEventWithTimeout(int64_t time) override {
+    return nullptr;
+  }
+  void WakeSystemEventWait() override {}
+};
+
 ApplicationDarwin::ApplicationDarwin(
     std::unique_ptr<::starboard::CommandLine> command_line)
-    : QueueApplication(EmptyHandleCallback),
+    : application_darwin_internal_(
+          std::make_unique<ApplicationDarwinInternal>(std::move(command_line))),
       objc_storage_(std::make_unique<ObjCStorage>()) {
-  SetCommandLine(std::move(command_line));
-
   objc_storage_->objc_application = [[ObjCApplication alloc] init];
   SB_CHECK(objc_storage_->objc_application);
   g_starboard_application_ = objc_storage_->objc_application;
