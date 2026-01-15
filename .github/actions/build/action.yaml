@@ -19,6 +19,7 @@ runs:
         shell: bash
       - name: GN gen
         run: |
+          set -x
           cd cobalt/src
           if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
             cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} --no-rbe
