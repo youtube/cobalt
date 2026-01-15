@@ -106,11 +106,13 @@ bool H5vccUpdater::GetAllowSelfSignedPackages() {
 }
 
 void H5vccUpdater::SetAllowSelfSignedPackages(bool allow_self_signed_packages) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
+  // fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
   if (updater_module_) {
     updater_module_->SetAllowSelfSignedPackages(allow_self_signed_packages);
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
 }
 
 std::string H5vccUpdater::GetUpdateServerUrl() const {
@@ -122,11 +124,13 @@ std::string H5vccUpdater::GetUpdateServerUrl() const {
 }
 
 void H5vccUpdater::SetUpdateServerUrl(const std::string& update_server_url) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
+  // fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
   if (updater_module_) {
     updater_module_->SetUpdateServerUrl(update_server_url);
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
 }
 
 bool H5vccUpdater::GetRequireNetworkEncryption() const {
@@ -139,11 +143,13 @@ bool H5vccUpdater::GetRequireNetworkEncryption() const {
 
 void H5vccUpdater::SetRequireNetworkEncryption(
     bool require_network_encryption) {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
+  // fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
   if (updater_module_) {
     updater_module_->SetRequireNetworkEncryption(require_network_encryption);
   }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
 }
 #endif  // SB_IS(EVERGREEN)
 }  // namespace h5vcc
