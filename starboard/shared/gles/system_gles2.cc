@@ -132,7 +132,7 @@ const SbGlesInterface g_sb_gles_interface = {
     &glTexParameterfv,
     &glTexParameteri,
     &glTexParameteriv,
-    &GL_MEM_TRACE_I(glTexSubImage2D),
+    &glTexSubImage2D,
     &glUniform1f,
     &glUniform1fv,
     &glUniform1i,

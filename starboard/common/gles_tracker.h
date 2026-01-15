@@ -180,6 +180,8 @@ inline size_t estimate_bytes_per_pixel(GLenum format) {
     case GL_ALPHA:
       return 1;
     default:
+      SB_LOG(WARNING) << "GLTRACE: Unhandled texture format " << format
+                      << " in estimate_bytes_per_pixel. Over-estimating size.";
       return 8;  // overcount, to err on high side
   }
 }
