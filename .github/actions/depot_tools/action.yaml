@@ -67,6 +67,7 @@ runs:
       - name: Set target OS for tvos
         if: ${{ contains(matrix.platform, 'tvos') }}
         run: |
+          cd cobalt
           echo "target_os=['ios']" >> .gclient
           gclient validate
         shell: bash
