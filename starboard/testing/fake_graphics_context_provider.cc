@@ -277,7 +277,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   decoder_target_provider_.gles_context_runner = DecodeTargetGlesContextRunner;
   decoder_target_provider_.gles_context_runner_context = this;
 
-  gles_context_thread_.reset(new GlesContextThread(this));
+  gles_context_thread_ = std::make_unique<GlesContextThread>(this);
   gles_context_thread_->Start();
   MakeNoContextCurrent();
 
