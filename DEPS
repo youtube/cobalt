@@ -4947,11 +4947,12 @@ deps = {
       'condition': 'checkout_src_internal',
   },
 
-  # Dependencies for RDK (starboard/contrib/rdk)
-  'src/starboard/contrib/rdk': {
-      'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
-      'condition': 'checkout_linux',
-  },
+# Cobalt: imported
+# Dependencies for RDK (starboard/contrib/rdk)
+#   'src/starboard/contrib/rdk': {
+#       'url': Var('rdk_starboard_git') + '/external/components/generic/cobalt' + '@' + '27.lts.youtube',
+#       'condition': 'checkout_linux',
+#   },
 }
 
 
