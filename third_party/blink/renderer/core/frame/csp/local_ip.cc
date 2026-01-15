@@ -95,7 +95,7 @@ bool IsIPInPrivateRange(const std::string& raw_ip_str) {
     address = addr_ipv4.value();
   }
 
-  return network::IPAddressToIPAddressSpace(address) == network::mojom::IPAddressSpace::kPrivate;
+  return network::IPAddressToIPAddressSpace(address) == network::mojom::IPAddressSpace::kLocal;
 }
 
 }  // namespace blink
