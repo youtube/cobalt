@@ -93,7 +93,7 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   bool eos_written_;
   bool first_input_written_ = false;
 
-  std::unique_ptr<Thread> thread_;
+  std::unique_ptr<DecoderThread> thread_;
   bool request_thread_termination_;
   Queue<Event*> queue_;
 

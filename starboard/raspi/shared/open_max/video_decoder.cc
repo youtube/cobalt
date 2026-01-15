@@ -31,6 +31,16 @@ const int64_t kUpdateIntervalUsec = 5'000;
 
 }  // namespace
 
+class OpenMaxVideoDecoder::DecoderThread : public Thread {
+ public:
+  explicit DecoderThread(OpenMaxVideoDecoder* decoder)
+      : Thread("omx_video_dec"), decoder_(decoder) {}
+  void Run() override { decoder_->RunLoop(); }
+
+ private:
+  OpenMaxVideoDecoder* decoder_;
+};
+
 OpenMaxVideoDecoder::OpenMaxVideoDecoder(SbMediaVideoCodec video_codec)
     : resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
       eos_written_(false),
