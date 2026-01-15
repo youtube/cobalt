@@ -116,6 +116,18 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecError(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecCryotoError(
+    JniEnvExt* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge,
+    jint error_code) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecCryptoError(error_code);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecInputBufferAvailable(
     JNIEnv* env,
     jobject unused_this,
@@ -550,6 +562,10 @@ void MediaCodecBridge::OnMediaCodecError(bool is_recoverable,
                                          bool is_transient,
                                          const std::string& diagnostic_info) {
   handler_->OnMediaCodecError(is_recoverable, is_transient, diagnostic_info);
+}
+
+void MediaCodecBridge::OnMediaCodecCryptoError(int error_code) {
+  handler_->OnMediaCodecCryptoError(error_code);
 }
 
 void MediaCodecBridge::OnMediaCodecInputBufferAvailable(int buffer_index) {

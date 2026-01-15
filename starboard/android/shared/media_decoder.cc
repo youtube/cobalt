@@ -614,6 +614,11 @@ void MediaDecoder::OnMediaCodecError(bool is_recoverable,
   }
 }
 
+void MediaDecoder::OnMediaCodecCryptoError(int error_code) {
+  ReportError(kSbPlayerErrorDecode,
+              FormatString("MediaCodec CryptoError with code %d.", error_code));
+}
+
 void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
   if (media_type_ == kSbMediaTypeVideo && first_call_on_handler_thread_) {
     // Set the thread priority of the Handler thread to dispatch the async

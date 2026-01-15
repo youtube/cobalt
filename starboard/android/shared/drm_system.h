@@ -86,7 +86,9 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   }
 
   // Return true when the drm system is ready for secure input buffers.
-  bool IsReady() { return created_media_crypto_session_.load(); }
+  bool IsReady() { return created_media_crypto_session_.load() && has_usable_key_.load(); }
+
+  void SetHasUsableKey(bool has_usable_key) { has_usable_key_.store(has_usable_key); }
 
  private:
   class SessionUpdateRequest {
@@ -128,6 +130,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   Mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
+  atomic_bool has_usable_key_{false};
   atomic_bool created_media_crypto_session_;
 
   std::vector<uint8_t> metrics_;
