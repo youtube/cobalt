@@ -332,7 +332,6 @@ typedef struct SbGlesInterface {
   void (*glTexParameteriv)(SbGlEnum target,
                            SbGlEnum pname,
                            const SbGlInt32* params);
-
   void (*glTexSubImage2D)(SbGlEnum target,
                           SbGlInt32 level,
                           SbGlInt32 xoffset,
