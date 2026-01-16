@@ -45,9 +45,9 @@ public class CobaltConnectivityDetector {
 
   private final CobaltActivity activity;
   private PlatformError platformError;
-  private boolean mAppHasSuccessfullyLoaded = false;
-  private boolean mHasVerifiedConnectivity = false;
-  private boolean mHasEncounteredConnectivityError = false;
+  private volatile boolean mAppHasSuccessfullyLoaded = false;
+  private volatile boolean mHasVerifiedConnectivity = false;
+  private volatile boolean mHasEncounteredConnectivityError = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
