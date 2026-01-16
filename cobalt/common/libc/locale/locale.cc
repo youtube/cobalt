@@ -44,11 +44,10 @@ cobalt::LconvImpl* GetGlobalLconv() {
   return g_current_lconv.get();
 }
 
-std::string GetNlLangInfoBuffer() {
-  return "";
-  // thread_local std::string buffer;
-  // return buffer;
-}
+// std::string GetNlLangInfoBuffer() {
+//   thread_local std::string buffer;
+//   return buffer;
+// }
 
 thread_local cobalt::LocaleImpl* g_current_thread_locale =
     reinterpret_cast<cobalt::LocaleImpl*>(LC_GLOBAL_LOCALE);
@@ -256,7 +255,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     cur_locale = reinterpret_cast<cobalt::LocaleImpl*>(locale);
   }
 
-  std::string& langinfo_buffer = GetNlLangInfoBuffer();
+  //std::string langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
     // TODO: b/466160361 - Add remaining support for D_FMT* operations.
     // Date and time formats
@@ -386,7 +385,8 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
       langinfo_buffer = "";
       break;
   }
-  return const_cast<char*>(langinfo_buffer.c_str());
+  return const_cast<char*>("");
+  //return const_cast<char*>(langinfo_buffer.c_str());
 }
 
 char* nl_langinfo(nl_item item) {
