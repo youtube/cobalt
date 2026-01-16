@@ -12,7 +12,7 @@
     "DocumentPolicyBrowserTest*",
     "HstsUpgradeBrowserTest*",
     "MediaNavigationBrowserTest*",
-    "NavigationBaseBrowserTest*",
+    "NavigationBaseBrowserTest.AddRequestHeaderOnRedirect",
     "NavigationBrowserTest*",
     "NavigationBrowserTestCredentiallessIframe*",
     "NavigationBrowserTestWarnSandboxIneffective*",

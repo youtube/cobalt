@@ -452,6 +452,8 @@ static_library("cobalt_shell_test_lib") {
     "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
+    "gpu/shell_content_gpu_test_client.cc",
+    "gpu/shell_content_gpu_test_client.h",
     "renderer/shell_content_renderer_test_client.cc",
     "renderer/shell_content_renderer_test_client.h",
     "utility/shell_content_utility_client.cc",
@@ -462,12 +464,14 @@ static_library("cobalt_shell_test_lib") {
     ":cobalt_browsertests_support",
     ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//components/viz/service",
     "//services/network/public/cpp",
   ]
 
