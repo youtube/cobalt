@@ -48,6 +48,14 @@ export ANDROID_SERIAL=<your_device_serial>
 ./run_tests.sh [additional_args]
 ```
 
+### Debugging
+
+If the script appears to hang or is running slowly, you can enable debug mode to see timestamped progress and full bash tracing:
+
+```bash
+DEBUG=1 ./run_tests.sh --list-tests
+```
+
 The `run_tests.sh` script automatically manages path resolution and sets the necessary environment variables (`CHROME_SRC`) to ensure the test runner functions correctly within the isolated directory structure.
 
 ## Docker Container Requirements

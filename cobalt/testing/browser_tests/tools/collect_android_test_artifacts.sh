@@ -113,33 +113,55 @@ cp -a "$DEPS_FILE" "$STAGE_DIR/src/$DEPS_FILE"
 cat <<EOF > "$STAGE_DIR/run_tests.sh"
 #!/bin/bash
 
+# Function to print timestamped log
+log() {
+  echo "[\$(date +'%Y-%m-%d %H:%M:%S')] \$1"
+}
+
+if [ "\$DEBUG" == "1" ]; then
+  set -x
+  log "Debug mode enabled (bash tracing on)"
+fi
+
+log "Starting run_tests.sh"
+
 # Get the absolute path of the script directory
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+log "Script directory: \$SCRIPT_DIR"
 
 # Add bundled depot_tools to PATH
+log "Configuring environment..."
 export PATH="\$SCRIPT_DIR/depot_tools:\$PATH"
-# Disable depot_tools auto-update to save time
 export DEPOT_TOOLS_UPDATE=0
 
 # Check for vpython3
+log "Checking for vpython3..."
 if ! command -v vpython3 &> /dev/null; then
-  echo "Error: vpython3 not found in bundled depot_tools."
+  log "Error: vpython3 not found in bundled depot_tools."
   exit 1
 fi
+log "Using vpython3 at: \$(which vpython3)"
 
 cd "\$SCRIPT_DIR/src"
 # Set CHROME_SRC to the absolute path of our isolated src/ directory
 export CHROME_SRC=\$(pwd)
+log "CHROME_SRC set to: \$CHROME_SRC"
 
 # Calculate absolute path for runtime-deps-path
+log "Resolving runtime_deps path..."
 DEPS_PATH="\$CHROME_SRC/out/android-arm_devel/gen.runtime/cobalt/testing/browser_tests/cobalt_browsertests__test_runner_script.runtime_deps"
 
 # Check if deps file exists
 if [ ! -f "\$DEPS_PATH" ]; then
-  echo "Error: runtime_deps file not found at \$DEPS_PATH"
+  log "Error: runtime_deps file not found at \$DEPS_PATH"
   exit 1
 fi
+log "Found runtime_deps at: \$DEPS_PATH"
 
+log "Executing run_cobalt_browsertests..."
+log "Command arguments: \$@"
+
+# Execute the test runner
 ./out/android-arm_devel/bin/run_cobalt_browsertests \\
   --runtime-deps-path "\$DEPS_PATH" \\
   "\$@"
@@ -152,7 +174,5 @@ tar -C "$STAGE_DIR" -czf "$OUTPUT_FILE" .
 
 # Cleanup
 rm -rf "$STAGE_DIR"
-
-echo "Done! Artifacts collected in $OUTPUT_FILE"
 
 echo "Done! Artifacts collected in $OUTPUT_FILE"
