@@ -35,7 +35,7 @@ config("compiler_rt_config") {
 
 static_library("compiler_rt") {
   sources = [
-    "lib/builtins/emutls.c",    
+    "lib/builtins/emutls.c",
     "lib/builtins/udivmodti4.c",
     "lib/builtins/udivti3.c",
     "lib/builtins/umodti3.c",
@@ -72,14 +72,18 @@ static_library("compiler_rt") {
   } else if (target_cpu == "arm64") {
     sources += [
       "lib/builtins/addtf3.c",
+      "lib/builtins/ashlti3.c",
       "lib/builtins/comparetf2.c",
       "lib/builtins/divtf3.c",
       "lib/builtins/extenddftf2.c",
       "lib/builtins/extendsftf2.c",
       "lib/builtins/fixtfsi.c",
+      "lib/builtins/fixunstfsi.c",
+      "lib/builtins/floatditf.c",
       "lib/builtins/floatsitf.c",
       "lib/builtins/floatunditf.c",
       "lib/builtins/floatunsitf.c",
+      "lib/builtins/lshrti3.c",
       "lib/builtins/multf3.c",
       "lib/builtins/riscv/fp_mode.c",
       "lib/builtins/subtf3.c",

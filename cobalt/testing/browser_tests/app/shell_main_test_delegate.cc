@@ -19,6 +19,8 @@
 #include "base/command_line.h"
 #include "cobalt/testing/browser_tests/common/shell_content_test_client.h"
 #include "cobalt/testing/browser_tests/common/shell_test_switches.h"
+#include "cobalt/testing/browser_tests/gpu/shell_content_gpu_test_client.h"
+#include "cobalt/testing/browser_tests/renderer/shell_content_renderer_test_client.h"
 #include "cobalt/testing/browser_tests/utility/shell_content_utility_client.h"
 
 namespace content {
@@ -42,6 +44,16 @@ std::optional<int> ShellMainTestDelegate::BasicStartupComplete() {
 ContentClient* ShellMainTestDelegate::CreateContentClient() {
   content_client_ = std::make_unique<ShellContentTestClient>();
   return content_client_.get();
+}
+
+ContentRendererClient* ShellMainTestDelegate::CreateContentRendererClient() {
+  renderer_client_ = std::make_unique<ShellContentRendererTestClient>();
+  return renderer_client_.get();
+}
+
+ContentGpuClient* ShellMainTestDelegate::CreateContentGpuClient() {
+  gpu_client_ = std::make_unique<ShellContentGpuTestClient>();
+  return gpu_client_.get();
 }
 
 ContentUtilityClient* ShellMainTestDelegate::CreateContentUtilityClient() {

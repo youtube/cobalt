@@ -16,6 +16,7 @@
 #define COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_CONTENT_RENDERER_TEST_CLIENT_H_
 
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
+#include "media/media_buildflags.h"
 
 namespace content {
 
@@ -26,8 +27,14 @@ class ShellContentRendererTestClient : public ShellContentRendererClient {
 
   void ExposeInterfacesToBrowser(mojo::BinderMap* binders) override;
   void RenderFrameCreated(RenderFrame* render_frame) override;
+  void RenderThreadStarted() override;
   void DidInitializeWorkerContextOnWorkerThread(
       v8::Local<v8::Context> context) override;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void GetStarboardRendererFactoryTraits(
+      media::RendererFactoryTraits* renderer_factory_traits) override;
+#endif
 };
 
 }  // namespace content

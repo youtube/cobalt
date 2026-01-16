@@ -118,6 +118,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'freeifaddrs',
     'fdatasync',
     'fstat',
+    'fstatat',
     'fsync',
     'ftruncate',
     'gai_strerror',
@@ -137,7 +138,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'link',
     'listen',
     'lseek',
-    'lstat',
     'madvise',
     'malloc',
     'malloc_usable_size',
@@ -150,7 +150,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'mprotect',
     'msync',
     'munmap',
-    'open',
+    'openat',
     'opendir',
     'pathconf',
     'pause',
@@ -233,7 +233,6 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'recvmmsg',
     'recvmsg',
     'rename',
-    'rmdir',
     'sched_getaffinity',
     'sched_get_priority_max',
     'sched_get_priority_min',
@@ -257,12 +256,11 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'socketpair',
     'sprintf',
     'srand',
-    'stat',
     'statvfs',
     'symlink',
     'sysconf',
     'uname',
-    'unlink',
+    'unlinkat',
     'usleep',
     'utimensat',
     'vfwprintf',
@@ -271,6 +269,10 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vswprintf',
     'write',
     'writev',
+
+    # TODO: b/476129004 - __clock_gettime64 is weakly defined for 32-bit arm
+    # platforms.
+    '__clock_gettime64',
 ]
 
 
