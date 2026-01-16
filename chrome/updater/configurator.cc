@@ -109,11 +109,12 @@ int Configurator::UpdateDelay() const {
 }
 
 std::vector<GURL> Configurator::UpdateUrl() const {
-#if !defined(COBALT_BUILD_TYPE_GOLD)
+// TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
   if (allow_self_signed_packages_ && !update_server_url_.empty()) {
     return std::vector<GURL>{GURL(update_server_url_)};
   }
-#endif // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           browser::switches::kUseQAUpdateServer)) {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrlQA)};
