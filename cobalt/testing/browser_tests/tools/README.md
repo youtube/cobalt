@@ -58,6 +58,45 @@ DEBUG=1 ./run_tests.sh --list-tests
 
 The `run_tests.sh` script automatically manages path resolution and sets the necessary environment variables (`CHROME_SRC`) to ensure the test runner functions correctly within the isolated directory structure.
 
+## End-to-End Docker Workflow
+
+Follow these steps to build, package, and run tests within a Docker container.
+
+### 1. Build the Test Targets
+Ensure you have a successful Android build:
+```bash
+autoninja -C out/android-arm_devel cobalt_browsertests
+```
+
+### 2. Package the Artifacts
+Generate the tarball containing all necessary test dependencies:
+```bash
+./cobalt/testing/browser_tests/tools/collect_android_test_artifacts.sh
+```
+
+### 3. Build the Docker Image
+Ensure your `Dockerfile` includes `python3` and `adb`. From the directory containing both the `Dockerfile` and the generated `cobalt_browsertests_android.tar.gz`:
+```bash
+sudo docker build -t my-image-with-adb:v7 .
+```
+
+### 4. Run the Docker Container
+Start the container with host network access and Android configuration mounted:
+```bash
+sudo docker run -it --rm \
+  --network host \
+  -v ~/.android:/root/.android \
+  my-image-with-adb:v7
+```
+
+### 5. Execute Tests Inside Container
+Inside the running container's shell:
+```bash
+cd /opt/cobalt_browsertests/
+export ANDROID_SERIAL=GZ2306036N390135
+./run_tests.sh -v --list-tests
+```
+
 ## Docker Container Requirements
 
 To run the packaged tests within a Docker container, the environment must have the following:
