@@ -15,7 +15,9 @@
 #include "cobalt/common/libc/locale/nl_langinfo_support.h"
 
 #include <algorithm>
+#include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include "cobalt/common/libc/locale/lconv_support.h"
 #include "starboard/common/log.h"
@@ -24,6 +26,7 @@
 #include "third_party/icu/source/common/unicode/uscript.h"
 #include "third_party/icu/source/i18n/unicode/dcfmtsym.h"
 #include "third_party/icu/source/i18n/unicode/dtfmtsym.h"
+#include "third_party/icu/source/i18n/unicode/dtptngen.h"
 
 namespace cobalt {
 namespace {
@@ -81,6 +84,208 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
   }
 
   return loc;
+}
+
+std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
+  // A static map is initialized only once, providing efficient lookups.
+  static const std::unordered_map<std::string, const char*> kIcuToPosixMap = {
+      // Date
+      {"yyyy", "%Y"},
+      {"yy", "%y"},
+      {"y", "%Y"},
+      {"MMMM", "%B"},
+      {"MMM", "%b"},
+      {"MM", "%m"},
+      {"M", "%m"},
+      {"dd", "%d"},
+      {"d", "%d"},
+      {"EEEE", "%A"},
+      {"EEE", "%a"},
+      {"EE", "%a"},
+      {"E", "%a"},
+      // Time
+      {"HH", "%H"},
+      {"H", "%k"},
+      {"kk", "%H"},
+      {"k", "%H"},
+      {"hh", "%I"},
+      {"h", "%l"},
+      {"K", "%l"},
+      {"KK", "%I"},
+      {"mm", "%M"},
+      {"m", "%M"},
+      {"ss", "%S"},
+      {"s", "%S"},
+      // AM/PM (all variants map to the same POSIX token)
+      {"a", "%p"},
+      {"aa", "%p"},
+      {"aaa", "%p"},
+      {"aaaa", "%p"}};
+
+  std::string token_str = ToUtf8(token);
+  auto it = kIcuToPosixMap.find(token_str);
+  if (it != kIcuToPosixMap.end()) {
+    return it->second;
+  }
+
+  // Handle special cases that are not direct key-value mappings.
+  if (token.startsWith("G")) {
+    return "";  // Strip Era
+  }
+  if (token.startsWith("z") || token.startsWith("v") || token.startsWith("V")) {
+    return "%Z";  // Timezone
+  }
+
+  // If no mapping is found, return the original token.
+  return token_str;
+}
+
+std::string CollapseSpaces(const std::string& input) {
+  std::string result;
+  result.reserve(input.length());  // Optimization
+
+  bool lastWasSpace = false;
+  for (char c : input) {
+    if (c == ' ') {
+      if (!lastWasSpace) {
+        result += ' ';
+        lastWasSpace = true;
+      }
+    } else {
+      result += c;
+      lastWasSpace = false;
+    }
+  }
+
+  // Trim trailing space if any
+  if (!result.empty() && result.back() == ' ') {
+    result.pop_back();
+  }
+
+  return result;
+}
+
+icu::UnicodeString GetPatternFromSkeleton(const std::string& locale_id,
+                                          const icu::UnicodeString& skeleton) {
+  UErrorCode status = U_ZERO_ERROR;
+  icu::Locale locale = GetCorrectICULocale(locale_id);
+
+  // 1. Create the Generator for this locale
+  icu::DateTimePatternGenerator* generator =
+      icu::DateTimePatternGenerator::createInstance(locale, status);
+
+  if (U_FAILURE(status)) {
+    return "";
+  }
+
+  // 2. Ask it to build the best pattern for your ingredients (skeleton)
+  icu::UnicodeString pattern = generator->getBestPattern(skeleton, status);
+
+  delete generator;
+  return pattern;
+}
+
+// Helper to process the current token and append it to the result.
+void FlushToken(icu::UnicodeString& currentToken, std::string& result) {
+  if (!currentToken.isEmpty()) {
+    result += MapIcuTokenToPosix(currentToken);
+    currentToken.remove();
+  }
+}
+
+std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
+  std::string result;
+  bool inQuote = false;
+  icu::UnicodeString currentToken;
+  const std::string kFormatChars = "yMdELGHhKkmaszv";
+
+  for (int32_t i = 0; i < pattern.length(); ++i) {
+    const UChar c = pattern[i];
+
+    // 1. Handle quotes, which toggle the inQuote state.
+    if (c == '\'') {
+      if (i + 1 < pattern.length() && pattern[i + 1] == '\'') {
+        FlushToken(currentToken, result);  // Flush before adding literal
+        result += "'";
+        i++;  // Skip the second quote
+      } else {
+        inQuote = !inQuote;
+      }
+      // 2. Handle characters inside a quoted section.
+    } else if (inQuote) {
+      FlushToken(currentToken, result);  // Flush before adding literal
+      result += ToUtf8(icu::UnicodeString(c));
+      // 3. Handle special ICU format characters.
+    } else if (kFormatChars.find(c) != std::string::npos) {
+      if (currentToken.isEmpty() || currentToken[0] == c) {
+        currentToken.append(c);
+      } else {
+        FlushToken(currentToken, result);
+        currentToken.append(c);
+      }
+      // 4. Handle all other characters (literals like ':', '/', etc.).
+    } else {
+      FlushToken(currentToken, result);
+
+      // Filter out commas and certain types of spaces.
+      if (c == ',' || c == 0x104A || c == 0x060C ||
+          (c == ' ' && !result.empty() && result.back() == ':')) {
+        continue;
+      }
+      if (c == 0x00A0 || c == 0x202F) {
+        result += " ";
+      } else {
+        result += ToUtf8(icu::UnicodeString(c));
+      }
+    }
+  }
+
+  // Flush any remaining token at the end of the string.
+  FlushToken(currentToken, result);
+
+  // Final Cleanup: Trim trailing space
+  if (!result.empty() && result.back() == ' ') {
+    result.pop_back();
+  }
+
+  return result;
+}
+
+icu::UnicodeString GetPatternFromStyle(const std::string& locale_id,
+                                       UDateFormatStyle date_style,
+                                       UDateFormatStyle time_style) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  // 1. Open C-API Formatter
+  UDateFormat* fmt = udat_open(time_style, date_style, locale_id.c_str(),
+                               nullptr, 0, nullptr, 0, &status);
+
+  if (U_FAILURE(status)) {
+    return icu::UnicodeString();
+  }
+
+  // 2. Pre-flight: Get length needed
+  // 'false' means we want canonical pattern chars (y, M, d), not localized
+  // ones.
+  int32_t len = udat_toPattern(fmt, false, nullptr, 0, &status);
+
+  status = U_ZERO_ERROR;  // Clear the expected buffer overflow warning
+
+  // 3. Allocate Buffer
+  std::vector<UChar> buffer(len + 1);
+
+  // 4. Fetch the Pattern
+  udat_toPattern(fmt, false, buffer.data(), len + 1, &status);
+
+  // 5. Cleanup
+  udat_close(fmt);
+
+  if (U_FAILURE(status)) {
+    return icu::UnicodeString();
+  }
+
+  // 6. Return UnicodeString directly
+  return icu::UnicodeString(buffer.data(), len);
 }
 }  // namespace
 
@@ -145,14 +350,31 @@ std::string NlGetNumericData(const std::string& locale, nl_item type) {
     case THOUSEP:
       result = ToUtf8(
           syms.getSymbol(icu::DecimalFormatSymbols::kGroupingSeparatorSymbol));
-      break;
-    default:
-      SB_LOG(WARNING) << "Unknown nl_item type received for NlGetNumericData. "
-                         "Returning the empty string.";
-      result = "";
   }
 
   return result;
 }
 
+std::string GetPosixFormat(const std::string& locale, nl_item item) {
+  icu::UnicodeString icu_pattern;
+
+  switch (item) {
+    case D_FMT:
+      icu_pattern = GetPatternFromStyle(locale, UDAT_SHORT, UDAT_NONE);
+      break;
+    case T_FMT:
+      icu_pattern = GetPatternFromStyle(locale, UDAT_NONE, UDAT_MEDIUM);
+      break;
+    case D_T_FMT:
+      icu_pattern = GetPatternFromSkeleton(locale, "yMMMEdjmsz");
+      break;
+    case T_FMT_AMPM:
+      icu_pattern = GetPatternFromSkeleton(locale, "ahms");
+      break;
+    default:
+      icu_pattern = "";
+  }
+
+  return CollapseSpaces(IcuPatternToPosix(icu_pattern));
+}
 }  // namespace cobalt

@@ -260,13 +260,12 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     // TODO: b/466160361 - Add remaining support for D_FMT* operations.
     // Date and time formats
     case D_T_FMT:
-      return const_cast<char*>("%a %b %e %H:%M:%S %Y");
     case D_FMT:
-      return const_cast<char*>("%m/%d/%y");
     case T_FMT:
-      return const_cast<char*>("%H:%M:%S");
     case T_FMT_AMPM:
-      return const_cast<char*>("%I:%M:%S %p");
+      langinfo_buffer =
+          cobalt::GetPosixFormat(cur_locale->categories[LC_TIME], item);
+      break;
     case AM_STR:
     case PM_STR:
       langinfo_buffer = cobalt::GetLocalizedDateSymbol(

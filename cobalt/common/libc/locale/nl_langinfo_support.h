@@ -36,6 +36,8 @@ std::string GetLocalizedDateSymbol(const std::string& locale,
 // supports the |RADIXCHAR| and |THOUSEP| nl_items.
 std::string NlGetNumericData(const std::string& locale, nl_item type);
 
+std::string GetPosixFormat(const std::string& locale, nl_item item);
+
 }  //  namespace cobalt
 
 #endif  // COBALT_COMMON_LIBC_LOCALE_NL_LANGINFO_SUPPORT_H_
