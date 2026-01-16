@@ -31,6 +31,8 @@ class BASE_EXPORT SbSysInfo {
   static std::string ModelYear();
 
   static std::string Brand();
+
+  static std::string OSFriendlyName();
 };
 
 }  // namespace starboard
