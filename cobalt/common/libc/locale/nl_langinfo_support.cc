@@ -15,9 +15,10 @@
 #include "cobalt/common/libc/locale/nl_langinfo_support.h"
 
 #include <algorithm>
+#include <array>
 #include <sstream>
 #include <string>
-#include <unordered_map>
+#include <utility>
 
 #include "cobalt/common/libc/locale/lconv_support.h"
 #include "starboard/common/log.h"
@@ -87,56 +88,70 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
 }
 
 std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
-  // A static map is initialized only once, providing efficient lookups.
-  static const std::unordered_map<std::string, const char*> kIcuToPosixMap = {
-      // Date
-      {"yyyy", "%Y"},
-      {"yy", "%y"},
-      {"y", "%Y"},
-      {"MMMM", "%B"},
-      {"MMM", "%b"},
-      {"MM", "%m"},
-      {"M", "%m"},
-      {"dd", "%d"},
-      {"d", "%d"},
-      {"EEEE", "%A"},
-      {"EEE", "%a"},
-      {"EE", "%a"},
-      {"E", "%a"},
-      // Time
-      {"HH", "%H"},
-      {"H", "%k"},
-      {"kk", "%H"},
-      {"k", "%H"},
-      {"hh", "%I"},
-      {"h", "%l"},
-      {"K", "%l"},
-      {"KK", "%I"},
-      {"mm", "%M"},
-      {"m", "%M"},
-      {"ss", "%S"},
-      {"s", "%S"},
-      // AM/PM (all variants map to the same POSIX token)
-      {"a", "%p"},
-      {"aa", "%p"},
-      {"aaa", "%p"},
-      {"aaaa", "%p"}};
+  constexpr std::array<std::pair<std::string_view, const char*>, 46>
+      kIcuToPosixMap = {
+          {// Date
+           {"yyyy", "%Y"},
+           {"yy", "%y"},
+           {"y", "%Y"},
+           {"MMMM", "%B"},
+           {"MMM", "%b"},
+           {"MM", "%m"},
+           {"M", "%m"},
+           {"dd", "%d"},
+           {"d", "%d"},
+           {"EEEE", "%A"},
+           {"EEE", "%a"},
+           {"EE", "%a"},
+           {"E", "%a"},
+           // Time
+           {"HH", "%H"},
+           {"H", "%k"},
+           {"kk", "%H"},
+           {"k", "%H"},
+           {"hh", "%I"},
+           {"h", "%l"},
+           {"K", "%l"},
+           {"KK", "%I"},
+           {"mm", "%M"},
+           {"m", "%M"},
+           {"ss", "%S"},
+           {"s", "%S"},
+           // AM/PM (all variants map to the same POSIX token)
+           {"a", "%p"},
+           {"aa", "%p"},
+           {"aaa", "%p"},
+           {"aaaa", "%p"},
+           // Era (G) (Currently not supported, will return the empty string if
+           // seen)
+           {"G", ""},
+           {"GG", ""},
+           {"GGG", ""},
+           {"GGGG", ""},
+           {"GGGGG", ""},
+           // ICU Timezone specific symbols (POSIX has no direct equivalent for
+           // these symbols, so we simply just return "%Z", which is the
+           // timezone name/abbreviation)
+           {"z", "%Z"},
+           {"zz", "%Z"},
+           {"zzz", "%Z"},
+           {"zzzz", "%Z"},
+           {"v", "%Z"},
+           {"vv", "%Z"},
+           {"vvv", "%Z"},
+           {"vvvv", "%Z"},
+           {"V", "%Z"},
+           {"VV", "%Z"},
+           {"VVV", "%Z"},
+           {"VVVV", "%Z"}}};
 
   std::string token_str = ToUtf8(token);
-  auto it = kIcuToPosixMap.find(token_str);
-  if (it != kIcuToPosixMap.end()) {
-    return it->second;
+  for (const auto& entry : kIcuToPosixMap) {
+    if (entry.first == token_str) {
+      return entry.second;
+    }
   }
 
-  // Handle special cases that are not direct key-value mappings.
-  if (token.startsWith("G")) {
-    return "";  // Strip Era
-  }
-  if (token.startsWith("z") || token.startsWith("v") || token.startsWith("V")) {
-    return "%Z";  // Timezone
-  }
-
-  // If no mapping is found, return the original token.
   return token_str;
 }
 
@@ -355,7 +370,7 @@ std::string NlGetNumericData(const std::string& locale, nl_item type) {
   return result;
 }
 
-std::string GetPosixFormat(const std::string& locale, nl_item item) {
+std::string GetPosixPattern(const std::string& locale, nl_item item) {
   icu::UnicodeString icu_pattern;
 
   switch (item) {
@@ -375,6 +390,7 @@ std::string GetPosixFormat(const std::string& locale, nl_item item) {
       icu_pattern = "";
   }
 
-  return CollapseSpaces(IcuPatternToPosix(icu_pattern));
+  std::string converted_pattern = IcuPatternToPosix(icu_pattern);
+  return CollapseSpaces(converted_pattern);
 }
 }  // namespace cobalt

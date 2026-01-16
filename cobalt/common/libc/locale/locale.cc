@@ -257,14 +257,13 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
 
   std::string& langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
-    // TODO: b/466160361 - Add remaining support for D_FMT* operations.
     // Date and time formats
     case D_T_FMT:
     case D_FMT:
     case T_FMT:
     case T_FMT_AMPM:
       langinfo_buffer =
-          cobalt::GetPosixFormat(cur_locale->categories[LC_TIME], item);
+          cobalt::GetPosixPattern(cur_locale->categories[LC_TIME], item);
       break;
     case AM_STR:
     case PM_STR:
