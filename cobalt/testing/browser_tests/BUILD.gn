@@ -177,6 +177,25 @@ if (is_android) {
   }
 }
 
+copy("cobalt_browsertests_runner_script") {
+  testonly = true
+
+  # TODO(433354983): Switch back to the run_browser_tests.py
+  # once the infra supports python.
+  sources = [ "cobalt_browsertests_runner.sh" ]
+  outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
+  deps = [ ":cobalt_browsertests" ]
+}
+
+group("cobalt_browsertests_runner") {
+  testonly = true
+  data_deps = [
+    ":cobalt_browsertests",
+    ":cobalt_browsertests_runner_script",
+  ]
+  write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
+}
+
 # Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
