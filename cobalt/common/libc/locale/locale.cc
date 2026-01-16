@@ -255,7 +255,7 @@ char* nl_langinfo_l(nl_item item, locale_t locale) {
     cur_locale = reinterpret_cast<cobalt::LocaleImpl*>(locale);
   }
 
-  std::string langinfo_buffer = GetNlLangInfoBuffer();
+  std::string& langinfo_buffer = GetNlLangInfoBuffer();
   switch (item) {
     // TODO: b/466160361 - Add remaining support for D_FMT* operations.
     // Date and time formats
