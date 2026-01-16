@@ -122,7 +122,7 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     openbox \
     libnss3 \
-    libasound2 \
+    libasound2t64 \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
