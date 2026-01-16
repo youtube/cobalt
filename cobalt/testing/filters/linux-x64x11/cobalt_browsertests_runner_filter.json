@@ -13,6 +13,7 @@
     "HstsUpgradeBrowserTest*",
     "MediaNavigationBrowserTest*",
     "NavigationBaseBrowserTest.AddRequestHeaderOnRedirect",
+    "NavigationBaseBrowserTest.SrcDocCSPInheritedAfterCrossSiteHistoryNavigation",
     "NavigationBrowserTest*",
     "NavigationBrowserTestCredentiallessIframe*",
     "NavigationBrowserTestWarnSandboxIneffective*",
