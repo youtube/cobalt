@@ -44,10 +44,10 @@ cobalt::LconvImpl* GetGlobalLconv() {
   return g_current_lconv.get();
 }
 
-std::string& GetNlLangInfoBuffer() {
-  //thread_local 
-  std::string buffer;
-  return buffer;
+std::string GetNlLangInfoBuffer() {
+  return "";
+  // thread_local std::string buffer;
+  // return buffer;
 }
 
 thread_local cobalt::LocaleImpl* g_current_thread_locale =
