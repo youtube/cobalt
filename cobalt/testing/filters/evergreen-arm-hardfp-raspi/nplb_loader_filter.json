@@ -4,10 +4,6 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/16",
-<<<<<<< HEAD
-    "Posix/NlLanginfo*",
-=======
-    "PosixTimeClockTests.ClockIncreasesOverTime",
     "Posix/NlLanginfoTest.AllItems/as_IN",
     "Posix/NlLanginfoTest.AllItems/be_BY",
     "Posix/NlLanginfoTest.AllItems/bs_BA",
@@ -16,7 +12,6 @@
     "Posix/NlLanginfoLTest.AllItems/be_BY",
     "Posix/NlLanginfoLTest.AllItems/bs_BA",
     "Posix/NlLanginfoLTest.AllItems/or_IN",
->>>>>>> e4fe21f957e (3p: Add partial nl_langinfo support (#8483))
     "SbAudioSinkTest.*",
     "SbMediaSetAudioWriteDurationTests*",
     "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",

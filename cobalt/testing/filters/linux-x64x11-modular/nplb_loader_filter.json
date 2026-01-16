@@ -2,8 +2,14 @@
   "_comment": "TODO: b/467701409 - Investigate failing langinfo tests.",
   "failing_tests": [
     "PosixTimeClockTests.ClockIncreasesOverTime",
-<<<<<<< HEAD
-    "Posix/NlLanginfo*",
+    "Posix/NlLanginfoTest.AllItems/as_IN",
+    "Posix/NlLanginfoTest.AllItems/be_BY",
+    "Posix/NlLanginfoTest.AllItems/bs_BA",
+    "Posix/NlLanginfoTest.AllItems/or_IN",
+    "Posix/NlLanginfoLTest.AllItems/as_IN",
+    "Posix/NlLanginfoLTest.AllItems/be_BY",
+    "Posix/NlLanginfoLTest.AllItems/bs_BA",
+    "Posix/NlLanginfoLTest.AllItems/or_IN",
     "FileTempTest.MkdtempNonExistentPath",
     "FileTempTest.MkostempNonExistentPath",
     "FileTempTest.MkstempNonExistentPath",
@@ -20,15 +26,5 @@
     "PosixMemalignTest.FailsWithInvalidAlignment*",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
-=======
-    "Posix/NlLanginfoTest.AllItems/as_IN",
-    "Posix/NlLanginfoTest.AllItems/be_BY",
-    "Posix/NlLanginfoTest.AllItems/bs_BA",
-    "Posix/NlLanginfoTest.AllItems/or_IN",
-    "Posix/NlLanginfoLTest.AllItems/as_IN",
-    "Posix/NlLanginfoLTest.AllItems/be_BY",
-    "Posix/NlLanginfoLTest.AllItems/bs_BA",
-    "Posix/NlLanginfoLTest.AllItems/or_IN"
->>>>>>> e4fe21f957e (3p: Add partial nl_langinfo support (#8483))
   ]
 }
