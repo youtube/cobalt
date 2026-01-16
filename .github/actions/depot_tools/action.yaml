@@ -17,8 +17,13 @@ runs:
       - name: Clear Cache and Clone Depot Tools
         if: inputs.use_cache != 'true'
         run: |
+          set -x
+          # Remove and re-clone gclient.
           rm -rf /runner-cache/depot_tools /runner-cache/cobalt/.cipd_cache
           git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /runner-cache/depot_tools
+
+          # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
+          git -C /runner-cache/cobalt/src submodule deinit -f --all
           git -C /runner-cache/cobalt/src clean -ffdx
         shell: bash
 
