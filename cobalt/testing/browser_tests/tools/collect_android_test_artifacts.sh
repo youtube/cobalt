@@ -142,6 +142,23 @@ if ! command -v vpython3 &> /dev/null; then
 fi
 log "Using vpython3 at: \$(which vpython3)"
 
+# Sanity check: Can vpython3 run a simple command?
+log "Running vpython3 sanity check..."
+if ! vpython3 -c "import sys; print('vpython3 is working, version:', sys.version)" &> vpython_sanity.log; then
+  log "Error: vpython3 sanity check failed. See vpython_sanity.log"
+  cat vpython_sanity.log
+  exit 1
+fi
+cat vpython_sanity.log
+rm vpython_sanity.log
+
+# Check for CA certificates (needed by vpython to download wheels)
+if [ ! -f /etc/ssl/certs/ca-certificates.crt ] && [ ! -d /etc/ssl/certs ]; then
+  log "Warning: CA certificates not found. vpython3 may fail to download dependencies."
+  log "Try: apt-get install -y ca-certificates"
+fi
+
+log "Changing directory to src/..."
 cd "\$SCRIPT_DIR/src"
 # Set CHROME_SRC to the absolute path of our isolated src/ directory
 export CHROME_SRC=\$(pwd)
