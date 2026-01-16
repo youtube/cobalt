@@ -28,16 +28,16 @@ int fstat64(int fildes, struct stat* info) {
 
 int open64(const char *filename, int flags, ...)
 {
-	mode_t mode = 0;
+  mode_t mode = 0;
 
-	if ((flags & O_CREAT) || (flags & O_TMPFILE) == O_TMPFILE) {
-		va_list ap;
-		va_start(ap, flags);
-		mode = va_arg(ap, mode_t);
-		va_end(ap);
-	}
+  if ((flags & O_CREAT) || (flags & O_TMPFILE) == O_TMPFILE) {
+    va_list ap;
+    va_start(ap, flags);
+    mode = va_arg(ap, mode_t);
+    va_end(ap);
+  }
 
-	return open(filename, flags, mode);
+  return open(filename, flags, mode);
 }
 
 void* mmap64(void* addr, size_t len, int prot, int flags, int fildes, off_t off) {
