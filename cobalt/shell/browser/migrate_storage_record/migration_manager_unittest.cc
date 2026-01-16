@@ -198,5 +198,18 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
   EXPECT_TRUE(actual3.empty());
 }
 
+TEST_F(MigrationManagerTest, GURLWithLeadingDotTest) {
+  GURL url("https://.example.com/");
+  EXPECT_FALSE(url.is_valid());
+
+  std::string domain = ".example.com";
+  if (domain.starts_with(".")) {
+    domain = domain.substr(1);
+  }
+  GURL fixed_url("https://" + domain + "/");
+  EXPECT_TRUE(fixed_url.is_valid());
+  EXPECT_EQ("https://example.com/", fixed_url.spec());
+}
+
 }  // namespace migrate_storage_record
 }  // namespace cobalt
