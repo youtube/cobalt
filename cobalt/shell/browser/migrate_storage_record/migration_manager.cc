@@ -286,7 +286,11 @@ Task MigrationManager::CookieTask(
         [](content::WeakDocumentPtr weak_document_ptr,
            std::unique_ptr<net::CanonicalCookie> cookie,
            base::OnceClosure callback) {
-          GURL source_url("https://" + cookie->Domain() + cookie->Path());
+          std::string domain = cookie->Domain();
+          if (domain.starts_with(".")) {
+            domain = domain.substr(1);
+          }
+          GURL source_url("https://" + domain + cookie->Path());
           CookieManager(weak_document_ptr)
               ->SetCanonicalCookie(*cookie, source_url,
                                    net::CookieOptions::MakeAllInclusive(),

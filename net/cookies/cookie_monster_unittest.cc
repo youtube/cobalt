@@ -8509,6 +8509,22 @@ TEST_F(CookieMonsterTest, SanitizedCookieCreated500DaysAgoThenUpdatedNow) {
                   "A", "B", new_creation, new_creation + base::Days(400))));
 }
 
+TEST_F(CookieMonsterTest, SetCanonicalCookieWithLeadingDotInSourceURL) {
+  std::unique_ptr<CookieMonster> cm(new CookieMonster(nullptr, nullptr));
+  GURL source_url("https://.example.com/");
+  std::unique_ptr<CanonicalCookie> cookie =
+      CanonicalCookie::CreateUnsafeCookieForTesting(
+          "A", "B", ".example.com", "/", base::Time::Now(), base::Time(),
+          base::Time(), base::Time(), true, false,
+          CookieSameSite::NO_RESTRICTION, COOKIE_PRIORITY_DEFAULT);
+
+  EXPECT_TRUE(SetCanonicalCookie(cm.get(), std::move(cookie), source_url, true));
+
+  CookieList list(GetAllCookies(cm.get()));
+  ASSERT_EQ(1U, list.size());
+  EXPECT_EQ(".example.com", list[0].Domain());
+}
+
 INSTANTIATE_TEST_SUITE_P(/* no label */,
                          CookieMonsterTestPriorityGarbageCollectionObc,
                          testing::Combine(testing::Bool(), testing::Bool()));

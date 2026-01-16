@@ -134,6 +134,20 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
   }
 }
 
+TEST_F(MigrationManagerTest, ToCanonicalCookiesWithLeadingDotTest) {
+  cobalt::storage::Storage storage;
+  auto* cookie = storage.add_cookies();
+  cookie->set_name("name");
+  cookie->set_value("value");
+  cookie->set_domain(".example.com");
+  cookie->set_path("/");
+
+  auto cookies = ToCanonicalCookies(storage);
+  EXPECT_EQ(1u, cookies.size());
+  EXPECT_EQ(".example.com", cookies[0]->Domain());
+  EXPECT_TRUE(cookies[0]->IsDomainCookie());
+}
+
 TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
   cobalt::storage::Storage storage;
 
@@ -196,19 +210,6 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
   auto actual3 = ToLocalStorageItems(
       url::Origin::Create(GURL("http://example2.com")), storage);
   EXPECT_TRUE(actual3.empty());
-}
-
-TEST_F(MigrationManagerTest, GURLWithLeadingDotTest) {
-  GURL url("https://.example.com/");
-  EXPECT_FALSE(url.is_valid());
-
-  std::string domain = ".example.com";
-  if (domain.starts_with(".")) {
-    domain = domain.substr(1);
-  }
-  GURL fixed_url("https://" + domain + "/");
-  EXPECT_TRUE(fixed_url.is_valid());
-  EXPECT_EQ("https://example.com/", fixed_url.spec());
 }
 
 }  // namespace migrate_storage_record
