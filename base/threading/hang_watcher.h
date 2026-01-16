@@ -111,17 +111,6 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] WatchHangsInScope {
 // within a single process. This instance must outlive all monitored threads.
 class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
  public:
-#if BUILDFLAG(IS_COBALT)
-  // Delegate interface to allow embedders to control HangWatcher behavior.
-  class BASE_EXPORT Delegate {
-   public:
-    virtual ~Delegate() = default;
-    // Returns true if hang reporting should be enabled
-    // potentially overriding default settings.
-    virtual bool IsHangReportingEnabled() = 0;
-  };
-#endif
-
   // Describes the type of a process for logging purposes.
   enum class ProcessType {
     kUnknownProcess = 0,
@@ -267,11 +256,6 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
   // Returns the value of the crash key with the time since last system power
   // resume.
   std::string GetTimeSinceLastSystemPowerResumeCrashKeyValue() const;
-
-#if BUILDFLAG(IS_COBALT)
-  // Sets the delegate for the HangWatcher. Must be called before Start().
-  static void SetDelegate(Delegate* delegate);
-#endif
 
  private:
   // See comment of ::RegisterThread() for details.

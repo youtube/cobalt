@@ -128,13 +128,7 @@ class SSLStream : public Stream {
         return false;
       }
     } else {
-#if BUILDFLAG(IS_ANDROID)
-      if (SSL_CTX_load_verify_locations(
-              ctx_.get(), nullptr, "/system/etc/security/cacerts") <= 0) {
-        LOG(ERROR) << "SSL_CTX_load_verify_locations";
-        return false;
-      }
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
       if (SSL_CTX_load_verify_locations(
               ctx_.get(), nullptr, "/etc/ssl/certs") <= 0) {
         LOG(ERROR) << "SSL_CTX_load_verify_locations";
