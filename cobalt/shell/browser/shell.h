@@ -144,9 +144,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
                       bool* was_blocked) override;
   void LoadingStateChanged(WebContents* source,
                            bool should_show_loading_ui) override;
-#if BUILDFLAG(IS_ANDROID)
-  void SetOverlayMode(bool use_overlay_mode) override;
-#endif
   void EnterFullscreenModeForTab(
       RenderFrameHost* requesting_frame,
       const blink::mojom::FullscreenOptions& options) override;
