@@ -61,7 +61,11 @@ static inline void __wake(volatile void *addr, int cnt, int priv)
 	// before we signal, by acquiring the mutex. We broadcast while holding
 	// the mutex to ensure no waiter can be in the "check-then-wait" window.
 	pthread_mutex_lock(&lock->mutex);
-	pthread_cond_broadcast(&lock->cond);
+	if (cnt == 1) {
+		pthread_cond_signal(&lock->cond);
+	} else {
+		pthread_cond_broadcast(&lock->cond);
+	}
 	pthread_mutex_unlock(&lock->mutex);
 }
 
