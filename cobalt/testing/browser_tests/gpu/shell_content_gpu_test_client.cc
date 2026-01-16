@@ -16,13 +16,28 @@
 
 #include "base/task/single_thread_task_runner.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/testing/browser_tests/common/power_monitor_test_impl.h"
 #include "components/viz/service/display/starboard/video_geometry_setter.h"
 #include "content/public/child/child_thread.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
+#include "mojo/public/cpp/bindings/self_owned_receiver.h"
 
 namespace content {
 
 ShellContentGpuTestClient::ShellContentGpuTestClient() = default;
 ShellContentGpuTestClient::~ShellContentGpuTestClient() = default;
+
+void ShellContentGpuTestClient::PostCompositorThreadCreated(
+    base::SingleThreadTaskRunner* task_runner) {
+  mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
+      video_geometry_setter;
+  content::ChildThread::Get()->BindHostReceiver(
+      video_geometry_setter.InitWithNewPipeAndPassReceiver());
+
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&viz::ConnectVideoGeometrySetter,
+                                       std::move(video_geometry_setter)));
+}
 
 void ShellContentGpuTestClient::PostCompositorThreadCreated(
     base::SingleThreadTaskRunner* task_runner) {

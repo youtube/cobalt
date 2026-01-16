@@ -25,6 +25,11 @@ class ShellContentGpuTestClient : public ContentGpuClient {
   ~ShellContentGpuTestClient() override;
 
   // ContentGpuClient:
+  void ExposeInterfacesToBrowser(
+      const gpu::GpuPreferences& gpu_preferences,
+      const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
+      mojo::BinderMap* binders) override;
+
   void PostCompositorThreadCreated(
       base::SingleThreadTaskRunner* task_runner) override;
 };
