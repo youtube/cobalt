@@ -217,6 +217,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
                    &MediaDecoder::DecoderThreadEntryPoint, this);
     SB_DCHECK_NE(decoder_thread_, 0);
   }
+
   ScopedLock scoped_lock(mutex_);
   bool need_signal = pending_inputs_.empty();
   for (const auto& input_buffer : input_buffers) {

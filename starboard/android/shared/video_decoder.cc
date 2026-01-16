@@ -189,7 +189,7 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void(int64_t pts, int64_t release_us)>
+  typedef std::function<void(int64_t pts_us, int64_t release_at_us)>
       VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
@@ -361,25 +361,24 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   bool rendered_;
 };
 
-VideoDecoder::VideoDecoder(
-    const VideoStreamInfo& video_stream_info,
-    SbDrmSystem drm_system,
-    SbPlayerOutputMode output_mode,
-    SbDecodeTargetGraphicsContextProvider*
-        decode_target_graphics_context_provider,
-    const std::string& max_video_capabilities,
-    int tunnel_mode_audio_session_id,
-    bool force_secure_pipeline_under_tunnel_mode,
-    bool force_reset_surface,
-    bool force_reset_surface_under_tunnel_mode,
-    bool force_big_endian_hdr_metadata,
-    int max_video_input_size,
-    void* surface_view,
-    bool enable_flush_during_seek,
-    int64_t reset_delay_usec,
-    int64_t flush_delay_usec,
-    std::optional<FlowControlOptions> flow_control_options,
-    std::string* error_message)
+VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
+                           SbDrmSystem drm_system,
+                           SbPlayerOutputMode output_mode,
+                           SbDecodeTargetGraphicsContextProvider*
+                               decode_target_graphics_context_provider,
+                           const std::string& max_video_capabilities,
+                           int tunnel_mode_audio_session_id,
+                           bool force_secure_pipeline_under_tunnel_mode,
+                           bool force_reset_surface,
+                           bool force_reset_surface_under_tunnel_mode,
+                           bool force_big_endian_hdr_metadata,
+                           int max_video_input_size,
+                           void* surface_view,
+                           bool enable_flush_during_seek,
+                           int64_t reset_delay_usec,
+                           int64_t flush_delay_usec,
+                           const FlowControlOptions& flow_control_options,
+                           std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
@@ -949,8 +948,8 @@ void VideoDecoder::ProcessOutputBuffer(
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
       new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
-                         [this](int64_t pts, int64_t release_us) {
-                           OnVideoFrameRelease(pts, release_us);
+                         [this](int64_t pts_us, int64_t release_at_us) {
+                           OnVideoFrameRelease(pts_us, release_at_us);
                          }));
 }
 
@@ -1275,15 +1274,15 @@ void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
-void VideoDecoder::OnVideoFrameRelease(int64_t pts, int64_t release_us) {
+void VideoDecoder::OnVideoFrameRelease(int64_t pts_us, int64_t release_at_us) {
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
   }
 
   if (media_decoder_ && media_decoder_->decoder_state_tracker()) {
-    media_decoder_->decoder_state_tracker()->SetFrameReleasedAt(pts,
-                                                                release_us);
+    media_decoder_->decoder_state_tracker()->SetFrameReleasedAt(pts_us,
+                                                                release_at_us);
   }
 }
 
