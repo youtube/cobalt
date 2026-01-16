@@ -115,7 +115,6 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//services/tracing/public/cpp",
       "//services/tracing/public/mojom:mojom",
-      "//ui/shell_dialogs",
     ]
   }
 
