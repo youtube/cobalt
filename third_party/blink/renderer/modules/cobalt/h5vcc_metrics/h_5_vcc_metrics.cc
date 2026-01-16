@@ -92,9 +92,8 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
   return resolver->Promise();
 }
 
-ScriptPromise H5vccMetrics::requestHistograms(
-    ScriptState* script_state,
-    ExceptionState& exception_state) {
+ScriptPromise H5vccMetrics::requestHistograms(ScriptState* script_state,
+                                              ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
