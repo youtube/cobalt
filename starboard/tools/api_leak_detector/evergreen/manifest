@@ -14,7 +14,6 @@ dl_iterate_phdr
 dlopen
 dlsym
 fstat64
-fstatat
 getrandom
 getuid
 if_indextoname
@@ -26,7 +25,6 @@ lseek64
 memfd_create
 mmap64
 open64
-openat
 pkey_alloc(unsigned int, unsigned int)
 pkey_free(int)
 pkey_get(int)
@@ -36,4 +34,3 @@ sched_setscheduler
 sigaltstack
 stat64
 statx
-unlinkat
