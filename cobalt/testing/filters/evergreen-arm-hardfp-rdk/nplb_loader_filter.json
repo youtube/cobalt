@@ -23,7 +23,7 @@
     "Posix/NlLanginfoLTest.AllItems/as_IN",
     "Posix/NlLanginfoLTest.AllItems/be_BY",
     "Posix/NlLanginfoLTest.AllItems/bs_BA",
-    "Posix/NlLanginfoLTest.AllItems/or_IN", 
+    "Posix/NlLanginfoLTest.AllItems/or_IN",
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SetAccessTimeWithUtimeNow",
