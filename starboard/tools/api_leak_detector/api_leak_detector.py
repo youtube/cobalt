@@ -269,6 +269,10 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'vswprintf',
     'write',
     'writev',
+
+    # TODO: b/476129004 - __clock_gettime64 is weakly defined for 32-bit arm
+    # platforms.
+    '__clock_gettime64',
 ]
 
 
