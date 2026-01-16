@@ -108,6 +108,10 @@ class SbPlayerBridge {
                  int max_video_input_size,
                  bool flush_decoder_during_reset,
                  bool reset_audio_decoder
+#if BUILDFLAG(IS_ANDROID)
+                 ,
+                 jobject surface_view
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
                  ,
                  std::string pipeline_identifier
@@ -340,6 +344,11 @@ class SbPlayerBridge {
 
   const bool flush_decoder_during_reset_;
   const bool reset_audio_decoder_;
+
+#if BUILDFLAG(IS_ANDROID)
+  // Set the surface to Android Overlay's surface view.
+  jobject surface_view_;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;

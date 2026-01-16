@@ -60,6 +60,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   void SetMaxVideoInputSize(int max_video_input_size) override;
   void SetFlushDecoderDuringReset(bool flush_decoder_during_reset) override;
   void SetResetAudioDecoder(bool reset_audio_decoder) override;
+  void SetVideoSurfaceView(void* surface_view) override;
   void Stop() override;
 
   void Update();
@@ -113,6 +114,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler,
   int max_video_input_size_;
   bool flush_decoder_during_reset_ = false;
   bool reset_audio_decoder_ = false;
+  void* surface_view_ = nullptr;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
   const media::VideoStreamInfo video_stream_info_;

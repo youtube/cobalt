@@ -42,6 +42,7 @@
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+#include "starboard/extension/player_set_video_surface_view.h"
 
 namespace media {
 
@@ -224,6 +225,10 @@ SbPlayerBridge::SbPlayerBridge(
     int max_video_input_size,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    jobject surface_view
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
     ,
     std::string pipeline_identifier
@@ -248,6 +253,10 @@ SbPlayerBridge::SbPlayerBridge(
       max_video_input_size_(max_video_input_size),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder)
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      surface_view_(surface_view)
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
           cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
@@ -805,6 +814,20 @@ void SbPlayerBridge::CreatePlayer() {
     player_configurate_seek_extension
         ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
   }
+#if BUILDFLAG(IS_ANDROID)
+  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
+      player_set_video_surface_view_extension =
+          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
+  if (player_set_video_surface_view_extension &&
+      strcmp(player_set_video_surface_view_extension->name,
+             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
+      player_set_video_surface_view_extension->version >= 1) {
+    player_set_video_surface_view_extension
+        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,

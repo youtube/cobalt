@@ -282,6 +282,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
     // enabled.
     if (request_overlay_info_cb_ && android_overlay_factory_cb_) {
+      LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
       // Set |restart_for_transitions| to false due to devices are
       // isSetOutputSurfaceSupported() in
       // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
@@ -521,6 +522,12 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+#if BUILDFLAG(IS_ANDROID)
+  if (overlay_) {
+    overlay_->ScheduleLayout(output_rect);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
                                 output_rect.width(), output_rect.height());
 }
@@ -631,7 +638,13 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1, enable_flush_during_seek_, enable_reset_audio_decoder_));
+        -1, enable_flush_during_seek_, enable_reset_audio_decoder_
+#if BUILDFLAG(IS_ANDROID)
+        ,
+        // TODO: b/475294958 - Revisit platform-specific codes above starboard.
+        surface_view_
+#endif  // BUILDFLAG(IS_ANDROID)
+        ));
     if (player_bridge_->IsValid()) {
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
       // returns no audio configurations, update the write durations again
@@ -1043,8 +1056,7 @@ void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
   // Check that the passed overlay and overlay_ point to the same object.
   DCHECK_EQ(overlay, overlay_.get());
 
-  // TODO: b/431850939 - Pass JavaSurface to Starboard via StarboardExtension.
-
+  surface_view_ = overlay_->GetJavaSurface().obj();
   CreatePlayerBridge();
 }
 
