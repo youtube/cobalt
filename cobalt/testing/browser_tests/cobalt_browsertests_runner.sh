@@ -133,11 +133,26 @@ for TEST in $TESTS_TO_RUN; do
   fi
 
   # 4. Merge XML Result
-  if [ -n "$XML_OUTPUT_FILE" ] && [ -f "$TEMP_XML" ]; then
-    # Strip the first 2 lines (<?xml...> and <testsuites...>) and last line (</testsuites>)
-    # Append the rest (the <testsuite> block) to the output file
-    sed '1,2d; $d' "$TEMP_XML" >> "$XML_OUTPUT_FILE"
-    rm -f "$TEMP_XML"
+  if [ -n "$XML_OUTPUT_FILE" ]; then
+    if [ -f "$TEMP_XML" ]; then
+      # Strip the first 2 lines (<?xml...> and <testsuites...>) and last line (</testsuites>)
+      # Append the rest (the <testsuite> block) to the output file
+      sed '1,2d; $d' "$TEMP_XML" >> "$XML_OUTPUT_FILE"
+      rm -f "$TEMP_XML"
+    else
+      # Test crashed or failed to write XML. Synthesize a failure entry.
+      # Extract Suite and Case names from Suite.Test format
+      SUITE_NAME=${TEST%.*}
+      CASE_NAME=${TEST#*.}
+      echo "  <testsuite name=\"$SUITE_NAME\" tests=\"1\" failures=\"1\" errors=\"0\" time=\"0\">" \
+        >> "$XML_OUTPUT_FILE"
+      echo "    <testcase name=\"$CASE_NAME\" status=\"run\" time=\"0\" classname=\"$SUITE_NAME\">" \
+        >> "$XML_OUTPUT_FILE"
+      echo "      <failure message=\"Test crashed or failed to output XML\" type=\"Crash\"/>" \
+        >> "$XML_OUTPUT_FILE"
+      echo "    </testcase>" >> "$XML_OUTPUT_FILE"
+      echo "  </testsuite>" >> "$XML_OUTPUT_FILE"
+    fi
   fi
 done
 

@@ -51,4 +51,16 @@ void ShellContentGpuTestClient::PostCompositorThreadCreated(
                                        std::move(video_geometry_setter)));
 }
 
+void ShellContentGpuTestClient::PostCompositorThreadCreated(
+    base::SingleThreadTaskRunner* task_runner) {
+  mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
+      video_geometry_setter;
+  content::ChildThread::Get()->BindHostReceiver(
+      video_geometry_setter.InitWithNewPipeAndPassReceiver());
+
+  task_runner->PostTask(FROM_HERE,
+                        base::BindOnce(&viz::ConnectVideoGeometrySetter,
+                                       std::move(video_geometry_setter)));
+}
+
 }  // namespace content
