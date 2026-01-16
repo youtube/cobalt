@@ -134,6 +134,15 @@ log "Configuring environment..."
 export PATH="\$SCRIPT_DIR/depot_tools:\$PATH"
 export DEPOT_TOOLS_UPDATE=0
 
+# Check for system python3 (required by vpython3)
+log "Checking for system python3..."
+if ! command -v python3 &> /dev/null; then
+  log "Error: system python3 not found."
+  log "Please install it: apt-get update && apt-get install -y python3"
+  exit 1
+fi
+log "Using python3 at: \$(which python3)"
+
 # Check for vpython3
 log "Checking for vpython3..."
 if ! command -v vpython3 &> /dev/null; then
