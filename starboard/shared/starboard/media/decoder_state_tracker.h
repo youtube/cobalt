@@ -46,19 +46,17 @@ class DecoderStateTracker {
   };
 
   DecoderStateTracker(int initial_max_frames, FrameReleaseCB frame_released_cb);
-  DecoderStateTracker(int initial_max_frames,
-                      FrameReleaseCB frame_released_cb,
-                      std::optional<int> log_interval_us);
   ~DecoderStateTracker();
 
-  void SetFrameAdded(int64_t presentation_time_us);
-  void SetEosFrameAdded();
-  void SetFrameDecoded(int64_t presentation_time_us);
-  void SetFrameReleasedAt(int64_t presentation_time_us, int64_t release_us);
+  void OnFrameAdded(int64_t presentation_us);
+  void OnEosAdded();
+  void OnFrameDecoded(int64_t presentation_us);
+  void OnReleased(int64_t presentation_us, int64_t release_us);
+
+  bool CanAcceptMore() const;
   void Reset();
 
   State GetCurrentStateForTest() const;
-  bool CanAcceptMore();
 
  private:
   enum class FrameStatus {
@@ -69,16 +67,29 @@ class DecoderStateTracker {
   State GetCurrentState_Locked() const;
   bool IsFull_Locked() const;
   void EngageKillSwitch_Locked(std::string_view reason, int64_t pts);
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  void StartPeriodicalLogging(int64_t log_interval_us);
   void LogStateAndReschedule(int64_t log_interval_us);
+#endif
 
   const FrameReleaseCB frame_released_cb_;
-  const std::unique_ptr<shared::starboard::player::JobThread> job_thread_;
 
   mutable std::mutex mutex_;
   std::map<int64_t, FrameStatus> frames_in_flight_;  // Guarded by |mutex_|.
-  bool disabled_ = false;                            // Guarded by |mutex_|.
-  int max_frames_;                                   // Guarded by |mutex_|.
+  bool eos_added_ = false;                           // Guarded by |mutex_|.
   bool reached_max_ = false;                         // Guarded by |mutex_|.
+
+  // Non-resettable members start.
+  // These variables are preserved across calls to Reset().
+  bool disabled_ = false;  // Guarded by |mutex_|.
+  int max_frames_;         // Guarded by |mutex_|.
+  // Non-resettable members end.
+
+  // NOTE: |job_thread_| must be the last variable declared so that it is
+  // destroyed first (following the reverse order of declaration).
+  std::unique_ptr<shared::starboard::player::JobThread>
+      job_thread_;  // Guarded by |mutex_|.
 };
 
 std::ostream& operator<<(std::ostream& os,

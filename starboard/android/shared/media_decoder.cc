@@ -557,9 +557,9 @@ bool MediaDecoder::ProcessOneInputBuffer(
 
   if (decoder_state_tracker_) {
     if (pending_input.type == PendingInput::kWriteEndOfStream) {
-      decoder_state_tracker_->SetEosFrameAdded();
+      decoder_state_tracker_->OnEosAdded();
     } else {
-      decoder_state_tracker_->SetFrameAdded(input_buffer->timestamp());
+      decoder_state_tracker_->OnFrameAdded(input_buffer->timestamp());
     }
   }
 
@@ -685,7 +685,7 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
   }
 
   if (size > 0 && decoder_state_tracker_) {
-    decoder_state_tracker_->SetFrameDecoded(presentation_time_us);
+    decoder_state_tracker_->OnFrameDecoded(presentation_time_us);
   }
 
   DequeueOutputResult dequeue_output_result;

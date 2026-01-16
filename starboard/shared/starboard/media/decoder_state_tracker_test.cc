@@ -31,8 +31,7 @@ class DecoderStateTrackerTest : public ::testing::Test {
   void CreateTracker(int max_frames,
                      DecoderStateTracker::FrameReleaseCB frame_released_cb) {
     decoder_state_tracker_ = std::make_unique<DecoderStateTracker>(
-        max_frames, std::move(frame_released_cb),
-        /*log_interval_us=*/std::nullopt);
+        max_frames, std::move(frame_released_cb));
   }
 
   std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
@@ -48,10 +47,10 @@ TEST_F(DecoderStateTrackerTest, InitialState) {
   EXPECT_EQ(status.decoded_frames, 0);
 }
 
-TEST_F(DecoderStateTrackerTest, SetFrameAdded) {
+TEST_F(DecoderStateTrackerTest, OnFrameAdded) {
   CreateTracker(kMaxFrames, [] {});
 
-  decoder_state_tracker_->SetFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(0);
   DecoderStateTracker::State status =
       decoder_state_tracker_->GetCurrentStateForTest();
 
@@ -59,25 +58,25 @@ TEST_F(DecoderStateTrackerTest, SetFrameAdded) {
   EXPECT_EQ(status.decoded_frames, 0);
 }
 
-TEST_F(DecoderStateTrackerTest, SetFrameAddedReturnsFalseWhenFull) {
+TEST_F(DecoderStateTrackerTest, OnFrameAddedReturnsFalseWhenFull) {
   CreateTracker(kMaxFrames, [] {});
   for (int i = 0; i < kMaxFrames; ++i) {
-    decoder_state_tracker_->SetFrameAdded(i);
+    decoder_state_tracker_->OnFrameAdded(i);
   }
 
   EXPECT_TRUE(decoder_state_tracker_->CanAcceptMore());
-  decoder_state_tracker_->SetFrameAdded(kMaxFrames);
+  decoder_state_tracker_->OnFrameAdded(kMaxFrames);
 
-  decoder_state_tracker_->SetFrameDecoded(0);
+  decoder_state_tracker_->OnFrameDecoded(0);
 
   EXPECT_FALSE(decoder_state_tracker_->CanAcceptMore());
 }
 
-TEST_F(DecoderStateTrackerTest, SetFrameDecoded) {
+TEST_F(DecoderStateTrackerTest, OnFrameDecoded) {
   CreateTracker(kMaxFrames, [] {});
-  decoder_state_tracker_->SetFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(0);
 
-  decoder_state_tracker_->SetFrameDecoded(0);
+  decoder_state_tracker_->OnFrameDecoded(0);
   DecoderStateTracker::State status =
       decoder_state_tracker_->GetCurrentStateForTest();
 
@@ -96,20 +95,18 @@ TEST_F(DecoderStateTrackerTest, StreamInsertionOperator) {
   EXPECT_EQ(ss.str(), "{decoding: 1, decoded: 2, total: 3}");
 }
 
-TEST_F(DecoderStateTrackerTest, SetFrameReleasedAt) {
+TEST_F(DecoderStateTrackerTest, OnReleased) {
   CreateTracker(kMaxFrames, [] {});
-  decoder_state_tracker_->SetFrameAdded(0);
-  decoder_state_tracker_->SetFrameDecoded(0);
-  decoder_state_tracker_->SetFrameAdded(1);
-  decoder_state_tracker_->SetFrameDecoded(1);
-  decoder_state_tracker_->SetFrameAdded(2);
+  decoder_state_tracker_->OnFrameAdded(0);
+  decoder_state_tracker_->OnFrameDecoded(0);
+  decoder_state_tracker_->OnFrameAdded(1);
+  decoder_state_tracker_->OnFrameDecoded(1);
+  decoder_state_tracker_->OnFrameAdded(2);
 
   ASSERT_FALSE(decoder_state_tracker_->CanAcceptMore());
 
-  decoder_state_tracker_->SetFrameReleasedAt(0,
-                                             CurrentMonotonicTime() + 100'000);
-  decoder_state_tracker_->SetFrameReleasedAt(1,
-                                             CurrentMonotonicTime() + 200'000);
+  decoder_state_tracker_->OnReleased(0, CurrentMonotonicTime() + 100'000);
+  decoder_state_tracker_->OnReleased(1, CurrentMonotonicTime() + 200'000);
 
   usleep(150'000);
   DecoderStateTracker::State status =
@@ -129,15 +126,13 @@ TEST_F(DecoderStateTrackerTest, FrameReleasedCallback) {
   std::atomic_int counter{0};
   CreateTracker(kMaxFrames, [&counter]() { counter++; });
 
-  decoder_state_tracker_->SetFrameAdded(0);
-  decoder_state_tracker_->SetFrameAdded(1);
-  decoder_state_tracker_->SetFrameDecoded(0);
-  decoder_state_tracker_->SetFrameDecoded(1);
+  decoder_state_tracker_->OnFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(1);
+  decoder_state_tracker_->OnFrameDecoded(0);
+  decoder_state_tracker_->OnFrameDecoded(1);
 
-  decoder_state_tracker_->SetFrameReleasedAt(0,
-                                             CurrentMonotonicTime() + 100'000);
-  decoder_state_tracker_->SetFrameReleasedAt(1,
-                                             CurrentMonotonicTime() + 200'000);
+  decoder_state_tracker_->OnReleased(0, CurrentMonotonicTime() + 100'000);
+  decoder_state_tracker_->OnReleased(1, CurrentMonotonicTime() + 200'000);
 
   usleep(50'000);  // at 50 msec
   ASSERT_EQ(counter.load(), 0);
@@ -151,39 +146,38 @@ TEST_F(DecoderStateTrackerTest, FrameReleasedCallback) {
 
 TEST_F(DecoderStateTrackerTest, Reset) {
   CreateTracker(kMaxFrames, [] {});
-  decoder_state_tracker_->SetFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(0);
   decoder_state_tracker_->Reset();
   DecoderStateTracker::State status =
       decoder_state_tracker_->GetCurrentStateForTest();
   EXPECT_EQ(status.total_frames(), 0);
 }
 
-TEST_F(DecoderStateTrackerTest, KillSwitchDuplicateSetFrameAdded) {
+TEST_F(DecoderStateTrackerTest, KillSwitchDuplicateOnFrameAdded) {
   std::atomic_int counter{0};
   CreateTracker(kMaxFrames, [&counter]() { counter++; });
-  decoder_state_tracker_->SetFrameAdded(0);
-  decoder_state_tracker_->SetFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(0);
 
   EXPECT_TRUE(decoder_state_tracker_->CanAcceptMore());
   EXPECT_EQ(counter.load(), 1);
   EXPECT_EQ(decoder_state_tracker_->GetCurrentStateForTest().total_frames(), 0);
 }
 
-TEST_F(DecoderStateTrackerTest, UnknownSetFrameDecodedDoesNotEngageKillSwitch) {
+TEST_F(DecoderStateTrackerTest, UnknownOnFrameDecodedDoesNotEngageKillSwitch) {
   std::atomic_int counter{0};
   CreateTracker(kMaxFrames, [&counter]() { counter++; });
-  decoder_state_tracker_->SetFrameDecoded(0);
+  decoder_state_tracker_->OnFrameDecoded(0);
 
   EXPECT_TRUE(decoder_state_tracker_->CanAcceptMore());
   EXPECT_EQ(counter.load(), 0);
   EXPECT_EQ(decoder_state_tracker_->GetCurrentStateForTest().total_frames(), 0);
 }
 
-TEST_F(DecoderStateTrackerTest,
-       UnknownSetFrameReleasedAtDoesNotEngageKillSwitch) {
+TEST_F(DecoderStateTrackerTest, UnknownOnReleasedDoesNotEngageKillSwitch) {
   std::atomic_int counter{0};
   CreateTracker(kMaxFrames, [&counter]() { counter++; });
-  decoder_state_tracker_->SetFrameReleasedAt(0, CurrentMonotonicTime());
+  decoder_state_tracker_->OnReleased(0, CurrentMonotonicTime());
 
   usleep(100'000);
   EXPECT_TRUE(decoder_state_tracker_->CanAcceptMore());
@@ -191,12 +185,12 @@ TEST_F(DecoderStateTrackerTest,
   EXPECT_EQ(decoder_state_tracker_->GetCurrentStateForTest().total_frames(), 0);
 }
 
-TEST_F(DecoderStateTrackerTest, SetFrameDecodedIsCumulative) {
+TEST_F(DecoderStateTrackerTest, OnFrameDecodedIsCumulative) {
   CreateTracker(kMaxFrames, [] {});
-  decoder_state_tracker_->SetFrameAdded(0);
-  decoder_state_tracker_->SetFrameAdded(1);
+  decoder_state_tracker_->OnFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(1);
 
-  decoder_state_tracker_->SetFrameDecoded(1);
+  decoder_state_tracker_->OnFrameDecoded(1);
   DecoderStateTracker::State status =
       decoder_state_tracker_->GetCurrentStateForTest();
 
@@ -204,14 +198,14 @@ TEST_F(DecoderStateTrackerTest, SetFrameDecodedIsCumulative) {
   EXPECT_EQ(status.decoded_frames, 2);
 }
 
-TEST_F(DecoderStateTrackerTest, SetFrameReleasedAtIsCumulative) {
+TEST_F(DecoderStateTrackerTest, OnReleasedIsCumulative) {
   CreateTracker(kMaxFrames, [] {});
-  decoder_state_tracker_->SetFrameAdded(0);
-  decoder_state_tracker_->SetFrameAdded(1);
-  decoder_state_tracker_->SetFrameDecoded(0);
-  decoder_state_tracker_->SetFrameDecoded(1);
+  decoder_state_tracker_->OnFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(1);
+  decoder_state_tracker_->OnFrameDecoded(0);
+  decoder_state_tracker_->OnFrameDecoded(1);
 
-  decoder_state_tracker_->SetFrameReleasedAt(1, CurrentMonotonicTime());
+  decoder_state_tracker_->OnReleased(1, CurrentMonotonicTime());
 
   usleep(100'000);
   DecoderStateTracker::State status =
@@ -219,40 +213,40 @@ TEST_F(DecoderStateTrackerTest, SetFrameReleasedAtIsCumulative) {
   EXPECT_EQ(status.total_frames(), 0);
 }
 
-TEST_F(DecoderStateTrackerTest, ResetReenablesAfterKillSwitch) {
+TEST_F(DecoderStateTrackerTest, ResetDoesNotReenableAfterKillSwitch) {
   CreateTracker(kMaxFrames, [] {});
-  decoder_state_tracker_->SetFrameAdded(0);
-  decoder_state_tracker_->SetFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(0);
+  decoder_state_tracker_->OnFrameAdded(0);
   EXPECT_EQ(decoder_state_tracker_->GetCurrentStateForTest().total_frames(), 0);
 
   decoder_state_tracker_->Reset();
-  decoder_state_tracker_->SetFrameAdded(0);
-  EXPECT_EQ(decoder_state_tracker_->GetCurrentStateForTest().total_frames(), 1);
+  decoder_state_tracker_->OnFrameAdded(0);
+  EXPECT_EQ(decoder_state_tracker_->GetCurrentStateForTest().total_frames(), 0);
 }
 
 TEST_F(DecoderStateTrackerTest, DynamicAdaptation) {
   CreateTracker(2, [] {});
 
-  decoder_state_tracker_->SetFrameAdded(0);
-  decoder_state_tracker_->SetFrameDecoded(0);
-  decoder_state_tracker_->SetFrameAdded(1);
+  decoder_state_tracker_->OnFrameAdded(0);
+  decoder_state_tracker_->OnFrameDecoded(0);
+  decoder_state_tracker_->OnFrameAdded(1);
   EXPECT_FALSE(decoder_state_tracker_->CanAcceptMore());
 
-  decoder_state_tracker_->SetFrameReleasedAt(0, CurrentMonotonicTime());
+  decoder_state_tracker_->OnReleased(0, CurrentMonotonicTime());
   usleep(100'000);
   EXPECT_TRUE(decoder_state_tracker_->CanAcceptMore());
 
-  decoder_state_tracker_->SetFrameAdded(2);
-  decoder_state_tracker_->SetFrameDecoded(2);
-  decoder_state_tracker_->SetFrameAdded(3);
-  decoder_state_tracker_->SetFrameAdded(4);
+  decoder_state_tracker_->OnFrameAdded(2);
+  decoder_state_tracker_->OnFrameDecoded(2);
+  decoder_state_tracker_->OnFrameAdded(3);
+  decoder_state_tracker_->OnFrameAdded(4);
   EXPECT_FALSE(decoder_state_tracker_->CanAcceptMore());
 
-  decoder_state_tracker_->SetFrameDecoded(1);
-  decoder_state_tracker_->SetFrameDecoded(3);
-  decoder_state_tracker_->SetFrameReleasedAt(1, CurrentMonotonicTime());
-  decoder_state_tracker_->SetFrameReleasedAt(2, CurrentMonotonicTime());
-  decoder_state_tracker_->SetFrameReleasedAt(3, CurrentMonotonicTime());
+  decoder_state_tracker_->OnFrameDecoded(1);
+  decoder_state_tracker_->OnFrameDecoded(3);
+  decoder_state_tracker_->OnReleased(1, CurrentMonotonicTime());
+  decoder_state_tracker_->OnReleased(2, CurrentMonotonicTime());
+  decoder_state_tracker_->OnReleased(3, CurrentMonotonicTime());
   usleep(100'000);
   EXPECT_TRUE(decoder_state_tracker_->CanAcceptMore());
 }
