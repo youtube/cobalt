@@ -104,6 +104,14 @@ DEPOT_TOOLS_DIR=$(dirname $(which vpython3))
 echo "Adding depot_tools from $DEPOT_TOOLS_DIR..."
 cp -a "$DEPOT_TOOLS_DIR" "$STAGE_DIR/depot_tools"
 
+# Add .vpython3 files
+echo "Adding .vpython3 files..."
+cp .vpython3 "$STAGE_DIR/src/"
+if [ -d "v8" ] && [ -f "v8/.vpython3" ]; then
+  mkdir -p "$STAGE_DIR/src/v8"
+  cp v8/.vpython3 "$STAGE_DIR/src/v8/"
+fi
+
 # Explicitly copy the runtime_deps file
 DEPS_FILE="out/android-arm_devel/gen.runtime/cobalt/testing/browser_tests/cobalt_browsertests__test_runner_script.runtime_deps"
 mkdir -p "$STAGE_DIR/src/$(dirname "$DEPS_FILE")"
