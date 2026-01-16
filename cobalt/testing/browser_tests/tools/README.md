@@ -103,24 +103,22 @@ python3 run_tests.py -v --list-tests
 To run the packaged tests within a Docker container, the environment must have the following:
 
 1.  **Python 3**: `python3` should be installed.
-2.  **Android Tests**: `adb` is required for communicating with devices.
+2.  **Android Tests**: `adb` and `netcat-openbsd` are required.
 3.  **Linux Tests**: GUI dependencies like `xvfb` and `openbox` are required for headless execution.
 
 Note: `depot_tools` (providing `vpython3`) is bundled within the archive, so manual installation is not required.
 
-### Sample Dockerfile Snippets
+### Sample Dockerfile
 
-#### For Android Tests:
 ```dockerfile
-# Install basic dependencies
-RUN apt-get update && apt-get install -y python3 adb
-```
+FROM ubuntu:latest
 
-#### For Linux Tests:
-```dockerfile
-# Install Python and GUI dependencies
+# Install all dependencies for Android and Linux test execution
 RUN apt-get update && apt-get install -y \
+    adb \
+    netcat-openbsd \
     python3 \
+    ca-certificates \
     xvfb \
     openbox \
     libnss3 \
@@ -128,7 +126,8 @@ RUN apt-get update && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
-    libgbm1
+    libgbm1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 ```
 
 ### Execution with USB Access and Caching
