@@ -58,13 +58,14 @@ if [ "$SHARD_INDEX" = "0" ] && [ -n "$GTEST_SHARD_INDEX" ]; then
 fi
 
 echo "Running tests from: $BINARY_PATH"
-    if [ -n "$XML_OUTPUT_FILE" ]; then
-      echo "Merging results to: $XML_OUTPUT_FILE"
-      # Initialize the final XML file
-      echo '<?xml version="1.0" encoding="UTF-8"?>' > "$XML_OUTPUT_FILE"
-      echo '<testsuites tests="0" failures="0" disabled="0" errors="0" time="0" name="AllTests">' \
-        >> "$XML_OUTPUT_FILE"
-    fi
+if [ -n "$XML_OUTPUT_FILE" ]; then
+  echo "Merging results to: $XML_OUTPUT_FILE"
+  # Initialize the final XML file
+  echo '<?xml version="1.0" encoding="UTF-8"?>' > "$XML_OUTPUT_FILE"
+  echo '<testsuites tests="0" failures="0" disabled="0" errors="0" time="0" name="AllTests">' \
+    >> "$XML_OUTPUT_FILE"
+fi
+
 # 1. List all tests using the binary
 # We rely on awk to parse the "Suite.\n  Test" format into "Suite.Test"
 # We also filter out DISABLED_ tests
