@@ -55,7 +55,6 @@ std::atomic<LoggingLevel> g_io_thread_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_main_thread_log_level{LoggingLevel::kNone};
 #if BUILDFLAG(IS_COBALT)
 std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{LoggingLevel::kNone};
-static inline HangWatcher::Delegate* g_hang_watcher_delegate = nullptr;
 #endif
 
 // Indicates whether HangWatcher::Run() should return after the next monitoring.
@@ -184,13 +183,6 @@ bool ThreadTypeLoggingLevelGreaterOrEqual(HangWatcher::ThreadType thread_type,
 }
 
 }  // namespace
-
-#if BUILDFLAG(IS_COBALT)
-void HangWatcher::SetDelegate(Delegate* delegate) {
-  DCHECK(!g_instance) << "SetDelegate must be called before Start()";
-  g_hang_watcher_delegate = delegate;
-}
-#endif
 
 // Determines if the HangWatcher is activated. When false the HangWatcher
 // thread never started.
@@ -984,18 +976,10 @@ void HangWatcher::DoDumpWithoutCrashing(
   base::TimeTicks latest_expired_deadline =
       watch_state_snapshot.GetHighestDeadline();
 
-  if (on_hang_closure_for_testing_) {
+  if (on_hang_closure_for_testing_)
     on_hang_closure_for_testing_.Run();
-  } else {
-#if BUILDFLAG(IS_COBALT)
-    if (g_hang_watcher_delegate &&
-        g_hang_watcher_delegate->IsHangReportingEnabled()) {
-      RecordHang();
-    }
-#else
+  else
     RecordHang();
-#endif  // BUILDFLAG(IS_COBALT)
-  }
 
   // Update after running the actual capture.
   deadline_ignore_threshold_ = latest_expired_deadline;
@@ -1058,9 +1042,8 @@ void HangWatcher::UnregisterThread() {
 
   // Thread should be registered to get unregistered.
   DCHECK(it != watch_states_.end());
-  if (it != watch_states_.end()) {
-    watch_states_.erase(it);
-  }
+
+  watch_states_.erase(it);
 }
 
 namespace internal {
