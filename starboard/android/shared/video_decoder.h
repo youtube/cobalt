@@ -57,10 +57,12 @@ class VideoDecoder
       VideoRendererSink;
 
   class Sink;
+
   struct FlowControlOptions {
     std::optional<int> max_pending_input_frames;
     std::optional<int> initial_max_frames_in_decoder;
   };
+
   VideoDecoder(const VideoStreamInfo& video_stream_info,
                SbDrmSystem drm_system,
                SbPlayerOutputMode output_mode,
