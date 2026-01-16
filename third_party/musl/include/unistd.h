@@ -205,7 +205,9 @@ pid_t gettid(void);
 #endif
 
 #if defined(_LARGEFILE64_SOURCE)
+#if !defined(STARBOARD)
 #define lseek64 lseek
+#endif
 #define pread64 pread
 #define pwrite64 pwrite
 #define truncate64 truncate

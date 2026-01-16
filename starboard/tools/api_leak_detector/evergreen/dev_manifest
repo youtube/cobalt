@@ -10,7 +10,6 @@ __gcov_flush
 dl_iterate_phdr
 dlopen
 dlsym
-fstat64
 getrandom
 getuid
 if_indextoname
@@ -18,10 +17,6 @@ inotify_add_watch
 inotify_init
 inotify_rm_watch
 ioctl
-lseek64
 memfd_create
-mmap64
-open64
 sched_setscheduler
-stat64
 statx
