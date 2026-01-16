@@ -43,13 +43,14 @@
 namespace media {
 namespace {
 
+typedef DecoderBufferAllocator::Handle Handle;
 using ::testing::Bool;
 using ::testing::Combine;
 using ::testing::Values;
 
 struct Operation {
   enum class Type { kAllocate, kFree } operation_type;
-  std::string pointer;
+  std::string handle;
   DemuxerStream::Type buffer_type;
   int size;
   int alignment = 0;  // Only used when `operation_type` is `kAllocate`.
@@ -88,14 +89,14 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
         buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
 
     std::vector<Operation> operations;
-    std::unordered_set<std::string> pointers;
+    std::unordered_set<std::string> handles;
 
     for (auto&& allocation : allocations) {
       auto tokens = base::SplitStringUsingSubstr(
           allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
       CHECK_GE(tokens.size(), 4);
 
-      const std::string& pointer = tokens[1];
+      const std::string& handle = tokens[1];
       const DemuxerStream::Type buffer_type =
           static_cast<DemuxerStream::Type>(StringToInt(tokens[2]));
       const int size = StringToInt(tokens[3]);
@@ -105,25 +106,25 @@ const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
             buffer_type == DemuxerStream::VIDEO);
 
       if (tokens.size() == 5) {
-        // In the format of "allocate <pointer> <buffer_type> <size>
+        // In the format of "allocate <handle> <buffer_type> <size>
         // <alignment>"
         CHECK_EQ(tokens[0], "allocate");
-        CHECK_EQ(pointers.count(pointer), 0);
+        CHECK_EQ(handles.count(handle), 0);
 
         int alignment = StringToInt(tokens[4]);
 
-        pointers.insert(pointer);
+        handles.insert(handle);
 
-        operations.emplace_back(Operation{Operation::Type::kAllocate, pointer,
+        operations.emplace_back(Operation{Operation::Type::kAllocate, handle,
                                           buffer_type, size, alignment});
       } else {
-        // In the format of "free <pointer> <buffer_type> <size>"
+        // In the format of "free <handle> <buffer_type> <size>"
         CHECK_EQ(tokens.size(), 4);
         CHECK_EQ(tokens[0], "free");
-        CHECK_EQ(pointers.erase(pointer), 1);
+        CHECK_EQ(handles.erase(handle), 1);
 
         operations.emplace_back(
-            Operation{Operation::Type::kFree, pointer, buffer_type, size});
+            Operation{Operation::Type::kFree, handle, buffer_type, size});
       }
     }
 
@@ -152,7 +153,7 @@ TEST_P(DecoderBufferAllocatorTest, VerifyAndCacheAllocationLogs) {
 
 TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
   DecoderBufferAllocator allocator;
-  std::unordered_map<std::string, void*> pointer_to_pointer_map;
+  std::unordered_map<std::string, Handle> handle_to_handle_map;
   size_t max_allocated = 0, max_capacity = 0;
   base::Time start_time = base::Time::Now();
   base::Time last_allocate_time = start_time;
@@ -162,12 +163,12 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
 
   for (auto&& operation : operations) {
     if (operation.operation_type == Operation::Type::kAllocate) {
-      CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
+      CHECK_EQ(handle_to_handle_map.count(operation.handle), 0);
 
-      void* p = allocator.Allocate(operation.buffer_type, operation.size,
-                                   operation.alignment);
+      Handle h = allocator.Allocate(operation.buffer_type, operation.size,
+                                    operation.alignment);
 
-      pointer_to_pointer_map[operation.pointer] = p;
+      handle_to_handle_map[operation.handle] = h;
       max_allocated = std::max(max_allocated, allocator.GetAllocatedMemory());
       max_capacity =
           std::max(max_capacity, allocator.GetCurrentMemoryCapacity());
@@ -176,10 +177,11 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
     } else {
       CHECK_EQ(operation.operation_type, Operation::Type::kFree);
 
-      allocator.Free(pointer_to_pointer_map[operation.pointer], operation.size);
+      allocator.Free(operation.buffer_type,
+                     handle_to_handle_map[operation.handle], operation.size);
       ++free_operations_since_last_allocate;
 
-      CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
+      CHECK_EQ(handle_to_handle_map.erase(operation.handle), 1);
     }
   }
 
@@ -226,7 +228,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
           /*is_memory_pool_allocated_on_demand=*/false,
           kConfigs[i].initial_capacity[buffer_type],
           kConfigs[i].allocation_increment[buffer_type]);
-      std::unordered_map<std::string, void*> pointer_to_pointer_map;
+      std::unordered_map<std::string, Handle> handle_to_handle_map;
       size_t max_allocated = 0;
       size_t max_capacity = 0;
       const auto& operations = ReadAllocationLogFile(std::get<0>(GetParam()));
@@ -237,9 +239,9 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
         }
 
         if (operation.operation_type == Operation::Type::kAllocate) {
-          CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
+          CHECK_EQ(handle_to_handle_map.count(operation.handle), 0);
 
-          pointer_to_pointer_map[operation.pointer] = allocator.Allocate(
+          handle_to_handle_map[operation.handle] = allocator.Allocate(
               operation.buffer_type, operation.size, operation.alignment);
           max_allocated =
               std::max(max_allocated, allocator.GetAllocatedMemory());
@@ -248,9 +250,10 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
         } else {
           CHECK_EQ(operation.operation_type, Operation::Type::kFree);
 
-          allocator.Free(pointer_to_pointer_map[operation.pointer],
+          allocator.Free(operation.buffer_type,
+                         handle_to_handle_map[operation.handle],
                          operation.size);
-          CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
+          CHECK_EQ(handle_to_handle_map.erase(operation.handle), 1);
         }
       }
 

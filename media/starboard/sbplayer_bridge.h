@@ -211,7 +211,8 @@ class SbPlayerBridge {
   // DecoderBuffer and a reference count.  The reference count indicates how
   // many instances of the DecoderBuffer is currently being decoded in the
   // pipeline.
-  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int>>
+  typedef std::map<const DecoderBuffer::Allocator::Handle,
+                   std::pair<scoped_refptr<DecoderBuffer>, int>>
       DecodingBuffers;
 
 #if SB_HAS(PLAYER_WITH_URL)
