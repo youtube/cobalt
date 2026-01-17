@@ -52,11 +52,13 @@ def copy_fast(src, dst):
   """Fast copy using system cp if possible, falling back to shutil."""
   os.makedirs(os.path.dirname(dst), exist_ok=True)
   if os.path.isdir(src):
+    # Use system cp -a for directories to handle many files efficiently
     subprocess.call(
         ['cp', '-a', src, os.path.dirname(dst) + '/'],
         stderr=subprocess.DEVNULL)
   else:
     try:
+      # Use cp -a for files too to preserve attributes
       subprocess.call(['cp', '-a', src, dst], stderr=subprocess.DEVNULL)
     except (subprocess.SubprocessError, OSError):
       shutil.copy2(src, dst, follow_symlinks=False)
@@ -93,7 +95,7 @@ def main():
     # 2. Target Selection
     available_targets = list(TARGET_MAP.keys())
 
-    target_name = os.environ.get("TARGET_PLATFORM")
+    target_name = os.environ.get('TARGET_PLATFORM')
     if not target_name and len(sys.argv) > 1 and sys.argv[1] in available_targets:
         target_name = sys.argv.pop(1)
 
@@ -101,9 +103,9 @@ def main():
         if len(available_targets) == 1:
             target_name = available_targets[0]
         else:
-            print(f"Error: Multiple targets available. "
-                  f"Please specify one: {{available_targets}}")
-            print(f"Usage: python3 run_tests.py <target_name> [args...]")
+            print(f'Error: Multiple targets available. '
+                  f'Please specify one: {{available_targets}}')
+            print(f'Usage: python3 run_tests.py <target_name> [args...]')
             sys.exit(1)
 
     if target_name not in TARGET_MAP:
@@ -113,17 +115,10 @@ def main():
 
     target_config = TARGET_MAP[target_name]
 
-    # 3. Sanity Checks
-    log('Checking for vpython3...')
-    vpython_path = shutil_which('vpython3')
-    if not vpython_path:
-        log('Error: vpython3 not found in bundled depot_tools.')
-        sys.exit(1)
-    log(f'Using vpython3 at: {{vpython_path}}')
-
-    # 4. Resolve Paths
+    # 3. Resolve Paths
     deps_path = os.path.join(src_dir, target_config['deps'])
     test_runner = os.path.join(src_dir, target_config['runner'])
+    target_build_dir = os.path.join(src_dir, os.path.dirname(target_config['runner']))
 
     if not os.path.isfile(deps_path):
         log(f"Error: runtime_deps file not found at {{deps_path}}")
@@ -133,7 +128,23 @@ def main():
         log(f"Error: test runner not found at {{test_runner}}")
         sys.exit(1)
 
-    # 5. Execute
+    # 5. Setup Target Environment
+    # Add build dir and starboard dir to LD_LIBRARY_PATH so shared libraries can be found
+    starboard_dir = os.path.join(target_build_dir, 'starboard')
+    os.environ['LD_LIBRARY_PATH'] = (
+        target_build_dir + os.pathsep + starboard_dir + os.pathsep + os.environ.get('LD_LIBRARY_PATH', '')
+    )
+    log(f'LD_LIBRARY_PATH set to: {{os.environ["LD_LIBRARY_PATH"]}}')
+
+    # 5. Sanity Checks
+    log('Checking for vpython3...')
+    vpython_path = shutil_which('vpython3')
+    if not vpython_path:
+        log('Error: vpython3 not found in bundled depot_tools.')
+        sys.exit(1)
+    log(f'Using vpython3 at: {{vpython_path}}')
+
+    # 6. Execute
     log(f"Executing test runner for '{{target_name}}': {{test_runner}}")
     cmd = [vpython_path, test_runner, '--runtime-deps-path', deps_path] + sys.argv[1:]
 

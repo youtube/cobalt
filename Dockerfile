@@ -11,6 +11,10 @@ RUN apt-get update && apt-get install -y \
     xvfb \
     openbox \
     x11-xserver-utils \
+    xserver-xorg-video-dummy \
+    xserver-xorg-core \
+    dbus-x11 \
+    xcompmgr \
     libnss3 \
     libasound2t64 \
     libxcomposite1 \
