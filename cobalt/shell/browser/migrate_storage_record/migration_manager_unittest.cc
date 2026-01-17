@@ -123,7 +123,7 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
                   .InMicroseconds());
     EXPECT_EQ(source_cookies[i]->secure(), cookies[i]->IsSecure());
     EXPECT_EQ(source_cookies[i]->http_only(), cookies[i]->IsHttpOnly());
-    EXPECT_EQ(net::CookieSameSite::NO_RESTRICTION, cookies[i]->SameSite());
+    EXPECT_EQ(net::CookieSameSite::UNSPECIFIED, cookies[i]->SameSite());
     EXPECT_TRUE(cookies[i]->Priority());
     EXPECT_FALSE(cookies[i]->IsPartitioned());
     EXPECT_FALSE(cookies[i]->PartitionKey().has_value());
@@ -209,7 +209,11 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
 
   auto actual3 = ToLocalStorageItems(
       url::Origin::Create(GURL("http://example2.com")), storage);
-  EXPECT_TRUE(actual3.empty());
+  EXPECT_EQ(2u, actual3.size());
+  EXPECT_EQ("local_storage3_entry1_key", actual3[0]->first);
+  EXPECT_EQ("local_storage3_entry1_value", actual3[0]->second);
+  EXPECT_EQ("local_storage3_entry2_key", actual3[1]->first);
+  EXPECT_EQ("local_storage3_entry2_value", actual3[1]->second);
 }
 
 }  // namespace migrate_storage_record

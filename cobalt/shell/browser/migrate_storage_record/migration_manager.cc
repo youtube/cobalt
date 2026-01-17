@@ -286,11 +286,7 @@ Task MigrationManager::CookieTask(
         [](content::WeakDocumentPtr weak_document_ptr,
            std::unique_ptr<net::CanonicalCookie> cookie,
            base::OnceClosure callback) {
-          std::string domain = cookie->Domain();
-          if (domain.starts_with(".")) {
-            domain = domain.substr(1);
-          }
-          GURL source_url("https://" + domain + cookie->Path());
+          GURL source_url("https://" + cookie->Domain() + cookie->Path());
           CookieManager(weak_document_ptr)
               ->SetCanonicalCookie(*cookie, source_url,
                                    net::CookieOptions::MakeAllInclusive(),
@@ -352,7 +348,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
         base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
-        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
+        c.http_only(), net::CookieSameSite::UNSPECIFIED,
         net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
         net::CookieSourceType::kUnknown));
@@ -367,7 +363,8 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
   std::vector<std::unique_ptr<std::pair<std::string, std::string>>> entries;
   for (const auto& local_storages : storage.local_storages()) {
     GURL local_storage_origin(local_storages.serialized_origin());
-    if (!local_storage_origin.SchemeIs("https") ||
+    if (!(local_storage_origin.SchemeIs("https") ||
+          local_storage_origin.SchemeIs("http")) ||
         !page_origin.IsSameOriginWith(local_storage_origin)) {
       continue;
     }
