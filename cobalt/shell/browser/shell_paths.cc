@@ -38,8 +38,8 @@ bool GetDefaultUserDataDirectory(base::FilePath* result) {
 #if BUILDFLAG(IS_STARBOARD)
   std::vector<char> path(kSbFileMaxPath, 0);
   bool success =
-      SbSystemGetPath(kSbSystemPathFilesDirectory, path.data(), path.size());
-  CHECK(success) << "kSbSystemPathFilesDirectory not defined.";
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path.size());
+  CHECK(success) << "kSbSystemPathCacheDirectory not defined.";
   *result = base::FilePath(path.data());
 #elif BUILDFLAG(IS_APPLE)
   CHECK(base::PathService::Get(base::DIR_APP_DATA, result));
