@@ -118,7 +118,17 @@ def main():
     # 3. Resolve Paths
     deps_path = os.path.join(src_dir, target_config['deps'])
     test_runner = os.path.join(src_dir, target_config['runner'])
-    target_build_dir = os.path.join(src_dir, os.path.dirname(target_config['runner']))
+
+    # Resolve the specific build root for this target (one level above 'out/')
+    target_build_root = os.path.dirname(target_config['runner'])
+    while target_build_root:
+        parent = os.path.dirname(target_build_root)
+        if os.path.basename(parent) == 'out' or parent == target_build_root:
+            break
+        target_build_root = parent
+
+    target_build_root_abs = os.path.join(src_dir, target_build_root)
+    starboard_dir = os.path.join(target_build_root_abs, 'starboard')
 
     if not os.path.isfile(deps_path):
         log(f"Error: runtime_deps file not found at {{deps_path}}")
@@ -128,11 +138,12 @@ def main():
         log(f"Error: test runner not found at {{test_runner}}")
         sys.exit(1)
 
-    # 5. Setup Target Environment
-    # Add build dir and starboard dir to LD_LIBRARY_PATH so shared libraries can be found
-    starboard_dir = os.path.join(target_build_dir, 'starboard')
+    # 4. Setup Target Environment
+    # Add build root and starboard dir to LD_LIBRARY_PATH so shared libraries can be found
     os.environ['LD_LIBRARY_PATH'] = (
-        target_build_dir + os.pathsep + starboard_dir + os.pathsep + os.environ.get('LD_LIBRARY_PATH', '')
+        target_build_root_abs + os.pathsep +
+        starboard_dir + os.pathsep +
+        os.environ.get('LD_LIBRARY_PATH', '')
     )
     log(f'LD_LIBRARY_PATH set to: {{os.environ["LD_LIBRARY_PATH"]}}')
 
