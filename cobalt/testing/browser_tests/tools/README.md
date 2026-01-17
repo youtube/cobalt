@@ -93,6 +93,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     xvfb \
     openbox \
+    x11-xserver-utils \
     libnss3 \
     libasound2t64 \
     libxcomposite1 \
