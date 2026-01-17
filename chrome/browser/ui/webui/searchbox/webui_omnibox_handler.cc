@@ -32,6 +32,8 @@
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/grit/new_tab_page_resources.h"
+#include "components/contextual_search/contextual_search_service.h"
+#include "components/contextual_search/pref_names.h"
 #include "components/lens/lens_features.h"
 #include "components/navigation_metrics/navigation_metrics.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
@@ -142,6 +144,10 @@ WebuiOmniboxHandler::WebuiOmniboxHandler(
       omnibox::kShowAiModeOmniboxButton,
       base::BindRepeating(&WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged,
                           base::Unretained(this)));
+  pref_change_registrar_.Add(
+      contextual_search::kSearchContentSharingSettings,
+      base::BindRepeating(&WebuiOmniboxHandler::OnContentSharingPolicyChanged,
+                          base::Unretained(this)));
 }
 
 WebuiOmniboxHandler::~WebuiOmniboxHandler() = default;
@@ -159,9 +165,12 @@ void WebuiOmniboxHandler::OnStart(AutocompleteController* controller,
 
   const AutocompleteProviderClient* client =
       autocomplete_controller()->autocomplete_provider_client();
+  // Check if there are zero suggest (either on NTP or on web) or the
+  // input text is empty (necessary because `IsZeroSuggest()` is false on
+  // clobber).
   page_->UpdateLensSearchEligibility(
       ContextualSearchProvider::LensEntrypointEligible(input, client) &&
-      input.IsZeroSuggest());
+      (input.IsZeroSuggest() || input.text().empty()));
 }
 
 void WebuiOmniboxHandler::OnResultChanged(AutocompleteController* controller,
@@ -329,6 +338,7 @@ void WebuiOmniboxHandler::SetPage(
   ContextualSearchboxHandler::SetPage(std::move(pending_page));
   OnAimEligibilityChanged();
   OnShowAiModeButtonPrefChanged();
+  OnContentSharingPolicyChanged();
 }
 
 void WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged() {
@@ -338,6 +348,17 @@ void WebuiOmniboxHandler::OnShowAiModeButtonPrefChanged() {
   bool show =
       profile_->GetPrefs()->GetBoolean(omnibox::kShowAiModeOmniboxButton);
   page_->OnShowAiModePrefChanged(show);
+}
+
+void WebuiOmniboxHandler::OnContentSharingPolicyChanged() {
+  // Ignore the call until the page remote is bound and ready to receive calls.
+  if (!IsRemoteBound()) {
+    return;
+  }
+
+  page_->UpdateContentSharingPolicy(
+      contextual_search::ContextualSearchService::IsContextSharingEnabled(
+          profile_->GetPrefs()));
 }
 
 std::optional<searchbox::mojom::AutocompleteMatchPtr>

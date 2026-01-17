@@ -32,9 +32,12 @@
   position: relative;
 }
 
-.container:hover,
-:host(:is(:focus-visible, [selected])) .container {
+.container:hover {
   background-color: var(--color-searchbox-results-background-hovered);
+}
+
+:host(:is(:focus-visible, [selected])) .container {
+  background-color: var(--color-searchbox-results-background-selected, var(--color-searchbox-results-background-hovered));
 }
 
 #focusIndicator {
@@ -77,12 +80,16 @@
   white-space: nowrap;
 }
 
+:host(:is(:focus-visible, [selected])) #textContainer {
+  color: var(--color-searchbox-results-foreground-selected, var(--color-composebox-font-light));
+}
+
 #remove {
   --cr-icon-button-fill-color:
       var(--color-searchbox-results-icon-selected);
   --cr-icon-button-icon-size: 16px;
   --cr-icon-button-hover-background-color:
-      var(--color-searchbox-results-background-hovered);
+      var(--color-searchbox-results-button-hover);
   display: none;
   position: absolute;
   top: var(--cr-composebox-match-remove-button-top, 6px);

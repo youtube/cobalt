@@ -239,6 +239,10 @@ LenOverlayEntryPointFromInvocationSource(
       // TODO(crbug.com/469463485): This should be contextual tasks specific,
       // not unknown.
       return lens::LensOverlayClientLogs::UNKNOWN_ENTRY_POINT;
+    case lens::LensOverlayInvocationSource::kOmniboxContextualQuery:
+      // TODO(crbug.com/475330679): This should be an entry point that
+      // corresponds to the omnibox contextual query.
+      return lens::LensOverlayClientLogs::OMNIBOX_CONTEXTUAL_SUGGESTION;
     case lens::LensOverlayInvocationSource::kLVFShutterButton:
     case lens::LensOverlayInvocationSource::kLVFGallery:
     case lens::LensOverlayInvocationSource::kContextMenu:
@@ -249,7 +253,6 @@ LenOverlayEntryPointFromInvocationSource(
     // used by the Lens overlay query controller, which is not used by those
     // flows, it is not necessary.
     case lens::LensOverlayInvocationSource::kNtpContextualQuery:
-    case lens::LensOverlayInvocationSource::kOmniboxContextualQuery:
       NOTREACHED() << "Invocation source not supported.";
   }
   return lens::LensOverlayClientLogs::UNKNOWN_ENTRY_POINT;
@@ -592,7 +595,9 @@ void LensOverlayQueryController::SendContextualTextQuery(
         &LensOverlayQueryController::SendContextualTextQuery,
         weak_ptr_factory_.GetWeakPtr(), query_start_time, query_text,
         lens_selection_type, additional_search_query_params);
-    if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
+    if ((lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() ||
+         invocation_source_ ==
+             lens::LensOverlayInvocationSource::kOmniboxContextualQuery) &&
         !cluster_info_.has_value()) {
       // If the cluster info is expired, restart a new query flow so the pending
       // interaction request will be sent once the cluster info is available.

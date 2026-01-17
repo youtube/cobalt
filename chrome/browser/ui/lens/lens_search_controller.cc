@@ -94,7 +94,11 @@ bool UseNonBlockingPrivacyNotice(
           invocation_source ==
               lens::LensOverlayInvocationSource::kOmniboxPageAction ||
           invocation_source ==
-              lens::LensOverlayInvocationSource::kHomeworkActionChip);
+              lens::LensOverlayInvocationSource::kHomeworkActionChip ||
+          invocation_source ==
+              lens::LensOverlayInvocationSource::kOmniboxContextualQuery ||
+          invocation_source ==
+              lens::LensOverlayInvocationSource::kContextualTasksComposebox);
 }
 
 }  // namespace
@@ -309,11 +313,13 @@ void LensSearchController::IssueContextualSearchRequest(
     const GURL& destination_url,
     AutocompleteMatchType::Type match_type,
     bool is_zero_prefix_suggestion) {
-  // This method should only be used by the omnibox contextual suggestion flow.
+  // This method should only be used by the omnibox flows.
   // There is no dependency on the omnibox, so this check is solely to ensure a
   // new flow is not accidentally added.
   CHECK(invocation_source ==
-        lens::LensOverlayInvocationSource::kOmniboxContextualSuggestion);
+            lens::LensOverlayInvocationSource::kOmniboxContextualSuggestion ||
+        invocation_source ==
+            lens::LensOverlayInvocationSource::kOmniboxContextualQuery);
 
   std::string query_text =
       lens::ExtractTextQueryParameterValue(destination_url);
@@ -766,6 +772,14 @@ bool LensSearchController::RunLensEligibilityChecks(
   // requesting user permission via the bubble.
   if (lens::features::IsLensOverlayNonBlockingPrivacyNoticeEnabled() &&
       UseNonBlockingPrivacyNotice(invocation_source)) {
+    return true;
+  }
+
+  // The Omnibox contextual query invocation source permits the overlay to open
+  // without user permission via the bubble. This is because the user should
+  // have already added the active tab context to the page.
+  if (invocation_source ==
+      lens::LensOverlayInvocationSource::kOmniboxContextualQuery) {
     return true;
   }
 

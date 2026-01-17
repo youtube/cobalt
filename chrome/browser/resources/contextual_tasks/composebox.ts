@@ -88,9 +88,10 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   private isOnboardingTooltipDismissCountBelowCap_: boolean =
       loadTimeData.getBoolean('isOnboardingTooltipDismissCountBelowCap');
   private userDismissedTooltip_: boolean = false;
-  // The resize observer is needed for horizontal changes; the
-  // composebox-resize event only emits height changes
   private resizeObserver_: ResizeObserver|null = null;
+  private tooltipImpressionTimer_: number|null = null;
+  private readonly tooltipImpressionDelay_: number =
+      loadTimeData.getInteger('composeboxShowOnboardingTooltipImpressionDelay');
 
   constructor() {
     super();
@@ -122,7 +123,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
         composebox.animationState = GlowAnimationState.NONE;
       });
       this.eventTracker_.add(composebox, 'composebox-submit', () => {
-        // Clear the composebox text after submitting.
+
         this.clearInputAndFocus(/* querySubmitted= */ true);
       });
       this.eventTracker_.add(
@@ -142,8 +143,13 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
             this.updateTooltipVisibility_();
           });
 
-      // Initial check.
+
       this.updateTooltipVisibility_();
+
+      this.resizeObserver_ = new ResizeObserver(() => {
+        this.composeboxHeight_ = composebox.offsetHeight;
+      });
+      this.resizeObserver_.observe(composebox);
     }
   }
 
@@ -157,24 +163,34 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       return;
     }
 
-
     if (this.onboardingTooltipIsVisible_ &&
         !this.$.composebox.getHasAutomaticActiveTabChipToken()) {
       tooltip.hide();
       this.onboardingTooltipIsVisible_ = false;
       this.stopObservingResize_();
+      // Clear the timer if the tooltip is hidden. This will prevent it being
+      // count as an impression if the chip only showed up briefly.
+      this.clearTooltipImpressionTimer_();
     } else if (this.$.composebox.getHasAutomaticActiveTabChipToken()) {
       const target = this.$.composebox.getAutomaticActiveTabChipElement();
       if (target) {
         tooltip.target = target;
       }
 
-      const shouldShow = this.shouldShowOnboardingTooltip();
-      if (shouldShow) {
+      if (this.onboardingTooltipIsVisible_) {
+        tooltip.updatePosition();
+      } else if (this.shouldShowOnboardingTooltip()) {
         tooltip.show();
         this.startObservingResize_(target);
-        this.numberOfTimesTooltipShown_++;
         this.onboardingTooltipIsVisible_ = true;
+
+        // Start the impression timer if the tooltip is newly shown.
+        this.tooltipImpressionTimer_ = setTimeout(() => {
+          // If the timer is not cleared, that means the delay passed since the
+          // tooltip was shown. Increment the impression count.
+          this.numberOfTimesTooltipShown_++;
+          this.tooltipImpressionTimer_ = null;
+        }, this.tooltipImpressionDelay_);
       }
     }
     tooltip.shouldShow = this.onboardingTooltipIsVisible_;
@@ -191,11 +207,24 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     this.userDismissedTooltip_ = true;
     this.onboardingTooltipIsVisible_ = false;
     this.stopObservingResize_();
+    this.clearTooltipImpressionTimer_();
+  }
+
+  private clearTooltipImpressionTimer_() {
+    if (this.tooltipImpressionTimer_) {
+      clearTimeout(this.tooltipImpressionTimer_);
+      this.tooltipImpressionTimer_ = null;
+    }
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    this.clearTooltipImpressionTimer_();
     this.stopObservingResize_();
+    if (this.resizeObserver_) {
+      this.resizeObserver_.disconnect();
+      this.resizeObserver_ = null;
+    }
     this.eventTracker_.removeAll();
     this.searchboxListenerIds_.forEach(
         id => assert(this.searchboxCallbackRouter_.removeListener(id)));
@@ -222,9 +251,7 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   startExpandAnimation() {
     const composebox = this.$.composebox;
 
-    /* Reset state (so it goes from none to expand), then trigger
-     * expanding state
-     */
+
     composebox.animationState = GlowAnimationState.NONE;
     composebox.animationState = GlowAnimationState.EXPANDING;
   }
@@ -250,6 +277,30 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       this.resizeObserver_.disconnect();
       this.resizeObserver_ = null;
     }
+  }
+
+  get isComposeboxFocusedForTesting() {
+    return this.isComposeboxFocused_;
+  }
+
+  get composeboxHeightForTesting() {
+    return this.composeboxHeight_;
+  }
+
+  get numberOfTimesTooltipShownForTesting() {
+    return this.numberOfTimesTooltipShown_;
+  }
+
+  set numberOfTimesTooltipShownForTesting(n: number) {
+    this.numberOfTimesTooltipShown_ = n;
+  }
+
+  set userDismissedTooltipForTesting(dismissed: boolean) {
+    this.userDismissedTooltip_ = dismissed;
+  }
+
+  updateTooltipVisibilityForTesting() {
+    this.updateTooltipVisibility_();
   }
 }
 

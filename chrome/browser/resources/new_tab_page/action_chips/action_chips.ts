@@ -1,7 +1,10 @@
 // Copyright 2025 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+import 'chrome://resources/cr_elements/cr_icon_button/cr_icon_button.js';
+
 import type {ContextualUpload, TabUpload} from 'chrome://resources/cr_components/composebox/common.js';
+import {TabUploadOrigin} from 'chrome://resources/cr_components/composebox/common.js';
 import {ComposeboxMode} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_carousel.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
@@ -68,6 +71,10 @@ export class ActionChipsElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
+      showDismissalUI_: {
+        type: Boolean,
+        reflect: true,
+      },
       themeHasBackgroundImage: {type: Boolean, reflect: true},
     };
   }
@@ -78,6 +85,8 @@ export class ActionChipsElement extends CrLitElement {
   accessor themeHasBackgroundImage: boolean = false;
   protected accessor showSimplifiedUI_: boolean =
       loadTimeData.getBoolean('ntpNextShowSimplificationUIEnabled');
+  protected accessor showDismissalUI_: boolean =
+      loadTimeData.getBoolean('ntpNextShowDismissalUIEnabled');
   private onActionChipChangedListenerId_: number|null = null;
   private initialLoadStartTime_: number|null = null;
 
@@ -173,6 +182,7 @@ export class ActionChipsElement extends CrLitElement {
       url: tab.url,
       title: tab.title,
       delayUpload: this.delayTabUploads_,
+      origin: TabUploadOrigin.ACTION_CHIP,
     };
     this.onActionChipClick_(
         chip.suggestion, [deepDiveTabInfo], ComposeboxMode.DEFAULT);
@@ -192,6 +202,7 @@ export class ActionChipsElement extends CrLitElement {
       url: tab.url,
       title: tab.title,
       delayUpload: this.delayTabUploads_,
+      origin: TabUploadOrigin.ACTION_CHIP,
     };
     this.onActionChipClick_(
         ActionChipsConstants.EMPTY_QUERY_STRING, [recentTabInfo],
@@ -215,6 +226,13 @@ export class ActionChipsElement extends CrLitElement {
       default:
         // Do nothing yet...
     }
+  }
+
+  protected removeChip_(chip: ActionChip, e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.actionChips_ =
+        this.actionChips_.filter((c) => c.suggestion !== chip.suggestion);
   }
 
   protected getFaviconUrl_(url: string): string {
@@ -241,8 +259,7 @@ export class ActionChipsElement extends CrLitElement {
     }
     const url = new URL(chip.tab.url.url);
     const domain = url.hostname.replace(/^www\./, '');
-    return `${this.showSimplifiedUI_ ? chip.suggestion : chip.title} - ${
-        domain}`;
+    return `${chip.suggestion} - ${domain}`;
   }
 
   protected isDeepDiveChip_(chip: ActionChip) {
@@ -255,6 +272,28 @@ export class ActionChipsElement extends CrLitElement {
 
   protected showDashSimplifiedUI_(chip: ActionChip) {
     return chip.type !== ChipType.kDeepDive && this.showSimplifiedUI_;
+  }
+
+  protected getChipTitle_(chip: ActionChip) {
+    const suggestion = chip.suggestion;
+
+    if (!chip.tab) {
+      return suggestion;
+    }
+
+    const tabTitle = chip.tab.title;
+    const url = new URL(chip.tab.url.url);
+    const domain = url.hostname.replace(/^www\./, '');
+
+    if (this.isRecentTabChip_(chip)) {
+      return `${suggestion} - ${domain}`;
+    }
+
+    if (this.isDeepDiveChip_(chip)) {
+      return `${tabTitle} - ${domain} - ${suggestion}`;
+    }
+
+    return suggestion;
   }
 }
 
