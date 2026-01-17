@@ -4,26 +4,29 @@ This directory contains tools for managing and executing `cobalt_browsertests` o
 
 ## Artifact Collection Script
 
-`collect_test_artifacts.py` is a utility script designed to package all necessary artifacts (APK/binary, test runner, resources, and test data) into a single gzip archive. This is particularly useful for running tests in isolated environments such as Docker containers.
+`collect_test_artifacts.py` is a utility script designed to package all necessary artifacts (APK/binary, test runner, resources, and test data) from one or more build directories into a single gzip archive. This is particularly useful for running tests in isolated environments such as Docker containers.
 
 ### Prerequisites
 
-You must have a successful build for your target platform.
+You must have a successful build for your target platform(s).
 
 ```bash
 # Example Android build command
 autoninja -C out/android-arm_devel cobalt_browsertests
+
+# Example Linux build command
+autoninja -C out/linux-x64x11_devel cobalt_browsertests
 ```
 
 ### Usage
 
-Run the script from the root of the Cobalt source tree, optionally providing the build directory:
+Run the script from the root of the Cobalt source tree, providing one or more build directories:
 
 ```bash
-./cobalt/testing/browser_tests/tools/collect_test_artifacts.py [BUILD_DIR]
+./cobalt/testing/browser_tests/tools/collect_test_artifacts.py [BUILD_DIR_1] [BUILD_DIR_2] ...
 ```
 
-Default `BUILD_DIR` is `out/android-arm_devel`.
+Default `BUILD_DIR` is `out/android-arm_devel` if none are specified.
 
 This will generate `cobalt_browsertests_artifacts.tar.gz` in the root directory.
 
@@ -32,70 +35,39 @@ This will generate `cobalt_browsertests_artifacts.tar.gz` in the root directory.
 The generated archive has the following structure:
 
 - `run_tests.py`: Top-level Python runner script.
-- `src/`: Isolated source root containing build artifacts and test data.
+- `src/`: Isolated source root containing the build artifacts for all packaged targets.
 - `depot_tools/`: Bundled depot_tools for `vpython3` support.
 
 ### Running Tests from the Archive
 
-Once you have extracted the archive in your target environment, use the provided `run_tests.py` script:
+Once you have extracted the archive in your target environment, use the provided `run_tests.py` script. If the archive contains multiple targets, you must specify which one to run:
 
 ```bash
 # Extract the artifacts
 tar -xzf cobalt_browsertests_artifacts.tar.gz -C your_test_env/
 cd your_test_env/
 
-# Run tests (Android requires a connected device or ANDROID_SERIAL)
+# Run tests for a specific target (e.g., android-arm_devel)
 export ANDROID_SERIAL=<your_device_serial>
-python3 run_tests.py [additional_args]
+python3 run_tests.py android-arm_devel [additional_args]
 ```
+
+If only one target was packaged, `run_tests.py` will use it by default.
 
 ### Debugging
-
-If the script appears to hang or is running slowly, you can enable debug mode to see timestamped progress:
-
-```bash
-DEBUG=1 python3 run_tests.py --list-tests
-```
-
-The `run_tests.py` script automatically manages path resolution and sets the necessary environment variables (`CHROME_SRC`) to ensure the test runner functions correctly within the isolated directory structure.
-
-## End-to-End Docker Workflow
-
-Follow these steps to build, package, and run tests within a Docker container.
-
-### 1. Build the Test Targets
-Ensure you have a successful build (e.g., Android):
-```bash
-autoninja -C out/android-arm_devel cobalt_browsertests
-```
-
+...
 ### 2. Package the Artifacts
-Generate the tarball containing all necessary test dependencies:
+Generate the tarball containing all necessary test dependencies for your desired build(s):
 ```bash
-./cobalt/testing/browser_tests/tools/collect_test_artifacts.py out/android-arm_devel
+./cobalt/testing/browser_tests/tools/collect_test_artifacts.py out/android-arm_devel out/linux-x64x11_devel
 ```
-
-### 3. Build the Docker Image
-Ensure your `Dockerfile` includes `python3` and `adb`. From the directory containing both the `Dockerfile` and the generated `cobalt_browsertests_artifacts.tar.gz`:
-```bash
-sudo docker build -t <image_name>:<tag> .
-```
-
-### 4. Run the Docker Container
-Start the container with host network access and Android configuration mounted:
-```bash
-sudo docker run -it --rm \
-  --network host \
-  -v ~/.android:/root/.android \
-  <image_name>:<tag>
-```
-
+...
 ### 5. Execute Tests Inside Container
-Inside the running container's shell:
+Inside the running container's shell, specify the target name (directory name from the build):
 ```bash
 cd /opt/cobalt_browsertests/
 export ANDROID_SERIAL=<your_device_serial>
-python3 run_tests.py -v --list-tests
+python3 run_tests.py android-arm_devel -v
 ```
 
 ## Docker Container Requirements
@@ -140,5 +112,5 @@ When running the container, ensure it has access to the host's USB devices if us
 docker run --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   -v ~/.cache/vpython-root:/root/.cache/vpython-root \
-  <image_name>:<tag> python3 run_tests.py --list-tests
+  <image_name>:<tag> python3 run_tests.py <target_name> -v
 ```
