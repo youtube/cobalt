@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import json
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
@@ -61,13 +62,17 @@ def copy_fast(src, dst):
       shutil.copy2(src, dst, follow_symlinks=False)
 
 
-def generate_runner_py(dst_path, build_dir, test_runner_rel, runtime_deps_rel):
+def generate_runner_py(dst_path, target_map):
   """Generates the run_tests.py script inside the archive."""
+  target_map_json = json.dumps(target_map, indent=4)
   content = f"""#!/usr/bin/env python3
 import os
 import sys
 import subprocess
 import datetime
+import json
+
+TARGET_MAP = {target_map_json}
 
 def log(msg):
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -85,7 +90,30 @@ def main():
     src_dir = os.path.join(script_dir, 'src')
     os.environ['CHROME_SRC'] = src_dir
 
-    # 2. Sanity Checks
+    # 2. Target Selection
+    available_targets = list(TARGET_MAP.keys())
+
+    target_name = os.environ.get("TARGET_PLATFORM")
+    if not target_name and len(sys.argv) > 1 and sys.argv[1] in available_targets:
+        target_name = sys.argv.pop(1)
+
+    if not target_name:
+        if len(available_targets) == 1:
+            target_name = available_targets[0]
+        else:
+            print(f"Error: Multiple targets available. "
+                  f"Please specify one: {{available_targets}}")
+            print(f"Usage: python3 run_tests.py <target_name> [args...]")
+            sys.exit(1)
+
+    if target_name not in TARGET_MAP:
+        print(f"Error: Target '{{target_name}}' not found. "
+              f"Available: {{available_targets}}")
+        sys.exit(1)
+
+    target_config = TARGET_MAP[target_name]
+
+    # 3. Sanity Checks
     log('Checking for vpython3...')
     vpython_path = shutil_which('vpython3')
     if not vpython_path:
@@ -93,20 +121,20 @@ def main():
         sys.exit(1)
     log(f'Using vpython3 at: {{vpython_path}}')
 
-    # 3. Resolve Paths
-    deps_path = os.path.join(src_dir, '{runtime_deps_rel}')
-    test_runner = os.path.join(src_dir, '{build_dir}', '{test_runner_rel}')
+    # 4. Resolve Paths
+    deps_path = os.path.join(src_dir, target_config['deps'])
+    test_runner = os.path.join(src_dir, target_config['runner'])
 
     if not os.path.isfile(deps_path):
-        log(f'Error: runtime_deps file not found at {{deps_path}}')
+        log(f"Error: runtime_deps file not found at {{deps_path}}")
         sys.exit(1)
 
     if not os.path.isfile(test_runner):
-        log(f'Error: test runner not found at {{test_runner}}')
+        log(f"Error: test runner not found at {{test_runner}}")
         sys.exit(1)
 
-    # 4. Execute
-    log(f'Executing test runner: {{test_runner}}')
+    # 5. Execute
+    log(f"Executing test runner for '{{target_name}}': {{test_runner}}")
     cmd = [vpython_path, test_runner, '--runtime-deps-path', deps_path] + sys.argv[1:]
 
     try:
@@ -115,8 +143,7 @@ def main():
         return 1
 
 def shutil_which(cmd):
-    # Simple which implementation
-    for path in os.environ['PATH'].split(os.pathsep):
+    for path in os.environ["PATH"].split(os.pathsep):
         full = os.path.join(path, cmd)
         if os.path.isfile(full) and os.access(full, os.X_OK):
             return full
@@ -133,10 +160,10 @@ if __name__ == '__main__':
 def main():
   parser = argparse.ArgumentParser(description='Collect test artifacts.')
   parser.add_argument(
-      'build_dir',
-      nargs='?',
-      default='out/android-arm_devel',
-      help='Build directory (default: out/android-arm_devel)')
+      'build_dirs',
+      nargs='*',
+      default=['out/android-arm_devel'],
+      help='Build directories to include (default: out/android-arm_devel)')
   parser.add_argument(
       '-o',
       '--output',
@@ -144,36 +171,57 @@ def main():
       help='Output filename')
   args = parser.parse_args()
 
-  build_dir = os.path.normpath(args.build_dir)
-  if not os.path.isdir(build_dir):
-    logging.error('Build directory %s not found.', build_dir)
-    sys.exit(1)
-
-  is_android = 'android' in build_dir.lower()
-  runtime_deps_path = find_runtime_deps(build_dir)
-  if not runtime_deps_path:
-    logging.error('Could not find runtime_deps in %s', build_dir)
-    sys.exit(1)
-
-  test_runner_rel = get_test_runner(build_dir, is_android)
-  logging.info('Using build directory: %s', build_dir)
-  logging.info('Found runtime_deps at: %s', runtime_deps_path)
+  target_map = {}
 
   with tempfile.TemporaryDirectory() as stage_dir:
     src_stage = os.path.join(stage_dir, 'src')
     os.makedirs(src_stage)
 
-    logging.info('Copying files from runtime_deps...')
-    with open(runtime_deps_path, 'r', encoding='utf-8') as f:
-      for line in f:
-        line = line.strip()
-        if not line or line.startswith('#'):
-          continue
-        full_path = os.path.normpath(os.path.join(build_dir, line))
-        if os.path.exists(full_path):
-          copy_fast(full_path, os.path.join(src_stage, full_path))
+    for build_dir in args.build_dirs:
+      build_dir = os.path.normpath(build_dir)
+      if not os.path.isdir(build_dir):
+        logging.warning('Build directory %s not found. Skipping.', build_dir)
+        continue
 
-    # Add essential directories manually
+      is_android = 'android' in build_dir.lower()
+      runtime_deps_path = find_runtime_deps(build_dir)
+      if not runtime_deps_path:
+        logging.warning('Could not find runtime_deps in %s. Skipping.',
+                        build_dir)
+        continue
+
+      test_runner_rel = get_test_runner(build_dir, is_android)
+      logging.info('Processing build directory: %s', build_dir)
+
+      # Record target info
+      target_name = os.path.basename(build_dir)
+      target_map[target_name] = {
+          'deps': str(runtime_deps_path),
+          'runner': os.path.join(build_dir, test_runner_rel)
+      }
+
+      logging.info('Copying files from %s...', runtime_deps_path)
+      with open(runtime_deps_path, 'r', encoding='utf-8') as f:
+        for line in f:
+          line = line.strip()
+          if not line or line.startswith('#'):
+            continue
+          full_path = os.path.normpath(os.path.join(build_dir, line))
+          if os.path.exists(full_path):
+            copy_fast(full_path, os.path.join(src_stage, full_path))
+
+      # Ensure the deps file and test runner are included
+      copy_fast(
+          str(runtime_deps_path), os.path.join(src_stage,
+                                               str(runtime_deps_path)))
+      test_runner_full = os.path.join(build_dir, test_runner_rel)
+      copy_fast(test_runner_full, os.path.join(src_stage, test_runner_full))
+
+    if not target_map:
+      logging.error('No valid build directories processed.')
+      sys.exit(1)
+
+    # Add essential directories manually (shared across all targets)
     essential_dirs = [
         'build/android', 'build/util', 'build/skia_gold_common', 'testing',
         'third_party/android_build_tools', 'third_party/catapult/common',
@@ -204,18 +252,8 @@ def main():
       os.makedirs(os.path.join(src_stage, 'v8'), exist_ok=True)
       shutil.copy2('v8/.vpython3', os.path.join(src_stage, 'v8', '.vpython3'))
 
-    # Ensure the deps file itself is included
-    copy_fast(
-        str(runtime_deps_path), os.path.join(src_stage, str(runtime_deps_path)))
-
-    # Add the test runner specifically
-    test_runner_full = os.path.join(build_dir, test_runner_rel)
-    copy_fast(test_runner_full, os.path.join(src_stage, test_runner_full))
-
     # Generate runner
-    generate_runner_py(
-        os.path.join(stage_dir, 'run_tests.py'), build_dir, test_runner_rel,
-        str(runtime_deps_path))
+    generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
 
     logging.info('Creating tarball: %s', args.output)
     subprocess.call(['tar', '-C', stage_dir, '-czf', args.output, '.'])
