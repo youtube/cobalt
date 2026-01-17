@@ -216,6 +216,7 @@ test("cobalt_browsertests") {
     #"media_browsertest.h",
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "navigation_browsertest.cc",
 
     #"session_history_browsertest.cc",

@@ -122,7 +122,8 @@ const char kTestHtmlContent[] = "<html><body><h1>Test</h1></body></html>";
 class H5vccSchemeURLLoaderFactoryTest : public testing::Test {
  public:
   H5vccSchemeURLLoaderFactoryTest()
-      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO) {}
+      : task_environment_(base::test::TaskEnvironment::MainThreadType::IO),
+        factory_(nullptr) {}
 
   void SetUp() override {
     testing::Test::SetUp();

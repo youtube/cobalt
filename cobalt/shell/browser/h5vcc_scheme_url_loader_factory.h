@@ -15,7 +15,11 @@
 #ifndef COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 #define COBALT_SHELL_BROWSER_H5VCC_SCHEME_URL_LOADER_FACTORY_H_
 
+#include <optional>
+#include <string>
+
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
+#include "content/public/browser/browser_context.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
@@ -37,7 +41,7 @@ namespace content {
 class H5vccSchemeURLLoaderFactory final
     : public network::mojom::URLLoaderFactory {
  public:
-  H5vccSchemeURLLoaderFactory();
+  explicit H5vccSchemeURLLoaderFactory(BrowserContext* browser_context);
 
   H5vccSchemeURLLoaderFactory(const H5vccSchemeURLLoaderFactory&) = delete;
   H5vccSchemeURLLoaderFactory& operator=(const H5vccSchemeURLLoaderFactory&) =
@@ -60,9 +64,14 @@ class H5vccSchemeURLLoaderFactory final
 
   // Testing seam to inject a resource map.
   void SetResourceMapForTesting(const GeneratedResourceMap* resource_map_test);
+  static void SetSplashDomainForTesting(
+      const std::optional<std::string>& domain);
 
  private:
   const GeneratedResourceMap* resource_map_test_ = nullptr;
+  std::string splash_domain_;
+  static std::optional<std::string> global_splash_domain_test_;
+  BrowserContext* browser_context_;
 };
 
 }  // namespace content
