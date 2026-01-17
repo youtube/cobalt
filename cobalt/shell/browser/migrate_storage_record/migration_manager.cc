@@ -22,6 +22,7 @@
 #include "base/containers/adapters.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/thread_pool.h"
@@ -54,9 +55,7 @@ std::string GetApplicationKey(const GURL& url) {
 }
 
 std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
-  constexpr char kRecordHeader[] = "SAV1";
   constexpr size_t kRecordHeaderSize = 4;
-
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   CHECK(initial_url.is_valid());
@@ -78,29 +77,28 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     }
   }
 
-  if (record->GetSize() < static_cast<int64_t>(kRecordHeaderSize)) {
+  if (record->GetSize() < base::strict_cast<int64_t>(kRecordHeaderSize)) {
     record->Delete();
     return nullptr;
   }
 
-  auto bytes = std::vector<uint8_t>(record->GetSize());
-  const int read_result =
-      record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
+  auto bytes = std::vector<char>(record->GetSize());
+  const auto read_result = record->Read(bytes.data(), bytes.size());
   record->Delete();
-  if (static_cast<size_t>(read_result) != bytes.size()) {
+  if (read_result < 0 ||
+      read_result != base::strict_cast<decltype(read_result)> bytes.size()) {
     return nullptr;
   }
 
-  std::string version(reinterpret_cast<const char*>(bytes.data()),
-                      kRecordHeaderSize);
+  const std::string_view version(bytes.data(), kRecordHeaderSize);
+  constexpr std::string kRecordHeader = "SAV1";
   if (version != kRecordHeader) {
     return nullptr;
   }
 
   auto storage = std::make_unique<cobalt::storage::Storage>();
-  if (!storage->ParseFromArray(
-          reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
-          bytes.size() - kRecordHeaderSize)) {
+  if (!storage->ParseFromArray(bytes.data() + kRecordHeaderSize,
+                               bytes.size() - kRecordHeaderSize)) {
     return nullptr;
   }
   return storage;
