@@ -34,17 +34,14 @@ def find_runtime_deps(build_dir):
   return None
 
 
-def get_test_runner(build_dir, is_android):
+def get_test_runner(unused_build_dir, is_android):
   """Determines the relative path to the test runner."""
+  del unused_build_dir  # Unused argument.
   if is_android:
     return os.path.join('bin', 'run_cobalt_browsertests')
 
-  potential_runners = [
-      os.path.join('bin', 'run_cobalt_browsertests'), 'cobalt_browsertests'
-  ]
-  for runner in potential_runners:
-    if os.path.isfile(os.path.join(build_dir, runner)):
-      return runner
+  # For Linux/non-android, we will use the binary directly via
+  # run_browser_tests.py
   return 'cobalt_browsertests'
 
 
@@ -114,6 +111,7 @@ def main():
         sys.exit(1)
 
     target_config = TARGET_MAP[target_name]
+    is_android = target_config.get('is_android', False)
 
     # 3. Resolve Paths
     deps_path = os.path.join(src_dir, target_config['deps'])
@@ -156,8 +154,17 @@ def main():
     log(f'Using vpython3 at: {{vpython_path}}')
 
     # 6. Execute
-    log(f"Executing test runner for '{{target_name}}': {{test_runner}}")
-    cmd = [vpython_path, test_runner, '--runtime-deps-path', deps_path] + sys.argv[1:]
+    if is_android:
+        log(f"Executing Android test runner for '{{target_name}}': "
+            f"{{test_runner}}")
+        cmd = [vpython_path, test_runner, '--runtime-deps-path', deps_path] + sys.argv[1:]
+    else:
+        log(f"Executing Linux test runner for '{{target_name}}' "
+            f"using run_browser_tests.py")
+        run_browser_tests_py = os.path.join(
+            src_dir, 'cobalt/testing/browser_tests/run_browser_tests.py')
+        # Note: Linux browser tests use the binary directly via run_browser_tests.py
+        cmd = [sys.executable, run_browser_tests_py, test_runner] + sys.argv[1:]
 
     try:
         return subprocess.call(cmd)
@@ -219,7 +226,8 @@ def main():
       target_name = os.path.basename(build_dir)
       target_map[target_name] = {
           'deps': str(runtime_deps_path),
-          'runner': os.path.join(build_dir, test_runner_rel)
+          'runner': os.path.join(build_dir, test_runner_rel),
+          'is_android': is_android
       }
 
       logging.info('Copying files from %s...', runtime_deps_path)
@@ -242,6 +250,12 @@ def main():
     if not target_map:
       logging.error('No valid build directories processed.')
       sys.exit(1)
+
+    # Add run_browser_tests.py specifically
+    browser_test_runner = 'cobalt/testing/browser_tests/run_browser_tests.py'
+    if os.path.exists(browser_test_runner):
+      copy_fast(browser_test_runner, os.path.join(src_stage,
+                                                  browser_test_runner))
 
     # Add essential directories manually (shared across all targets)
     essential_dirs = [
