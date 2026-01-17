@@ -15,7 +15,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import json
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
@@ -63,7 +62,7 @@ def copy_fast(src, dst):
 
 def generate_runner_py(dst_path, target_map):
   """Generates the run_tests.py script inside the archive."""
-  target_map_json = json.dumps(target_map, indent=4)
+  target_map_repr = repr(target_map)
   content = f"""#!/usr/bin/env python3
 import os
 import sys
@@ -71,7 +70,7 @@ import subprocess
 import datetime
 import json
 
-TARGET_MAP = {target_map_json}
+TARGET_MAP = {target_map_repr}
 
 def log(msg):
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -160,11 +159,15 @@ def main():
         cmd = [vpython_path, test_runner, '--runtime-deps-path', deps_path] + sys.argv[1:]
     else:
         log(f"Executing Linux test runner for '{{target_name}}' "
-            f"using run_browser_tests.py")
+            f"using xvfb.py and run_browser_tests.py")
+        xvfb_py = os.path.join(src_dir, 'testing/xvfb.py')
         run_browser_tests_py = os.path.join(
             src_dir, 'cobalt/testing/browser_tests/run_browser_tests.py')
-        # Note: Linux browser tests use the binary directly via run_browser_tests.py
-        cmd = [sys.executable, run_browser_tests_py, test_runner] + sys.argv[1:]
+        # Wrap the whole command in xvfb.py to provide a DISPLAY
+        cmd = [
+            vpython_path, xvfb_py, sys.executable, run_browser_tests_py,
+            test_runner
+        ] + sys.argv[1:]
 
     try:
         return subprocess.call(cmd)
