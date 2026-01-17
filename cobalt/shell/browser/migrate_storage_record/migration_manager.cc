@@ -55,7 +55,9 @@ std::string GetApplicationKey(const GURL& url) {
 }
 
 std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
+  constexpr std::string kRecordHeader = "SAV1";
   constexpr size_t kRecordHeaderSize = 4;
+
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   CHECK(initial_url.is_valid());
@@ -91,7 +93,6 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   }
 
   const std::string_view version(bytes.data(), kRecordHeaderSize);
-  constexpr std::string kRecordHeader = "SAV1";
   if (version != kRecordHeader) {
     return nullptr;
   }
