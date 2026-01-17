@@ -66,8 +66,11 @@ Generate the tarball containing all necessary test dependencies for your desired
 Inside the running container's shell, specify the target name (directory name from the build):
 ```bash
 cd /opt/cobalt_browsertests/
-export ANDROID_SERIAL=<your_device_serial>
+# Run all tests for a target
 python3 run_tests.py android-arm_devel -v
+
+# Run a specific test on Linux using a filter
+python3 run_tests.py linux-x64x11_devel "ContentMainRunnerImplBrowserTest*"
 ```
 
 ## Docker Container Requirements
