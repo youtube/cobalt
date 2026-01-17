@@ -93,6 +93,14 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
+base::FilePath GetCacheDir() {
+  base::FilePath cache_path;
+  base::PathService::Get(base::DIR_CACHE, &cache_path);
+  cache_path = cache_path.Append(FILE_PATH_LITERAL("Default"))
+                   .Append(FILE_PATH_LITERAL("HTTP Cache"));
+  return cache_path;
+}
+
 }  // namespace
 
 #if BUILDFLAG(IS_ANDROID)
@@ -265,6 +273,8 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 
   // Always enable the HTTP cache.
   network_context_params->http_cache_enabled = true;
+  network_context_params->http_cache_max_size = 1024 * 1024 * 24;
+  network_context_params->http_cache_directory = GetCacheDir();
 
   auto cookie_manager_params = network::mojom::CookieManagerParams::New();
   cookie_manager_params->block_third_party_cookies = true;
