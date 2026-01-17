@@ -24,6 +24,8 @@
 #include "cobalt/shell/browser/shell.h"
 #include "content/public/browser/browser_accessibility_state.h"
 #include "content/public/browser/scoped_accessibility_mode.h"
+#include "content/public/browser/visibility.h"
+#include "content/public/browser/web_contents.h"
 #include "services/tracing/public/cpp/perfetto/perfetto_config.h"
 #include "services/tracing/public/mojom/constants.mojom.h"
 #import "starboard/tvos/shared/starboard_application.h"
@@ -145,6 +147,44 @@ std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
                          alpha:1.0];
 }
 
+#if BUILDFLAG(IS_IOS_TVOS)
+// Intercept UIPressTypeMenu event and do not forward it to the
+// superclass's pressesBegan method, as it will cause the application to
+// exit immediately. Instead, we save the UIPressTypeMenu press and event
+// and only forward it when suspendApplication is invoked.
+- (void)pressesBegan:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [SBDGetApplication() registerMenuPressBegan:press pressesEvent:event];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesBegan:nonMenuPresses withEvent:event];
+  }
+}
+
+- (void)pressesEnded:(NSSet<UIPress*>*)presses
+           withEvent:(UIPressesEvent*)event {
+  NSMutableSet<UIPress*>* nonMenuPresses =
+      [NSMutableSet setWithCapacity:presses.count];
+  for (UIPress* press in presses) {
+    if (press.type == UIPressTypeMenu) {
+      [SBDGetApplication() registerMenuPressEnded:press pressesEvent:event];
+    } else {
+      [nonMenuPresses addObject:press];
+    }
+  }
+  if (nonMenuPresses.count > 0) {
+    [super pressesEnded:nonMenuPresses withEvent:event];
+  }
+}
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 - (void)viewDidLoad {
   [super viewDidLoad];
 
@@ -243,8 +283,9 @@ std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
              name:UIAccessibilityVoiceOverStatusDidChangeNotification
            object:nil];
 
-  UIView* web_contents_view = _shell->web_contents()->GetNativeView().Get();
-  [_contentView addSubview:web_contents_view];
+  // Once the splash screen web contents are created, the corresponding UIView
+  // will be added to `_contentView`.
+  _shell->LoadSplashScreenWebContents();
 }
 
 - (id)initWithShell:(content::Shell*)shell {
@@ -435,6 +476,13 @@ std::unique_ptr<content::ScopedAccessibilityMode> _scopedAccessibilityMode;
 }
 
 - (void)setContents:(UIView*)content {
+  // The frame must be explicitly set for the actual web view after the splash
+  // screen is shown. Doing so for the splash screen view too does not hurt.
+  content.frame = _contentView.bounds;
+  // There is no need to manually remove other views: when the splash screen is
+  // shown, it is the first view. When this method is called because the web
+  // contents need to be shown, the splash screen view has already been deleted
+  // and removed from the hierarchy automatically.
   [_contentView addSubview:content];
 }
 
@@ -569,7 +617,8 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 
   UIWindow* window =
       [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-  window.backgroundColor = [UIColor whiteColor];
+  // Use black as background color to match the splash screen's background.
+  window.backgroundColor = [UIColor blackColor];
   window.tintColor = [UIColor darkGrayColor];
 
   ContentShellWindowDelegate* controller =
@@ -602,9 +651,30 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   //  setContents:web_contents_view];
 }
 
-void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
 
-void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
+  UIView* web_contents_view =
+      shell->splash_screen_web_contents()->GetNativeView().Get();
+  [static_cast<ContentShellWindowDelegate*>(
+      shell_data.window.rootViewController) setContents:web_contents_view];
+}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  content::WebContents* web_contents = shell->web_contents();
+  if (web_contents->GetVisibility() != content::Visibility::VISIBLE) {
+    // Explicitly call WasShown() to match the call to WasHidden() made by
+    // Shell::ScheduleSwitchToMainWebContents().
+    web_contents->WasShown();
+  }
+  UIView* web_contents_view = web_contents->GetNativeView().Get();
+  [static_cast<ContentShellWindowDelegate*>(
+      shell_data.window.rootViewController) setContents:web_contents_view];
+}
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {

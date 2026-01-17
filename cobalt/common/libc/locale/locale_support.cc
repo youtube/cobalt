@@ -14,8 +14,6 @@
 
 #include "cobalt/common/libc/locale/locale_support.h"
 
-#include <langinfo.h>
-
 #include <algorithm>
 #include <cstring>
 #include <map>

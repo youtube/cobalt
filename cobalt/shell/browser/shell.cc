@@ -382,7 +382,7 @@ void Shell::PrimaryMainDocumentElementAvailable() {
 }
 
 void Shell::DidFinishNavigation(NavigationHandle* navigation_handle) {
-  VLOG(1) << "NativeSplash: Navigated to " << navigation_handle->GetURL();
+  LOG(INFO) << "Navigated to " << navigation_handle->GetURL();
 }
 
 void Shell::DidStopLoading() {
@@ -460,9 +460,10 @@ void Shell::LoadURL(const GURL& url) {
       url, std::string(),
       ui::PageTransitionFromInt(ui::PAGE_TRANSITION_TYPED |
                                 ui::PAGE_TRANSITION_FROM_ADDRESS_BAR));
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS)
   // Load splash screen on linux/3p platforms. On ATV, it is called by
-  // JNI_Shell_LoadSplashScreenWebContents().
+  // JNI_Shell_LoadSplashScreenWebContents(). On tvOS, it is called by
+  // -viewDidLoad.
   LoadSplashScreenWebContents();
 #endif
 }
@@ -995,6 +996,7 @@ void Shell::SwitchToMainWebContents() {
     has_switched_to_main_frame_ = true;
     if (web_contents_) {
       GetPlatform()->UpdateContents(this);
+      web_contents_->WasShown();
       if (web_contents()->GetRenderWidgetHostView()) {
         web_contents()->GetRenderWidgetHostView()->Focus();
       }

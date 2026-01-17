@@ -17,7 +17,6 @@ import("//starboard/content/fonts/variables.gni")
 if (current_toolchain == default_toolchain) {
   if (cobalt_font_package == "empty") {
     copy("copy_font_data") {
-      install_content = true
       sources = [ "$source_font_config_dir/fonts.xml" ]
       outputs =
           [ "$sb_static_contents_output_data_dir/fonts/{{source_file_part}}" ]

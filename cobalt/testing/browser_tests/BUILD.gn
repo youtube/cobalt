@@ -177,6 +177,25 @@ if (is_android) {
   }
 }
 
+copy("cobalt_browsertests_runner_script") {
+  testonly = true
+
+  # TODO(433354983): Switch back to the run_browser_tests.py
+  # once the infra supports python.
+  sources = [ "cobalt_browsertests_runner.sh" ]
+  outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
+  deps = [ ":cobalt_browsertests" ]
+}
+
+group("cobalt_browsertests_runner") {
+  testonly = true
+  data_deps = [
+    ":cobalt_browsertests",
+    ":cobalt_browsertests_runner_script",
+  ]
+  write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
+}
+
 # Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
@@ -433,6 +452,8 @@ static_library("cobalt_shell_test_lib") {
     "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
+    "gpu/shell_content_gpu_test_client.cc",
+    "gpu/shell_content_gpu_test_client.h",
     "renderer/shell_content_renderer_test_client.cc",
     "renderer/shell_content_renderer_test_client.h",
     "utility/shell_content_utility_client.cc",
@@ -443,12 +464,14 @@ static_library("cobalt_shell_test_lib") {
     ":cobalt_browsertests_support",
     ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//components/viz/service",
     "//services/network/public/cpp",
   ]
 
