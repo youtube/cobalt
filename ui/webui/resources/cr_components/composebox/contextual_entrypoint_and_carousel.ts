@@ -158,6 +158,10 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       recentTabForChip_: {type: Object},
       carouselOnTop_: {type: Boolean},
       submitButtonShown: {type: Boolean},
+      isOmniboxInCompactMode_: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
@@ -172,6 +176,7 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor inComposebox: boolean = false;
+  accessor isOmniboxInCompactMode_: boolean = false;
 
   protected accessor attachmentFileTypes_: string =
       loadTimeData.getString('composeboxAttachmentFileTypes');
@@ -241,6 +246,11 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   protected get shouldShowToolChipsForTallMode_(): boolean {
+    // TODO(b/476405347): Consolidate logic here and remove the Omnibox specific
+    // code.
+    if (this.entrypointName === 'Omnibox') {
+      return !this.shouldShowToolChipsForCompactMode_;
+    }
     return this.searchboxLayoutMode !== 'Compact' ||
         this.shouldShowContextualChipsForCompactMode_;
   }
@@ -251,10 +261,11 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
   }
 
   protected get shouldShowToolChipsForCompactMode_(): boolean {
-    return this.searchboxLayoutMode === 'Compact' && this.toolChipsVisible_ &&
-        ((this.entrypointName !== 'Omnibox') ||
-         (this.entrypointName === 'Omnibox' &&
-          this.searchboxLayoutMode === 'Compact' && this.inComposebox));
+    if (this.searchboxLayoutMode !== 'Compact' || !this.toolChipsVisible_) {
+      return false;
+    }
+
+    return this.entrypointName !== 'Omnibox' || this.inComposebox;
   }
 
   protected get shouldShowDivider_(): boolean {
@@ -264,11 +275,15 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
       return false;
     }
 
+    // TODO(b/476405347): Remove `entrypointName` condition.
+    // `this.shouldShowContextualChipsForCompactMode_` can possibly be removed
+    // without consequence.
     return this.showDropdown &&
-        (this.shouldShowContextualChipsForCompactMode_ ||
-         (this.showFileCarousel_ ||
-          this.searchboxLayoutMode === 'TallTopContext' ||
-          this.submitButtonShown));
+        ((this.entrypointName !== 'Omnibox' &&
+          this.shouldShowContextualChipsForCompactMode_) ||
+         this.showFileCarousel_ ||
+         this.searchboxLayoutMode === 'TallTopContext' ||
+         this.submitButtonShown);
   }
 
   protected get shouldHideEntrypointButton_(): boolean {
@@ -318,6 +333,12 @@ export class ContextualEntrypointAndCarouselElement extends I18nMixinLit
         this.recentTabForChip_ =
             this.tabSuggestions.find(tab => tab.showInPreviousTabChip) || null;
       }
+    }
+
+    if (changedProperties.has('entrypointName') ||
+        changedProperties.has('searchboxLayoutMode')) {
+      this.isOmniboxInCompactMode_ = this.entrypointName === 'Omnibox' &&
+          this.searchboxLayoutMode === 'Compact';
     }
   }
 
