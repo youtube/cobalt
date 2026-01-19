@@ -31,6 +31,16 @@ const int64_t kUpdateIntervalUsec = 5'000;
 
 }  // namespace
 
+class OpenMaxVideoDecoder::DecoderThread : public Thread {
+ public:
+  explicit DecoderThread(OpenMaxVideoDecoder* decoder)
+      : Thread("omx_video_dec"), decoder_(decoder) {}
+  void Run() override { decoder_->RunLoop(); }
+
+ private:
+  OpenMaxVideoDecoder* decoder_;
+};
+
 OpenMaxVideoDecoder::OpenMaxVideoDecoder(SbMediaVideoCodec video_codec)
     : resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
       eos_written_(false),
@@ -46,7 +56,7 @@ OpenMaxVideoDecoder::~OpenMaxVideoDecoder() {
       std::lock_guard scoped_lock(mutex_);
       request_thread_termination_ = true;
     }
-    pthread_join(*thread_, nullptr);
+    thread_->Join();
   }
   RemoveJobByToken(update_job_token_);
 }
@@ -62,11 +72,8 @@ void OpenMaxVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   error_cb_ = error_cb;
 
   SB_DCHECK(!thread_);
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, nullptr, &OpenMaxVideoDecoder::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
-  thread_ = thread;
+  thread_ = std::make_unique<DecoderThread>(this);
+  thread_->Start();
 }
 
 void OpenMaxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
@@ -132,17 +139,11 @@ bool OpenMaxVideoDecoder::TryToDeliverOneFrame() {
   return true;
 }
 
-// static
-void* OpenMaxVideoDecoder::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "omx_video_decoder");
-  SbThreadSetPriority(kSbThreadPriorityHigh);
-  OpenMaxVideoDecoder* decoder =
-      reinterpret_cast<OpenMaxVideoDecoder*>(context);
-  decoder->RunLoop();
-  return NULL;
-}
-
 void OpenMaxVideoDecoder::RunLoop() {
+  // It's safe to set the priority here as this is running on a thread that is
+  // specifically created for video decoding.
+  SbThreadSetPriority(kSbThreadPriorityHigh);
+
   bool stream_ended = false;
   bool eos_written = false;
   OpenMaxVideoDecodeComponent component;
