@@ -21,6 +21,8 @@ _common_loader_app_sources = [
   "loader_app_switches.h",
   "system_get_extension_shim.cc",
   "system_get_extension_shim.h",
+  "startup_timer.cc",
+    "startup_timer.h",
 ]
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
