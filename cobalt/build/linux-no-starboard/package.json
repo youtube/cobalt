@@ -1,0 +1,10 @@
+{
+    "archive_datas": [
+        {
+            "files": [
+                "chromedriver"
+            ],
+            "archive_type": "ARCHIVE_TYPE_FILES"
+        }
+    ]
+}

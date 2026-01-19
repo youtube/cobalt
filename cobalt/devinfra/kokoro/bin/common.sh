@@ -186,11 +186,7 @@ run_package_release_pipeline () {
     # Create release package
     export PYTHONPATH="${WORKSPACE_COBALT}"
 
-    # IMPORTANT: chromedriver must be built without starboardizations. We ensure
-    # that the biary is built with the linux-x64x11-no-starboard config in a
-    # previous build step. Then copy the file into this out directory to
-    # simulate having built it in-situ (even though that's not possible). This
-    # simplifies the execution of the packaging scripts.
+    # TODO(b/467385779): Remove this once Forge is configured to use new artifacts.
     if [[ "${TARGET_PLATFORM}" =~ "linux" ]]; then
       local src_platform="linux-x64x11-no-starboard"
       local src_out="${WORKSPACE_COBALT}/out/${src_platform}_${CONFIG}"
