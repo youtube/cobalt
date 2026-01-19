@@ -113,3 +113,6 @@ optimize_for_size = true
 
 # Disable cast remote RPC as we don't use it.
 enable_media_remoting_rpc = false
+
+# Enable v8 snapshot compression to reduce binary size (~167KB) for a small startup cost (<10ms).
+v8_enable_snapshot_compression = true
