@@ -1656,9 +1656,9 @@ component("net") {
   if (is_cobalt_hermetic_build) {
     sources += [
       "base/network_interfaces_starboard.cc",
-      "base/platform_mime_util_starboard.cc",
       "base/network_change_notifier_starboard.h",
       "base/network_change_notifier_passive_starboard_stub.cc",
+      "base/platform_mime_util_linux.cc",
     ]
   }
   if (is_cobalt && is_linux && current_toolchain == host_toolchain) {
