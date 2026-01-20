@@ -14,7 +14,10 @@
 
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 
+#include <memory>
+
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "starboard/event.h"
 #include "ui/events/event.h"
 #include "ui/events/event_utils.h"
@@ -24,6 +27,17 @@
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 namespace ui {
+
+namespace {
+std::unique_ptr<PlatformWindowStarboard::WindowCreatedCallback>
+    g_created_callback;
+}
+
+// static
+void PlatformWindowStarboard::SetWindowCreatedCallback(
+    WindowCreatedCallback cb) {
+  g_created_callback = std::make_unique<WindowCreatedCallback>(std::move(cb));
+}
 
 PlatformWindowStarboard::PlatformWindowStarboard(
     PlatformWindowDelegate* delegate,
@@ -36,6 +50,10 @@ PlatformWindowStarboard::PlatformWindowStarboard(
   options.size.height = bounds.height();
   sb_window_ = SbWindowCreate(&options);
   CHECK(SbWindowIsValid(sb_window_));
+
+  if (g_created_callback) {
+    (*g_created_callback).Run(sb_window_);
+  }
 
   delegate->OnAcceleratedWidgetAvailable(
       reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
