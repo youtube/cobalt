@@ -99,8 +99,10 @@ int lchmod(const char *, mode_t);
 #endif
 
 #if defined(_LARGEFILE64_SOURCE)
+#if !defined(STARBOARD)
 #define stat64 stat
 #define fstat64 fstat
+#endif
 #define lstat64 lstat
 #define fstatat64 fstatat
 #define blkcnt64_t blkcnt_t
