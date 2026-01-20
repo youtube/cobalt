@@ -47,6 +47,7 @@ _DEPS_ARCH_MAP = {
     'raspi': '/home/pi/test/',
     'rdk': '/data/test/',
 }
+_GCS_ARCHIVE_DEVICE_FAMILIES = ('rdk', 'raspi')
 
 # This is needed because driver expects cobalt.apk, but we publish
 # Cobalt.apk
@@ -184,7 +185,7 @@ def _unit_test_files(args: argparse.Namespace, target_name: str) -> List[str]:
         f'bin={args.gcs_archive_path}/{target_name}',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
-  elif args.device_family in ['rdk', 'raspi']:
+  elif args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
     return [
         f'bin={args.gcs_archive_path}/{target_name}.py',
         f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
@@ -253,7 +254,7 @@ def _process_test_requests(args: argparse.Namespace) -> List[Dict[str, Any]]:
       test_cmd_args = []
       params = [f'yt_binary_name={_E2E_DEFAULT_YT_BINARY_NAME}']
       files = []
-      if args.device_family in ['rdk', 'raspi']:
+      if args.device_family in _GCS_ARCHIVE_DEVICE_FAMILIES:
         params.append(f'gcs_cobalt_archive=gs://{args.cobalt_path}.zip')
       else:
         bigstore_path = f'/bigstore/{args.cobalt_path}/{args.artifact_name}'
