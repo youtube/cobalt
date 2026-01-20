@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string_view>
+
+#include "base/containers/contains.h"
 #include "starboard/common/string.h"
 #include "starboard/media.h"
 #include "starboard/tvos/shared/media/drm_system_platform.h"
-
-const char kWidevineL3SystemName[] = "com.youtube.widevine.l3";
-const char kWidevineForceHdcpSystemName[] = "com.youtube.widevine.forcehdcp";
 
 namespace starboard::shared::starboard::media {
 
@@ -29,13 +29,17 @@ bool MediaIsSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  if (strcmp(kWidevineL3SystemName, key_system) == 0 ||
-      strcmp(kWidevineForceHdcpSystemName, key_system) == 0) {
+  constexpr std::string_view kSupportedWidevineSystems[] = {
+      "com.youtube.widevine.l3",
+      "com.youtube.widevine.forcehdcp",
+      "com.widevine.alpha",
+  };
+
+  if (base::Contains(kSupportedWidevineSystems, key_system)) {
     return true;
   }
 
-  if (std::string_view(key_system) ==
-      ::starboard::DrmSystemPlatform::GetKeySystemName()) {
+  if (key_system == ::starboard::DrmSystemPlatform::GetKeySystemName()) {
     // We don't use AVPlayer for encrypted vp9.
     return video_codec != kSbMediaVideoCodecVp9;
   }
