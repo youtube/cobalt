@@ -19,6 +19,7 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"
+#include "cobalt/updater/util.h"
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
@@ -226,7 +227,7 @@ void H5vccUpdaterImpl::SetRequireNetworkEncryption(
 void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,
                                         GetLibrarySha256Callback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  NOTIMPLEMENTED();
+  std::move(callback).Run(cobalt::updater::GetLibrarySha256(index));
 }
 
 }  // namespace h5vcc_updater
