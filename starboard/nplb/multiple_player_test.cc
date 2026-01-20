@@ -15,6 +15,7 @@
 #include <list>
 #include <string>
 
+#include "build/build_config.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
@@ -23,6 +24,10 @@
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "starboard/tvos/shared/run_in_background_thread_and_wait.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 
 namespace nplb {
 namespace {
@@ -42,6 +47,20 @@ class PlayerThread : public AbstractTestThread {
       : functor_(functor) {}
 
   void Run() override { functor_(); }
+
+  // A wrapper for Join() that, on tvOS, invokes it on a background GCD queue.
+  // This must be done to avoid a deadlock when the main thread is blocked on
+  // Join() and the worker thread is blocked attempting to invoke code in the
+  // main thread (in AVSBVideoRenderer).
+  void WaitForFinish() {
+#if BUILDFLAG(IS_IOS_TVOS)
+    RunInBackgroundThreadAndWait(^{
+      Join();
+    });
+#else
+    Join();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+  }
 
  private:
   std::function<void()> functor_;
@@ -171,7 +190,7 @@ void MultiplePlayerTest::RunTest(
     player_thread.Start();
   }
   for (auto& player_thread : player_threads) {
-    player_thread.Join();
+    player_thread.WaitForFinish();
   }
 }
 

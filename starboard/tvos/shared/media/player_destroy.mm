@@ -19,6 +19,7 @@
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 #import "starboard/tvos/shared/media/player_manager.h"
+#import "starboard/tvos/shared/run_in_background_thread_and_wait.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
 void SbPlayerDestroy(SbPlayer player) {
@@ -38,7 +39,18 @@ void SbPlayerDestroy(SbPlayer player) {
       starboard::VideoDmpWriter::OnPlayerDestroy(player);
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-      delete player;
+      if (NSThread.isMainThread) {
+        // When this code is called from the main thread, it means it is being
+        // called from a test (e.g. NPLB). Since deleting `player` will
+        // eventually invoke PlayerWorker's destructor that Join()s the worker
+        // thread, we need to spin the main loop otherwise the UI calls made in
+        // AVSBVideoRenderer will never run and the code will deadlock.
+        RunInBackgroundThreadAndWait(^{
+          delete player;
+        });
+      } else {
+        delete player;
+      }
     }
   }
 }
