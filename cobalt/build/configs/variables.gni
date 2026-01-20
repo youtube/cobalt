@@ -15,8 +15,7 @@
 # Get the path to the starboard implementation and include its GN
 # configuration.
 
-if (current_toolchain == default_toolchain &&
-    build_with_separate_cobalt_toolchain) {
+if (current_toolchain == default_toolchain && is_cobalt_hermetic_build) {
   _cpu_path = current_cpu
   if (current_cpu == "arm") {
     import("//build/config/arm.gni")
@@ -29,8 +28,7 @@ if (current_toolchain == default_toolchain &&
     _configuration_prefix =
         "starboard/evergreen/$_cpu_path/platform_configuration"
   } else {
-    _configuration_prefix =
-        "starboard/build/config/modular/platform_configuration"
+    _configuration_prefix = "starboard/build/config/modular/$_cpu_path"
   }
 } else {
   _configuration_prefix = "${starboard_path}/platform_configuration"
