@@ -84,6 +84,10 @@ source_set("browser") {
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
   }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
 }
 
 source_set("features") {

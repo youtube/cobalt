@@ -8,6 +8,7 @@
 
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
+#include "cobalt/media/service/mojom/platform_window_provider.mojom.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
@@ -22,6 +23,9 @@
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/browser_interface_broker_proxy.h"
+#include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
@@ -110,6 +114,24 @@ void CobaltContentRendererClient::RenderFrameCreated(
   } else {
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
+
+  if (!window_provider_.is_bound()) {
+    render_frame->GetBrowserInterfaceBroker().GetInterface(
+        window_provider_.BindNewPipeAndPassReceiver());
+
+    window_provider_->GetSbWindow(base::BindOnce(
+        [](std::atomic<uint64_t>* out_handle, uint64_t handle) {
+          if (!handle) {
+            LOG(ERROR) << "Renderer received invalid SbWindow handle.";
+            return;
+          }
+
+          LOG(INFO) << "Renderer received SbWindow handle: "
+                    << reinterpret_cast<void*>(handle);
+          *out_handle = handle;
+        },
+        &sb_window_handle_));
+  }
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
@@ -143,7 +165,7 @@ void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
       ::media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
 }
 
-std::unique_ptr<media::KeySystemSupportRegistration>
+std::unique_ptr<::media::KeySystemSupportRegistration>
 CobaltContentRendererClient::GetSupportedKeySystems(
     content::RenderFrame* render_frame,
     ::media::GetSupportedKeySystemsCB cb) {
@@ -197,7 +219,7 @@ void CobaltContentRendererClient::BindHostReceiver(
 }
 
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
-    media::RendererFactoryTraits* renderer_factory_traits) {
+    ::media::RendererFactoryTraits* renderer_factory_traits) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   renderer_factory_traits->audio_write_duration_local =
@@ -205,6 +227,14 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
   renderer_factory_traits->viewport_size = viewport_size_;
+#if BUILDFLAG(IS_STARBOARD)
+  // Using base::Unretained(this) is safe here because
+  // CobaltContentRendererClient is a process-global singleton that outlives
+  // the media pipeline, and GetSbWindowHandle() only accesses an atomic
+  // member variable.
+  renderer_factory_traits->get_sb_window_handle_callback = base::BindRepeating(
+      &CobaltContentRendererClient::GetSbWindowHandle, base::Unretained(this));
+#endif  // BUILDFLAG(IS_STARBOARD)
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
   renderer_factory_traits->bind_host_receiver_callback =
       base::BindPostTaskToCurrentDefault(
