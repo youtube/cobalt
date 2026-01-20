@@ -62,7 +62,8 @@ if [ -n "$XML_OUTPUT_FILE" ]; then
   echo "Merging results to: $XML_OUTPUT_FILE"
   # Initialize the final XML file
   echo '<?xml version="1.0" encoding="UTF-8"?>' > "$XML_OUTPUT_FILE"
-  echo '<testsuites tests="0" failures="0" disabled="0" errors="0" time="0" name="AllTests">' >> "$XML_OUTPUT_FILE"
+  echo '<testsuites tests="0" failures="0" disabled="0" errors="0" time="0" name="AllTests">' \
+    >> "$XML_OUTPUT_FILE"
 fi
 
 # 1. List all tests using the binary
@@ -104,7 +105,9 @@ for TEST in $TESTS_TO_RUN; do
   echo "[RUN] $TEST"
 
   # Construct flags
-  RUN_FLAGS="--gtest_filter=$TEST --no-sandbox --single-process --no-zygote --ozone-platform=starboard $EXTRA_ARGS"
+  RUN_FLAGS="--gtest_filter=$TEST --single-process-tests --no-sandbox"
+  RUN_FLAGS="$RUN_FLAGS --single-process --no-zygote"
+  RUN_FLAGS="$RUN_FLAGS --ozone-platform=starboard $EXTRA_ARGS"
 
   if [ -n "$XML_OUTPUT_FILE" ]; then
     RUN_FLAGS="$RUN_FLAGS --gtest_output=xml:$TEMP_XML"
@@ -113,7 +116,12 @@ for TEST in $TESTS_TO_RUN; do
   # Run the test
   # We use 'set +e' to allow failure without exiting the script
   set +e
-  $BINARY_PATH $RUN_FLAGS
+
+  # Explicitly disable sharding for the individual test run because we already
+  # filtered the tests in this script. The binary should run exactly what
+  # we ask. Also unset the env vars for this command.
+  GTEST_TOTAL_SHARDS=1 GTEST_SHARD_INDEX=0 $BINARY_PATH $RUN_FLAGS \
+    --test-launcher-total-shards=1 --test-launcher-shard-index=0
   RET=$?
   set -e
 
@@ -125,11 +133,26 @@ for TEST in $TESTS_TO_RUN; do
   fi
 
   # 4. Merge XML Result
-  if [ -n "$XML_OUTPUT_FILE" ] && [ -f "$TEMP_XML" ]; then
-    # Strip the first 2 lines (<?xml...> and <testsuites...>) and last line (</testsuites>)
-    # Append the rest (the <testsuite> block) to the output file
-    sed '1,2d; $d' "$TEMP_XML" >> "$XML_OUTPUT_FILE"
-    rm -f "$TEMP_XML"
+  if [ -n "$XML_OUTPUT_FILE" ]; then
+    if [ -f "$TEMP_XML" ]; then
+      # Strip the first 2 lines (<?xml...> and <testsuites...>) and last line (</testsuites>)
+      # Append the rest (the <testsuite> block) to the output file
+      sed '1,2d; $d' "$TEMP_XML" >> "$XML_OUTPUT_FILE"
+      rm -f "$TEMP_XML"
+    else
+      # Test crashed or failed to write XML. Synthesize a failure entry.
+      # Extract Suite and Case names from Suite.Test format
+      SUITE_NAME=${TEST%.*}
+      CASE_NAME=${TEST#*.}
+      echo "  <testsuite name=\"$SUITE_NAME\" tests=\"1\" failures=\"1\" errors=\"0\" time=\"0\">" \
+        >> "$XML_OUTPUT_FILE"
+      echo "    <testcase name=\"$CASE_NAME\" status=\"run\" time=\"0\" classname=\"$SUITE_NAME\">" \
+        >> "$XML_OUTPUT_FILE"
+      echo "      <failure message=\"Test crashed or failed to output XML\" type=\"Crash\"/>" \
+        >> "$XML_OUTPUT_FILE"
+      echo "    </testcase>" >> "$XML_OUTPUT_FILE"
+      echo "  </testsuite>" >> "$XML_OUTPUT_FILE"
+    fi
   fi
 done
 
@@ -142,7 +165,8 @@ if [ -n "$XML_OUTPUT_FILE" ]; then
   # Update the counts in the header.
   # We use sed to replace the placeholder "0"s.
   # Using a temp file for sed portability (some versions don't support -i well).
-  sed "s/tests=\"0\"/tests=\"$TOTAL_RUN\"/; s/failures=\"0\"/failures=\"$FAILED_COUNT\"/" "$XML_OUTPUT_FILE" > "${XML_OUTPUT_FILE}.tmp"
+  sed "s/tests=\"0\"/tests=\"$TOTAL_RUN\"/; s/failures=\"0\"/failures=\"$FAILED_COUNT\"/" \
+    "$XML_OUTPUT_FILE" > "${XML_OUTPUT_FILE}.tmp"
   mv "${XML_OUTPUT_FILE}.tmp" "$XML_OUTPUT_FILE"
 fi
 
