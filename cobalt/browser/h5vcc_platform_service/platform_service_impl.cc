@@ -140,7 +140,7 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
   std::vector<uint8_t> mutable_data = data;
   void* data_ptr = mutable_data.empty() ? nullptr : mutable_data.data();
   uint64_t data_length = mutable_data.size();
-  bool invalid_state = 0;
+  bool invalid_state = false;
 
   void* response_ptr = api->Send(platform_service_, data_ptr, data_length,
                                  &output_length, &invalid_state);

@@ -228,9 +228,9 @@ void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
   }
   ScriptState::Scope scope(script_state);  // For RAII
 
-  DOMUint8Array* dom_array = DOMUint8Array::Create(base::span(data));
+  DOMArrayBuffer* dom_buffer = ToDOMArrayBuffer(data);
   v8::Local<v8::Value> v8_data =
-      ToV8Traits<DOMUint8Array>::ToV8(script_state, dom_array);
+      ToV8Traits<DOMArrayBuffer>::ToV8(script_state, dom_buffer);
   ScriptValue script_data(script_state->GetIsolate(), v8_data);
 
   // nullptr is passed since the JS callback is not on any object instance.
