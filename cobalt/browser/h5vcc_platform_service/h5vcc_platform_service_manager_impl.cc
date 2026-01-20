@@ -64,7 +64,8 @@ void H5vccPlatformServiceManagerImpl::Has(const std::string& service_name,
       static_cast<const CobaltExtensionPlatformServiceApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
   if (!platform_service_extension) {
-    LOG(WARNING) << "The extension is not implemented on this platform";
+    LOG(WARNING) << "The platform service extension is not implemented on this "
+                 << "platform";
     std::move(callback).Run(false);
     return;
   }

@@ -35,7 +35,8 @@ const CobaltExtensionPlatformServiceApi* GetPlatformServiceApi() {
     auto api = static_cast<const CobaltExtensionPlatformServiceApi*>(
         SbSystemGetExtension(kCobaltExtensionPlatformServiceName));
     if (!api) {
-      LOG(WARNING) << "The extension is not implemented on this platform";
+      LOG(WARNING) << "The platform service extension is not implemented on "
+                   << "this platform";
     }
     return api;
   }();
@@ -110,7 +111,8 @@ PlatformServiceImpl::~PlatformServiceImpl() {
 bool PlatformServiceImpl::OpenStarboardService() {
   const CobaltExtensionPlatformServiceApi* api = GetPlatformServiceApi();
   if (!api) {
-    LOG(WARNING) << "The extension is not implemented on this platform";
+    LOG(WARNING) << "The platform service extension is not implemented on this "
+                 << "platform";
     return false;
   }
 
@@ -131,7 +133,8 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
                                SendCallback callback) {
   const CobaltExtensionPlatformServiceApi* api = GetPlatformServiceApi();
   if (!api) {
-    LOG(WARNING) << "PlatformService is not implemented on this platform.";
+    LOG(WARNING) << "The platform service extension is not implemented on this "
+                 << "platform";
     std::move(callback).Run({});  // Return empty vector on error
     return;
   }
