@@ -22,3 +22,6 @@ treat_warnings_as_errors = false
 # dawn_shared_texture_cache.cc, for example).
 use_dawn = true
 skia_use_dawn = true
+
+# Disable AV1 decoder for tvOS
+enable_dav1d_decoder = false
