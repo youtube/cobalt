@@ -249,6 +249,13 @@ static_library("starboard_platform_sources") {
     ]
   }
 
+  if (!cobalt_is_release_build) {
+    sources += [
+      "//starboard/linux/shared/echo_service.cc",
+      "//starboard/linux/shared/echo_service.h",
+    ]
+  }
+
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//third_party/dav1d:public_dav1d_config",
