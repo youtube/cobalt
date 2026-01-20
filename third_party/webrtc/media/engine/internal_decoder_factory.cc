@@ -10,9 +10,13 @@
 
 #include "media/engine/internal_decoder_factory.h"
 
+<<<<<<< HEAD
 #include <memory>
 #include <vector>
 
+=======
+#include "build/build_config.h"
+>>>>>>> 6244b85f82d (Nolibvpx (#8468))
 #include "absl/strings/match.h"
 #include "api/environment/environment.h"
 #include "api/video/video_codec_type.h"
@@ -22,8 +26,10 @@
 #include "api/video_codecs/video_decoder_factory.h"
 #include "media/base/media_constants.h"
 #include "modules/video_coding/codecs/h264/include/h264.h"
-#include "modules/video_coding/codecs/vp8/include/vp8.h"
-#include "modules/video_coding/codecs/vp9/include/vp9.h"
+#if !BUILDFLAG(IS_STARBOARD)
+#include "modules/video_coding/codecs/vp8/include/vp8.h"  // nogncheck
+#include "modules/video_coding/codecs/vp9/include/vp9.h"  // nogncheck
+#endif
 #include "rtc_base/checks.h"
 #include "rtc_base/logging.h"
 
@@ -47,9 +53,15 @@ std::unique_ptr<VideoDecoder> CreateDav1dDecoder(const Environment& env) {
 std::vector<SdpVideoFormat> InternalDecoderFactory::GetSupportedFormats()
     const {
   std::vector<SdpVideoFormat> formats;
+<<<<<<< HEAD
   formats.push_back(SdpVideoFormat::VP8());
+=======
+#if !BUILDFLAG(IS_STARBOARD)
+  formats.push_back(SdpVideoFormat(cricket::kVp8CodecName));
+>>>>>>> 6244b85f82d (Nolibvpx (#8468))
   for (const SdpVideoFormat& format : SupportedVP9DecoderCodecs())
     formats.push_back(format);
+#endif
   for (const SdpVideoFormat& h264_format : SupportedH264DecoderCodecs())
     formats.push_back(h264_format);
 
@@ -88,11 +100,21 @@ std::unique_ptr<VideoDecoder> InternalDecoderFactory::Create(
     return nullptr;
   }
 
+<<<<<<< HEAD
   if (absl::EqualsIgnoreCase(format.name, kVp8CodecName))
     return CreateVp8Decoder(env);
   if (absl::EqualsIgnoreCase(format.name, kVp9CodecName))
     return VP9Decoder::Create();
   if (absl::EqualsIgnoreCase(format.name, kH264CodecName))
+=======
+#if !BUILDFLAG(IS_STARBOARD)
+  if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
+    return VP8Decoder::Create();
+  if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName))
+    return VP9Decoder::Create();
+#endif
+  if (absl::EqualsIgnoreCase(format.name, cricket::kH264CodecName))
+>>>>>>> 6244b85f82d (Nolibvpx (#8468))
     return H264Decoder::Create();
 
   if (absl::EqualsIgnoreCase(format.name, kAv1CodecName) && kDav1dIsIncluded) {
