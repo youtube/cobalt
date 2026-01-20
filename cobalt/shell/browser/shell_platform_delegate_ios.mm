@@ -676,7 +676,6 @@ void ShellPlatformDelegate::EnableUIControl(Shell* shell,
     }
     default:
       NOTREACHED() << "Unknown UI control";
-      return;
   }
   [button setEnabled:is_enabled];
 }
