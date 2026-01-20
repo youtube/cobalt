@@ -20,7 +20,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_IOS_TVOS)
-#include "base/command_line.h"
+#include "base/command_line.h"  // nogncheck
 #include "base/test/test_support_ios.h"
 #include "starboard/tvos/shared/starboard_test_environment.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS)
