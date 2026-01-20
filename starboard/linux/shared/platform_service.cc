@@ -40,9 +40,11 @@ struct cmp_str {
 };
 
 std::map<const char*, const void* (*)(), cmp_str> platform_service_registry = {
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+    {kEchoServiceName, GetEchoServiceApi},
+#endif
     {kSoftMicPlatformServiceName, GetSoftMicPlatformServiceApi},
-    {kPreappRecommendationServiceName, GetPreappRecommendationServiceApi},
-    {kEchoServiceName, GetEchoServiceApi}};
+    {kPreappRecommendationServiceName, GetPreappRecommendationServiceApi}};
 
 bool Has(const char* name) {
   // Checks whether Cobalt platform service registry has service name

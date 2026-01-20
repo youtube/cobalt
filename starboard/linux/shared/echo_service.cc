@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -42,15 +42,15 @@ struct ThreadArgs {
 // through Send(). It responds synchronously by returning the data from Send()
 // and asynchronously using its receive_callback.
 typedef struct EchoServiceImpl : public PlatformServiceImpl {
-  pthread_mutex_t m;
-  pthread_cond_t cv;
+  pthread_mutex_t shutdown_mutex;
+  pthread_cond_t shutdown_cond;
   bool should_shutdown;
   std::vector<pthread_t> workers;
 
   EchoServiceImpl(void* context, ReceiveMessageCallback receive_callback)
       : PlatformServiceImpl(context, receive_callback), should_shutdown(false) {
-    pthread_mutex_init(&m, NULL);
-    pthread_cond_init(&cv, NULL);
+    pthread_mutex_init(&shutdown_mutex, NULL);
+    pthread_cond_init(&shutdown_cond, NULL);
   }
 
   // Default constructor.
@@ -58,8 +58,8 @@ typedef struct EchoServiceImpl : public PlatformServiceImpl {
 
   ~EchoServiceImpl() {
     CleanUpWorkers();
-    pthread_mutex_destroy(&m);
-    pthread_cond_destroy(&cv);
+    pthread_mutex_destroy(&shutdown_mutex);
+    pthread_cond_destroy(&shutdown_cond);
   }
 
   static void* AsyncResponseTrampoline(void* args) {
@@ -89,35 +89,36 @@ typedef struct EchoServiceImpl : public PlatformServiceImpl {
     work_time.tv_sec = work_time_us / 1'000'000;
     work_time.tv_nsec = (work_time_us % 1'000'000) * 1000;
 
-    pthread_mutex_lock(&m);
+    pthread_mutex_lock(&shutdown_mutex);
     while (!should_shutdown) {
-      int ret = pthread_cond_timedwait(&cv, &m, &work_time);
+      int ret =
+          pthread_cond_timedwait(&shutdown_cond, &shutdown_mutex, &work_time);
       if (ret == ETIMEDOUT) {
         break;
       }
     }
 
     if (should_shutdown) {
-      pthread_mutex_unlock(&m);
+      pthread_mutex_unlock(&shutdown_mutex);
       return;
     }
 
-    pthread_mutex_unlock(&m);
+    pthread_mutex_unlock(&shutdown_mutex);
     receive_callback(context, static_cast<const void*>(response.c_str()),
                      response.length());
   }
 
   void CleanUpWorkers() {
-    pthread_mutex_lock(&m);
+    pthread_mutex_lock(&shutdown_mutex);
 
     if (should_shutdown) {  // Cleanup was already done
-      pthread_mutex_unlock(&m);
+      pthread_mutex_unlock(&shutdown_mutex);
       return;
     }
 
     should_shutdown = true;
-    pthread_cond_broadcast(&cv);
-    pthread_mutex_unlock(&m);
+    pthread_cond_broadcast(&shutdown_cond);
+    pthread_mutex_unlock(&shutdown_mutex);
 
     for (pthread_t worker : workers) {
       pthread_join(worker, nullptr);
