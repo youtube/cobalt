@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <array>
-#include <sstream>
 #include <string>
 #include <utility>
 
@@ -32,11 +31,49 @@
 namespace cobalt {
 namespace {
 
+constexpr UChar kSpace = ' ';
+constexpr UChar kComma = ',';
+constexpr UChar kArabicComma = 0x060C;
+constexpr UChar kMyanmarComma = 0x104A;
+
+constexpr std::string_view kFormatChars = "yMdELGHhKkmaszv";
+constexpr char kSkeletonDtFmt[] = "yMMMEdjmsz";
+constexpr char kSkeletonTFmtAmPm[] = "ahms";
+
 // Convenience method to convert icu::UnicodeStrings to std::string.
 std::string ToUtf8(const icu::UnicodeString& us) {
   std::string out;
   us.toUTF8String(out);
   return out;
+}
+
+// Helper method to remove redundant and unecesssary spaces in POSIX
+// formatting strings that were converted from ICU. Since our converter
+// does not support specific ICU symbols (due to no 1 to 1 conversion,
+// our implementation does not support the symbol), there are instances where
+// there are extra gaps in the converted string.
+std::string CollapseSpaces(const std::string& input) {
+  std::string result;
+  result.reserve(input.length());
+
+  bool lastWasSpace = false;
+  for (char c : input) {
+    if (c == kSpace) {
+      if (!lastWasSpace) {
+        result += kSpace;
+        lastWasSpace = true;
+      }
+    } else {
+      result += c;
+      lastWasSpace = false;
+    }
+  }
+
+  if (!result.empty() && result.back() == kSpace) {
+    result.pop_back();
+  }
+
+  return result;
 }
 
 // Convenience method to convert a POSIX locale string to the ICU string format.
@@ -87,6 +124,10 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
   return loc;
 }
 
+// Helper function to convert an ICU date/time formatted token to a
+// corresponding POSIX token, if such a conversion exists. ICU and POSIX use
+// different systems to represent date format strings, and this function will
+// make a best attempt to convert an ICU token to its POSIX equivalent.
 std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
   constexpr std::array<std::pair<std::string_view, const char*>, 46>
       kIcuToPosixMap = {
@@ -155,31 +196,12 @@ std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
   return token_str;
 }
 
-std::string CollapseSpaces(const std::string& input) {
-  std::string result;
-  result.reserve(input.length());  // Optimization
-
-  bool lastWasSpace = false;
-  for (char c : input) {
-    if (c == ' ') {
-      if (!lastWasSpace) {
-        result += ' ';
-        lastWasSpace = true;
-      }
-    } else {
-      result += c;
-      lastWasSpace = false;
-    }
-  }
-
-  // Trim trailing space if any
-  if (!result.empty() && result.back() == ' ') {
-    result.pop_back();
-  }
-
-  return result;
-}
-
+// Given a locale and a format skeleton string, GetPatternFromSkeleton will try
+// to generate an ICU pattern from the skeleton string. Since each locale format
+// might have small differences between one another, we try to use a general
+// skeleton string to construct a pattern. ICU will take this skeleton string
+// and try to construct a format pattern following any formatting rules
+// expectations a given locale may have.
 icu::UnicodeString GetPatternFromSkeleton(const std::string& locale_id,
                                           const icu::UnicodeString& skeleton) {
   UErrorCode status = U_ZERO_ERROR;
@@ -193,7 +215,6 @@ icu::UnicodeString GetPatternFromSkeleton(const std::string& locale_id,
     return "";
   }
 
-  // 2. Ask it to build the best pattern for your ingredients (skeleton)
   icu::UnicodeString pattern = generator->getBestPattern(skeleton, status);
 
   delete generator;
@@ -208,11 +229,14 @@ void FlushToken(icu::UnicodeString& currentToken, std::string& result) {
   }
 }
 
+// IcuPatterToPosix will iterate through an ICU format pattern, translating any
+// ICU-specific tokens to a readable POSIX format. It will go through the ICU
+// pattern character by character, and will construct the corresponding POSIX
+// pattern string.
 std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
   std::string result;
   bool inQuote = false;
   icu::UnicodeString currentToken;
-  const std::string kFormatChars = "yMdELGHhKkmaszv";
 
   for (int32_t i = 0; i < pattern.length(); ++i) {
     const UChar c = pattern[i];
@@ -243,35 +267,36 @@ std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
       FlushToken(currentToken, result);
 
       // Filter out commas and certain types of spaces.
-      if (c == ',' || c == 0x104A || c == 0x060C ||
-          (c == ' ' && !result.empty() && result.back() == ':')) {
+      if (c == kComma || c == kMyanmarComma || c == kArabicComma ||
+          (c == kSpace && !result.empty() && result.back() == ':')) {
         continue;
       }
       if (c == 0x00A0 || c == 0x202F) {
         result += " ";
       } else {
-        result += ToUtf8(icu::UnicodeString(c));
+        if (c < 0x80) {
+          result += static_cast<char>(c);
+        } else {
+          result += ToUtf8(icu::UnicodeString(c));
+        }
       }
     }
   }
 
   // Flush any remaining token at the end of the string.
   FlushToken(currentToken, result);
-
-  // Final Cleanup: Trim trailing space
-  if (!result.empty() && result.back() == ' ') {
-    result.pop_back();
-  }
-
   return result;
 }
 
+// Helper method to retrieve the requested ICU pattern. This function
+// accesses the locale's format pattern according to the selected |date_style|
+// and |time_style| selected. It then returns this received pattern inside a
+// icu::UnicodeString.
 icu::UnicodeString GetPatternFromStyle(const std::string& locale_id,
                                        UDateFormatStyle date_style,
                                        UDateFormatStyle time_style) {
   UErrorCode status = U_ZERO_ERROR;
 
-  // 1. Open C-API Formatter
   UDateFormat* fmt = udat_open(time_style, date_style, locale_id.c_str(),
                                nullptr, 0, nullptr, 0, &status);
 
@@ -279,28 +304,31 @@ icu::UnicodeString GetPatternFromStyle(const std::string& locale_id,
     return icu::UnicodeString();
   }
 
-  // 2. Pre-flight: Get length needed
-  // 'false' means we want canonical pattern chars (y, M, d), not localized
-  // ones.
-  int32_t len = udat_toPattern(fmt, false, nullptr, 0, &status);
+  constexpr int32_t kStackBufferSize = 128;
+  UChar stack_buffer[kStackBufferSize];
 
-  status = U_ZERO_ERROR;  // Clear the expected buffer overflow warning
+  int32_t len =
+      udat_toPattern(fmt, false, stack_buffer, kStackBufferSize, &status);
 
-  // 3. Allocate Buffer
-  std::vector<UChar> buffer(len + 1);
+  icu::UnicodeString result;
 
-  // 4. Fetch the Pattern
-  udat_toPattern(fmt, false, buffer.data(), len + 1, &status);
+  if (status == U_BUFFER_OVERFLOW_ERROR) {
+    // 3. Fallback: If pattern is huge (>128 chars), use heap allocation.
+    status = U_ZERO_ERROR;
+    std::vector<UChar> heap_buffer(len + 1);
+    udat_toPattern(fmt, false, heap_buffer.data(), len + 1, &status);
 
-  // 5. Cleanup
-  udat_close(fmt);
-
-  if (U_FAILURE(status)) {
-    return icu::UnicodeString();
+    if (U_SUCCESS(status)) {
+      result = icu::UnicodeString(heap_buffer.data(), len);
+    }
+  } else if (U_SUCCESS(status)) {
+    // 4. Success: Copy directly from stack buffer (Fast)
+    result = icu::UnicodeString(stack_buffer, len);
   }
 
-  // 6. Return UnicodeString directly
-  return icu::UnicodeString(buffer.data(), len);
+  udat_close(fmt);
+
+  return result;
 }
 }  // namespace
 
@@ -381,10 +409,12 @@ std::string GetPosixPattern(const std::string& locale, nl_item item) {
       icu_pattern = GetPatternFromStyle(locale, UDAT_NONE, UDAT_MEDIUM);
       break;
     case D_T_FMT:
-      icu_pattern = GetPatternFromSkeleton(locale, "yMMMEdjmsz");
+      static const icu::UnicodeString kDtPattern(kSkeletonDtFmt);
+      icu_pattern = GetPatternFromSkeleton(locale, kDtPattern);
       break;
     case T_FMT_AMPM:
-      icu_pattern = GetPatternFromSkeleton(locale, "ahms");
+      static const icu::UnicodeString kTAmPmPattern(kSkeletonTFmtAmPm);
+      icu_pattern = GetPatternFromSkeleton(locale, kTAmPmPattern);
       break;
     default:
       icu_pattern = "";
