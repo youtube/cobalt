@@ -74,7 +74,7 @@ DecoderStateTracker::~DecoderStateTracker() {
 }
 
 void DecoderStateTracker::OnFrameAdded(int64_t presentation_us) {
-  std::lock_guard lock(mutex_);
+  std::unique_lock lock(mutex_);
 
   if (disabled_ || eos_added_) {
     return;
@@ -87,12 +87,23 @@ void DecoderStateTracker::OnFrameAdded(int64_t presentation_us) {
     EngageKillSwitch_Locked("Too many frames in flight: state=" +
                                 ToString(GetCurrentState_Locked()),
                             presentation_us);
+
+    // Release the lock before invoking the callback to prevent potential
+    // re-entrancy deadlocks.
+    lock.unlock();
+    frame_released_cb_();
     return;
   }
   if (frames_in_flight_.find(presentation_us) != frames_in_flight_.end()) {
     EngageKillSwitch_Locked("Duplicate frame input", presentation_us);
+
+    // Release the lock before invoking the callback to prevent potential
+    // re-entrancy deadlocks.
+    lock.unlock();
+    frame_released_cb_();
     return;
   }
+
   frames_in_flight_[presentation_us] = FrameStatus::kDecoding;
 
   if (frames_in_flight_.size() >= max_frames_) {
@@ -219,7 +230,6 @@ void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,
   SB_LOG(ERROR) << "KILL SWITCH ENGAGED: " << reason << ", pts=" << pts;
   disabled_ = true;
   frames_in_flight_.clear();
-  frame_released_cb_();
 }
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
