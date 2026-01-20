@@ -120,7 +120,7 @@ Examples:
 | - | - |
 | ci | Changes to CI/CD workflows |
 | cleanup | Code cleanup (e.g., removing unused code, style fixes) |
-| docs 	Documentation updates |
+| docs | Documentation updates |
 | feat | A new feature |
 | fix | A bug fix |
 | refactor | Code refactoring without changing functionality |
