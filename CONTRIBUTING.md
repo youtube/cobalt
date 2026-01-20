@@ -68,6 +68,71 @@ Cobalt coding style.
     same issue at the file level at least (e.g.: fix all typos in a file, fix
     all compiler warning in a file, etc.)
 
+#### Commit messages
+
+The standard guidance is described in [How to write a git commit message](https://cbea.ms/git-commit). It contains a general [introduction](https://cbea.ms/git-commit/#intro), as well as [seven rules](https://cbea.ms/git-commit/#seven-rules) that should be followed when writing commit messages in this repository:
+
+1. [Separate subject from body with a blank line](https://cbea.ms/git-commit/#separate)
+2. [Limit the subject line to 50 characters](https://cbea.ms/git-commit/#limit-50)
+3. [Capitalize the subject line](https://cbea.ms/git-commit/#capitalize)
+4. [Do not end the subject line with a period](https://cbea.ms/git-commit/#end)
+5. [Use the imperative mood in the subject line](https://cbea.ms/git-commit/#imperative)
+6. [Wrap the body at 72 characters](https://cbea.ms/git-commit/#wrap-72)
+7. [Use the body to explain _what_ and _why_ vs. _how_](https://cbea.ms/git-commit/#why-not-how)
+
+##### Tags
+
+To improve the clarity and scannability of our commit history, the commit subject line must have a tag.
+
+Tags are divided into two main categories: **component** tags specify the affected part of the codebase (e.g. media, build, android), while **type** tags describe the nature of the change (e.g., feat, fix, refactor). Prefer component tags over type tags.
+
+When your commit relates to one of these topics, select the most relevant tag from either category and add it to the beginning of your subject line, followed by a colon.
+
+Examples:
+
+* `media: Add support for AV1 playback`
+* `fix: Correct screen tearing on resume`
+* `docs: Update build instructions for Linux`
+* `starboard: Implement SbWindowGetPlatformHandle for Wayland`
+* `refactor: Simplify threading model in the renderer process`
+* `build: Update third-party dependency versions in DEPS`
+* `net: Improve QUIC connection reliability on flaky networks`
+* `cleanup: Remove deprecated functions from the public API`
+
+**By Component**
+
+| Tag | Description |
+| - | - |
+| android | Android-specific changes |
+| tvos | tvOS-specific changes |
+| build | Changes to the build system (GN files, build scripts) |
+| cobalt | Changes specific to the Cobalt browser logic |
+| evergreen | For Evergreen-specific changes |
+| linux | Linux-specific changes |
+| media | Changes related to the media pipeline (player, demuxer, etc.) |
+| net | For networking changes (e.g., QUIC, sockets) |
+| posix | POSIX-related changes |
+| starboard | Changes to the Starboard abstraction layer |
+
+**By Type of Change**
+
+| Tag | Description |
+| - | - |
+| ci | Changes to CI/CD workflows |
+| cleanup | Code cleanup (e.g., removing unused code, style fixes) |
+| docs 	Documentation updates |
+| feat | A new feature |
+| fix | A bug fix |
+| refactor | Code refactoring without changing functionality |
+| revert | Reverting a previous commit |
+| test | For changes to tests (e.g., nplb, unit tests) |
+
+##### Bug references
+
+Each commit message needs to reference at least one bug number.
+
+Reference Buganizer issues in [trailers](https://git-scm.com/docs/git-interpret-trailers) like `Issue: 123456789` or `Bug: 123456789` or `Fixed: 123456789`, any of which should cause the issue to be updated when the associated pull request is merged, and the last of which also causes the issue to be closed as [Fixed (Google-internal link)](http://go/buganizer/concepts/issues#status).
+
 #### License
 
 Include a license at the top of new files. Check existing files for license examples.
