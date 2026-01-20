@@ -16,10 +16,10 @@
 
 #include "base/functional/callback.h"
 #include "build/build_config.h"
+#include "cobalt/updater/util.h"
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/updater/updater_module.h"
-#include "cobalt/updater/util.h"
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
