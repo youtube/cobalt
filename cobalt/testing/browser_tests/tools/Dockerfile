@@ -1,5 +1,5 @@
 # Specify the Base Image
-FROM ubuntu:latest
+ubuntu@sha256:c7eb020043d8fc2ae0793fb35a37bff1cf33f156d4d4b12ccc7f3ef8706c38b1
 
 # Install base utilities, Android test dependencies (adb, netcat),
 # and Linux test dependencies (GUI/X11 libraries).
@@ -21,6 +21,7 @@ RUN apt-get update && apt-get install -y \
     libxdamage1 \
     libxrandr2 \
     libgbm1 \
+    socat \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
@@ -30,5 +31,6 @@ WORKDIR /opt/cobalt_browsertests
 # Expects cobalt_browsertests_artifacts.tar.gz to be in the build context.
 ADD cobalt_browsertests_artifacts.tar.gz .
 
-# Start a bash shell by default.
-CMD ["bash"]
+RUN python3 run_tests.py android-arm_devel
+
+RUN apt-get update && apt-get remove -y socat

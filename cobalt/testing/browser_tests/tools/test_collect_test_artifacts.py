@@ -68,32 +68,20 @@ class TestCollectTestArtifacts(unittest.TestCase):
   @mock.patch('builtins.open', new_callable=mock.mock_open)
   @mock.patch('os.chmod')
   def test_generate_runner_py(self, mock_chmod, mock_file):
-    collect_test_artifacts.generate_runner_py('run.py', 'out/dir', 'runner',
-                                              'deps')
+    target_map = {
+        'target': {
+            'deps': 'deps_path',
+            'runner': 'runner_path',
+            'is_android': False
+        }
+    }
+    collect_test_artifacts.generate_runner_py('run.py', target_map)
     mock_file.assert_called_once_with('run.py', 'w', encoding='utf-8')
     handle = mock_file()
     # Check if key variables are in the written content
     written_content = handle.write.call_args[0][0]
-    self.assertIn('deps', written_content)
-    self.assertIn('runner', written_content)
-    self.assertIn('vpython3', written_content)
-    mock_chmod.assert_called_once_with('run.py', 0o755)
-
-
-if __name__ == '__main__':
-  unittest.main()
-
-  @mock.patch('builtins.open', new_callable=mock.mock_open)
-  @mock.patch('os.chmod')
-  def test_generate_runner_py(self, mock_chmod, mock_file):
-    collect_test_artifacts.generate_runner_py('run.py', 'out/dir', 'runner',
-                                              'deps')
-    mock_file.assert_called_once_with('run.py', 'w', encoding='utf-8')
-    handle = mock_file()
-    # Check if key variables are in the written content
-    written_content = handle.write.call_args[0][0]
-    self.assertIn('deps', written_content)
-    self.assertIn('runner', written_content)
+    self.assertIn('deps_path', written_content)
+    self.assertIn('runner_path', written_content)
     self.assertIn('vpython3', written_content)
     mock_chmod.assert_called_once_with('run.py', 0o755)
 

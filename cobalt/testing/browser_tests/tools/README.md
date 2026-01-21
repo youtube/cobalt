@@ -85,30 +85,7 @@ Note: `depot_tools` (providing `vpython3`) is bundled within the archive, so man
 
 ### Sample Dockerfile
 
-```dockerfile
-FROM ubuntu:latest
-
-# Install all dependencies for Android and Linux test execution
-RUN apt-get update && apt-get install -y \
-    adb \
-    netcat-openbsd \
-    python3 \
-    ca-certificates \
-    xvfb \
-    openbox \
-    x11-xserver-utils \
-    xserver-xorg-video-dummy \
-    xserver-xorg-core \
-    dbus-x11 \
-    xcompmgr \
-    libnss3 \
-    libasound2t64 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-```
+A `Dockerfile` is provided in this directory that includes all necessary dependencies for both Android and Linux test execution. You can use it as a starting point for your test environment.
 
 ### Execution with USB Access and Caching
 

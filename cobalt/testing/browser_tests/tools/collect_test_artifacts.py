@@ -33,14 +33,17 @@ def find_runtime_deps(build_dir):
   return None
 
 
-def get_test_runner(unused_build_dir, is_android):
+def get_test_runner(build_dir, is_android):
   """Determines the relative path to the test runner."""
-  del unused_build_dir  # Unused argument.
   if is_android:
     return os.path.join('bin', 'run_cobalt_browsertests')
 
   # For Linux/non-android, we will use the binary directly via
-  # run_browser_tests.py
+  # run_browser_tests.py. However, some platforms might have a runner script.
+  script_rel = os.path.join('bin', 'run_cobalt_browsertests')
+  if os.path.isfile(os.path.join(build_dir, script_rel)):
+    return script_rel
+
   return 'cobalt_browsertests'
 
 
