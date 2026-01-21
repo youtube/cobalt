@@ -108,6 +108,9 @@ When running the container, ensure it has access to the host's USB devices if us
 **Pro-tip**: Mount a volume for the `vpython` cache to avoid downloading dependencies every time the container starts.
 
 #### Android Execution
+
+**Note**: Host environment variables are not shared with the container by default. You must explicitly pass `ANDROID_SERIAL` using the `-e` flag.
+
 ```bash
 docker run --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
