@@ -63,12 +63,13 @@ class H5vccSchemeURLLoaderFactory final
       override;
 
   // Testing seam to inject a resource map.
-  void SetResourceMapForTesting(const GeneratedResourceMap* resource_map_test);
+  static void SetResourceMapForTesting(
+      const GeneratedResourceMap* resource_map_test);
   static void SetSplashDomainForTesting(
       const std::optional<std::string>& domain);
 
  private:
-  const GeneratedResourceMap* resource_map_test_ = nullptr;
+  static const GeneratedResourceMap* resource_map_test_;
   std::string splash_domain_;
   static std::optional<std::string> global_splash_domain_test_;
   BrowserContext* browser_context_;

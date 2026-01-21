@@ -19,6 +19,7 @@
 
 #include "base/base64.h"
 #include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/shell/common/url_constants.h"
 #include "cobalt/shell/embedded_resources/embedded_resources.h"
@@ -52,8 +53,8 @@ const char kH5vccContentSecurityPolicy[] =
     "script-src 'self' 'unsafe-inline'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; "
-    "media-src 'self' data: blob: h5vcc-embedded:; "
-    "connect-src 'self' blob: data: h5vcc-embedded:;";
+    "media-src 'self' data: blob: %s:; "
+    "connect-src 'self' blob: data: %s:;";
 }  // namespace
 
 class BlobReader : public blink::mojom::BlobReaderClient {
@@ -266,6 +267,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
   void OnCacheMatched(const std::string& mime_type,
                       blink::mojom::MatchResultPtr result) {
+    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, base::BindOnce(&H5vccSchemeURLLoader::DisconnectCacheStorage,
+                                  weak_factory_.GetWeakPtr()));
     if (!result->is_response()) {
       LOG(ERROR) << "Failed to match cache for splash video"
                  << ", error: " << result->get_status();
@@ -302,6 +306,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
 
  private:
+  void DisconnectCacheStorage() { cache_storage_remote_.reset(); }
+
   void SendResponse(const std::string& data_content,
                     const std::string& mime_type,
                     int http_status = net::HTTP_OK) {
@@ -323,8 +329,10 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
                                       mime_type);
     response_head->headers->AddHeader(net::HttpRequestHeaders::kContentLength,
                                       std::to_string(data_content.size()));
-    response_head->headers->AddHeader("Content-Security-Policy",
-                                      kH5vccContentSecurityPolicy);
+    response_head->headers->AddHeader(
+        "Content-Security-Policy",
+        base::StringPrintf(kH5vccContentSecurityPolicy, kH5vccEmbeddedScheme,
+                           kH5vccEmbeddedScheme));
     // Range requests are not supported.
     response_head->headers->AddHeader("Accept-Ranges", "none");
 
@@ -379,6 +387,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
 std::optional<std::string>
     H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
+const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
+    nullptr;
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)

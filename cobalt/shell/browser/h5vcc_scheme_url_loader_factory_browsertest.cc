@@ -18,6 +18,7 @@
 
 #include "base/strings/stringprintf.h"
 #include "base/test/scoped_feature_list.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
@@ -32,32 +33,29 @@ namespace content {
 
 class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
  public:
-  H5vccSchemeURLLoaderFactoryBrowserTest() {
-    scoped_feature_list_.InitFromCommandLine(
-        "DisableExclusiveLockingOnDipsDatabase", "");
-  }
+  H5vccSchemeURLLoaderFactoryBrowserTest() {}
   ~H5vccSchemeURLLoaderFactoryBrowserTest() override = default;
 
-  std::string GetScript(const std::string& url) {
-    return base::StringPrintf(R"(
+  void SetUp() override {
+    ContentBrowserTest::SetUp();
+    H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(std::nullopt);
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
+  }
+
+  void TearDown() override {
+    H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(std::nullopt);
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
+    ContentBrowserTest::TearDown();
+  }
+
+  std::string GetScript(const std::string& /*url*/) {
+    return R"(
       (async () => {
         try {
-          const video = document.createElement('video');
-          const mediaSource = new MediaSource();
-          video.src = URL.createObjectURL(mediaSource);
-
-          await new Promise((resolve) => mediaSource.addEventListener('sourceopen', resolve, {once: true}));
-          const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
-
-          const response = await fetch('%s');
-          if (!response.ok) {
-            return 'Fetch failed: ' + response.status;
+          const video = document.querySelector('video');
+          if (!video) {
+            return 'No video element found';
           }
-          const data = await response.arrayBuffer();
-
-          sourceBuffer.appendBuffer(data);
-          await new Promise((resolve) => sourceBuffer.addEventListener('updateend', resolve, {once: true}));
-          mediaSource.endOfStream();
 
           if (video.readyState < 1) {
             await new Promise((resolve, reject) => {
@@ -71,8 +69,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
           return 'Exception: ' + e.toString();
         }
       })();
-    )",
-                              url.c_str());
+    )";
   }
 
   void VerifySplashVideoFromCache(const std::string& cache_name,
@@ -104,10 +101,11 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
 
     // 2. Fetch via h5vcc-embedded scheme.
     // The loader should find the cached content from the test domain.
-    GURL splash_url("h5vcc-embedded://splash.html");
+    GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
     EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
-    std::string fetch_url = "h5vcc-embedded://splash.webm" + query_param;
+    std::string fetch_url =
+        std::string(kH5vccEmbeddedScheme) + "://splash.webm" + query_param;
     std::string fetch_script = base::StringPrintf(R"(
       (async () => {
         try {
@@ -132,7 +130,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest, LoadSplashHtml) {
-  GURL splash_url("h5vcc-embedded://splash.html");
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
   // Verify that the page content contains the expected video element.
@@ -141,19 +139,19 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest, LoadSplashHtml) {
   // Verify that the URL matches.
   EXPECT_EQ(splash_url, shell()->web_contents()->GetLastCommittedURL());
   EXPECT_EQ("Dimensions: 1920x1080",
-            EvalJs(shell(), GetScript("h5vcc-embedded://splash.webm")));
+            EvalJs(shell(), GetScript(std::string(kH5vccEmbeddedScheme) +
+                                      "://splash.webm")));
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
                        LoadSplashVideoWithFallbackParameter) {
-  GURL splash_url("h5vcc-embedded://splash.html");
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
+                  "://splash.html?fallback=splash_480.webm");
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
   // Verify fallback for the low spec devices, where Cobalt should
   // play the low resolution splash.
-  EXPECT_EQ("Dimensions: 853x480",
-            EvalJs(shell(), GetScript("h5vcc-embedded://splash.webm?fallback="
-                                      "splash_480.webm")));
+  EXPECT_EQ("Dimensions: 853x480", EvalJs(shell(), GetScript("")));
 }
 
 // If not specified, use cache "default".
