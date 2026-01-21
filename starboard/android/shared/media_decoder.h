@@ -111,6 +111,29 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   bool Flush();
 
+  // Stops the worker thread and flushes the codec, but does not restart it.
+  // This leaves the decoder in a state suitable for caching/reuse (thread
+  // stopped, buffers cleared), but not yet ready to receive new input.
+  bool Suspend();
+
+  void ResetForReuse();
+
+  void ResetHost(Host* new_host) { host_ = new_host; }
+  void UpdateErrorCB(const ErrorCB& error_cb) { error_cb_ = error_cb; }
+  void UpdateFrameRenderedCB(const FrameRenderedCB& frame_rendered_cb) {
+    frame_rendered_cb_ = frame_rendered_cb;
+  }
+  void UpdateFirstTunnelFrameReadyCB(
+      const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb) {
+    first_tunnel_frame_ready_cb_ = first_tunnel_frame_ready_cb;
+  }
+  bool UpdateOutputSurface(jobject new_surface) {
+    if (media_codec_bridge_) {
+      return media_codec_bridge_->SetOutputSurface(new_surface);
+    }
+    return false;
+  }
+
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
@@ -177,13 +200,14 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
   void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
   void OnMediaCodecFirstTunnelFrameReady() override;
 
-  ThreadChecker thread_checker_;
+  // TODO: (cobalt b/388235284) Add back ThreadChecker after addressing
+  //                            cross-thread reuse issues.
 
   const SbMediaType media_type_;
-  Host* const host_;
+  Host* host_;
   DrmSystem* const drm_system_;
-  const FrameRenderedCB frame_rendered_cb_;
-  const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
+  FrameRenderedCB frame_rendered_cb_;
+  FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
 
