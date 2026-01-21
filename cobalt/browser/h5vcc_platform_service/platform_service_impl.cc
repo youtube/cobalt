@@ -135,7 +135,7 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
   if (!api) {
     LOG(WARNING) << "The platform service extension is not implemented on this "
                  << "platform";
-    std::move(callback).Run({});  // Return empty vector on error
+    std::move(callback).Run(std::nullopt);  // Signal error to renderer
     return;
   }
 
@@ -154,7 +154,7 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
     if (response_ptr) {
       free(response_ptr);
     }
-    std::move(callback).Run({});  // Return empty vector on error
+    std::move(callback).Run(std::nullopt);  // Signal error to renderer
     return;
   }
 

@@ -185,11 +185,14 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   if (!service_opened_ || !platform_service_remote_.is_bound()) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Service is diconnected or not open.");
+
+    // Since the API is marked [RaisesException] and this error path throws a
+    // DOM exception, no value is actually returned to the JavaScript client.
     return nullptr;
   }
 
   WTF::Vector<uint8_t> input_data = ToWTFVector(data);
-  WTF::Vector<uint8_t> response_data;
+  std::optional<WTF::Vector<uint8_t>> response_data;
 
   bool mojo_result = platform_service_remote_->Send(input_data, &response_data);
 
@@ -197,10 +200,23 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "Mojo call failed, connection lost.");
     close();
+
+    // Since the API is marked [RaisesException] and this error path throws a
+    // DOM exception, no value is actually returned to the JavaScript client.
     return nullptr;
   }
 
-  return ToDOMArrayBuffer(response_data);
+  if (!response_data.has_value()) {
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "Browser side could not send data to the service.");
+
+    // Since the API is marked [RaisesException] and this error path throws a
+    // DOM exception, no value is actually returned to the JavaScript client.
+    return nullptr;
+  }
+
+  return ToDOMArrayBuffer(response_data.value());
 }
 
 void H5vccPlatformService::close() {

@@ -35,10 +35,14 @@ interface H5vccPlatformServiceManager {
 interface PlatformService {
   // Sends data to the service and optionally receives an immediate response.
   //
+  // A response with no value indicates that data could not be sent to the
+  // platform service. A response with an empty array indicates that data was
+  // send to the platform service but there was no synchronous response.
+  //
   // TODO: b/371419798 - consider using mojo_base.mojom.BigBuffer for more
   // efficient transport, as the data and response data could be large.
   [Sync]
-  Send(array<uint8> data) => (array<uint8> response_data);
+  Send(array<uint8> data) => (array<uint8>? response_data);
 };
 
 // Interface implemented by the renderer-side H5vccPlatformService to receive
