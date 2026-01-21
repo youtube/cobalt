@@ -125,3 +125,20 @@ docker run \
   -v ~/.cache/vpython-root:/root/.cache/vpython-root \
   <image_name>:<tag> linux-x64x11_devel -v
 ```
+
+### Retrieving Test Results
+
+To get test results (e.g., JSON reports) back to your host machine, use a volume mount and pass the `--json-results-file` flag. Using `--test-launcher-bot-mode` is also recommended for cleaner output in CI environments.
+
+```bash
+mkdir -p $(pwd)/results
+docker run --privileged \
+  -v /dev/bus/usb:/dev/bus/usb \
+  -e ANDROID_SERIAL=$ANDROID_SERIAL \
+  -v $(pwd)/results:/opt/results \
+  <image_name>:<tag> android-arm_devel \
+  --json-results-file=/opt/results/results.json \
+  --test-launcher-bot-mode
+```
+
+The results will be available in your local `results/` directory immediately after the tests finish.
