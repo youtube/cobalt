@@ -65,7 +65,10 @@ class TestCollectTestArtifacts(unittest.TestCase):
     mock_run.assert_called_once_with(['cp', '-a', 'src/dir', 'dst/'],
                                      check=True)
 
-  @mock.patch('builtins.open', new_callable=mock.mock_open)
+  @mock.patch(
+      'builtins.open',
+      new_callable=mock.mock_open,
+      read_data='content TARGET_MAP = {}')
   @mock.patch('os.chmod')
   def test_generate_runner_py(self, mock_chmod, mock_file):
     target_map = {
@@ -76,13 +79,20 @@ class TestCollectTestArtifacts(unittest.TestCase):
         }
     }
     collect_test_artifacts.generate_runner_py('run.py', target_map)
-    mock_file.assert_called_once_with('run.py', 'w', encoding='utf-8')
+
+    # Verify template was read and output was written
+    mock_file.assert_any_call(mock.ANY, 'r', encoding='utf-8')
+    mock_file.assert_any_call('run.py', 'w', encoding='utf-8')
+
     handle = mock_file()
-    # Check if key variables are in the written content
-    written_content = handle.write.call_args[0][0]
+    # Find the write call that matches our expected output
+    written_content = ''
+    for call in handle.write.call_args_list:
+      if 'deps_path' in call[0][0]:
+        written_content = call[0][0]
+
     self.assertIn('deps_path', written_content)
     self.assertIn('runner_path', written_content)
-    self.assertIn('vpython3', written_content)
     mock_chmod.assert_called_once_with('run.py', 0o755)
 
 
