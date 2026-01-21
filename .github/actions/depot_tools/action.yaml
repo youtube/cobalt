@@ -14,7 +14,7 @@ inputs:
   # runners and so we special case to use runner.temp for now. Clean this up
   # when self-hosted Mac runners are available.
   using_mac_runner:
-    description: Whether or not we are using a mac runner.
+    description: Whether or not we are using a Mac runner.
     default: 'false'
 
 runs:
