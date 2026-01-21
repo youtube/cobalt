@@ -87,6 +87,20 @@ Note: `depot_tools` (providing `vpython3`) is bundled within the archive, so man
 
 A `Dockerfile` is provided in this directory that includes all necessary dependencies for both Android and Linux test execution. You can use it as a starting point for your test environment.
 
+### Docker Permissions
+
+To run Docker commands without `sudo`, add your user to the `docker` group:
+
+```bash
+sudo usermod -aG docker $USER
+```
+
+**Note**: You must log out and log back in for this to take effect. To apply the change to your current terminal session immediately, run:
+
+```bash
+newgrp docker
+```
+
 ### Execution with USB Access and Caching
 
 When running the container, ensure it has access to the host's USB devices if using a physical Android device. Use the target name (e.g., `android-arm_devel` or `linux-x64x11_devel`) as the argument to the image.
