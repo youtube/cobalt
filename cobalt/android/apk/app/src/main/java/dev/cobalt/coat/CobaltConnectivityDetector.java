@@ -37,7 +37,6 @@ public class CobaltConnectivityDetector {
   private final CobaltActivity activity;
   private PlatformError platformError;
   protected boolean mShouldReloadOnResume = false;
-  private volatile boolean mHasEncounteredConnectivityError = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
@@ -103,7 +102,7 @@ public class CobaltConnectivityDetector {
             platformError.dismiss();
             platformError = null;
           }
-          if (mShouldReloadOnResume && mHasEncounteredConnectivityError) {
+          if (mShouldReloadOnResume) {
             WebContents webContents = activity.getActiveWebContents();
             if (webContents != null) {
               webContents.getNavigationController().reload(true);
@@ -114,7 +113,6 @@ public class CobaltConnectivityDetector {
   }
 
   private void handleFailure() {
-    mHasEncounteredConnectivityError = true;
     activity.runOnUiThread(
         () -> {
           if (platformError == null || !platformError.isShowing()) {
