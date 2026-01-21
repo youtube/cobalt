@@ -87,8 +87,6 @@ if (use_evergreen) {
       "//cobalt/shell:cobalt_shell_lib",
       "//content/public/app",
       "//starboard:starboard_headers_only",
-
-      # "//starboard:starboard_group",
       "//starboard/loader_app:app_key",
       "//third_party/musl:headers",
       "//ui/ozone/platform/starboard:starboard",
