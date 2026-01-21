@@ -62,8 +62,41 @@ class TestCollectTestArtifacts(unittest.TestCase):
     del mock_isdir  # Unused argument.
     collect_test_artifacts.copy_fast('src/dir', 'dst/dir')
     mock_makedirs.assert_called_once_with('dst', exist_ok=True)
-    mock_run.assert_called_once_with(['cp', '-a', 'src/dir', 'dst/'],
+    mock_run.assert_called_once_with(['cp', '-af', 'src/dir', 'dst/'],
                                      check=True)
+
+  @mock.patch('subprocess.run')
+  @mock.patch('os.makedirs')
+  @mock.patch('os.path.isdir', return_value=False)
+  def test_copy_fast_file(self, mock_isdir, mock_makedirs, mock_run):
+    del mock_isdir  # Unused argument.
+    collect_test_artifacts.copy_fast('src/file.txt', 'dst/file.txt')
+    mock_makedirs.assert_called_once_with('dst', exist_ok=True)
+    mock_run.assert_called_once_with(
+        ['cp', '-af', 'src/file.txt', 'dst/file.txt'], check=True)
+
+  @mock.patch('collect_test_artifacts.copy_fast')
+  @mock.patch('os.path.exists', return_value=True)
+  def test_copy_if_needed(self, mock_exists, mock_copy):
+    del mock_exists  # Unused argument.
+    copied_sources = set()
+
+    # First copy should succeed
+    collect_test_artifacts.copy_if_needed('src/file1', 'dst/file1',
+                                          copied_sources)
+    self.assertEqual(mock_copy.call_count, 1)
+    self.assertIn(os.path.abspath('src/file1'), copied_sources)
+
+    # Second copy of same file should be skipped
+    collect_test_artifacts.copy_if_needed('src/file1', 'dst/file1',
+                                          copied_sources)
+    self.assertEqual(mock_copy.call_count, 1)
+
+    # Copy of file in already copied directory should be skipped
+    copied_sources.add(os.path.abspath('src/dir'))
+    collect_test_artifacts.copy_if_needed('src/dir/file2', 'dst/dir/file2',
+                                          copied_sources)
+    self.assertEqual(mock_copy.call_count, 1)
 
   @mock.patch(
       'builtins.open',

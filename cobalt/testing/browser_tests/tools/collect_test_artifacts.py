@@ -49,19 +49,25 @@ def get_test_runner(build_dir, is_android):
 
 def copy_fast(src, dst):
   """Fast copy using system cp if possible, falling back to shutil."""
-  os.makedirs(os.path.dirname(dst), exist_ok=True)
+  dst_parent = os.path.dirname(dst)
+  os.makedirs(dst_parent, exist_ok=True)
   try:
     if os.path.isdir(src):
-      # Use system cp -a for directories to handle many files efficiently.
-      # We copy INTO the parent of dst.
-      subprocess.run(['cp', '-a', src, os.path.dirname(dst) + '/'], check=True)
+      # Use system cp -af for directories to handle many files efficiently.
+      # -a preserves attributes, -f forces overwrite by unlinking if needed.
+      subprocess.run(['cp', '-af', src, dst_parent + '/'], check=True)
     else:
-      # Use cp -a for files too to preserve attributes.
-      subprocess.run(['cp', '-a', src, dst], check=True)
+      # Use cp -af for files too.
+      subprocess.run(['cp', '-af', src, dst], check=True)
   except (subprocess.CalledProcessError, subprocess.SubprocessError, OSError):
     if os.path.isdir(src):
       shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
     else:
+      if os.path.exists(dst):
+        try:
+          os.remove(dst)
+        except OSError:
+          pass
       shutil.copy2(src, dst, follow_symlinks=False)
 
 
@@ -84,6 +90,23 @@ def generate_runner_py(dst_path, target_map):
   os.chmod(dst_path, 0o755)
 
 
+def copy_if_needed(src, dst, copied_sources):
+  """Copies src to dst if src (or its parent) hasn't been copied already."""
+  abs_src = os.path.abspath(src)
+  if abs_src in copied_sources:
+    return
+  # Check if any parent directory was already copied.
+  parent = os.path.dirname(abs_src)
+  while parent and parent != os.path.dirname(parent):
+    if parent in copied_sources:
+      return
+    parent = os.path.dirname(parent)
+
+  if os.path.exists(src):
+    copy_fast(src, dst)
+    copied_sources.add(abs_src)
+
+
 def main():
   parser = argparse.ArgumentParser(description='Collect test artifacts.')
   parser.add_argument(
@@ -99,6 +122,7 @@ def main():
   args = parser.parse_args()
 
   target_map = {}
+  copied_sources = set()
 
   with tempfile.TemporaryDirectory() as stage_dir:
     src_stage = os.path.join(stage_dir, 'src')
@@ -113,8 +137,7 @@ def main():
       is_android = 'android' in build_dir.lower()
       runtime_deps_path = find_runtime_deps(build_dir)
       if not runtime_deps_path:
-        logging.warning('Could not find runtime_deps in %s. Skipping.',
-                        build_dir)
+        logging.warning('Could find runtime_deps in %s. Skipping.', build_dir)
         continue
 
       test_runner_rel = get_test_runner(build_dir, is_android)
@@ -135,15 +158,16 @@ def main():
           if not line or line.startswith('#'):
             continue
           full_path = os.path.normpath(os.path.join(build_dir, line))
-          if os.path.exists(full_path):
-            copy_fast(full_path, os.path.join(src_stage, full_path))
+          copy_if_needed(full_path, os.path.join(src_stage, full_path),
+                         copied_sources)
 
       # Ensure the deps file and test runner are included
-      copy_fast(
-          str(runtime_deps_path), os.path.join(src_stage,
-                                               str(runtime_deps_path)))
+      copy_if_needed(
+          str(runtime_deps_path),
+          os.path.join(src_stage, str(runtime_deps_path)), copied_sources)
       test_runner_full = os.path.join(build_dir, test_runner_rel)
-      copy_fast(test_runner_full, os.path.join(src_stage, test_runner_full))
+      copy_if_needed(test_runner_full,
+                     os.path.join(src_stage, test_runner_full), copied_sources)
 
     if not target_map:
       logging.error('No valid build directories processed.')
@@ -151,9 +175,8 @@ def main():
 
     # Add run_browser_tests.py specifically
     browser_test_runner = 'cobalt/testing/browser_tests/run_browser_tests.py'
-    if os.path.exists(browser_test_runner):
-      copy_fast(browser_test_runner, os.path.join(src_stage,
-                                                  browser_test_runner))
+    copy_if_needed(browser_test_runner,
+                   os.path.join(src_stage, browser_test_runner), copied_sources)
 
     # Add essential directories manually (shared across all targets)
     essential_dirs = [
@@ -164,27 +187,29 @@ def main():
         'third_party/android_sdk/public/platform-tools'
     ]
     for d in essential_dirs:
-      if os.path.isdir(d):
-        copy_fast(d, os.path.join(src_stage, d))
+      copy_if_needed(d, os.path.join(src_stage, d), copied_sources)
 
     # Add top-level build scripts
     os.makedirs(os.path.join(src_stage, 'build'), exist_ok=True)
     for f in Path('build').glob('*.py'):
-      shutil.copy2(f, os.path.join(src_stage, 'build', f.name))
+      copy_if_needed(
+          str(f), os.path.join(src_stage, 'build', f.name), copied_sources)
 
     # Add depot_tools
     vpython_path = shutil.which('vpython3')
     if vpython_path:
       depot_tools_src = os.path.dirname(vpython_path)
       logging.info('Bundling depot_tools from %s', depot_tools_src)
-      copy_fast(depot_tools_src, os.path.join(stage_dir, 'depot_tools'))
+      # depot_tools is outside src_stage, so we use copy_fast directly
+      # but still track it just in case.
+      copy_if_needed(depot_tools_src, os.path.join(stage_dir, 'depot_tools'),
+                     copied_sources)
 
     # Add .vpython3 files
-    if os.path.isfile('.vpython3'):
-      shutil.copy2('.vpython3', os.path.join(src_stage, '.vpython3'))
-    if os.path.isfile('v8/.vpython3'):
-      os.makedirs(os.path.join(src_stage, 'v8'), exist_ok=True)
-      shutil.copy2('v8/.vpython3', os.path.join(src_stage, 'v8', '.vpython3'))
+    copy_if_needed('.vpython3', os.path.join(src_stage, '.vpython3'),
+                   copied_sources)
+    copy_if_needed('v8/.vpython3', os.path.join(src_stage, 'v8', '.vpython3'),
+                   copied_sources)
 
     # Generate runner
     generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
