@@ -18,9 +18,14 @@
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
+<<<<<<< HEAD
 #include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
+=======
+#include "base/strings/stringprintf.h"
+#include "base/task/sequenced_task_runner.h"
+>>>>>>> 51d1a8cb404 (Revert "feat(media): Add critical memory pressure signal before playback (#8240)" (#8746))
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -691,6 +696,7 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_->SetVolume(volume_);
 
     state_ = STATE_FLUSHED;
+<<<<<<< HEAD
     if (notify_memory_pressure_before_playback_) {
       // Send a one-time critical memory pressure signal to ask
       // other components to release memory.
@@ -699,6 +705,8 @@ void StarboardRenderer::CreatePlayerBridge() {
       LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
                    "burden.";
     }
+=======
+>>>>>>> 51d1a8cb404 (Revert "feat(media): Add critical memory pressure signal before playback (#8240)" (#8746))
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
     return;
   }
