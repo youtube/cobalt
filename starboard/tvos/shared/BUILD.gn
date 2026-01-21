@@ -127,7 +127,7 @@ static_library("starboard_platform") {
     "media/vp9_sw_av_video_sample_buffer_builder.mm",
     "media_can_play_mime_and_key_system.mm",
     "media_is_audio_supported.mm",
-    "media_is_supported.mm",
+    "media_is_key_system_supported.mm",
     "media_is_video_supported.mm",
     "observer_registry.cc",
     "observer_registry.h",

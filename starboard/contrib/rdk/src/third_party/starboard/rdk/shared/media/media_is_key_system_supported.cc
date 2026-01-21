@@ -90,16 +90,16 @@ std::string CodecToMimeType(SbMediaAudioCodec codec) {
   }
 }
 
-}  // namspace
+}  // namespace
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace media {
 
-SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                                  SbMediaAudioCodec audio_codec,
-                                  const char* key_system) {
+SB_EXPORT bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                                         SbMediaAudioCodec audio_codec,
+                                         const char* key_system) {
 #if defined(HAS_OCDM)
   using third_party::starboard::rdk::shared::drm::DrmSystemOcdm;
   return DrmSystemOcdm::IsKeySystemSupported(
