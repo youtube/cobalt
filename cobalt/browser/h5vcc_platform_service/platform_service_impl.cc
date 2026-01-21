@@ -151,9 +151,7 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
   if (invalid_state) {
     LOG(ERROR) << "Send failed: Starboard service in invalid state for "
                << service_name_;
-    if (response_ptr) {
-      free(response_ptr);
-    }
+    free(response_ptr);
     std::move(callback).Run(std::nullopt);  // Signal error to renderer
     return;
   }
@@ -164,10 +162,7 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
     response_data =
         std::vector<uint8_t>(response_bytes, response_bytes + output_length);
   }
-
-  if (response_ptr) {
-    free(response_ptr);
-  }
+  free(response_ptr);
 
   std::move(callback).Run(response_data);
 }
