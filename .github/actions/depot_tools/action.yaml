@@ -10,12 +10,18 @@ inputs:
   rbe_instance:
     description: The RBE instance to use.
     default: projects/cobalt-actions-prod/instances/default_instance
+  # TODO: b/477593749 - runner-cache is not available on default Github Mac
+  # runners and so we special case to use runner.temp for now. Clean this up
+  # when self-hosted Mac runners are available.
+  using_mac_runner:
+    description: Whether or not we are using a mac runner.
+    default: 'false'
 
 runs:
   using: "composite"
   steps:
       - name: Clear Cache and Clone Depot Tools
-        if: inputs.use_cache != 'true'
+        if: inputs.use_cache != 'true' && inputs.using_mac_runner == 'false'
         run: |
           set -x
           # Remove and re-clone gclient.
@@ -28,19 +34,30 @@ runs:
         shell: bash
 
       - name: Reset Cached Depot Tools
-        if: inputs.use_cache == 'true'
+        if: inputs.use_cache == 'true' && inputs.using_mac_runner == 'false'
         run: git -C /runner-cache/depot_tools reset --hard origin/main
         shell: bash
 
       - name: Add Depot Tools to PATH
+        if: inputs.using_mac_runner == 'false'
         run: echo "/runner-cache/depot_tools" >> $GITHUB_PATH
         shell: bash
 
       - name: Bootstrap Bundled python3
+        if: inputs.using_mac_runner == 'false'
         run: |
           # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
           source /runner-cache/depot_tools/bootstrap_python3 && bootstrap_python3
         shell: bash
+
+      - name: Clone Depot Tools, Add Depot Tools to PATH, and Bootstrap Bundled python3 for Mac
+        if: inputs.using_mac_runner == 'true'
+        run: |
+          set -x
+          rm -rf ${{ runner.temp }}/depot_tools ${{ runner.temp }}/cobalt/.cipd_cache
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ runner.temp }}/depot_tools
+          echo "${{ runner.temp }}/depot_tools" >> $GITHUB_PATH
+          source ${{ runner.temp }}/depot_tools/bootstrap_python3 && bootstrap_python3
 
       - name: Disable Chromium client side build telemetry
         run: build_telemetry opt-out
@@ -79,9 +96,18 @@ runs:
         shell: bash
 
       - name: Run gclient runhooks
-        if: inputs.run_sync == 'true'
+        if: inputs.run_sync == 'true' && inputs.using_mac_runner == 'false'
         env:
           CIPD_CACHE_DIR: "/runner-cache/cobalt/.cipd_cache"
+        run: |
+          cd cobalt
+          gclient runhooks --verbose
+        shell: bash
+
+      - name: Run gclient runhooks for Mac
+        if: inputs.run_sync == 'true' && inputs.using_mac_runner == 'true'
+        env:
+          CIPD_CACHE_DIR: "${{ runner.temp }}/cobalt/.cipd_cache"
         run: |
           cd cobalt
           gclient runhooks --verbose
