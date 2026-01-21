@@ -25,9 +25,6 @@ _FILTERED_TESTS = {
         # TODO(b/274023703): Enable partial audio tests once it's supported.
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudio*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.DiscardAllAudio*',
-
-        # Enable once verified on the platform.
-        'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
     ],
     'base_unittests': [
         'StackTraceTest.OutputToStream',
