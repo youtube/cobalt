@@ -25,16 +25,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.net.ConnectionType;
-import org.chromium.net.NetworkChangeNotifier;
 
-/**
- * Detects network connectivity with a guaranteed timeout by using a generate_204 ping,
- * a special fast-loading URL to check for internet connectivity, similar to Chrome's
- * ConnectivityDetector.java. This class raises a platform error if it cannot verify a
- * valid internet connection. It also manages the dismissal of the error dialog once a
- * valid connection is established either automatically or through user input.
- */
 public class CobaltConnectivityDetector {
   private static final String TAG = "CobaltConnectivityDetector";
   private static final int NETWORK_CHECK_TIMEOUT_MS = 5000; // 5-second overall timeout.
@@ -45,31 +36,14 @@ public class CobaltConnectivityDetector {
 
   private final CobaltActivity activity;
   private PlatformError platformError;
-  private volatile boolean mAppHasSuccessfullyLoaded = false;
-  private volatile boolean mHasVerifiedConnectivity = false;
+  protected boolean mShouldReloadOnResume = false;
   private volatile boolean mHasEncounteredConnectivityError = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
-  private final NetworkChangeNotifier.ConnectionTypeObserver mConnectionTypeObserver;
 
   public CobaltConnectivityDetector(CobaltActivity activity) {
     this.activity = activity;
-    mConnectionTypeObserver =
-        new NetworkChangeNotifier.ConnectionTypeObserver() {
-          @Override
-          public void onConnectionTypeChanged(@ConnectionType int connectionType) {
-            if (connectionType != ConnectionType.CONNECTION_NONE) {
-              // This triggers an activeNetworkCheck() on a new connection type that is not
-              // None, which should auto-dismiss the error dialog if the connection is valid.
-              activeNetworkCheck();
-            }
-          }
-        };
-  }
-
-  public void registerObserver() {
-    NetworkChangeNotifier.addConnectionTypeObserver(mConnectionTypeObserver);
   }
 
   public void activeNetworkCheck() {
@@ -78,8 +52,6 @@ public class CobaltConnectivityDetector {
       managementFuture.cancel(true);
     }
 
-    // Manage a separate timeout to raise a platform error in the case that the connectivity
-    // check takes too long ie. a hanging DNS resolution error.
     managementFuture =
         managementExecutor.submit(
             () -> {
@@ -123,30 +95,25 @@ public class CobaltConnectivityDetector {
   }
 
   private void handleSuccess() {
-    mHasVerifiedConnectivity = true;
     activity.runOnUiThread(
         () -> {
           Log.i(TAG, "Active Network check successful." + platformError);
-          // Dismiss the error dialog if it's currently visible.
           if (platformError != null) {
             platformError.setResponse(PlatformError.POSITIVE);
             platformError.dismiss();
             platformError = null;
           }
-          // The app should only reload if we haven't previously successfully loaded past startup
-          // and we are recovering from a connectivity error.
-          if (!mAppHasSuccessfullyLoaded && mHasEncounteredConnectivityError) {
+          if (mShouldReloadOnResume && mHasEncounteredConnectivityError) {
             WebContents webContents = activity.getActiveWebContents();
             if (webContents != null) {
               webContents.getNavigationController().reload(true);
             }
+            mShouldReloadOnResume = false;
           }
         });
   }
 
-  // Raise a platform error for any connectivity check failure
   private void handleFailure() {
-    mHasVerifiedConnectivity = false;
     mHasEncounteredConnectivityError = true;
     activity.runOnUiThread(
         () -> {
@@ -159,14 +126,11 @@ public class CobaltConnectivityDetector {
             platformError.raise();
           }
         });
+    mShouldReloadOnResume = true;
   }
 
-  public void setAppHasSuccessfullyLoaded(boolean hasCompleted) {
-    mAppHasSuccessfullyLoaded = hasCompleted;
-  }
-
-  public boolean hasVerifiedConnectivity() {
-    return mHasVerifiedConnectivity;
+  public void setShouldReloadOnResume(boolean shouldReload) {
+    mShouldReloadOnResume = shouldReload;
   }
 
   private boolean performSingleProbe(String urlString) {
@@ -194,7 +158,6 @@ public class CobaltConnectivityDetector {
   }
 
   public void destroy() {
-    NetworkChangeNotifier.removeConnectionTypeObserver(mConnectionTypeObserver);
     managementExecutor.shutdownNow();
   }
 }

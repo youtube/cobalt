@@ -31,14 +31,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import org.chromium.content_public.browser.WebContents;
 
-/**
- * Shows an ErrorDialog to inform the user of a network platform error.
- * The dialog should appear if the device has no wifi or ethernet connection.
- * It should also appear in cases of "weak" internet (ie. connected to a network
- * that doesn't have internet like a router that was just unplugged) as well as if
- * the connection is experiencing DNS resolution errors. Prompts the user to retry
- * or to navigate to the device's network settings menu.
-*/
+/** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -135,6 +128,7 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
+            cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
@@ -146,6 +140,13 @@ public class PlatformError
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
+            WebContents webContents = cobaltActivity.getActiveWebContents();
+            if (webContents != null) {
+              webContents.getNavigationController().reload(true);
+            }
+            else {
+              Log.e(TAG, "WebContents is null and not available to reload the application.");
+            }
             cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
           mDialog.dismiss();
@@ -160,6 +161,7 @@ public class PlatformError
     mDialog = null;
       CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       if (cobaltActivity != null && mResponse == CANCELLED) {
+        cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
         cobaltActivity.getStarboardBridge().requestSuspend();
       }
   }

@@ -65,9 +65,7 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
-import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -108,8 +106,7 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
-  private CobaltConnectivityDetector mCobaltConnectivityDetector;
-  private WebContentsObserver mWebContentsObserver;
+  private CobaltConnectivityDetector cobaltConnectivityDetector;
 
   private boolean mIsCobaltUsingAndroidOverlay;
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
@@ -244,32 +241,6 @@ public abstract class CobaltActivity extends Activity {
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
-            // Initialize and register a WebContentsObserver.
-            mWebContentsObserver =
-                new org.chromium.content_public.browser.WebContentsObserver(
-                    getActiveWebContents()) {
-                  @Override
-                  public void didStartNavigationInPrimaryMainFrame(
-                      NavigationHandle navigationHandle) {
-                    if (!navigationHandle.isSameDocument()) {
-                      mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
-                    }
-                  }
-
-                  @Override
-                  public void didFinishNavigationInPrimaryMainFrame(
-                      NavigationHandle navigationHandle) {
-                    // The connectivity detector will consider the app has loaded if the navigation
-                    // has
-                    // committed successfully with a valid internet connection.
-                    if (navigationHandle.hasCommitted()
-                        && !navigationHandle.isErrorPage()
-                        && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
-                      mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
-                    }
-                  }
-                };
-
             // Load splash screen.
             mShellManager.getActiveShell().loadSplashScreenWebContents();
           }
@@ -386,11 +357,10 @@ public abstract class CobaltActivity extends Activity {
 
     StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
 
-    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
+    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
-    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     videoSurfaceView = new VideoSurfaceView(this);
@@ -446,7 +416,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public CobaltConnectivityDetector getCobaltConnectivityDetector() {
-    return mCobaltConnectivityDetector;
+    return cobaltConnectivityDetector;
   }
 
   @Override
@@ -518,7 +488,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    mCobaltConnectivityDetector.activeNetworkCheck();
+    cobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -529,16 +499,13 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (mCobaltConnectivityDetector != null) {
-      mCobaltConnectivityDetector.destroy();
+    if (cobaltConnectivityDetector != null) {
+      cobaltConnectivityDetector.destroy();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
-    if (mWebContentsObserver != null) {
-      mWebContentsObserver.destroy();
-    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
