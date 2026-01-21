@@ -18,14 +18,8 @@
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-<<<<<<< HEAD
-#include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
-=======
-#include "base/strings/stringprintf.h"
-#include "base/task/sequenced_task_runner.h"
->>>>>>> 51d1a8cb404 (Revert "feat(media): Add critical memory pressure signal before playback (#8240)" (#8746))
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -165,11 +159,7 @@ StarboardRenderer::StarboardRenderer(
       max_video_capabilities_(max_video_capabilities),
       enable_flush_during_seek_(enable_flush_during_seek),
       enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      viewport_size_(viewport_size),
-      notify_memory_pressure_before_playback_(
-          base::FeatureList::IsEnabled(
-              media::kCobaltNotifyMemoryPressureBeforePlayback) ||
-          ReadCommandLineSwitchForMemoryPressureSignal())
+      viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
@@ -182,9 +172,7 @@ StarboardRenderer::StarboardRenderer(
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
-            << base::GetQuotedJSONString(max_video_capabilities_)
-            << ", notify_memory_pressure_before_playback="
-            << (notify_memory_pressure_before_playback_ ? "true" : "false");
+            << base::GetQuotedJSONString(max_video_capabilities_);
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -696,17 +684,6 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_->SetVolume(volume_);
 
     state_ = STATE_FLUSHED;
-<<<<<<< HEAD
-    if (notify_memory_pressure_before_playback_) {
-      // Send a one-time critical memory pressure signal to ask
-      // other components to release memory.
-      base::MemoryPressureListener::NotifyMemoryPressure(
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-      LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
-                   "burden.";
-    }
-=======
->>>>>>> 51d1a8cb404 (Revert "feat(media): Add critical memory pressure signal before playback (#8240)" (#8746))
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
     return;
   }

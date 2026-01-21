@@ -199,7 +199,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
   const gfx::Size viewport_size_;
-  const bool notify_memory_pressure_before_playback_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
