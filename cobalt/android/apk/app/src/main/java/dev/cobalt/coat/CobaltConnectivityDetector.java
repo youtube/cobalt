@@ -89,7 +89,7 @@ public class CobaltConnectivityDetector {
                     () -> {
                       for (String urlString : PROBE_URLS) {
                         if (Thread.currentThread().isInterrupted()) {
-                          throw new InterruptedException("Network probe interrupted.");
+                          return false;
                         }
                         if (performSingleProbe(urlString)) {
                           return true;
