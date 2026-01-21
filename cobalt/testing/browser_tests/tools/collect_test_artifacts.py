@@ -74,6 +74,7 @@ import sys
 import subprocess
 import datetime
 import json
+import shutil
 
 TARGET_MAP = {target_map_repr}
 
@@ -151,7 +152,7 @@ def main():
 
     # 5. Sanity Checks
     log('Checking for vpython3...')
-    vpython_path = shutil_which('vpython3')
+    vpython_path = shutil.which('vpython3')
     if not vpython_path:
         log('Error: vpython3 not found in bundled depot_tools.')
         sys.exit(1)
@@ -178,13 +179,6 @@ def main():
         return subprocess.call(cmd)
     except KeyboardInterrupt:
         return 1
-
-def shutil_which(cmd):
-    for path in os.environ["PATH"].split(os.pathsep):
-        full = os.path.join(path, cmd)
-        if os.path.isfile(full) and os.access(full, os.X_OK):
-            return full
-    return None
 
 if __name__ == '__main__':
     sys.exit(main())
