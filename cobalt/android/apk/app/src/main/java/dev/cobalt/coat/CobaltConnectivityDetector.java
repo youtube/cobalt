@@ -107,19 +107,16 @@ public class CobaltConnectivityDetector {
                 } else {
                   handleFailure();
                 }
-              // Don't raise the error dialog if the thread is intentionally interrupted.
-              // Otherwise handleFailure() for timeout exceptions and all other exceptions.
               } catch (TimeoutException e) {
                 handleFailure();
               } catch (Exception e) {
-                if (e instanceof InterruptedException || e instanceof java.util.concurrent.CancellationException) {
+                if (e instanceof InterruptedException) {
                   Thread.currentThread().interrupt(); // Preserve interrupt status.
-                } else {
-                  Log.w(TAG, "Connectivity check failed with exception: " + e.getClass().getName(), e);
-                  handleFailure();
                 }
+                Log.w(TAG, "Connectivity check failed with exception: " + e.getClass().getName(), e);
+                handleFailure();
               } finally {
-                // Ensuring the probe thread is discarded.
+                // This is crucial. It ensures the probe thread is discarded.
                 probeExecutor.shutdownNow();
               }
             });
