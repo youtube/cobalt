@@ -78,7 +78,7 @@ void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
     if (updater_module->GetUpdaterChannel().compare(channel) != 0) {
       updater_module->SetUpdaterChannel(channel);
     } else if (channel == "prod" || channel == "experiment" ||
-               channel == "control") {
+               channel == "control" || channel == "rollback") {
       std::move(callback).Run();
       return;
     }
