@@ -82,13 +82,11 @@ void WidevineTimer::cancel(IClient* client) {
 void WidevineTimer::CancelAllJobsOnClient(IClient* client) {
   SB_CHECK(job_thread_->BelongsToCurrentThread());
 
-  {
-    std::lock_guard lock(mutex_);
-    auto iter = active_clients_.find(client);
-    iter->second->CancelPendingJobs();
-    delete iter->second;
-    active_clients_.erase(iter);
-  }
+  std::lock_guard lock(mutex_);
+  auto iter = active_clients_.find(client);
+  iter->second->CancelPendingJobs();
+  delete iter->second;
+  active_clients_.erase(iter);
 }
 
 }  // namespace starboard
