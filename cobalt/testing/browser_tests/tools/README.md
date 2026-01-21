@@ -26,9 +26,11 @@ Run the script from the root of the Cobalt source tree, providing one or more bu
 ./cobalt/testing/browser_tests/tools/collect_test_artifacts.py [BUILD_DIR_1] [BUILD_DIR_2] ...
 ```
 
-Default `BUILD_DIR` is `out/android-arm_devel` if none are specified.
+Default `BUILD_DIR` is `out/android-arm_devel` if none are specified. You can specify a custom output filename using the `-o` flag:
 
-This will generate `cobalt_browsertests_artifacts.tar.gz` in the root directory.
+```bash
+./cobalt/testing/browser_tests/tools/collect_test_artifacts.py -o my_artifacts.tar.gz out/android-arm_devel out/linux-x64x11_devel
+```
 
 ### Archive Structure
 
