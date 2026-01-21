@@ -24,16 +24,19 @@
 #include <functional>
 #include <limits>
 #include <list>
+#include <mutex>
 
 #include "build/build_config.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/video_decoder_cache.h"
 #include "starboard/android/shared/video_render_algorithm.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
@@ -62,6 +65,10 @@ inline std::ostream& operator<<(std::ostream& stream,
   }
   return stream;
 }
+
+std::optional<int64_t> g_baseline_us_;
+
+constexpr bool kUseVideoDecoderCache = true;
 
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
@@ -329,6 +336,8 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
+  Sink() = default;
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -350,6 +359,14 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    if (!first_frame_logged_) {
+      SB_CHECK(g_baseline_us_);
+      int64_t elapsed_us = CurrentMonotonicTime() - *g_baseline_us_;
+      SB_LOG(INFO) << "Time to First Frame (TTFF): "
+                   << FormatWithDigitSeparators(elapsed_us) << " us";
+      first_frame_logged_ = true;
+    }
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
@@ -359,6 +376,7 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   RenderCB render_cb_;
   bool rendered_;
+  bool first_frame_logged_ = false;
 };
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
@@ -403,6 +421,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
+      video_decoder_cache_(GetVideoDecoderCache()),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
@@ -443,7 +462,8 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                << ", max pending input size " << max_pending_inputs_size_
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
-               << tunnel_mode_audio_session_id_;
+               << tunnel_mode_audio_session_id_ << ", use_video_decoder_cache="
+               << (video_decoder_cache_ ? "true" : "false");
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -667,6 +687,67 @@ void VideoDecoder::Reset() {
   //       it depends on the behavior of the video renderer.
 }
 
+VideoDecoderCache* VideoDecoder::GetVideoDecoderCache() {
+  if (!kUseVideoDecoderCache || tunnel_mode_audio_session_id_ != -1 ||
+      drm_system_) {
+    return nullptr;
+  }
+
+  return VideoDecoderCache::GetInstance();
+}
+
+std::unique_ptr<MediaDecoder> VideoDecoder::GetCachedMediaDecoder(
+    const VideoStreamInfo& video_stream_info,
+    jobject output_surface) {
+  if (!video_decoder_cache_) {
+    return nullptr;
+  }
+
+  auto media_decoder = video_decoder_cache_->Get(video_codec_, output_mode_);
+  if (!media_decoder) {
+    return nullptr;
+  }
+
+  if (!media_decoder->ResetForReuse(
+          this, output_surface,
+          std::bind(&VideoDecoder::OnFrameRendered, this, _1),
+          std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this))) {
+    SB_LOG(WARNING) << "Cannot reset existing media decoder. Discard it.";
+    return nullptr;
+  }
+
+  SB_LOG(INFO) << "Reusing cached video decoder for "
+               << GetMediaVideoCodecName(video_codec_);
+
+  return media_decoder;
+}
+
+std::unique_ptr<MediaDecoder> VideoDecoder::GetOrCreateMediaDecoder(
+    const VideoStreamInfo& video_stream_info,
+    jobject output_surface,
+    std::string* error_message) {
+  std::optional<int> max_width, max_height;
+  // TODO(b/281431214): Evaluate if we should also parse the fps from
+  //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
+  ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
+                     video_stream_info.frame_height, &max_width, &max_height);
+
+  auto media_decoder = GetCachedMediaDecoder(video_stream_info, output_surface);
+  if (media_decoder) {
+    return media_decoder;
+  }
+
+  return std::unique_ptr<MediaDecoder>(new MediaDecoder(
+      this, video_stream_info.codec, video_stream_info.frame_width,
+      video_stream_info.frame_height, max_width, max_height, video_fps_,
+      output_surface, drm_system_,
+      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+      std::bind(&VideoDecoder::OnFrameRendered, this, _1),
+      std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
+      tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
+      max_video_input_size_, flush_delay_usec_, error_message));
+}
+
 bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
                                    std::string* error_message) {
   SB_CHECK(BelongsToCurrentThread());
@@ -757,24 +838,12 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     SB_DCHECK_EQ(video_fps_, 0);
   }
 
-  std::optional<int> max_width, max_height;
-  // TODO(b/281431214): Evaluate if we should also parse the fps from
-  //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
-  ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
-                     video_stream_info.frame_height, &max_width, &max_height);
-
-  media_decoder_.reset(new MediaDecoder(
-      this, video_stream_info.codec, video_stream_info.frame_width,
-      video_stream_info.frame_height, max_width, max_height, video_fps_,
-      j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
-      std::bind(&VideoDecoder::OnFrameRendered, this, _1),
-      std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
-      tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
-      error_message));
+  media_decoder_ = GetOrCreateMediaDecoder(video_stream_info, j_output_surface,
+                                           initial_max_frames_in_decoder_,
+                                           error_message);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
+      media_decoder_->UpdateErrorCB(error_cb_);
       media_decoder_->Initialize(
           std::bind(&VideoDecoder::ReportError, this, _1, _2));
     }
@@ -798,12 +867,20 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
 
 void VideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
+  if (media_decoder_ && media_decoder_->Suspend()) {
+    media_decoder_->Reset();
+    if (video_decoder_cache_) {
+      video_decoder_cache_->Put(std::move(media_decoder_), video_codec_,
+                                output_mode_);
+    }
+  }
+  media_decoder_.reset();
+  color_metadata_ = std::nullopt;
+
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }
-  media_decoder_.reset();
-  color_metadata_ = std::nullopt;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -1310,6 +1387,11 @@ void VideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+// Temporary solution for PoC to skip long plumbing.
+void SetBaselineUs(int64_t baseline_us) {
+  g_baseline_us_ = baseline_us;
 }
 
 }  // namespace starboard::android::shared

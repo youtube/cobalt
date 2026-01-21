@@ -779,6 +779,21 @@ class MediaCodecBridge {
     }
   }
 
+  @CalledByNative
+  private boolean setOutputSurface(Surface surface) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+      Log.e(TAG, "setOutputSurface() is not supported on API level " + Build.VERSION.SDK_INT);
+      return false;
+    }
+    try {
+      mMediaCodec.get().setOutputSurface(surface);
+      return true;
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to set output surface", e);
+      return false;
+    }
+  }
+
   private void updateOperatingRate() {
     // We needn't set operation rate if playback rate is 0 or less.
     if (Double.compare(mPlaybackRate, 0.0) <= 0) {
