@@ -17,7 +17,6 @@ if (current_toolchain == default_toolchain &&
   import("//starboard/build/config/modular/x64/configuration.gni")
   platform_tests_path =
       "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
-  cobalt_font_package = "standard"
 } else {
   import("//starboard/linux/shared/platform_configuration/configuration.gni")
 
@@ -25,5 +24,6 @@ if (current_toolchain == default_toolchain &&
 
   sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 }
+cobalt_font_package = "standard"
 
 use_crashpad = true

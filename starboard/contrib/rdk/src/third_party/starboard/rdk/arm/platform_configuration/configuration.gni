@@ -33,10 +33,10 @@ import("//starboard/build/config/linux/rdk/config_variables.gni")
 if (current_toolchain == default_toolchain &&
     build_with_separate_cobalt_toolchain) {
   import("//starboard/build/config/modular/arm/$rdk_arm_call_convention/configuration.gni")
-  cobalt_font_package = "standard"
 } else {
   import("$rdk_starboard_root/third_party/starboard/rdk/shared/platform_configuration/configuration.gni")
   sabi_path = "//starboard/sabi/arm/$rdk_arm_call_convention/sabi-v$sb_api_version.json"
 }
+cobalt_font_package = "standard"
 
 use_crashpad = true

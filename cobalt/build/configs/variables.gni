@@ -15,7 +15,25 @@
 # Get the path to the starboard implementation and include its GN
 # configuration.
 
-import("//$starboard_path/platform_configuration/configuration.gni")
+if (current_toolchain == default_toolchain && is_cobalt_hermetic_build) {
+  _cpu_path = current_cpu
+  if (current_cpu == "arm") {
+    import("//build/config/arm.gni")
+    _cpu_path += "/$arm_float_abi"
+    if (arm_float_abi == "hard") {
+      _cpu_path += "fp"
+    }
+  }
+  if (use_evergreen) {
+    _configuration_prefix =
+        "starboard/evergreen/$_cpu_path/platform_configuration"
+  } else {
+    _configuration_prefix = "starboard/build/config/modular/$_cpu_path"
+  }
+} else {
+  _configuration_prefix = "${starboard_path}/platform_configuration"
+}
+import("//${_configuration_prefix}/configuration.gni")
 
 sb_is_evergreen = use_evergreen && current_toolchain == default_toolchain
 
