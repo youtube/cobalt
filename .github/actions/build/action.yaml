@@ -36,10 +36,11 @@ runs:
         if: github.event_name == 'pull_request'
         id: changed-files
         env:
-          CHANGED_FILES_LIST: changed_files.txt
+          # CHANGED_FILES_LIST: changed_files.txt
         run: |
           set -x
           cd cobalt/src
+<<<<<<< HEAD
           # GitHub's actions/checkout action, by default, checks out the merge commit when
           # a pull request event triggers a workflow. This merge commit represents the state
           # of the code as if the pull request had been merged into the base branch.
@@ -47,6 +48,12 @@ runs:
           # HEAD commit from the base branch (i.e. HEAD~1).
           # TODO(b/382508397): Disabled for now.
           # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+=======
+          # Get a list of changed files by comparing the pull request's HEAD
+          # with the base branch it's targeting. The three-dot diff is the
+          # most robust way to do this.
+          # git diff --name-only ${{ github.event.pull_request.base.sha }}...HEAD > ${CHANGED_FILES_LIST}
+>>>>>>> 5c6ea39b5fc (Remove changed files code - unused)
           # cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
@@ -54,7 +61,7 @@ runs:
         if: matrix.config == 'devel' # && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
-          CHANGED_FILES_LIST: changed_files.txt
+          # CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
