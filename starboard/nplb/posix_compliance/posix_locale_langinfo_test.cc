@@ -168,15 +168,29 @@ class NlLanginfoTest : public ::testing::TestWithParam<LanginfoTestData> {
   std::string old_locale_;
 };
 
+// The following nl_items are not tested due to various reasons, which
+// are:
+//
+// - No ICU support:
+//   - YESEXPR
+//   - NOEXPR
+//
+// - Not currently implemented:
+//   - ERA
+//   - ERA_D_FMT
+//   - ERA_D_T_FMT
+//   - ERA_T_FMT
+//   - CRNCYSTR
+//   - ALT_DIGITS
+//
+// Our ICU build only formats the strings in the UTF-8 codeset, so all locales
+// should always return UTF-8 for the |CODESET| item.
 TEST_P(NlLanginfoTest, AllItems) {
   const LanginfoTestData& data = GetParam();
   CheckItem(RADIXCHAR, data.radixchar);
   CheckItem(THOUSEP, data.thousands_sep);
   CheckItem(CODESET, data.codeset);
-  CheckItem(D_T_FMT, data.d_t_fmt);
-  CheckItem(D_FMT, data.d_fmt);
-  CheckItem(T_FMT, data.t_fmt);
-  CheckItem(T_FMT_AMPM, data.t_fmt_ampm);
+  // TODO: b/466160361 - Add remaining support for D_FMT* operations.
   CheckItem(AM_STR, data.am_str);
   CheckItem(PM_STR, data.pm_str);
   for (int i = 0; i < 7; ++i) {
@@ -187,8 +201,6 @@ TEST_P(NlLanginfoTest, AllItems) {
     CheckItem(MON_1 + i, (&data.mon_1)[i]);
     CheckItem(ABMON_1 + i, (&data.abmon_1)[i]);
   }
-  CheckItem(YESEXPR, data.yesexpr);
-  CheckItem(NOEXPR, data.noexpr);
 }
 
 INSTANTIATE_TEST_SUITE_P(Posix,
@@ -198,20 +210,33 @@ INSTANTIATE_TEST_SUITE_P(Posix,
 
 class NlLanginfoLTest : public ::testing::TestWithParam<LanginfoTestData> {};
 
+// The following nl_items are not tested due to various reasons, which
+// are:
+//
+// - No ICU support:
+//   - YESEXPR
+//   - NOEXPR
+//
+// - Not currently implemented:
+//   - ERA
+//   - ERA_D_FMT
+//   - ERA_D_T_FMT
+//   - ERA_T_FMT
+//   - CRNCYSTR
+//   - ALT_DIGITS
+//
+// Our ICU build only formats the strings in the UTF-8 codeset, so all locales
+// should always return UTF-8 for the |CODESET| item.
 TEST_P(NlLanginfoLTest, AllItems) {
   const LanginfoTestData& data = GetParam();
   locale_t locale = newlocale(LC_ALL_MASK, data.locale_name, (locale_t)0);
   if (!locale) {
     GTEST_SKIP() << "Locale " << data.locale_name << " not supported.";
   }
-
   CheckItemL(RADIXCHAR, data.radixchar, locale);
   CheckItemL(THOUSEP, data.thousands_sep, locale);
   CheckItemL(CODESET, data.codeset, locale);
-  CheckItemL(D_T_FMT, data.d_t_fmt, locale);
-  CheckItemL(D_FMT, data.d_fmt, locale);
-  CheckItemL(T_FMT, data.t_fmt, locale);
-  CheckItemL(T_FMT_AMPM, data.t_fmt_ampm, locale);
+  // TODO: b/466160361 - Add remaining support for D_FMT* operations.
   CheckItemL(AM_STR, data.am_str, locale);
   CheckItemL(PM_STR, data.pm_str, locale);
   for (int i = 0; i < 7; ++i) {
@@ -222,8 +247,6 @@ TEST_P(NlLanginfoLTest, AllItems) {
     CheckItemL(MON_1 + i, (&data.mon_1)[i], locale);
     CheckItemL(ABMON_1 + i, (&data.abmon_1)[i], locale);
   }
-  CheckItemL(YESEXPR, data.yesexpr, locale);
-  CheckItemL(NOEXPR, data.noexpr, locale);
 
   freelocale(locale);
 }

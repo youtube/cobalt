@@ -15,8 +15,6 @@ import("//starboard/build/buildflags.gni")
 import("//testing/test.gni")
 
 source_set("renderer") {
-  testonly = true
-
   sources = [
     "cobalt_content_renderer_client.cc",
     "cobalt_content_renderer_client.h",
@@ -27,6 +25,7 @@ source_set("renderer") {
   deps = [
     "//cobalt/browser:switches",
     "//cobalt/media/audio:webaudio",
+    "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",

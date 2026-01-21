@@ -83,7 +83,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }
     if (video_codec == kSbMediaVideoCodecVp9) {
-#if defined(IS_INTERNAL_BUILD)
+#if defined(INTERNAL_BUILD)
       const bool kEnableHdrWithSoftwareVp9 = false;
 
       if (is_hdr) {
@@ -131,7 +131,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 #else
       SB_LOG(INFO) << "Non-internal build, accepting all VP9";
       return true;
-#endif  // defined(IS_INTERNAL_BUILD)
+#endif  // defined(INTERNAL_BUILD)
     }
   }  // @autoreleasepool
 

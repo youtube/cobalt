@@ -340,8 +340,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
-        # TODO(bug?): android debug builds are broken.
-        if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: cobalt/src
           # Set fetch-depth to 2 to make checkout faster for pull requests and cobalt_sandbox repo.
@@ -452,8 +450,10 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
       - name: Run E2E Tests
         uses: ./.github/actions/internal_tests
         with:
@@ -482,8 +482,10 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
       - name: Run YTS Tests
         uses: ./.github/actions/internal_tests
         with:

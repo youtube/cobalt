@@ -44,7 +44,6 @@ shared_library("libcobalt_native_test") {
 }
 
 android_resources("cobalt_shell_java_resources") {
-  testonly = true
   sources = [
     "java/res/drawable-xhdpi/app_banner.png",
     "java/res/layout/coat_error_dialog.xml",
@@ -64,12 +63,9 @@ android_resources("cobalt_shell_java_resources") {
 }
 
 android_library("cobalt_shell_java") {
-  testonly = true
-
   resources_package = "dev.cobalt.shell"
   deps = [
     ":cobalt_shell_java_resources",
-    ":cobalt_shell_test_manifest",
     "//base:base_java",
     "//build/android:build_java",
     "//components/download/internal/common:internal_java",
@@ -95,6 +91,7 @@ android_library("cobalt_shell_java") {
   ]
 }
 
+# TODO: move the test targets to a separate test BUILD.gn
 jinja_template("cobalt_shell_test_manifest") {
   testonly = true
   input = "javatests/AndroidManifest.xml"
@@ -141,7 +138,6 @@ android_aidl("content_javatests_aidl") {
 }
 
 android_assets("cobalt_shell_assets") {
-  testonly = true
   sources = [ "$root_out_dir/cobalt_shell.pak" ]
   disable_compression = true
   deps = [
@@ -155,7 +151,6 @@ template("cobalt_shell_apk_tmpl") {
   _target_type = invoker.target_type
   target(_target_type, target_name) {
     forward_variables_from(invoker, "*")
-    testonly = true
     if (!defined(deps)) {
       deps = []
     }

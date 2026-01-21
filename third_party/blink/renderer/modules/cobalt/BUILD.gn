@@ -29,11 +29,4 @@ blink_modules_sources("h_5_vcc") {
     "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
   ]
-
-  if (use_starboard_media) {
-    deps += [
-      "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
-      "//third_party/blink/renderer/modules/cobalt/mediasource",
-    ]
-  }
 }
