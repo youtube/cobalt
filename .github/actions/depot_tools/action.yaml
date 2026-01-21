@@ -70,7 +70,7 @@ runs:
         gclient config \
           --name=src \
           --custom-var=download_remoteexec_cfg=True \
-          --custom-var='rbe_instance="${{ inputs.rbe_instance }}"'
+          --custom-var='rbe_instance="${{ inputs.rbe_instance }}"' \
           https://github.com/${{ github.repository }}
       shell: bash
 
