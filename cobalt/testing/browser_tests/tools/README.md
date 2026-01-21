@@ -57,23 +57,23 @@ If only one target was packaged, `run_tests.py` will use it by default.
 ### Debugging
 ...
 ### 2. Package the Artifacts
-Generate the tarball containing all necessary test dependencies for your desired build(s):
-```bash
-./cobalt/testing/browser_tests/tools/collect_test_artifacts.py out/android-arm_devel out/linux-x64x11_devel
-```
-...
-### 5. Execute Tests Inside Container
-Inside the running container's shell, specify the target name (directory name from the build):
-```bash
-cd /opt/cobalt_browsertests/
-# Run all tests for a target
-python3 run_tests.py android-arm_devel -v
+Generate the tarball containing all necessary test dependencies **inside the tools directory** so the Docker build can access it:
 
-# Run a specific test on Linux using a filter
-python3 run_tests.py linux-x64x11_devel "ContentMainRunnerImplBrowserTest*"
+```bash
+./cobalt/testing/browser_tests/tools/collect_test_artifacts.py \
+  -o cobalt/testing/browser_tests/tools/cobalt_browsertests_artifacts.tar.gz \
+  out/android-arm_devel out/linux-x64x11_devel
 ```
 
-## Docker Container Requirements
+### 3. Build the Docker Image
+Build the image using the `tools` directory as the build context:
+
+```bash
+docker build -t cobalt-tests:v1 cobalt/testing/browser_tests/tools/
+```
+
+### 4. Execute Tests
+Use `docker run` to execute tests. The image uses `run_tests.py` as its entrypoint, so you only need to provide the target name and any additional arguments.
 
 To run the packaged tests within a Docker container, the environment must have the following:
 
