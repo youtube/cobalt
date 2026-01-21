@@ -89,13 +89,22 @@ A `Dockerfile` is provided in this directory that includes all necessary depende
 
 ### Execution with USB Access and Caching
 
-When running the container, ensure it has access to the host's USB devices if using a physical Android device.
+When running the container, ensure it has access to the host's USB devices if using a physical Android device. Use the target name (e.g., `android-arm_devel` or `linux-x64x11_devel`) as the argument to the image.
 
-**Pro-tip**: Mount a volume for the `vpython` cache to avoid downloading dependencies every time the container starts:
+**Pro-tip**: Mount a volume for the `vpython` cache to avoid downloading dependencies every time the container starts.
 
+#### Android Execution
 ```bash
 docker run --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   -v ~/.cache/vpython-root:/root/.cache/vpython-root \
-  <image_name>:<tag> python3 run_tests.py <target_name> -v
+  -e ANDROID_SERIAL=$ANDROID_SERIAL \
+  <image_name>:<tag> android-arm_devel -v
+```
+
+#### Linux Execution (Headless)
+```bash
+docker run \
+  -v ~/.cache/vpython-root:/root/.cache/vpython-root \
+  <image_name>:<tag> linux-x64x11_devel -v
 ```
