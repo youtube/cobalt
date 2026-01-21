@@ -56,7 +56,7 @@ std::string GetApplicationKey(const GURL& url) {
 
 std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   constexpr std::string kRecordHeader = "SAV1";
-  constexpr size_t kRecordHeaderSize = 4;
+  constexpr size_t kRecordHeaderSize = kRecordHeader.size();
 
   GURL initial_url(
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
@@ -79,16 +79,16 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     }
   }
 
-  if (record->GetSize() < base::checked_cast<int64_t>(kRecordHeaderSize)) {
+  const auto record_size = record->GetSize();
+  if (record_size < base::checked_cast<int64_t>(kRecordHeaderSize)) {
     record->Delete();
     return nullptr;
   }
 
-  auto bytes = std::vector<char>(record->GetSize());
+  auto bytes = std::vector<char>(record_size);
   const auto read_result = record->Read(bytes.data(), bytes.size());
   record->Delete();
-  if (read_result < 0 ||
-      read_result != base::checked_cast<decltype(read_result)>(bytes.size())) {
+  if (read_result < 0 || read_result != record_size) {
     return nullptr;
   }
 
