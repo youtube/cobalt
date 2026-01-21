@@ -25,9 +25,7 @@
 extern "C" {
 #endif
 
-#if SB_IS(ARCH_ARM)
-#define MUSL_REDIR_TIME64 1
-#endif
+#define MUSL_REDIR_TIME64 0
 
 #define MUSL_PTHREAD_CREATE_JOINABLE 0
 #define MUSL_PTHREAD_CREATE_DETACHED 1
