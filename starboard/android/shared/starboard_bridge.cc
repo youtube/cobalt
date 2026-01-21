@@ -45,6 +45,16 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 
+// Client Hint Header name constants
+constexpr char kAndroidOSExperienceHeader[] =
+    "Sec-CH-UA-Co-Android-OS-Experience";
+constexpr char kPlayServicesVersionHeader[] =
+    "Sec-CH-UA-Co-Android-Play-Services-Version";
+constexpr char kBuildFingerprintHeader[] =
+    "Sec-CH-UA-Co-Android-Build-Fingerprint";
+constexpr char kYoutubeCertScopeHeader[] =
+    "Sec-CH-UA-Co-Youtube-Certification-Scope";
+
 // Global pointer to hold the single instance of ApplicationAndroid.
 ApplicationAndroid* g_native_app_instance = nullptr;
 static pthread_mutex_t g_native_app_init_mutex PTHREAD_MUTEX_INITIALIZER;
@@ -127,17 +137,15 @@ void JNI_StarboardBridge_SetAndroidOSExperience(JNIEnv* env,
   std::string value = isAmatiDevice ? "Amati" : "Watson";
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
-  header_value_provider->SetHeaderValue("Sec-CH-UA-Co-Android-OS-Experience",
-                                        value);
+  header_value_provider->SetHeaderValue(kAndroidOSExperienceHeader, value);
 }
 
 void JNI_StarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env,
                                                        jlong version) {
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
-  header_value_provider->SetHeaderValue(
-      "Sec-CH-UA-Co-Android-Play-Services-Version",
-      base::NumberToString(version));
+  header_value_provider->SetHeaderValue(kPlayServicesVersionHeader,
+                                        base::NumberToString(version));
 }
 
 void JNI_StarboardBridge_SetAndroidBuildFingerprint(
@@ -146,8 +154,7 @@ void JNI_StarboardBridge_SetAndroidBuildFingerprint(
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
-      "Sec-CH-UA-Co-Android-Build-Fingerprint",
-      ConvertJavaStringToUTF8(env, fingerprint));
+      kBuildFingerprintHeader, ConvertJavaStringToUTF8(env, fingerprint));
 }
 
 void JNI_StarboardBridge_SetYoutubeCertificationScope(
@@ -156,8 +163,7 @@ void JNI_StarboardBridge_SetYoutubeCertificationScope(
   auto header_value_provider =
       cobalt::browser::CobaltHeaderValueProvider::GetInstance();
   header_value_provider->SetHeaderValue(
-      "Sec-CH-UA-Co-Youtube-Certification-Scope",
-      ConvertJavaStringToUTF8(env, certScope));
+      kYoutubeCertScopeHeader, ConvertJavaStringToUTF8(env, certScope));
 }
 
 jboolean JNI_StarboardBridge_IsReleaseBuild(JNIEnv* env) {
