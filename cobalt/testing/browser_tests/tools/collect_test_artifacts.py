@@ -50,16 +50,18 @@ def get_test_runner(build_dir, is_android):
 def copy_fast(src, dst):
   """Fast copy using system cp if possible, falling back to shutil."""
   os.makedirs(os.path.dirname(dst), exist_ok=True)
-  if os.path.isdir(src):
-    # Use system cp -a for directories to handle many files efficiently
-    subprocess.call(
-        ['cp', '-a', src, os.path.dirname(dst) + '/'],
-        stderr=subprocess.DEVNULL)
-  else:
-    try:
-      # Use cp -a for files too to preserve attributes
-      subprocess.call(['cp', '-a', src, dst], stderr=subprocess.DEVNULL)
-    except (subprocess.SubprocessError, OSError):
+  try:
+    if os.path.isdir(src):
+      # Use system cp -a for directories to handle many files efficiently.
+      # We copy INTO the parent of dst.
+      subprocess.run(['cp', '-a', src, os.path.dirname(dst) + '/'], check=True)
+    else:
+      # Use cp -a for files too to preserve attributes.
+      subprocess.run(['cp', '-a', src, dst], check=True)
+  except (subprocess.CalledProcessError, subprocess.SubprocessError, OSError):
+    if os.path.isdir(src):
+      shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
+    else:
       shutil.copy2(src, dst, follow_symlinks=False)
 
 
@@ -298,7 +300,8 @@ def main():
     generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
 
     logging.info('Creating tarball: %s', args.output)
-    subprocess.call(['tar', '-C', stage_dir, '-czf', args.output, '.'])
+    subprocess.run(['tar', '-C', stage_dir, '-czf', args.output, '.'],
+                   check=True)
 
   logging.info('Done!')
 

@@ -55,15 +55,15 @@ class TestCollectTestArtifacts(unittest.TestCase):
           'out/linux', is_android=False)
       self.assertEqual(result, 'cobalt_browsertests')
 
-  @mock.patch('subprocess.call')
+  @mock.patch('subprocess.run')
   @mock.patch('os.makedirs')
   @mock.patch('os.path.isdir', return_value=True)
-  def test_copy_fast_dir(self, mock_isdir, mock_makedirs, mock_call):
+  def test_copy_fast_dir(self, mock_isdir, mock_makedirs, mock_run):
     del mock_isdir  # Unused argument.
     collect_test_artifacts.copy_fast('src/dir', 'dst/dir')
     mock_makedirs.assert_called_once_with('dst', exist_ok=True)
-    mock_call.assert_called_once_with(['cp', '-a', 'src/dir', 'dst/'],
-                                      stderr=mock.ANY)
+    mock_run.assert_called_once_with(['cp', '-a', 'src/dir', 'dst/'],
+                                     check=True)
 
   @mock.patch('builtins.open', new_callable=mock.mock_open)
   @mock.patch('os.chmod')
