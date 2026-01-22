@@ -85,7 +85,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     return nullptr;
   }
 
-  auto bytes = std::vector<char>(record_size);
+  auto bytes = std::vector<char>(base::checked_cast<size_t>(record_size));
   const auto read_result = record->Read(bytes.data(), bytes.size());
   static_assert(
       std::is_same<decltype(read_result), decltype(record_size)>::value,
