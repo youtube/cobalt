@@ -89,7 +89,6 @@ MediaDecoder::MediaDecoder(Host* host,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
       flush_delay_usec_(0),
-      decoder_state_tracker_(nullptr),
       condition_variable_(mutex_) {
   SB_CHECK(host_);
 
@@ -140,12 +139,14 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      decoder_state_tracker_(initial_max_frames && !tunnel_mode_enabled_
-                                 ? std::make_unique<DecoderStateTracker>(
-                                       *initial_max_frames,
-                                       [this] { condition_variable_.Signal(); })
-                                 : nullptr),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
+        if (!initial_max_frames || tunnel_mode_enabled_) {
+          return nullptr;
+        }
+        return std::make_unique<DecoderStateTracker>(
+            *initial_max_frames, [this] { condition_variable_.Signal(); });
+      }()) {
   if (initial_max_frames && tunnel_mode_enabled_) {
     SB_LOG(INFO) << "DecoderStateTracker is disabled for tunnel mode.";
   }

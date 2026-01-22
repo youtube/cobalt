@@ -200,8 +200,6 @@ class MediaDecoder final
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
 
-  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
-
   ErrorCB error_cb_;
 
   bool error_occurred_ = false;
@@ -221,6 +219,8 @@ class MediaDecoder final
   std::deque<PendingInput> pending_inputs_;
   std::vector<int> input_buffer_indices_;
   std::vector<DequeueOutputResult> dequeue_output_results_;
+
+  const std::unique_ptr<DecoderStateTracker> decoder_state_tracker_;
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
