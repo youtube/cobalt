@@ -24,11 +24,16 @@
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "starboard/common/time.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "media/base/android/android_overlay.h"
 #include "media/base/android_overlay_config.h"
 #endif  // BUILDFLAG(IS_ANDROID)
+
+namespace starboard {
+extern void SetBaselineUs(int64_t baseline_us);
+}
 
 namespace media {
 
@@ -609,6 +614,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   player_bridge_.reset();
 
   LOG(INFO) << "Creating SbPlayerBridge.";
+  starboard::SetBaselineUs(starboard::CurrentMonotonicTime());
 
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,

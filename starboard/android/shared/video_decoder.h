@@ -172,6 +172,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   // to enable tunnel mode.
   std::unique_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
 
+  const bool use_video_decoder_cache_;
+
   const bool is_video_frame_tracker_enabled_;
   std::unique_ptr<VideoFrameTracker> video_frame_tracker_;
 

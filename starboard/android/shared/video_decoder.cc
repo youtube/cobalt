@@ -23,8 +23,10 @@
 #include <functional>
 #include <limits>
 #include <list>
+#include <mutex>
 
 #include "base/android/jni_android.h"
+#include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
@@ -35,6 +37,7 @@
 #include "starboard/common/player.h"
 #include "starboard/common/size.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
@@ -51,6 +54,85 @@ using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using std::placeholders::_1;
 using std::placeholders::_2;
+
+std::optional<int64_t> g_baseline_us_;
+
+constexpr bool kUseVideoDecoderCache = true;
+
+class VideoDecoderCache {
+ public:
+  static VideoDecoderCache* GetInstance() {
+    static VideoDecoderCache* instance = new VideoDecoderCache();
+    return instance;
+  }
+
+  VideoDecoderCache() {
+    JNIEnv* env = AttachCurrentThread();
+    dummy_surface_texture_ =
+        VideoSurfaceTextureBridge::CreateVideoSurfaceTexture(env, 0);
+    if (dummy_surface_texture_) {
+      // CreateSurface() wraps the passed-in jobject in a ScopedJavaLocalRef,
+      // effectively taking ownership and deleting it as a local ref upon
+      // return. We must pass a new local reference to avoid deleting our global
+      // reference.
+      jobject local_surface_texture =
+          env->NewLocalRef(dummy_surface_texture_.obj());
+      dummy_surface_ =
+          VideoSurfaceTextureBridge::CreateSurface(env, local_surface_texture);
+    }
+  }
+
+  void Put(std::unique_ptr<MediaCodecDecoder> decoder,
+           SbMediaVideoCodec codec,
+           SbPlayerOutputMode output_mode) {
+    if (!decoder) {
+      return;
+    }
+
+    if (dummy_surface_) {
+      if (!decoder->UpdateOutputSurface(dummy_surface_.obj())) {
+        SB_LOG(WARNING)
+            << "Failed to switch to dummy surface, destroying decoder.";
+        return;
+      }
+    }
+
+    SB_LOG(INFO) << "Caching video decoder for "
+                 << GetMediaVideoCodecName(codec);
+    std::lock_guard lock(mutex_);
+    if (cache_.size() >= kMaxCacheSize) {
+      cache_.pop_front();
+    }
+    cache_.push_back({std::move(decoder), codec, output_mode});
+  }
+
+  std::unique_ptr<MediaCodecDecoder> Get(SbMediaVideoCodec codec,
+                                         SbPlayerOutputMode output_mode) {
+    std::lock_guard lock(mutex_);
+    for (auto it = cache_.begin(); it != cache_.end(); ++it) {
+      if (it->codec == codec && it->output_mode == output_mode) {
+        std::unique_ptr<MediaCodecDecoder> decoder = std::move(it->decoder);
+        cache_.erase(it);
+        return decoder;
+      }
+    }
+    return nullptr;
+  }
+
+ private:
+  struct CacheEntry {
+    std::unique_ptr<MediaCodecDecoder> decoder;
+    SbMediaVideoCodec codec;
+    SbPlayerOutputMode output_mode;
+  };
+
+  static constexpr int kMaxCacheSize = 4;
+  std::mutex mutex_;
+  std::list<CacheEntry> cache_;
+
+  base::android::ScopedJavaGlobalRef<jobject> dummy_surface_texture_;
+  base::android::ScopedJavaGlobalRef<jobject> dummy_surface_;
+};
 
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
@@ -296,6 +378,8 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithm {
 
 class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
  public:
+  Sink() = default;
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -317,6 +401,14 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    if (!first_frame_logged_) {
+      SB_CHECK(g_baseline_us_);
+      int64_t elapsed_us = CurrentMonotonicTime() - *g_baseline_us_;
+      SB_LOG(INFO) << "Time to First Frame (TTFF): "
+                   << FormatWithDigitSeparators(elapsed_us) << " us";
+      first_frame_logged_ = true;
+    }
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
@@ -326,6 +418,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 
   RenderCB render_cb_;
   bool rendered_;
+  bool first_frame_logged_ = false;
 };
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
@@ -365,6 +458,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
+      use_video_decoder_cache_(kUseVideoDecoderCache),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
@@ -407,7 +501,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
                << GetPlayerOutputModeName(output_mode_)
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
-               << tunnel_mode_audio_session_id_;
+               << tunnel_mode_audio_session_id_ << ", use_video_decoder_cache="
+               << (use_video_decoder_cache_ ? "true" : "false");
 }
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
@@ -727,17 +822,40 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   std::optional<Size> max_frame_size =
       ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
 
+  // Reuse the existing decoder if possible.
+  if (use_video_decoder_cache_ && tunnel_mode_audio_session_id_ == -1 &&
+      !require_software_codec_) {
+    // TODO: Support reusing decoder for tunnel mode and software decoder.
+    media_decoder_ =
+        VideoDecoderCache::GetInstance()->Get(video_codec_, output_mode_);
+    if (media_decoder_) {
+      SB_LOG(INFO) << "Reusing cached video decoder for "
+                   << GetMediaVideoCodecName(video_codec_);
+      media_decoder_->ResetHost(this);
+      media_decoder_->UpdateFrameRenderedCB(
+          std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1));
+      media_decoder_->UpdateFirstTunnelFrameReadyCB(
+          std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this));
+      media_decoder_->UpdateOutputSurface(j_output_surface);
+      media_decoder_->ResetForReuse();
+    }
+  }
+
   std::string error_message;
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(
-      /*host=*/this, video_stream_info.codec, video_stream_info.frame_size,
-      max_frame_size, video_fps_, j_output_surface, drm_system_,
-      color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
-      std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
-      std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
-      tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, &error_message);
+  if (!media_decoder_) {
+    media_decoder_ = std::make_unique<MediaCodecDecoder>(
+        this, video_stream_info.codec, video_stream_info.frame_size,
+        max_frame_size, video_fps_, j_output_surface, drm_system_,
+        color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
+        std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
+        std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
+        tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
+        max_video_input_size_, flush_delay_usec_, &error_message);
+  }
+
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
+      media_decoder_->UpdateErrorCB(error_cb_);
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
     }
@@ -760,12 +878,22 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
 void MediaCodecVideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
+  if (media_decoder_ && media_decoder_->Suspend()) {
+    media_decoder_->ResetHost(nullptr);
+    media_decoder_->UpdateFrameRenderedCB([](int64_t) {});
+    media_decoder_->UpdateFirstTunnelFrameReadyCB([]() {});
+    if (use_video_decoder_cache_) {
+      VideoDecoderCache::GetInstance()->Put(std::move(media_decoder_),
+                                            video_codec_, output_mode_);
+    }
+  }
+  media_decoder_.reset();
+  color_metadata_ = std::nullopt;
+
   if (owns_video_surface_) {
     ReleaseVideoSurface();
     owns_video_surface_ = false;
   }
-  media_decoder_.reset();
-  color_metadata_ = std::nullopt;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -1280,6 +1408,11 @@ void MediaCodecVideoDecoder::ReportError(SbPlayerError error,
   }
 
   error_cb_(kSbPlayerErrorDecode, error_message);
+}
+
+// Temporary solution for PoC to skip long plumbing.
+void SetBaselineUs(int64_t baseline_us) {
+  g_baseline_us_ = baseline_us;
 }
 
 }  // namespace starboard
