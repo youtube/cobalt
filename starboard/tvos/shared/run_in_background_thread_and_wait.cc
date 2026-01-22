@@ -19,7 +19,7 @@
 
 #include "starboard/common/check_op.h"
 
-void RunInBackgroundThreadAndWait(const std::function<void()>& function) {
+void RunInBackgroundThreadAndWait(std::function<void()>&& function) {
   SB_CHECK_EQ(CFRunLoopGetMain(), CFRunLoopGetCurrent());
   dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
     function();

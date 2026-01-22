@@ -25,6 +25,6 @@
 // This is useful when performing an operation that would otherwise block the
 // main thread and make it not run the main loop (e.g. a call to pthread_join()
 // or std::condition_variable::wait()).
-void RunInBackgroundThreadAndWait(const std::function<void()>& function);
+void RunInBackgroundThreadAndWait(std::function<void()>&& function);
 
 #endif  // STARBOARD_TVOS_SHARED_RUN_IN_BACKGROUND_THREAD_AND_WAIT_H_
