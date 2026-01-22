@@ -138,7 +138,7 @@ def main():
         logging.warning('Build directory %s not found. Skipping.', build_dir)
         continue
 
-      is_android = 'android' in build_dir.lower()
+      is_android = 'android' in os.path.basename(build_dir).lower()
       runtime_deps_path = find_runtime_deps(build_dir)
       if not runtime_deps_path:
         logging.warning('Could not find runtime_deps in %s. Skipping.',
