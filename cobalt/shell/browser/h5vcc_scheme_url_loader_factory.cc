@@ -257,16 +257,20 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       match_options->cache_name = kDefaultSplashCacheName;
     }
 
+    std::string cache_name_utf8 =
+        base::UTF16ToUTF8(match_options->cache_name.value());
+
     cache_storage_remote_->Match(
         std::move(fetch_api_request), std::move(match_options),
         false, /* in_related_fetch_event */
         false, /* in_range_fetch_event */
         0,     // trace_id
         base::BindOnce(&H5vccSchemeURLLoader::OnCacheMatched,
-                       weak_factory_.GetWeakPtr(), mime_type));
+                       weak_factory_.GetWeakPtr(), cache_name_utf8, mime_type));
   }
 
-  void OnCacheMatched(const std::string& mime_type,
+  void OnCacheMatched(const std::string& cache_name,
+                      const std::string& mime_type,
                       blink::mojom::MatchResultPtr result) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(&H5vccSchemeURLLoader::DisconnectCacheStorage,
@@ -277,10 +281,11 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       SendResponse(content_, mime_type);
       return;
     }
-    LOG(INFO) << "Found splash video in cache.";
+    LOG(INFO) << "Found splash video in cache: " << cache_name;
     auto& response = result->get_response();
     if (response->blob->size == 0) {
-      LOG(ERROR) << "Splash video cache is empty. Fallback to builtin.";
+      LOG(ERROR) << "Splash video from " << cache_name
+                 << " is empty. Fallback to builtin.";
       SendResponse(content_, mime_type);
       return;
     }
