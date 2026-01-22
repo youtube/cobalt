@@ -33,7 +33,9 @@ H5vccUpdaterImpl::H5vccUpdaterImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccUpdater> receiver)
     : content::DocumentService<mojom::H5vccUpdater>(render_frame_host,
-                                                    std::move(receiver)) {}
+                                                    std::move(receiver)) {
+  DETACH_FROM_THREAD(thread_checker_);
+}
 
 H5vccUpdaterImpl::~H5vccUpdaterImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
