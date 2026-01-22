@@ -63,11 +63,6 @@ def copy_fast(src, dst):
     if os.path.isdir(src):
       shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
     else:
-      if os.path.exists(dst):
-        try:
-          os.remove(dst)
-        except OSError:
-          pass
       shutil.copy2(src, dst, follow_symlinks=False)
 
 
