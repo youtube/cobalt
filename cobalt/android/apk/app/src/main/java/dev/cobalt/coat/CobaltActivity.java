@@ -75,6 +75,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String META_DATA_ENABLE_FEATURES = "cobalt.ENABLE_FEATURES";
 
   // This key differs in naming format for legacy reasons
@@ -108,6 +109,8 @@ public abstract class CobaltActivity extends Activity {
 
   private boolean mIsCobaltUsingAndroidOverlay;
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
+
+  private boolean mEnableSplashScreen;
 
   private Bundle getActivityMetaData() {
     ComponentName componentName = getIntent().getComponent();
@@ -168,6 +171,8 @@ public abstract class CobaltActivity extends Activity {
               VersionInfo.isOfficialBuild(), commandLineArgs));
     }
     mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
+    Bundle metaData = getActivityMetaData();
+    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.updateDeviceSpecificUserAgentSwitch(this);
 
@@ -292,8 +297,10 @@ public abstract class CobaltActivity extends Activity {
                 }
               };
 
-            // Load splash screen.
-            mShellManager.getActiveShell().loadSplashScreenWebContents();
+            if (mEnableSplashScreen) {
+              // Load splash screen.
+              mShellManager.getActiveShell().loadSplashScreenWebContents();
+            }
           }
         });
   }
