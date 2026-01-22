@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/buildflag_header.gni")
 import("//build/config/cast.gni")
 import("//build/config/ui.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
@@ -19,9 +20,21 @@ import("//starboard/build/buildflags.gni")
 import("//tools/grit/grit_rule.gni")
 import("//tools/grit/repack.gni")
 
+if (is_ios) {
+  import("//build/config/apple/mobile_config.gni")
+}
+
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
 shell_use_toolkit_views = toolkit_views && !is_castos
+
+support_web_tests =
+    !is_android && !(is_ios && target_platform == "tvos") && !is_starboard
+
+buildflag_header("buildflags") {
+  header = "buildflags.h"
+  flags = [ "SUPPORT_WEB_TESTS=$support_web_tests" ]
+}
 
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("cobalt_shell_lib_warnings") {
@@ -44,6 +57,7 @@ group("cobalt_shell_lib_deps") {
 
   public_deps = [
     ":android_shell_descriptors",
+    ":buildflags",
     ":embed_loader_resources_as_header_files",
     ":embed_polyfilled_javascript",
     ":resources",
@@ -112,6 +126,7 @@ group("cobalt_shell_lib_deps") {
     public_deps += [
       "//services/tracing/public/cpp",
       "//services/tracing/public/mojom:mojom",
+      "//ui/accessibility:ax_base",
     ]
   }
 

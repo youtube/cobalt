@@ -101,13 +101,15 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
       base::RepeatingCallback<void(const gfx::Size&)>;
   using UpdateStarboardRenderingModeCallback =
       base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
+  using GetSbWindowHandleCallback = base::RepeatingCallback<void()>;
 #if BUILDFLAG(IS_ANDROID)
   using RequestOverlayInfoCallBack =
       base::RepeatingCallback<void(bool restart_for_transitions)>;
 #endif  // BUILDFLAG(IS_ANDROID)
   void SetStarboardRendererCallbacks(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
-      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb
+      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb,
+      GetSbWindowHandleCallback get_sb_window_handle_cb
 #if BUILDFLAG(IS_ANDROID)
       ,
       RequestOverlayInfoCallBack request_overlay_info_cb
@@ -115,6 +117,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   );
 
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  void OnSbWindowHandleReady(const uint64_t sb_window_handle);
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info);
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -200,6 +203,7 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
   UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
+  GetSbWindowHandleCallback get_sb_window_handle_cb_;
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -257,6 +261,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   uint32_t last_video_frames_decoded_ = 0;
   uint32_t last_video_frames_dropped_ = 0;
+
+  SbWindow sb_window_ = kSbWindowInvalid;
 
   raw_ptr<SbPlayerInterface> test_sbplayer_interface_;
 
