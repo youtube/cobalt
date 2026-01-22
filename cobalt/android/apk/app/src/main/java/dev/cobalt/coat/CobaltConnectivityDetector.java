@@ -36,7 +36,6 @@ public class CobaltConnectivityDetector {
 
   private final CobaltActivity activity;
   private PlatformError platformError;
-  protected boolean mShouldReloadOnResume = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
@@ -60,7 +59,7 @@ public class CobaltConnectivityDetector {
                     () -> {
                       for (String urlString : PROBE_URLS) {
                         if (Thread.currentThread().isInterrupted()) {
-                          return false;
+                          throw new InterruptedException("Network probe interrupted.");
                         }
                         if (performSingleProbe(urlString)) {
                           return true;
@@ -78,14 +77,17 @@ public class CobaltConnectivityDetector {
                 } else {
                   handleFailure();
                 }
+              // Don't raise the error dialog if the thread is intentionally interrupted.
+              // Otherwise handleFailure() for timeout exceptions and all other exceptions.
               } catch (TimeoutException e) {
                 handleFailure();
               } catch (Exception e) {
-                if (e instanceof InterruptedException) {
+                if (e instanceof InterruptedException || e instanceof java.util.concurrent.CancellationException) {
                   Thread.currentThread().interrupt(); // Preserve interrupt status.
+                } else {
+                  Log.w(TAG, "Connectivity check failed with exception: " + e.getClass().getName(), e);
+                  handleFailure();
                 }
-                Log.w(TAG, "Connectivity check failed with exception: " + e.getClass().getName(), e);
-                handleFailure();
               } finally {
                 // This is crucial. It ensures the probe thread is discarded.
                 probeExecutor.shutdownNow();
@@ -102,13 +104,6 @@ public class CobaltConnectivityDetector {
             platformError.dismiss();
             platformError = null;
           }
-          if (mShouldReloadOnResume) {
-            WebContents webContents = activity.getActiveWebContents();
-            if (webContents != null) {
-              webContents.getNavigationController().reload(true);
-            }
-            mShouldReloadOnResume = false;
-          }
         });
   }
 
@@ -124,11 +119,6 @@ public class CobaltConnectivityDetector {
             platformError.raise();
           }
         });
-    mShouldReloadOnResume = true;
-  }
-
-  public void setShouldReloadOnResume(boolean shouldReload) {
-    mShouldReloadOnResume = shouldReload;
   }
 
   private boolean performSingleProbe(String urlString) {
@@ -137,8 +127,8 @@ public class CobaltConnectivityDetector {
       URL url = new URL(urlString);
       urlConnection = (HttpURLConnection) url.openConnection();
       // Shorter timeouts for connect/read, the overall timeout is the main guard.
-      urlConnection.setConnectTimeout(4000);
-      urlConnection.setReadTimeout(4000);
+      urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
+      urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
       urlConnection.setInstanceFollowRedirects(false);
       urlConnection.setRequestMethod("GET");
       urlConnection.setUseCaches(false);
