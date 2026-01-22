@@ -130,7 +130,7 @@ void H5vccUpdaterImpl::GetInstallationIndex(
   }
   int index = updater_module->GetInstallationIndex();
   std::move(callback).Run(index == -1 ? kInvalidInstallationIndex
-                                      : base::checked_cast<uint6_t>(index));
+                                      : base::checked_cast<uint16_t>(index));
 #else
   std::move(callback).Run(kInvalidInstallationIndex);
   NOTIMPLEMENTED();
