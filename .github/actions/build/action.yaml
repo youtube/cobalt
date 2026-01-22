@@ -35,8 +35,6 @@ runs:
       - name: Get list of changed files
         if: github.event_name == 'pull_request'
         id: changed-files
-        env:
-          # CHANGED_FILES_LIST: changed_files.txt
         run: |
           set -x
           cd cobalt/src
