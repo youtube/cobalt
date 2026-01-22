@@ -75,7 +75,7 @@ docker build -t cobalt-tests:v1 cobalt/testing/browser_tests/tools/
 ```
 
 ### 4. Execute Tests
-Use `docker run` to execute tests. The image uses `run_tests.py` as its entrypoint, so you only need to provide the target name and any additional arguments.
+Use `docker run` to execute tests. The image uses `run_tests.py` as its entrypoint, so you only need to provide the platform name and any additional arguments.
 
 To run the packaged tests within a Docker container, the environment must have the following:
 
@@ -105,7 +105,7 @@ newgrp docker
 
 ### Execution with USB Access and Caching
 
-When running the container, ensure it has access to the host's USB devices if using a physical Android device. Use the target name (e.g., `android-arm_devel` or `linux-x64x11_devel`) as the argument to the image.
+When running the container, ensure it has access to the host's USB devices if using a physical Android device. Use the platform name (e.g., `android-arm_devel` or `linux-x64x11_devel`) as the argument to the image.
 
 **Pro-tip**: Mount a volume for the `vpython` cache to avoid downloading dependencies every time the container starts.
 
@@ -130,7 +130,10 @@ docker run \
 
 ### Retrieving Test Results
 
-To get test results (e.g., JSON reports) back to your host machine, use a volume mount and pass the `--json-results-file` flag. Using `--test-launcher-bot-mode` is also recommended for cleaner output in CI environments.
+To get test results back to your host machine, use a volume mount to capture any logs or artifacts generated during the test run.
+
+> [!IMPORTANT]
+> **Security Note:** Running Docker with the `--privileged` flag grants the container root-level access to the host system (required for USB/ADB access). This should be used with caution and only with trusted images. For more information on securing Docker, consider enabling [sandboxing](https://docs.docker.com/engine/security/).
 
 ```bash
 mkdir -p $(pwd)/results
@@ -138,9 +141,7 @@ docker run --privileged \
   -v /dev/bus/usb:/dev/bus/usb \
   -e ANDROID_SERIAL=$ANDROID_SERIAL \
   -v $(pwd)/results:/opt/results \
-  <image_name>:<tag> android-arm_devel \
-  --json-results-file=/opt/results/results.json \
-  --test-launcher-bot-mode
+  <image_name>:<tag> android-arm_devel
 ```
 
 The results will be available in your local `results/` directory immediately after the tests finish.
