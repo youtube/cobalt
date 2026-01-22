@@ -201,7 +201,10 @@ class StarboardRendererTest : public testing::Test {
 };
 
 TEST_F(StarboardRendererTest, InitializeWithClearContent) {
-  InitializeWithAudioAndVideo();
+  SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -218,7 +221,10 @@ TEST_F(StarboardRendererTest, InitializeWaitsForCdm) {
 }
 
 TEST_F(StarboardRendererTest, SetCdmThenInitialize) {
-  InitializeWithAudioAndVideo(/*encrypted=*/true);
+  SbPlayer player = InitializeWithAudioAndVideo(/*encrypted=*/true);
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -228,17 +234,23 @@ TEST_F(StarboardRendererTest, InitializeThenSetCdm) {
 
   SbPlayer player = new SbPlayerPrivate();
   EXPECT_CALL(mock_sbplayer_interface_, Create(_, _, _, _, _, _, _, _))
-      .WillOnce(Return(player));
+      .WillOnce(DoAll(SaveArg<3>(&decoder_status_cb_),
+                      SaveArg<4>(&player_status_cb_),
+                      SaveArg<5>(&player_error_cb_), SaveArg<6>(&context_),
+                      Return(player)));
   EXPECT_CALL(renderer_client_, OnWaiting(WaitingReason::kNoCdm));
   renderer_->Initialize(&media_resource_, &renderer_client_,
                         renderer_init_cb_.Get());
   task_environment_.RunUntilIdle();
 
   EXPECT_CALL(set_cdm_cb_, Run(true));
-  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
-
   renderer_->SetCdm(&cdm_context_, set_cdm_cb_.Get());
+  task_environment_.RunUntilIdle();
 
+  ASSERT_TRUE(player_status_cb_);
+  EXPECT_CALL(renderer_init_cb_, Run(HasStatusCode(PIPELINE_OK)));
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
   task_environment_.RunUntilIdle();
 }
 
@@ -296,6 +308,11 @@ TEST_F(StarboardRendererTest, OnPlayerStatusCallbacksEnded) {
 
 TEST_F(StarboardRendererTest, OnPlayerErrorCallback) {
   SbPlayer player = InitializeWithAudioAndVideo();
+  ASSERT_TRUE(player_status_cb_);
+  player_status_cb_(player, context_, kSbPlayerStateInitialized,
+                    /*ticket=*/SB_PLAYER_INITIAL_TICKET);
+  task_environment_.RunUntilIdle();
+
   ASSERT_TRUE(player_error_cb_);
 
   EXPECT_CALL(renderer_client_, OnError(HasStatusCode(PIPELINE_ERROR_DECODE)));

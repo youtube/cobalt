@@ -297,13 +297,6 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
-  // It's possible that Flush() is called immediately after StartPlayingFrom(),
-  // before the underlying SbPlayer is initialized.  Reset
-  // `playing_start_from_time_` here as StartPlayingFrom() checks for
-  // re-entrant.  This also avoids the stale `playing_start_from_time_` to be
-  // used.
-  playing_start_from_time_.reset();
-
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
   player_bridge_->PrepareForSeek();
@@ -362,16 +355,8 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
     return;
   }
 
-  if (player_bridge_initialized_) {
-    state_ = STATE_PLAYING;
-    player_bridge_->Seek(time);
-    return;
-  }
-
-  // We cannot start playback before SbPlayerBridge is initialized, save the
-  // time and start later.
-  DCHECK(!playing_start_from_time_);
-  playing_start_from_time_ = time;
+  state_ = STATE_PLAYING;
+  player_bridge_->Seek(time);
 }
 
 void StarboardRenderer::SetPlaybackRate(double playback_rate) {
@@ -677,7 +662,12 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_->SetVolume(volume_);
 
     state_ = STATE_FLUSHED;
-    std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
+
+    // Defer running the initialization callback
+    // (|init_cb_|.Run(PipelineStatus(PIPELINE_OK))) until the `SbPlayer`
+    // reports it is initialized via
+    // `OnPlayerStatus(kSbPlayerStateInitialized)`. This ensures clients don't
+    // call `StartPlayingFrom()` until the SbPlayer is actually ready.
     return;
   }
 
@@ -956,18 +946,12 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
   switch (state) {
     case kSbPlayerStateInitialized:
-      DCHECK(!player_bridge_initialized_);
-      player_bridge_initialized_ = true;
-
-      if (playing_start_from_time_) {
-        StartPlayingFrom(std::move(playing_start_from_time_).value());
-      }
+      CHECK(init_cb_);
+      std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
       break;
     case kSbPlayerStatePrerolling:
-      DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
-      DCHECK(player_bridge_initialized_);
       buffering_state_ = BUFFERING_HAVE_ENOUGH;
       task_runner_->PostTask(
           FROM_HERE,
@@ -980,7 +964,6 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       LOG(INFO) << "Audio write duration is " << audio_write_duration_;
       break;
     case kSbPlayerStateEndOfStream:
-      DCHECK(player_bridge_initialized_);
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
