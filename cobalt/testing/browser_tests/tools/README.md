@@ -1,4 +1,4 @@
-# Android Browser Test Tools
+# Browser Test Tools
 
 This directory contains tools for managing and executing `cobalt_browsertests` on Android.
 
