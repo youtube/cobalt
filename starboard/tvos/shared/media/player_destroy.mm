@@ -45,9 +45,7 @@ void SbPlayerDestroy(SbPlayer player) {
         // eventually invoke PlayerWorker's destructor that Join()s the worker
         // thread, we need to spin the main loop otherwise the UI calls made in
         // AVSBVideoRenderer will never run and the code will deadlock.
-        RunInBackgroundThreadAndWait(^{
-          delete player;
-        });
+        RunInBackgroundThreadAndWait([player] { delete player; });
       } else {
         delete player;
       }

@@ -121,11 +121,8 @@ class SbPlayerTest : public ::testing::Test {
       }
 
 #if BUILDFLAG(IS_IOS_TVOS)
-      // `lock_ptr` is needed because `lock` itself is not declared with __block
-      // and is therefore passed as const to the block below.
-      std::unique_lock<std::mutex>* const lock_ptr = &lock;
-      RunInBackgroundThreadAndWait(^{
-        condition_variable_.wait_for(*lock_ptr,
+      RunInBackgroundThreadAndWait([&] {
+        condition_variable_.wait_for(lock,
                                      std::chrono::microseconds(wait_end - now));
       });
 #else

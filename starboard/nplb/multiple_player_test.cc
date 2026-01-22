@@ -54,9 +54,7 @@ class PlayerThread : public AbstractTestThread {
   // main thread (in AVSBVideoRenderer).
   void WaitForFinish() {
 #if BUILDFLAG(IS_IOS_TVOS)
-    RunInBackgroundThreadAndWait(^{
-      Join();
-    });
+    RunInBackgroundThreadAndWait([this] { Join(); });
 #else
     Join();
 #endif  // BUILDFLAG(IS_IOS_TVOS)
