@@ -19,7 +19,7 @@
 
 namespace {
 constexpr const char* kAudioManagerStarboardName = "AudioManagerStarboard";
-constexpr int kDefaultSampleRate = 48'000;
+constexpr int kDefaultSampleRate = 16'000;
 }  // namespace
 
 namespace media {
@@ -119,6 +119,9 @@ AudioParameters AudioManagerStarboard::GetPreferredOutputStreamParameters(
 AudioInputStream* AudioManagerStarboard::MakeInputStream(
     const AudioParameters& params,
     const std::string& device_id) {
+  SB_LOG(INFO) << "AudioManagerStarboard::MakeInputStream() - rate="
+               << params.sample_rate() << ", channels=" << params.channels()
+               << ", format=" << params.format();
   return new AudioInputStreamStarboard(this, params);
 }
 

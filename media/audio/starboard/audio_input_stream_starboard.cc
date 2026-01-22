@@ -42,15 +42,22 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
   SbMicrophoneInfo info;
 
   if (SbMicrophoneGetAvailable(&info, 1) < 1) {
+    SB_LOG(ERROR) << "AudioInputStreamStarboard::Open() - No mics";
     return OpenOutcome::kFailed;
   }
 
-  microphone_ = SbMicrophoneCreate(
-      info.id, params_.sample_rate(),
+  const int buffer_size_bytes =
       params_.GetBytesPerBuffer(media::SampleFormat::kSampleFormatS16) *
-          kMicrophoneBufferSizeMultiplier);
+      kMicrophoneBufferSizeMultiplier;
+
+  SB_LOG(INFO) << "AudioInputStreamStarboard::Open() - Creating mic with rate="
+               << params_.sample_rate() << ", channels=" << params_.channels()
+               << ", buffer_size=" << buffer_size_bytes;
+  microphone_ =
+      SbMicrophoneCreate(info.id, params_.sample_rate(), buffer_size_bytes);
 
   if (!SbMicrophoneIsValid(microphone_)) {
+    SB_LOG(ERROR) << "AudioInputStreamStarboard::Open() - Mic invalid";
     microphone_ = kSbMicrophoneInvalid;
     return OpenOutcome::kFailed;
   }
@@ -58,18 +65,29 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
   audio_bus_ = AudioBus::Create(params_);
   buffer_.resize(params_.frames_per_buffer() * params_.channels());
 
+  SB_LOG(INFO) << "AudioInputStreamStarboard::Open() - Success";
   return OpenOutcome::kSuccess;
 }
 
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
+  SB_LOG(INFO) << "AudioInputStreamStarboard::Start()";
   DCHECK(!callback_ && callback);
   callback_ = callback;
   if (!SbMicrophoneOpen(microphone_)) {
+    SB_LOG(ERROR) << "SbMicrophoneOpen Failed";
     HandleError("SbMicrophoneOpen");
     return;
   }
-  CHECK(capture_thread_.StartWithOptions(
-      base::Thread::Options(base::ThreadType::kRealtimeAudio)));
+  SB_LOG(INFO) << "SbMicrophoneOpen Succeeded";
+
+  SB_LOG(INFO) << "AudioInputStreamStarboard::Start() - Starting thread";
+  base::Thread::Options options(base::ThreadType::kRealtimeAudio);
+  if (!capture_thread_.StartWithOptions(std::move(options))) {
+    HandleError("capture_thread_.StartWithOptions");
+    return;
+  }
+  SB_LOG(INFO) << "Capture thread started";
+
   // We start reading data half |buffer_duration_| later than when the
   // buffer might have got filled, to accommodate some delays in the audio
   // driver. This could also give us a smooth read sequence going forward.
@@ -77,11 +95,19 @@ void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   next_read_time_ = base::TimeTicks::Now() + delay;
   running_ = true;
   StartAgc();
-  capture_thread_.task_runner()->PostDelayedTaskAt(
+
+  bool posted = capture_thread_.task_runner()->PostDelayedTaskAt(
       base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
       base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
                      base::Unretained(this)),
       next_read_time_, base::subtle::DelayPolicy::kPrecise);
+
+  if (!posted) {
+    HandleError("PostDelayedTaskAt");
+    running_ = false;
+    capture_thread_.Stop();
+    return;
+  }
 }
 
 void AudioInputStreamStarboard::Stop() {

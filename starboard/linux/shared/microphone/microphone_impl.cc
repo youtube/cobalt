@@ -26,9 +26,9 @@ namespace starboard {
 
 namespace {
 
-constexpr int kSampleRateInHz = 48'000;
+constexpr int kSampleRateInHz = 16'000;
 constexpr int kChannels = 1;
-constexpr int kFramesPerBuffer = 480;
+constexpr int kFramesPerBuffer = kSampleRateInHz / 100;
 constexpr int kMinReadSizeBytes =
     kFramesPerBuffer * kChannels * sizeof(int16_t);
 
@@ -271,13 +271,26 @@ SbMicrophone s_microphone = kSbMicrophoneInvalid;
 SbMicrophone SbMicrophonePrivate::CreateMicrophone(SbMicrophoneId id,
                                                    int sample_rate_in_hz,
                                                    int buffer_bytes) {
-  if (!SbMicrophoneIdIsValid(id) ||
-      !IsMicrophoneSampleRateSupported(id, sample_rate_in_hz) ||
-      buffer_bytes > kUnusedBufferSize || buffer_bytes <= 0) {
+  SB_LOG(INFO) << "SbMicrophonePrivate::CreateMicrophone():"
+               << " id=" << id << ", sample_rate_in_hz=" << sample_rate_in_hz
+               << ", buffer_bytes=" << buffer_bytes;
+
+  if (!SbMicrophoneIdIsValid(id)) {
+    return kSbMicrophoneInvalid;
+  }
+  if (!IsMicrophoneSampleRateSupported(id, sample_rate_in_hz)) {
+    SB_LOG(ERROR) << "CreateMicrophone() - FAILED: Sample rate not supported: "
+                  << sample_rate_in_hz;
+    return kSbMicrophoneInvalid;
+  }
+  if (buffer_bytes > kUnusedBufferSize || buffer_bytes <= 0) {
+    SB_LOG(ERROR) << "CreateMicrophone() - FAILED: Bad buffer size: "
+                  << buffer_bytes;
     return kSbMicrophoneInvalid;
   }
 
   if (s_microphone != kSbMicrophoneInvalid) {
+    SB_LOG(ERROR) << "CreateMicrophone() - FAILED: Microphone already exists";
     return kSbMicrophoneInvalid;
   }
 
