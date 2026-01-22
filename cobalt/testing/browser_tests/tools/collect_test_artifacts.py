@@ -132,7 +132,8 @@ def main():
       is_android = 'android' in build_dir.lower()
       runtime_deps_path = find_runtime_deps(build_dir)
       if not runtime_deps_path:
-        logging.warning('Could find runtime_deps in %s. Skipping.', build_dir)
+        logging.warning('Could not find runtime_deps in %s. Skipping.',
+                        build_dir)
         continue
 
       test_runner_rel = get_test_runner(build_dir, is_android)
