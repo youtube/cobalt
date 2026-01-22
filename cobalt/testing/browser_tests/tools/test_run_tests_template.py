@@ -76,14 +76,14 @@ class TestRunTestsTemplate(unittest.TestCase):
 
   @mock.patch('sys.argv', ['run_tests.py'])
   @mock.patch('sys.exit', side_effect=SystemExit(1))
-  @mock.patch('builtins.print')
-  def test_multiple_targets_no_selection_error(self, mock_print, mock_exit):
+  @mock.patch('logging.error')
+  def test_multiple_targets_no_selection_error(self, mock_log_error, mock_exit):
     with self.assertRaises(SystemExit):
       run_tests_template.main()
     mock_exit.assert_called_once_with(1)
-    mock_print.assert_any_call(
-        'Error: Multiple targets available. '
-        "Please specify one: ['android_target', 'linux_target']")
+    mock_log_error.assert_any_call(
+        'Multiple targets available. Please specify one: %s',
+        ['android_target', 'linux_target'])
 
   @mock.patch('os.path.abspath', return_value='/tmp/stage')
   @mock.patch('os.path.isfile', return_value=True)
