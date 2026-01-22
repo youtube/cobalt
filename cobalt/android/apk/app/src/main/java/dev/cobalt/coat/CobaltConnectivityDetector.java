@@ -28,7 +28,8 @@ import org.chromium.content_public.browser.WebContents;
 
 public class CobaltConnectivityDetector {
   private static final String TAG = "CobaltConnectivityDetector";
-  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000; // 5-second overall timeout.
+  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000;
+  private static final int NETWORK_CHECK_OVERALL_TIMEOUT_MS = 10000;
   private static final String DEFAULT_PROBE_URL = "https://www.google.com/generate_204";
   private static final String FALLBACK_PROBE_URL =
       "http://connectivitycheck.gstatic.com/generate_204";
@@ -58,9 +59,6 @@ public class CobaltConnectivityDetector {
                 Callable<Boolean> networkProbe =
                     () -> {
                       for (String urlString : PROBE_URLS) {
-                        if (Thread.currentThread().isInterrupted()) {
-                          throw new InterruptedException("Network probe interrupted.");
-                        }
                         if (performSingleProbe(urlString)) {
                           return true;
                         }
@@ -70,23 +68,22 @@ public class CobaltConnectivityDetector {
 
                 Future<Boolean> probeFuture = probeExecutor.submit(networkProbe);
                 boolean success =
-                    probeFuture.get(NETWORK_CHECK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                    probeFuture.get(NETWORK_CHECK_OVERALL_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 
                 if (success) {
                   handleSuccess();
                 } else {
                   handleFailure();
                 }
-              // Don't raise the error dialog if the thread is intentionally interrupted.
-              // Otherwise handleFailure() for timeout exceptions and all other exceptions.
               } catch (TimeoutException e) {
                 handleFailure();
-              } catch (Exception e) {
-                if (e instanceof InterruptedException || e instanceof java.util.concurrent.CancellationException) {
-                  Thread.currentThread().interrupt(); // Preserve interrupt status.
-                } else {
-                  Log.w(TAG, "Connectivity check failed with exception: " + e.getClass().getName(), e);
-                  handleFailure();
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                Log.e(TAG, "Active Network Check threw an InterruptedException", e);
+              } catch (java.util.concurrent.ExecutionException e) {
+                Log.e(TAG, "Active Network Check threw an ExecutionException", e.getCause());
+                if (e.getCause() instanceof InterruptedException) {
+                  Thread.currentThread().interrupt();
                 }
               } finally {
                 // This is crucial. It ensures the probe thread is discarded.
