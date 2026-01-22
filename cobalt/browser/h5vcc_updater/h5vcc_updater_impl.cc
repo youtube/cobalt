@@ -148,7 +148,7 @@ void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
   }
   std::move(callback).Run(updater_module->GetAllowSelfSignedPackages());
 #else
-  std::move(callback).Run("");
+  std::move(callback).Run(false);
   NOTIMPLEMENTED();
 #endif
 }
@@ -211,7 +211,7 @@ void H5vccUpdaterImpl::GetRequireNetworkEncryption(
   }
   std::move(callback).Run(updater_module->GetRequireNetworkEncryption());
 #else
-  std::move(callback).Run("");
+  std::move(callback).Run(false);
   NOTIMPLEMENTED();
 #endif
 }
