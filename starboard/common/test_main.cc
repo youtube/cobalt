@@ -21,6 +21,7 @@
 
 #if BUILDFLAG(IS_IOS_TVOS)
 #include "base/command_line.h"  // nogncheck
+#include "base/functional/bind.h"
 #include "base/test/test_support_ios.h"
 #include "starboard/tvos/shared/starboard_test_environment.h"
 #endif  // BUILDFLAG(IS_IOS_TVOS)
@@ -29,10 +30,24 @@ namespace {
 int InitAndRunAllTests(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
 #if BUILDFLAG(IS_IOS_TVOS)
-  ::testing::AddGlobalTestEnvironment(
-      new starboard::StarboardTestEnvironment(argc, argv));
-#endif  // BUILDFLAG(IS_IOS_TVOS)
+  // tvOS tests need to invoke UIApplicationMain() to set up the main loop and
+  // the rest of the expected infrastructure. Invoke InitAndRunAllTests() via
+  // the code in //base/test that takes care of all the initial iOS/tvOS setup.
+  //
+  // This code is based on //base/test/launcher/unit_test_launcher_ios.cc.
+  CHECK(base::CommandLine::InitializedForCurrentProcess() ||
+        base::CommandLine::Init(argc, argv));
+  base::InitIOSRunHook(base::BindOnce(
+      [](int argc, char** argv) {
+        ::testing::AddGlobalTestEnvironment(
+            new starboard::StarboardTestEnvironment(argc, argv));
+        return RUN_ALL_TESTS();
+      },
+      argc, argv));
+  return base::RunTestsFromIOSApp();
+#else
   return RUN_ALL_TESTS();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 }
 }  // namespace
 
@@ -49,19 +64,6 @@ int main(int argc, char** argv) {
 #else
 // If the OS is not Starboard use the regular main e.g. ATV.
 int main(int argc, char** argv) {
-#if BUILDFLAG(IS_IOS_TVOS)
-  // tvOS tests need to invoke UIApplicationMain() to set up the main loop and
-  // the rest of the expected infrastructure. Invoke InitAndRunAllTests() via
-  // the code in //base/test that takes care of all the initial iOS/tvOS setup.
-  //
-  // This code was copied from //base/test/launcher/unit_test_launcher_ios.cc.
-  CHECK(base::CommandLine::InitializedForCurrentProcess() ||
-        base::CommandLine::Init(argc, argv));
-  base::InitIOSRunHook(base::BindOnce(&InitAndRunAllTests, argc, argv));
-  int return_value = base::RunTestsFromIOSApp();
-#else
-  int return_value = InitAndRunAllTests(argc, argv);
-#endif  // BUILDFLAG(IS_IOS_TVOS)
-  return return_value;
+  return InitAndRunAllTests(argc, argv);
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
