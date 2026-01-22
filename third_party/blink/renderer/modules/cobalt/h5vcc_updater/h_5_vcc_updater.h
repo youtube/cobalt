@@ -80,9 +80,9 @@ class MODULES_EXPORT H5vccUpdater final
   void OnSetUpdateServerUrl(ScriptPromiseResolver*);
   void OnGetRequireNetworkEncryption(ScriptPromiseResolver*, bool);
   void OnSetRequireNetworkEncryption(ScriptPromiseResolver*);
-  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
   void OnConnectionError();
   void EnsureReceiverIsBound();
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
 };

@@ -14,9 +14,7 @@
 
 // Custom API for getting and setting Evergreen update settings.
 // A disconnect handler in the renderer will reject all pending promises with a
-// "Mojo connection error" if called from a non-Evergreen build. Similarly,
-// sideloading only APIs will reject with the same failure if called from a
-// non-sideloading enabled build.
+// "API not supported for this platform." if called from a non-Evergreen build.
 
 interface H5vccUpdater {
   [CallWith=ScriptState, RaisesException]

@@ -320,11 +320,15 @@ void H5vccUpdater::EnsureReceiverIsBound() {
 void H5vccUpdater::OnConnectionError() {
   remote_h5vcc_updater_.reset();
   HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_updater_promises;
-  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // Script may execute during a call to Reject(). Swap these sets to prevent
   // concurrent modification.
   ongoing_requests_.swap(h5vcc_updater_promises);
   for (auto& resolver : h5vcc_updater_promises) {
+#if BUILDFLAG(USE_EVERGREEN)
     resolver->Reject("Mojo connection error.");
+#else
+    resolver->Reject("API not supported for this platform.");
+#endif
   }
   ongoing_requests_.clear();
 }
