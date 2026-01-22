@@ -18,17 +18,16 @@ import dev.cobalt.util.Log;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.chromium.content_public.browser.WebContents;
 
 public class CobaltConnectivityDetector {
   private static final String TAG = "CobaltConnectivityDetector";
-  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000; // 5-second overall timeout.
+
+  private static final int NETWORK_CHECK_TIMEOUT_MS = 5000; 
+
   private static final String DEFAULT_PROBE_URL = "https://www.google.com/generate_204";
   private static final String FALLBACK_PROBE_URL =
       "http://connectivitycheck.gstatic.com/generate_204";
@@ -55,41 +54,24 @@ public class CobaltConnectivityDetector {
     managementFuture =
         managementExecutor.submit(
             () -> {
-              ExecutorService probeExecutor = Executors.newSingleThreadExecutor();
-              try {
-                Callable<Boolean> networkProbe =
-                    () -> {
-                      for (String urlString : PROBE_URLS) {
-                        if (Thread.currentThread().isInterrupted()) {
-                          return false;
-                        }
-                        if (performSingleProbe(urlString)) {
-                          return true;
-                        }
-                      }
-                      return false;
-                    };
-
-                Future<Boolean> probeFuture = probeExecutor.submit(networkProbe);
-                boolean success =
-                    probeFuture.get(NETWORK_CHECK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-
-                if (success) {
-                  handleSuccess();
-                } else {
-                  handleFailure();
+              boolean success = false;
+              
+              for (String urlString : PROBE_URLS) {
+                // Check if we were cancelled (e.g. app paused)
+                if (Thread.currentThread().isInterrupted()) {
+                  return;
                 }
-              } catch (TimeoutException e) {
-                handleFailure();
-              } catch (Exception e) {
-                if (e instanceof InterruptedException) {
-                  Thread.currentThread().interrupt(); // Preserve interrupt status.
+
+                if (performSingleProbe(urlString)) {
+                  success = true;
+                  break;
                 }
-                Log.w(TAG, "Connectivity check failed with exception: " + e.getClass().getName(), e);
+              }
+
+              if (success) {
+                handleSuccess();
+              } else {
                 handleFailure();
-              } finally {
-                // This is crucial. It ensures the probe thread is discarded.
-                probeExecutor.shutdownNow();
               }
             });
   }
@@ -110,10 +92,12 @@ public class CobaltConnectivityDetector {
             }
             mShouldReloadOnResume = false;
           }
+          mHasEncounteredConnectivityError = false; 
         });
   }
 
   private void handleFailure() {
+    // Only set this to true, don't toggle it off here (handled in success)
     mHasEncounteredConnectivityError = true;
     activity.runOnUiThread(
         () -> {
@@ -138,17 +122,22 @@ public class CobaltConnectivityDetector {
     try {
       URL url = new URL(urlString);
       urlConnection = (HttpURLConnection) url.openConnection();
-      // Shorter timeouts for connect/read, the overall timeout is the main guard.
-      urlConnection.setConnectTimeout(4000);
-      urlConnection.setReadTimeout(4000);
+      
+      // Use the constant for the socket timeout.
+      // This ensures we wait 5s for Google, and if that fails, 
+      // we wait another 5s for the Fallback.
+      urlConnection.setConnectTimeout(NETWORK_CHECK_TIMEOUT_MS);
+      urlConnection.setReadTimeout(NETWORK_CHECK_TIMEOUT_MS);
+      
       urlConnection.setInstanceFollowRedirects(false);
       urlConnection.setRequestMethod("GET");
       urlConnection.setUseCaches(false);
       urlConnection.connect();
+      
       int responseCode = urlConnection.getResponseCode();
-      // We just need a valid response, not necessarily 204.
       return responseCode >= 200 && responseCode < 400;
     } catch (IOException e) {
+      Log.w(TAG, "Probe failed for " + urlString + ": " + e.getMessage());
       return false;
     } finally {
       if (urlConnection != null) {
@@ -158,6 +147,10 @@ public class CobaltConnectivityDetector {
   }
 
   public void destroy() {
+    // Ensure we cancel the future before shutting down
+    if (managementFuture != null) {
+      managementFuture.cancel(true);
+    }
     managementExecutor.shutdownNow();
   }
 }
