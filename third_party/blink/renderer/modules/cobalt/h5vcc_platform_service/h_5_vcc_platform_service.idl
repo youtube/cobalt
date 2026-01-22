@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This interface mirrors the H5vccPlatformService interface from 25.lts.stable:
+// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_platform_service.idl.
+// To adhere to web and Chromium best practices we may consider changing these
+// APIs to be asynchronous (return promises). At the time of writing it was
+// deemed too expensive to migrate existing web clients to async APIs.
 [
   Exposed=Window,
   SecureContext,

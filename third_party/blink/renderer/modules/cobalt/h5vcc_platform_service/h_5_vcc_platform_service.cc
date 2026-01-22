@@ -234,7 +234,17 @@ void H5vccPlatformService::ContextDestroyed() {
 }
 
 void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
-  if (!receive_callback_ || !GetExecutionContext()) {
+  if (!receive_callback_) {
+    DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+                  << "message for " << service_name_ << " because the JS "
+                  << "callback is not set. The service was probably closed.";
+    return;
+  }
+
+  if (!GetExecutionContext()) {
+    DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+                  << "message for " << service_name_ << " because the "
+                  << "ExecutionContext is no longer valid.";
     return;
   }
 
