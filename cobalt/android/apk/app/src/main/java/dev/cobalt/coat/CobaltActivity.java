@@ -367,7 +367,6 @@ public abstract class CobaltActivity extends Activity {
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
 
-    Log.i(TAG, "Charley: onCreate() activeNetworkCheck()");
     cobaltConnectivityDetector.activeNetworkCheck();
   }
 
