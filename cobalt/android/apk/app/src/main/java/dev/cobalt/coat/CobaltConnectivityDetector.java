@@ -36,8 +36,6 @@ public class CobaltConnectivityDetector {
 
   private final CobaltActivity activity;
   private PlatformError platformError;
-  protected boolean mShouldReloadOnResume = false;
-  private volatile boolean mHasEncounteredConnectivityError = false;
 
   private final ExecutorService managementExecutor = Executors.newSingleThreadExecutor();
   private Future<?> managementFuture;
@@ -102,19 +100,15 @@ public class CobaltConnectivityDetector {
             platformError.setResponse(PlatformError.POSITIVE);
             platformError.dismiss();
             platformError = null;
-          }
-          if (mShouldReloadOnResume && mHasEncounteredConnectivityError) {
             WebContents webContents = activity.getActiveWebContents();
             if (webContents != null) {
               webContents.getNavigationController().reload(true);
             }
-            mShouldReloadOnResume = false;
           }
         });
   }
 
   private void handleFailure() {
-    mHasEncounteredConnectivityError = true;
     activity.runOnUiThread(
         () -> {
           if (platformError == null || !platformError.isShowing()) {
@@ -126,11 +120,6 @@ public class CobaltConnectivityDetector {
             platformError.raise();
           }
         });
-    mShouldReloadOnResume = true;
-  }
-
-  public void setShouldReloadOnResume(boolean shouldReload) {
-    mShouldReloadOnResume = shouldReload;
   }
 
   private boolean performSingleProbe(String urlString) {
