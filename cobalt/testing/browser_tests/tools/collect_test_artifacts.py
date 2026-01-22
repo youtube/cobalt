@@ -74,7 +74,6 @@ def generate_runner_py(dst_path, target_map):
     content = f.read()
 
     # Inject the target map into the template.
-
     target_map_repr = repr(target_map)
 
     content = content.replace('TARGET_MAP = {}',
@@ -103,6 +102,16 @@ def copy_if_needed(src, dst, copied_sources):
 
 
 def main():
+  """Main entrypoint for collecting test artifacts.
+
+  This function:
+  1. Parses command-line arguments for build directories and output name.
+  2. Identifies runtime dependencies for each target.
+  3. Copies binaries, resources, and dependencies to a temporary stage.
+  4. Bundles depot_tools and necessary build scripts.
+  5. Generates a portable 'run_tests.py' script.
+  6. Packages everything into a compressed tarball.
+  """
   parser = argparse.ArgumentParser(description='Collect test artifacts.')
   parser.add_argument(
       'build_dirs',
