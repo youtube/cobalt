@@ -53,6 +53,7 @@ public class PlatformError
   // Button IDs for CONNECTION_ERROR
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
+  private static final int DISMISS_BUTTON = 3;
 
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
@@ -97,7 +98,8 @@ public class PlatformError
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
-            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
+            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings)
+            .addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
         break;
       default:
         Log.e(TAG, "Unknown platform error " + mErrorType);
@@ -128,14 +130,12 @@ public class PlatformError
         case NETWORK_SETTINGS_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
-            cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
             try {
               cobaltActivity.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));
             } catch (ActivityNotFoundException e) {
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
           }
-          mDialog.dismiss();
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
@@ -151,6 +151,10 @@ public class PlatformError
           }
           mDialog.dismiss();
           break;
+        case DISMISS_BUTTON:
+          mResponse = POSITIVE;
+          mDialog.dismiss();
+          break;
         default: // fall out
       }
     }
@@ -161,7 +165,6 @@ public class PlatformError
     mDialog = null;
       CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
       if (cobaltActivity != null && mResponse == CANCELLED) {
-        cobaltActivity.getCobaltConnectivityDetector().setShouldReloadOnResume(true);
         cobaltActivity.getStarboardBridge().requestSuspend();
       }
   }

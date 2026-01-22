@@ -366,6 +366,8 @@ public abstract class CobaltActivity extends Activity {
     videoSurfaceView = new VideoSurfaceView(this);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+    cobaltConnectivityDetector.activeNetworkCheck();
   }
 
   /**
@@ -488,7 +490,6 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    cobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
