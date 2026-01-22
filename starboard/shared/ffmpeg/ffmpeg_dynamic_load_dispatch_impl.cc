@@ -185,7 +185,8 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
     LibraryMajorVersions& versions = version_iterator->second;
     std::string library_file =
         GetVersionedLibraryName(kAVUtilLibraryName, versions.avutil);
-    avutil_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    avutil_ =
+        dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
     if (!avutil_) {
       SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
       reset_av_libraries();
@@ -194,7 +195,8 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
 
     library_file =
         GetVersionedLibraryName(kAVCodecLibraryName, versions.avcodec);
-    avcodec_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    avcodec_ =
+        dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
     if (!avcodec_) {
       SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
       reset_av_libraries();
@@ -203,7 +205,8 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
 
     library_file =
         GetVersionedLibraryName(kAVFormatLibraryName, versions.avformat);
-    avformat_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
+    avformat_ =
+        dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
     if (!avformat_) {
       SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
       reset_av_libraries();
@@ -224,21 +227,23 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
   // supported library is not available. Additionally, if this results in a
   // library version being loaded that is not supported, then the decoder
   // instantiation can output a more informative log message.
-  avutil_ = dlopen(kAVUtilLibraryName, RTLD_NOW | RTLD_GLOBAL);
+  avutil_ = dlopen(kAVUtilLibraryName, RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
   if (!avutil_) {
     SB_DLOG(WARNING) << "Unable to open shared library " << kAVUtilLibraryName;
     reset_av_libraries();
     return false;
   }
 
-  avcodec_ = dlopen(kAVCodecLibraryName, RTLD_NOW | RTLD_GLOBAL);
+  avcodec_ =
+      dlopen(kAVCodecLibraryName, RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
   if (!avcodec_) {
     SB_DLOG(WARNING) << "Unable to open shared library " << kAVCodecLibraryName;
     reset_av_libraries();
     return false;
   }
 
-  avformat_ = dlopen(kAVFormatLibraryName, RTLD_NOW | RTLD_GLOBAL);
+  avformat_ =
+      dlopen(kAVFormatLibraryName, RTLD_NOW | RTLD_GLOBAL | RTLD_DEEPBIND);
   if (!avformat_) {
     SB_DLOG(WARNING) << "Unable to open shared library "
                      << kAVFormatLibraryName;
