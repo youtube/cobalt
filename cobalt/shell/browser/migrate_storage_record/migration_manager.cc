@@ -87,8 +87,8 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
 
   auto bytes = std::vector<char>(record_size);
   const auto read_result = record->Read(bytes.data(), bytes.size());
-  static_assert(std::is_same<decltype(read_result),
-                             decltype(record_size)>::value,
+  static_assert(
+      std::is_same<decltype(read_result), decltype(record_size)>::value,
       "StorageRecord::Read() and ::GetSize() return types should be the same.");
   record->Delete();
   if (read_result < 0 || read_result != record_size) {
