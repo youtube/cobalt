@@ -12,11 +12,6 @@ runs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 1
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
-      with:
-        driver-opts: |
-          image=ghcr.io/youtube/cobalt/moby-buildkit-mirror:main
     - name: Set env vars
       run: |
         set -x
