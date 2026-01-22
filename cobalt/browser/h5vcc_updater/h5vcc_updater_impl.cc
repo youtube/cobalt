@@ -28,10 +28,6 @@
 #include "starboard/system.h"
 #endif
 
-namespace {
-const uint16_t kInvalidInstallationIndex = 1000;
-}
-
 namespace h5vcc_updater {
 
 H5vccUpdaterImpl::H5vccUpdaterImpl(
@@ -122,6 +118,7 @@ void H5vccUpdaterImpl::GetInstallationIndex(
     GetInstallationIndexCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(USE_EVERGREEN)
+  const uint16_t kInvalidInstallationIndex = 1000;
   auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
   if (!updater_module) {
     std::move(callback).Run(kInvalidInstallationIndex);
@@ -227,7 +224,11 @@ void H5vccUpdaterImpl::SetRequireNetworkEncryption(
 void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,
                                         GetLibrarySha256Callback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(USE_EVERGREEN)
   std::move(callback).Run(cobalt::updater::GetLibrarySha256(index));
+#else
+  NOTIMPLEMENTED();
+#endif
 }
 
 }  // namespace h5vcc_updater
