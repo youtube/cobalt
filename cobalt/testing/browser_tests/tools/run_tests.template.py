@@ -23,6 +23,18 @@ logging.basicConfig(
 
 
 def main():
+  """Main entrypoint for the portable test runner.
+
+  This function performs the following steps:
+  1. Sets up the environment (PATH, CHROME_SRC).
+  2. Selects the target platform to run tests for.
+  3. Resolves paths for runtime dependencies and test runners.
+  4. Configures LD_LIBRARY_PATH for shared library resolution.
+  5. Executes the platform-specific test runner (Android or Linux).
+
+  Returns:
+    The exit code of the test runner process.
+  """
   script_dir = os.path.dirname(os.path.abspath(__file__))
 
   # 1. Setup Environment

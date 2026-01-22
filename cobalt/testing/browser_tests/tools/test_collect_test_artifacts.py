@@ -4,10 +4,11 @@
 # Tests for collect_test_artifacts.py.
 """Tests for the collect_test_artifacts script."""
 
-import unittest
-from unittest import mock
 import os
 from pathlib import Path
+import unittest
+from unittest import mock
+
 import collect_test_artifacts
 
 
