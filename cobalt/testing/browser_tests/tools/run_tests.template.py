@@ -75,15 +75,8 @@ def main():
   deps_path = os.path.join(src_dir, target_config["deps"])
   test_runner = os.path.join(src_dir, target_config["runner"])
 
-  # Resolve the specific build root for this target (one level above 'out/')
-  target_build_root = os.path.dirname(target_config["runner"])
-  while target_build_root:
-    parent = os.path.dirname(target_build_root)
-    if os.path.basename(parent) == "out" or parent == target_build_root:
-      break
-    target_build_root = parent
-
-  target_build_root_abs = os.path.join(src_dir, target_build_root)
+  # Resolve the specific build root for this target.
+  target_build_root_abs = os.path.join(src_dir, target_config["build_dir"])
   starboard_dir = os.path.join(target_build_root_abs, "starboard")
 
   if not os.path.isfile(deps_path):

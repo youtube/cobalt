@@ -26,12 +26,14 @@ class TestRunTestsTemplate(unittest.TestCase):
         'android_target': {
             'is_android': True,
             'deps': 'gen/deps.runtime_deps',
-            'runner': 'bin/run_test'
+            'runner': 'bin/run_test',
+            'build_dir': 'out/android'
         },
         'linux_target': {
             'is_android': False,
             'deps': 'gen/linux.runtime_deps',
-            'runner': 'cobalt_browsertests'
+            'runner': 'cobalt_browsertests',
+            'build_dir': 'out/linux'
         }
     }
     # Reset TARGET_MAP for each test
@@ -96,7 +98,8 @@ class TestRunTestsTemplate(unittest.TestCase):
         'single': {
             'is_android': True,
             'deps': 'd',
-            'runner': 'r'
+            'runner': 'r',
+            'build_dir': 'out/single'
         }
     }
     run_tests_template.main()
