@@ -217,6 +217,7 @@ test("cobalt_browsertests") {
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
     "navigation_browsertest.cc",
+
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
     #"site_per_process_browsertest.h",
