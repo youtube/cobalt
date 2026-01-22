@@ -56,7 +56,7 @@
           return;
         }
         const mediaSource = new MediaSource();
-        mediaSource.addEventListener('sourceopen', () => {
+        mediaSource.addEventListener('sourceopen', async () => {
           const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
           // Get cache from the html itself's URL parameter.
           // TODO(463395742): Set the fallback suffix depending on the device spec.
@@ -64,26 +64,24 @@
           if (!params.has('cache')) {
             params.append('cache', 'default');
           }
-          fetch('h5vcc-embedded://splash.webm?' + params.toString())
-            .then(response => {
-              if (!response.ok) {
-                throw new Error('Network response was not ok');
+          try {
+            const response = await fetch(
+                'h5vcc-embedded://splash.webm?' + params.toString());
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            const data = await response.arrayBuffer();
+            sourceBuffer.addEventListener('updateend', () => {
+              if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
+                mediaSource.endOfStream();
+                videoEl.play();
+                afterVideoStart && afterVideoStart();
               }
-              return response.arrayBuffer();
-            })
-            .then(data => {
-              sourceBuffer.addEventListener('updateend', () => {
-                if (!sourceBuffer.updating && mediaSource.readyState === 'open') {
-                  mediaSource.endOfStream();
-                  videoEl.play();
-                  afterVideoStart && afterVideoStart();
-                }
-              });
-              sourceBuffer.appendBuffer(data);
-            })
-            .catch(error => {
-              console.error('Failed to fetch splash video:', error);
             });
+            sourceBuffer.appendBuffer(data);
+          } catch (error) {
+            console.error('Failed to fetch splash video:', error);
+          }
         });
 
         videoEl.src = objectUrlFromSafeSource(mediaSource).toString();

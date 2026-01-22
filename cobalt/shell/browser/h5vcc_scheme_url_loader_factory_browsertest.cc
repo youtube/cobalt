@@ -48,7 +48,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     ContentBrowserTest::TearDown();
   }
 
-  std::string GetScript(const std::string& /*url*/) {
+  std::string GetVideoDimension() {
     return R"(
       (async () => {
         try {
@@ -138,9 +138,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest, LoadSplashHtml) {
 
   // Verify that the URL matches.
   EXPECT_EQ(splash_url, shell()->web_contents()->GetLastCommittedURL());
-  EXPECT_EQ("Dimensions: 1920x1080",
-            EvalJs(shell(), GetScript(std::string(kH5vccEmbeddedScheme) +
-                                      "://splash.webm")));
+  EXPECT_EQ("Dimensions: 1920x1080", EvalJs(shell(), GetVideoDimension()));
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
@@ -151,7 +149,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 
   // Verify fallback for the low spec devices, where Cobalt should
   // play the low resolution splash.
-  EXPECT_EQ("Dimensions: 853x480", EvalJs(shell(), GetScript("")));
+  EXPECT_EQ("Dimensions: 853x480", EvalJs(shell(), GetVideoDimension()));
 }
 
 // If not specified, use cache "default".
