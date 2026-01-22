@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "base/base64.h"
+#include "base/containers/span.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
@@ -108,7 +109,7 @@ class BlobReader : public blink::mojom::BlobReaderClient {
  private:
   void OnDataAvailable(MojoResult result,
                        const mojo::HandleSignalsState& state) {
-    constexpr uint32_t kReadBufferSize = 256;
+    constexpr uint32_t kReadBufferSize = 64 * 1024;
     if (result != MOJO_RESULT_OK) {
       watcher_.reset();
       consumer_handle_.reset();
@@ -123,9 +124,9 @@ class BlobReader : public blink::mojom::BlobReaderClient {
 
     while (true) {
       uint8_t buffer[kReadBufferSize];
-      size_t num_bytes = sizeof(buffer);
+      size_t num_bytes = 0;
       MojoResult read_result = consumer_handle_->ReadData(
-          MOJO_READ_DATA_FLAG_NONE, buffer, num_bytes);
+          MOJO_READ_DATA_FLAG_NONE, base::span(buffer), num_bytes);
       if (read_result == MOJO_RESULT_SHOULD_WAIT) {
         watcher_->Arm();
         return;
