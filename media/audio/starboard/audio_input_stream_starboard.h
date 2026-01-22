@@ -63,7 +63,7 @@ class AudioInputStreamStarboard : public AgcAudioStream<AudioInputStream> {
   // want circular references.  Additionally, stream objects live on the audio
   // thread, which is owned by the audio manager and we don't want to addref
   // the manager from that thread.
-  raw_ptr<AudioManagerBase> audio_manager_;
+  const raw_ptr<AudioManagerBase> audio_manager_;
   const AudioParameters params_;
   base::TimeDelta buffer_duration_;  // Length of each recorded buffer.
   raw_ptr<AudioInputCallback> callback_ = nullptr;

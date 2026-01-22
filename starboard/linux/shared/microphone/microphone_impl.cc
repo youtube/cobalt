@@ -31,13 +31,17 @@ constexpr int kChannels = 1;
 constexpr int kFramesPerBuffer = kSampleRateInHz / 100;
 constexpr int kMinReadSizeBytes =
     kFramesPerBuffer * kChannels * sizeof(int16_t);
+// We request a buffer twice the size of a single read to allow for double-
+// buffering
+constexpr int kBufferSizeMultiplier = 2;
 
 Unexpected<std::string> SndError(const std::string& method_name, int error) {
   return Failure(method_name + " failed: " + snd_strerror(error));
 }
 
 Result<void> OpenPcm(snd_pcm_t*& handle) {
-  int error = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE, 0);
+  int error = snd_pcm_open(&handle, "default", SND_PCM_STREAM_CAPTURE,
+                           /*mode=SND_PCM_NONBLOCK*/ 0);
   if (error < 0) {
     handle = nullptr;
     return SndError("snd_pcm_open", error);
@@ -82,7 +86,8 @@ Result<void> OpenPcm(snd_pcm_t*& handle) {
     return SndError("snd_pcm_hw_params_set_period_size_near", error);
   }
 
-  snd_pcm_uframes_t buffer_size_in_frames = period_size_in_frames * 2;
+  snd_pcm_uframes_t buffer_size_in_frames =
+      period_size_in_frames * kBufferSizeMultiplier;
   error = snd_pcm_hw_params_set_buffer_size_near(handle, hw_params,
                                                  &buffer_size_in_frames);
   if (error < 0) {
@@ -147,11 +152,23 @@ class SbMicrophoneImpl : public SbMicrophonePrivate {
   }
 
   bool Close() override {
-    if (handle_) {
-      snd_pcm_drop(handle_);
-      snd_pcm_close(handle_);
-      handle_ = nullptr;
+    if (!handle_) {
+      return true;
     }
+
+    int error = snd_pcm_drop(handle_);
+    if (error != 0) {
+      SB_LOG(WARNING) << "snd_pcm_drop failed, but we ignore it: "
+                      << snd_strerror(error);
+    }
+
+    error = snd_pcm_close(handle_);
+    if (error != 0) {
+      SB_LOG(WARNING) << "snd_pcm_close failed, but we ignore it: "
+                      << snd_strerror(error);
+    }
+
+    handle_ = nullptr;
     return true;
   }
 
@@ -216,6 +233,7 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
   void** hints;
   int error = snd_device_name_hint(-1, "pcm", &hints);
   if (error != 0) {
+    SB_LOG(WARNING) << "snd_device_name_hint failed:" << snd_strerror(error);
     return 0;
   }
 

@@ -71,7 +71,7 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
 
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
   SB_LOG(INFO) << "AudioInputStreamStarboard::Start()";
-  DCHECK(!callback_ && callback);
+  CHECK(!callback_ && callback);
   callback_ = callback;
   if (!SbMicrophoneOpen(microphone_)) {
     SB_LOG(ERROR) << "SbMicrophoneOpen Failed";
@@ -160,8 +160,8 @@ void AudioInputStreamStarboard::HandleError(const char* method) {
 }
 
 void AudioInputStreamStarboard::ReadAudio() {
-  DCHECK(capture_thread_.task_runner()->BelongsToCurrentThread());
-  DCHECK(callback_);
+  CHECK(capture_thread_.task_runner()->BelongsToCurrentThread());
+  CHECK(callback_);
   if (!running_) {
     return;
   }
@@ -174,21 +174,21 @@ void AudioInputStreamStarboard::ReadAudio() {
 
   if (bytes_read > 0) {
     int frames_read = bytes_read / (params_.channels() * sizeof(int16_t));
-    DCHECK_LE(frames_read, params_.frames_per_buffer());
+    CHECK_LE(frames_read, params_.frames_per_buffer());
 
     audio_bus_->FromInterleaved<SignedInt16SampleTypeTraits>(buffer_.data(),
                                                              frames_read);
 
     callback_->OnData(audio_bus_.get(), base::TimeTicks::Now(), 1.0, {});
 
-    // Schedule the next read based on an absolute deadline.
-    next_read_time_ += buffer_duration_;
-    base::TimeTicks now = base::TimeTicks::Now();
-    if (next_read_time_ < now) {
-      // The read callback is behind schedule. Schedule the next one to run
-      // immediately to catch up.
-      next_read_time_ = now;
-    }
+    // If the read callback is behind schedule. Schedule the next one to run
+    // immediately to catch up.
+    next_read_time_ =
+        std::max(base::TimeTicks::Now(), next_read_time_ + buffer_duration_);
+
+    // base::Unretained is safe here because the AudioInputStreamStarboard owns
+    // capture_thread_, and the thread is stopped before this object is
+    // destroyed, guaranteeing the callback will not run on a dangling pointer.
     capture_thread_.task_runner()->PostDelayedTaskAt(
         base::subtle::PostDelayedTaskPassKey(), FROM_HERE,
         base::BindOnce(&AudioInputStreamStarboard::ReadAudio,
