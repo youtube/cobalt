@@ -246,6 +246,9 @@ std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
     } else {
       FlushToken(currentToken, result);
 
+      // ICU patterns for some locales may include a space after a colon in time
+      // formats (e.g., "H: mm"), which is not typical in POSIX. This removes
+      // that space to improve compatibility.
       if (c == kSpace && !result.empty() && result.back() == ':') {
         continue;
       }
@@ -434,13 +437,10 @@ std::string GetPosixPattern(const std::string& locale, nl_item item) {
       icu_pattern = GetPatternFromSkeleton(locale, kTAmPmPattern);
       break;
     default:
+      SB_LOG(WARNING)
+          << "GetPosixPattern was called with an unsupported nl_item: " << item
+          << ". Returning the empty string.";
       icu_pattern = "";
-  }
-  if (icu_pattern == "") {
-    SB_LOG(WARNING)
-        << "The icu_pattern generated is the empty string. Check that "
-           "GetPosixPattern received a supported nl_item, or that "
-           "GetPatternFromStyle or GetPatternFromSkeleton were successful.";
   }
 
   std::string converted_pattern = IcuPatternToPosix(icu_pattern);
