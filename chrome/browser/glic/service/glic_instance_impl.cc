@@ -17,6 +17,7 @@
 #include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
 #include "chrome/browser/glic/fre/glic_fre_controller.h"
+#include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_zero_state_suggestions_manager.h"
 #include "chrome/browser/glic/host/context/glic_active_pinned_focused_tab_manager.h"
@@ -87,6 +88,11 @@ namespace {
 EmbedderKey CreateSidePanelEmbedderKey(tabs::TabInterface* tab) {
   CHECK(tab);
   return EmbedderKey(tab);
+}
+
+bool IsTrustFirstOnboardingPending(Profile* profile) {
+  return base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding) &&
+         !GlicEnabling::HasConsentedForProfile(profile);
 }
 }  // namespace
 
@@ -338,6 +344,9 @@ void GlicInstanceImpl::Close(EmbedderKey key) {
   if (!embedder) {
     return;
   }
+  if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
+    service_->metrics()->OnTrustFirstOnboardingDismissed();
+  }
   instance_metrics_.OnClose();
   embedder->Close();
 }
@@ -345,6 +354,11 @@ void GlicInstanceImpl::Close(EmbedderKey key) {
 bool GlicInstanceImpl::Toggle(ShowOptions&& options,
                               bool prevent_close,
                               glic::mojom::InvocationSource source) {
+  if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding) &&
+      !service_->enabling().HasConsentedForProfile(profile_)) {
+    service_->metrics()->OnTrustFirstOnboardingShown();
+  }
+
   instance_metrics_.OnToggle(source, options, IsShowing());
   EmbedderKey key = GetEmbedderKey(options);
   // Close instance on toggle when it has an active embedder.
@@ -429,8 +443,17 @@ tabs::TabInterface* GlicInstanceImpl::CreateTab(
     }
   }
 
+  bool is_onboarding = IsTrustFirstOnboardingPending(profile_);
+
   tabs::TabInterface* created_tab = service_->CreateTab(
-      url, open_in_background, window_id, std::move(callback));
+      url, open_in_background || is_onboarding, window_id, std::move(callback));
+
+  // Prevent links clicked inside the side panel during the onboarding from
+  // being daisy chained.
+  if (is_onboarding) {
+    return nullptr;
+  }
+
   if (!created_tab) {
     instance_metrics_.OnDaisyChain(DaisyChainSource::kGlicContents,
                                    /*success=*/false, nullptr, source_tab);
