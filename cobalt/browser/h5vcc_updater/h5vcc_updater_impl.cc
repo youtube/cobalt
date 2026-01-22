@@ -58,6 +58,7 @@ void H5vccUpdaterImpl::GetUpdaterChannel(GetUpdaterChannelCallback callback) {
   }
   std::move(callback).Run(updater_module->GetUpdaterChannel());
 #else
+  std::move(callback).Run("");
   NOTIMPLEMENTED();
 #endif
 }
@@ -68,9 +69,9 @@ void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
 #if BUILDFLAG(USE_EVERGREEN)
   auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
   if (updater_module) {
-    // Force an update if SetUpdaterChannel is called, even if
-    // the channel doesn't change, as long as it's not
-    // "prod"/"experiment"/"control" channel
+    // Force an update if SetUpdaterChannel() is called, even if
+    // the |channel| doesn't change, as long as it's not
+    // "prod"/"experiment"/"control"/"rollback" channel
     if (updater_module->GetUpdaterChannel().compare(channel) != 0) {
       updater_module->SetUpdaterChannel(channel);
     } else if (channel == "prod" || channel == "experiment" ||
@@ -83,6 +84,7 @@ void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
   }
   std::move(callback).Run();
 #else
+  std::move(callback).Run();
   NOTIMPLEMENTED();
 #endif
 }
@@ -97,6 +99,7 @@ void H5vccUpdaterImpl::GetUpdateStatus(GetUpdateStatusCallback callback) {
   }
   std::move(callback).Run(updater_module->GetUpdaterStatus());
 #else
+  std::move(callback).Run("");
   NOTIMPLEMENTED();
 #endif
 }
@@ -110,6 +113,7 @@ void H5vccUpdaterImpl::ResetInstallations(ResetInstallationsCallback callback) {
   }
   std::move(callback).Run();
 #else
+  std::move(callback).Run();
   NOTIMPLEMENTED();
 #endif
 }
@@ -117,8 +121,8 @@ void H5vccUpdaterImpl::ResetInstallations(ResetInstallationsCallback callback) {
 void H5vccUpdaterImpl::GetInstallationIndex(
     GetInstallationIndexCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(USE_EVERGREEN)
   const uint16_t kInvalidInstallationIndex = 1000;
+#if BUILDFLAG(USE_EVERGREEN)
   auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
   if (!updater_module) {
     std::move(callback).Run(kInvalidInstallationIndex);
@@ -126,8 +130,9 @@ void H5vccUpdaterImpl::GetInstallationIndex(
   }
   int index = updater_module->GetInstallationIndex();
   std::move(callback).Run(index == -1 ? kInvalidInstallationIndex
-                                      : static_cast<uint16_t>(index));
+                                      : base::checked_cast<uint6_t>(index));
 #else
+  std::move(callback).Run(kInvalidInstallationIndex);
   NOTIMPLEMENTED();
 #endif
 }
@@ -143,6 +148,7 @@ void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
   }
   std::move(callback).Run(updater_module->GetAllowSelfSignedPackages());
 #else
+  std::move(callback).Run("");
   NOTIMPLEMENTED();
 #endif
 }
@@ -158,6 +164,7 @@ void H5vccUpdaterImpl::SetAllowSelfSignedPackages(
   }
   std::move(callback).Run();
 #else
+  std::move(callback).Run();
   NOTIMPLEMENTED();
 #endif
 }
@@ -173,6 +180,7 @@ void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
     std::move(callback).Run("");
   }
 #else
+  std::move(callback).Run("");
   NOTIMPLEMENTED();
 #endif
 }
@@ -187,6 +195,7 @@ void H5vccUpdaterImpl::SetUpdateServerUrl(const std::string& update_server_url,
   }
   std::move(callback).Run();
 #else
+  std::move(callback).Run();
   NOTIMPLEMENTED();
 #endif
 }
@@ -202,6 +211,7 @@ void H5vccUpdaterImpl::GetRequireNetworkEncryption(
   }
   std::move(callback).Run(updater_module->GetRequireNetworkEncryption());
 #else
+  std::move(callback).Run("");
   NOTIMPLEMENTED();
 #endif
 }
@@ -217,6 +227,7 @@ void H5vccUpdaterImpl::SetRequireNetworkEncryption(
   }
   std::move(callback).Run();
 #else
+  std::move(callback).Run();
   NOTIMPLEMENTED();
 #endif
 }
@@ -227,6 +238,7 @@ void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,
 #if BUILDFLAG(USE_EVERGREEN)
   std::move(callback).Run(cobalt::updater::GetLibrarySha256(index));
 #else
+  std::move(callback).Run("");
   NOTIMPLEMENTED();
 #endif
 }
