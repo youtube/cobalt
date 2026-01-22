@@ -55,7 +55,7 @@ std::string GetApplicationKey(const GURL& url) {
 }
 
 std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
-  constexpr std::string kRecordHeader = "SAV1";
+  constexpr std::string_view kRecordHeader = "SAV1";
   constexpr size_t kRecordHeaderSize = kRecordHeader.size();
 
   GURL initial_url(
