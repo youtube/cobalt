@@ -56,35 +56,6 @@ python3 run_tests.py android-arm_devel [additional_args]
 
 If only one target was packaged, `run_tests.py` will use it by default.
 
-### Debugging
-...
-### 2. Package the Artifacts
-Generate the tarball containing all necessary test dependencies **inside the tools directory** so the Docker build can access it:
-
-```bash
-./cobalt/testing/browser_tests/tools/collect_test_artifacts.py \
-  -o cobalt/testing/browser_tests/tools/cobalt_browsertests_artifacts.tar.gz \
-  out/android-arm_devel out/linux-x64x11_devel
-```
-
-### 3. Build the Docker Image
-Build the image using the `tools` directory as the build context:
-
-```bash
-docker build -t cobalt-tests:v1 cobalt/testing/browser_tests/tools/
-```
-
-### 4. Execute Tests
-Use `docker run` to execute tests. The image uses `run_tests.py` as its entrypoint, so you only need to provide the platform name and any additional arguments.
-
-To run the packaged tests within a Docker container, the environment must have the following:
-
-1.  **Python 3**: `python3` should be installed.
-2.  **Android Tests**: `adb` and `netcat-openbsd` are required.
-3.  **Linux Tests**: GUI dependencies like `xvfb` and `openbox` are required for headless execution.
-
-Note: `depot_tools` (providing `vpython3`) is bundled within the archive, so manual installation is not required.
-
 ### Sample Dockerfile
 
 A `Dockerfile` is provided in this directory that includes all necessary dependencies for both Android and Linux test execution. You can use it as a starting point for your test environment.
