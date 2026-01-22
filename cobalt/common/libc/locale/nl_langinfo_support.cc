@@ -30,13 +30,12 @@
 namespace cobalt {
 namespace {
 
-// Constant variables used to represent their string literal counterparts.
 constexpr UChar kSpace = ' ';
-constexpr UChar kComma = ',';
 constexpr UChar kNonBreakingSpace = 0x00A0;
 constexpr UChar kNarrowNonBreakingSpace = 0x202F;
-constexpr UChar kArabicComma = 0x060C;
-constexpr UChar kMyanmarComma = 0x104A;
+
+// 0x80 is the upper limit for standard 7-bit ASCII.
+constexpr UChar32 kAsciiLimit = 0x80;
 
 // String containing the supported ICU tokens for date/time formatting strings.
 // When we try to translate an ICU token to a POSIX equivalent token, we check
@@ -143,7 +142,7 @@ icu::Locale GetCorrectICULocale(const std::string& posix_name) {
 // POSIX equivalent.
 std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
   constexpr std::array<std::pair<std::string_view, const char*>, 46>
-      kIcuToPosixMap = {
+      kIcuToPosixMapping = {
           {// Date
            {"E", "%a"},
            {"EE", "%a"},
@@ -200,7 +199,7 @@ std::string MapIcuTokenToPosix(const icu::UnicodeString& token) {
            {"zzzz", "%Z"}}};
 
   std::string token_str = ToUtf8(token);
-  for (const auto& entry : kIcuToPosixMap) {
+  for (const auto& entry : kIcuToPosixMapping) {
     if (entry.first == token_str) {
       return entry.second;
     }
@@ -247,14 +246,13 @@ std::string IcuPatternToPosix(const icu::UnicodeString& pattern) {
     } else {
       FlushToken(currentToken, result);
 
-      if (c == kComma || c == kMyanmarComma || c == kArabicComma ||
-          (c == kSpace && !result.empty() && result.back() == ':')) {
+      if (c == kSpace && !result.empty() && result.back() == ':') {
         continue;
       }
       if (c == kNonBreakingSpace || c == kNarrowNonBreakingSpace) {
         result += kSpace;
       } else {
-        if (c < 0x80) {
+        if (c < kAsciiLimit) {
           result += static_cast<char>(c);
         } else {
           result += ToUtf8(icu::UnicodeString(c));
@@ -328,6 +326,13 @@ icu::UnicodeString GetPatternFromSkeleton(const std::string& locale_id,
   }
 
   icu::UnicodeString pattern = generator->getBestPattern(skeleton, status);
+
+  if (U_FAILURE(status)) {
+    SB_LOG(WARNING) << "getBestPattern failed to generate the best pattern for "
+                       "the the skeleton. Returning the empty string.";
+    return icu::UnicodeString();
+  }
+
   return pattern;
 }
 }  // namespace
