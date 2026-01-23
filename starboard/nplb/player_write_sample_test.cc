@@ -270,29 +270,28 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   }
 
   int written_buffer_index = 0;
-  int64_t current_time_offset = 0;
   int num_of_buffers_per_write =
       player_fixture.ConvertDurationToAudioBufferCount(kDurationPerWrite);
-  int count = 0;
-  while (current_time_offset < kDurationToPlay) {
+  for (int count = 0; count < kDurationToPlay / kDurationPerWrite; ++count) {
     const int64_t kDurationToDiscard =
         count % 2 == 0 ? 1'000'000LL : std::numeric_limits<int64_t>::max();
-    count++;
+
+    int64_t current_timestamp =
+        player_fixture.GetAudioSampleTimestamp(written_buffer_index);
     // Discard from front.
     for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
-      samples.AddAudioSamples(written_buffer_index, 1, current_time_offset,
+      samples.AddAudioSamples(written_buffer_index, 1, current_timestamp,
                               kDurationToDiscard, 0);
+    }
+
+    // Discard from back.
+    for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
+      samples.AddAudioSamples(written_buffer_index, 1, current_timestamp, 0,
+                              kDurationToDiscard);
     }
 
     samples.AddAudioSamples(written_buffer_index, num_of_buffers_per_write);
     written_buffer_index += num_of_buffers_per_write;
-    current_time_offset += kDurationPerWrite;
-
-    // Discard from back.
-    for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {
-      samples.AddAudioSamples(written_buffer_index, 1, current_time_offset, 0,
-                              kDurationToDiscard);
-    }
   }
   samples.AddAudioEOS();
 
