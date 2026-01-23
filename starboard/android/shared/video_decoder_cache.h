@@ -20,6 +20,7 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <ostream>
 
 #include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_decoder.h"
@@ -35,27 +36,33 @@ class VideoDecoderCache {
   VideoDecoderCache();
   ~VideoDecoderCache() = default;
 
-  void Put(std::unique_ptr<MediaDecoder> decoder,
-           SbMediaVideoCodec codec,
-           SbPlayerOutputMode output_mode);
+  struct CacheKey {
+    SbMediaVideoCodec codec;
+    SbPlayerOutputMode output_mode;
 
-  std::unique_ptr<MediaDecoder> Get(SbMediaVideoCodec codec,
-                                    SbPlayerOutputMode output_mode);
+    bool operator==(const CacheKey& other) const;
+  };
+
+  void Put(const CacheKey& key, std::unique_ptr<MediaDecoder> decoder);
+
+  std::unique_ptr<MediaDecoder> Get(const CacheKey& key);
 
  private:
   struct CacheEntry {
+    CacheKey key;
     std::unique_ptr<MediaDecoder> decoder;
-    SbMediaVideoCodec codec;
-    SbPlayerOutputMode output_mode;
   };
 
   static constexpr int kMaxCacheSize = 4;
   std::mutex mutex_;
   std::list<CacheEntry> cache_;
 
-  base::android::ScopedJavaGlobalRef<jobject> dummy_surface_texture_;
-  base::android::ScopedJavaGlobalRef<jobject> dummy_surface_;
+  const base::android::ScopedJavaGlobalRef<jobject> dummy_surface_texture_;
+  const base::android::ScopedJavaGlobalRef<jobject> dummy_surface_;
 };
+
+std::ostream& operator<<(std::ostream& os,
+                         const VideoDecoderCache::CacheKey& key);
 
 }  // namespace starboard::android::shared
 

@@ -703,7 +703,7 @@ std::unique_ptr<MediaDecoder> VideoDecoder::GetCachedMediaDecoder(
     return nullptr;
   }
 
-  auto media_decoder = video_decoder_cache_->Get(video_codec_, output_mode_);
+  auto media_decoder = video_decoder_cache_->Get({video_codec_, output_mode_});
   if (!media_decoder) {
     return nullptr;
   }
@@ -870,8 +870,8 @@ void VideoDecoder::TeardownCodec() {
   if (media_decoder_ && media_decoder_->Suspend()) {
     media_decoder_->Reset();
     if (video_decoder_cache_) {
-      video_decoder_cache_->Put(std::move(media_decoder_), video_codec_,
-                                output_mode_);
+      video_decoder_cache_->Put({video_codec_, output_mode_},
+                                std::move(media_decoder_));
     }
   }
   media_decoder_.reset();

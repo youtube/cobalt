@@ -19,8 +19,38 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
+#include "starboard/common/player.h"
 
 namespace starboard::android::shared {
+
+namespace {
+using base::android::ScopedJavaGlobalRef;
+
+ScopedJavaGlobalRef<jobject> CreateDummySurfaceTexture() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject local_surface_texture =
+      env->NewObjectOrAbort("dev/cobalt/media/VideoSurfaceTexture", "(I)V", 0);
+  ScopedJavaGlobalRef<jobject> global_ref;
+  global_ref.Reset(env, local_surface_texture);
+  env->DeleteLocalRef(local_surface_texture);
+  SB_CHECK(global_ref.obj());
+  return global_ref;
+}
+
+ScopedJavaGlobalRef<jobject> CreateDummySurface(
+    const ScopedJavaGlobalRef<jobject>& surface_texture) {
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject local_surface = env->NewObjectOrAbort(
+      "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
+      surface_texture.obj());
+  ScopedJavaGlobalRef<jobject> global_ref;
+  global_ref.Reset(env, local_surface);
+  env->DeleteLocalRef(local_surface);
+  SB_CHECK(global_ref.obj());
+  return global_ref;
+}
+
+}  // namespace
 
 // static
 VideoDecoderCache* VideoDecoderCache::GetInstance() {
@@ -28,52 +58,46 @@ VideoDecoderCache* VideoDecoderCache::GetInstance() {
   return instance;
 }
 
-VideoDecoderCache::VideoDecoderCache() {
-  base::android::AttachCurrentThread();
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject local_surface_texture =
-      env->NewObjectOrAbort("dev/cobalt/media/VideoSurfaceTexture", "(I)V", 0);
-  dummy_surface_texture_.Reset(env, local_surface_texture);
-  env->DeleteLocalRef(local_surface_texture);
+VideoDecoderCache::VideoDecoderCache()
+    : dummy_surface_texture_(CreateDummySurfaceTexture()),
+      dummy_surface_(CreateDummySurface(dummy_surface_texture_)) {}
 
-  if (dummy_surface_texture_.obj()) {
-    jobject local_surface = env->NewObjectOrAbort(
-        "android/view/Surface", "(Landroid/graphics/SurfaceTexture;)V",
-        dummy_surface_texture_.obj());
-    dummy_surface_.Reset(env, local_surface);
-    env->DeleteLocalRef(local_surface);
-  }
+bool VideoDecoderCache::CacheKey::operator==(const CacheKey& other) const {
+  return codec == other.codec && output_mode == other.output_mode;
 }
 
-void VideoDecoderCache::Put(std::unique_ptr<MediaDecoder> decoder,
-                            SbMediaVideoCodec codec,
-                            SbPlayerOutputMode output_mode) {
+std::ostream& operator<<(std::ostream& os,
+                         const VideoDecoderCache::CacheKey& key) {
+  return os << "{codec=" << GetMediaVideoCodecName(key.codec)
+            << ", output_mode=" << GetPlayerOutputModeName(key.output_mode)
+            << "}";
+}
+
+void VideoDecoderCache::Put(const CacheKey& key,
+                            std::unique_ptr<MediaDecoder> decoder) {
   if (!decoder) {
     return;
   }
 
-  if (dummy_surface_) {
-    if (!decoder->SetOutputSurface(dummy_surface_.obj())) {
-      SB_LOG(WARNING)
-          << "Failed to switch to dummy surface, destroying decoder.";
-      return;
-    }
+  if (!decoder->SetOutputSurface(dummy_surface_.obj())) {
+    SB_LOG(WARNING) << "Failed to set dummy surface, destroying decoder.";
+    return;
   }
 
-  SB_LOG(INFO) << "Caching video decoder for " << GetMediaVideoCodecName(codec);
+  SB_LOG(INFO) << "Caching video decoder for key=" << key;
+
   std::lock_guard lock(mutex_);
   if (cache_.size() >= kMaxCacheSize) {
     cache_.pop_front();
   }
-  cache_.push_back({std::move(decoder), codec, output_mode});
+  cache_.push_back({key, std::move(decoder)});
 }
 
-std::unique_ptr<MediaDecoder> VideoDecoderCache::Get(
-    SbMediaVideoCodec codec,
-    SbPlayerOutputMode output_mode) {
+std::unique_ptr<MediaDecoder> VideoDecoderCache::Get(const CacheKey& key) {
   std::lock_guard lock(mutex_);
   for (auto it = cache_.begin(); it != cache_.end(); ++it) {
-    if (it->codec == codec && it->output_mode == output_mode) {
+    if (it->key == key) {
+      SB_LOG(INFO) << "Getting cached video decoder for key=" << key;
       std::unique_ptr<MediaDecoder> decoder = std::move(it->decoder);
       cache_.erase(it);
       return decoder;
