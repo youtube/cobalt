@@ -7,6 +7,7 @@ This script is the entrypoint for running packaged cobalt_browsertests.
 It configures the environment and invokes the appropriate platform runner.
 """
 
+import argparse
 import logging
 import os
 import shutil
@@ -27,10 +28,11 @@ def main():
 
   This function performs the following steps:
   1. Sets up the environment (PATH, CHROME_SRC).
-  2. Selects the target platform to run tests for.
-  3. Resolves paths for runtime dependencies and test runners.
-  4. Configures LD_LIBRARY_PATH for shared library resolution.
-  5. Executes the platform-specific test runner (Android or Linux).
+  2. Parses arguments and selects the target platform.
+  3. Executes an optional init-command.
+  4. Resolves paths for runtime dependencies and test runners.
+  5. Configures LD_LIBRARY_PATH for shared library resolution.
+  6. Executes the platform-specific test runner (Android or Linux).
 
   Returns:
     The exit code of the test runner process.
@@ -47,12 +49,31 @@ def main():
   src_dir = os.path.join(script_dir, "src")
   os.environ["CHROME_SRC"] = src_dir
 
-  # 2. Target Selection
+  # 2. Argument Parsing and Target Selection
   available_targets = list(TARGET_MAP.keys())
 
-  target_name = os.environ.get("TARGET_PLATFORM")
-  if not target_name and len(sys.argv) > 1 and sys.argv[1] in available_targets:
-    target_name = sys.argv.pop(1)
+  parser = argparse.ArgumentParser(
+      description="Portable test runner for Cobalt browser tests.",
+      add_help=False)
+  parser.add_argument("--init-command", help="Command to run before tests.")
+  parser.add_argument(
+      "target", nargs="?", help="Target platform to run tests for.")
+  parser.add_argument(
+      "-h", "--help", action="store_true", help="Show this help message.")
+
+  args, runner_args = parser.parse_known_args()
+
+  if args.help:
+    parser.print_help()
+    print("\nAvailable targets: " + ", ".join(available_targets))
+    print("\nAll other arguments are passed to the underlying test runner.")
+    sys.exit(0)
+
+  if args.init_command:
+    logging.info("Executing init-command: %s", args.init_command)
+    subprocess.run(args.init_command, shell=True, check=True)
+
+  target_name = os.environ.get("TARGET_PLATFORM") or args.target
 
   if not target_name:
     if len(available_targets) == 1:
@@ -60,13 +81,20 @@ def main():
     else:
       logging.error("Multiple targets available. Please specify one: %s",
                     available_targets)
-      logging.info("Usage: python3 run_tests.py <target_name> [args...]")
+      parser.print_usage()
       sys.exit(1)
 
   if target_name not in TARGET_MAP:
-    logging.error("Target '%s' not found. Available: %s", target_name,
-                  available_targets)
-    sys.exit(1)
+    # If the provided target is not in the map, it might be an argument
+    # for the runner if only one target exists.
+    if len(available_targets) == 1:
+      if target_name:
+        runner_args.insert(0, target_name)
+      target_name = available_targets[0]
+    else:
+      logging.error("Target '%s' not found. Available: %s", target_name,
+                    available_targets)
+      sys.exit(1)
 
   target_config = TARGET_MAP[target_name]
   is_android = target_config.get("is_android", False)
@@ -107,7 +135,7 @@ def main():
     logging.info("Executing Android test runner for '%s': %s", target_name,
                  test_runner)
     cmd = [vpython_path, test_runner, "--runtime-deps-path", deps_path
-          ] + sys.argv[1:]
+          ] + runner_args
   else:
     logging.info(
         "Executing Linux test runner for '%s' using xvfb.py and "
@@ -118,7 +146,7 @@ def main():
     # Wrap the whole command in xvfb.py to provide a DISPLAY
     cmd = [
         vpython_path, xvfb_py, sys.executable, run_browser_tests_py, test_runner
-    ] + sys.argv[1:]
+    ] + runner_args
 
   try:
     return subprocess.call(cmd)

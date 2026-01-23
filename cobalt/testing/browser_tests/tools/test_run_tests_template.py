@@ -115,6 +115,19 @@ class TestRunTestsTemplate(unittest.TestCase):
       run_tests_template.main()
     mock_exit.assert_called_once_with(1)
 
+  @mock.patch('os.path.abspath', return_value='/tmp/stage')
+  @mock.patch('os.path.isfile', return_value=True)
+  @mock.patch('shutil.which', return_value='/usr/bin/vpython3')
+  @mock.patch('subprocess.call', return_value=0)
+  @mock.patch('subprocess.run')
+  @mock.patch('sys.argv',
+              ['run_tests.py', '--init-command', 'ls -l', 'android_target'])
+  def test_init_command_execution(self, mock_run, mock_call, *args):
+    del args, mock_call  # Unused.
+    exit_code = run_tests_template.main()
+    self.assertEqual(exit_code, 0)
+    mock_run.assert_called_once_with('ls -l', shell=True, check=True)
+
 
 if __name__ == '__main__':
   unittest.main()
