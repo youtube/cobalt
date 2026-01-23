@@ -92,7 +92,7 @@ TEST_F(DecoderStateTrackerTest, StreamInsertionOperator) {
   std::stringstream ss;
   ss << status;
 
-  EXPECT_EQ(ss.str(), "{decoding: 1, decoded: 2, total: 3}");
+  EXPECT_EQ(ss.str(), "{decoding=1, decoded=2, total=3}");
 }
 
 TEST_F(DecoderStateTrackerTest, MarkFrameReleased) {

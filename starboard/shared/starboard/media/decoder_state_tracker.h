@@ -77,9 +77,10 @@ class DecoderStateTracker {
   const FrameReleasedCB frame_released_cb_;
 
   mutable std::mutex mutex_;
-  std::map<int64_t, FrameStatus> frames_in_flight_;  // Guarded by |mutex_|.
-  bool eos_added_ = false;                           // Guarded by |mutex_|.
-  bool reached_max_ = false;                         // Guarded by |mutex_|.
+  std::vector<std::pair<int64_t, FrameStatus>>
+      frames_in_flight_;      // Guarded by |mutex_|.
+  bool eos_added_ = false;    // Guarded by |mutex_|.
+  bool reached_max_ = false;  // Guarded by |mutex_|.
 
   // Non-resettable members start.
   // These variables are preserved across calls to Reset().

@@ -40,6 +40,12 @@ constexpr int kFramesLowWatermark = 2;
 // This constant is set to 10 to handle such cases with some safety margin.
 constexpr int kMaxAllowedFramesWhenNoDecodedFrameYet = 10;
 
+// The maximum number of frames tracked. If the number of frames exceeds this
+// limit, the DecoderStateTracker will be disabled. The value 24 is aligned
+// with Chromium's video pipeline limit:
+// https://source.chromium.org/chromium/chromium/src/+/main:media/renderers/video_renderer_impl.cc;l=43;drc=058f840149f10507597892102990f2ab15268fbd
+constexpr int kMaxFramesToTrack = 24;
+
 constexpr int64_t kLogIntervalUs = 5'000'000;  // 5 sec.
 
 }  // namespace
@@ -51,6 +57,8 @@ DecoderStateTracker::DecoderStateTracker(int initial_max_frames,
       job_thread_(std::make_unique<shared::starboard::player::JobThread>(
           "DecStateTrack")) {
   SB_CHECK(frame_released_cb_);
+  frames_in_flight_.reserve(kMaxFramesToTrack);
+
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   StartPeriodicalLogging(kLogIntervalUs);
 #endif
@@ -79,14 +87,35 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
   if (disabled_ || eos_added_) {
     return;
   }
+
+  auto it = std::lower_bound(
+      frames_in_flight_.begin(), frames_in_flight_.end(), presentation_us,
+      [](const auto& pair, int64_t pts) { return pair.first < pts; });
+
   // This is fail-safe logic.
-  // If frames_in_flight_ grows to an unexpectedly large size, we disable the
-  // |DecoderStateTracker| since something has gone wrong.
-  if (frames_in_flight_.size() >
-      std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
-    EngageKillSwitch_Locked("Too many frames in flight: state=" +
-                                ToString(GetCurrentState_Locked()),
-                            presentation_us);
+  std::string kill_reason = [&]() -> std::string {
+    if (frames_in_flight_.size() >= kMaxFramesToTrack) {
+      return "frame size exceeeds limit: size=" +
+             std::to_string(frames_in_flight_.size()) +
+             ", limit=" + std::to_string(kMaxFramesToTrack);
+    }
+    // If frames_in_flight_ grows to an unexpected size, we kill the
+    // |DecoderStateTracker| since something has gone wrong.
+    if (frames_in_flight_.size() >
+        std::max(max_frames_, kMaxAllowedFramesWhenNoDecodedFrameYet)) {
+      return "Unexpected # of frames in flight: state=" +
+             ToString(GetCurrentState_Locked());
+    }
+    if (it != frames_in_flight_.end() && it->first == presentation_us) {
+      return "Duplicate frame input";
+    }
+
+    // Return empty means that we don't kill tracker.
+    return "";
+  }();
+
+  if (!kill_reason.empty()) {
+    EngageKillSwitch_Locked(kill_reason, presentation_us);
 
     // Release the lock before invoking the callback to prevent potential
     // re-entrancy deadlocks.
@@ -94,18 +123,8 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
     frame_released_cb_();
     return;
   }
-  if (frames_in_flight_.find(presentation_us) != frames_in_flight_.end()) {
-    EngageKillSwitch_Locked("Duplicate frame input", presentation_us);
 
-    // Release the lock before invoking the callback to prevent potential
-    // re-entrancy deadlocks.
-    lock.unlock();
-    frame_released_cb_();
-    return;
-  }
-
-  frames_in_flight_[presentation_us] = FrameStatus::kDecoding;
-
+  frames_in_flight_.insert(it, {presentation_us, FrameStatus::kDecoding});
   if (frames_in_flight_.size() >= max_frames_) {
     reached_max_ = true;
   }
@@ -128,7 +147,9 @@ void DecoderStateTracker::MarkFrameDecoded(int64_t presentation_us) {
     return;
   }
 
-  auto it = frames_in_flight_.upper_bound(presentation_us);
+  auto it = std::upper_bound(
+      frames_in_flight_.begin(), frames_in_flight_.end(), presentation_us,
+      [](int64_t pts, const auto& pair) { return pts < pair.first; });
   for (auto i = frames_in_flight_.begin(); i != it; ++i) {
     i->second = FrameStatus::kDecoded;
   }
@@ -152,7 +173,10 @@ void DecoderStateTracker::MarkFrameReleased(int64_t presentation_us,
           if (disabled_) {
             return;
           }
-          auto it = frames_in_flight_.upper_bound(presentation_us);
+          auto it = std::upper_bound(
+              frames_in_flight_.begin(), frames_in_flight_.end(),
+              presentation_us,
+              [](int64_t pts, const auto& pair) { return pts < pair.first; });
           frames_in_flight_.erase(frames_in_flight_.begin(), it);
 
           if (reached_max_ && frames_in_flight_.size() <= kFramesLowWatermark) {
