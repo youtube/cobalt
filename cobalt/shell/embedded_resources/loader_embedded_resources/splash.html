@@ -58,11 +58,13 @@
         const mediaSource = new MediaSource();
         mediaSource.addEventListener('sourceopen', async () => {
           const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
-          // Get cache from the html itself's URL parameter.
-          // TODO(463395742): Set the fallback suffix depending on the device spec.
           const params = new URLSearchParams(window.location.search);
           if (!params.has('cache')) {
             params.append('cache', 'default');
+          }
+          // TODO(458074360): fallback to static image if the device does not support VP9.
+          if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) {
+            params.append('fallback', 'splash_480.webm');
           }
           try {
             const response = await fetch(
@@ -77,12 +79,12 @@
                 videoEl.play();
                 afterVideoStart && afterVideoStart();
               }
-            });
+            }, {once: true});
             sourceBuffer.appendBuffer(data);
           } catch (error) {
             console.error('Failed to fetch splash video:', error);
           }
-        });
+        }, {once: true});
 
         videoEl.src = objectUrlFromSafeSource(mediaSource).toString();
       }

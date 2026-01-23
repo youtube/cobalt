@@ -48,8 +48,13 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     ContentBrowserTest::TearDown();
   }
 
-  std::string GetVideoDimension() {
-    return R"(
+  std::string CheckVideoDimension(bool is_type_supported) {
+    // Mock MediaSource.isTypeSupported for high/low spec device.
+    return base::StringPrintf(R"(
+      MediaSource.isTypeSupported = function(mime) {
+        return %s;
+      };
+      playSplashAnimation();
       (async () => {
         try {
           const video = document.querySelector('video');
@@ -69,7 +74,8 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
           return 'Exception: ' + e.toString();
         }
       })();
-    )";
+    )",
+                              is_type_supported ? "true" : "false");
   }
 
   void VerifySplashVideoFromCache(const std::string& cache_name,
@@ -138,18 +144,18 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest, LoadSplashHtml) {
 
   // Verify that the URL matches.
   EXPECT_EQ(splash_url, shell()->web_contents()->GetLastCommittedURL());
-  EXPECT_EQ("Dimensions: 1920x1080", EvalJs(shell(), GetVideoDimension()));
+  EXPECT_EQ("Dimensions: 1920x1080",
+            EvalJs(shell(), CheckVideoDimension(true)));
 }
 
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
                        LoadSplashVideoWithFallbackParameter) {
-  GURL splash_url(std::string(kH5vccEmbeddedScheme) +
-                  "://splash.html?fallback=splash_480.webm");
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
   // Verify fallback for the low spec devices, where Cobalt should
   // play the low resolution splash.
-  EXPECT_EQ("Dimensions: 853x480", EvalJs(shell(), GetVideoDimension()));
+  EXPECT_EQ("Dimensions: 853x480", EvalJs(shell(), CheckVideoDimension(false)));
 }
 
 // If not specified, use cache "default".
