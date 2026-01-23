@@ -338,7 +338,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     int tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
     bool force_reset_surface,
-    bool force_reset_surface_under_tunnel_mode,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     void* surface_view,
@@ -363,8 +362,6 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
                                                             : 0),
       force_reset_surface_(force_reset_surface),
-      force_reset_surface_under_tunnel_mode_(
-          force_reset_surface_under_tunnel_mode),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
@@ -412,11 +409,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  if (tunnel_mode_audio_session_id_ != -1) {
-    ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
-  } else {
-    ClearVideoWindow(force_reset_surface_);
-  }
+  // Forces video surface to reset after tunnel mode playbacks. This
+  // prevents video distortion on some platforms.
+  ClearVideoWindow(tunnel_mode_audio_session_id_ != -1 || force_reset_surface_);
 }
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
