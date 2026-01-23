@@ -67,8 +67,7 @@ AdaptiveAudioDecoder::~AdaptiveAudioDecoder() {
   ResetInternal();
 }
 
-void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
-                                      const ErrorCB& error_cb) {
+void AdaptiveAudioDecoder::Initialize(OutputCB output_cb, ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
@@ -77,8 +76,8 @@ void AdaptiveAudioDecoder::Initialize(const OutputCB& output_cb,
   SB_DCHECK(!audio_decoder_);
   SB_DCHECK(!stream_ended_);
 
-  output_cb_ = output_cb;
-  error_cb_ = error_cb;
+  output_cb_ = std::move(output_cb);
+  error_cb_ = std::move(error_cb);
 }
 
 void AdaptiveAudioDecoder::Decode(const InputBuffers& input_buffers,

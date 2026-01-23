@@ -82,20 +82,21 @@ VideoRendererImpl::~VideoRendererImpl() {
   decoder_.reset();
 }
 
-void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
-                                   const PrerolledCB& prerolled_cb,
-                                   const EndedCB& ended_cb) {
+void VideoRendererImpl::Initialize(ErrorCB error_cb,
+                                   PrerolledCB prerolled_cb,
+                                   EndedCB ended_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
   SB_DCHECK(!prerolled_cb_);
   SB_DCHECK(!ended_cb_);
 
-  prerolled_cb_ = prerolled_cb;
-  ended_cb_ = ended_cb;
+  prerolled_cb_ = std::move(prerolled_cb);
+  ended_cb_ = std::move(ended_cb);
 
   decoder_->Initialize(
-      std::bind(&VideoRendererImpl::OnDecoderStatus, this, _1, _2), error_cb);
+      std::bind(&VideoRendererImpl::OnDecoderStatus, this, _1, _2),
+      std::move(error_cb));
   if (sink_) {
     sink_->SetRenderCB(std::bind(&VideoRendererImpl::Render, this, _1));
   }

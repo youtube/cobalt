@@ -102,9 +102,9 @@ AudioRendererPassthrough::~AudioRendererPassthrough() {
   }
 }
 
-void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
-                                          const PrerolledCB& prerolled_cb,
-                                          const EndedCB& ended_cb) {
+void AudioRendererPassthrough::Initialize(ErrorCB error_cb,
+                                          PrerolledCB prerolled_cb,
+                                          EndedCB ended_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
@@ -114,12 +114,12 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
   SB_DCHECK(!ended_cb_);
   SB_DCHECK(decoder_);
 
-  error_cb_ = error_cb;
-  prerolled_cb_ = prerolled_cb;
-  ended_cb_ = ended_cb;
+  error_cb_ = std::move(error_cb);
+  prerolled_cb_ = std::move(prerolled_cb);
+  ended_cb_ = std::move(ended_cb);
 
   decoder_->Initialize(
-      std::bind(&AudioRendererPassthrough::OnDecoderOutput, this), error_cb);
+      std::bind(&AudioRendererPassthrough::OnDecoderOutput, this), error_cb_);
 }
 
 void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {

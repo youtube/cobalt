@@ -54,8 +54,8 @@ class VideoDecoder {
 
   // This function has to be called before any other functions to setup the
   // stage.
-  virtual void Initialize(const DecoderStatusCB& decoder_status_cb,
-                          const ErrorCB& error_cb) = 0;
+  virtual void Initialize(DecoderStatusCB decoder_status_cb,
+                          ErrorCB error_cb) = 0;
 
   // Returns the number of frames the VideoRenderer has to cache before preroll
   // is considered to be complete.

@@ -48,9 +48,9 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
                     scoped_refptr<VideoRendererSink> sink);
   ~VideoRendererImpl() override;
 
-  void Initialize(const ErrorCB& error_cb,
-                  const PrerolledCB& prerolled_cb,
-                  const EndedCB& ended_cb) override;
+  void Initialize(ErrorCB error_cb,
+                  PrerolledCB prerolled_cb,
+                  EndedCB ended_cb) override;
   int GetDroppedFrames() const override {
     return algorithm_->GetDroppedFrames();
   }

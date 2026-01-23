@@ -47,9 +47,9 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
                     SbDrmSystem drm_system);
   ~AVSBVideoRenderer();
 
-  void Initialize(const ErrorCB& error_cb,
-                  const PrerolledCB& prerolled_cb,
-                  const EndedCB& ended_cb) override;
+  void Initialize(ErrorCB error_cb,
+                  PrerolledCB prerolled_cb,
+                  EndedCB ended_cb) override;
   int GetDroppedFrames() const override {
     SB_DCHECK(BelongsToCurrentThread());
     return total_dropped_frames_;

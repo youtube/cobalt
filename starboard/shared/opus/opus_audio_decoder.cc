@@ -56,16 +56,15 @@ OpusAudioDecoder::~OpusAudioDecoder() {
   TeardownCodec();
 }
 
-void OpusAudioDecoder::Initialize(const OutputCB& output_cb,
-                                  const ErrorCB& error_cb) {
+void OpusAudioDecoder::Initialize(OutputCB output_cb, ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
-  output_cb_ = output_cb;
-  error_cb_ = error_cb;
+  output_cb_ = std::move(output_cb);
+  error_cb_ = std::move(error_cb);
 }
 
 void OpusAudioDecoder::Decode(const InputBuffers& input_buffers,

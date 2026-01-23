@@ -86,12 +86,11 @@ StubAudioDecoder::StubAudioDecoder(const AudioStreamInfo& audio_stream_info)
   }
 }
 
-void StubAudioDecoder::Initialize(const OutputCB& output_cb,
-                                  const ErrorCB& error_cb) {
+void StubAudioDecoder::Initialize(OutputCB output_cb, ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
 
-  output_cb_ = output_cb;
-  error_cb_ = error_cb;
+  output_cb_ = std::move(output_cb);
+  error_cb_ = std::move(error_cb);
 }
 
 void StubAudioDecoder::Decode(const InputBuffers& input_buffers,

@@ -41,8 +41,7 @@ class OpenMaxVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   explicit OpenMaxVideoDecoder(SbMediaVideoCodec video_codec);
   ~OpenMaxVideoDecoder() override;
 
-  void Initialize(const DecoderStatusCB& decoder_status_cb,
-                  const ErrorCB& error_cb) override;
+  void Initialize(DecoderStatusCB decoder_status_cb, ErrorCB error_cb) override;
   size_t GetPrerollFrameCount() const override { return 1; }
   int64_t GetPrerollTimeout() const override {
     return std::numeric_limits<int64_t>::max();

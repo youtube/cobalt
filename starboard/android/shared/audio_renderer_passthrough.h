@@ -53,9 +53,9 @@ class AudioRendererPassthrough : public AudioRenderer,
   bool is_valid() const { return decoder_ != nullptr; }
 
   // AudioRenderer methods
-  void Initialize(const ErrorCB& error_cb,
-                  const PrerolledCB& prerolled_cb,
-                  const EndedCB& ended_cb) override;
+  void Initialize(ErrorCB error_cb,
+                  PrerolledCB prerolled_cb,
+                  EndedCB ended_cb) override;
   void WriteSamples(const InputBuffers& input_buffers) override;
   void WriteEndOfStream() override;
 

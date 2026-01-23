@@ -39,16 +39,16 @@ De265VideoDecoder::~De265VideoDecoder() {
   Reset();
 }
 
-void De265VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
-                                   const ErrorCB& error_cb) {
+void De265VideoDecoder::Initialize(DecoderStatusCB decoder_status_cb,
+                                   ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
-  decoder_status_cb_ = decoder_status_cb;
-  error_cb_ = error_cb;
+  decoder_status_cb_ = std::move(decoder_status_cb);
+  error_cb_ = std::move(error_cb);
 }
 
 void De265VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {

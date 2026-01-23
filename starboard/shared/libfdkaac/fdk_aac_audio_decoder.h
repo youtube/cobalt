@@ -36,7 +36,7 @@ class FdkAacAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   ~FdkAacAudioDecoder() override;
 
   // Overriding functions from AudioDecoder.
-  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
+  void Initialize(OutputCB output_cb, ErrorCB error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;

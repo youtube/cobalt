@@ -39,12 +39,12 @@ class AudioDecoderPassthrough : public AudioDecoder {
       : samples_per_second_(samples_per_second) {}
 
   // AudioDecoder methods.
-  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override {
+  void Initialize(OutputCB output_cb, ErrorCB error_cb) override {
     SB_CHECK(thread_checker_.CalledOnValidThread());
     SB_DCHECK(!output_cb_);
     SB_DCHECK(output_cb);
 
-    output_cb_ = output_cb;
+    output_cb_ = std::move(output_cb);
   }
 
   void Decode(const InputBuffers& input_buffers,

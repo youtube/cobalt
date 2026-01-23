@@ -110,9 +110,9 @@ AudioRendererPcm::~AudioRendererPcm() {
   audio_renderer_sink_->Stop();
 }
 
-void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
-                                  const PrerolledCB& prerolled_cb,
-                                  const EndedCB& ended_cb) {
+void AudioRendererPcm::Initialize(ErrorCB error_cb,
+                                  PrerolledCB prerolled_cb,
+                                  EndedCB ended_cb) {
   SB_DCHECK(error_cb);
   SB_DCHECK(prerolled_cb);
   SB_DCHECK(ended_cb);
@@ -120,12 +120,12 @@ void AudioRendererPcm::Initialize(const ErrorCB& error_cb,
   SB_DCHECK(!prerolled_cb_);
   SB_DCHECK(!ended_cb_);
 
-  error_cb_ = error_cb;
-  prerolled_cb_ = prerolled_cb;
-  ended_cb_ = ended_cb;
+  error_cb_ = std::move(error_cb);
+  prerolled_cb_ = std::move(prerolled_cb);
+  ended_cb_ = std::move(ended_cb);
 
   decoder_->Initialize(std::bind(&AudioRendererPcm::OnDecoderOutput, this),
-                       error_cb);
+                       error_cb_);
 }
 
 void AudioRendererPcm::WriteSamples(const InputBuffers& input_buffers) {

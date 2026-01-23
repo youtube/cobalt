@@ -45,7 +45,7 @@ class MediaCodecAudioDecoder : public AudioDecoder,
                          bool enable_flush_during_seek);
   ~MediaCodecAudioDecoder() override;
 
-  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
+  void Initialize(OutputCB output_cb, ErrorCB error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;

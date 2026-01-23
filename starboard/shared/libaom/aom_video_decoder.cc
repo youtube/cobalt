@@ -43,16 +43,16 @@ AomVideoDecoder::~AomVideoDecoder() {
   Reset();
 }
 
-void AomVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
-                                 const ErrorCB& error_cb) {
+void AomVideoDecoder::Initialize(DecoderStatusCB decoder_status_cb,
+                                 ErrorCB error_cb) {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
-  decoder_status_cb_ = decoder_status_cb;
-  error_cb_ = error_cb;
+  decoder_status_cb_ = std::move(decoder_status_cb);
+  error_cb_ = std::move(error_cb);
 }
 
 void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {

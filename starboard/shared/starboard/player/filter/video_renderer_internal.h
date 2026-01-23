@@ -28,9 +28,9 @@ class VideoRenderer {
   // otherwise.
   virtual ~VideoRenderer() {}
 
-  virtual void Initialize(const ErrorCB& error_cb,
-                          const PrerolledCB& prerolled_cb,
-                          const EndedCB& ended_cb) = 0;
+  virtual void Initialize(ErrorCB error_cb,
+                          PrerolledCB prerolled_cb,
+                          EndedCB ended_cb) = 0;
   virtual int GetDroppedFrames() const = 0;
 
   virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
