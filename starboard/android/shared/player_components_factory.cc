@@ -55,12 +55,6 @@ namespace {
 using base::android::AttachCurrentThread;
 using features::FeatureList;
 
-// On some platforms tunnel mode is only supported in the secure pipeline.  Set
-// the following variable to true to force creating a secure pipeline in tunnel
-// mode, even for clear content.
-// TODO: Allow this to be configured per playback at run time from the web app.
-constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
-
 // Forces video surface to reset after tunnel mode playbacks. This prevents
 // video distortion on some platforms.
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
@@ -547,7 +541,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       return true;
     }
 
-    if (kForceSecurePipelineInTunnelModeWhenRequired && !is_encrypted) {
+    // On some platforms tunnel mode is only supported in the secure pipeline.
+    // We force creating a secure pipeline in tunnel mode, even for clear
+    // content.
+    if (!is_encrypted) {
       const bool kIsEncrypted = true;
       auto support_tunnel_mode_under_secure_pipeline =
           MediaCapabilitiesCache::GetInstance()->HasVideoDecoderFor(
