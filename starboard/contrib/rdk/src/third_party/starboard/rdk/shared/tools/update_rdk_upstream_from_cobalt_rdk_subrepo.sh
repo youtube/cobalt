@@ -17,13 +17,9 @@ git subtree split --prefix=starboard/contrib/rdk -b full-rdk-history "$SOURCE_RE
 # Pulls the exported history into the standalone repo.
 cd "$DEST_REPO"
 
-if ! git remote | grep -q "^local_chromium$"; then
-  git remote add local_chromium "$SOURCE_REPO"
-fi
-
-git fetch local_chromium full-rdk-history
+git fetch "$SOURCE_REPO" full-rdk-history
 # Allow merging independent histories since the subtree was extracted from a different repo.
-git merge --allow-unrelated-histories local_chromium/full-rdk-history -m "Merge RDK changes from Cobalt tree"
+git merge --allow-unrelated-histories FETCH_HEAD -m "Merge RDK changes from Cobalt tree"
 
 # --- Cleanup ---
 cd "$SOURCE_REPO"
