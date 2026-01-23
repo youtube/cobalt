@@ -24,6 +24,7 @@
     "SupportedTypesTest.IsDecoderSupportedVideoTypeWithHdrMetadataBasics",
     "SupportedTypesTest.IsEncoderSupportedVideoType_VP9Profiles",
     "VideoFrameStructTraitsTest.*",
+    "NativePixmapHandleMojomTraitsTest.ValidNativePixmapHandle",
     "NativePixmapHandleMojomTraitsTest.ValidNativePixmapPlane",
     "WebMClusterParserTest.*"
   ]
