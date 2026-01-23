@@ -42,6 +42,15 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
   }
 
+  void TearDownOnMainThread() override {
+    // Navigate away to ensure clean teardown before the test environment is
+    // destroyed.
+    if (shell()) {
+      EXPECT_TRUE(NavigateToURL(shell(), GURL("about:blank")));
+    }
+    ContentBrowserTest::TearDownOnMainThread();
+  }
+
   void TearDown() override {
     H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(std::nullopt);
     H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(nullptr);
