@@ -48,10 +48,10 @@ class DecoderStateTracker {
   DecoderStateTracker(int initial_max_frames, FrameReleaseCB frame_released_cb);
   ~DecoderStateTracker();
 
-  void OnFrameAdded(int64_t presentation_us);
-  void OnEosAdded();
-  void OnFrameDecoded(int64_t presentation_us);
-  void OnReleased(int64_t presentation_us, int64_t release_us);
+  void TrackNewFrame(int64_t presentation_us);
+  void MarkFrameDecoded(int64_t presentation_us);
+  void MarkFrameReleased(int64_t presentation_us, int64_t release_us);
+  void MarkEosReached();
 
   bool CanAcceptMore() const;
   void Reset();

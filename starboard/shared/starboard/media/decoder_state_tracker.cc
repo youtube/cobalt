@@ -73,7 +73,7 @@ DecoderStateTracker::~DecoderStateTracker() {
   }
 }
 
-void DecoderStateTracker::OnFrameAdded(int64_t presentation_us) {
+void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
   std::unique_lock lock(mutex_);
 
   if (disabled_ || eos_added_) {
@@ -111,7 +111,7 @@ void DecoderStateTracker::OnFrameAdded(int64_t presentation_us) {
   }
 }
 
-void DecoderStateTracker::OnEosAdded() {
+void DecoderStateTracker::MarkEosReached() {
   std::lock_guard lock(mutex_);
 
   if (disabled_) {
@@ -121,7 +121,7 @@ void DecoderStateTracker::OnEosAdded() {
   eos_added_ = true;
 }
 
-void DecoderStateTracker::OnFrameDecoded(int64_t presentation_us) {
+void DecoderStateTracker::MarkFrameDecoded(int64_t presentation_us) {
   std::lock_guard lock(mutex_);
 
   if (disabled_) {
@@ -134,8 +134,8 @@ void DecoderStateTracker::OnFrameDecoded(int64_t presentation_us) {
   }
 }
 
-void DecoderStateTracker::OnReleased(int64_t presentation_us,
-                                     int64_t release_us) {
+void DecoderStateTracker::MarkFrameReleased(int64_t presentation_us,
+                                            int64_t release_us) {
   std::lock_guard lock(mutex_);
   if (disabled_) {
     return;
