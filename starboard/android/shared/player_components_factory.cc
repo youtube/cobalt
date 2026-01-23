@@ -58,6 +58,11 @@ using features::FeatureList;
 // Forces video surface to reset after tunnel mode playbacks. This prevents
 // video distortion on some platforms.
 constexpr bool kForceResetSurfaceUnderTunnelMode = true;
+// On some platforms tunnel mode is only supported in the secure pipeline.  Set
+// the following variable to true to force creating a secure pipeline in tunnel
+// mode, even for clear content.
+// TODO: Allow this to be configured per playback at run time from the web app.
+constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
@@ -305,10 +310,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     if (tunnel_mode_audio_session_id == -1) {
       SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
     } else {
-      SB_LOG_IF(INFO, !kForceResetSurfaceUnderTunnelMode)
-          << "`kForceResetSurfaceUnderTunnelMode` is set to false, the video "
-             "surface will not be forced to reset after "
-             "tunneled playback.";
       SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
                    << tunnel_mode_audio_session_id << '.';
     }
@@ -480,10 +481,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-        force_reset_surface, kForceResetSurfaceUnderTunnelMode,
-        force_big_endian_hdr_metadata, max_video_input_size,
-        creation_parameters.surface_view(), enable_flush_during_seek,
-        reset_delay_usec, flush_delay_usec, &error_message);
+        force_reset_surface, force_big_endian_hdr_metadata,
+        max_video_input_size, creation_parameters.surface_view(),
+        enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+        &error_message);
     if (!error_message.empty()) {
       return Failure(error_message);
     }

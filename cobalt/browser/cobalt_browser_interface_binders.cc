@@ -41,6 +41,11 @@
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
+#if !BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
+#include "cobalt/browser/h5vcc_platform_service/public/mojom/h5vcc_platform_service.mojom.h"
+#endif
+
 namespace cobalt {
 
 namespace {
@@ -93,6 +98,13 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(
       base::BindRepeating(&BindPlatformWindowProvider));
+
+// TODO: b/403638702 - add a binding for a Java Mojo impl for 1P ATV.
+#if !BUILDFLAG(IS_ANDROIDTV)
+  binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
+      base::BindRepeating(
+          &h5vcc_platform_service::H5vccPlatformServiceManagerImpl::Create));
+#endif
 }
 
 }  // namespace cobalt

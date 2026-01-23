@@ -208,7 +208,8 @@ test("cobalt_browsertests") {
 
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
-    #"content_main_runner_impl_browsertest.cc",
+    "content_main_runner_impl_browsertest.cc",
+
     #"encrypted_media_browsertest.cc",
     #"frame_tree_browsertest.cc",
     #"media_browsertest.cc",
@@ -216,6 +217,7 @@ test("cobalt_browsertests") {
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
     "navigation_browsertest.cc",
+
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
     #"site_per_process_browsertest.h",
@@ -228,13 +230,7 @@ test("cobalt_browsertests") {
   }
 
   if (is_starboard) {
-    sources += [
-      "cobalt_browser_tests_main.cc",
-
-      #TODO(b/433354983): Use the shared "sources" list once cobalt_browsertests
-      # can run on other platforms.
-      "content_main_runner_impl_browsertest.cc",
-    ]
+    sources += [ "cobalt_browser_tests_main.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
