@@ -150,8 +150,7 @@ if (is_ios && target_platform == "tvos") {
     }
     if (is_starboard) {
       deps += [ "//ui/ozone/platform/starboard:starboard" ]
-    }
-    if (!is_android && !is_ios && !is_starboard) {
+    } else {
       # Web test support only built for the linux-x64x11-no-starboard target.
       deps += [
         "//content/web_test:web_test_browser",

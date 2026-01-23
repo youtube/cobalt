@@ -248,9 +248,6 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
-  bool player_bridge_initialized_ = false;
-  std::optional<TimeDelta> playing_start_from_time_;
-
   base::OnceClosure pending_flush_cb_;
 
   bool audio_read_in_progress_ = false;
