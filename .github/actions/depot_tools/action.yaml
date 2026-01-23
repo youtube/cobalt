@@ -82,19 +82,27 @@ runs:
         gclient validate
       shell: bash
 
-    - name: Run gclient sync
-      if: inputs.run_sync == 'true'
-      run: |
-        cd cobalt
-        gclient sync \
-          --verbose \
-          --shallow \
-          --no-history \
-          --nohooks \
-          --force \
-          --delete_unversioned_trees \
-          --revision ${{ github.sha }}
-      shell: bash
+      - name: Set target OS for tvOS
+        if: contains(matrix.platform, 'tvos')
+        run: |
+          cd cobalt
+          echo "target_os=['ios']" >> .gclient
+          gclient validate
+        shell: bash
+
+      - name: Run gclient sync
+        if: inputs.run_sync == 'true'
+        run: |
+          cd cobalt
+          gclient sync \
+            --verbose \
+            --shallow \
+            --no-history \
+            --nohooks \
+            --force \
+            --delete_unversioned_trees \
+            --revision ${{ github.sha }}
+        shell: bash
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'
