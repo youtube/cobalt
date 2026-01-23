@@ -14,6 +14,8 @@
 
 package dev.cobalt.coat;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
@@ -116,5 +118,26 @@ public class CobaltActivityTest {
       // Expected when calling super method.
     }
     verify(mockImeAdapterImpl, never()).dispatchKeyEvent(any());
+  }
+
+  @Test
+  public void shouldDisarmStartupGuard() {
+    ImeAdapterImpl mockImeAdapterImpl = createImeAdapterImplForRemapTests();
+    CobaltActivity cobaltActivity = createActivityForRemapTests(mockImeAdapterImpl);
+
+    assertTrue("Should disarm if URL is empty",
+      cobaltActivity.shouldDisarmStartupGuard(""));
+
+    assertTrue("Should disarm if URL is null",
+      cobaltActivity.shouldDisarmStartupGuard(null));
+
+    assertTrue("Should disarm for non-YouTube URLs",
+      cobaltActivity.shouldDisarmStartupGuard("https://www.google.com"));
+
+    assertTrue("Should disarm when YTS loader is present",
+      cobaltActivity.shouldDisarmStartupGuard("https://www.youtube.com/tv?loader=yts&extra=param"));
+
+    assertFalse("Should NOT disarm for standard YouTube Living Room URLs",
+      cobaltActivity.shouldDisarmStartupGuard("https://www.youtube.com/tv?launch=menu&topic=music"));
   }
 }
