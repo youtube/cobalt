@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,28 +16,21 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_DECODER_STATE_TRACKER_H_
 
 #include <functional>
-#include <iosfwd>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <string_view>
+#include <vector>
 
+#include "starboard/common/log.h"
+#include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 
-// Tracks the number of frames currently inside the decoder (input queue) and
-// the output queue to enable flow control.
-//
-// By limiting the number of frames in flight, we can prevent the decoder from
-// buffering an excessive amount of data, which reduces system memory usage.
-//
-// This class is thread-safe and can be used from multiple threads or
-// SequencedTaskRunners.
 class DecoderStateTracker {
  public:
-  using FrameReleasedCB = std::function<void()>;
-
   struct State {
     int decoding_frames = 0;
     int decoded_frames = 0;
@@ -45,8 +38,7 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  DecoderStateTracker(int initial_max_frames,
-                      FrameReleasedCB frame_released_cb);
+  explicit DecoderStateTracker(int initial_max_frames);
   ~DecoderStateTracker();
 
   void TrackNewFrame(int64_t presentation_us);
@@ -54,42 +46,40 @@ class DecoderStateTracker {
   void MarkFrameReleased(int64_t presentation_us, int64_t release_us);
   void MarkEosReached();
 
-  bool CanAcceptMore() const;
+  bool CanAcceptMore();
   void Reset();
 
   State GetCurrentStateForTest() const;
 
  private:
-  enum class FrameStatus {
-    kDecoding,
-    kDecoded,
+  enum class FrameStatus { kDecoding, kDecoded, kReleased };
+  struct FrameInfo {
+    FrameStatus status;
+    int64_t release_time_us = 0;  // Valid only when status == kReleased
   };
 
   State GetCurrentState_Locked() const;
   bool IsFull_Locked() const;
   void EngageKillSwitch_Locked(std::string_view reason, int64_t pts);
+  void PruneReleasedFrames_Locked();
 
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   void StartPeriodicalLogging(int64_t log_interval_us);
   void LogStateAndReschedule(int64_t log_interval_us);
 #endif
 
-  const FrameReleasedCB frame_released_cb_;
+  int max_frames_;
+  bool disabled_ = false;
 
   mutable std::mutex mutex_;
-  std::vector<std::pair<int64_t, FrameStatus>>
-      frames_in_flight_;      // Guarded by |mutex_|.
-  bool eos_added_ = false;    // Guarded by |mutex_|.
-  bool reached_max_ = false;  // Guarded by |mutex_|.
+  std::vector<std::pair<int64_t, FrameInfo>> frames_in_flight_;
+  int pending_released_frames_ = 0;  // Guarded by |mutex_|.
+  bool eos_added_ = false;           // Guarded by |mutex_|.
+  bool reached_max_ = false;         // Guarded by |mutex_|.
 
-  // Non-resettable members start.
-  // These variables are preserved across calls to Reset().
-  bool disabled_ = false;  // Guarded by |mutex_|.
-  int max_frames_;         // Guarded by |mutex_|.
-  // Non-resettable members end.
-
-  std::unique_ptr<shared::starboard::player::JobThread>
-      job_thread_;  // Guarded by |mutex_|.
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  std::unique_ptr<shared::starboard::player::JobThread> logging_thread_;
+#endif
 };
 
 std::ostream& operator<<(std::ostream& os,

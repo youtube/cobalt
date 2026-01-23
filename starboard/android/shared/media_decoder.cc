@@ -144,8 +144,7 @@ MediaDecoder::MediaDecoder(
         if (!initial_max_frames || tunnel_mode_enabled_) {
           return nullptr;
         }
-        return std::make_unique<DecoderStateTracker>(
-            *initial_max_frames, [this] { condition_variable_.Signal(); });
+        return std::make_unique<DecoderStateTracker>(*initial_max_frames);
       }()) {
   if (initial_max_frames && tunnel_mode_enabled_) {
     SB_LOG(INFO) << "DecoderStateTracker is disabled for tunnel mode.";
