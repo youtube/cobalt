@@ -18,8 +18,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-BASE_DIR = Path.cwd().resolve()
-
 # --- Script ---
 
 PLATFORM_PARSER = argparse.ArgumentParser(
@@ -59,7 +57,7 @@ def run_command(command, cwd=None):
 def normalize_lcov_paths(filepath):
   """Rewrites an lcov file so all source file paths are relative to root.
   """
-  print(f"Normalizing paths in {filepath} to be relative to {BASE_DIR}...")
+  print(f"Normalizing paths in {filepath}...")
   try:
     lines = filepath.read_text().splitlines()
     new_lines = []
@@ -83,16 +81,8 @@ def normalize_lcov_paths(filepath):
     print(f"Could not read or write to {filepath}: {e}")
 
 
-def main():
-  """Main function to generate the coverage report."""
-  args, _ = PLATFORM_PARSER.parse_known_args()
-  platform = args.platform
-
-  # --- Configuration ---
-  # The root directory of your checkout.
-  # The script assumes it's run from the checkout root.
-  base_dir = Path.cwd().resolve()
-
+def generate_report(platform, base_dir, filters=None):
+  """Generates the coverage report."""
   # Directory where the individual .lcov files are located.
   lcov_src_dir = base_dir / "out" / f"{platform}_coverage"
 
@@ -111,7 +101,7 @@ def main():
 
   if not lcov_src_dir.exists():
     print(f"ERROR: LCOV source directory does not exist: {lcov_src_dir}")
-    return
+    return False
 
   if cleaned_dir.exists():
     shutil.rmtree(cleaned_dir)
@@ -121,7 +111,7 @@ def main():
   initial_lcov_files = list(lcov_src_dir.glob("**/*.lcov"))
   if not initial_lcov_files:
     print(f"ERROR: No .lcov files found in {lcov_src_dir}. Exiting.")
-    return
+    return False
 
   for lcov_file in initial_lcov_files:
     if cleaned_dir in lcov_file.parents or lcov_file == final_lcov_file:
@@ -131,7 +121,7 @@ def main():
     relative_path = lcov_file.relative_to(lcov_src_dir)
     cleaned_file = cleaned_dir / str(relative_path).replace("/", "_")
 
-    extract_patterns = args.filters or ["*/cobalt/*", "*/starboard/*"]
+    extract_patterns = filters or ["*/cobalt/*", "*/starboard/*"]
     extract_cmd = ["lcov", "--extract", str(lcov_file)]
     extract_cmd.extend(extract_patterns)
     extract_cmd.extend([
@@ -155,7 +145,7 @@ def main():
     print(
         "ERROR: No coverage data found for 'cobalt' in any of the tracefiles. "
         "Exiting.")
-    return
+    return False
 
   merge_cmd = ["lcov"]
   for cleaned_file in cleaned_files_to_merge:
@@ -164,7 +154,7 @@ def main():
 
   if not run_command(merge_cmd):
     print("ERROR: Failed to merge cleaned .lcov files. Exiting.")
-    return
+    return False
 
   print(f"\n--- Generating HTML report in {report_dir} ---")
   genhtml_cmd = [
@@ -174,11 +164,19 @@ def main():
   ]
   if not run_command(genhtml_cmd, cwd=base_dir):
     print("ERROR: Failed to generate HTML report. Exiting.")
-    return
+    return False
 
   print("\n--- Coverage Report Generation Complete ---")
   print("Success! You can view the report by opening:")
   print(f"file://{report_dir}/index.html")
+  return True
+
+
+def main():
+  """Main function to generate the coverage report."""
+  args, _ = PLATFORM_PARSER.parse_known_args()
+  base_dir = Path.cwd().resolve()
+  generate_report(args.platform, base_dir, filters=args.filters)
 
 
 if __name__ == "__main__":

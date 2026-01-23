@@ -100,30 +100,3 @@ python3 cobalt/tools/code_coverage/generate_coverage_report.py --input-file out/
 ```
 
 The report will be generated in `out/coverage_report`. You can view it by opening `out/coverage_report/index.html` in your browser.
-
-
-### Generating GN Arguments for Coverage Builds
-
-Before running the code coverage script, you need to ensure that your build directory is configured with the correct GN arguments for coverage. The `cobalt/build/gn.py` script has been updated to support this.
-
-#### Usage
-
-To generate the necessary GN arguments for a coverage build, run the `gn.py` script with the `--coverage` flag:
-
-```bash
-python3 cobalt/build/gn.py -p <PLATFORM> --coverage
-```
-
-*   `-p, --platform <PLATFORM>`: The platform to build for (e.g., `android-x86`).
-
-This will create a build directory named `<PLATFORM>_devel-coverage` (e.g., `out/android-x86_devel-coverage`) and generate an `args.gn` file with the required coverage flags.
-
-### Usage of the Code Coverage Tool
-
-Once you have generated the GN arguments, you can run the code coverage tool. The `code_coverage_tool.py` script accepts the same arguments as the upstream `tools/code_coverage/coverage.py` script. It automatically injects the `--coverage-tools-dir` argument if it's not already provided, pointing to the default LLVM build directory.
-
-To use the tool, navigate to the `src/` directory (the root of your checkout) and execute the script:
-
-```bash
-python3 cobalt/tools/code_coverage/code_coverage_tool.py [OPTIONS] <TARGETS>
-```
