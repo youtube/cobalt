@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <iostream>
+
 #include "starboard/microphone.h"
 #include "starboard/nplb/microphone_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,9 +25,11 @@ TEST(SbMicrophoneOpenTest, SunnyDay) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
   int available_microphones =
       SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
+
   EXPECT_GE(available_microphones, 0);
 
-  if (available_microphones != 0) {
+  std::cout << "NUM MICZ IS:" << available_microphones << std::endl;
+  if (available_microphones > 0) {
     ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
         info_array[0].id, info_array[0].max_sample_rate_hz));
     SbMicrophone microphone = SbMicrophoneCreate(
@@ -45,7 +49,7 @@ TEST(SbMicrophoneOpenTest, SunnyDayNoClose) {
       SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
   EXPECT_GE(available_microphones, 0);
 
-  if (available_microphones != 0) {
+  if (available_microphones > 0) {
     ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
         info_array[0].id, info_array[0].max_sample_rate_hz));
     SbMicrophone microphone = SbMicrophoneCreate(
@@ -63,7 +67,7 @@ TEST(SbMicrophoneOpenTest, SunnyDayMultipleOpenCalls) {
       SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
   EXPECT_GE(available_microphones, 0);
 
-  if (available_microphones != 0) {
+  if (available_microphones > 0) {
     ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
         info_array[0].id, info_array[0].max_sample_rate_hz));
     SbMicrophone microphone = SbMicrophoneCreate(
