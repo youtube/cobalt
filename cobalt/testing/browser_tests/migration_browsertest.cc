@@ -23,12 +23,14 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/string_util.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/scoped_path_override.h"
 #include "base/threading/thread_restrictions.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/shell/browser/migrate_storage_record/migration_manager.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
 #include "cobalt/shell/browser/shell.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/testing/browser_tests/browser/test_shell.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "cobalt/testing/browser_tests/content_browser_test_utils.h"
@@ -77,6 +79,7 @@ class MigrationBrowserTest : public ContentBrowserTest {
  protected:
   base::ScopedTempDir temp_dir_;
   std::unique_ptr<base::ScopedPathOverride> home_override_;
+  base::test::ScopedCommandLine scoped_command_line_;
 };
 
 IN_PROC_BROWSER_TEST_F(MigrationBrowserTest, MigrateCookiesAndLocalStorage) {
@@ -124,9 +127,11 @@ IN_PROC_BROWSER_TEST_F(MigrationBrowserTest, MigrateCookiesAndLocalStorage) {
     ASSERT_TRUE(record.Write(data.data(), data.size()));
   }
 
-  // 2. Set the initial URL switch.
+  // 2. Set the initial URL switch and enable insecure migration for testing.
   base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
       cobalt::switches::kInitialURL, test_url.spec());
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kEnableInsecureDomainForMigrationTesting);
 
   // 3. Trigger migration and wait for the reload.
   // Migration ends with a ReloadTask. We expect 2 navigations:

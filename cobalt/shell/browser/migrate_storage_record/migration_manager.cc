@@ -361,10 +361,14 @@ std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
 MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
                                       const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<std::pair<std::string, std::string>>> entries;
+  bool allow_http = base::CommandLine::ForCurrentProcess()->HasSwitch(
+      ::switches::kEnableInsecureDomainForMigrationTesting);
   for (const auto& local_storages : storage.local_storages()) {
     GURL local_storage_origin(local_storages.serialized_origin());
-    if (!(local_storage_origin.SchemeIs("https") ||
-          local_storage_origin.SchemeIs("http")) ||
+    bool is_secure = local_storage_origin.SchemeIs("https");
+    bool is_insecure_allowed =
+        allow_http && local_storage_origin.SchemeIs("http");
+    if (!(is_secure || is_insecure_allowed) ||
         !page_origin.IsSameOriginWith(local_storage_origin)) {
       continue;
     }

@@ -35,6 +35,7 @@ source_set("unittest") {
     ":migrate_storage_record",
     ":storage_proto",
     "//base/test:test_support",
+    "//cobalt/shell:cobalt_shell_switches",
     "//net",
     "//url",
   ]
