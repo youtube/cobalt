@@ -106,6 +106,8 @@ void PlatformWindowStarboard::ProcessFocusEvent(bool is_focused) {
   }
 }
 
+void PlatformWindowStarboard::ProcessDateTimeConfigurationChangedEvent() {}
+
 bool PlatformWindowStarboard::ShouldUseNativeFrame() const {
   return use_native_frame_;
 }

@@ -197,6 +197,11 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
+    case kSbEventDateTimeConfigurationChanged: {
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleDateTimeConfigurationChangedEvent(event);
+      break;
+    }
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
     case kSbEventTypeWindowSizeChanged:
@@ -205,7 +210,6 @@ void SbEventHandle(const SbEvent* event) {
       break;
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
-    case kSbEventDateTimeConfigurationChanged:
       break;
   }
 }

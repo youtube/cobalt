@@ -218,6 +218,26 @@ void PlatformEventSourceStarboard::HandleWindowSizeChangedEvent(
   return;
 }
 
+void PlatformEventSourceStarboard::DispatchDateTimeConfigurationChanged() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  for (PlatformEventObserverStarboard& observer : sb_observers_) {
+    observer.ProcessDateTimeConfigurationChangedEvent();
+  }
+}
+
+void PlatformEventSourceStarboard::HandleDateTimeConfigurationChangedEvent(
+    const SbEvent* event) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (event->type != kSbEventDateTimeConfigurationChanged) {
+    return;
+  }
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          &PlatformEventSourceStarboard::DispatchDateTimeConfigurationChanged,
+          weak_factory_.GetWeakPtr()));
+}
+
 PlatformEventSourceStarboard::~PlatformEventSourceStarboard() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 }

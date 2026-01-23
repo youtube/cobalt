@@ -45,6 +45,8 @@ class PlatformEventSourceStarboard : public PlatformEventSource {
       PlatformEventObserverStarboard* observer);
   void HandleWindowSizeChangedEvent(const SbEvent* event);
   void DispatchWindowSizeChanged(int width, int height);
+  void HandleDateTimeConfigurationChangedEvent(const SbEvent* event);
+  void DispatchDateTimeConfigurationChanged();
 
  private:
   base::ObserverList<PlatformEventObserverStarboard>::Unchecked sb_observers_

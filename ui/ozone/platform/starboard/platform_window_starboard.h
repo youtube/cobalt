@@ -77,6 +77,7 @@ class PlatformWindowStarboard : public PlatformWindow,
   // ui::PlatformEventObserverStarboard interface.
   void ProcessWindowSizeChangedEvent(int width, int height) override;
   void ProcessFocusEvent(bool is_focused) override;
+  void ProcessDateTimeConfigurationChangedEvent() override;
   void SetBoundsInPixels(const gfx::Rect& bounds) override;
   gfx::Rect GetBoundsInPixels() const override;
 

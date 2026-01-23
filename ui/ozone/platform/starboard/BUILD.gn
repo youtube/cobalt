@@ -19,6 +19,7 @@ assert(is_starboard)
 source_set("starboard") {
   visibility = [
     "//cobalt/*",
+    "//services/device/time_zone_monitor/*",
     "//ui/ozone/*",
   ]
 

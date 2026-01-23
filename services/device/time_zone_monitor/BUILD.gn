@@ -39,9 +39,17 @@ source_set("time_zone_monitor") {
     deps += [ "//ui/gfx" ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_starboard) {
     sources += [ "time_zone_monitor_linux.cc" ]
     deps += [ "//build:chromeos_buildflags" ]
+  }
+
+  if (is_starboard) {
+    sources += [ "time_zone_monitor_starboard.cc" ]
+    deps += [ 
+      "//ui/events/platform",
+      "//ui/ozone/platform/starboard" 
+    ]
   }
 
   if (is_chromeos_ash) {
