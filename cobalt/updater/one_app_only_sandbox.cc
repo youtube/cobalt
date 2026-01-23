@@ -1,4 +1,4 @@
-// Copyright 2021 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,10 +70,8 @@ static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
 }  // namespace
 
 int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
-  // content::ContentMainParams params(g_content_main_delegate.Get().get());
   content::ContentMainParams params(g_content_main_delegate);
 
-  // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // Preprocess the raw command line arguments with the defaults expected by
   // Cobalt.
   cobalt::CommandLinePreprocessor init_cmd_line(argc, argv);
