@@ -409,9 +409,13 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
-  // Forces video surface to reset after tunnel mode playbacks. This
-  // prevents video distortion on some platforms.
-  ClearVideoWindow(tunnel_mode_audio_session_id_ != -1 || force_reset_surface_);
+  if (tunnel_mode_audio_session_id_ != -1) {
+    // Forces video surface to reset after tunnel mode playbacks. This
+    // prevents video distortion on some platforms.
+    ClearVideoWindow(/*force_reset_surface=*/true);
+  } else {
+    ClearVideoWindow(force_reset_surface_);
+  }
 }
 
 scoped_refptr<VideoRendererSink> MediaCodecVideoDecoder::GetSink() {
