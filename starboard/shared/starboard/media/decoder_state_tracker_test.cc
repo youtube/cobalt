@@ -29,7 +29,7 @@ constexpr int kMaxFrames = 2;
 class DecoderStateTrackerTest : public ::testing::Test {
  protected:
   void CreateTracker(int max_frames,
-                     DecoderStateTracker::FrameReleaseCB frame_released_cb) {
+                     DecoderStateTracker::FrameReleasedCB frame_released_cb) {
     decoder_state_tracker_ = std::make_unique<DecoderStateTracker>(
         max_frames, std::move(frame_released_cb));
   }

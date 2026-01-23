@@ -45,7 +45,7 @@ constexpr int64_t kLogIntervalUs = 5'000'000;  // 5 sec.
 }  // namespace
 
 DecoderStateTracker::DecoderStateTracker(int initial_max_frames,
-                                         FrameReleaseCB frame_released_cb)
+                                         FrameReleasedCB frame_released_cb)
     : max_frames_(initial_max_frames),
       frame_released_cb_(std::move(frame_released_cb)),
       job_thread_(std::make_unique<shared::starboard::player::JobThread>(
@@ -260,10 +260,10 @@ void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
 #endif
 
 std::ostream& operator<<(std::ostream& os,
-                         const DecoderStateTracker::State& status) {
-  return os << "{decoding: " << status.decoding_frames
-            << ", decoded: " << status.decoded_frames
-            << ", total: " << status.total_frames() << "}";
+                         const DecoderStateTracker::State& state) {
+  return os << "{decoding=" << state.decoding_frames
+            << ", decoded=" << state.decoded_frames
+            << ", total=" << state.total_frames() << "}";
 }
 
 }  // namespace starboard

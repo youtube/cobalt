@@ -36,7 +36,7 @@ namespace starboard {
 // SequencedTaskRunners.
 class DecoderStateTracker {
  public:
-  using FrameReleaseCB = std::function<void()>;
+  using FrameReleasedCB = std::function<void()>;
 
   struct State {
     int decoding_frames = 0;
@@ -45,7 +45,8 @@ class DecoderStateTracker {
     int total_frames() const { return decoding_frames + decoded_frames; }
   };
 
-  DecoderStateTracker(int initial_max_frames, FrameReleaseCB frame_released_cb);
+  DecoderStateTracker(int initial_max_frames,
+                      FrameReleasedCB frame_released_cb);
   ~DecoderStateTracker();
 
   void TrackNewFrame(int64_t presentation_us);
@@ -73,7 +74,7 @@ class DecoderStateTracker {
   void LogStateAndReschedule(int64_t log_interval_us);
 #endif
 
-  const FrameReleaseCB frame_released_cb_;
+  const FrameReleasedCB frame_released_cb_;
 
   mutable std::mutex mutex_;
   std::map<int64_t, FrameStatus> frames_in_flight_;  // Guarded by |mutex_|.
@@ -86,14 +87,12 @@ class DecoderStateTracker {
   int max_frames_;         // Guarded by |mutex_|.
   // Non-resettable members end.
 
-  // NOTE: |job_thread_| must be the last variable declared so that it is
-  // destroyed first (following the reverse order of declaration).
   std::unique_ptr<shared::starboard::player::JobThread>
       job_thread_;  // Guarded by |mutex_|.
 };
 
 std::ostream& operator<<(std::ostream& os,
-                         const DecoderStateTracker::State& status);
+                         const DecoderStateTracker::State& state);
 
 }  // namespace starboard
 
