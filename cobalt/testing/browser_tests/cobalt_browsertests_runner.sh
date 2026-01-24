@@ -104,10 +104,14 @@ TEMP_XML="temp_shard_${SHARD_INDEX}.xml"
 for TEST in $TESTS_TO_RUN; do
   echo "[RUN] $TEST"
 
+  # Create a unique user data directory for this test run to avoid DB locking
+  TEST_USER_DATA_DIR=$(mktemp -d -t cobalt_browsertests_XXXXXX)
+
   # Construct flags
   RUN_FLAGS="--gtest_filter=$TEST --single-process-tests --no-sandbox"
   RUN_FLAGS="$RUN_FLAGS --single-process --no-zygote"
-  RUN_FLAGS="$RUN_FLAGS --ozone-platform=starboard $EXTRA_ARGS"
+  RUN_FLAGS="$RUN_FLAGS --ozone-platform=starboard"
+  RUN_FLAGS="$RUN_FLAGS --user-data-dir=$TEST_USER_DATA_DIR $EXTRA_ARGS"
 
   if [ -n "$XML_OUTPUT_FILE" ]; then
     RUN_FLAGS="$RUN_FLAGS --gtest_output=xml:$TEMP_XML"
@@ -154,6 +158,9 @@ for TEST in $TESTS_TO_RUN; do
       echo "  </testsuite>" >> "$XML_OUTPUT_FILE"
     fi
   fi
+
+  # Cleanup user data dir
+  rm -rf "$TEST_USER_DATA_DIR"
 done
 
 # 5. Finalize XML
