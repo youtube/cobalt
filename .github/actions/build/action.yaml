@@ -20,7 +20,11 @@ runs:
       - name: GN gen
         run: |
           cd cobalt/src
-          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
+          gn_flags=()
+          if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+            gn_flags+=(--no-rbe --no-check)
+          fi
+          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
         shell: bash
       - name: List GN args
         run: |

@@ -189,6 +189,10 @@ component("modules") {
         "//third_party/blink/renderer/modules/cobalt/mediasource",
       ]
     }
+
+    if (!is_androidtv) {
+      sub_modules += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service" ]
+    }
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
