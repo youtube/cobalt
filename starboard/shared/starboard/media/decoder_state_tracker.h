@@ -16,15 +16,15 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_DECODER_STATE_TRACKER_H_
 
 #include <atomic>
-#include <functional>
-#include <map>
+#include <iosfwd>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
-#include "starboard/common/log.h"
+#include "build/build_config.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 

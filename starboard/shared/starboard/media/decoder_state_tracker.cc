@@ -15,14 +15,11 @@
 #include "starboard/shared/starboard/media/decoder_state_tracker.h"
 
 #include <algorithm>
-#include <optional>
 #include <ostream>
-#include <sstream>
 #include <string_view>
 #include <utility>
 
 #include "build/build_config.h"
-#include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"

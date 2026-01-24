@@ -14,8 +14,6 @@
 
 #include "starboard/shared/starboard/media/decoder_state_tracker.h"
 
-#include <atomic>
-#include <optional>
 #include <sstream>
 
 #include "starboard/common/time.h"
