@@ -135,7 +135,10 @@ void SbEventHandle(const SbEvent* event) {
       }
 
       s_job_thread.reset(new JobThread("audio", kJobThreadStackSize));
-      s_job_thread->Schedule(std::bind(Start, data->argument_values[1]));
+      s_job_thread->Schedule(
+          [filename = std::string(data->argument_values[1])] {
+            Start(filename.c_str());
+          });
       break;
     }
     case kSbEventTypeStop: {
