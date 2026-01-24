@@ -380,7 +380,6 @@ test("cobalt_browsertests") {
 
   data_deps = [
     "//cobalt/shell:pak",
-    "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
   ]
 

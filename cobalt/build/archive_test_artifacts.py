@@ -75,11 +75,24 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
+    browsertest_archive_path: str = None,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   combined_deps = set()
   for target in targets:
     target_path, target_name = target.split(':')
+
+    if target_name == 'cobalt_browsertests':
+      output_path = browsertest_archive_path or os.path.join(
+          destination_dir, f'cobalt_browsertests_deps.tar.{compression}')
+      collect_script = os.path.join(source_dir, 'cobalt', 'testing',
+                                    'browser_tests', 'tools',
+                                    'collect_test_artifacts.py')
+      print(f'Running specialized collector: {collect_script}')
+      subprocess.check_call(
+          ['vpython3', collect_script, out_dir, '-o', output_path])
+      continue
+
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if use_android_deps_path:
@@ -195,6 +208,9 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
+  parser.add_argument(
+      '--browsertest-archive-path',
+      help='Explicit path for the cobalt_browsertests archive.')
   args = parser.parse_args()
 
   if args.flatten_deps != args.archive_per_target:
@@ -209,7 +225,8 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps)
+      flatten_deps=args.flatten_deps,
+      browsertest_archive_path=args.browsertest_archive_path)
 
 
 if __name__ == '__main__':

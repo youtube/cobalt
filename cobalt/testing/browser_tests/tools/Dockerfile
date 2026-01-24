@@ -30,6 +30,6 @@ WORKDIR /opt/cobalt_browsertests
 
 # Add and extract the artifacts tarball.
 # Expects cobalt_browsertests_artifacts.tar.gz to be in the build context.
-ADD cobalt_browsertests_artifacts.tar.gz .
+ADD cobalt_browsertests_deps.tar.gz .
 
 ENTRYPOINT ["python3", "run_tests.py"]
