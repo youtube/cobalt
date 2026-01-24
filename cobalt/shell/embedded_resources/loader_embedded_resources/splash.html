@@ -62,13 +62,13 @@
           if (!params.has('cache')) {
             params.append('cache', 'default');
           }
+          // The default splash video is splash.webm. If it does not exist in
+          // the given cache, "fallback" parameter specifies which built-in video
+          // to use.
           // TODO(458074360): fallback to static image if the device does not support VP9.
           if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\"; width=3840; height=2160;")) {
             params.append('fallback', 'splash_480.webm');
           }
-          // The default splash video is splash.webm. If it does not exist in
-          // the given cache, "fallback" parameter specifies which built-in video
-          // to use.
           try {
             const response = await fetch(
                 'h5vcc-embedded://splash.webm?' + params.toString());
