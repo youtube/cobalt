@@ -23,6 +23,7 @@
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/audio_output_manager.h"
+#include "starboard/android/shared/audio_stream_sink.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
@@ -44,6 +45,9 @@ using ::base::android::AttachCurrentThread;
 // data and actual data.
 // TODO: b/186660620: Replace this constant with feature flag.
 constexpr bool kUseContinuousAudioTrackSink = false;
+
+// Whether to use AudioStreamSink, which uses NDK AAudio APIs.
+constexpr bool kUseAudioStreamSink = false;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -516,6 +520,20 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       SB_LOG(INFO) << "Cannot use ContinuousAudioTrack with tunnel mode. "
                       "will Create normal AudioTrackAudioSink instead.";
     }
+  }
+  if (kUseAudioStreamSink) {
+    SB_LOG(INFO) << "Use AudioStreamSink";
+    auto audio_sink = new AudioStreamSink(
+        this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
+        frames_per_channel, preferred_buffer_size_in_bytes,
+        update_source_status_func, consume_frames_func, error_func,
+        start_media_time, is_web_audio, context);
+    if (!continuous_sink->IsAudioTrackValid()) {
+      SB_LOG(ERROR) << "Failed to create AudioStreamSink";
+      Destroy(audio_sink);
+      return kSbAudioSinkInvalid;
+    }
+    return audio_sink;
   }
 
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
