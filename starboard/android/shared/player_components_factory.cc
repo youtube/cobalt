@@ -55,15 +55,6 @@ namespace {
 using base::android::AttachCurrentThread;
 using features::FeatureList;
 
-// Forces video surface to reset after tunnel mode playbacks. This prevents
-// video distortion on some platforms.
-constexpr bool kForceResetSurfaceUnderTunnelMode = true;
-// On some platforms tunnel mode is only supported in the secure pipeline.  Set
-// the following variable to true to force creating a secure pipeline in tunnel
-// mode, even for clear content.
-// TODO: Allow this to be configured per playback at run time from the web app.
-constexpr bool kForceSecurePipelineInTunnelModeWhenRequired = true;
-
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
  public:
