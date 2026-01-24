@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_DECODER_STATE_TRACKER_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_DECODER_STATE_TRACKER_H_
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
@@ -69,7 +70,7 @@ class DecoderStateTracker {
 #endif
 
   int max_frames_;
-  bool disabled_ = false;
+  std::atomic_bool disabled_ = false;
 
   mutable std::mutex mutex_;
   std::vector<std::pair<int64_t, FrameInfo>> frames_in_flight_;

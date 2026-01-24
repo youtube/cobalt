@@ -78,9 +78,12 @@ DecoderStateTracker::~DecoderStateTracker() {
 }
 
 void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
+  if (disabled_.load(std::memory_order_relaxed)) {
+    return;
+  }
   std::unique_lock lock(mutex_);
 
-  if (disabled_ || eos_added_) {
+  if (disabled_.load(std::memory_order_relaxed) || eos_added_) {
     return;
   }
   PruneReleasedFrames_Locked();
@@ -123,9 +126,12 @@ void DecoderStateTracker::TrackNewFrame(int64_t presentation_us) {
 }
 
 void DecoderStateTracker::MarkEosReached() {
+  if (disabled_.load(std::memory_order_relaxed)) {
+    return;
+  }
   std::lock_guard lock(mutex_);
 
-  if (disabled_) {
+  if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
   SB_LOG(INFO) << "EOS frame is added.";
@@ -133,9 +139,12 @@ void DecoderStateTracker::MarkEosReached() {
 }
 
 void DecoderStateTracker::MarkFrameDecoded(int64_t presentation_us) {
+  if (disabled_.load(std::memory_order_relaxed)) {
+    return;
+  }
   std::lock_guard lock(mutex_);
 
-  if (disabled_) {
+  if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
 
@@ -150,8 +159,11 @@ void DecoderStateTracker::MarkFrameDecoded(int64_t presentation_us) {
 
 void DecoderStateTracker::MarkFrameReleased(int64_t presentation_us,
                                             int64_t release_us) {
+  if (disabled_.load(std::memory_order_relaxed)) {
+    return;
+  }
   std::lock_guard lock(mutex_);
-  if (disabled_) {
+  if (disabled_.load(std::memory_order_relaxed)) {
     return;
   }
 
@@ -171,8 +183,11 @@ void DecoderStateTracker::MarkFrameReleased(int64_t presentation_us,
 }
 
 bool DecoderStateTracker::CanAcceptMore() {
+  if (disabled_.load(std::memory_order_relaxed)) {
+    return true;
+  }
   std::lock_guard lock(mutex_);
-  if (disabled_) {
+  if (disabled_.load(std::memory_order_relaxed)) {
     return true;
   }
   PruneReleasedFrames_Locked();
@@ -190,12 +205,16 @@ void DecoderStateTracker::Reset() {
   // it likely means this device needs the higher limit to avoid stalls.
   // We also keep 'disabled_' state, since it means we encountered some fatal
   // error and we should not use this tracker anymore.
-  SB_LOG(INFO) << "DecoderStateTracker reset: disabled=" << disabled_;
+  SB_LOG(INFO) << "DecoderStateTracker reset: disabled="
+               << disabled_.load(std::memory_order_relaxed);
 }
 
 DecoderStateTracker::State DecoderStateTracker::GetCurrentStateForTest() const {
+  if (disabled_.load(std::memory_order_relaxed)) {
+    return {};
+  }
   std::lock_guard lock(mutex_);
-  if (disabled_) {
+  if (disabled_.load(std::memory_order_relaxed)) {
     return {};
   }
   return GetCurrentState_Locked();
@@ -227,7 +246,7 @@ bool DecoderStateTracker::IsFull_Locked() const {
 void DecoderStateTracker::EngageKillSwitch_Locked(std::string_view reason,
                                                   int64_t pts) {
   SB_LOG(ERROR) << "KILL SWITCH ENGAGED: " << reason << ", pts=" << pts;
-  disabled_ = true;
+  disabled_.store(true, std::memory_order_relaxed);
   frames_in_flight_.clear();
 }
 
@@ -276,8 +295,13 @@ void DecoderStateTracker::StartPeriodicalLogging(int64_t log_interval_us) {
 void DecoderStateTracker::LogStateAndReschedule(int64_t log_interval_us) {
   // This function runs on the thread managed by `job_thread_`.
 
+  if (disabled_.load(std::memory_order_relaxed)) {
+    SB_LOG(INFO) << "DecoderStateTracker state: DISABLED";
+    return;
+  }
+
   std::lock_guard lock(mutex_);
-  if (disabled_) {
+  if (disabled_.load(std::memory_order_relaxed)) {
     SB_LOG(INFO) << "DecoderStateTracker state: DISABLED";
     return;
   }
