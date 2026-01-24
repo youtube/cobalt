@@ -68,7 +68,7 @@ void De265VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   const auto& input_buffer = input_buffers[0];
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&De265VideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
@@ -87,7 +87,7 @@ void De265VideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&De265VideoDecoder::DecodeEndOfStream, this));
 }
 
@@ -96,7 +96,7 @@ void De265VideoDecoder::Reset() {
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
-    decoder_thread_->job_queue()->ScheduleAndWait(
+    decoder_thread_->ScheduleAndWait(
         std::bind(&De265VideoDecoder::TeardownCodec, this));
 
     decoder_thread_.reset();
@@ -125,14 +125,14 @@ void De265VideoDecoder::UpdateDecodeTarget_Locked(
 }
 
 void De265VideoDecoder::ReportError(const std::string& error_message) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
 void De265VideoDecoder::InitializeCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(!context_);
 
   context_ = de265_new_decoder();
@@ -144,7 +144,7 @@ void De265VideoDecoder::InitializeCodec() {
 }
 
 void De265VideoDecoder::TeardownCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   if (context_) {
     de265_error error = de265_free_decoder(context_);
@@ -169,7 +169,7 @@ void De265VideoDecoder::TeardownCodec() {
 
 void De265VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   if (!context_) {
     InitializeCodec();
@@ -191,7 +191,7 @@ void De265VideoDecoder::DecodeOneBuffer(
 }
 
 void De265VideoDecoder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   auto status = de265_flush_data(context_);
   SB_DCHECK_EQ(status, DE265_OK);

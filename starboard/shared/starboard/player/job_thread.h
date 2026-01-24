@@ -18,7 +18,6 @@
 #include <memory>
 #include <utility>
 
-#include "starboard/common/log.h"
 #include "starboard/common/thread.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -36,9 +35,6 @@ class JobThread {
                      int64_t stack_size = 0,
                      SbThreadPriority priority = kSbThreadPriorityNormal);
   ~JobThread();
-
-  JobQueue* job_queue() { return job_queue_.get(); }
-  const JobQueue* job_queue() const { return job_queue_.get(); }
 
   bool BelongsToCurrentThread() const {
     SB_DCHECK(job_queue_);

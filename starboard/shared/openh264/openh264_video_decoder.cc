@@ -57,7 +57,7 @@ void OpenH264VideoDecoder::Reset() {
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
-    decoder_thread_->job_queue()->ScheduleAndWait(
+    decoder_thread_->ScheduleAndWait(
         std::bind(&OpenH264VideoDecoder::TeardownCodec, this));
     decoder_thread_.reset();
   }
@@ -74,7 +74,7 @@ void OpenH264VideoDecoder::Reset() {
 }
 
 void OpenH264VideoDecoder::InitializeCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(!decoder_);
 
   int result = WelsCreateDecoder(&decoder_);
@@ -98,7 +98,7 @@ void OpenH264VideoDecoder::InitializeCodec() {
 }
 
 void OpenH264VideoDecoder::TeardownCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   if (decoder_) {
     decoder_->Uninitialize();
     WelsDestroyDecoder(decoder_);
@@ -135,13 +135,13 @@ void OpenH264VideoDecoder::WriteInputBuffers(
     SB_DCHECK(decoder_thread_);
   }
   const auto& input_buffer = input_buffers[0];
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&OpenH264VideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
 void OpenH264VideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
   if (input_buffer->video_sample_info().is_key_frame) {
@@ -177,7 +177,7 @@ void OpenH264VideoDecoder::DecodeOneBuffer(
 }
 
 void OpenH264VideoDecoder::FlushFrames() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(decoder_);
 
   int num_of_frames_in_buffer = 0;
@@ -211,7 +211,7 @@ void OpenH264VideoDecoder::FlushFrames() {
 void OpenH264VideoDecoder::ProcessDecodedImage(unsigned char* decoded_frame[],
                                                const SBufferInfo& buffer_info,
                                                bool flushing) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   if (buffer_info.UsrData.sSystemBuffer.iFormat != videoFormatI420) {
     ReportError(FormatString("Invalid video format %d.",
                              buffer_info.UsrData.sSystemBuffer.iFormat));
@@ -267,12 +267,12 @@ void OpenH264VideoDecoder::WriteEndOfStream() {
     decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
     return;
   }
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&OpenH264VideoDecoder::DecodeEndOfStream, this));
 }
 
 void OpenH264VideoDecoder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   FlushFrames();
   Schedule(
       std::bind(decoder_status_cb_, kBufferFull, VideoFrame::CreateEOSFrame()));

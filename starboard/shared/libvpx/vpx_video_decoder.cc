@@ -68,7 +68,7 @@ void VpxVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   const auto& input_buffer = input_buffers[0];
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&VpxVideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
@@ -87,7 +87,7 @@ void VpxVideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&VpxVideoDecoder::DecodeEndOfStream, this));
 }
 
@@ -96,7 +96,7 @@ void VpxVideoDecoder::Reset() {
 
   if (decoder_thread_) {
     // Wait to ensure all tasks are done before decoder_thread_ reset.
-    decoder_thread_->job_queue()->ScheduleAndWait(
+    decoder_thread_->ScheduleAndWait(
         std::bind(&VpxVideoDecoder::TeardownCodec, this));
 
     decoder_thread_.reset();
@@ -125,14 +125,14 @@ void VpxVideoDecoder::UpdateDecodeTarget_Locked(
 }
 
 void VpxVideoDecoder::ReportError(const std::string& error_message) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
 void VpxVideoDecoder::InitializeCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   context_.reset(new vpx_codec_ctx);
   vpx_codec_dec_cfg_t vpx_config = {0};
@@ -151,7 +151,7 @@ void VpxVideoDecoder::InitializeCodec() {
 }
 
 void VpxVideoDecoder::TeardownCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   if (context_) {
     vpx_codec_destroy(context_.get());
@@ -175,7 +175,7 @@ void VpxVideoDecoder::TeardownCodec() {
 
 void VpxVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
@@ -259,7 +259,7 @@ void VpxVideoDecoder::DecodeOneBuffer(
 }
 
 void VpxVideoDecoder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   // TODO: Flush the frames inside the decoder, though this is not required
   //       for vp9 in most cases.
