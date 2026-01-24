@@ -253,9 +253,9 @@ public abstract class CobaltActivity extends Activity {
     } else if (!startupUrl.startsWith(YOUTUBE_URL)) {
       Log.i(TAG, "Non-Youtube startup URL detected.");
       return true;
-    } else if (startupUrl.contains("loader=yts")) {
-      // startup URL is like https://www.youtube.com/tv?loader=yts...
-      Log.i(TAG, "YTS test URL detected.");
+    } else if (startupUrl.contains("loader=")) {
+      // startup URL is like https://www.youtube.com/tv?loader=yts... etc
+      Log.i(TAG, "Kabuki loader startup URL detected.");
       return true;
     }
     return false;
