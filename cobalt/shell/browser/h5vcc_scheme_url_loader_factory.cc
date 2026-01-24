@@ -176,6 +176,8 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     // Specify the built-in video if the cache is unavailable.
     // Only for webm.
+    // TODO(458074360): Add fallback to static image if the device does
+    // not support VP9.
     std::string fallback;
     if (net::GetValueForKeyInQuery(url_, "fallback", &fallback) &&
         (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE))) {
@@ -190,16 +192,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     }
 
     std::string mime_type = "application/octet-stream";
+    // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
-      if (content_.empty()) {
-        LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
-                     << " not found.";
-        SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
-        return;
-      }
-      // For html file, return from embedded resources.
-      SendResponse(content_, "text/html");
-      return;
+      mime_type = "text/html";
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       mime_type = "video/webm";
       if (browser_context_) {
@@ -208,9 +203,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       }
     }
     if (content_.empty()) {
-      LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
-                   << " not found.";
-      SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
+      SendNotFoundResponse(key);
       return;
     }
     SendResponse(content_, mime_type);
@@ -312,6 +305,12 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   }
 
  private:
+  void SendNotFoundResponse(const std::string& key) {
+    LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
+                 << " not found.";
+    SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
+  }
+
   void DisconnectCacheStorage() { cache_storage_remote_.reset(); }
 
   void SendResponse(const std::string& data_content,

@@ -233,9 +233,9 @@ test("cobalt_browsertests") {
     sources += [
       "cobalt_browser_tests_main.cc",
 
-      # Media source and Fetch are not supported yet in android's browser tests.
-      # Once they are plumbed, move H5vccSchemeURLLoaderFactoryBrowserTest
-      # above.
+      # TODO(478334656): Support Media source and Fetch for android's
+      # browser tests. Once they are plumbed, move
+      # H5vccSchemeURLLoaderFactoryBrowserTest above.
       "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     ]
   }
