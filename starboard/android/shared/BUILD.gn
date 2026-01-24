@@ -139,6 +139,8 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
+    "audio_stream.cc",
+    "audio_stream.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "asset_manager.cc",
