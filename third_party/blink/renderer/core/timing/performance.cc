@@ -285,7 +285,14 @@ Performance::Performance(
           task_runner_,
           this,
           &Performance::FireResourceTimingBufferFull) {
-  LOG(INFO) << "time_origin_ value in constructor  is " << time_origin_ ;
+  if (context) {
+    LOG(INFO) << "Performance object created for URL: " << context->Url().GetString().Utf8()
+              << " with time_origin_: " << time_origin_;
+  } else {
+    LOG(INFO) << "Performance object created with NULL context"
+              << " with time_origin_: " << time_origin_;
+  }
+  // LOG(INFO) << "time_origin_ value in constructor  is " << time_origin_ ;
   unix_at_zero_monotonic_ =
       GetUnixAtZeroMonotonic(base::DefaultClock::GetInstance(), tick_clock_);
   // |context| may be null in tests.
