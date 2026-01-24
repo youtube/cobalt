@@ -19,9 +19,9 @@
 #include <atomic>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -161,6 +161,33 @@ TEST(JobThreadTest, QueueBelongsToCorrectThread) {
   job_queue.RunUntilIdle();
   EXPECT_FALSE(belongs_to_job_thread);
   EXPECT_TRUE(belongs_to_main_thread);
+}
+
+class Foo {
+ public:
+  Foo() : job_thread_(std::make_unique<JobThread>("test")) {}
+  ~Foo() { job_thread_->Stop(); }
+
+  void ScheduleLongRunningTask() {
+    job_thread_->Schedule([this] {
+      usleep(5'000);
+
+      ScheduleLongRunningTask();
+    });
+  }
+
+ private:
+  const std::unique_ptr<JobThread> job_thread_;
+};
+
+TEST(JobThreadTest, CleanDestruction) {
+  auto foo = std::make_unique<Foo>();
+
+  foo->ScheduleLongRunningTask();
+
+  usleep(1'000);
+
+  foo.reset();
 }
 
 }  // namespace

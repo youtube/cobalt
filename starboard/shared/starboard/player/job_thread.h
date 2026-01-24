@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 
+#include <atomic>
 #include <memory>
 #include <utility>
 
@@ -38,6 +39,9 @@ class JobThread {
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
+    if (stopped_.load(std::memory_order_relaxed)) {
+      return false;
+    }
     SB_DCHECK(job_queue_);
 
     return job_queue_->BelongsToCurrentThread();
@@ -45,18 +49,27 @@ class JobThread {
 
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
                               int64_t delay_usec = 0) {
+    if (stopped_.load(std::memory_order_relaxed)) {
+      return JobQueue::JobToken();
+    }
     SB_DCHECK(job_queue_);
 
     return job_queue_->Schedule(job, delay_usec);
   }
 
   JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
+    if (stopped_.load(std::memory_order_relaxed)) {
+      return JobQueue::JobToken();
+    }
     SB_DCHECK(job_queue_);
 
     return job_queue_->Schedule(std::move(job), delay_usec);
   }
 
   void ScheduleAndWait(const JobQueue::Job& job) {
+    if (stopped_.load(std::memory_order_relaxed)) {
+      return;
+    }
     SB_DCHECK(job_queue_);
 
     job_queue_->ScheduleAndWait(job);
@@ -66,21 +79,35 @@ class JobThread {
   // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
   // occasionally running before ScheduleAndWait has finished.
   void ScheduleAndWait(JobQueue::Job&& job) {
+    if (stopped_.load(std::memory_order_relaxed)) {
+      return;
+    }
     SB_DCHECK(job_queue_);
 
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
   void RemoveJobByToken(JobQueue::JobToken job_token) {
+    if (stopped_.load(std::memory_order_relaxed)) {
+      return;
+    }
     SB_DCHECK(job_queue_);
 
     return job_queue_->RemoveJobByToken(job_token);
   }
 
+  // Remove any pending tasks and stop scheduling any more tasks.
+  // This method returns only after the current running task is completed, if
+  // any. Caller safely assumes that there is no more task is running after this
+  // method is called.
+  void Stop();
+
  private:
   class WorkerThread;
 
   void RunLoop();
+
+  std::atomic<bool> stopped_{false};
 
   std::unique_ptr<Thread> thread_;
   std::unique_ptr<JobQueue> job_queue_;
