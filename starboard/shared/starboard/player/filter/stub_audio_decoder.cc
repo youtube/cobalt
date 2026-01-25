@@ -75,8 +75,10 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
 
 }  // namespace
 
-StubAudioDecoder::StubAudioDecoder(const AudioStreamInfo& audio_stream_info)
-    : codec_(audio_stream_info.codec),
+StubAudioDecoder::StubAudioDecoder(JobQueue* job_queue,
+                                   const AudioStreamInfo& audio_stream_info)
+    : JobOwner(job_queue),
+      codec_(audio_stream_info.codec),
       number_of_channels_(audio_stream_info.number_of_channels),
       samples_per_second_(audio_stream_info.samples_per_second),
       sample_type_(GetSupportedSampleType()) {

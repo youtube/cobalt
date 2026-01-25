@@ -329,6 +329,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 };
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
+    JobQueue* job_queue,
     const VideoStreamInfo& video_stream_info,
     SbDrmSystem drm_system,
     SbPlayerOutputMode output_mode,
@@ -345,7 +346,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
     std::string* error_message)
-    : video_codec_(video_stream_info.codec),
+    : JobOwner(job_queue),
+      video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -368,7 +370,8 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       number_of_preroll_frames_(kInitialPrerollFrameCount),
       bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
                   ? std::make_unique<VideoSurfaceTextureBridge>(this)
-                  : nullptr) {
+                  : nullptr),
+      job_queue_(job_queue) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -728,8 +731,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
   std::string error_message;
   media_decoder_ = std::make_unique<MediaCodecDecoder>(
-      /*host=*/this, video_stream_info.codec, video_stream_info.frame_size,
-      max_frame_size, video_fps_, j_output_surface, drm_system_,
+      job_queue_, /*host=*/this, video_stream_info.codec,
+      video_stream_info.frame_size, max_frame_size, video_fps_,
+      j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),

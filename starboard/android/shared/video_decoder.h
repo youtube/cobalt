@@ -56,7 +56,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
  public:
   class Sink;
 
-  MediaCodecVideoDecoder(const VideoStreamInfo& video_stream_info,
+  MediaCodecVideoDecoder(JobQueue* job_queue,
+                         const VideoStreamInfo& video_stream_info,
                          SbDrmSystem drm_system,
                          SbPlayerOutputMode output_mode,
                          SbDecodeTargetGraphicsContextProvider*
@@ -228,6 +229,7 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   size_t number_of_preroll_frames_;
 
   const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;
+  JobQueue* const job_queue_;
 };
 
 }  // namespace starboard

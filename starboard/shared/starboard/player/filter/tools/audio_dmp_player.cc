@@ -98,10 +98,16 @@ void Start(const char* filename) {
   std::unique_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
   PlayerComponents::Factory::CreationParameters creation_parameters(
-      s_video_dmp_reader->audio_stream_info());
-  std::string error_message;
-  s_player_components =
-      factory->CreateComponents(creation_parameters, &error_message);
+      s_video_dmp_reader->audio_stream_info(), s_job_thread->job_queue());
+  auto player_components_result =
+      factory->CreateComponents(creation_parameters);
+  if (player_components_result) {
+    s_player_components = std::move(player_components_result.value());
+  } else {
+    SB_LOG(ERROR) << "Failed to create player components: "
+                  << player_components_result.error();
+    return;
+  }
   SB_DCHECK(s_player_components);
   SB_DCHECK(s_player_components->GetAudioRenderer());
 

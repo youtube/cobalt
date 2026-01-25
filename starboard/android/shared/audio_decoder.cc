@@ -70,10 +70,13 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 }  // namespace
 
 MediaCodecAudioDecoder::MediaCodecAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     bool enable_flush_during_seek)
-    : audio_stream_info_(audio_stream_info),
+    : JobOwner(job_queue),
+      job_queue_(job_queue),
+      audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       enable_flush_during_seek_(enable_flush_during_seek),
       output_sample_rate_(audio_stream_info.samples_per_second),
@@ -194,8 +197,8 @@ void MediaCodecAudioDecoder::Reset() {
 
 bool MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(this, audio_stream_info_,
-                                                       drm_system_);
+  media_decoder_ = std::make_unique<MediaCodecDecoder>(
+      job_queue_, this, audio_stream_info_, drm_system_);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

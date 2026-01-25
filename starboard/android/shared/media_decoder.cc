@@ -95,10 +95,12 @@ class MediaCodecDecoder::DecoderThread : public Thread {
   MediaCodecDecoder* decoder_;
 };
 
-MediaCodecDecoder::MediaCodecDecoder(Host* host,
+MediaCodecDecoder::MediaCodecDecoder(JobQueue* job_queue,
+                                     Host* host,
                                      const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system)
-    : media_type_(kSbMediaTypeAudio),
+    : JobOwner(job_queue),
+      media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
@@ -126,6 +128,7 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
 }
 
 MediaCodecDecoder::MediaCodecDecoder(
+    JobQueue* job_queue,
     Host* host,
     SbMediaVideoCodec video_codec,
     const Size& frame_size_hint,
@@ -142,7 +145,8 @@ MediaCodecDecoder::MediaCodecDecoder(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::string* error_message)
-    : media_type_(kSbMediaTypeVideo),
+    : JobOwner(job_queue),
+      media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),

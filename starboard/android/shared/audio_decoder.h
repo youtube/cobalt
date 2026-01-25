@@ -40,7 +40,8 @@ class MediaCodecAudioDecoder : public AudioDecoder,
                                public MediaCodecDecoder::Host,
                                private JobQueue::JobOwner {
  public:
-  MediaCodecAudioDecoder(const AudioStreamInfo& audio_stream_info,
+  MediaCodecAudioDecoder(JobQueue* job_queue,
+                         const AudioStreamInfo& audio_stream_info,
                          SbDrmSystem drm_system,
                          bool enable_flush_during_seek);
   ~MediaCodecAudioDecoder() override;
@@ -91,6 +92,7 @@ class MediaCodecAudioDecoder : public AudioDecoder,
 
   AudioFrameDiscarder audio_frame_discarder_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
+  JobQueue* const job_queue_;
 };
 
 }  // namespace starboard

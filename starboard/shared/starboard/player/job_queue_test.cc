@@ -41,7 +41,7 @@ class JobQueueTest : public ::testing::Test, protected JobQueue::JobOwner {
 };
 
 TEST_F(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
-  AttachToCurrentThread();
+  Attach(&job_queue_);
 
   std::vector<int> values;
   Schedule([&]() { values.push_back(1); });
@@ -58,7 +58,6 @@ TEST_F(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
   job_queue_.RunUntilIdle();
 
   EXPECT_THAT(values, ElementsAre(1, 2, 3, 4, 5, 6, 7, 8));
-  DetachFromCurrentThread();
 }
 
 TEST_F(JobQueueTest, OwnedJobsAreRemovedWhenOwnerGoesOutOfScope) {
@@ -78,7 +77,7 @@ TEST_F(JobQueueTest, OwnedJobsAreRemovedWhenOwnerGoesOutOfScope) {
 }
 
 TEST_F(JobQueueTest, CancelPendingJobsCancelsPendingJobs) {
-  AttachToCurrentThread();
+  Attach(&job_queue_);
   std::atomic_bool job_1 = {false}, job_2 = {false};
 
   Schedule([&]() { job_1 = true; });
@@ -94,7 +93,6 @@ TEST_F(JobQueueTest, CancelPendingJobsCancelsPendingJobs) {
   EXPECT_FALSE(job_1);
   // Job 2 should have run.
   EXPECT_TRUE(job_2);
-  DetachFromCurrentThread();
 }
 
 TEST_F(JobQueueTest, RemovedJobsAreRemoved) {
@@ -168,7 +166,6 @@ TEST_F(JobQueueTest, JobsAreMovedAndNotCopied) {
 }
 
 TEST_F(JobQueueTest, QueueBelongsToCorrectThread) {
-  EXPECT_EQ(&job_queue_, JobQueue::current());
   EXPECT_TRUE(job_queue_.BelongsToCurrentThread());
 }
 

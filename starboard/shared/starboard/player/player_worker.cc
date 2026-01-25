@@ -210,7 +210,8 @@ void PlayerWorker::DoInit() {
       std::bind(&PlayerWorker::UpdatePlayerError, this, _1,
                 Result<void>(Unexpected(std::string())), _2);
   Result<void> result = handler_->Init(
-      player_, std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
+      job_queue_.get(), player_,
+      std::bind(&PlayerWorker::UpdateMediaInfo, this, _1, _2, _3),
       std::bind(&PlayerWorker::player_state, this),
       std::bind(&PlayerWorker::UpdatePlayerState, this, _1),
       update_player_error_cb);
