@@ -23,7 +23,6 @@ namespace starboard {
 JobQueue::JobQueue() = default;
 
 JobQueue::~JobQueue() {
-  SB_CHECK(BelongsToCurrentThread());
   StopSoon();
 }
 
