@@ -70,7 +70,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           std::make_unique<VideoRenderAlgorithmImpl>();
       components.video.renderer_sink =
           make_scoped_refptr<VideoRendererSinkImpl>(
-              creation_parameters.player());
+              creation_parameters.job_queue(), creation_parameters.player());
     }
 
     return components;
