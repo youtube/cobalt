@@ -18,13 +18,17 @@
 #include <mutex>
 
 #include "starboard/common/log.h"
-#include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 
 WidevineTimer::~WidevineTimer() {
   for (auto iter : active_clients_) {
     delete iter.second;
+  }
+  if (job_thread_) {
+    // Flush any pending tasks before job_thread_ is destroyed.
+    job_thread_->ScheduleAndWait([] {});
   }
 }
 
@@ -47,12 +51,12 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
             .first;
   }
 
-  iter->second->Schedule([=]() { client->onTimerExpired(context); },
+  iter->second->Schedule([client, context] { client->onTimerExpired(context); },
                          delay_in_milliseconds * 1000);
 }
 
 void WidevineTimer::cancel(IClient* client) {
-  std::unique_lock lock(mutex_);
+  std::lock_guard lock(mutex_);
   auto iter = active_clients_.find(client);
   if (iter == active_clients_.end()) {
     // cancel() can be called before any timer is scheduled.
@@ -61,32 +65,16 @@ void WidevineTimer::cancel(IClient* client) {
 
   SB_CHECK(job_thread_);
 
-  std::condition_variable cv;
-  bool done = false;
-  job_thread_->job_queue()->Schedule([&] {
-    CancelAllJobsOnClient(client);
-    {
-      std::lock_guard<std::mutex> lock(mutex_);
-      done = true;
-    }
-    cv.notify_one();
+  job_thread_->ScheduleAndWait([this, iter] {
+    iter->second->CancelPendingJobs();
+    delete iter->second;
+    active_clients_.erase(iter);
   });
-  cv.wait(lock, [&done] { return done; });
 
   if (active_clients_.empty()) {
     // Kill the thread on the last |client|.
     job_thread_.reset();
   }
-}
-
-void WidevineTimer::CancelAllJobsOnClient(IClient* client) {
-  SB_CHECK(job_thread_->BelongsToCurrentThread());
-
-  std::lock_guard lock(mutex_);
-  auto iter = active_clients_.find(client);
-  iter->second->CancelPendingJobs();
-  delete iter->second;
-  active_clients_.erase(iter);
 }
 
 }  // namespace starboard

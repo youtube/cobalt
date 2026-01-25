@@ -40,8 +40,6 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
   void cancel(IClient* client) override;
 
  private:
-  void CancelAllJobsOnClient(IClient* client);
-
   std::mutex mutex_;
   std::unique_ptr<JobThread> job_thread_;
   std::map<IClient*, JobQueue::JobOwner*> active_clients_;
