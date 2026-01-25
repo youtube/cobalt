@@ -39,7 +39,7 @@ class JobThread {
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
-    if (stopped_.load(std::memory_order_relaxed)) {
+    if (stopped_.load(std::memory_order_acquire)) {
       return false;
     }
     SB_DCHECK(job_queue_);
@@ -49,7 +49,7 @@ class JobThread {
 
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
                               int64_t delay_usec = 0) {
-    if (stopped_.load(std::memory_order_relaxed)) {
+    if (stopped_.load(std::memory_order_acquire)) {
       return JobQueue::JobToken();
     }
     SB_DCHECK(job_queue_);
@@ -58,7 +58,7 @@ class JobThread {
   }
 
   JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
-    if (stopped_.load(std::memory_order_relaxed)) {
+    if (stopped_.load(std::memory_order_acquire)) {
       return JobQueue::JobToken();
     }
     SB_DCHECK(job_queue_);
@@ -67,7 +67,7 @@ class JobThread {
   }
 
   void ScheduleAndWait(const JobQueue::Job& job) {
-    if (stopped_.load(std::memory_order_relaxed)) {
+    if (stopped_.load(std::memory_order_acquire)) {
       return;
     }
     SB_DCHECK(job_queue_);
@@ -79,7 +79,7 @@ class JobThread {
   // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
   // occasionally running before ScheduleAndWait has finished.
   void ScheduleAndWait(JobQueue::Job&& job) {
-    if (stopped_.load(std::memory_order_relaxed)) {
+    if (stopped_.load(std::memory_order_acquire)) {
       return;
     }
     SB_DCHECK(job_queue_);
@@ -88,7 +88,7 @@ class JobThread {
   }
 
   void RemoveJobByToken(JobQueue::JobToken job_token) {
-    if (stopped_.load(std::memory_order_relaxed)) {
+    if (stopped_.load(std::memory_order_acquire)) {
       return;
     }
     SB_DCHECK(job_queue_);
@@ -98,8 +98,14 @@ class JobThread {
 
   // Remove any pending tasks and stop scheduling any more tasks.
   // This method returns only after the current running task is completed, if
-  // any. Caller safely assumes that there is no more task is running after this
-  // method is called.
+  // any. This can be called when call sites want to ensure that no pending
+  // tasks are running while the owning object is being destroyed.
+  // This is useful because tasks might access members of the owning object
+  // that could be destroyed before the JobThread member itself is destroyed.
+  // For example, a unique_ptr member holding the JobThread is set to nullptr
+  // as soon as its destruction begins, causing tasks that access it to see
+  // a null pointer even while the JobThread's destructor is still waiting
+  // for them to finish. For details, see http://b/477902972#comment2.
   void Stop();
 
  private:

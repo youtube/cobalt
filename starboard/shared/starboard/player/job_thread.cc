@@ -80,7 +80,7 @@ void JobThread::RunLoop() {
 }
 
 void JobThread::Stop() {
-  if (stopped_.exchange(true, std::memory_order_relaxed)) {
+  if (stopped_.exchange(true, std::memory_order_release)) {
     return;
   }
 

@@ -17,6 +17,8 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -163,31 +165,32 @@ TEST(JobThreadTest, QueueBelongsToCorrectThread) {
   EXPECT_TRUE(belongs_to_main_thread);
 }
 
-class Foo {
- public:
-  Foo() : job_thread_(std::make_unique<JobThread>("test")) {}
-  ~Foo() { job_thread_->Stop(); }
+TEST(JobThreadTest, Stop) {
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool started = false;
 
-  void ScheduleLongRunningTask() {
-    job_thread_->Schedule([this] {
-      usleep(5'000);
+  auto job_thread = std::make_unique<JobThread>("test");
 
-      ScheduleLongRunningTask();
-    });
+  job_thread->Schedule([&] {
+    {
+      std::lock_guard lock(mutex);
+      started = true;
+    }
+    cv.notify_one();
+
+    usleep(5'000);
+
+    // Pending task is still running. job_thread should not be null.
+    EXPECT_NE(job_thread, nullptr);
+  });
+
+  {
+    std::unique_lock lock(mutex);
+    cv.wait(lock, [&started] { return started; });
   }
 
- private:
-  const std::unique_ptr<JobThread> job_thread_;
-};
-
-TEST(JobThreadTest, CleanDestruction) {
-  auto foo = std::make_unique<Foo>();
-
-  foo->ScheduleLongRunningTask();
-
-  usleep(1'000);
-
-  foo.reset();
+  job_thread->Stop();
 }
 
 }  // namespace
