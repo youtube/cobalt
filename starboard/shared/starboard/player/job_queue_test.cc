@@ -31,26 +31,25 @@ using ::testing::ElementsAre;
 // Require at least millisecond-level precision.
 const int64_t kPrecisionUsec = 1000;
 
-class JobQueueTest : public ::testing::Test, protected JobQueue::JobOwner {
+class JobQueueTest : public ::testing::Test {
  public:
-  JobQueueTest() : JobOwner(kDetached) {}
+  JobQueueTest() : job_owner_(&job_queue_) {}
   ~JobQueueTest() {}
-  // Create a JobQueue for use on the current thread.
+
   JobQueue job_queue_;
+  JobQueue::JobOwner job_owner_;
 };
 
 TEST_F(JobQueueTest, OwnedScheduledJobsAreExecutedInOrder) {
-  Attach(&job_queue_);
-
   std::vector<int> values;
-  Schedule([&]() { values.push_back(1); });
-  Schedule([&]() { values.push_back(2); });
-  Schedule([&]() { values.push_back(3); });
-  Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(7); }, 2 * kPrecisionUsec);
-  Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(1); });
+  job_owner_.Schedule([&]() { values.push_back(2); });
+  job_owner_.Schedule([&]() { values.push_back(3); });
+  job_owner_.Schedule([&]() { values.push_back(4); }, 1 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(5); }, 1 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(6); }, 1 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(7); }, 2 * kPrecisionUsec);
+  job_owner_.Schedule([&]() { values.push_back(8); }, 3 * kPrecisionUsec);
 
   // Sleep past the last scheduled job.
   usleep(4 * kPrecisionUsec);
@@ -76,14 +75,13 @@ TEST_F(JobQueueTest, OwnedJobsAreRemovedWhenOwnerGoesOutOfScope) {
 }
 
 TEST_F(JobQueueTest, CancelPendingJobsCancelsPendingJobs) {
-  Attach(&job_queue_);
   std::atomic_bool job_1 = {false}, job_2 = {false};
 
-  Schedule([&]() { job_1 = true; });
-  job_queue_.Schedule([&]() { job_2 = true; });
+  job_owner_.Schedule([&] { job_1 = true; });
+  job_queue_.Schedule([&] { job_2 = true; });
 
   // Cancel the pending owned job (job 1).
-  CancelPendingJobs();
+  job_owner_.CancelPendingJobs();
 
   // Execute any remaining pending jobs.
   job_queue_.RunUntilIdle();
