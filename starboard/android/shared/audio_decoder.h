@@ -74,6 +74,8 @@ class MediaCodecAudioDecoder : public AudioDecoder,
 
   void ReportError(SbPlayerError error, const std::string& error_message);
 
+  JobQueue* const job_queue_;
+
   const AudioStreamInfo audio_stream_info_;
   const SbMediaAudioSampleType sample_type_;
   const bool enable_flush_during_seek_;
@@ -92,7 +94,6 @@ class MediaCodecAudioDecoder : public AudioDecoder,
 
   AudioFrameDiscarder audio_frame_discarder_;
   std::unique_ptr<MediaCodecDecoder> media_decoder_;
-  JobQueue* const job_queue_;
 };
 
 }  // namespace starboard

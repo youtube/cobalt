@@ -15,14 +15,8 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 
 #include <chrono>
-#include <limits>
-#include <mutex>
-#include <utility>
 
-#include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 

@@ -19,7 +19,6 @@
 #include <atomic>
 #include <vector>
 
-#include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
