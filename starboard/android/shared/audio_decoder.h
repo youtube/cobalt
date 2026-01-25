@@ -74,8 +74,6 @@ class MediaCodecAudioDecoder : public AudioDecoder,
 
   void ReportError(SbPlayerError error, const std::string& error_message);
 
-  JobQueue* const job_queue_;
-
   const AudioStreamInfo audio_stream_info_;
   const SbMediaAudioSampleType sample_type_;
   const bool enable_flush_during_seek_;

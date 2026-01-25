@@ -370,8 +370,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       number_of_preroll_frames_(kInitialPrerollFrameCount),
       bridge_(output_mode_ == kSbPlayerOutputModeDecodeToTexture
                   ? std::make_unique<VideoSurfaceTextureBridge>(this)
-                  : nullptr),
-      job_queue_(job_queue) {
+                  : nullptr) {
   SB_CHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
@@ -731,7 +730,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
 
   std::string error_message;
   media_decoder_ = std::make_unique<MediaCodecDecoder>(
-      job_queue_, /*host=*/this, video_stream_info.codec,
+      job_queue(), /*host=*/this, video_stream_info.codec,
       video_stream_info.frame_size, max_frame_size, video_fps_,
       j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,

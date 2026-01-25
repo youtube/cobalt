@@ -75,7 +75,6 @@ MediaCodecAudioDecoder::MediaCodecAudioDecoder(
     SbDrmSystem drm_system,
     bool enable_flush_during_seek)
     : JobOwner(job_queue),
-      job_queue_(job_queue),
       audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       enable_flush_during_seek_(enable_flush_during_seek),
@@ -198,7 +197,7 @@ void MediaCodecAudioDecoder::Reset() {
 bool MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
   media_decoder_ = std::make_unique<MediaCodecDecoder>(
-      job_queue_, this, audio_stream_info_, drm_system_);
+      job_queue(), this, audio_stream_info_, drm_system_);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

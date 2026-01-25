@@ -229,7 +229,6 @@ class MediaCodecVideoDecoder : public VideoDecoder,
   size_t number_of_preroll_frames_;
 
   const std::unique_ptr<VideoSurfaceTextureBridge> bridge_;
-  JobQueue* const job_queue_;
 };
 
 }  // namespace starboard

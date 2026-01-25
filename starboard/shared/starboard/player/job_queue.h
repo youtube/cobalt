@@ -98,11 +98,15 @@ class JobQueue {
 
     // Note that this operation is not thread safe.  It is the caller's
     // responsibility to ensure that concurrency hasn't happened yet.
+    // This is used to associate a JobQueue with a JobOwner that was constructed
+    // in a detached state (e.g. with JobOwner(kDetached)).
     void Attach(JobQueue* job_queue) {
       SB_DCHECK_EQ(job_queue_, nullptr);
       SB_CHECK(job_queue);
       job_queue_ = job_queue;
     }
+
+    JobQueue* job_queue() const { return job_queue_; }
 
    private:
     JobQueue* job_queue_;
