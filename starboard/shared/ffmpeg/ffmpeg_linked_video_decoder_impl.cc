@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// clang-format off
-#include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
-// clang-format on
-
 // This file contains the creation of the specialized VideoDecoderImpl object
 // corresponding to the version of the linked ffmpeg library.
 
+// clang-format off
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
+// clang-format on
 
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"

@@ -16,8 +16,6 @@
 #include "starboard/system.h"
 // clang-format on
 
-#include <string>
-
 #include "starboard/common/log.h"
 
 bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,

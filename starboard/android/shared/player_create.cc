@@ -19,8 +19,6 @@
 #include <string>
 #include <utility>
 
-#include "starboard/player.h"
-
 #include "starboard/android/shared/configurate_seek.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"

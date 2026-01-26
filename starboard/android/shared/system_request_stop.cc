@@ -16,8 +16,6 @@
 #include "starboard/system.h"
 // clang-format on
 
-#include "starboard/common/log.h"
-
 #include "starboard/android/shared/jni_env_ext.h"
 
 using starboard::android::shared::JniEnvExt;

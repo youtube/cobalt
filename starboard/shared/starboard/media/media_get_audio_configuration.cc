@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Default implementation of SbMediaGetAudioConfiguration().
+
 // clang-format off
 #include "starboard/media.h"
 // clang-format on
-
-#include "starboard/media.h"
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
