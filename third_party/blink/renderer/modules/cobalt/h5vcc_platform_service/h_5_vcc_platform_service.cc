@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
+#include "third_party/blink/renderer/bindings/core/v8/to_v8_traits.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
@@ -264,7 +265,7 @@ void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
 
   Document* document = window->document();
   if (!document) {
-    LOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+    DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
                   << "message for " << service_name_ << " because the "
                   << "LocalDOMWindow has no Document.";
     return;
@@ -272,7 +273,7 @@ void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
 
   LocalFrame* frame = document->GetFrame();
   if (!frame) {
-    LOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+    DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
                   << "message for " << service_name_ << " because there is no "
                   << "LocalFrame associated with the Document.";
     return;
@@ -285,8 +286,16 @@ void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
   ScriptState::Scope scope(script_state);  // For RAII
 
   DOMArrayBuffer* dom_buffer = ToDOMArrayBuffer(data);
-  v8::Local<v8::Value> v8_data =
-      ToV8Traits<DOMArrayBuffer>::ToV8(script_state, dom_buffer);
+  v8::MaybeLocal<v8::Value> maybe_v8_data =
+    ToV8Traits<DOMArrayBuffer>::ToV8(script_state, dom_buffer);
+
+  v8::Local<v8::Value> v8_data;
+  if (!maybe_v8_data.ToLocal(&v8_data)) {
+    DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+                  << "message for " << service_name_ << " because "
+                  << "v8::MaybeLocal<v8::Value> is empty.";
+    return;
+  }
   ScriptValue script_data(script_state->GetIsolate(), v8_data);
 
   // nullptr is passed since the JS callback is not on any object instance.
