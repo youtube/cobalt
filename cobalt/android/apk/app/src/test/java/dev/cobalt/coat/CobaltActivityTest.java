@@ -122,22 +122,19 @@ public class CobaltActivityTest {
 
   @Test
   public void shouldDisarmStartupGuard() {
-    ImeAdapterImpl mockImeAdapterImpl = createImeAdapterImplForRemapTests();
-    CobaltActivity cobaltActivity = createActivityForRemapTests(mockImeAdapterImpl);
-
     assertTrue("Should disarm if URL is empty",
-      cobaltActivity.shouldDisarmStartupGuard(""));
+      CobaltActivity.shouldDisarmStartupGuard(""));
 
     assertTrue("Should disarm if URL is null",
-      cobaltActivity.shouldDisarmStartupGuard(null));
+      CobaltActivity.shouldDisarmStartupGuard(null));
 
     assertTrue("Should disarm for non-YouTube URLs",
-      cobaltActivity.shouldDisarmStartupGuard("https://www.google.com"));
+      CobaltActivity.shouldDisarmStartupGuard("https://www.google.com"));
 
     assertTrue("Should disarm when YTS loader is present",
-      cobaltActivity.shouldDisarmStartupGuard("https://www.youtube.com/tv?loader=yts&extra=param"));
+      CobaltActivity.shouldDisarmStartupGuard("https://www.youtube.com/tv?loader=yts&extra=param"));
 
     assertFalse("Should NOT disarm for standard YouTube Living Room URLs",
-      cobaltActivity.shouldDisarmStartupGuard("https://www.youtube.com/tv?launch=menu&topic=music"));
+      CobaltActivity.shouldDisarmStartupGuard("https://www.youtube.com/tv?launch=menu&topic=music"));
   }
 }
