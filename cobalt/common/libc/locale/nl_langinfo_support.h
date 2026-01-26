@@ -36,6 +36,11 @@ std::string GetLocalizedDateSymbol(const std::string& locale,
 // supports the |RADIXCHAR| and |THOUSEP| nl_items.
 std::string NlGetNumericData(const std::string& locale, nl_item type);
 
+// Retrieves the date formatting string for |D_FMT|, |T_FMT|, |D_T_FMT|, and
+// |T_FMT_AMPM|. This function will first retrieve the date/time pattern stored
+// in ICU and will return the POSIX equivalent of that pattern.
+std::string GetPosixPattern(const std::string& locale, nl_item item);
+
 }  //  namespace cobalt
 
 #endif  // COBALT_COMMON_LIBC_LOCALE_NL_LANGINFO_SUPPORT_H_
