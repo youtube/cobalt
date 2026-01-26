@@ -49,7 +49,7 @@ void StubVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   if (!decoder_thread_) {
     decoder_thread_.reset(new JobThread("stub_video_decoder"));
   }
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&StubVideoDecoder::DecodeBuffers, this, input_buffers));
 }
 
@@ -57,7 +57,7 @@ void StubVideoDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->Schedule(
         std::bind(&StubVideoDecoder::DecodeEndOfStream, this));
     return;
   }
