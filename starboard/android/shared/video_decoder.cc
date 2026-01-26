@@ -162,7 +162,8 @@ std::optional<Size> ParseMaxResolution(
 
 class VideoFrameImpl : public VideoFrame {
  public:
-  typedef std::function<void()> VideoFrameReleaseCallback;
+  typedef std::function<void(int64_t pts_us, int64_t release_at_us)>
+      VideoFrameReleaseCallback;
 
   VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
                  MediaCodecBridge* media_codec_bridge,
@@ -183,7 +184,7 @@ class VideoFrameImpl : public VideoFrame {
       media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
                                                false);
       if (!is_end_of_stream()) {
-        release_callback_();
+        release_callback_(timestamp(), CurrentMonotonicTime());
       }
     }
   }
@@ -194,7 +195,7 @@ class VideoFrameImpl : public VideoFrame {
     released_ = true;
     media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
         dequeue_output_result_.index, release_time_in_nanoseconds);
-    release_callback_();
+    release_callback_(timestamp(), release_time_in_nanoseconds / 1'000);
   }
 
  private:
@@ -212,7 +213,7 @@ const int kNonInitialPrerollFrameCount = 1;
 
 const int kSeekingPrerollPendingWorkSizeInTunnelMode =
     16 + kInitialPrerollFrameCount;
-const int kMaxPendingInputsSize = 128;
+const int kDefaultMaxPendingInputsSize = 128;
 
 const int kFpsGuesstimateRequiredInputBufferCount = 3;
 
@@ -328,6 +329,7 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   bool rendered_;
 };
 
+<<<<<<< HEAD
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
 MediaCodecVideoDecoder::Create(JobQueue* job_queue,
                                const VideoStreamInfo& video_stream_info,
@@ -390,11 +392,37 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     std::string* error_message)
     : JobOwner(job_queue),
       video_codec_(video_stream_info.codec),
+=======
+VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
+                           SbDrmSystem drm_system,
+                           SbPlayerOutputMode output_mode,
+                           SbDecodeTargetGraphicsContextProvider*
+                               decode_target_graphics_context_provider,
+                           const std::string& max_video_capabilities,
+                           int tunnel_mode_audio_session_id,
+                           bool force_secure_pipeline_under_tunnel_mode,
+                           bool force_reset_surface,
+                           bool force_reset_surface_under_tunnel_mode,
+                           bool force_big_endian_hdr_metadata,
+                           int max_video_input_size,
+                           void* surface_view,
+                           bool enable_flush_during_seek,
+                           int64_t reset_delay_usec,
+                           int64_t flush_delay_usec,
+                           const FlowControlOptions& flow_control_options,
+                           std::string* error_message)
+    : video_codec_(video_stream_info.codec),
+>>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
+      initial_max_frames_in_decoder_(
+          flow_control_options.initial_max_frames_in_decoder),
+      max_pending_inputs_size_(
+          flow_control_options.max_pending_input_frames.value_or(
+              kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -428,7 +456,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 
   if (is_video_frame_tracker_enabled_) {
     video_frame_tracker_ =
-        std::make_unique<VideoFrameTracker>(kMaxPendingInputsSize * 2);
+        std::make_unique<VideoFrameTracker>(max_pending_inputs_size_ * 2);
   }
 
   if (require_software_codec_) {
@@ -448,6 +476,7 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
   SB_LOG(INFO) << "Created VideoDecoder for codec "
                << GetMediaVideoCodecName(video_codec_) << ", with output mode "
                << GetPlayerOutputModeName(output_mode_)
+               << ", max pending input size " << max_pending_inputs_size_
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
                << tunnel_mode_audio_session_id_;
@@ -780,9 +809,15 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
+<<<<<<< HEAD
       max_video_input_size_, flush_delay_usec_);
   if (result) {
     media_decoder_ = std::move(result.value());
+=======
+      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder_,
+      error_message));
+  if (media_decoder_->is_valid()) {
+>>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
@@ -884,7 +919,7 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
   }
 
   media_decoder_->WriteInputBuffers(input_buffers);
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
     decoder_status_cb_(kNeedMoreInput, NULL);
   } else if (tunnel_mode_audio_session_id_ != -1) {
     // In tunnel mode playback when need data is not signaled above, it is
@@ -921,8 +956,8 @@ void MediaCodecVideoDecoder::WriteInputBuffersInternal(
             max_timestamp >= video_frame_tracker_->seek_to_time();
       }
 
-      bool cache_full =
-          media_decoder_->GetNumberOfPendingInputs() >= kMaxPendingInputsSize;
+      bool cache_full = media_decoder_->GetNumberOfPendingInputs() >=
+                        max_pending_inputs_size_;
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
@@ -960,9 +995,16 @@ void MediaCodecVideoDecoder::ProcessOutputBuffer(
   }
   decoder_status_cb_(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
+<<<<<<< HEAD
       new VideoFrameImpl(
           dequeue_output_result, media_codec_bridge,
           std::bind(&MediaCodecVideoDecoder::OnVideoFrameRelease, this)));
+=======
+      new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
+                         [this](int64_t pts_us, int64_t release_at_us) {
+                           OnVideoFrameRelease(pts_us, release_at_us);
+                         }));
+>>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
 }
 
 void MediaCodecVideoDecoder::RefreshOutputFormat(
@@ -1279,7 +1321,7 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
     return;
   }
 
-  if (media_decoder_->GetNumberOfPendingInputs() < kMaxPendingInputsSize) {
+  if (media_decoder_->GetNumberOfPendingInputs() < max_pending_inputs_size_) {
     decoder_status_cb_(kNeedMoreInput, NULL);
     return;
   }
@@ -1289,10 +1331,19 @@ void MediaCodecVideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
            kNeedMoreInputCheckIntervalInTunnelMode);
 }
 
+<<<<<<< HEAD
 void MediaCodecVideoDecoder::OnVideoFrameRelease() {
+=======
+void VideoDecoder::OnVideoFrameRelease(int64_t pts_us, int64_t release_at_us) {
+>>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
   if (output_format_) {
     --buffered_output_frames_;
     SB_DCHECK_GE(buffered_output_frames_, 0);
+  }
+
+  if (media_decoder_ && media_decoder_->decoder_state_tracker()) {
+    media_decoder_->decoder_state_tracker()->MarkFrameReleased(pts_us,
+                                                               release_at_us);
   }
 }
 

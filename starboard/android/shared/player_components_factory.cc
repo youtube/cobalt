@@ -501,18 +501,36 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << "`kResetDelayUsec` is set to > 0, force a delay of "
         << reset_delay_usec << "us during Reset().";
 
+<<<<<<< HEAD
     auto result = MediaCodecVideoDecoder::Create(
         creation_parameters.job_queue(),
+=======
+    // TODO: b/455938352 - Connect this options to h5vcc settings.
+    VideoDecoder::FlowControlOptions flow_control_options;
+    auto video_decoder = std::make_unique<VideoDecoder>(
+>>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
         creation_parameters.max_video_capabilities(),
         tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
+<<<<<<< HEAD
         force_reset_surface, force_big_endian_hdr_metadata,
         max_video_input_size, creation_parameters.surface_view(),
         enable_flush_during_seek, reset_delay_usec, flush_delay_usec);
     if (!result) {
       return Failure(result.error());
+=======
+        force_reset_surface, kForceResetSurfaceUnderTunnelMode,
+        force_big_endian_hdr_metadata, max_video_input_size,
+        creation_parameters.surface_view(), enable_flush_during_seek,
+        reset_delay_usec, flush_delay_usec, flow_control_options,
+        error_message);
+    if ((*error_message).empty() &&
+        (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
+         video_decoder->is_decoder_created())) {
+      return video_decoder;
+>>>>>>> 0dfe55c5f7 (media: Implement flow control for MediaDecoder (#8185))
     }
 
     return result;
