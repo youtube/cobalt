@@ -16,6 +16,7 @@
 #include <string>
 #include <utility>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -261,8 +262,6 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "video/webm; codecs=\"vp9\"; width=1920; height=1080; framerate=30",
       "video/webm; codecs=\"vp09.02.41.10.01.09.16.09.00\"; width=1920; "
       "height=1080; framerate=30",
-      "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
-      "framerate=30",
   };
 
   std::vector<const char*> params_4k{
@@ -272,10 +271,6 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "framerate=30",
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=30",
       "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
-      "height=2160; framerate=30",
-      "video/mp4; codecs=\"av01.0.12M.08\"; width=3840; height=2160; "
-      "framerate=30",
-      "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
       "height=2160; framerate=30",
   };
 
@@ -287,11 +282,27 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       "video/webm; codecs=\"vp9\"; width=3840; height=2160; framerate=60",
       "video/webm; codecs=\"vp09.02.51.10.01.09.16.09.00\"; width=3840; "
       "height=2160; framerate=60",
-      "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320; "
-      "framerate=30",
-      "video/mp4; codecs=\"av01.0.17M.10.0.110.09.16.09.0\"; width=7680; "
-      "height=4320; framerate=30",
   };
+
+// tvOS does not support AV1 decoding. Exclude AV1-related MIME type test cases
+// on tvOS.
+#if !BUILDFLAG(IS_IOS_TVOS)
+  params_fhd.push_back(
+      "video/mp4; codecs=\"av01.0.09M.08\"; width=1920; height=1080; "
+      "framerate=30");
+  params_4k.push_back(
+      "video/mp4; codecs=\"av01.0.12M.08\"; width=3840; height=2160; "
+      "framerate=30");
+  params_4k.push_back(
+      "video/mp4; codecs=\"av01.0.13M.10.0.110.09.16.09.0\"; width=3840; "
+      "height=2160; framerate=30");
+  params_8k.push_back(
+      "video/mp4; codecs=\"av01.0.16M.08\"; width=7680; height=4320; "
+      "framerate=30");
+  params_8k.push_back(
+      "video/mp4; codecs=\"av01.0.17M.10.0.110.09.16.09.0\"; width=7680; "
+      "height=4320; framerate=30");
+#endif
 
   DeviceType device_type = GetDeviceType();
   std::vector<const char*> mime_params;
