@@ -135,7 +135,7 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
   if (!api) {
     LOG(WARNING) << "The platform service extension is not implemented on this "
                  << "platform";
-    std::move(callback).Run(std::nullopt);  // Signal error to renderer
+    std::move(callback).Run(absl::nullopt);  // Signal error to renderer
     return;
   }
 
@@ -152,7 +152,7 @@ void PlatformServiceImpl::Send(const std::vector<uint8_t>& data,
     LOG(ERROR) << "Send failed: Starboard service in invalid state for "
                << service_name_;
     free(response_ptr);
-    std::move(callback).Run(std::nullopt);  // Signal error to renderer
+    std::move(callback).Run(absl::nullopt);  // Signal error to renderer
     return;
   }
 
