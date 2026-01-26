@@ -85,8 +85,8 @@ class AudioRendererSinkAndroid : public AudioRendererSinkImpl {
                   audio_frame_storage_type, frame_buffers,
                   frame_buffers_size_in_frames, update_source_status_func,
                   consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, /*is_passthrough=*/false,
-                  /*is_web_audio=*/false, context);
+                  tunnel_mode_audio_session_id, /*is_web_audio=*/false,
+                  context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
