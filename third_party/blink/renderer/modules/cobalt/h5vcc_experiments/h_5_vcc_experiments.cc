@@ -33,7 +33,7 @@ H5vccExperiments::H5vccExperiments(LocalDOMWindow& window)
 
 void H5vccExperiments::ContextDestroyed() {}
 
-ScriptPromise H5vccExperiments::setExperimentState(
+ScriptPromise<IDLUndefined> H5vccExperiments::setExperimentState(
     ScriptState* script_state,
     const ExperimentConfiguration* experiment_configuration,
     ExceptionState& exception_state) {
@@ -62,7 +62,7 @@ ScriptPromise H5vccExperiments::setExperimentState(
   return promise;
 }
 
-ScriptPromise H5vccExperiments::resetExperimentState(
+ScriptPromise<IDLUndefined> H5vccExperiments::resetExperimentState(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -104,7 +104,7 @@ const String& H5vccExperiments::getFeatureParam(
   return feature_param_value_;
 }
 
-ScriptPromise H5vccExperiments::getActiveExperimentConfigData(
+ScriptPromise<IDLString> H5vccExperiments::getActiveExperimentConfigData(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -119,7 +119,7 @@ ScriptPromise H5vccExperiments::getActiveExperimentConfigData(
   return resolver->Promise();
 }
 
-ScriptPromise H5vccExperiments::getLatestExperimentConfigHashData(
+ScriptPromise<IDLString> H5vccExperiments::getLatestExperimentConfigHashData(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -134,7 +134,7 @@ ScriptPromise H5vccExperiments::getLatestExperimentConfigHashData(
   return resolver->Promise();
 }
 
-ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
+ScriptPromise<IDLUndefined> H5vccExperiments::setLatestExperimentConfigHashData(
     ScriptState* script_state,
     const String& hash_data,
     ExceptionState& exception_state) {
@@ -152,7 +152,7 @@ ScriptPromise H5vccExperiments::setLatestExperimentConfigHashData(
   return resolver->Promise();
 }
 
-ScriptPromise H5vccExperiments::setFinchParameters(
+ScriptPromise<IDLUndefined> H5vccExperiments::setFinchParameters(
     ScriptState* script_state,
     const HeapVector<
         std::pair<WTF::String, Member<V8UnionBooleanOrDoubleOrLongOrString>>>&

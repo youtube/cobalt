@@ -27,8 +27,9 @@ H5vccSystem::H5vccSystem(LocalDOMWindow& window)
 
 void H5vccSystem::ContextDestroyed() {}
 
-ScriptPromise H5vccSystem::getAdvertisingId(ScriptState* script_state,
-                                            ExceptionState& exception_state) {
+ScriptPromise<IDLString> H5vccSystem::getAdvertisingId(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
@@ -52,8 +53,9 @@ const String& H5vccSystem::advertisingId() {
   return advertising_id_;
 }
 
-ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
-                                              ExceptionState& exception_state) {
+ScriptPromise<IDLBoolean> H5vccSystem::getLimitAdTracking(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
@@ -78,7 +80,7 @@ absl::optional<bool> H5vccSystem::limitAdTracking() {
   return limit_ad_tracking;
 }
 
-ScriptPromise H5vccSystem::getTrackingAuthorizationStatus(
+ScriptPromise<IDLString> H5vccSystem::getTrackingAuthorizationStatus(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -106,7 +108,7 @@ const String& H5vccSystem::trackingAuthorizationStatus() {
   return tracking_authorization_status_;
 }
 
-ScriptPromise H5vccSystem::requestTrackingAuthorization(
+ScriptPromise<IDLUndefined> H5vccSystem::requestTrackingAuthorization(
     ScriptState* script_state,
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(

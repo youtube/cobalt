@@ -38,8 +38,9 @@ void H5vccMetrics::ContextDestroyed() {
   OnCloseConnection();
 }
 
-ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
-                                   ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> H5vccMetrics::enable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
@@ -54,8 +55,9 @@ ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
-                                    ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> H5vccMetrics::disable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
@@ -74,7 +76,7 @@ bool H5vccMetrics::isEnabled() {
   return is_reporting_enabled_;
 }
 
-ScriptPromise H5vccMetrics::setMetricEventInterval(
+ScriptPromise<IDLUndefined> H5vccMetrics::setMetricEventInterval(
     ScriptState* script_state,
     uint64_t interval_seconds,
     ExceptionState& exception_state) {

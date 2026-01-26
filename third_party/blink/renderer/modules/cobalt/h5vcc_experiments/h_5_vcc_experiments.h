@@ -42,19 +42,22 @@ class MODULES_EXPORT H5vccExperiments final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  ScriptPromise setExperimentState(ScriptState*,
-                                   const ExperimentConfiguration*,
-                                   ExceptionState&);
-  ScriptPromise resetExperimentState(ScriptState*, ExceptionState&);
+  ScriptPromise<IDLUndefined> setExperimentState(ScriptState*,
+                                                 const ExperimentConfiguration*,
+                                                 ExceptionState&);
+  ScriptPromise<IDLUndefined> resetExperimentState(ScriptState*,
+                                                   ExceptionState&);
   String getFeature(const String&);
   const String& getFeatureParam(const String&);
-  ScriptPromise getActiveExperimentConfigData(ScriptState*, ExceptionState&);
-  ScriptPromise getLatestExperimentConfigHashData(ScriptState*,
-                                                  ExceptionState&);
-  ScriptPromise setLatestExperimentConfigHashData(ScriptState*,
-                                                  const String&,
-                                                  ExceptionState&);
-  ScriptPromise setFinchParameters(
+  ScriptPromise<IDLString> getActiveExperimentConfigData(ScriptState*,
+                                                         ExceptionState&);
+  ScriptPromise<IDLString> getLatestExperimentConfigHashData(ScriptState*,
+                                                             ExceptionState&);
+  ScriptPromise<IDLUndefined> setLatestExperimentConfigHashData(
+      ScriptState*,
+      const String&,
+      ExceptionState&);
+  ScriptPromise<IDLUndefined> setFinchParameters(
       ScriptState*,
       const HeapVector<
           std::pair<WTF::String,
