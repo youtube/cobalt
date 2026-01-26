@@ -25,21 +25,7 @@ TEST(SbMicrophoneOpenTest, SunnyDay) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
   int available_microphones =
       SbMicrophoneGetAvailable(info_array, kMaxNumberOfMicrophone);
-
   EXPECT_GE(available_microphones, 0);
-
-  std::cout << "NUM MICZ IS:" << available_microphones << std::endl;
-
-  for (int i = 0; i < available_microphones; ++i) {
-    std::cout << "Microphone " << i << ":" << std::endl;
-    std::cout << "  ID: " << info_array[i].id << std::endl;
-    std::cout << "  Type: " << info_array[i].type << std::endl;
-    std::cout << "  Label: " << info_array[i].label << std::endl;
-    std::cout << "  Max Sample Rate: " << info_array[i].max_sample_rate_hz
-              << std::endl;
-    std::cout << "  Min Read Size: " << info_array[i].min_read_size
-              << std::endl;
-  }
 
   if (available_microphones > 0) {
     ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
