@@ -21,6 +21,8 @@
 #include <utility>
 #include <vector>
 
+#include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
@@ -52,6 +54,8 @@
 
 namespace starboard::android::shared {
 
+namespace {
+
 // On some platforms tunnel mode is only supported in the secure pipeline.  Set
 // the following variable to true to force creating a secure pipeline in tunnel
 // mode, even for clear content.
@@ -67,6 +71,48 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 // wait during Reset()/Flush().
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
+
+// These Cobalt switches are re-defined here to reflect values in
+// media/base/media_switches.cc to avoid introducing a dependency on the
+// Chromium's media/ folder.
+// TODO: b/455938352 - Delete these constants when experiment is done (ETA: 2026
+// Q1).
+
+const char kCobaltMediaVideoInitialMaxFramesInDecoder[] =
+    "cobalt-media-video-initial-max-frames-in-decoder";
+const char kCobaltMediaVideoMaxPendingInputFrames[] =
+    "cobalt-media-video-max-pending-input-frames";
+
+std::optional<int> ReadPositiveIntFromCommandLine(
+    const base::CommandLine* command_line,
+    const char* switch_name) {
+  if (!command_line->HasSwitch(switch_name)) {
+    return std::nullopt;
+  }
+  int value;
+  if (base::StringToInt(command_line->GetSwitchValueASCII(switch_name),
+                        &value)) {
+    if (value > 0) {
+      return value;
+    }
+    SB_LOG(WARNING) << "Invalid value for " << switch_name << ": " << value
+                    << ". Ignoring.";
+  }
+  return std::nullopt;
+}
+
+VideoDecoder::FlowControlOptions GetVideoDecoderFlowControlOptions() {
+  VideoDecoder::FlowControlOptions options;
+  const base::CommandLine* command_line =
+      base::CommandLine::ForCurrentProcess();
+
+  options.initial_max_frames_in_decoder = ReadPositiveIntFromCommandLine(
+      command_line, kCobaltMediaVideoInitialMaxFramesInDecoder);
+  options.max_pending_input_frames = ReadPositiveIntFromCommandLine(
+      command_line, kCobaltMediaVideoMaxPendingInputFrames);
+
+  return options;
+}
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
@@ -546,8 +592,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    // TODO: b/455938352 - Connect this options to h5vcc settings.
-    VideoDecoder::FlowControlOptions flow_control_options;
+    VideoDecoder::FlowControlOptions flow_control_options =
+        GetVideoDecoderFlowControlOptions();
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -691,8 +737,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
   }
 };
 
+}  // namespace
 }  // namespace starboard::android::shared
-
 namespace starboard::shared::starboard::player::filter {
 
 // static

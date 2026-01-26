@@ -43,6 +43,10 @@ const char kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback[] =
     "Media.NotifyMemoryPressureBeforePlayback";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
+const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
+    "Media.VideoInitialMaxFramesInDecoder";
+const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
+    "Media.VideoMaxPendingInputFrames";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -52,6 +56,10 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
      switches::kCobaltNotifyMemoryPressureBeforePlayback},
     {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
      switches::kMSEVideoBufferSizeLimitClampMb},
+    {kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder,
+     switches::kCobaltMediaVideoInitialMaxFramesInDecoder},
+    {kH5vccSettingsKeyMediaVideoMaxPendingInputFrames,
+     switches::kCobaltMediaVideoMaxPendingInputFrames},
 };
 
 struct ParsedH5vccSettings {

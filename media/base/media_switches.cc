@@ -200,6 +200,14 @@ const char kCobaltNotifyMemoryPressureBeforePlayback[] = "cobalt-notify-memory-p
 // Any video buffer size greater than this value will be clamped down to the
 // associated switch value.
 const char kMSEVideoBufferSizeLimitClampMb[] = "mse-video-buffer-size-limit-clamp-mb";
+
+// Specifies the initial max frames in video decoder.
+const char kCobaltMediaVideoInitialMaxFramesInDecoder[] =
+    "cobalt-media-video-initial-max-frames-in-decoder";
+
+// Specifies the max pending video input frames.
+const char kCobaltMediaVideoMaxPendingInputFrames[] =
+    "cobalt-media-video-max-pending-input-frames";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Specifies the path to the Clear Key CDM for testing, which is necessary to
