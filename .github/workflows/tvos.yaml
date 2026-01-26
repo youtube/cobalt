@@ -1,0 +1,46 @@
+name: tvos
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  build_tvos:
+    runs-on: macos-latest
+    timeout-minutes: 600
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [tvos-arm64-simulator]
+        config: [devel]
+    env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Read build config
+        id: build-config
+        run: |
+          cd .github/config
+          CONFIG_JSON=$(cat ${{ matrix.platform }}.json | jq -cr '.')
+          echo "config_json=$CONFIG_JSON" >> "$GITHUB_OUTPUT"
+      - name: Setup depot_tools
+        uses: ./.github/actions/depot_tools
+        with:
+          use_cache: 'false'
+      - name: Build
+        uses: ./.github/actions/build
+        with:
+          targets: ${{ toJson(fromJson(steps.build-config.outputs.config_json).targets) }}
+          test_root_target: ${{ fromJson(steps.build-config.outputs.config_json).test_root_target || 'null' }}
+          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
