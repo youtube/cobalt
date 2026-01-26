@@ -179,20 +179,10 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt/h5vcc_updater",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
     ]
-<<<<<<< HEAD
-=======
-
-    if (use_starboard_media) {
-      sub_modules += [
-        "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
-        "//third_party/blink/renderer/modules/cobalt/mediasource",
-      ]
-    }
 
     if (!is_androidtv) {
       sub_modules += [ "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service" ]
     }
->>>>>>> faf68e49800 (h5vcc: add e2e impl of platform services for 3P (#8685))
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
