@@ -13,6 +13,7 @@
 #include "base/atomic_sequence_num.h"
 #include "base/check.h"
 #include "base/memory/ptr_util.h"
+#include "base/logging.h"
 #include "base/notreached.h"
 #include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
@@ -49,7 +50,24 @@ MappedMemoryManager::MappedMemoryManager(CommandBufferHelper* helper,
       max_free_bytes_(unused_memory_reclaim_limit),
       max_allocated_bytes_(SharedMemoryLimits::kNoLimit),
       tracing_id_(g_next_mapped_memory_manager_tracing_id.GetNext()) {
+#if BUILDFLAG(IS_STARBOARD)
+  allocated_bytes_cleanup_threshold_ = SharedMemoryLimits::kNoLimit;
+#endif
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+MappedMemoryManager::MappedMemoryManager(
+    CommandBufferHelper* helper,
+    size_t unused_memory_reclaim_limit,
+    size_t allocated_bytes_cleanup_threshold)
+    : MappedMemoryManager(helper, unused_memory_reclaim_limit) {
+  allocated_bytes_cleanup_threshold_ = allocated_bytes_cleanup_threshold;
+  if (allocated_bytes_cleanup_threshold_ != SharedMemoryLimits::kNoLimit &&
+      max_allocated_bytes_ != SharedMemoryLimits::kNoLimit) {
+    CHECK_GE(max_allocated_bytes_, allocated_bytes_cleanup_threshold_);
+  }
+}
+#endif
 
 MappedMemoryManager::~MappedMemoryManager() {
   helper_->OrderingBarrier();
@@ -65,6 +83,44 @@ void* MappedMemoryManager::Alloc(unsigned int size,
                                  TransferBufferAllocationOption option) {
   DCHECK(shm_id);
   DCHECK(shm_offset);
+
+#if BUILDFLAG(IS_STARBOARD)
+  // If the total allocated memory has exceeded our backpressure limit,
+  // we must wait for the GPU to release resources.
+  if (allocated_bytes_cleanup_threshold_ != SharedMemoryLimits::kNoLimit) {
+    while (allocated_memory_ >= allocated_bytes_cleanup_threshold_) {
+      // Before blocking, see if space has become available in existing chunks.
+      for (auto& chunk : chunks_) {
+        chunk->FreeUnused();
+      }
+      auto it = std::find_if(chunks_.begin(), chunks_.end(),
+                             [size](const std::unique_ptr<MemoryChunk>& chunk) {
+                               return chunk->GetLargestFreeSizeWithoutWaiting() >=
+                                      size;
+                             });
+
+      if (it != chunks_.end()) {
+        // We are over the total limit, but we found a free spot.
+        // This is OK, as we are re-using memory, not growing.
+        break;
+      }
+
+      const auto allocated_memory_before = allocated_memory_;
+      {
+        TRACE_EVENT0("gpu", "MappedMemoryManager::Alloc::BackpressureWait");
+        // This call flushes the CommandBuffer and is blocking.
+        helper_->Finish();
+        FreeUnused();  // Updates |allocated_memory_|.
+      }
+      if (allocated_memory_before == allocated_memory_) {
+        LOG(ERROR) << "MappedMemoryManager deadlock: waiting for GPU did not "
+                      "free any memory chunks.";
+        break;
+      }
+    }
+  }
+
+#endif
   if (size <= allocated_memory_) {
     size_t total_bytes_in_use = 0;
     // See if any of the chunks can satisfy this request.
@@ -112,9 +168,15 @@ void* MappedMemoryManager::Alloc(unsigned int size,
     return nullptr;
 
   int32_t id = -1;
+<<<<<<< HEAD
   scoped_refptr<gpu::Buffer> shm = cmd_buf->CreateTransferBuffer(
       safe_chunk_size, &id, /* alignment */ 0, option);
   if (id  < 0)
+=======
+  scoped_refptr<gpu::Buffer> shm =
+      cmd_buf->CreateTransferBuffer(safe_chunk_size, &id, option);
+  if (id < 0)
+>>>>>>> 008759621b9 (Fix: Introduce backpressure to curb mapped memory growth (#8515))
     return nullptr;
   DCHECK(shm.get());
   MemoryChunk* mc = new MemoryChunk(id, shm, helper_);
