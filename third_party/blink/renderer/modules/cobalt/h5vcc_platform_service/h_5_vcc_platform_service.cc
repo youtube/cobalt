@@ -21,9 +21,11 @@
 #include "third_party/blink/public/platform/platform.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_function.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
+#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/dom_exception.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
 #include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
@@ -241,14 +243,42 @@ void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
     return;
   }
 
-  if (!GetExecutionContext()) {
+  ExecutionContext* execution_context = GetExecutionContext();
+  if (!execution_context) {
     DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
                   << "message for " << service_name_ << " because the "
                   << "ExecutionContext is no longer valid.";
     return;
   }
 
-  ScriptState* script_state = ToScriptStateForMainWorld(GetExecutionContext());
+  // Downcast from ExecutionContext to LocalDOMWindow, get the Document from the
+  // LocalDOMWindow, and get the LocalFrame from the Document. The more modern
+  // overload of ToScriptStateForMainWorld() is not available in 26.eap.
+  LocalDOMWindow* window = DynamicTo<LocalDOMWindow>(execution_context);
+  if (!window) {
+    DLOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+                  << "message for " << service_name_ << " because "
+                  << "ExecutionContext is not a LocalDOMWindow.";
+    return;
+  }
+
+  Document* document = window->document();
+  if (!document) {
+    LOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+                  << "message for " << service_name_ << " because the "
+                  << "LocalDOMWindow has no Document.";
+    return;
+  }
+
+  LocalFrame* frame = document->GetFrame();
+  if (!frame) {
+    LOG(WARNING) << "H5vccPlatformService::OnDataReceived: dropping the "
+                  << "message for " << service_name_ << " because there is no "
+                  << "LocalFrame associated with the Document.";
+    return;
+  }
+
+  ScriptState* script_state = ToScriptStateForMainWorld(frame);
   if (!script_state || !script_state->ContextIsValid()) {
     return;
   }
