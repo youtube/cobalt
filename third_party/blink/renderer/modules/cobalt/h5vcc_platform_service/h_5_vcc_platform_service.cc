@@ -192,7 +192,7 @@ DOMArrayBuffer* H5vccPlatformService::send(DOMArrayBuffer* data,
   }
 
   WTF::Vector<uint8_t> input_data = ToWTFVector(data);
-  std::optional<WTF::Vector<uint8_t>> response_data;
+  absl::optional<WTF::Vector<uint8_t>> response_data;
 
   bool mojo_result = platform_service_remote_->Send(input_data, &response_data);
 
