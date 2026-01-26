@@ -23,12 +23,16 @@
 namespace starboard {
 
 WidevineTimer::~WidevineTimer() {
+  std::lock_guard lock(mutex_);
+  if (job_thread_) {
+    // Flush any pending tasks before deleting |active_clients_|. This ensures
+    // that background tasks (like those scheduled by cancel()) that capture
+    // iterators into |active_clients_| finish before the data is destroyed.
+    // TODO: b/477902972 - Call stop method instead, once it's added.
+    job_thread_->ScheduleAndWait([] {});
+  }
   for (auto iter : active_clients_) {
     delete iter.second;
-  }
-  if (job_thread_) {
-    // Flush any pending tasks before job_thread_ is destroyed.
-    job_thread_->ScheduleAndWait([] {});
   }
 }
 

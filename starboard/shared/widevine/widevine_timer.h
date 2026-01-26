@@ -41,8 +41,9 @@ class WidevineTimer : public ::widevine::Cdm::ITimer {
 
  private:
   std::mutex mutex_;
-  std::unique_ptr<JobThread> job_thread_;
-  std::map<IClient*, JobQueue::JobOwner*> active_clients_;
+  std::unique_ptr<JobThread> job_thread_;  // Guarded by |mutex_|.
+  std::map<IClient*, JobQueue::JobOwner*>
+      active_clients_;  // Guarded by |mutex_|.
 };
 
 }  // namespace starboard
