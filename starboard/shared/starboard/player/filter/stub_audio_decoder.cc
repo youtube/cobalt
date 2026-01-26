@@ -105,14 +105,14 @@ void StubAudioDecoder::Decode(const InputBuffers& input_buffers,
   if (!decoder_thread_) {
     decoder_thread_.reset(new JobThread("stub_audio_decoder"));
   }
-  decoder_thread_->job_queue()->Schedule(std::bind(
-      &StubAudioDecoder::DecodeBuffers, this, input_buffers, consumed_cb));
+  decoder_thread_->Schedule(std::bind(&StubAudioDecoder::DecodeBuffers, this,
+                                      input_buffers, consumed_cb));
 }
 
 void StubAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->Schedule(
         std::bind(&StubAudioDecoder::DecodeEndOfStream, this));
     return;
   }
