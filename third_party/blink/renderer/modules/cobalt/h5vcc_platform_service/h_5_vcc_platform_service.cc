@@ -287,7 +287,7 @@ void H5vccPlatformService::OnDataReceived(const WTF::Vector<uint8_t>& data) {
 
   DOMArrayBuffer* dom_buffer = ToDOMArrayBuffer(data);
   v8::MaybeLocal<v8::Value> maybe_v8_data =
-    ToV8Traits<DOMArrayBuffer>::ToV8(script_state, dom_buffer);
+      ToV8Traits<DOMArrayBuffer>::ToV8(script_state, dom_buffer);
 
   v8::Local<v8::Value> v8_data;
   if (!maybe_v8_data.ToLocal(&v8_data)) {
