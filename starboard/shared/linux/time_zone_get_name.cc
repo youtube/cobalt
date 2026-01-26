@@ -92,7 +92,8 @@ const char* SbTimeZoneGetName() {
       // Stop on the first symlink that is a valid time zone.
       if (tz_zone_info_tail_ptr != NULL &&
           isValidOlsonID(tz_zone_info_tail_ptr + tz_zone_info_tail_len)) {
-        return (gTimeZoneBufferPtr = tz_zone_info_tail_ptr + tz_zone_info_tail_len);
+        return (gTimeZoneBufferPtr =
+                        tz_zone_info_tail_ptr + tz_zone_info_tail_len);
       }
 
       // Check if the target is another symlink to follow.
