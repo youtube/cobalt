@@ -45,20 +45,11 @@ void AudioManagerStarboard::GetAudioInputDeviceNames(
   CHECK(device_names->empty());
   int microphone_count = SbMicrophoneGetAvailable(/*out_info_array=*/nullptr,
                                                   /*info_array_size=*/0);
-  if (microphone_count <= 0) {
-    return;
+  if (microphone_count > 0) {
+    // Since we only support one microphone, and it's the default,
+    // only add the default device entry.
+    device_names->push_back(media::AudioDeviceName::CreateDefault());
   }
-
-  std::vector<SbMicrophoneInfo> infos(microphone_count);
-  microphone_count = SbMicrophoneGetAvailable(infos.data(), infos.size());
-  if (microphone_count <= 0) {
-    return;
-  }
-  for (int i = 0; i < microphone_count; ++i) {
-    device_names->emplace_back(infos[i].label, "default");
-  }
-
-  device_names->push_front(media::AudioDeviceName::CreateDefault());
 }
 
 void AudioManagerStarboard::GetAudioOutputDeviceNames(
