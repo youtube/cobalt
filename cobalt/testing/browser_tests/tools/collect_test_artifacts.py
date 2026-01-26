@@ -162,16 +162,25 @@ def main():
           if not line or line.startswith('#'):
             continue
           full_path = os.path.normpath(os.path.join(build_dir, line))
-          copy_if_needed(full_path, os.path.join(src_stage, full_path),
+          # Ensure dst is relative to src_stage by stripping leading slash/drive
+          rel_path = os.path.relpath(
+              full_path, os.sep) if os.path.isabs(full_path) else full_path
+          copy_if_needed(full_path, os.path.join(src_stage, rel_path),
                          copied_sources)
 
       # Ensure the deps file and test runner are included
+      rel_deps_path = os.path.relpath(
+          str(runtime_deps_path), os.sep) if os.path.isabs(
+              str(runtime_deps_path)) else str(runtime_deps_path)
       copy_if_needed(
-          str(runtime_deps_path),
-          os.path.join(src_stage, str(runtime_deps_path)), copied_sources)
+          str(runtime_deps_path), os.path.join(src_stage, rel_deps_path),
+          copied_sources)
       test_runner_full = os.path.join(build_dir, test_runner_rel)
-      copy_if_needed(test_runner_full,
-                     os.path.join(src_stage, test_runner_full), copied_sources)
+      rel_runner_path = os.path.relpath(
+          test_runner_full,
+          os.sep) if os.path.isabs(test_runner_full) else test_runner_full
+      copy_if_needed(test_runner_full, os.path.join(src_stage, rel_runner_path),
+                     copied_sources)
 
     if not target_map:
       logging.error('No valid build directories processed.')
@@ -179,8 +188,11 @@ def main():
 
     # Add run_browser_tests.py specifically
     browser_test_runner = 'cobalt/testing/browser_tests/run_browser_tests.py'
+    rel_browser_runner = os.path.relpath(
+        browser_test_runner,
+        os.sep) if os.path.isabs(browser_test_runner) else browser_test_runner
     copy_if_needed(browser_test_runner,
-                   os.path.join(src_stage, browser_test_runner), copied_sources)
+                   os.path.join(src_stage, rel_browser_runner), copied_sources)
 
     # Add essential directories manually (shared across all targets)
     essential_dirs = [
@@ -191,13 +203,15 @@ def main():
         'third_party/android_sdk/public/platform-tools'
     ]
     for d in essential_dirs:
-      copy_if_needed(d, os.path.join(src_stage, d), copied_sources)
+      rel_d = os.path.relpath(d, os.sep) if os.path.isabs(d) else d
+      copy_if_needed(d, os.path.join(src_stage, rel_d), copied_sources)
 
     # Add top-level build scripts
     os.makedirs(os.path.join(src_stage, 'build'), exist_ok=True)
     for f in Path('build').glob('*.py'):
-      copy_if_needed(
-          str(f), os.path.join(src_stage, 'build', f.name), copied_sources)
+      rel_f = os.path.relpath(str(f), os.sep) if os.path.isabs(
+          str(f)) else str(f)
+      copy_if_needed(str(f), os.path.join(src_stage, rel_f), copied_sources)
 
     # Add depot_tools
     vpython_path = shutil.which('vpython3')
@@ -210,13 +224,27 @@ def main():
                      copied_sources)
 
     # Add .vpython3 files
-    copy_if_needed('.vpython3', os.path.join(src_stage, '.vpython3'),
+    rel_vpython = os.path.relpath(
+        '.vpython3', os.sep) if os.path.isabs('.vpython3') else '.vpython3'
+    copy_if_needed('.vpython3', os.path.join(src_stage, rel_vpython),
                    copied_sources)
-    copy_if_needed('v8/.vpython3', os.path.join(src_stage, 'v8', '.vpython3'),
+    rel_v8_vpython = os.path.relpath(
+        'v8/.vpython3',
+        os.sep) if os.path.isabs('v8/.vpython3') else 'v8/.vpython3'
+    copy_if_needed('v8/.vpython3', os.path.join(src_stage, rel_v8_vpython),
                    copied_sources)
 
     # Generate runner
     generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
+
+    # Add Dockerfile to the archive
+    dockerfile_src = os.path.join(os.path.dirname(__file__), 'Dockerfile')
+    if os.path.exists(dockerfile_src):
+      shutil.copy2(dockerfile_src, os.path.join(stage_dir, 'Dockerfile'))
+
+    # Ensure output directory exists
+    output_dir = os.path.dirname(os.path.abspath(args.output))
+    os.makedirs(output_dir, exist_ok=True)
 
     logging.info('Creating tarball: %s', args.output)
     subprocess.run(['tar', '-C', stage_dir, '-czf', args.output, '.'],
