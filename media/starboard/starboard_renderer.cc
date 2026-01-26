@@ -300,6 +300,8 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
   player_bridge_->PrepareForSeek();
+  // Reset |playback_rate_| after PrepareForSeek().
+  playback_rate_ = 0.0;
 
   if (buffering_state_ != BUFFERING_HAVE_NOTHING) {
     buffering_state_ = BUFFERING_HAVE_NOTHING;
@@ -658,7 +660,6 @@ void StarboardRenderer::CreatePlayerBridge() {
       UpdateDecoderConfig(video_stream_);
     }
 
-    player_bridge_->SetPlaybackRate(playback_rate_);
     player_bridge_->SetVolume(volume_);
 
     state_ = STATE_FLUSHED;

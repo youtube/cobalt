@@ -370,8 +370,6 @@ void SbPlayerBridge::Seek(TimeDelta time) {
 
   ++ticket_;
   sbplayer_interface_->Seek(player_, time, ticket_);
-
-  sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
 }
 
 void SbPlayerBridge::SetVolume(float volume) {
