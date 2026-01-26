@@ -17,6 +17,7 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -75,6 +76,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
 
   // This key differs in naming format for legacy reasons
@@ -111,6 +113,28 @@ public abstract class CobaltActivity extends Activity {
   private boolean mIsCobaltUsingAndroidOverlay;
   private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
 
+  private boolean mEnableSplashScreen;
+
+  private Bundle getActivityMetaData() {
+    ComponentName componentName = getIntent().getComponent();
+    if (componentName == null) {
+      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
+      return null;
+    }
+    ActivityInfo ai;
+    try {
+      ai = getPackageManager()
+                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
+    } catch (NameNotFoundException e) {
+      Log.e(TAG, "Error getting activity info", e);
+      return null;
+    }
+    if (ai == null) {
+      return null;
+    }
+    return ai.metaData;
+  }
+
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
@@ -138,6 +162,8 @@ public abstract class CobaltActivity extends Activity {
               VersionInfo.isOfficialBuild(), extraCommandLineArgs.toArray(new String[0])));
     }
     mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
+    Bundle metaData = getActivityMetaData();
+    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
 
@@ -241,8 +267,10 @@ public abstract class CobaltActivity extends Activity {
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
-            // Load splash screen.
-            mShellManager.getActiveShell().loadSplashScreenWebContents();
+            if (mEnableSplashScreen) {
+              // Load splash screen.
+              mShellManager.getActiveShell().loadSplashScreenWebContents();
+            }
           }
         });
   }
