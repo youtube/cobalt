@@ -87,7 +87,7 @@ generated_callback_function_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_frame_request_callback.h",
 ]
 
-if (is_cobalt && !is_androidtv) {
+if (is_cobalt) {
   generated_callback_function_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.h",
@@ -3235,12 +3235,10 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event.h",
   ]
 
-  if (!is_androidtv) {
-    generated_interface_sources_in_modules += [
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.cc",
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.h",
-    ]
-  }
+  generated_interface_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.h",
+  ]
 
   generated_dictionary_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.cc",

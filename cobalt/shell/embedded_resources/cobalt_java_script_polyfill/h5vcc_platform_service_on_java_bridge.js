@@ -73,4 +73,4 @@ function initializeH5vccPlatformService() {
     }
 }
 
-initializeH5vccPlatformService();
+// initializeH5vccPlatformService();
