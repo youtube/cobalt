@@ -546,6 +546,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
+    // TODO: b/455938352 - Connect this options to h5vcc settings.
+    VideoDecoder::FlowControlOptions flow_control_options;
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -555,7 +557,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         creation_parameters.surface_view(), enable_flush_during_seek,
-        reset_delay_usec, flush_delay_usec, error_message);
+        reset_delay_usec, flush_delay_usec, flow_control_options,
+        error_message);
     if ((*error_message).empty() &&
         (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
          video_decoder->is_decoder_created())) {

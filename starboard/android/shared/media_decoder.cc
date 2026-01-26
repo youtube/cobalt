@@ -25,6 +25,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard::android::shared {
@@ -129,6 +130,7 @@ MediaDecoder::MediaDecoder(
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     int64_t flush_delay_usec,
+    std::optional<int> initial_max_frames,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -137,7 +139,16 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      condition_variable_(mutex_) {
+      condition_variable_(mutex_),
+      decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
+        if (!initial_max_frames || tunnel_mode_enabled_) {
+          return nullptr;
+        }
+        return std::make_unique<DecoderStateTracker>(*initial_max_frames);
+      }()) {
+  if (initial_max_frames && tunnel_mode_enabled_) {
+    SB_LOG(INFO) << "DecoderStateTracker is disabled for tunnel mode.";
+  }
   SB_DCHECK(frame_rendered_cb_);
   SB_DCHECK(first_tunnel_frame_ready_cb_);
 
@@ -313,6 +324,14 @@ void MediaDecoder::DecoderThreadFunc() {
     std::vector<int> input_buffer_indices;
     std::vector<DequeueOutputResult> dequeue_output_results;
 
+    auto can_process_input = [this, &pending_inputs, &input_buffer_indices] {
+      if (decoder_state_tracker_ && !decoder_state_tracker_->CanAcceptMore()) {
+        return false;
+      }
+      return pending_input_to_retry_ ||
+             (!pending_inputs.empty() && !input_buffer_indices.empty());
+    };
+
     while (!destroying_.load()) {
       // TODO(b/329686979): access to `ending_input_to_retry_` should be
       //                    synchronized.
@@ -353,10 +372,7 @@ void MediaDecoder::DecoderThreadFunc() {
         host_->Tick(media_codec_bridge_.get());
       }
 
-      bool can_process_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (can_process_input) {
+      if (can_process_input()) {
         ProcessOneInputBuffer(&pending_inputs, &input_buffer_indices);
       }
 
@@ -366,16 +382,11 @@ void MediaDecoder::DecoderThreadFunc() {
         ticked = host_->Tick(media_codec_bridge_.get());
       }
 
-      can_process_input =
-          pending_input_to_retry_ ||
-          (!pending_inputs.empty() && !input_buffer_indices.empty());
-      if (!ticked && !can_process_input && dequeue_output_results.empty()) {
+      if (!ticked && !can_process_input() && dequeue_output_results.empty()) {
         ScopedLock scoped_lock(mutex_);
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
-        can_process_input =
-            !pending_inputs.empty() && !input_buffer_indices.empty();
-        if (!can_process_input && dequeue_output_results.empty()) {
+        if (!can_process_input() && dequeue_output_results.empty()) {
           condition_variable_.WaitTimed(1000);
         }
       }
@@ -544,6 +555,14 @@ bool MediaDecoder::ProcessOneInputBuffer(
     return false;
   }
 
+  if (decoder_state_tracker_) {
+    if (pending_input.type == PendingInput::kWriteEndOfStream) {
+      decoder_state_tracker_->MarkEosReached();
+    } else {
+      decoder_state_tracker_->TrackNewFrame(input_buffer->timestamp());
+    }
+  }
+
   is_output_restricted_ = false;
   return true;
 }
@@ -665,6 +684,10 @@ void MediaDecoder::OnMediaCodecOutputBufferAvailable(
     return;
   }
 
+  if (size > 0 && decoder_state_tracker_) {
+    decoder_state_tracker_->MarkFrameDecoded(presentation_time_us);
+  }
+
   DequeueOutputResult dequeue_output_result;
   dequeue_output_result.status = 0;
   dequeue_output_result.index = buffer_index;
@@ -732,6 +755,10 @@ bool MediaDecoder::Flush() {
     input_buffer_indices_.clear();
     dequeue_output_results_.clear();
     pending_input_to_retry_ = std::nullopt;
+
+    if (decoder_state_tracker_) {
+      decoder_state_tracker_->Reset();
+    }
 
     // 2.3. Add OutputFormatChanged to get current output format after Flush().
     DequeueOutputResult dequeue_output_result = {};
