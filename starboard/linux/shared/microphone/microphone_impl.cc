@@ -244,6 +244,19 @@ int SbMicrophonePrivate::GetAvailableMicrophones(
     char* ioid = snd_device_name_get_hint(*n, "IOID");
 
     if (name != nullptr && (ioid == nullptr || strcmp(ioid, "Input") == 0)) {
+      // Filter out the "null" device, which is not a real microphone.
+      if (strcmp(name, "null") == 0) {
+        if (name != nullptr) {
+          free(name);
+        }
+        if (desc != nullptr) {
+          free(desc);
+        }
+        if (ioid != nullptr) {
+          free(ioid);
+        }
+        continue;
+      }
       if (out_info_array && count < info_array_size) {
         SbMicrophoneInfo* info = &out_info_array[count];
         info->id = reinterpret_cast<SbMicrophoneId>(count + 1);
