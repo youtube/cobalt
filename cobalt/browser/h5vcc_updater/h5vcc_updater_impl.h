@@ -49,17 +49,9 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   void GetInstallationIndex(GetInstallationIndexCallback callback) override;
   void GetAllowSelfSignedPackages(
       GetAllowSelfSignedPackagesCallback callback) override;
-  void SetAllowSelfSignedPackages(
-      bool allow_self_signed_packages,
-      SetAllowSelfSignedPackagesCallback callback) override;
   void GetUpdateServerUrl(GetUpdateServerUrlCallback callback) override;
-  void SetUpdateServerUrl(const std::string& update_server_url,
-                          SetUpdateServerUrlCallback callback) override;
   void GetRequireNetworkEncryption(
       GetRequireNetworkEncryptionCallback callback) override;
-  void SetRequireNetworkEncryption(
-      bool require_network_encryption,
-      SetRequireNetworkEncryptionCallback callback) override;
   void GetLibrarySha256(unsigned short index,
                         GetLibrarySha256Callback callback) override;
 
@@ -67,6 +59,35 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   H5vccUpdaterImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccUpdater> receiver);
   ~H5vccUpdaterImpl();
+
+  THREAD_CHECKER(thread_checker_);
+};
+
+class H5vccUpdaterSideloadingImpl
+    : public content::DocumentService<mojom::H5vccUpdaterSideloading> {
+ public:
+  static void Create(
+      content::RenderFrameHost* render_frame_host,
+      mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver);
+
+  H5vccUpdaterSideloadingImpl(const H5vccUpdaterSideloadingImpl&) = delete;
+  H5vccUpdaterSideloadingImpl& operator=(const H5vccUpdaterSideloadingImpl&) =
+      delete;
+
+  void SetAllowSelfSignedPackages(
+      bool allow_self_signed_packages,
+      SetAllowSelfSignedPackagesCallback callback) override;
+  void SetUpdateServerUrl(const std::string& update_server_url,
+                          SetUpdateServerUrlCallback callback) override;
+  void SetRequireNetworkEncryption(
+      bool require_network_encryption,
+      SetRequireNetworkEncryptionCallback callback) override;
+
+ private:
+  H5vccUpdaterSideloadingImpl(
+      content::RenderFrameHost& render_frame_host,
+      mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver);
+  ~H5vccUpdaterSideloadingImpl();
 
   THREAD_CHECKER(thread_checker_);
 };

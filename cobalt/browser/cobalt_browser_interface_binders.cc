@@ -102,6 +102,10 @@ void PopulateCobaltFrameBinders(
 #if BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+  binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
+      base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));
+#endif
 #endif
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
