@@ -211,6 +211,34 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     combined_deps_entry = file_lists[1]
     self.assertIn('../out/my_test', combined_deps_entry[0])
 
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_android_fallback(self, mock_make_tar):
+    # Setup mock runtime_deps in the Android script-based location
+    target_name = 'cobalt_browsertests'
+    target_path = 'cobalt/testing/browser_tests'
+    deps_dir = os.path.join(self.out_dir, 'gen.runtime', target_path)
+    os.makedirs(deps_dir)
+    deps_file = os.path.join(deps_dir,
+                             f'{target_name}__test_runner_script.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('cobalt_browsertests\n')
+
+    # Should find it via fallback logic even without --use-android-deps-path
+    archive_test_artifacts.create_archive(
+        targets=[f'{target_path}:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=False,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=False)
+
+    self.assertTrue(mock_make_tar.called)
+    file_list = mock_make_tar.call_args[0][3][0][0]
+    self.assertIn(os.path.relpath(deps_file, self.source_dir), file_list)
+
 
 if __name__ == '__main__':
   unittest.main()

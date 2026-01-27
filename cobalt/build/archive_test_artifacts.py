@@ -59,11 +59,17 @@ def get_test_runner(build_dir, is_android):
 
 def generate_runner_py(dst_path, target_map, template_path):
   """Generates the run_tests.py script inside the archive."""
+  logging.info('Generating portable runner with targets: %s',
+               ', '.join(target_map.keys()))
   with open(template_path, 'r', encoding='utf-8') as f:
     content = f.read()
 
     # Inject the target map into the template.
     target_map_repr = repr(target_map)
+
+    if 'TARGET_MAP = {}' not in content:
+      raise RuntimeError(
+          f'Could not find TARGET_MAP placeholder in {template_path}')
 
     content = content.replace('TARGET_MAP = {}',
                               f'TARGET_MAP = {target_map_repr}')
@@ -149,11 +155,16 @@ def create_archive(
     else:
       deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
       if not os.path.exists(deps_file):
-        # If |deps_file| doesn't exist it could be due to being generated with
-        # the starboard_toolchain. In that case, we should look in subfolders.
-        # For the time being, just try with an extra starboard/ in the path.
-        deps_file = os.path.join(out_dir, 'starboard',
-                                 f'{target_name}.runtime_deps')
+        # Fallback 1: try common Android script-based test naming
+        script_deps = os.path.join(
+            out_dir, 'gen.runtime', target_path,
+            f'{target_name}__test_runner_script.runtime_deps')
+        if os.path.exists(script_deps):
+          deps_file = script_deps
+        else:
+          # Fallback 2: try with starboard/ in path
+          deps_file = os.path.join(out_dir, 'starboard',
+                                   f'{target_name}.runtime_deps')
 
     logging.info('Collecting runtime dependencies for %s', target)
     if not os.path.exists(deps_file):
@@ -172,7 +183,9 @@ def create_archive(
       combined_deps.add(deps_file_rel)
 
     # Determine runner info for target map
-    is_android = 'android' in out_dir.lower()
+    build_rel_path = os.path.relpath(out_dir, source_dir)
+    is_android = 'android' in build_rel_path.lower(
+    ) or 'android' in out_dir.lower()
     test_runner_rel = get_test_runner(out_dir, is_android)
     test_runner_full = os.path.join(out_dir, test_runner_rel)
     test_runner_rel_to_src = os.path.relpath(test_runner_full, source_dir)
@@ -180,7 +193,7 @@ def create_archive(
         'deps': deps_file_rel,
         'runner': test_runner_rel_to_src,
         'is_android': is_android,
-        'build_dir': os.path.relpath(out_dir, source_dir)
+        'build_dir': build_rel_path
     }
 
     if not archive_per_target:
