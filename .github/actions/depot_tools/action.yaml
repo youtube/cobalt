@@ -37,32 +37,39 @@ runs:
       run: |
         set -x
         # Remove and re-clone gclient.
-        rm -rf ${{ steps.paths.outputs.base_path }}/depot_tools ${{ steps.paths.outputs.base_path }}/cobalt/.cipd_cache
-        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ steps.paths.outputs.base_path }}/depot_tools
+        rm -rf "$BASE_PATH/depot_tools" "$BASE_PATH/cobalt/.cipd_cache"
+        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "$BASE_PATH/depot_tools"
 
         # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
         if [[ "$USE_CACHE" == "true" ]]; then
-          git -C /runner-cache/cobalt/src submodule deinit -f --all
-          git -C /runner-cache/cobalt/src clean -ffdx
+          git -C "$BASE_PATH/cobalt/src" submodule deinit -f --all
+          git -C "$BASE_PATH/cobalt/src" clean -ffdx
         fi
       shell: bash
       env:
         USE_CACHE: ${{ inputs.use_cache }}
+        BASE_PATH: ${{ steps.paths.outputs.base_path }}
 
     - name: Reset Cached Depot Tools
       if: inputs.clear_cache == 'true'
-      run: git -C ${{ steps.paths.outputs.base_path }}/depot_tools reset --hard origin/main
+      run: git -C $BASE_PATH/depot_tools reset --hard origin/main
       shell: bash
+      env:
+        BASE_PATH: ${{ steps.paths.outputs.base_path }}
 
     - name: Add Depot Tools to PATH
-      run: echo "${{ steps.paths.outputs.base_path }}/depot_tools" >> $GITHUB_PATH
+      run: echo "$BASE_PATH/depot_tools" >> $GITHUB_PATH
       shell: bash
+      env:
+        BASE_PATH: ${{ steps.paths.outputs.base_path }}
 
     - name: Bootstrap Bundled python3
       run: |
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${{ steps.paths.outputs.base_path }}/depot_tools/bootstrap_python3 && bootstrap_python3
+        source $BASE_PATH/depot_tools/bootstrap_python3 && bootstrap_python3
       shell: bash
+      env:
+        BASE_PATH: ${{ steps.paths.outputs.base_path }}
 
     - name: Disable Chromium client side build telemetry
       run: build_telemetry opt-out
@@ -113,7 +120,8 @@ runs:
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'
       env:
-        CIPD_CACHE_DIR: "${{ steps.paths.outputs.base_path }}/cobalt/.cipd_cache"
+        BASE_PATH: ${{ steps.paths.outputs.base_path }}
+        CIPD_CACHE_DIR: "$BASE_PATH/cobalt/.cipd_cache"
       run: |
         cd cobalt
         gclient runhooks --verbose
