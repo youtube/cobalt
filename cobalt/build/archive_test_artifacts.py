@@ -114,7 +114,7 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     # pylint: disable=consider-using-with
     tmp_file = tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
     tmp_files.append(tmp_file)
-    tmp_file.write('\n'.join(sorted(file_list)))
+    tmp_file.write('\n'.join(sorted(file_list)) + '\n')
     tmp_file.flush()
     # Change the tar working directory and add the file list.
     tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
@@ -180,8 +180,17 @@ def create_archive(
     deps_file_rel = os.path.relpath(deps_file, source_dir)
     target_deps = set()
     target_src_root_deps = set()
+
+    def add_dep(line, root, target_set):
+      full_path = os.path.abspath(os.path.join(root, line))
+      if os.path.exists(full_path):
+        target_set.add(os.path.relpath(full_path, root))
+      else:
+        logging.error('Dependency not found: %s (requested as %s)', full_path,
+                      line)
+
     if flatten_deps:
-      target_deps.add(os.path.relpath(deps_file, out_dir))
+      add_dep(os.path.relpath(deps_file, out_dir), out_dir, target_deps)
     else:
       combined_deps.add(deps_file_rel)
 
@@ -200,7 +209,8 @@ def create_archive(
     }
 
     if not archive_per_target and not flatten_deps:
-      combined_deps.add(test_runner_rel_to_src)
+      if os.path.exists(test_runner_full):
+        combined_deps.add(test_runner_rel_to_src)
 
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
@@ -224,14 +234,18 @@ def create_archive(
 
         if flatten_deps:
           if line.startswith('../../'):
-            target_src_root_deps.add(line[6:])
+            add_dep(line[6:], source_dir, target_src_root_deps)
           else:
-            target_deps.add(line)
+            add_dep(line, out_dir, target_deps)
         else:
           # Rebase all files to be relative to the source root
           full_path = os.path.abspath(os.path.join(tar_root, line))
-          rel_path = os.path.relpath(full_path, source_dir)
-          target_deps.add(rel_path)
+          if os.path.exists(full_path):
+            rel_path = os.path.relpath(full_path, source_dir)
+            target_deps.add(rel_path)
+          else:
+            logging.error('Dependency not found: %s (requested as %s)',
+                          full_path, line)
 
       if not archive_per_target and not flatten_deps:
         combined_deps |= target_deps

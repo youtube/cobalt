@@ -21,9 +21,10 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     self.test_dir = tempfile.mkdtemp()
     self.old_cwd = os.getcwd()
     os.chdir(self.test_dir)
-    self.source_dir = 'src'
-    self.out_dir = 'out'
-    self.dest_dir = 'dest'
+    # Create a deeper structure so ../../ from out resolves to src
+    self.source_dir = os.path.join(self.test_dir, 'src')
+    self.out_dir = os.path.join(self.source_dir, 'out', 'Default')
+    self.dest_dir = os.path.join(self.test_dir, 'dest')
     os.makedirs(self.source_dir)
     os.makedirs(self.out_dir)
     os.makedirs(self.dest_dir)
@@ -31,6 +32,12 @@ class TestArchiveTestArtifacts(unittest.TestCase):
   def tearDown(self):
     os.chdir(self.old_cwd)
     shutil.rmtree(self.test_dir)
+
+  def _touch(self, *parts):
+    path = os.path.join(*parts)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    Path(path).touch()
+    return path
 
   def test_get_test_runner_android(self):
     result = archive_test_artifacts.get_test_runner(
@@ -76,6 +83,10 @@ class TestArchiveTestArtifacts(unittest.TestCase):
       f.write('../../cobalt/test/data/file.txt\n')
       f.write('obj/some_file.o\n')  # Should be excluded
 
+    # Create dummy files to pass existence checks
+    self._touch(self.out_dir, 'base_unittests')
+    self._touch(self.source_dir, 'cobalt/test/data/file.txt')
+
     archive_test_artifacts.create_archive(
         targets=['cobalt/test:my_test'],
         source_dir=self.source_dir,
@@ -91,12 +102,11 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     file_list = mock_make_tar.call_args[0][3][0][0]
 
     # Verify base_unittests is included (relative to source_dir)
-    self.assertIn('../out/base_unittests', file_list)
+    self.assertIn('out/Default/base_unittests', file_list)
     # Verify source file is included (relative to source_dir)
-    # out/../../cobalt/... -> src/../cobalt/... -> sibling of src
-    self.assertIn('../../cobalt/test/data/file.txt', file_list)
+    self.assertIn('cobalt/test/data/file.txt', file_list)
     # Verify obj/ file is excluded
-    self.assertNotIn('../out/obj/some_file.o', file_list)
+    self.assertNotIn('out/Default/obj/some_file.o', file_list)
 
   @mock.patch('archive_test_artifacts.generate_runner_py')
   @mock.patch('archive_test_artifacts._make_tar')
@@ -109,9 +119,10 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     with open(deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
 
-    # Create dummy essential directory
-    os.makedirs(os.path.join(self.source_dir, 'testing'))
-    Path(os.path.join(self.source_dir, '.vpython3')).touch()
+    # Create dummy files to pass existence checks
+    self._touch(self.out_dir, 'cobalt_browsertests')
+    self._touch(self.source_dir, 'testing/file')
+    self._touch(self.source_dir, '.vpython3')
 
     archive_test_artifacts.create_archive(
         targets=['cobalt/testing/browser_tests:cobalt_browsertests'],
@@ -132,7 +143,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     combined_deps = file_lists[1][0]
     self.assertIn('testing', combined_deps)
     self.assertIn('.vpython3', combined_deps)
-    self.assertIn('../out/cobalt_browsertests', combined_deps)
+    self.assertIn('out/Default/cobalt_browsertests', combined_deps)
 
   @mock.patch('archive_test_artifacts.generate_runner_py')
   @mock.patch('archive_test_artifacts._make_tar')
@@ -147,10 +158,10 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     with open(deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
 
+    # Create dummy files to pass existence checks
+    self._touch(self.out_dir, 'cobalt_browsertests')
     # Create dummy runner
-    runner_path = os.path.join(self.out_dir, 'bin', 'run_cobalt_browsertests')
-    os.makedirs(os.path.dirname(runner_path), exist_ok=True)
-    Path(runner_path).touch()
+    self._touch(self.out_dir, 'bin/run_cobalt_browsertests')
 
     archive_test_artifacts.create_archive(
         targets=[f'{target_dir}:{target_name}'],
@@ -169,14 +180,16 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     config = target_map[target_name]
 
     # Paths in target_map MUST be relative to source_dir (archive root)
-    self.assertEqual(config['deps'], '../out/cobalt_browsertests.runtime_deps')
-    self.assertEqual(config['runner'], '../out/bin/run_cobalt_browsertests')
+    self.assertEqual(config['deps'],
+                     'out/Default/cobalt_browsertests.runtime_deps')
+    self.assertEqual(config['runner'],
+                     'out/Default/bin/run_cobalt_browsertests')
 
     # Verify both files are in the file list to be archived
     file_lists = mock_make_tar.call_args[0][3]
     combined_deps = file_lists[1][0]
-    self.assertIn('../out/cobalt_browsertests.runtime_deps', combined_deps)
-    self.assertIn('../out/bin/run_cobalt_browsertests', combined_deps)
+    self.assertIn('out/Default/cobalt_browsertests.runtime_deps', combined_deps)
+    self.assertIn('out/Default/bin/run_cobalt_browsertests', combined_deps)
 
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_depot_tools(self, mock_make_tar):
@@ -185,6 +198,9 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
     with open(deps_file, 'w', encoding='utf-8') as f:
       f.write('my_test\n')
+
+    # Create dummy files to pass existence checks
+    self._touch(self.out_dir, 'my_test')
 
     # Create dummy depot_tools
     depot_tools_dir = os.path.join(self.test_dir, 'my_depot_tools')
@@ -216,7 +232,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
 
     # Check for combined_deps entry
     combined_deps_entry = file_lists[1]
-    self.assertIn('../out/my_test', combined_deps_entry[0])
+    self.assertIn('out/Default/my_test', combined_deps_entry[0])
 
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_android_fallback(self, mock_make_tar):
@@ -229,6 +245,9 @@ class TestArchiveTestArtifacts(unittest.TestCase):
                              f'{target_name}__test_runner_script.runtime_deps')
     with open(deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
+
+    # Create dummy files to pass existence checks
+    self._touch(self.out_dir, 'cobalt_browsertests')
 
     # Should find it via fallback logic even without --use-android-deps-path
     archive_test_artifacts.create_archive(
@@ -254,6 +273,10 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     with open(deps_file, 'w', encoding='utf-8') as f:
       f.write('base_unittests\n')
       f.write('../../cobalt/test/data/file.txt\n')
+
+    # Create dummy files to pass existence checks
+    self._touch(self.out_dir, 'base_unittests')
+    self._touch(self.source_dir, 'cobalt/test/data/file.txt')
 
     # Enable flatten_deps and archive_per_target (which is required for
     # flatten_deps)
