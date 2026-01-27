@@ -33,6 +33,8 @@ _EXCLUDE_DIRS = [
     'testing/buildbot/',
 ]
 
+# Note: Keep this in sync with cobalt_browsertests_portable_deps in
+# cobalt/testing/browser_tests/BUILD.gn.
 _ESSENTIAL_BROWSERTEST_DIRS = [
     'build/android',
     'build/util',

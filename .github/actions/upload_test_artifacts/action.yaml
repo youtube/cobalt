@@ -44,13 +44,13 @@ runs:
         cd cobalt/src/
 
         # Configure archiver to gz compression for android, raspi, and rdk as the devices don't have zstd installed.
-        FLAGS=""
+        FLAGS="--include-browsertests-runner --include-depot-tools"
         if [[ "${{ matrix.platform }}" == *android* ]]; then
-          FLAGS="--compression gz --archive-per-target --use-android-deps-path --flatten-deps"
+          FLAGS="${FLAGS} --compression gz --archive-per-target --use-android-deps-path --flatten-deps"
         elif [[ "${{ matrix.platform }}" == *raspi* || "${{ matrix.platform }}" == *rdk* ]]; then
-          FLAGS="--compression gz --archive-per-target --flatten-deps"
+          FLAGS="${FLAGS} --compression gz --archive-per-target --flatten-deps"
         else
-          FLAGS="--compression zstd --compression-level=9"
+          FLAGS="${FLAGS} --compression zstd --compression-level=9"
         fi
 
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
