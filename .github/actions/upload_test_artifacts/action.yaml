@@ -48,9 +48,9 @@ runs:
         if [[ "${{ matrix.platform }}" == *android* ]]; then
           FLAGS="${FLAGS} --compression gz --archive-per-target --use-android-deps-path --flatten-deps"
         elif [[ "${{ matrix.platform }}" == *raspi* || "${{ matrix.platform }}" == *rdk* ]]; then
-          FLAGS="${FLAGS} --compression gz --archive-per-target --flatten-deps"
+          FLAGS="--compression gz --archive-per-target --flatten-deps"
         else
-          FLAGS="${FLAGS} --compression zstd --compression-level=9"
+          FLAGS="--compression zstd --compression-level=9"
         fi
 
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
