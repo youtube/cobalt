@@ -42,7 +42,7 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
   SbMicrophoneInfo info;
 
   if (SbMicrophoneGetAvailable(&info, 1) < 1) {
-    SB_LOG(ERROR) << "AudioInputStreamStarboard::Open() - No mics";
+    LOG(ERROR) << "AudioInputStreamStarboard::Open() - No mics";
     return OpenOutcome::kFailed;
   }
 
@@ -50,14 +50,14 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
       params_.GetBytesPerBuffer(media::SampleFormat::kSampleFormatS16) *
       kMicrophoneBufferSizeMultiplier;
 
-  SB_LOG(INFO) << "AudioInputStreamStarboard::Open() - Creating mic with rate="
-               << params_.sample_rate() << ", channels=" << params_.channels()
-               << ", buffer_size=" << buffer_size_bytes;
+  LOG(INFO) << "AudioInputStreamStarboard::Open() - Creating mic with rate="
+            << params_.sample_rate() << ", channels=" << params_.channels()
+            << ", buffer_size=" << buffer_size_bytes;
   microphone_ =
       SbMicrophoneCreate(info.id, params_.sample_rate(), buffer_size_bytes);
 
   if (!SbMicrophoneIsValid(microphone_)) {
-    SB_LOG(ERROR) << "AudioInputStreamStarboard::Open() - Mic invalid";
+    LOG(ERROR) << "AudioInputStreamStarboard::Open() - Mic invalid";
     microphone_ = kSbMicrophoneInvalid;
     return OpenOutcome::kFailed;
   }
@@ -65,28 +65,28 @@ AudioInputStream::OpenOutcome AudioInputStreamStarboard::Open() {
   audio_bus_ = AudioBus::Create(params_);
   buffer_.resize(params_.frames_per_buffer() * params_.channels());
 
-  SB_LOG(INFO) << "AudioInputStreamStarboard::Open() - Success";
+  LOG(INFO) << "AudioInputStreamStarboard::Open() - Success";
   return OpenOutcome::kSuccess;
 }
 
 void AudioInputStreamStarboard::Start(AudioInputCallback* callback) {
-  SB_LOG(INFO) << "AudioInputStreamStarboard::Start()";
+  LOG(INFO) << "AudioInputStreamStarboard::Start()";
   CHECK(!callback_ && callback);
   callback_ = callback;
   if (!SbMicrophoneOpen(microphone_)) {
-    SB_LOG(ERROR) << "SbMicrophoneOpen Failed";
+    LOG(ERROR) << "SbMicrophoneOpen Failed";
     HandleError("SbMicrophoneOpen");
     return;
   }
-  SB_LOG(INFO) << "SbMicrophoneOpen Succeeded";
+  LOG(INFO) << "SbMicrophoneOpen Succeeded";
 
-  SB_LOG(INFO) << "AudioInputStreamStarboard::Start() - Starting thread";
+  LOG(INFO) << "AudioInputStreamStarboard::Start() - Starting thread";
   base::Thread::Options options(base::ThreadType::kRealtimeAudio);
   if (!capture_thread_.StartWithOptions(std::move(options))) {
     HandleError("capture_thread_.StartWithOptions");
     return;
   }
-  SB_LOG(INFO) << "Capture thread started";
+  LOG(INFO) << "Capture thread started";
 
   // We start reading data half |buffer_duration_| later than when the
   // buffer might have got filled, to accommodate some delays in the audio
