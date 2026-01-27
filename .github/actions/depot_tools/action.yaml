@@ -6,7 +6,7 @@ inputs:
     default: 'true'
   clear_cache:
     description: Whether or not to clear runner cache.
-    default: 'true'
+    default: 'false'
   rbe_instance:
     description: The RBE instance to use.
     default: projects/cobalt-actions-prod/instances/default_instance
@@ -33,7 +33,7 @@ runs:
         USE_CACHE: ${{ inputs.use_cache }}
 
     - name: Clear Cache and Clone Depot Tools
-      if: inputs.clear_cache != 'true'
+      if: inputs.clear_cache == 'true'
       run: |
         set -x
         # Remove and re-clone gclient.
@@ -51,7 +51,7 @@ runs:
         BASE_PATH: ${{ steps.paths.outputs.base_path }}
 
     - name: Reset Cached Depot Tools
-      if: inputs.clear_cache == 'true'
+      if: inputs.clear_cache == 'false' && inputs.use_cache == 'true'
       run: git -C $BASE_PATH/depot_tools reset --hard origin/main
       shell: bash
       env:
