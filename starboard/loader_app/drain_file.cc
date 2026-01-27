@@ -182,7 +182,7 @@ bool TryDrain(const char* dir, const char* app_key) {
   path.append(kSbFileSepString);
   path.append(filename);
 
-// Silence the -wunused-variable warning for non-debug builds.
+  // Silence the -wunused-variable warning for non-debug builds.
   [[maybe_unused]] int file =
       open(path.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
 
