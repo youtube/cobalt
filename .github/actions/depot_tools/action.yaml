@@ -10,105 +10,113 @@ inputs:
   rbe_instance:
     description: The RBE instance to use.
     default: projects/cobalt-actions-prod/instances/default_instance
-  # TODO: b/477593749 - runner-cache is not available on default Github Mac
-  # runners and so we special case to use runner.temp for now. Clean this up
-  # when self-hosted Mac runners are available.
-  using_mac_runner:
-    description: Whether or not we are using a Mac runner.
-    default: 'false'
+  docker_required:
+    description: Whether or not the build occurs inside a docker container.
+    default: 'true'
 
 runs:
   using: "composite"
   steps:
-    - name: Set Depot Tools Base Path
-      id: paths
-      run: |
-        if [[ "${{ inputs.using_mac_runner }}" == "true" ]]; then
-          echo "base_path=${{ runner.temp }}" >> $GITHUB_OUTPUT
-        else
-          echo "base_path=/runner-cache" >> $GITHUB_OUTPUT
-        fi
-      shell: bash
+      - name: Set Environment Variables
+        shell: bash
+        run: |
+          if [[ "${{ inputs.docker_required }}" == "true" ]]; then
+            export "cache_path=/runner-cache"
+            export "TMPDIR=$GITHUB_WORKSPACE"
+          else
+            export "cache_path=$GITHUB_WORKSPACE"
+            export "TMPDIR=${{ runner.temp }}"
+          fi
+          echo "cache_path=$cache_path" >> $GITHUB_ENV
+          echo "TMPDIR=$TMPDIR" >> $GITHUB_ENV
+          # Derived paths
+          echo "depot_tools_path=$cache_path/depot_tools" >> $GITHUB_ENV
+          echo "cipd_path=$cache_path/cobalt/.cipd_cache" >> $GITHUB_ENV
+          echo "cobalt_dir=$cache_path/cobalt/src" >> $GITHUB_ENV
+      - name: Clear Cache and Clone Depot Tools
+        if: inputs.use_cache == 'true' || inputs.docker_required == 'false'
+        run: |
+          set -x
+          # Remove and re-clone gclient.
+          rm -rf ${{ env.depot_tools_path }} ${{ env.cipd_path }}
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ env.depot_tools_path }}
 
-    - name: Clear Cache and Clone Depot Tools
-      if: inputs.use_cache != 'true'
-      run: |
-        set -x
-        # Remove and re-clone gclient.
-        rm -rf ${{ steps.paths.outputs.base_path }}/depot_tools ${{ steps.paths.outputs.base_path }}/cobalt/.cipd_cache
-        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ steps.paths.outputs.base_path }}/depot_tools
+          # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
+          git -C ${{ env.cobalt_dir }} submodule deinit -f --all
+          git -C ${{ env.cobalt_dir }} clean -ffdx
+        shell: bash
 
-        # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
-        if [[ "${{ inputs.using_mac_runner }}" == "false" ]]; then
-          git -C /runner-cache/cobalt/src submodule deinit -f --all
-          git -C /runner-cache/cobalt/src clean -ffdx
-        fi
-      shell: bash
+      - name: Reset Cached Depot Tools
+        if: inputs.use_cache == 'true'
+        run: git -C ${{ env.depot_tools_path }} reset --hard origin/main
+        shell: bash
 
-    - name: Reset Cached Depot Tools
-      if: inputs.use_cache == 'true'
-      run: git -C ${{ steps.paths.outputs.base_path }}/depot_tools reset --hard origin/main
-      shell: bash
+      - name: Add Depot Tools to PATH
+        run: echo "${{ env.depot_tools_path }}" >> $GITHUB_PATH
+        shell: bash
 
-    - name: Add Depot Tools to PATH
-      run: echo "${{ steps.paths.outputs.base_path }}/depot_tools" >> $GITHUB_PATH
-      shell: bash
+      - name: Bootstrap Bundled python3
+        if: inputs.use_cache == 'true'
+        run: |
+          # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
+          source ${{ env.depot_tools_path }}/bootstrap_python3 && bootstrap_python3
+        shell: bash
 
-    - name: Bootstrap Bundled python3
-      run: |
-        # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${{ steps.paths.outputs.base_path }}/depot_tools/bootstrap_python3 && bootstrap_python3
-      shell: bash
+      - name: Disable Chromium client side build telemetry
+        run: build_telemetry opt-out
+        shell: bash
 
-    - name: Disable Chromium client side build telemetry
-      run: build_telemetry opt-out
-      shell: bash
+      - name: Run gclient config
+        env:
+          VPYTHON_VIRTUALENV_ROOT: ${{ env.TMPDIR }}/vpython_cache
+        run: |
+          export TMPDIR=$GITHUB_WORKSPACE
+          mkdir -p $VPYTHON_VIRTUALENV_ROOT
+          cd cobalt
+          gclient config \
+            --name=src \
+            --custom-var=download_remoteexec_cfg=True \
+            --custom-var='rbe_instance="${{ inputs.rbe_instance }}"' \
+            https://github.com/${{ github.repository }}
+          ls -la
+        shell: bash
 
-    - name: Run gclient config
-      run: |
-        cd cobalt
-        gclient config \
-          --name=src \
-          --custom-var=download_remoteexec_cfg=True \
-          --custom-var='rbe_instance="${{ inputs.rbe_instance }}"' \
-          https://github.com/${{ github.repository }}
-      shell: bash
+      - name: Set target OS
+        if: contains(matrix.platform, 'android') || contains(matrix.platform, 'mac')
+        shell: bash
+        env:
+          VPYTHON_VIRTUALENV_ROOT: ${{ env.TMPDIR }}/vpython_cache
+        run: |
+          cd cobalt
+          if [[ "${{ matrix.platform }}" == *"android"* ]]; then
+            echo "target_os=['android']" >> .gclient
+          else
+            echo "target_os=['ios']" >> .gclient
+          fi
+          gclient validate
 
-    - name: Set target OS for Android
-      if: contains(matrix.platform, 'android')
-      run: |
-        cd cobalt
-        echo "target_os=['android']" >> .gclient
-        gclient validate
-      shell: bash
+      - name: Run gclient sync
+        if: inputs.run_sync == 'true'
+        env:
+          VPYTHON_VIRTUALENV_ROOT: ${{ env.TMPDIR }}/vpython_cache
+        run: |
+          cd cobalt
+          gclient sync \
+            --verbose \
+            --shallow \
+            --no-history \
+            --nohooks \
+            --force \
+            --delete_unversioned_trees \
+            --revision ${{ github.sha }}
+        shell: bash
 
-    - name: Set target OS for tvOS
-      if: contains(matrix.platform, 'tvos')
-      run: |
-        cd cobalt
-        echo "target_os=['ios']" >> .gclient
-        gclient validate
-      shell: bash
-
-    - name: Run gclient sync
-      if: inputs.run_sync == 'true'
-      run: |
-        cd cobalt
-        gclient sync \
-          --verbose \
-          --shallow \
-          --no-history \
-          --nohooks \
-          --force \
-          --delete_unversioned_trees \
-          --revision ${{ github.sha }}
-      shell: bash
-
-    - name: Run gclient runhooks
-      if: inputs.run_sync == 'true'
-      env:
-        CIPD_CACHE_DIR: "${{ steps.paths.outputs.base_path }}/cobalt/.cipd_cache"
-      run: |
-        cd cobalt
-        gclient runhooks --verbose
-      shell: bash
+      - name: Run gclient runhooks
+        if: inputs.run_sync == 'true'
+        env:
+          VPYTHON_VIRTUALENV_ROOT: ${{ env.TMPDIR }}/vpython_cache
+          CIPD_CACHE_DIR: ${{ env.cipd_path }}
+        run: |
+          cd cobalt
+          gclient runhooks --verbose
+        shell: bash

@@ -79,16 +79,23 @@ _COBALT_TVOS_PLATFORMS = [
 ]
 
 
-def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
-                     use_coverage):
+def write_build_args(build_args_path,
+                     platform_args_path,
+                     build_type,
+                     use_rbe,
+                     use_coverage,
+                     cc_wrapper=None):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
     f.write(f'use_siso = false {gen_comment}\n')
     if use_rbe:
       f.write(f'use_remoteexec = true {gen_comment}\n')
+    if cc_wrapper:
+      f.write(f'cc_wrapper = "{cc_wrapper}" {gen_comment}\n')
     f.write(
         f'rbe_cfg_dir = rebase_path("//cobalt/reclient_cfgs") {gen_comment}\n')
+    # f.write('cc_wrapper = "sccache"')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
@@ -99,7 +106,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
                             use_rbe: bool, gn_gen_args: List[str], *,
-                            use_coverage: bool):
+                            use_coverage: bool, cc_wrapper: str):
   Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
@@ -113,7 +120,7 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
           'Old file was copied to stale_args.gn.')
 
   write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe,
-                   use_coverage)
+                   use_coverage, cc_wrapper)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print('Running', ' '.join(gn_command))
@@ -162,6 +169,10 @@ def parse_args():
       default=False,
       action='store_true',
       help='Pass this flag to enable code coverage instrumentation.')
+  parser.add_argument(
+      '--cc-wrapper',
+      default='',
+      help='Compiler wrapper to use (e.g., sccache).')
 
   # Consume --args to avoid passing to gn gen, overriding args.gn file.
   parser.add_argument('--args', help=argparse.SUPPRESS)
@@ -173,6 +184,9 @@ def parse_args():
 
   if not script_args.no_check:
     gen_args.append('--check')
+
+  # if script_args.cc_wrapper:
+  #   gen_args.append(script_args.cc_wrapper)
 
   if script_args.args:
     print('WARNING: \'--args\' was ignored to avoid overriding args.gn file.')
@@ -193,7 +207,8 @@ def main():
       script_args.build_type,
       not script_args.no_rbe,
       gen_args,
-      use_coverage=script_args.coverage)
+      use_coverage=script_args.coverage,
+      cc_wrapper=script_args.cc_wrapper)
 
 
 if __name__ == '__main__':

@@ -21,6 +21,8 @@ on:
     secrets:
       datadog_api_key:
         required: false
+      SCCACHE_GCS_KEY_MAC:
+        required: false
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
@@ -83,6 +85,13 @@ jobs:
           set -x
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
+      - name: Select build runners
+        id: set-build-runners
+        shell: bash
+        run: |
+          set -x
+          build_runners=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.build_runners // ["self-hosted", "chrobalt-linux-runner"]' )
+          echo "build_runners=${build_runners}" >> $GITHUB_OUTPUT
       - name: Set build targets
         id: set-targets
         shell: bash
@@ -211,6 +220,13 @@ jobs:
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
+      - name: Set number Docker Requirement
+        id: set-docker-required
+        shell: bash
+        run: |
+          set -x
+          docker_required=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.docker_required')
+          echo "docker_required=${docker_required}" >> $GITHUB_OUTPUT
       - name: Set Docker files checksum
         id: set-docker-hash
         shell: bash
@@ -220,6 +236,7 @@ jobs:
           echo "docker_content_sha=${docker_content_sha}" >> $GITHUB_OUTPUT
     outputs:
       platforms: ${{ steps.set-platforms.outputs.platforms }}
+      build_runners: ${{ steps.set-build-runners.outputs.build_runners }}
       targets: ${{ steps.set-targets.outputs.targets }}
       build_configs: ${{ steps.set-build-configs.outputs.build_configs }}
       includes: ${{ steps.set-includes.outputs.includes }}
@@ -239,10 +256,12 @@ jobs:
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
+      docker_required: ${{ steps.set-docker-required.outputs.docker_required }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
+    if: needs.initialize.outputs.docker_required == 'true'
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Restore CI Essentials
@@ -262,7 +281,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt unit test image to ghr.
   docker-unittest-image:
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true' && needs.initialize.outputs.docker_required == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -283,7 +302,7 @@ jobs:
 
   # Builds, tags, and pushes Cobalt web test image to ghr.
   docker-webtest-image:
-    if: needs.initialize.outputs.web_tests == 'true'
+    if: needs.initialize.outputs.web_tests == 'true' && needs.initialize.outputs.docker_required == 'true'
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
@@ -302,10 +321,37 @@ jobs:
     outputs:
       docker_tag: ${{ steps.build-docker-image.outputs.docker_tag }}
 
-  build:
+  build-ready:
     needs: [initialize, docker-build-image]
-    permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
+    if: always()
+    steps:
+      - name: Build ready check
+        id: build-ready
+        env:
+          DOCKER_BUILD_IMAGE_RESULT: ${{ needs.docker-build-image.result }}
+          INITIALIZE_RESULT: ${{ needs.initialize.result }}
+          DOCKER_REQUIRED: ${{ needs.initialize.outputs.docker_required }}
+        run: |
+          # Skip entirely if initialize failed
+          if [ $INITIALIZE_RESULT != "success" ]; then
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Skip if requires docker by docker-build-image failed
+          if [ $DOCKER_REQUIRED == "true" && $DOCKER_BUILD_IMAGE_RESULT != "success" ]; then
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "success=true" >> $GITHUB_OUTPUT
+    outputs:
+      success: ${{ steps.build-ready.outputs.success }}
+
+  build:
+    needs: [initialize, docker-build-image, build-ready]
+    if: always() && needs.build-ready.outputs.success == 'true'
+    permissions: {}
+    runs-on: ${{ fromJSON(needs.initialize.outputs.build_runners) }}
     name: ${{ matrix.name }}_${{ matrix.config }}
     strategy:
       fail-fast: false
@@ -330,12 +376,14 @@ jobs:
       TMPDIR: /__w/_temp
     steps:
       - name: Restore CI Essentials
+        if: ${{ needs.initialize.outputs.docker_required == 'true' }}
         uses: actions/download-artifact@v4
         with:
           path: pre-run
           name: ci-essentials-${{ inputs.platform }}
 
       - name: Prepare Workspace for Checkout
+        if: ${{ needs.initialize.outputs.docker_required == 'true' }}
         uses: ./pre-run/.github/actions/prepare-runner-cache
 
       - name: Checkout
@@ -352,12 +400,15 @@ jobs:
         id: setup-depot-tools
         continue-on-error: true
         uses: ./cobalt/src/.github/actions/depot_tools
+        with:
+          docker_required: ${{ needs.initialize.outputs.docker_required }}
 
       - name: Retry Depot Tools Set Up
         if: steps.setup-depot-tools.outcome != 'success'
         uses: ./cobalt/src/.github/actions/depot_tools
         with:
           use_cache: false
+          docker_required: ${{ needs.initialize.outputs.docker_required }}
 
       - name: Build Cobalt
         id: build
@@ -368,6 +419,7 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          sccache_gcs_key_mac: ${{ secrets.SCCACHE_GCS_KEY_MAC }}
 
       - name: Release Package
         if:  (matrix.config == 'qa' || matrix.config == 'gold') && (needs.initialize.outputs.test_package == 'true' || needs.initialize.outputs.test_e2e == 'true' || needs.initialize.outputs.test_yts == 'true')
@@ -553,11 +605,13 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
       - name: Restore CI Essentials
+        if: ${{ needs.initialize.outputs.docker_required == 'true' }}
         uses: actions/download-artifact@v4
         with:
           path: pre-run
           name: ci-essentials-${{ inputs.platform }}
       - name: Prepare Workspace for Checkout
+        if: ${{ needs.initialize.outputs.docker_required == 'true' }}
         uses: ./pre-run/.github/actions/prepare-runner-cache
       - name: Checkout
         uses: actions/checkout@v4

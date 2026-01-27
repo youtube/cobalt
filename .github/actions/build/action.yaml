@@ -10,6 +10,9 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
+  sccache_gcs_key_mac:
+    description: "The keyfile needed to access our sccache."
+    required: false
 runs:
   using: "composite"
   steps:
@@ -17,12 +20,49 @@ runs:
         run: |
           rm -rf cobalt/src/out
         shell: bash
+      - name: Install sccache
+        if: ${{ contains(matrix.platform, 'mac') }}
+        shell: bash
+        run: brew install sccache
+      - name: Configure sccache
+        if: ${{ contains(matrix.platform, 'mac') }}
+        shell: bash
+        run: |
+          set -x
+          echo "${{ inputs.sccache_gcs_key_mac }}" | base64 --decode > "${HOME}/gcloud.json"
+          echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
+          echo "SCCACHE=1" >> $GITHUB_ENV
+          echo "SCCACHE_GCS_BUCKET=cobalt-kokoro-sccache-mac" >> $GITHUB_ENV
+          echo "SCCACHE_GCS_RW_MODE=READ_WRITE" >> $GITHUB_ENV
+          echo "SCCACHE_IDLE_TIMEOUT=0" >> $GITHUB_ENV
+      - name: Install Google Cloud SDK
+        if: ${{ contains(matrix.platform, 'mac') }}
+        run: |
+          set -x
+          if [[ "$(uname -m)" == "arm64" ]]; then
+            GCLOUD_ARCHIVE="google-cloud-cli-darwin-arm.tar.gz"
+          else
+            GCLOUD_ARCHIVE="google-cloud-cli-darwin-x86_64.tar.gz"
+          fi
+          mkdir -p "$GITHUB_WORKSPACE/.local"
+          cd ${{ runner.temp }}
+          curl -L -O "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/${GCLOUD_ARCHIVE}"
+          tar xf "${GCLOUD_ARCHIVE}" -C "$GITHUB_WORKSPACE/.local" --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib
+          rm "${GCLOUD_ARCHIVE}"
+          export PATH="$GITHUB_WORKSPACE/.local/bin:$PATH"
+          gcloud --version
+        shell: bash
+      - name: Set Up Cloud SDK
+        if: ${{ contains(matrix.platform, 'mac') }}
+        uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+        with:
+          project_id: yt-cobalt
       - name: GN gen
         run: |
           cd cobalt/src
           gn_flags=()
-          if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
-            gn_flags+=(--no-rbe --no-check)
+          if [[ "${{ matrix.platform }}" == *"mac"* ]]; then
+            gn_flags+=(--no-rbe --no-check --cc-wrapper=sccache)
           fi
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
         shell: bash
@@ -118,6 +158,7 @@ runs:
           cd cobalt/src
           TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+          sccache --show-stats
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
