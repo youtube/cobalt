@@ -15,7 +15,11 @@
 #ifndef COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 #define COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 
+<<<<<<< HEAD
 #include "base/metrics/histogram_samples.h"
+=======
+#include "cobalt/browser/h5vcc_metrics/histogram_fetcher.h"
+>>>>>>> e36104bb0b1 (cobalt: Avoid taking multiple snapshots when retrieving histograms)
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "content/public/browser/document_service.h"
@@ -54,9 +58,7 @@ class H5vccMetricsImpl : public content::DocumentService<mojom::H5vccMetrics> {
   H5vccMetricsImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccMetrics> receiver);
 
-  // Stores the last snapshot of histogram samples.
-  std::map<std::string, std::unique_ptr<base::HistogramSamples>>
-      last_histogram_samples_;
+  HistogramFetcher histogram_fetcher_;
 
   COBALT_THREAD_CHECKER(thread_checker_);
 };
