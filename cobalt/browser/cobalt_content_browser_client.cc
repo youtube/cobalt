@@ -348,7 +348,7 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
   // Create the updater module singleton if not already created.
   auto* storage_partition =
       web_contents->GetPrimaryMainFrame()->GetStoragePartition();
-  if (storage_partition and !updater::UpdaterModule::GetInstance()) {
+  if (storage_partition && !updater::UpdaterModule::GetInstance()) {
     LOG(INFO) << "Creating UpdaterModule singleton.";
     updater::UpdaterModule::CreateInstance(
         storage_partition->GetURLLoaderFactoryForBrowserProcess(),
