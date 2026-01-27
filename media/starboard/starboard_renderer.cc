@@ -18,7 +18,6 @@
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
-#include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
@@ -29,6 +28,11 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "media/base/android/android_overlay.h"
+#include "media/base/android_overlay_config.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 
@@ -155,11 +159,7 @@ StarboardRenderer::StarboardRenderer(
       max_video_capabilities_(max_video_capabilities),
       enable_flush_during_seek_(enable_flush_during_seek),
       enable_reset_audio_decoder_(enable_reset_audio_decoder),
-      viewport_size_(viewport_size),
-      notify_memory_pressure_before_playback_(
-          base::FeatureList::IsEnabled(
-              media::kCobaltNotifyMemoryPressureBeforePlayback) ||
-          ReadCommandLineSwitchForMemoryPressureSignal())
+      viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
@@ -172,9 +172,7 @@ StarboardRenderer::StarboardRenderer(
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
-            << base::GetQuotedJSONString(max_video_capabilities_)
-            << ", notify_memory_pressure_before_playback="
-            << (notify_memory_pressure_before_playback_ ? "true" : "false");
+            << base::GetQuotedJSONString(max_video_capabilities_);
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -272,7 +270,24 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
 
-  // TODO: b/429435008 - Allow StarboardRenderer to request AndroidOverlay.
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(media::kCobaltUsingAndroidOverlay)) {
+    // RequestOverlayInfoCB and create AndroidOverlay if the BASE feature is
+    // enabled.
+    if (request_overlay_info_cb_ && android_overlay_factory_cb_) {
+      LOG(INFO) << "Requesting AndroidOverlay for Video SurfaceView.";
+      // Set |restart_for_transitions| to false due to devices are
+      // isSetOutputSurfaceSupported() in
+      // media/base/android/java/src/org/chromium/media/MediaCodecUtil.java.
+      request_overlay_info_cb_.Run(/*restart_for_transitions=*/false);
+      return;
+    }
+    // When CobaltUsingAndroidOverlay is enabled, both request_overlay_info_cb_
+    // and android_overlay_factory_cb_ should not be null.
+    NOTREACHED();
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
   CreatePlayerBridge();
 }
 
@@ -500,6 +515,12 @@ void StarboardRenderer::SetStarboardRendererCallbacks(
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+#if BUILDFLAG(IS_ANDROID)
+  if (overlay_) {
+    overlay_->ScheduleLayout(output_rect);
+    return;
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
                                 output_rect.width(), output_rect.height());
 }
@@ -507,6 +528,38 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
 #if BUILDFLAG(IS_ANDROID)
 void StarboardRenderer::OnOverlayInfoChanged(const OverlayInfo& overlay_info) {
   // TODO: b/429435008 - Request AndroidOverlay() for SbPlayer.
+  // Check if the the overlay_info has stayed the same --> do not request
+  // AndroidOverlay.
+  bool overlay_changed = !overlay_info_.RefersToSameOverlayAs(overlay_info);
+  if (!overlay_changed) {
+    return;
+  }
+
+  if (android_overlay_factory_cb_.is_null()) {
+    LOG(ERROR) << " AndroidOverlayMojoFactoryCB is NULL.";
+    state_ = STATE_ERROR;
+    if (init_cb_) {
+      std::move(init_cb_).Run(PipelineStatus(
+          DECODER_ERROR_NOT_SUPPORTED, "AndroidOverlayMojoFactoryCB is null"));
+    }
+    return;
+  }
+
+  overlay_info_ = overlay_info;
+
+  AndroidOverlayConfig config;
+  config.ready_cb = base::BindOnce(&StarboardRenderer::OnOverlayReady,
+                                   weak_factory_.GetWeakPtr());
+  config.failed_cb = base::BindOnce(&StarboardRenderer::OnOverlayFailed,
+                                    weak_factory_.GetWeakPtr());
+  config.rect = gfx::Rect(viewport_size_);
+  config.secure = false;
+  config.power_efficient = false;
+
+  overlay_ = android_overlay_factory_cb_.Run(*overlay_info.routing_token,
+                                             std::move(config));
+  LOG(INFO) << " Overlay info changed, requested AndroidOverlay. Token: "
+            << overlay_info.routing_token.value().ToString();
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -578,7 +631,13 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1, enable_flush_during_seek_, enable_reset_audio_decoder_));
+        -1, enable_flush_during_seek_, enable_reset_audio_decoder_
+#if BUILDFLAG(IS_ANDROID)
+        ,
+        // TODO: b/475294958 - Revisit platform-specific codes above starboard.
+        surface_view_
+#endif  // BUILDFLAG(IS_ANDROID)
+        ));
     if (player_bridge_->IsValid()) {
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
       // returns no audio configurations, update the write durations again
@@ -625,14 +684,6 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_->SetVolume(volume_);
 
     state_ = STATE_FLUSHED;
-    if (notify_memory_pressure_before_playback_) {
-      // Send a one-time critical memory pressure signal to ask
-      // other components to release memory.
-      base::MemoryPressureListener::NotifyMemoryPressure(
-          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
-      LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
-                   "burden.";
-    }
     std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
     return;
   }
@@ -984,6 +1035,28 @@ void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
   last_media_time_ = media_time;
   last_time_media_time_retrieved_ = Time::Now();
 }
+
+#if BUILDFLAG(IS_ANDROID)
+void StarboardRenderer::OnOverlayReady(AndroidOverlay* overlay) {
+  // Check that the passed overlay and overlay_ point to the same object.
+  DCHECK_EQ(overlay, overlay_.get());
+
+  surface_view_ = overlay_->GetJavaSurface().obj();
+  CreatePlayerBridge();
+}
+
+void StarboardRenderer::OnOverlayFailed(AndroidOverlay* overlay) {
+  DCHECK_EQ(overlay, overlay_.get());
+  overlay_ = nullptr;
+  state_ = STATE_ERROR;
+  if (init_cb_) {
+    std::move(init_cb_).Run(PipelineStatus(
+        DECODER_ERROR_NOT_SUPPORTED,
+        "StarboardRenderer::OnOverlayFailed() failed to create a "
+        "valid AndroidOverlay"));
+  }
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 int StarboardRenderer::GetDefaultMaxBuffers(AudioCodec codec,
                                             TimeDelta duration_to_write,

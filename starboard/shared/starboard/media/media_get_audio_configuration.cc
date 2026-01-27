@@ -14,7 +14,9 @@
 
 // Default implementation of SbMediaGetAudioConfiguration().
 
+// clang-format off
 #include "starboard/media.h"
+// clang-format on
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"

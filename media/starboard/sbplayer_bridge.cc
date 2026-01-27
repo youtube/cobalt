@@ -42,6 +42,7 @@
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
+#include "starboard/extension/player_set_video_surface_view.h"
 
 namespace media {
 
@@ -224,6 +225,10 @@ SbPlayerBridge::SbPlayerBridge(
     int max_video_input_size,
     bool flush_decoder_during_reset,
     bool reset_audio_decoder
+#if BUILDFLAG(IS_ANDROID)
+    ,
+    jobject surface_view
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
     ,
     std::string pipeline_identifier
@@ -248,6 +253,10 @@ SbPlayerBridge::SbPlayerBridge(
       max_video_input_size_(max_video_input_size),
       flush_decoder_during_reset_(flush_decoder_during_reset),
       reset_audio_decoder_(reset_audio_decoder)
+#if BUILDFLAG(IS_ANDROID)
+      ,
+      surface_view_(surface_view)
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
           cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
@@ -376,8 +385,7 @@ void SbPlayerBridge::WriteBuffers(
   }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-  WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &audio_stream_info_,
-                                           &video_stream_info_);
+  WriteBuffersInternal(type, buffers, &audio_stream_info_, &video_stream_info_);
 }
 
 void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
@@ -806,6 +814,20 @@ void SbPlayerBridge::CreatePlayer() {
     player_configurate_seek_extension
         ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
   }
+#if BUILDFLAG(IS_ANDROID)
+  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
+      player_set_video_surface_view_extension =
+          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
+  if (player_set_video_surface_view_extension &&
+      strcmp(player_set_video_surface_view_extension->name,
+             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
+      player_set_video_surface_view_extension->version >= 1) {
+    player_set_video_surface_view_extension
+        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
@@ -862,13 +884,7 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
     decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
                                       &stream_info);
     if (buffers.size() > 0) {
-      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
-            type, buffers, &stream_info, nullptr);
-      } else {
-        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, &stream_info,
-                                                 nullptr);
-      }
+      WriteBuffersInternal(type, buffers, &stream_info, nullptr);
     }
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
@@ -877,19 +893,12 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
     decoder_buffer_cache_.ReadBuffers(&buffers, max_buffers_per_write,
                                       &stream_info);
     if (buffers.size() > 0) {
-      if (sbplayer_interface_->IsEnhancedAudioExtensionEnabled()) {
-        WriteBuffersInternal<CobaltExtensionEnhancedAudioPlayerSampleInfo>(
-            type, buffers, nullptr, &stream_info);
-      } else {
-        WriteBuffersInternal<SbPlayerSampleInfo>(type, buffers, nullptr,
-                                                 &stream_info);
-      }
+      WriteBuffersInternal(type, buffers, nullptr, &stream_info);
     }
   }
 }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-template <typename PlayerSampleInfo>
 void SbPlayerBridge::WriteBuffersInternal(
     DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
@@ -906,7 +915,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     return;
   }
 
-  std::vector<PlayerSampleInfo> gathered_sbplayer_sample_infos;
+  std::vector<SbPlayerSampleInfo> gathered_sbplayer_sample_infos;
   std::vector<SbDrmSampleInfo> gathered_sbplayer_sample_infos_drm_info;
   std::vector<SbDrmSubSampleMapping>
       gathered_sbplayer_sample_infos_subsample_mapping;
@@ -962,7 +971,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     SbPlayerSampleSideData* side_data =
         &gathered_sbplayer_sample_infos_side_data[i];
 
-    PlayerSampleInfo sample_info = {};
+    SbPlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
     sample_info.buffer = buffer->data();
     sample_info.buffer_size = buffer->data_size();

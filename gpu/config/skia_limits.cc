@@ -25,7 +25,9 @@ void DetermineGrCacheLimitsFromAvailableMemory(
 #if !BUILDFLAG(IS_NACL)
   // The limit of the bytes allocated toward GPU resources in the GrContext's
   // GPU cache.
-#if !BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(IS_COBALT)
+  constexpr size_t kMaxLowEndGaneshResourceCacheBytes = 24 * 1024 * 1024;
+#else
   constexpr size_t kMaxLowEndGaneshResourceCacheBytes = 48 * 1024 * 1024;
 #endif
   constexpr size_t kMaxHighEndGaneshResourceCacheBytes = 256 * 1024 * 1024;
@@ -35,11 +37,7 @@ void DetermineGrCacheLimitsFromAvailableMemory(
   constexpr uint64_t kHighEndMemoryThreshold = 4096ULL * 1024 * 1024;
 
   if (base::SysInfo::IsLowEndDevice()) {
-#if BUILDFLAG(IS_COBALT)
-    *max_resource_cache_bytes = 0;
-#else
     *max_resource_cache_bytes = kMaxLowEndGaneshResourceCacheBytes;
-#endif
     *max_glyph_cache_texture_bytes = kMaxLowEndGlyphCacheTextureBytes;
   } else if (base::SysInfo::AmountOfPhysicalMemory() >=
              kHighEndMemoryThreshold) {

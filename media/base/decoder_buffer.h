@@ -92,14 +92,12 @@ class MEDIA_EXPORT DecoderBuffer
     virtual int GetBufferPadding() const = 0;
     virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
         const = 0;
-    virtual void SetEnabled(bool enabled) = 0;
     virtual void SetAllocateOnDemand(bool enabled) = 0;
 
    protected:
     ~Allocator() {}
   };
 
-  static void EnableAllocator(bool enabled);
   static void EnableAllocateOnDemand(bool enabled);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

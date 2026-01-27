@@ -21,7 +21,6 @@
 #include "starboard/common/check_op.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"

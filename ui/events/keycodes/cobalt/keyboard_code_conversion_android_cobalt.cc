@@ -2,12 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// clang-format off
+#include "ui/events/keycodes/keyboard_code_conversion_android.h"
+// clang-format on
+
 #define KeyboardCodeFromAndroidKeyCode \
   KeyboardCodeFromAndroidKeyCode_ChromiumImpl
 #include "ui/events/keycodes/keyboard_code_conversion_android.cc"
 #undef KeyboardCodeFromAndroidKeyCode
-
-#include "ui/events/keycodes/keyboard_code_conversion_android.h"
 
 #include <android/keycodes.h>
 

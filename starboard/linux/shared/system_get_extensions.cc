@@ -20,7 +20,6 @@
 #endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -33,7 +32,6 @@
 #include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/linux/shared/time_zone.h"
-#include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
 #include "starboard/shared/starboard/crash_handler.h"

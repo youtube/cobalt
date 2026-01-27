@@ -31,14 +31,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import org.chromium.content_public.browser.WebContents;
 
-/**
- * Shows an ErrorDialog to inform the user of a network platform error.
- * The dialog should appear if the device has no wifi or ethernet connection.
- * It should also appear in cases of "weak" internet (ie. connected to a network
- * that doesn't have internet like a router that was just unplugged) as well as if
- * the connection is experiencing DNS resolution errors. Prompts the user to retry
- * or to navigate to the device's network settings menu.
-*/
+/** Shows an ErrorDialog to inform the user of a Starboard platform error. */
 public class PlatformError
     implements DialogInterface.OnClickListener, DialogInterface.OnDismissListener {
 
@@ -60,6 +53,7 @@ public class PlatformError
   // Button IDs for CONNECTION_ERROR
   private static final int RETRY_BUTTON = 1;
   private static final int NETWORK_SETTINGS_BUTTON = 2;
+  private static final int DISMISS_BUTTON = 3;
 
   private final Holder<Activity> mActivityHolder;
   private final @ErrorType int mErrorType;
@@ -104,7 +98,8 @@ public class PlatformError
         dialogBuilder
             .setMessage(R.string.starboard_platform_connection_error)
             .addButton(RETRY_BUTTON, R.string.starboard_platform_retry)
-            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings);
+            .addButton(NETWORK_SETTINGS_BUTTON, R.string.starboard_platform_network_settings)
+            .addButton(DISMISS_BUTTON, R.string.starboard_platform_dismiss);
         break;
       default:
         Log.e(TAG, "Unknown platform error " + mErrorType);
@@ -141,13 +136,23 @@ public class PlatformError
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
           }
-          mDialog.dismiss();
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           if (cobaltActivity != null) {
+            WebContents webContents = cobaltActivity.getActiveWebContents();
+            if (webContents != null) {
+              webContents.getNavigationController().reload(true);
+            }
+            else {
+              Log.e(TAG, "WebContents is null and not available to reload the application.");
+            }
             cobaltActivity.getCobaltConnectivityDetector().activeNetworkCheck();
           }
+          mDialog.dismiss();
+          break;
+        case DISMISS_BUTTON:
+          mResponse = POSITIVE;
           mDialog.dismiss();
           break;
         default: // fall out

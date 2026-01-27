@@ -17,6 +17,7 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -65,9 +66,7 @@ import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
-import org.chromium.content_public.browser.NavigationHandle;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.net.NetworkChangeNotifier;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -77,6 +76,7 @@ import org.chromium.ui.base.IntentRequestTracker;
 public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final String META_DATA_APP_URL = "cobalt.APP_URL";
+  private static final String META_DATA_ENABLE_SPLASH_SCREEN = "cobalt.ENABLE_SPLASH_SCREEN";
   private static final String YOUTUBE_URL = "https://www.youtube.com/tv";
 
   // This key differs in naming format for legacy reasons
@@ -108,8 +108,32 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   // Tracks the status of the FLAG_KEEP_SCREEN_ON window flag.
   private Boolean isKeepScreenOnEnabled = false;
-  private CobaltConnectivityDetector mCobaltConnectivityDetector;
-  private WebContentsObserver mWebContentsObserver;
+  private CobaltConnectivityDetector cobaltConnectivityDetector;
+
+  private boolean mIsCobaltUsingAndroidOverlay;
+  private static final String COBALT_USING_ANDROID_OVERLAY = "CobaltUsingAndroidOverlay";
+
+  private boolean mEnableSplashScreen;
+
+  private Bundle getActivityMetaData() {
+    ComponentName componentName = getIntent().getComponent();
+    if (componentName == null) {
+      Log.w(TAG, "Activity intent has no component; cannot get metadata.");
+      return null;
+    }
+    ActivityInfo ai;
+    try {
+      ai = getPackageManager()
+                .getActivityInfo(componentName, PackageManager.GET_META_DATA);
+    } catch (NameNotFoundException e) {
+      Log.e(TAG, "Error getting activity info", e);
+      return null;
+    }
+    if (ai == null) {
+      return null;
+    }
+    return ai.metaData;
+  }
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -137,6 +161,9 @@ public abstract class CobaltActivity extends Activity {
           new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
               VersionInfo.isOfficialBuild(), extraCommandLineArgs.toArray(new String[0])));
     }
+    mIsCobaltUsingAndroidOverlay = CommandLine.getInstance().hasSwitch(COBALT_USING_ANDROID_OVERLAY);
+    Bundle metaData = getActivityMetaData();
+    mEnableSplashScreen = metaData == null || metaData.getBoolean(META_DATA_ENABLE_SPLASH_SCREEN, true);
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
 
@@ -185,8 +212,7 @@ public abstract class CobaltActivity extends Activity {
               .orElse(null);
     }
 
-    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
-      Log.i(TAG, "Non-Youtube startup URL detected.");
+    if (shouldDisarmStartupGuard(mStartupUrl)) {
       StartupGuard.getInstance().disarm();
     }
 
@@ -240,36 +266,27 @@ public abstract class CobaltActivity extends Activity {
             Log.i(TAG, "shellManager load url:" + mStartupUrl);
             mShellManager.getActiveShell().loadUrl(mStartupUrl);
 
-            // Initialize and register a WebContentsObserver.
-            mWebContentsObserver =
-                new org.chromium.content_public.browser.WebContentsObserver(
-                    getActiveWebContents()) {
-                  @Override
-                  public void didStartNavigationInPrimaryMainFrame(
-                      NavigationHandle navigationHandle) {
-                    if (!navigationHandle.isSameDocument()) {
-                      mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(false);
-                    }
-                  }
-
-                  @Override
-                  public void didFinishNavigationInPrimaryMainFrame(
-                      NavigationHandle navigationHandle) {
-                    // The connectivity detector will consider the app has loaded if the navigation
-                    // has
-                    // committed successfully with a valid internet connection.
-                    if (navigationHandle.hasCommitted()
-                        && !navigationHandle.isErrorPage()
-                        && mCobaltConnectivityDetector.hasVerifiedConnectivity()) {
-                      mCobaltConnectivityDetector.setAppHasSuccessfullyLoaded(true);
-                    }
-                  }
-                };
-
-            // Load splash screen.
-            mShellManager.getActiveShell().loadSplashScreenWebContents();
+            if (mEnableSplashScreen) {
+              // Load splash screen.
+              mShellManager.getActiveShell().loadSplashScreenWebContents();
+            }
           }
         });
+  }
+
+  protected static boolean shouldDisarmStartupGuard(String startupUrl) {
+    if (TextUtils.isEmpty(startupUrl)) {
+      Log.i(TAG, "Startup URL is empty.");
+      return true;
+    } else if (!startupUrl.startsWith(YOUTUBE_URL)) {
+      Log.i(TAG, "Non-Youtube startup URL detected.");
+      return true;
+    } else if (startupUrl.contains("?loader=") || startupUrl.contains("&loader=")) {
+      // startup URL is like https://www.youtube.com/tv?loader=yts... etc
+      Log.i(TAG, "Kabuki loader startup URL detected.");
+      return true;
+    }
+    return false;
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -382,16 +399,17 @@ public abstract class CobaltActivity extends Activity {
 
     StartupGuard.getInstance().scheduleCrash(HANG_APP_CRASH_TIMEOUT_SECONDS);
 
-    mCobaltConnectivityDetector = new CobaltConnectivityDetector(this);
+    cobaltConnectivityDetector = new CobaltConnectivityDetector(this);
     createContent(savedInstanceState);
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
-    mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
     videoSurfaceView = new VideoSurfaceView(this);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+    cobaltConnectivityDetector.activeNetworkCheck();
   }
 
   /**
@@ -442,7 +460,7 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public CobaltConnectivityDetector getCobaltConnectivityDetector() {
-    return mCobaltConnectivityDetector;
+    return cobaltConnectivityDetector;
   }
 
   @Override
@@ -456,7 +474,9 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
-    if (forceCreateNewVideoSurfaceView) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      Log.i(TAG, "Use AndroidOverlay for Video SurfaceView.");
+    } else if (forceCreateNewVideoSurfaceView) {
       Log.w(TAG, "Force to create a new video surface.");
       createNewSurfaceView();
     }
@@ -512,7 +532,6 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onResume() {
     super.onResume();
-    mCobaltConnectivityDetector.activeNetworkCheck();
     View rootView = getWindow().getDecorView().getRootView();
     if (rootView != null && rootView.isAttachedToWindow() && !rootView.hasFocus()) {
       rootView.requestFocus();
@@ -523,16 +542,13 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (mCobaltConnectivityDetector != null) {
-      mCobaltConnectivityDetector.destroy();
+    if (cobaltConnectivityDetector != null) {
+      cobaltConnectivityDetector.destroy();
     }
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
-    if (mWebContentsObserver != null) {
-      mWebContentsObserver.destroy();
-    }
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -661,6 +677,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void resetVideoSurface() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     runOnUiThread(
         new Runnable() {
           @Override
@@ -671,6 +690,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     if (width == 0 || height == 0) {
       // The SurfaceView should be covered by our UI layer in this case.
       return;
@@ -703,6 +725,9 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private void createNewSurfaceView() {
+    if (mIsCobaltUsingAndroidOverlay) {
+      return;
+    }
     ViewParent parent = videoSurfaceView.getParent();
     if (parent instanceof FrameLayout) {
       FrameLayout frameLayout = (FrameLayout) parent;

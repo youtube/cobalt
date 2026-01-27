@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "cobalt/shell/common/shell_test_switches.h"
+// clang-format on
 
 #include "base/command_line.h"
 

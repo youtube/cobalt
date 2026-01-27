@@ -171,6 +171,12 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   // estimate and avoid calling SbPlayerGetInfo too frequently.
   void StoreMediaTime(TimeDelta media_time);
 
+#if BUILDFLAG(IS_ANDROID)
+  // AndroidOverlay callbacks.
+  void OnOverlayReady(AndroidOverlay*);
+  void OnOverlayFailed(AndroidOverlay*);
+#endif  // BUILDFLAG(IS_ANDROID)
+
   int GetDefaultMaxBuffers(AudioCodec codec,
                            TimeDelta duration_to_write,
                            bool is_preroll);
@@ -193,9 +199,13 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
   const gfx::Size viewport_size_;
-  const bool notify_memory_pressure_before_playback_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;
+#endif  // BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+  jobject surface_view_ = nullptr;
+  std::unique_ptr<AndroidOverlay> overlay_;
 #endif  // BUILDFLAG(IS_ANDROID)
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
@@ -209,6 +219,9 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
 #if BUILDFLAG(IS_ANDROID)
   RequestOverlayInfoCallBack request_overlay_info_cb_;
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  // The current overlay info, which possibly specifies an overlay to render to.
+  OverlayInfo overlay_info_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;

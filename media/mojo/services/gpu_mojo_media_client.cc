@@ -124,8 +124,7 @@ StarboardRendererTraits::StarboardRendererTraits(
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote,
     GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb,
-    AndroidOverlayMojoFactoryCB android_overlay_factory_cb
-  )
+    AndroidOverlayMojoFactoryCB android_overlay_factory_cb)
     : task_runner(std::move(task_runner)),
       gpu_task_runner(std::move(gpu_task_runner)),
       media_log_remote(std::move(media_log_remote)),

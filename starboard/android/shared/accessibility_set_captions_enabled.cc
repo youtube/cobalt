@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/configuration.h"
-
+// clang-format off
 #include "starboard/android/shared/accessibility_extension.h"
+// clang-format on
+
+#include "starboard/configuration.h"
 
 namespace starboard::android::shared::accessibility {
 

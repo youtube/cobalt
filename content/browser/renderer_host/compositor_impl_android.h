@@ -218,7 +218,13 @@ class CONTENT_EXPORT CompositorImpl : public Compositor,
 
   gfx::DisplayColorSpaces display_color_spaces_;
   gfx::Size size_;
+#if BUILDFLAG(IS_COBALT)
+  // TODO: b/476418731 - Set alpha channel using
+  // SetRequiresAlphaChannel().
+  bool requires_alpha_channel_ = true;
+#else // BUILDFLAG(IS_COBALT)
   bool requires_alpha_channel_ = false;
+#endif // BUILDFLAG(IS_COBALT)
 
   gl::ScopedANativeWindow window_;
   gpu::SurfaceHandle surface_handle_;

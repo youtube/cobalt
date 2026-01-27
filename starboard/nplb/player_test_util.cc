@@ -21,7 +21,6 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
-#include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
@@ -289,60 +288,6 @@ void CallSbPlayerWriteSamples(
     SB_DCHECK_EQ(sample_type, kSbMediaTypeVideo);
     SB_DCHECK(discarded_durations_from_front.empty());
     SB_DCHECK(discarded_durations_from_back.empty());
-  }
-
-  static auto const* enhanced_audio_extension =
-      static_cast<const CobaltExtensionEnhancedAudioApi*>(
-          SbSystemGetExtension(kCobaltExtensionEnhancedAudioName));
-  ASSERT_FALSE(enhanced_audio_extension);
-
-  if (enhanced_audio_extension) {
-    ASSERT_STREQ(enhanced_audio_extension->name,
-                 kCobaltExtensionEnhancedAudioName);
-    ASSERT_EQ(enhanced_audio_extension->version, 1u);
-
-    std::vector<CobaltExtensionEnhancedAudioPlayerSampleInfo> sample_infos;
-    // We have to hold all intermediate sample infos to ensure that their member
-    // variables with allocated memory (like `std::string mime`) won't go out of
-    // scope before the call to `enhanced_audio_extension->PlayerWriteSamples`.
-    std::vector<AudioSampleInfo> audio_sample_infos;
-    std::vector<VideoSampleInfo> video_sample_infos;
-
-    for (int i = 0; i < number_of_samples_to_write; ++i) {
-      SbPlayerSampleInfo source =
-          dmp_reader->GetPlayerSampleInfo(sample_type, start_index++);
-      sample_infos.resize(sample_infos.size() + 1);
-      sample_infos.back().type = source.type;
-      sample_infos.back().buffer = source.buffer;
-      sample_infos.back().buffer_size = source.buffer_size;
-      sample_infos.back().timestamp = source.timestamp + timestamp_offset;
-      sample_infos.back().side_data = source.side_data;
-      sample_infos.back().side_data_count = source.side_data_count;
-      sample_infos.back().drm_info = source.drm_info;
-
-      if (sample_type == kSbMediaTypeAudio) {
-        audio_sample_infos.emplace_back(source.audio_sample_info);
-        audio_sample_infos.back().ConvertTo(
-            &sample_infos.back().audio_sample_info);
-        if (!discarded_durations_from_front.empty()) {
-          sample_infos.back().audio_sample_info.discarded_duration_from_front =
-              discarded_durations_from_front[i];
-        }
-        if (!discarded_durations_from_back.empty()) {
-          sample_infos.back().audio_sample_info.discarded_duration_from_back =
-              discarded_durations_from_back[i];
-        }
-      } else {
-        video_sample_infos.emplace_back(source.video_sample_info);
-        video_sample_infos.back().ConvertTo(
-            &sample_infos.back().video_sample_info);
-      }
-    }
-
-    enhanced_audio_extension->PlayerWriteSamples(
-        player, sample_type, sample_infos.data(), number_of_samples_to_write);
-
-    return;
   }
 
   std::vector<SbPlayerSampleInfo> sample_infos;
