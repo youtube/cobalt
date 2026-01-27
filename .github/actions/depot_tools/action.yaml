@@ -25,10 +25,10 @@ runs:
       env:
         USE_CACHE: ${{ inputs.use_cache }}
       run: |
-        if [[ "$USE_CACHE" == "false" ]]; then
-          echo "base_path=${{ runner.temp }}" >> $GITHUB_OUTPUT
+        if [[ "${USE_CACHE}" == "false" ]]; then
+          echo "base_path=${{ runner.temp }}" >> ${GITHUB_OUTPUT}
         else
-          echo "base_path=/runner-cache" >> $GITHUB_OUTPUT
+          echo "base_path=/runner-cache" >> ${GITHUB_OUTPUT}
         fi
       shell: bash
 
@@ -42,13 +42,13 @@ runs:
       run: |
         set -x
         # Remove and re-clone gclient.
-        rm -rf "$DEPOT_TOOLS_BASE_PATH" "$CIPD_CACHE_DIR"
-        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_BASE_PATH"
+        rm -rf "${DEPOT_TOOLS_BASE_PATH}" "${CIPD_CACHE_DIR}"
+        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "${DEPOT_TOOLS_BASE_PATH}"
 
         # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
-        if [[ "$USE_CACHE" == "true" ]]; then
-          git -C "$BASE_PATH/cobalt/src" submodule deinit -f --all
-          git -C "$BASE_PATH/cobalt/src" clean -ffdx
+        if [[ "${USE_CACHE}" == "true" ]]; then
+          git -C "${BASE_PATH}/cobalt/src" submodule deinit -f --all
+          git -C "${BASE_PATH}/cobalt/src" clean -ffdx
         fi
       shell: bash
 
@@ -56,13 +56,13 @@ runs:
       if: inputs.clear_cache == 'false' && inputs.use_cache == 'true'
       env:
         BASE_PATH: ${{ steps.paths.outputs.base_path }}
-      run: git -C $BASE_PATH/depot_tools reset --hard origin/main
+      run: git -C ${BASE_PATH}/depot_tools reset --hard origin/main
       shell: bash
 
     - name: Add Depot Tools to PATH
       env:
         BASE_PATH: ${{ steps.paths.outputs.base_path }}
-      run: echo "$BASE_PATH/depot_tools" >> $GITHUB_PATH
+      run: echo "${BASE_PATH}/depot_tools" >> ${GITHUB_PATH}
       shell: bash
 
     - name: Bootstrap Bundled python3
@@ -70,7 +70,7 @@ runs:
         BASE_PATH: ${{ steps.paths.outputs.base_path }}
       run: |
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source $BASE_PATH/depot_tools/bootstrap_python3 && bootstrap_python3
+        source ${BASE_PATH}/depot_tools/bootstrap_python3 && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
@@ -85,7 +85,7 @@ runs:
         gclient config \
           --name=src \
           --custom-var=download_remoteexec_cfg=True \
-          --custom-var="rbe_instance=\"$RBE_INSTANCE\"" \
+          --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           https://github.com/${{ github.repository }}
       shell: bash
 
