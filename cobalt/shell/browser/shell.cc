@@ -380,8 +380,8 @@ void Shell::PrimaryMainDocumentElementAvailable() {
   cobalt::migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
 #if BUILDFLAG(USE_EVERGREEN)
-  updater::UpdaterModule* updater_module =
-      updater::UpdaterModule::GetInstance();
+  cobalt::updater::UpdaterModule* updater_module =
+      cobalt::updater::UpdaterModule::GetInstance();
   if (updater_module) {
     LOG(INFO) << "Mark the current installation as successful after the "
                  "PrimaryMainDocumentElement is available.";
