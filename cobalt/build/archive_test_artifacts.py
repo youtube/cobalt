@@ -45,6 +45,9 @@ _ESSENTIAL_BROWSERTEST_DIRS = [
     'third_party/catapult/third_party',
     'third_party/logdog',
     'third_party/android_sdk/public/platform-tools',
+    'third_party/android_platform/development/scripts',
+    'third_party/llvm-build/Release+Asserts/bin',
+    'tools/python',
 ]
 
 

@@ -48,6 +48,9 @@ def main():
 
   src_dir = os.path.join(script_dir, "src")
   os.environ["CHROME_SRC"] = src_dir
+  os.environ["PYTHONPATH"] = os.path.join(
+      src_dir, "tools", "python") + os.pathsep + os.environ.get(
+          "PYTHONPATH", "")
 
   # 2. Argument Parsing and Target Selection
   available_targets = list(TARGET_MAP.keys())
