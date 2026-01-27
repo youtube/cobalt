@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <string>
-
+// clang-format off
 #include "starboard/shared/starboard/media/media_support_internal.h"
+// clang-format on
+
+#include <string>
 
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"

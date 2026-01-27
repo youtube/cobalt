@@ -15,7 +15,9 @@
 // This file implements the FFMPEGDispatch interface for a library linked
 // directly, or which the symbols are already available in the global namespace.
 
+// clang-format off
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
+// clang-format on
 
 #include <dlfcn.h>
 #include <pthread.h>

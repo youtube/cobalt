@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/android/shared/runtime_resource_overlay.h"
+// clang-format on
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
