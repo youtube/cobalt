@@ -153,7 +153,6 @@ void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
 #endif
 }
 
-
 void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(USE_EVERGREEN)
@@ -169,7 +168,6 @@ void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   NOTIMPLEMENTED();
 #endif
 }
-
 
 void H5vccUpdaterImpl::GetRequireNetworkEncryption(
     GetRequireNetworkEncryptionCallback callback) {
@@ -194,73 +192,6 @@ void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,
   std::move(callback).Run(cobalt::updater::GetLibrarySha256(index));
 #else
   std::move(callback).Run("");
-  NOTIMPLEMENTED();
-#endif
-}
-
-H5vccUpdaterSideloadingImpl::H5vccUpdaterSideloadingImpl(
-    content::RenderFrameHost& render_frame_host,
-    mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver)
-    : content::DocumentService<mojom::H5vccUpdaterSideloading>(
-          render_frame_host,
-          std::move(receiver)) {
-  DETACH_FROM_THREAD(thread_checker_);
-}
-
-H5vccUpdaterSideloadingImpl::~H5vccUpdaterSideloadingImpl() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-}
-
-void H5vccUpdaterSideloadingImpl::Create(
-    content::RenderFrameHost* render_frame_host,
-    mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver) {
-  new H5vccUpdaterSideloadingImpl(*render_frame_host, std::move(receiver));
-}
-
-void H5vccUpdaterSideloadingImpl::SetAllowSelfSignedPackages(
-    bool allow_self_signed_packages,
-    SetAllowSelfSignedPackagesCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    updater_module->SetAllowSelfSignedPackages(allow_self_signed_packages);
-  }
-  std::move(callback).Run();
-#else
-  std::move(callback).Run();
-  NOTIMPLEMENTED();
-#endif
-}
-
-void H5vccUpdaterSideloadingImpl::SetUpdateServerUrl(
-    const std::string& update_server_url,
-    SetUpdateServerUrlCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    updater_module->SetUpdateServerUrl(update_server_url);
-  }
-  std::move(callback).Run();
-#else
-  std::move(callback).Run();
-  NOTIMPLEMENTED();
-#endif
-}
-
-void H5vccUpdaterSideloadingImpl::SetRequireNetworkEncryption(
-    bool require_network_encryption,
-    SetRequireNetworkEncryptionCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    updater_module->SetRequireNetworkEncryption(require_network_encryption);
-  }
-  std::move(callback).Run();
-#else
-  std::move(callback).Run();
   NOTIMPLEMENTED();
 #endif
 }
