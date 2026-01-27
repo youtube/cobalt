@@ -93,9 +93,8 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
         embedded_test_server()->base_url().spec());
 
-    // Inject a safe splash.html to avoid renderer crashes in the test
-    // environment. The test binary may lack the VP9 codecs present in the
-    // production APK.
+    // TODO(478334656): Before MediaSource is supported on Android's
+    // browser tests, use a simple HTML resource for testing.
     auto test_resource_map = std::make_unique<GeneratedResourceMap>();
     LoaderEmbeddedResources::GenerateMap(*test_resource_map);
     const char kSafeSplashHtml[] = "<html><body>Safe</body></html>";
@@ -157,7 +156,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(478334656): Support Media source and Fetch for android's
+// TODO(478334656): Support Media source for Android's
 // browser tests. Once they are plumbed, remove the prefix.
 #if BUILDFLAG(IS_ANDROID)
 #define MAYBE_LoadSplashHtml DISABLED_LoadSplashHtml
