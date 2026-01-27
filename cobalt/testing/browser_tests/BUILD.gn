@@ -374,13 +374,22 @@ test("cobalt_browsertests") {
   ]
 
   data = [
+    ".vpython3",
+    "run_browser_tests.py",
+    "//build/android/",
+    "//build/skia_gold_common/",
+    "//build/util/",
     "//content/test/data/",
     "//media/test/data/",
+    "//testing/xvfb.py",
+    "//third_party/android_sdk/public/platform-tools/",
+    "//third_party/catapult/",
+    "//third_party/logdog/",
+    "//v8/.vpython3",
   ]
 
   data_deps = [
     "//cobalt/shell:pak",
-    "//testing/buildbot/filters:content_browsertests_filters",
     "//third_party/mesa_headers",
   ]
 

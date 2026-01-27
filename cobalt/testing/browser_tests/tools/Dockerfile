@@ -23,13 +23,15 @@ RUN apt-get update && apt-get install -y \
     libgbm1 \
     socat \
     usbutils \
+    zstd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /opt/cobalt_browsertests
 
 # Add and extract the artifacts tarball.
-# Expects cobalt_browsertests_artifacts.tar.gz to be in the build context.
-ADD cobalt_browsertests_artifacts.tar.gz .
+# Expects test_artifacts.tar.zstd to be in the build context.
+COPY test_artifacts.tar.zstd .
+RUN tar --use-compress-program=unzstd -xf test_artifacts.tar.zstd && rm test_artifacts.tar.zstd
 
-ENTRYPOINT ["python3", "run_tests.py"]
+ENTRYPOINT ["./run_tests.py"]

@@ -15,9 +15,12 @@
 """Creates test artifacts tar with runtime dependencies."""
 
 import argparse
+import logging
 import os
+import shutil
 import subprocess
 import tempfile
+from pathlib import Path
 from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
@@ -27,22 +30,70 @@ _EXCLUDE_DIRS = [
     './exe.unstripped/',
     './lib.unstripped/',
     '../../third_party/jdk/',
+    'testing/buildbot/',
+]
+
+_ESSENTIAL_BROWSERTEST_DIRS = [
+    'build/android',
+    'build/util',
+    'build/skia_gold_common',
+    'testing',
+    'third_party/android_build_tools',
+    'third_party/catapult/common',
+    'third_party/catapult/dependency_manager',
+    'third_party/catapult/devil',
+    'third_party/catapult/third_party',
+    'third_party/logdog',
+    'third_party/android_sdk/public/platform-tools',
 ]
 
 
+def get_test_runner(build_dir, is_android):
+  """Determines the relative path to the test runner."""
+  script_rel = os.path.join('bin', 'run_cobalt_browsertests')
+  if (is_android or os.path.isfile(os.path.join(build_dir, script_rel))):
+    return script_rel
+
+  return 'cobalt_browsertests'
+
+
+def generate_runner_py(dst_path, target_map, template_path):
+  """Generates the run_tests.py script inside the archive."""
+  with open(template_path, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+    # Inject the target map into the template.
+    target_map_repr = repr(target_map)
+
+    content = content.replace('TARGET_MAP = {}',
+                              f'TARGET_MAP = {target_map_repr}')
+
+    # Adjust the template to expect files at root instead of src/
+    content = content.replace('src_dir = os.path.join(script_dir, "src")',
+                              'src_dir = script_dir')
+
+  with open(dst_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+  os.chmod(dst_path, 0o755)
+
+
 def _make_tar(archive_path: str, compression: str, compression_level: int,
-              file_lists: List[Tuple[str, str]]):
+              file_lists: List[Tuple[List[str], str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
+  archive_path = os.path.abspath(archive_path)
   if compression == 'gz':
-    compression_flag = f'gzip -{compression_level}'
+    compression_program = f'gzip -{compression_level}'
   elif compression == 'xz':
-    compression_flag = f'xz -T0 -{compression_level}'
+    compression_program = f'xz -T0 -{compression_level}'
   elif compression == 'zstd':
-    compression_flag = f'zstd -T0 -{compression_level}'
+    compression_program = f'zstd -T0 -{compression_level}'
   else:
     raise ValueError(f'Unsupported compression: {compression}')
-  tar_cmd = ['tar', '-I', compression_flag, '-cvf', archive_path]
+
+  tar_cmd = [
+      'tar', '--use-compress-program', compression_program, '-cvf', archive_path
+  ]
   tmp_files = []
   for file_list, base_dir in file_lists:
     if not file_list:
@@ -57,11 +108,11 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     # Change the tar working directory and add the file list.
     tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
 
-  print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
+  logging.info('Running `%s`', ' '.join(tar_cmd))
   subprocess.check_call(tar_cmd)
 
   archive_size = f'{os.path.getsize(archive_path) / 1024 / 1024:.2f} MB'
-  print(f'Created {os.path.basename(archive_path)} ({archive_size})')
+  logging.info('Created %s (%s)', os.path.basename(archive_path), archive_size)
 
 
 def create_archive(
@@ -75,9 +126,18 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
+    include_browsertests_runner: bool = False,
+    include_depot_tools: bool = False,
 ):
   """Main logic. Collects runtime dependencies for each target."""
+  source_dir = os.path.abspath(source_dir)
+  out_dir = os.path.abspath(out_dir)
+  destination_dir = os.path.abspath(destination_dir)
+  os.makedirs(destination_dir, exist_ok=True)
   combined_deps = set()
+  target_map = {}
+  file_lists = []
+
   for target in targets:
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
@@ -95,35 +155,68 @@ def create_archive(
         deps_file = os.path.join(out_dir, 'starboard',
                                  f'{target_name}.runtime_deps')
 
-    print('Collecting runtime dependencies for', target)
+    logging.info('Collecting runtime dependencies for %s', target)
+    if not os.path.exists(deps_file):
+      logging.warning('Could not find runtime_deps file: %s', deps_file)
+      continue
+
+    # Add the deps file itself to the archive
+    deps_file_rel = os.path.relpath(deps_file, source_dir)
+    if archive_per_target:
+      # Use same logic as other files in this target
+      if flatten_deps and deps_file.startswith(source_dir):
+        target_src_root_deps.add(os.path.relpath(deps_file, source_dir))
+      else:
+        target_deps.add(os.path.relpath(deps_file, out_dir))
+    else:
+      combined_deps.add(deps_file_rel)
+
+    # Determine runner info for target map
+    is_android = 'android' in out_dir.lower()
+    test_runner_rel = get_test_runner(out_dir, is_android)
+    test_runner_full = os.path.join(out_dir, test_runner_rel)
+    test_runner_rel_to_src = os.path.relpath(test_runner_full, source_dir)
+    target_map[target_name] = {
+        'deps': deps_file_rel,
+        'runner': test_runner_rel_to_src,
+        'is_android': is_android,
+        'build_dir': os.path.relpath(out_dir, source_dir)
+    }
+
+    if not archive_per_target:
+      combined_deps.add(test_runner_rel_to_src)
+
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files both in the out and source root folders
       # to be working directory archive whereas Linux tests expect it relative
       # to the binary.
-      tar_root = '.' if flatten_deps else out_dir
+      tar_root = out_dir
       target_deps = set()
       target_src_root_deps = set()
 
       # Add test_targets.json to archive so that test runners know what to run.
       test_targets_json = os.path.join(out_dir, 'test_targets.json')
       if os.path.exists(test_targets_json):
-        target_deps.add(os.path.join(tar_root, 'test_targets.json'))
+        rel_path = os.path.relpath(test_targets_json, source_dir)
+        target_deps.add(rel_path)
 
       for line in runtime_deps_file:
+        line = line.strip()
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
+
+        # Rebase all files to be relative to the source root
+        full_path = os.path.abspath(os.path.join(tar_root, line))
+        rel_path = os.path.relpath(full_path, source_dir)
 
         if flatten_deps and line.startswith('../../'):
           target_src_root_deps.add(line[6:])
         else:
-          # Rebase all files to be relative to their respective root (source or
-          # out dir) to be able to flatten them below. Chromium test runners
-          # have access to the source directory in '../..' which ours (ODTs
-          # especially) do not.
-          rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
           target_deps.add(rel_path)
-      combined_deps |= target_deps
+
+      if not archive_per_target:
+        combined_deps |= target_deps
 
       if archive_per_target:
         output_path = os.path.join(destination_dir,
@@ -133,7 +226,8 @@ def create_archive(
               output_path,
               compression,
               compression_level,
-              [(target_deps, out_dir), (target_src_root_deps, source_dir)],
+              [(list(target_deps), out_dir),
+               (list(target_src_root_deps), source_dir)],
           )
         else:
           raise ValueError('Unsupported configuration.')
@@ -141,11 +235,53 @@ def create_archive(
   if not archive_per_target:
     output_path = os.path.join(destination_dir,
                                f'test_artifacts.tar.{compression}')
+
+    if include_browsertests_runner:
+      logging.info('Including browsertest runner artifacts')
+      # Add essential directories
+      for d in _ESSENTIAL_BROWSERTEST_DIRS:
+        full_d = os.path.join(source_dir, d)
+        if os.path.isdir(full_d):
+          rel_d = os.path.relpath(full_d, source_dir)
+          combined_deps.add(rel_d)
+
+      # Add top-level build scripts
+      for f in Path(source_dir).joinpath('build').glob('*.py'):
+        rel_f = os.path.relpath(str(f), source_dir)
+        combined_deps.add(rel_f)
+
+      # Add vpython3 and run_browser_tests.py
+      for f in [
+          '.vpython3', 'v8/.vpython3',
+          'cobalt/testing/browser_tests/run_browser_tests.py'
+      ]:
+        if os.path.exists(os.path.join(source_dir, f)):
+          combined_deps.add(f)
+
+      # Generate run_tests.py
+      template_path = os.path.join(
+          os.path.dirname(__file__),
+          '../testing/browser_tests/tools/run_tests.template.py')
+      temp_dir = tempfile.mkdtemp()
+      runner_path = os.path.join(temp_dir, 'run_tests.py')
+      generate_runner_py(runner_path, target_map, template_path)
+      file_lists.append((['run_tests.py'], temp_dir))
+
+    if include_depot_tools:
+      vpython_path = shutil.which('vpython3')
+      if vpython_path:
+        depot_tools_src = os.path.dirname(vpython_path)
+        logging.info('Bundling depot_tools from %s', depot_tools_src)
+        file_lists.append(([os.path.basename(depot_tools_src)],
+                           os.path.dirname(depot_tools_src)))
+
+    file_lists.append((list(combined_deps), source_dir))
+
     _make_tar(
         output_path,
         compression,
         compression_level,
-        [(combined_deps, source_dir)],
+        file_lists,
     )
 
 
@@ -195,10 +331,23 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
+  parser.add_argument(
+      '--include-browsertests-runner',
+      action='store_true',
+      help='Include the browsertest runner script and dependencies.')
+  parser.add_argument(
+      '--include-depot-tools',
+      action='store_true',
+      help='Include depot_tools in the archive.')
   args = parser.parse_args()
 
+  logging.basicConfig(level=logging.INFO, format='%(message)s')
+
   if args.flatten_deps != args.archive_per_target:
-    raise ValueError('Unsupported configuration.')
+    # Relax this check if we are including browsertests runner,
+    # as it usually implies a single archive.
+    if not args.include_browsertests_runner:
+      raise ValueError('Unsupported configuration.')
 
   create_archive(
       targets=args.targets,
@@ -209,7 +358,9 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps)
+      flatten_deps=args.flatten_deps,
+      include_browsertests_runner=args.include_browsertests_runner,
+      include_depot_tools=args.include_depot_tools)
 
 
 if __name__ == '__main__':
