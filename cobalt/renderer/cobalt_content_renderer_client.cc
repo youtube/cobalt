@@ -56,15 +56,13 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
      switches::kCobaltNotifyMemoryPressureBeforePlayback},
     {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
      switches::kMSEVideoBufferSizeLimitClampMb},
-    {kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder,
-     switches::kCobaltMediaVideoInitialMaxFramesInDecoder},
-    {kH5vccSettingsKeyMediaVideoMaxPendingInputFrames,
-     switches::kCobaltMediaVideoMaxPendingInputFrames},
 };
 
 struct ParsedH5vccSettings {
   bool enable_flush_during_seek = false;
   bool enable_reset_audio_decoder = false;
+  std::optional<int> initial_max_frames_in_decoder;
+  std::optional<int> max_pending_input_frames;
 };
 
 using H5vccSettingValue = std::variant<std::string, int64_t>;
@@ -195,6 +193,26 @@ ParsedH5vccSettings ProcessH5vccSettings(
   if (auto* val = GetSettingValue<int64_t>(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder)) {
+    if (0 <= *val && *val <= 10'000) {
+      parsed.initial_max_frames_in_decoder = static_cast<int>(*val);
+    } else {
+      LOG(WARNING) << "Invalid value for "
+                   << kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder
+                   << ": " << *val;
+    }
+  }
+  if (auto* val = GetSettingValue<int64_t>(
+          settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames)) {
+    if (0 <= *val && *val <= 10'000) {
+      parsed.max_pending_input_frames = static_cast<int>(*val);
+    } else {
+      LOG(WARNING) << "Invalid value for "
+                   << kH5vccSettingsKeyMediaVideoMaxPendingInputFrames << ": "
+                   << *val;
+    }
   }
 
   for (const auto& [setting_name, setting_value] : settings) {
@@ -338,6 +356,10 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       parsed.enable_flush_during_seek;
   renderer_factory_traits->enable_reset_audio_decoder =
       parsed.enable_reset_audio_decoder;
+  renderer_factory_traits->initial_max_frames_in_decoder =
+      parsed.initial_max_frames_in_decoder;
+  renderer_factory_traits->max_pending_input_frames =
+      parsed.max_pending_input_frames;
 
   renderer_factory_traits->viewport_size = viewport_size_;
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.

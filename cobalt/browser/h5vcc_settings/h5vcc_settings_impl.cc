@@ -62,6 +62,9 @@ void H5vccSettingsImpl::SetValue(const std::string& name,
       std::move(callback).Run();
       return;
   }
+  // For testing, force-set the flag.
+  // global_features->SetSettings("Media.VideoInitialMaxFramesInDecoder", 6);
+  // global_features->SetSettings("Media.VideoMaxPendingInputFrames", 10);
   global_features->SetSettings(name, setting_value);
   std::move(callback).Run();
 }

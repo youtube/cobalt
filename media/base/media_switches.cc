@@ -191,13 +191,6 @@ const char kMSEAudioBufferSizeLimitMb[] = "mse-audio-buffer-size-limit-mb";
 const char kMSEVideoBufferSizeLimitMb[] = "mse-video-buffer-size-limit-mb";
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// Specifies the initial max frames in video decoder.
-const char kCobaltMediaVideoInitialMaxFramesInDecoder[] =
-    "cobalt-media-video-initial-max-frames-in-decoder";
-
-// Specifies the max pending video input frames.
-const char kCobaltMediaVideoMaxPendingInputFrames[] =
-    "cobalt-media-video-max-pending-input-frames";
 // Send a critical memory pressure signal to the system before starting playback.
 // This is used to reduce memory fragmentation and free up memory for the media
 // pipeline.

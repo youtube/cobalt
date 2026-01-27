@@ -41,6 +41,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.max_video_capabilities,
           traits.enable_flush_during_seek,
           traits.enable_reset_audio_decoder,
+          traits.initial_max_frames_in_decoder,
+          traits.max_pending_input_frames,
           traits.viewport_size
 #if BUILDFLAG(IS_ANDROID)
           ,

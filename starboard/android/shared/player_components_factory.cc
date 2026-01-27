@@ -27,6 +27,7 @@
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/android/shared/configurate_seek.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -72,44 +73,6 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 // wait during Reset()/Flush().
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
-
-std::optional<int> ReadPositiveInt(const base::CommandLine* command_line,
-                                   std::string_view switch_name) {
-  if (!command_line->HasSwitch(switch_name)) {
-    return std::nullopt;
-  }
-  int value;
-  if (base::StringToInt(command_line->GetSwitchValueASCII(switch_name),
-                        &value)) {
-    if (value > 0) {
-      return value;
-    }
-    SB_LOG(WARNING) << "Invalid value for " << switch_name << ": " << value
-                    << ". Ignoring.";
-  }
-  return std::nullopt;
-}
-
-VideoDecoder::ExperimentalFeatures GetExperimentalFeatures() {
-  // These Cobalt switches are re-defined here to reflect values in
-  // media/base/media_switches.cc to avoid introducing a dependency on the
-  // Chromium's media/ folder.
-  // TODO: b/455938352 - Delete these constants when experiment is done (ETA:
-  // 2026 Q1).
-  static constexpr std::string_view kCobaltMediaVideoInitialMaxFramesInDecoder =
-      "cobalt-media-video-initial-max-frames-in-decoder";
-  static constexpr std::string_view kCobaltMediaVideoMaxPendingInputFrames =
-      "cobalt-media-video-max-pending-input-frames";
-
-  const base::CommandLine* command_line =
-      base::CommandLine::ForCurrentProcess();
-  VideoDecoder::ExperimentalFeatures features;
-  features.initial_max_frames_in_decoder =
-      ReadPositiveInt(command_line, kCobaltMediaVideoInitialMaxFramesInDecoder);
-  features.max_pending_input_frames =
-      ReadPositiveInt(command_line, kCobaltMediaVideoMaxPendingInputFrames);
-  return features;
-}
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
@@ -589,8 +552,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    VideoDecoder::ExperimentalFeatures experimental_features =
-        GetExperimentalFeatures();
+    VideoDecoder::ExperimentalFeatures experimental_features;
+    experimental_features.initial_max_frames_in_decoder =
+        creation_parameters.video_initial_max_frames_in_decoder();
+    experimental_features.max_pending_input_frames =
+        creation_parameters.video_max_pending_input_frames();
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),

@@ -164,7 +164,13 @@ MediaDecoder::MediaDecoder(
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
+    return;
   }
+  SB_LOG(INFO) << "MediaDecoder is created: tunnel_mode_enabled="
+               << (tunnel_mode_enabled_ ? "true" : "false")
+               << ", initial_max_frames="
+               << (initial_max_frames ? std::to_string(*initial_max_frames)
+                                      : "(nullopt)");
 }
 
 MediaDecoder::~MediaDecoder() {

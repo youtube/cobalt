@@ -142,6 +142,8 @@ StarboardRenderer::StarboardRenderer(
     const std::string& max_video_capabilities,
     bool enable_flush_during_seek,
     bool enable_reset_audio_decoder,
+    std::optional<int> initial_max_frames_in_decoder,
+    std::optional<int> max_pending_input_frames,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -159,6 +161,8 @@ StarboardRenderer::StarboardRenderer(
       max_video_capabilities_(max_video_capabilities),
       enable_flush_during_seek_(enable_flush_during_seek),
       enable_reset_audio_decoder_(enable_reset_audio_decoder),
+      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
+      max_pending_input_frames_(max_pending_input_frames),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -172,7 +176,11 @@ StarboardRenderer::StarboardRenderer(
             << audio_write_duration_local_
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
-            << base::GetQuotedJSONString(max_video_capabilities_);
+            << base::GetQuotedJSONString(max_video_capabilities_)
+            << ", initial_max_frames_in_decoder="
+            << initial_max_frames_in_decoder_.value_or(-1)
+            << ", max_pending_input_frames="
+            << max_pending_input_frames_.value_or(-1);
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -631,7 +639,8 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326825450): Revisit 360 videos.
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
-        -1, enable_flush_during_seek_, enable_reset_audio_decoder_
+        -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
+        initial_max_frames_in_decoder_, max_pending_input_frames_
 #if BUILDFLAG(IS_ANDROID)
         ,
         // TODO: b/475294958 - Revisit platform-specific codes above starboard.
