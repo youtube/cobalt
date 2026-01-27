@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 """Helper script to run Cobalt browser tests.
 
 Cobalt is designed to run in single process mode on TV devices. Its
@@ -7,19 +8,49 @@ To avoid regressions crashed the process, the test process management
 is left in this python script, which list each single test case
 and iterate them.
 """
+
+import argparse
+import os
+import re
 import subprocess
 import sys
-import os
 
 
 def main():
-  if len(sys.argv) < 2:
-    print("Usage: python3 run_browser_tests.py <path_to_executable> "
-          "[gtest_filter]")
-    sys.exit(1)
+  parser = argparse.ArgumentParser(
+      description="Helper to run Cobalt browser tests.")
+  parser.add_argument(
+      "binary", help="Path to the test binary or runner script.")
+  parser.add_argument(
+      "filter",
+      nargs="?",
+      default="*",
+      help="Gtest filter as positional argument.")
+  parser.add_argument("-f", "--gtest_filter", help="Gtest filter as flag.")
+  parser.add_argument("--gtest_output", help="Gtest output (e.g., xml:path).")
+  parser.add_argument(
+      "--test-launcher-bot-mode",
+      action="store_true",
+      help="Ignored, for compatibility.")
 
-  binary_path = sys.argv[1]
-  extra_filter = sys.argv[2] if len(sys.argv) > 2 else "*"
+  # We might get passed extra gtest arguments.
+  args, unknown = parser.parse_known_args()
+
+  binary_path = args.binary
+
+  # Determine the filter:
+  # 1. Check if --gtest_filter was passed as a flag
+  # 2. Check if it was passed in unknown args (e.g. --gtest_filter=...)
+  # 3. Check if it was passed as the second positional argument
+  # 4. Default to "*"
+  extra_filter = args.gtest_filter
+  if not extra_filter:
+    for u in unknown:
+      if u.startswith("--gtest_filter="):
+        extra_filter = u.split("=", 1)[1]
+        break
+  if not extra_filter:
+    extra_filter = args.filter
 
   if not os.path.isfile(binary_path):
     print(f"Error: Binary not found at {binary_path}", file=sys.stderr)
@@ -28,61 +59,89 @@ def main():
   # 1. List all tests
   print(f"Listing tests from {binary_path}...")
   try:
+    # Use a set of standard flags for listing. Some Cobalt binaries require
+    # these even just to list tests.
+    list_cmd = [
+        binary_path,
+        "--gtest_list_tests",
+        f"--gtest_filter={extra_filter}",
+        "--no-sandbox",
+        "--single-process",
+        "--no-zygote",
+        "--ozone-platform=starboard",
+    ]
     output = subprocess.check_output(
-        [binary_path, "--gtest_list_tests", f"--gtest_filter={extra_filter}"],
-        text=True)
+        list_cmd, text=True, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
-    print("Failed to list tests.", file=sys.stderr)
+    print(f"Failed to list tests. Output:\n{e.output}", file=sys.stderr)
     sys.exit(e.returncode)
 
   tests = []
   current_suite = None
-  for line in output.splitlines():
-    # Clean up the line
-    line = line.strip()
 
-    # Skip empty lines or logs (logs usually start with [pid:...)
-    if not line or line.startswith("["):
+  # Regex to match a valid GTest suite name: Alphanumeric, underscores,
+  # slashes, or hyphens, ending with a dot.
+  # Example: NavigationBrowserTest.
+  # Example: MyParameterizedTest/0.
+  suite_regex = re.compile(r"^([a-zA-Z0-9_/ \-]+)\.$")
+
+  for line in output.splitlines():
+    # Skip logs or other noise. X.Org and Cobalt logs often have prefixes.
+    if any(
+        line.startswith(p) for p in [
+            "(II)", "(WW)", "(EE)", "(++)", "(==)", "(!!)", "(??)", "[",
+            "Command:", "Openbox-Message", "Additional test environment"
+        ]):
+      continue
+
+    stripped = line.strip()
+    if not stripped:
       continue
 
     # Remove comments (starting with #)
-    line = line.split("#")[0].strip()
+    line_no_comment = line.split("#")[0].rstrip()
+    stripped_no_comment = line_no_comment.strip()
 
-    if not line:
+    if not stripped_no_comment:
       continue
 
-    if line.endswith("."):
-      current_suite = line
-    else:
-      # It's a test name
-      if current_suite:
-        full_test_name = f"{current_suite}{line}"
-        if "DISABLED_" not in full_test_name:
-          tests.append(full_test_name)
-      else:
-        print(
-            f"Warning: Found test '{line}' without a suite. Skipping.",
-            file=sys.stderr)
+    # Gtest list-tests output:
+    # SuiteName.
+    #   TestName1
+    #   TestName2
+
+    # A suite name has no leading whitespace and matches the suite regex.
+    suite_match = suite_regex.match(line_no_comment)
+    if not line.startswith(" ") and suite_match:
+      current_suite = suite_match.group(0)
+      continue
+
+    # A test name starts with a space and requires a current_suite
+    if line.startswith(" ") and current_suite:
+      # Test name is the first word
+      test_name = stripped_no_comment.split()[0]
+      if test_name and not test_name.startswith("DISABLED_"):
+        tests.append(f"{current_suite}{test_name}")
 
   if not tests:
-    print("No tests found matching the filter.")
+    print(f"No tests found matching filter: {extra_filter}")
+    # Print the output to help debugging if this happens unexpectedly
+    if output.strip():
+      print("Output from binary during listing:")
+      print(output)
     sys.exit(0)
 
   # Sort tests to ensure PRE_ tests run before their main tests.
   # Logic: PRE_PRE_Test -> PRE_Test -> Test
   def get_sort_key(test_name):
-    # test_name is Suite.Test
     parts = test_name.split(".", 1)
     if len(parts) != 2:
       return (test_name, 0)
     suite, case = parts
-
     pre_count = 0
     while case.startswith("PRE_"):
       case = case[4:]
       pre_count += 1
-
-    # Sort by base name (Suite.TestBase), then by pre_count DESCENDING
     return (f"{suite}.{case}", -pre_count)
 
   tests.sort(key=get_sort_key)
@@ -94,12 +153,8 @@ def main():
   passed_count = 0
 
   for i, test in enumerate(tests):
-    print(f"[{i+1}/{len(tests)}] Running {test}...")
+    print(f"[{i + 1}/{len(tests)}] Running {test}...")
     try:
-      # We pass the filter to run EXACTLY this test case.
-      # Using --gtest_filter=ExactTestName
-      # Add standard Cobalt flags:
-      #   --no-sandbox --single-process --no-zygote --ozone-platform=starboard
       cmd = [
           binary_path,
           f"--gtest_filter={test}",
@@ -110,7 +165,13 @@ def main():
           "--ozone-platform=starboard",
       ]
 
-      # Run the test and let it print to stdout/stderr
+      # Forward the output flag if provided, but adjust per test
+      if args.gtest_output and args.gtest_output.startswith("xml:"):
+        base_path = args.gtest_output[4:]
+        test_xml = f"{base_path}_{test}.xml"
+        cmd.append(f"--gtest_output=xml:{test_xml}")
+
+      # Run the test
       retcode = subprocess.run(cmd, check=False).returncode
 
       if retcode != 0:
@@ -129,6 +190,9 @@ def main():
   print("\n" + "=" * 40)
   print(f"Total: {len(tests)}, Passed: {passed_count}, "
         f"Failed: {len(failed_tests)}")
+
+  if args.gtest_output:
+    print(f"Results written to: {args.gtest_output}")
 
   if failed_tests:
     print("\nFailed Tests:")
