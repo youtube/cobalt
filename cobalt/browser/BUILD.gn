@@ -88,6 +88,10 @@ source_set("browser") {
   if (use_evergreen) {
     deps += [ "//cobalt/updater" ]
   }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
+  }
 }
 
 source_set("features") {

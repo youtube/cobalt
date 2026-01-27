@@ -17,9 +17,7 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom-blink.h"  // nogncheck
-#endif
 
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -82,11 +80,11 @@ class MODULES_EXPORT H5vccUpdater final
   void OnSetUpdateServerUrl(ScriptPromiseResolver*);
   void OnGetRequireNetworkEncryption(ScriptPromiseResolver*, bool);
   void OnSetRequireNetworkEncryption(ScriptPromiseResolver*);
-#if BUILDFLAG(USE_EVERGREEN)
+  void OnConnectionError();
   void EnsureReceiverIsBound();
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
-#endif
 };
 
 }  // namespace blink
