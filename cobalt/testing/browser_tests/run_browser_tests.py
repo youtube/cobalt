@@ -148,6 +148,12 @@ def main():
 
   print(f"Found {len(tests)} tests. Running them one by one...\n")
 
+  # Ensure the output directory exists if gtest_output is requested.
+  if args.gtest_output and args.gtest_output.startswith("xml:"):
+    out_dir = os.path.dirname(args.gtest_output[4:])
+    if out_dir:
+      os.makedirs(out_dir, exist_ok=True)
+
   # 2. Run each test in a fresh process
   failed_tests = []
   passed_count = 0
