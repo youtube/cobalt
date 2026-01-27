@@ -228,16 +228,24 @@ int AlsaGetBufferedFrames(void* playback_handle) {
 
   snd_pcm_sframes_t delay;
   error = snd_pcm_delay(handle, &delay);
-  if (error == 0) {
-    if (delay < 0) {
-      SB_LOG(ERROR) << __FUNCTION__
-                    << ": snd_pcm_delay() failed with negative delay " << delay;
+  if (error < 0) {
+    // Attempt to recover from the error.
+    int recover_error = snd_pcm_recover(handle, error, 1);
+    if (recover_error == 0) {
+      // Recovered, try to get the delay again.
+      error = snd_pcm_delay(handle, &delay);
+    } else {
+      ALSA_CHECK(error, snd_pcm_delay, -1);
       return -1;
     }
-    return delay;
   }
-  ALSA_CHECK(error, snd_pcm_delay, -1);
-  return -1;
+
+  if (delay < 0) {
+    SB_LOG(ERROR) << __FUNCTION__
+                  << ": snd_pcm_delay() failed with negative delay " << delay;
+    return -1;
+  }
+  return delay;
 }
 
 void AlsaCloseDevice(void* playback_handle) {
