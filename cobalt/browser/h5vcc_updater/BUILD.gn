@@ -16,6 +16,8 @@ source_set("h5vcc_updater") {
   sources = [
     "h5vcc_updater_impl.cc",
     "h5vcc_updater_impl.h",
+    "h5vcc_updater_sideloading_impl.cc",
+    "h5vcc_updater_sideloading_impl.h",
   ]
 
   deps = [

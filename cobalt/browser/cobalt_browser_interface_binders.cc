@@ -36,6 +36,7 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
+#include "cobalt/browser/h5vcc_updater/h5vcc_updater_sideloading_impl.h"
 #include "cobalt/browser/h5vcc_updater/public/mojom/h5vcc_updater.mojom.h"
 #endif
 
@@ -105,8 +106,8 @@ void PopulateCobaltFrameBinders(
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));
-#endif
-#endif
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
+#endif  // BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_storage::mojom::H5vccStorage>(
       base::BindRepeating(&h5vcc_storage::H5vccStorageImpl::Create));
   binder_map->Add<media::mojom::PlatformWindowProvider>(
