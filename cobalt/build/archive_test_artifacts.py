@@ -286,10 +286,16 @@ def create_archive(
     if include_depot_tools:
       vpython_path = shutil.which('vpython3')
       if vpython_path:
+        vpython_path = os.path.realpath(vpython_path)
         depot_tools_src = os.path.dirname(vpython_path)
-        logging.info('Bundling depot_tools from %s', depot_tools_src)
-        file_lists.append(([os.path.basename(depot_tools_src)],
-                           os.path.dirname(depot_tools_src)))
+        if os.path.exists(os.path.join(depot_tools_src, 'gclient')):
+          logging.info('Bundling depot_tools from %s', depot_tools_src)
+          file_lists.append(([os.path.basename(depot_tools_src)],
+                             os.path.dirname(depot_tools_src)))
+        else:
+          logging.warning(
+              'vpython3 found at %s but does not appear to be in '
+              'depot_tools. Skipping depot_tools bundling.', vpython_path)
 
     file_lists.append((list(combined_deps), source_dir))
 
