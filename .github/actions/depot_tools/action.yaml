@@ -23,12 +23,14 @@ runs:
     - name: Set Depot Tools Base Path
       id: paths
       run: |
-        if [[ "${{ inputs.use_cache }}" == "false" ]]; then
+        if [[ "$USE_CACHE" == "false" ]]; then
           echo "base_path=${{ runner.temp }}" >> $GITHUB_OUTPUT
         else
           echo "base_path=/runner-cache" >> $GITHUB_OUTPUT
         fi
       shell: bash
+      env:
+        USE_CACHE: ${{ inputs.use_cache }}
 
     - name: Clear Cache and Clone Depot Tools
       if: inputs.clear_cache != 'true'
@@ -39,11 +41,13 @@ runs:
         git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ steps.paths.outputs.base_path }}/depot_tools
 
         # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
-        if [[ "${{ inputs.use_cache }}" == "true" ]]; then
+        if [[ "$USE_CACHE" == "true" ]]; then
           git -C /runner-cache/cobalt/src submodule deinit -f --all
           git -C /runner-cache/cobalt/src clean -ffdx
         fi
       shell: bash
+      env:
+        USE_CACHE: ${{ inputs.use_cache }}
 
     - name: Reset Cached Depot Tools
       if: inputs.clear_cache == 'true'
@@ -70,9 +74,11 @@ runs:
         gclient config \
           --name=src \
           --custom-var=download_remoteexec_cfg=True \
-          --custom-var='rbe_instance="${{ inputs.rbe_instance }}"' \
+          --custom-var="rbe_instance=\"$RBE_INSTANCE\"" \
           https://github.com/${{ github.repository }}
       shell: bash
+      env:
+        RBE_INSTANCE: ${{ inputs.rbe_instance }}
 
     - name: Set target OS for Android
       if: contains(matrix.platform, 'android')
