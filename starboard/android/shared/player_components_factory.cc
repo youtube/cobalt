@@ -18,6 +18,7 @@
 #include <atomic>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -72,20 +73,8 @@ constexpr bool kForceResetSurfaceUnderTunnelMode = true;
 constexpr int64_t kResetDelayUsecOverride = 0;
 constexpr int64_t kFlushDelayUsecOverride = 0;
 
-// These Cobalt switches are re-defined here to reflect values in
-// media/base/media_switches.cc to avoid introducing a dependency on the
-// Chromium's media/ folder.
-// TODO: b/455938352 - Delete these constants when experiment is done (ETA: 2026
-// Q1).
-
-const char kCobaltMediaVideoInitialMaxFramesInDecoder[] =
-    "cobalt-media-video-initial-max-frames-in-decoder";
-const char kCobaltMediaVideoMaxPendingInputFrames[] =
-    "cobalt-media-video-max-pending-input-frames";
-
-std::optional<int> ReadPositiveIntFromCommandLine(
-    const base::CommandLine* command_line,
-    const char* switch_name) {
+std::optional<int> ReadPositiveInt(const base::CommandLine* command_line,
+                                   std::string_view switch_name) {
   if (!command_line->HasSwitch(switch_name)) {
     return std::nullopt;
   }
@@ -101,17 +90,25 @@ std::optional<int> ReadPositiveIntFromCommandLine(
   return std::nullopt;
 }
 
-VideoDecoder::FlowControlOptions GetVideoDecoderFlowControlOptions() {
-  VideoDecoder::FlowControlOptions options;
+VideoDecoder::ExperimentalFeatures GetExperimentalFeatures() {
+  // These Cobalt switches are re-defined here to reflect values in
+  // media/base/media_switches.cc to avoid introducing a dependency on the
+  // Chromium's media/ folder.
+  // TODO: b/455938352 - Delete these constants when experiment is done (ETA:
+  // 2026 Q1).
+  static constexpr std::string_view kCobaltMediaVideoInitialMaxFramesInDecoder =
+      "cobalt-media-video-initial-max-frames-in-decoder";
+  static constexpr std::string_view kCobaltMediaVideoMaxPendingInputFrames =
+      "cobalt-media-video-max-pending-input-frames";
+
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
-
-  options.initial_max_frames_in_decoder = ReadPositiveIntFromCommandLine(
-      command_line, kCobaltMediaVideoInitialMaxFramesInDecoder);
-  options.max_pending_input_frames = ReadPositiveIntFromCommandLine(
-      command_line, kCobaltMediaVideoMaxPendingInputFrames);
-
-  return options;
+  VideoDecoder::ExperimentalFeatures features;
+  features.initial_max_frames_in_decoder =
+      ReadPositiveInt(command_line, kCobaltMediaVideoInitialMaxFramesInDecoder);
+  features.max_pending_input_frames =
+      ReadPositiveInt(command_line, kCobaltMediaVideoMaxPendingInputFrames);
+  return features;
 }
 
 // This class allows us to force int16 sample type when tunnel mode is enabled.
@@ -592,8 +589,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << " of " << flush_delay_usec << "us during Flush().";
     }
 
-    VideoDecoder::FlowControlOptions flow_control_options =
-        GetVideoDecoderFlowControlOptions();
+    VideoDecoder::ExperimentalFeatures experimental_features =
+        GetExperimentalFeatures();
     auto video_decoder = std::make_unique<VideoDecoder>(
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
@@ -603,7 +600,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_reset_surface, kForceResetSurfaceUnderTunnelMode,
         force_big_endian_hdr_metadata, max_video_input_size,
         creation_parameters.surface_view(), enable_flush_during_seek,
-        reset_delay_usec, flush_delay_usec, flow_control_options,
+        reset_delay_usec, flush_delay_usec, experimental_features,
         error_message);
     if ((*error_message).empty() &&
         (creation_parameters.video_codec() == kSbMediaVideoCodecAv1 ||
