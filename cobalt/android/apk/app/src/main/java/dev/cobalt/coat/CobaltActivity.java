@@ -212,8 +212,7 @@ public abstract class CobaltActivity extends Activity {
               .orElse(null);
     }
 
-    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
-      Log.i(TAG, "Non-Youtube startup URL detected.");
+    if (shouldDisarmStartupGuard(mStartupUrl)) {
       StartupGuard.getInstance().disarm();
     }
 
@@ -273,6 +272,21 @@ public abstract class CobaltActivity extends Activity {
             }
           }
         });
+  }
+
+  protected static boolean shouldDisarmStartupGuard(String startupUrl) {
+    if (TextUtils.isEmpty(startupUrl)) {
+      Log.i(TAG, "Startup URL is empty.");
+      return true;
+    } else if (!startupUrl.startsWith(YOUTUBE_URL)) {
+      Log.i(TAG, "Non-Youtube startup URL detected.");
+      return true;
+    } else if (startupUrl.contains("?loader=") || startupUrl.contains("&loader=")) {
+      // startup URL is like https://www.youtube.com/tv?loader=yts... etc
+      Log.i(TAG, "Kabuki loader startup URL detected.");
+      return true;
+    }
+    return false;
   }
 
   // Initially copied from ContentShellActiviy.java
