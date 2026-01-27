@@ -62,36 +62,6 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
 
   THREAD_CHECKER(thread_checker_);
 };
-
-class H5vccUpdaterSideloadingImpl
-    : public content::DocumentService<mojom::H5vccUpdaterSideloading> {
- public:
-  static void Create(
-      content::RenderFrameHost* render_frame_host,
-      mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver);
-
-  H5vccUpdaterSideloadingImpl(const H5vccUpdaterSideloadingImpl&) = delete;
-  H5vccUpdaterSideloadingImpl& operator=(const H5vccUpdaterSideloadingImpl&) =
-      delete;
-
-  void SetAllowSelfSignedPackages(
-      bool allow_self_signed_packages,
-      SetAllowSelfSignedPackagesCallback callback) override;
-  void SetUpdateServerUrl(const std::string& update_server_url,
-                          SetUpdateServerUrlCallback callback) override;
-  void SetRequireNetworkEncryption(
-      bool require_network_encryption,
-      SetRequireNetworkEncryptionCallback callback) override;
-
- private:
-  H5vccUpdaterSideloadingImpl(
-      content::RenderFrameHost& render_frame_host,
-      mojo::PendingReceiver<mojom::H5vccUpdaterSideloading> receiver);
-  ~H5vccUpdaterSideloadingImpl();
-
-  THREAD_CHECKER(thread_checker_);
-};
-
 }  // namespace h5vcc_updater
 
 #endif  // COBALT_BROWSER_H5VCC_UPDATER_H5VCC_UPDATER_IMPL_H_
