@@ -29,6 +29,12 @@
 #include "starboard/extension/accessibility.h"
 #endif
 
+#if BUILDFLAG(IS_IOS_TVOS)
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_ax_mode_observer.h"
+#include "ui/accessibility/ax_mode.h"
+#include "ui/accessibility/platform/ax_platform.h"
+#endif  // BUILDFLAG(IS_IOS_TVOS)
+
 namespace h5vcc_accessibility {
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -44,6 +50,9 @@ H5vccAccessibilityImpl::H5vccAccessibilityImpl(
           render_frame_host,
           std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
+#if BUILDFLAG(IS_IOS_TVOS)
+  H5vccAccessibilityAXModeObserver::CreateSingleton();
+#endif  // BUILDFLAG(IS_IOS_TVOS)
 }
 
 H5vccAccessibilityImpl::~H5vccAccessibilityImpl() {
@@ -86,9 +95,8 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
       CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
   std::move(callback).Run(enabled);
 #elif BUILDFLAG(IS_IOS_TVOS)
-  // TODO: b/447135715 - Implement text-to-speech availability check for tvOS.
-  NOTIMPLEMENTED();
-  std::move(callback).Run(false);
+  std::move(callback).Run(ui::AXPlatform::GetInstance().GetMode().has_mode(
+      ui::AXMode::kScreenReader));
 #else
 #error "Unsupported platform."
 #endif
