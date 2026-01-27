@@ -1,0 +1,22 @@
+{
+  "docker_service": "",
+  "docker_required": false,
+  "build_runners": [
+    "macos-latest"
+  ],
+  "platforms": [
+    "chromium_mac-arm64"
+  ],
+  "build_configs": [
+    "devel"
+  ],
+  "targets": [
+    "content_shell"
+  ],
+  "includes": [
+    {
+      "name": "mac",
+      "platform": "chromium_mac-arm64"
+    }
+  ]
+}
