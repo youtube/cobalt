@@ -357,7 +357,7 @@ jobs:
         if: steps.setup-depot-tools.outcome != 'success'
         uses: ./cobalt/src/.github/actions/depot_tools
         with:
-          use_cache: false
+          clear_cache: false
 
       - name: Build Cobalt
         id: build
@@ -575,7 +575,7 @@ jobs:
         uses: ./cobalt/src/.github/actions/depot_tools
         with:
           run_sync: false
-          use_cache: false
+          clear_cache: false
       - name: Run Web Tests
         uses: ./cobalt/src/.github/actions/web_tests
         with:

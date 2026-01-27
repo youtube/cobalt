@@ -4,8 +4,8 @@ inputs:
   run_sync:
     description: Whether or not to run gclient sync.
     default: 'true'
-  use_cache:
-    description: Whether or not to use runner cache.
+  clear_cache:
+    description: Whether or not to clear runner cache.
     default: 'true'
   rbe_instance:
     description: The RBE instance to use.
@@ -13,9 +13,9 @@ inputs:
   # TODO: b/477593749 - runner-cache is not available on default Github Mac
   # runners and so we special case to use runner.temp for now. Clean this up
   # when self-hosted Mac runners are available.
-  using_mac_runner:
-    description: Whether or not we are using a Mac runner.
-    default: 'false'
+  use_cache:
+    description: Whether or not to use runner cache.
+    default: 'true'
 
 runs:
   using: "composite"
@@ -23,7 +23,7 @@ runs:
     - name: Set Depot Tools Base Path
       id: paths
       run: |
-        if [[ "${{ inputs.using_mac_runner }}" == "true" ]]; then
+        if [[ "${{ inputs.use_cache }}" == "false" ]]; then
           echo "base_path=${{ runner.temp }}" >> $GITHUB_OUTPUT
         else
           echo "base_path=/runner-cache" >> $GITHUB_OUTPUT
@@ -31,7 +31,7 @@ runs:
       shell: bash
 
     - name: Clear Cache and Clone Depot Tools
-      if: inputs.use_cache != 'true'
+      if: inputs.clear_cache != 'true'
       run: |
         set -x
         # Remove and re-clone gclient.
@@ -39,14 +39,14 @@ runs:
         git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ${{ steps.paths.outputs.base_path }}/depot_tools
 
         # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
-        if [[ "${{ inputs.using_mac_runner }}" == "false" ]]; then
+        if [[ "${{ inputs.use_cache }}" == "true" ]]; then
           git -C /runner-cache/cobalt/src submodule deinit -f --all
           git -C /runner-cache/cobalt/src clean -ffdx
         fi
       shell: bash
 
     - name: Reset Cached Depot Tools
-      if: inputs.use_cache == 'true'
+      if: inputs.clear_cache == 'true'
       run: git -C ${{ steps.paths.outputs.base_path }}/depot_tools reset --hard origin/main
       shell: bash
 
