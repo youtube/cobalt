@@ -15,6 +15,7 @@
 #include "starboard/android/shared/platform_service.h"
 
 #include <memory>
+#include <vector>
 
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
@@ -54,6 +55,7 @@ bool Has(const char* name) {
 CobaltExtensionPlatformService Open(void* context,
                                     const char* name,
                                     ReceiveMessageCallback receive_callback) {
+  SB_LOG(WARNING) << "ColinL: open Service " << name;
   SB_DCHECK(context);
   JNIEnv* env = base::android::AttachCurrentThread();
 
@@ -68,6 +70,8 @@ CobaltExtensionPlatformService Open(void* context,
   // Passing a null Activity is a temporary workaround to avoid breaking the
   // build during the JNI migration, since the Activity is not available in
   // this context.
+
+  // TODO:(colinliang) remove  /*activity=*/nullptr
   auto cobalt_service =
       starboard::StarboardBridge::GetInstance()->OpenCobaltService(
           env, /*activity=*/nullptr, reinterpret_cast<jlong>(service), name);
@@ -136,6 +140,48 @@ const CobaltExtensionPlatformServiceApi kPlatformServiceApi = {
 
 const void* GetPlatformServiceApiAndroid() {
   return &kPlatformServiceApi;
+}
+
+void JNI_CobaltService_NativeSendToClient(
+    JNIEnv* env,
+    jlong nativeService,
+    const base::android::JavaParamRef<jbyteArray>& j_data) {
+  SB_LOG(WARNING) << "ColinL: JNI_CobaltService_NativeSendToClient";
+  
+  auto* service = reinterpret_cast<CobaltExtensionPlatformServicePrivate*>(nativeService);
+  
+  if (!service) {
+    SB_LOG(ERROR) << "NativeSendToClient called with null service pointer.";
+    return;
+  }
+
+  if (!service->receive_callback) {
+    SB_LOG(ERROR) << "Service " << service->name << " has no receive callback.";
+    return;
+  }
+
+  // Convert Java byte array to a C++ vector.
+  std::vector<uint8_t> data;
+  base::android::JavaByteArrayToByteVector(env, j_data, &data);
+
+  // Pass the data back to the Cobalt/Starboard layer.
+  service->receive_callback(service->context, data.data(), data.size());
+
+  // CobaltExtensionPlatformService service =
+  //     reinterpret_cast<CobaltExtensionPlatformService>(nativeService);
+  
+  // if (!CobaltExtensionPlatformServiceIsValid(service)) {
+  //   SB_LOG(WARNING) << "Trying to send message through platform service when "
+  //                      "the service is already closed";
+  //   return;
+  // }
+
+  // jsize length = env->GetArrayLength(j_data);
+  // std::unique_ptr<char[]> data(new char[length]);
+  // env->GetByteArrayRegion(j_data, 0, length,
+  //                         reinterpret_cast<jbyte*>(data.get()));
+
+  // service->receive_callback(service->context, data.get(), length);
 }
 
 }  // namespace starboard

@@ -589,9 +589,9 @@ public class StarboardBridge {
       mCobaltServices.put(serviceName, service);
       Log.i(TAG, String.format("Opened platform service %s.", serviceName));
 
-      if (activity instanceof CobaltActivity) {
-        service.setCobaltActivity((CobaltActivity) activity);
-      }
+      // if (activity instanceof CobaltActivity) {
+      //   service.setCobaltActivity((CobaltActivity) activity);
+      // }
     }
     return service;
   }
