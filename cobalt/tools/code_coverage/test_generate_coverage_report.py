@@ -17,6 +17,7 @@
 import sys
 import unittest
 import tempfile
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -102,15 +103,15 @@ end_of_record
     dummy_lcov.parent.mkdir(parents=True, exist_ok=True)
     dummy_lcov.write_text("dummy lcov content")
 
-    # Mock run_command to always return True
-    mock_run.return_value = True
-
-    # Mock the cleaned file creation because lcov won't actually run
+    # Mock run_command to always return True and create files
+    final_lcov_file = self.lcov_src_dir / "cobalt_coverage.lcov"
     cleaned_file = self.cleaned_dir / "test.lcov"
 
     def side_effect(command, cwd=None):  # pylint: disable=unused-argument
       if "--extract" in command:
         cleaned_file.write_text("cleaned content")
+      elif "--add-tracefile" in command:
+        final_lcov_file.write_text("merged content")
       return True
 
     mock_run.side_effect = side_effect
@@ -121,10 +122,75 @@ end_of_record
     self.assertTrue(result)
     self.assertTrue(mock_run.called)
     self.assertTrue(mock_normalize.called)
-    # Check if final lcov file was "created" (it wouldn't be by mock,
-    # but the command would have been called)
-    merge_call = [
-        call for call in mock_run.call_args_list
-        if "lcov" in call.args[0] and "--add-tracefile" in call.args[0]
+
+  @mock.patch("generate_coverage_report.run_command")
+  def test_generate_report_zip_success(self, mock_run):
+    """Tests that a ZIP file is created when requested."""
+    # Setup: Create a dummy lcov file
+    dummy_lcov = self.lcov_src_dir / "test.lcov"
+    dummy_lcov.parent.mkdir(parents=True, exist_ok=True)
+    dummy_lcov.write_text("dummy lcov content")
+
+    # Mock run_command to simulate lcov extraction and merging
+    cleaned_file = self.cleaned_dir / "test.lcov"
+    final_lcov_file = self.lcov_src_dir / "cobalt_coverage.lcov"
+
+    def side_effect(command, cwd=None):  # pylint: disable=unused-argument
+      if "--extract" in command:
+        cleaned_file.write_text("cleaned content")
+      elif "--add-tracefile" in command:
+        final_lcov_file.write_text("merged content")
+      return True
+
+    mock_run.side_effect = side_effect
+
+    zip_file = self.base_dir / "out" / f"{self.platform}_coverage.zip"
+
+    # Run the function to be tested with zip_files=True
+    result = generate_coverage_report.generate_report(
+        self.platform, self.base_dir, zip_files=True)
+
+    self.assertTrue(result)
+    self.assertTrue(zip_file.exists())
+
+    # Verify zip content
+    with zipfile.ZipFile(zip_file, "r") as zf:
+      self.assertIn("test.lcov", zf.namelist())
+      self.assertIn("cobalt_coverage.lcov", zf.namelist())
+      self.assertEqual(zf.read("test.lcov").decode().strip(), "cleaned content")
+
+  @mock.patch("generate_coverage_report.run_command")
+  def test_generate_report_html_success(self, mock_run):
+    """Tests that an HTML report is generated when requested."""
+    # Setup: Create a dummy lcov file
+    dummy_lcov = self.lcov_src_dir / "test.lcov"
+    dummy_lcov.parent.mkdir(parents=True, exist_ok=True)
+    dummy_lcov.write_text("dummy lcov content")
+
+    # Mock run_command to simulate lcov extraction and merging
+    cleaned_file = self.cleaned_dir / "test.lcov"
+    final_lcov_file = self.lcov_src_dir / "cobalt_coverage.lcov"
+
+    def side_effect(command, cwd=None):  # pylint: disable=unused-argument
+      if "--extract" in command:
+        cleaned_file.write_text("cleaned content")
+      elif "--add-tracefile" in command:
+        final_lcov_file.write_text("merged content")
+      return True
+
+    mock_run.side_effect = side_effect
+
+    # Run the function with html_report=True
+    result = generate_coverage_report.generate_report(
+        self.platform, self.base_dir, html_report=True)
+
+    self.assertTrue(result)
+    # Verify genhtml was called
+    genhtml_call = [
+        call for call in mock_run.call_args_list if "genhtml" in call.args[0]
     ]
-    self.assertTrue(len(merge_call) > 0)
+    self.assertTrue(len(genhtml_call) > 0)
+
+
+if __name__ == "__main__":
+  unittest.main()

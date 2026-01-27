@@ -16,6 +16,7 @@
 import argparse
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 # --- Script ---
@@ -32,6 +33,14 @@ PLATFORM_PARSER.add_argument(
     "--filters",
     action="append",
     help="Extraction patterns to apply to the report.")
+PLATFORM_PARSER.add_argument(
+    "--no-zip",
+    action="store_false",
+    dest="zip",
+    help="Do not zip the individual .lcov files.")
+PLATFORM_PARSER.set_defaults(zip=True)
+PLATFORM_PARSER.add_argument(
+    "--html", action="store_true", help="Generate an HTML report.")
 
 
 def run_command(command, cwd=None):
@@ -81,7 +90,24 @@ def normalize_lcov_paths(filepath):
     print(f"Could not read or write to {filepath}: {e}")
 
 
-def generate_report(platform, base_dir, filters=None):
+def create_zip(zip_path, files_to_zip):
+  """Creates a zip file containing the specified files."""
+  print(f"\n--- Zipping {len(files_to_zip)} files into {zip_path} ---")
+  try:
+    with zipfile.ZipFile(zip_path, "w") as zipf:
+      for file in files_to_zip:
+        zipf.write(file, arcname=file.name)
+    return True
+  except (IOError, zipfile.BadZipFile) as e:
+    print(f"ERROR: Failed to create zip file: {e}")
+    return False
+
+
+def generate_report(platform,
+                    base_dir,
+                    filters=None,
+                    zip_files=True,
+                    html_report=False):
   """Generates the coverage report."""
   # Directory where the individual .lcov files are located.
   lcov_src_dir = base_dir / "out" / f"{platform}_coverage"
@@ -94,6 +120,9 @@ def generate_report(platform, base_dir, filters=None):
 
   # Final output directory for the HTML report.
   report_dir = base_dir / "out" / "cobalt_coverage_report"
+
+  # Final ZIP file for individual .lcov files.
+  zip_file = base_dir / "out" / f"{platform}_coverage.zip"
 
   print("---"
         " Starting Coverage Report Generation "
@@ -156,19 +185,27 @@ def generate_report(platform, base_dir, filters=None):
     print("ERROR: Failed to merge cleaned .lcov files. Exiting.")
     return False
 
-  print(f"\n--- Generating HTML report in {report_dir} ---")
-  genhtml_cmd = [
-      "genhtml",
-      str(final_lcov_file), "--output-directory",
-      str(report_dir), "--ignore-errors", "inconsistent,range"
-  ]
-  if not run_command(genhtml_cmd, cwd=base_dir):
-    print("ERROR: Failed to generate HTML report. Exiting.")
-    return False
+  if zip_files:
+    # Zip individual cleaned files AND the final merged file.
+    create_zip(zip_file, cleaned_files_to_merge + [final_lcov_file])
+
+  if html_report:
+    print(f"\n--- Generating HTML report in {report_dir} ---")
+    genhtml_cmd = [
+        "genhtml",
+        str(final_lcov_file), "--output-directory",
+        str(report_dir), "--ignore-errors", "inconsistent,range"
+    ]
+    if not run_command(genhtml_cmd, cwd=base_dir):
+      print("ERROR: Failed to generate HTML report. Exiting.")
+      return False
 
   print("\n--- Coverage Report Generation Complete ---")
-  print("Success! You can view the report by opening:")
-  print(f"file://{report_dir}/index.html")
+  if zip_files:
+    print(f"Success! ZIP archive created: {zip_file}")
+  if html_report:
+    print(f"Success! HTML report generated in: {report_dir}")
+    print(f"You can view it by opening: file://{report_dir}/index.html")
   return True
 
 
@@ -176,7 +213,12 @@ def main():
   """Main function to generate the coverage report."""
   args, _ = PLATFORM_PARSER.parse_known_args()
   base_dir = Path.cwd().resolve()
-  generate_report(args.platform, base_dir, filters=args.filters)
+  generate_report(
+      args.platform,
+      base_dir,
+      filters=args.filters,
+      zip_files=args.zip,
+      html_report=args.html)
 
 
 if __name__ == "__main__":

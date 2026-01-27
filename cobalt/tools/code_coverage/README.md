@@ -34,15 +34,18 @@ After the scan is complete, the `generate_coverage_report.py` script is used to 
 **Command:**
 
 ```bash
-python3 cobalt/tools/code_coverage/generate_coverage_report.py -p <PLATFORM>
+python3 cobalt/tools/code_coverage/generate_coverage_report.py -p <PLATFORM> [--html] [--no-zip]
 ```
 
 *   `-p, --platform`: The platform for which to generate the report (e.g., `android-x86`).
+*   `--html`: (Optional) Generate a user-friendly HTML report in `out/cobalt_coverage_report`.
+*   `--no-zip`: (Optional) Do not create a ZIP archive of the `.lcov` files.
 
-This script will automatically:
+By default, this script will:
 1.  Locate the raw coverage data from the `out/<PLATFORM>_coverage` directory.
 2.  Clean and merge the data, excluding irrelevant files (like generated code in `out/`).
-3.  Generate the final HTML report in `out/cobalt_coverage_report`.
+3.  Create a ZIP archive at `out/<PLATFORM>_coverage.zip` containing all individual cleaned `.lcov` files AND the final merged `cobalt_coverage.lcov`. This is ideal for uploading to services like CodeCov.io.
+4.  (Optional) Generate the final HTML report if `--html` is specified.
 
 **Example:**
 
