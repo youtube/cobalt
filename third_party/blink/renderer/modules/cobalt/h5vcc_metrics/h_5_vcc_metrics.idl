@@ -31,21 +31,12 @@ interface H5vccMetrics : EventTarget {
   // be uploaded and logged on the server. Both the enable/disable settings
   // are persistent or "sticky". That is, you only have to call them once
   // and that setting will persist through multiple app lifecycles until the
-<<<<<<< HEAD
   // enable/disable APIs are explicitly called again."
   [CallWith=ScriptState, RaisesException] Promise<void> enable();
 
   // "Disable Cobalt metrics logging. If disabled, the metric event handler
   // should never get called afterward."
   [CallWith=ScriptState, RaisesException] Promise<void> disable();
-=======
-  // enable/disable APIs are explicitly called again.
-  [CallWith=ScriptState, RaisesException] Promise<undefined> enable();
-
-  // Disable Cobalt metrics logging. If disabled, the metric event handler
-  // should never get called afterward.
-  [CallWith=ScriptState, RaisesException] Promise<undefined> disable();
->>>>>>> 0c15e48db65 (third_party:blink: Clarify requestHistograms comment (#8693))
 
   // Returns the current enabled state of metrics reporting. Note, the enable()
   // and disable() APIs are asynchronous under the hood. This means if you call
@@ -61,11 +52,8 @@ interface H5vccMetrics : EventTarget {
   // and will be persisted through multiple app lifetimes unless it's called
   // again with a different value.
   // This API is now Promise-based.
-<<<<<<< HEAD
-  [CallWith=ScriptState, RaisesException] Promise<void> setMetricEventInterval(unsigned long long intervalSeconds);
-=======
   [CallWith=ScriptState, RaisesException]
-  Promise<undefined> setMetricEventInterval(unsigned long long intervalSeconds);
+  Promise<void> setMetricEventInterval(unsigned long long intervalSeconds);
 
   // Retrieves the change in histogram values since this function was
   // last called. The first time this is called for a given histogram, it
@@ -77,5 +65,4 @@ interface H5vccMetrics : EventTarget {
   // and client web apps have fully migrated to said Event.
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> requestHistograms();
->>>>>>> 0c15e48db65 (third_party:blink: Clarify requestHistograms comment (#8693))
 };
