@@ -10,6 +10,26 @@ inputs:
   test_targets_json_file:
     description: "The path to the file the test targets are written to."
     required: true
+  test_artifacts_key:
+    description: "The key to use for test artifacts."
+    required: false
+    default: ""
+  upload_on_host_test_artifacts:
+    description: "Whether to upload on-host test artifacts."
+    required: false
+    default: "false"
+  upload_on_device_test_artifacts:
+    description: "Whether to upload on-device test artifacts."
+    required: false
+    default: "false"
+  upload_web_test_artifacts:
+    description: "Whether to upload web test artifacts."
+    required: false
+    default: "false"
+  upload_e2e_test_artifacts:
+    description: "Whether to upload e2e test artifacts."
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
@@ -135,4 +155,5 @@ runs:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
+          upload_e2e_test_artifacts: ${{ inputs.upload_e2e_test_artifacts }}
           test_targets_json_file: ${{ inputs.test_targets_json_file }}
