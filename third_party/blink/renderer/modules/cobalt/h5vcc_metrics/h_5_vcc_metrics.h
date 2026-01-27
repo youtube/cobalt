@@ -83,19 +83,11 @@ class MODULES_EXPORT H5vccMetrics final
       const RegisteredEventListener& registered_listener) override;
 
  private:
-<<<<<<< HEAD
   void OnEnable(ScriptPromiseResolver* resolver);
   void OnDisable(ScriptPromiseResolver* resolver);
   void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
   void OnRequestHistograms(ScriptPromiseResolver* resolver,
-                           const WTF::String& histograms_json);
-=======
-  void OnEnable(ScriptPromiseResolver<IDLUndefined>* resolver);
-  void OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver);
-  void OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver);
-  void OnRequestHistograms(ScriptPromiseResolver<IDLString>* resolver,
                            const WTF::String& histograms_base64);
->>>>>>> d6ed7266eeb (cobalt: Rename H5vcc metrics histogram output (#8767))
 
   void EnsureRemoteIsBound();
   void OnCloseConnection();
