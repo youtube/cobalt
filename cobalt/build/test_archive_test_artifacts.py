@@ -239,6 +239,41 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     file_list = mock_make_tar.call_args[0][3][0][0]
     self.assertIn(os.path.relpath(deps_file, self.source_dir), file_list)
 
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_flattened(self, mock_make_tar):
+    # Setup mock runtime_deps
+    target_name = 'my_test'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('base_unittests\n')
+      f.write('../../cobalt/test/data/file.txt\n')
+
+    # Enable flatten_deps and archive_per_target (which is required for
+    # flatten_deps)
+    archive_test_artifacts.create_archive(
+        targets=['cobalt/test:my_test'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True)
+
+    self.assertTrue(mock_make_tar.called)
+    file_lists = mock_make_tar.call_args[0][3]
+
+    # target_deps should be relative to out_dir
+    target_deps = file_lists[0][0]
+    self.assertIn('base_unittests', target_deps)
+    self.assertIn(f'{target_name}.runtime_deps', target_deps)
+
+    # target_src_root_deps should be relative to source_dir
+    # (../../ stripped)
+    src_deps = file_lists[1][0]
+    self.assertIn('cobalt/test/data/file.txt', src_deps)
+
 
 if __name__ == '__main__':
   unittest.main()

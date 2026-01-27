@@ -173,12 +173,10 @@ def create_archive(
 
     # Add the deps file itself to the archive
     deps_file_rel = os.path.relpath(deps_file, source_dir)
-    if archive_per_target:
-      # Use same logic as other files in this target
-      if flatten_deps and deps_file.startswith(source_dir):
-        target_src_root_deps.add(os.path.relpath(deps_file, source_dir))
-      else:
-        target_deps.add(os.path.relpath(deps_file, out_dir))
+    target_deps = set()
+    target_src_root_deps = set()
+    if flatten_deps:
+      target_deps.add(os.path.relpath(deps_file, out_dir))
     else:
       combined_deps.add(deps_file_rel)
 
@@ -196,7 +194,7 @@ def create_archive(
         'build_dir': build_rel_path
     }
 
-    if not archive_per_target:
+    if not archive_per_target and not flatten_deps:
       combined_deps.add(test_runner_rel_to_src)
 
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
@@ -205,30 +203,32 @@ def create_archive(
       # to be working directory archive whereas Linux tests expect it relative
       # to the binary.
       tar_root = out_dir
-      target_deps = set()
-      target_src_root_deps = set()
 
       # Add test_targets.json to archive so that test runners know what to run.
       test_targets_json = os.path.join(out_dir, 'test_targets.json')
       if os.path.exists(test_targets_json):
-        rel_path = os.path.relpath(test_targets_json, source_dir)
-        target_deps.add(rel_path)
+        if flatten_deps:
+          target_deps.add('test_targets.json')
+        else:
+          target_deps.add(os.path.relpath(test_targets_json, source_dir))
 
       for line in runtime_deps_file:
         line = line.strip()
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
 
-        # Rebase all files to be relative to the source root
-        full_path = os.path.abspath(os.path.join(tar_root, line))
-        rel_path = os.path.relpath(full_path, source_dir)
-
-        if flatten_deps and line.startswith('../../'):
-          target_src_root_deps.add(line[6:])
+        if flatten_deps:
+          if line.startswith('../../'):
+            target_src_root_deps.add(line[6:])
+          else:
+            target_deps.add(line)
         else:
+          # Rebase all files to be relative to the source root
+          full_path = os.path.abspath(os.path.join(tar_root, line))
+          rel_path = os.path.relpath(full_path, source_dir)
           target_deps.add(rel_path)
 
-      if not archive_per_target:
+      if not archive_per_target and not flatten_deps:
         combined_deps |= target_deps
 
       if archive_per_target:
