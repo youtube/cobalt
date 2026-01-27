@@ -22,6 +22,7 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigation) {
         if (navigation.hasCommitted()) {
             StartupGuard.getInstance().disarm();
+            destroy();
         }
     }
 }
