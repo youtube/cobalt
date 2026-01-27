@@ -181,10 +181,15 @@ void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
 }
 
 void H5vccMetrics::OnRequestHistograms(
+<<<<<<< HEAD
     ScriptPromiseResolver* resolver,
     const WTF::String& histograms_proto_base64) {
+=======
+    ScriptPromiseResolver<IDLString>* resolver,
+    const WTF::String& histograms_base64) {
+>>>>>>> d6ed7266eeb (cobalt: Rename H5vcc metrics histogram output (#8767))
   CleanupPromise(resolver);
-  resolver->Resolve(histograms_proto_base64);
+  resolver->Resolve(histograms_base64);
 }
 
 void H5vccMetrics::EnsureRemoteIsBound() {
