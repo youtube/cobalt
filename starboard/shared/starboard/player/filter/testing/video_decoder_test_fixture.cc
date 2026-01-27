@@ -87,9 +87,12 @@ void VideoDecoderTestFixture::Initialize() {
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
       max_video_input_size, flush_decoder_during_reset, reset_audio_decoder,
+      /*video_initial_max_frames_in_decoder=*/std::nullopt,
+      /*video_max_pending_input_frames=*/std::nullopt,
       fake_graphics_context_provider_->decoder_target_provider(), nullptr);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
-  ASSERT_EQ(creation_parameters.flush_decoder_during_reset(), flush_decoder_during_reset);
+  ASSERT_EQ(creation_parameters.flush_decoder_during_reset(),
+            flush_decoder_during_reset);
   ASSERT_EQ(creation_parameters.reset_audio_decoder(), reset_audio_decoder);
 
   std::unique_ptr<PlayerComponents::Factory> factory;

@@ -178,6 +178,25 @@ const T* GetSettingValue(
   return std::get_if<T>(&it->second);
 }
 
+constexpr int kMaxFramesInDecoderLimit = 10'000;
+
+std::optional<int> ProcessRangedIntH5vccSetting(
+    const std::map<std::string, H5vccSettingValue>& settings,
+    const char* key,
+    int min_val,
+    int max_val) {
+  auto* val = GetSettingValue<int64_t>(settings, key);
+  if (!val) {
+    return std::nullopt;
+  }
+  if (*val < min_val || max_val < *val) {
+    LOG(WARNING) << "Invalid value for " << key << ": " << *val;
+    return std::nullopt;
+  }
+
+  return static_cast<int>(*val);
+}
+
 ParsedH5vccSettings ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
   ParsedH5vccSettings parsed;
@@ -194,26 +213,13 @@ ParsedH5vccSettings ProcessH5vccSettings(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
   }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder)) {
-    if (0 <= *val && *val <= 10'000) {
-      parsed.initial_max_frames_in_decoder = static_cast<int>(*val);
-    } else {
-      LOG(WARNING) << "Invalid value for "
-                   << kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder
-                   << ": " << *val;
-    }
-  }
-  if (auto* val = GetSettingValue<int64_t>(
-          settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames)) {
-    if (0 <= *val && *val <= 10'000) {
-      parsed.max_pending_input_frames = static_cast<int>(*val);
-    } else {
-      LOG(WARNING) << "Invalid value for "
-                   << kH5vccSettingsKeyMediaVideoMaxPendingInputFrames << ": "
-                   << *val;
-    }
-  }
+
+  parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder, 0,
+      kMaxFramesInDecoderLimit);
+  parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, 0,
+      kMaxFramesInDecoderLimit);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);

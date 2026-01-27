@@ -51,7 +51,7 @@ std::optional<int> GetVideoInitialMaxFramesInDecoderForCurrentThread() {
   if (ptr == nullptr) {
     return std::nullopt;
   }
-  // Subtract 1 to retrieve the original value.
+  // Subtract 1 to retrieve the original value, complementing `Set...`.
   return static_cast<int>(reinterpret_cast<uintptr_t>(ptr) - 1);
 }
 
@@ -63,7 +63,7 @@ void SetVideoInitialMaxFramesInDecoderForCurrentThread(
     return;
   }
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  // Add 1 to ensure 0 is stored as non-null.
+  // Add 1 to the value to distinguish 0 from a nullptr (not set).
   pthread_setspecific(s_thread_local_key_for_initial_max_frames_in_decoder,
                       reinterpret_cast<void*>(static_cast<uintptr_t>(
                           initial_max_frames_in_decoder + 1)));
@@ -76,7 +76,7 @@ std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread() {
   if (ptr == nullptr) {
     return std::nullopt;
   }
-  // Subtract 1 to retrieve the original value.
+  // Subtract 1 to retrieve the original value, complementing `Set...`.
   return static_cast<int>(reinterpret_cast<uintptr_t>(ptr) - 1);
 }
 
@@ -88,7 +88,7 @@ void SetVideoMaxPendingInputFramesForCurrentThread(
     return;
   }
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  // Add 1 to ensure 0 is stored as non-null.
+  // Add 1 to the value to distinguish 0 from a nullptr (not set).
   pthread_setspecific(s_thread_local_key_for_max_pending_input_frames,
                       reinterpret_cast<void*>(static_cast<uintptr_t>(
                           max_pending_input_frames + 1)));

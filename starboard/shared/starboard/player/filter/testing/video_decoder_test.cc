@@ -154,7 +154,11 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
                 kSbMediaAudioCodecNone};
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
-                &players[i], output_mode, max_video_input_size, false, false,
+                &players[i], output_mode, max_video_input_size,
+                /*flush_decoder_during_reset=*/false,
+                /*reset_audio_decoder=*/false,
+                /*video_initial_max_frames_in_decoder=*/std::nullopt,
+                /*video_max_pending_input_frames=*/std::nullopt,
                 fake_graphics_context_provider_.decoder_target_provider(),
                 nullptr);
             ASSERT_EQ(creation_parameters.max_video_input_size(),
