@@ -58,8 +58,6 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--autoplay-policy=no-user-gesture-required");
         // Disable rescaling Webpage.
         paramOverrides.add("--force-device-scale-factor=1");
-        // Enable low end device mode.
-        paramOverrides.add("--enable-low-end-device-mode");
         // Disables RGBA_4444 textures which
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
