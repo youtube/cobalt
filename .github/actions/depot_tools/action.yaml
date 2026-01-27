@@ -37,8 +37,8 @@ runs:
       run: |
         set -x
         # Remove and re-clone gclient.
-        rm -rf "$BASE_PATH/depot_tools" "$BASE_PATH/cobalt/.cipd_cache"
-        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "$BASE_PATH/depot_tools"
+        rm -rf "$DEPOT_TOOLS_BASE_PATH" "$CIPD_CACHE_DIR"
+        git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_BASE_PATH"
 
         # Reset cobalt checkout by deleting all submodules and cleaning all non-tracked files.
         if [[ "$USE_CACHE" == "true" ]]; then
@@ -49,6 +49,8 @@ runs:
       env:
         USE_CACHE: ${{ inputs.use_cache }}
         BASE_PATH: ${{ steps.paths.outputs.base_path }}
+        DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
+        CIPD_CACHE_DIR: "${{ steps.paths.outputs.base_path }}/cobalt/.cipd_cache"
 
     - name: Reset Cached Depot Tools
       if: inputs.clear_cache == 'false' && inputs.use_cache == 'true'
@@ -119,9 +121,6 @@ runs:
 
     - name: Run gclient runhooks
       if: inputs.run_sync == 'true'
-      env:
-        BASE_PATH: ${{ steps.paths.outputs.base_path }}
-        CIPD_CACHE_DIR: "$BASE_PATH/cobalt/.cipd_cache"
       run: |
         cd cobalt
         gclient runhooks --verbose
