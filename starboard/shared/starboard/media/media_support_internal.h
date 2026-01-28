@@ -37,9 +37,9 @@ namespace shared::starboard::media {
 // |audio_codec|: The |SbMediaAudioCodec| being checked for platform
 //                compatibility.
 // |key_system|: The key system being checked for platform compatibility.
-SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                                SbMediaAudioCodec audio_codec,
-                                const char* key_system);
+SB_EXPORT bool MediaIsKeySystemSupported(SbMediaVideoCodec video_codec,
+                                         SbMediaAudioCodec audio_codec,
+                                         const char* key_system);
 
 // Indicates whether a given combination of (|frame_width| x |frame_height|)
 // frames at |bitrate| and |fps| is supported on this platform with
@@ -105,7 +105,7 @@ SB_EXPORT_ANDROID bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
 // TODO: b/441955897 : Remove these aliases when flattening namespace is
 // completed.
 using shared::starboard::media::MediaIsAudioSupported;
-using shared::starboard::media::MediaIsSupported;
+using shared::starboard::media::MediaIsKeySystemSupported;
 using shared::starboard::media::MediaIsVideoSupported;
 
 }  // namespace starboard
