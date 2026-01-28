@@ -59,9 +59,9 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_, data, size_);
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_.get(), data, size_);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
