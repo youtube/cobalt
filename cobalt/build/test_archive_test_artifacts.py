@@ -205,49 +205,6 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     self.assertIn('out/Default/bin/run_cobalt_browsertests', combined_deps)
 
   @mock.patch('archive_test_artifacts._make_tar')
-  def test_create_archive_depot_tools(self, mock_make_tar):
-    # Setup mock runtime_deps
-    target_name = 'my_test'
-    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
-    with open(deps_file, 'w', encoding='utf-8') as f:
-      f.write('my_test\n')
-
-    # Create dummy files to pass existence checks
-    self._touch(self.out_dir, 'my_test')
-
-    # Create dummy depot_tools
-    depot_tools_dir = os.path.join(self.test_dir, 'my_depot_tools')
-    os.makedirs(depot_tools_dir)
-    vpython_path = os.path.join(depot_tools_dir, 'vpython3')
-    Path(vpython_path).touch()
-    Path(os.path.join(depot_tools_dir, 'gclient')).touch()
-
-    with mock.patch('shutil.which', return_value=vpython_path):
-      archive_test_artifacts.create_archive(
-          targets=['cobalt/test:my_test'],
-          source_dir=self.source_dir,
-          out_dir=self.out_dir,
-          destination_dir=self.dest_dir,
-          archive_per_target=False,
-          use_android_deps_path=False,
-          compression='gz',
-          compression_level=1,
-          flatten_deps=False,
-          include_depot_tools=True)
-
-    self.assertTrue(mock_make_tar.called)
-    file_lists = mock_make_tar.call_args[0][3]
-
-    # Check for depot_tools entry
-    depot_tools_entry = file_lists[0]
-    self.assertEqual(depot_tools_entry[0], ['my_depot_tools'])
-    self.assertEqual(depot_tools_entry[1], self.test_dir)
-
-    # Check for combined_deps entry
-    combined_deps_entry = file_lists[1]
-    self.assertIn('out/Default/my_test', combined_deps_entry[0])
-
-  @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_android_fallback(self, mock_make_tar):
     # Setup mock runtime_deps in the Android script-based location
     target_name = 'cobalt_browsertests'

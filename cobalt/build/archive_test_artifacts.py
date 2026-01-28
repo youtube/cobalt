@@ -17,7 +17,6 @@
 import argparse
 import logging
 import os
-import shutil
 import subprocess
 import tempfile
 from typing import List, Tuple
@@ -118,7 +117,6 @@ def create_archive(
     compression_level: int,
     flatten_deps: bool,
     include_browsertests_runner: bool = False,
-    include_depot_tools: bool = False,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   source_dir = os.path.abspath(source_dir)
@@ -268,20 +266,6 @@ def create_archive(
       generate_runner_py(runner_path, target_map, template_path)
       file_lists.append((['run_tests.py'], temp_dir))
 
-    if include_depot_tools:
-      vpython_path = shutil.which('vpython3')
-      if vpython_path:
-        vpython_path = os.path.realpath(vpython_path)
-        depot_tools_src = os.path.dirname(vpython_path)
-        if os.path.exists(os.path.join(depot_tools_src, 'gclient')):
-          logging.info('Bundling depot_tools from %s', depot_tools_src)
-          file_lists.append(([os.path.basename(depot_tools_src)],
-                             os.path.dirname(depot_tools_src)))
-        else:
-          logging.warning(
-              'vpython3 found at %s but does not appear to be in '
-              'depot_tools. Skipping depot_tools bundling.', vpython_path)
-
     file_lists.append((list(combined_deps), source_dir))
 
     _make_tar(
@@ -342,10 +326,6 @@ def main():
       '--include-browsertests-runner',
       action='store_true',
       help='Include the browsertest runner script and dependencies.')
-  parser.add_argument(
-      '--include-depot-tools',
-      action='store_true',
-      help='Include depot_tools in the archive.')
   args = parser.parse_args()
 
   logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -366,8 +346,7 @@ def main():
       compression=args.compression,
       compression_level=args.compression_level,
       flatten_deps=args.flatten_deps,
-      include_browsertests_runner=args.include_browsertests_runner,
-      include_depot_tools=args.include_depot_tools)
+      include_browsertests_runner=args.include_browsertests_runner)
 
 
 if __name__ == '__main__':
