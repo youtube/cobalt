@@ -48,6 +48,8 @@ class ExperimentConfigManager {
   }
 
  private:
+  static bool IsVersionGreaterThan(const std::string& version1,
+                                   const std::string& version2);
   bool called_store_safe_config_ = false;
 
   // PrefService for experiment config.
@@ -61,6 +63,7 @@ class ExperimentConfigManager {
                            StoreSafeConfigWithSafeConfig);
   FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest,
                            StoreSafeConfigWithEmptyConfig);
+  FRIEND_TEST_ALL_PREFIXES(ExperimentConfigManagerTest, IsVersionGreaterThan);
 };
 
 }  // namespace cobalt
