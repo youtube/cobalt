@@ -19,13 +19,7 @@
 #include <string>
 #include <vector>
 
-<<<<<<< HEAD
-#include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/jni_state.h"
-=======
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/audio_output_manager.h"
->>>>>>> 7b78f5b908e (starboard/android: Remove ContinuousAudioTrackSink (#8837))
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
