@@ -48,6 +48,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   void GetSupportedKeySystems(::media::GetSupportedKeySystemsCB cb) override;
   bool IsSupportedAudioType(const ::media::AudioType& type) override;
   bool IsSupportedVideoType(const ::media::VideoType& type) override;
+  void RenderThreadStarted() override;
   // JS Injection hook
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
   void GetStarboardRendererFactoryTraits(

@@ -26,6 +26,7 @@ source_set("renderer") {
     "//cobalt/browser:switches",
     "//cobalt/browser/mojom",
     "//cobalt/media/audio:webaudio",
+    "//cobalt/shell:url_constants",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",

@@ -13,6 +13,7 @@
 #include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
+#include "cobalt/shell/common/url_constants.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
@@ -26,6 +27,8 @@
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/blink/public/platform/web_string.h"
+#include "third_party/blink/public/web/web_security_policy.h"
 #include "third_party/blink/public/web/web_view.h"
 #include "ui/gfx/geometry/size_conversions.h"
 
@@ -225,6 +228,13 @@ void CobaltContentRendererClient::RenderFrameCreated(
   } else {
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
+}
+
+void CobaltContentRendererClient::RenderThreadStarted() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // Register h5vcc scheme for renders to use Fetch API.
+  blink::WebSecurityPolicy::RegisterURLSchemeAsSupportingFetchAPI(
+      blink::WebString::FromASCII(content::kH5vccEmbeddedScheme));
 }
 
 #if BUILDFLAG(IS_ANDROID)
