@@ -350,7 +350,7 @@ MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
         base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
-        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
+        c.http_only(), net::CookieSameSite::UNSPECIFIED,
         net::COOKIE_PRIORITY_DEFAULT, std::nullopt,
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED,
         net::CookieSourceType::kUnknown));
@@ -363,9 +363,14 @@ std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
 MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
                                       const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<std::pair<std::string, std::string>>> entries;
+  bool allow_http = base::CommandLine::ForCurrentProcess()->HasSwitch(
+      ::switches::kEnableInsecureDomainForMigrationTesting);
   for (const auto& local_storages : storage.local_storages()) {
     GURL local_storage_origin(local_storages.serialized_origin());
-    if (!local_storage_origin.SchemeIs("https") ||
+    bool is_secure = local_storage_origin.SchemeIs("https");
+    bool is_insecure_allowed =
+        allow_http && local_storage_origin.SchemeIs("http");
+    if (!(is_secure || is_insecure_allowed) ||
         !page_origin.IsSameOriginWith(local_storage_origin)) {
       continue;
     }

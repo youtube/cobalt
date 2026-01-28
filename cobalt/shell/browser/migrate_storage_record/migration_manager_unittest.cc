@@ -16,10 +16,13 @@
 
 #include <numeric>
 
+#include "base/command_line.h"
 #include "base/functional/bind.h"
 #include "base/run_loop.h"
+#include "base/test/scoped_command_line.h"
 #include "base/test/task_environment.h"
 #include "cobalt/shell/browser/migrate_storage_record/storage.pb.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "net/cookies/canonical_cookie.h"
 #include "net/cookies/cookie_constants.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -51,8 +54,8 @@ class MigrationManagerTest : public testing::Test {
 
  private:
   base::test::SingleThreadTaskEnvironment task_environment_;
+  base::test::ScopedCommandLine scoped_command_line_;
 };
-
 // TODO(b/399166308): Add more test cases for specific migration tasks.
 TEST_F(MigrationManagerTest, VerifyGroupTasksRunsCallbacksSequentially) {
   constexpr uint32_t kTaskCount = 100;
@@ -123,7 +126,7 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
                   .InMicroseconds());
     EXPECT_EQ(source_cookies[i]->secure(), cookies[i]->IsSecure());
     EXPECT_EQ(source_cookies[i]->http_only(), cookies[i]->IsHttpOnly());
-    EXPECT_EQ(net::CookieSameSite::NO_RESTRICTION, cookies[i]->SameSite());
+    EXPECT_EQ(net::CookieSameSite::UNSPECIFIED, cookies[i]->SameSite());
     EXPECT_TRUE(cookies[i]->Priority());
     EXPECT_FALSE(cookies[i]->IsPartitioned());
     EXPECT_FALSE(cookies[i]->PartitionKey().has_value());
@@ -132,6 +135,20 @@ TEST_F(MigrationManagerTest, ToCanonicalCookiesTest) {
     EXPECT_TRUE(cookies[i]->IsDomainCookie());
     EXPECT_FALSE(cookies[i]->IsHostCookie());
   }
+}
+
+TEST_F(MigrationManagerTest, ToCanonicalCookiesWithLeadingDotTest) {
+  cobalt::storage::Storage storage;
+  auto* cookie = storage.add_cookies();
+  cookie->set_name("name");
+  cookie->set_value("value");
+  cookie->set_domain(".example.com");
+  cookie->set_path("/");
+
+  auto cookies = ToCanonicalCookies(storage);
+  EXPECT_EQ(1u, cookies.size());
+  EXPECT_EQ(".example.com", cookies[0]->Domain());
+  EXPECT_TRUE(cookies[0]->IsDomainCookie());
 }
 
 TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
@@ -196,6 +213,16 @@ TEST_F(MigrationManagerTest, ToLocalStorageItemsTest) {
   auto actual3 = ToLocalStorageItems(
       url::Origin::Create(GURL("http://example2.com")), storage);
   EXPECT_TRUE(actual3.empty());
+
+  base::CommandLine::ForCurrentProcess()->AppendSwitch(
+      switches::kEnableInsecureDomainForMigrationTesting);
+  auto actual4 = ToLocalStorageItems(
+      url::Origin::Create(GURL("http://example2.com")), storage);
+  EXPECT_EQ(2u, actual4.size());
+  EXPECT_EQ("local_storage3_entry1_key", actual4[0]->first);
+  EXPECT_EQ("local_storage3_entry1_value", actual4[0]->second);
+  EXPECT_EQ("local_storage3_entry2_key", actual4[1]->first);
+  EXPECT_EQ("local_storage3_entry2_value", actual4[1]->second);
 }
 
 }  // namespace migrate_storage_record

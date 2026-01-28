@@ -56,4 +56,8 @@ const char kSplashScreenShutdownDelayMs[] = "splash-screen-shutdown-delay-ms";
 // Register the provided scheme as a standard scheme.
 const char kTestRegisterStandardScheme[] = "test-register-standard-scheme";
 
+// Enables migration for insecure (HTTP) domains for testing.
+const char kEnableInsecureDomainForMigrationTesting[] =
+    "enable-insecure-domain-for-migration-testing";
+
 }  // namespace switches
