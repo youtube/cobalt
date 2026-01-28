@@ -34,6 +34,7 @@ _MODULAR_BUILD_FILTERED_TESTS = {
         'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
     ],
     'player_filter_tests': [test_filter.FILTER_ALL],
+    'extension_test': ['ExtensionTest.CrashHandler'],
 }
 
 _FILTERED_TESTS = {
