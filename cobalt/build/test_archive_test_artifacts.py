@@ -71,7 +71,8 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     self.assertTrue(mock_call.called)
     tar_cmd = mock_call.call_args[0][0]
     self.assertIn('tar', tar_cmd)
-    self.assertIn('-cvf', tar_cmd)
+    self.assertIn('-cf', tar_cmd)
+    self.assertIn('--ignore-failed-read', tar_cmd)
 
   @mock.patch('archive_test_artifacts._make_tar')
   def test_create_archive_basic(self, mock_make_tar):
@@ -121,7 +122,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
 
     # Create dummy runtime_deps for the portable deps target
     portable_deps_file = os.path.join(
-        self.out_dir, 'cobalt_browsertests_portable_deps.runtime_deps')
+        self.out_dir, 'cobalt_browsertests_runner.runtime_deps')
     with open(portable_deps_file, 'w', encoding='utf-8') as f:
       f.write('../../testing/file\n')
       f.write('../../.vpython3\n')
@@ -166,7 +167,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
 
     # Create dummy runtime_deps for the portable deps target
     portable_deps_file = os.path.join(
-        self.out_dir, 'cobalt_browsertests_portable_deps.runtime_deps')
+        self.out_dir, 'cobalt_browsertests_runner.runtime_deps')
     with open(portable_deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
 
@@ -216,7 +217,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
 
     # Create dummy runtime_deps for the portable deps target
     portable_deps_file = os.path.join(
-        self.out_dir, 'cobalt_browsertests_portable_deps.runtime_deps')
+        self.out_dir, 'cobalt_browsertests_runner.runtime_deps')
     with open(portable_deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
 
@@ -277,6 +278,42 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     # (../../ stripped)
     src_deps = file_lists[1][0]
     self.assertIn('cobalt/test/data/file.txt', src_deps)
+
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_per_target_no_flatten(self, mock_make_tar):
+    # Setup mock runtime_deps
+    target_name = 'my_test'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('base_unittests\n')
+      f.write('../../cobalt/test/data/file.txt\n')
+
+    # Create dummy files to pass existence checks
+    self._touch(self.out_dir, 'base_unittests')
+    self._touch(self.source_dir, 'cobalt/test/data/file.txt')
+
+    archive_test_artifacts.create_archive(
+        targets=['cobalt/test:my_test'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=True,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=False)
+
+    self.assertTrue(mock_make_tar.called)
+    file_lists = mock_make_tar.call_args[0][3]
+
+    # Should have only one base directory entry (source_dir)
+    self.assertEqual(len(file_lists), 1)
+    file_list, base_dir = file_lists[0]
+    self.assertEqual(base_dir, self.source_dir)
+
+    # Paths should be relative to source_dir
+    self.assertIn('out/Default/base_unittests', file_list)
+    self.assertIn('cobalt/test/data/file.txt', file_list)
 
 
 if __name__ == '__main__':

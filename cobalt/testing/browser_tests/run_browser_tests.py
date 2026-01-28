@@ -52,6 +52,9 @@ def main():
   if not extra_filter:
     extra_filter = args.filter
 
+  # Filter out --gtest_filter from unknown to avoid duplication
+  unknown = [u for u in unknown if not u.startswith("--gtest_filter=")]
+
   if not os.path.isfile(binary_path):
     print(f"Error: Binary not found at {binary_path}", file=sys.stderr)
     sys.exit(1)
@@ -69,7 +72,7 @@ def main():
         "--single-process",
         "--no-zygote",
         "--ozone-platform=starboard",
-    ]
+    ] + unknown
     output = subprocess.check_output(
         list_cmd, text=True, stderr=subprocess.STDOUT)
   except subprocess.CalledProcessError as e:
@@ -169,7 +172,7 @@ def main():
           "--single-process",
           "--no-zygote",
           "--ozone-platform=starboard",
-      ]
+      ] + unknown
 
       # Forward the output flag if provided, but adjust per test
       if args.gtest_output and args.gtest_output.startswith("xml:"):

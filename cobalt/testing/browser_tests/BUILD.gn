@@ -191,6 +191,7 @@ group("cobalt_browsertests_runner") {
   testonly = true
   data_deps = [
     ":cobalt_browsertests",
+    ":cobalt_browsertests_portable_deps",
     ":cobalt_browsertests_runner_script",
   ]
   write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
@@ -214,10 +215,13 @@ group("cobalt_browsertests_portable_deps") {
     "//third_party/android_sdk/public/platform-tools/",
     "//third_party/catapult/",
     "//third_party/depot_tools/",
+    "//third_party/depot_tools/vpython3",
+    "//third_party/depot_tools/cipd",
     "//third_party/llvm-build/Release+Asserts/bin/",
     "//third_party/logdog/",
     "//tools/python/",
     "//v8/.vpython3",
+    "//build/android:test_result_presentations_py",
   ]
   write_runtime_deps =
       "$root_out_dir/cobalt_browsertests_portable_deps.runtime_deps"

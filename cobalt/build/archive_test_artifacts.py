@@ -24,10 +24,7 @@ from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
 _EXCLUDE_DIRS = [
-    'obj/',
-    'lib.java/',
     './exe.unstripped/',
-    './lib.unstripped/',
     '../../third_party/jdk/',
     'testing/buildbot/',
 ]
@@ -59,10 +56,6 @@ def generate_runner_py(dst_path, target_map, template_path):
     content = content.replace('TARGET_MAP = {}',
                               f'TARGET_MAP = {target_map_repr}')
 
-    # Adjust the template to expect files at root instead of src/
-    content = content.replace('src_dir = os.path.join(script_dir, "src")',
-                              'src_dir = script_dir')
-
   with open(dst_path, 'w', encoding='utf-8') as f:
     f.write(content)
   os.chmod(dst_path, 0o755)
@@ -88,7 +81,8 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     raise RuntimeError(f'Compression program "{prog}" not found in PATH.')
 
   tar_cmd = [
-      'tar', '--use-compress-program', compression_program, '-cvf', archive_path
+      'tar', '--ignore-failed-read', '--use-compress-program',
+      compression_program, '-cf', archive_path
   ]
   any_files = False
   tmp_files = []
@@ -134,19 +128,75 @@ def create_archive(
   out_dir = os.path.abspath(out_dir)
   destination_dir = os.path.abspath(destination_dir)
   os.makedirs(destination_dir, exist_ok=True)
+  output_path = os.path.join(destination_dir,
+                             f'test_artifacts.tar.{compression}')
+
+  def add_dep(line, root, target_set):
+    full_path = os.path.abspath(os.path.join(root, line))
+    # Never archive the output file itself
+    if full_path == output_path:
+      return
+
+    if os.path.exists(full_path):
+      if os.path.isdir(full_path):
+        for sub_root, _, files in os.walk(full_path):
+          for f in files:
+            sub_full_path = os.path.join(sub_root, f)
+            if sub_full_path == output_path:
+              continue
+            target_set.add(os.path.relpath(sub_full_path, root))
+      else:
+        target_set.add(os.path.relpath(full_path, root))
+    else:
+      logging.error('Dependency not found: %s (requested as %s)', full_path,
+                    line)
+
   combined_deps = set()
+  combined_src_deps = set()
+  combined_depot_tools = set()
   target_map = {}
   file_lists = []
 
   # If including the browsertest runner, ensure the portable deps target is
   # processed.
-  include_browsertests_runner = any(
-      t.endswith(':cobalt_browsertests') for t in targets)
+  include_browsertests_runner = any('cobalt_browsertests' in t for t in targets)
   if include_browsertests_runner:
     portable_deps_target = (
-        'cobalt/testing/browser_tests:cobalt_browsertests_portable_deps')
+        'cobalt/testing/browser_tests:cobalt_browsertests_runner')
     if portable_deps_target not in targets:
+      logging.info('Implicitly adding %s to targets', portable_deps_target)
       targets.append(portable_deps_target)
+
+    # Manually add depot_tools if found in the source tree, as GN often
+    # filters it out of runtime_deps for certain platforms (like Android).
+    # We put depot_tools at the root of the archive to match the reference.
+    depot_tools_rel = os.path.join('third_party', 'depot_tools')
+    depot_tools_full = os.path.join(source_dir, depot_tools_rel)
+    if os.path.isdir(depot_tools_full):
+      logging.info('Including depot_tools from source tree')
+      # We walk it manually to add to combined_depot_tools without 'src/' prefix
+      for sub_root, _, files in os.walk(depot_tools_full):
+        for f in files:
+          sub_full_path = os.path.join(sub_root, f)
+          rel_to_dt = os.path.relpath(sub_full_path, depot_tools_full)
+          combined_depot_tools.add(os.path.join('depot_tools', rel_to_dt))
+
+    # Add essential directories manually (shared across all targets)
+    essential_dirs = [
+        'build/android', 'build/util', 'build/skia_gold_common', 'testing',
+        'third_party/android_build_tools', 'third_party/catapult/common',
+        'third_party/catapult/dependency_manager', 'third_party/catapult/devil',
+        'third_party/catapult/third_party', 'third_party/logdog',
+        'third_party/android_sdk/public/platform-tools',
+        'cobalt/testing/browser_tests'
+    ]
+    for edir in essential_dirs:
+      if os.path.isdir(os.path.join(source_dir, edir)):
+        logging.info('Including essential directory: %s', edir)
+        if flatten_deps:
+          add_dep(edir, source_dir, combined_src_deps)
+        else:
+          add_dep(edir, source_dir, combined_deps)
 
   for target in targets:
     target_path, target_name = target.split(':')
@@ -166,9 +216,15 @@ def create_archive(
         if os.path.exists(script_deps):
           deps_file = script_deps
         else:
-          # Fallback 2: try with starboard/ in path
-          deps_file = os.path.join(out_dir, 'starboard',
-                                   f'{target_name}.runtime_deps')
+          # Fallback 2: try with _runner suffix
+          runner_deps = os.path.join(out_dir,
+                                     f'{target_name}_runner.runtime_deps')
+          if os.path.exists(runner_deps):
+            deps_file = runner_deps
+          else:
+            # Fallback 3: try with starboard/ in path
+            deps_file = os.path.join(out_dir, 'starboard',
+                                     f'{target_name}.runtime_deps')
 
     logging.info('Collecting runtime dependencies for %s', target)
     if not os.path.exists(deps_file):
@@ -179,14 +235,6 @@ def create_archive(
     deps_file_rel = os.path.relpath(deps_file, source_dir)
     target_deps = set()
     target_src_root_deps = set()
-
-    def add_dep(line, root, target_set):
-      full_path = os.path.abspath(os.path.join(root, line))
-      if os.path.exists(full_path):
-        target_set.add(os.path.relpath(full_path, root))
-      else:
-        logging.error('Dependency not found: %s (requested as %s)', full_path,
-                      line)
 
     if flatten_deps:
       add_dep(os.path.relpath(deps_file, out_dir), out_dir, target_deps)
@@ -200,6 +248,9 @@ def create_archive(
     test_runner_rel = get_test_runner(out_dir, is_android)
     test_runner_full = os.path.join(out_dir, test_runner_rel)
     test_runner_rel_to_src = os.path.relpath(test_runner_full, source_dir)
+
+    # Paths in target_map MUST be relative to archive root.
+    # The portable runner will join these with its resolved 'src_dir'.
     target_map[target_name] = {
         'deps': deps_file_rel,
         'runner': test_runner_rel_to_src,
@@ -207,9 +258,16 @@ def create_archive(
         'build_dir': build_rel_path
     }
 
-    if not archive_per_target and not flatten_deps:
-      if os.path.exists(test_runner_full):
-        combined_deps.add(test_runner_rel_to_src)
+    if not archive_per_target:
+      if flatten_deps:
+        # In flattened mode, determine if the runner is in out or src
+        if test_runner_full.startswith(out_dir):
+          combined_deps.add(os.path.relpath(test_runner_full, out_dir))
+        else:
+          combined_src_deps.add(os.path.relpath(test_runner_full, source_dir))
+      else:
+        if os.path.exists(test_runner_full):
+          combined_deps.add(test_runner_rel_to_src)
 
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
@@ -231,14 +289,16 @@ def create_archive(
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
 
+        full_path = os.path.abspath(os.path.join(tar_root, line))
         if flatten_deps:
-          if line.startswith('../../'):
-            add_dep(line[6:], source_dir, target_src_root_deps)
+          if full_path.startswith(out_dir):
+            add_dep(os.path.relpath(full_path, out_dir), out_dir, target_deps)
           else:
-            add_dep(line, out_dir, target_deps)
+            add_dep(
+                os.path.relpath(full_path, source_dir), source_dir,
+                target_src_root_deps)
         else:
           # Rebase all files to be relative to the source root
-          full_path = os.path.abspath(os.path.join(tar_root, line))
           if os.path.exists(full_path):
             rel_path = os.path.relpath(full_path, source_dir)
             target_deps.add(rel_path)
@@ -246,8 +306,12 @@ def create_archive(
             logging.error('Dependency not found: %s (requested as %s)',
                           full_path, line)
 
-      if not archive_per_target and not flatten_deps:
-        combined_deps |= target_deps
+      if not archive_per_target:
+        if flatten_deps:
+          combined_deps |= target_deps
+          combined_src_deps |= target_src_root_deps
+        else:
+          combined_deps |= target_deps
 
       if archive_per_target:
         output_path = os.path.join(destination_dir,
@@ -261,12 +325,14 @@ def create_archive(
                (list(target_src_root_deps), source_dir)],
           )
         else:
-          raise ValueError('Unsupported configuration.')
+          _make_tar(
+              output_path,
+              compression,
+              compression_level,
+              [(list(target_deps), source_dir)],
+          )
   # Linux tests and deps are all bundled into a single tar file.
   if not archive_per_target:
-    output_path = os.path.join(destination_dir,
-                               f'test_artifacts.tar.{compression}')
-
     if include_browsertests_runner:
       logging.info('Including browsertest runner artifacts')
 
@@ -277,9 +343,30 @@ def create_archive(
       temp_dir = tempfile.mkdtemp()
       runner_path = os.path.join(temp_dir, 'run_tests.py')
       generate_runner_py(runner_path, target_map, template_path)
+      # run_tests.py goes at the root
       file_lists.append((['run_tests.py'], temp_dir))
 
-    file_lists.append((list(combined_deps), source_dir))
+      # depot_tools goes at the root (without 'src/' prefix)
+      if combined_depot_tools:
+        # We need a temp dir to hold depot_tools if we want it at root
+        # but it's already in combined_depot_tools with correct relative paths.
+        # However, tar -C requires a base dir.
+        # combined_depot_tools entries are like 'depot_tools/vpython3'
+        # relative to source_dir/third_party/
+        dt_base = os.path.join(source_dir, 'third_party')
+        file_lists.append((list(combined_depot_tools), dt_base))
+
+    # All other deps go under 'src/'
+    if flatten_deps:
+      # In flattened mode, we might need more complex logic to prefix with 'src/'  # pylint: disable=line-too-long
+      # but for now we'll assume non-flattened for matching the reference.
+      file_lists.append((list(combined_deps), out_dir))
+      file_lists.append((list(combined_src_deps), source_dir))
+    else:
+      # To get them under 'src/' in the archive, we can use a trick with tar
+      # or just prefix the paths.
+      src_prefixed_deps = [os.path.join('src', d) for d in combined_deps]
+      file_lists.append((src_prefixed_deps, os.path.dirname(source_dir)))
 
     _make_tar(
         output_path,
