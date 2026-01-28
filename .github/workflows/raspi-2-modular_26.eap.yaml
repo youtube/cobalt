@@ -1,0 +1,31 @@
+name: raspi-2-modular_26.eap
+permissions: read-all
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - 26.eap
+  push:
+    branches:
+      - 26.eap
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
+
+jobs:
+  # This is the raspi build config
+  raspi-2-modular:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: raspi-2-modular
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}

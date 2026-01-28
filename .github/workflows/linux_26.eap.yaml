@@ -1,5 +1,4 @@
-name: evergreen_26.eap
-permissions: read-all
+name: linux_26.eap
 
 on:
   pull_request:
@@ -18,59 +17,47 @@ on:
         default: false
 
 jobs:
-  # evergreen-x64 is Evergreen on linux.
-  evergreen-x64:
+  # This is default Chromium build config
+  chromium_linux-x64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-x64
+      platform: chromium_linux
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm-hardfp-raspi:
+  # This is default Cobalt build config
+  linux:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-hardfp-raspi
+      platform: linux
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm-hardfp-rdk:
+  # This is cobalt on linux using modular build config
+  linux-modular:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-hardfp-rdk
+      platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm-softfp:
+  # This is content_shell without starboard
+  linux-web-tests:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: evergreen-arm-softfp
+      platform: linux-web-tests
       nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm64:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm64
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
