@@ -128,11 +128,3 @@ runs:
             cobalt/src/out/${{ matrix.platform }}_qa/apks/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/gen/build_info.json
-      - name: Upload Test Artifacts
-        if: steps.build-test-targets.outcome == 'success'
-        uses: ./cobalt/src/.github/actions/upload_test_artifacts
-        with:
-          test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
-          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: ${{ inputs.test_targets_json_file }}
