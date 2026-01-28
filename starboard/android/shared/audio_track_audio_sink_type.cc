@@ -19,8 +19,13 @@
 #include <string>
 #include <vector>
 
+<<<<<<< HEAD
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/jni_state.h"
+=======
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/audio_output_manager.h"
+>>>>>>> 7b78f5b908e (starboard/android: Remove ContinuousAudioTrackSink (#8837))
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/string.h"
@@ -39,12 +44,6 @@ namespace starboard::android::shared {
 namespace {
 
 using ::starboard::shared::starboard::media::GetBytesPerSample;
-
-// Whether to use continuous audio track sync, which keep feeding audio frames
-// into AudioTrack. Instead of callnig pause/play, it switches between silence
-// data and actual data.
-// TODO: b/186660620: Replace this constant with feature flag.
-constexpr bool kUseContinuousAudioTrackSink = false;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -486,25 +485,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   SB_DCHECK_GE(frames_per_channel, min_required_frames);
   int preferred_buffer_size_in_bytes =
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
-  if (kUseContinuousAudioTrackSink) {
-    if (tunnel_mode_audio_session_id == -1) {
-      SB_LOG(INFO) << "Will create ContinuousAudioTrackSink";
-      auto continuous_sink = new ContinuousAudioTrackSink(
-          this, channels, sampling_frequency_hz, audio_sample_type,
-          frame_buffers, frames_per_channel, preferred_buffer_size_in_bytes,
-          update_source_status_func, consume_frames_func, error_func,
-          start_media_time, is_web_audio, context);
-      if (!continuous_sink->IsAudioTrackValid()) {
-        SB_LOG(ERROR) << "Failed to create ContinuousAudioTrackSink";
-        Destroy(continuous_sink);
-        return kSbAudioSinkInvalid;
-      }
-      return continuous_sink;
-    } else {
-      SB_LOG(INFO) << "Cannot use ContinuousAudioTrack with tunnel mode. "
-                      "will Create normal AudioTrackAudioSink instead.";
-    }
-  }
 
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
