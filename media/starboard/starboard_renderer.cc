@@ -117,20 +117,6 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
   }
 }
 
-bool ReadCommandLineSwitchForMemoryPressureSignal() {
-  // TODO(b/460292554): remove this once we have full base::Feature support.
-  // We check the feature name as a switch because h5vcc settings are passed
-  // as command line switches to the renderer process.
-  const auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (!command_line->HasSwitch(
-          switches::kCobaltNotifyMemoryPressureBeforePlayback)) {
-    return false;
-  }
-  std::string value = command_line->GetSwitchValueASCII(
-      switches::kCobaltNotifyMemoryPressureBeforePlayback);
-  return value != "0" && base::ToLowerASCII(value) != "false";
-}
-
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
