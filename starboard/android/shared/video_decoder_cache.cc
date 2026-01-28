@@ -58,9 +58,7 @@ VideoDecoderCache* VideoDecoderCache::GetInstance() {
   return instance;
 }
 
-VideoDecoderCache::VideoDecoderCache()
-    : dummy_surface_texture_(CreateDummySurfaceTexture()),
-      dummy_surface_(CreateDummySurface(dummy_surface_texture_)) {}
+VideoDecoderCache::VideoDecoderCache() = default;
 
 bool VideoDecoderCache::CacheKey::operator==(const CacheKey& other) const {
   return codec == other.codec && output_mode == other.output_mode;
@@ -79,7 +77,10 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
     return "Invalid: decoder is null";
   }
 
-  if (!decoder->SetOutputSurface(dummy_surface_.obj())) {
+  auto dummy_surface_texture = CreateDummySurfaceTexture();
+  auto dummy_surface = CreateDummySurface(dummy_surface_texture);
+
+  if (!decoder->SetOutputSurface(dummy_surface.obj())) {
     return "Failed to set dummy surface, destroying decoder.";
   }
 
@@ -89,7 +90,8 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
   if (cache_.size() >= kMaxCacheSize) {
     cache_.pop_front();
   }
-  cache_.push_back({key, std::move(decoder)});
+  cache_.push_back({key, std::move(decoder), std::move(dummy_surface_texture),
+                    std::move(dummy_surface)});
   return "";
 }
 

@@ -52,14 +52,13 @@ class VideoDecoderCache {
   struct CacheEntry {
     CacheKey key;
     std::unique_ptr<MediaDecoder> decoder;
+    base::android::ScopedJavaGlobalRef<jobject> dummy_surface_texture;
+    base::android::ScopedJavaGlobalRef<jobject> dummy_surface;
   };
 
   static constexpr int kMaxCacheSize = 4;
   std::mutex mutex_;
   std::list<CacheEntry> cache_;
-
-  const base::android::ScopedJavaGlobalRef<jobject> dummy_surface_texture_;
-  const base::android::ScopedJavaGlobalRef<jobject> dummy_surface_;
 };
 
 std::ostream& operator<<(std::ostream& os,

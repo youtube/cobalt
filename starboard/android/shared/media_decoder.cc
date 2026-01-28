@@ -828,7 +828,9 @@ bool MediaDecoder::ResetForReuse(
   frame_rendered_cb_ = std::move(frame_rendered_cb);
   first_tunnel_frame_ready_cb_ = std::move(first_tunnel_frame_ready_cb);
 
-  ResetState();
+  if (is_valid() && !media_codec_bridge_->Restart()) {
+    SB_LOG(ERROR) << "Failed to restart media codec.";
+  }
   return true;
 }
 
@@ -838,10 +840,6 @@ void MediaDecoder::ResetState() {
   error_occurred_ = false;
   error_message_.clear();
   pending_input_to_retry_ = std::nullopt;
-
-  if (is_valid() && !media_codec_bridge_->Restart()) {
-    SB_LOG(ERROR) << "Failed to restart media codec.";
-  }
 }
 
 }  // namespace starboard::android::shared
