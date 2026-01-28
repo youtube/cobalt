@@ -101,22 +101,16 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   return false;
 }
 
-void ParseMaxResolution(const std::string& max_video_capabilities,
-                        const Size& frame_size,
-                        std::optional<int>* max_width,
-                        std::optional<int>* max_height) {
+std::optional<Size> ParseMaxResolution(
+    const std::string& max_video_capabilities,
+    const Size& frame_size) {
   SB_DCHECK_GT(frame_size.width, 0);
   SB_DCHECK_GT(frame_size.height, 0);
-  SB_DCHECK(max_width);
-  SB_DCHECK(max_height);
-
-  *max_width = std::nullopt;
-  *max_height = std::nullopt;
 
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
         << "Didn't parse max resolutions as `max_video_capabilities` is empty.";
-    return;
+    return std::nullopt;
   }
 
   SB_LOG(INFO) << "Try to parse max resolutions from `max_video_capabilities` ("
@@ -129,7 +123,7 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
   if (!mime_type.is_valid()) {
     SB_LOG(WARNING) << "Failed to parse max resolutions as "
                        "`max_video_capabilities` is invalid.";
-    return;
+    return std::nullopt;
   }
 
   int width = mime_type.GetParamIntValue("width", -1);
@@ -137,14 +131,12 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
   if (width <= 0 && height <= 0) {
     SB_LOG(WARNING) << "Failed to parse max resolutions as either width or "
                        "height isn't set.";
-    return;
+    return std::nullopt;
   }
   if (width != -1 && height != -1) {
-    *max_width = width;
-    *max_height = height;
-    SB_LOG(INFO) << "Parsed max resolutions @ (" << *max_width << ", "
-                 << *max_height << ").";
-    return;
+    Size max_size = {width, height};
+    SB_LOG(INFO) << "Parsed max resolution=" << max_size;
+    return max_size;
   }
 
   if (frame_size.width <= 0 || frame_size.height <= 0) {
@@ -152,25 +144,20 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
     SB_LOG(WARNING)
         << "Failed to parse max resolutions due to invalid frame resolutions ("
         << frame_size << ").";
-    return;
+    return std::nullopt;
   }
 
   if (width > 0) {
-    *max_width = width;
-    *max_height = max_width->value() * frame_size.height / frame_size.width;
-    SB_LOG(INFO) << "Inferred max height (" << *max_height
-                 << ") from max_width (" << *max_width
-                 << ") and frame resolution @ (" << frame_size << ").";
-    return;
+    Size max_size = {width, width * frame_size.height / frame_size.width};
+    SB_LOG(INFO) << "Inferred max size=" << max_size
+                 << ", frame resolution=" << frame_size;
+    return max_size;
   }
 
-  if (height > 0) {
-    *max_height = height;
-    *max_width = max_height->value() * frame_size.width / frame_size.height;
-    SB_LOG(INFO) << "Inferred max width (" << *max_width
-                 << ") from max_height (" << *max_height
-                 << ") and frame resolution @ (" << frame_size << ").";
-  }
+  Size max_size = {height * frame_size.width / frame_size.height, height};
+  SB_LOG(INFO) << "Inferred max size=" << max_size
+               << ", frame resolution=" << frame_size;
+  return max_size;
 }
 
 class VideoFrameImpl : public VideoFrame {
@@ -330,9 +317,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     int tunnel_mode_audio_session_id,
     bool force_secure_pipeline_under_tunnel_mode,
     bool force_reset_surface,
-    bool force_reset_surface_under_tunnel_mode,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
+    void* surface_view,
     bool enable_flush_during_seek,
     int64_t reset_delay_usec,
     int64_t flush_delay_usec,
@@ -347,14 +334,13 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
+      surface_view_(surface_view),
       enable_flush_during_seek_(enable_flush_during_seek),
       reset_delay_usec_(android_get_device_api_level() < 34 ? reset_delay_usec
                                                             : 0),
       flush_delay_usec_(android_get_device_api_level() < 34 ? flush_delay_usec
                                                             : 0),
       force_reset_surface_(force_reset_surface),
-      force_reset_surface_under_tunnel_mode_(
-          force_reset_surface_under_tunnel_mode),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
@@ -403,7 +389,9 @@ MediaCodecVideoDecoder::MediaCodecVideoDecoder(
 MediaCodecVideoDecoder::~MediaCodecVideoDecoder() {
   TeardownCodec();
   if (tunnel_mode_audio_session_id_ != -1) {
-    ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
+    // Forces video surface to reset after tunnel mode playbacks. This prevents
+    // video distortion on some platforms. For details, see http://b/182610842.
+    ClearVideoWindow(/*force_reset_surface=*/true);
   } else {
     ClearVideoWindow(force_reset_surface_);
   }
@@ -664,7 +652,11 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   jobject j_output_surface = NULL;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
-      j_output_surface = AcquireVideoSurface();
+      if (surface_view_) {
+        j_output_surface = static_cast<jobject>(surface_view_);
+      } else {
+        j_output_surface = AcquireVideoSurface();
+      }
       if (j_output_surface) {
         owns_video_surface_ = true;
       }
@@ -707,18 +699,16 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     SB_DCHECK_EQ(video_fps_, 0);
   }
 
-  std::optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaCodecDecoder
   //                    ctor.
-  ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size,
-                     &max_width, &max_height);
+  std::optional<Size> max_frame_size =
+      ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
 
   std::string error_message;
   media_decoder_ = std::make_unique<MediaCodecDecoder>(
-      this, video_stream_info.codec, video_stream_info.frame_size.width,
-      video_stream_info.frame_size.height, max_width, max_height, video_fps_,
-      j_output_surface, drm_system_,
+      /*host=*/this, video_stream_info.codec, video_stream_info.frame_size,
+      max_frame_size, video_fps_, j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),

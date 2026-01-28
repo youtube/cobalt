@@ -177,6 +177,25 @@ if (is_android) {
   }
 }
 
+copy("cobalt_browsertests_runner_script") {
+  testonly = true
+
+  # TODO(433354983): Switch back to the run_browser_tests.py
+  # once the infra supports python.
+  sources = [ "cobalt_browsertests_runner.sh" ]
+  outputs = [ "$root_out_dir/cobalt_browsertests_runner" ]
+  deps = [ ":cobalt_browsertests" ]
+}
+
+group("cobalt_browsertests_runner") {
+  testonly = true
+  data_deps = [
+    ":cobalt_browsertests",
+    ":cobalt_browsertests_runner_script",
+  ]
+  write_runtime_deps = "$root_out_dir/cobalt_browsertests_runner.runtime_deps"
+}
+
 # Note: Testing on official builds is not currently supported.
 test("cobalt_browsertests") {
   use_xvfb = use_xvfb_in_this_config
@@ -189,14 +208,17 @@ test("cobalt_browsertests") {
 
   sources = [
     # TODO(b/458665232): restore browser tests in M138.
-    #"content_main_runner_impl_browsertest.cc",
+    "content_main_runner_impl_browsertest.cc",
+
     #"encrypted_media_browsertest.cc",
     #"frame_tree_browsertest.cc",
     #"media_browsertest.cc",
     #"media_browsertest.h",
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "navigation_browsertest.cc",
+
     #"session_history_browsertest.cc",
     #"site_per_process_browsertest.cc",
     #"site_per_process_browsertest.h",
@@ -209,13 +231,7 @@ test("cobalt_browsertests") {
   }
 
   if (is_starboard) {
-    sources += [
-      "cobalt_browser_tests_main.cc",
-
-      #TODO(b/433354983): Use the shared "sources" list once cobalt_browsertests
-      # can run on other platforms.
-      "content_main_runner_impl_browsertest.cc",
-    ]
+    sources += [ "cobalt_browser_tests_main.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -433,6 +449,8 @@ static_library("cobalt_shell_test_lib") {
     "browser/test_shell.h",
     "common/shell_content_test_client.cc",
     "common/shell_content_test_client.h",
+    "gpu/shell_content_gpu_test_client.cc",
+    "gpu/shell_content_gpu_test_client.h",
     "renderer/shell_content_renderer_test_client.cc",
     "renderer/shell_content_renderer_test_client.h",
     "utility/shell_content_utility_client.cc",
@@ -443,12 +461,14 @@ static_library("cobalt_shell_test_lib") {
     ":cobalt_browsertests_support",
     ":cobalt_browsertests_support_mojom",
     "//cc/base",
+    "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_app",
     "//cobalt/shell:cobalt_shell_lib",
     "//components/prefs",
     "//components/prefs:test_support",
     "//components/variations",
     "//components/variations/service",
+    "//components/viz/service",
     "//services/network/public/cpp",
   ]
 
@@ -483,6 +503,7 @@ source_set("cobalt_browsertests_support") {
   public_deps = [
     ":cobalt_browsertests_support_mojom",
     ":shell_controller_mojom",
+    "//cobalt/renderer",
     "//components/custom_handlers:test_support",
     "//components/metrics:test_support",
     "//components/services/storage/test_api",

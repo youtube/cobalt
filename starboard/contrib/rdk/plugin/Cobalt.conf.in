@@ -1,0 +1,54 @@
+precondition = ["Platform","Graphics","Internet"]
+autostart = "@PLUGIN_COBALT_AUTOSTART@"
+
+if ("@PLUGIN_COBALT_PERSISTENTPATHPOSTFIX@"):
+    persistentpathpostfix = "@PLUGIN_COBALT_PERSISTENTPATHPOSTFIX@"
+
+configuration = JSON()
+
+configuration.add("url", "https://www.youtube.com/tv")
+configuration.add("clientidentifier", "@PLUGIN_COBALT_CLIENTIDENTIFIER@")
+configuration.add("language", "@PLUGIN_COBALT_LANGUAGE@")
+configuration.add("contentdir", "@PLUGIN_COBALT_CONTENT_DIR@")
+configuration.add("essoscontextdestroy", "@PLUGIN_COBALT_ESSOS_CONTEXT_DESTROY@")
+configuration.add("preload", "@PLUGIN_COBALT_PRELOAD@")
+configuration.add("closurepolicy", "@PLUGIN_COBALT_CLOSUREPOLICY@")
+
+advertisingid = JSON()
+advertisingid.add("ifa", "@PLUGIN_COBALT_ADVERTISING_ID@")
+advertisingid.add("ifa_type", "@PLUGIN_COBALT_IFA_TYPE@")
+advertisingid.add("lmt", "@PLUGIN_COBALT_LIMIT_AD_TRACKING@")
+
+if (
+    "@PLUGIN_COBALT_ADVERTISING_ID@" or
+    "@PLUGIN_COBALT_IFA_TYPE@" or
+    "@PLUGIN_COBALT_LIMIT_AD_TRACKING@"
+):
+    configuration.add("advertisingid", advertisingid)
+
+systemproperties = JSON()
+systemproperties.add("modelname", "@PLUGIN_COBALT_PROP_MODELNAME@")
+systemproperties.add("brandname", "@PLUGIN_COBALT_PROP_BRANDNAME@")
+systemproperties.add("modelyear", "@PLUGIN_COBALT_PROP_MODELYEAR@")
+systemproperties.add("chipsetmodelnumber", "@PLUGIN_COBALT_PROP_CHIPSETMODELNUMBER@")
+systemproperties.add("firmwareversion", "@PLUGIN_COBALT_PROP_FIRMWAREVERSION@")
+systemproperties.add("integratorname", "@PLUGIN_COBALT_PROP_INTEGRATORNAME@")
+systemproperties.add("friendlyname", "@PLUGIN_COBALT_PROP_FRIENDLYNAME@")
+systemproperties.add("devicetype", "@PLUGIN_COBALT_PROP_DEVICETYPE@")
+
+configuration.add("systemproperties", systemproperties)
+
+sbmainargs = []
+
+if boolean("@PLUGIN_COBALT_EVEGREEN_LITE@"):
+    sbmainargs.append("--evergreen_lite")
+
+configuration.add("sbmainargs", sbmainargs)
+
+root = JSON()
+root.add("mode", "@PLUGIN_COBALT_MODE@")
+root.add("locator", "lib@PLUGIN_COBALT_IMPLEMENTATION@.so")
+root.add("user", "@PLUGIN_COBALT_USER@")
+root.add("group", "@PLUGIN_COBALT_GROUP@")
+configuration.add("root", root)
+

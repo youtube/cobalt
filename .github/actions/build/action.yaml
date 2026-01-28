@@ -20,7 +20,11 @@ runs:
       - name: GN gen
         run: |
           cd cobalt/src
-          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
+          gn_flags=()
+          if [[ "${{ matrix.platform }}" == *"tvos"* ]]; then
+            gn_flags+=(--no-rbe --no-check)
+          fi
+          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} "${gn_flags[@]}"
         shell: bash
       - name: List GN args
         run: |
@@ -40,8 +44,9 @@ runs:
           # of the code as if the pull request had been merged into the base branch.
           # Setting fetch-depth to 2 effectively gets a merge commit (i.e. HEAD) and the
           # HEAD commit from the base branch (i.e. HEAD~1).
-          git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
-          cat ${CHANGED_FILES_LIST}
+          # TODO(b/382508397): Disabled for now.
+          # git diff --name-only HEAD~1 HEAD > ${CHANGED_FILES_LIST}
+          # cat ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
         # TODO(b/382508397): Ignore test_root_target until test target listing is dynamic.
@@ -123,11 +128,3 @@ runs:
             cobalt/src/out/${{ matrix.platform }}_qa/apks/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             cobalt/src/out/${{ matrix.platform }}_qa/gen/build_info.json
-      - name: Upload Test Artifacts
-        if: steps.build-test-targets.outcome == 'success'
-        uses: ./cobalt/src/.github/actions/upload_test_artifacts
-        with:
-          test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
-          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: ${{ inputs.test_targets_json_file }}

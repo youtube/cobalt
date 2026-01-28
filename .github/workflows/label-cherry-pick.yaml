@@ -31,7 +31,8 @@ jobs:
           labels=$LABEL_NAME
         fi
 
-        branches=("26.eap" "26.android")
+        # This list must contain all cherry-pick destinations as file is used for all branches.
+        branches=("main" "26.eap" "26.android" "25.lts.1+" "24.lts.1+" "23.lts.1+" "22.lts.1+" "21.lts.1+" "20.lts.1+" "19.lts.1+" "rc_11" "COBALT_9")
         filtered_branches=()
         for branch in "${branches[@]}"; do
           if [[ $branch == $BASE_REF ]]; then

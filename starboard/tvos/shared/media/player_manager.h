@@ -22,7 +22,6 @@
 #include "starboard/tvos/shared/media/url_player.h"
 
 @class SBDApplicationPlayer;
-@class SBDApplicationWindow;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -41,8 +40,7 @@ NS_ASSUME_NONNULL_BEGIN
                 encryptedMediaCallback:
                     (SbPlayerEncryptedMediaInitDataEncounteredCB)
                         encryptedMediaCallback
-                       playerErrorFunc:(SbPlayerErrorFunc)errorFunc
-                              inWindow:(SBDApplicationWindow*)window;
+                       playerErrorFunc:(SbPlayerErrorFunc)errorFunc;
 
 /**
  *  @brief Destroy the specified player.

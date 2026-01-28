@@ -15,11 +15,11 @@
 #ifndef COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
 #define COBALT_TESTING_BROWSER_TESTS_RENDERER_SHELL_RENDER_FRAME_OBSERVER_H_
 
-#include "content/public/renderer/render_frame_observer.h"
+#include "cobalt/renderer/cobalt_render_frame_observer.h"
 
 namespace content {
 
-class ShellRenderFrameObserver : public RenderFrameObserver {
+class ShellRenderFrameObserver : public cobalt::CobaltRenderFrameObserver {
  public:
   explicit ShellRenderFrameObserver(RenderFrame* frame);
   ~ShellRenderFrameObserver() override;

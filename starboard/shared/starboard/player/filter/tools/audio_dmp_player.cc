@@ -54,7 +54,7 @@ starboard::scoped_refptr<InputBuffer> GetAudioInputBuffer(size_t index) {
 
 void OnTimer() {
   if (!s_player_components->GetAudioRenderer()->CanAcceptMoreData()) {
-    s_job_thread->job_queue()->Schedule(std::bind(OnTimer), 1000);
+    s_job_thread->Schedule(OnTimer, 1000);
     return;
   }
 
@@ -72,7 +72,7 @@ void OnTimer() {
     ++s_audio_sample_index;
   }
 
-  s_job_thread->job_queue()->Schedule(std::bind(OnTimer));
+  s_job_thread->Schedule(OnTimer);
 }
 
 void ErrorCB(SbPlayerError error, const std::string& error_message) {
@@ -113,7 +113,7 @@ void Start(const char* filename) {
   s_player_components->GetMediaTimeProvider()->SetPlaybackRate(1.0);
   s_player_components->GetAudioRenderer()->SetVolume(1.0);
   s_player_components->GetMediaTimeProvider()->Seek(0);
-  s_job_thread->job_queue()->Schedule(std::bind(OnTimer));
+  s_job_thread->Schedule(OnTimer);
 }
 
 }  // namespace
@@ -135,8 +135,12 @@ void SbEventHandle(const SbEvent* event) {
       }
 
       s_job_thread.reset(new JobThread("audio", kJobThreadStackSize));
-      s_job_thread->job_queue()->Schedule(
-          std::bind(Start, data->argument_values[1]));
+      s_job_thread->Schedule(
+          // Capture filename by value, since |data| is only valid for the
+          // lifetime of SbEventHandle.
+          [filename = std::string(data->argument_values[1])] {
+            Start(filename.c_str());
+          });
       break;
     }
     case kSbEventTypeStop: {
