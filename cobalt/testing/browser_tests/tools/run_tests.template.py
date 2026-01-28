@@ -41,12 +41,15 @@ def main():
 
   # 1. Setup Environment
   logging.info("Configuring environment...")
-  depot_tools_path = os.path.join(script_dir, "depot_tools")
-  os.environ["PATH"] = depot_tools_path + os.pathsep + os.environ.get(
-      "PATH", "")
-  os.environ["DEPOT_TOOLS_UPDATE"] = "0"
-
   src_dir = os.path.join(script_dir, "src")
+
+  # Find depot_tools. It should be in third_party/depot_tools if bundled via GN.
+  depot_tools_path = os.path.join(src_dir, "third_party", "depot_tools")
+  if os.path.isdir(depot_tools_path):
+    os.environ["PATH"] = depot_tools_path + os.pathsep + os.environ.get(
+        "PATH", "")
+
+  os.environ["DEPOT_TOOLS_UPDATE"] = "0"
   os.environ["CHROME_SRC"] = src_dir
   os.environ["PYTHONPATH"] = os.path.join(
       src_dir, "tools", "python") + os.pathsep + os.environ.get(
@@ -129,7 +132,7 @@ def main():
   logging.info("Checking for vpython3...")
   vpython_path = shutil.which("vpython3")
   if not vpython_path:
-    logging.error("vpython3 not found in bundled depot_tools.")
+    logging.error("vpython3 not found in PATH or bundled depot_tools.")
     sys.exit(1)
   logging.info("Using vpython3 at: %s", vpython_path)
 

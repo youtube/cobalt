@@ -213,6 +213,7 @@ group("cobalt_browsertests_portable_deps") {
     "//third_party/android_platform/development/scripts/",
     "//third_party/android_sdk/public/platform-tools/",
     "//third_party/catapult/",
+    "//third_party/depot_tools/",
     "//third_party/llvm-build/Release+Asserts/bin/",
     "//third_party/logdog/",
     "//tools/python/",
