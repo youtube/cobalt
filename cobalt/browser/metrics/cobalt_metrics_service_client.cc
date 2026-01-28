@@ -33,6 +33,29 @@
 
 namespace cobalt {
 
+namespace {
+
+void OnMemoryDumpDone(
+    base::OnceClosure done_callback,
+    bool success,
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
+  if (success && global_dump) {
+    uint64_t total_private_footprint_kb = 0;
+    for (const auto& process_dump : global_dump->process_dumps()) {
+      total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+    }
+
+    if (total_private_footprint_kb > 0) {
+      MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
+                                  total_private_footprint_kb / 1024);
+    }
+  }
+
+  std::move(done_callback).Run();
+}
+
+}  // namespace
+
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
     std::unique_ptr<variations::SyntheticTrialRegistry>
@@ -191,35 +214,12 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
       memory_instrumentation::MemoryInstrumentation::GetInstance();
   if (instrumentation) {
     instrumentation->RequestGlobalDump(
-        {}, base::BindOnce(&CobaltMetricsServiceClient::OnMemoryDumpDone,
-                           weak_ptr_factory_.GetWeakPtr(),
-                           std::move(done_callback)));
+        {}, base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
   } else {
     std::move(done_callback).Run();
   }
 
   OnApplicationNotIdleInternal();
-}
-
-void CobaltMetricsServiceClient::OnMemoryDumpDone(
-    base::OnceClosure done_callback,
-    bool success,
-    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-
-  if (success && global_dump) {
-    uint64_t total_private_footprint_kb = 0;
-    for (const auto& process_dump : global_dump->process_dumps()) {
-      total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
-    }
-
-    if (total_private_footprint_kb > 0) {
-      MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
-                                  total_private_footprint_kb / 1024);
-    }
-  }
-
-  std::move(done_callback).Run();
 }
 
 void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {

@@ -112,12 +112,6 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Completes the two-phase initialization of CobaltMetricsServiceClient.
   void Initialize();
 
-  // Callback invoked after memory instrumentation finishes collecting a dump.
-  void OnMemoryDumpDone(
-      base::OnceClosure done_callback,
-      bool success,
-      std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump);
-
   base::RepeatingTimer idle_refresh_timer_;
 
   base::WeakPtrFactory<CobaltMetricsServiceClient> weak_ptr_factory_{this};
