@@ -16,6 +16,7 @@
     "FileTempTest.MkstempNonExistentPath",
     "PosixInitStateTest.SetStateRestoresState",
     "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "PosixMemoryMapTest.CanChangeMemoryProtection",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
   ],
@@ -25,6 +26,7 @@
     "FileTempTest.MkstempNonExistentPath",
     "PosixInitStateTest.SetStateRestoresState",
     "PosixMemalignTest.FailsWithInvalidAlignment*",
+    "PosixMemoryMapTest.CanChangeMemoryProtection",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
   ]
