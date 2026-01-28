@@ -60,7 +60,7 @@ TEST(PosixLstatTest, LstatOnExistingDirectory) {
   struct stat sb;
   EXPECT_EQ(lstat(dir_path, &sb), 0);
   EXPECT_TRUE(S_ISDIR(sb.st_mode));
-  // A directory should have at least 1 link for its own entry.
+  // Modern filesystems might have just one link.
   EXPECT_GE(sb.st_nlink, 1u);
   rmdir(dir_path);
 }
