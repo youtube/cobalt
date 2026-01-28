@@ -140,8 +140,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
         use_android_deps_path=False,
         compression='gz',
         compression_level=1,
-        flatten_deps=False,
-        include_browsertests_runner=True)
+        flatten_deps=False)
 
     self.assertTrue(mock_make_tar.called)
     file_lists = mock_make_tar.call_args[0][3]
@@ -185,8 +184,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
         use_android_deps_path=False,
         compression='gz',
         compression_level=1,
-        flatten_deps=False,
-        include_browsertests_runner=True)
+        flatten_deps=False)
 
     # Verify generate_runner_py was called with correct target_map
     target_map = mock_gen.call_args[0][1]
@@ -216,6 +214,12 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     with open(deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
 
+    # Create dummy runtime_deps for the portable deps target
+    portable_deps_file = os.path.join(
+        self.out_dir, 'cobalt_browsertests_portable_deps.runtime_deps')
+    with open(portable_deps_file, 'w', encoding='utf-8') as f:
+      f.write('cobalt_browsertests\n')
+
     # Create dummy files to pass existence checks
     self._touch(self.out_dir, 'cobalt_browsertests')
 
@@ -232,7 +236,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
         flatten_deps=False)
 
     self.assertTrue(mock_make_tar.called)
-    file_list = mock_make_tar.call_args[0][3][0][0]
+    file_list = mock_make_tar.call_args[0][3][1][0]
     self.assertIn(os.path.relpath(deps_file, self.source_dir), file_list)
 
   @mock.patch('archive_test_artifacts._make_tar')

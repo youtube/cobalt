@@ -116,7 +116,6 @@ def create_archive(
     compression: str,
     compression_level: int,
     flatten_deps: bool,
-    include_browsertests_runner: bool = False,
 ):
   """Main logic. Collects runtime dependencies for each target."""
   source_dir = os.path.abspath(source_dir)
@@ -129,6 +128,8 @@ def create_archive(
 
   # If including the browsertest runner, ensure the portable deps target is
   # processed.
+  include_browsertests_runner = any(
+      t.endswith(':cobalt_browsertests') for t in targets)
   if include_browsertests_runner:
     portable_deps_target = (
         'cobalt/testing/browser_tests:cobalt_browsertests_portable_deps')
@@ -322,19 +323,9 @@ def main():
       action='store_true',
       help='Pass this argument to archive files from the source and out '
       'directories both at the root of the deps archive.')
-  parser.add_argument(
-      '--include-browsertests-runner',
-      action='store_true',
-      help='Include the browsertest runner script and dependencies.')
   args = parser.parse_args()
 
   logging.basicConfig(level=logging.INFO, format='%(message)s')
-
-  if args.flatten_deps != args.archive_per_target:
-    # Relax this check if we are including browsertests runner,
-    # as it usually implies a single archive.
-    if not args.include_browsertests_runner:
-      raise ValueError('Unsupported configuration.')
 
   create_archive(
       targets=args.targets,
@@ -345,8 +336,7 @@ def main():
       use_android_deps_path=args.use_android_deps_path,
       compression=args.compression,
       compression_level=args.compression_level,
-      flatten_deps=args.flatten_deps,
-      include_browsertests_runner=args.include_browsertests_runner)
+      flatten_deps=args.flatten_deps)
 
 
 if __name__ == '__main__':
