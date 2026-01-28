@@ -119,6 +119,13 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     with open(deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
 
+    # Create dummy runtime_deps for the portable deps target
+    portable_deps_file = os.path.join(
+        self.out_dir, 'cobalt_browsertests_portable_deps.runtime_deps')
+    with open(portable_deps_file, 'w', encoding='utf-8') as f:
+      f.write('../../testing/file\n')
+      f.write('../../.vpython3\n')
+
     # Create dummy files to pass existence checks
     self._touch(self.out_dir, 'cobalt_browsertests')
     self._touch(self.source_dir, 'testing/file')
@@ -141,7 +148,7 @@ class TestArchiveTestArtifacts(unittest.TestCase):
 
     # Check for combined_deps
     combined_deps = file_lists[1][0]
-    self.assertIn('testing', combined_deps)
+    self.assertIn('testing/file', combined_deps)
     self.assertIn('.vpython3', combined_deps)
     self.assertIn('out/Default/cobalt_browsertests', combined_deps)
 
@@ -156,6 +163,12 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
     os.makedirs(os.path.dirname(deps_file), exist_ok=True)
     with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('cobalt_browsertests\n')
+
+    # Create dummy runtime_deps for the portable deps target
+    portable_deps_file = os.path.join(
+        self.out_dir, 'cobalt_browsertests_portable_deps.runtime_deps')
+    with open(portable_deps_file, 'w', encoding='utf-8') as f:
       f.write('cobalt_browsertests\n')
 
     # Create dummy files to pass existence checks

@@ -20,7 +20,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-from pathlib import Path
 from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
@@ -31,25 +30,6 @@ _EXCLUDE_DIRS = [
     './lib.unstripped/',
     '../../third_party/jdk/',
     'testing/buildbot/',
-]
-
-# Note: Keep this in sync with cobalt_browsertests_portable_deps in
-# cobalt/testing/browser_tests/BUILD.gn.
-_ESSENTIAL_BROWSERTEST_DIRS = [
-    'build/android',
-    'build/util',
-    'build/skia_gold_common',
-    'testing',
-    'third_party/android_build_tools',
-    'third_party/catapult/common',
-    'third_party/catapult/dependency_manager',
-    'third_party/catapult/devil',
-    'third_party/catapult/third_party',
-    'third_party/logdog',
-    'third_party/android_sdk/public/platform-tools',
-    'third_party/android_platform/development/scripts',
-    'third_party/llvm-build/Release+Asserts/bin',
-    'tools/python',
 ]
 
 
@@ -148,6 +128,14 @@ def create_archive(
   combined_deps = set()
   target_map = {}
   file_lists = []
+
+  # If including the browsertest runner, ensure the portable deps target is
+  # processed.
+  if include_browsertests_runner:
+    portable_deps_target = (
+        'cobalt/testing/browser_tests:cobalt_browsertests_portable_deps')
+    if portable_deps_target not in targets:
+      targets.append(portable_deps_target)
 
   for target in targets:
     target_path, target_name = target.split(':')
@@ -270,25 +258,6 @@ def create_archive(
 
     if include_browsertests_runner:
       logging.info('Including browsertest runner artifacts')
-      # Add essential directories
-      for d in _ESSENTIAL_BROWSERTEST_DIRS:
-        full_d = os.path.join(source_dir, d)
-        if os.path.isdir(full_d):
-          rel_d = os.path.relpath(full_d, source_dir)
-          combined_deps.add(rel_d)
-
-      # Add top-level build scripts
-      for f in Path(source_dir).joinpath('build').glob('*.py'):
-        rel_f = os.path.relpath(str(f), source_dir)
-        combined_deps.add(rel_f)
-
-      # Add vpython3 and run_browser_tests.py
-      for f in [
-          '.vpython3', 'v8/.vpython3',
-          'cobalt/testing/browser_tests/run_browser_tests.py'
-      ]:
-        if os.path.exists(os.path.join(source_dir, f)):
-          combined_deps.add(f)
 
       # Generate run_tests.py
       template_path = os.path.join(

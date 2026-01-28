@@ -197,13 +197,14 @@ group("cobalt_browsertests_runner") {
 }
 
 # Dependencies required to run browsertests in a portable environment.
-# Note: Keep this in sync with _ESSENTIAL_BROWSERTEST_DIRS in
-# cobalt/build/archive_test_artifacts.py.
+# This is used by cobalt/build/archive_test_artifacts.py to bundle
+# runtime dependencies.
 group("cobalt_browsertests_portable_deps") {
   testonly = true
   data = [
     ".vpython3",
     "run_browser_tests.py",
+    "//build/",
     "//build/android/",
     "//build/skia_gold_common/",
     "//build/util/",
@@ -217,6 +218,8 @@ group("cobalt_browsertests_portable_deps") {
     "//tools/python/",
     "//v8/.vpython3",
   ]
+  write_runtime_deps =
+      "$root_out_dir/cobalt_browsertests_portable_deps.runtime_deps"
 }
 
 # Note: Testing on official builds is not currently supported.
