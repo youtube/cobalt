@@ -17,6 +17,7 @@
     "PosixInitStateTest.SetStateRestoresState",
     "PosixMemalignTest.FailsWithInvalidAlignment*",
     "PosixMemoryMapTest.CanChangeMemoryProtection",
+    "PosixThreadDetachTest.SunnyDay",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
   ],
@@ -27,6 +28,7 @@
     "PosixInitStateTest.SetStateRestoresState",
     "PosixMemalignTest.FailsWithInvalidAlignment*",
     "PosixMemoryMapTest.CanChangeMemoryProtection",
+    "PosixThreadDetachTest.SunnyDay",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
   ]
