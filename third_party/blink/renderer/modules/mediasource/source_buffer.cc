@@ -82,6 +82,11 @@
 #include "third_party/blink/renderer/platform/wtf/math_extras.h"
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"  // nogncheck
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.h"  // nogncheck
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using blink::WebSourceBuffer;
 
 namespace blink {
@@ -195,6 +200,19 @@ scoped_refptr<media::StreamParserBuffer> MakeVideoStreamParserBuffer(
   return stream_parser_buffer;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool GetAppendFirstSegmentSynchronouslySetting(
+    const ExecutionContextLifecycleObserver* observer) {
+  LOG(INFO) << "initialDeepLink GetAppendFirstSegmentSynchronouslySetting";
+  if (auto* window = observer->DomWindow()) {
+    if (auto* h5vcc = H5vcc::h5vcc(*window)) {
+      return h5vcc->metrics()->isEnabled();
+    }
+  }
+  return false;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace
 
 SourceBuffer::SourceBuffer(std::unique_ptr<WebSourceBuffer> web_source_buffer,
@@ -202,6 +220,10 @@ SourceBuffer::SourceBuffer(std::unique_ptr<WebSourceBuffer> web_source_buffer,
                            EventQueue* async_event_queue)
     : ActiveScriptWrappable<SourceBuffer>({}),
       ExecutionContextLifecycleObserver(source->GetExecutionContext()),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      append_first_segment_synchronously_(
+          GetAppendFirstSegmentSynchronouslySetting(this)),
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       web_source_buffer_(std::move(web_source_buffer)),
       source_(source),
       track_defaults_(MakeGarbageCollected<TrackDefaultList>()),
