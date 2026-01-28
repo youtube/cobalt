@@ -39,6 +39,8 @@ class ContentBrowserTestShellMainDelegate : public ShellMainDelegate {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 #endif
+  // ContentMainDelegate implementation:
+  absl::optional<int> PreBrowserMain() override;
   // ShellMainDelegate overrides.
   content::ContentBrowserClient* CreateContentBrowserClient() override;
 

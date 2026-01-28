@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
   base::AtExitManager at_exit;
 
   // TODO(b/433354983): Support more platforms.
-  ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
+  // ui::LinuxUi::SetInstance(ui::GetDefaultLinuxUi());
 
   return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
