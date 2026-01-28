@@ -236,6 +236,7 @@ class SourceBuffer final : public EventTargetWithInlineData,
       scoped_refptr<MediaSourceAttachmentSupplement> attachment,
       MediaSourceTracer* tracer);
 
+      const bool append_first_segment_synchronously_;
   std::unique_ptr<WebSourceBuffer> web_source_buffer_;
 
   // If any portion of an attached HTMLMediaElement (HTMLME) and the MediaSource
