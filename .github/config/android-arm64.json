@@ -1,0 +1,29 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "android-arm64"
+  ],
+  "test_on_device": false,
+  "test_device_family": "android",
+  "test_e2e": false,
+  "test_root_target": "//cobalt/android:cobalt_apk",
+  "test_dimensions": {
+    "device_type": "nvidia_shield",
+    "device_pool": "maneki"
+  },
+  "targets": [
+    "cobalt:gn_all"
+  ],
+  "e2e_test_targets": [
+    {
+      "target": "web/living_room/kabuki/testing/end2end/browse:infra_smoke_test_custom_coat_nvidia_shield",
+      "test_attempts": "6"
+    }
+  ],
+  "includes": [
+    {
+      "name": "arm64",
+      "platform": "android-arm64"
+    }
+  ]
+}
