@@ -18,29 +18,6 @@ on:
         default: false
 
 jobs:
-  # evergreen-x64 is Evergreen on linux.
-  evergreen-x64:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-x64
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm-hardfp-raspi:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm-hardfp-raspi
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
   evergreen-arm-hardfp-rdk:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -48,28 +25,6 @@ jobs:
       pull-requests: write
     with:
       platform: evergreen-arm-hardfp-rdk
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm-softfp:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm-softfp
-      nightly: ${{ github.event.inputs.nightly }}
-      run_api_leak_detector: true
-    secrets:
-      datadog_api_key: ${{ secrets.DD_API_KEY }}
-  evergreen-arm64:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
     secrets:
