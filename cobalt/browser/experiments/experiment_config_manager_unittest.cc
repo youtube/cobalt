@@ -14,6 +14,9 @@
 
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
+#include "base/strings/stringprintf.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
 #include "base/time/time.h"
@@ -475,6 +478,66 @@ TEST_F(ExperimentConfigManagerTest,
   pref_service_->SetString(kSafeConfigMinVersion, "");
   EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
             ExperimentConfigType::kSafeConfig);
+}
+
+namespace {
+// Helper function to construct a modified version string for testing.
+std::string GetModifiedVersionString(int major_offset, int minor_offset) {
+  std::vector<std::string> parts = base::SplitString(
+      COBALT_VERSION, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  if (parts.size() != 3) {
+    return "99.99.99";  // Return a high version to ensure test fails loudly.
+  }
+
+  int major, minor;
+  base::StringToInt(parts[0], &major);
+  base::StringToInt(parts[2], &minor);
+
+  return base::StringPrintf("%d.%s.%d", major + major_offset, parts[1].c_str(),
+                            minor + minor_offset);
+}
+}  // namespace
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsEmptyOnMajorVersionRollback) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  // Recorded version is one major version ahead of the current version.
+  std::string future_version = GetModifiedVersionString(1, 0);
+  pref_service_->SetString(kExperimentConfigMinVersion, future_version);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsEmptyOnMinorVersionRollback) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  // Recorded version is one minor version ahead of the current version.
+  std::string future_version = GetModifiedVersionString(0, 1);
+  pref_service_->SetString(kExperimentConfigMinVersion, future_version);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kEmptyConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsRegularWhenVersionIsOlder) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  // Recorded version is one major version behind the current version.
+  std::string past_version = GetModifiedVersionString(-1, 0);
+  pref_service_->SetString(kExperimentConfigMinVersion, past_version);
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
+}
+
+TEST_F(ExperimentConfigManagerTest,
+       GetExperimentConfigTypeReturnsRegularOnInvalidVersionFormat) {
+  metrics_pref_service_->SetInteger(variations::prefs::kVariationsCrashStreak,
+                                    0);
+  pref_service_->SetString(kExperimentConfigMinVersion, "invalid-version");
+  EXPECT_EQ(experiment_config_manager_->GetExperimentConfigType(),
+            ExperimentConfigType::kRegularConfig);
 }
 
 }  // namespace cobalt
