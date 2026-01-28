@@ -92,6 +92,7 @@ void DetermineGrCacheLimitsFromAvailableMemory(
 
 // We can't call AmountOfPhysicalMemory under NACL, so leave the default.
 #if !BUILDFLAG(IS_NACL)
+<<<<<<< HEAD
   if (base::SysInfo::IsLowEndDevice()) {
 #if BUILDFLAG(IS_COBALT)
     *max_resource_cache_bytes = 0;
@@ -102,6 +103,27 @@ void DetermineGrCacheLimitsFromAvailableMemory(
   } else if (base::SysInfo::AmountOfPhysicalMemoryMB() >=
              GetHighEndMemoryThresholdMB()) {
     *max_resource_cache_bytes = GetMaxHighEndGaneshResourceCacheBytes();
+=======
+  // The limit of the bytes allocated toward GPU resources in the GrContext's
+  // GPU cache.
+#if BUILDFLAG(IS_COBALT)
+  constexpr size_t kMaxLowEndGaneshResourceCacheBytes = 24 * 1024 * 1024;
+#else
+  constexpr size_t kMaxLowEndGaneshResourceCacheBytes = 48 * 1024 * 1024;
+#endif
+  constexpr size_t kMaxHighEndGaneshResourceCacheBytes = 256 * 1024 * 1024;
+  // Limits for glyph cache textures.
+  constexpr size_t kMaxLowEndGlyphCacheTextureBytes = 1024 * 512 * 4;
+  // High-end / low-end memory cutoffs.
+  constexpr uint64_t kHighEndMemoryThreshold = 4096ULL * 1024 * 1024;
+
+  if (base::SysInfo::IsLowEndDevice()) {
+    *max_resource_cache_bytes = kMaxLowEndGaneshResourceCacheBytes;
+    *max_glyph_cache_texture_bytes = kMaxLowEndGlyphCacheTextureBytes;
+  } else if (base::SysInfo::AmountOfPhysicalMemory() >=
+             kHighEndMemoryThreshold) {
+    *max_resource_cache_bytes = kMaxHighEndGaneshResourceCacheBytes;
+>>>>>>> 35f90d92d2d (gpu: Tweak Skia memory limit for Cobalt on low-end devices (#8737))
   }
 #endif
 }
