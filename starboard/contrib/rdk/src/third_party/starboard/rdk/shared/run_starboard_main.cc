@@ -86,13 +86,17 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   printf("Yavor: SbRunStarboardMain\n");
   tzset();
 
+/*
   rlimit stack_size;
   getrlimit(RLIMIT_STACK, &stack_size);
   stack_size.rlim_cur = 2 * 1024 * 1024;
   setrlimit(RLIMIT_STACK, &stack_size);
+*/
 
   starboard::InstallSuspendSignalHandlers();
+  printf("Yavor: suspend signal installed\n");
   third_party::starboard::rdk::shared::InstallStopSignalHandlers();
+  printf("Yavor: stop signal installed\n");
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
   auto command_line = starboard::CommandLine(argc, argv);
@@ -104,7 +108,7 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   if (ca_certificates_path.empty()) {
     SB_LOG(ERROR) << "Failed to get CA certificates path. Skip crashpad handler setup.";
   } else {
-    crashpad::InstallCrashpadHandler(ca_certificates_path);
+    //crashpad::InstallCrashpadHandler(ca_certificates_path);
   }
 #endif
 
