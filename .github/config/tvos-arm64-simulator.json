@@ -1,5 +1,4 @@
 {
-  "docker_service": "",
   "platforms": [
     "tvos-arm64-simulator"
   ],
