@@ -73,15 +73,14 @@ std::ostream& operator<<(std::ostream& os,
             << "}";
 }
 
-void VideoDecoderCache::Put(const CacheKey& key,
-                            std::unique_ptr<MediaDecoder> decoder) {
+std::string VideoDecoderCache::Put(const CacheKey& key,
+                                   std::unique_ptr<MediaDecoder> decoder) {
   if (!decoder) {
-    return;
+    return "Invalid: decoder is null";
   }
 
   if (!decoder->SetOutputSurface(dummy_surface_.obj())) {
-    SB_LOG(WARNING) << "Failed to set dummy surface, destroying decoder.";
-    return;
+    return "Failed to set dummy surface, destroying decoder.";
   }
 
   SB_LOG(INFO) << "Caching video decoder for key=" << key;
@@ -91,6 +90,7 @@ void VideoDecoderCache::Put(const CacheKey& key,
     cache_.pop_front();
   }
   cache_.push_back({key, std::move(decoder)});
+  return "";
 }
 
 std::unique_ptr<MediaDecoder> VideoDecoderCache::Get(const CacheKey& key) {

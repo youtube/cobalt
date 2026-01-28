@@ -72,8 +72,7 @@ constexpr bool kUseVideoDecoderCache = true;
 
 bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
   if (max_video_capabilities.empty()) {
-    SB_LOG(INFO)
-        << "Use hardware decoder as `max_video_capabilities` is empty.";
+    // Use hardware decoder as `max_video_capabilities` is empty.
     return false;
   }
 
@@ -133,8 +132,6 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
   *max_height = std::nullopt;
 
   if (max_video_capabilities.empty()) {
-    SB_LOG(INFO)
-        << "Didn't parse max resolutions as `max_video_capabilities` is empty.";
     return;
   }
 
@@ -362,8 +359,8 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     if (!first_frame_logged_) {
       SB_CHECK(g_baseline_us_);
       int64_t elapsed_us = CurrentMonotonicTime() - *g_baseline_us_;
-      SB_LOG(INFO) << "Time to First Frame (TTFF): "
-                   << FormatWithDigitSeparators(elapsed_us) << " us";
+      SB_LOG(INFO) << "Time to First Frame (TTFF) in msec="
+                   << FormatWithDigitSeparators(elapsed_us / 1'000);
       first_frame_logged_ = true;
     }
 
@@ -703,8 +700,12 @@ std::unique_ptr<MediaDecoder> VideoDecoder::GetCachedMediaDecoder(
     return nullptr;
   }
 
-  auto media_decoder = video_decoder_cache_->Get({video_codec_, output_mode_});
+  VideoDecoderCache::CacheKey key = {video_codec_, output_mode_};
+
+  auto media_decoder = video_decoder_cache_->Get(key);
   if (!media_decoder) {
+    SB_LOG(INFO) << "No cached VideoDecoder. Will create a new one: key="
+                 << key;
     return nullptr;
   }
 
@@ -712,12 +713,12 @@ std::unique_ptr<MediaDecoder> VideoDecoder::GetCachedMediaDecoder(
           this, output_surface,
           std::bind(&VideoDecoder::OnFrameRendered, this, _1),
           std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this))) {
-    SB_LOG(WARNING) << "Cannot reset existing media decoder. Discard it.";
+    SB_LOG(WARNING) << "Cannot reset existing media decoder. Discard it: key="
+                    << key;
     return nullptr;
   }
 
-  SB_LOG(INFO) << "Reusing cached video decoder for "
-               << GetMediaVideoCodecName(video_codec_);
+  SB_LOG(INFO) << "Reusing cached video decoder: key=" << key;
 
   return media_decoder;
 }
@@ -725,6 +726,7 @@ std::unique_ptr<MediaDecoder> VideoDecoder::GetCachedMediaDecoder(
 std::unique_ptr<MediaDecoder> VideoDecoder::GetOrCreateMediaDecoder(
     const VideoStreamInfo& video_stream_info,
     jobject output_surface,
+    std::optional<int> initial_max_frames_in_decoder,
     std::string* error_message) {
   std::optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
@@ -745,7 +747,8 @@ std::unique_ptr<MediaDecoder> VideoDecoder::GetOrCreateMediaDecoder(
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
       std::bind(&VideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, error_message));
+      max_video_input_size_, flush_delay_usec_, initial_max_frames_in_decoder,
+      error_message));
 }
 
 bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
@@ -838,9 +841,9 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     SB_DCHECK_EQ(video_fps_, 0);
   }
 
-  media_decoder_ = GetOrCreateMediaDecoder(video_stream_info, j_output_surface,
-                                           initial_max_frames_in_decoder_,
-                                           error_message);
+  media_decoder_ =
+      GetOrCreateMediaDecoder(video_stream_info, j_output_surface,
+                              initial_max_frames_in_decoder_, error_message);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->UpdateErrorCB(error_cb_);
@@ -870,8 +873,15 @@ void VideoDecoder::TeardownCodec() {
   if (media_decoder_ && media_decoder_->Suspend()) {
     media_decoder_->Reset();
     if (video_decoder_cache_) {
-      video_decoder_cache_->Put({video_codec_, output_mode_},
-                                std::move(media_decoder_));
+      VideoDecoderCache::CacheKey key = {video_codec_, output_mode_};
+      if (std::string error =
+              video_decoder_cache_->Put(key, std::move(media_decoder_));
+          error.empty()) {
+        SB_LOG(INFO) << "Cached VideoDecoder: key=" << key;
+      } else {
+        SB_LOG(WARNING) << "Failed to Cache VideoDecoder: key=" << key
+                        << ", error=" << error;
+      }
     }
   }
   media_decoder_.reset();

@@ -43,7 +43,8 @@ class VideoDecoderCache {
     bool operator==(const CacheKey& other) const;
   };
 
-  void Put(const CacheKey& key, std::unique_ptr<MediaDecoder> decoder);
+  // Return error message, if it fails. If OK, return empty string.
+  std::string Put(const CacheKey& key, std::unique_ptr<MediaDecoder> decoder);
 
   std::unique_ptr<MediaDecoder> Get(const CacheKey& key);
 

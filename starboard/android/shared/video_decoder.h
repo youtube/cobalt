@@ -122,6 +122,7 @@ class VideoDecoder
   std::unique_ptr<MediaDecoder> GetOrCreateMediaDecoder(
       const VideoStreamInfo& video_stream_info,
       jobject output_surface,
+      std::optional<int> initial_max_frames_in_decoder,
       std::string* error_message);
   void TeardownCodec();
 
