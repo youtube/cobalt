@@ -22,12 +22,10 @@
 #include <utility>
 #include <vector>
 
-#include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
-#include "starboard/android/shared/configurate_seek.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"

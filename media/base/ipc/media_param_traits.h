@@ -8,7 +8,13 @@
 #include "ipc/ipc_message.h"
 #include "ipc/ipc_param_traits.h"
 #include "media/base/ipc/media_param_traits_macros.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Included after media_param_traits_macros.h to ensure BUILDFLAG is defined
+// (via media/media_buildflags.h) without adding an explicit dependency
+// for non-Starboard builds.
 #include <optional>
+#endif
 
 namespace media {
 class AudioParameters;
@@ -16,6 +22,7 @@ class AudioParameters;
 
 namespace IPC {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 template <class P>
 struct ParamTraits<std::optional<P>> {
   using param_type = std::optional<P>;
@@ -46,6 +53,7 @@ struct ParamTraits<std::optional<P>> {
       l->append("(unset)");
   }
 };
+#endif
 
 template <>
 struct ParamTraits<media::AudioParameters> {
