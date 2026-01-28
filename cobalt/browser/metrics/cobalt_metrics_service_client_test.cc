@@ -21,6 +21,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -40,6 +41,8 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/global_memory_dump.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -295,6 +298,28 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
   // base::Version().GetString() should provide a default like "0.0.0.0".
   EXPECT_EQ(base::Version().GetString(), client_->GetVersionString());
   EXPECT_FALSE(client_->GetVersionString().empty());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, OnMemoryDumpDoneRecordsHistogram) {
+  base::HistogramTester histogram_tester;
+
+  // Prepare a dummy GlobalMemoryDump.
+  memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
+      memory_instrumentation::mojom::GlobalMemoryDump::New();
+  dump_ptr->process_dumps.push_back(
+      memory_instrumentation::mojom::ProcessMemoryDump::New());
+  dump_ptr->process_dumps[0]->os_dump =
+      memory_instrumentation::mojom::OSMemDump::New();
+  // 10240 KB = 10 MB.
+  dump_ptr->process_dumps[0]->os_dump->private_footprint_kb = 10240;
+
+  auto global_dump =
+      memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
+
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+
+  histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
+                                      1);
 }
 
 TEST_F(CobaltMetricsServiceClientTest,

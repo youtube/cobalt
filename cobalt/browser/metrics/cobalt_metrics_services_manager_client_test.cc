@@ -220,7 +220,8 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
                   metrics_service_client_owner_.get()),
               NotNull());
 
-  EXPECT_EQ(metrics_service_client_owner_.get(),
+  EXPECT_EQ(static_cast<metrics::MetricsServiceClient*>(
+                metrics_service_client_owner_.get()),
             manager_client_->metrics_service_client());
 }
 
@@ -229,7 +230,8 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
   metrics_service_client_owner_ = manager_client_->CreateMetricsServiceClient(
       synthetic_trial_registry_.get());
   ASSERT_THAT(metrics_service_client_owner_, NotNull());
-  EXPECT_EQ(metrics_service_client_owner_.get(),
+  EXPECT_EQ(static_cast<metrics::MetricsServiceClient*>(
+                metrics_service_client_owner_.get()),
             manager_client_->metrics_service_client());
   auto* client1_ptr = metrics_service_client_owner_.get();
 
@@ -237,7 +239,8 @@ TEST_F(CobaltMetricsServicesManagerClientTest,
       synthetic_trial_registry_.get());
   ASSERT_THAT(metrics_service_client_owner_, NotNull());
   EXPECT_NE(client1_ptr, metrics_service_client_owner_.get());
-  EXPECT_EQ(metrics_service_client_owner_.get(),
+  EXPECT_EQ(static_cast<metrics::MetricsServiceClient*>(
+                metrics_service_client_owner_.get()),
             manager_client_->metrics_service_client());
 }
 

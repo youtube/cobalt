@@ -32,6 +32,10 @@ class MetricsListener;
 }
 }  // namespace h5vcc_metrics
 
+namespace memory_instrumentation {
+class GlobalMemoryDump;
+}
+
 namespace metrics {
 class MetricsService;
 class MetricsStateManager;
@@ -98,6 +102,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
+  // Static method to record memory metrics.
+  static void RecordMemoryMetrics(
+      memory_instrumentation::GlobalMemoryDump* global_dump);
+
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
@@ -110,25 +118,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
 
   base::RepeatingTimer idle_refresh_timer_;
 
+  base::WeakPtrFactory<CobaltMetricsServiceClient> weak_ptr_factory_{this};
+
  private:
-  // Virtual to be overridden in tests.
-  virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
-      metrics::MetricsStateManager* state_manager,
-      metrics::MetricsServiceClient* client,
-      PrefService* local_state);
-
-  // Virtual to be overridden in tests.
-  virtual std::unique_ptr<CobaltMetricsLogUploader> CreateLogUploaderInternal();
-
-  // Virtual to be overridden in tests.
-  virtual void OnApplicationNotIdleInternal();
-
-  // Periodically tells UMA the app is not idle so that metrics payloads
-  // continue to be uploaded.
-  // TODO(cobalt, b/417477183): Consider removing this when user actions work in
-  // Kabuki.
-  void StartIdleRefreshTimer();
-
   const std::unique_ptr<variations::SyntheticTrialRegistry>
       synthetic_trial_registry_;
 
@@ -153,6 +145,25 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   bool IsInitialized() const { return !!metrics_service_; }
 
   THREAD_CHECKER(thread_checker_);
+
+ private:
+  // Virtual to be overridden in tests.
+  virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
+      metrics::MetricsStateManager* state_manager,
+      metrics::MetricsServiceClient* client,
+      PrefService* local_state);
+
+  // Virtual to be overridden in tests.
+  virtual std::unique_ptr<CobaltMetricsLogUploader> CreateLogUploaderInternal();
+
+  // Virtual to be overridden in tests.
+  virtual void OnApplicationNotIdleInternal();
+
+  // Periodically tells UMA the app is not idle so that metrics payloads
+  // continue to be uploaded.
+  // TODO(cobalt, b/417477183): Consider removing this when user actions work in
+  // Kabuki.
+  void StartIdleRefreshTimer();
 };
 
 }  // namespace cobalt
