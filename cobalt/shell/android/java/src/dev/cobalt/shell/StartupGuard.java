@@ -1,6 +1,4 @@
-package dev.cobalt.util;
-
-import static dev.cobalt.util.Log.TAG;
+package dev.cobalt.shell;
 
 import android.os.Handler;
 import android.os.Looper;
@@ -23,6 +21,8 @@ public class StartupGuard {
     private static class LazyHolder {
         private static final StartupGuard INSTANCE = new StartupGuard();
     }
+
+    private static final String TAG = "cobalt";
 
     // Private constructor prevents direct instantiation from other classes
     private StartupGuard() {

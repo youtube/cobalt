@@ -44,15 +44,15 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.shell.Shell;
 import dev.cobalt.shell.ShellManager;
-import dev.cobalt.util.StartupGuard;
+import dev.cobalt.shell.StartupGuard;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.JavaSwitches;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
@@ -212,7 +212,8 @@ public abstract class CobaltActivity extends Activity {
               .orElse(null);
     }
 
-    if (shouldDisarmStartupGuard(mStartupUrl)) {
+    if (TextUtils.isEmpty(mStartupUrl) || !mStartupUrl.startsWith(YOUTUBE_URL)) {
+      Log.i(TAG, "Non-Youtube startup URL detected.");
       StartupGuard.getInstance().disarm();
     }
 
@@ -272,21 +273,6 @@ public abstract class CobaltActivity extends Activity {
             }
           }
         });
-  }
-
-  protected static boolean shouldDisarmStartupGuard(String startupUrl) {
-    if (TextUtils.isEmpty(startupUrl)) {
-      Log.i(TAG, "Startup URL is empty.");
-      return true;
-    } else if (!startupUrl.startsWith(YOUTUBE_URL)) {
-      Log.i(TAG, "Non-Youtube startup URL detected.");
-      return true;
-    } else if (startupUrl.contains("?loader=") || startupUrl.contains("&loader=")) {
-      // startup URL is like https://www.youtube.com/tv?loader=yts... etc
-      Log.i(TAG, "Kabuki loader startup URL detected.");
-      return true;
-    }
-    return false;
   }
 
   // Initially copied from ContentShellActiviy.java
