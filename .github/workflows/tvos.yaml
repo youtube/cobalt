@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build_tvos:
+  tvos-arm64-simulator:
     runs-on: macos-latest
     timeout-minutes: 600
     strategy:
