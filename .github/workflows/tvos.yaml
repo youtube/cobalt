@@ -10,6 +10,9 @@ on:
 
 jobs:
   tvos-arm64-simulator:
+    permissions:
+      packages: write
+      pull-requests: write
     runs-on: macos-latest
     timeout-minutes: 600
     strategy:
