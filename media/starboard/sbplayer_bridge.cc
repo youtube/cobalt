@@ -39,7 +39,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/player_configurate_seek.h"
-#include "starboard/extension/player_decoder_configuration.h"
+#include "starboard/extension/video_decoder_configuration.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -820,22 +820,22 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
   }
 
-  const StarboardExtensionPlayerDecoderConfigurationApi*
-      player_decoder_configuration_extension =
-          static_cast<const StarboardExtensionPlayerDecoderConfigurationApi*>(
+  const StarboardExtensionVideoDecoderConfigurationApi*
+      video_decoder_configuration_extension =
+          static_cast<const StarboardExtensionVideoDecoderConfigurationApi*>(
               SbSystemGetExtension(
-                  kStarboardExtensionPlayerDecoderConfigurationName));
-  if (player_decoder_configuration_extension &&
-      strcmp(player_decoder_configuration_extension->name,
-             kStarboardExtensionPlayerDecoderConfigurationName) == 0 &&
-      player_decoder_configuration_extension->version >= 1) {
+                  kStarboardExtensionVideoDecoderConfigurationName));
+  if (video_decoder_configuration_extension &&
+      strcmp(video_decoder_configuration_extension->name,
+             kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
+      video_decoder_configuration_extension->version >= 1) {
     if (initial_max_frames_in_decoder_) {
-      player_decoder_configuration_extension
+      video_decoder_configuration_extension
           ->SetVideoInitialMaxFramesInDecoderForCurrentThread(
               *initial_max_frames_in_decoder_);
     }
     if (max_pending_input_frames_) {
-      player_decoder_configuration_extension
+      video_decoder_configuration_extension
           ->SetVideoMaxPendingInputFramesForCurrentThread(
               *max_pending_input_frames_);
     }

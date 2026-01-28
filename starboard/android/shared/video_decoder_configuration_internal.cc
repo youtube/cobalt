@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/player_decoder_configuration_internal.h"
+#include "starboard/android/shared/video_decoder_configuration_internal.h"
 
 #include <pthread.h>
 

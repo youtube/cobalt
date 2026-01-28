@@ -20,7 +20,7 @@
 #include <utility>
 
 #include "starboard/android/shared/configurate_seek.h"
-#include "starboard/android/shared/player_decoder_configuration_internal.h"
+#include "starboard/android/shared/video_decoder_configuration_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"

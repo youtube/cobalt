@@ -12,13 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_PLAYER_DECODER_CONFIGURATION_H_
-#define STARBOARD_ANDROID_SHARED_PLAYER_DECODER_CONFIGURATION_H_
+#ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_
+#define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_
 
 namespace starboard::android::shared {
 
-const void* GetPlayerDecoderConfigurationApi();
+const void* GetVideoDecoderConfigurationApi();
 
 }  // namespace starboard::android::shared
 
-#endif  // STARBOARD_ANDROID_SHARED_PLAYER_DECODER_CONFIGURATION_H_
+#endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_H_

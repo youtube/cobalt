@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/player_decoder_configuration.h"
+#include "starboard/android/shared/video_decoder_configuration.h"
 
-#include "starboard/android/shared/player_decoder_configuration_internal.h"
-#include "starboard/extension/player_decoder_configuration.h"
+#include "starboard/android/shared/video_decoder_configuration_internal.h"
+#include "starboard/extension/video_decoder_configuration.h"
 
 namespace starboard::android::shared {
 
@@ -24,9 +24,9 @@ namespace {
 // Definitions of any functions included as components in the extension
 // are added here.
 
-const StarboardExtensionPlayerDecoderConfigurationApi
-    kPlayerDecoderConfigurationApi = {
-        kStarboardExtensionPlayerDecoderConfigurationName,
+const StarboardExtensionVideoDecoderConfigurationApi
+    kVideoDecoderConfigurationApi = {
+        kStarboardExtensionVideoDecoderConfigurationName,
         1,
         &SetVideoInitialMaxFramesInDecoderForCurrentThread,
         &SetVideoMaxPendingInputFramesForCurrentThread,
@@ -34,8 +34,8 @@ const StarboardExtensionPlayerDecoderConfigurationApi
 
 }  // namespace
 
-const void* GetPlayerDecoderConfigurationApi() {
-  return &kPlayerDecoderConfigurationApi;
+const void* GetVideoDecoderConfigurationApi() {
+  return &kVideoDecoderConfigurationApi;
 }
 
 }  // namespace starboard::android::shared

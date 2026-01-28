@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_EXTENSION_PLAYER_DECODER_CONFIGURATION_H_
-#define STARBOARD_EXTENSION_PLAYER_DECODER_CONFIGURATION_H_
+#ifndef STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
+#define STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
 
 #include <stdint.h>
 
@@ -21,12 +21,12 @@
 extern "C" {
 #endif
 
-#define kStarboardExtensionPlayerDecoderConfigurationName \
-  "dev.starboard.extension.PlayerDecoderConfiguration"
+#define kStarboardExtensionVideoDecoderConfigurationName \
+  "dev.starboard.extension.VideoDecoderConfiguration"
 
-typedef struct StarboardExtensionPlayerDecoderConfigurationApi {
+typedef struct StarboardExtensionVideoDecoderConfigurationApi {
   // Name should be the string
-  // |kStarboardExtensionPlayerDecoderConfigurationName|. This helps to validate
+  // |kStarboardExtensionVideoDecoderConfigurationName|. This helps to validate
   // that the extension API is correct.
   const char* name;
 
@@ -42,10 +42,10 @@ typedef struct StarboardExtensionPlayerDecoderConfigurationApi {
   // Specifies the max pending video input frames.
   void (*SetVideoMaxPendingInputFramesForCurrentThread)(
       int max_pending_input_frames);
-} StarboardExtensionPlayerDecoderConfigurationApi;
+} StarboardExtensionVideoDecoderConfigurationApi;
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD_EXTENSION_PLAYER_DECODER_CONFIGURATION_H_
+#endif  // STARBOARD_EXTENSION_VIDEO_DECODER_CONFIGURATION_H_
