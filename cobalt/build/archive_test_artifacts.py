@@ -17,6 +17,7 @@
 import argparse
 import logging
 import os
+import shutil
 import subprocess
 import tempfile
 from typing import List, Tuple
@@ -81,13 +82,20 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
   else:
     raise ValueError(f'Unsupported compression: {compression}')
 
+  # Verify compression program exists
+  prog = compression_program.split()[0]
+  if not shutil.which(prog):
+    raise RuntimeError(f'Compression program "{prog}" not found in PATH.')
+
   tar_cmd = [
       'tar', '--use-compress-program', compression_program, '-cvf', archive_path
   ]
+  any_files = False
   tmp_files = []
   for file_list, base_dir in file_lists:
     if not file_list:
       continue
+    any_files = True
     # Create temporary file to hold file list to not blow out the commandline.
     # It will get cleaned up via implicit close.
     # pylint: disable=consider-using-with
@@ -97,6 +105,10 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     tmp_file.flush()
     # Change the tar working directory and add the file list.
     tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
+
+  if not any_files:
+    logging.warning('No files found to archive for %s. Skipping.', archive_path)
+    return
 
   logging.info('Running `%s`', ' '.join(tar_cmd))
   subprocess.check_call(tar_cmd)
