@@ -28,7 +28,7 @@ namespace starboard {
 class VideoRendererSinkImpl : public VideoRendererSink,
                               private JobQueue::JobOwner {
  public:
-  explicit VideoRendererSinkImpl(SbPlayer player);
+  explicit VideoRendererSinkImpl(JobQueue* job_queue, SbPlayer player);
   ~VideoRendererSinkImpl() override;
 
  private:
@@ -43,11 +43,11 @@ class VideoRendererSinkImpl : public VideoRendererSink,
   RenderCB render_cb_;
 
   std::mutex mutex_;
-  int z_index_;
-  int x_;
-  int y_;
-  int width_;
-  int height_;
+  int z_index_ = 0;
+  int x_ = 0;
+  int y_ = 0;
+  int width_ = 0;
+  int height_ = 0;
 };
 
 }  // namespace starboard

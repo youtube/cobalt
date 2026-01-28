@@ -27,7 +27,8 @@ namespace starboard {
 template <int V>
 class FfmpegAudioDecoderImpl : public FfmpegAudioDecoder {
  public:
-  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  static FfmpegAudioDecoder* Create(JobQueue* job_queue,
+                                    const AudioStreamInfo& audio_stream_info);
 };
 
 }  // namespace starboard

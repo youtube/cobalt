@@ -193,6 +193,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     SB_LOG(INFO) << "Creating passthrough components.";
     // TODO: Enable tunnel mode for passthrough
     auto audio_renderer = std::make_unique<AudioRendererPassthrough>(
+        creation_parameters.job_queue(),
         creation_parameters.audio_stream_info(),
         creation_parameters.drm_system(), enable_flush_during_seek);
     if (!audio_renderer->is_valid()) {
@@ -220,6 +221,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         auto media_time_provider = audio_renderer.get();
 
         video_renderer = std::make_unique<VideoRendererImpl>(
+            creation_parameters.job_queue(),
             std::unique_ptr<VideoDecoder>(std::move(video_decoder.value())),
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink);
@@ -324,6 +326,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         << " audio decoder during Reset().";
 
     MediaComponents components;
+    JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       const bool enable_platform_opus_decoder =
@@ -332,7 +335,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           << "kForcePlatformOpusDecoder is set to true, force using "
           << "platform opus codec instead of libopus.";
       auto decoder_creator =
-          [enable_flush_during_seek, enable_platform_opus_decoder](
+          [enable_flush_during_seek, enable_platform_opus_decoder, job_queue](
               const AudioStreamInfo& audio_stream_info,
               SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         bool use_libopus_decoder =
@@ -340,14 +343,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             !SbDrmSystemIsValid(drm_system) && !enable_platform_opus_decoder;
         if (use_libopus_decoder) {
           auto audio_decoder_impl =
-              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl;
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto audio_decoder_impl = std::make_unique<MediaCodecAudioDecoder>(
-              audio_stream_info, drm_system, enable_flush_during_seek);
+              job_queue, audio_stream_info, drm_system,
+              enable_flush_during_seek);
           if (audio_decoder_impl->is_valid()) {
             return audio_decoder_impl;
           }
@@ -359,7 +363,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       };
 
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
-          creation_parameters.audio_stream_info(),
+          job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
           enable_reset_audio_decoder);
 
@@ -473,6 +477,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
     std::string error_message;
     auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
+        creation_parameters.job_queue(),
         creation_parameters.video_stream_info(),
         creation_parameters.drm_system(), creation_parameters.output_mode(),
         creation_parameters.decode_target_graphics_context_provider(),
