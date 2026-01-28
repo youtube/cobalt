@@ -24,35 +24,47 @@ namespace starboard::android::shared {
 
 namespace {
 
-pthread_once_t s_once_flag_for_decoder_config = PTHREAD_ONCE_INIT;
-pthread_key_t s_thread_local_key_for_initial_max_frames_in_decoder = 0;
-pthread_key_t s_thread_local_key_for_max_pending_input_frames = 0;
+pthread_once_t g_once_control = PTHREAD_ONCE_INIT;
+pthread_key_t g_initial_max_frames_key = 0;
+pthread_key_t g_max_pending_frames_key = 0;
+
+void WriteIntToThreadLocalStorage(pthread_key_t key, int value) {
+  uintptr_t ptr_val = static_cast<uintptr_t>(value);
+  // Sets sentinel value to differentiate 0 vs nullptr.
+  ptr_val <<= 1;
+  ptr_val |= 0x01;
+  pthread_setspecific(key, reinterpret_cast<void*>(ptr_val));
+}
+
+std::optional<int> ReadIntFromThreadLocalStorage(pthread_key_t key) {
+  void* ptr = pthread_getspecific(key);
+  if (ptr == nullptr) {
+    return std::nullopt;
+  }
+  uintptr_t ptr_val = reinterpret_cast<uintptr_t>(ptr);
+  // Removes sentinel value.
+  ptr_val >>= 1;
+  return static_cast<int>(ptr_val);
+}
 
 }  // namespace
 
-void InitThreadLocalKeyForDecoderConfig() {
-  int res = pthread_key_create(
-      &s_thread_local_key_for_initial_max_frames_in_decoder, nullptr);
-  SB_DCHECK_EQ(res, 0);
-  res = pthread_key_create(&s_thread_local_key_for_max_pending_input_frames,
-                           nullptr);
-  SB_DCHECK_EQ(res, 0);
+void InitializeKeys() {
+  int res =
+      pthread_key_create(&g_initial_max_frames_key, /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
+  res = pthread_key_create(&g_max_pending_frames_key,
+                           /*destructor=*/nullptr);
+  SB_CHECK_EQ(res, 0);
 }
 
 void EnsureThreadLocalKeyInitedForDecoderConfig() {
-  pthread_once(&s_once_flag_for_decoder_config,
-               InitThreadLocalKeyForDecoderConfig);
+  pthread_once(&g_once_control, InitializeKeys);
 }
 
 std::optional<int> GetVideoInitialMaxFramesInDecoderForCurrentThread() {
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  void* ptr =
-      pthread_getspecific(s_thread_local_key_for_initial_max_frames_in_decoder);
-  if (ptr == nullptr) {
-    return std::nullopt;
-  }
-  // Subtract 1 to retrieve the original value, complementing `Set...`.
-  return static_cast<int>(reinterpret_cast<uintptr_t>(ptr) - 1);
+  return ReadIntFromThreadLocalStorage(g_initial_max_frames_key);
 }
 
 void SetVideoInitialMaxFramesInDecoderForCurrentThread(
@@ -63,21 +75,13 @@ void SetVideoInitialMaxFramesInDecoderForCurrentThread(
     return;
   }
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  // Add 1 to the value to distinguish 0 from a nullptr (not set).
-  pthread_setspecific(s_thread_local_key_for_initial_max_frames_in_decoder,
-                      reinterpret_cast<void*>(static_cast<uintptr_t>(
-                          initial_max_frames_in_decoder + 1)));
+  WriteIntToThreadLocalStorage(g_initial_max_frames_key,
+                               initial_max_frames_in_decoder);
 }
 
 std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread() {
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  void* ptr =
-      pthread_getspecific(s_thread_local_key_for_max_pending_input_frames);
-  if (ptr == nullptr) {
-    return std::nullopt;
-  }
-  // Subtract 1 to retrieve the original value, complementing `Set...`.
-  return static_cast<int>(reinterpret_cast<uintptr_t>(ptr) - 1);
+  return ReadIntFromThreadLocalStorage(g_max_pending_frames_key);
 }
 
 void SetVideoMaxPendingInputFramesForCurrentThread(
@@ -88,10 +92,8 @@ void SetVideoMaxPendingInputFramesForCurrentThread(
     return;
   }
   EnsureThreadLocalKeyInitedForDecoderConfig();
-  // Add 1 to the value to distinguish 0 from a nullptr (not set).
-  pthread_setspecific(s_thread_local_key_for_max_pending_input_frames,
-                      reinterpret_cast<void*>(static_cast<uintptr_t>(
-                          max_pending_input_frames + 1)));
+  WriteIntToThreadLocalStorage(g_max_pending_frames_key,
+                               max_pending_input_frames);
 }
 
 }  // namespace starboard::android::shared

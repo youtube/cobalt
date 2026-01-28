@@ -215,10 +215,10 @@ ParsedH5vccSettings ProcessH5vccSettings(
   }
 
   parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder, 0,
+      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder, 1,
       kMaxFramesInDecoderLimit);
   parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
-      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, 0,
+      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, 1,
       kMaxFramesInDecoderLimit);
 
   for (const auto& [setting_name, setting_value] : settings) {
