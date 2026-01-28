@@ -242,7 +242,7 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
       // scan is not needed - a scan is triggered via
       // CrashReportUploadThread::ReportPending after the crash is handled - and
       // we can simplify the concurrency model and avoid thread contention by
-      // skipping it, especially now that upload scans trigge report pruning
+      // skipping it, especially now that upload scans trigger report pruning
       // upon completion.
       "--no-periodic-tasks",
       base::StringPrintf("--sanitization-information=%p", &kSanitizationInfo)
