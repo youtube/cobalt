@@ -37,7 +37,6 @@
 #include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
-#include "services/network/public/cpp/document_isolation_policy.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
@@ -123,10 +122,10 @@ class BlobReader : public blink::mojom::BlobReaderClient {
     }
 
     while (true) {
-      uint8_t buffer[kReadBufferSize];
-      size_t num_bytes = 0;
+      uint8_t buffer[256];
+      uint32_t num_bytes = sizeof(buffer);
       MojoResult read_result = consumer_handle_->ReadData(
-          MOJO_READ_DATA_FLAG_NONE, base::span(buffer), num_bytes);
+          buffer, &num_bytes, MOJO_READ_DATA_FLAG_NONE);
       if (read_result == MOJO_RESULT_SHOULD_WAIT) {
         watcher_->Arm();
         return;
@@ -235,8 +234,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     cache_storage_control->AddReceiver(
         network::CrossOriginEmbedderPolicy(), mojo::NullRemote(),
-        network::DocumentIsolationPolicy(), mojo::NullRemote(), bucket_locator,
-        storage::mojom::CacheStorageOwner::kCacheAPI,
+        bucket_locator, ::storage::mojom::CacheStorageOwner::kCacheAPI,
         cache_storage_remote_.BindNewPipeAndPassReceiver());
 
     auto fetch_api_request = blink::mojom::FetchAPIRequest::New();
