@@ -102,6 +102,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
+  // Static method to record memory metrics.
+  static void RecordMemoryMetrics(
+      memory_instrumentation::GlobalMemoryDump* global_dump);
+
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,

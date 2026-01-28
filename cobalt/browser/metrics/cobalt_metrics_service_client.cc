@@ -40,15 +40,7 @@ void OnMemoryDumpDone(
     bool success,
     std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
   if (success && global_dump) {
-    uint64_t total_private_footprint_kb = 0;
-    for (const auto& process_dump : global_dump->process_dumps()) {
-      total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
-    }
-
-    if (total_private_footprint_kb > 0) {
-      MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
-                                  total_private_footprint_kb / 1024);
-    }
+    CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
   }
 
   std::move(done_callback).Run();
@@ -285,4 +277,19 @@ void CobaltMetricsServiceClient::SetMetricsListener(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
+
+// static
+void CobaltMetricsServiceClient::RecordMemoryMetrics(
+    memory_instrumentation::GlobalMemoryDump* global_dump) {
+  uint64_t total_private_footprint_kb = 0;
+  for (const auto& process_dump : global_dump->process_dumps()) {
+    total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+  }
+
+  if (total_private_footprint_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
+                                total_private_footprint_kb / 1024);
+  }
+}
+
 }  // namespace cobalt

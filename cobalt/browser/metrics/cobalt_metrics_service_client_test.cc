@@ -167,13 +167,6 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
   // though the base class's static Create method normally handles this.
   void CallInitialize() { Initialize(); }
 
-  void CallOnMemoryDumpDone(
-      base::OnceClosure done_callback,
-      bool success,
-      std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
-    OnMemoryDumpDone(std::move(done_callback), success, std::move(global_dump));
-  }
-
   StrictMock<MockMetricsService>* mock_metrics_service() const {
     return mock_metrics_service_;
   }
@@ -309,7 +302,6 @@ TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
 
 TEST_F(CobaltMetricsServiceClientTest, OnMemoryDumpDoneRecordsHistogram) {
   base::HistogramTester histogram_tester;
-  base::MockCallback<base::OnceClosure> done_callback_mock;
 
   // Prepare a dummy GlobalMemoryDump.
   memory_instrumentation::mojom::GlobalMemoryDumpPtr dump_ptr =
@@ -324,10 +316,7 @@ TEST_F(CobaltMetricsServiceClientTest, OnMemoryDumpDoneRecordsHistogram) {
   auto global_dump =
       memory_instrumentation::GlobalMemoryDump::MoveFrom(std::move(dump_ptr));
 
-  EXPECT_CALL(done_callback_mock, Run());
-
-  client_->CallOnMemoryDumpDone(done_callback_mock.Get(), true,
-                                std::move(global_dump));
+  CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
 
   histogram_tester.ExpectUniqueSample("Memory.Total.PrivateMemoryFootprint", 10,
                                       1);
