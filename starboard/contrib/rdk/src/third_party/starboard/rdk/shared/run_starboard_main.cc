@@ -83,6 +83,7 @@ static void UninstallStopSignalHandlers() {
 
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+  printf("Yavor: SbRunStarboardMain\n");
   tzset();
 
   rlimit stack_size;
@@ -112,6 +113,7 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   g_free(error);
 
   third_party::starboard::rdk::shared::Application application(callback);
+  printf("Yavor: SbRunStarboardMain application created\n");
   int result = application.Run(argc, argv);
 
   gst_deinit();
