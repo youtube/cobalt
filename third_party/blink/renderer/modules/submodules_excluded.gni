@@ -10,6 +10,8 @@ sub_modules_excluded_for_lightweight = []
 test_sources_excluded_for_lightweight = []
 test_deps_excluded_for_lightweight = []
 
+make_modules_generated_excluded_for_lightweight = []
+
 # Disable Bluetooth from build.
 if (disable_bluetooth) {
   sub_modules_excluded_for_lightweight += [
@@ -26,6 +28,9 @@ if (disable_bluetooth) {
       "//third_party/blink/renderer/modules/serial:unit_tests"
     ]
   }
+  make_modules_generated_excluded_for_lightweight += [
+    "//device/bluetooth/public/mojom:mojom_blink_headers"
+  ]
 }
 
 # Disable xr from build.

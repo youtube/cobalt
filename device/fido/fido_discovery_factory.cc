@@ -7,8 +7,11 @@
 #include "base/containers/contains.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "components/device_event_log/device_event_log.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "device/bluetooth/bluetooth_adapter_factory.h"
+#endif
 #include "device/fido/cable/fido_cable_discovery.h"
 #include "device/fido/cable/v2_discovery.h"
 #include "device/fido/enclave/enclave_discovery.h"
@@ -84,6 +87,7 @@ std::vector<std::unique_ptr<FidoDiscoveryBase>> FidoDiscoveryFactory::Create(
         }
       }
 #endif  // BUILDFLAG(IS_WIN)
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
       if (device::BluetoothAdapterFactory::Get()->IsLowEnergySupported() &&
           (cable_data_.has_value() || qr_generator_key_.has_value())) {
         auto v1_discovery = std::make_unique<FidoCableDiscovery>(
@@ -108,6 +112,7 @@ std::vector<std::unique_ptr<FidoDiscoveryBase>> FidoDiscoveryFactory::Create(
         ret.emplace_back(std::move(v1_discovery));
         return ret;
       }
+#endif
       return {};
     case FidoTransportProtocol::kNearFieldCommunication:
       // TODO(crbug.com/40568770): Add NFC support.

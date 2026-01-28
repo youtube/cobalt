@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//device/vr/buildflags/buildflags.gni")
 import("//testing/test.gni")
 
@@ -480,6 +481,82 @@ test("device_unittests") {
 
   if (is_chromeos) {
     deps += [ "//chromeos/dbus/u2f" ]
+  }
+
+  if (disable_bluetooth) {
+    sources -= [
+      "bluetooth/adapter_unittest.cc",
+      "bluetooth/advertisement_unittest.cc",
+      "bluetooth/bluetooth_adapter_unittest.cc",
+      "bluetooth/bluetooth_advertisement_unittest.cc",
+      "bluetooth/bluetooth_device_unittest.cc",
+      "bluetooth/bluetooth_discovery_filter_unittest.cc",
+      "bluetooth/bluetooth_local_gatt_characteristic_unittest.cc",
+      "bluetooth/bluetooth_local_gatt_descriptor_unittest.cc",
+      "bluetooth/bluetooth_remote_gatt_characteristic_unittest.cc",
+      "bluetooth/bluetooth_remote_gatt_descriptor_unittest.cc",
+      "bluetooth/bluetooth_remote_gatt_service_unittest.cc",
+      "bluetooth/device_unittest.cc",
+      "bluetooth/gatt_service_unittest.cc",
+      "bluetooth/public/cpp/bluetooth_uuid_unittest.cc",
+      "bluetooth/server_socket_unittest.cc",
+      "bluetooth/socket_unittest.cc",
+      "bluetooth/string_util_icu_unittest.cc",
+      "bluetooth/test/bluetooth_gatt_server_test.cc",
+      "bluetooth/test/bluetooth_gatt_server_test.h",
+      "bluetooth/test/bluetooth_test.cc",
+      "bluetooth/test/bluetooth_test.h",
+      "bluetooth/test/mock_pairing_delegate.cc",
+      "bluetooth/test/mock_pairing_delegate.h",
+      "bluetooth/test/test_bluetooth_adapter_observer.cc",
+      "bluetooth/test/test_bluetooth_adapter_observer.h",
+      "bluetooth/test/test_bluetooth_advertisement_observer.cc",
+      "bluetooth/test/test_bluetooth_advertisement_observer.h",
+      "bluetooth/test/test_bluetooth_local_gatt_service_delegate.cc",
+      "bluetooth/test/test_bluetooth_local_gatt_service_delegate.h",
+    ]
+
+    if ((is_chromeos || is_linux) && use_dbus) {
+      sources -= [
+        "bluetooth/bluez/bluetooth_adapter_bluez_unittest.cc",
+        "bluetooth/bluez/bluetooth_adapter_profile_bluez_unittest.cc",
+        "bluetooth/bluez/bluetooth_advertisement_bluez_unittest.cc",
+        "bluetooth/bluez/bluetooth_bluez_unittest.cc",
+        "bluetooth/bluez/bluetooth_gatt_bluez_unittest.cc",
+        "bluetooth/bluez/bluetooth_service_attribute_value_bluez_unittest.cc",
+        "bluetooth/bluez/bluetooth_service_record_bluez_unittest.cc",
+        "bluetooth/bluez/bluetooth_socket_bluez_unittest.cc",
+        "bluetooth/dbus/bluetooth_gatt_application_service_provider_unittest.cc",
+        "bluetooth/dbus/bluetooth_gatt_characteristic_service_provider_unittest.cc",
+        "bluetooth/floss/bluetooth_floss_unittest.cc",
+        "bluetooth/floss/bluetooth_gatt_floss_unittest.cc",
+        "bluetooth/floss/bluetooth_local_gatt_service_floss_unittest.cc",
+        "bluetooth/floss/bluetooth_socket_floss_unittest.cc",
+        "bluetooth/floss/exported_callback_manager_unittest.cc",
+        "bluetooth/floss/floss_adapter_client_unittest.cc",
+        "bluetooth/floss/floss_admin_client_unittest.cc",
+        "bluetooth/floss/floss_advertiser_client_unittest.cc",
+        "bluetooth/floss/floss_battery_manager_client_unittest.cc",
+        "bluetooth/floss/floss_bluetooth_telephony_client_unittest.cc",
+        "bluetooth/floss/floss_dbus_client_unittest.cc",
+        "bluetooth/floss/floss_dbus_manager_unittest.cc",
+        "bluetooth/floss/floss_gatt_manager_client_unittest.cc",
+        "bluetooth/floss/floss_lescan_client_unittest.cc",
+        "bluetooth/floss/floss_manager_client_unittest.cc",
+        "bluetooth/floss/floss_socket_manager_unittest.cc",
+        "bluetooth/floss/floss_version_unittest.cc",
+        "bluetooth/test/bluetooth_test_bluez.cc",
+        "bluetooth/test/bluetooth_test_bluez.h",
+      ]
+    }
+
+    deps -= [
+      "//device/bluetooth",
+      "//device/bluetooth:deprecated_experimental_mojo",
+      "//device/bluetooth:fake_bluetooth",
+      "//device/bluetooth:mocks",
+      "//device/bluetooth/public/mojom:deprecated_experimental_interfaces",
+    ]
   }
 }
 

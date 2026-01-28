@@ -2,7 +2,11 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/lightweight.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
+
+# If disable_bluetooth is true, this module should not be built.
+assert(!disable_bluetooth)
 
 mojom("mojom") {
   generate_java = true

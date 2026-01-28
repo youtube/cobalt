@@ -129,6 +129,7 @@ buildflag_header("lightweight_buildflags") {
   header = "lightweight_buildflags.h"
   flags = [
     "DISABLE_XR=$disable_xr",
+    "DISABLE_BLUETOOTH=$disable_bluetooth",
   ]
 }
 

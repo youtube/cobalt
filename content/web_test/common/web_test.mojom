@@ -223,14 +223,17 @@ interface WebTestControlHost {
   //  * "cancel" - simulates the user canceling the chooser.
   //  * "select" - simulates the user selecting a device whose device ID is in
   //               |argument|.
+  [EnableIfNot=disable_bluetooth]
   SendBluetoothManualChooserEvent(string event, string argument);
 
   // If |enable| is true makes the Bluetooth chooser record its input and wait
   // for instructions from the test program on how to proceed. Otherwise
   // fall backs to the browser's default chooser.
+  [EnableIfNot=disable_bluetooth]
   SetBluetoothManualChooser(bool enable);
 
   // Returns the events recorded since the last call to this function.
+  [EnableIfNot=disable_bluetooth]
   GetBluetoothManualChooserEvents() => (array<string> events);
 
   // Manages the popup blocking setting to used for web tests.

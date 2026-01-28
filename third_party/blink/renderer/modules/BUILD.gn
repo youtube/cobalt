@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/cast.gni")
+import("//build/config/lightweight.gni")
 import("//build/config/python.gni")
 import("//media/media_options.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
@@ -323,6 +324,9 @@ group("make_modules_generated") {
     "//ui/accessibility:ax_enums_mojo_blink_headers",
     "//ui/display/mojom:mojom_blink_headers",
   ]
+
+  # Exclude public_deps for lightweight.
+  public_deps -= make_modules_generated_excluded_for_lightweight
 }
 
 # generate_event_interfaces ----------------------------------------------------

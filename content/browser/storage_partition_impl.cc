@@ -38,6 +38,7 @@
 #include "base/threading/sequence_local_storage_slot.h"
 #include "base/types/optional_util.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "components/attribution_reporting/features.h"
 #include "components/leveldb_proto/public/proto_database_provider.h"
 #include "components/services/storage/privileged/cpp/bucket_client_info.h"
@@ -56,7 +57,9 @@
 #include "content/browser/background_fetch/background_fetch_context.h"
 #include "content/browser/blob_storage/blob_registry_wrapper.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "content/browser/bluetooth/bluetooth_allowed_devices_map.h"
+#endif
 #include "content/browser/broadcast_channel/broadcast_channel_service.h"
 #include "content/browser/browsing_data/clear_site_data_handler.h"
 #include "content/browser/browsing_data/storage_partition_code_cache_data_remover.h"
@@ -1418,8 +1421,10 @@ void StoragePartitionImpl::Initialize(
 
   broadcast_channel_service_ = std::make_unique<BroadcastChannelService>();
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   bluetooth_allowed_devices_map_ =
       std::make_unique<BluetoothAllowedDevicesMap>();
+#endif
 
   // Must be initialized before the
   // `shared_url_loader_factory_for_browser_process_`. Cookie deprecation
@@ -1774,11 +1779,13 @@ BroadcastChannelService* StoragePartitionImpl::GetBroadcastChannelService() {
   return broadcast_channel_service_.get();
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 BluetoothAllowedDevicesMap*
 StoragePartitionImpl::GetBluetoothAllowedDevicesMap() {
   DCHECK(initialized_);
   return bluetooth_allowed_devices_map_.get();
 }
+#endif
 
 BlobRegistryWrapper* StoragePartitionImpl::GetBlobRegistry() {
   DCHECK(initialized_);
@@ -3339,8 +3346,10 @@ void StoragePartitionImpl::ResetURLLoaderFactories() {
 }
 
 void StoragePartitionImpl::ClearBluetoothAllowedDevicesMapForTesting() {
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   DCHECK(initialized_);
   bluetooth_allowed_devices_map_->Clear();
+#endif
 }
 
 void StoragePartitionImpl::AddObserver(DataRemovalObserver* observer) {

@@ -4,8 +4,12 @@
 
 import("//build/buildflag_header.gni")
 import("//build/config/features.gni")
+import("//build/config/lightweight.gni")
 import("//device/bluetooth/cast_bluetooth.gni")
 import("//device/bluetooth/emulation/buildflags.gni")
+
+# If disable_bluetooth is true, this module should not be built.
+assert(!disable_bluetooth)
 
 if (is_android) {
   import("//build/config/android/rules.gni")

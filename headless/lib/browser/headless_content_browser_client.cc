@@ -20,6 +20,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_split.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "components/embedder_support/switches.h"
 #include "components/headless/command_handler/headless_command_switches.h"
 #include "content/public/browser/browser_context.h"
@@ -33,7 +34,9 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switches.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "headless/lib/browser/headless_bluetooth_delegate.h"
+#endif
 #include "headless/lib/browser/headless_browser_context_impl.h"
 #include "headless/lib/browser/headless_browser_impl.h"
 #include "headless/lib/browser/headless_browser_main_parts.h"
@@ -570,6 +573,7 @@ void HeadlessContentBrowserClient::SetEncryptionKey(
 #endif
 }
 
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 content::BluetoothDelegate*
 HeadlessContentBrowserClient::GetBluetoothDelegate() {
   if (!bluetooth_delegate_) {
@@ -577,6 +581,7 @@ HeadlessContentBrowserClient::GetBluetoothDelegate() {
   }
   return bluetooth_delegate_.get();
 }
+#endif
 
 bool HeadlessContentBrowserClient::IsRendererProcessPriorityEnabled() {
   // Since there is no visible window in headless, the renderer process priority

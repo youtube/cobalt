@@ -12,6 +12,7 @@
 #include "base/scoped_observation.h"
 #include "base/supports_user_data.h"
 #include "build/build_config.h"
+#include "build/lightweight_buildflags.h"
 #include "content/browser/browser_interface_broker_impl.h"
 #include "content/browser/buckets/bucket_context.h"
 #include "content/browser/renderer_host/code_cache_host_impl.h"
@@ -41,7 +42,9 @@
 #include "third_party/blink/public/mojom/idle/idle_manager.mojom-forward.h"
 #include "third_party/blink/public/mojom/loader/code_cache.mojom.h"
 #include "third_party/blink/public/mojom/loader/content_security_notifier.mojom.h"
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
 #include "third_party/blink/public/mojom/serial/serial.mojom-forward.h"
+#endif
 #include "third_party/blink/public/mojom/usb/web_usb_service.mojom-forward.h"
 #include "third_party/blink/public/mojom/wake_lock/wake_lock.mojom-forward.h"
 #include "third_party/blink/public/mojom/websockets/websocket_connector.mojom-forward.h"
@@ -173,8 +176,11 @@ class CONTENT_EXPORT DedicatedWorkerHost final
       mojo::PendingReceiver<blink::mojom::WebPressureManager> receiver);
 #endif  // BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
 
+// Disable serial when bluetooth is disabled.
+#if !BUILDFLAG(DISABLE_BLUETOOTH)
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
+#endif
 #if !BUILDFLAG(IS_ANDROID)
   void BindHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
 #endif
