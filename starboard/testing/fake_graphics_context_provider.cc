@@ -92,7 +92,9 @@ namespace starboard {
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
       surface_(EGL_NO_SURFACE),
-      context_(EGL_NO_CONTEXT) {
+      context_(EGL_NO_CONTEXT),
+      window_(kSbWindowInvalid) {
+  InitializeWindow();
   InitializeEGL();
 }
 
@@ -103,6 +105,7 @@ FakeGraphicsContextProvider::~FakeGraphicsContextProvider() {
   pthread_join(decode_target_context_thread_, NULL);
   EGL_CALL(eglDestroySurface(display_, surface_));
   EGL_CALL(eglTerminate(display_));
+  SbWindowDestroy(window_);
 }
 
 void FakeGraphicsContextProvider::RunOnGlesContextThread(
@@ -165,6 +168,14 @@ void FakeGraphicsContextProvider::RunLoop() {
     }
     functor();
   }
+}
+
+void FakeGraphicsContextProvider::InitializeWindow() {
+  SbWindowOptions window_options;
+  SbWindowSetDefaultOptions(&window_options);
+
+  window_ = SbWindowCreate(&window_options);
+  SB_CHECK(SbWindowIsValid(window_));
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
