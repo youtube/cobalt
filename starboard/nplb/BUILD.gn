@@ -242,6 +242,7 @@ test("nplb") {
       "posix_compliance/posix_thread_rwlock_test.cc",
       "posix_compliance/posix_thread_set_name_test.cc",
       "posix_compliance/posix_thread_sleep_test.cc",
+      "posix_compliance/posix_thread_static_init_test.cc",
       "posix_compliance/posix_thread_yield_test.cc",
       "posix_compliance/posix_time_clock_gettime_test.cc",
       "posix_compliance/posix_time_clock_test.cc",
