@@ -34,6 +34,10 @@ config("cobalt_shell_lib_warnings") {
   }
 }
 
+source_set("url_constants") {
+  sources = [ "common/url_constants.h" ]
+}
+
 source_set("android_shell_descriptors") {
   sources = []
   public_deps = [ "//content/public/common:content_descriptors" ]
@@ -229,6 +233,7 @@ static_library("cobalt_shell_lib") {
   public_deps = [
     ":cobalt_shell_lib_deps",
     ":cobalt_shell_switches",
+    ":url_constants",
   ]
   sources = [
     "browser/h5vcc_scheme_url_loader_factory.cc",
@@ -268,7 +273,6 @@ static_library("cobalt_shell_lib") {
     "browser/splash_screen_web_contents_observer.h",
     "common/shell_content_client.cc",
     "common/shell_content_client.h",
-    "common/url_constants.h",
     "gpu/shell_content_gpu_client.cc",
     "gpu/shell_content_gpu_client.h",
     "renderer/shell_content_renderer_client.cc",
