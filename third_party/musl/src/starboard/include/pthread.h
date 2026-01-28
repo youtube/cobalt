@@ -54,7 +54,7 @@ extern "C" {
 // initialization. Once initialized, the platform mutex handles the
 // memory at this offset, and the flag is no longer needed.
 #define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP \
-  { {3} }
+  { {1} }
 
 // Max size of the native mutex type.
 #define MUSL_PTHREAD_MUTEX_MAX_SIZE 80
