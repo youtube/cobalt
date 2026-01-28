@@ -27,6 +27,8 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/synthetic_trial_registry.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -184,13 +186,42 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
     base::OnceClosure done_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // Any hooks that should be called before each new log is uploaded, goes here.
-  // Chrome uses this to update memory histograms. Regardless, you must call
-  // done_callback when done else the uploader will never get invoked.
-  std::move(done_callback).Run();
+
+  auto* instrumentation =
+      memory_instrumentation::MemoryInstrumentation::GetInstance();
+  if (instrumentation) {
+    instrumentation->RequestGlobalDump(
+        {}, base::BindOnce(&CobaltMetricsServiceClient::OnMemoryDumpDone,
+                           weak_ptr_factory_.GetWeakPtr(),
+                           std::move(done_callback)));
+  } else {
+    std::move(done_callback).Run();
+  }
 
   OnApplicationNotIdleInternal();
 }
+
+void CobaltMetricsServiceClient::OnMemoryDumpDone(
+    base::OnceClosure done_callback,
+    bool success,
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  if (success && global_dump) {
+    uint64_t total_private_footprint_kb = 0;
+    for (const auto& process_dump : global_dump->process_dumps()) {
+      total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+    }
+
+    if (total_private_footprint_kb > 0) {
+      MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
+                                  total_private_footprint_kb / 1024);
+    }
+  }
+
+  std::move(done_callback).Run();
+}
+
 void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {
   // MetricsService will shut itself down if the app doesn't periodically tell
   // it it's not idle. In Cobalt's case, we don't want this behavior. Watch
