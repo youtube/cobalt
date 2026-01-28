@@ -36,7 +36,7 @@ jobs:
         id: build-config
         run: |
           cd .github/config
-          CONFIG_JSON=$(cat ${{ matrix.platform }}.json | jq -cr '.')
+          CONFIG_JSON=$(jq -cr '.' ${{ matrix.platform }}.json)
           echo "config_json=$CONFIG_JSON" >> "$GITHUB_OUTPUT"
       - name: Setup depot_tools
         uses: ./.github/actions/depot_tools
