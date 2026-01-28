@@ -57,8 +57,7 @@ static constexpr ::crashpad::SanitizationInformation kSanitizationInfo = {
     /*allowed_annotations_address=*/0,
     /*target_module_address=*/0,
     /*allowed_memory_ranges_address=*/0,
-    /*sanitize_stacks=*/1
-};
+    /*sanitize_stacks=*/1};
 
 ::crashpad::CrashpadClient* GetCrashpadClient() {
   static auto* crashpad_client = new ::crashpad::CrashpadClient();
@@ -245,8 +244,7 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
       // skipping it, especially now that upload scans trigger report pruning
       // upon completion.
       "--no-periodic-tasks",
-      base::StringPrintf("--sanitization-information=%p", &kSanitizationInfo)
-  };
+      base::StringPrintf("--sanitization-information=%p", &kSanitizationInfo)};
 
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
   default_annotations.insert(platform_info.begin(), platform_info.end());
