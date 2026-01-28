@@ -6,7 +6,7 @@ import org.chromium.content_public.browser.WebContentsObserver;
 
 /**
  * An observer that monitors web content navigation to disarm the StartupGuard
- * once the primary page has successfully loaded.
+ * once the primary page has successfully loaded or begun navigating.
  */
 public class StartupGuardNavigationObserver extends WebContentsObserver {
     /**
@@ -19,10 +19,17 @@ public class StartupGuardNavigationObserver extends WebContentsObserver {
     }
 
     @Override
+    public void didRedirectNavigation(NavigationHandle navigation) {
+        // If the page starts to navigate, the app is functioning.
+        // Network-specific errors (e.g., DNS failure, offline) are handled by
+        // separate error-handling logic, so we disarm the guard here.
+        StartupGuard.getInstance().disarm();
+        destroy();
+    }
+
+    @Override
     public void didFinishNavigationInPrimaryMainFrame(NavigationHandle navigation) {
-        if (navigation.hasCommitted()) {
-            StartupGuard.getInstance().disarm();
-            destroy();
-        }
+        StartupGuard.getInstance().disarm();
+        destroy();
     }
 }
