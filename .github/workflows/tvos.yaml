@@ -37,6 +37,7 @@ jobs:
       - name: Setup depot_tools
         uses: ./.github/actions/depot_tools
         with:
+          clear_cache: 'true'
           use_cache: 'false'
       - name: Build
         uses: ./.github/actions/build
