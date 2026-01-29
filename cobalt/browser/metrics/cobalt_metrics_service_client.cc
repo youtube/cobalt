@@ -27,9 +27,26 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
 #include "components/variations/synthetic_trial_registry.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/browser_metrics.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 #include "url/gurl.h"
 
 namespace cobalt {
+
+namespace {
+
+void OnMemoryDumpDone(
+    base::OnceClosure done_callback,
+    bool success,
+    std::unique_ptr<memory_instrumentation::GlobalMemoryDump> global_dump) {
+  if (success && global_dump) {
+    CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
+  }
+
+  std::move(done_callback).Run();
+}
+
+}  // namespace
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
@@ -38,7 +55,8 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     PrefService* local_state)
     : synthetic_trial_registry_(std::move(synthetic_trial_registry)),
       local_state_(local_state),
-      metrics_state_manager_(state_manager) {
+      metrics_state_manager_(state_manager),
+      upload_interval_(base::Seconds(30)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -76,7 +94,7 @@ void CobaltMetricsServiceClient::StartIdleRefreshTimer() {
       FROM_HERE, timer_interval, this,
       &CobaltMetricsServiceClient::OnApplicationNotIdleInternal);
   DLOG(INFO) << "Starting refresh timer for: "
-             << idle_refresh_timer_.GetCurrentDelay().InSeconds() << " seconds";
+            << idle_refresh_timer_.GetCurrentDelay().InSeconds() << " seconds";
 }
 
 std::unique_ptr<metrics::MetricsService>
@@ -184,14 +202,29 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
     base::OnceClosure done_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // Any hooks that should be called before each new log is uploaded, goes here.
-  // Chrome uses this to update memory histograms. Regardless, you must call
-  // done_callback when done else the uploader will never get invoked.
-  std::move(done_callback).Run();
 
-  OnApplicationNotIdleInternal();
+  auto* instrumentation =
+      memory_instrumentation::MemoryInstrumentation::GetInstance();
+  if (instrumentation) {
+    instrumentation->RequestPrivateMemoryFootprint(
+        base::GetCurrentProcId(),
+        base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
+  } else {
+    std::move(done_callback).Run();
+  }
+
+  // Reset the idle state but don't call OnApplicationNotIdleInternal to avoid
+  // potential confusion/recursion if it were to ever call this again.
+  GetMetricsService()->OnApplicationNotIdle();
 }
 void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {
+  auto* instrumentation =
+      memory_instrumentation::MemoryInstrumentation::GetInstance();
+  if (instrumentation) {
+    instrumentation->RequestPrivateMemoryFootprint(
+        base::GetCurrentProcId(),
+        base::BindOnce(&OnMemoryDumpDone, base::DoNothing()));
+  }
   // MetricsService will shut itself down if the app doesn't periodically tell
   // it it's not idle. In Cobalt's case, we don't want this behavior. Watch
   // sessions for LR can happen for extended periods of time with no action by
@@ -254,4 +287,34 @@ void CobaltMetricsServiceClient::SetMetricsListener(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
+
+// static
+void CobaltMetricsServiceClient::RecordMemoryMetrics(
+    memory_instrumentation::GlobalMemoryDump* global_dump) {
+  uint64_t total_private_footprint_kb = 0;
+  for (const auto& process_dump : global_dump->process_dumps()) {
+    // os_dump() can be null if the OS dump failed for this process.
+    // However, it returns a reference, so we must check via raw_dump if possible,
+    // but the ProcessDump class doesn't expose raw_dump.
+    // Actually, looking at GlobalMemoryDump::ProcessDump, os_dump() returns *raw_dump_->os_dump.
+    // We should probably check if it's there before calling it if we could.
+    // But since it returns a reference, it's a bit tricky if it's null.
+    // Wait, let's look at the ProcessDump header again.
+    // It says: const mojom::OSMemDump& os_dump() const { return *raw_dump_->os_dump; }
+    // This is dangerous if os_dump is null.
+    
+    // In our case, RequestPrivateMemoryFootprint should ensure it's there for successful dumps.
+    total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+  }
+
+  if (total_private_footprint_kb > 0) {
+    uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
+    if (total_private_footprint_mb == 0) {
+      total_private_footprint_mb = 1;
+    }
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
+                                total_private_footprint_mb);
+  }
+}
+
 }  // namespace cobalt

@@ -22,7 +22,9 @@
 #include "cobalt/shell/common/shell_paths.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "content/browser/tracing/memory_instrumentation_util.h"
 #include "content/public/browser/browser_thread.h"
+#include "services/resource_coordinator/public/cpp/memory_instrumentation/memory_instrumentation.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "base/android/memory_pressure_listener_android.h"
@@ -46,6 +48,9 @@ int CobaltBrowserMainParts::PreCreateThreads() {
 }
 
 int CobaltBrowserMainParts::PreMainMessageLoopRun() {
+  if (!memory_instrumentation::MemoryInstrumentation::GetInstance()) {
+    content::InitializeBrowserMemoryInstrumentationClient();
+  }
   StartMetricsRecording();
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }

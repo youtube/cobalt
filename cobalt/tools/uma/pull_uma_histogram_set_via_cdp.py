@@ -22,14 +22,17 @@ import sys
 import time
 import threading
 import requests
-import websocket  # Need websocket-client
-import subprocess
 
 REPOSITORY_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.append(os.path.join(REPOSITORY_ROOT, 'cobalt', 'tools', 'performance'))
 sys.path.append(
     os.path.join(REPOSITORY_ROOT, 'third_party', 'catapult', 'devil'))
+sys.path.append(
+    os.path.join(REPOSITORY_ROOT, 'third_party', 'catapult', 'telemetry', 'third_party', 'websocket-client'))
+
+import websocket  # Need websocket-client
+import subprocess
 
 from adb_command_runner import run_adb_command  # pylint: disable=wrong-import-position
 from devil.android import device_utils  # pylint: disable=wrong-import-position
@@ -195,11 +198,17 @@ def _get_histograms_from_file(file_path: str) -> list:
     ]
 
 
-def _get_chrome_guiding_metrics() -> list:
+def _get_chrome_guiding_metrics_for_memory() -> list:
   metrics = []
-  metrics.append('Memory.PartitionAlloc.MemoryReclaim')
-  metrics.append('Memory.PartitionAlloc.PartitionRoot.ExtrasSize')
-  metrics.append('Memory.PartitionAlloc.PeriodicPurge')
+  # Desktop and Android
+  metrics.append('Memory.Browser.PrivateMemoryFootprint')
+  # Desktop only
+  metrics.append('Memory.Gpu.PrivateMemoryFootprint')
+  # Desktop and Android
+  metrics.append('Memory.Renderer.PrivateMemoryFootprint')
+  metrics.append('Memory.Total.PrivateMemoryFootprint')
+  # iOS only
+  metrics.append('Memory.Browser.MemoryFootprint')
   return metrics
 
 
@@ -303,7 +312,7 @@ def _run_main(args, output_file):
   if args.histogram_file:
     histograms = _get_histograms_from_file(args.histogram_file)
   else:
-    histograms = _get_chrome_guiding_metrics()
+    histograms = _get_chrome_guiding_metrics_for_memory()
 
   _print_q(f'Ensure Cobalt is running with --remote-debugging-port={args.port}',
            args.quiet)
