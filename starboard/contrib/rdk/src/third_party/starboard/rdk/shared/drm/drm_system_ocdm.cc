@@ -761,6 +761,16 @@ int DrmSystemOcdm::Decrypt(const std::string& id,
 }
 
 const void* DrmSystemOcdm::GetMetrics(int* size) {
+  // Taken from RDK patch:0007-GetMetrics-YT24-changes.patch
+  // This is used since below call to g_ocdmGetMetricSystemData i.e opencdm_get_metric_system_data
+  // throws NOT_IMPLEMENTED error.
+  // FIXME: Ensure valid cdm API is used here to get_metrics.
+  OpenCDMError result =  opencdm_get_metrics(ocdm_system_, metrics_data_);
+  if (ERROR_NONE == result) {
+    *size = metrics_data_.size();
+    return (void*)metrics_data_.data();
+  }
+
   if ( !g_ocdmGetMetricSystemData )
     return nullptr;
 

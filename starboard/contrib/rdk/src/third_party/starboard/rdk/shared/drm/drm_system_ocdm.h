@@ -116,6 +116,8 @@ class DrmSystemOcdm : public SbDrmSystemPrivate, public ::starboard::RefCountedT
   std::set<std::string> GetReadyKeysUnlocked() const;
 
   std::string key_system_;
+  // Taken from RDK patch:0007-GetMetrics-YT24-changes.patch
+  std::string metrics_data_;
   void* context_;
   std::vector<std::unique_ptr<session::Session>> sessions_;
 
