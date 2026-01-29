@@ -28,64 +28,66 @@ class JobThread::WorkerThread : public Thread {
   WorkerThread(JobThread* job_thread,
                const char* thread_name,
                int64_t stack_size,
-               SbThreadPriority priority,
-               std::mutex* mutex,
-               std::condition_variable* cv)
+               SbThreadPriority priority)
       : Thread(thread_name, stack_size),
         job_thread_(job_thread),
-        priority_(priority),
-        mutex_(mutex),
-        cv_(cv) {}
+        priority_(priority) {}
 
   void Run() override {
     SbThreadSetPriority(priority_);
     {
-      std::lock_guard lock(*mutex_);
+      std::lock_guard lock(mutex_);
       job_thread_->job_queue_ = std::make_unique<JobQueue>();
     }
-    cv_->notify_one();
+    cv_.notify_one();
     job_thread_->RunLoop();
+  }
+
+  void WaitUntilJobQueueCreation() {
+    std::unique_lock lock(mutex_);
+    cv_.wait(lock, [this] { return job_thread_->job_queue_ != nullptr; });
+    SB_CHECK(job_thread_->job_queue_);
   }
 
  private:
   JobThread* job_thread_;
   SbThreadPriority priority_;
-  std::mutex* mutex_;
-  std::condition_variable* cv_;
+  std::mutex mutex_;
+  std::condition_variable cv_;
 };
 
 JobThread::JobThread(const char* thread_name,
                      int64_t stack_size,
-                     SbThreadPriority priority) {
-  std::mutex mutex;
-  std::condition_variable condition_variable;
-
-  thread_ = std::make_unique<WorkerThread>(
-      this, thread_name, stack_size, priority, &mutex, &condition_variable);
+                     SbThreadPriority priority)
+    : thread_(std::make_unique<WorkerThread>(this,
+                                             thread_name,
+                                             stack_size,
+                                             priority)) {
   thread_->Start();
-
-  std::unique_lock lock(mutex);
-  condition_variable.wait(lock, [this] { return job_queue_ != nullptr; });
-  SB_DCHECK(job_queue_);
+  thread_->WaitUntilJobQueueCreation();
 }
 
 JobThread::~JobThread() {
-  // TODO: There is a potential race condition here since job_queue_ can get
-  // reset if it's is stopped while this dtor is running. Thus, avoid stopping
-  // job_queue_ before JobThread is destructed.
-  if (job_queue_) {
-    job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
-  }
-  thread_->Join();
+  Stop();
 }
 
 void JobThread::RunLoop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   job_queue_->RunUntilStopped();
-  // TODO: Investigate removing this line to avoid the race condition in the
-  // dtor.
-  job_queue_.reset();
+}
+
+void JobThread::Stop() {
+  // Use a mutex to ensure that if multiple threads call Stop() (e.g. one
+  // explicitly and one via the destructor), they all wait until the join
+  // is actually complete.
+  std::lock_guard lock(stop_mutex_);
+  if (stopped_.exchange(true, std::memory_order_release)) {
+    return;
+  }
+
+  job_queue_->StopSoon();
+  thread_->Join();
 }
 
 }  // namespace starboard

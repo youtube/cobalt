@@ -17,11 +17,13 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/thread.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -161,6 +163,37 @@ TEST(JobThreadTest, QueueBelongsToCorrectThread) {
   job_queue.RunUntilIdle();
   EXPECT_FALSE(belongs_to_job_thread);
   EXPECT_TRUE(belongs_to_main_thread);
+}
+
+TEST(JobThreadTest, Stop) {
+  std::mutex mutex;
+  std::condition_variable cv;
+  bool started = false;
+
+  auto job_thread = std::make_unique<JobThread>("test");
+
+  job_thread->Schedule([&] {
+    {
+      std::lock_guard lock(mutex);
+      started = true;
+    }
+    cv.notify_one();
+
+    usleep(5'000);
+
+    // Pending task is still running. job_thread should not be null.
+    EXPECT_NE(job_thread, nullptr);
+  });
+
+  {
+    std::unique_lock lock(mutex);
+    cv.wait(lock, [&started] { return started; });
+  }
+
+  // Calling Stop() explicitly ensures the pending task completes before
+  // 'job_thread' is destroyed at the end of the scope. This ensures that the
+  // captured reference remains valid and non-null while the task is running.
+  job_thread->Stop();
 }
 
 }  // namespace

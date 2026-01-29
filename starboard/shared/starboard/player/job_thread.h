@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 
+#include <atomic>
 #include <memory>
 #include <utility>
 
@@ -38,27 +39,39 @@ class JobThread {
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
-    SB_DCHECK(job_queue_);
+    if (stopped_.load(std::memory_order_acquire)) {
+      return false;
+    }
 
+    SB_CHECK(job_queue_);
     return job_queue_->BelongsToCurrentThread();
   }
 
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
                               int64_t delay_usec = 0) {
-    SB_DCHECK(job_queue_);
+    if (stopped_.load(std::memory_order_acquire)) {
+      return JobQueue::JobToken();
+    }
 
+    SB_CHECK(job_queue_);
     return job_queue_->Schedule(job, delay_usec);
   }
 
   JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
-    SB_DCHECK(job_queue_);
+    if (stopped_.load(std::memory_order_acquire)) {
+      return JobQueue::JobToken();
+    }
 
+    SB_CHECK(job_queue_);
     return job_queue_->Schedule(std::move(job), delay_usec);
   }
 
   void ScheduleAndWait(const JobQueue::Job& job) {
-    SB_DCHECK(job_queue_);
+    if (stopped_.load(std::memory_order_acquire)) {
+      return;
+    }
 
+    SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(job);
   }
 
@@ -66,23 +79,45 @@ class JobThread {
   // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
   // occasionally running before ScheduleAndWait has finished.
   void ScheduleAndWait(JobQueue::Job&& job) {
-    SB_DCHECK(job_queue_);
+    if (stopped_.load(std::memory_order_acquire)) {
+      return;
+    }
 
+    SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
   void RemoveJobByToken(JobQueue::JobToken job_token) {
-    SB_DCHECK(job_queue_);
+    if (stopped_.load(std::memory_order_acquire)) {
+      return;
+    }
 
+    SB_CHECK(job_queue_);
     return job_queue_->RemoveJobByToken(job_token);
   }
+
+  // Remove any pending tasks and stop scheduling any more tasks.
+  // This method returns only after the current running task is completed, if
+  // any. This can be called when call sites want to ensure that no pending
+  // tasks are running while the owning object is being destroyed.
+  // This is useful because tasks might access members of the owning object
+  // that could be destroyed before the JobThread member itself is destroyed.
+  // For example, a unique_ptr member holding the JobThread is set to nullptr
+  // as soon as its destruction begins, causing tasks that access it to see
+  // a null pointer even while the JobThread's destructor is still waiting
+  // for them to finish. For details, see http://b/477902972#comment2.
+  void Stop();
 
  private:
   class WorkerThread;
 
   void RunLoop();
 
-  std::unique_ptr<Thread> thread_;
+  std::atomic<bool> stopped_{false};
+
+  std::mutex stop_mutex_;
+  const std::unique_ptr<WorkerThread> thread_;
+  // job_queue_ is initialized during construction and is never reset.
   std::unique_ptr<JobQueue> job_queue_;
 };
 
