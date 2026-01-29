@@ -129,8 +129,8 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
   SB_DCHECK(can_accept_more_data_.load());
 
   if (!audio_track_thread_) {
-    audio_track_thread_.reset(
-        new JobThread("AudioPassthrough", kSbThreadPriorityHigh));
+    audio_track_thread_ =
+        std::make_unique<JobThread>("AudioPassthrough", kSbThreadPriorityHigh);
     audio_track_thread_->Schedule(std::bind(
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }
