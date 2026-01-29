@@ -16,6 +16,7 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/testing/browser_tests/content_browser_test.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
