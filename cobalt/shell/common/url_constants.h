@@ -19,9 +19,6 @@ namespace content {
 
 inline constexpr char kCobaltSplashMainFrameName[] = "Splash";
 inline constexpr char kH5vccEmbeddedScheme[] = "h5vcc-embedded";
-inline constexpr char kSplashCacheDomain[] = "https://www.youtube.com";
-inline constexpr char16_t kDefaultSplashCacheName[] = u"default";
-
 }  // namespace content
 
 #endif  // COBALT_SHELL_COMMON_URL_CONSTANTS_H_
