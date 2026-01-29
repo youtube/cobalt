@@ -115,6 +115,7 @@ class JobThread {
 
   std::atomic<bool> stopped_{false};
 
+  std::mutex stop_mutex_;
   const std::unique_ptr<WorkerThread> thread_;
   // job_queue_ is initialized during construction and is never reset.
   std::unique_ptr<JobQueue> job_queue_;

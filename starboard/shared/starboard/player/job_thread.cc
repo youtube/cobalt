@@ -78,6 +78,10 @@ void JobThread::RunLoop() {
 }
 
 void JobThread::Stop() {
+  // Use a mutex to ensure that if multiple threads call Stop() (e.g. one
+  // explicitly and one via the destructor), they all wait until the join
+  // is actually complete.
+  std::lock_guard lock(stop_mutex_);
   if (stopped_.exchange(true, std::memory_order_release)) {
     return;
   }
