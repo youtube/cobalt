@@ -333,7 +333,7 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   ParsedH5vccSettings parsed;
   if (h5vcc_settings_remote_->GetSettings(&settings) && settings) {
     auto h5vcc_settings = ParseH5vccSettings(std::move(settings));
-    ProcessH5vccSettings(h5vcc_settings);
+    parsed = ProcessH5vccSettings(h5vcc_settings);
   }
   // TODO: b/474454335 - Remove once experiments are done.
   renderer_factory_traits->enable_flush_during_seek =

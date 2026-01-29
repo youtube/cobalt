@@ -264,6 +264,8 @@ public class Shell {
             mWebContents.onShow();
         }
         mContentViewRenderView.setCurrentWebContents(mWebContents);
+
+        new StartupGuardNavigationObserver(mWebContents);
     }
 
     public void onActivityVisible(boolean visible) {

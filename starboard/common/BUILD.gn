@@ -33,6 +33,7 @@ static_library("common") {
     "//starboard/shared/media_session/playback_state.h",
     "allocator.cc",
     "allocator.h",
+    "bidirectional_fit_reuse_allocator.h",
     "check.h",
     "check_op.cc",
     "check_op.h",
@@ -45,6 +46,10 @@ static_library("common") {
     "device_type.h",
     "drm.cc",
     "drm.h",
+    "experimental/media_buffer_pool.cc",
+    "experimental/media_buffer_pool.h",
+    "experimental/media_buffer_pool_bidirectional_reuse_allocator.h",
+    "experimental/media_buffer_pool_memory_allocator.h",
     "file.cc",
     "file.h",
     "fixed_no_free_allocator.cc",
@@ -103,6 +108,7 @@ static_library("file_wrapper") {
 source_set("common_test") {
   testonly = true
   sources = [
+    "bidirectional_fit_reuse_allocator_test.cc",
     "drm_test.cc",
     "fixed_no_free_allocator_test.cc",
     "log_unittest.cc",
