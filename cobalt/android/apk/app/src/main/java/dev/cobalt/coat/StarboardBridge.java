@@ -297,12 +297,9 @@ public class StarboardBridge {
 
   @CalledByNative
   public boolean isPlatformErrorShowing() {
-    Log.i(TAG, "Charley: StarboardBridge.isPlatformErrorShowing called.");
     if (mPlatformError != null) {
-      Log.i(TAG, "Charley: StarboardBridge.isPlatformErrorShowing returning: " + mPlatformError.isShowing());
       return mPlatformError.isShowing();
     }
-    Log.i(TAG, "Charley: StarboardBridge.isPlatformErrorShowing: mPlatformError is null. Returning false.");
     return false;
   }
 
