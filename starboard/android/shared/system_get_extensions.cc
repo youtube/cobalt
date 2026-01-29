@@ -22,6 +22,11 @@
 #include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/features_extension.h"
 #include "starboard/android/shared/graphics.h"
+<<<<<<< HEAD
+=======
+#include "starboard/android/shared/media_buffer_pool_extension.h"
+#include "starboard/android/shared/media_settings_api.h"
+>>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
 #include "starboard/android/shared/player_configurate_seek.h"
@@ -87,7 +92,16 @@ const void* SbSystemGetExtension(const char* name) {
     // return starboard::GetAccessibilityApi();
     return NULL;
   }
+<<<<<<< HEAD
 
+=======
+  if (strcmp(name, kStarboardExtensionMediaSettingsName) == 0) {
+    return starboard::android::shared::GetMediaSettingsApi();
+  }
+  if (strcmp(name, kStarboardExtensionMediaBufferPoolApiName) == 0) {
+    return starboard::android::shared::GetMediaBufferPoolApi();
+  }
+>>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::GetSystemInfoApi();
   }

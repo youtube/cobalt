@@ -191,6 +191,7 @@ class SbPlayerBridge {
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
+<<<<<<< HEAD
   // DecoderBuffer, usage count, type, and total buffer size. The usage
   // count indicates how many instances of the DecoderBuffer is currently
   // being used (== being decoded) in the pipeline. The type is used to report
@@ -201,6 +202,14 @@ class SbPlayerBridge {
     SbMediaType type;
   };
   using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
+=======
+  // DecoderBuffer and a reference count.  The reference count indicates how
+  // many instances of the DecoderBuffer is currently being decoded in the
+  // pipeline.
+  typedef std::map<const DecoderBuffer::Allocator::Handle,
+                   std::pair<scoped_refptr<DecoderBuffer>, int>>
+      DecodingBuffers;
+>>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB
