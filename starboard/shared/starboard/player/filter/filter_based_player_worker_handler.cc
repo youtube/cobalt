@@ -16,6 +16,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <utility>
 
 #include "build/build_config.h"
@@ -125,9 +126,15 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
+<<<<<<< HEAD
       max_video_input_size_, surface_view_, flush_decoder_during_reset_,
       reset_audio_decoder_, decode_target_graphics_context_provider_, job_queue,
       drm_system_);
+=======
+      max_video_input_size_, flush_decoder_during_reset_, reset_audio_decoder_,
+      video_initial_max_frames_in_decoder_, video_max_pending_input_frames_,
+      surface_view_, decode_target_graphics_context_provider_, drm_system_);
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -564,4 +571,35 @@ void FilterBasedPlayerWorkerHandler::SetResetAudioDecoder(
   reset_audio_decoder_ = reset_audio_decoder;
 }
 
+<<<<<<< HEAD
 }  // namespace starboard
+=======
+void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
+  SB_LOG(INFO) << "Set surface_view from " << surface_view_ << " to "
+               << surface_view;
+  surface_view_ = surface_view;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
+    int video_initial_max_frames_in_decoder) {
+  SB_LOG(INFO) << "Set video_initial_max_frames_in_decoder from "
+               << (video_initial_max_frames_in_decoder_.has_value()
+                       ? std::to_string(
+                             video_initial_max_frames_in_decoder_.value())
+                       : "(nullopt)")
+               << " to " << video_initial_max_frames_in_decoder;
+  video_initial_max_frames_in_decoder_ = video_initial_max_frames_in_decoder;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
+    int video_max_pending_input_frames) {
+  SB_LOG(INFO) << "Set video_max_pending_input_frames from "
+               << (video_max_pending_input_frames_.has_value()
+                       ? std::to_string(video_max_pending_input_frames_.value())
+                       : "(nullopt)")
+               << " to " << video_max_pending_input_frames;
+  video_max_pending_input_frames_ = video_max_pending_input_frames;
+}
+
+}  // namespace starboard::shared::starboard::player::filter
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))

@@ -87,11 +87,20 @@ class PlayerComponentsTest
       CreationParameters creation_parameters(
           audio_reader_->audio_stream_info(),
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
+<<<<<<< HEAD
           max_video_input_size_, dummy_surface_view_,
           /*flush_decoder_during_reset=*/false,
           /*reset_audio_decoder=*/false,
           fake_graphics_context_provider_.decoder_target_provider(),
           &job_queue_);
+=======
+          max_video_input_size_,
+          /*flush_decoder_during_reset=*/false,
+          /*reset_audio_decoder=*/false,
+          /*video_initial_max_frames_in_decoder=*/std::nullopt,
+          /*video_max_pending_input_frames=*/std::nullopt, dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider());
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =
@@ -107,11 +116,20 @@ class PlayerComponentsTest
       ASSERT_TRUE(video_reader_);
       CreationParameters creation_parameters(
           video_reader_->video_stream_info(), kDummyPlayer, output_mode_,
+<<<<<<< HEAD
           max_video_input_size_, dummy_surface_view_,
           /*flush_decoder_during_reset=*/false,
           /*reset_audio_decoder=*/false,
           fake_graphics_context_provider_.decoder_target_provider(),
           &job_queue_);
+=======
+          max_video_input_size_,
+          /*flush_decoder_during_reset=*/false,
+          /*reset_audio_decoder=*/false,
+          /*video_initial_max_frames_in_decoder=*/std::nullopt,
+          /*video_max_pending_input_frames=*/std::nullopt, dummy_surface_view_,
+          fake_graphics_context_provider_.decoder_target_provider());
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
       ASSERT_EQ(creation_parameters.max_video_input_size(),
                 max_video_input_size_);
       player_components_ =

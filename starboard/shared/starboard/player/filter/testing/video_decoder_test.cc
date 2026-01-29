@@ -148,9 +148,16 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
             PlayerComponents::Factory::CreationParameters creation_parameters(
                 CreateVideoStreamInfo(fixture_.dmp_reader().video_codec()),
                 &players[i], output_mode, max_video_input_size,
+<<<<<<< HEAD
                 /*surface_view=*/nullptr,
                 /*flush_decoder_during_reset=*/false,
                 /*reset_audio_decoder=*/false,
+=======
+                /*flush_decoder_during_reset=*/false,
+                /*reset_audio_decoder=*/false,
+                /*video_initial_max_frames_in_decoder=*/std::nullopt,
+                /*video_max_pending_input_frames=*/std::nullopt,
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
                 fake_graphics_context_provider_.decoder_target_provider(),
                 &job_queue_);
             ASSERT_EQ(creation_parameters.max_video_input_size(),

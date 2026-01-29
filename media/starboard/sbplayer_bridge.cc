@@ -39,6 +39,7 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/player_configurate_seek.h"
+#include "starboard/extension/video_decoder_configuration.h"
 #if COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
 #include "starboard/extension/player_set_max_video_input_size.h"
 #endif  // COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE
@@ -153,7 +154,9 @@ SbPlayerBridge::SbPlayerBridge(
     const std::string& max_video_capabilities,
     int max_video_input_size,
     bool flush_decoder_during_reset,
-    bool reset_audio_decoder
+    bool reset_audio_decoder,
+    std::optional<int> initial_max_frames_in_decoder,
+    std::optional<int> max_pending_input_frames
 #if BUILDFLAG(IS_ANDROID)
     ,
     jobject surface_view
@@ -191,7 +194,9 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // SB_HAS(PLAYER_WITH_URL
       max_video_capabilities_(max_video_capabilities),
       flush_decoder_during_reset_(flush_decoder_during_reset),
-      reset_audio_decoder_(reset_audio_decoder)
+      reset_audio_decoder_(reset_audio_decoder),
+      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
+      max_pending_input_frames_(max_pending_input_frames)
 #if BUILDFLAG(IS_ANDROID)
       ,
       surface_view_(surface_view)
@@ -760,6 +765,44 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetForceResetAudioDecoderForCurrentThread(reset_audio_decoder_);
   }
 
+<<<<<<< HEAD
+=======
+  const StarboardExtensionVideoDecoderConfigurationApi*
+      video_decoder_configuration_extension =
+          static_cast<const StarboardExtensionVideoDecoderConfigurationApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionVideoDecoderConfigurationName));
+  if (video_decoder_configuration_extension &&
+      strcmp(video_decoder_configuration_extension->name,
+             kStarboardExtensionVideoDecoderConfigurationName) == 0 &&
+      video_decoder_configuration_extension->version >= 1) {
+    if (initial_max_frames_in_decoder_) {
+      video_decoder_configuration_extension
+          ->SetVideoInitialMaxFramesInDecoderForCurrentThread(
+              *initial_max_frames_in_decoder_);
+    }
+    if (max_pending_input_frames_) {
+      video_decoder_configuration_extension
+          ->SetVideoMaxPendingInputFramesForCurrentThread(
+              *max_pending_input_frames_);
+    }
+  }
+
+#if BUILDFLAG(IS_ANDROID)
+  const StarboardExtensionPlayerSetVideoSurfaceViewApi*
+      player_set_video_surface_view_extension =
+          static_cast<const StarboardExtensionPlayerSetVideoSurfaceViewApi*>(
+              SbSystemGetExtension(
+                  kStarboardExtensionPlayerSetVideoSurfaceViewName));
+  if (player_set_video_surface_view_extension &&
+      strcmp(player_set_video_surface_view_extension->name,
+             kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0 &&
+      player_set_video_surface_view_extension->version >= 1) {
+    player_set_video_surface_view_extension
+        ->SetVideoSurfaceViewForCurrentThread(surface_view_);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
   player_ = sbplayer_interface_->Create(
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,

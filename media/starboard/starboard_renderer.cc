@@ -129,7 +129,14 @@ StarboardRenderer::StarboardRenderer(
     const std::string& max_video_capabilities,
     const gfx::Size& viewport_size,
     bool enable_flush_during_seek,
+<<<<<<< HEAD
     bool enable_reset_audio_decoder
+=======
+    bool enable_reset_audio_decoder,
+    std::optional<int> initial_max_frames_in_decoder,
+    std::optional<int> max_pending_input_frames,
+    const gfx::Size& viewport_size
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -147,7 +154,14 @@ StarboardRenderer::StarboardRenderer(
       max_samples_per_write_(kDefaultMaxSamplePerWrite),
       viewport_size_(viewport_size),
       enable_flush_during_seek_(enable_flush_during_seek),
+<<<<<<< HEAD
       enable_reset_audio_decoder_(enable_reset_audio_decoder)
+=======
+      enable_reset_audio_decoder_(enable_reset_audio_decoder),
+      initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
+      max_pending_input_frames_(max_pending_input_frames),
+      viewport_size_(viewport_size)
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
 #if BUILDFLAG(IS_ANDROID)
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
@@ -161,8 +175,15 @@ StarboardRenderer::StarboardRenderer(
             << ", audio_write_duration_remote=" << audio_write_duration_remote_
             << ", max_video_capabilities="
             << base::GetQuotedJSONString(max_video_capabilities_)
+<<<<<<< HEAD
             << ", max_samples_per_write=" << max_samples_per_write_
             << ", view_port_size=" << viewport_size_.ToString();
+=======
+            << ", initial_max_frames_in_decoder="
+            << initial_max_frames_in_decoder_.value_or(-1)
+            << ", max_pending_input_frames="
+            << max_pending_input_frames_.value_or(-1);
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -618,6 +639,7 @@ void StarboardRenderer::CreatePlayerBridge() {
 
   LOG(INFO) << "Creating SbPlayerBridge.";
 
+<<<<<<< HEAD
   player_bridge_.reset(new SbPlayerBridge(
       GetSbPlayerInterface(), task_runner_,
       // TODO(b/375070492): Implement decode-to-texture support
@@ -632,6 +654,23 @@ void StarboardRenderer::CreatePlayerBridge() {
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
       -1, enable_flush_during_seek_, enable_reset_audio_decoder_
+=======
+    player_bridge_.reset(new SbPlayerBridge(
+        GetSbPlayerInterface(), task_runner_,
+        // TODO(b/375070492): Implement decode-to-texture support
+        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
+        audio_config, audio_mime_type, video_config, video_mime_type,
+        // TODO(b/326497953): Support suspend/resume.
+        // TODO(b/326508279): Support background mode.
+        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
+        // TODO(b/326497953): Support suspend/resume.
+        false,
+        // TODO(b/326825450): Revisit 360 videos.
+        kSbPlayerOutputModeInvalid, max_video_capabilities_,
+        // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
+        -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
+        initial_max_frames_in_decoder_, max_pending_input_frames_
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.

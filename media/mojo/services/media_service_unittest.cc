@@ -147,7 +147,14 @@ class MediaServiceTest : public testing::Test {
                                  "width=1920; height=1080; framerate=15;",
                                  gfx::Size(1920, 1080),
                                  /*enable_flush_during_seek=*/false,
+<<<<<<< HEAD
                                  /*enable_reset_audio_decoder=*/false);
+=======
+                                 /*enable_reset_audio_decoder=*/false,
+                                 /*initial_max_frames_in_decoder=*/std::nullopt,
+                                 /*max_pending_input_frames=*/std::nullopt,
+                                 gfx::Size(1920, 1080));
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),
       config, renderer_.BindNewPipeAndPassReceiver(),

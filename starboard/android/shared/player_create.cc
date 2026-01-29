@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "starboard/android/shared/configurate_seek.h"
+#include "starboard/android/shared/video_decoder_configuration_internal.h"
 #include "starboard/android/shared/video_max_video_input_size.h"
 #include "starboard/android/shared/video_surface_view.h"
 #include "starboard/android/shared/video_window.h"
@@ -209,8 +210,23 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
   handler->SetFlushDecoderDuringReset(
       starboard::GetForceFlushDecoderDuringResetForCurrentThread());
   handler->SetResetAudioDecoder(
+<<<<<<< HEAD
       starboard::GetForceResetAudioDecoderForCurrentThread());
   auto player = std::make_unique<starboard::SbPlayerPrivateImpl>(
+=======
+      starboard::android::shared::GetForceResetAudioDecoderForCurrentThread());
+  if (auto initial_max_frames_in_decoder = starboard::android::shared::
+          GetVideoInitialMaxFramesInDecoderForCurrentThread()) {
+    handler->SetVideoInitialMaxFramesInDecoder(*initial_max_frames_in_decoder);
+  }
+  if (auto max_pending_input_frames = starboard::android::shared::
+          GetVideoMaxPendingInputFramesForCurrentThread()) {
+    handler->SetVideoMaxPendingInputFrames(*max_pending_input_frames);
+  }
+  handler->SetVideoSurfaceView(
+      starboard::android::shared::GetSurfaceViewForCurrentThread());
+  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
+>>>>>>> 36eaf368b0 (media: Connect H5vcc settings to video decoder flow control options (#8810))
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
   if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
