@@ -14,12 +14,10 @@
 
 #include "media/starboard/starboard_renderer.h"
 
-#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
-#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
@@ -115,20 +113,6 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
       NOTREACHED();
       return 1;
   }
-}
-
-bool ReadCommandLineSwitchForMemoryPressureSignal() {
-  // TODO(b/460292554): remove this once we have full base::Feature support.
-  // We check the feature name as a switch because h5vcc settings are passed
-  // as command line switches to the renderer process.
-  const auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (!command_line->HasSwitch(
-          switches::kCobaltNotifyMemoryPressureBeforePlayback)) {
-    return false;
-  }
-  std::string value = command_line->GetSwitchValueASCII(
-      switches::kCobaltNotifyMemoryPressureBeforePlayback);
-  return value != "0" && base::ToLowerASCII(value) != "false";
 }
 
 }  // namespace
