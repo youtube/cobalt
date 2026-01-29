@@ -175,7 +175,9 @@ MediaDecoder::~MediaDecoder() {
   TerminateDecoderThread();
 
   if (is_valid()) {
-    host_->OnFlushing();
+    if (host_) {
+      host_->OnFlushing();
+    }
     // After |decoder_thread_| is ended and before |media_codec_bridge_| is
     // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
     // So that, |dequeue_output_results_| may not be empty. As
@@ -752,13 +754,41 @@ bool MediaDecoder::Flush() {
   // `video_decoder` threads to clean up all pending tasks,
   // and Flush()/Start() |media_codec_bridge_|.
 
+  if (!Suspend()) {
+    return false;
+  }
+
+  // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
+  if (is_valid() && flush_delay_usec_ > 0) {
+    usleep(flush_delay_usec_);
+  }
+
+  // 2.5. Restart() |media_codec_bridge_|. As the codec is configured in
+  // asynchronous mode, call Start() after Flush() has returned to
+  // resume codec operations. After Restart(), input_buffer_index should
+  // start with 0.
+  if (is_valid() && !media_codec_bridge_->Restart()) {
+    SB_LOG(ERROR) << "Failed to start media codec.";
+    return false;
+  }
+
+  // 3. Recreate `audio_decoder` and `video_decoder` threads in
+  // WriteInputBuffers().
+  stream_ended_.store(false);
+  destroying_.store(false);
+  return true;
+}
+
+bool MediaDecoder::Suspend() {
   // 1. Terminate `audio_decoder` or `video_decoder` thread.
   TerminateDecoderThread();
 
-  // 2. Flush()/Start() |media_codec_bridge_| and clean up pending tasks.
+  // 2. Flush() |media_codec_bridge_| and clean up pending tasks.
   if (is_valid()) {
     // 2.1. Flush() |media_codec_bridge_|.
-    host_->OnFlushing();
+    if (host_) {
+      host_->OnFlushing();
+    }
     jint status = media_codec_bridge_->Flush();
     if (status != MEDIA_CODEC_OK) {
       SB_LOG(ERROR) << "Failed to flush media codec.";
@@ -780,27 +810,53 @@ bool MediaDecoder::Flush() {
     DequeueOutputResult dequeue_output_result = {};
     dequeue_output_result.index = -1;
     dequeue_output_results_.push_back(dequeue_output_result);
-
-    // 2.4. Wait for |flush_delay_usec_| on pre Android 13 devices.
-    if (flush_delay_usec_ > 0) {
-      usleep(flush_delay_usec_);
-    }
-
-    // 2.5. Restart() |media_codec_bridge_|. As the codec is configured in
-    // asynchronous mode, call Start() after Flush() has returned to
-    // resume codec operations. After Restart(), input_buffer_index should
-    // start with 0.
-    if (!media_codec_bridge_->Restart()) {
-      SB_LOG(ERROR) << "Failed to start media codec.";
-      return false;
-    }
   }
 
-  // 3. Recreate `audio_decoder` and `video_decoder` threads in
-  // WriteInputBuffers().
+  // Detach the thread checker. This allows the MediaDecoder to be reused on a
+  // different thread (e.g. from the VideoDecoderCache). The ThreadChecker will
+  // automatically re-attach to the new thread on the next call to
+  // CalledOnValidThread().
+  thread_checker_.Detach();
+  return true;
+}
+
+bool MediaDecoder::SetOutputSurface(jobject new_surface) {
+  SB_CHECK(media_codec_bridge_);
+  return media_codec_bridge_->SetOutputSurface(new_surface);
+}
+
+void MediaDecoder::Reset() {
+  host_ = nullptr;
+  frame_rendered_cb_ = [](int64_t) {};
+  first_tunnel_frame_ready_cb_ = [] {};
+  ResetState();
+}
+
+bool MediaDecoder::ResetForReuse(
+    Host* new_host,
+    jobject new_surface,
+    FrameRenderedCB frame_rendered_cb,
+    FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb) {
+  if (!SetOutputSurface(new_surface)) {
+    return false;
+  }
+  host_ = new_host;
+  frame_rendered_cb_ = std::move(frame_rendered_cb);
+  first_tunnel_frame_ready_cb_ = std::move(first_tunnel_frame_ready_cb);
+
+  if (is_valid() && !media_codec_bridge_->Restart()) {
+    SB_LOG(ERROR) << "Failed to restart media codec.";
+    return false;
+  }
+  return true;
+}
+
+void MediaDecoder::ResetState() {
   stream_ended_.store(false);
   destroying_.store(false);
-  return true;
+  error_occurred_ = false;
+  error_message_.clear();
+  pending_input_to_retry_ = std::nullopt;
 }
 
 }  // namespace starboard::android::shared

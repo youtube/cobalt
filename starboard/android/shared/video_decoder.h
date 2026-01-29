@@ -26,6 +26,7 @@
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/video_decoder_cache.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/condition_variable.h"
@@ -114,6 +115,15 @@ class VideoDecoder
   // successful.
   bool InitializeCodec(const VideoStreamInfo& video_stream_info,
                        std::string* error_message);
+  VideoDecoderCache* GetVideoDecoderCache();
+  std::unique_ptr<MediaDecoder> GetCachedMediaDecoder(
+      const VideoStreamInfo& video_stream_info,
+      jobject output_surface);
+  std::unique_ptr<MediaDecoder> GetOrCreateMediaDecoder(
+      const VideoStreamInfo& video_stream_info,
+      jobject output_surface,
+      std::optional<int> initial_max_frames_in_decoder,
+      std::string* error_message);
   void TeardownCodec();
 
   void WriteInputBuffersInternal(const InputBuffers& input_buffers);
@@ -184,6 +194,8 @@ class VideoDecoder
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
   std::unique_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
+
+  VideoDecoderCache* const video_decoder_cache_;
 
   const bool is_video_frame_tracker_enabled_;
   std::unique_ptr<VideoFrameTracker> video_frame_tracker_;
