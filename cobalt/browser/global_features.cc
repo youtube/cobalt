@@ -17,6 +17,7 @@
 #include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
@@ -38,6 +39,7 @@ constexpr base::FilePath::CharType kMetricsConfigFilename[] =
     FILE_PATH_LITERAL("Metrics Config");
 
 GlobalFeatures::GlobalFeatures() {
+  base::ScopedAllowBlockingForTesting allow_blocking;
   CreateExperimentConfig();
   CreateMetricsServices();
   // InitializeActiveConfigData needs ExperimentConfigManager to determine
@@ -89,6 +91,7 @@ void GlobalFeatures::set_accessor(
 
 void GlobalFeatures::CreateExperimentConfig() {
   DCHECK(!experiment_config_);
+  base::ScopedAllowBlockingForTesting allow_blocking;
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
 
   RegisterPrefs(pref_registry.get());
@@ -118,6 +121,7 @@ void GlobalFeatures::CreateMetricsServices() {
 
 void GlobalFeatures::CreateMetricsLocalState() {
   DCHECK(!metrics_local_state_);
+  base::ScopedAllowBlockingForTesting allow_blocking;
   // No need to make `pref_registry` a member, `pref_service_` will keep a
   // reference to it.
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
