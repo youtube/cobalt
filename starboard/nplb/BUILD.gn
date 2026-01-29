@@ -130,6 +130,7 @@ test("nplb") {
       "posix_compliance/posix_directory_get_next_readdir_r_test.cc",
       "posix_compliance/posix_directory_get_next_readdir_test.cc",
       "posix_compliance/posix_directory_open_test.cc",
+      "posix_compliance/posix_directory_remove_test.cc",
       "posix_compliance/posix_environment_test.cc",
       "posix_compliance/posix_epoll_create_test.cc",
       "posix_compliance/posix_epoll_ctl_test.cc",
