@@ -1,4 +1,8 @@
 {
+  "use_cache": false,
+  "build_runners": [
+    "macos-latest-large"
+  ],
   "platforms": [
     "tvos-arm64-simulator"
   ],
