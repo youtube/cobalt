@@ -9,6 +9,16 @@
         height: 100%;
         width: 100%;
       }
+      .placeholder {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-size: cover;
+        background-position: center;
+        opacity: 0;
+      }
     </style>
   </head>
   <body>
@@ -31,10 +41,14 @@
           return;
         }
 
-        videoEl.addEventListener('ended', () => {
-          maybeDestroyVideoInstance();
+        const onSplashEnd = () => {
           onAnimationEnd && onAnimationEnd();
           window.close();
+        }
+
+        videoEl.addEventListener('ended', () => {
+          maybeDestroyVideoInstance();
+          onSplashEnd();
         });
 
         const showPlaceholderImage = () => {
@@ -43,14 +57,44 @@
             placeholderEl.style.opacity = '100%';
           }
         };
-        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage);
+        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage, onSplashEnd);
       }
 
       /**
        * Plays the splash animation video in the given video element.
        * @param afterVideoStart Callback function when the video starts playing.
        */
-      function playSplashAnimation(afterVideoStart) {
+      async function playSplashAnimation(afterVideoStart, afterImage) {
+        const params = new URLSearchParams(window.location.search);
+        if (!params.has('cache')) {
+          params.append('cache', 'default');
+        }
+
+        if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
+          const placeholderEl = getPlaceholderEl(); 
+          if (!placeholderEl) {
+            return; 
+          }
+          try {
+            const response = await fetch(
+              'h5vcc-embedded://splash.png?' + params.toString());
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+            const imageBlob = await response.blob();
+            const imageUrl = URL.createObjectURL(imageBlob); 
+            placeholderEl.style.backgroundImage = `url(${imageUrl})`; 
+            placeholderEl.style.opacity = '100%';
+            setTimeout(() => {
+              afterImage && afterImage();
+              window.close();
+            }, 1500);
+          } catch (error) {
+            console.error('Failed to fetch splash image:', error);
+          }
+          return; 
+        }
+
         const videoEl = getVideoEl();
         if (!videoEl) {
           return;
@@ -58,10 +102,6 @@
         const mediaSource = new MediaSource();
         mediaSource.addEventListener('sourceopen', async () => {
           const sourceBuffer = mediaSource.addSourceBuffer('video/webm; codecs="vp9"');
-          const params = new URLSearchParams(window.location.search);
-          if (!params.has('cache')) {
-            params.append('cache', 'default');
-          }
           // The default splash video is splash.webm. If it does not exist in
           // the given cache, "fallback" parameter specifies which built-in video
           // to use.
