@@ -471,6 +471,7 @@ ScriptPromise<MediaStream> MediaDevices::getUserMedia(
     ExceptionState& exception_state) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
+  LOG(INFO) << "YO THOR - GET USER MEDIA!";
   auto tracer =
       std::make_unique<ScopedMediaStreamTracer>("MediaDevices.GetUserMedia");
 
