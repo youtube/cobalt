@@ -92,7 +92,9 @@ class BlobReader : public blink::mojom::BlobReaderClient {
   ~BlobReader() override = default;
 
   void OnCalculatedSize(uint64_t total_size,
-                        uint64_t expected_content_size) override {}
+                        uint64_t expected_content_size) override {
+    content_.reserve(total_size);
+  }
 
   void OnComplete(int32_t status, uint64_t data_length) override {
     if (status != net::OK) {
@@ -109,6 +111,9 @@ class BlobReader : public blink::mojom::BlobReaderClient {
   void OnDataAvailable(MojoResult result,
                        const mojo::HandleSignalsState& state) {
     constexpr uint32_t kReadBufferSize = 64 * 1024;
+    // 10MB limit for splash video to prevent memory exhaustion.
+    constexpr size_t kMaxSplashVideoSize = 10 * 1024 * 1024;
+
     if (result != MOJO_RESULT_OK) {
       watcher_.reset();
       consumer_handle_.reset();
@@ -121,11 +126,11 @@ class BlobReader : public blink::mojom::BlobReaderClient {
       return;
     }
 
+    std::vector<uint8_t> buffer(kReadBufferSize);
     while (true) {
-      uint8_t buffer[256];
-      uint32_t num_bytes = sizeof(buffer);
+      uint32_t num_bytes = kReadBufferSize;
       MojoResult read_result = consumer_handle_->ReadData(
-          buffer, &num_bytes, MOJO_READ_DATA_FLAG_NONE);
+          buffer.data(), &num_bytes, MOJO_READ_DATA_FLAG_NONE);
       if (read_result == MOJO_RESULT_SHOULD_WAIT) {
         watcher_->Arm();
         return;
@@ -134,7 +139,18 @@ class BlobReader : public blink::mojom::BlobReaderClient {
         OnDataAvailable(read_result, state);
         return;
       }
-      content_.insert(content_.end(), buffer, buffer + num_bytes);
+      if (content_.size() + num_bytes > kMaxSplashVideoSize) {
+        LOG(ERROR) << "Splash video too large, exceeding limit of "
+                   << kMaxSplashVideoSize << " bytes.";
+        watcher_.reset();
+        consumer_handle_.reset();
+        if (callback_) {
+          std::move(callback_).Run({});
+        }
+        return;
+      }
+      content_.insert(content_.end(), buffer.begin(),
+                      buffer.begin() + num_bytes);
     }
   }
 
@@ -265,12 +281,10 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void OnCacheMatched(const std::string& cache_name,
                       const std::string& mime_type,
                       blink::mojom::MatchResultPtr result) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE, base::BindOnce(&H5vccSchemeURLLoader::DisconnectCacheStorage,
-                                  weak_factory_.GetWeakPtr()));
     if (!result->is_response()) {
       LOG(ERROR) << "Failed to match cache for splash video"
                  << ", error: " << result->get_status();
+      DisconnectCacheStorage();
       SendResponse(content_, mime_type);
       return;
     }
@@ -279,6 +293,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     if (response->blob->size == 0) {
       LOG(ERROR) << "Splash video from " << cache_name
                  << " is empty. Fallback to builtin.";
+      DisconnectCacheStorage();
       SendResponse(content_, mime_type);
       return;
     }
@@ -294,6 +309,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void SendBlobContent(const std::string& mime_type,
                        uint64_t expected_size,
                        std::vector<uint8_t> content) {
+    DisconnectCacheStorage();
     if (content.size() != expected_size) {
       LOG(ERROR) << "Failed to read splash cache. Fallback to builtin.";
       SendResponse(content_, mime_type);
