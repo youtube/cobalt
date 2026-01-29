@@ -29,5 +29,5 @@ interface H5vccMetrics {
 
   [Sync] Enable(bool enable) => ();
   SetMetricEventInterval(uint64 interval_seconds) => ();
-  RequestHistograms() => (string histograms_json);
+  RequestHistograms() => (string histograms_base64);
 };
