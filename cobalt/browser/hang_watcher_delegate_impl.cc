@@ -25,8 +25,7 @@ namespace browser {
 
 bool CobaltHangWatcherDelegate::IsHangReportingEnabled() {
   std::optional<cobalt::GlobalFeatures::SettingValue> setting =
-      cobalt::GlobalFeatures::GetInstance()->GetSetting(
-          "enableCobaltHangReporting");
+      cobalt::GlobalFeatures::GetInstance()->GetSetting("EnableHangReporting");
   if (setting.has_value()) {
     if (const auto* val = std::get_if<int64_t>(&setting.value())) {
       return *val != 0;

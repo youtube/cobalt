@@ -47,6 +47,7 @@
                 "lib.java/components/variations/android/variations_java.jar",
                 "lib.java/components/variations/proto/proto_java.jar",
                 "lib.java/components/variations/variations_java.jar",
+                "obj/components/crash/android/java.processed.jar",
                 "lib.java/components/version_info/android/version_constants_java.jar",
                 "lib.java/components/viz/service/service_java.jar",
                 "lib.java/content/public/android/content_full_java.jar",
@@ -339,6 +340,10 @@
                 {
                     "from_file": "lib.java/components/variations/variations_java.jar",
                     "to_file": "jar/components_variations_variations_java.jar"
+                },
+                {
+                    "from_file": "obj/components/crash/android/java.processed.jar",
+                    "to_file": "jar/components_crash_android_java.jar"
                 },
                 {
                     "from_file": "lib.java/components/version_info/android/version_constants_java.jar",

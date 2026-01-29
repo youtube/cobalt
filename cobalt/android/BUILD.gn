@@ -236,6 +236,7 @@ android_apk("cobalt_apk") {
     ":cobalt_apk_java",
     "//cobalt/shell/android:cobalt_shell_assets",
     "//cobalt/shell/android:cobalt_shell_java",
+    "//components/crash/android:java",
     "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
     "//components/metrics:metrics_java",
     "//content/public/android:content_java",
