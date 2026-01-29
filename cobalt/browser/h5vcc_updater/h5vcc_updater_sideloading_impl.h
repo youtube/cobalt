@@ -42,11 +42,16 @@ class H5vccUpdaterSideloadingImpl
   void SetAllowSelfSignedPackages(
       bool allow_self_signed_packages,
       SetAllowSelfSignedPackagesCallback callback) override;
+  void GetAllowSelfSignedPackages(
+      GetAllowSelfSignedPackagesCallback callback) override;
   void SetUpdateServerUrl(const std::string& update_server_url,
                           SetUpdateServerUrlCallback callback) override;
+  void GetUpdateServerUrl(GetUpdateServerUrlCallback callback) override;
   void SetRequireNetworkEncryption(
       bool require_network_encryption,
       SetRequireNetworkEncryptionCallback callback) override;
+  void GetRequireNetworkEncryption(
+      GetRequireNetworkEncryptionCallback callback) override;
 
  private:
   H5vccUpdaterSideloadingImpl(

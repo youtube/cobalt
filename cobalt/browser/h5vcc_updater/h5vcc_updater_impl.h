@@ -47,11 +47,6 @@ class H5vccUpdaterImpl : public content::DocumentService<mojom::H5vccUpdater> {
   void GetUpdateStatus(GetUpdateStatusCallback callback) override;
   void ResetInstallations(ResetInstallationsCallback callback) override;
   void GetInstallationIndex(GetInstallationIndexCallback callback) override;
-  void GetAllowSelfSignedPackages(
-      GetAllowSelfSignedPackagesCallback callback) override;
-  void GetUpdateServerUrl(GetUpdateServerUrlCallback callback) override;
-  void GetRequireNetworkEncryption(
-      GetRequireNetworkEncryptionCallback callback) override;
   void GetLibrarySha256(unsigned short index,
                         GetLibrarySha256Callback callback) override;
 

@@ -113,8 +113,8 @@ ScriptPromise H5vccUpdater::getAllowSelfSignedPackages(
 
   EnsureReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->GetAllowSelfSignedPackages(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->GetAllowSelfSignedPackages(
       WTF::BindOnce(&H5vccUpdater::OnGetAllowSelfSignedPackages,
                     WrapPersistent(this), WrapPersistent(resolver)));
 
@@ -146,8 +146,8 @@ ScriptPromise H5vccUpdater::getUpdateServerUrl(
 
   EnsureReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->GetUpdateServerUrl(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->GetUpdateServerUrl(
       WTF::BindOnce(&H5vccUpdater::OnGetUpdateServerUrl, WrapPersistent(this),
                     WrapPersistent(resolver)));
 
@@ -179,8 +179,8 @@ ScriptPromise H5vccUpdater::getRequireNetworkEncryption(
 
   EnsureReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
-  remote_h5vcc_updater_->GetRequireNetworkEncryption(
+  ongoing_sideloading_requests_.insert(resolver);
+  remote_h5vcc_updater_sideloading_->GetRequireNetworkEncryption(
       WTF::BindOnce(&H5vccUpdater::OnGetRequireNetworkEncryption,
                     WrapPersistent(this), WrapPersistent(resolver)));
 

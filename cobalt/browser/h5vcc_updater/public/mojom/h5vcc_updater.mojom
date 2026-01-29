@@ -20,14 +20,14 @@ interface H5vccUpdater {
   GetUpdateStatus() => (string status);
   ResetInstallations() => ();
   GetInstallationIndex() => (uint16 index);
-  GetAllowSelfSignedPackages() => (bool allow_self_signed_packages);
-  GetUpdateServerUrl() => (string update_server_url);
-  GetRequireNetworkEncryption() => (bool require_network_encryption);
   GetLibrarySha256(uint16 index) => (string sha256);
 };
 
 interface H5vccUpdaterSideloading {
   SetAllowSelfSignedPackages(bool allow_self_signed_packages) => ();
+  GetAllowSelfSignedPackages() => (bool allow_self_signed_packages);
   SetUpdateServerUrl(string update_server_url) => ();
+  GetUpdateServerUrl() => (string update_server_url);
   SetRequireNetworkEncryption(bool require_network_encryption) => ();
+  GetRequireNetworkEncryption() => (bool require_network_encryption);
 };
