@@ -101,15 +101,20 @@ void* Send(CobaltExtensionPlatformService service,
   SB_DCHECK(output_length);
   SB_DCHECK(invalid_state);
 
+  SB_LOG(WARNING) << "ColinL: platform_service. Send()";
+
   JNIEnv* env = base::android::AttachCurrentThread();
+  auto j_service = base::android::JavaParamRef<jobject>(env, service->cobalt_service);
   auto j_data = base::android::ToJavaByteArray(
       env, reinterpret_cast<const uint8_t*>(data), length);
 
+  SB_LOG(WARNING) << "ColinL: call Java_CobaltService_receiveFromClient(), cobalt_service is " << service->cobalt_service;
   auto j_response = Java_CobaltService_receiveFromClient(
       env,
-      base::android::ScopedJavaLocalRef<jobject>(env, service->cobalt_service),
+      j_service,
       j_data);
 
+  SB_LOG(WARNING) << "ColinL: call Java_CobaltService_receiveFromClient() return!!";
   if (j_response.is_null()) {
     *invalid_state = true;
     *output_length = 0;
@@ -118,12 +123,14 @@ void* Send(CobaltExtensionPlatformService service,
 
   auto j_out_data = Java_ResponseToClient_getData(env, j_response);
   int data_length = base::android::SafeGetArrayLength(env, j_out_data);
+  SB_LOG(WARNING) << "ColinL: call Java_ResponseToClient_getData() data_length:" << data_length;
   SB_CHECK_GE(data_length, 0);
   char* output = new char[data_length];
   env->GetByteArrayRegion(j_out_data.obj(), 0, data_length,
                           reinterpret_cast<jbyte*>(output));
 
   *invalid_state = Java_ResponseToClient_getInvalidState(env, j_response);
+  SB_LOG(WARNING) << "ColinL: call Java_ResponseToClient_getInvalidState() invalid_state:" << *invalid_state;
   *output_length = data_length;
   return output;
 }
@@ -147,15 +154,18 @@ void JNI_CobaltService_NativeSendToClient(
     jlong nativeService,
     const base::android::JavaParamRef<jbyteArray>& j_data) {
   SB_LOG(WARNING) << "ColinL: JNI_CobaltService_NativeSendToClient";
-  
-  auto* service = reinterpret_cast<CobaltExtensionPlatformServicePrivate*>(nativeService);
-  
+
+  auto* service =
+      reinterpret_cast<CobaltExtensionPlatformServicePrivate*>(nativeService);
+
   if (!service) {
+    SB_LOG(WARNING) << "ColinL: NativeSendToClient called with null service pointer.";
     SB_LOG(ERROR) << "NativeSendToClient called with null service pointer.";
     return;
   }
 
   if (!service->receive_callback) {
+    SB_LOG(ERROR) << "ColinL: Service " << service->name << " has no receive callback.";
     SB_LOG(ERROR) << "Service " << service->name << " has no receive callback.";
     return;
   }
@@ -166,22 +176,6 @@ void JNI_CobaltService_NativeSendToClient(
 
   // Pass the data back to the Cobalt/Starboard layer.
   service->receive_callback(service->context, data.data(), data.size());
-
-  // CobaltExtensionPlatformService service =
-  //     reinterpret_cast<CobaltExtensionPlatformService>(nativeService);
-  
-  // if (!CobaltExtensionPlatformServiceIsValid(service)) {
-  //   SB_LOG(WARNING) << "Trying to send message through platform service when "
-  //                      "the service is already closed";
-  //   return;
-  // }
-
-  // jsize length = env->GetArrayLength(j_data);
-  // std::unique_ptr<char[]> data(new char[length]);
-  // env->GetByteArrayRegion(j_data, 0, length,
-  //                         reinterpret_cast<jbyte*>(data.get()));
-
-  // service->receive_callback(service->context, data.get(), length);
 }
 
 }  // namespace starboard

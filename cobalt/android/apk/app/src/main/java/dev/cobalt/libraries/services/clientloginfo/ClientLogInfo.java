@@ -41,7 +41,9 @@ public class ClientLogInfo extends CobaltService {
 
   @Override
   public ResponseToClient receiveFromClient(byte[] data) {
+    Log.i(TAG, "ColinL: ClientLogInfo.receiveFromClient");
     String dataString = new String(data, UTF_8);
+    Log.i(TAG, "ColinL: dataString:" + dataString);
     Log.i(TAG, "Received data from platform service client:" + dataString);
 
     ResponseToClient response = new ResponseToClient();
@@ -58,11 +60,13 @@ public class ClientLogInfo extends CobaltService {
       () -> {
         String asynResponseString = "async response: " + responseString;
         Log.i(TAG, "Platform service send async responseString:" + asynResponseString);
+        Log.i(TAG, "ColinL: Platform service send async responseString:" + asynResponseString);
         sendToClient(mNativeService, asynResponseString.getBytes(UTF_8));
       }
     );
 
     Log.i(TAG, "Platform service send sync responseString:" + responseString);
+    Log.i(TAG, "ColinL: Platform service send sync responseString:" + responseString);
     return response;
   }
 

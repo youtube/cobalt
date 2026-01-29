@@ -24,13 +24,19 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.NativeMethods;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
-@JNINamespace("starboard")
 public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
   private final Object lock = new Object();
   // private StarboardBridge bridge;
   // protected CobaltActivity cobaltActivity;
+
+  @JNINamespace("starboard")
+  @NativeMethods
+  interface Natives {
+    // Can not set it as nativeService, JNI zero has template code to convert it to a Service object
+    void nativeSendToClient(long service, byte[] data);
+  }
 
   // // TODO(b/403638702): - Cobalt: Migrate away from Java Bridge for H5vccPlatformService.
   // // Workaround: Explicitly target the 'anchor' iframe for H5vccPlatformService callbacks.
@@ -124,10 +130,5 @@ public abstract class CobaltService {
 
       CobaltServiceJni.get().nativeSendToClient(nativeService, data);
     }
-  }
-
-  @NativeMethods
-  interface Natives {
-    void nativeSendToClient(long nativeService, byte[] data);
   }
 }
