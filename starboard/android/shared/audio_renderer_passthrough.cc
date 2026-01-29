@@ -130,7 +130,7 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 
   if (!audio_track_thread_) {
     audio_track_thread_.reset(
-        new JobThread("AudioPassthrough", 0, kSbThreadPriorityHigh));
+        new JobThread("AudioPassthrough", kSbThreadPriorityHigh));
     audio_track_thread_->Schedule(std::bind(
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }

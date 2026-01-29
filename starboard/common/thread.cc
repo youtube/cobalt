@@ -21,6 +21,8 @@
 
 #include <atomic>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -36,13 +38,10 @@ struct Thread::Data {
   std::atomic_bool started_{false};
   std::atomic_bool join_called_{false};
   Semaphore join_sema_;
-  int64_t stack_size_;
 };
 
-Thread::Thread(const std::string& name, int64_t stack_size) {
-  d_.reset(new Thread::Data);
-  d_->name_ = name;
-  d_->stack_size_ = stack_size;
+Thread::Thread(const std::string_view name) : d_(std::make_unique<Data>()) {
+  d_->name_ = std::string(name);
 }
 
 Thread::~Thread() {
@@ -59,9 +58,6 @@ void Thread::Start() {
 
   pthread_attr_t attributes;
   pthread_attr_init(&attributes);
-  if (d_->stack_size_ > 0) {
-    pthread_attr_setstacksize(&attributes, d_->stack_size_);
-  }
 
   const int result =
       pthread_create(&d_->thread_, &attributes, ThreadEntryPoint, this);
