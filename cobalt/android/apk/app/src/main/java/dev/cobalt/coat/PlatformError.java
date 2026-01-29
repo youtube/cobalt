@@ -145,10 +145,12 @@ public class PlatformError
             }
           }
           mDialog.dismiss();
+          reloadWebContents();
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           mDialog.dismiss();
+          reloadWebContents();
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
@@ -162,21 +164,15 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     mDialog = null;
-      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
-      if (cobaltActivity != null) {
-        if (mResponse != NEGATIVE) {
-          if (mResponse == CANCELLED) {
-            cobaltActivity.getStarboardBridge().requestSuspend();
-          }
-
-          WebContents webContents = cobaltActivity.getActiveWebContents();
-          if (webContents != null) {
-            webContents.getNavigationController().reload(true);
-          } else {
-            Log.e(TAG, "WebContents is null and not available to reload the application.");
-          }
+    if (mResponse != NEGATIVE) {
+      if (mResponse == CANCELLED) {
+        CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+        if (cobaltActivity != null) {
+          cobaltActivity.getStarboardBridge().requestSuspend();
+          reloadWebContents();
         }
       }
+    }
   }
 
   /** Informs Starboard when the error is dismissed. */
@@ -188,4 +184,18 @@ public class PlatformError
   interface Natives {
     void sendResponse(@PlatformError.Response int response, long data);
   }
+
+  /** Reloads the web contents if available */
+  private void reloadWebContents() {
+    CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+    if (cobaltActivity != null) {
+      WebContents webContents = cobaltActivity.getActiveWebContents();
+      if (webContents != null) {
+        webContents.getNavigationController().reload(true);
+      } else {
+        Log.e(TAG, "WebContents is null and not available to reload the application.");
+      }
+    }
+  }
+
 }
