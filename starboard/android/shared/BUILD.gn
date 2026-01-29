@@ -196,6 +196,8 @@ static_library("starboard_platform") {
     "log_raw.cc",
     "max_media_codec_output_buffers_lookup_table.cc",
     "max_media_codec_output_buffers_lookup_table.h",
+    "media_buffer_pool_extension.cc",
+    "media_buffer_pool_extension.h",
     "media_capabilities_cache.cc",
     "media_capabilities_cache.h",
     "media_codec_bridge.cc",
@@ -213,6 +215,13 @@ static_library("starboard_platform") {
     "media_is_buffer_pool_allocate_on_demand.cc",
     "media_is_key_system_supported.cc",
     "media_is_video_supported.cc",
+<<<<<<< HEAD
+=======
+    "media_settings_api.cc",
+    "media_settings_api.h",
+    "memfd_media_buffer_pool.cc",
+    "memfd_media_buffer_pool.h",
+>>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
     "microphone_impl.cc",
     "platform_info.cc",
     "platform_info.h",
@@ -382,11 +391,19 @@ test("starboard_platform_tests") {
   testonly = true
 
   sources = media_tests_sources + player_tests_sources + [
+<<<<<<< HEAD
               "//starboard/common/test_main.cc",
               "drm_session_id_mapper_test.cc",
               "media_capabilities_cache_test.cc",
               "mock_media_capabilities_cache.cc",
               "mock_media_capabilities_cache.h",
+=======
+              "//starboard/shared/starboard/drm/drm_test_helpers.cc",
+              "//starboard/shared/starboard/drm/drm_test_helpers.h",
+              "//starboard/shared/starboard/starboard_feature_test.cc",
+              "jni_env_ext_test.cc",
+              "memfd_media_buffer_pool_test.cc",
+>>>>>>> 3aea04ae16 (starboard: Implement MediaBufferPool extension for Android (#8721))
               "model_year_test.cc",
               "player_get_preferred_output_mode_test.cc",
               "video_frame_tracker_test.cc",
