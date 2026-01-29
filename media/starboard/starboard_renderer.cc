@@ -14,12 +14,10 @@
 
 #include "media/starboard/starboard_renderer.h"
 
-#include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/json/string_escape.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
-#include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/decoder_buffer.h"
