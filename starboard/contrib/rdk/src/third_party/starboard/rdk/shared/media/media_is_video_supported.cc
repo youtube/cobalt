@@ -46,7 +46,7 @@ namespace shared {
 namespace starboard {
 namespace media {
 
-SB_EXPORT bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
+bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        const MimeType* content_type,
                                        int /*profile*/,
                                        int /*level*/,

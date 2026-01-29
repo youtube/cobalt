@@ -97,7 +97,7 @@ namespace shared {
 namespace starboard {
 namespace media {
 
-SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
+bool MediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system) {
 #if defined(HAS_OCDM)
