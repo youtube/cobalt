@@ -22,6 +22,7 @@
 #include "starboard/android/shared/crash_handler.h"
 #include "starboard/android/shared/features_extension.h"
 #include "starboard/android/shared/graphics.h"
+#include "starboard/android/shared/media_buffer_pool_extension.h"
 #include "starboard/android/shared/media_settings_api.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
@@ -86,6 +87,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionMediaSettingsName) == 0) {
     return starboard::android::shared::GetMediaSettingsApi();
+  }
+  if (strcmp(name, kStarboardExtensionMediaBufferPoolApiName) == 0) {
+    return starboard::android::shared::GetMediaBufferPoolApi();
   }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::android::shared::GetSystemInfoApi();
