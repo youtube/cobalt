@@ -65,7 +65,7 @@ void De265VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("de265_video_decoder"));
+    decoder_thread_ = JobThread::Create("de265_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
 
@@ -101,6 +101,7 @@ void De265VideoDecoder::Reset() {
     decoder_thread_->ScheduleAndWait(
         std::bind(&De265VideoDecoder::TeardownCodec, this));
 
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 
