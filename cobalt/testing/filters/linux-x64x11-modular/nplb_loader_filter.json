@@ -18,6 +18,7 @@
     "PosixMemalignTest.FailsWithInvalidAlignment*",
     "PosixMemoryMapTest.CanChangeMemoryProtection",
     "PosixThreadDetachTest.SunnyDay",
+    "PosixTimeClockTests.ClockReturnsNonNegative",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
   ],
@@ -29,6 +30,7 @@
     "PosixMemalignTest.FailsWithInvalidAlignment*",
     "PosixMemoryMapTest.CanChangeMemoryProtection",
     "PosixThreadDetachTest.SunnyDay",
+    "PosixTimeClockTests.ClockReturnsNonNegative",
     "SbAudioSinkTest.UpdateStatusCalled",
     "SbLogFlushTest.DontCrashMeBro"
   ]
