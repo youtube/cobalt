@@ -42,8 +42,8 @@ class JobThread {
     if (stopped_.load(std::memory_order_acquire)) {
       return false;
     }
-    SB_DCHECK(job_queue_);
 
+    SB_CHECK(job_queue_);
     return job_queue_->BelongsToCurrentThread();
   }
 
@@ -52,8 +52,8 @@ class JobThread {
     if (stopped_.load(std::memory_order_acquire)) {
       return JobQueue::JobToken();
     }
-    SB_DCHECK(job_queue_);
 
+    SB_CHECK(job_queue_);
     return job_queue_->Schedule(job, delay_usec);
   }
 
@@ -61,8 +61,8 @@ class JobThread {
     if (stopped_.load(std::memory_order_acquire)) {
       return JobQueue::JobToken();
     }
-    SB_DCHECK(job_queue_);
 
+    SB_CHECK(job_queue_);
     return job_queue_->Schedule(std::move(job), delay_usec);
   }
 
@@ -70,8 +70,8 @@ class JobThread {
     if (stopped_.load(std::memory_order_acquire)) {
       return;
     }
-    SB_DCHECK(job_queue_);
 
+    SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(job);
   }
 
@@ -82,8 +82,8 @@ class JobThread {
     if (stopped_.load(std::memory_order_acquire)) {
       return;
     }
-    SB_DCHECK(job_queue_);
 
+    SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
@@ -91,8 +91,8 @@ class JobThread {
     if (stopped_.load(std::memory_order_acquire)) {
       return;
     }
-    SB_DCHECK(job_queue_);
 
+    SB_CHECK(job_queue_);
     return job_queue_->RemoveJobByToken(job_token);
   }
 
@@ -115,7 +115,8 @@ class JobThread {
 
   std::atomic<bool> stopped_{false};
 
-  std::unique_ptr<Thread> thread_;
+  const std::unique_ptr<WorkerThread> thread_;
+  // job_queue_ is initialized during construction and is never reset.
   std::unique_ptr<JobQueue> job_queue_;
 };
 

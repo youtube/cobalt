@@ -190,6 +190,9 @@ TEST(JobThreadTest, Stop) {
     cv.wait(lock, [&started] { return started; });
   }
 
+  // Calling Stop() explicitly ensures the pending task completes before
+  // 'job_thread' is destroyed at the end of the scope. This ensures that the
+  // captured reference remains valid and non-null while the task is running.
   job_thread->Stop();
 }
 
