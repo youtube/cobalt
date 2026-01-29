@@ -81,10 +81,15 @@ class MODULES_EXPORT H5vccUpdater final
   void OnGetRequireNetworkEncryption(ScriptPromiseResolver*, bool);
   void OnSetRequireNetworkEncryption(ScriptPromiseResolver*);
   void OnConnectionError();
+  void OnSideloadingConnectionError();
   void EnsureReceiverIsBound();
+  void EnsureSideloadingReceiverIsBound();
   HeapHashSet<Member<ScriptPromiseResolver>> ongoing_requests_;
+  HeapHashSet<Member<ScriptPromiseResolver>> ongoing_sideloading_requests_;
   HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdater>
       remote_h5vcc_updater_;
+  HeapMojoRemote<h5vcc_updater::mojom::blink::H5vccUpdaterSideloading>
+      remote_h5vcc_updater_sideloading_;
 };
 
 }  // namespace blink

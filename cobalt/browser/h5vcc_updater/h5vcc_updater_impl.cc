@@ -153,22 +153,6 @@ void H5vccUpdaterImpl::GetAllowSelfSignedPackages(
 #endif
 }
 
-void H5vccUpdaterImpl::SetAllowSelfSignedPackages(
-    bool allow_self_signed_packages,
-    SetAllowSelfSignedPackagesCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    updater_module->SetAllowSelfSignedPackages(allow_self_signed_packages);
-  }
-  std::move(callback).Run();
-#else
-  std::move(callback).Run();
-  NOTIMPLEMENTED();
-#endif
-}
-
 void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(USE_EVERGREEN)
@@ -185,21 +169,6 @@ void H5vccUpdaterImpl::GetUpdateServerUrl(GetUpdateServerUrlCallback callback) {
 #endif
 }
 
-void H5vccUpdaterImpl::SetUpdateServerUrl(const std::string& update_server_url,
-                                          SetUpdateServerUrlCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    updater_module->SetUpdateServerUrl(update_server_url);
-  }
-  std::move(callback).Run();
-#else
-  std::move(callback).Run();
-  NOTIMPLEMENTED();
-#endif
-}
-
 void H5vccUpdaterImpl::GetRequireNetworkEncryption(
     GetRequireNetworkEncryptionCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -212,22 +181,6 @@ void H5vccUpdaterImpl::GetRequireNetworkEncryption(
   std::move(callback).Run(updater_module->GetRequireNetworkEncryption());
 #else
   std::move(callback).Run(false);
-  NOTIMPLEMENTED();
-#endif
-}
-
-void H5vccUpdaterImpl::SetRequireNetworkEncryption(
-    bool require_network_encryption,
-    SetRequireNetworkEncryptionCallback callback) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
-  auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (updater_module) {
-    updater_module->SetRequireNetworkEncryption(require_network_encryption);
-  }
-  std::move(callback).Run();
-#else
-  std::move(callback).Run();
   NOTIMPLEMENTED();
 #endif
 }
