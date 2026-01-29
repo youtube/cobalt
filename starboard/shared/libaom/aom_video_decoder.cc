@@ -67,7 +67,7 @@ void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_ = JobThread::Create("aom_video_decoder", 0);
+    decoder_thread_ = JobThread::Create("aom_video_decoder");
     SB_DCHECK(decoder_thread_);
   }
 
