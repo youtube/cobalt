@@ -57,6 +57,7 @@
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/common/user_agent.h"
 #include "mojo/public/cpp/bindings/self_owned_receiver.h"
 #include "services/network/public/cpp/features.h"
@@ -517,6 +518,53 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
 
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
+
+  base::CommandLine* mutable_command_line =
+      base::CommandLine::ForCurrentProcess();
+
+  // Force enable AImageReader and WebCodecs.
+  std::string enabled_blink_features =
+      command_line.GetSwitchValueASCII(switches::kEnableBlinkFeatures);
+  if (enabled_blink_features.find("WebCodecs") == std::string::npos) {
+    if (!enabled_blink_features.empty()) {
+      enabled_blink_features += ",";
+    }
+    enabled_blink_features += "WebCodecs";
+    mutable_command_line->AppendSwitchASCII(switches::kEnableBlinkFeatures,
+                                            enabled_blink_features);
+  }
+
+  std::string enabled_features =
+      command_line.GetSwitchValueASCII(::switches::kEnableFeatures);
+  if (enabled_features.find("AImageReader") == std::string::npos) {
+    if (!enabled_features.empty()) {
+      enabled_features += ",";
+    }
+    enabled_features += "AImageReader";
+    mutable_command_line->AppendSwitchASCII(::switches::kEnableFeatures,
+                                            enabled_features);
+  }
+
+  // Remove AImageReader from disabled features if present.
+  std::string disabled_features =
+      command_line.GetSwitchValueASCII(::switches::kDisableFeatures);
+  if (disabled_features.find("AImageReader") != std::string::npos) {
+    size_t pos = disabled_features.find("AImageReader");
+    disabled_features.erase(pos, 12);
+    // Clean up trailing/leading commas.
+    if (pos > 0 && disabled_features[pos - 1] == ',') {
+      disabled_features.erase(pos - 1, 1);
+    }
+    mutable_command_line->AppendSwitchASCII(::switches::kDisableFeatures,
+                                            disabled_features);
+  }
+
+  // Enable Verbose Logging for Media and GPU
+  mutable_command_line->AppendSwitchASCII("v", "3");
+  mutable_command_line->AppendSwitchASCII(
+      "vmodule",
+      "media_codec_video_decoder=3,media_codec_util=3,gpu_video_accelerator_"
+      "factories=3");
 
   // Overrides for content/common and lower layers' switches.
   std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =

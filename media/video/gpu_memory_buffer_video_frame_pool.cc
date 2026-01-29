@@ -1199,8 +1199,7 @@ scoped_refptr<VideoFrame> GpuMemoryBufferVideoFramePool::PoolImpl::
     if (gpu_memory_buffer && plane_resource.mailbox.IsZero()) {
       uint32_t usage = gpu::SHARED_IMAGE_USAGE_GLES2 |
                        gpu::SHARED_IMAGE_USAGE_RASTER |
-                       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ |
-                       gpu::SHARED_IMAGE_USAGE_SCANOUT;
+                       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ;
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_MAC)
       // TODO(crbug.com/1241537): Always add the flag once the
@@ -1430,6 +1429,19 @@ void GpuMemoryBufferVideoFramePool::PoolImpl::MailboxHoldersReleased(
     return;
   }
   frame_resources->sync_token = release_sync_token;
+
+  // Cobalt/Android hack: Always destroy mailboxes on release to force a 
+  // fresh texture upload for every frame. This fixes the 'frozen video' bug
+  // in the software path where SharedImage mailboxes are incorrectly reused.
+  gpu::SharedImageInterface* sii = gpu_factories_->SharedImageInterface();
+  if (sii) {
+    for (PlaneResource& plane_resource : frame_resources->plane_resources) {
+      if (!plane_resource.mailbox.IsZero()) {
+        sii->DestroySharedImage(release_sync_token, plane_resource.mailbox);
+        plane_resource.mailbox = gpu::Mailbox();
+      }
+    }
+  }
 
   if (in_shutdown_) {
     DeleteFrameResources(gpu_factories_, frame_resources);

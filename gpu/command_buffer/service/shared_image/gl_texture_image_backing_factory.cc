@@ -7,11 +7,16 @@
 #include <list>
 #include <utility>
 
+#include "base/numerics/checked_math.h"
 #include "build/build_config.h"
+#include "components/viz/common/resources/resource_format_utils.h"
+#include "gpu/command_buffer/common/gpu_memory_buffer_support.h"
 #include "gpu/command_buffer/common/mailbox.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/shared_image/gl_texture_image_backing.h"
+#include "gpu/command_buffer/service/shared_memory_region_wrapper.h"
 #include "gpu/config/gpu_preferences.h"
+#include "ui/gfx/buffer_format_util.h"
 #include "ui/gl/gl_gl_api_implementation.h"
 #include "ui/gl/gl_implementation.h"
 #include "ui/gl/progress_reporter.h"
@@ -104,8 +109,29 @@ GLTextureImageBackingFactory::CreateSharedImage(
     SkAlphaType alpha_type,
     uint32_t usage,
     std::string debug_label) {
-  NOTIMPLEMENTED_LOG_ONCE();
-  return nullptr;
+  if (handle.type != gfx::SHARED_MEMORY_BUFFER) {
+    NOTIMPLEMENTED_LOG_ONCE();
+    return nullptr;
+  }
+
+  SharedMemoryRegionWrapper shm_wrapper;
+  if (!shm_wrapper.Initialize(handle, size, buffer_format, plane)) {
+    return nullptr;
+  }
+
+  const int plane_index = GetPlaneIndex(plane, buffer_format);
+  const gfx::Size plane_size = GetPlaneSize(plane, size);
+  const size_t plane_stride = shm_wrapper.GetStride(plane_index);
+
+  const viz::ResourceFormat resource_format =
+      viz::GetResourceFormat(GetPlaneBufferFormat(plane, buffer_format));
+
+  return CreateSharedImageInternal(
+      mailbox, viz::SharedImageFormat::SinglePlane(resource_format), kNullSurfaceHandle,
+      plane_size, color_space, surface_origin, alpha_type, usage,
+      std::move(debug_label),
+      base::make_span(shm_wrapper.GetMemory(plane_index),
+                      plane_stride * plane_size.height()));
 }
 
 bool GLTextureImageBackingFactory::IsSupported(
@@ -127,7 +153,7 @@ bool GLTextureImageBackingFactory::IsSupported(
   if (thread_safe) {
     return false;
   }
-  if (gmb_type != gfx::EMPTY_BUFFER) {
+  if (gmb_type != gfx::EMPTY_BUFFER && gmb_type != gfx::SHARED_MEMORY_BUFFER) {
     return false;
   }
 
