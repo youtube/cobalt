@@ -14,8 +14,12 @@
 
 #include "cobalt/browser/experiments/experiment_config_manager.h"
 
+#include <vector>
+
 #include "base/logging.h"
 #include "base/metrics/histogram_macros.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/string_split.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/features.h"
 #include "cobalt/browser/global_features.h"
@@ -79,6 +83,49 @@ bool HasConfigExpired(PrefService* experiment_prefs) {
   return false;
 }
 
+// Custom version comparison for Cobalt. Returns true if version1 > version2.
+// Compares major and minor version numbers, ignoring the purpose string.
+// Format is assumed to be <major>.<purpose>.<minor>.
+bool IsVersionGreaterThan(const std::string& version1,
+                          const std::string& version2) {
+  std::vector<std::string> v1_parts = base::SplitString(
+      version1, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  std::vector<std::string> v2_parts = base::SplitString(
+      version2, ".", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+  // Versions must have 3 components to be valid for this comparison.
+  if (v1_parts.size() != 3 || v2_parts.size() != 3) {
+    LOG(WARNING) << "Cannot compare versions with non-standard format: '"
+                 << version1 << "' and '" << version2 << "'";
+    return false;
+  }
+
+  int v1_major, v2_major, v1_minor, v2_minor;
+
+  bool v1_major_is_num = base::StringToInt(v1_parts[0], &v1_major);
+  bool v2_major_is_num = base::StringToInt(v2_parts[0], &v2_major);
+  bool v1_minor_is_num = base::StringToInt(v1_parts[2], &v1_minor);
+  bool v2_minor_is_num = base::StringToInt(v2_parts[2], &v2_minor);
+
+  // If any of the major/minor parts are not numbers, we can't compare.
+  if (!v1_major_is_num || !v2_major_is_num || !v1_minor_is_num ||
+      !v2_minor_is_num) {
+    LOG(WARNING) << "Cannot compare versions with non-numeric components: '"
+                 << version1 << "' and '" << version2 << "'";
+    return false;
+  }
+
+  if (v1_major > v2_major) {
+    return true;
+  }
+  if (v1_major < v2_major) {
+    return false;
+  }
+
+  // Major versions are equal, compare minor versions.
+  return v1_minor > v2_minor;
+}
+
 }  // namespace
 
 ExperimentConfigManager::ExperimentConfigManager(
@@ -137,7 +184,7 @@ ExperimentConfigType ExperimentConfigManager::GetExperimentConfigType() {
   // Min version prefs are added later than other prefs, so it might be missing
   // for some users.
   if (!recorded_cobalt_version.empty() &&
-      recorded_cobalt_version > COBALT_VERSION) {
+      IsVersionGreaterThan(recorded_cobalt_version, COBALT_VERSION)) {
     return ExperimentConfigType::kEmptyConfig;
   }
 
