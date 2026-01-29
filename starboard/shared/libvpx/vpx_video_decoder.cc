@@ -101,6 +101,7 @@ void VpxVideoDecoder::Reset() {
     decoder_thread_->ScheduleAndWait(
         std::bind(&VpxVideoDecoder::TeardownCodec, this));
 
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 

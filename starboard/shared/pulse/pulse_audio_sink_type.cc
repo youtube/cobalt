@@ -377,6 +377,7 @@ PulseAudioSinkType::~PulseAudioSinkType() {
       std::lock_guard lock(mutex_);
       destroying_ = true;
     }
+    audio_thread_->Stop();
     audio_thread_.reset();
   }
   SB_DCHECK(sinks_.empty());

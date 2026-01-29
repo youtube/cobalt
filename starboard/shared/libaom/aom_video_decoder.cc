@@ -103,6 +103,7 @@ void AomVideoDecoder::Reset() {
         std::bind(&AomVideoDecoder::TeardownCodec, this));
 
     // Join the thread to ensure that all callbacks in process are finished.
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
 
