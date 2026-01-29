@@ -42,7 +42,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
   std::unique_lock lock(mutex_);
   if (active_clients_.empty()) {
     SB_CHECK(!job_thread_);
-    job_thread_ = std::make_unique<JobThread>("wv_timer");
+    job_thread_ = JobThread::Create("wv_timer");
   }
 
   SB_CHECK(job_thread_);

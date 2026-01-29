@@ -25,56 +25,53 @@ namespace starboard {
 
 class JobThread::WorkerThread : public Thread {
  public:
-  WorkerThread(JobThread* job_thread,
-               const char* thread_name,
+  WorkerThread(std::string_view thread_name,
                int64_t stack_size,
                SbThreadPriority priority)
-      : Thread(thread_name, stack_size),
-        job_thread_(job_thread),
-        priority_(priority) {}
+      : Thread(std::string(thread_name), stack_size), priority_(priority) {}
 
   void Run() override {
     SbThreadSetPriority(priority_);
+    auto job_queue = std::make_unique<JobQueue>();
+    JobQueue* job_queue_ptr = job_queue.get();
     {
       std::lock_guard lock(mutex_);
-      job_thread_->job_queue_ = std::make_unique<JobQueue>();
+      job_queue_to_transfer_ = std::move(job_queue);
     }
     cv_.notify_one();
-    job_thread_->RunLoop();
+    job_queue_ptr->RunUntilStopped();
   }
 
-  void WaitUntilJobQueueCreation() {
+  std::unique_ptr<JobQueue> TakeJobQueue() {
     std::unique_lock lock(mutex_);
-    cv_.wait(lock, [this] { return job_thread_->job_queue_ != nullptr; });
-    SB_CHECK(job_thread_->job_queue_);
+    cv_.wait(lock, [this] { return job_queue_to_transfer_ != nullptr; });
+    return std::move(job_queue_to_transfer_);
   }
 
  private:
-  JobThread* job_thread_;
   SbThreadPriority priority_;
   std::mutex mutex_;
   std::condition_variable cv_;
+  std::unique_ptr<JobQueue> job_queue_to_transfer_;
 };
 
-JobThread::JobThread(const char* thread_name,
-                     int64_t stack_size,
-                     SbThreadPriority priority)
-    : thread_(std::make_unique<WorkerThread>(this,
-                                             thread_name,
-                                             stack_size,
-                                             priority)) {
-  thread_->Start();
-  thread_->WaitUntilJobQueueCreation();
+std::unique_ptr<JobThread> JobThread::Create(std::string_view thread_name,
+                                             int64_t stack_size,
+                                             SbThreadPriority priority) {
+  auto thread =
+      std::make_unique<WorkerThread>(thread_name, stack_size, priority);
+  thread->Start();
+  auto job_queue = thread->TakeJobQueue();
+  return std::unique_ptr<JobThread>(
+      new JobThread(std::move(thread), std::move(job_queue)));
 }
+
+JobThread::JobThread(std::unique_ptr<WorkerThread> thread,
+                     std::unique_ptr<JobQueue> job_queue)
+    : thread_(std::move(thread)), job_queue_(std::move(job_queue)) {}
 
 JobThread::~JobThread() {
   Stop();
-}
-
-void JobThread::RunLoop() {
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
-
-  job_queue_->RunUntilStopped();
 }
 
 void JobThread::Stop() {

@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <memory>
+#include <string_view>
 #include <utility>
 
 #include "starboard/common/log.h"
@@ -37,32 +38,29 @@ namespace starboard {
 // provide internal synchronization to prevent use-after-free if the object
 // is destroyed by one thread while another thread is calling its public
 // methods (e.g., Schedule()). Such lifetime management must be handled at the
-// caller level (e.g., via std::shared_ptr or explicit synchronization).
+// caller level.
 class JobThread {
  public:
-  explicit JobThread(const char* thread_name,
-                     int64_t stack_size = 0,
-                     SbThreadPriority priority = kSbThreadPriorityNormal);
+  static std::unique_ptr<JobThread> Create(
+      std::string_view thread_name,
+      int64_t stack_size = 0,
+      SbThreadPriority priority = kSbThreadPriorityNormal);
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
-    SB_CHECK(job_queue_);
     return job_queue_->BelongsToCurrentThread();
   }
 
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
                               int64_t delay_usec = 0) {
-    SB_CHECK(job_queue_);
     return job_queue_->Schedule(job, delay_usec);
   }
 
   JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
-    SB_CHECK(job_queue_);
     return job_queue_->Schedule(std::move(job), delay_usec);
   }
 
   void ScheduleAndWait(const JobQueue::Job& job) {
-    SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(job);
   }
 
@@ -70,12 +68,10 @@ class JobThread {
   // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
   // occasionally running before ScheduleAndWait has finished.
   void ScheduleAndWait(JobQueue::Job&& job) {
-    SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
   void RemoveJobByToken(JobQueue::JobToken job_token) {
-    SB_CHECK(job_queue_);
     return job_queue_->RemoveJobByToken(job_token);
   }
 
@@ -93,14 +89,14 @@ class JobThread {
 
  private:
   class WorkerThread;
-
-  void RunLoop();
+  JobThread(std::unique_ptr<WorkerThread> thread,
+            std::unique_ptr<JobQueue> job_queue);
 
   std::mutex stop_mutex_;
   bool stopped_ = false;
 
   const std::unique_ptr<WorkerThread> thread_;
-  std::unique_ptr<JobQueue> job_queue_;
+  const std::unique_ptr<JobQueue> job_queue_;
 };
 
 }  // namespace starboard

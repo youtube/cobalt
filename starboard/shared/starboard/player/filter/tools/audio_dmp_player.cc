@@ -140,7 +140,7 @@ void SbEventHandle(const SbEvent* event) {
         return;
       }
 
-      s_job_thread.reset(new JobThread("audio", kJobThreadStackSize));
+      s_job_thread = JobThread::Create("audio", kJobThreadStackSize);
       s_job_thread->Schedule(
           // Capture filename by value, since |data| is only valid for the
           // lifetime of SbEventHandle.

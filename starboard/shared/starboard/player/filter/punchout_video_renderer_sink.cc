@@ -49,7 +49,7 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
 
   render_cb_ = render_cb;
 
-  job_thread_ = std::make_unique<JobThread>("punchoutvidsink");
+  job_thread_ = JobThread::Create("punchoutvidsink", 0);
   job_thread_->Schedule([this] { RunLoop(); });
 }
 

@@ -133,7 +133,7 @@ void OpenH264VideoDecoder::WriteInputBuffers(
     return;
   }
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("openh264_video_decoder"));
+    decoder_thread_ = JobThread::Create("openh264_video_decoder", 0);
     SB_DCHECK(decoder_thread_);
   }
   const auto& input_buffer = input_buffers[0];

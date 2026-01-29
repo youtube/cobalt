@@ -105,7 +105,7 @@ void StubAudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("stub_audio_decoder"));
+    decoder_thread_ = JobThread::Create("stub_audio_decoder", 0);
   }
   decoder_thread_->Schedule(std::bind(&StubAudioDecoder::DecodeBuffers, this,
                                       input_buffers, consumed_cb));

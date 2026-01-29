@@ -94,7 +94,7 @@ void Dav1dVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("dav1d_video_decoder"));
+    decoder_thread_ = JobThread::Create("dav1d_video_decoder", 0);
     SB_DCHECK(decoder_thread_);
   }
 

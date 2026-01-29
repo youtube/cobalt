@@ -47,7 +47,7 @@ void StubVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(!input_buffers.empty());
 
   if (!decoder_thread_) {
-    decoder_thread_.reset(new JobThread("stub_video_decoder"));
+    decoder_thread_ = JobThread::Create("stub_video_decoder", 0);
   }
   decoder_thread_->Schedule(
       std::bind(&StubVideoDecoder::DecodeBuffers, this, input_buffers));
