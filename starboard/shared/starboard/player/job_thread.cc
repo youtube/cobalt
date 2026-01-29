@@ -27,11 +27,10 @@ class JobThread::WorkerThread : public Thread {
  public:
   WorkerThread(JobThread* job_thread,
                const char* thread_name,
-               int64_t stack_size,
                SbThreadPriority priority,
                std::mutex* mutex,
                std::condition_variable* cv)
-      : Thread(thread_name, stack_size),
+      : Thread(thread_name),
         job_thread_(job_thread),
         priority_(priority),
         mutex_(mutex),
@@ -54,14 +53,12 @@ class JobThread::WorkerThread : public Thread {
   std::condition_variable* cv_;
 };
 
-JobThread::JobThread(const char* thread_name,
-                     int64_t stack_size,
-                     SbThreadPriority priority) {
+JobThread::JobThread(const char* thread_name, SbThreadPriority priority) {
   std::mutex mutex;
   std::condition_variable condition_variable;
 
-  thread_ = std::make_unique<WorkerThread>(
-      this, thread_name, stack_size, priority, &mutex, &condition_variable);
+  thread_ = std::make_unique<WorkerThread>(this, thread_name, priority, &mutex,
+                                           &condition_variable);
   thread_->Start();
 
   std::unique_lock lock(mutex);

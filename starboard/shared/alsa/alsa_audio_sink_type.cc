@@ -188,8 +188,8 @@ AlsaAudioSink::AlsaAudioSink(
          channels * kFramesPerRequest * GetSampleSize(sample_type));
 
   std::unique_lock lock(mutex_);
-  audio_out_thread_ = std::make_unique<JobThread>("alsa_audio_out", 0,
-                                                  kSbThreadPriorityRealTime);
+  audio_out_thread_ =
+      std::make_unique<JobThread>("alsa_audio_out", kSbThreadPriorityRealTime);
   audio_out_thread_->Schedule([this] { ProcessAudio(); });
   creation_signal_.wait(lock, [this] { return audio_thread_created_; });
 }

@@ -393,7 +393,6 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
 
 TvosAudioSinkType::TvosAudioSinkType()
     : audio_thread_(std::make_unique<JobThread>("tvos_audio_out",
-                                                /*stack_size=*/0,
                                                 kSbThreadPriorityRealTime)) {
   audio_thread_->Schedule([this] { ProcessAudio(); });
 }

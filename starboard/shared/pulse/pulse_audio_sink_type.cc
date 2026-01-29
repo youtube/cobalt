@@ -475,7 +475,7 @@ bool PulseAudioSinkType::Initialize() {
   }
 
   audio_thread_ =
-      std::make_unique<JobThread>("pulse_audio", 0, kSbThreadPriorityRealTime);
+      std::make_unique<JobThread>("pulse_audio", kSbThreadPriorityRealTime);
   audio_thread_->Schedule([this] { ProcessAudio(); });
 
   return true;
