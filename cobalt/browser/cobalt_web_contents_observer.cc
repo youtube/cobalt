@@ -14,12 +14,71 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "base/functional/bind.h"
+#include "base/logging.h"
+#include "base/timer/timer.h"
+#include "content/public/browser/navigation_handle.h"
+#include "net/base/net_errors.h"
+#include "starboard/android/shared/starboard_bridge.h"
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROIDTV)
+namespace {
+const int kNavigationTimeoutSeconds = 15;
+const int kJniErrorTypeConnectionError = 0;
+}  // namespace
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 CobaltWebContentsObserver::CobaltWebContentsObserver(
     content::WebContents* web_contents)
     : content::WebContentsObserver(web_contents) {}
 
 CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
+
+#if BUILDFLAG(IS_ANDROIDTV)
+void CobaltWebContentsObserver::DidStartNavigation(
+    content::NavigationHandle* handle) {
+  if (!handle->IsInPrimaryMainFrame() || handle->IsSameDocument()) {
+    return;
+  }
+
+  timeout_timer_.Stop();
+  timeout_timer_.Start(
+      FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
+      base::BindOnce(&CobaltWebContentsObserver::RaisePlatformError,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+  if (!navigation_handle->IsInPrimaryMainFrame()) {
+    return;
+  }
+
+  if (!navigation_handle->IsSameDocument()) {
+    timeout_timer_.Stop();
+  }
+
+  int net_error_code = navigation_handle->GetNetErrorCode();
+  if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
+    LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
+              << net_error_code;
+    RaisePlatformError();
+  }
+}
+
+void CobaltWebContentsObserver::RaisePlatformError() {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::StarboardBridge* starboard_bridge =
+      starboard::StarboardBridge::GetInstance();
+  if (starboard_bridge->IsPlatformErrorShowing(env)) {
+    return;
+  }
+  starboard_bridge->RaisePlatformError(env, kJniErrorTypeConnectionError, 0);
+}
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 }  // namespace cobalt
