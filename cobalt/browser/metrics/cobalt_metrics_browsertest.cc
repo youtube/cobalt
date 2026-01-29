@@ -35,8 +35,11 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
                        RecordsPrivateMemoryFootprint) {
   base::HistogramTester histogram_tester;
 
-  auto* manager_client =
-      GlobalFeatures::GetInstance()->metrics_services_manager_client();
+  auto* features = GlobalFeatures::GetInstance();
+  // Ensure metrics recording is started.
+  features->metrics_services_manager()->UpdateUploadPermissions(true);
+
+  auto* manager_client = features->metrics_services_manager_client();
   ASSERT_TRUE(manager_client);
   auto* client = manager_client->metrics_service_client();
   ASSERT_TRUE(client);
