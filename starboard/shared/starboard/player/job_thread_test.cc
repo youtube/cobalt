@@ -42,7 +42,7 @@ void ExecutePendingJobs(JobThread* job_thread) {
 
 TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
   std::vector<int> values;
-  auto job_thread = JobThread::Create("JobThreadTests", 0);
+  auto job_thread = JobThread::Create("JobThreadTests");
   job_thread->Schedule([&]() { values.push_back(1); });
   job_thread->Schedule([&]() { values.push_back(2); });
   job_thread->Schedule([&]() { values.push_back(3); });
@@ -63,7 +63,7 @@ TEST(JobThreadTest, ScheduledJobsAreExecutedInOrder) {
 TEST(JobThreadTest, ScheduleAndWaitWaits) {
   int64_t start = CurrentMonotonicTime();
   std::atomic_bool job_1 = {false};
-  auto job_thread = JobThread::Create("JobThreadTests", 0);
+  auto job_thread = JobThread::Create("JobThreadTests");
   job_thread->ScheduleAndWait([&]() {
     usleep(1 * kPrecisionUsec);
     job_1 = true;
@@ -76,7 +76,7 @@ TEST(JobThreadTest, ScheduleAndWaitWaits) {
 TEST(JobThreadTest, ScheduledJobsShouldNotExecuteAfterGoingOutOfScope) {
   std::atomic_int counter = {0};
   {
-    auto job_thread = JobThread::Create("JobThreadTests", 0);
+    auto job_thread = JobThread::Create("JobThreadTests");
     std::function<void()> job = [&]() {
       counter++;
       job_thread->Schedule(job, 2 * kPrecisionUsec);
@@ -99,7 +99,7 @@ TEST(JobThreadTest, CanceledJobsAreCanceled) {
   std::atomic_int counter_1 = {0}, counter_2 = {0};
   JobQueue::JobToken job_token_1, job_token_2;
 
-  auto job_thread = JobThread::Create("JobThreadTests", 0);
+  auto job_thread = JobThread::Create("JobThreadTests");
   std::function<void()> job_1 = [&]() {
     counter_1++;
     job_token_1 = job_thread->Schedule(job_1);
@@ -137,7 +137,7 @@ TEST(JobThreadTest, CanceledJobsAreCanceled) {
 }
 
 TEST(JobThreadTest, QueueBelongsToCorrectThread) {
-  auto job_thread = JobThread::Create("JobThreadTests", 0);
+  auto job_thread = JobThread::Create("JobThreadTests");
   JobQueue job_queue;
 
   bool belongs_to_job_thread = false;
@@ -170,7 +170,7 @@ TEST(JobThreadTest, Stop) {
   std::condition_variable cv;
   bool started = false;
 
-  auto job_thread = JobThread::Create("test", 0);
+  auto job_thread = JobThread::Create("test");
 
   job_thread->Schedule([&] {
     {

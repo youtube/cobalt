@@ -474,8 +474,7 @@ bool PulseAudioSinkType::Initialize() {
     return false;
   }
 
-  audio_thread_ =
-      JobThread::Create("pulse_audio", 0, kSbThreadPriorityRealTime);
+  audio_thread_ = JobThread::Create("pulse_audio", kSbThreadPriorityRealTime);
   audio_thread_->Schedule([this] { ProcessAudio(); });
 
   return true;

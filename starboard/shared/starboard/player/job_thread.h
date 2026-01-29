@@ -41,10 +41,13 @@ namespace starboard {
 // caller level.
 class JobThread {
  public:
-  static std::unique_ptr<JobThread> Create(
-      std::string_view thread_name,
-      int64_t stack_size = 0,
-      SbThreadPriority priority = kSbThreadPriorityNormal);
+  static std::unique_ptr<JobThread> Create(std::string_view thread_name);
+  static std::unique_ptr<JobThread> Create(std::string_view thread_name,
+                                           SbThreadPriority priority);
+  // NOTE: This method will be removed, this PR is merged
+  // https://github.com/youtube/cobalt/pull/8863
+  static std::unique_ptr<JobThread> Create(std::string_view thread_name,
+                                           int stack_size);
   ~JobThread();
 
   bool BelongsToCurrentThread() const {

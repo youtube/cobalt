@@ -72,7 +72,7 @@ StubAudioSink::StubAudioSink(
       context_(context),
       destroying_(false) {
   audio_out_thread_ =
-      JobThread::Create("stub_audio_out", 0, kSbThreadPriorityRealTime);
+      JobThread::Create("stub_audio_out", kSbThreadPriorityRealTime);
   audio_out_thread_->Schedule([this] { AudioThreadFunc(); });
 }
 

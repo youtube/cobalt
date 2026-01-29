@@ -189,7 +189,7 @@ AlsaAudioSink::AlsaAudioSink(
 
   std::unique_lock lock(mutex_);
   audio_out_thread_ =
-      JobThread::Create("alsa_audio_out", 0, kSbThreadPriorityRealTime);
+      JobThread::Create("alsa_audio_out", kSbThreadPriorityRealTime);
   audio_out_thread_->Schedule([this] { ProcessAudio(); });
   creation_signal_.wait(lock, [this] { return audio_thread_created_; });
 }
