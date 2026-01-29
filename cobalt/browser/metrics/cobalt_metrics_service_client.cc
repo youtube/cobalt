@@ -309,9 +309,6 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
 
   if (total_private_footprint_kb > 0) {
     uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
-    if (total_private_footprint_mb == 0) {
-      total_private_footprint_mb = 1;
-    }
     MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
                                 total_private_footprint_mb);
   }
