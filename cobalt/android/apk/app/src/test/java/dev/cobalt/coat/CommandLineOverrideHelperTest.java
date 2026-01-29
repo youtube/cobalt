@@ -36,7 +36,11 @@ public class CommandLineOverrideHelperTest {
     @Test
     public void testDefaultCommandLineOverridesList() {
         List<String> overrides = CommandLineOverrideHelper.getDefaultCommandLineOverridesList();
-        assertThat(overrides.contains("--enable-low-end-device-mode")).isTrue();
+        assertThat(overrides.contains("--single-process")).isTrue();
+        assertThat(overrides.contains("--force-video-overlays")).isTrue();
+        assertThat(overrides.contains("--autoplay-policy=no-user-gesture-required")).isTrue();
+        assertThat(overrides.contains("--user-level-memory-pressure-signal-params")).isTrue();
+        assertThat(overrides.contains("--force-device-scale-factor=1")).isTrue();
     }
 
     @Test
@@ -76,8 +80,6 @@ public class CommandLineOverrideHelperTest {
         Assert.assertTrue(CommandLine.getInstance().hasSwitch("force-video-overlays"));
         Assert.assertTrue(
             CommandLine.getInstance().hasSwitch("user-level-memory-pressure-signal-params"));
-        Assert.assertTrue(CommandLine.getInstance().hasSwitch("enable-low-end-device-mode"));
-        Assert.assertTrue(CommandLine.getInstance().hasSwitch("disable-rgba-4444-textures"));
 
         String expected = "no-user-gesture-required";
         String actual = CommandLine.getInstance().getSwitchValue("autoplay-policy");
