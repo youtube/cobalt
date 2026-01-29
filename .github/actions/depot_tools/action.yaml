@@ -52,7 +52,6 @@ runs:
       shell: bash
 
     - name: Clone Depot Tools
-      if: inputs.use_cache == 'false'
       env:
         DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
       run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "${DEPOT_TOOLS_BASE_PATH}"
