@@ -18,7 +18,6 @@
 #include <memory>
 #include <string_view>
 
-#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
@@ -166,8 +165,6 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   bool IsInitialized() const { return !!metrics_service_; }
 
   THREAD_CHECKER(thread_checker_);
-
-  base::WeakPtrFactory<CobaltMetricsServiceClient> weak_ptr_factory_{this};
 };
 
 }  // namespace cobalt

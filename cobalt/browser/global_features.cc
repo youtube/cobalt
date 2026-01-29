@@ -39,7 +39,6 @@ constexpr base::FilePath::CharType kMetricsConfigFilename[] =
     FILE_PATH_LITERAL("Metrics Config");
 
 GlobalFeatures::GlobalFeatures() {
-  base::ScopedAllowBlockingForTesting allow_blocking;
   CreateExperimentConfig();
   CreateMetricsServices();
   // InitializeActiveConfigData needs ExperimentConfigManager to determine
@@ -91,7 +90,6 @@ void GlobalFeatures::set_accessor(
 
 void GlobalFeatures::CreateExperimentConfig() {
   DCHECK(!experiment_config_);
-  base::ScopedAllowBlockingForTesting allow_blocking;
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
 
   RegisterPrefs(pref_registry.get());
@@ -121,7 +119,7 @@ void GlobalFeatures::CreateMetricsServices() {
 
 void GlobalFeatures::CreateMetricsLocalState() {
   DCHECK(!metrics_local_state_);
-  base::ScopedAllowBlockingForTesting allow_blocking;
+
   // No need to make `pref_registry` a member, `pref_service_` will keep a
   // reference to it.
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
