@@ -43,7 +43,8 @@ class AVSBVideoRenderer : public VideoRenderer, private JobQueue::JobOwner {
 
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
-  AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
+  AVSBVideoRenderer(JobQueue* job_queue,
+                    const VideoStreamInfo& video_stream_info,
                     SbDrmSystem drm_system);
   ~AVSBVideoRenderer();
 
