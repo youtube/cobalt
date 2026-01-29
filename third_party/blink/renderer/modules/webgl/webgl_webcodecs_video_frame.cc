@@ -4,6 +4,9 @@
 
 #include "third_party/blink/renderer/modules/webgl/webgl_webcodecs_video_frame.h"
 
+#include <cstdint>
+
+#include "base/functional/bind.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
 #include "build/build_config.h"
@@ -19,6 +22,7 @@
 #include "third_party/blink/renderer/modules/webgl/webgl_unowned_texture.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/drawing_buffer.h"
+#include "third_party/blink/renderer/platform/heap/cross_thread_handle.h"
 #include "third_party/blink/renderer/platform/scheduler/public/main_thread.h"
 #include "third_party/blink/renderer/platform/scheduler/public/post_cross_thread_task.h"
 #include "third_party/blink/renderer/platform/scheduler/public/worker_pool.h"
@@ -154,15 +158,31 @@ WebGLWebCodecsVideoFrameHandle* WebGLWebCodecsVideoFrame::importVideoFrame(
   if (!frame->HasTextures()) {
     InitializeGpuMemoryBufferPool();
     base::WaitableEvent waitable_event;
+    // Blink's WTF::BindOnce (and CrossThreadBindOnce) adds strict thread-
+    // checking wrappers (ThreadCheckingCallbackWrapper) that crash if a
+    // callback is executed on a different thread than the one it was created
+    // on. Additionally, GarbageCollected objects are protected by
+    // DISALLOW_UNRETAINED(), which prevents using them as raw pointers in
+    // base::BindOnce. The calling thread is blocked via waitable_event.Wait()
+    // until the media thread task completes, which guarantees that 'this' and
+    // the stack-allocated waitable_event remain valid for the duration of the
+    // cross-thread task.
     media_task_runner_->PostTask(
         FROM_HERE,
-        WTF::BindOnce(
+        base::BindOnce(
             &media::GpuMemoryBufferVideoFramePool::MaybeCreateHardwareFrame,
             base::Unretained(gpu_memory_buffer_pool_.get()),
             base::RetainedRef(frame),
-            WTF::BindOnce(
-                &WebGLWebCodecsVideoFrame::OnHardwareVideoFrameCreated,
-                WrapWeakPersistent(this), WTF::Unretained(&waitable_event))));
+            base::BindOnce(
+                [](uintptr_t self_ptr, base::WaitableEvent* event,
+                   scoped_refptr<media::VideoFrame> hardware_frame) {
+                  auto* self =
+                      reinterpret_cast<WebGLWebCodecsVideoFrame*>(self_ptr);
+                  self->OnHardwareVideoFrameCreated(event,
+                                                   std::move(hardware_frame));
+                },
+                reinterpret_cast<uintptr_t>(this),
+                base::Unretained(&waitable_event))));
     waitable_event.Wait();
 
     if (frame == hardware_video_frame_) {
