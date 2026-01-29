@@ -17,7 +17,7 @@
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/base/key_systems_support_registration.h"
 #include "media/base/starboard/renderer_factory_traits.h"
-#include "mojo/public/cpp/bindings/remote.h"
+#include "mojo/public/cpp/bindings/shared_remote.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace content {
@@ -75,7 +75,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   gfx::Size viewport_size_;
 
-  mojo::Remote<media::mojom::PlatformWindowProvider> window_provider_;
+  mojo::SharedRemote<media::mojom::PlatformWindowProvider> window_provider_;
   std::atomic<uint64_t> sb_window_handle_ = 0;
 
   THREAD_CHECKER(thread_checker_);
