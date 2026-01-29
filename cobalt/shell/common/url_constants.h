@@ -19,6 +19,7 @@ namespace content {
 
 inline constexpr char kCobaltSplashMainFrameName[] = "Splash";
 inline constexpr char kH5vccEmbeddedScheme[] = "h5vcc-embedded";
+
 }  // namespace content
 
 #endif  // COBALT_SHELL_COMMON_URL_CONSTANTS_H_
