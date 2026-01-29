@@ -31,6 +31,13 @@
 namespace starboard {
 
 // This class implements a thread that holds a JobQueue.
+//
+// NOTE: It is the caller's responsibility to ensure that the JobThread object
+// remains valid while its methods are being called. This class does not
+// provide internal synchronization to prevent use-after-free if the object
+// is destroyed by one thread while another thread is calling its public
+// methods (e.g., Schedule()). Such lifetime management must be handled at the
+// caller level (e.g., via std::shared_ptr or explicit synchronization).
 class JobThread {
  public:
   explicit JobThread(const char* thread_name,
@@ -39,38 +46,22 @@ class JobThread {
   ~JobThread();
 
   bool BelongsToCurrentThread() const {
-    if (stopped_.load(std::memory_order_acquire)) {
-      return false;
-    }
-
     SB_CHECK(job_queue_);
     return job_queue_->BelongsToCurrentThread();
   }
 
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
                               int64_t delay_usec = 0) {
-    if (stopped_.load(std::memory_order_acquire)) {
-      return JobQueue::JobToken();
-    }
-
     SB_CHECK(job_queue_);
     return job_queue_->Schedule(job, delay_usec);
   }
 
   JobQueue::JobToken Schedule(JobQueue::Job&& job, int64_t delay_usec = 0) {
-    if (stopped_.load(std::memory_order_acquire)) {
-      return JobQueue::JobToken();
-    }
-
     SB_CHECK(job_queue_);
     return job_queue_->Schedule(std::move(job), delay_usec);
   }
 
   void ScheduleAndWait(const JobQueue::Job& job) {
-    if (stopped_.load(std::memory_order_acquire)) {
-      return;
-    }
-
     SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(job);
   }
@@ -79,19 +70,11 @@ class JobThread {
   // heap-use-after-free errors in ScheduleAndWait due to JobQueue dtor
   // occasionally running before ScheduleAndWait has finished.
   void ScheduleAndWait(JobQueue::Job&& job) {
-    if (stopped_.load(std::memory_order_acquire)) {
-      return;
-    }
-
     SB_CHECK(job_queue_);
     job_queue_->ScheduleAndWait(std::move(job));
   }
 
   void RemoveJobByToken(JobQueue::JobToken job_token) {
-    if (stopped_.load(std::memory_order_acquire)) {
-      return;
-    }
-
     SB_CHECK(job_queue_);
     return job_queue_->RemoveJobByToken(job_token);
   }
@@ -113,11 +96,10 @@ class JobThread {
 
   void RunLoop();
 
-  std::atomic<bool> stopped_{false};
-
   std::mutex stop_mutex_;
+  bool stopped_ = false;
+
   const std::unique_ptr<WorkerThread> thread_;
-  // job_queue_ is initialized during construction and is never reset.
   std::unique_ptr<JobQueue> job_queue_;
 };
 

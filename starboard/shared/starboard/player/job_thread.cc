@@ -82,9 +82,10 @@ void JobThread::Stop() {
   // explicitly and one via the destructor), they all wait until the join
   // is actually complete.
   std::lock_guard lock(stop_mutex_);
-  if (stopped_.exchange(true, std::memory_order_release)) {
+  if (stopped_) {
     return;
   }
+  stopped_ = true;
 
   job_queue_->StopSoon();
   thread_->Join();
