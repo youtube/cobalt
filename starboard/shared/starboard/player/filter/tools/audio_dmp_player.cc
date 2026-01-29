@@ -134,7 +134,7 @@ void SbEventHandle(const SbEvent* event) {
         return;
       }
 
-      s_job_thread.reset(new JobThread("audio"));
+      s_job_thread = std::make_unique<JobThread>("audio");
       s_job_thread->Schedule(
           // Capture filename by value, since |data| is only valid for the
           // lifetime of SbEventHandle.
