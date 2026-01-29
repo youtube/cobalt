@@ -73,13 +73,14 @@ source_set("starboard") {
 
   if (use_starboard_media) {
     sources += [
-      "bidirectional_fit_reuse_allocator.h",
+      "bidirectional_fit_decoder_buffer_allocator_strategy.h",
       "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
-      "decoder_buffer_allocator_strategy.h",
       "decoder_buffer_memory_info.cc",
       "decoder_buffer_memory_info.h",
+      "media_buffer_pool_decoder_buffer_allocator_strategy.cc",
+      "media_buffer_pool_decoder_buffer_allocator_strategy.h",
       "sbplayer_bridge.cc",
       "sbplayer_bridge.h",
       "sbplayer_interface.cc",
@@ -135,8 +136,9 @@ source_set("unit_tests") {
   }
   if (use_starboard_media) {
     sources += [
-      "bidirectional_fit_reuse_allocator_test.cc",
+      "decoder_buffer_allocator_strategy_test.cc",
       "decoder_buffer_allocator_test.cc",
+      "media_buffer_pool_decoder_buffer_allocator_strategy_test.cc",
       "starboard_renderer_unittest.cc",
       "starboard_utils_test.cc",
     ]

@@ -22,7 +22,9 @@
 #include "starboard/android/shared/jni_state.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/memfd_media_buffer_pool.h"
 #include "starboard/audio_sink.h"
+#include "starboard/common/experimental/media_buffer_pool.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -517,7 +519,21 @@ bool MediaDecoder::ProcessOneInputBuffer(
     SB_DCHECK_GE(size, 0);
     SB_DCHECK_LE(size, capacity);
     void* address = env->GetDirectBufferAddress(byte_buffer.obj());
-    memcpy(address, data, size);
+
+    using ::starboard::common::experimental::IsPointerAnnotated;
+    using ::starboard::common::experimental::UnannotatePointer;
+
+    if (IsPointerAnnotated(data)) {
+      auto* pool = MemFdMediaBufferPool::Get();
+      SB_DCHECK(pool);
+
+      // Unannotate the pointer here to convert it into the position the
+      // extension understands.
+      intptr_t position = UnannotatePointer(reinterpret_cast<intptr_t>(data));
+      pool->Read(position, address, size);
+    } else {
+      memcpy(address, data, size);
+    }
   }
 
   jint status;
