@@ -60,6 +60,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
                     const std::string& max_video_capabilities,
                     bool enable_flush_during_seek,
                     bool enable_reset_audio_decoder,
+                    std::optional<int> initial_max_frames_in_decoder,
+                    std::optional<int> max_pending_input_frames,
                     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
                     ,
@@ -198,6 +200,8 @@ class MEDIA_EXPORT StarboardRenderer : public Renderer,
   const std::string max_video_capabilities_;
   const bool enable_flush_during_seek_;
   const bool enable_reset_audio_decoder_;
+  const std::optional<int> initial_max_frames_in_decoder_;
+  const std::optional<int> max_pending_input_frames_;
   const gfx::Size viewport_size_;
 #if BUILDFLAG(IS_ANDROID)
   const AndroidOverlayMojoFactoryCB android_overlay_factory_cb_;

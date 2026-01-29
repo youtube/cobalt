@@ -377,7 +377,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool enable_flush_during_seek,
                            int64_t reset_delay_usec,
                            int64_t flush_delay_usec,
-                           const FlowControlOptions& flow_control_options,
+                           const ExperimentalFeatures& experimental_features,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
@@ -386,9 +386,9 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
       initial_max_frames_in_decoder_(
-          flow_control_options.initial_max_frames_in_decoder),
+          experimental_features.initial_max_frames_in_decoder),
       max_pending_inputs_size_(
-          flow_control_options.max_pending_input_frames.value_or(
+          experimental_features.max_pending_input_frames.value_or(
               kDefaultMaxPendingInputsSize)),
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
