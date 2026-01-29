@@ -45,3 +45,17 @@ v8_enable_concurrent_marking = false
 
 # This flag is also needed to disable concurrent marking.
 v8_enable_atomic_object_field_writes = false
+
+# This will force V8 to embed snapshot blob in binary.
+v8_use_external_startup_data = false
+
+# Many of these come from media_options.gni.
+enable_dav1d_decoder = false
+enable_hevc_parser_and_hw_decoder = false
+enable_libaom = false
+enable_platform_ac3_eac3_audio = false
+enable_platform_dolby_vision = false
+enable_platform_mpeg_h_audio = false
+media_use_libvpx = false
+media_use_openh264 = false
+rtc_use_h264 = false
