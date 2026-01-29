@@ -42,8 +42,6 @@ const char kH5vccSettingsKeyMediaEnableFlushDuringSeek[] =
     "Media.EnableFlushDuringSeek";
 const char kH5vccSettingsKeyMediaEnableResetAudioDecoder[] =
     "Media.EnableResetAudioDecoder";
-const char kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback[] =
-    "Media.NotifyMemoryPressureBeforePlayback";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
 const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
@@ -55,8 +53,6 @@ const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
 // If a setting has a corresponding switch, we will enable the switch with the
 // corresponding value.
 const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
-    {kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback,
-     switches::kCobaltNotifyMemoryPressureBeforePlayback},
     {kH5vccSettingsKeyMediaVideoBufferSizeClampMb,
      switches::kMSEVideoBufferSizeLimitClampMb},
 };
