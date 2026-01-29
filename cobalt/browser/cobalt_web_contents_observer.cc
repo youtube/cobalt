@@ -27,7 +27,7 @@ namespace cobalt {
 
 #if BUILDFLAG(IS_ANDROIDTV)
 namespace {
-const int kNavigationTimeoutSeconds = 20;
+const int kNavigationTimeoutSeconds = 30;
 const int kJniErrorTypeConnectionError = 0;
 }  // namespace
 #endif  // BUILDFLAG(IS_ANDROIDTV)
