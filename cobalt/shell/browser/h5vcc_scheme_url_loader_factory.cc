@@ -57,6 +57,7 @@ namespace {
 const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
 const char kMimeTypeTextHtml[] = "text/html";
 const char kMimeTypeTextPlain[] = "text/plain";
+const char kMimeTypeImagePng[] = "image/png";
 const char kMimeTypeVideoWebM[] = "video/webm";
 
 // TODO - b/456482732: remove unsafe-inline.
@@ -230,6 +231,13 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeTextHtml;
+      mime_type = "text/html";
+    } else if (base::EndsWith(key, ".png", base::CompareCase::SENSITIVE)) {
+      mime_type = kMimeTypeImagePng; 
+      if (browser_context_) {
+        ReadSplashCache(key);
+        return;
+      }
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
       mime_type_ = kMimeTypeVideoWebM;
       if (browser_context_) {
