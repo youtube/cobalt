@@ -28,7 +28,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
-SbPlayer SbPlayerCreate(SbWindow /*window*/,
+SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
