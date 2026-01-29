@@ -131,7 +131,7 @@ inline void CdmResultPromise<std::string>::resolve(const std::string& result) {
       key_system_uma_prefix_ + kTimeToResolveUmaPrefix + uma_name_,
       base::TimeTicks::Now() - creation_time_);
 
-  web_cdm_result_.CompleteWithString(WebString::FromUTF8(result));
+  web_cdm_result_.CompleteWithString(WebString::FromUTF8(result.data()));
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
