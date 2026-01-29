@@ -98,8 +98,8 @@ class JobThread {
   std::mutex stop_mutex_;
   bool stopped_ = false;
 
-  const std::unique_ptr<WorkerThread> thread_;
   const std::unique_ptr<JobQueue> job_queue_;
+  const std::unique_ptr<WorkerThread> thread_;
 };
 
 }  // namespace starboard
