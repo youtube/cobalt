@@ -44,6 +44,10 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
   auto* client = manager_client->metrics_service_client();
   ASSERT_TRUE(client);
 
+  // Set a short upload interval to trigger the periodic dump faster.
+  client->SetUploadInterval(base::Seconds(1));
+  client->SetMinIdleRefreshIntervalForTesting(base::Seconds(1));
+
   // Trigger a log finalization, which should include a memory dump.
   base::RunLoop run_loop;
   client->CollectFinalMetricsForLog(run_loop.QuitClosure());

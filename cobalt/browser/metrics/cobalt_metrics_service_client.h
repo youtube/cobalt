@@ -99,6 +99,9 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Of note: GetStorageLimits() can also be overridden.
 
   void SetUploadInterval(base::TimeDelta interval);
+  void SetMinIdleRefreshIntervalForTesting(base::TimeDelta interval) {
+    min_idle_refresh_interval_ = interval;
+  }
   void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
@@ -147,6 +150,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   std::unique_ptr<metrics::MetricsService> metrics_service_;
 
   base::TimeDelta upload_interval_ = kStandardUploadIntervalMinutes;
+
+  base::TimeDelta min_idle_refresh_interval_ = kMinIdleRefreshInterval;
 
   // Usually `log_uploader_` would be created lazily in CreateUploader() (during
   // first metrics upload), however there's a race condition of many seconds

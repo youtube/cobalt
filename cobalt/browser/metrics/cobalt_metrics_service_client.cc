@@ -56,7 +56,7 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     : synthetic_trial_registry_(std::move(synthetic_trial_registry)),
       local_state_(local_state),
       metrics_state_manager_(state_manager),
-      upload_interval_(base::Seconds(30)) {
+      upload_interval_(kStandardUploadIntervalMinutes) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -87,9 +87,9 @@ void CobaltMetricsServiceClient::StartIdleRefreshTimer() {
   //      actions. User actions are currently sparse and/or not working due to
   //      the nature of Kabuki's implementation (see b/417477183).
   auto timer_interval = GetStandardUploadInterval() / 2;
-  timer_interval = timer_interval > kMinIdleRefreshInterval
+  timer_interval = timer_interval > min_idle_refresh_interval_
                        ? timer_interval
-                       : kMinIdleRefreshInterval;
+                       : min_idle_refresh_interval_;
   idle_refresh_timer_.Start(
       FROM_HERE, timer_interval, this,
       &CobaltMetricsServiceClient::OnApplicationNotIdleInternal);
