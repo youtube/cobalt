@@ -830,6 +830,7 @@ bool MediaDecoder::ResetForReuse(
 
   if (is_valid() && !media_codec_bridge_->Restart()) {
     SB_LOG(ERROR) << "Failed to restart media codec.";
+    return false;
   }
   return true;
 }

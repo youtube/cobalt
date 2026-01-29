@@ -15,6 +15,7 @@
 #include "starboard/android/shared/video_decoder_cache.h"
 
 #include "base/android/jni_android.h"
+#include "base/no_destructor.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
@@ -54,8 +55,8 @@ ScopedJavaGlobalRef<jobject> CreateDummySurface(
 
 // static
 VideoDecoderCache* VideoDecoderCache::GetInstance() {
-  static VideoDecoderCache* instance = new VideoDecoderCache();
-  return instance;
+  static base::NoDestructor<VideoDecoderCache> instance;
+  return instance.get();
 }
 
 VideoDecoderCache::VideoDecoderCache() = default;
