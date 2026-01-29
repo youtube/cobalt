@@ -24,8 +24,10 @@ const int kAc3FivePointOneChannelMap[6] = {0, 2, 5, 1, 3, 4};
 const int kAc3FramesPerPacket = 1536;
 const int kADTSHeaderSize = 7;
 
-TvosAudioDecoder::TvosAudioDecoder(const AudioStreamInfo& audio_stream_info)
-    : audio_stream_info_(audio_stream_info),
+TvosAudioDecoder::TvosAudioDecoder(JobQueue* job_queue,
+                                   const AudioStreamInfo& audio_stream_info)
+    : JobOwner(job_queue),
+      audio_stream_info_(audio_stream_info),
       bytes_per_frame_(GetBytesPerSample(kSbMediaAudioSampleTypeFloat32) *
                        audio_stream_info_.number_of_channels),
       audio_buffer_list_{0},
