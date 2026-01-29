@@ -20,7 +20,6 @@
 #include <utility>
 
 #include "build/build_config.h"
-#include "starboard/android/shared/configurate_seek.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/log.h"
@@ -580,7 +579,7 @@ void FilterBasedPlayerWorkerHandler::SetVideoInitialMaxFramesInDecoder(
                << (video_initial_max_frames_in_decoder_.has_value()
                        ? std::to_string(
                              video_initial_max_frames_in_decoder_.value())
-                       : "null")
+                       : "(nullopt)")
                << " to " << video_initial_max_frames_in_decoder;
   video_initial_max_frames_in_decoder_ = video_initial_max_frames_in_decoder;
 }
@@ -590,7 +589,7 @@ void FilterBasedPlayerWorkerHandler::SetVideoMaxPendingInputFrames(
   SB_LOG(INFO) << "Set video_max_pending_input_frames from "
                << (video_max_pending_input_frames_.has_value()
                        ? std::to_string(video_max_pending_input_frames_.value())
-                       : "null")
+                       : "(nullopt)")
                << " to " << video_max_pending_input_frames;
   video_max_pending_input_frames_ = video_max_pending_input_frames;
 }

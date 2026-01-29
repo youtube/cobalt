@@ -700,6 +700,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
 }  // namespace
 }  // namespace starboard::android::shared
+
 namespace starboard::shared::starboard::player::filter {
 
 // static
