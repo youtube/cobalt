@@ -214,10 +214,6 @@ test("cobalt_browsertests") {
     sources += [ "browsertests_apk/content_browser_tests_jni_onload.cc" ]
   }
 
-  if (is_starboard) {
-    sources += [ "cobalt_browser_tests_main.cc" ]
-  }
-
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
   configs += [ "//build/config:precompiled_headers" ]
