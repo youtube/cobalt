@@ -17,6 +17,8 @@
 #ifndef COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
 #define COBALT_SHELL_COMMON_SHELL_SWITCHES_H_
 
+#include <cstddef>
+
 #include "build/build_config.h"
 
 namespace switches {
@@ -24,6 +26,8 @@ namespace switches {
 inline constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
 inline constexpr char kSplashScreenURL[] = "h5vcc-embedded://splash.html";
 inline constexpr char16_t kDefaultSplashCacheName[] = u"default";
+// 10MB limit for splash content to prevent memory exhaustion.
+inline constexpr size_t kMaxSplashContentSize = 10 * 1024 * 1024;
 
 extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];

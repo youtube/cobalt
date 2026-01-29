@@ -47,6 +47,11 @@
 #include "url/origin.h"
 
 namespace content {
+
+using switches::kDefaultSplashCacheName;
+using switches::kDefaultURL;
+using switches::kMaxSplashContentSize;
+
 namespace {
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
@@ -112,8 +117,6 @@ class BlobReader : public blink::mojom::BlobReaderClient {
   void OnDataAvailable(MojoResult result,
                        const mojo::HandleSignalsState& state) {
     constexpr uint32_t kReadBufferSize = 64 * 1024;
-    // 10MB limit for splash video to prevent memory exhaustion.
-    constexpr size_t kMaxSplashVideoSize = 10 * 1024 * 1024;
 
     if (result != MOJO_RESULT_OK) {
       watcher_.reset();
@@ -140,9 +143,9 @@ class BlobReader : public blink::mojom::BlobReaderClient {
         OnDataAvailable(read_result, state);
         return;
       }
-      if (content_.size() + num_bytes > kMaxSplashVideoSize) {
-        LOG(ERROR) << "Splash video too large, exceeding limit of "
-                   << kMaxSplashVideoSize << " bytes.";
+      if (content_.size() + num_bytes > kMaxSplashContentSize) {
+        LOG(ERROR) << "Splash content too large, exceeding limit of "
+                   << kMaxSplashContentSize << " bytes.";
         watcher_.reset();
         consumer_handle_.reset();
         if (callback_) {
@@ -264,7 +267,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     if (net::GetValueForKeyInQuery(url_, "cache", &cache_name)) {
       match_options->cache_name = base::UTF8ToUTF16(cache_name);
     } else {
-      match_options->cache_name = switches::kDefaultSplashCacheName;
+      match_options->cache_name = kDefaultSplashCacheName;
     }
 
     std::string cache_name_utf8 =
@@ -410,11 +413,10 @@ const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
 
 H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
     BrowserContext* browser_context)
-    : splash_domain_(
-          url::Origin::Create(
-              GURL(global_splash_domain_test_.value_or(switches::kDefaultURL)))
-              .GetURL()
-              .spec()),
+    : splash_domain_(url::Origin::Create(
+                         GURL(global_splash_domain_test_.value_or(kDefaultURL)))
+                         .GetURL()
+                         .spec()),
       browser_context_(browser_context) {}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
