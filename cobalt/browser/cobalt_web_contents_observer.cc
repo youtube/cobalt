@@ -45,6 +45,8 @@ void CobaltWebContentsObserver::DidStartNavigation(
     return;
   }
 
+  // Start a navigation timer with a timeout callback to raise a
+  // network error dialog
   timeout_timer_.Stop();
   timeout_timer_.Start(
       FROM_HERE, base::Seconds(kNavigationTimeoutSeconds),
@@ -58,6 +60,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     return;
   }
 
+  // Only stop the navigation timer if the navigation finishes for
+  // a different document
   if (!navigation_handle->IsSameDocument()) {
     timeout_timer_.Stop();
   }
@@ -74,6 +78,8 @@ void CobaltWebContentsObserver::RaisePlatformError() {
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard::StarboardBridge* starboard_bridge =
       starboard::StarboardBridge::GetInstance();
+
+  // Don't raise a new platform error if one is already showing
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
     return;
   }
