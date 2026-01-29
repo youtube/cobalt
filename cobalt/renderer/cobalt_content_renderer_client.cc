@@ -46,6 +46,10 @@ const char kH5vccSettingsKeyMediaNotifyMemoryPressureBeforePlayback[] =
     "Media.NotifyMemoryPressureBeforePlayback";
 const char kH5vccSettingsKeyMediaVideoBufferSizeClampMb[] =
     "Media.VideoBufferSizeClampMb";
+const char kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder[] =
+    "Media.VideoInitialMaxFramesInDecoder";
+const char kH5vccSettingsKeyMediaVideoMaxPendingInputFrames[] =
+    "Media.VideoMaxPendingInputFrames";
 
 // Map that stores all current bindings of H5vcc settings to media switches.
 // If a setting has a corresponding switch, we will enable the switch with the
@@ -60,6 +64,8 @@ const base::flat_map<std::string, const char*> kH5vccSettingToSwitchMap = {
 struct ParsedH5vccSettings {
   bool enable_flush_during_seek = false;
   bool enable_reset_audio_decoder = false;
+  std::optional<int> initial_max_frames_in_decoder;
+  std::optional<int> max_pending_input_frames;
 };
 
 using H5vccSettingValue = std::variant<std::string, int64_t>;
@@ -175,6 +181,25 @@ const T* GetSettingValue(
   return std::get_if<T>(&it->second);
 }
 
+constexpr int kMaxFramesInDecoderLimit = 10'000;
+
+std::optional<int> ProcessRangedIntH5vccSetting(
+    const std::map<std::string, H5vccSettingValue>& settings,
+    const char* key,
+    int min_val,
+    int max_val) {
+  auto* val = GetSettingValue<int64_t>(settings, key);
+  if (!val) {
+    return std::nullopt;
+  }
+  if (*val < min_val || max_val < *val) {
+    LOG(WARNING) << "Invalid value for " << key << ": " << *val;
+    return std::nullopt;
+  }
+
+  return static_cast<int>(*val);
+}
+
 ParsedH5vccSettings ProcessH5vccSettings(
     const std::map<std::string, H5vccSettingValue>& settings) {
   ParsedH5vccSettings parsed;
@@ -191,6 +216,13 @@ ParsedH5vccSettings ProcessH5vccSettings(
           settings, kH5vccSettingsKeyMediaEnableResetAudioDecoder)) {
     parsed.enable_reset_audio_decoder = *val != 0;
   }
+
+  parsed.initial_max_frames_in_decoder = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoInitialMaxFramesInDecoder, 1,
+      kMaxFramesInDecoderLimit);
+  parsed.max_pending_input_frames = ProcessRangedIntH5vccSetting(
+      settings, kH5vccSettingsKeyMediaVideoMaxPendingInputFrames, 1,
+      kMaxFramesInDecoderLimit);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
@@ -340,6 +372,10 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
       parsed.enable_flush_during_seek;
   renderer_factory_traits->enable_reset_audio_decoder =
       parsed.enable_reset_audio_decoder;
+  renderer_factory_traits->initial_max_frames_in_decoder =
+      parsed.initial_max_frames_in_decoder;
+  renderer_factory_traits->max_pending_input_frames =
+      parsed.max_pending_input_frames;
 
   renderer_factory_traits->viewport_size = viewport_size_;
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.

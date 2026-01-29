@@ -53,6 +53,8 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
       max_video_capabilities_(traits->max_video_capabilities),
       enable_flush_during_seek_(traits->enable_flush_during_seek),
       enable_reset_audio_decoder_(traits->enable_reset_audio_decoder),
+      initial_max_frames_in_decoder_(traits->initial_max_frames_in_decoder),
+      max_pending_input_frames_(traits->max_pending_input_frames),
       viewport_size_(traits->viewport_size),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
@@ -109,7 +111,9 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   StarboardRendererConfig config(
       overlay_factory->overlay_plane_id(), audio_write_duration_local_,
       audio_write_duration_remote_, max_video_capabilities_,
-      enable_flush_during_seek_, enable_reset_audio_decoder_, viewport_size_);
+      enable_flush_during_seek_, enable_reset_audio_decoder_,
+      initial_max_frames_in_decoder_, max_pending_input_frames_,
+      viewport_size_);
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
           std::move(media_log_pending_remote), config,

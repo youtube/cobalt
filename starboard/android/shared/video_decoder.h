@@ -58,7 +58,7 @@ class VideoDecoder
 
   class Sink;
 
-  struct FlowControlOptions {
+  struct ExperimentalFeatures {
     std::optional<int> max_pending_input_frames;
     std::optional<int> initial_max_frames_in_decoder;
   };
@@ -79,7 +79,7 @@ class VideoDecoder
                bool enable_flush_during_seek,
                int64_t reset_delay_usec,
                int64_t flush_delay_usec,
-               const FlowControlOptions& flow_control_options,
+               const ExperimentalFeatures& experimental_features,
                std::string* error_message);
   ~VideoDecoder() override;
 

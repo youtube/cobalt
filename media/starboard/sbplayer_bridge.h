@@ -107,7 +107,9 @@ class SbPlayerBridge {
                  const std::string& max_video_capabilities,
                  int max_video_input_size,
                  bool flush_decoder_during_reset,
-                 bool reset_audio_decoder
+                 bool reset_audio_decoder,
+                 std::optional<int> initial_max_frames_in_decoder,
+                 std::optional<int> max_pending_input_frames
 #if BUILDFLAG(IS_ANDROID)
                  ,
                  jobject surface_view
@@ -345,6 +347,8 @@ class SbPlayerBridge {
 
   const bool flush_decoder_during_reset_;
   const bool reset_audio_decoder_;
+  const std::optional<int> initial_max_frames_in_decoder_;
+  const std::optional<int> max_pending_input_frames_;
 
 #if BUILDFLAG(IS_ANDROID)
   // Set the surface to Android Overlay's surface view.

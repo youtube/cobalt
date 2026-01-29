@@ -30,6 +30,7 @@
 #include "starboard/android/shared/player_set_max_video_input_size.h"
 #include "starboard/android/shared/player_set_video_surface_view.h"
 #include "starboard/android/shared/system_info_api.h"
+#include "starboard/android/shared/video_decoder_configuration.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
@@ -43,6 +44,7 @@
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/player_set_video_surface_view.h"
 #include "starboard/extension/system_info.h"
+#include "starboard/extension/video_decoder_configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionPlatformServiceName) == 0) {
@@ -76,6 +78,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionPlayerConfigurateSeekName) == 0) {
     return starboard::android::shared::GetPlayerConfigurateSeekApi();
+  }
+  if (strcmp(name, kStarboardExtensionVideoDecoderConfigurationName) == 0) {
+    return starboard::android::shared::GetVideoDecoderConfigurationApi();
   }
   if (strcmp(name, kStarboardExtensionPlayerSetVideoSurfaceViewName) == 0) {
     return starboard::android::shared::GetPlayerSetVideoSurfaceViewApi();

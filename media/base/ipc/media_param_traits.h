@@ -9,11 +9,51 @@
 #include "ipc/ipc_param_traits.h"
 #include "media/base/ipc/media_param_traits_macros.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Included after media_param_traits_macros.h to ensure BUILDFLAG is defined
+// (via media/media_buildflags.h) without adding an explicit dependency
+// for non-Starboard builds.
+#include <optional>
+#endif
+
 namespace media {
 class AudioParameters;
 }
 
 namespace IPC {
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+template <class P>
+struct ParamTraits<std::optional<P>> {
+  using param_type = std::optional<P>;
+  static void Write(base::Pickle* m, const param_type& p) {
+    const bool is_set = static_cast<bool>(p);
+    WriteParam(m, is_set);
+    if (is_set)
+      WriteParam(m, p.value());
+  }
+  static bool Read(const base::Pickle* m,
+                   base::PickleIterator* iter,
+                   param_type* r) {
+    bool is_set = false;
+    if (!iter->ReadBool(&is_set))
+      return false;
+    if (is_set) {
+      P value;
+      if (!ReadParam(m, iter, &value))
+        return false;
+      *r = std::move(value);
+    }
+    return true;
+  }
+  static void Log(const param_type& p, std::string* l) {
+    if (p)
+      LogParam(p.value(), l);
+    else
+      l->append("(unset)");
+  }
+};
+#endif
 
 template <>
 struct ParamTraits<media::AudioParameters> {
