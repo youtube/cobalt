@@ -41,7 +41,7 @@ struct Thread::Data {
 };
 
 Thread::Thread(const std::string_view name) : d_(std::make_unique<Data>()) {
-  d_->name_ = std::string(name);
+  d_->name_.assign(name);
 }
 
 Thread::~Thread() {
