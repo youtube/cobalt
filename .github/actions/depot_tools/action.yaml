@@ -52,6 +52,7 @@ runs:
       shell: bash
 
     - name: Clone Depot Tools
+      if: inputs.use_cache == 'false'
       env:
         DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
       run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "${DEPOT_TOOLS_BASE_PATH}"
@@ -75,7 +76,7 @@ runs:
         DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
       run: |
         # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-        source ${DEPOT_TOOLS_BASE_PATH}/depot_tools/bootstrap_python3 && bootstrap_python3
+        source ${DEPOT_TOOLS_BASE_PATH}/bootstrap_python3 && bootstrap_python3
       shell: bash
 
     - name: Disable Chromium client side build telemetry
