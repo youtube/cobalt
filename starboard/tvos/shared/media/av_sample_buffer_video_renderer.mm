@@ -140,9 +140,11 @@ UIWindow* GetPlatformWindow() {
 
 }  // namespace
 
-AVSBVideoRenderer::AVSBVideoRenderer(const VideoStreamInfo& video_stream_info,
+AVSBVideoRenderer::AVSBVideoRenderer(JobQueue* job_queue,
+                                     const VideoStreamInfo& video_stream_info,
                                      SbDrmSystem drm_system)
-    : video_stream_info_(video_stream_info),
+    : JobOwner(job_queue),
+      video_stream_info_(video_stream_info),
       sample_buffer_builder_(
           AVVideoSampleBufferBuilder::CreateBuilder(video_stream_info)) {
   if (drm_system && DrmSystemPlatform::IsSupported(drm_system)) {
