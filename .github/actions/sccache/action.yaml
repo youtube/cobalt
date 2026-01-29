@@ -1,0 +1,24 @@
+name: Install Sccache
+description: Installs sccache
+runs:
+  using: "composite"
+  steps:
+  - name: Install sccache
+    shell: bash
+    run: brew install sccache
+  - name: Configure sccache
+    shell: bash
+    run: |
+      set -x
+      echo "${{ inputs.sccache_gcs_key }}" > "${HOME}/gcloud.json"
+      echo "SCCACHE_GCS_KEY_PATH=${HOME}/gcloud.json" >> $GITHUB_ENV
+      echo "SCCACHE=1" >> $GITHUB_ENV
+      echo "SCCACHE_GCS_BUCKET=cobalt-kokoro-sccache-mac" >> $GITHUB_ENV
+      echo "SCCACHE_GCS_RW_MODE=READ_WRITE" >> $GITHUB_ENV
+      echo "SCCACHE_IDLE_TIMEOUT=0" >> $GITHUB_ENV
+    shell: bash
+  - name: Set Up Cloud SDK
+    if: ${{ contains(matrix.platform, 'tvos') }}
+    uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    with:
+      project_id: yt-cobalt

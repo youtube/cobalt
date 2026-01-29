@@ -2,6 +2,13 @@ name: tvos
 permissions: read-all
 
 on:
+  workflow_dispatch:
+    inputs:
+      nightly:
+        description: 'Nightly workflow.'
+        required: true
+        type: boolean
+        default: false
   pull_request:
     branches:
       - main
@@ -10,50 +17,15 @@ on:
       - main
 
 jobs:
+  # This is default Chromium build config
   tvos-arm64-simulator:
+    uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
-    runs-on: macos-latest
-    timeout-minutes: 600
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [tvos-arm64-simulator]
-        config: [devel]
-    env:
-      DEPOT_TOOLS_UPDATE: 0
-      DEPOT_TOOLS_REPORT_BUILD: 0
-      DEPOT_TOOLS_COLLECT_METRICS: 0
-      DEPOT_TOOLS_METRICS: 0
-      IS_CI: 1
-    steps:
-      - name: Restore CI Essentials
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          filter: blob:none
-          sparse-checkout: .github
-      - name: Checkout
-        uses: ./.github/actions/checkout
-        with:
-          ref: ${{ github.sha }}
-          path: cobalt/src
-          fetch_depth: 1
-          use_cache: false
-      - name: Read build config
-        id: build-config
-        run: |
-          cd .github/config
-          CONFIG_JSON=$(jq -cr '.' ${{ matrix.platform }}.json)
-          echo "config_json=$CONFIG_JSON" >> "$GITHUB_OUTPUT"
-      - name: Set Up Depot Tools
-        uses: ./.github/actions/depot_tools
-        with:
-          use_cache: false
-      - name: Build
-        uses: ./.github/actions/build
-        with:
-          targets: ${{ toJson(fromJson(steps.build-config.outputs.config_json).targets) }}
-          test_root_target: ${{ fromJson(steps.build-config.outputs.config_json).test_root_target || 'null' }}
-          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+    with:
+      platform: tvos-arm64-simulator
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
+      sccache_gcs_key: ${{ secrets.SCCACHE_GCS_KEY_TVOS }}
