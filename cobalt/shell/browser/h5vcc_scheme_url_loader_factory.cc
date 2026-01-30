@@ -53,6 +53,11 @@ using switches::kDefaultURL;
 using switches::kMaxSplashContentSize;
 
 namespace {
+const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
+const char kMimeTypeTextHtml[] = "text/html";
+const char kMimeTypeTextPlain[] = "text/plain";
+const char kMimeTypeVideoWebM[] = "video/webm";
+
 // TODO - b/456482732: remove unsafe-inline.
 const char kH5vccContentSecurityPolicy[] =
     "default-src 'self'; "
@@ -68,8 +73,11 @@ class BlobReader : public blink::mojom::BlobReaderClient {
   using ContentReadyCallback = base::OnceCallback<void(std::vector<uint8_t>)>;
 
   BlobReader(mojo::PendingRemote<blink::mojom::Blob> blob_remote,
+             uint64_t max_content_size,
              ContentReadyCallback callback)
-      : receiver_(this), callback_(std::move(callback)) {
+      : receiver_(this),
+        max_content_size_(max_content_size),
+        callback_(std::move(callback)) {
     mojo::ScopedDataPipeProducerHandle producer_handle;
     MojoResult result =
         mojo::CreateDataPipe(nullptr, producer_handle, consumer_handle_);
@@ -99,6 +107,9 @@ class BlobReader : public blink::mojom::BlobReaderClient {
 
   void OnCalculatedSize(uint64_t total_size,
                         uint64_t expected_content_size) override {
+    if (total_size > max_content_size_) {
+      return Abort();
+    }
     content_.reserve(total_size);
   }
 
@@ -143,24 +154,28 @@ class BlobReader : public blink::mojom::BlobReaderClient {
         OnDataAvailable(read_result, state);
         return;
       }
-      if (content_.size() + num_bytes > kMaxSplashContentSize) {
-        LOG(ERROR) << "Splash content too large, exceeding limit of "
-                   << kMaxSplashContentSize << " bytes.";
-        watcher_.reset();
-        consumer_handle_.reset();
-        if (callback_) {
-          std::move(callback_).Run({});
-        }
-        return;
+      if (content_.size() + num_bytes > max_content_size_) {
+        return Abort();
       }
       content_.insert(content_.end(), buffer.begin(),
                       buffer.begin() + num_bytes);
     }
   }
 
+  void Abort() {
+    LOG(ERROR) << "Splash content too large, exceeding limit of "
+               << max_content_size_ << " bytes.";
+    watcher_.reset();
+    consumer_handle_.reset();
+    if (callback_) {
+      std::move(callback_).Run({});
+    }
+  }
+
   mojo::Remote<blink::mojom::Blob> blob_;
   mojo::Receiver<blink::mojom::BlobReaderClient> receiver_;
   std::vector<uint8_t> content_;
+  uint64_t max_content_size_;
   ContentReadyCallback callback_;
   mojo::ScopedDataPipeConsumerHandle consumer_handle_;
   std::unique_ptr<mojo::SimpleWatcher> watcher_;
@@ -173,13 +188,15 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       BrowserContext* browser_context,
       const GeneratedResourceMap* resource_map_test,
-      const std::string& splash_domain)
+      const std::string& splash_domain,
+      uint64_t splash_content_size_limit)
       : client_(std::move(client)),
         url_(request.url),
         browser_context_(browser_context),
         resource_map_test_(resource_map_test),
         splash_domain_(splash_domain),
-        mime_type_("application/octet-stream") {
+        splash_content_size_limit_(splash_content_size_limit),
+        mime_type_(kMimeTypeApplicationOctetStream) {
     client_.set_disconnect_handler(
         base::BindOnce(&H5vccSchemeURLLoader::OnClientDisconnected,
                        weak_factory_.GetWeakPtr()));
@@ -213,9 +230,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
 
     // For html file, return from embedded resources.
     if (base::EndsWith(key, ".html", base::CompareCase::SENSITIVE)) {
-      mime_type_ = "text/html";
+      mime_type_ = kMimeTypeTextHtml;
     } else if (base::EndsWith(key, ".webm", base::CompareCase::SENSITIVE)) {
-      mime_type_ = "video/webm";
+      mime_type_ = kMimeTypeVideoWebM;
       if (browser_context_) {
         ReadSplashCache(key);
         return;
@@ -225,7 +242,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
       SendNotFoundResponse(key);
       return;
     }
-    SendResponse(content_, mime_type_);
+    SendResponse();
   }
   ~H5vccSchemeURLLoader() override = default;
 
@@ -292,13 +309,19 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     LOG(INFO) << "Found splash video in cache: " << cache_name;
     auto& response = result->get_response();
     if (response->blob->size == 0) {
-      return DisconnectCacheAndSendFallback("Splash video from " + cache_name +
-                                            " is empty. Fallback to builtin.");
+      return DisconnectCacheAndSendFallback(base::StringPrintf(
+          "Splash video from %s is empty. Fallback to builtin.",
+          cache_name.c_str()));
+    }
+    if (response->blob->size > splash_content_size_limit_) {
+      return DisconnectCacheAndSendFallback(base::StringPrintf(
+          "Splash video from %s is too large. Fallback to builtin.",
+          cache_name.c_str()));
     }
     mojo::PendingRemote<blink::mojom::Blob> pending_blob_remote =
         std::move(response->blob->blob);
     blob_reader_ = std::make_unique<BlobReader>(
-        std::move(pending_blob_remote),
+        std::move(pending_blob_remote), splash_content_size_limit_,
         base::BindOnce(&H5vccSchemeURLLoader::SendBlobContent,
                        weak_factory_.GetWeakPtr(), response->blob->size));
   }
@@ -309,16 +332,18 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
           "Failed to read splash cache. Fallback to builtin.");
     }
     DisconnectCacheStorage();
-    std::string cached_splash(reinterpret_cast<const char*>(content.data()),
-                              content.size());
-    SendResponse(cached_splash, mime_type_);
+    content_ = std::string(reinterpret_cast<const char*>(content.data()),
+                           content.size());
+    SendResponse();
   }
 
  private:
   void SendNotFoundResponse(const std::string& key) {
     LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
                  << " not found.";
-    SendResponse("Resource not found", "text/plain", net::HTTP_NOT_FOUND);
+    content_ = "Resource not found";
+    mime_type_ = kMimeTypeTextPlain;
+    SendResponse(net::HTTP_NOT_FOUND);
   }
 
   void DisconnectCacheStorage() { cache_storage_remote_.reset(); }
@@ -326,20 +351,18 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   void DisconnectCacheAndSendFallback(const std::string& message) {
     LOG(ERROR) << message;
     DisconnectCacheStorage();
-    SendResponse(content_, mime_type_);
+    SendResponse();
   }
 
-  void SendResponse(const std::string& data_content,
-                    const std::string& mime_type,
-                    int http_status = net::HTTP_OK) {
+  void SendResponse(int http_status = net::HTTP_OK) {
     if (!client_) {
       LOG(ERROR) << "URLLoaderClient is not connected.";
       return;
     }
 
     auto response_head = network::mojom::URLResponseHead::New();
-    response_head->mime_type = mime_type;
-    response_head->content_length = data_content.size();
+    response_head->mime_type = mime_type_;
+    response_head->content_length = content_.size();
 
     std::string status_line =
         "HTTP/1.1 " + std::to_string(http_status) + " " +
@@ -347,9 +370,9 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     response_head->headers =
         base::MakeRefCounted<net::HttpResponseHeaders>(status_line);
     response_head->headers->AddHeader(net::HttpRequestHeaders::kContentType,
-                                      mime_type);
+                                      mime_type_);
     response_head->headers->AddHeader(net::HttpRequestHeaders::kContentLength,
-                                      std::to_string(data_content.size()));
+                                      std::to_string(content_.size()));
     response_head->headers->AddHeader(
         "Content-Security-Policy",
         base::StringPrintf(kH5vccContentSecurityPolicy, kH5vccEmbeddedScheme,
@@ -363,7 +386,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     options.struct_size = sizeof(MojoCreateDataPipeOptions);
     options.flags = MOJO_CREATE_DATA_PIPE_FLAG_NONE;
     options.element_num_bytes = 1;
-    options.capacity_num_bytes = data_content.size();
+    options.capacity_num_bytes = content_.size();
     if (mojo::CreateDataPipe(&options, producer_handle, consumer_handle) !=
         MOJO_RESULT_OK) {
       client_->OnComplete(network::URLLoaderCompletionStatus(net::ERR_FAILED));
@@ -373,18 +396,18 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     client_->OnReceiveResponse(std::move(response_head),
                                std::move(consumer_handle), absl::nullopt);
 
-    uint32_t bytes_written = data_content.size();
+    uint32_t bytes_written = content_.size();
     MojoResult result = producer_handle->WriteData(
-        data_content.c_str(), &bytes_written, MOJO_WRITE_DATA_FLAG_ALL_OR_NONE);
+        content_.c_str(), &bytes_written, MOJO_WRITE_DATA_FLAG_ALL_OR_NONE);
 
-    if (result != MOJO_RESULT_OK || bytes_written != data_content.size()) {
+    if (result != MOJO_RESULT_OK || bytes_written != content_.size()) {
       client_->OnComplete(network::URLLoaderCompletionStatus(net::ERR_FAILED));
       return;
     }
 
     network::URLLoaderCompletionStatus status(net::OK);
-    status.encoded_data_length = data_content.size();
-    status.encoded_body_length = data_content.size();
+    status.encoded_data_length = content_.size();
+    status.encoded_body_length = content_.size();
     client_->OnComplete(status);
   }
 
@@ -397,17 +420,20 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
   mojo::Remote<network::mojom::URLLoaderClient> client_;
   GURL url_;
   BrowserContext* browser_context_;
+  const GeneratedResourceMap* resource_map_test_ = nullptr;
+  std::string splash_domain_;
+  uint64_t splash_content_size_limit_;
+  std::string mime_type_;
   mojo::Remote<blink::mojom::CacheStorage> cache_storage_remote_;
   std::string content_;
   std::unique_ptr<BlobReader> blob_reader_;
-  const GeneratedResourceMap* resource_map_test_ = nullptr;
-  std::string splash_domain_;
-  std::string mime_type_;
   base::WeakPtrFactory<H5vccSchemeURLLoader> weak_factory_{this};
 };
 
 std::optional<std::string>
     H5vccSchemeURLLoaderFactory::global_splash_domain_test_;
+std::optional<int>
+    H5vccSchemeURLLoaderFactory::global_splash_content_size_test_;
 const GeneratedResourceMap* H5vccSchemeURLLoaderFactory::resource_map_test_ =
     nullptr;
 
@@ -417,6 +443,8 @@ H5vccSchemeURLLoaderFactory::H5vccSchemeURLLoaderFactory(
                          GURL(global_splash_domain_test_.value_or(kDefaultURL)))
                          .GetURL()
                          .spec()),
+      splash_content_size_limit_(
+          global_splash_content_size_test_.value_or(kMaxSplashContentSize)),
       browser_context_(browser_context) {}
 
 H5vccSchemeURLLoaderFactory::~H5vccSchemeURLLoaderFactory() = default;
@@ -431,7 +459,7 @@ void H5vccSchemeURLLoaderFactory::CreateLoaderAndStart(
   mojo::MakeSelfOwnedReceiver(
       std::make_unique<H5vccSchemeURLLoader>(
           url_request, std::move(client), browser_context_, resource_map_test_,
-          splash_domain_),
+          splash_domain_, splash_content_size_limit_),
       std::move(receiver));
 }
 
@@ -450,6 +478,11 @@ void H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
 void H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
     const std::optional<std::string>& domain) {
   global_splash_domain_test_ = domain;
+}
+
+void H5vccSchemeURLLoaderFactory::SetSplashContentSizeForTesting(
+    const std::optional<int>& size) {
+  global_splash_content_size_test_ = size;
 }
 
 }  // namespace content
