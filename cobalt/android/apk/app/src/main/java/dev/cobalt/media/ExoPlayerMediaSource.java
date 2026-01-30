@@ -15,6 +15,7 @@
 package dev.cobalt.media;
 
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -22,6 +23,8 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.TransferListener;
+import androidx.media3.exoplayer.drm.DrmSessionEventListener;
+import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.BaseMediaSource;
 import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SinglePeriodTimeline;
@@ -34,9 +37,11 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     private final Format mFormat;
     private ExoPlayerMediaPeriod mMediaPeriod;
     private final MediaItem mMediaItem;
+    private DrmSessionManager mDrmSessionManager;
 
-    ExoPlayerMediaSource(Format format) {
+    ExoPlayerMediaSource(Format format, DrmSessionManager drmSessionManager) {
         this.mFormat = format;
+        mDrmSessionManager = drmSessionManager;
         this.mMediaItem = new MediaItem.Builder().setMediaMetadata(MediaMetadata.EMPTY).build();
     }
 
@@ -75,7 +80,8 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
     @Override
     public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
         if (mMediaPeriod == null) {
-            mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator);
+            mMediaPeriod = new ExoPlayerMediaPeriod(mFormat, allocator, mDrmSessionManager,
+                    mDrmSessionManager != null ? createDrmEventDispatcher(id) : null);
             return mMediaPeriod;
         }
         throw new IllegalStateException(
@@ -109,9 +115,18 @@ public final class ExoPlayerMediaSource extends BaseMediaSource {
      * @param size The size of the sample data.
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
+     * @param encryptionMode Signals the type of Widevine encryption.
+     * @param cryptoBuffer The information required to decrypt this sample.
+     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
+     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
+     * @param drmInitData Contains the initialization data required to configure the decoders. This
+     * must be non-null when writing the first sample of the stream
      */
-    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame);
+    public void writeSample(@NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame,
+            int encryptionMode, @Nullable byte[] cryptoBuffer, int encryptedBlocks, int clearBlocks,
+            @Nullable byte[] drmInitData) {
+        mMediaPeriod.writeSample(samples, size, timestamp, isKeyFrame, encryptionMode, cryptoBuffer,
+                encryptedBlocks, clearBlocks, drmInitData);
     }
 
     public void writeEndOfStream() {

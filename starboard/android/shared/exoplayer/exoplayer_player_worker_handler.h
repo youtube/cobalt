@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 
+#include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -49,6 +50,7 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
   Result<void> SetBounds(const Bounds& bounds) override { return Success(); }
 
   void SetMaxVideoInputSize(int max_video_input_size) override {}
+  void SetVideoSurfaceView(void* surface_view) override {}
   void Stop() override;
 
   SbDecodeTarget GetCurrentDecodeTarget() override {
@@ -76,6 +78,8 @@ class ExoPlayerPlayerWorkerHandler : public PlayerWorker::Handler,
 
   bool audio_eos_written_ = false;
   bool video_eos_written_ = false;
+
+  const DrmSystemExoPlayer* drm_system_;
 };
 
 }  // namespace starboard

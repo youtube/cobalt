@@ -16,7 +16,9 @@
 #include "starboard/android/shared/drm_system.h"
 // clang-format on
 
+#include "starboard/android/shared/exoplayer/drm_system_exoplayer.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/shared/starboard/features.h"
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
@@ -27,6 +29,7 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
   using starboard::DrmSystem;
+  using starboard::DrmSystemExoPlayer;
   using starboard::IsWidevineL1;
   using starboard::IsWidevineL3;
 
@@ -40,12 +43,19 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 
-  DrmSystem* drm_system =
+  if (starboard::features::FeatureList::IsEnabled(
+          starboard::features::kEnableExoPlayer)) {
+    return new DrmSystemExoPlayer(key_system, context, update_request_callback,
+                                  session_updated_callback,
+                                  key_statuses_changed_callback);
+  }
+
+  SbDrmSystem drm_system =
       new DrmSystem(key_system, context, update_request_callback,
                     session_updated_callback, key_statuses_changed_callback);
-  if (!drm_system->is_valid()) {
-    delete drm_system;
-    return kSbDrmSystemInvalid;
-  }
+  // if (!drm_system->is_valid()) {
+  //   delete drm_system;
+  //   return kSbDrmSystemInvalid;
+  // }
   return drm_system;
 }

@@ -39,9 +39,12 @@ ExoPlayerPlayerWorkerHandler::ExoPlayerPlayerWorkerHandler(
     const SbPlayerCreationParam* creation_param)
     : JobOwner(kDetached),
       update_job_(std::bind(&ExoPlayerPlayerWorkerHandler::Update, this)),
-      bridge_(std::make_unique<ExoPlayerBridge>(
-          creation_param->audio_stream_info,
-          creation_param->video_stream_info)) {
+      bridge_(
+          std::make_unique<ExoPlayerBridge>(creation_param->audio_stream_info,
+                                            creation_param->video_stream_info,
+                                            creation_param->drm_system)),
+      drm_system_(
+          reinterpret_cast<DrmSystemExoPlayer*>(creation_param->drm_system)) {
   SB_CHECK_EQ(creation_param->output_mode, kSbPlayerOutputModePunchOut)
       << "ExoPlayer only supports punch-out playback.";
 }
@@ -66,6 +69,15 @@ Result<void> ExoPlayerPlayerWorkerHandler::Init(
   update_player_error_cb_ = update_player_error_cb;
 
   AttachToCurrentThread();
+
+  // std::vector<const uint8_t> drm_init_data;
+  // if (drm_system_) {
+  //   drm_init_data = drm_system_->GetInitializationData();
+
+  //   if (drm_init_data.size() == 0) {
+  //     return Failure("Did not get init data in time");
+  //   }
+  // }
 
   if (!bridge_->is_valid() ||
       !bridge_->Init(

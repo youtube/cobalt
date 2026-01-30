@@ -15,16 +15,20 @@
 package dev.cobalt.media;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
 import androidx.media3.common.TrackGroup;
 import androidx.media3.exoplayer.LoadingInfo;
 import androidx.media3.exoplayer.SeekParameters;
+import androidx.media3.exoplayer.drm.DrmSessionEventListener;
+import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.MediaPeriod;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
+import androidx.media3.extractor.TrackOutput.CryptoData;
 import java.io.IOException;
 
 /** Implements the ExoPlayer MediaPeriod interface to write samples to the ExoPlayerSampleStream. */
@@ -32,10 +36,18 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
     private final Format mFormat;
     private final Allocator mAllocator;
     private ExoPlayerSampleStream mStream;
+    private DrmSessionManager mDrmSessionManager;
+    private DrmSessionEventListener.EventDispatcher mDrmEventDispatcher;
 
-    ExoPlayerMediaPeriod(Format format, Allocator allocator) {
-        this.mFormat = format;
-        this.mAllocator = allocator;
+    ExoPlayerMediaPeriod(Format format, Allocator allocator,
+            @Nullable DrmSessionManager sessionManager,
+            @Nullable DrmSessionEventListener.EventDispatcher eventDispatcher) {
+        mFormat = format;
+        mAllocator = allocator;
+        if (sessionManager != null && eventDispatcher != null) {
+            mDrmSessionManager = sessionManager;
+            mDrmEventDispatcher = eventDispatcher;
+        }
     }
 
     /**
@@ -84,7 +96,10 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
 
         for (int i = 0; i < selections.length; ++i) {
             if (selections[i] != null) {
-                mStream = new ExoPlayerSampleStream(mAllocator, selections[i].getSelectedFormat());
+                mStream = mDrmSessionManager != null
+                        ? new ExoPlayerSampleStream(mAllocator, selections[i].getSelectedFormat(),
+                                mDrmSessionManager, mDrmEventDispatcher)
+                        : new ExoPlayerSampleStream(mAllocator, selections[i].getSelectedFormat());
                 streams[i] = mStream;
                 streamResetFlags[i] = true;
             }
@@ -186,8 +201,21 @@ public class ExoPlayerMediaPeriod implements MediaPeriod {
      * @param size The size of the sample data.
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
+     * @param encryptionMode Signals the type of Widevine encryption.
+     * @param cryptoBuffer The information required to decrypt this sample.
+     * @param encryptedBlocks Denotes the number of encrypted blocks in this sample. CBC only.
+     * @param clearBlocks Denotes the number of clear blocks in this sample. CBC only.
+     * @param drmInitData Contains the initialization data required to configure the decoders. This
+     * must be non-null when writing the first sample of the stream.
      */
-    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
+    public void writeSample(@NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame,
+            int encryptionMode, @Nullable byte[] cryptoBuffer, int encryptedBlocks, int clearBlocks,
+            @Nullable byte[] drmInitData) {
+        if (cryptoBuffer != null) {
+            mStream.writeSample(samples, size, timestamp, isKeyFrame,
+                    new CryptoData(encryptionMode, cryptoBuffer, encryptedBlocks, clearBlocks),
+                    drmInitData);
+        }
         mStream.writeSample(samples, size, timestamp, isKeyFrame);
     }
 

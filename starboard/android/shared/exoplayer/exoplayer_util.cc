@@ -109,7 +109,7 @@ ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
       env, SupportedAudioCodecToMimeType(stream_info.codec, &is_passthrough));
 
   return Java_ExoPlayerManager_createAudioMediaSource(
-      env, j_audio_mime, configuration_data, sample_rate, channels);
+      env, j_audio_mime, configuration_data, sample_rate, channels, nullptr);
 }
 
 ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
@@ -143,7 +143,8 @@ ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
       CreateExoPlayerColorInfo(stream_info.color_metadata);
 
   return Java_ExoPlayerManager_createVideoMediaSource(
-      env, j_mime, width, height, framerate, bitrate, j_hdr_color_info);
+      env, j_mime, width, height, framerate, bitrate, j_hdr_color_info,
+      nullptr);
 }
 
 }  // namespace starboard

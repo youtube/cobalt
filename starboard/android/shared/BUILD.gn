@@ -179,6 +179,8 @@ static_library("starboard_platform") {
     "drm_system.cc",
     "drm_system.h",
     "egl_swap_buffers.cc",
+    "exoplayer/drm_system_exoplayer.cc",
+    "exoplayer/drm_system_exoplayer.h",
     "exoplayer/exoplayer_bridge.cc",
     "exoplayer/exoplayer_bridge.h",
     "exoplayer/exoplayer_player_worker_handler.cc",

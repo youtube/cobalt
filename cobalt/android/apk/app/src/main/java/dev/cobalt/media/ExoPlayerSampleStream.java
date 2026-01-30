@@ -12,20 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-ppackage dev.cobalt.media;
+package dev.cobalt.media;
 
 import static dev.cobalt.media.Log.TAG;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.media3.common.C;
+import androidx.media3.common.DrmInitData;
+import androidx.media3.common.DrmInitData.SchemeData;
 import androidx.media3.common.Format;
 import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
+import androidx.media3.exoplayer.drm.DrmSessionEventListener;
+import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
 import androidx.media3.exoplayer.upstream.Allocator;
+import androidx.media3.extractor.TrackOutput.CryptoData;
 import dev.cobalt.util.Log;
 import java.io.IOException;
 
@@ -51,6 +57,12 @@ public class ExoPlayerSampleStream implements SampleStream {
         mSampleQueue.format(format);
     }
 
+    ExoPlayerSampleStream(Allocator allocator, Format format, DrmSessionManager drmSessionManager,
+            DrmSessionEventListener.EventDispatcher eventDispatcher) {
+        mSampleQueue = SampleQueue.createWithDrm(allocator, drmSessionManager, eventDispatcher);
+        mSampleQueue.format(format);
+    }
+
     void discardBuffer(long positionUs, boolean toKeyframe) {
         mSampleQueue.discardTo(positionUs, toKeyframe, false);
     }
@@ -62,16 +74,42 @@ public class ExoPlayerSampleStream implements SampleStream {
      * @param timestamp The timestamp of the sample in microseconds.
      * @param isKeyFrame Whether the sample is a keyframe.
      */
-    public void writeSample(byte[] samples, int size, long timestamp, boolean isKeyFrame) {
-        mSampleData.reset(samples, size);
+    public void writeSample(@NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame) {
+        writeSample(samples, size, timestamp, isKeyFrame, null, null);
+    }
+
+    /**
+     * Queues encrypted samples to decode, along with related flags and relevant metadata.
+     * @param samples The sample data.
+     * @param size The size of the sample data.
+     * @param timestamp The timestamp of the sample in microseconds.
+     * @param isKeyFrame Whether the sample is a keyframe.
+     * @param cryptoData The information required to decrypt this sample.
+     * @param drmInitData The information required configure the Format for encrypted streams.
+     */
+    public void writeSample(@NonNull byte[] samples, int size, long timestamp, boolean isKeyFrame,
+            @Nullable CryptoData cryptoData, @Nullable byte[] drmInitData) {
+        if (drmInitData != null) {
+            updateEncryptedFormat(drmInitData);
+        }
+
         int flags = 0;
         if (isKeyFrame) {
             flags |= C.BUFFER_FLAG_KEY_FRAME;
         }
 
+        mSampleData.reset(samples, size);
         // TODO: Optimize by avoiding an extra sample copy here.
         mSampleQueue.sampleData(mSampleData, size);
-        mSampleQueue.sampleMetadata(timestamp, flags, size, 0, null);
+
+        if (cryptoData != null) {
+            if (mSampleQueue.getUpstreamFormat().drmInitData == null) {
+                // TODO: Surface error here.
+                Log.e(TAG, "Attempted to queue an encrypted sample before init data is set.");
+                return;
+            }
+        }
+        mSampleQueue.sampleMetadata(timestamp, flags, size, 0, cryptoData);
     }
 
     public void writeEndOfStream() {
@@ -119,6 +157,10 @@ public class ExoPlayerSampleStream implements SampleStream {
                             "Caught DecoderInputBuffer.InsufficientCapacityException from read() %s",
                             e));
         }
+        Log.i(TAG,
+                String.format("TOTAL BUFFERED DURATION IS  %s",
+                        mSampleQueue.getLargestQueuedTimestampUs()));
+
         return read;
     }
 
@@ -173,5 +215,24 @@ public class ExoPlayerSampleStream implements SampleStream {
 
     public boolean endOfStreamWritten() {
         return mEndOfStream;
+    }
+
+    public void updateEncryptedFormat(@NonNull byte[] drmInitData) {
+        Format currentFormat = mSampleQueue.getUpstreamFormat();
+        Format encryptedFormat =
+                new Format.Builder()
+                        .setSampleRate(currentFormat.sampleRate)
+                        .setChannelCount(currentFormat.channelCount)
+                        .setSampleMimeType(currentFormat.sampleMimeType)
+                        .setInitializationData(currentFormat.initializationData)
+                        .setWidth(currentFormat.width)
+                        .setHeight(currentFormat.height)
+                        .setAverageBitrate(currentFormat.averageBitrate)
+                        .setFrameRate(currentFormat.frameRate)
+                        .setColorInfo(currentFormat.colorInfo)
+                        .setDrmInitData(new DrmInitData(new SchemeData(
+                                C.WIDEVINE_UUID, currentFormat.sampleMimeType, drmInitData)))
+                        .build();
+        mSampleQueue.format(encryptedFormat);
     }
 }

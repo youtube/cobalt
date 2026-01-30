@@ -29,7 +29,6 @@ base::android::ScopedJavaLocalRef<jobject> CreateAudioMediaSource(
 
 base::android::ScopedJavaLocalRef<jobject> CreateVideoMediaSource(
     const SbMediaVideoStreamInfo& stream_info);
-
 }  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_UTIL_H_

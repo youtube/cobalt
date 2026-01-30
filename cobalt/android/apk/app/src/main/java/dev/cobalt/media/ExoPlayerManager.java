@@ -16,10 +16,13 @@ package dev.cobalt.media;
 
 import android.content.Context;
 import android.view.Surface;
+import androidx.annotation.OptIn;
 import androidx.media3.common.ColorInfo;
 import androidx.media3.common.Format;
 import androidx.media3.common.MimeTypes;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
+import androidx.media3.exoplayer.drm.DrmSessionManager;
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo;
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector;
 import dev.cobalt.util.IsEmulator;
@@ -102,15 +105,20 @@ public class ExoPlayerManager {
      */
     @CalledByNative
     public synchronized ExoPlayerBridge createExoPlayerBridge(long nativeExoPlayerBridge,
-            ExoPlayerMediaSource audioSource, ExoPlayerMediaSource videoSource, Surface surface,
-            boolean enableTunnelMode) {
+            ExoPlayerMediaSource audioSource, ExoPlayerMediaSource videoSource,
+            ExoPlayerDrmBridge drmBridge, Surface surface, boolean enableTunnelMode) {
         if (videoSource != null && (surface == null || !surface.isValid())) {
             Log.e(dev.cobalt.media.Log.TAG, "Cannot initialize ExoPlayer with an invalid surface.");
             return null;
         }
 
         return new ExoPlayerBridge(nativeExoPlayerBridge, mContext, mRenderersFactory, audioSource,
-                videoSource, surface, enableTunnelMode);
+                videoSource, drmBridge, surface, enableTunnelMode);
+    }
+
+    @CalledByNative
+    public synchronized ExoPlayerDrmBridge createExoPlayerDrmBridge(long nativeDrmSystem) {
+        return new ExoPlayerDrmBridge(mContext, nativeDrmSystem);
     }
 
     /**
@@ -121,9 +129,11 @@ public class ExoPlayerManager {
      * @param channelCount The number of audio channels.
      * @return A new ExoPlayerMediaSource instance.
      */
+    @OptIn(markerClass = UnstableApi.class)
     @CalledByNative
-    public static ExoPlayerMediaSource createAudioMediaSource(
-            String mime, byte[] audioConfigurationData, int sampleRate, int channelCount) {
+    public static ExoPlayerMediaSource createAudioMediaSource(String mime,
+            byte[] audioConfigurationData, int sampleRate, int channelCount,
+            DrmSessionManager drmSessionManager) {
         Format.Builder builder =
                 new Format.Builder().setSampleRate(sampleRate).setChannelCount(channelCount);
 
@@ -148,7 +158,7 @@ public class ExoPlayerManager {
 
         builder.setSampleMimeType(mime);
 
-        return new ExoPlayerMediaSource(builder.build());
+        return new ExoPlayerMediaSource(builder.build(), drmSessionManager);
     }
 
     /**
@@ -162,8 +172,8 @@ public class ExoPlayerManager {
      * @return A new ExoPlayerMediaSource instance.
      */
     @CalledByNative
-    public static ExoPlayerMediaSource createVideoMediaSource(
-            String mime, int width, int height, int fps, int bitrate, ColorInfo colorInfo) {
+    public static ExoPlayerMediaSource createVideoMediaSource(String mime, int width, int height,
+            int fps, int bitrate, ColorInfo colorInfo, DrmSessionManager drmSessionManager) {
         Format.Builder builder = new Format.Builder();
         builder.setSampleMimeType(mime).setWidth(width).setHeight(height);
 
@@ -179,7 +189,7 @@ public class ExoPlayerManager {
             builder.setColorInfo(colorInfo);
         }
 
-        return new ExoPlayerMediaSource(builder.build());
+        return new ExoPlayerMediaSource(builder.build(), drmSessionManager);
     }
 
     /**
