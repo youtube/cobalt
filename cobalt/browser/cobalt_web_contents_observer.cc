@@ -41,9 +41,14 @@ CobaltWebContentsObserver::~CobaltWebContentsObserver() = default;
 #if BUILDFLAG(IS_ANDROIDTV)
 void CobaltWebContentsObserver::DidStartNavigation(
     content::NavigationHandle* handle) {
-  if (!handle->IsInPrimaryMainFrame() || handle->IsSameDocument()) {
+  LOG(INFO) << "DidStartNavigation to: " << handle->GetURL();
+  if (!handle->IsInPrimaryMainFrame()) {
+    LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
+              << " not in primary mainframe, returning";
     return;
   }
+  LOG(INFO) << "DidStartNavigation: navigation to " << handle->GetURL()
+            << " in primary mainframe";
 
   // Start a navigation timer with a timeout callback to raise a
   // network error dialog
@@ -60,12 +65,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     return;
   }
 
-  // Only stop the navigation timer if the navigation finishes for
-  // a different document
-  if (!navigation_handle->IsSameDocument()) {
-    timeout_timer_.Stop();
-  }
-
+  timeout_timer_.Stop();
   int net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "

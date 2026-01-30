@@ -145,12 +145,12 @@ public class PlatformError
             }
           }
           mDialog.dismiss();
-          reloadWebContents();
+          reloadWebContents(cobaltActivity);
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
           mDialog.dismiss();
-          reloadWebContents();
+          reloadWebContents(cobaltActivity);
           break;
         case DISMISS_BUTTON:
           mResponse = NEGATIVE;
@@ -164,13 +164,11 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     mDialog = null;
-    if (mResponse != NEGATIVE) {
-      if (mResponse == CANCELLED) {
-        CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
-        if (cobaltActivity != null) {
-          cobaltActivity.getStarboardBridge().requestSuspend();
-          reloadWebContents();
-        }
+    if (mResponse == CANCELLED) {
+      CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+      if (cobaltActivity != null) {
+        cobaltActivity.getStarboardBridge().requestSuspend();
+        reloadWebContents(cobaltActivity);
       }
     }
   }
@@ -186,8 +184,7 @@ public class PlatformError
   }
 
   /** Reloads the web contents if available */
-  private void reloadWebContents() {
-    CobaltActivity cobaltActivity = (CobaltActivity) mActivityHolder.get();
+  private void reloadWebContents(CobaltActivity cobaltActivity) {
     if (cobaltActivity != null) {
       WebContents webContents = cobaltActivity.getActiveWebContents();
       if (webContents != null) {
