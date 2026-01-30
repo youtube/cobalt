@@ -92,8 +92,8 @@ MediaDecoder::MediaDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
-      flush_delay_usec_(0),                // Not used for audio.
-      video_decoder_poll_interval_us_(0),  // Not used for audio.
+      flush_delay_usec_(0),
+      video_decoder_poll_interval_us_(kDefaultVideoDecoderPollIntervalUs),
       condition_variable_(mutex_) {
   SB_CHECK(host_);
 
