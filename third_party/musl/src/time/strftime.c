@@ -8,6 +8,8 @@
 #include "locale_impl.h"
 #include "time_impl.h"
 
+#include "build/build_config.h"
+
 static int is_leap(int y)
 {
 	/* Avoid overflow */
@@ -104,6 +106,12 @@ const char *__strftime_fmt_1(char (*s)[100], size_t *l, int f, const struct tm *
 		val = tm->tm_yday+1;
 		width = 3;
 		goto number;
+#if BUILDFLAG(IS_STARBOARD)
+	case 'l':
+	    val = tm->tm_hour;
+		width = 2;
+		goto number;
+#endif // BUILDFLAG(IS_STARBOARD)
 	case 'm':
 		val = tm->tm_mon+1;
 		goto number;
@@ -220,9 +228,24 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 	const char *t;
 	int pad, plus;
 	unsigned long width;
+
+// The man page specification for nl_langinfo_l() states that the pointer returned
+// may point to data that can be overwritten by subsequent nl_langinfo_l() calls.
+// MUSL's implementation of strftime does not take this into consideration. Since
+// our hermetic implementation of nl_langinfo_l does this, we have to copy the |f|
+// string to prevent the function from breaking.
+#if BUILDFLAG(IS_STARBOARD)
+    char* f_copy = strdup(f);
+	if (!f_copy) return 0;
+	f = f_copy;
+#endif // BUILDFLAG(IS_STARBOARD)
+
 	for (l=0; l<n; f++) {
 		if (!*f) {
 			s[l] = 0;
+#if BUILDFLAG(IS_STARBOARD)
+			free(f_copy);
+#endif
 			return l;
 		}
 		if (*f != '%') {
@@ -270,12 +293,19 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 		if (l==n) l=n-1;
 		s[l] = 0;
 	}
+#if BUILDFLAG(IS_STARBOARD)
+	free(f_copy);
+#endif
 	return 0;
 }
 
 size_t strftime(char *restrict s, size_t n, const char *restrict f, const struct tm *restrict tm)
 {
-	return __strftime_l(s, n, f, tm, CURRENT_LOCALE);
+#if BUILDFLAG(IS_STARBOARD)
+	return __strftime_l(s, n, f, tm, LC_GLOBAL_LOCALE);
+#else // BUILDFLAG(IS_STARBOARD)
+    return __strftime_l(s, n, f, tm, CURRENT_LOCALE);
+#endif // BUILDFLAG(IS_STARBOARD)
 }
 
 weak_alias(__strftime_l, strftime_l);
