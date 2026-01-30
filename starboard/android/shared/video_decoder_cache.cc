@@ -66,6 +66,12 @@ VideoDecoderCache::VideoDecoderCache() = default;
 
 VideoDecoderCache::~VideoDecoderCache() {
   if (job_thread_) {
+    std::lock_guard lock(mutex_);
+    for (const auto& entry : cache_) {
+      job_thread_->Schedule([id_to_delete = entry.texture_id]() {
+        glDeleteTextures(1, &id_to_delete);
+      });
+    }
     // We don't bother destroying EGL context here as this singleton lives
     // forever.
     job_thread_.reset();
@@ -145,8 +151,8 @@ void VideoDecoderCache::InitializeEgl() {
   // We use a Pbuffer surface to make the context current without requiring a
   // native window.
   const EGLint pbuffer_attribs[] = {EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
-  egl_context_.surface = eglCreatePbufferSurface(egl_context_.display, config,
-                                                 pbuffer_attribs);
+  egl_context_.surface =
+      eglCreatePbufferSurface(egl_context_.display, config, pbuffer_attribs);
   if (egl_context_.surface == EGL_NO_SURFACE) {
     SB_LOG(ERROR) << "eglCreatePbufferSurface failed";
     return;
@@ -184,8 +190,9 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
   ScopedJavaGlobalRef<jobject> dummy_surface_texture;
   ScopedJavaGlobalRef<jobject> dummy_surface;
   std::string error_message;
+  GLuint texture_id = 0;
 
-  job_thread_->job_queue()->ScheduleAndWait([&]() {
+  job_thread_->ScheduleAndWait([&]() {
     if (egl_context_.display == EGL_NO_DISPLAY) {
       InitializeEgl();
     }
@@ -194,7 +201,6 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
       return;
     }
 
-    GLuint texture_id;
     glGenTextures(1, &texture_id);
     if (texture_id == 0) {
       error_message = "Failed to generate GL texture";
@@ -210,6 +216,10 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
   }
 
   if (!decoder->SetOutputSurface(dummy_surface.obj())) {
+    // If we fail to set the dummy surface, we must clean up the texture we just
+    // created, as it won't be stored in the cache for later cleanup.
+    job_thread_->Schedule(
+        [id_to_delete = texture_id]() { glDeleteTextures(1, &id_to_delete); });
     return "error:Failed to set dummy surface, destroying decoder.";
   }
 
@@ -218,10 +228,14 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
                << ", num_cached=" << cache_.size();
 
   if (cache_.size() >= kMaxCacheSize) {
+    auto& entry_to_evict = cache_.front();
+    job_thread_->Schedule([id_to_delete = entry_to_evict.texture_id]() {
+      glDeleteTextures(1, &id_to_delete);
+    });
     cache_.pop_front();
   }
   cache_.push_back({key, std::move(decoder), std::move(dummy_surface_texture),
-                    std::move(dummy_surface)});
+                    std::move(dummy_surface), texture_id});
   return "";
 }
 
@@ -231,6 +245,9 @@ std::unique_ptr<MediaDecoder> VideoDecoderCache::Get(const CacheKey& key) {
     if (it->key == key) {
       SB_LOG(INFO) << "Getting cached video decoder for key=" << key;
       std::unique_ptr<MediaDecoder> decoder = std::move(it->decoder);
+      job_thread_->Schedule([id_to_delete = it->texture_id]() {
+        glDeleteTextures(1, &id_to_delete);
+      });
       cache_.erase(it);
       return decoder;
     }

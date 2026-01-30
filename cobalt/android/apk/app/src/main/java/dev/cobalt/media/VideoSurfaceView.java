@@ -14,7 +14,7 @@
 
 package dev.cobalt.media;
 
-import static dev.cobalt.media.Log.TAG;
+// import static dev.cobalt.media.Log.TAG;
 
 import android.content.Context;
 import android.graphics.Color;
@@ -23,7 +23,7 @@ import android.util.AttributeSet;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import dev.cobalt.util.Log;
+// import dev.cobalt.util.Log;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -93,7 +93,7 @@ public class VideoSurfaceView extends SurfaceView {
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
       // We should only ever see the initial change after creation.
       if (sawInitialChange) {
-        Log.e(TAG, "Video surface changed; decoding may break");
+        // Log.e(TAG, "Video surface changed; decoding may break");
       }
       sawInitialChange = true;
     }

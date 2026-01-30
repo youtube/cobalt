@@ -819,36 +819,35 @@ bool MediaDecoder::Suspend() {
   // 1. Terminate `audio_decoder` or `video_decoder` thread.
   TerminateDecoderThread();
 
-  // 2. Flush() |media_codec_bridge_| and clean up pending tasks.
-  if (is_valid()) {
-    // 2.1. Flush() |media_codec_bridge_|.
-    if (host_) {
-      host_->OnFlushing();
-    }
-    jint status = media_codec_bridge_->Flush();
-    if (status != MEDIA_CODEC_OK) {
-      SB_LOG(ERROR) << "Failed to flush media codec.";
-      return false;
-    }
+  // 2.1. Flush() |media_codec_bridge_|.
+  if (host_) {
+    host_->OnFlushing();
+  }
+  jint status = media_codec_bridge_->Flush();
+  if (status != MEDIA_CODEC_OK) {
+    SB_LOG(ERROR) << "Failed to flush media codec.";
+    return false;
+  }
 
-    // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
-    {
-      ScopedLock scoped_lock(mutex_);
-      number_of_pending_inputs_.store(0);
-      pending_inputs_.clear();
-      input_buffer_indices_.clear();
-      dequeue_output_results_.clear();
-      pending_input_to_retry_ = std::nullopt;
-    }
+  // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
+  {
+    ScopedLock scoped_lock(mutex_);
+    number_of_pending_inputs_.store(0);
+    pending_inputs_.clear();
+    input_buffer_indices_.clear();
+    dequeue_output_results_.clear();
+    pending_input_to_retry_ = std::nullopt;
 
-    if (decoder_state_tracker_) {
-      decoder_state_tracker_->Reset();
-    }
-
-    // 2.3. Add OutputFormatChanged to get current output format after Flush().
+    // Protect dequeue_output_results_ with mutex_ to prevent race condition
+    // with OnMediaCodecOutputBufferAvailable, which may still be active or
+    // pending on another thread.
     DequeueOutputResult dequeue_output_result = {};
     dequeue_output_result.index = -1;
     dequeue_output_results_.push_back(dequeue_output_result);
+  }
+
+  if (decoder_state_tracker_) {
+    decoder_state_tracker_->Reset();
   }
 
   // Detach the thread checker. This allows the MediaDecoder to be reused on a
@@ -856,6 +855,12 @@ bool MediaDecoder::Suspend() {
   // automatically re-attach to the new thread on the next call to
   // CalledOnValidThread().
   thread_checker_.Detach();
+
+  // Detach from the current JobQueue as the player worker thread may be
+  // destroyed.
+  DetachFromCurrentThread();
+
+  ResetMemberVariables();
   return true;
 }
 
@@ -864,7 +869,7 @@ bool MediaDecoder::SetOutputSurface(jobject new_surface) {
   return media_codec_bridge_->SetOutputSurface(new_surface);
 }
 
-void MediaDecoder::Reset() {
+void MediaDecoder::ResetMemberVariables() {
   host_ = nullptr;
   frame_rendered_cb_ = [](int64_t) {};
   first_tunnel_frame_ready_cb_ = [] {};
@@ -880,6 +885,8 @@ bool MediaDecoder::Reconfigure(
     jobject new_surface,
     FrameRenderedCB frame_rendered_cb,
     FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb) {
+  AttachToCurrentThread();
+
   if (!SetOutputSurface(new_surface)) {
     return false;
   }
@@ -887,7 +894,20 @@ bool MediaDecoder::Reconfigure(
   frame_rendered_cb_ = std::move(frame_rendered_cb);
   first_tunnel_frame_ready_cb_ = std::move(first_tunnel_frame_ready_cb);
 
-  if (is_valid() && !media_codec_bridge_->Restart()) {
+  // Even though we clear these in Suspend(), it's possible for
+  // OnMediaCodecInputBufferAvailable() or OnMediaCodecOutputBufferAvailable()
+  // to be called after that, as they are called from the main thread.
+  // So we clear them again here to be safe.
+  {
+    ScopedLock scoped_lock(mutex_);
+    number_of_pending_inputs_.store(0);
+    pending_inputs_.clear();
+    input_buffer_indices_.clear();
+    dequeue_output_results_.clear();
+    pending_input_to_retry_ = std::nullopt;
+  }
+
+  if (!media_codec_bridge_->Restart()) {
     SB_LOG(ERROR) << "Failed to restart media codec.";
     return false;
   }

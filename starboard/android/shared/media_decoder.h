@@ -133,7 +133,6 @@ class MediaDecoder final
   bool Suspend();
 
   bool SetOutputSurface(jobject new_surface);
-  void Reset();
   bool Reconfigure(Host* new_host,
                    jobject new_surface,
                    FrameRenderedCB frame_rendered_cb,
@@ -188,6 +187,7 @@ class MediaDecoder final
                              std::vector<int>* input_buffer_indices);
   void HandleError(const char* action_name, jint status);
   void ReportError(const SbPlayerError error, const std::string error_message);
+  void ResetMemberVariables();
 
   // MediaCodecBridge::Handler methods
   // Note that these methods are called from the default looper and is not on

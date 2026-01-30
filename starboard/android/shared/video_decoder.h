@@ -117,10 +117,7 @@ class VideoDecoder
                        std::string* error_message);
   VideoDecoderCache* GetVideoDecoderCache();
   std::unique_ptr<MediaDecoder> GetCachedMediaDecoder(
-      const VideoStreamInfo& video_stream_info,
-      std::optional<int> max_width,
-      std::optional<int> max_height,
-      int fps,
+      const VideoDecoderCache::CacheKey& key,
       jobject output_surface);
   std::unique_ptr<MediaDecoder> GetOrCreateMediaDecoder(
       const VideoStreamInfo& video_stream_info,
@@ -249,10 +246,7 @@ class VideoDecoder
 
   std::vector<scoped_refptr<InputBuffer>> pending_input_buffers_;
   int video_fps_ = 0;
-  int current_frame_width_ = 0;
-  int current_frame_height_ = 0;
-  std::optional<int> current_max_width_;
-  std::optional<int> current_max_height_;
+  std::optional<VideoDecoderCache::CacheKey> current_decoder_key_;
 
   // The variables below are used to calculate platform max supported MediaCodec
   // output buffers.

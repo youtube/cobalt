@@ -333,8 +333,6 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
-  Sink() = default;
-
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -343,6 +341,8 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
     return rendered_;
   }
+
+  void ResetFirstFrameLogged() { first_frame_logged_ = false; }
 
  private:
   void SetRenderCB(RenderCB render_cb) override {
@@ -694,22 +694,11 @@ VideoDecoderCache* VideoDecoder::GetVideoDecoderCache() {
 }
 
 std::unique_ptr<MediaDecoder> VideoDecoder::GetCachedMediaDecoder(
-    const VideoStreamInfo& video_stream_info,
-    std::optional<int> max_width,
-    std::optional<int> max_height,
-    int fps,
+    const VideoDecoderCache::CacheKey& key,
     jobject output_surface) {
   if (!video_decoder_cache_) {
     return nullptr;
   }
-
-  VideoDecoderCache::CacheKey key = {video_codec_,
-                                     output_mode_,
-                                     video_stream_info.frame_width,
-                                     video_stream_info.frame_height,
-                                     max_width,
-                                     max_height,
-                                     fps};
 
   auto media_decoder = video_decoder_cache_->Get(key);
   if (!media_decoder) {
@@ -759,20 +748,23 @@ std::unique_ptr<MediaDecoder> VideoDecoder::GetOrCreateMediaDecoder(
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
                      video_stream_info.frame_height, &max_width, &max_height);
 
-  auto media_decoder = GetCachedMediaDecoder(
-      video_stream_info, max_width, max_height, video_fps_, output_surface);
+  current_decoder_key_ =
+      VideoDecoderCache::CacheKey{video_codec_,
+                                  output_mode_,
+                                  video_stream_info.frame_width,
+                                  video_stream_info.frame_height,
+                                  max_width,
+                                  max_height,
+                                  video_fps_};
+
+  auto media_decoder =
+      GetCachedMediaDecoder(*current_decoder_key_, output_surface);
   if (media_decoder) {
-    current_frame_width_ = video_stream_info.frame_width;
-    current_frame_height_ = video_stream_info.frame_height;
-    current_max_width_ = max_width;
-    current_max_height_ = max_height;
+    if (sink_) {
+      sink_->ResetFirstFrameLogged();
+    }
     return media_decoder;
   }
-
-  current_frame_width_ = video_stream_info.frame_width;
-  current_frame_height_ = video_stream_info.frame_height;
-  current_max_width_ = max_width;
-  current_max_height_ = max_height;
 
   return std::unique_ptr<MediaDecoder>(new MediaDecoder(
       this, video_stream_info.codec, video_stream_info.frame_width,
@@ -905,24 +897,16 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
 
 void VideoDecoder::TeardownCodec() {
   SB_CHECK(BelongsToCurrentThread());
-  if (media_decoder_ && media_decoder_->Suspend()) {
-    media_decoder_->Reset();
-    if (video_decoder_cache_) {
-      VideoDecoderCache::CacheKey key = {video_codec_,
-                                         output_mode_,
-                                         current_frame_width_,
-                                         current_frame_height_,
-                                         current_max_width_,
-                                         current_max_height_,
-                                         video_fps_};
-      if (std::string error =
-              video_decoder_cache_->Put(key, std::move(media_decoder_));
-          error.empty()) {
-        SB_LOG(INFO) << "Cached VideoDecoder: key=" << key;
-      } else {
-        SB_LOG(INFO) << "Didn't cache VideoDecoder: key=" << key
-                     << ", reason=" << error;
-      }
+  if (video_decoder_cache_ && media_decoder_ && media_decoder_->Suspend()) {
+    SB_CHECK(current_decoder_key_);
+    const VideoDecoderCache::CacheKey& key = *current_decoder_key_;
+    if (std::string error =
+            video_decoder_cache_->Put(key, std::move(media_decoder_));
+        error.empty()) {
+      SB_LOG(INFO) << "Cached VideoDecoder: key=" << key;
+    } else {
+      SB_LOG(INFO) << "Didn't cache VideoDecoder: key=" << key
+                   << ", reason=" << error;
     }
   }
   media_decoder_.reset();

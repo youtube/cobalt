@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CACHE_H_
 
 #include <EGL/egl.h>
+#include <GLES2/gl2.h>
 #include <jni.h>
 
 #include <list>
@@ -62,6 +63,7 @@ class VideoDecoderCache {
     std::unique_ptr<MediaDecoder> decoder;
     base::android::ScopedJavaGlobalRef<jobject> dummy_surface_texture;
     base::android::ScopedJavaGlobalRef<jobject> dummy_surface;
+    GLuint texture_id = 0;
   };
 
   struct EglContext {
@@ -76,7 +78,8 @@ class VideoDecoderCache {
   static constexpr int kMaxCacheSize = 4;
   std::mutex mutex_;
   std::list<CacheEntry> cache_;
-  std::unique_ptr<::starboard::shared::starboard::player::JobThread> job_thread_;
+  std::unique_ptr<::starboard::shared::starboard::player::JobThread>
+      job_thread_;
   EglContext egl_context_;
 };
 
