@@ -178,6 +178,8 @@ source_set("common") {
   testonly = true
 
   sources = [
+    "app/cobalt_crash_reporter_client.cc",
+    "app/cobalt_crash_reporter_client.h",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
     "app/cobalt_switch_defaults.cc",
