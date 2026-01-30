@@ -72,10 +72,9 @@ CobaltExtensionPlatformService Open(void* context,
   // build during the JNI migration, since the Activity is not available in
   // this context.
 
-  // TODO:(colinliang) remove  /*activity=*/nullptr
   auto cobalt_service =
       starboard::StarboardBridge::GetInstance()->OpenCobaltService(
-          env, /*activity=*/nullptr, reinterpret_cast<jlong>(service), name);
+          env, reinterpret_cast<jlong>(service), name);
   if (!cobalt_service) {
     delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
     return kCobaltExtensionPlatformServiceInvalid;
