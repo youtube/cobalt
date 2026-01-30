@@ -119,7 +119,7 @@ std::vector<SbPlayerTestConfig> GetAllPlayerTestConfigs() {
     return test_configs;
   }
 
-  for (auto key_system : kKeySystems) {
+  for (const auto& key_system : GetKeySystems()) {
     for (auto output_mode : kOutputModes) {
       // Add audio only tests.
       for (auto audio_filename : kAudioTestFiles) {

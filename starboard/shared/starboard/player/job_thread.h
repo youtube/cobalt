@@ -33,7 +33,6 @@ namespace starboard {
 class JobThread {
  public:
   explicit JobThread(const char* thread_name,
-                     int64_t stack_size = 0,
                      SbThreadPriority priority = kSbThreadPriorityNormal);
   ~JobThread();
 

@@ -142,10 +142,10 @@ declare_args() {
   # TODO: b/297808555 Remove this flag after nplb is fixed
   sb_has_unused_symbol_issue = false
 
-  # Platforms can set this to true in order to build and use a real crashpad
+  # Platforms can set this to false to avoid building and using a real crashpad
   # implementation. If false, crashpad either won't be built or a stub
   # implementation will be built and used.
   # TODO: b/406511608 - remove once crashpad builds and behaves as expected on
-  # all platforms.
-  use_crashpad = false
+  # all Early Access Program platforms.
+  use_crashpad = true
 }

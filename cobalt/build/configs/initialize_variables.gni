@@ -45,16 +45,6 @@ declare_args() {
 assert(!(is_starboard && is_native_target_build),
        "Targets should be built for Starboard or natively, but not both")
 
-# Used to guard customizations to Chromium or third-party code. We historically
-# used is_starboard for this, but we developed the need to distinguish between
-# a) customizations that should only be used for Starboard builds and b)
-# those that should only be used for native target builds (see
-# is_native_target_build). use_cobalt_customizations is a convenience in the
-# sense that it is functionally equivalent to
-# (is_starboard || is_native_target_build), but it should be used in lieu of
-# that since the intent is more clear.
-use_cobalt_customizations = true
-
 # TODO(b/371589344): Investigate if we need cobalt_is_debug which
 # avoids overriding chrome's is_debug.
 is_devel = build_type == "devel"
