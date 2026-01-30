@@ -78,12 +78,8 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     }
   }
 
-<<<<<<< HEAD
-  if (record->GetSize() < kRecordHeaderSize) {
-=======
   const auto record_size = record->GetSize();
   if (record_size < base::checked_cast<int64_t>(kRecordHeaderSize)) {
->>>>>>> 7dc7279d397 (cobalt: Improve type casts in migration_manager.cc (#8725))
     record->Delete();
     return nullptr;
   }
@@ -94,11 +90,7 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
       std::is_same<decltype(read_result), decltype(record_size)>::value,
       "StorageRecord::Read() and ::GetSize() return types should be the same.");
   record->Delete();
-<<<<<<< HEAD
-  if (read_result != bytes.size()) {
-=======
   if (read_result < 0 || read_result != record_size) {
->>>>>>> 7dc7279d397 (cobalt: Improve type casts in migration_manager.cc (#8725))
     return nullptr;
   }
 
