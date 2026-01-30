@@ -6,6 +6,7 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "MultiplePlayerTest.*",
     "PosixAuxvGetauxvalOptionalTests/PosixAuxvGetauxvalOptionalTest.OptionalValuesAreValid/*",
+<<<<<<< HEAD
     "PosixSignalTest.PthreadKillSendsSignalToSpecificThread",
     "PosixTimeClockTests.ClockIncreasesOverTime",
     "PosixUtimensatTest.OmitBothTimestamps",
@@ -13,6 +14,18 @@
     "PosixUtimensatTest.SetToCurrentTimeFromOldTimestamp",
     "PosixUtimensatTest.SetToSpecificTime",
     "PosixUtimensatTest.SymlinkNoFollow",
+=======
+    "SbAudioSinkTest.*",
+    "SbAudioSinkCreateTest.MultiSink",
+    "SbMediaSetAudioWriteDurationTests*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbMediaCanPlayMimeAndKeySystem.KeySystemWithAttributes",
+    "SbPlayerTest.*",
+    "SbPlayerGetAudioConfigurationTests*",
+    "SbPlayerGetMediaTimeTests*",
+    "SbPlayerWriteSampleTests*",
+    "PosixThreadAttrTest.StackAddrAndSizeAttr",
+>>>>>>> 50ce71c0a89 (Move the signal handlers in SbRunStarboardMain (#8873))
     "Posix/NlLanginfoTest.AllItems/as_IN",
     "Posix/NlLanginfoTest.AllItems/be_BY",
     "Posix/NlLanginfoTest.AllItems/bs_BA",
