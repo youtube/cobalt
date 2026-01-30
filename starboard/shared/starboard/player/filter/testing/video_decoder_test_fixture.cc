@@ -82,7 +82,8 @@ void VideoDecoderTestFixture::Initialize() {
   PlayerComponents::Factory::CreationParameters creation_parameters(
       GetVideoInputBuffer(0)->video_stream_info(), &player_, output_mode,
       max_video_input_size,
-      fake_graphics_context_provider_->decoder_target_provider(), nullptr);
+      fake_graphics_context_provider_->decoder_target_provider(), nullptr,
+      job_queue_);
   ASSERT_EQ(creation_parameters.max_video_input_size(), max_video_input_size);
 
   std::unique_ptr<PlayerComponents::Factory> factory;

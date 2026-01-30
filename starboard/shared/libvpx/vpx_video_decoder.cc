@@ -21,11 +21,13 @@
 
 namespace starboard {
 
-VpxVideoDecoder::VpxVideoDecoder(SbMediaVideoCodec video_codec,
+VpxVideoDecoder::VpxVideoDecoder(JobQueue* job_queue,
+                                 SbMediaVideoCodec video_codec,
                                  SbPlayerOutputMode output_mode,
                                  SbDecodeTargetGraphicsContextProvider*
                                      decode_target_graphics_context_provider)
-    : stream_ended_(false),
+    : JobOwner(job_queue),
+      stream_ended_(false),
       error_occurred_(false),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(

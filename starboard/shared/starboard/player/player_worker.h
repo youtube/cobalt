@@ -77,7 +77,8 @@ class PlayerWorker {
     // All the following functions set |Result<void>.success| to false to
     // signal a fatal error. The event processing loop in PlayerWorker will
     // terminate in this case.
-    virtual Result<void> Init(SbPlayer player,
+    virtual Result<void> Init(JobQueue* job_queue,
+                              SbPlayer player,
                               UpdateMediaInfoCB update_media_info_cb,
                               GetPlayerStateCB get_player_state_cb,
                               UpdatePlayerStateCB update_player_state_cb,

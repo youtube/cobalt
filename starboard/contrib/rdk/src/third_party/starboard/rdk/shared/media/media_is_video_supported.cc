@@ -46,19 +46,19 @@ namespace shared {
 namespace starboard {
 namespace media {
 
-SB_EXPORT bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                                       const MimeType* content_type,
-                                       int /*profile*/,
-                                       int /*level*/,
-                                       int bit_depth,
-                                       SbMediaPrimaryId primary_id,
-                                       SbMediaTransferId transfer_id,
-                                       SbMediaMatrixId matrix_id,
-                                       int frame_width,
-                                       int frame_height,
-                                       int64_t bitrate,
-                                       int fps,
-                                       bool decode_to_texture_required) {
+bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                           const MimeType* content_type,
+                           int /*profile*/,
+                           int /*level*/,
+                           int bit_depth,
+                           SbMediaPrimaryId primary_id,
+                           SbMediaTransferId transfer_id,
+                           SbMediaMatrixId matrix_id,
+                           int frame_width,
+                           int frame_height,
+                           int64_t bitrate,
+                           int fps,
+                           bool decode_to_texture_required) {
   if (decode_to_texture_required) {
     SB_LOG(WARNING) << "Decoding to texture required with " << frame_width << "x"
                     << frame_height;

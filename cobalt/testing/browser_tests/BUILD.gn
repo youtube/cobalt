@@ -216,6 +216,7 @@ test("cobalt_browsertests") {
     #"media_browsertest.h",
     #"media_session_browsertest.cc",
     #"media_source_browsertest.cc",
+    "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
     "navigation_browsertest.cc",
 
     #"session_history_browsertest.cc",
@@ -230,14 +231,7 @@ test("cobalt_browsertests") {
   }
 
   if (is_starboard) {
-    sources += [
-      "cobalt_browser_tests_main.cc",
-
-      # TODO(478334656): Support Media source and Fetch for android's
-      # browser tests. Once they are plumbed, move
-      # H5vccSchemeURLLoaderFactoryBrowserTest above.
-      "//cobalt/shell/browser/h5vcc_scheme_url_loader_factory_browsertest.cc",
-    ]
+    sources += [ "cobalt_browser_tests_main.cc" ]
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]

@@ -419,9 +419,13 @@ public abstract class CobaltActivity extends Activity {
     mCobaltConnectivityDetector.registerObserver();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
 
-    mVideoSurfaceView = new VideoSurfaceView(this);
-    addContentView(
-        mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    if (!mIsCobaltUsingAndroidOverlay) {
+      mVideoSurfaceView = new VideoSurfaceView(this);
+      addContentView(
+          mVideoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    } else {
+      Log.i(TAG, "Do not create VideoSurfaceView.");
+    }
   }
 
   /**

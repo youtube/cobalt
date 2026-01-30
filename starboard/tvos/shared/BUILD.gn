@@ -131,6 +131,8 @@ static_library("starboard_platform") {
     "media_is_video_supported.mm",
     "observer_registry.cc",
     "observer_registry.h",
+    "run_in_background_thread_and_wait.cc",
+    "run_in_background_thread_and_wait.h",
     "starboard_application.h",
     "storage_close_record.mm",
     "storage_delete_record.mm",

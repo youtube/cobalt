@@ -51,14 +51,15 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
   Result<MediaComponents> CreateSubComponents(
       const CreationParameters& creation_parameters) override {
     MediaComponents components;
+    JobQueue* job_queue = creation_parameters.job_queue();
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       auto decoder_creator =
-          [](const AudioStreamInfo& audio_stream_info,
-             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
+          [job_queue](const AudioStreamInfo& audio_stream_info,
+                      SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto opus_audio_decoder =
-              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
           if (opus_audio_decoder->is_valid()) {
             return opus_audio_decoder;
           } else {
@@ -70,10 +71,10 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                        FdkAacAudioDecoder::kMaxChannels &&
                    LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
-          return std::make_unique<FdkAacAudioDecoder>();
+          return std::make_unique<FdkAacAudioDecoder>(job_queue);
         } else {
           std::unique_ptr<FfmpegAudioDecoder> ffmpeg_audio_decoder(
-              FfmpegAudioDecoder::Create(audio_stream_info));
+              FfmpegAudioDecoder::Create(job_queue, audio_stream_info));
           if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
             return ffmpeg_audio_decoder;
@@ -86,7 +87,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       };
 
       components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
-          creation_parameters.audio_stream_info(),
+          job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator);
       components.audio.renderer_sink =
           std::make_unique<AudioRendererSinkImpl>();
@@ -101,18 +102,18 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       if (creation_parameters.video_codec() == kSbMediaVideoCodecVp9) {
         components.video.decoder = std::make_unique<VpxVideoDecoder>(
-            creation_parameters.video_codec(),
+            job_queue, creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider());
       } else if (creation_parameters.video_codec() == kAv1VideoCodec) {
         components.video.decoder = std::make_unique<Dav1dVideoDecoder>(
-            creation_parameters.video_codec(),
+            job_queue, creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider(),
             /* may_reduce_quality_for_speed = */ true);
       } else if (creation_parameters.video_codec() == kSbMediaVideoCodecH265) {
         components.video.decoder = std::make_unique<De265VideoDecoder>(
-            creation_parameters.video_codec(),
+            job_queue, creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider());
       } else if ((creation_parameters.video_codec() ==
@@ -120,7 +121,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                  is_openh264_supported()) {
         SB_LOG(INFO) << "Playing video using openh264::VideoDecoder.";
         components.video.decoder = std::make_unique<OpenH264VideoDecoder>(
-            creation_parameters.video_codec(),
+            job_queue, creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider());
       } else {

@@ -85,7 +85,7 @@ class AdaptiveAudioDecoderTest
     }
 
     std::unique_ptr<AudioRendererSink> audio_renderer_sink;
-    ASSERT_TRUE(CreateAudioComponents(using_stub_decoder_,
+    ASSERT_TRUE(CreateAudioComponents(using_stub_decoder_, &job_queue_,
                                       dmp_readers_[0]->audio_stream_info(),
                                       &audio_decoder_, &audio_renderer_sink));
     ASSERT_TRUE(audio_decoder_);

@@ -37,6 +37,7 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   };
 
   explicit MediaTimeProviderImpl(
+      JobQueue* job_queue,
       std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider);
 
   void Play() override;
