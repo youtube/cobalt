@@ -36,6 +36,8 @@
 
 #if BUILDFLAG(USE_EVERGREEN)
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_impl.h"
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
 #include "cobalt/browser/h5vcc_updater/h5vcc_updater_sideloading_impl.h"
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
@@ -105,6 +107,8 @@ void PopulateCobaltFrameBinders(
 #if BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdater>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterImpl::Create));
+// TODO(b/458483469): Remove the ALLOW_EVERGREEN_SIDELOADING check after
+// security review.
 #if !BUILDFLAG(COBALT_IS_RELEASE_BUILD) && ALLOW_EVERGREEN_SIDELOADING
   binder_map->Add<h5vcc_updater::mojom::H5vccUpdaterSideloading>(
       base::BindRepeating(&h5vcc_updater::H5vccUpdaterSideloadingImpl::Create));

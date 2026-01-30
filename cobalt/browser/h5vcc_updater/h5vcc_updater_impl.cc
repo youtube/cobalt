@@ -52,11 +52,11 @@ void H5vccUpdaterImpl::Create(
 void H5vccUpdaterImpl::GetUpdaterChannel(GetUpdaterChannelCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (!updater_module) {
-    std::move(callback).Run("");
+  if (updater_module) {
+    std::move(callback).Run(updater_module->GetUpdaterChannel());
     return;
   }
-  std::move(callback).Run(updater_module->GetUpdaterChannel());
+  std::move(callback).Run("");
 }
 
 void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
@@ -83,11 +83,11 @@ void H5vccUpdaterImpl::SetUpdaterChannel(const std::string& channel,
 void H5vccUpdaterImpl::GetUpdateStatus(GetUpdateStatusCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (!updater_module) {
-    std::move(callback).Run("");
+  if (updater_module) {
+    std::move(callback).Run(updater_module->GetUpdaterStatus());
     return;
   }
-  std::move(callback).Run(updater_module->GetUpdaterStatus());
+  std::move(callback).Run("");
 }
 
 void H5vccUpdaterImpl::ResetInstallations(ResetInstallationsCallback callback) {
@@ -104,13 +104,13 @@ void H5vccUpdaterImpl::GetInstallationIndex(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const uint16_t kInvalidInstallationIndex = 1000;
   auto* updater_module = cobalt::updater::UpdaterModule::GetInstance();
-  if (!updater_module) {
-    std::move(callback).Run(kInvalidInstallationIndex);
+  if (updater_module) {
+    int index = updater_module->GetInstallationIndex();
+    std::move(callback).Run(index == -1 ? kInvalidInstallationIndex
+                                        : base::checked_cast<uint16_t>(index));
     return;
   }
-  int index = updater_module->GetInstallationIndex();
-  std::move(callback).Run(index == -1 ? kInvalidInstallationIndex
-                                      : base::checked_cast<uint16_t>(index));
+  std::move(callback).Run(kInvalidInstallationIndex);
 }
 
 void H5vccUpdaterImpl::GetLibrarySha256(unsigned short index,

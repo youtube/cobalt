@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO(b/458483469): Conditionally add sideloading files to sources if
+# 'cobalt_is_release_build' and sideloading are enabled.
 source_set("h5vcc_updater") {
   if (use_evergreen) {
     sources = [
