@@ -13,7 +13,7 @@ import sys
 
 command = [
     os.path.join(os.path.dirname(__file__), 'elf_loader_sandbox'),
-    '--evergreen_content=.', '--evergreen_library={library}.so'
+    '--evergreen_content=app/{library}/content', '--evergreen_library=app/{library}/lib/lib{library}.so'
 ] + sys.argv[1:]
 try:
     result = subprocess.run(command, check=False)
