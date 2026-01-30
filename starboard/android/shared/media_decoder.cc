@@ -172,7 +172,10 @@ MediaDecoder::MediaDecoder(
                << (tunnel_mode_enabled_ ? "true" : "false")
                << ", initial_max_frames="
                << (initial_max_frames ? std::to_string(*initial_max_frames)
-                                      : "(nullopt)");
+                                      : "(nullopt)")
+               << ", media_type=video, "
+               << ", drm=" << (drm_system_ ? "secure" : "plain")
+               << ", flush_delay(msec)=" << (flush_delay_usec_ / 1'000);
 }
 
 MediaDecoder::~MediaDecoder() {
@@ -181,7 +184,9 @@ MediaDecoder::~MediaDecoder() {
   TerminateDecoderThread();
 
   if (is_valid()) {
-    host_->OnFlushing();
+    if (host_) {
+      host_->OnFlushing();
+    }
     // After |decoder_thread_| is ended and before |media_codec_bridge_| is
     // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
     // So that, |dequeue_output_results_| may not be empty. As
@@ -684,6 +689,7 @@ void MediaDecoder::OnMediaCodecInputBufferAvailable(int buffer_index) {
     ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
     first_call_on_handler_thread_ = false;
   }
+
   ScopedLock scoped_lock(mutex_);
   input_buffer_indices_.push_back(buffer_index);
   if (input_buffer_indices_.size() == 1) {
@@ -806,6 +812,85 @@ bool MediaDecoder::Flush() {
   // WriteInputBuffers().
   stream_ended_.store(false);
   destroying_.store(false);
+  return true;
+}
+
+bool MediaDecoder::Suspend() {
+  // 1. Terminate `audio_decoder` or `video_decoder` thread.
+  TerminateDecoderThread();
+
+  // 2. Flush() |media_codec_bridge_| and clean up pending tasks.
+  if (is_valid()) {
+    // 2.1. Flush() |media_codec_bridge_|.
+    if (host_) {
+      host_->OnFlushing();
+    }
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+      return false;
+    }
+
+    // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
+    {
+      ScopedLock scoped_lock(mutex_);
+      number_of_pending_inputs_.store(0);
+      pending_inputs_.clear();
+      input_buffer_indices_.clear();
+      dequeue_output_results_.clear();
+      pending_input_to_retry_ = std::nullopt;
+    }
+
+    if (decoder_state_tracker_) {
+      decoder_state_tracker_->Reset();
+    }
+
+    // 2.3. Add OutputFormatChanged to get current output format after Flush().
+    DequeueOutputResult dequeue_output_result = {};
+    dequeue_output_result.index = -1;
+    dequeue_output_results_.push_back(dequeue_output_result);
+  }
+
+  // Detach the thread checker. This allows the MediaDecoder to be reused on a
+  // different thread (e.g. from the VideoDecoderCache). The ThreadChecker will
+  // automatically re-attach to the new thread on the next call to
+  // CalledOnValidThread().
+  thread_checker_.Detach();
+  return true;
+}
+
+bool MediaDecoder::SetOutputSurface(jobject new_surface) {
+  SB_CHECK(media_codec_bridge_);
+  return media_codec_bridge_->SetOutputSurface(new_surface);
+}
+
+void MediaDecoder::Reset() {
+  host_ = nullptr;
+  frame_rendered_cb_ = [](int64_t) {};
+  first_tunnel_frame_ready_cb_ = [] {};
+  stream_ended_.store(false);
+  destroying_.store(false);
+  error_occurred_ = false;
+  error_message_.clear();
+  pending_input_to_retry_ = std::nullopt;
+}
+
+bool MediaDecoder::Reconfigure(
+    Host* new_host,
+    jobject new_surface,
+    FrameRenderedCB frame_rendered_cb,
+    FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb) {
+  if (!SetOutputSurface(new_surface)) {
+    return false;
+  }
+  host_ = new_host;
+  frame_rendered_cb_ = std::move(frame_rendered_cb);
+  first_tunnel_frame_ready_cb_ = std::move(first_tunnel_frame_ready_cb);
+
+  if (is_valid() && !media_codec_bridge_->Restart()) {
+    SB_LOG(ERROR) << "Failed to restart media codec.";
+    return false;
+  }
   return true;
 }
 

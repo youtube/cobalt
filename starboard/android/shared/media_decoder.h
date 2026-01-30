@@ -119,12 +119,27 @@ class MediaDecoder final
   }
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
+  bool is_secure() const { return drm_system_ != nullptr; }
 
   bool Flush();
 
   DecoderStateTracker* decoder_state_tracker() {
     return decoder_state_tracker_.get();
   }
+
+  // Stops the worker thread and flushes the codec, but does not restart it.
+  // This leaves the decoder in a state suitable for caching/reuse (thread
+  // stopped, buffers cleared), but not yet ready to receive new input.
+  bool Suspend();
+
+  bool SetOutputSurface(jobject new_surface);
+  void Reset();
+  bool Reconfigure(Host* new_host,
+                   jobject new_surface,
+                   FrameRenderedCB frame_rendered_cb,
+                   FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb);
+
+  void UpdateErrorCB(const ErrorCB& error_cb) { error_cb_ = error_cb; }
 
  private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
@@ -193,10 +208,10 @@ class MediaDecoder final
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   const SbMediaType media_type_;
-  Host* const host_;
+  Host* host_;
   DrmSystem* const drm_system_;
-  const FrameRenderedCB frame_rendered_cb_;
-  const FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
+  FrameRenderedCB frame_rendered_cb_;
+  FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb_;
   const bool tunnel_mode_enabled_;
   const int64_t flush_delay_usec_;
 
