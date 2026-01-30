@@ -25,8 +25,7 @@ namespace starboard {
 
 class JobThread::WorkerThread : public Thread {
  public:
-  WorkerThread(std::string_view thread_name,
-               SbThreadPriority priority)
+  WorkerThread(std::string_view thread_name, SbThreadPriority priority)
       : Thread(std::string(thread_name)), priority_(priority) {}
 
   void Run() override {
