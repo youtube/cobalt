@@ -29,10 +29,11 @@ sys.path.append(os.path.join(REPOSITORY_ROOT, 'cobalt', 'tools', 'performance'))
 sys.path.append(
     os.path.join(REPOSITORY_ROOT, 'third_party', 'catapult', 'devil'))
 sys.path.append(
-    os.path.join(REPOSITORY_ROOT, 'third_party', 'catapult', 'telemetry', 'third_party', 'websocket-client'))
+    os.path.join(REPOSITORY_ROOT, 'third_party', 'catapult', 'telemetry',
+                 'third_party', 'websocket-client'))
 
-import websocket  # Need websocket-client
-import subprocess
+import websocket  # pylint: disable=wrong-import-position
+import subprocess  # pylint: disable=wrong-import-position
 
 from adb_command_runner import run_adb_command  # pylint: disable=wrong-import-position
 from devil.android import device_utils  # pylint: disable=wrong-import-position
