@@ -58,10 +58,58 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     ContentBrowserTest::TearDown();
   }
 
+  std::string CheckImageDimension() {
+    // Mock MediaSource.isTypeSupported for static image fallback
+    return base::StringPrintf(R"(
+      MediaSource.isTypeSupported = function(mime) {
+        return false;
+      };
+      playSplashAnimation();
+      (async () => {
+        try {
+          const placeholder = document.getElementById('placeholder');
+          if (!placeholder) {
+            return 'No placeholder element found';
+          }
+
+          // check if image is displayed
+          let style = window.getComputedStyle(placeholder);
+          let retries = 0; 
+          while (style.backgroundImage === 'none' && retries < 15) {
+            await new Promise(r => setTimeout(r, 100));
+            style = window.getComputedStyle(placeholder);
+            retries++; 
+          }
+          if (style.backgroundImage === 'none') {
+            return 'No image is displayed';
+          }
+          if (parseFloat(style.opacity) < 1) {
+            return 'Image does not have 100% opacity';
+          }
+
+          // check image dimension
+          const url = style.backgroundImage.slice(5, -2); 
+          return await new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve('Dimensions: ' + image.naturalWidth + 'x' + image.naturalHeight);
+            image.onerror = () => reject('Image load error');
+            image.src = url;
+          });
+        } catch (e) {
+          return 'Exception: ' + e.toString();
+        }
+      })();
+    )");
+  }
+
   std::string CheckVideoDimension(bool is_type_supported) {
     // Mock MediaSource.isTypeSupported for high/low spec device.
     return base::StringPrintf(R"(
       MediaSource.isTypeSupported = function(mime) {
+        // Bypass fallback for static image 
+        if (!mime.includes('width=3840') || !mime.includes('height=2160')) {
+          return true; 
+        }
         return %s;
       };
       playSplashAnimation();
@@ -223,6 +271,20 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
   // Verify fallback for the low spec devices, where Cobalt should
   // play the low resolution splash.
   EXPECT_EQ("Dimensions: 853x480", EvalJs(shell(), CheckVideoDimension(false)));
+}
+
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_LoadSplashHtml DISABLED_LoadSplashHtml
+#else
+#define MAYBE_LoadSplashHtml LoadSplashHtml
+#endif
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       MAYBE_LoadSplashHtml) {
+  GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
+  EXPECT_TRUE(NavigateToURL(shell(), splash_url));
+
+  // verify fall back for static image when device does not support VP9
+  EXPECT_EQ("Dimensions: 1920x1080", EvalJs(shell(), CheckImageDimension()));
 }
 
 // If not specified, use cache "default".

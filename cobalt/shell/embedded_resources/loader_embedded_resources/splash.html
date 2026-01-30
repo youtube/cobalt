@@ -85,9 +85,9 @@
             const imageUrl = URL.createObjectURL(imageBlob); 
             placeholderEl.style.backgroundImage = `url(${imageUrl})`; 
             placeholderEl.style.opacity = '100%';
+            // timeout? 
             setTimeout(() => {
               afterImage && afterImage();
-              window.close();
             }, 1500);
           } catch (error) {
             console.error('Failed to fetch splash image:', error);
