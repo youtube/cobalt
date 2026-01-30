@@ -71,8 +71,8 @@ StubAudioSink::StubAudioSink(
       consume_frames_func_(consume_frames_func),
       context_(context),
       destroying_(false) {
-  audio_out_thread_ = std::make_unique<JobThread>("stub_audio_out", 0,
-                                                  kSbThreadPriorityRealTime);
+  audio_out_thread_ =
+      std::make_unique<JobThread>("stub_audio_out", kSbThreadPriorityRealTime);
   audio_out_thread_->Schedule([this] { AudioThreadFunc(); });
 }
 
