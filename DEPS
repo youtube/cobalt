@@ -308,7 +308,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling V8
   # and whatever else without interference from each other.
-  'src_internal_revision': '5a4ebfe0050b7a0e81cd1da0be0117c083362569',
+  'src_internal_revision': 'e4439d373d341ef0ea7b567ef2547f4ef91cdf32',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Skia
   # and whatever else without interference from each other.
@@ -1206,7 +1206,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/chrome/android/orderfiles/arm64',
-              'version': 'DTVEPJ3EPslcIykjwlrgsYWDA6AYDbSW2cSHquCl-D4C',
+              'version': 'fetKISzVbWf3P1ll7aNIX_a-Z0egAdNTCvfdyX2nkZwC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -1228,7 +1228,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/android_webview/tools/orderfiles/arm64',
-              'version': 'l2YUWqoiEQrtsWdSYEzggY_W8XP-RcH5zF4Un78VeHsC',
+              'version': 'Ew08vpQBJfThHooZ5Oiiw61vhqpDrtFkqeVyYg9OrlUC',
           },
       ],
       'condition': 'checkout_android and non_git_source',
@@ -2456,7 +2456,7 @@ deps = {
     Var('chromium_git') + '/chromiumos/platform/libva-fake-driver.git' + '@' + 'a9bcab9cd6b15d4e3634ca44d5e5f7652c612194',
 
   'src/third_party/libvpx/source/libvpx':
-    Var('chromium_git') + '/webm/libvpx.git' + '@' +  '9a7674e1a83d1261a49776c8794b87c9bccc85d7',
+    Var('chromium_git') + '/webm/libvpx.git' + '@' +  '14cd170a941f88e6fb145ebb873a3c8f87645834',
 
   'src/third_party/libwebm/source':
     Var('chromium_git') + '/webm/libwebm.git' + '@' + 'f2a982d748b80586ae53b89a2e6ebbc305848b8c',
