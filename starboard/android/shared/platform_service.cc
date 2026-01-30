@@ -39,6 +39,7 @@ typedef struct CobaltExtensionPlatformServicePrivate {
     if (cobalt_service) {
       JNIEnv* env = base::android::AttachCurrentThread();
       env->DeleteGlobalRef(cobalt_service);
+      cobalt_service = nullptr;
     }
   }
 } CobaltExtensionPlatformServicePrivate;
@@ -84,11 +85,17 @@ CobaltExtensionPlatformService Open(void* context,
 }
 
 void Close(CobaltExtensionPlatformService service) {
+  if (!service || !service->cobalt_service) {
+    return;
+  }
+  
   JNIEnv* env = base::android::AttachCurrentThread();
-  Java_CobaltService_onClose(env, base::android::ScopedJavaLocalRef<jobject>(
-                                      env, service->cobalt_service));
-  starboard::StarboardBridge::GetInstance()->CloseCobaltService(env,
-                                                                service->name);
+
+  // base::android::ScopedJavaLocalRef<jobject> j_cobalt_service(env, service->cobalt_service);
+  auto j_cobalt_service = base::android::JavaParamRef<jobject>(env, service->cobalt_service);
+  Java_CobaltService_onClose(env, j_cobalt_service);
+
+  starboard::StarboardBridge::GetInstance()->CloseCobaltService(env, service->name);
   delete static_cast<CobaltExtensionPlatformServicePrivate*>(service);
 }
 
@@ -104,14 +111,14 @@ void* Send(CobaltExtensionPlatformService service,
   SB_LOG(WARNING) << "ColinL: platform_service. Send()";
 
   JNIEnv* env = base::android::AttachCurrentThread();
-  auto j_service = base::android::JavaParamRef<jobject>(env, service->cobalt_service);
+  auto j_cobalt_service = base::android::JavaParamRef<jobject>(env, service->cobalt_service);
   auto j_data = base::android::ToJavaByteArray(
       env, reinterpret_cast<const uint8_t*>(data), length);
 
   SB_LOG(WARNING) << "ColinL: call Java_CobaltService_receiveFromClient(), cobalt_service is " << service->cobalt_service;
   auto j_response = Java_CobaltService_receiveFromClient(
       env,
-      j_service,
+      j_cobalt_service,
       j_data);
 
   SB_LOG(WARNING) << "ColinL: call Java_CobaltService_receiveFromClient() return!!";

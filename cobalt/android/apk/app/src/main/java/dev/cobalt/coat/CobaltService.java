@@ -105,6 +105,9 @@ public abstract class CobaltService {
   @CalledByNative
   public void onClose() {
     synchronized (lock) {
+      if (!opened) {
+        return;
+      }
       opened = false;
       close();
     }
@@ -119,7 +122,7 @@ public abstract class CobaltService {
    * is processed.
    */
   protected void sendToClient(long nativeService, byte[] data) {
-    synchronized (this) {
+    synchronized (lock) {
       if (!opened) {
         Log.w(
             TAG,
