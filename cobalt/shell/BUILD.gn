@@ -221,6 +221,7 @@ static_library("cobalt_shell_switches") {
     "common/shell_switches.cc",
     "common/shell_switches.h",
   ]
+  deps = [ "//base" ]
 }
 
 static_library("cobalt_shell_lib") {

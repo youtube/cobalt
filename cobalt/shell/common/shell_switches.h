@@ -31,6 +31,7 @@ inline constexpr size_t kMaxSplashContentSize = 10 * 1024 * 1024;
 
 extern const char kContentShellDataPath[];
 extern const char kCrashDumpsDir[];
+extern const char kDisableSplashScreen[];
 extern const char kDisableSystemFontCheck[];
 extern const char kContentShellHostWindowSize[];
 extern const char kContentShellHideToolbar[];
@@ -40,6 +41,10 @@ extern const char kContentShellDevToolsTabTarget[];
 extern const char kIsolatedContextOrigins[];
 extern const char kRemoteDebuggingAddress[];
 extern const char kSplashScreenShutdownDelayMs[];
+
+// Checks if the splash screen should be created.
+// Returns false if kDisableSplashScreen is present.
+bool ShouldCreateSplashScreen();
 
 }  // namespace switches
 
