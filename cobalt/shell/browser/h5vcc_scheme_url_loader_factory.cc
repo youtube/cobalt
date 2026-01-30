@@ -56,6 +56,7 @@ using switches::kMaxSplashContentSize;
 namespace {
 const char kMimeTypeApplicationOctetStream[] = "application/octet-stream";
 const char kMimeTypeTextHtml[] = "text/html";
+const char kMimeTypeTextPlain[] = "text/plain";
 const char kMimeTypeVideoWebM[] = "video/webm";
 
 // TODO - b/456482732: remove unsafe-inline.
@@ -339,7 +340,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
                  << " not found.";
     content_ = "Resource not found";
-    mime_type_ = kMimeTypeTextHtml;
+    mime_type_ = kMimeTypeTextPlain;
     SendResponse(net::HTTP_NOT_FOUND);
   }
 
