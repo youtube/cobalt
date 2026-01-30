@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_
 
-#include "third_party/dav1d/libdav1d/include/dav1d/dav1d.h"
-
 #include <limits>
 #include <memory>
 #include <mutex>
@@ -31,12 +29,14 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_thread.h"
+#include "third_party/dav1d/libdav1d/include/dav1d/dav1d.h"
 
 namespace starboard {
 
 class Dav1dVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
  public:
-  Dav1dVideoDecoder(SbMediaVideoCodec video_codec,
+  Dav1dVideoDecoder(JobQueue* job_queue,
+                    SbMediaVideoCodec video_codec,
                     SbPlayerOutputMode output_mode,
                     SbDecodeTargetGraphicsContextProvider*
                         decode_target_graphics_context_provider,

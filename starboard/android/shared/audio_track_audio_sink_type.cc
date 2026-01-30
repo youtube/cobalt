@@ -23,7 +23,6 @@
 
 #include "base/android/jni_android.h"
 #include "starboard/android/shared/audio_output_manager.h"
-#include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/check_op.h"
 #include "starboard/common/scoped_timer.h"
@@ -38,12 +37,6 @@ namespace starboard {
 namespace {
 
 using ::base::android::AttachCurrentThread;
-
-// Whether to use continuous audio track sync, which keep feeding audio frames
-// into AudioTrack. Instead of callnig pause/play, it switches between silence
-// data and actual data.
-// TODO: b/186660620: Replace this constant with feature flag.
-constexpr bool kUseContinuousAudioTrackSink = false;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,
@@ -113,6 +106,20 @@ bool HasRemoteAudioOutput() {
 
 }  // namespace
 
+class AudioTrackAudioSink::AudioTrackOutThread : public Thread {
+ public:
+  explicit AudioTrackOutThread(AudioTrackAudioSink* sink)
+      : Thread("audio_track_out"), sink_(sink) {}
+
+  void Run() override {
+    SbThreadSetPriority(kSbThreadPriorityRealTime);
+    sink_->AudioThreadFunc();
+  }
+
+ private:
+  AudioTrackAudioSink* sink_;
+};
+
 AudioTrackAudioSink::AudioTrackAudioSink(
     Type* type,
     int channels,
@@ -167,18 +174,15 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     return;
   }
 
-  pthread_t thread;
-  const int result = pthread_create(
-      &thread, nullptr, &AudioTrackAudioSink::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
-  audio_out_thread_ = thread;
+  audio_out_thread_ = std::make_unique<AudioTrackOutThread>(this);
+  audio_out_thread_->Start();
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
   if (audio_out_thread_) {
-    SB_CHECK_EQ(pthread_join(*audio_out_thread_, nullptr), 0);
+    audio_out_thread_->Join();
   }
 }
 
@@ -191,18 +195,6 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
   }
   std::lock_guard lock(mutex_);
   playback_rate_ = playback_rate;
-}
-
-// static
-void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "audio_track_out");
-  SB_DCHECK(context);
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-
-  AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
-  sink->AudioThreadFunc();
-
-  return NULL;
 }
 
 // TODO: Break down the function into manageable pieces.
@@ -499,25 +491,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   SB_DCHECK_GE(frames_per_channel, min_required_frames);
   int preferred_buffer_size_in_bytes =
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
-  if (kUseContinuousAudioTrackSink) {
-    if (tunnel_mode_audio_session_id == -1) {
-      SB_LOG(INFO) << "Will create ContinuousAudioTrackSink";
-      auto continuous_sink = new ContinuousAudioTrackSink(
-          this, channels, sampling_frequency_hz, audio_sample_type,
-          frame_buffers, frames_per_channel, preferred_buffer_size_in_bytes,
-          update_source_status_func, consume_frames_func, error_func,
-          start_media_time, is_web_audio, context);
-      if (!continuous_sink->IsAudioTrackValid()) {
-        SB_LOG(ERROR) << "Failed to create ContinuousAudioTrackSink";
-        Destroy(continuous_sink);
-        return kSbAudioSinkInvalid;
-      }
-      return continuous_sink;
-    } else {
-      SB_LOG(INFO) << "Cannot use ContinuousAudioTrack with tunnel mode. "
-                      "will Create normal AudioTrackAudioSink instead.";
-    }
-  }
 
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,

@@ -18,6 +18,7 @@
 source_set("common_headers_only") {
   sources = [
     "log.h",
+    "string.h",
     "system_property.h",
   ]
 
@@ -96,6 +97,10 @@ static_library("common") {
     "time.cc",
     "time.h",
   ]
+
+  if (!is_android) {
+    sources += [ "thread_platform_base.cc" ]
+  }
 }
 
 static_library("file_wrapper") {

@@ -32,6 +32,8 @@
 
 namespace starboard {
 
+class JobQueue;
+
 typedef std::tuple<const char*, SbPlayerOutputMode> VideoTestParam;
 
 enum HeaacOption {
@@ -54,6 +56,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests();
 
 bool CreateAudioComponents(
     bool using_stub_decoder,
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder>* audio_decoder,
     std::unique_ptr<AudioRendererSink>* audio_renderer_sink);

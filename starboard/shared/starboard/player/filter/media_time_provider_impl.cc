@@ -22,13 +22,15 @@
 namespace starboard {
 
 MediaTimeProviderImpl::MediaTimeProviderImpl(
+    JobQueue* job_queue,
     std::unique_ptr<MonotonicSystemTimeProvider> system_time_provider)
-    : system_time_provider_(std::move(system_time_provider)) {
+    : JobOwner(job_queue),
+      system_time_provider_(std::move(system_time_provider)) {
   SB_CHECK(system_time_provider_);
 }
 
 void MediaTimeProviderImpl::Play() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (is_playing_) {
     return;
@@ -40,7 +42,7 @@ void MediaTimeProviderImpl::Play() {
 }
 
 void MediaTimeProviderImpl::Pause() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!is_playing_) {
     return;
@@ -52,7 +54,7 @@ void MediaTimeProviderImpl::Pause() {
 }
 
 void MediaTimeProviderImpl::SetPlaybackRate(double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (playback_rate_ == playback_rate) {
     return;
@@ -64,7 +66,7 @@ void MediaTimeProviderImpl::SetPlaybackRate(double playback_rate) {
 }
 
 void MediaTimeProviderImpl::Seek(int64_t seek_to_time) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   std::lock_guard scoped_lock(mutex_);
 

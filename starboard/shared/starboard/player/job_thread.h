@@ -15,12 +15,11 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_JOB_THREAD_H_
 
-#include <pthread.h>
-
 #include <memory>
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/thread.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
@@ -34,12 +33,8 @@ namespace starboard {
 class JobThread {
  public:
   explicit JobThread(const char* thread_name,
-                     int64_t stack_size = 0,
                      SbThreadPriority priority = kSbThreadPriorityNormal);
   ~JobThread();
-
-  JobQueue* job_queue() { return job_queue_.get(); }
-  const JobQueue* job_queue() const { return job_queue_.get(); }
 
   bool BelongsToCurrentThread() const {
     SB_DCHECK(job_queue_);
@@ -82,10 +77,11 @@ class JobThread {
   }
 
  private:
-  static void* ThreadEntryPoint(void* context);
+  class WorkerThread;
+
   void RunLoop();
 
-  pthread_t thread_;
+  std::unique_ptr<Thread> thread_;
   std::unique_ptr<JobQueue> job_queue_;
 };
 

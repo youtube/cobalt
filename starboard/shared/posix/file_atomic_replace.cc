@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/file.h"
+// clang-format on
 
 #include <sys/stat.h>
 #include <unistd.h>

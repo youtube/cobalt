@@ -37,6 +37,7 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
@@ -106,6 +107,7 @@ public class StarboardBridge {
   private final boolean mIsAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long mTimeNanosecondsPerMicrosecond = 1000;
+  private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
 
   public StarboardBridge(
       Context appContext,
@@ -147,6 +149,7 @@ public class StarboardBridge {
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(mIsAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
+    StarboardBridgeJni.get().setYoutubeCertificationScope(getSystemProperty(YTS_CERT_SCOPE_SYSTEM_PROPERTY));
   }
 
   @NativeMethods
@@ -169,6 +172,8 @@ public class StarboardBridge {
     void setAndroidOSExperience(boolean isAmatiDevice);
 
     void setAndroidPlayServicesVersion(long version);
+
+    void setYoutubeCertificationScope(String certScope);
 
     boolean isReleaseBuild();
   }
@@ -582,6 +587,7 @@ public class StarboardBridge {
     if (service != null) {
       service.receiveStarboardBridge(this);
       mCobaltServices.put(serviceName, service);
+      Log.i(TAG, String.format("Opened platform service %s.", serviceName));
 
       if (activity instanceof CobaltActivity) {
         service.setCobaltActivity((CobaltActivity) activity);
@@ -597,6 +603,14 @@ public class StarboardBridge {
   @CalledByNative
   public void closeCobaltService(String serviceName) {
     mCobaltServices.remove(serviceName);
+    Log.i(TAG, String.format("Closed platform service %s.", serviceName));
+  }
+
+  @CalledByNative
+  public void closeAllCobaltService() {
+    for (String serviceName : new ArrayList<>(mCobaltServices.keySet())) {
+      closeCobaltService(serviceName);
+    }
   }
 
   public byte[] sendToCobaltService(String serviceName, byte[] data) {

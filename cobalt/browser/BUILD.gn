@@ -13,12 +13,9 @@
 # limitations under the License.
 
 import("//starboard/build/buildflags.gni")
+import("//testing/test.gni")
 
 source_set("browser") {
-  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # cobalt_shell_lib.
-  testonly = true
-
   sources = [
     "cobalt_browser_interface_binders.cc",
     "cobalt_browser_interface_binders.h",
@@ -28,8 +25,6 @@ source_set("browser") {
     "cobalt_content_browser_client.h",
     "cobalt_secure_navigation_throttle.cc",
     "cobalt_secure_navigation_throttle.h",
-    "cobalt_web_contents_delegate.cc",
-    "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
   ]
@@ -44,7 +39,7 @@ source_set("browser") {
   public_deps = [ "//content/public/browser" ]
 
   deps = [
-    ":embed_polyfilled_javascript",
+    ":command_line_logger",
     ":features",
     ":global_features",
     ":metrics",
@@ -60,9 +55,10 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//cobalt/browser/h5vcc_storage",
+    "//cobalt/browser/h5vcc_storage/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
-    "//cobalt/browser/migrate_storage_record",
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
     "//cobalt/browser/user_agent",
@@ -70,9 +66,8 @@ source_set("browser") {
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/shell:cobalt_shell_lib",
-    "//components/js_injection/browser:browser",
+    "//components/embedder_support:user_agent",
     "//components/metrics",
-    "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
@@ -82,11 +77,22 @@ source_set("browser") {
 
   if (is_androidtv) {
     deps += [
+      "//cobalt/android:browser_jni_headers",
       "//cobalt/android:jni_headers",
-      "//cobalt/android/oom_intervention",
+      "//components/variations:variations_associated_data",
     ]
   } else {
-    deps += [ "//cobalt/browser/crash_annotator" ]
+    deps += [
+      "//cobalt/browser/crash_annotator",
+      "//cobalt/browser/h5vcc_platform_service",
+
+      # TODO: b/403638702 - androidtv will also need this dep.
+      "//cobalt/browser/h5vcc_platform_service/public/mojom",
+    ]
+  }
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard" ]
   }
 }
 
@@ -107,23 +113,6 @@ source_set("switches") {
   deps = [
     "//base",
     "//cobalt/shell:cobalt_shell_switches",
-  ]
-}
-
-config("embed_polyfilled_javascript_config") {
-  include_dirs = [ root_gen_dir ]
-}
-
-# TODO(cobalt, b/390710539): migrate to GRIT.
-action("embed_polyfilled_javascript") {
-  script = "//cobalt/build/generate_data_header.py"
-  outputs = [ "$target_gen_dir/embedded_resources/embedded_js.h" ]
-  public_configs = [ ":embed_polyfilled_javascript_config" ]
-
-  args = [
-    "CobaltJavaScriptPolyfill",
-    rebase_path(outputs[0], root_build_dir),
-    rebase_path("embedded_resources", root_build_dir),
   ]
 }
 
@@ -168,4 +157,12 @@ source_set("metrics") {
     "//third_party/metrics_proto",
     "//url",
   ]
+}
+
+source_set("command_line_logger") {
+  sources = [
+    "command_line_logger.cc",
+    "command_line_logger.h",
+  ]
+  deps = [ "//base" ]
 }

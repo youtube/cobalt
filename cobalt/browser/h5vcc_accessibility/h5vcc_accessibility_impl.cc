@@ -14,12 +14,19 @@
 
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 
+#include <string>
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
-#include "starboard/android/shared/text_to_speech_observer.h"
+#include "starboard/android/shared/text_to_speech_helper.h"
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/extension/accessibility.h"
 #endif
 
 namespace h5vcc_accessibility {
@@ -37,16 +44,10 @@ H5vccAccessibilityImpl::H5vccAccessibilityImpl(
           render_frame_host,
           std::move(receiver)) {
   DETACH_FROM_THREAD(thread_checker_);
-#if BUILDFLAG(IS_ANDROIDTV)
-  CobaltTextToSpeechHelper::GetInstance()->AddObserver(this);
-#endif
 }
 
 H5vccAccessibilityImpl::~H5vccAccessibilityImpl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-#if BUILDFLAG(IS_ANDROIDTV)
-  CobaltTextToSpeechHelper::GetInstance()->RemoveObserver(this);
-#endif
 }
 
 void H5vccAccessibilityImpl::Create(
@@ -59,14 +60,35 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
     IsTextToSpeechEnabledSyncCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
-  // TODO(b/391708407): Add support for Starboard.
-  std::move(callback).Run(false);
+  auto accessibility_api =
+      static_cast<const StarboardExtensionAccessibilityApi*>(
+          SbSystemGetExtension(kStarboardExtensionAccessibilityName));
+  if (!accessibility_api ||
+      strcmp(accessibility_api->name, kStarboardExtensionAccessibilityName) !=
+          0 ||
+      accessibility_api->version < 1) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  SbAccessibilityTextToSpeechSettings settings{};
+  if (!accessibility_api->GetTextToSpeechSettings(&settings)) {
+    std::move(callback).Run(false);
+    return;
+  }
+
+  std::move(callback).Run(settings.has_text_to_speech_setting &&
+                          settings.is_text_to_speech_enabled);
 #elif BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = AttachCurrentThread();
   CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
   bool enabled =
       CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
   std::move(callback).Run(enabled);
+#elif BUILDFLAG(IS_IOS_TVOS)
+  // TODO: b/447135715 - Implement text-to-speech availability check for tvOS.
+  NOTIMPLEMENTED();
+  std::move(callback).Run(false);
 #else
 #error "Unsupported platform."
 #endif
@@ -75,17 +97,8 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
 void H5vccAccessibilityImpl::RegisterClient(
     mojo::PendingRemote<mojom::H5vccAccessibilityClient> client) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  remote_clients_.Add(std::move(client));
+  cobalt::browser::H5vccAccessibilityManager::GetInstance()->AddListener(
+      std::move(client));
 }
-
-#if BUILDFLAG(IS_ANDROIDTV)
-// TODO(b/391708407): Add support for Starboard.
-void H5vccAccessibilityImpl::ObserveTextToSpeechChange() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  for (auto& client : remote_clients_) {
-    client->NotifyTextToSpeechChange();
-  }
-}
-#endif
 
 }  // namespace h5vcc_accessibility

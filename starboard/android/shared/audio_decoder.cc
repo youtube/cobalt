@@ -70,10 +70,12 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 }  // namespace
 
 MediaCodecAudioDecoder::MediaCodecAudioDecoder(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
     bool enable_flush_during_seek)
-    : audio_stream_info_(audio_stream_info),
+    : JobOwner(job_queue),
+      audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
       enable_flush_during_seek_(enable_flush_during_seek),
       output_sample_rate_(audio_stream_info.samples_per_second),
@@ -88,7 +90,7 @@ MediaCodecAudioDecoder::~MediaCodecAudioDecoder() {}
 
 void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
                                         const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -105,7 +107,7 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
                                     const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
@@ -133,7 +135,7 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 void MediaCodecAudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
@@ -144,7 +146,7 @@ void MediaCodecAudioDecoder::WriteEndOfStream() {
 
 scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
     int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   scoped_refptr<DecodedAudio> result;
@@ -167,7 +169,7 @@ scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
 }
 
 void MediaCodecAudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
@@ -194,8 +196,8 @@ void MediaCodecAudioDecoder::Reset() {
 
 bool MediaCodecAudioDecoder::InitializeCodec() {
   SB_DCHECK(!media_decoder_);
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(this, audio_stream_info_,
-                                                       drm_system_);
+  media_decoder_ = std::make_unique<MediaCodecDecoder>(
+      job_queue(), this, audio_stream_info_, drm_system_);
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(

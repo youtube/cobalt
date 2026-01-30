@@ -14,16 +14,17 @@
 
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 
-#include <pthread.h>
 #include <unistd.h>
 
 #include <algorithm>
+#include <memory>
 #include <mutex>
 
 #include "starboard/common/check_op.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -44,7 +45,6 @@ class StubAudioSink : public SbAudioSinkPrivate {
   void SetVolume(double volume) override {}
 
  private:
-  static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
   Type* type_;
@@ -53,7 +53,7 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ConsumeFramesFunc consume_frames_func_;
   void* context_;
 
-  pthread_t audio_out_thread_;
+  std::unique_ptr<JobThread> audio_out_thread_;
   std::mutex mutex_;
 
   bool destroying_;
@@ -70,11 +70,10 @@ StubAudioSink::StubAudioSink(
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
       context_(context),
-      audio_out_thread_(0),
       destroying_(false) {
-  const int result = pthread_create(&audio_out_thread_, nullptr,
-                                    &StubAudioSink::ThreadEntryPoint, this);
-  SB_CHECK_EQ(result, 0);
+  audio_out_thread_ =
+      std::make_unique<JobThread>("stub_audio_out", kSbThreadPriorityRealTime);
+  audio_out_thread_->Schedule([this] { AudioThreadFunc(); });
 }
 
 StubAudioSink::~StubAudioSink() {
@@ -82,23 +81,7 @@ StubAudioSink::~StubAudioSink() {
     std::lock_guard lock(mutex_);
     destroying_ = true;
   }
-  SB_CHECK_EQ(pthread_join(audio_out_thread_, nullptr), 0);
-}
-
-// static
-void* StubAudioSink::ThreadEntryPoint(void* context) {
-#if defined(__APPLE__)
-  pthread_setname_np("stub_audio_out");
-#else
-  pthread_setname_np(pthread_self(), "stub_audio_out");
-#endif
-  SbThreadSetPriority(kSbThreadPriorityRealTime);
-
-  SB_DCHECK(context);
-  StubAudioSink* sink = reinterpret_cast<StubAudioSink*>(context);
-  sink->AudioThreadFunc();
-
-  return NULL;
+  audio_out_thread_.reset();
 }
 
 void StubAudioSink::AudioThreadFunc() {

@@ -7,26 +7,17 @@ import '../../common.gcl' as common
 build = common.build {
   build_file = 'src/cobalt/devinfra/kokoro/bin/dind_runner.sh'
   env_vars = super.env_vars + [
-  // TODO: b/454936903 - Loader targets don't build yet.
-  //    {
-  //      key = 'BOOTLOADER'
-  //      value = 'android-arm'
-  //    },
-  //    {
-  //      key = 'BOOTLOADER_TARGET'
-  //      value = 'elf_loader_sandbox'
-  //    },
-  //    {
-  //      key = 'BOOTLOADER_EXTRA_GN_ARGUMENTS'
-  //      value = 'target_os=\"android\" sb_is_evergreen_compatible=true is_internal_build=true'
-  //    },
     {
-      key = 'EXTRA_GN_ARGUMENTS'
-      value = 'use_asan=false is_internal_build=true'
+      key = 'PACKAGE_PLATFORM'
+      value = 'evergreen-arm-softfp'
+    },
+    {
+      key = 'PLATFORM'
+      value = 'evergreen-arm-softfp-sbversion-18'
     },
     {
       key = 'GN_TARGET'
-      value = 'cobalt'
+      value = 'cobalt copy_cobalt_lib'
     },
     {
       key = 'TARGET_CPU'

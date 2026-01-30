@@ -24,7 +24,7 @@ namespace starboard {
 
 void StubVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                   const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   decoder_status_cb_ = decoder_status_cb;
@@ -43,21 +43,21 @@ size_t StubVideoDecoder::GetMaxNumberOfCachedFrames() const {
 }
 
 void StubVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
 
   if (!decoder_thread_) {
     decoder_thread_.reset(new JobThread("stub_video_decoder"));
   }
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&StubVideoDecoder::DecodeBuffers, this, input_buffers));
 }
 
 void StubVideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->Schedule(
         std::bind(&StubVideoDecoder::DecodeEndOfStream, this));
     return;
   }
@@ -65,7 +65,7 @@ void StubVideoDecoder::WriteEndOfStream() {
 }
 
 void StubVideoDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   video_stream_info_ = VideoStreamInfo();
   decoder_thread_.reset();

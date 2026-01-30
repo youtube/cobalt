@@ -19,7 +19,6 @@
 #include <algorithm>
 
 #import "starboard/common/log.h"
-#import "starboard/tvos/shared/application_window.h"
 #import "starboard/tvos/shared/defines.h"
 #import "starboard/tvos/shared/media/application_player.h"
 #import "starboard/tvos/shared/starboard_application.h"
@@ -45,8 +44,7 @@
                 encryptedMediaCallback:
                     (SbPlayerEncryptedMediaInitDataEncounteredCB)
                         encryptedMediaCallback
-                       playerErrorFunc:(SbPlayerErrorFunc)errorFunc
-                              inWindow:(SBDApplicationWindow*)window {
+                       playerErrorFunc:(SbPlayerErrorFunc)errorFunc {
   __block SBDApplicationPlayer* player;
   onApplicationMainThread(^{
     player = [[SBDApplicationPlayer alloc] initWithUrl:url
@@ -54,7 +52,7 @@
                                       playerStatusFunc:statusFunc
                                 encryptedMediaCallback:encryptedMediaCallback
                                        playerErrorFunc:errorFunc];
-    [window attachPlayerView:player.view];
+    [SBDGetApplication() attachPlayerView:player.view];
   });
 
   @synchronized(self) {

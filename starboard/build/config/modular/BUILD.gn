@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/sanitizers.gni")
+
 config("modular") {
   ldflags = [ "-nostdlib" ]
   cflags = [
@@ -37,6 +39,9 @@ config("modular") {
     # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
     # nasty macros (|Status|, for example) that conflict with Chromium base.
     "EGL_NO_X11",
+
+    # Disable weak symbols in zstd.
+    "ZSTD_HAVE_WEAK_SYMBOLS=0",
   ]
 
   if (is_debug || cobalt_debugging_enabled) {
@@ -101,7 +106,8 @@ config("modular") {
     defines += [ "ADDRESS_SANITIZER" ]
 
     if (asan_symbolizer_path != "") {
-      defines += [ "ASAN_SYMBOLIZER_PATH=\"${asan_symbolizer_path}\"" ]
+      defines += [ "ASAN_SYMBOLIZER_PATH=\"" +
+                   rebase_path(asan_symbolizer_path, "") + "\"" ]
     }
   } else if (use_tsan) {
     cflags += [
@@ -111,12 +117,4 @@ config("modular") {
 
     defines += [ "THREAD_SANITIZER" ]
   }
-}
-
-config("speed") {
-  cflags = [ "-O2" ]
-}
-
-config("size") {
-  cflags = [ "-Os" ]
 }

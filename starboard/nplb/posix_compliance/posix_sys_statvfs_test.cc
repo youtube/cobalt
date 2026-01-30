@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/statvfs.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/statvfs.h>
 #include <unistd.h>
+
 #include <cmath>
 
 #include "starboard/configuration_constants.h"
@@ -114,7 +114,9 @@ TEST(PosixStatvfsTest, UsageChanges) {
       << "Filesystem did not reflect file creation.";
 
   EXPECT_EQ(buf_after_creation.f_blocks, buf_before.f_blocks);
-  EXPECT_EQ(buf_after_creation.f_files, buf_before.f_files);
+  // On some filesystems, f_files is not constant and may increase when new
+  // files are created. Only verify it doesn't decrease.
+  EXPECT_GE(buf_after_creation.f_files, buf_before.f_files);
 
   // Calculate the change in blocks after creation.
   const long long blocks_consumed =

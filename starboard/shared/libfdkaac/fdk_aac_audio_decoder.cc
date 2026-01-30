@@ -21,7 +21,8 @@
 
 namespace starboard {
 
-FdkAacAudioDecoder::FdkAacAudioDecoder() {
+FdkAacAudioDecoder::FdkAacAudioDecoder(JobQueue* job_queue)
+    : JobOwner(job_queue) {
   static_assert(sizeof(INT_PCM) == sizeof(int16_t),
                 "sizeof(INT_PCM) has to be the same as sizeof(int16_t).");
   InitializeCodec();
@@ -33,7 +34,7 @@ FdkAacAudioDecoder::~FdkAacAudioDecoder() {
 
 void FdkAacAudioDecoder::Initialize(const OutputCB& output_cb,
                                     const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -45,7 +46,7 @@ void FdkAacAudioDecoder::Initialize(const OutputCB& output_cb,
 
 void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
                                 const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
@@ -70,7 +71,7 @@ void FdkAacAudioDecoder::Decode(const InputBuffers& input_buffers,
 }
 
 scoped_refptr<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
@@ -85,7 +86,7 @@ scoped_refptr<DecodedAudio> FdkAacAudioDecoder::Read(int* samples_per_second) {
 
 void FdkAacAudioDecoder::Reset() {
   SB_DCHECK(decoder_);
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   TeardownCodec();
   InitializeCodec();
@@ -106,7 +107,7 @@ void FdkAacAudioDecoder::Reset() {
 
 void FdkAacAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(decoder_);
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   while (!decoding_input_buffers_.empty()) {
@@ -142,7 +143,7 @@ void FdkAacAudioDecoder::TeardownCodec() {
 
 bool FdkAacAudioDecoder::WriteToFdkDecoder(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
   unsigned char* data = const_cast<unsigned char*>(input_buffer->data());
@@ -211,7 +212,7 @@ void FdkAacAudioDecoder::TryToUpdateStreamInfo() {
 
 void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
                                                  int size_in_bytes) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(has_stream_info_);
 
   while (size_in_bytes > 0 && !decoding_input_buffers_.empty()) {

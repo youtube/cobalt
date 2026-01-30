@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
+#include "cobalt/android/jni_headers/ResourceOverlay_jni.h"
+// clang-format on
+
 #include "starboard/android/shared/runtime_resource_overlay.h"
 
 #include "base/android/jni_android.h"
@@ -20,8 +24,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
-
-#include "cobalt/android/jni_headers/ResourceOverlay_jni.h"
 
 namespace starboard {
 

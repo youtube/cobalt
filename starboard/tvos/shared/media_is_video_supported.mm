@@ -22,9 +22,6 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #import "starboard/tvos/shared/media/playback_capabilities.h"
-#if SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
-#import "starboard/tvos/shared/vpx_media/video_decoder.h"  // nogncheck
-#endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
 
 namespace starboard::shared::starboard::media {
 
@@ -41,6 +38,10 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            int64_t bitrate,
                            int fps,
                            bool decode_to_texture_required) {
+  if (video_codec == kSbMediaVideoCodecAv1) {
+    return false;
+  }
+
   bool experimental_allowed = false;
 
   if (mime_type) {
@@ -86,6 +87,7 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
       return !is_hdr && frame_height <= 1080 && frame_width <= 1920;
     }
     if (video_codec == kSbMediaVideoCodecVp9) {
+#if defined(INTERNAL_BUILD)
       const bool kEnableHdrWithSoftwareVp9 = false;
 
       if (is_hdr) {
@@ -130,6 +132,10 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
         return false;
       }
 #endif  // SB_IS_ARCH_ARM || SB_IS_ARCH_ARM64
+#else
+      SB_LOG(INFO) << "Non-internal build, accepting all VP9";
+      return true;
+#endif  // defined(INTERNAL_BUILD)
     }
   }  // @autoreleasepool
 

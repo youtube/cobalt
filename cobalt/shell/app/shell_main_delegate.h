@@ -20,17 +20,16 @@
 #include <variant>
 
 #include "build/build_config.h"
+#include "cobalt/shell/buildflags.h"
 #include "components/memory_system/memory_system.h"
 #include "content/public/app/content_main_delegate.h"
 
 namespace content {
 class ShellContentClient;
 class ShellContentBrowserClient;
-class ShellContentGpuClient;
 class ShellContentRendererClient;
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
 class WebTestBrowserMainRunner;
 #endif
 
@@ -58,7 +57,6 @@ class ShellMainDelegate : public ContentMainDelegate {
   std::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
   ContentClient* CreateContentClient() override;
   ContentBrowserClient* CreateContentBrowserClient() override;
-  ContentGpuClient* CreateContentGpuClient() override;
   ContentRendererClient* CreateContentRendererClient() override;
 
   static void InitializeResourceBundle();
@@ -70,8 +68,7 @@ class ShellMainDelegate : public ContentMainDelegate {
   // content_browsertests should not set the kRunWebTests command line flag, so
   // |is_content_browsertests_| and |web_test_runner_| are mututally exclusive.
   bool is_content_browsertests_;
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   // Only present when running web tests, which run inside Content Shell.
   //
   // Web tests are not browser tests, so |is_content_browsertests_| and
@@ -80,7 +77,6 @@ class ShellMainDelegate : public ContentMainDelegate {
 #endif
 
   std::unique_ptr<ShellContentBrowserClient> browser_client_;
-  std::unique_ptr<ShellContentGpuClient> gpu_client_;
   std::unique_ptr<ShellContentRendererClient> renderer_client_;
   std::unique_ptr<ShellContentClient> content_client_;
 

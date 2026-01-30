@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "media/base/demuxer_memory_limit.h"
+// clang-format on
 
 #include "base/logging.h"
 #include "build/build_config.h"

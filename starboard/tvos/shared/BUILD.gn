@@ -12,25 +12,198 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/shared/starboard/player/buildfiles.gni")
+
+static_library("test_support") {
+  testonly = true
+
+  public_deps = [ "//testing/gtest" ]
+
+  deps = [ ":starboard_platform" ]
+
+  sources = [
+    "starboard_test_environment.h",
+    "starboard_test_environment.mm",
+  ]
+}
+
 static_library("starboard_platform") {
   sources = [
+    "//starboard/shared/egl/system_egl.cc",
+    "//starboard/shared/gles/system_gles2.cc",
+    "//starboard/shared/linux/system_get_stack.cc",
+    "//starboard/shared/opus/opus_audio_decoder.cc",
+    "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/log.cc",
     "//starboard/shared/posix/log_flush.cc",
     "//starboard/shared/posix/log_format.cc",
     "//starboard/shared/posix/log_raw.cc",
+    "//starboard/shared/posix/system_break_into_debugger.cc",
+    "//starboard/shared/posix/system_get_error_string.cc",
+    "//starboard/shared/starboard/application.cc",
+    "//starboard/shared/starboard/application.h",
+    "//starboard/shared/starboard/audio_sink/audio_sink_create.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_destroy.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_get_max_channels_5_1.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_get_min_buffer_size_in_frames.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_get_nearest_supported_sample_frequency.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_internal.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_internal.h",
+    "//starboard/shared/starboard/audio_sink/audio_sink_is_audio_frame_storage_type_supported_interleaved_only.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_is_audio_sample_type_supported_float32_only.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
+    "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
+    "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
+    "//starboard/shared/starboard/decode_target/decode_target_context_runner.cc",
+    "//starboard/shared/starboard/decode_target/decode_target_context_runner.h",
     "//starboard/shared/starboard/log_mutex.cc",
     "//starboard/shared/starboard/log_mutex.h",
     "//starboard/shared/starboard/log_raw_dump_stack.cc",
     "//starboard/shared/starboard/log_raw_format.cc",
+    "//starboard/shared/starboard/media/media_get_audio_buffer_budget.cc",
+    "//starboard/shared/starboard/media/media_get_audio_configuration.cc",
+    "//starboard/shared/starboard/media/media_get_audio_output_count_single_audio_output.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_alignment.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_allocation_unit.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
+    "//starboard/shared/starboard/media/media_get_initial_buffer_capacity.cc",
+    "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
+    "//starboard/shared/starboard/media/media_get_video_buffer_budget.cc",
+    "//starboard/shared/starboard/media/media_is_buffer_pool_allocate_on_demand.cc",
+    "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
+    "//starboard/shared/starboard/queue_application.cc",
+    "//starboard/shared/starboard/queue_application.h",
+    "//starboard/shared/starboard/system_request_stop.cc",
+    "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/storage_write_record.cc",
+    "//starboard/shared/stub/system_symbolize.cc",
+    "application_darwin.h",
+    "application_darwin.mm",
     "configuration_constants.cc",
     "configuration_public.h",
+    "defines.h",
+    "media/application_drm_system.h",
+    "media/application_drm_system.mm",
+    "media/application_player.h",
+    "media/application_player.mm",
+    "media/audio_decoder.h",
+    "media/audio_decoder.mm",
+    "media/audio_queue_audio_sink_type.mm",
+    "media/av_audio_sample_buffer_builder.h",
+    "media/av_audio_sample_buffer_builder.mm",
+    "media/av_sample_buffer_audio_renderer.h",
+    "media/av_sample_buffer_audio_renderer.mm",
+    "media/av_sample_buffer_synchronizer.h",
+    "media/av_sample_buffer_synchronizer.mm",
+    "media/av_sample_buffer_video_renderer.h",
+    "media/av_sample_buffer_video_renderer.mm",
+    "media/av_video_sample_buffer_builder.h",
+    "media/av_video_sample_buffer_builder.mm",
+    "media/avc_av_video_sample_buffer_builder.h",
+    "media/avc_av_video_sample_buffer_builder.mm",
+    "media/avutil/utils.h",
+    "media/avutil/utils.mm",
+    "media/decode_target_internal.h",
+    "media/decode_target_release.cc",
+    "media/drm_manager.h",
+    "media/drm_manager.mm",
+    "media/drm_system_platform.h",
+    "media/drm_system_platform.mm",
+    "media/playback_capabilities.h",
+    "media/playback_capabilities.mm",
+    "media/player_components_factory.mm",
+    "media/player_destroy.mm",
+    "media/player_get_info.mm",
+    "media/player_manager.h",
+    "media/player_manager.mm",
+    "media/player_seek.mm",
+    "media/player_set_bounds.mm",
+    "media/player_set_playback_rate.mm",
+    "media/player_set_volume.mm",
+    "media/url_player.h",
+    "media/vp9_av_sample_buffer_helper.h",
+    "media/vp9_sw_av_video_sample_buffer_builder.h",
+    "media/vp9_sw_av_video_sample_buffer_builder.mm",
+    "media_can_play_mime_and_key_system.mm",
+    "media_is_audio_supported.mm",
+    "media_is_supported.mm",
+    "media_is_video_supported.mm",
+    "observer_registry.cc",
+    "observer_registry.h",
+    "run_in_background_thread_and_wait.cc",
+    "run_in_background_thread_and_wait.h",
+    "starboard_application.h",
+    "storage_close_record.mm",
+    "storage_delete_record.mm",
+    "storage_get_record_size.mm",
+    "storage_internal.h",
+    "storage_internal.mm",
+    "storage_open_record.mm",
+    "storage_read_record.mm",
+    "system_get_number_of_processors.mm",
+    "system_get_path.mm",
+    "system_get_property.mm",
+    "system_request_conceal.mm",
+    "thread_create_priority.cc",
+    "thread_get_id.cc",
+    "uikit_media_session_client.h",
+    "uikit_media_session_client.mm",
+  ]
+
+  sources += common_player_sources
+
+  sources += [
+    # TODO: b/469333751, b/460479616 - the tvOS versions depend on internal
+    # files.
+    "//starboard/shared/stub/drm_close_session.cc",
+    "//starboard/shared/stub/drm_create_system.cc",
+    "//starboard/shared/stub/drm_destroy_system.cc",
+    "//starboard/shared/stub/drm_generate_session_update_request.cc",
+    "//starboard/shared/stub/drm_get_metrics.cc",
+    "//starboard/shared/stub/drm_is_server_certificate_updatable.cc",
+    "//starboard/shared/stub/drm_update_server_certificate.cc",
+    "//starboard/shared/stub/drm_update_session.cc",
+
+    # TODO: b/470021310 - get the tvOS version of this file to build.
+    "//starboard/shared/stub/system_get_extensions.cc",
+  ]
+
+  sources -= [
+    # Exclude these files from common_player_sources, because they are not used
+    # by tvOS.
+    "//starboard/shared/starboard/player/player_destroy.cc",
+    "//starboard/shared/starboard/player/player_get_info.cc",
+    "//starboard/shared/starboard/player/player_seek.cc",
+    "//starboard/shared/starboard/player/player_set_bounds.cc",
+    "//starboard/shared/starboard/player/player_set_playback_rate.cc",
+    "//starboard/shared/starboard/player/player_set_volume.cc",
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
+  deps = [
+    "//base",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//third_party/angle:includes",
+    "//third_party/libvpx",
+    "//third_party/opus",
+  ]
+
+  frameworks = [
+    "AVFoundation.framework",
+    "AVKit.framework",
+    "AudioToolbox.framework",
+    "CoreMedia.framework",
+    "CoreVideo.framework",
+    "MediaPlayer.framework",
+    "VideoToolbox.framework",
+  ]
+
   public_deps = [
     "//starboard:starboard_headers_only",
     "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 }

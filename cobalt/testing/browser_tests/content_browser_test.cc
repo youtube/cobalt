@@ -93,6 +93,11 @@ ContentBrowserTest::ContentBrowserTest() {
 
 ContentBrowserTest::~ContentBrowserTest() {}
 
+void ContentBrowserTest::SetUpCommandLine(base::CommandLine* command_line) {
+  // Cobalt UI does not need nor support Toolbar.
+  command_line->AppendSwitch(switches::kContentShellHideToolbar);
+}
+
 void ContentBrowserTest::SetUp() {
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   SetUpCommandLine(command_line);
@@ -228,7 +233,7 @@ ContentBrowserTest::CreateTestBrowserContext() {
 }
 
 base::FilePath ContentBrowserTest::GetTestDataFilePath() {
-  return base::FilePath(FILE_PATH_LITERAL("cobalt/testing/browser_tests/data"));
+  return base::FilePath(FILE_PATH_LITERAL("content/test/data"));
 }
 
 }  // namespace content

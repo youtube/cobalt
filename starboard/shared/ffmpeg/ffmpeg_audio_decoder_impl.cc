@@ -85,8 +85,10 @@ const bool g_registered =
 }  // namespace
 
 FfmpegAudioDecoderImpl<FFMPEG>::FfmpegAudioDecoderImpl(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info)
-    : codec_context_(NULL),
+    : JobOwner(job_queue),
+      codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
       audio_stream_info_(audio_stream_info) {
@@ -107,13 +109,14 @@ FfmpegAudioDecoderImpl<FFMPEG>::~FfmpegAudioDecoderImpl() {
 
 // static
 FfmpegAudioDecoder* FfmpegAudioDecoderImpl<FFMPEG>::Create(
+    JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info) {
-  return new FfmpegAudioDecoderImpl<FFMPEG>(audio_stream_info);
+  return new FfmpegAudioDecoderImpl<FFMPEG>(job_queue, audio_stream_info);
 }
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
                                                 const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
   SB_DCHECK(error_cb);
@@ -125,7 +128,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
                                             const ConsumedCB& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
@@ -259,7 +262,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
 }
 
 void FfmpegAudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
   // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
@@ -273,7 +276,7 @@ void FfmpegAudioDecoderImpl<FFMPEG>::WriteEndOfStream() {
 
 scoped_refptr<DecodedAudio> FfmpegAudioDecoderImpl<FFMPEG>::Read(
     int* samples_per_second) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
@@ -287,7 +290,7 @@ scoped_refptr<DecodedAudio> FfmpegAudioDecoderImpl<FFMPEG>::Read(
 }
 
 void FfmpegAudioDecoderImpl<FFMPEG>::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   TeardownCodec();
   if ((ffmpeg_->specialization_version()) == FFMPEG) {
@@ -307,7 +310,7 @@ bool FfmpegAudioDecoderImpl<FFMPEG>::is_valid() const {
 }
 
 SbMediaAudioSampleType FfmpegAudioDecoderImpl<FFMPEG>::GetSampleType() const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
       codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P) {
@@ -324,7 +327,7 @@ SbMediaAudioSampleType FfmpegAudioDecoderImpl<FFMPEG>::GetSampleType() const {
 
 SbMediaAudioFrameStorageType FfmpegAudioDecoderImpl<FFMPEG>::GetStorageType()
     const {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
       codec_context_->sample_fmt == AV_SAMPLE_FMT_FLT) {

@@ -1290,11 +1290,14 @@ if (is_cobalt) {
           [
             "//third_party/blink/renderer/modules/cobalt/crash_log/crash_log.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/h_5_vcc_accessibility.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/text_to_speech_change_event.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/text_to_speech_change_event_init.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_storage/h_5_vcc_storage.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.idl",
             "//third_party/blink/renderer/modules/cobalt/h_5_vcc.idl",
             "//third_party/blink/renderer/modules/cobalt/window_h_5_vcc.idl",
@@ -1308,6 +1311,12 @@ if (is_cobalt) {
               "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
             ],
             "abspath")
+  }
+
+  if (!is_androidtv) {
+    static_idl_files_in_modules += get_path_info(
+          [ "//third_party/blink/renderer/modules/cobalt/h5vcc_platform_service/h_5_vcc_platform_service.idl" ],
+          "abspath")
   }
 }
 

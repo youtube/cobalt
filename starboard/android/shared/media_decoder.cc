@@ -79,10 +79,28 @@ std::string to_string(const T& v) {
 
 }  // namespace
 
-MediaCodecDecoder::MediaCodecDecoder(Host* host,
+class MediaCodecDecoder::DecoderThread : public Thread {
+ public:
+  explicit DecoderThread(MediaCodecDecoder* decoder)
+      : Thread(GetDecoderName(decoder->media_type_)), decoder_(decoder) {}
+
+  void Run() override {
+    SbThreadSetPriority(decoder_->media_type_ == kSbMediaTypeAudio
+                            ? kSbThreadPriorityNormal
+                            : kSbThreadPriorityHigh);
+    decoder_->DecoderThreadFunc();
+  }
+
+ private:
+  MediaCodecDecoder* decoder_;
+};
+
+MediaCodecDecoder::MediaCodecDecoder(JobQueue* job_queue,
+                                     Host* host,
                                      const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system)
-    : media_type_(kSbMediaTypeAudio),
+    : JobOwner(job_queue),
+      media_type_(kSbMediaTypeAudio),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
@@ -110,12 +128,11 @@ MediaCodecDecoder::MediaCodecDecoder(Host* host,
 }
 
 MediaCodecDecoder::MediaCodecDecoder(
+    JobQueue* job_queue,
     Host* host,
     SbMediaVideoCodec video_codec,
-    int width_hint,
-    int height_hint,
-    std::optional<int> max_width,
-    std::optional<int> max_height,
+    const Size& frame_size_hint,
+    const std::optional<Size>& max_frame_size,
     int fps,
     jobject j_output_surface,
     SbDrmSystem drm_system,
@@ -128,7 +145,8 @@ MediaCodecDecoder::MediaCodecDecoder(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::string* error_message)
-    : media_type_(kSbMediaTypeVideo),
+    : JobOwner(job_queue),
+      media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
@@ -142,12 +160,15 @@ MediaCodecDecoder::MediaCodecDecoder(
   const bool require_secured_decoder =
       drm_system_ && drm_system_->require_secured_decoder();
   SB_DCHECK(!drm_system_ || j_media_crypto);
-  media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec, width_hint, height_hint, fps, max_width, max_height, this,
+  auto media_codec_bridge = MediaCodecBridge::CreateVideoMediaCodecBridge(
+      video_codec, frame_size_hint, fps, max_frame_size, /*handler=*/this,
       j_output_surface, j_media_crypto, color_metadata, require_secured_decoder,
       require_software_codec, tunnel_mode_audio_session_id,
-      force_big_endian_hdr_metadata, max_video_input_size, error_message);
-  if (!media_codec_bridge_) {
+      force_big_endian_hdr_metadata, max_video_input_size);
+  if (media_codec_bridge) {
+    media_codec_bridge_ = std::move(media_codec_bridge.value());
+  } else {
+    *error_message = media_codec_bridge.error();
     SB_LOG(ERROR) << "Failed to create video media codec bridge with error: "
                   << *error_message;
   }
@@ -199,11 +220,8 @@ void MediaCodecDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (!decoder_thread_) {
-    pthread_t thread;
-    const int result = pthread_create(
-        &thread, nullptr, &MediaCodecDecoder::DecoderThreadEntryPoint, this);
-    SB_CHECK_EQ(result, 0);
-    decoder_thread_ = thread;
+    decoder_thread_ = std::make_unique<DecoderThread>(this);
+    decoder_thread_->Start();
   }
 
   std::lock_guard lock(mutex_);
@@ -233,21 +251,6 @@ void MediaCodecDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK_EQ(media_type_, kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
-}
-
-// static
-void* MediaCodecDecoder::DecoderThreadEntryPoint(void* context) {
-  SB_CHECK(context);
-  MediaCodecDecoder* decoder = static_cast<MediaCodecDecoder*>(context);
-  pthread_setname_np(pthread_self(), GetDecoderName(decoder->media_type_));
-  if (decoder->media_type_ == kSbMediaTypeAudio) {
-    SbThreadSetPriority(kSbThreadPriorityNormal);
-  } else {
-    SbThreadSetPriority(kSbThreadPriorityHigh);
-  }
-
-  decoder->DecoderThreadFunc();
-  return NULL;
 }
 
 void MediaCodecDecoder::DecoderThreadFunc() {
@@ -403,8 +406,8 @@ void MediaCodecDecoder::TerminateDecoderThread() {
   }
 
   if (decoder_thread_) {
-    SB_CHECK_EQ(pthread_join(*decoder_thread_, nullptr), 0);
-    decoder_thread_ = std::nullopt;
+    decoder_thread_->Join();
+    decoder_thread_.reset();
   }
 }
 

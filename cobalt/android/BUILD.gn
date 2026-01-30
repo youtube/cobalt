@@ -15,6 +15,15 @@ jinja_template("cobalt_manifest") {
   ]
 }
 
+java_cpp_features("java_features_srcjar") {
+  # External code should depend on ":cobalt_features_java" instead.
+  visibility = [ ":*" ]
+  sources = [ "//starboard/extension/feature_config.h" ]
+
+  deps = [ "//starboard/extension:feature_config_header" ]
+  template = "//cobalt/android/java_templates/StarboardFeatures.java.tmpl"
+}
+
 generate_jni("jni_headers") {
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
@@ -26,6 +35,7 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
@@ -45,11 +55,24 @@ generate_jni("jni_headers") {
   }
 }
 
+generate_jni("browser_jni_headers") {
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+  ]
+}
+
+android_library("cobalt_browser_java") {
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/browser/CobaltContentBrowserClient.java",
+  ]
+  srcjar_deps = [ ":browser_jni_headers" ]
+  deps = [ "//third_party/jni_zero:jni_zero_java" ]
+}
+
 android_library("cobalt_main_java") {
-  testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
-    ":jni_headers",
+    ":cobalt_browser_java",
     "//base:base_java",
     "//base:process_launcher_java",
     "//base/version_info/android:version_constants_java",
@@ -86,6 +109,7 @@ android_library("cobalt_main_java") {
   }
 
   srcjar_deps = [
+    ":java_features_srcjar",
     ":jni_headers",
     "//starboard/android/shared:java_enums",
   ]
@@ -99,6 +123,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltConnectivityDetector.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
@@ -119,6 +144,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/H5vccPlatformService.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
+    "apk/app/src/main/java/dev/cobalt/features/StarboardFeatureList.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
@@ -138,6 +164,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
     "apk/app/src/main/java/dev/cobalt/util/Holder.java",
     "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
+    "apk/app/src/main/java/dev/cobalt/util/JavaSwitches.java",
     "apk/app/src/main/java/dev/cobalt/util/Log.java",
     "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
@@ -153,7 +180,6 @@ android_library("cobalt_main_java") {
 }
 
 android_library("cobalt_apk_java") {
-  testonly = true
   resources_package = "dev.cobalt.coat"
 
   deps = [
@@ -178,8 +204,7 @@ android_assets("coat_assets") {
 
 # TODO(b/450024477): just a shared library once jni migration is complete
 shared_library_with_jni("libchrobalt") {
-  # TODO(b/375655377): remove testonly
-  testonly = true
+  remove_uncalled_jni = true
   deps = [
     "//cobalt/browser",
     "//cobalt/gpu",
@@ -220,7 +245,6 @@ shared_library_with_jni("libchrobalt") {
 }
 
 android_apk("cobalt_apk") {
-  testonly = true
   apk_name = "Cobalt"
   android_manifest = cobalt_manifest
   android_manifest_dep = ":cobalt_manifest"
@@ -243,6 +267,8 @@ android_apk("cobalt_apk") {
 
 robolectric_binary("cobalt_coat_junit_tests") {
   sources = [
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkDownloaderDefaultTest.java",
+    "apk/app/src/test/java/dev/cobalt/coat/ArtworkLoaderTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CobaltServiceTest.java",
     "apk/app/src/test/java/dev/cobalt/coat/CommandLineOverrideHelperTest.java",
@@ -258,8 +284,10 @@ robolectric_binary("cobalt_coat_junit_tests") {
     "//cobalt/shell/android:cobalt_shell_java",
     "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
+    "//services/media_session/public/cpp/android:media_session_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/google-truth:google_truth_java",
     "//third_party/junit",
+    "//url:gurl_java",
   ]
 }

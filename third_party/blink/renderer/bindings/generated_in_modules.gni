@@ -5,6 +5,10 @@
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
 import("//third_party/blink/renderer/config.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 # Generated sources for production
 
 generated_async_iterator_sources_in_modules = [
@@ -82,6 +86,13 @@ generated_callback_function_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_frame_request_callback.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_frame_request_callback.h",
 ]
+
+if (is_cobalt && !is_androidtv) {
+  generated_callback_function_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_receive_callback.h",
+  ]
+}
 
 if (enable_compute_pressure) {
   generated_callback_function_sources_in_modules += [
@@ -3218,10 +3229,24 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event.h",
   ]
+
+  if (!is_androidtv) {
+    generated_interface_sources_in_modules += [
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.cc",
+      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_platform_service.h",
+    ]
+  }
+
   generated_dictionary_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_experiment_configuration.h",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event_init.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_text_to_speech_change_event_init.h",
   ]
   generated_enumeration_sources_in_modules += [
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.cc",

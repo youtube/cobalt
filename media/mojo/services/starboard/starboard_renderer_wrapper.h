@@ -80,6 +80,7 @@ class StarboardRendererWrapper : public Renderer,
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
   void GetCurrentVideoFrame(GetCurrentVideoFrameCallback callback) override;
+  void OnSbWindowHandleReady(uint64_t sb_window_handle) override;
 #if BUILDFLAG(IS_ANDROID)
   void OnOverlayInfoChanged(const OverlayInfo& overlay_info) override;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -100,6 +101,7 @@ class StarboardRendererWrapper : public Renderer,
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
+  void OnGetSbWindowHandle();
 #if BUILDFLAG(IS_ANDROID)
   void OnRequestOverlayInfoByStarboard(bool restart_for_transitions);
 #endif  // BUILDFLAG(IS_ANDROID)

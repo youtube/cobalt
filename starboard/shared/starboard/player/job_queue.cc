@@ -14,64 +14,16 @@
 
 #include "starboard/shared/starboard/player/job_queue.h"
 
-#include <pthread.h>
-
 #include <chrono>
-#include <limits>
-#include <mutex>
-#include <utility>
 
-#include "starboard/common/check_op.h"
-#include "starboard/common/log.h"
 #include "starboard/system.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 
-namespace {
-
-pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  [[maybe_unused]] int res = pthread_key_create(&s_thread_local_key, NULL);
-  SB_DCHECK_EQ(res, 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-JobQueue* GetCurrentThreadJobQueue() {
-  EnsureThreadLocalKeyInited();
-  return static_cast<JobQueue*>(pthread_getspecific(s_thread_local_key));
-}
-
-void SetCurrentThreadJobQueue(JobQueue* job_queue) {
-  SB_DCHECK(job_queue);
-  SB_DCHECK_EQ(GetCurrentThreadJobQueue(), nullptr);
-
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, job_queue);
-}
-
-void ResetCurrentThreadJobQueue() {
-  SB_DCHECK(GetCurrentThreadJobQueue());
-
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, NULL);
-}
-
-}  // namespace
-
-JobQueue::JobQueue() {
-  SetCurrentThreadJobQueue(this);
-}
+JobQueue::JobQueue() = default;
 
 JobQueue::~JobQueue() {
-  SB_DCHECK(BelongsToCurrentThread());
   StopSoon();
-  ResetCurrentThreadJobQueue();
 }
 
 JobQueue::JobToken JobQueue::Schedule(const Job& job,
@@ -89,7 +41,7 @@ void JobQueue::ScheduleAndWait(const Job& job) {
 
 void JobQueue::ScheduleAndWait(Job&& job) {
   // TODO: Allow calling from the JobQueue thread.
-  SB_DCHECK(!BelongsToCurrentThread());
+  SB_CHECK(!BelongsToCurrentThread());
 
   Schedule(std::move(job));
 
@@ -108,7 +60,7 @@ void JobQueue::ScheduleAndWait(Job&& job) {
 }
 
 void JobQueue::RemoveJobByToken(JobToken job_token) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!job_token.is_valid()) {
     return;
@@ -134,7 +86,7 @@ void JobQueue::StopSoon() {
 }
 
 void JobQueue::RunUntilStopped() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   for (;;) {
     {
@@ -148,22 +100,14 @@ void JobQueue::RunUntilStopped() {
 }
 
 void JobQueue::RunUntilIdle() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   while (TryToRunOneJob(/*wait_for_next_job =*/false)) {
   }
 }
 
 bool JobQueue::BelongsToCurrentThread() const {
-  // The ctor already ensures that the current JobQueue is the only JobQueue of
-  // the thread, checking for thread id is more light-weighted then calling
-  // JobQueue::current() and compare the result with |this|.
   return thread_checker_.CalledOnValidThread();
-}
-
-// static
-JobQueue* JobQueue::current() {
-  return GetCurrentThreadJobQueue();
 }
 
 JobQueue::JobToken JobQueue::Schedule(const Job& job,
@@ -206,7 +150,7 @@ JobQueue::JobToken JobQueue::Schedule(Job&& job,
 }
 
 void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(owner);
 
   std::lock_guard lock(mutex_);
@@ -221,7 +165,7 @@ void JobQueue::RemoveJobsByOwner(JobOwner* owner) {
 }
 
 bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   JobRecord job_record;
 

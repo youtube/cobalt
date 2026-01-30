@@ -39,13 +39,13 @@ AomVideoDecoder::AomVideoDecoder(SbMediaVideoCodec video_codec,
 }
 
 AomVideoDecoder::~AomVideoDecoder() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   Reset();
 }
 
 void AomVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
                                  const ErrorCB& error_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
   SB_DCHECK(error_cb);
@@ -56,7 +56,7 @@ void AomVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 }
 
 void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK_EQ(input_buffers.size(), 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(decoder_status_cb_);
@@ -72,12 +72,12 @@ void AomVideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   auto input_buffer = input_buffers[0];
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&AomVideoDecoder::DecodeOneBuffer, this, input_buffer));
 }
 
 void AomVideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
@@ -91,15 +91,15 @@ void AomVideoDecoder::WriteEndOfStream() {
     return;
   }
 
-  decoder_thread_->job_queue()->Schedule(
+  decoder_thread_->Schedule(
       std::bind(&AomVideoDecoder::DecodeEndOfStream, this));
 }
 
 void AomVideoDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->ScheduleAndWait(
+    decoder_thread_->ScheduleAndWait(
         std::bind(&AomVideoDecoder::TeardownCodec, this));
 
     // Join the thread to ensure that all callbacks in process are finished.
@@ -129,14 +129,14 @@ void AomVideoDecoder::UpdateDecodeTarget_Locked(
 }
 
 void AomVideoDecoder::ReportError(const std::string& error_message) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   error_occurred_ = true;
   Schedule(std::bind(error_cb_, kSbPlayerErrorDecode, error_message));
 }
 
 void AomVideoDecoder::InitializeCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   aom_codec_dec_cfg_t aom_config = {0};
   aom_config.threads = 8;
@@ -154,7 +154,7 @@ void AomVideoDecoder::InitializeCodec() {
 }
 
 void AomVideoDecoder::TeardownCodec() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   if (context_) {
     aom_codec_destroy(context_.get());
@@ -178,7 +178,7 @@ void AomVideoDecoder::TeardownCodec() {
 
 void AomVideoDecoder::DecodeOneBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
 
   const auto& stream_info = input_buffer->video_stream_info();
@@ -263,7 +263,7 @@ void AomVideoDecoder::DecodeOneBuffer(
 }
 
 void AomVideoDecoder::DecodeEndOfStream() {
-  SB_DCHECK(decoder_thread_->job_queue()->BelongsToCurrentThread());
+  SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
 
   // TODO: Flush the frames inside the decoder, though this is not required
   //       for vp9 in most cases.

@@ -52,6 +52,7 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
               : traits->audio_write_duration_remote),
       max_video_capabilities_(traits->max_video_capabilities),
       viewport_size_(traits->viewport_size),
+      get_sb_window_handle_callback_(traits->get_sb_window_handle_callback),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
@@ -118,8 +119,8 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       media_task_runner, media_log_->Clone(), std::move(mojo_renderer),
       std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
-      std::move(client_extension_receiver), bind_host_receiver_callback_,
-      gpu_factories
+      std::move(client_extension_receiver), get_sb_window_handle_callback_,
+      bind_host_receiver_callback_, gpu_factories
 #if BUILDFLAG(IS_ANDROID)
       ,
       std::move(request_overlay_info_cb)

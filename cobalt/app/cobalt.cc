@@ -19,16 +19,20 @@
 #include <string>
 #include <vector>
 
+#include "base/allocator/partition_allocator/src/partition_alloc/memory_reclaimer.h"
 #include "base/at_exit.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/memory/memory_pressure_listener.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/app/cobalt_main_delegate.h"
-#include "cobalt/app/cobalt_switch_defaults_starboard.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_manager.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/common/shell_paths.h"
@@ -98,19 +102,6 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
     params.argv = args.data();
   }
 
-  base::FilePath content_shell_data_path;
-  base::PathService::Get(base::DIR_CACHE, &content_shell_data_path);
-  constexpr char cobalt_subdir[] = "cobalt";
-  if (content_shell_data_path.BaseName().value() != cobalt_subdir) {
-    content_shell_data_path = content_shell_data_path.Append(cobalt_subdir);
-    base::PathService::OverrideAndCreateIfNeeded(
-        base::DIR_CACHE, content_shell_data_path,
-        /*is_absolute=*/true, /*create=*/true);
-  }
-  base::PathService::OverrideAndCreateIfNeeded(
-      content::SHELL_DIR_USER_DATA, content_shell_data_path,
-      /*is_absolute=*/true, /*create=*/true);
-
   return RunContentProcess(std::move(params), GetContentMainRunner());
 }
 
@@ -163,14 +154,34 @@ void SbEventHandle(const SbEvent* event) {
       g_exit_manager = nullptr;
       break;
     }
-    case kSbEventTypeBlur:
-    case kSbEventTypeFocus:
+    case kSbEventTypeBlur: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->DispatchBlur();
+      }
       CHECK(g_platform_event_source);
       g_platform_event_source->HandleFocusEvent(event);
       break;
+    }
+    case kSbEventTypeFocus: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->DispatchFocus();
+      }
+      CHECK(g_platform_event_source);
+      g_platform_event_source->HandleFocusEvent(event);
+      break;
+    }
     case kSbEventTypeConceal:
     case kSbEventTypeReveal:
-    case kSbEventTypeFreeze:
+      break;
+    case kSbEventTypeFreeze: {
+      auto* client = cobalt::CobaltContentBrowserClient::Get();
+      if (client) {
+        client->FlushCookiesAndLocalStorage();
+      }
+      break;
+    }
     case kSbEventTypeUnfreeze:
       break;
     case kSbEventTypeInput:
@@ -185,9 +196,32 @@ void SbEventHandle(const SbEvent* event) {
       }
       break;
     }
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged: {
+      if (event->data) {
+        auto* enabled = static_cast<const bool*>(event->data);
+        cobalt::browser::H5vccAccessibilityManager::GetInstance()
+            ->OnTextToSpeechStateChanged(*enabled);
+      }
+      break;
+    }
+    case kSbEventTypeLowMemory: {
+      // Send a one-time critical memory pressure signal to ask
+      // other components to release memory.
+      base::MemoryPressureListener::NotifyMemoryPressure(
+          base::MemoryPressureListener::MEMORY_PRESSURE_LEVEL_CRITICAL);
+      LOG(INFO) << "Firing a criticial memory pressure signal to reduce memory "
+                   "burden.";
+
+      // Chromium internally calls Reclaim/ReclaimNormal at regular interval
+      // to claim free memory. Using ReclaimAll is more aggressive.
+      // TODO: b/454095852 - Remove this when
+      // https://chromium-review.googlesource .com/c/chromium/src/+/7127962
+      // lands on main
+      ::partition_alloc::MemoryReclaimer::Instance()->ReclaimAll();
+      break;
+    }
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
-    case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
       CHECK(g_platform_event_source);
       g_platform_event_source->HandleWindowSizeChangedEvent(event);

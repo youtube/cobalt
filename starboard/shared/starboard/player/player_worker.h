@@ -15,8 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -27,6 +25,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
+#include "starboard/common/thread.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -78,7 +77,8 @@ class PlayerWorker {
     // All the following functions set |Result<void>.success| to false to
     // signal a fatal error. The event processing loop in PlayerWorker will
     // terminate in this case.
-    virtual Result<void> Init(SbPlayer player,
+    virtual Result<void> Init(JobQueue* job_queue,
+                              SbPlayer player,
                               UpdateMediaInfoCB update_media_info_cb,
                               GetPlayerStateCB get_player_state_cb,
                               UpdatePlayerStateCB update_player_state_cb,
@@ -101,6 +101,8 @@ class PlayerWorker {
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 
     virtual void SetMaxVideoInputSize(int max_video_input_size) = 0;
+
+    virtual void SetVideoSurfaceView(void* surface_view) = 0;
 
    private:
     Handler(const Handler&) = delete;
@@ -169,6 +171,8 @@ class PlayerWorker {
   }
 
  private:
+  class WorkerThread;
+
   PlayerWorker(SbMediaAudioCodec audio_codec,
                SbMediaVideoCodec video_codec,
                std::unique_ptr<Handler> handler,
@@ -190,7 +194,6 @@ class PlayerWorker {
                          Result<void> result,
                          const std::string& message);
 
-  static void* ThreadEntryPoint(void* context);
   void RunLoop();
   void DoInit();
   void DoSeek(int64_t seek_to_time, int ticket);
@@ -205,7 +208,7 @@ class PlayerWorker {
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
 
-  std::optional<pthread_t> thread_;
+  std::unique_ptr<Thread> thread_;
   std::unique_ptr<JobQueue> job_queue_;
 
   SbMediaAudioCodec audio_codec_;

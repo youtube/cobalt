@@ -2,45 +2,20 @@
 
 # This file was auto-generated using api_leak_detector.py.
 
-OPENSSL_memory_alloc
-OPENSSL_memory_free
-OPENSSL_memory_get_size
 TLS init function for v8::internal::trap_handler::g_thread_in_wasm_code
-ZSTD_trace_compress_begin
-ZSTD_trace_compress_end
-ZSTD_trace_decompress_begin
-ZSTD_trace_decompress_end
-_Exit
 __cxa_thread_atexit_impl
 __gcov_dump
 __gcov_flush
 dl_iterate_phdr
 dlopen
 dlsym
-fstat64
-fstatat
 getrandom
 getuid
-getwc
 if_indextoname
 inotify_add_watch
 inotify_init
 inotify_rm_watch
 ioctl
-lseek64
 memfd_create
-mmap64
-open64
-openat
-pkey_alloc(unsigned int, unsigned int)
-pkey_free(int)
-pkey_get(int)
-pkey_mprotect(void*, unsigned long, int, int)
-pkey_set(int, unsigned int)
 sched_setscheduler
-setbuf
-sigaltstack
-stat64
 statx
-unlinkat
-ungetwc

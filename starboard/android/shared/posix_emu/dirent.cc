@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include <dirent.h>
+// clang-format on
 
 #include <android/asset_manager.h>
 

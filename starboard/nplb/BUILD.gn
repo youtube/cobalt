@@ -43,8 +43,6 @@ test("nplb") {
 
   # TODO(b/432821616): Move |media_sources| to a source_set.
   media_sources = [
-    "//starboard/testing/fake_graphics_context_provider.cc",
-    "//starboard/testing/fake_graphics_context_provider.h",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -85,10 +83,8 @@ test("nplb") {
     "player_write_sample_test.cc",
   ]
 
-  sources = [ "//starboard/common/test_main.cc" ]
-
   # All platforms use the Starboard Media functionality.
-  sources += media_sources
+  sources = media_sources
 
   if (is_starboard) {
     # TODO(b/432821616): Move |starboard_platform_sources| to a source_set.
@@ -332,6 +328,7 @@ test("nplb") {
 
   deps = [
     "//starboard:starboard_group",
+    "//starboard:starboard_test_main",
     "//starboard/common",
     "//starboard/common:file_wrapper",
     "//starboard/egl_and_gles:buildflags",
@@ -340,6 +337,7 @@ test("nplb") {
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player:player_test_data",
     "//starboard/shared/starboard/player:video_dmp",
+    "//starboard/testing:fake_graphics_context_provider",
     "//testing/gmock",
     "//testing/gtest",
   ]
@@ -363,7 +361,6 @@ test("nplb") {
   if (sb_is_evergreen_compatible) {
     sources += [
       "nplb_evergreen_compat_tests/checks.h",
-      "nplb_evergreen_compat_tests/crashpad_config_test.cc",
       "nplb_evergreen_compat_tests/executable_memory_test.cc",
       "nplb_evergreen_compat_tests/fonts_test.cc",
       "nplb_evergreen_compat_tests/loader_app_metrics_test.cc",
@@ -371,6 +368,11 @@ test("nplb") {
       "nplb_evergreen_compat_tests/sabi_test.cc",
       "nplb_evergreen_compat_tests/storage_test.cc",
     ]
+
+    if (use_evergreen) {
+      sources += [ "nplb_evergreen_compat_tests/crashpad_config_test.cc" ]
+    }
+
     data_deps += [
       "//starboard/content/fonts:copy_font_data",
       "//starboard/content/ssl:copy_ssl_certificates_evergreen",

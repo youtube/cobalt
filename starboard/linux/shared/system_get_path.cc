@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
+// clang-format on
 
 #include <linux/limits.h>
 #include <sys/stat.h>
@@ -57,6 +59,23 @@ bool GetStorageDirectory(char* out_path, int path_size) {
   }
   int result =
       snprintf(out_path, path_size, "%s/.cobalt_storage", home_path.data());
+  if (result < 0 || result >= path_size) {
+    out_path[0] = '\0';
+    return false;
+  }
+  struct stat info;
+  return mkdir(out_path, 0700) == 0 ||
+         (stat(out_path, &info) == 0 && S_ISDIR(info.st_mode));
+}
+
+// Gets the path to the file directory, using the home directory.
+bool GetFilesDirectory(char* out_path, int path_size) {
+  std::vector<char> home_path(kMaxPathSize + 1);
+  if (!starboard::GetHomeDirectory(home_path.data(), kMaxPathSize)) {
+    return false;
+  }
+  int result =
+      snprintf(out_path, path_size, "%s/.cobalt_files", home_path.data());
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;
@@ -251,6 +270,12 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
 
     case kSbSystemPathStorageDirectory:
       if (!GetStorageDirectory(path.data(), kPathSize)) {
+        return false;
+      }
+      break;
+
+    case kSbSystemPathFilesDirectory:
+      if (!GetFilesDirectory(path.data(), kPathSize)) {
         return false;
       }
       break;

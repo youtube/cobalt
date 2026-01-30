@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/elf_loader/elf_loader_impl.h"
-
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace elf_loader {

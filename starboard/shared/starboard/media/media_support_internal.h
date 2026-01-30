@@ -37,9 +37,9 @@ namespace shared::starboard::media {
 // |audio_codec|: The |SbMediaAudioCodec| being checked for platform
 //                compatibility.
 // |key_system|: The key system being checked for platform compatibility.
-SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                                SbMediaAudioCodec audio_codec,
-                                const char* key_system);
+bool MediaIsSupported(SbMediaVideoCodec video_codec,
+                      SbMediaAudioCodec audio_codec,
+                      const char* key_system);
 
 // Indicates whether a given combination of (|frame_width| x |frame_height|)
 // frames at |bitrate| and |fps| is supported on this platform with
@@ -75,19 +75,19 @@ SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
-SB_EXPORT_ANDROID bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                                             const MimeType* mime_type,
-                                             int profile,
-                                             int level,
-                                             int bit_depth,
-                                             SbMediaPrimaryId primary_id,
-                                             SbMediaTransferId transfer_id,
-                                             SbMediaMatrixId matrix_id,
-                                             int frame_width,
-                                             int frame_height,
-                                             int64_t bitrate,
-                                             int fps,
-                                             bool decode_to_texture_required);
+bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                           const MimeType* mime_type,
+                           int profile,
+                           int level,
+                           int bit_depth,
+                           SbMediaPrimaryId primary_id,
+                           SbMediaTransferId transfer_id,
+                           SbMediaMatrixId matrix_id,
+                           int frame_width,
+                           int frame_height,
+                           int64_t bitrate,
+                           int fps,
+                           bool decode_to_texture_required);
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
@@ -97,9 +97,9 @@ SB_EXPORT_ANDROID bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 // |mime_type|: The parsed mime type passed to the corresponding interface.
 //              Note that |mime_type| can be NULL.
 // |bitrate|: The media's bitrate.
-SB_EXPORT_ANDROID bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                                             const MimeType* mime_type,
-                                             int64_t bitrate);
+bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+                           const MimeType* mime_type,
+                           int64_t bitrate);
 }  // namespace shared::starboard::media
 
 // TODO: b/441955897 : Remove these aliases when flattening namespace is

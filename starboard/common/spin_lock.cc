@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sched.h>
-
 #include "starboard/common/spin_lock.h"
+
+#include <sched.h>
 
 namespace starboard {
 

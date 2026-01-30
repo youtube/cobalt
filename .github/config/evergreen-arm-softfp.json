@@ -4,7 +4,8 @@
     "evergreen-arm-softfp"
   ],
   "targets": [
-    "cobalt"
+    "cobalt",
+    "cobalt_loaded_content"
   ],
   "build_configs": [
     "devel",
@@ -14,8 +15,7 @@
   "includes": [
     {
       "name": "arm-softfp",
-      "platform": "evergreen-arm-softfp",
-      "sb_api_version": 17
+      "platform": "evergreen-arm-softfp"
     }
   ]
 }

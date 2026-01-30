@@ -91,9 +91,7 @@ bool NavigateFrameToURL(FrameTreeNode* node, const GURL& url) {
   return true;
 }
 
-void SetShouldProceedOnBeforeUnload(TestShell* shell,
-                                    bool proceed,
-                                    bool success) {
+void SetShouldProceedOnBeforeUnload(Shell* shell, bool proceed, bool success) {
   ShellJavaScriptDialogManager* manager =
       static_cast<ShellJavaScriptDialogManager*>(
           shell->GetJavaScriptDialogManager(shell->web_contents()));
@@ -104,7 +102,7 @@ RenderFrameHost* ConvertToRenderFrameHost(FrameTreeNode* frame_tree_node) {
   return frame_tree_node->current_frame_host();
 }
 
-bool NavigateToURLInSameBrowsingInstance(TestShell* window, const GURL& url) {
+bool NavigateToURLInSameBrowsingInstance(Shell* window, const GURL& url) {
   TestNavigationObserver observer(window->web_contents());
   // Using a PAGE_TRANSITION_LINK transition with a browser-initiated
   // navigation forces it to stay in the current BrowsingInstance, as normally
@@ -241,11 +239,11 @@ CollectAllRenderFrameHostsIncludingSpeculative(WebContentsImpl* web_contents) {
   return visited_frames;
 }
 
-TestShell* OpenBlankWindow(WebContentsImpl* web_contents) {
+Shell* OpenBlankWindow(WebContentsImpl* web_contents) {
   FrameTreeNode* root = web_contents->GetPrimaryFrameTree().root();
   ShellAddedObserver new_shell_observer;
   EXPECT_TRUE(ExecJs(root, "last_opened_window = window.open()"));
-  TestShell* new_shell = new_shell_observer.GetShell();
+  Shell* new_shell = new_shell_observer.GetShell();
   EXPECT_NE(new_shell->web_contents(), web_contents);
   EXPECT_TRUE(new_shell->web_contents()
                   ->GetController()
@@ -255,12 +253,12 @@ TestShell* OpenBlankWindow(WebContentsImpl* web_contents) {
   return new_shell;
 }
 
-TestShell* OpenWindow(WebContentsImpl* web_contents, const GURL& url) {
+Shell* OpenWindow(WebContentsImpl* web_contents, const GURL& url) {
   FrameTreeNode* root = web_contents->GetPrimaryFrameTree().root();
   ShellAddedObserver new_shell_observer;
   EXPECT_TRUE(
       ExecJs(root, JsReplace("last_opened_window = window.open($1)", url)));
-  TestShell* new_shell = new_shell_observer.GetShell();
+  Shell* new_shell = new_shell_observer.GetShell();
   EXPECT_NE(new_shell->web_contents(), web_contents);
   return new_shell;
 }
@@ -519,17 +517,17 @@ std::string DepictFrameTree(FrameTreeNode& root) {
   return FrameTreeVisualizer().DepictFrameTree(&root);
 }
 
-TestShell* OpenPopup(const ToRenderFrameHost& opener,
-                     const GURL& url,
-                     const std::string& name) {
+Shell* OpenPopup(const ToRenderFrameHost& opener,
+                 const GURL& url,
+                 const std::string& name) {
   return OpenPopup(opener, url, name, "", true);
 }
 
-TestShell* OpenPopup(const ToRenderFrameHost& opener,
-                     const GURL& url,
-                     const std::string& name,
-                     const std::string& features,
-                     bool expect_return_from_window_open) {
+Shell* OpenPopup(const ToRenderFrameHost& opener,
+                 const GURL& url,
+                 const std::string& name,
+                 const std::string& features,
+                 bool expect_return_from_window_open) {
   TestNavigationObserver observer(url);
   observer.StartWatchingNewWebContents();
 
@@ -544,49 +542,11 @@ TestShell* OpenPopup(const ToRenderFrameHost& opener,
 
   observer.Wait();
 
-  TestShell* new_shell = new_shell_observer.GetShell();
+  Shell* new_shell = new_shell_observer.GetShell();
   EXPECT_EQ(
       url,
       new_shell->web_contents()->GetPrimaryMainFrame()->GetLastCommittedURL());
   return new_shell_observer.GetShell();
-}
-
-FileChooserDelegate::FileChooserDelegate(std::vector<base::FilePath> files,
-                                         const base::FilePath& base_dir,
-                                         base::OnceClosure callback)
-    : files_(std::move(files)),
-      base_dir_(base_dir),
-      callback_(std::move(callback)) {}
-
-FileChooserDelegate::FileChooserDelegate(const base::FilePath& file,
-                                         base::OnceClosure callback)
-    : FileChooserDelegate(std::vector<base::FilePath>(1, file),
-                          base::FilePath(),
-                          std::move(callback)) {}
-
-FileChooserDelegate::~FileChooserDelegate() = default;
-
-void FileChooserDelegate::RunFileChooser(
-    RenderFrameHost* render_frame_host,
-    scoped_refptr<content::FileSelectListener> listener,
-    const blink::mojom::FileChooserParams& params) {
-  // |base_dir_| should be set for and only for |kUploadFolder| mode.
-  DCHECK(base_dir_.empty() ==
-         (params.mode != blink::mojom::FileChooserParams::Mode::kUploadFolder));
-  // Send the selected files to the renderer process.
-  std::vector<blink::mojom::FileChooserFileInfoPtr> files;
-  for (const auto& file : files_) {
-    auto file_info = blink::mojom::FileChooserFileInfo::NewNativeFile(
-        blink::mojom::NativeFileInfo::New(file, std::u16string(),
-                                          std::vector<std::u16string>()));
-    files.push_back(std::move(file_info));
-  }
-  listener->FileSelected(std::move(files), base_dir_, params.mode);
-
-  params_ = params.Clone();
-  if (callback_) {
-    std::move(callback_).Run();
-  }
 }
 
 FrameTestNavigationManager::FrameTestNavigationManager(

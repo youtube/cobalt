@@ -22,10 +22,14 @@
 #include <vector>
 
 #include "base/functional/callback_forward.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+#include "cobalt/shell/browser/splash_screen_web_contents_delegate.h"
+#include "cobalt/shell/browser/splash_screen_web_contents_observer.h"
+#include "components/js_injection/browser/js_communication_host.h"
 #include "content/public/browser/session_storage_namespace.h"
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -36,7 +40,6 @@
 class GURL;
 
 namespace content {
-class FileSelectListener;
 class BrowserContext;
 class JavaScriptDialogManager;
 class ShellDevToolsFrontend;
@@ -75,6 +78,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   // Resizes the web content view to the given dimensions.
   void ResizeWebContentForTests(const gfx::Size& content_size);
 
+  void LoadSplashScreenWebContents();
+
   // Do one-time initialization at application startup. This must be matched
   // with a Shell::Shutdown() at application termination, where |platform|
   // will be released.
@@ -90,7 +95,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       BrowserContext* browser_context,
       const GURL& url,
       const scoped_refptr<SiteInstance>& site_instance,
-      const gfx::Size& initial_size);
+      const gfx::Size& initial_size,
+      const bool create_splash_screen_web_contents = false);
 
   // Returns the Shell object corresponding to the given WebContents.
   static Shell* FromWebContents(WebContents* web_contents);
@@ -114,6 +120,12 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   WebContents* web_contents() const { return web_contents_.get(); }
 
+  WebContents* splash_screen_web_contents() const {
+    return splash_screen_web_contents_.get();
+  }
+
+  bool skip_for_testing() const { return skip_for_testing_; }
+
 #if !BUILDFLAG(IS_ANDROID)
   gfx::NativeWindow window();
 #endif
@@ -134,9 +146,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       bool* was_blocked) override;
   void LoadingStateChanged(WebContents* source,
                            bool should_show_loading_ui) override;
-#if BUILDFLAG(IS_ANDROID)
-  void SetOverlayMode(bool use_overlay_mode) override;
-#endif
   void EnterFullscreenModeForTab(
       RenderFrameHost* requesting_frame,
       const blink::mojom::FullscreenOptions& options) override;
@@ -163,12 +172,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       RenderWidgetHost* render_widget_host,
       base::RepeatingClosure hang_monitor_restarter) override;
   void ActivateContents(WebContents* contents) override;
-  void RunFileChooser(RenderFrameHost* render_frame_host,
-                      scoped_refptr<FileSelectListener> listener,
-                      const blink::mojom::FileChooserParams& params) override;
-  void EnumerateDirectory(WebContents* web_contents,
-                          scoped_refptr<FileSelectListener> listener,
-                          const base::FilePath& path) override;
   bool IsBackForwardCacheSupported(WebContents& contents) override;
   PreloadingEligibility IsPrerender2Supported(
       WebContents& web_contents,
@@ -181,17 +184,18 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
       WebContents* web_contents) override;
   bool ShouldResumeRequestsForCreatedWindow() override;
   void SetContentsBounds(WebContents* source, const gfx::Rect& bounds) override;
+  void RequestMediaAccessPermission(WebContents*,
+                                    const MediaStreamRequest&,
+                                    MediaResponseCallback) override;
+  bool CheckMediaAccessPermission(RenderFrameHost*,
+                                  const url::Origin&,
+                                  blink::mojom::MediaStreamType) override;
 
   static gfx::Size GetShellDefaultSize();
 
   void set_delay_popup_contents_delegate_for_testing(bool delay) {
     delay_popup_contents_delegate_for_testing_ = delay;
   }
-
-  void set_hold_file_chooser() { hold_file_chooser_ = true; }
-
-  // Counts both RunFileChooser and EnumerateDirectory.
-  size_t run_file_chooser_count() const { return run_file_chooser_count_; }
 
  protected:
   // Finishes initialization of a new shell window.
@@ -201,13 +205,26 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   class DevToolsWebContentsObserver;
 
   friend class TestShell;
+  friend class SplashScreenTest;
 
-  Shell(std::unique_ptr<WebContents> web_contents, bool should_set_delegate);
+  enum State {
+    STATE_SPLASH_SCREEN_UNINITIALIZED,
+    STATE_SPLASH_SCREEN_INITIALIZED,  // Initialize Splash Screen WebContents.
+    STATE_SPLASH_SCREEN_STARTED,      // Start Splash Screen WebContents.
+    STATE_SPLASH_SCREEN_ENDED         // End Splash Screen WebContents.
+  };
+
+  Shell(std::unique_ptr<WebContents> web_contents,
+        std::unique_ptr<WebContents> splash_screen_web_contents,
+        bool should_set_delegate,
+        bool skip_for_testing = false);
 
   // Helper to create a new Shell given a newly created WebContents.
-  static Shell* CreateShell(std::unique_ptr<WebContents> web_contents,
-                            const gfx::Size& initial_size,
-                            bool should_set_delegate);
+  static Shell* CreateShell(
+      std::unique_ptr<WebContents> web_contents,
+      std::unique_ptr<WebContents> splash_screen_web_contents,
+      const gfx::Size& initial_size,
+      bool should_set_delegate);
 
   // Adjust the size when Blink sends 0 for width and/or height.
   // This happens when Blink requests a default-sized window.
@@ -224,15 +241,27 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void ToggleFullscreenModeForTab(WebContents* web_contents,
                                   bool enter_fullscreen);
   // WebContentsObserver
-#if BUILDFLAG(IS_ANDROID)
   void LoadProgressChanged(double progress) override;
-#endif
   void TitleWasSet(NavigationEntry* entry) override;
   void RenderFrameCreated(RenderFrameHost* frame_host) override;
+  void PrimaryMainDocumentElementAvailable() override;
+  void DidFinishNavigation(NavigationHandle* navigation_handle) override;
+  void DidStopLoading() override;
+
+  void RegisterInjectedJavaScript();
+  void SwitchToMainWebContents();
+  void ScheduleSwitchToMainWebContents();
+  void ClosingSplashScreenWebContents();
 
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
   std::unique_ptr<WebContents> web_contents_;
+  std::unique_ptr<WebContents> splash_screen_web_contents_;
+  State splash_state_;
+  bool skip_for_testing_;
+  bool is_main_frame_loaded_ = false;
+  bool has_switched_to_main_frame_ = false;
+  base::TimeTicks splash_screen_start_time_;
 
   base::WeakPtr<ShellDevToolsFrontend> devtools_frontend_;
 
@@ -241,15 +270,24 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 
   bool delay_popup_contents_delegate_for_testing_ = false;
 
-  bool hold_file_chooser_ = false;
-  scoped_refptr<FileSelectListener> held_file_chooser_listener_;
-  size_t run_file_chooser_count_ = 0u;
+  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
+
+  // TODO: (cobalt b/468059482) each shell holds a single WebContents.
+  std::unique_ptr<SplashScreenWebContentsObserver>
+      splash_screen_web_contents_observer_;
+  std::unique_ptr<SplashScreenWebContentsDelegate>
+      splash_screen_web_contents_delegate_;
 
   // A container of all the open windows. We use a vector so we can keep track
   // of ordering.
   static std::vector<Shell*> windows_;
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
+
+  // NOTE: Do not add member variables after weak_factory_
+  // It should be the first one destroyed among all members.
+  // See base/memory/weak_ptr.h.
+  base::WeakPtrFactory<Shell> weak_factory_{this};
 };
 
 }  // namespace content

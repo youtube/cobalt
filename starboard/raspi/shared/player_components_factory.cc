@@ -31,32 +31,24 @@ namespace starboard {
 namespace {
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
-  bool CreateSubComponents(
-      const CreationParameters& creation_parameters,
-      std::unique_ptr<AudioDecoder>* audio_decoder,
-      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-      std::unique_ptr<VideoDecoder>* video_decoder,
-      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
-      std::string* error_message) override {
-    SB_DCHECK(error_message);
+  Result<PlayerComponents::Factory::MediaComponents> CreateSubComponents(
+      const CreationParameters& creation_parameters) override {
+    MediaComponents components;
 
+    JobQueue* job_queue = creation_parameters.job_queue();
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      SB_DCHECK(audio_decoder);
-      SB_DCHECK(audio_renderer_sink);
-
       auto decoder_creator =
-          [](const AudioStreamInfo& audio_stream_info,
-             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
+          [job_queue](const AudioStreamInfo& audio_stream_info,
+                      SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto opus_audio_decoder =
-              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+              std::make_unique<OpusAudioDecoder>(job_queue, audio_stream_info);
           if (opus_audio_decoder && opus_audio_decoder->is_valid()) {
             return opus_audio_decoder;
           }
         } else {
           auto ffmpeg_audio_decoder = std::unique_ptr<FfmpegAudioDecoder>(
-              FfmpegAudioDecoder::Create(audio_stream_info));
+              FfmpegAudioDecoder::Create(job_queue, audio_stream_info));
           if (ffmpeg_audio_decoder && ffmpeg_audio_decoder->is_valid()) {
             return ffmpeg_audio_decoder;
           }
@@ -64,25 +56,24 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         return nullptr;
       };
 
-      *audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
-          creation_parameters.audio_stream_info(),
+      components.audio.decoder = std::make_unique<AdaptiveAudioDecoder>(
+          job_queue, creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator);
-      *audio_renderer_sink = std::make_unique<AudioRendererSinkImpl>();
+      components.audio.renderer_sink =
+          std::make_unique<AudioRendererSinkImpl>();
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      SB_DCHECK(video_decoder);
-      SB_DCHECK(video_render_algorithm);
-      SB_DCHECK(video_renderer_sink);
-
-      *video_decoder = std::make_unique<OpenMaxVideoDecoder>(
-          creation_parameters.video_codec());
-      *video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
-      *video_renderer_sink = make_scoped_refptr<VideoRendererSinkImpl>(
-          creation_parameters.player());
+      components.video.decoder = std::make_unique<OpenMaxVideoDecoder>(
+          creation_parameters.job_queue(), creation_parameters.video_codec());
+      components.video.render_algorithm =
+          std::make_unique<VideoRenderAlgorithmImpl>();
+      components.video.renderer_sink =
+          make_scoped_refptr<VideoRendererSinkImpl>(
+              creation_parameters.job_queue(), creation_parameters.player());
     }
 
-    return true;
+    return components;
   }
 };
 

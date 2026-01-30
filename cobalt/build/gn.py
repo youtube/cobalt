@@ -38,7 +38,9 @@ _BUILD_TYPES = {
     },
     'qa': {
         'symbol_level': 1,
-        'is_official_build': 'true'
+        'is_official_build': 'true',
+        # Enable stack traces, disabled by is_official_build
+        'exclude_unwind_tables': 'false'
     },
     'gold': {
         'symbol_level': 1,
@@ -77,7 +79,8 @@ _COBALT_TVOS_PLATFORMS = [
 ]
 
 
-def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
+def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
+                     use_coverage):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
@@ -90,10 +93,13 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
     f.write(f'import("//{platform_args_path}")\n')
+    if use_coverage:
+      f.write(f'import("//cobalt/build/configs/coverage.gn") {gen_comment}\n')
 
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
-                            use_rbe: bool, gn_gen_args: List[str]):
+                            use_rbe: bool, gn_gen_args: List[str], *,
+                            use_coverage: bool):
   Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
@@ -103,15 +109,14 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
     # Copy the stale args.gn into stale_args.gn
     stale_dst_args_gn_file = dst_args_gn_file.replace('args', 'stale_args')
     os.rename(dst_args_gn_file, stale_dst_args_gn_file)
-    print(f' Warning: {dst_args_gn_file} is rewritten.'
-          f' Old file is copied to {stale_dst_args_gn_file}.'
-          'In general, if the file exists, you should run'
-          ' `gn args <out_directory>` to edit it instead.')
+    print('WARNING: Existing args.gn was overwritten. '
+          'Old file was copied to stale_args.gn.')
 
-  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe)
+  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe,
+                   use_coverage)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
-  print(' '.join(gn_command))
+  print('Running', ' '.join(gn_command))
   try:
     subprocess.check_call(gn_command)
   except subprocess.CalledProcessError:
@@ -152,6 +157,15 @@ def parse_args():
       default=False,
       action='store_true',
       help='Pass this flag to disable Remote Build Execution.')
+  parser.add_argument(
+      '--coverage',
+      default=False,
+      action='store_true',
+      help='Pass this flag to enable code coverage instrumentation.')
+
+  # Consume --args to avoid passing to gn gen, overriding args.gn file.
+  parser.add_argument('--args', help=argparse.SUPPRESS)
+
   script_args, gen_args = parser.parse_known_args()
 
   if script_args.platform == 'linux':
@@ -159,6 +173,9 @@ def parse_args():
 
   if not script_args.no_check:
     gen_args.append('--check')
+
+  if script_args.args:
+    print('WARNING: \'--args\' was ignored to avoid overriding args.gn file.')
 
   return script_args, gen_args
 
@@ -170,9 +187,13 @@ def main():
   else:
     builds_out_directory = os.path.join(
         _BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
-  configure_out_directory(builds_out_directory, script_args.platform,
-                          script_args.build_type, not script_args.no_rbe,
-                          gen_args)
+  configure_out_directory(
+      builds_out_directory,
+      script_args.platform,
+      script_args.build_type,
+      not script_args.no_rbe,
+      gen_args,
+      use_coverage=script_args.coverage)
 
 
 if __name__ == '__main__':

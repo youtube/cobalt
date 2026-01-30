@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "cobalt/shell/browser/shell_platform_delegate.h"
+// clang-format on
 
 #include "base/containers/contains.h"
 #include "cobalt/shell/browser/shell.h"
@@ -77,6 +79,10 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
 
   content->Show();
 }
+
+void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}
+
+void ShellPlatformDelegate::UpdateContents(Shell* shell) {}
 
 void ShellPlatformDelegate::ResizeWebContent(Shell* shell,
                                              const gfx::Size& content_size) {

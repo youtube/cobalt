@@ -15,7 +15,9 @@
 #ifndef STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 #define STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
 
+// clang-format off
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
+// clang-format on
 
 #include <jni.h>
 
@@ -101,10 +103,10 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     MediaDrmBridge::OperationResult GenerateWithAppProvisioning(
         const MediaDrmBridge* media_drm_bridge) const;
 
-    // Returns the ticket and resets it to kSbDrmTicketInvalid. This function
-    // should only be called when the ticket is valid, otherwise the program
-    // will crash.
-    int ReleaseTicket();
+    // Returns the ticket. On the first call, it returns a valid ticket and
+    // resets its internal state to kSbDrmTicketInvalid. Subsequent calls will
+    // return `kSbDrmTicketInvalid`, which means a spontaneous drm request.
+    int TakeTicket();
 
    private:
     int ticket_;
@@ -124,6 +126,7 @@ class DrmSystem : public ::SbDrmSystemPrivate,
   void Run() override;
 
   const std::string key_system_;
+  const bool enable_app_provisioning_;
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
   SbDrmSessionUpdatedFunc session_updated_callback_;

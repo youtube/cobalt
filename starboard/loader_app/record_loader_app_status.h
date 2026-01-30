@@ -15,8 +15,6 @@
 #ifndef STARBOARD_LOADER_APP_RECORD_LOADER_APP_STATUS_H_
 #define STARBOARD_LOADER_APP_RECORD_LOADER_APP_STATUS_H_
 
-#include <string>
-
 #include "starboard/extension/loader_app_metrics.h"
 
 namespace loader_app {

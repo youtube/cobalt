@@ -80,6 +80,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
 }
 
 Result<void> FilterBasedPlayerWorkerHandler::Init(
+    JobQueue* job_queue,
     SbPlayer player,
     UpdateMediaInfoCB update_media_info_cb,
     GetPlayerStateCB get_player_state_cb,
@@ -94,7 +95,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
   SB_CHECK(get_player_state_cb);
   SB_CHECK(update_player_state_cb);
 
-  AttachToCurrentThread();
+  Attach(job_queue);
 
   player_ = player;
   update_media_info_cb_ = update_media_info_cb;
@@ -124,8 +125,8 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info_, video_stream_info_, player_, output_mode_,
-      max_video_input_size_, decode_target_graphics_context_provider_,
-      drm_system_);
+      max_video_input_size_, surface_view_,
+      decode_target_graphics_context_provider_, job_queue, drm_system_);
 
   {
     std::lock_guard lock(player_components_existence_mutex_);
@@ -179,7 +180,7 @@ Result<void> FilterBasedPlayerWorkerHandler::Init(
 
 Result<void> FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
                                                   int ticket) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Seek to " << seek_to_time << ", and media time provider is "
                << media_time_provider_;
@@ -208,7 +209,7 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
     const InputBuffers& input_buffers,
     int* samples_written) {
   SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
   SB_CHECK(samples_written);
   for (const auto& input_buffer : input_buffers) {
     SB_DCHECK(input_buffer);
@@ -296,7 +297,7 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteSamples(
 
 Result<void> FilterBasedPlayerWorkerHandler::WriteEndOfStream(
     SbMediaType sample_type) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (sample_type == kSbMediaTypeAudio) {
     if (!audio_renderer_) {
@@ -326,7 +327,7 @@ Result<void> FilterBasedPlayerWorkerHandler::WriteEndOfStream(
 }
 
 Result<void> FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Set pause from " << paused_ << " to " << pause
                << ", and media time provider is " << media_time_provider_;
@@ -348,7 +349,7 @@ Result<void> FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
 
 Result<void> FilterBasedPlayerWorkerHandler::SetPlaybackRate(
     double playback_rate) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Set playback rate from " << playback_rate_ << " to "
                << playback_rate << ", and media time provider is "
@@ -366,7 +367,7 @@ Result<void> FilterBasedPlayerWorkerHandler::SetPlaybackRate(
 }
 
 void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "Set volume from " << volume_ << " to " << volume
                << ", and audio renderer is " << audio_renderer_;
@@ -378,7 +379,7 @@ void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
 }
 
 Result<void> FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0) {
     // |z_index| is changed quite frequently.  Assign |z_index| first, so we
@@ -473,7 +474,7 @@ void FilterBasedPlayerWorkerHandler::OnEnded(SbMediaType media_type) {
 }
 
 void FilterBasedPlayerWorkerHandler::Update() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   if (!media_time_provider_) {
     return;
@@ -498,7 +499,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
 }
 
 void FilterBasedPlayerWorkerHandler::Stop() {
-  SB_DCHECK(BelongsToCurrentThread());
+  SB_CHECK(BelongsToCurrentThread());
 
   SB_LOG(INFO) << "FilterBasedPlayerWorkerHandler stopped.";
 
@@ -539,6 +540,12 @@ void FilterBasedPlayerWorkerHandler::SetMaxVideoInputSize(
   SB_LOG(INFO) << "Set max_video_input_size from " << max_video_input_size_
                << " to " << max_video_input_size;
   max_video_input_size_ = max_video_input_size;
+}
+
+void FilterBasedPlayerWorkerHandler::SetVideoSurfaceView(void* surface_view) {
+  SB_LOG(INFO) << "Set surface_view from " << surface_view_ << " to "
+               << surface_view;
+  surface_view_ = surface_view;
 }
 
 }  // namespace starboard

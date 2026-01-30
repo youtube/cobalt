@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.h"
+
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h"
@@ -38,8 +39,9 @@ void H5vccMetrics::ContextDestroyed() {
   OnCloseConnection();
 }
 
-ScriptPromise<IDLUndefined> H5vccMetrics::enable(ScriptState* script_state,
-                                   ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> H5vccMetrics::enable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
@@ -54,8 +56,9 @@ ScriptPromise<IDLUndefined> H5vccMetrics::enable(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise<IDLUndefined> H5vccMetrics::disable(ScriptState* script_state,
-                                    ExceptionState& exception_state) {
+ScriptPromise<IDLUndefined> H5vccMetrics::disable(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLUndefined>>(
       script_state, exception_state.GetContext());
   h5vcc_metrics_promises_.insert(resolver);
@@ -88,6 +91,22 @@ ScriptPromise<IDLUndefined> H5vccMetrics::setMetricEventInterval(
       interval_seconds,
       WTF::BindOnce(&H5vccMetrics::OnSetMetricEventInterval,
                     WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+ScriptPromise<IDLString> H5vccMetrics::requestHistograms(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(
+      script_state, exception_state.GetContext());
+  h5vcc_metrics_promises_.insert(resolver);
+
+  EnsureRemoteIsBound();
+
+  remote_h5vcc_metrics_->RequestHistograms(
+      WTF::BindOnce(&H5vccMetrics::OnRequestHistograms, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -159,9 +178,17 @@ void H5vccMetrics::OnDisable(ScriptPromiseResolver<IDLUndefined>* resolver) {
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver<IDLUndefined>* resolver) {
+void H5vccMetrics::OnSetMetricEventInterval(
+    ScriptPromiseResolver<IDLUndefined>* resolver) {
   CleanupPromise(resolver);
   resolver->Resolve();
+}
+
+void H5vccMetrics::OnRequestHistograms(
+    ScriptPromiseResolver<IDLString>* resolver,
+    const WTF::String& histograms_base64) {
+  CleanupPromise(resolver);
+  resolver->Resolve(histograms_base64);
 }
 
 void H5vccMetrics::EnsureRemoteIsBound() {

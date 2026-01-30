@@ -39,7 +39,6 @@
 #include "cobalt/shell/common/shell_content_client.h"
 #include "cobalt/shell/common/shell_paths.h"
 #include "cobalt/shell/common/shell_switches.h"
-#include "cobalt/shell/gpu/shell_content_gpu_client.h"
 #include "cobalt/shell/renderer/shell_content_renderer_client.h"
 #if !BUILDFLAG(IS_ANDROIDTV)
 #include "components/crash/core/common/crash_key.h"
@@ -63,8 +62,7 @@
   content::RegisterIPCLogger(msg_id, logger)
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
 #include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
 #include "content/web_test/browser/web_test_content_browser_client.h"  // nogncheck
 #include "content/web_test/renderer/web_test_content_renderer_client.h"  // nogncheck
@@ -87,10 +85,6 @@
 
 #if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_ANDROID)
 #include "v8/include/v8-wasm-trap-handler-posix.h"
-#endif
-
-#if BUILDFLAG(IS_IOS)
-#include "cobalt/shell/app/ios/shell_application_ios.h"
 #endif
 
 namespace {
@@ -198,8 +192,7 @@ std::optional<int> ShellMainDelegate::BasicStartupComplete() {
 
   InitLogging(command_line);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     const bool browser_process =
         command_line.GetSwitchValueASCII(switches::kProcessType).empty();
@@ -274,8 +267,7 @@ std::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_BROWSER);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     // Web tests implement their own BrowserMain() replacement.
     web_test_runner_->RunBrowserMain(std::move(main_function_params));
@@ -423,8 +415,7 @@ ContentClient* ShellMainDelegate::CreateContentClient() {
 }
 
 ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     browser_client_ = std::make_unique<WebTestContentBrowserClient>();
     return browser_client_.get();
@@ -434,14 +425,8 @@ ContentBrowserClient* ShellMainDelegate::CreateContentBrowserClient() {
   return browser_client_.get();
 }
 
-ContentGpuClient* ShellMainDelegate::CreateContentGpuClient() {
-  gpu_client_ = std::make_unique<ShellContentGpuClient>();
-  return gpu_client_.get();
-}
-
 ContentRendererClient* ShellMainDelegate::CreateContentRendererClient() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS_TVOS) && \
-    !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(SUPPORT_WEB_TESTS)
   if (switches::IsRunWebTestsSwitchPresent()) {
     renderer_client_ = std::make_unique<WebTestContentRendererClient>();
     return renderer_client_.get();

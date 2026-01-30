@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
-
 #include <functional>
 #include <memory>
 #include <set>
@@ -22,6 +20,7 @@
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_decoder.h"
@@ -111,7 +110,7 @@ class AudioRendererTest : public ::testing::Test {
     const int kMaxCachedFrames = 256 * 1024;
     const int kMaxFramesPerAppend = 16384;
     audio_renderer_.reset(new AudioRendererPcm(
-        std::unique_ptr<AudioDecoder>(audio_decoder_),
+        &job_queue_, std::unique_ptr<AudioDecoder>(audio_decoder_),
         std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
     audio_renderer_->Initialize(

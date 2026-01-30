@@ -20,6 +20,9 @@
 #include "starboard/tvos/shared/media/drm_system_platform.h"
 #import "starboard/tvos/shared/starboard_application.h"
 
+using starboard::DrmSystemPlatform;
+using starboard::DrmSystemWidevine;
+
 void SbDrmUpdateSession(SbDrmSystem drm_system,
                         int ticket,
                         const void* key,
@@ -54,8 +57,6 @@ void SbDrmUpdateSession(SbDrmSystem drm_system,
     }
   }
 
-  using starboard::shared::uikit::DrmSystemPlatform;
-  using starboard::shared::widevine::DrmSystemWidevine;
   SB_DCHECK(DrmSystemWidevine::IsDrmSystemWidevine(drm_system) ||
             DrmSystemPlatform::IsSupported(drm_system));
   drm_system->UpdateSession(ticket, key, key_size, session_id, session_id_size);

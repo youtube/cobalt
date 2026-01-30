@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "third_party/blink/renderer/platform/fonts/font_cache.h"
+// clang-format on
 
 #include "skia/ext/font_utils.h"
 #include "third_party/blink/renderer/platform/fonts/font_platform_data.h"

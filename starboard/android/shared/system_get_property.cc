@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// clang-format off
 #include "starboard/system.h"
-
-#include "sys/system_properties.h"
+// clang-format on
 
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/device_type.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "sys/system_properties.h"
 
 #define STRINGIZE_NO_EXPANSION(x) #x
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
