@@ -4,11 +4,27 @@
 #include "locale_impl.h"
 #include "atomic.h"
 
+#include "build/build_config.h"
+
 char *__asctime_r(const struct tm *restrict tm, char *restrict buf)
 {
+#if BUILDFLAG(IS_STARBOARD)
+    static char wday_name[7][3] = {
+        "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+    };
+    static char mon_name[12][3] = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+#endif
 	if (snprintf(buf, 26, "%.3s %.3s%3d %.2d:%.2d:%.2d %d\n",
+#if BUILDFLAG(IS_STARBOARD)
+        wday_name[tm->tm_wday],
+		mon_name[tm->tm_mon],
+#else
 		__nl_langinfo_l(ABDAY_1+tm->tm_wday, C_LOCALE),
 		__nl_langinfo_l(ABMON_1+tm->tm_mon, C_LOCALE),
+#endif
 		tm->tm_mday, tm->tm_hour,
 		tm->tm_min, tm->tm_sec,
 		1900 + tm->tm_year) >= 26)

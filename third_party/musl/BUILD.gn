@@ -975,6 +975,8 @@ static_library("c_internal") {
     "src/time/__month_to_secs.c",
     "src/time/__tm_to_secs.c",
     "src/time/__year_to_secs.c",
+    "src/time/asctime.c",
+    "src/time/asctime_r.c",
     "src/time/clock.c",
     "src/time/gettimeofday.c",
     "src/time/nanosleep.c",
