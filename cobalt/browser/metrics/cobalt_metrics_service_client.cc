@@ -293,18 +293,6 @@ void CobaltMetricsServiceClient::RecordMemoryMetrics(
     memory_instrumentation::GlobalMemoryDump* global_dump) {
   uint64_t total_private_footprint_kb = 0;
   for (const auto& process_dump : global_dump->process_dumps()) {
-    // os_dump() can be null if the OS dump failed for this process.
-    // However, it returns a reference, so we must check via raw_dump if
-    // possible, but the ProcessDump class doesn't expose raw_dump. Actually,
-    // looking at GlobalMemoryDump::ProcessDump, os_dump() returns
-    // *raw_dump_->os_dump. We should probably check if it's there before
-    // calling it if we could. But since it returns a reference, it's a bit
-    // tricky if it's null. Wait, let's look at the ProcessDump header again. It
-    // says: const mojom::OSMemDump& os_dump() const { return
-    // *raw_dump_->os_dump; } This is dangerous if os_dump is null.
-
-    // In our case, RequestPrivateMemoryFootprint should ensure it's there for
-    // successful dumps.
     total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
   }
 
