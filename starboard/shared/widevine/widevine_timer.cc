@@ -22,9 +22,7 @@
 
 namespace starboard {
 
-WidevineTimer::WidevineTimer() : job_thread_(JobThread::Create("wv_timer")) {
-  job_thread_->Start();
-}
+WidevineTimer::WidevineTimer() : job_thread_(JobThread::Create("wv_timer")) {}
 
 WidevineTimer::~WidevineTimer() {
   job_thread_->Stop();

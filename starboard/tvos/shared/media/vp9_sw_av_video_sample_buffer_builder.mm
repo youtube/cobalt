@@ -595,6 +595,7 @@ void Vp9SwAVVideoSampleBufferBuilder::Reset() {
   if (decoder_thread_) {
     decoder_thread_->ScheduleAndWait(
         std::bind(&Vp9SwAVVideoSampleBufferBuilder::TeardownCodec, this));
+    decoder_thread_->Stop();
     decoder_thread_.reset();
   }
   current_frame_width_ = 0;
@@ -728,7 +729,10 @@ void Vp9SwAVVideoSampleBufferBuilder::TeardownCodec() {
   SB_DCHECK(decoder_thread_->BelongsToCurrentThread());
   // Wait until all jobs on |builder_thread_| are done. It may take some time if
   // |builder_thread_| is waiting for available memory.
-  builder_thread_.reset();
+  if (builder_thread_) {
+    builder_thread_->Stop();
+    builder_thread_.reset();
+  }
   // |decoding_input_buffers_| and |decoded_images_| may be not empty when
   // resetting.
   decoding_input_buffers_.clear();
