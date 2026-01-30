@@ -70,6 +70,7 @@ class PlayerComponents {
                          bool reset_audio_decoder,
                          std::optional<int> video_initial_max_frames_in_decoder,
                          std::optional<int> video_max_pending_input_frames,
+                         std::optional<int> video_decoder_poll_interval_ms,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
@@ -83,6 +84,7 @@ class PlayerComponents {
                          bool reset_audio_decoder,
                          std::optional<int> video_initial_max_frames_in_decoder,
                          std::optional<int> video_max_pending_input_frames,
+                         std::optional<int> video_decoder_poll_interval_ms,
                          void* surface_view,
                          SbDecodeTargetGraphicsContextProvider*
                              decode_target_graphics_context_provider,
@@ -145,6 +147,9 @@ class PlayerComponents {
       std::optional<int> video_max_pending_input_frames() const {
         return video_max_pending_input_frames_;
       }
+      std::optional<int> video_decoder_poll_interval_ms() const {
+        return video_decoder_poll_interval_ms_;
+      }
 
       SbDrmSystem drm_system() const { return drm_system_; }
 
@@ -169,6 +174,7 @@ class PlayerComponents {
 
       std::optional<int> video_initial_max_frames_in_decoder_;
       std::optional<int> video_max_pending_input_frames_;
+      std::optional<int> video_decoder_poll_interval_ms_;
 
       // The following member are used by both the audio stream and the video
       // stream, when they are encrypted.

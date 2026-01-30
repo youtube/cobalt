@@ -61,6 +61,7 @@ class VideoDecoder
   struct ExperimentalFeatures {
     std::optional<int> max_pending_input_frames;
     std::optional<int> initial_max_frames_in_decoder;
+    std::optional<int> video_decoder_poll_interval_ms;
   };
 
   VideoDecoder(const VideoStreamInfo& video_stream_info,
@@ -149,6 +150,7 @@ class VideoDecoder
       decode_target_graphics_context_provider_;
   const std::string max_video_capabilities_;
   const std::optional<int> initial_max_frames_in_decoder_;
+  const std::optional<int> video_decoder_poll_interval_ms_;
 
   // Android doesn't officially support multi concurrent codecs. But the device
   // usually has at least one hardware decoder and Google's software decoders.

@@ -47,6 +47,8 @@ const jint kNoBufferFlags = 0;
 // Delay to use after a retryable error has been encountered.
 const int64_t kErrorRetryDelay = 50'000;  // 50ms
 
+constexpr int64_t kDefaultVideoDecoderPollIntervalUs = 1'000;  // 1 msec
+
 const char* GetNameForMediaCodecStatus(jint status) {
   switch (status) {
     case MEDIA_CODEC_OK:
@@ -90,7 +92,8 @@ MediaDecoder::MediaDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       tunnel_mode_enabled_(false),
-      flush_delay_usec_(0),
+      flush_delay_usec_(0),                // Not used for audio.
+      video_decoder_poll_interval_us_(0),  // Not used for audio.
       condition_variable_(mutex_) {
   SB_CHECK(host_);
 
@@ -133,6 +136,7 @@ MediaDecoder::MediaDecoder(
     int max_video_input_size,
     int64_t flush_delay_usec,
     std::optional<int> initial_max_frames,
+    std::optional<int> video_decoder_poll_interval_ms,
     std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
@@ -141,6 +145,10 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
+      video_decoder_poll_interval_us_(video_decoder_poll_interval_ms
+                                          ? *video_decoder_poll_interval_ms *
+                                                1'000
+                                          : kDefaultVideoDecoderPollIntervalUs),
       condition_variable_(mutex_),
       decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
         if (!initial_max_frames || tunnel_mode_enabled_) {
@@ -172,7 +180,9 @@ MediaDecoder::MediaDecoder(
                << (tunnel_mode_enabled_ ? "true" : "false")
                << ", initial_max_frames="
                << (initial_max_frames ? std::to_string(*initial_max_frames)
-                                      : "(nullopt)");
+                                      : "(nullopt)")
+               << ", video_decoder_poll_interval(msec)="
+               << video_decoder_poll_interval_us_ / 1'000;
 }
 
 MediaDecoder::~MediaDecoder() {
@@ -395,7 +405,7 @@ void MediaDecoder::DecoderThreadFunc() {
         CollectPendingData_Locked(&pending_inputs, &input_buffer_indices,
                                   &dequeue_output_results);
         if (!can_process_input() && dequeue_output_results.empty()) {
-          condition_variable_.WaitTimed(1000);
+          condition_variable_.WaitTimed(video_decoder_poll_interval_us_);
         }
       }
     }
