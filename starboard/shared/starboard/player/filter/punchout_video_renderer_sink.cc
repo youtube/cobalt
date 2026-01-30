@@ -40,7 +40,10 @@ PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
 
 PunchoutVideoRendererSink::~PunchoutVideoRendererSink() {
   stop_requested_.store(true);
-  job_thread_.reset();
+  if (job_thread_) {
+    job_thread_->Stop();
+    job_thread_.reset();
+  }
 }
 
 void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
@@ -49,7 +52,7 @@ void PunchoutVideoRendererSink::SetRenderCB(RenderCB render_cb) {
 
   render_cb_ = render_cb;
 
-  job_thread_ = std::make_unique<JobThread>("punchoutvidsink");
+  job_thread_ = JobThread::Create("punchoutvidsink");
   job_thread_->Schedule([this] { RunLoop(); });
 }
 

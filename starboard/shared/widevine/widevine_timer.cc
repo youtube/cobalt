@@ -28,8 +28,10 @@ WidevineTimer::~WidevineTimer() {
     // Flush any pending tasks before deleting |active_clients_|. This ensures
     // that background tasks (like those scheduled by cancel()) that capture
     // iterators into |active_clients_| finish before the data is destroyed.
-    // TODO: b/477902972 - Call stop method instead, once it's added.
-    job_thread_->ScheduleAndWait([] {});
+    // We can call Stop() while holding mutex_., since job_thread_ does not run
+    // any task acquiring mutex_.
+    job_thread_->Stop();
+    job_thread_.reset();
   }
   for (auto iter : active_clients_) {
     delete iter.second;
@@ -42,7 +44,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
   std::unique_lock lock(mutex_);
   if (active_clients_.empty()) {
     SB_CHECK(!job_thread_);
-    job_thread_ = std::make_unique<JobThread>("wv_timer");
+    job_thread_ = JobThread::Create("wv_timer");
   }
 
   SB_CHECK(job_thread_);
@@ -77,6 +79,9 @@ void WidevineTimer::cancel(IClient* client) {
 
   if (active_clients_.empty()) {
     // Kill the thread on the last |client|.
+    // We can call Stop() while holding mutex_., since job_thread_ does not run
+    // any task acquiring mutex_.
+    job_thread_->Stop();
     job_thread_.reset();
   }
 }

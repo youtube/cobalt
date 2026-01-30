@@ -641,7 +641,7 @@ void Vp9SwAVVideoSampleBufferBuilder::WriteInputBuffer(
     // |media_time_offset| only changes after Reset(), it's safe to set it here
     // only once.
     media_time_offset_ = media_time_offset;
-    decoder_thread_.reset(new JobThread("vpx_video_decoder"));
+    decoder_thread_ = JobThread::Create("vpx_video_decoder");
   }
   SB_DCHECK(media_time_offset_ == media_time_offset);
 
@@ -721,7 +721,7 @@ void Vp9SwAVVideoSampleBufferBuilder::InitializeCodec() {
     SB_DCHECK(status == VPX_CODEC_OK);
   }
 
-  builder_thread_.reset(new JobThread("vp9_buffer_builder"));
+  builder_thread_ = JobThread::Create("vp9_buffer_builder");
 }
 
 void Vp9SwAVVideoSampleBufferBuilder::TeardownCodec() {

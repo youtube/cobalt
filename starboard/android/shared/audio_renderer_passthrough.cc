@@ -130,7 +130,7 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 
   if (!audio_track_thread_) {
     audio_track_thread_ =
-        std::make_unique<JobThread>("AudioPassthrough", kSbThreadPriorityHigh);
+        JobThread::Create("AudioPassthrough", kSbThreadPriorityHigh);
     audio_track_thread_->Schedule(std::bind(
         &AudioRendererPassthrough::CreateAudioTrackAndStartProcessing, this));
   }
@@ -261,6 +261,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
     audio_track_thread_->ScheduleAndWait(
         std::bind(&AudioRendererPassthrough::FlushAudioTrackAndStopProcessing,
                   this, seek_to_time));
+    audio_track_thread_->Stop();
     // |seek_to_time_| is updated inside FlushAudioTrackAndStopProcessing(),
     // update the flag so we needn't set it again below.
     seek_to_time_set = true;

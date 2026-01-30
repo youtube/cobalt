@@ -392,8 +392,8 @@ void TvosAudioSink::TryWriteFrames(int frames_in_buffer, int offset_in_frames) {
 }
 
 TvosAudioSinkType::TvosAudioSinkType()
-    : audio_thread_(std::make_unique<JobThread>("tvos_audio_out",
-                                                kSbThreadPriorityRealTime)) {
+    : audio_thread_(
+          JobThread::Create("tvos_audio_out", kSbThreadPriorityRealTime)) {
   audio_thread_->Schedule([this] { ProcessAudio(); });
 }
 
@@ -403,6 +403,8 @@ TvosAudioSinkType::~TvosAudioSinkType() {
     destroying_ = true;
     audio_thread_condition_.notify_one();
   }
+  // audio_thread_ is created at ctor and is not null.
+  audio_thread_->Stop();
   SB_DCHECK(sinks_to_add_.empty());
 }
 

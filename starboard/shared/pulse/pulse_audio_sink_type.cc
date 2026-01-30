@@ -377,6 +377,7 @@ PulseAudioSinkType::~PulseAudioSinkType() {
       std::lock_guard lock(mutex_);
       destroying_ = true;
     }
+    audio_thread_->Stop();
     audio_thread_.reset();
   }
   SB_DCHECK(sinks_.empty());
@@ -474,8 +475,7 @@ bool PulseAudioSinkType::Initialize() {
     return false;
   }
 
-  audio_thread_ =
-      std::make_unique<JobThread>("pulse_audio", kSbThreadPriorityRealTime);
+  audio_thread_ = JobThread::Create("pulse_audio", kSbThreadPriorityRealTime);
   audio_thread_->Schedule([this] { ProcessAudio(); });
 
   return true;
