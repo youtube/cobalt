@@ -57,11 +57,12 @@
             placeholderEl.style.opacity = '100%';
           }
         };
-        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage, onSplashEnd);
+        playSplashAnimation(/*afterVideoStart=*/ showPlaceholderImage, /*afterImageLoad=*/ onSplashEnd);
       }
 
       /**
        * Displays static splash screen for devices that don't support VP9
+       * @param urlParams URL parameters containing cache configuration
        */
       function handleStaticImageFallback(urlParams, afterImageLoad) {
         const placeholderEl = getPlaceholderEl();
@@ -80,11 +81,7 @@
           const imageUrl = URL.createObjectURL(imageBlob);
           placeholderEl.style.backgroundImage = `url(${imageUrl})`;
           placeholderEl.style.opacity = '100%';
-          afterImageLoad && afterImageLoad(); 
-          // need timeout?
-          // setTimeout(() => {
-          //   afterImageLoad && afterImageLoad();
-          // }, 1500);
+          afterImageLoad && afterImageLoad();
         })
         .catch(error => {
           console.error('Failed to fetch splash image:', error);
@@ -93,7 +90,8 @@
       }
 
       /**
-       * Plays the splash video based on resolution the device supports
+       * Plays the splash video based on resolution the device support
+       * @param urlParams URL parameters containing cache and fallback configuration
        */
       function handleVideo(urlParams, afterVideoStart) {
         const videoEl = getVideoEl();
@@ -141,9 +139,8 @@
         if (!params.has('cache')) {
           params.append('cache', 'default');
         }
-        
-        // device does not support VP9, fallback to display static image 
-        if (!MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
+
+        if (MediaSource.isTypeSupported("video/webm; codecs=\"vp9\";")) {
           return handleStaticImageFallback(params, afterImageLoad);
         }
 

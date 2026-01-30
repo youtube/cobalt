@@ -74,11 +74,11 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
 
           // check if image is displayed
           let style = window.getComputedStyle(placeholder);
-          let retries = 0; 
+          let retries = 0;
           while (style.backgroundImage === 'none' && retries < 15) {
             await new Promise(r => setTimeout(r, 100));
             style = window.getComputedStyle(placeholder);
-            retries++; 
+            retries++;
           }
           if (style.backgroundImage === 'none') {
             return 'No image is displayed';
@@ -106,9 +106,9 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     // Mock MediaSource.isTypeSupported for high/low spec device.
     return base::StringPrintf(R"(
       MediaSource.isTypeSupported = function(mime) {
-        // Bypass fallback for static image 
+        // Bypass fallback for static image
         if (!mime.includes('width=3840') || !mime.includes('height=2160')) {
-          return true; 
+          return true;
         }
         return %s;
       };

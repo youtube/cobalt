@@ -462,9 +462,9 @@ action("embed_loader_resources_as_header_files") {
     # google3/googledata/html/external_content/gstatic/ytlr/splash_screen/splash_480p.webm.
     "embedded_resources/loader_embedded_resources/splash_480.webm",
 
-    # For devices that do not support VP9. Copied from 
+    # For devices that do not support VP9. Copied from
     # google3/video/youtube/web/living_room/kabuki/splash/chrobalt/splash_video_placeholder.png.
-    "embedded_resources/loader_embedded_resources/splash.png", 
+    "embedded_resources/loader_embedded_resources/splash.png",
   ]
 
   args = [
