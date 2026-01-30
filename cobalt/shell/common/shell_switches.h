@@ -25,6 +25,8 @@ inline constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
 inline constexpr char kSplashScreenURL[] = "h5vcc-embedded://splash.html";
 inline constexpr char16_t kDefaultSplashCacheName[] = u"default";
 // 10MB limit for splash video to prevent memory exhaustion.
+// Current cobalt/shell/embedded_resources/loader_embedded_resources/splash.webm
+// is around 20KB, so 10MB should be sufficient.
 inline constexpr size_t kMaxSplashContentSize = 10 * 1024 * 1024;
 
 extern const char kContentShellUserDataDir[];

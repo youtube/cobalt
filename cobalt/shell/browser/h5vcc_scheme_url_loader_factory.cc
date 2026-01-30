@@ -339,7 +339,7 @@ class H5vccSchemeURLLoader : public network::mojom::URLLoader {
     LOG(WARNING) << "URL: " << url_.spec() << ", host: " << key
                  << " not found.";
     content_ = "Resource not found";
-    mime_type_ = "text/plain";
+    mime_type_ = kMimeTypeTextHtml;
     SendResponse(net::HTTP_NOT_FOUND);
   }
 
