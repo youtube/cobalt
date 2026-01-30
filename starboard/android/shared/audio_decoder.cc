@@ -118,8 +118,11 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 
   output_cb_ = output_cb;
   error_cb_ = error_cb;
-  media_decoder_->Initialize(
-      std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
+  // |media_decoder_| can be null if Reset() failed.
+  if (media_decoder_) {
+    media_decoder_->Initialize(
+        std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
+  }
 }
 
 void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
@@ -127,7 +130,6 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
-  SB_DCHECK(media_decoder_);
 
   audio_frame_discarder_.OnInputBuffers(input_buffers);
 
@@ -137,11 +139,15 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 #endif
 
-  media_decoder_->WriteInputBuffers(input_buffers);
+  // |media_decoder_| can be null if Reset() failed.
+  if (media_decoder_) {
+    media_decoder_->WriteInputBuffers(input_buffers);
+  }
 
   std::lock_guard lock(decoded_audios_mutex_);
-  if (media_decoder_->GetNumberOfPendingInputs() + decoded_audios_.size() <=
-      kMaxPendingWorkSize) {
+  if (media_decoder_ &&
+      (media_decoder_->GetNumberOfPendingInputs() + decoded_audios_.size() <=
+       kMaxPendingWorkSize)) {
     Schedule(consumed_cb);
   } else {
     consumed_cb_ = consumed_cb;
@@ -151,9 +157,11 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
 void MediaCodecAudioDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
-  SB_DCHECK(media_decoder_);
 
-  media_decoder_->WriteEndOfStream();
+  // |media_decoder_| can be null if Reset() failed.
+  if (media_decoder_) {
+    media_decoder_->WriteEndOfStream();
+  }
 }
 
 scoped_refptr<DecodedAudio> MediaCodecAudioDecoder::Read(
