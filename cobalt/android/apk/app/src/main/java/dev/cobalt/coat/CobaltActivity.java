@@ -39,7 +39,6 @@ import androidx.annotation.VisibleForTesting;
 import dev.cobalt.browser.CobaltContentBrowserClient;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
-import dev.cobalt.coat.javabridge.H5vccPlatformService;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
@@ -441,7 +440,6 @@ public abstract class CobaltActivity extends Activity {
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
-    mJavaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
     mJavaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
