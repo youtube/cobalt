@@ -88,7 +88,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
           }
 
           // check image dimension
-          const url = style.backgroundImage.slice(5, -2); 
+          const url = style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
           return await new Promise((resolve, reject) => {
             const image = new Image();
             image.onload = () => resolve('Dimensions: ' + image.naturalWidth + 'x' + image.naturalHeight);
@@ -274,9 +274,9 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 }
 
 #if BUILDFLAG(IS_ANDROID)
-#define MAYBE_LoadSplashHtml DISABLED_LoadSplashHtml
+#define MAYBE_LoadStaticImageFallback DISABLED_LoadStaticImageFallback
 #else
-#define MAYBE_LoadSplashHtml LoadSplashHtml
+#define MAYBE_LoadStaticImageFallback LoadStaticImageFallback
 #endif
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
                        MAYBE_LoadSplashHtml) {
