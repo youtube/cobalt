@@ -60,7 +60,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
 
   std::string CheckImageDimension() {
     // Mock MediaSource.isTypeSupported for static image fallback
-    return base::StringPrintf(R"(
+    return R"(
       MediaSource.isTypeSupported = function(mime) {
         return false;
       };
@@ -99,7 +99,7 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
           return 'Exception: ' + e.toString();
         }
       })();
-    )");
+    )";
   }
 
   std::string CheckVideoDimension(bool is_type_supported) {
@@ -279,7 +279,7 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
 #define MAYBE_LoadStaticImageFallback LoadStaticImageFallback
 #endif
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
-                       MAYBE_LoadSplashHtml) {
+                       MAYBE_LoadStaticImageFallback) {
   GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
