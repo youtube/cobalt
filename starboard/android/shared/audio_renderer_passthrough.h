@@ -23,6 +23,7 @@
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/result.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -45,13 +46,12 @@ class AudioRendererPassthrough : public AudioRenderer,
                                  public MediaTimeProvider,
                                  private JobQueue::JobOwner {
  public:
-  AudioRendererPassthrough(JobQueue* job_queue,
-                           const AudioStreamInfo& audio_stream_info,
-                           SbDrmSystem drm_system,
-                           bool enable_flush_during_seek);
+  static NonNullResult<std::unique_ptr<AudioRendererPassthrough>> Create(
+      JobQueue* job_queue,
+      const AudioStreamInfo& audio_stream_info,
+      SbDrmSystem drm_system,
+      bool enable_flush_during_seek);
   ~AudioRendererPassthrough() override;
-
-  bool is_valid() const { return decoder_ != nullptr; }
 
   // AudioRenderer methods
   void Initialize(const ErrorCB& error_cb,
@@ -77,6 +77,10 @@ class AudioRendererPassthrough : public AudioRenderer,
                               double* playback_rate) override;
 
  private:
+  AudioRendererPassthrough(JobQueue* job_queue,
+                           const AudioStreamInfo& audio_stream_info,
+                           std::unique_ptr<AudioDecoder> decoder);
+
   struct AudioTrackState {
     double volume = 1.0;
     bool paused = true;
@@ -97,7 +101,7 @@ class AudioRendererPassthrough : public AudioRenderer,
   // TODO: Revisit to encapsulate the AudioDecoder as a SbDrmSystemPrivate
   //       instead.  This would need to turn SbDrmSystemPrivate::Decrypt() into
   //       asynchronous, which comes with extra risks.
-  std::unique_ptr<AudioDecoder> decoder_;
+  const std::unique_ptr<AudioDecoder> decoder_;
 
   // The following three variables are set in Initialize().
   ErrorCB error_cb_;

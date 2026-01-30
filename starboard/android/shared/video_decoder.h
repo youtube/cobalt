@@ -55,8 +55,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                                private VideoSurfaceHolder {
  public:
   class Sink;
-
-  MediaCodecVideoDecoder(JobQueue* job_queue,
+  static NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>> Create(
+                         JobQueue* job_queue,
                          const VideoStreamInfo& video_stream_info,
                          SbDrmSystem drm_system,
                          SbPlayerOutputMode output_mode,
@@ -71,8 +71,8 @@ class MediaCodecVideoDecoder : public VideoDecoder,
                          void* surface_view,
                          bool enable_flush_during_seek,
                          int64_t reset_delay_usec,
-                         int64_t flush_delay_usec,
-                         std::string* error_message);
+                         int64_t flush_delay_usec);
+
   ~MediaCodecVideoDecoder() override;
 
   scoped_refptr<VideoRendererSink> GetSink();
@@ -99,9 +99,24 @@ class MediaCodecVideoDecoder : public VideoDecoder,
 
   void OnFrameAvailable() override;
 
-  bool is_decoder_created() const { return media_decoder_ != NULL; }
-
  private:
+  MediaCodecVideoDecoder(JobQueue* job_queue,
+                         const VideoStreamInfo& video_stream_info,
+                         SbDrmSystem drm_system,
+                         SbPlayerOutputMode output_mode,
+                         SbDecodeTargetGraphicsContextProvider*
+                             decode_target_graphics_context_provider,
+                         const std::string& max_video_capabilities,
+                         int tunnel_mode_audio_session_id,
+                         bool force_secure_pipeline_under_tunnel_mode,
+                         bool force_reset_surface,
+                         bool force_big_endian_hdr_metadata,
+                         int max_input_size,
+                         void* surface_view,
+                         bool enable_flush_during_seek,
+                         int64_t reset_delay_usec,
+                         int64_t flush_delay_usec,
+                         std::string* error_message);
   // Attempt to initialize the codec.
   Result<void> InitializeCodec(const VideoStreamInfo& video_stream_info);
   void TeardownCodec();

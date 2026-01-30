@@ -73,10 +73,50 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
     ~Host() {}
   };
 
+  static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForAudio(
+      JobQueue* job_queue,
+      Host* host,
+      const AudioStreamInfo& audio_stream_info,
+      SbDrmSystem drm_system);
+  static NonNullResult<std::unique_ptr<MediaCodecDecoder>> CreateForVideo(
+      JobQueue* job_queue,
+      Host* host,
+      SbMediaVideoCodec video_codec,
+      // `frame_size_hint` is used to create the Android video format, which
+      // doesn't have to be directly related to the resolution of the video.
+      const Size& frame_size_hint,
+      const std::optional<Size>& max_frame_size,
+      int fps,
+      jobject j_output_surface,
+      SbDrmSystem drm_system,
+      const SbMediaColorMetadata* color_metadata,
+      bool require_software_codec,
+      const FrameRenderedCB& frame_rendered_cb,
+      const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
+      int tunnel_mode_audio_session_id,
+      bool force_big_endian_hdr_metadata,
+      int max_video_input_size,
+      int64_t flush_delay_usec);
+  ~MediaCodecDecoder();
+
+  void Initialize(const ErrorCB& error_cb);
+  void WriteInputBuffers(const InputBuffers& input_buffers);
+  void WriteEndOfStream();
+
+  void SetPlaybackRate(double playback_rate);
+
+  size_t GetNumberOfPendingInputs() const {
+    return number_of_pending_inputs_.load();
+  }
+
+  bool Flush();
+
+ private:
   MediaCodecDecoder(JobQueue* job_queue,
                     Host* host,
                     const AudioStreamInfo& audio_stream_info,
-                    SbDrmSystem drm_system);
+                    SbDrmSystem drm_system,
+                    std::string* error_message);
   MediaCodecDecoder(
       JobQueue* job_queue,
       Host* host,
@@ -97,23 +137,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::string* error_message);
-  ~MediaCodecDecoder();
 
-  void Initialize(const ErrorCB& error_cb);
-  void WriteInputBuffers(const InputBuffers& input_buffers);
-  void WriteEndOfStream();
-
-  void SetPlaybackRate(double playback_rate);
-
-  size_t GetNumberOfPendingInputs() const {
-    return number_of_pending_inputs_.load();
-  }
-
-  bool is_valid() const { return media_codec_bridge_ != NULL; }
-
-  bool Flush();
-
- private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
   struct PendingInput {
@@ -214,6 +238,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   // Working thread to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
+  // Factory method guarntees that media_codec_bridge_ is non-null.
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 

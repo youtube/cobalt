@@ -72,35 +72,48 @@ int ParseAc3SyncframeAudioSampleCount(const uint8_t* buffer, int size) {
 
 }  // namespace
 
-AudioRendererPassthrough::AudioRendererPassthrough(
-    JobQueue* job_queue,
-    const AudioStreamInfo& audio_stream_info,
-    SbDrmSystem drm_system,
-    bool enable_flush_during_seek)
-    : JobOwner(job_queue), audio_stream_info_(audio_stream_info) {
-  SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
-            audio_stream_info_.codec == kSbMediaAudioCodecEac3);
+// static
+NonNullResult<std::unique_ptr<AudioRendererPassthrough>>
+AudioRendererPassthrough::Create(JobQueue* job_queue,
+                                 const AudioStreamInfo& audio_stream_info,
+                                 SbDrmSystem drm_system,
+                                 bool enable_flush_during_seek) {
+  std::unique_ptr<AudioDecoder> decoder;
   if (SbDrmSystemIsValid(drm_system)) {
     SB_LOG(INFO) << "Creating AudioDecoder as decryptor.";
-    auto audio_decoder = std::make_unique<MediaCodecAudioDecoder>(
+    auto result = MediaCodecAudioDecoder::Create(
         job_queue, audio_stream_info, drm_system, enable_flush_during_seek);
-    if (audio_decoder->is_valid()) {
-      decoder_.reset(audio_decoder.release());
+    if (result) {
+      decoder = std::move(result.value());
+    } else {
+      return Failure("Failed to create MediaCodecAudioDecoder: " + result.error());
     }
   } else {
     SB_LOG(INFO) << "Creating AudioDecoderPassthrough.";
-    decoder_.reset(
-        new AudioDecoderPassthrough(audio_stream_info_.samples_per_second));
+    decoder = std::make_unique<AudioDecoderPassthrough>(
+        audio_stream_info.samples_per_second);
   }
+
+  return std::unique_ptr<AudioRendererPassthrough>(new AudioRendererPassthrough(
+      job_queue, audio_stream_info, std::move(decoder)));
+}
+
+AudioRendererPassthrough::AudioRendererPassthrough(
+    JobQueue* job_queue,
+    const AudioStreamInfo& audio_stream_info,
+    std::unique_ptr<AudioDecoder> decoder)
+    : JobOwner(job_queue),
+      audio_stream_info_(audio_stream_info),
+      decoder_(std::move(decoder)) {
+  SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
+            audio_stream_info_.codec == kSbMediaAudioCodecEac3);
 }
 
 AudioRendererPassthrough::~AudioRendererPassthrough() {
   SB_CHECK(BelongsToCurrentThread());
 
-  if (is_valid()) {
-    SB_LOG(INFO) << "Force a seek to 0 to reset all states before destructing.";
-    Seek(0);
-  }
+  SB_LOG(INFO) << "Force a seek to 0 to reset all states before destructing.";
+  Seek(0);
 }
 
 void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
@@ -113,7 +126,6 @@ void AudioRendererPassthrough::Initialize(const ErrorCB& error_cb,
   SB_DCHECK(!error_cb_);
   SB_DCHECK(!prerolled_cb_);
   SB_DCHECK(!ended_cb_);
-  SB_DCHECK(decoder_);
 
   error_cb_ = error_cb;
   prerolled_cb_ = prerolled_cb;

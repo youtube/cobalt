@@ -328,6 +328,45 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
   bool rendered_;
 };
 
+NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
+MediaCodecVideoDecoder::Create(
+    JobQueue* job_queue,
+    const VideoStreamInfo& video_stream_info,
+    SbDrmSystem drm_system,
+    SbPlayerOutputMode output_mode,
+    SbDecodeTargetGraphicsContextProvider*
+        decode_target_graphics_context_provider,
+    const std::string& max_video_capabilities,
+    int tunnel_mode_audio_session_id,
+    bool force_secure_pipeline_under_tunnel_mode,
+    bool force_reset_surface,
+    bool force_big_endian_hdr_metadata,
+    int max_input_size,
+    void* surface_view,
+    bool enable_flush_during_seek,
+    int64_t reset_delay_usec,
+    int64_t flush_delay_usec) {
+  std::string error_message;
+  auto video_decoder = std::unique_ptr<MediaCodecVideoDecoder>(
+      new MediaCodecVideoDecoder(
+          job_queue, video_stream_info, drm_system, output_mode,
+          decode_target_graphics_context_provider, max_video_capabilities,
+          tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
+          force_reset_surface, force_big_endian_hdr_metadata, max_input_size,
+          surface_view, enable_flush_during_seek, reset_delay_usec,
+          flush_delay_usec, &error_message));
+
+  if (video_stream_info.codec != kSbMediaVideoCodecAv1 &&
+      !video_decoder->media_decoder_) {
+    if (error_message.empty()) {
+      error_message =
+          "Video decoder was not created, but no error message was provided.";
+    }
+    return Failure(error_message);
+  }
+  return video_decoder;
+}
+
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
     JobQueue* job_queue,
     const VideoStreamInfo& video_stream_info,
@@ -728,8 +767,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
   std::optional<Size> max_frame_size =
       ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_size);
 
-  std::string error_message;
-  media_decoder_ = std::make_unique<MediaCodecDecoder>(
+  auto result = MediaCodecDecoder::CreateForVideo(
       job_queue(), /*host=*/this, video_stream_info.codec,
       video_stream_info.frame_size, max_frame_size, video_fps_,
       j_output_surface, drm_system_,
@@ -737,8 +775,9 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
       std::bind(&MediaCodecVideoDecoder::OnFrameRendered, this, _1),
       std::bind(&MediaCodecVideoDecoder::OnFirstTunnelFrameReady, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
-      max_video_input_size_, flush_delay_usec_, &error_message);
-  if (media_decoder_->is_valid()) {
+      max_video_input_size_, flush_delay_usec_);
+  if (result) {
+    media_decoder_ = std::move(result.value());
     if (error_cb_) {
       media_decoder_->Initialize(
           std::bind(&MediaCodecVideoDecoder::ReportError, this, _1, _2));
@@ -757,7 +796,7 @@ Result<void> MediaCodecVideoDecoder::InitializeCodec(
     return Success();
   }
   media_decoder_.reset();
-  return Failure("Media Decoder is not valid: " + error_message);
+  return Failure("Media Decoder is not valid: " + result.error());
 }
 
 void MediaCodecVideoDecoder::TeardownCodec() {
