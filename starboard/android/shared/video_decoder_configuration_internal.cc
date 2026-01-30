@@ -107,7 +107,7 @@ std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread() {
 
 void SetVideoDecoderPollIntervalMsForCurrentThread(
     int video_decoder_poll_interval_ms) {
-  if (video_decoder_poll_interval_ms < 0) {
+  if (video_decoder_poll_interval_ms <= 0) {
     SB_LOG(WARNING) << "Invalid video_decoder_poll_interval_ms: "
                     << video_decoder_poll_interval_ms;
     return;

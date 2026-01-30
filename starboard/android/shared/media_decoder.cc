@@ -145,10 +145,10 @@ MediaDecoder::MediaDecoder(
       first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       flush_delay_usec_(flush_delay_usec),
-      video_decoder_poll_interval_us_(video_decoder_poll_interval_ms
-                                          ? *video_decoder_poll_interval_ms *
-                                                1'000
-                                          : kDefaultVideoDecoderPollIntervalUs),
+      video_decoder_poll_interval_us_(
+          video_decoder_poll_interval_ms
+              ? static_cast<int64_t>(*video_decoder_poll_interval_ms) * 1'000
+              : kDefaultVideoDecoderPollIntervalUs),
       condition_variable_(mutex_),
       decoder_state_tracker_([&]() -> std::unique_ptr<DecoderStateTracker> {
         if (!initial_max_frames || tunnel_mode_enabled_) {

@@ -181,6 +181,7 @@ const T* GetSettingValue(
 }
 
 constexpr int kMaxFramesInDecoderLimit = 10'000;
+constexpr int kMaxVideoDecoderPollIntervalMs = 60'000;  // 1 minute.
 
 std::optional<int> ProcessRangedIntH5vccSetting(
     const std::map<std::string, H5vccSettingValue>& settings,
@@ -224,7 +225,7 @@ ParsedH5vccSettings ProcessH5vccSettings(
       kMaxFramesInDecoderLimit);
   parsed.video_decoder_poll_interval_ms = ProcessRangedIntH5vccSetting(
       settings, kH5vccSettingsKeyMediaVideoDecoderPollIntervalMs, 1,
-      kMaxFramesInDecoderLimit);
+      kMaxVideoDecoderPollIntervalMs);
 
   for (const auto& [setting_name, setting_value] : settings) {
     AppendSettingToSwitch(setting_name, setting_value);
