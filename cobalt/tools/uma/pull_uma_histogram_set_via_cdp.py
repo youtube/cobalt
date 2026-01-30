@@ -201,14 +201,10 @@ def _get_histograms_from_file(file_path: str) -> list:
 
 def _get_chrome_guiding_metrics_for_memory() -> list:
   metrics = []
-  # Desktop and Android
   metrics.append('Memory.Browser.PrivateMemoryFootprint')
-  # Desktop only
   metrics.append('Memory.Gpu.PrivateMemoryFootprint')
-  # Desktop and Android
   metrics.append('Memory.Renderer.PrivateMemoryFootprint')
   metrics.append('Memory.Total.PrivateMemoryFootprint')
-  # iOS only
   metrics.append('Memory.Browser.MemoryFootprint')
   return metrics
 
