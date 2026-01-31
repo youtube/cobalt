@@ -25,7 +25,7 @@
 // http://go/paste/5453531536556032
 // TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
 // updated.
-namespace starboard::shared::starboard::media {
+namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
                            const MimeType* mime_type,
@@ -52,4 +52,4 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
          bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 30;
 }
 
-}  // namespace starboard::shared::starboard::media
+}  // namespace starboard
