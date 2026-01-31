@@ -74,7 +74,6 @@ class VideoDecoderCache {
 
   bool InitializeEgl();
 
-  static constexpr int kMaxCacheSize = 4;
   std::mutex mutex_;
   std::list<CacheEntry> cache_;
   std::unique_ptr<::starboard::shared::starboard::player::JobThread>

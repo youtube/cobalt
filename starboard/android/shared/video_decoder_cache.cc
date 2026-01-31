@@ -30,6 +30,8 @@ namespace {
 using base::android::ScopedJavaGlobalRef;
 using ::starboard::shared::starboard::player::JobThread;
 
+constexpr int kMaxCacheSize = 2;
+
 ScopedJavaGlobalRef<jobject> CreateDummySurfaceTexture(int texture_id) {
   JniEnvExt* env = JniEnvExt::Get();
   jobject local_surface_texture = env->NewObjectOrAbort(
@@ -176,9 +178,18 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
     return "policy: we don't cache secure decoders";
   }
 
-  static constexpr int kFhdSize = 1920 * 1080;
-  if (key.frame_height * key.frame_width > kFhdSize) {
-    return "policy: we don't cache 4k";
+  // We caches decoder only for short.
+  const bool is_cacheable_size = [&] {
+    if (key.frame_width == 1080 && key.frame_height == 1920) {
+      return true;
+    }
+    if (key.frame_width == 720 && key.frame_height == 1280) {
+      return true;
+    }
+    return false;
+  }();
+  if (!is_cacheable_size) {
+    return "policy: we don't cache the given resolution";
   }
 
   {
@@ -193,8 +204,6 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
   std::string error_message;
   GLuint texture_id = 0;
 
-  std::string error;
-
   // We must wait for the dummy surface to be created and the texture to be
   // generated. The caller (VideoDecoder::TeardownCodec) expects that after
   // Put() returns, the MediaCodec is no longer using the original surface
@@ -202,7 +211,7 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
   job_thread_->ScheduleAndWait([&]() {
     if (egl_context_.display == EGL_NO_DISPLAY) {
       if (!InitializeEgl()) {
-        error = "InitializeEgl failed";
+        error_message = "InitializeEgl failed";
         return;
       }
     }
@@ -250,9 +259,6 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
     job_thread_->Schedule([id_to_delete = texture_id_to_delete]() {
       glDeleteTextures(1, &id_to_delete);
     });
-  }
-  if (!error.empty()) {
-    return error;
   }
   cache_.push_back({key, std::move(decoder), std::move(dummy_surface_texture),
                     std::move(dummy_surface), texture_id});
