@@ -25,6 +25,10 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
+namespace starboard::android::shared {
+extern void SetBaselineUs(int64_t baseline_us);
+}
+
 namespace starboard::shared::starboard::player::filter {
 
 namespace {
@@ -153,6 +157,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK_GE(seek_to_time, 0);
 
   if (first_input_written_) {
+    ::starboard::android::shared::SetBaselineUs(CurrentMonotonicTime());
     decoder_->Reset();
     first_input_written_ = false;
   }

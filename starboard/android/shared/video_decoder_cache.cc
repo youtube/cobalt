@@ -192,6 +192,10 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
   std::string error_message;
   GLuint texture_id = 0;
 
+  // We must wait for the dummy surface to be created and the texture to be
+  // generated. The caller (VideoDecoder::TeardownCodec) expects that after
+  // Put() returns, the MediaCodec is no longer using the original surface
+  // (which may be destroyed immediately after).
   job_thread_->ScheduleAndWait([&]() {
     if (egl_context_.display == EGL_NO_DISPLAY) {
       InitializeEgl();
