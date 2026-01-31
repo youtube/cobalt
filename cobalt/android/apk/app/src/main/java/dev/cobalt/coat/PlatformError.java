@@ -144,8 +144,6 @@ public class PlatformError
               Log.e(TAG, "Failed to start activity for ACTION_WIFI_SETTINGS.");
             }
           }
-          mDialog.dismiss();
-          reloadWebContents(cobaltActivity);
           break;
         case RETRY_BUTTON:
           mResponse = POSITIVE;
