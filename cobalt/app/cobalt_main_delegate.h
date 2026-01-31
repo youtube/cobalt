@@ -19,6 +19,7 @@
 
 #include "build/build_config.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "cobalt/shell/app/shell_main_delegate.h"
@@ -58,8 +59,10 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
-  std::unique_ptr<CobaltContentRendererClient> renderer_client_;
+  std::unique_ptr<CobaltContentRendererClient, base::OnTaskRunnerDeleter>
+      renderer_client_;
   std::unique_ptr<CobaltContentUtilityClient> utility_client_;
+  COBALT_THREAD_CHECKER(thread_checker_);
 
   void InitializeHangWatcher();
 };

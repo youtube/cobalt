@@ -15,6 +15,7 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 
 #include "base/process/current_process.h"
+#include "base/task/sequenced_task_runner.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -30,9 +31,15 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate() : content::ShellMainDelegate() {}
+CobaltMainDelegate::CobaltMainDelegate()
+    : content::ShellMainDelegate(),
+      renderer_client_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
+  COBALT_DETACH_FROM_THREAD(thread_checker_);
+}
 
-CobaltMainDelegate::~CobaltMainDelegate() {}
+CobaltMainDelegate::~CobaltMainDelegate() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
 
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
@@ -54,7 +61,10 @@ content::ContentGpuClient* CobaltMainDelegate::CreateContentGpuClient() {
 
 content::ContentRendererClient*
 CobaltMainDelegate::CreateContentRendererClient() {
-  renderer_client_ = std::make_unique<CobaltContentRendererClient>();
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  renderer_client_ =
+      std::unique_ptr<CobaltContentRendererClient, base::OnTaskRunnerDeleter>(
+          new CobaltContentRendererClient, base::OnTaskRunnerDeleter(nullptr));
   return renderer_client_.get();
 }
 

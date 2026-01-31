@@ -18,8 +18,8 @@
 #include <string>
 
 #include "base/no_destructor.h"
-#include "base/threading/thread_checker.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 #include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace cobalt {
@@ -64,7 +64,7 @@ class DeepLinkManager {
   mojo::RemoteSet<DeepLinkListener> listeners_
       GUARDED_BY_CONTEXT(thread_checker_);
 
-  THREAD_CHECKER(thread_checker_);
+  COBALT_THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace browser
