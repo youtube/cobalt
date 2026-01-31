@@ -141,6 +141,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   bool Flush();
 
+ private:
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.
   struct PendingInput {
