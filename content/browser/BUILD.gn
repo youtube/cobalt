@@ -76,7 +76,6 @@ source_set("browser") {
   ]
   if (is_cobalt) {
     visibility += [
-      "//cobalt/browser:*",
       "//cobalt/testing:*",
       "//cobalt/testing/browser_tests:*",
     ]

@@ -72,9 +72,6 @@ source_set("browser") {
     "//components/os_crypt/sync",
     "//components/prefs",
     "//components/variations/service:service",
-    "//content/browser",
-    "//services/resource_coordinator/public/cpp/memory_instrumentation",
-    "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
     "//starboard:starboard_group",
   ]
 
@@ -157,7 +154,6 @@ source_set("metrics") {
     "//components/variations",
     "//components/variations/service",
     "//content/public/browser",
-    "//services/resource_coordinator/public/cpp/memory_instrumentation",
     "//services/resource_coordinator/public/cpp/memory_instrumentation:browser",
     "//third_party/metrics_proto",
     "//url",
