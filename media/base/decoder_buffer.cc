@@ -18,7 +18,6 @@ namespace media {
 namespace {
 
 DecoderBuffer::Allocator* s_allocator = nullptr;
-bool s_use_allocator = true;
 
 }  // namespace
 
@@ -29,7 +28,6 @@ void DecoderBuffer::Allocator::Set(Allocator* allocator) {
   // allocator is in place will fail.
   DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
-  s_use_allocator = true;
 }
 
 // static
@@ -71,7 +69,7 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
   Initialize();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  s_allocator->Write(allocator_data_->handle, data, size_);
+  s_allocator->Write(allocator_data_.handle, data, size_);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_.get(), data, size_);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -98,13 +96,8 @@ DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
     return;
   }
 
-  if (s_use_allocator) {
-    Initialize(type);
-    s_allocator->Write(allocator_data_->handle, data, size_);
-  } else {
-    Initialize();
-    memcpy(writable_data(), data, size_);
-  }
+  Initialize(type);
+  s_allocator->Write(allocator_data_.handle, data, size_);
 
   if (!side_data) {
     CHECK_EQ(side_data_size, 0u);
@@ -139,27 +132,25 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
 
 DecoderBuffer::~DecoderBuffer() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (allocator_data_) {
-    CHECK(s_allocator);
-    s_allocator->Free(allocator_data_->stream_type_, allocator_data_->handle,
-                      allocator_data_->size);
-  }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  CHECK(s_allocator);
+  s_allocator->Free(allocator_data_.stream_type_, allocator_data_.handle,
+                    allocator_data_.size);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset();
   side_data_.reset();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (s_use_allocator) {
-    // This is used by Mojo.
-    Initialize(DemuxerStream::UNKNOWN);
-    return;
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  // This is used by Mojo.
+  Initialize(DemuxerStream::UNKNOWN);
+  return;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -170,9 +161,7 @@ void DecoderBuffer::Initialize(DemuxerStream::Type type) {
 
   int alignment = s_allocator->GetBufferAlignment();
 
-  allocator_data_.emplace(type,
-                          s_allocator->Allocate(type, size_, alignment),
-                          size_);
+  allocator_data_ = {type, s_allocator->Allocate(type, size_, alignment), size_};
 
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
