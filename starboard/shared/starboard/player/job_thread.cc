@@ -75,6 +75,10 @@ JobThread::~JobThread() {
 }
 
 void JobThread::Stop() {
+  SB_CHECK(!job_queue_->BelongsToCurrentThread())
+      << "Stop() should not be called from the worker thread itself. This "
+         "would result in a deadlock during Join().";
+
   // Use a mutex to ensure that if multiple threads call Stop() (e.g. one
   // explicitly and one via the destructor), they all wait until the join
   // is actually complete.
