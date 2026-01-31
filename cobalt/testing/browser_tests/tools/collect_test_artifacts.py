@@ -120,8 +120,14 @@ def main():
       '-o',
       '--output',
       default='cobalt_browsertests_artifacts.tar.gz',
-      help='Output filename')
+      help='Output filename (default: cobalt_browsertests_artifacts.tar.gz)')
+  parser.add_argument(
+      '--output_dir', help='Output directory where the tarball will be placed.')
   args = parser.parse_args()
+
+  if args.output_dir:
+    os.makedirs(args.output_dir, exist_ok=True)
+    args.output = os.path.join(args.output_dir, args.output)
 
   target_map = {}
   copied_sources = set()
