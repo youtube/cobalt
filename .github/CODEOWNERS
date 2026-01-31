@@ -35,3 +35,4 @@
 /third_party/blink/ @youtube/cobalt-web-api
 
 *.nplb_filter.json @youtube/nplb-filters
+/starboard/contrib/rdk @youtube/starboard-rdk-owners
