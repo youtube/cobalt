@@ -73,7 +73,6 @@ class VideoDecoderCache {
   };
 
   void InitializeEgl();
-  void DestroyEgl();
 
   static constexpr int kMaxCacheSize = 4;
   std::mutex mutex_;

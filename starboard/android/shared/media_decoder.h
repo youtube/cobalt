@@ -138,6 +138,10 @@ class MediaDecoder final
                    FrameRenderedCB frame_rendered_cb,
                    FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb);
 
+  void SetSurfaceSwitchCallback(std::function<void()> cb) {
+    surface_switch_cb_ = std::move(cb);
+  }
+
   void UpdateErrorCB(const ErrorCB& error_cb) { error_cb_ = error_cb; }
 
  private:
@@ -239,6 +243,8 @@ class MediaDecoder final
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
+
+  std::function<void()> surface_switch_cb_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   pthread_t decoder_thread_ = 0;

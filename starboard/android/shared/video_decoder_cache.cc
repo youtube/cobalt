@@ -229,10 +229,16 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
 
   if (cache_.size() >= kMaxCacheSize) {
     auto& entry_to_evict = cache_.front();
-    job_thread_->Schedule([id_to_delete = entry_to_evict.texture_id]() {
+    GLuint texture_id_to_delete = entry_to_evict.texture_id;
+    // We must destroy the MediaDecoder (by popping it from the cache) *before*
+    // scheduling the texture deletion. This ensures that the MediaCodec is
+    // fully stopped and detached from the surface before the underlying GL
+    // texture is destroyed, avoiding a race condition where the codec might
+    // attempt to use a deleted texture.
+    cache_.pop_front();
+    job_thread_->Schedule([id_to_delete = texture_id_to_delete]() {
       glDeleteTextures(1, &id_to_delete);
     });
-    cache_.pop_front();
   }
   cache_.push_back({key, std::move(decoder), std::move(dummy_surface_texture),
                     std::move(dummy_surface), texture_id});
@@ -245,9 +251,16 @@ std::unique_ptr<MediaDecoder> VideoDecoderCache::Get(const CacheKey& key) {
     if (it->key == key) {
       SB_LOG(INFO) << "Getting cached video decoder for key=" << key;
       std::unique_ptr<MediaDecoder> decoder = std::move(it->decoder);
-      job_thread_->Schedule([id_to_delete = it->texture_id]() {
-        glDeleteTextures(1, &id_to_delete);
-      });
+      decoder->SetSurfaceSwitchCallback(
+          [job_thread = job_thread_.get(), texture_id = it->texture_id,
+           dummy_surface_texture = std::move(it->dummy_surface_texture),
+           dummy_surface = std::move(it->dummy_surface)]() mutable {
+            job_thread->Schedule([id_to_delete = texture_id]() {
+              glDeleteTextures(1, &id_to_delete);
+            });
+            // Java objects (dummy_surface and dummy_surface_texture) will be
+            // released when this lambda is destroyed.
+          });
       cache_.erase(it);
       return decoder;
     }

@@ -866,7 +866,12 @@ bool MediaDecoder::Suspend() {
 
 bool MediaDecoder::SetOutputSurface(jobject new_surface) {
   SB_CHECK(media_codec_bridge_);
-  return media_codec_bridge_->SetOutputSurface(new_surface);
+  bool result = media_codec_bridge_->SetOutputSurface(new_surface);
+  if (result && surface_switch_cb_) {
+    surface_switch_cb_();
+    surface_switch_cb_ = nullptr;
+  }
+  return result;
 }
 
 void MediaDecoder::ResetMemberVariables() {
