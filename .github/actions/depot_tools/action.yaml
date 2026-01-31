@@ -94,6 +94,7 @@ runs:
         cd cobalt
         gclient config \
           --name=src \
+          --cache-dir=/runner-cache/gclient-cache \
           --custom-var=download_remoteexec_cfg=True \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           https://github.com/${{ github.repository }}
