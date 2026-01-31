@@ -54,7 +54,12 @@ runs:
     - name: Clone Depot Tools
       env:
         DEPOT_TOOLS_BASE_PATH: ${{ steps.paths.outputs.base_path }}/depot_tools
-      run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "${DEPOT_TOOLS_BASE_PATH}"
+      run: |
+        if [ -d "${DEPOT_TOOLS_BASE_PATH}" ]; then
+          echo "Depot tools directory exists, skipping clone."
+        else
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "${DEPOT_TOOLS_BASE_PATH}"
+        fi
       shell: bash
 
     - name: Reset Cached Depot Tools
@@ -89,6 +94,7 @@ runs:
         cd cobalt
         gclient config \
           --name=src \
+          --cache-dir=/runner-cache/gclient-cache \
           --custom-var=download_remoteexec_cfg=True \
           --custom-var="rbe_instance=\"${RBE_INSTANCE}\"" \
           https://github.com/${{ github.repository }}
