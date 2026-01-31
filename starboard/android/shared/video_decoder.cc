@@ -355,14 +355,16 @@ MediaCodecVideoDecoder::Create(JobQueue* job_queue,
       enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
       &error_message);
 
-  if (video_stream_info.codec != kSbMediaVideoCodecAv1 &&
-
-      !video_decoder->media_decoder_) {
-    if (error_message.empty()) {
-      error_message =
-          "Video decoder was not created, but no error message was provided.";
-    }
+  if (!error_message.empty()) {
     return Failure(error_message);
+  }
+  // For AV1, |media_decoder_| is null after creation because its initialization
+  // is deferred. For all other codecs, a null |media_decoder_| indicates a
+  // failure.
+  if (video_stream_info.codec != kSbMediaVideoCodecAv1 &&
+      !video_decoder->media_decoder_) {
+    return Failure(
+        "Video decoder was not created, but no error message was provided.");
   }
   return video_decoder;
 }

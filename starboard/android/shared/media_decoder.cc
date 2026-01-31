@@ -234,18 +234,24 @@ MediaCodecDecoder::~MediaCodecDecoder() {
 
   TerminateDecoderThread();
 
-  host_->OnFlushing();
-  // After |decoder_thread_| is ended and before |media_codec_bridge_| is
-  // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
-  // So that, |dequeue_output_results_| may not be empty. As
-  // DequeueOutputResult is consisted of plain data, it's fine to let
-  // destructor delete |dequeue_output_results_|.
-  jint status = media_codec_bridge_->Flush();
-  if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "Failed to flush media codec.";
+  // |media_codec_bridge_| can be null if the object is created in an invalid
+  // state. Although the factory does not return such instances, the destructor
+  // still needs to be able to safely handle them when they are destroyed after
+  // a failed initialization.
+  if (media_codec_bridge_) {
+    host_->OnFlushing();
+    // After |decoder_thread_| is ended and before |media_codec_bridge_| is
+    // flushed, OnMediaCodecOutputBufferAvailable() would still be called.
+    // So that, |dequeue_output_results_| may not be empty. As
+    // DequeueOutputResult is consisted of plain data, it's fine to let
+    // destructor delete |dequeue_output_results_|.
+    jint status = media_codec_bridge_->Flush();
+    if (status != MEDIA_CODEC_OK) {
+      SB_LOG(ERROR) << "Failed to flush media codec.";
+    }
+    // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
+    media_codec_bridge_->Stop();
   }
-  // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
-  media_codec_bridge_->Stop();
 }
 
 void MediaCodecDecoder::Initialize(const ErrorCB& error_cb) {

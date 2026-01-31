@@ -126,7 +126,6 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::string* error_message);
-
   ~MediaCodecDecoder();
 
   void Initialize(const ErrorCB& error_cb);

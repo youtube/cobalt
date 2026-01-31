@@ -57,7 +57,6 @@ class AudioRendererPassthrough : public AudioRenderer,
                            JobQueue* job_queue,
                            const AudioStreamInfo& audio_stream_info,
                            std::unique_ptr<AudioDecoder> decoder);
-
   ~AudioRendererPassthrough() override;
 
   // AudioRenderer methods
