@@ -120,23 +120,36 @@ void CobaltContentRendererClient::RenderFrameCreated(
     LOG(WARNING) << "RenderFrameCreated is called with no webview.";
   }
 
-  if (!window_provider_.is_bound()) {
+  if (sb_window_handle_.load() == 0 && !window_handle_requested_) {
+    window_handle_requested_ = true;
+    mojo::Remote<media::mojom::PlatformWindowProvider> window_provider;
     render_frame->GetBrowserInterfaceBroker().GetInterface(
-        window_provider_.BindNewPipeAndPassReceiver());
+        window_provider.BindNewPipeAndPassReceiver());
 
-    window_provider_->GetSbWindow(base::BindOnce(
-        [](std::atomic<uint64_t>* out_handle, uint64_t handle) {
-          if (!handle) {
-            LOG(ERROR) << "Renderer received invalid SbWindow handle.";
-            return;
-          }
-
-          LOG(INFO) << "Renderer received SbWindow handle: "
-                    << reinterpret_cast<void*>(handle);
-          *out_handle = handle;
-        },
-        &sb_window_handle_));
+    auto* window_provider_ptr = window_provider.get();
+    window_provider_ptr->GetSbWindow(
+        base::BindPostTaskToCurrentDefault(base::BindOnce(
+            [](base::WeakPtr<CobaltContentRendererClient> client,
+               mojo::Remote<media::mojom::PlatformWindowProvider> remote,
+               uint64_t handle) {
+              if (client) {
+                client->OnGetSbWindow(handle);
+              }
+            },
+            weak_factory_.GetWeakPtr(), std::move(window_provider))));
   }
+}
+
+void CobaltContentRendererClient::OnGetSbWindow(uint64_t handle) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (!handle) {
+    LOG(ERROR) << "Renderer received invalid SbWindow handle.";
+    return;
+  }
+
+  LOG(INFO) << "Renderer received SbWindow handle: "
+            << reinterpret_cast<void*>(handle);
+  sb_window_handle_ = handle;
 }
 
 void CobaltContentRendererClient::RenderThreadStarted() {
