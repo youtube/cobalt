@@ -241,7 +241,7 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
 
   // Working thread to avoid lengthy decoding work block the player thread.
   std::unique_ptr<Thread> decoder_thread_;
-// Factory method guarantees that media_codec_bridge_ is non-null.
+  // Factory method guarantees that media_codec_bridge_ is non-null.
   std::unique_ptr<MediaCodecBridge> media_codec_bridge_;
 };
 
