@@ -68,6 +68,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   uint64_t GetSbWindowHandle() const { return sb_window_handle_; }
 
  private:
+  void OnGetSbWindow(uint64_t handle);
+
   // Registers a custom content::AudioDeviceFactory
   ::media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
 
@@ -77,6 +79,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
   mojo::SharedRemote<media::mojom::PlatformWindowProvider> window_provider_;
   std::atomic<uint64_t> sb_window_handle_ = 0;
+  bool window_handle_requested_ = false;
 
   THREAD_CHECKER(thread_checker_);
 
