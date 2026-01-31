@@ -86,7 +86,8 @@ AudioRendererPassthrough::Create(JobQueue* job_queue,
     if (result) {
       decoder = std::move(result.value());
     } else {
-      return Failure("Failed to create MediaCodecAudioDecoder: " + result.error());
+      return Failure("Failed to create MediaCodecAudioDecoder: " +
+                     result.error());
     }
   } else {
     SB_LOG(INFO) << "Creating AudioDecoderPassthrough.";
@@ -94,11 +95,13 @@ AudioRendererPassthrough::Create(JobQueue* job_queue,
         audio_stream_info.samples_per_second);
   }
 
-  return std::unique_ptr<AudioRendererPassthrough>(new AudioRendererPassthrough(
-      job_queue, audio_stream_info, std::move(decoder)));
+  return std::make_unique<AudioRendererPassthrough>(
+      PassKey<AudioRendererPassthrough>(), job_queue, audio_stream_info,
+      std::move(decoder));
 }
 
 AudioRendererPassthrough::AudioRendererPassthrough(
+    PassKey<AudioRendererPassthrough>,
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     std::unique_ptr<AudioDecoder> decoder)

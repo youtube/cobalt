@@ -76,9 +76,9 @@ MediaCodecAudioDecoder::Create(JobQueue* job_queue,
                                SbDrmSystem drm_system,
                                bool enable_flush_during_seek) {
   std::string error_message;
-  auto audio_decoder = std::unique_ptr<MediaCodecAudioDecoder>(
-      new MediaCodecAudioDecoder(job_queue, audio_stream_info, drm_system,
-                                 enable_flush_during_seek, &error_message));
+  auto audio_decoder = std::make_unique<MediaCodecAudioDecoder>(
+      PassKey<MediaCodecAudioDecoder>(), job_queue, audio_stream_info,
+      drm_system, enable_flush_during_seek, &error_message);
   if (audio_decoder->media_decoder_) {
     return audio_decoder;
   }
@@ -86,6 +86,7 @@ MediaCodecAudioDecoder::Create(JobQueue* job_queue,
 }
 
 MediaCodecAudioDecoder::MediaCodecAudioDecoder(
+    PassKey<MediaCodecAudioDecoder>,
     JobQueue* job_queue,
     const AudioStreamInfo& audio_stream_info,
     SbDrmSystem drm_system,
@@ -118,7 +119,6 @@ void MediaCodecAudioDecoder::Initialize(const OutputCB& output_cb,
 
   output_cb_ = output_cb;
   error_cb_ = error_cb;
-  // |media_decoder_| can be null if Reset() failed.
   if (media_decoder_) {
     media_decoder_->Initialize(
         std::bind(&MediaCodecAudioDecoder::ReportError, this, _1, _2));
@@ -130,6 +130,7 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
+  SB_DCHECK(media_decoder_);
 
   audio_frame_discarder_.OnInputBuffers(input_buffers);
 
@@ -139,7 +140,6 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
   }
 #endif
 
-  // |media_decoder_| can be null if Reset() failed.
   if (media_decoder_) {
     media_decoder_->WriteInputBuffers(input_buffers);
   }
@@ -157,8 +157,8 @@ void MediaCodecAudioDecoder::Decode(const InputBuffers& input_buffers,
 void MediaCodecAudioDecoder::WriteEndOfStream() {
   SB_CHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
+  SB_DCHECK(media_decoder_);
 
-  // |media_decoder_| can be null if Reset() failed.
   if (media_decoder_) {
     media_decoder_->WriteEndOfStream();
   }
@@ -200,9 +200,9 @@ void MediaCodecAudioDecoder::Reset() {
 
     auto result = InitializeCodec();
     if (!result) {
-      ReportError(kSbPlayerErrorDecode,
-                  "Failed to initialize audio decoder after reset: " +
-                      result.error());
+      ReportError(
+          kSbPlayerErrorDecode,
+          "Failed to initialize audio decoder after reset: " + result.error());
     }
   }
   audio_frame_discarder_.Reset();

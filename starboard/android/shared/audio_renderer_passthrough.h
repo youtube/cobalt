@@ -22,6 +22,7 @@
 
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/drm_system.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/result.h"
 #include "starboard/drm.h"
@@ -51,6 +52,12 @@ class AudioRendererPassthrough : public AudioRenderer,
       const AudioStreamInfo& audio_stream_info,
       SbDrmSystem drm_system,
       bool enable_flush_during_seek);
+
+  AudioRendererPassthrough(PassKey<AudioRendererPassthrough>,
+                           JobQueue* job_queue,
+                           const AudioStreamInfo& audio_stream_info,
+                           std::unique_ptr<AudioDecoder> decoder);
+
   ~AudioRendererPassthrough() override;
 
   // AudioRenderer methods
@@ -77,10 +84,6 @@ class AudioRendererPassthrough : public AudioRenderer,
                               double* playback_rate) override;
 
  private:
-  AudioRendererPassthrough(JobQueue* job_queue,
-                           const AudioStreamInfo& audio_stream_info,
-                           std::unique_ptr<AudioDecoder> decoder);
-
   struct AudioTrackState {
     double volume = 1.0;
     bool paused = true;

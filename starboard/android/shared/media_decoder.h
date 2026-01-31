@@ -26,6 +26,7 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/thread.h"
 #include "starboard/media.h"
@@ -97,27 +98,15 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       bool force_big_endian_hdr_metadata,
       int max_video_input_size,
       int64_t flush_delay_usec);
-  ~MediaCodecDecoder();
 
-  void Initialize(const ErrorCB& error_cb);
-  void WriteInputBuffers(const InputBuffers& input_buffers);
-  void WriteEndOfStream();
-
-  void SetPlaybackRate(double playback_rate);
-
-  size_t GetNumberOfPendingInputs() const {
-    return number_of_pending_inputs_.load();
-  }
-
-  bool Flush();
-
- private:
-  MediaCodecDecoder(JobQueue* job_queue,
+  MediaCodecDecoder(PassKey<MediaCodecDecoder>,
+                    JobQueue* job_queue,
                     Host* host,
                     const AudioStreamInfo& audio_stream_info,
                     SbDrmSystem drm_system,
                     std::string* error_message);
   MediaCodecDecoder(
+      PassKey<MediaCodecDecoder>,
       JobQueue* job_queue,
       Host* host,
       SbMediaVideoCodec video_codec,
@@ -137,6 +126,20 @@ class MediaCodecDecoder final : private MediaCodecBridge::Handler,
       int max_video_input_size,
       int64_t flush_delay_usec,
       std::string* error_message);
+
+  ~MediaCodecDecoder();
+
+  void Initialize(const ErrorCB& error_cb);
+  void WriteInputBuffers(const InputBuffers& input_buffers);
+  void WriteEndOfStream();
+
+  void SetPlaybackRate(double playback_rate);
+
+  size_t GetNumberOfPendingInputs() const {
+    return number_of_pending_inputs_.load();
+  }
+
+  bool Flush();
 
   // Holding inputs to be processed.  They are mostly InputBuffer objects, but
   // can also be codec configs or end of streams.

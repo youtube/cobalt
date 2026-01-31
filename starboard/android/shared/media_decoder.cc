@@ -98,12 +98,13 @@ class MediaCodecDecoder::DecoderThread : public Thread {
 // static
 NonNullResult<std::unique_ptr<MediaCodecDecoder>>
 MediaCodecDecoder::CreateForAudio(JobQueue* job_queue,
-                                 Host* host,
-                                 const AudioStreamInfo& audio_stream_info,
-                                 SbDrmSystem drm_system) {
+                                  Host* host,
+                                  const AudioStreamInfo& audio_stream_info,
+                                  SbDrmSystem drm_system) {
   std::string error_message;
-  auto decoder = std::unique_ptr<MediaCodecDecoder>(new MediaCodecDecoder(
-      job_queue, host, audio_stream_info, drm_system, &error_message));
+  auto decoder = std::make_unique<MediaCodecDecoder>(
+      PassKey<MediaCodecDecoder>(), job_queue, host, audio_stream_info,
+      drm_system, &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
@@ -130,19 +131,21 @@ MediaCodecDecoder::CreateForVideo(
     int max_video_input_size,
     int64_t flush_delay_usec) {
   std::string error_message;
-  auto decoder = std::unique_ptr<MediaCodecDecoder>(new MediaCodecDecoder(
-      job_queue, host, video_codec, frame_size_hint, max_frame_size, fps,
-      j_output_surface, drm_system, color_metadata, require_software_codec,
-      frame_rendered_cb, first_tunnel_frame_ready_cb,
-      tunnel_mode_audio_session_id, force_big_endian_hdr_metadata,
-      max_video_input_size, flush_delay_usec, &error_message));
+  auto decoder = std::make_unique<MediaCodecDecoder>(
+      PassKey<MediaCodecDecoder>(), job_queue, host, video_codec,
+      frame_size_hint, max_frame_size, fps, j_output_surface, drm_system,
+      color_metadata, require_software_codec, frame_rendered_cb,
+      first_tunnel_frame_ready_cb, tunnel_mode_audio_session_id,
+      force_big_endian_hdr_metadata, max_video_input_size, flush_delay_usec,
+      &error_message);
   if (!decoder->media_codec_bridge_) {
     return Failure(error_message);
   }
   return decoder;
 }
 
-MediaCodecDecoder::MediaCodecDecoder(JobQueue* job_queue,
+MediaCodecDecoder::MediaCodecDecoder(PassKey<MediaCodecDecoder>,
+                                     JobQueue* job_queue,
                                      Host* host,
                                      const AudioStreamInfo& audio_stream_info,
                                      SbDrmSystem drm_system,
@@ -178,6 +181,7 @@ MediaCodecDecoder::MediaCodecDecoder(JobQueue* job_queue,
 }
 
 MediaCodecDecoder::MediaCodecDecoder(
+    PassKey<MediaCodecDecoder>,
     JobQueue* job_queue,
     Host* host,
     SbMediaVideoCodec video_codec,
@@ -196,6 +200,7 @@ MediaCodecDecoder::MediaCodecDecoder(
     int64_t flush_delay_usec,
     std::string* error_message)
     : JobOwner(job_queue),
+
       media_type_(kSbMediaTypeVideo),
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),

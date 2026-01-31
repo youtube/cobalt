@@ -329,34 +329,34 @@ class MediaCodecVideoDecoder::Sink : public VideoRendererSink {
 };
 
 NonNullResult<std::unique_ptr<MediaCodecVideoDecoder>>
-MediaCodecVideoDecoder::Create(
-    JobQueue* job_queue,
-    const VideoStreamInfo& video_stream_info,
-    SbDrmSystem drm_system,
-    SbPlayerOutputMode output_mode,
-    SbDecodeTargetGraphicsContextProvider*
-        decode_target_graphics_context_provider,
-    const std::string& max_video_capabilities,
-    int tunnel_mode_audio_session_id,
-    bool force_secure_pipeline_under_tunnel_mode,
-    bool force_reset_surface,
-    bool force_big_endian_hdr_metadata,
-    int max_input_size,
-    void* surface_view,
-    bool enable_flush_during_seek,
-    int64_t reset_delay_usec,
-    int64_t flush_delay_usec) {
+MediaCodecVideoDecoder::Create(JobQueue* job_queue,
+                               const VideoStreamInfo& video_stream_info,
+                               SbDrmSystem drm_system,
+                               SbPlayerOutputMode output_mode,
+                               SbDecodeTargetGraphicsContextProvider*
+                                   decode_target_graphics_context_provider,
+                               const std::string& max_video_capabilities,
+                               int tunnel_mode_audio_session_id,
+                               bool force_secure_pipeline_under_tunnel_mode,
+                               bool force_reset_surface,
+                               bool force_big_endian_hdr_metadata,
+                               int max_input_size,
+                               void* surface_view,
+                               bool enable_flush_during_seek,
+                               int64_t reset_delay_usec,
+                               int64_t flush_delay_usec) {
   std::string error_message;
-  auto video_decoder = std::unique_ptr<MediaCodecVideoDecoder>(
-      new MediaCodecVideoDecoder(
-          job_queue, video_stream_info, drm_system, output_mode,
-          decode_target_graphics_context_provider, max_video_capabilities,
-          tunnel_mode_audio_session_id, force_secure_pipeline_under_tunnel_mode,
-          force_reset_surface, force_big_endian_hdr_metadata, max_input_size,
-          surface_view, enable_flush_during_seek, reset_delay_usec,
-          flush_delay_usec, &error_message));
+  auto video_decoder = std::make_unique<MediaCodecVideoDecoder>(
+      PassKey<MediaCodecVideoDecoder>(), job_queue, video_stream_info,
+      drm_system, output_mode, decode_target_graphics_context_provider,
+      max_video_capabilities, tunnel_mode_audio_session_id,
+      force_secure_pipeline_under_tunnel_mode, force_reset_surface,
+      force_big_endian_hdr_metadata, max_input_size, surface_view,
+      enable_flush_during_seek, reset_delay_usec, flush_delay_usec,
+      &error_message);
 
   if (video_stream_info.codec != kSbMediaVideoCodecAv1 &&
+
       !video_decoder->media_decoder_) {
     if (error_message.empty()) {
       error_message =
@@ -368,6 +368,7 @@ MediaCodecVideoDecoder::Create(
 }
 
 MediaCodecVideoDecoder::MediaCodecVideoDecoder(
+    PassKey<MediaCodecVideoDecoder>,
     JobQueue* job_queue,
     const VideoStreamInfo& video_stream_info,
     SbDrmSystem drm_system,

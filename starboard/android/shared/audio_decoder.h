@@ -25,6 +25,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/common/pass_key.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -46,6 +47,13 @@ class MediaCodecAudioDecoder : public AudioDecoder,
       SbDrmSystem drm_system,
       bool enable_flush_during_seek);
 
+  MediaCodecAudioDecoder(PassKey<MediaCodecAudioDecoder>,
+                         JobQueue* job_queue,
+                         const AudioStreamInfo& audio_stream_info,
+                         SbDrmSystem drm_system,
+                         bool enable_flush_during_seek,
+                         std::string* error_message);
+
   ~MediaCodecAudioDecoder() override;
 
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -54,13 +62,6 @@ class MediaCodecAudioDecoder : public AudioDecoder,
   void WriteEndOfStream() override;
   scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
-
- private:
-  MediaCodecAudioDecoder(JobQueue* job_queue,
-                         const AudioStreamInfo& audio_stream_info,
-                         SbDrmSystem drm_system,
-                         bool enable_flush_during_seek,
-                         std::string* error_message);
 
   // The maximum amount of work that can exist in the union of |decoded_audios_|
   // and |media_decoder_->GetNumberOfPendingTasks()|.
