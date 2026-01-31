@@ -108,6 +108,7 @@ AudioRendererPassthrough::AudioRendererPassthrough(
     : JobOwner(job_queue),
       audio_stream_info_(audio_stream_info),
       decoder_(std::move(decoder)) {
+  SB_CHECK(decoder_);
   SB_DCHECK(audio_stream_info_.codec == kSbMediaAudioCodecAc3 ||
             audio_stream_info_.codec == kSbMediaAudioCodecEac3);
 }
