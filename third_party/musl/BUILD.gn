@@ -978,6 +978,8 @@ static_library("c_internal") {
     "src/time/asctime.c",
     "src/time/asctime_r.c",
     "src/time/clock.c",
+    "src/time/ctime.c",
+    "src/time/ctime_r.c",
     "src/time/gettimeofday.c",
     "src/time/nanosleep.c",
     "src/time/strftime.c",

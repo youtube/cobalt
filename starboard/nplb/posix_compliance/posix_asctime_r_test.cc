@@ -22,7 +22,6 @@ namespace {
 
 const int kBufferSize = 26;  // asctime_r requires at least 26 bytes.
 
-// Test fixture for asctime_r tests.
 class PosixAsctimeRTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -40,7 +39,6 @@ class PosixAsctimeRTest : public ::testing::Test {
   char buffer_[kBufferSize];
 };
 
-// Struct to pass data to threads
 struct ThreadData {
   struct tm time_data;
   char buffer[kBufferSize];
@@ -111,12 +109,14 @@ TEST_F(PosixAsctimeRTest, ThreadSafety) {
   EXPECT_STREQ(data2.expected, data2.buffer);
 }
 
-TEST_F(PosixAsctimeRTest, InvalidInput) {
-  // Test with out-of-range values. The behavior is undefined,
-  // but it shouldn't crash. We check if it returns a non-null pointer.
-  tm_.tm_mon = 12;  // Invalid month
-  char* result = asctime_r(&tm_, buffer_);
-  ASSERT_NE(result, nullptr);
+TEST_F(PosixAsctimeRTest, NullTimeInput) {
+  char* result = asctime_r(nullptr, buffer_);
+  ASSERT_EQ(result, nullptr);
+}
+
+TEST_F(PosixAsctimeRTest, NullBufferInput) {
+  char* result = asctime_r(&tm_, nullptr);
+  ASSERT_EQ(result, nullptr);
 }
 
 }  // namespace
