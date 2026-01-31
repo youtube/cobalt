@@ -62,7 +62,7 @@ public final class CommandLineOverrideHelper {
         paramOverrides.add("--force-device-scale-factor=1");
         // Force CobaltActivity to use AndroidOverlay instead
         // of VideoSurfaceView.
-        paramOverrides.add("--CobaltUsingAndroidOverlay");
+        // paramOverrides.add("--CobaltUsingAndroidOverlay");
 
         return paramOverrides;
     }
@@ -89,7 +89,7 @@ public final class CommandLineOverrideHelper {
         // rendering switch, to make sure certain devices are excluded.
         paramOverrides.add("DefaultPassthroughCommandDecoder");
         // Using AndroidOverlay for punch-out video mode.
-        paramOverrides.add("CobaltUsingAndroidOverlay");
+        // paramOverrides.add("CobaltUsingAndroidOverlay");
 
         return paramOverrides;
     }

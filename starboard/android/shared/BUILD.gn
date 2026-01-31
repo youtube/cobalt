@@ -291,6 +291,8 @@ static_library("starboard_platform") {
     "trace_util.h",
     "video_decoder.cc",
     "video_decoder.h",
+    "video_decoder_cache.cc",
+    "video_decoder_cache.h",
     "video_decoder_configuration.cc",
     "video_decoder_configuration.h",
     "video_decoder_configuration_internal.cc",
