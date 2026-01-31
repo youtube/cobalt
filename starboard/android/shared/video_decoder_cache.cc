@@ -106,16 +106,16 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-void VideoDecoderCache::InitializeEgl() {
+bool VideoDecoderCache::InitializeEgl() {
   egl_context_.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   if (egl_context_.display == EGL_NO_DISPLAY) {
     SB_LOG(ERROR) << "eglGetDisplay failed";
-    return;
+    return false;
   }
 
   if (!eglInitialize(egl_context_.display, nullptr, nullptr)) {
     SB_LOG(ERROR) << "eglInitialize failed";
-    return;
+    return false;
   }
 
   const EGLint config_attribs[] = {EGL_RENDERABLE_TYPE,
@@ -134,7 +134,7 @@ void VideoDecoderCache::InitializeEgl() {
   if (!eglChooseConfig(egl_context_.display, config_attribs, &config, 1,
                        &num_configs)) {
     SB_LOG(ERROR) << "eglChooseConfig failed";
-    return;
+    return false;
   }
 
   const EGLint context_attribs[] = {EGL_CONTEXT_CLIENT_VERSION, 2, EGL_NONE};
@@ -142,7 +142,7 @@ void VideoDecoderCache::InitializeEgl() {
                                           EGL_NO_CONTEXT, context_attribs);
   if (egl_context_.context == EGL_NO_CONTEXT) {
     SB_LOG(ERROR) << "eglCreateContext failed";
-    return;
+    return false;
   }
 
   // To support a SurfaceTexture, we need a valid GLES environment on the thread
@@ -155,14 +155,15 @@ void VideoDecoderCache::InitializeEgl() {
       eglCreatePbufferSurface(egl_context_.display, config, pbuffer_attribs);
   if (egl_context_.surface == EGL_NO_SURFACE) {
     SB_LOG(ERROR) << "eglCreatePbufferSurface failed";
-    return;
+    return false;
   }
 
   if (!eglMakeCurrent(egl_context_.display, egl_context_.surface,
                       egl_context_.surface, egl_context_.context)) {
     SB_LOG(ERROR) << "eglMakeCurrent failed";
-    return;
+    return false;
   }
+  return true;
 }
 
 std::string VideoDecoderCache::Put(const CacheKey& key,
@@ -192,14 +193,20 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
   std::string error_message;
   GLuint texture_id = 0;
 
+  std::string error;
+
   // We must wait for the dummy surface to be created and the texture to be
   // generated. The caller (VideoDecoder::TeardownCodec) expects that after
   // Put() returns, the MediaCodec is no longer using the original surface
   // (which may be destroyed immediately after).
   job_thread_->ScheduleAndWait([&]() {
     if (egl_context_.display == EGL_NO_DISPLAY) {
-      InitializeEgl();
+      if (!InitializeEgl()) {
+        error = "InitializeEgl failed";
+        return;
+      }
     }
+
     if (egl_context_.context == EGL_NO_CONTEXT) {
       error_message = "Failed to initialize EGL";
       return;
@@ -243,6 +250,9 @@ std::string VideoDecoderCache::Put(const CacheKey& key,
     job_thread_->Schedule([id_to_delete = texture_id_to_delete]() {
       glDeleteTextures(1, &id_to_delete);
     });
+  }
+  if (!error.empty()) {
+    return error;
   }
   cache_.push_back({key, std::move(decoder), std::move(dummy_surface_texture),
                     std::move(dummy_surface), texture_id});

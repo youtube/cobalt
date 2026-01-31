@@ -72,7 +72,7 @@ class VideoDecoderCache {
     EGLSurface surface = EGL_NO_SURFACE;
   };
 
-  void InitializeEgl();
+  bool InitializeEgl();
 
   static constexpr int kMaxCacheSize = 4;
   std::mutex mutex_;
