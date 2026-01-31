@@ -21,10 +21,6 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-// Need this nested namespace to prevent breaking RDK build on CI.
-// http://go/paste/5453531536556032
-// TODO: b/441955897 - Remove this nested namespace once RDK build on CI is
-// updated.
 namespace starboard {
 
 bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
