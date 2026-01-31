@@ -332,6 +332,9 @@ declare_args() {
   # ie. is_chromeos_device.
   chrome_wide_echo_cancellation_supported =
       is_win || is_mac || is_linux || is_chromeos_device
+  if (is_cobalt && use_starboard_media) {
+    chrome_wide_echo_cancellation_supported = false
+  }
 }
 
 # Do not expand this list without double-checking with OWNERS, this is a list of

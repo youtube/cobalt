@@ -11,6 +11,10 @@
 #include "media/audio/fake_audio_manager.h"
 #include "media/base/media_switches.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/audio/starboard/audio_manager_starboard.h"
+#endif
+
 #if defined(USE_ALSA)
 #include "media/audio/alsa/audio_manager_alsa.h"
 #endif
@@ -35,6 +39,11 @@ std::unique_ptr<media::AudioManager> CreateAudioManager(
     return std::make_unique<FakeAudioManager>(std::move(audio_thread),
                                               audio_log_factory);
   }
+
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  return std::make_unique<AudioManagerStarboard>(std::move(audio_thread), audio_log_factory);
+#else //  BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if defined(USE_CRAS)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kUseCras)) {
@@ -61,6 +70,9 @@ std::unique_ptr<media::AudioManager> CreateAudioManager(
   return std::make_unique<FakeAudioManager>(std::move(audio_thread),
                                             audio_log_factory);
 #endif
+
+#endif //  BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }
 
 }  // namespace media

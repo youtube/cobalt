@@ -15,7 +15,7 @@
     "SbPlayerGetAudioConfigurationTests*",
     "SbPlayerGetMediaTimeTests*",
     "SbPlayerWriteSampleTests*",
-
+    "PosixThreadAttrTest.StackAddrAndSizeAttr",
     "Posix/NlLanginfoTest.AllItems/as_IN",
     "Posix/NlLanginfoTest.AllItems/be_BY",
     "Posix/NlLanginfoTest.AllItems/bs_BA",
