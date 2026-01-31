@@ -65,12 +65,14 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 }  // namespace
 
 AudioRendererPcm::AudioRendererPcm(
+    JobQueue* job_queue,
     std::unique_ptr<AudioDecoder> decoder,
     std::unique_ptr<AudioRendererSink> audio_renderer_sink,
     const AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
     int min_frames_per_append)
-    : max_cached_frames_(max_cached_frames),
+    : JobOwner(job_queue),
+      max_cached_frames_(max_cached_frames),
       min_frames_per_append_(min_frames_per_append),
       decoder_(std::move(decoder)),
       frames_consumed_set_at_(CurrentMonotonicTime()),

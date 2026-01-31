@@ -31,8 +31,10 @@ const int64_t kUpdateIntervalUsec = 5'000;
 
 }  // namespace
 
-OpenMaxVideoDecoder::OpenMaxVideoDecoder(SbMediaVideoCodec video_codec)
-    : resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
+OpenMaxVideoDecoder::OpenMaxVideoDecoder(JobQueue* job_queue,
+                                         SbMediaVideoCodec video_codec)
+    : JobOwner(job_queue),
+      resource_pool_(new DispmanxResourcePool(kResourcePoolSize)),
       eos_written_(false),
       request_thread_termination_(false) {
   SB_DCHECK_EQ(video_codec, kSbMediaVideoCodecH264);

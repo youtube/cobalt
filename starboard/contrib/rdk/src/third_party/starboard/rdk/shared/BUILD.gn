@@ -258,7 +258,6 @@ static_library("starboard_platform_sources") {
     "media/media_is_buffer_using_memory_pool.cc",
     "media/media_is_output_protected.cc",
     "media/media_is_supported.cc",
-    "media/media_is_transfer_characteristics_supported.cc",
     "media/media_is_video_supported.cc",
     "platform_service.cc",
     "platform_service.h",

@@ -40,7 +40,8 @@ class MediaCodecAudioDecoder : public AudioDecoder,
                                public MediaCodecDecoder::Host,
                                private JobQueue::JobOwner {
  public:
-  MediaCodecAudioDecoder(const AudioStreamInfo& audio_stream_info,
+  MediaCodecAudioDecoder(JobQueue* job_queue,
+                         const AudioStreamInfo& audio_stream_info,
                          SbDrmSystem drm_system,
                          bool enable_flush_during_seek);
   ~MediaCodecAudioDecoder() override;

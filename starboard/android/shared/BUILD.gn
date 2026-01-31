@@ -167,8 +167,6 @@ static_library("starboard_platform") {
     "configuration.h",
     "configuration_constants.cc",
     "configuration_public.h",
-    "continuous_audio_track_sink.cc",
-    "continuous_audio_track_sink.h",
     "crash_handler.cc",
     "crash_handler.h",
     "decode_target.cc",

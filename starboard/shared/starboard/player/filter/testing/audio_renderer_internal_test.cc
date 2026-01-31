@@ -110,7 +110,7 @@ class AudioRendererTest : public ::testing::Test {
     const int kMaxCachedFrames = 256 * 1024;
     const int kMaxFramesPerAppend = 16384;
     audio_renderer_.reset(new AudioRendererPcm(
-        std::unique_ptr<AudioDecoder>(audio_decoder_),
+        &job_queue_, std::unique_ptr<AudioDecoder>(audio_decoder_),
         std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
     audio_renderer_->Initialize(

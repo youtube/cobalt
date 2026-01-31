@@ -93,6 +93,18 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
     H5vccSchemeURLLoaderFactory::SetSplashDomainForTesting(
         embedded_test_server()->base_url().spec());
 
+    // Use a plain html to simplify the test. This verifies the cache,
+    // hence bypass the MediaSource in the splash.html.
+    auto test_resource_map = std::make_unique<GeneratedResourceMap>();
+    LoaderEmbeddedResources::GenerateMap(*test_resource_map);
+    const char kSafeSplashHtml[] = "<html><body>Safe</body></html>";
+    FileContents safe_contents = {
+        reinterpret_cast<const unsigned char*>(kSafeSplashHtml),
+        sizeof(kSafeSplashHtml) - 1};
+    (*test_resource_map)["splash.html"] = safe_contents;
+    H5vccSchemeURLLoaderFactory::SetResourceMapForTesting(
+        test_resource_map.get());
+
     // 1. Populate the cache.
     // We navigate to the "splash domain" (test server) to access its cache.
     GURL setup_url = embedded_test_server()->GetURL("/title1.html");
@@ -144,7 +156,15 @@ class H5vccSchemeURLLoaderFactoryBrowserTest : public ContentBrowserTest {
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest, LoadSplashHtml) {
+// TODO(478334656): Support Media source for Android's
+// browser tests. Once they are plumbed, remove the prefix.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_LoadSplashHtml DISABLED_LoadSplashHtml
+#else
+#define MAYBE_LoadSplashHtml LoadSplashHtml
+#endif
+IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
+                       MAYBE_LoadSplashHtml) {
   GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 
@@ -157,8 +177,15 @@ IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest, LoadSplashHtml) {
             EvalJs(shell(), CheckVideoDimension(true)));
 }
 
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_LoadSplashVideoWithFallbackParameter \
+  DISABLED_LoadSplashVideoWithFallbackParameter
+#else
+#define MAYBE_LoadSplashVideoWithFallbackParameter \
+  LoadSplashVideoWithFallbackParameter
+#endif
 IN_PROC_BROWSER_TEST_F(H5vccSchemeURLLoaderFactoryBrowserTest,
-                       LoadSplashVideoWithFallbackParameter) {
+                       MAYBE_LoadSplashVideoWithFallbackParameter) {
   GURL splash_url(std::string(kH5vccEmbeddedScheme) + "://splash.html");
   EXPECT_TRUE(NavigateToURL(shell(), splash_url));
 

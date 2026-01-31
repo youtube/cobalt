@@ -40,11 +40,13 @@ template <>
 class FfmpegAudioDecoderImpl<FFMPEG> : public FfmpegAudioDecoder,
                                        private JobQueue::JobOwner {
  public:
-  explicit FfmpegAudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
+  FfmpegAudioDecoderImpl(JobQueue* job_queue,
+                         const AudioStreamInfo& audio_stream_info);
   ~FfmpegAudioDecoderImpl() override;
 
   // From: FfmpegAudioDecoder
-  static FfmpegAudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  static FfmpegAudioDecoder* Create(JobQueue* job_queue,
+                                    const AudioStreamInfo& audio_stream_info);
   bool is_valid() const override;
 
   // From: AudioDecoder
