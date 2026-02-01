@@ -17,6 +17,7 @@
 import argparse
 import os
 import subprocess
+import sys
 import tempfile
 from typing import List, Tuple
 
@@ -77,8 +78,29 @@ def create_archive(
     flatten_deps: bool,
 ):
   """Main logic. Collects runtime dependencies for each target."""
+  # Handle cobalt_browsertests using the specialized script.
+  browsertests_target = next(
+      (t for t in targets if t.endswith(':cobalt_browsertests')), None)
+  if browsertests_target:
+    print(f'Detected {browsertests_target}. Using specialized collector.')
+    collect_script = os.path.join(source_dir, 'cobalt', 'testing',
+                                  'browser_tests', 'tools',
+                                  'collect_test_artifacts.py')
+    output_name = f'cobalt_browsertests_artifacts.tar.{compression}'
+    cmd = [
+        sys.executable, collect_script, out_dir, '-o', output_name,
+        '--output_dir', destination_dir, '--compression', compression
+    ]
+    print(f"Running: {' '.join(cmd)}")
+    subprocess.check_call(cmd)
+    # If this was the only target, we are done.
+    if len(targets) == 1:
+      return
+
   combined_deps = set()
   for target in targets:
+    if target.endswith(':cobalt_browsertests'):
+      continue
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni

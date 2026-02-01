@@ -123,6 +123,11 @@ def main():
       help='Output filename (default: cobalt_browsertests_artifacts.tar.gz)')
   parser.add_argument(
       '--output_dir', help='Output directory where the tarball will be placed.')
+  parser.add_argument(
+      '--compression',
+      choices=['xz', 'gz', 'zstd'],
+      default='gz',
+      help='The compression algorithm to use.')
   args = parser.parse_args()
 
   if args.output_dir:
@@ -225,7 +230,14 @@ def main():
     generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
 
     logging.info('Creating tarball: %s', args.output)
-    subprocess.run(['tar', '-C', stage_dir, '-czf', args.output, '.'],
+    compression_flag = {
+        'gz': '-z',
+        'xz': '-J',
+        'zstd': '--zstd'
+    }[args.compression]
+    subprocess.run([
+        'tar', '-C', stage_dir, '-c', compression_flag, '-f', args.output, '.'
+    ],
                    check=True)
 
   logging.info('Done!')
