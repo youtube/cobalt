@@ -20,6 +20,8 @@
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/posix/file_descriptor_shuffle.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
@@ -43,10 +45,52 @@ void OnMemoryDumpDone(
     CobaltMetricsServiceClient::RecordMemoryMetrics(global_dump.get());
   }
 
-  std::move(done_callback).Run();
+  if (done_callback) {
+    std::move(done_callback).Run();
+  }
 }
 
 }  // namespace
+
+struct CobaltMetricsServiceClient::State
+    : public base::RefCountedThreadSafe<CobaltMetricsServiceClient::State> {
+  State() = default;
+
+  // Task runner for background memory metrics collection.
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+
+  // Flag to stop logging.
+  bool stop_logging = false;
+
+  void RecordMemoryMetricsAfterDelay() {
+    if (stop_logging) {
+      return;
+    }
+
+    task_runner->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&State::RequestMemoryMetrics, base::RetainedRef(this)),
+        memory_instrumentation::GetDelayForNextMemoryLog());
+  }
+
+  void RequestMemoryMetrics() {
+    if (stop_logging) {
+      return;
+    }
+
+    auto* instrumentation =
+        memory_instrumentation::MemoryInstrumentation::GetInstance();
+    if (instrumentation) {
+      instrumentation->RequestGlobalDump(
+          {}, base::BindOnce(&OnMemoryDumpDone, base::OnceClosure()));
+    }
+    RecordMemoryMetricsAfterDelay();
+  }
+
+ private:
+  friend class base::RefCountedThreadSafe<State>;
+  ~State() = default;
+};
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
@@ -68,6 +112,16 @@ void CobaltMetricsServiceClient::Initialize() {
   log_uploader_ = CreateLogUploaderInternal();
   log_uploader_weak_ptr_ = log_uploader_->GetWeakPtr();
   StartIdleRefreshTimer();
+  StartMemoryMetricsLogger();
+}
+
+void CobaltMetricsServiceClient::StartMemoryMetricsLogger() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  state_ = base::MakeRefCounted<State>();
+  state_->task_runner = base::ThreadPool::CreateSequencedTaskRunner({});
+  state_->task_runner->PostTask(
+      FROM_HERE, base::BindOnce(&State::RecordMemoryMetricsAfterDelay,
+                                base::RetainedRef(state_)));
 }
 
 void CobaltMetricsServiceClient::StartIdleRefreshTimer() {
@@ -203,28 +257,13 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
 
-  auto* instrumentation =
-      memory_instrumentation::MemoryInstrumentation::GetInstance();
-  if (instrumentation) {
-    instrumentation->RequestPrivateMemoryFootprint(
-        base::GetCurrentProcId(),
-        base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
-  } else {
-    std::move(done_callback).Run();
-  }
+  std::move(done_callback).Run();
 
   // Reset the idle state but don't call OnApplicationNotIdleInternal to avoid
   // potential confusion/recursion if it were to ever call this again.
   GetMetricsService()->OnApplicationNotIdle();
 }
 void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {
-  auto* instrumentation =
-      memory_instrumentation::MemoryInstrumentation::GetInstance();
-  if (instrumentation) {
-    instrumentation->RequestPrivateMemoryFootprint(
-        base::GetCurrentProcId(),
-        base::BindOnce(&OnMemoryDumpDone, base::DoNothing()));
-  }
   // MetricsService will shut itself down if the app doesn't periodically tell
   // it it's not idle. In Cobalt's case, we don't want this behavior. Watch
   // sessions for LR can happen for extended periods of time with no action by
@@ -282,10 +321,39 @@ void CobaltMetricsServiceClient::SetUploadInterval(base::TimeDelta interval) {
   StartIdleRefreshTimer();
 }
 
+CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
+  if (state_) {
+    state_->stop_logging = true;
+  }
+}
+
 void CobaltMetricsServiceClient::SetMetricsListener(
     ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
+}
+
+void CobaltMetricsServiceClient::ScheduleRecordForTesting(
+    base::OnceClosure done_callback) {
+  state_->task_runner->PostTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](scoped_refptr<State> state, base::OnceClosure done_callback) {
+            if (state->stop_logging) {
+              std::move(done_callback).Run();
+              return;
+            }
+            auto* instrumentation =
+                memory_instrumentation::MemoryInstrumentation::GetInstance();
+            if (instrumentation) {
+              instrumentation->RequestGlobalDump(
+                  {},
+                  base::BindOnce(&OnMemoryDumpDone, std::move(done_callback)));
+            } else {
+              std::move(done_callback).Run();
+            }
+          },
+          state_, std::move(done_callback)));
 }
 
 // static
