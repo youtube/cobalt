@@ -17,14 +17,17 @@
 #include <memory>
 #include <string_view>
 
+#include "base/command_line.h"
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/posix/file_descriptor_shuffle.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/browser/metrics/cobalt_metrics_log_uploader.h"
+#include "cobalt/browser/switches.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
@@ -67,10 +70,27 @@ struct CobaltMetricsServiceClient::State
       return;
     }
 
+    base::TimeDelta delay;
+    const base::CommandLine* command_line =
+        base::CommandLine::ForCurrentProcess();
+    if (command_line->HasSwitch(switches::kMemoryMetricsInterval)) {
+      std::string interval_str =
+          command_line->GetSwitchValueASCII(switches::kMemoryMetricsInterval);
+      int interval_int;
+      if (base::StringToInt(interval_str, &interval_int) && interval_int > 0) {
+        delay = base::Seconds(interval_int);
+      } else {
+        LOG(ERROR) << "Invalid memory metrics interval: " << interval_str;
+        delay = memory_instrumentation::GetDelayForNextMemoryLog();
+      }
+    } else {
+      delay = memory_instrumentation::GetDelayForNextMemoryLog();
+    }
+
     task_runner->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&State::RequestMemoryMetrics, base::RetainedRef(this)),
-        memory_instrumentation::GetDelayForNextMemoryLog());
+        delay);
   }
 
   void RequestMemoryMetrics() {
