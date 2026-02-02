@@ -215,6 +215,15 @@ def _get_cobalt_resident_memory_metrics() -> list:
   ]
 
 
+def _get_cobalt_resident_memory_metrics() -> list:
+  metrics = []
+  metrics.append('Memory.Total.Resident')
+  metrics.append('Memory.Browser.Resident')
+  metrics.append('Memory.Renderer.Resident')
+  metrics.append('Memory.Gpu.Resident')
+  return metrics
+
+
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
                                   output_file, quiet: bool):
   """Prints histogram data to the console and writes it to a file."""
