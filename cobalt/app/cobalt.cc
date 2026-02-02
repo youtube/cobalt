@@ -142,8 +142,6 @@ void SbEventHandle(const SbEvent* event) {
 
       g_content_main_delegate->Shutdown();
 
-      //GetContentMainRunner()->DeleteSoon(g_content_main_delegate);
-
       GetContentMainRunner()->Shutdown();
 
       delete g_content_main_delegate;
