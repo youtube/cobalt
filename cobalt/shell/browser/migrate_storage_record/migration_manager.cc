@@ -341,15 +341,17 @@ std::vector<std::unique_ptr<net::CanonicalCookie>>
 MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   for (auto& c : storage.cookies()) {
+    bool secure_attribute = true;
+    net::CookieSameSite samesite_mode = net::CookieSameSite::NO_RESTRICTION;
+
     cookies.push_back(net::CanonicalCookie::FromStorage(
         c.name(), c.value(), c.domain(), c.path(),
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
-        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false,
-        absl::optional<net::CookiePartitionKey>(),
+        base::Time::FromInternalValue(c.creation_time_us()), secure_attribute,
+        c.http_only(), samesite_mode, net::COOKIE_PRIORITY_DEFAULT, false,
+        absl::nullopt,  // Use absl::nullopt to match the parameter type
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
   }
   return cookies;
