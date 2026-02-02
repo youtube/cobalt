@@ -56,7 +56,8 @@ def _make_tar(archive_path: str, compression: str, compression_level: int,
     tmp_file.write('\n'.join(sorted(file_list)))
     tmp_file.flush()
     # Change the tar working directory and add the file list.
-    tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
+    # Use absolute path for base_dir to avoid issues with cumulative -C flags.
+    tar_cmd += ['-C', os.path.abspath(base_dir), '-T', tmp_file.name]
 
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
