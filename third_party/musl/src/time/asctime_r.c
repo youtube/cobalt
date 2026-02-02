@@ -30,7 +30,6 @@ char *__asctime_r(const struct tm *restrict tm, char *restrict buf)
 	if (tm == NULL || buf == NULL ||
 		tm->tm_wday < 0 || tm->tm_wday > 6 ||
 		tm->tm_mon < 0 || tm->tm_mon > 11) {
-			errno = EINVAL;
 			return NULL;
 	}
 #endif // BUILDFLAG(IS_STARBOARD)

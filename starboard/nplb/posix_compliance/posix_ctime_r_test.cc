@@ -51,7 +51,11 @@ void* CtimeRThread(void* arg) {
 TEST_F(PosixCtimeRTest, BasicConversion) {
   // Note: The output of ctime_r depends on the system's timezone.
   // We will set the TZ to UTC for consistent testing.
-  char* old_tz = getenv("TZ");
+  const char* old_tz_cstr = getenv("TZ");
+  std::string old_tz_str;
+  if (old_tz_cstr) {
+    old_tz_str = old_tz_cstr;
+  }
   setenv("TZ", "UTC", 1);
   tzset();
 
@@ -61,8 +65,8 @@ TEST_F(PosixCtimeRTest, BasicConversion) {
   EXPECT_EQ(result, buffer_);
 
   // Restore original timezone
-  if (old_tz) {
-    setenv("TZ", old_tz, 1);
+  if (old_tz_cstr) {
+    setenv("TZ", old_tz_str.c_str(), 1);
   } else {
     unsetenv("TZ");
   }
@@ -74,7 +78,11 @@ TEST_F(PosixCtimeRTest, AnotherTime) {
   // Timestamp: 915235199
   time_ = 915235199;
 
-  char* old_tz = getenv("TZ");
+  const char* old_tz_cstr = getenv("TZ");
+  std::string old_tz_str;
+  if (old_tz_cstr) {
+    old_tz_str = old_tz_cstr;
+  }
   setenv("TZ", "UTC", 1);
   tzset();
 
@@ -82,8 +90,8 @@ TEST_F(PosixCtimeRTest, AnotherTime) {
   ASSERT_NE(result, nullptr);
   EXPECT_STREQ("Fri Jan  1 23:59:59 1999\n", buffer_);
 
-  if (old_tz) {
-    setenv("TZ", old_tz, 1);
+  if (old_tz_cstr) {
+    setenv("TZ", old_tz_str.c_str(), 1);
   } else {
     unsetenv("TZ");
   }
@@ -93,7 +101,11 @@ TEST_F(PosixCtimeRTest, AnotherTime) {
 TEST_F(PosixCtimeRTest, ThreadSafety) {
   pthread_t thread1, thread2;
 
-  char* old_tz = getenv("TZ");
+  const char* old_tz_cstr = getenv("TZ");
+  std::string old_tz_str;
+  if (old_tz_cstr) {
+    old_tz_str = old_tz_cstr;
+  }
   setenv("TZ", "UTC", 1);
   tzset();
 
@@ -114,8 +126,8 @@ TEST_F(PosixCtimeRTest, ThreadSafety) {
   EXPECT_STREQ(data1.expected, data1.buffer);
   EXPECT_STREQ(data2.expected, data2.buffer);
 
-  if (old_tz) {
-    setenv("TZ", old_tz, 1);
+  if (old_tz_cstr) {
+    setenv("TZ", old_tz_str.c_str(), 1);
   } else {
     unsetenv("TZ");
   }
