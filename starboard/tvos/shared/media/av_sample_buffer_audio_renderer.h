@@ -35,7 +35,8 @@ namespace starboard {
 
 class AVSBAudioRenderer : public AudioRenderer, private JobQueue::JobOwner {
  public:
-  AVSBAudioRenderer(const AudioStreamInfo& audio_stream_info,
+  AVSBAudioRenderer(JobQueue* job_queue,
+                    const AudioStreamInfo& audio_stream_info,
                     SbDrmSystem drm_system);
 
   ~AVSBAudioRenderer() override;
