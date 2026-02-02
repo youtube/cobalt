@@ -242,6 +242,7 @@ class MediaDecoder final
 
   bool is_output_restricted_ = false;
   bool first_call_on_handler_thread_ = true;
+  bool is_suspended_ = false;
 
   std::function<void()> surface_switch_cb_;
 

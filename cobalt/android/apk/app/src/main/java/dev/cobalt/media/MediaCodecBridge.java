@@ -546,6 +546,8 @@ class MediaCodecBridge {
     MediaCodec mediaCodec = null;
     outCreateMediaCodecBridgeResult.mMediaCodecBridge = null;
 
+    Log.i(TAG, "MediaCodecBridge.createVideoMediaCodecBridge");
+
     if (decoderName.equals("")) {
       String message = "Invalid decoder name.";
       Log.e(TAG, message);
@@ -734,6 +736,7 @@ class MediaCodecBridge {
 
   @CalledByNative
   public void release() {
+    Log.i(TAG, "MediaCodecBridge.release");
     try {
       String codecName = mMediaCodec.get().getName();
       Log.w(TAG, "calling MediaCodec.release() on " + codecName);
@@ -747,11 +750,13 @@ class MediaCodecBridge {
   }
 
   public boolean start() {
+    Log.i(TAG, "MediaCodecBridge.start");
     return start(null);
   }
 
   @CalledByNative
   private boolean restart() {
+    Log.i(TAG, "MediaCodecBridge.restart");
     // Restart MediaCodec after flush().
     return start(null);
   }
@@ -822,6 +827,7 @@ class MediaCodecBridge {
 
   @CalledByNative
   private int flush() {
+    Log.i(TAG, "MediaCodecBridge.flush");
     try {
       mMediaCodec.get().flush();
     } catch (Exception e) {
@@ -850,13 +856,18 @@ class MediaCodecBridge {
   private void stop() {
     resetNativeMediaCodecBridge();
 
+    Log.i(TAG, "MediaCodecBridge.stop");
+/*
+Disable for now for testing
+
+
     // We skip calling stop() on Android 11, as this version has a race condition
     // if an error occurs during stop(). See b/369372033 for details.
     if (android.os.Build.VERSION.SDK_INT == android.os.Build.VERSION_CODES.R) {
       Log.w(TAG, "Skipping stop() during destruction to avoid Android 11 framework bug");
       return;
     }
-
+*/
     try {
       mMediaCodec.get().stop();
     } catch (Exception e) {

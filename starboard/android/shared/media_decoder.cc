@@ -192,12 +192,15 @@ MediaDecoder::~MediaDecoder() {
     // So that, |dequeue_output_results_| may not be empty. As
     // DequeueOutputResult is consisted of plain data, it's fine to let
     // destructor delete |dequeue_output_results_|.
-    jint status = media_codec_bridge_->Flush();
-    if (status != MEDIA_CODEC_OK) {
-      SB_LOG(ERROR) << "Failed to flush media codec.";
+    if (!is_suspended_) {
+      jint status = media_codec_bridge_->Flush();
+      if (status != MEDIA_CODEC_OK) {
+        SB_LOG(ERROR) << "Failed to flush media codec.";
+      }
+      // Call stop() here to notify MediaCodecBridge to not invoke any
+      // callbacks.
+      media_codec_bridge_->Stop();
     }
-    // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
-    media_codec_bridge_->Stop();
   }
 }
 
@@ -824,6 +827,7 @@ bool MediaDecoder::Suspend() {
     host_->OnFlushing();
   }
   media_codec_bridge_->Stop();
+  is_suspended_ = true;
 
   // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
   {
@@ -881,6 +885,7 @@ bool MediaDecoder::Reconfigure(
   if (!media_codec_bridge_->ReconfigureWithSurface(new_surface)) {
     return false;
   }
+  is_suspended_ = false;
   host_ = new_host;
   frame_rendered_cb_ = std::move(frame_rendered_cb);
   first_tunnel_frame_ready_cb_ = std::move(first_tunnel_frame_ready_cb);
