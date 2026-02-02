@@ -59,6 +59,11 @@ void CobaltWebContentsObserver::DidStartNavigation(
                      weak_factory_.GetWeakPtr()));
 }
 
+// Opting for WebContentsObserver::DidFinishNavigation() over
+// WebContentsObserver::PrimaryPageChanged as the network check can't
+// assume HasCommitted() is true. Doing so would not catch network
+// errors that are thrown before a navigation commits such as
+// net::ERR_CONNECTION_TIMED_OUT and net::ERR_NAME_NOT_RESOLVED.
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   if (!navigation_handle->IsInPrimaryMainFrame()) {
@@ -66,18 +71,17 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   }
 
   timeout_timer_.Stop();
-  int net_error_code = navigation_handle->GetNetErrorCode();
+  const auto net_error_code = navigation_handle->GetNetErrorCode();
   if (net_error_code != net::OK && net_error_code != net::ERR_ABORTED) {
     LOG(INFO) << "DidFinishNavigation: Raising platform error with code: "
-              << net_error_code;
+              << net::ErrorToString(net_error_code);
     RaisePlatformError();
   }
 }
 
 void CobaltWebContentsObserver::RaisePlatformError() {
   JNIEnv* env = base::android::AttachCurrentThread();
-  starboard::StarboardBridge* starboard_bridge =
-      starboard::StarboardBridge::GetInstance();
+  auto* starboard_bridge = starboard::StarboardBridge::GetInstance();
 
   // Don't raise a new platform error if one is already showing
   if (starboard_bridge->IsPlatformErrorShowing(env)) {
