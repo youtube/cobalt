@@ -200,28 +200,22 @@ def _get_histograms_from_file(file_path: str) -> list:
 
 
 def _get_chrome_guiding_metrics_for_memory() -> list:
-  # TODO(482357006): Re-add process-specific private memory metrics (Browser,
-  # Renderer, GPU) when moving to multi-process architecture.
   return [
+      'Memory.Browser.PrivateMemoryFootprint',
+      'Memory.Gpu.PrivateMemoryFootprint',
+      'Memory.Renderer.PrivateMemoryFootprint',
       'Memory.Total.PrivateMemoryFootprint',
+      'Memory.Browser.MemoryFootprint',
   ]
 
 
 def _get_cobalt_resident_memory_metrics() -> list:
-  # TODO(482357006): Re-add process-specific resident memory metrics (Browser,
-  # Renderer, GPU) when moving to multi-process architecture.
   return [
       'Memory.Total.Resident',
+      'Memory.Browser.Resident',
+      'Memory.Renderer.Resident',
+      'Memory.Gpu.Resident',
   ]
-
-
-def _get_cobalt_resident_memory_metrics() -> list:
-  metrics = []
-  metrics.append('Memory.Total.Resident')
-  metrics.append('Memory.Browser.Resident')
-  metrics.append('Memory.Renderer.Resident')
-  metrics.append('Memory.Gpu.Resident')
-  return metrics
 
 
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
