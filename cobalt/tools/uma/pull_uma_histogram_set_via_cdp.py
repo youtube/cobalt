@@ -209,6 +209,15 @@ def _get_chrome_guiding_metrics_for_memory() -> list:
   return metrics
 
 
+def _get_cobalt_resident_memory_metrics() -> list:
+  metrics = []
+  metrics.append('Memory.Total.Resident')
+  metrics.append('Memory.Browser.Resident')
+  metrics.append('Memory.Renderer.Resident')
+  metrics.append('Memory.Gpu.Resident')
+  return metrics
+
+
 def _print_cobalt_histogram_names(ws, message_id: int, histograms: list,
                                   output_file, quiet: bool):
   """Prints histogram data to the console and writes it to a file."""
@@ -310,6 +319,7 @@ def _run_main(args, output_file):
     histograms = _get_histograms_from_file(args.histogram_file)
   else:
     histograms = _get_chrome_guiding_metrics_for_memory()
+    histograms.extend(_get_cobalt_resident_memory_metrics())
 
   _print_q(f'Ensure Cobalt is running with --remote-debugging-port={args.port}',
            args.quiet)
