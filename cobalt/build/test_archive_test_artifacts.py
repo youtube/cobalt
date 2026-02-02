@@ -119,10 +119,9 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     self.assertIn('base_unittests', out_deps)
 
     # ../../cobalt/test/data/file.txt starts with ../../
-    # target_src_root_deps.add(line[6:])
-    # 'cobalt/test/data/file.txt\n' (wait, I used f.write('...\n'))
-    # Yes, the script doesn't strip line before line[6:]
-    self.assertIn('cobalt/test/data/file.txt\n', src_deps)
+    # target_src_root_deps.add(line.strip()[6:])
+    # 'cobalt/test/data/file.txt'
+    self.assertIn('cobalt/test/data/file.txt', src_deps)
 
   @mock.patch('os.path.getsize', return_value=1024)
   @mock.patch('subprocess.check_call')
