@@ -144,7 +144,11 @@ StarboardRenderer::StarboardRenderer(
 {
   DCHECK(task_runner_);
   DCHECK(media_log_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  LOG(INFO) << "StarboardRenderer constructed: "
+            << "audio_write_duration_local=" << audio_write_duration_local_
+            << ", audio_write_duration_remote=" << audio_write_duration_remote_
+            << ", max_video_capabilities=" << max_video_capabilities_
+            << ", viewport_size=" << viewport_size_.ToString();
 }
 
 StarboardRenderer::~StarboardRenderer() {
