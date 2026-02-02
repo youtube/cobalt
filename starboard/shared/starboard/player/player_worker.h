@@ -117,6 +117,8 @@ class PlayerWorker {
         int video_initial_max_frames_in_decoder) = 0;
     virtual void SetVideoMaxPendingInputFrames(
         int video_max_pending_input_frames) = 0;
+    virtual void SetVideoDecoderPollIntervalMs(
+        int video_decoder_poll_interval_ms) = 0;
 
    private:
     Handler(const Handler&) = delete;

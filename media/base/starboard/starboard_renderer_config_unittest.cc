@@ -36,7 +36,8 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
       audio_write_duration_remote, max_video_capabilities,
       enable_flush_during_seek, enable_reset_audio_decoder,
       /*initial_max_frames_in_decoder=*/std::nullopt,
-      /*max_pending_input_frames=*/std::nullopt, gfx::Size(1920, 1080));
+      /*max_pending_input_frames=*/std::nullopt,
+      /*video_decoder_poll_interval_ms=*/std::nullopt, gfx::Size(1920, 1080));
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);

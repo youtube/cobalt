@@ -128,6 +128,7 @@ StarboardRenderer::StarboardRenderer(
     bool enable_reset_audio_decoder,
     std::optional<int> initial_max_frames_in_decoder,
     std::optional<int> max_pending_input_frames,
+    std::optional<int> video_decoder_poll_interval_ms,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
     ,
@@ -147,6 +148,7 @@ StarboardRenderer::StarboardRenderer(
       enable_reset_audio_decoder_(enable_reset_audio_decoder),
       initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
       max_pending_input_frames_(max_pending_input_frames),
+      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)
       ,
@@ -164,7 +166,9 @@ StarboardRenderer::StarboardRenderer(
             << ", initial_max_frames_in_decoder="
             << initial_max_frames_in_decoder_.value_or(-1)
             << ", max_pending_input_frames="
-            << max_pending_input_frames_.value_or(-1);
+            << max_pending_input_frames_.value_or(-1)
+            << ", video_decoder_poll_interval_ms="
+            << video_decoder_poll_interval_ms_.value_or(-1);
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -624,7 +628,8 @@ void StarboardRenderer::CreatePlayerBridge() {
         kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
         -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
-        initial_max_frames_in_decoder_, max_pending_input_frames_
+        initial_max_frames_in_decoder_, max_pending_input_frames_,
+        video_decoder_poll_interval_ms_
 #if BUILDFLAG(IS_ANDROID)
         ,
         // TODO: b/475294958 - Revisit platform-specific codes above starboard.

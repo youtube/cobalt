@@ -37,6 +37,15 @@ std::optional<int> GetVideoMaxPendingInputFramesForCurrentThread();
 void SetVideoMaxPendingInputFramesForCurrentThread(
     int max_pending_input_frames);
 
+// Get video_decoder_poll_interval_ms via
+// SetVideoDecoderPollIntervalMsForCurrentThread().
+std::optional<int> GetVideoDecoderPollIntervalMsForCurrentThread();
+
+// Specifies the video poll interval in milliseconds.
+// |video_decoder_poll_interval_ms| should be positive value.
+void SetVideoDecoderPollIntervalMsForCurrentThread(
+    int video_decoder_poll_interval_ms);
+
 }  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CONFIGURATION_INTERNAL_H_
