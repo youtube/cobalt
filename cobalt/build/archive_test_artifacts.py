@@ -104,30 +104,20 @@ def create_archive(
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
-
-    # Candidate locations for runtime_deps:
-    candidates = [
-        os.path.join(out_dir, f'{target_name}.runtime_deps'),
-        os.path.join(out_dir, 'starboard', f'{target_name}.runtime_deps'),
-        os.path.join(out_dir, 'gen.runtime', target_path,
-                     f'{target_name}__test_runner_script.runtime_deps')
-    ]
     if use_android_deps_path:
-      # Prioritize the android-specific path if requested.
-      android_path = candidates.pop(2)
-      candidates.insert(0, android_path)
+      deps_file = os.path.join(
+          out_dir, 'gen.runtime', target_path,
+          f'{target_name}__test_runner_script.runtime_deps')
+    else:
+      deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
+      if not os.path.exists(deps_file):
+        # If |deps_file| doesn't exist it could be due to being generated with
+        # the starboard_toolchain. In that case, we should look in subfolders.
+        # For the time being, just try with an extra starboard/ in the path.
+        deps_file = os.path.join(out_dir, 'starboard',
+                                 f'{target_name}.runtime_deps')
 
-    deps_file = None
-    for candidate in candidates:
-      if os.path.exists(candidate):
-        deps_file = candidate
-        break
-
-    if not deps_file:
-      raise FileNotFoundError(
-          f'Could not find runtime_deps for {target}. Checked: {candidates}')
-
-    print(f'Collecting runtime dependencies for {target} from {deps_file}')
+    print('Collecting runtime dependencies for', target)
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files both in the out and source root folders
