@@ -28,7 +28,7 @@ namespace starboard {
 
 class AVSBSynchronizer : public MediaTimeProvider, private JobQueue::JobOwner {
  public:
-  AVSBSynchronizer();
+  explicit AVSBSynchronizer(JobQueue* job_queue);
   ~AVSBSynchronizer() override;
 
   void Play() override;
