@@ -103,7 +103,8 @@ void PopulateCobaltFrameBinders(
 #if !BUILDFLAG(IS_ANDROIDTV)
   binder_map->Add<h5vcc_platform_service::mojom::H5vccPlatformServiceManager>(
       base::BindRepeating(
-          &h5vcc_platform_service::H5vccPlatformServiceManagerImpl::Create));
+          &h5vcc_platform_service::H5vccPlatformServiceManagerImpl::
+              GetOrCreate));
 #endif
 }
 

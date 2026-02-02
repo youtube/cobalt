@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/h5vcc_platform_service/h5vcc_platform_service_manager_impl.h"
 
+#include <string>
 #include <utility>
 
 #include "base/functional/bind.h"
@@ -25,37 +26,48 @@
 
 namespace h5vcc_platform_service {
 
+DOCUMENT_USER_DATA_KEY_IMPL(H5vccPlatformServiceManagerImpl);
+
 // static
-void H5vccPlatformServiceManagerImpl::Create(
+void H5vccPlatformServiceManagerImpl::GetOrCreate(
     content::RenderFrameHost* render_frame_host,
     mojo::PendingReceiver<mojom::H5vccPlatformServiceManager> receiver) {
   if (!render_frame_host || !render_frame_host->IsActive()) {
     return;
   }
 
-  // The instance will delete itself when the connection is dropped, in
-  // OnDisconnect.
-  new H5vccPlatformServiceManagerImpl(*render_frame_host, std::move(receiver));
+  H5vccPlatformServiceManagerImpl* instance =
+      H5vccPlatformServiceManagerImpl::GetOrCreateForCurrentDocument(
+          render_frame_host);
+  if (instance) {
+    instance->receivers_.Add(instance, std::move(receiver));
+  } else {
+    LOG(ERROR) << "Failed to GetOrCreate H5vccPlatformServiceManagerImpl";
+  }
 }
 
 H5vccPlatformServiceManagerImpl::H5vccPlatformServiceManagerImpl(
-    content::RenderFrameHost& render_frame_host,
-    mojo::PendingReceiver<mojom::H5vccPlatformServiceManager> receiver)
-    : render_frame_host_(render_frame_host),
-      receiver_(this, std::move(receiver)) {
-  receiver_.set_disconnect_handler(base::BindOnce(
-      &H5vccPlatformServiceManagerImpl::OnDisconnect, base::Unretained(this)));
+    content::RenderFrameHost* render_frame_host)
+    : content::DocumentUserData<H5vccPlatformServiceManagerImpl>(
+          render_frame_host) {
+  LOG(INFO) << "H5vccPlatformServiceManagerImpl created for RFH ID: "
+            << this->render_frame_host().GetGlobalId();
+  receivers_.set_disconnect_handler(base::BindRepeating(
+      &H5vccPlatformServiceManagerImpl::OnReceiverDisconnect,
+      weak_factory_.GetWeakPtr()));
 }
 
 H5vccPlatformServiceManagerImpl::~H5vccPlatformServiceManagerImpl() {
   LOG(INFO) << "H5vccPlatformServiceManagerImpl destroyed for RFH ID: "
-            << render_frame_host_.GetGlobalId();
+            << this->render_frame_host().GetGlobalId();
 }
 
-void H5vccPlatformServiceManagerImpl::OnDisconnect() {
-  LOG(INFO) << "H5vccPlatformServiceManagerImpl disconnected for RFH ID: "
-            << render_frame_host_.GetGlobalId();
-  delete this;
+void H5vccPlatformServiceManagerImpl::OnReceiverDisconnect() {
+  LOG(INFO) << "A H5vccPlatformServiceManagerImpl receiver disconnected for "
+            << "RFH ID: " << render_frame_host().GetGlobalId();
+  // DocumentUserData handles object destruction when the RFH is destroyed.
+  // No need to delete |this| here.
+  // If receivers_.empty(), this instance remains until RFH is destroyed.
 }
 
 void H5vccPlatformServiceManagerImpl::Has(const std::string& service_name,
@@ -79,14 +91,19 @@ void H5vccPlatformServiceManagerImpl::Open(
     mojo::PendingRemote<mojom::PlatformServiceObserver> observer,
     mojo::PendingReceiver<mojom::PlatformService> receiver,
     OpenCallback callback) {
-  if (!render_frame_host_.IsActive()) {
+  if (!render_frame_host().IsActive()) {
     LOG(ERROR)
         << "H5vccPlatformServiceManagerImpl::Open: RenderFrameHost not active";
+    // Do not run the callback, signaling an error to the [Sync] caller.
     return;
   }
 
-  PlatformServiceImpl::Create(render_frame_host_, service_name,
+  // Pass the RenderFrameHost& from the base class to
+  // PlatformServiceImpl::Create.
+  PlatformServiceImpl::Create(render_frame_host(), service_name,
                               std::move(observer), std::move(receiver));
+
+  // Running the callback unblocks the [Sync] call in the renderer.
   std::move(callback).Run();
 }
 
