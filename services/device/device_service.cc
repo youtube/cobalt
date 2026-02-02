@@ -188,7 +188,10 @@ void DeviceService::OverridePressureManagerBinderForTesting(
 
 void DeviceService::BindBatteryMonitor(
     mojo::PendingReceiver<mojom::BatteryMonitor> receiver) {
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_COBALT)
+  // BatteryMonitor is not needed.
+  return;
+#elif BUILDFLAG(IS_ANDROID)
   GetJavaInterfaceProvider()->GetInterface(std::move(receiver));
 #else
   BatteryMonitorImpl::Create(std::move(receiver));
