@@ -70,9 +70,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Browser.Resident").size(),
             1u);
-  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Renderer.Resident").size(),
-            1u);
-  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Gpu.Resident").size(), 1u);
+  // Renderer and Gpu processes may not be present depending on the platform and
+  // multi-process configuration.
 }
 
 IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
@@ -100,9 +99,8 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
   EXPECT_GE(histogram_tester.GetAllSamples("Memory.Browser.Resident").size(),
             1u);
-  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Renderer.Resident").size(),
-            1u);
-  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Gpu.Resident").size(), 1u);
+  // Renderer and Gpu processes may not be present depending on the platform and
+  // multi-process configuration.
 }
 
 }  // namespace cobalt
