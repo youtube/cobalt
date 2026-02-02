@@ -190,8 +190,6 @@ MediaCodecDecoder::~MediaCodecDecoder() {
     if (status != MEDIA_CODEC_OK) {
       SB_LOG(ERROR) << "Failed to flush media codec.";
     }
-    // Call stop() here to notify MediaCodecBridge to not invoke any callbacks.
-    media_codec_bridge_->Stop();
   }
 }
 
