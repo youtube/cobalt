@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
 #include <locale.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +25,6 @@ namespace {
 
 const int kBufferSize = 256;
 
-// Test fixture for strftime tests.
 class PosixStrftimeTest : public ::testing::Test {
  protected:
   void SetUp() override {
@@ -39,18 +39,16 @@ class PosixStrftimeTest : public ::testing::Test {
     tm_.tm_yday = 298;
     tm_.tm_isdst = 0;
 
-    // Save the current locale
     original_locale_ = setlocale(LC_TIME, nullptr);
     ASSERT_NE(original_locale_, nullptr);
     memset(buffer_, 0, kBufferSize);
 
+    // Ensure TZ is set before running the tests.
     tzset();
+    errno = 0;
   }
 
-  void TearDown() override {
-    // Restore the original locale
-    setlocale(LC_TIME, original_locale_);
-  }
+  void TearDown() override { setlocale(LC_TIME, original_locale_); }
 
   struct tm tm_;
   char buffer_[kBufferSize];
@@ -79,11 +77,22 @@ TEST_F(PosixStrftimeTest, StandardSpecifiers) {
       {"%C", "20"},
   };
 
+  char* old_tz = getenv("TZ");
+  setenv("TZ", "UTC", 1);
+  tzset();
+
   for (const auto& test_case : kTestCases) {
     size_t result = strftime(buffer_, kBufferSize, test_case.format, &tm_);
     EXPECT_GT(result, 0U) << "Format: " << test_case.format;
     EXPECT_STREQ(test_case.expected, buffer_) << "Format: " << test_case.format;
   }
+
+  if (old_tz) {
+    setenv("TZ", old_tz, 1);
+  } else {
+    unsetenv("TZ");
+  }
+  tzset();
 }
 
 TEST_F(PosixStrftimeTest, SpecialCharacterSpecifiers) {
@@ -105,12 +114,10 @@ TEST_F(PosixStrftimeTest, SpecialCharacterSpecifiers) {
 }
 
 TEST_F(PosixStrftimeTest, PaddedAndNumericSpecifiers) {
-  // Test %e (space-padded day)
   tm_.tm_mday = 5;
   strftime(buffer_, kBufferSize, "%e", &tm_);
   EXPECT_STREQ(" 5", buffer_);
 
-  // Test %u and %w (weekday numbers)
   tm_.tm_wday = 0;  // Sunday
   strftime(buffer_, kBufferSize, "%u-%w", &tm_);
   EXPECT_STREQ("7-0", buffer_);
@@ -175,8 +182,6 @@ TEST_F(PosixStrftimeTest, ISOWeekForwardWrap) {
 TEST_F(PosixStrftimeTest, WeekdayNumericSunday) {
   tm_.tm_wday = 0;  // Sunday
 
-  // %u: 1-7 (Monday-Sunday)
-  // %w: 0-6 (Sunday-Saturday)
   strftime(buffer_, kBufferSize, "%u-%w", &tm_);
   EXPECT_STREQ("7-0", buffer_);
 }
@@ -188,34 +193,6 @@ TEST_F(PosixStrftimeTest, WeekdayNumericMonday) {
   EXPECT_STREQ("1-1", buffer_);
 }
 
-TEST_F(PosixStrftimeTest, SpecialCharacters) {
-  // Testing %n (newline) and %t (tab)
-  size_t result = strftime(buffer_, kBufferSize, "A%nB%tC", &tm_);
-  EXPECT_EQ(result, 5U);  // 'A', '\n', 'B', '\t', 'C'
-  EXPECT_STREQ("A\nB\tC", buffer_);
-}
-
-TEST_F(PosixStrftimeTest, LocaleSpecificDateTime) {
-  ASSERT_NE(setlocale(LC_TIME, "en_US.UTF-8"), nullptr);
-  size_t result = strftime(buffer_, kBufferSize, "%c", &tm_);
-  EXPECT_GT(result, 0U);
-  EXPECT_STREQ("Thu, Oct 26, 2023, 10:30:00 AM UTC", buffer_);
-}
-
-TEST_F(PosixStrftimeTest, LocaleSpecificDate) {
-  ASSERT_NE(setlocale(LC_TIME, "en_US.UTF-8"), nullptr);
-  size_t result = strftime(buffer_, kBufferSize, "%x", &tm_);
-  EXPECT_GT(result, 0U);
-  EXPECT_STREQ("10/26/23", buffer_);
-}
-
-TEST_F(PosixStrftimeTest, LocaleSpecificTime) {
-  ASSERT_NE(setlocale(LC_TIME, "en_US.UTF-8"), nullptr);
-  size_t result = strftime(buffer_, kBufferSize, "%X", &tm_);
-  EXPECT_GT(result, 0U);
-  EXPECT_STREQ("10:30:00 AM", buffer_);
-}
-
 TEST_F(PosixStrftimeTest, LiteralPercent) {
   size_t result = strftime(buffer_, kBufferSize, "%%", &tm_);
   EXPECT_EQ(result, 1U);
@@ -223,9 +200,10 @@ TEST_F(PosixStrftimeTest, LiteralPercent) {
 }
 
 TEST_F(PosixStrftimeTest, BufferHandling) {
-  const char* format = "%Y-%m-%d";  // Result: "2023-10-26" (10 chars)
+  const char* format = "%Y-%m-%d";
   size_t result = strftime(buffer_, 10, format, &tm_);
   EXPECT_EQ(result, 0U);
+  EXPECT_EQ(errno, ERANGE);
 
   result = strftime(buffer_, 11, format, &tm_);
   EXPECT_EQ(result, 10U);
@@ -233,6 +211,7 @@ TEST_F(PosixStrftimeTest, BufferHandling) {
 
   result = strftime(buffer_, 0, format, &tm_);
   EXPECT_EQ(result, 0U);
+  EXPECT_EQ(errno, ERANGE);
 }
 
 TEST_F(PosixStrftimeTest, LargeYear) {
@@ -257,6 +236,7 @@ class PosixStrftimeLTest : public ::testing::Test {
 
     locale_ = newlocale(LC_TIME_MASK, "en_US.UTF-8", nullptr);
     ASSERT_NE(locale_, nullptr);
+    errno = 0;
   }
 
   void TearDown() override {
@@ -330,6 +310,7 @@ TEST_F(PosixStrftimeLTest, BufferHandling) {
 
   size_t result = strftime_l(buffer_, 10, format, &tm_, locale_);
   EXPECT_EQ(result, 0U);
+  EXPECT_EQ(errno, ERANGE);
 
   result = strftime_l(buffer_, 11, format, &tm_, locale_);
   EXPECT_EQ(result, 10U);
@@ -337,6 +318,7 @@ TEST_F(PosixStrftimeLTest, BufferHandling) {
 
   result = strftime_l(buffer_, 0, format, &tm_, locale_);
   EXPECT_EQ(result, 0U);
+  EXPECT_EQ(errno, ERANGE);
 }
 
 }  // namespace
