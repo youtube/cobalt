@@ -19,8 +19,23 @@
 #include <stdlib.h>
 #include "libc.h"
 
-// Using a NULL value here is valid since this is ignored everywhere it is used.
-#define CURRENT_LOCALE ((locale_t)0)
+#define LOCALE_NAME_MAX 23
+
+struct __locale_map {
+	const void *map;
+	size_t map_size;
+	char name[LOCALE_NAME_MAX+1];
+	const struct __locale_map *next;
+};
+
+extern hidden const struct __locale_map __c_dot_utf8;
+extern hidden const struct __locale_struct __c_locale;
+extern hidden const struct __locale_struct __c_dot_utf8_locale;
+
+#define C_LOCALE ((locale_t)&__c_locale)
+#define UTF8_LOCALE ((locale_t)&__c_dot_utf8_locale)
+
+#define CURRENT_LOCALE (__pthread_self()->locale)
 
 // Starboard supports UTF-16 and UTF-32, both of which have a maximum character
 // size of 4 bytes.
