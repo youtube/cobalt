@@ -131,6 +131,9 @@ def main():
   args = parser.parse_args()
 
   if args.output_dir:
+    if os.path.isabs(args.output):
+      parser.error('--output cannot be an absolute path when --output_dir is '
+                   'specified.')
     os.makedirs(args.output_dir, exist_ok=True)
     args.output = os.path.join(args.output_dir, args.output)
 
