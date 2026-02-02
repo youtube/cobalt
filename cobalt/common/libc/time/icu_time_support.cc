@@ -92,7 +92,6 @@ bool ExplodeTime(const time_t* time,
   }
 
   if (*zone == icu::TimeZone::getUnknown()) {
-    SB_LOG(INFO) << "Failure";
     out_exploded->tm_gmtoff = 0;
     out_exploded->tm_zone = nullptr;
   } else {

@@ -245,7 +245,7 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 			s[l] = 0;
 #if BUILDFLAG(IS_STARBOARD)
 			free(f_copy);
-#endif
+#endif // BUILDFLAG(IS_STARBOARD)
 			return l;
 		}
 		if (*f != '%') {
@@ -295,7 +295,7 @@ size_t __strftime_l(char *restrict s, size_t n, const char *restrict f, const st
 	}
 #if BUILDFLAG(IS_STARBOARD)
 	free(f_copy);
-#endif
+#endif // BUILDFLAG(IS_STARBOARD)
 	return 0;
 }
 
