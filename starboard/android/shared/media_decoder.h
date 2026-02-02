@@ -132,7 +132,6 @@ class MediaDecoder final
   // stopped, buffers cleared), but not yet ready to receive new input.
   bool Suspend();
 
-  bool SetOutputSurface(jobject new_surface);
   bool Reconfigure(Host* new_host,
                    jobject new_surface,
                    FrameRenderedCB frame_rendered_cb,

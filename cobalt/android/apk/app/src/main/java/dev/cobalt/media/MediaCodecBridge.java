@@ -69,6 +69,9 @@ class MediaCodecBridge {
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
   private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
+  private MediaFormat mConfiguredFormat;
+  private MediaCrypto mMediaCrypto;
+
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
   // which would cause GC cycles long enough to impact playback.
@@ -780,16 +783,17 @@ class MediaCodecBridge {
   }
 
   @CalledByNative
-  private boolean setOutputSurface(Surface surface) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-      Log.e(TAG, "setOutputSurface() is not supported on API level " + Build.VERSION.SDK_INT);
+  private boolean reconfigureWithSurface(Surface surface) {
+    if (mConfiguredFormat == null) {
+      Log.e(TAG, "Failed to reconfigure with surface: mConfiguredFormat is null");
       return false;
     }
     try {
-      mMediaCodec.get().setOutputSurface(surface);
+      mMediaCodec.get().configure(mConfiguredFormat, surface, mMediaCrypto, 0);
+      mFrameRateEstimator = new FrameRateEstimator();
       return true;
     } catch (Exception e) {
-      Log.e(TAG, "Failed to set output surface", e);
+      Log.e(TAG, "Failed to reconfigure with surface", e);
       return false;
     }
   }
@@ -1020,6 +1024,8 @@ class MediaCodecBridge {
       }
 
       maybeSetMaxVideoInputSize(format);
+      mConfiguredFormat = format;
+      mMediaCrypto = crypto;
       mMediaCodec.get().configure(format, surface, crypto, flags);
       mFrameRateEstimator = new FrameRateEstimator();
       return true;
@@ -1173,6 +1179,7 @@ class MediaCodecBridge {
   @CalledByNative
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
+      mMediaCrypto = crypto;
       mMediaCodec.get().configure(format, null, crypto, flags);
       return true;
     } catch (IllegalArgumentException | IllegalStateException e) {

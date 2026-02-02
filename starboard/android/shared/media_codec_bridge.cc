@@ -511,9 +511,9 @@ void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
                                         playback_rate);
 }
 
-bool MediaCodecBridge::SetOutputSurface(jobject surface) {
+bool MediaCodecBridge::ReconfigureWithSurface(jobject surface) {
   JNIEnv* env = AttachCurrentThread();
-  return Java_MediaCodecBridge_setOutputSurface(
+  return Java_MediaCodecBridge_reconfigureWithSurface(
       env, j_media_codec_bridge_, JavaParamRef<jobject>(env, surface));
 }
 

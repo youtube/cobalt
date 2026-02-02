@@ -15,21 +15,15 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CACHE_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_CACHE_H_
 
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-#include <jni.h>
-
 #include <list>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <ostream>
 
-#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/media_decoder.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard::android::shared {
 
@@ -61,24 +55,10 @@ class VideoDecoderCache {
   struct CacheEntry {
     CacheKey key;
     std::unique_ptr<MediaDecoder> decoder;
-    base::android::ScopedJavaGlobalRef<jobject> dummy_surface_texture;
-    base::android::ScopedJavaGlobalRef<jobject> dummy_surface;
-    GLuint texture_id = 0;
   };
-
-  struct EglContext {
-    EGLDisplay display = EGL_NO_DISPLAY;
-    EGLContext context = EGL_NO_CONTEXT;
-    EGLSurface surface = EGL_NO_SURFACE;
-  };
-
-  bool InitializeEgl();
 
   std::mutex mutex_;
   std::list<CacheEntry> cache_;
-  std::unique_ptr<::starboard::shared::starboard::player::JobThread>
-      job_thread_;
-  EglContext egl_context_;
 };
 
 std::ostream& operator<<(std::ostream& os,

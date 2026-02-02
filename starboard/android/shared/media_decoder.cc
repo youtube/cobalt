@@ -823,11 +823,7 @@ bool MediaDecoder::Suspend() {
   if (host_) {
     host_->OnFlushing();
   }
-  jint status = media_codec_bridge_->Flush();
-  if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "Failed to flush media codec.";
-    return false;
-  }
+  media_codec_bridge_->Stop();
 
   // 2.2. Clean up pending_inputs and input_buffer/output_buffer indices.
   {
@@ -864,16 +860,6 @@ bool MediaDecoder::Suspend() {
   return true;
 }
 
-bool MediaDecoder::SetOutputSurface(jobject new_surface) {
-  SB_CHECK(media_codec_bridge_);
-  bool result = media_codec_bridge_->SetOutputSurface(new_surface);
-  if (result && surface_switch_cb_) {
-    surface_switch_cb_();
-    surface_switch_cb_ = nullptr;
-  }
-  return result;
-}
-
 void MediaDecoder::ResetMemberVariables() {
   host_ = nullptr;
   frame_rendered_cb_ = [](int64_t) {};
@@ -892,7 +878,7 @@ bool MediaDecoder::Reconfigure(
     FirstTunnelFrameReadyCB first_tunnel_frame_ready_cb) {
   AttachToCurrentThread();
 
-  if (!SetOutputSurface(new_surface)) {
+  if (!media_codec_bridge_->ReconfigureWithSurface(new_surface)) {
     return false;
   }
   host_ = new_host;
