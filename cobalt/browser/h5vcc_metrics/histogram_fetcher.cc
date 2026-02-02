@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,11 +17,11 @@
 #include "base/base64url.h"
 #include "base/logging.h"
 #include "base/metrics/histogram.h"
+#include "base/metrics/sample_vector.h"
 #include "base/metrics/statistics_recorder.h"
-#include "cobalt/browser/global_features.h"
-#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_log.h"
-#include "components/metrics/metrics_service.h"
+#include "components/metrics/metrics_service_client.h"
+#include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
 #include "third_party/metrics_proto/chrome_user_metrics_extension.pb.h"
 #include "third_party/metrics_proto/cobalt_uma_event.pb.h"
@@ -34,11 +34,12 @@ HistogramFetcher::~HistogramFetcher() = default;
 std::string HistogramFetcher::FetchHistograms(
     metrics::MetricsStateManager* state_manager,
     metrics::MetricsServiceClient* service_client) {
-  // Synchronously fetch subprocess histograms that live in shared memory.
-  base::StatisticsRecorder::ImportProvidedHistogramsSync();
-
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   CHECK(state_manager);
   CHECK(service_client);
+
+  // Synchronously fetch subprocess histograms that live in shared memory.
+  base::StatisticsRecorder::ImportProvidedHistogramsSync();
 
   if (state_manager->client_id().empty()) {
     return std::string();
@@ -51,19 +52,29 @@ std::string HistogramFetcher::FetchHistograms(
 
   for (base::HistogramBase* const histogram :
        base::StatisticsRecorder::GetHistograms()) {
+    // Take two snapshots back-to-back because there is no copy constructor
+    // for histogram snapshots and the first snapshot used for the delta
+    // calculation is done in place. The second becomes the baseline for the
+    // next call. A small race window still exists between these two calls.
     auto samples = histogram->SnapshotSamples();
+    auto new_baseline = histogram->SnapshotSamples();
+
     if (samples->TotalCount() == 0) {
       continue;
     }
 
-    auto it =
-        last_histogram_samples_.find(std::string(histogram->histogram_name()));
+    const uint64_t histogram_hash = histogram->name_hash();
+    auto it = last_histogram_samples_.find(histogram_hash);
+
     if (it != last_histogram_samples_.end()) {
       samples->Subtract(*it->second);
     }
-    last_histogram_samples_[std::string(histogram->histogram_name())] =
-        histogram->SnapshotSamples();
 
+    // Store the full, unmodified snapshot for the next iteration.
+    last_histogram_samples_[histogram_hash] = std::move(new_baseline);
+
+    // `samples` now contains the delta if a previous snapshot existed, or the
+    // full snapshot if it's the first time.
     if (samples->TotalCount() > 0) {
       log.RecordHistogramDelta(histogram->histogram_name(), *samples);
     }

@@ -15,11 +15,7 @@
 #ifndef COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 #define COBALT_BROWSER_H5VCC_METRICS_H5VCC_METRICS_IMPL_H_
 
-<<<<<<< HEAD
-#include "base/metrics/histogram_samples.h"
-=======
 #include "cobalt/browser/h5vcc_metrics/histogram_fetcher.h"
->>>>>>> e36104bb0b1 (cobalt: Avoid taking multiple snapshots when retrieving histograms)
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/common/cobalt_thread_checker.h"
 #include "content/public/browser/document_service.h"
@@ -31,7 +27,6 @@ class RenderFrameHost;
 
 namespace h5vcc_metrics {
 
-// Implements the H5vccMetrics Mojo interface and extends
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
 class H5vccMetricsImpl : public content::DocumentService<mojom::H5vccMetrics> {
