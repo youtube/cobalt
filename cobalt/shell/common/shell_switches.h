@@ -37,6 +37,7 @@ extern const char kIsolatedContextOrigins[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kRemoteDebuggingAddress[];
 extern const char kSplashScreenShutdownDelayMs[];
+extern const char kPreload[];
 
 // Checks if the splash screen should be created.
 // Returns false if kDisableSplashScreen is present.

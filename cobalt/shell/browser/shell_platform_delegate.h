@@ -64,6 +64,9 @@ class ShellPlatformDelegate {
   virtual void DidCreateOrAttachWebContents(Shell* shell,
                                             WebContents* web_contents);
 
+  virtual void Conceal(Shell* shell);
+  virtual void Reveal(Shell* shell);
+
   // Called from the Shell destructor to let each platform do any necessary
   // cleanup.
   virtual void CleanUp(Shell* shell);

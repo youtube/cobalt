@@ -70,4 +70,7 @@ bool ShouldCreateSplashScreen() {
   return !command_line->HasSwitch(kDisableSplashScreen);
 }
 
+// Preload the browser in a minimized state.
+const char kPreload[] = "preload";
+
 }  // namespace switches

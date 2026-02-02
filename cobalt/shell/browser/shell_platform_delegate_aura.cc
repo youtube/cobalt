@@ -14,7 +14,10 @@
 
 #include "cobalt/shell/browser/shell_platform_delegate.h"
 
+#include "base/command_line.h"
 #include "base/containers/contains.h"
+#include "base/logging.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "cobalt/shell/browser/shell.h"
 #include "cobalt/shell/browser/shell_platform_data_aura.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -27,10 +30,13 @@ namespace content {
 
 struct ShellPlatformDelegate::ShellData {
   gfx::NativeWindow window;
+  bool preloaded_ = false;
+  gfx::Size initial_size_;
 };
 
 struct ShellPlatformDelegate::PlatformData {
   std::unique_ptr<ShellPlatformDataAura> aura;
+  gfx::Size default_window_size;
 };
 
 ShellPlatformDelegate::ShellPlatformDelegate() = default;
@@ -42,8 +48,13 @@ ShellPlatformDataAura* ShellPlatformDelegate::GetShellPlatformDataAura() {
 
 void ShellPlatformDelegate::Initialize(const gfx::Size& default_window_size) {
   platform_ = std::make_unique<PlatformData>();
-  platform_->aura =
-      std::make_unique<ShellPlatformDataAura>(default_window_size);
+  platform_->default_window_size = default_window_size;
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kPreload)) {
+    platform_->aura = nullptr;
+  } else {
+    platform_->aura =
+        std::make_unique<ShellPlatformDataAura>(default_window_size);
+  }
 }
 
 void ShellPlatformDelegate::CreatePlatformWindow(
@@ -51,10 +62,17 @@ void ShellPlatformDelegate::CreatePlatformWindow(
     const gfx::Size& initial_size) {
   DCHECK(!base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+  shell_data.initial_size_ = initial_size;
 
-  platform_->aura->ResizeWindow(initial_size);
-
-  shell_data.window = platform_->aura->host()->window();
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kPreload)) {
+    shell_data.preloaded_ = true;
+    shell_data.window = nullptr;
+  } else if (platform_->aura) {
+    platform_->aura->ResizeWindow(initial_size);
+    shell_data.window = platform_->aura->host()->window();
+  } else {
+    shell_data.window = nullptr;
+  }
 }
 
 gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {
@@ -70,12 +88,40 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
 
 void ShellPlatformDelegate::SetContents(Shell* shell) {
   aura::Window* content = shell->web_contents()->GetNativeView();
+  if (!platform_->aura) {
+    return;
+  }
   aura::Window* parent = platform_->aura->host()->window();
-  if (!parent->Contains(content)) {
+  if (parent && !parent->Contains(content)) {
     parent->AddChild(content);
   }
 
   content->Show();
+}
+
+void ShellPlatformDelegate::Conceal(Shell* shell) {
+  if (platform_->aura) {
+    platform_->aura.reset();
+    for (auto* s : Shell::windows()) {
+      shell_data_map_.at(s).window = nullptr;
+    }
+  }
+}
+
+void ShellPlatformDelegate::Reveal(Shell* shell) {
+  if (!platform_->aura) {
+    platform_->aura =
+        std::make_unique<ShellPlatformDataAura>(platform_->default_window_size);
+  }
+
+  ShellData& shell_data = shell_data_map_.at(shell);
+  if (!shell_data.window) {
+    shell_data.window = platform_->aura->host()->window();
+    platform_->aura->ResizeWindow(shell_data.initial_size_);
+    SetContents(shell);
+  }
+
+  platform_->aura->host()->Show();
 }
 
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {}

@@ -20,6 +20,8 @@
 #include "base/command_line.h"
 #include "base/containers/contains.h"
 #include "base/functional/bind.h"
+#include "base/logging.h"
+#include "cobalt/shell/common/shell_switches.h"
 #include "base/memory/raw_ptr.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
@@ -62,6 +64,7 @@ struct ShellPlatformDelegate::ShellData {
   gfx::Size content_size;
   // Self-owned Widget, destroyed through CloseNow().
   raw_ptr<views::Widget> window_widget = nullptr;
+  bool preloaded_ = false;
 };
 
 struct ShellPlatformDelegate::PlatformData {
@@ -128,6 +131,8 @@ class ShellView : public views::BoxLayoutView,
                                         : views::Button::STATE_DISABLED);
     }
   }
+
+  Shell* ReleaseShell() { return shell_.release(); }
 
  private:
   // Initialize the UI control contained in shell window
@@ -332,10 +337,17 @@ ShellPlatformDelegate::~ShellPlatformDelegate() = default;
 void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
+  LOG(INFO) << "ShellPlatformDelegateViews::CreatePlatformWindow: Checking for preload switch...";
   DCHECK(!base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.content_size = initial_size;
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kPreload)) {
+    LOG(INFO) << "ShellPlatformDelegateViews::CreatePlatformWindow: Preload switch found. Deferring window creation.";
+    shell_data.preloaded_ = true;
+    return;
+  }
 
   auto delegate = std::make_unique<views::WidgetDelegate>();
   delegate->SetContentsView(std::make_unique<ShellView>(shell));
@@ -358,7 +370,51 @@ gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (!shell_data.window_widget) {
+    return nullptr;
+  }
   return shell_data.window_widget->GetNativeWindow();
+}
+
+void ShellPlatformDelegate::Conceal(Shell* shell) {
+  LOG(INFO) << "ShellPlatformDelegateViews::Conceal";
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  if (shell_data.window_widget) {
+    // We need to release the Shell from the ShellView because ShellView owns it
+    // but we want to keep the Shell alive while the window is concealed.
+    ShellViewForWidget(shell_data.window_widget)->ReleaseShell();
+    shell_data.window_widget->CloseNow();
+    shell_data.window_widget = nullptr;
+  }
+}
+
+void ShellPlatformDelegate::Reveal(Shell* shell) {
+  LOG(INFO) << "ShellPlatformDelegateViews::Reveal";
+  DCHECK(base::Contains(shell_data_map_, shell));
+  ShellData& shell_data = shell_data_map_[shell];
+
+  if (!shell_data.window_widget) {
+    auto delegate = std::make_unique<views::WidgetDelegate>();
+    // Pass the existing shell to the new ShellView.
+    delegate->SetContentsView(std::make_unique<ShellView>(shell));
+    delegate->SetHasWindowSizeControls(true);
+    delegate->SetOwnedByWidget(true);
+
+    shell_data.window_widget = new views::Widget();
+    views::Widget::InitParams params;
+    params.bounds = gfx::Rect(shell_data.content_size);
+    params.delegate = delegate.release();
+    params.wm_class_class = "chromium-content_shell";
+    params.wm_class_name = params.wm_class_class;
+    shell_data.window_widget->Init(std::move(params));
+
+    SetContents(shell);
+  } else {
+    shell_data.window_widget->Show();
+    shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
+  }
 }
 
 void ShellPlatformDelegate::CleanUp(Shell* shell) {
@@ -370,6 +426,11 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (shell_data.preloaded_ && !shell_data.window_widget) {
+    LOG(INFO) << "ShellPlatformDelegateViews::SetContents: Preloaded, skipping window show.";
+    return;
+  }
+
   ShellViewForWidget(shell_data.window_widget)
       ->SetWebContents(shell->web_contents(), shell_data.content_size);
   shell_data.window_widget->GetNativeWindow()->GetHost()->Show();
@@ -379,6 +440,10 @@ void ShellPlatformDelegate::SetContents(Shell* shell) {
 void ShellPlatformDelegate::LoadSplashScreenContents(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
+
+  if (!shell_data.window_widget) {
+    return;
+  }
 
   ShellViewForWidget(shell_data.window_widget)
       ->SetWebContents(shell->splash_screen_web_contents(),
@@ -406,6 +471,10 @@ void ShellPlatformDelegate::EnableUIControl(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (!shell_data.window_widget) {
+    return;
+  }
+
   auto* view = ShellViewForWidget(shell_data.window_widget);
   if (control == BACK_BUTTON) {
     view->EnableUIControl(ShellView::BACK_BUTTON, is_enabled);
@@ -424,6 +493,10 @@ void ShellPlatformDelegate::SetAddressBarURL(Shell* shell, const GURL& url) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (!shell_data.window_widget) {
+    return;
+  }
+
   ShellViewForWidget(shell_data.window_widget)->SetAddressBarURL(url);
 }
 
@@ -434,6 +507,10 @@ void ShellPlatformDelegate::SetTitle(Shell* shell,
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  if (!shell_data.window_widget) {
+    return;
+  }
+
   shell_data.window_widget->widget_delegate()->SetTitle(title);
 }
 
@@ -443,8 +520,11 @@ bool ShellPlatformDelegate::DestroyShell(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
-  shell_data.window_widget->CloseNow();
-  return true;  // The CloseNow() will do the destruction of Shell.
+  if (shell_data.window_widget) {
+    shell_data.window_widget->CloseNow();
+    return true;  // The CloseNow() will do the destruction of Shell.
+  }
+  return false;
 }
 
 }  // namespace content
