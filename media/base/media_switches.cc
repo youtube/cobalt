@@ -503,9 +503,13 @@ BASE_FEATURE(kCobaltAudioWrite,
              "CobaltAudioWrite",
              base::FEATURE_ENABLED_BY_DEFAULT);
 const base::FeatureParam<int> kCobaltAudioWriteLocalDurationMs{
-    &kCobaltAudioWrite, "local_duration_ms", 1000};
+    &kCobaltAudioWrite, "local_duration_ms",
+    static_cast<int>(
+        base::Microseconds(kSbPlayerWriteDurationLocal).InMilliseconds())};
 const base::FeatureParam<int> kCobaltAudioWriteRemoteDurationMs{
-    &kCobaltAudioWrite, "remote_duration_ms", 10000};
+    &kCobaltAudioWrite, "remote_duration_ms",
+    static_cast<int>(
+        base::Microseconds(kSbPlayerWriteDurationRemote).InMilliseconds())};
 
 // When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
