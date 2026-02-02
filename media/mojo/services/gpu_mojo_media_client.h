@@ -88,6 +88,7 @@ struct StarboardRendererTraits {
   const bool enable_reset_audio_decoder;
   const std::optional<int> initial_max_frames_in_decoder;
   const std::optional<int> max_pending_input_frames;
+  const std::optional<int> video_decoder_poll_interval_ms;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -113,6 +114,7 @@ struct StarboardRendererTraits {
       const bool enable_reset_audio_decoder,
       std::optional<int> initial_max_frames_in_decoder,
       std::optional<int> max_pending_input_frames,
+      std::optional<int> video_decoder_poll_interval_ms,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>

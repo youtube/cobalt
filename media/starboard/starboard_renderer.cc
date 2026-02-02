@@ -132,7 +132,8 @@ StarboardRenderer::StarboardRenderer(
     bool enable_flush_during_seek,
     bool enable_reset_audio_decoder,
     std::optional<int> initial_max_frames_in_decoder,
-    std::optional<int> max_pending_input_frames
+    std::optional<int> max_pending_input_frames,
+    std::optional<int> video_decoder_poll_interval_ms
 #if BUILDFLAG(IS_ANDROID)
     ,
     const AndroidOverlayMojoFactoryCB android_overlay_factory_cb
@@ -152,7 +153,8 @@ StarboardRenderer::StarboardRenderer(
       enable_flush_during_seek_(enable_flush_during_seek),
       enable_reset_audio_decoder_(enable_reset_audio_decoder),
       initial_max_frames_in_decoder_(initial_max_frames_in_decoder),
-      max_pending_input_frames_(max_pending_input_frames)
+      max_pending_input_frames_(max_pending_input_frames),
+      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms)
 #if BUILDFLAG(IS_ANDROID)
       ,
       android_overlay_factory_cb_(std::move(android_overlay_factory_cb))
@@ -171,7 +173,9 @@ StarboardRenderer::StarboardRenderer(
             << ", initial_max_frames_in_decoder="
             << starboard::ToString(initial_max_frames_in_decoder_)
             << ", max_pending_input_frames="
-            << starboard::ToString(max_pending_input_frames_);
+            << starboard::ToString(max_pending_input_frames_)
+            << ", video_decoder_poll_interval_ms="
+            << starboard::ToString(video_decoder_poll_interval_ms_);
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -641,7 +645,8 @@ void StarboardRenderer::CreatePlayerBridge() {
       kSbPlayerOutputModeInvalid, max_video_capabilities_,
       // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
       -1, enable_flush_during_seek_, enable_reset_audio_decoder_,
-      initial_max_frames_in_decoder_, max_pending_input_frames_
+      initial_max_frames_in_decoder_, max_pending_input_frames_,
+      video_decoder_poll_interval_ms_
 #if BUILDFLAG(IS_ANDROID)
       ,
       // TODO: b/475294958 - Revisit platform-specific codes above starboard.

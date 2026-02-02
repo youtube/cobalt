@@ -101,6 +101,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     bool reset_audio_decoder,
     std::optional<int> video_initial_max_frames_in_decoder,
     std::optional<int> video_max_pending_input_frames,
+    std::optional<int> video_decoder_poll_interval_ms,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -117,6 +118,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       job_queue_(job_queue),
       video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
       video_max_pending_input_frames_(video_max_pending_input_frames),
+      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       drm_system_(drm_system) {
   SB_DCHECK_NE(video_stream_info_.codec, kSbMediaVideoCodecNone);
   SB_DCHECK(SbPlayerIsValid(player_));
@@ -135,6 +137,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
     bool reset_audio_decoder,
     std::optional<int> video_initial_max_frames_in_decoder,
     std::optional<int> video_max_pending_input_frames,
+    std::optional<int> video_decoder_poll_interval_ms,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider,
     JobQueue* job_queue,
@@ -152,6 +155,7 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
       job_queue_(job_queue),
       video_initial_max_frames_in_decoder_(video_initial_max_frames_in_decoder),
       video_max_pending_input_frames_(video_max_pending_input_frames),
+      video_decoder_poll_interval_ms_(video_decoder_poll_interval_ms),
       drm_system_(drm_system) {
   SB_DCHECK(audio_stream_info_.codec != kSbMediaAudioCodecNone ||
             video_stream_info_.codec != kSbMediaVideoCodecNone);
