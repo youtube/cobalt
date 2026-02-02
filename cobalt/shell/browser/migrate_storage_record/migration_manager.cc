@@ -61,23 +61,36 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
       switches::GetInitialURL(*base::CommandLine::ForCurrentProcess()));
   CHECK(initial_url.is_valid());
   std::string partition_key = GetApplicationKey(initial_url);
+  LOG(INFO) << "MigrationManager: Attempting to read StorageRecord for key: "
+            << partition_key;
+
   auto record =
       std::make_unique<starboard::StorageRecord>(partition_key.c_str());
   if (!record->IsValid()) {
+    LOG(WARNING) << "MigrationManager: Primary StorageRecord is invalid.";
     record->Delete();
     bool fallback = partition_key == GetApplicationKey(GURL(kDefaultURL));
     if (!fallback) {
+      LOG(INFO) << "MigrationManager: No fallback available, aborting read.";
       return nullptr;
     }
 
+    LOG(INFO)
+        << "MigrationManager: Attempting fallback to default StorageRecord.";
     record = std::make_unique<starboard::StorageRecord>();
     if (!record->IsValid()) {
+      LOG(ERROR) << "MigrationManager: Fallback StorageRecord is also invalid.";
       record->Delete();
       return nullptr;
     }
   }
 
+  int64_t record_size = record->GetSize();
+  LOG(INFO) << "MigrationManager: Found StorageRecord. Size: " << record_size
+            << " bytes.";
+
   if (record->GetSize() < kRecordHeaderSize) {
+    LOG(ERROR) << "MigrationManager: Record too small to contain header.";
     record->Delete();
     return nullptr;
   }
@@ -87,12 +100,16 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
       record->Read(reinterpret_cast<char*>(bytes.data()), bytes.size());
   record->Delete();
   if (read_result != bytes.size()) {
+    LOG(ERROR) << "MigrationManager: Read size mismatch. Expected "
+               << bytes.size() << ", got " << read_result;
     return nullptr;
   }
 
   std::string version(reinterpret_cast<const char*>(bytes.data()),
                       kRecordHeaderSize);
   if (version != kRecordHeader) {
+    LOG(ERROR) << "MigrationManager: Header mismatch. Expected "
+               << kRecordHeader << ", got " << version;
     return nullptr;
   }
 
@@ -100,14 +117,22 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
   if (!storage->ParseFromArray(
           reinterpret_cast<const char*>(bytes.data() + kRecordHeaderSize),
           bytes.size() - kRecordHeaderSize)) {
+    LOG(ERROR) << "MigrationManager: Failed to parse Storage protobuf.";
     return nullptr;
   }
+
+  LOG(INFO) << "MigrationManager: Successfully parsed storage data. "
+            << "Cookies: " << storage->cookies_size() << ", "
+            << "LocalStorage origins: " << storage->local_storages_size();
   return storage;
 }
 
 content::RenderFrameHost* RenderFrameHost(
     content::WeakDocumentPtr weak_document_ptr) {
   auto* render_frame_host = weak_document_ptr.AsRenderFrameHostIfValid();
+  if (!render_frame_host) {
+    LOG(ERROR) << "MigrationManager: RenderFrameHost is NO LONGER VALID.";
+  }
   CHECK(render_frame_host);
   return render_frame_host;
 }
@@ -127,7 +152,8 @@ Task LogElapsedTimeTask() {
   return base::BindOnce(
       [](std::unique_ptr<base::ElapsedTimer> elapsed_timer,
          base::OnceClosure callback) {
-        LOG(INFO) << "Cookie and localStorage migration completed in "
+        LOG(INFO) << "MigrationManager: Cookie and localStorage migration "
+                     "completed in "
                   << elapsed_timer->Elapsed().InMilliseconds() << " ms.";
         std::move(callback).Run();
       },
@@ -140,6 +166,12 @@ Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
       [](content::WeakDocumentPtr weak_document_ptr, const GURL& url,
          base::OnceClosure callback) {
         auto* rfh = RenderFrameHost(weak_document_ptr);
+        if (!rfh) {
+          LOG(ERROR) << "MigrationManager: RFH invalid during reload task!";
+          std::move(callback).Run();
+          return;
+        }
+
         content::WebContents* web_contents =
             content::WebContents::FromRenderFrameHost(rfh);
         if (web_contents) {
@@ -148,6 +180,8 @@ Task ReloadTask(content::WeakDocumentPtr weak_document_ptr, const GURL& url) {
           params.transition_type = ui::PageTransitionFromInt(
               ui::PAGE_TRANSITION_TYPED | ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
           web_contents->GetController().LoadURLWithParams(params);
+        } else {
+          LOG(ERROR) << "MigrationManager: WebContents lost during reload!";
         }
         std::move(callback).Run();
       },
@@ -159,6 +193,8 @@ base::FilePath GetOldCachePath() {
   bool success =
       SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path.size());
   if (!success) {
+    LOG(WARNING)
+        << "MigrationManager: SbSystemGetPath failed for cache directory.";
     return base::FilePath();
   }
   return base::FilePath(path.data());
@@ -171,18 +207,29 @@ void DeleteOldCacheDirectoryAsync() {
       ->PostTask(
           FROM_HERE, base::BindOnce([]() {
             base::FilePath old_cache_path = GetOldCachePath();
+            LOG(INFO) << "MigrationManager: Checking for old cache at: "
+                      << old_cache_path.value();
+
             if (old_cache_path.empty() || !base::PathExists(old_cache_path)) {
+              LOG(INFO) << "MigrationManager: Old cache path does not exist. "
+                           "Skipping deletion.";
               return;
             }
 
             base::FilePath current_cache_path;
             base::PathService::Get(base::DIR_CACHE, &current_cache_path);
+            LOG(INFO) << "MigrationManager: Current cache path: "
+                      << current_cache_path.value();
             if (!old_cache_path.IsParent(current_cache_path) &&
                 old_cache_path != current_cache_path) {
+              LOG(INFO) << "MigrationManager: Deleting entire old cache "
+                           "directory recursively.";
               base::DeletePathRecursively(old_cache_path);
               return;
             }
 
+            LOG(INFO) << "MigrationManager: Old path matches current. Deleting "
+                         "specific subpaths.";
             std::vector<std::string> old_cache_subpaths = {
                 "cache_settings.json",
                 "compiled_js",
@@ -200,6 +247,7 @@ void DeleteOldCacheDirectoryAsync() {
             for (const auto& subpath : old_cache_subpaths) {
               base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
               if (base::PathExists(old_cache_subpath)) {
+                LOG(INFO) << "MigrationManager: Deleting subpath: " << subpath;
                 base::DeletePathRecursively(old_cache_subpath);
               }
             }
@@ -208,6 +256,8 @@ void DeleteOldCacheDirectoryAsync() {
 
 Task DeleteOldCacheDirectoryTask() {
   return base::BindOnce([](base::OnceClosure callback) {
+    LOG(INFO)
+        << "MigrationManager: Triggering old cache directory deletion task.";
     DeleteOldCacheDirectoryAsync();
     std::move(callback).Run();
   });
@@ -222,6 +272,7 @@ std::atomic_flag MigrationManager::migration_attempted_ = ATOMIC_FLAG_INIT;
 Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
   return base::BindOnce(
       [](std::vector<Task> tasks, base::OnceClosure callback) {
+        LOG(INFO) << "MigrationManager: Grouping " << tasks.size() << " tasks.";
         base::OnceClosure all_tasks_closure = std::move(callback);
         for (Task& task : base::Reversed(tasks)) {
           all_tasks_closure =
@@ -238,16 +289,22 @@ Task MigrationManager::GroupTasks(std::vector<Task> tasks) {
 void MigrationManager::DoMigrationTasksOnce(
     content::WebContents* web_contents) {
   if (migration_attempted_.test_and_set()) {
+    LOG(INFO) << "MigrationManager: Migration already attempted this session. "
+                 "Skipping.";
     return;
   }
 
+  LOG(INFO) << "MigrationManager: Starting DoMigrationTasksOnce.";
   auto storage = ReadStorage();
   if (!storage ||
       (storage->cookies_size() == 0 && storage->local_storages_size() == 0)) {
+    LOG(INFO) << "MigrationManager: No migration data found in StorageRecord.";
     return;
   }
 
   GURL url = web_contents->GetLastCommittedURL();
+  LOG(INFO) << "MigrationManager: Stopping load for migration of: "
+            << url.spec();
   web_contents->Stop();
 
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
@@ -255,15 +312,23 @@ void MigrationManager::DoMigrationTasksOnce(
   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
 
   std::vector<Task> tasks;
-  tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
+  auto cookies = ToCanonicalCookies(*storage);
+  LOG(INFO) << "MigrationManager: Adding CookieTask with " << cookies.size()
+            << " cookies.";
+  tasks.push_back(CookieTask(weak_document_ptr, std::move(cookies)));
+
   const url::Origin& origin = render_frame_host->GetLastCommittedOrigin();
-  tasks.push_back(LocalStorageTask(weak_document_ptr,
-                                   ToLocalStorageItems(origin, *storage)));
+  auto ls_items = ToLocalStorageItems(origin, *storage);
+  LOG(INFO) << "MigrationManager: Adding LocalStorageTask with "
+            << ls_items.size() << " items.";
+  tasks.push_back(LocalStorageTask(weak_document_ptr, std::move(ls_items)));
+
 #if !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(LogElapsedTimeTask());
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(DeleteOldCacheDirectoryTask());
   tasks.push_back(ReloadTask(weak_document_ptr, url));
+  LOG(INFO) << "MigrationManager: Executing task chain...";
   std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
 }
 
@@ -275,6 +340,7 @@ Task MigrationManager::CookieTask(
   tasks.push_back(base::BindOnce(
       [](content::WeakDocumentPtr weak_document_ptr,
          base::OnceClosure callback) {
+        LOG(INFO) << "MigrationManager: Deleting all existing cookies.";
         CookieManager(weak_document_ptr)
             ->DeleteCookies(network::mojom::CookieDeletionFilter::New(),
                             base::IgnoreArgs<uint32_t>(std::move(callback)));
@@ -286,17 +352,27 @@ Task MigrationManager::CookieTask(
            std::unique_ptr<net::CanonicalCookie> cookie,
            base::OnceClosure callback) {
           GURL source_url("https://" + cookie->Domain() + cookie->Path());
+          LOG(INFO) << "MigrationManager: Setting cookie: " << cookie->Name();
           CookieManager(weak_document_ptr)
-              ->SetCanonicalCookie(*cookie, source_url,
-                                   net::CookieOptions::MakeAllInclusive(),
-                                   base::IgnoreArgs<net::CookieAccessResult>(
-                                       std::move(callback)));
+              ->SetCanonicalCookie(
+                  *cookie, source_url, net::CookieOptions::MakeAllInclusive(),
+                  base::BindOnce(
+                      [](base::OnceClosure cb, net::CookieAccessResult result) {
+                        if (!result.status.IsInclude()) {
+                          LOG(WARNING) << "MigrationManager: Cookie set "
+                                          "rejected. Status: "
+                                       << result.status.GetDebugString();
+                        }
+                        std::move(cb).Run();
+                      },
+                      std::move(callback)));
         },
         weak_document_ptr, std::move(cookie)));
   }
   tasks.push_back(base::BindOnce(
       [](content::WeakDocumentPtr weak_document_ptr,
          base::OnceClosure callback) {
+        LOG(INFO) << "MigrationManager: Flushing cookie store.";
         CookieManager(weak_document_ptr)->FlushCookieStore(std::move(callback));
       },
       weak_document_ptr));
@@ -311,6 +387,7 @@ Task MigrationManager::LocalStorageTask(
   tasks.push_back(base::BindOnce(
       [](content::WeakDocumentPtr weak_document_ptr,
          base::OnceClosure callback) {
+        LOG(INFO) << "MigrationManager: Clearing LocalStorage.";
         RenderFrameHost(weak_document_ptr)
             ->ExecuteJavaScriptMethod(
                 base::ASCIIToUTF16(std::string("localStorage")),
@@ -324,6 +401,8 @@ Task MigrationManager::LocalStorageTask(
         [](content::WeakDocumentPtr weak_document_ptr,
            std::unique_ptr<std::pair<std::string, std::string>> pair,
            base::OnceClosure callback) {
+          LOG(INFO) << "MigrationManager: LocalStorage setItem: "
+                    << pair->first;
           RenderFrameHost(weak_document_ptr)
               ->ExecuteJavaScriptMethod(
                   base::ASCIIToUTF16(std::string("localStorage")),
@@ -364,8 +443,15 @@ MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
     GURL local_storage_origin(local_storages.serialized_origin());
     if (!local_storage_origin.SchemeIs("https") ||
         !page_origin.IsSameOriginWith(local_storage_origin)) {
+      LOG(INFO) << "MigrationManager: Skipping LS origin (not same origin or "
+                   "not HTTPS): "
+                << local_storage_origin.spec();
       continue;
     }
+
+    LOG(INFO) << "MigrationManager: Migrating "
+              << local_storages.local_storage_entries_size()
+              << " items for origin: " << local_storage_origin.spec();
 
     for (const auto& local_storage_entry :
          local_storages.local_storage_entries()) {
