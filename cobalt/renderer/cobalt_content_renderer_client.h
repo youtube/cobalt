@@ -80,7 +80,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   std::atomic<uint64_t> sb_window_handle_ = 0;
   bool window_handle_requested_ = false;
 
-  COBALT_THREAD_CHECKER(thread_checker_);
+  COBALT_THREAD_CHECKER(main_thread_checker_);
 
   // NOTE: Do not add member variables after weak_factory_
   // It should be the first one destroyed among all members.

@@ -15,7 +15,6 @@
 #include "cobalt/app/cobalt_main_delegate.h"
 
 #include "base/process/current_process.h"
-#include "base/task/sequenced_task_runner.h"
 #include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -31,10 +30,8 @@
 
 namespace cobalt {
 
-CobaltMainDelegate::CobaltMainDelegate()
-    : content::ShellMainDelegate(),
-      renderer_client_(nullptr, base::OnTaskRunnerDeleter(nullptr)) {
-  COBALT_DETACH_FROM_THREAD(thread_checker_);
+CobaltMainDelegate::CobaltMainDelegate() : content::ShellMainDelegate() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 }
 
 CobaltMainDelegate::~CobaltMainDelegate() {
@@ -42,6 +39,7 @@ CobaltMainDelegate::~CobaltMainDelegate() {
 }
 
 std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
@@ -50,11 +48,13 @@ std::optional<int> CobaltMainDelegate::BasicStartupComplete() {
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
   return browser_client_.get();
 }
 
 content::ContentGpuClient* CobaltMainDelegate::CreateContentGpuClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   gpu_client_ = std::make_unique<CobaltContentGpuClient>();
   return gpu_client_.get();
 }
@@ -62,20 +62,20 @@ content::ContentGpuClient* CobaltMainDelegate::CreateContentGpuClient() {
 content::ContentRendererClient*
 CobaltMainDelegate::CreateContentRendererClient() {
   CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  renderer_client_ =
-      std::unique_ptr<CobaltContentRendererClient, base::OnTaskRunnerDeleter>(
-          new CobaltContentRendererClient, base::OnTaskRunnerDeleter(nullptr));
+  renderer_client_ = std::make_unique<CobaltContentRendererClient>();
   return renderer_client_.get();
 }
 
 content::ContentUtilityClient*
 CobaltMainDelegate::CreateContentUtilityClient() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   utility_client_ = std::make_unique<CobaltContentUtilityClient>();
   return utility_client_.get();
 }
 
 std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   content::RenderFrameHost::AllowInjectingJavaScript();
 
   if (!ShouldCreateFeatureList(invoked_in)) {
@@ -116,6 +116,7 @@ std::optional<int> CobaltMainDelegate::PostEarlyInitialization(
 std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
     const std::string& process_type,
     content::MainFunctionParams main_function_params) {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // For non-browser process, return and have the caller run the main loop.
   if (!process_type.empty()) {
     return std::move(main_function_params);
@@ -141,10 +142,12 @@ std::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 }
 
 void CobaltMainDelegate::Shutdown() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   main_runner_->Shutdown();
 }
 
 void CobaltMainDelegate::InitializeHangWatcher() {
+  CHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   const base::CommandLine* const command_line =
       base::CommandLine::ForCurrentProcess();
   std::string process_type =
