@@ -38,8 +38,7 @@ class CobaltMetricsBrowserTest : public content::ContentBrowserTest {
   }
 };
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
-                       RecordsPrivateMemoryFootprint) {
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, RecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -58,7 +57,7 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       run_loop.QuitClosure());
   run_loop.Run();
 
-  // We expect at least one sample in the private memory footprint histogram.
+  // We expect at least one sample in the memory histograms.
   // The exact value depends on the environment, but it should be > 0.
   // Note: on some environments it might take a bit longer for the dump to
   // be processed by the service, but RunUntilIdle should cover it.
@@ -68,10 +67,15 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
           .size(),
       1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Browser.Resident").size(),
+            1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Renderer.Resident").size(),
+            1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Gpu.Resident").size(), 1u);
 }
 
-IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
-                       PeriodicRecordsPrivateMemoryFootprint) {
+IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest, PeriodicRecordsMemoryMetrics) {
   base::HistogramTester histogram_tester;
 
   base::ScopedAllowBlockingForTesting allow_blocking;
@@ -93,6 +97,12 @@ IN_PROC_BROWSER_TEST_F(CobaltMetricsBrowserTest,
       histogram_tester.GetAllSamples("Memory.Total.PrivateMemoryFootprint")
           .size(),
       1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Total.Resident").size(), 1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Browser.Resident").size(),
+            1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Renderer.Resident").size(),
+            1u);
+  EXPECT_GE(histogram_tester.GetAllSamples("Memory.Gpu.Resident").size(), 1u);
 }
 
 }  // namespace cobalt

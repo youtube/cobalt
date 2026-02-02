@@ -377,14 +377,52 @@ void CobaltMetricsServiceClient::ScheduleRecordForTesting(
 void CobaltMetricsServiceClient::RecordMemoryMetrics(
     memory_instrumentation::GlobalMemoryDump* global_dump) {
   uint64_t total_private_footprint_kb = 0;
+  uint64_t total_resident_kb = 0;
+  uint64_t browser_resident_kb = 0;
+  uint64_t renderer_resident_kb = 0;
+  uint64_t gpu_resident_kb = 0;
+
   for (const auto& process_dump : global_dump->process_dumps()) {
     total_private_footprint_kb += process_dump.os_dump().private_footprint_kb;
+
+    uint32_t resident_kb = process_dump.os_dump().resident_set_kb;
+    total_resident_kb += resident_kb;
+
+    switch (process_dump.process_type()) {
+      case memory_instrumentation::mojom::ProcessType::BROWSER:
+        browser_resident_kb += resident_kb;
+        break;
+      case memory_instrumentation::mojom::ProcessType::RENDERER:
+        renderer_resident_kb += resident_kb;
+        break;
+      case memory_instrumentation::mojom::ProcessType::GPU:
+        gpu_resident_kb += resident_kb;
+        break;
+      default:
+        break;
+    }
   }
 
   if (total_private_footprint_kb > 0) {
     uint64_t total_private_footprint_mb = total_private_footprint_kb / 1024;
     MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.PrivateMemoryFootprint",
                                 total_private_footprint_mb);
+  }
+
+  if (total_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Total.Resident",
+                                total_resident_kb / 1024);
+  }
+  if (browser_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Browser.Resident",
+                                browser_resident_kb / 1024);
+  }
+  if (renderer_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Renderer.Resident",
+                                renderer_resident_kb / 1024);
+  }
+  if (gpu_resident_kb > 0) {
+    MEMORY_METRICS_HISTOGRAM_MB("Memory.Gpu.Resident", gpu_resident_kb / 1024);
   }
 }
 
