@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2026 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <string>
 
 #include "base/metrics/histogram_samples.h"
+#include "cobalt/common/cobalt_thread_checker.h"
 
 namespace metrics {
 class MetricsServiceClient;
@@ -42,8 +43,10 @@ class HistogramFetcher {
 
  private:
   // Stores the last snapshot of histogram samples.
-  std::map<std::string, std::unique_ptr<base::HistogramSamples>>
+  std::map<uint64_t, std::unique_ptr<base::HistogramSamples>>
       last_histogram_samples_;
+
+  COBALT_THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace h5vcc_metrics

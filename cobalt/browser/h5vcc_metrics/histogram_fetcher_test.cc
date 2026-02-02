@@ -69,7 +69,7 @@ class HistogramFetcherTest : public ::testing::Test {
 TEST_F(HistogramFetcherTest, FetchHistograms_CalculatesDeltaCorrectly) {
   HistogramFetcher fetcher;
 
-  // stablish baseline and check for the histogram snapshot.
+  // Establish baseline and check for the histogram snapshot.
   fetcher.FetchHistograms(state_manager_.get(), &service_client_);
   UMA_HISTOGRAM_BOOLEAN(kTestHistogram, true);
   std::string returned_base64 =
