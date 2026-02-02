@@ -394,7 +394,7 @@ public abstract class CobaltActivity extends Activity {
     MemoryPressureMonitor.INSTANCE.registerComponentCallbacks();
     NetworkChangeNotifier.init();
     NetworkChangeNotifier.setAutoDetectConnectivityState(true);
-    
+
     if (!mIsCobaltUsingAndroidOverlay) {
       videoSurfaceView = new VideoSurfaceView(this);
       addContentView(

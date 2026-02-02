@@ -77,6 +77,8 @@ public class Shell {
     private Callback<Boolean> mOverlayModeChangedCallbackForTesting;
     private ViewGroup mRootView;
 
+    private StartupGuardNavigationObserver mStartupGuardNavigationObserver;
+
     /**
      * Constructor for inflating via XML.
      */
@@ -232,6 +234,8 @@ public class Shell {
         if (mWebContentsReadyListener != null) {
             mWebContentsReadyListener.onWebContentsReady();
         }
+
+        mStartupGuardNavigationObserver = new StartupGuardNavigationObserver(mWebContents);
     }
 
     /**
@@ -264,8 +268,6 @@ public class Shell {
             mWebContents.onShow();
         }
         mContentViewRenderView.setCurrentWebContents(mWebContents);
-
-        new StartupGuardNavigationObserver(mWebContents);
     }
 
     public void onActivityVisible(boolean visible) {
