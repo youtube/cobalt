@@ -110,12 +110,8 @@ public class StarboardBridge {
       "com.google.android.feature.AMATI_EXPERIENCE";
   private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
-<<<<<<< HEAD
   private final long timeNanosecondsPerMicrosecond = 1000;
-=======
-  private final long mTimeNanosecondsPerMicrosecond = 1000;
   private static final String YTS_CERT_SCOPE_SYSTEM_PROPERTY = "ro.vendor.youtube.cert_scope";
->>>>>>> 67709fda3d8 (android: Provide YouTube certification scope header (#8677))
 
   public StarboardBridge(
       Context appContext,
