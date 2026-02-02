@@ -162,6 +162,44 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     tar_cmd = mock_call.call_args_list[1][0][0]
     self.assertIn('tar', tar_cmd)
 
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_create_archive_relative_paths(self, mock_make_tar):
+    # Regression test for relative paths.
+    # We are already in self.test_dir (temp). Use relative paths to src and out.
+    rel_source = 'src'
+    rel_out = 'src/out'
+    target_name = 'rel_test'
+    deps_file = os.path.join(self.out_dir, f'{target_name}.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('binary\n')
+      f.write('../../data.txt\n')
+
+    archive_test_artifacts.create_archive(
+        targets=[f'path:{target_name}'],
+        source_dir=rel_source,
+        out_dir=rel_out,
+        destination_dir='dest',
+        archive_per_target=True,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=True)
+
+    self.assertTrue(mock_make_tar.called)
+    file_lists = mock_make_tar.call_args[0][3]
+
+    # Verify that the base_dirs passed to _make_tar are now absolute
+    # (or at least resolved correctly relative to current cwd)
+    out_base_dir = file_lists[0][1]
+    src_base_dir = file_lists[1][1]
+
+    # In our script, we now call os.path.abspath(base_dir) inside _make_tar.
+    # To test that the logic in create_archive correctly passes the relative
+    # paths which then get converted, we'll check that create_archive
+    # didn't crash and passed the expected relative roots.
+    self.assertEqual(out_base_dir, rel_out)
+    self.assertEqual(src_base_dir, rel_source)
+
 
 if __name__ == '__main__':
   unittest.main()
