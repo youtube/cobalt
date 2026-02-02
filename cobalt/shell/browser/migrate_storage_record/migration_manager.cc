@@ -248,11 +248,37 @@ void MigrationManager::DoMigrationTasksOnce(
   }
 
   GURL url = web_contents->GetLastCommittedURL();
+  LOG(INFO) << "MigrationManager: Starting migration. Stopping loader for: "
+            << url.spec();
   web_contents->Stop();
 
   auto* render_frame_host = web_contents->GetPrimaryMainFrame();
   CHECK(render_frame_host);
   auto weak_document_ptr = render_frame_host->GetWeakDocumentPtr();
+
+  // If the task chain hangs, this will force the reload after 5 seconds.
+  base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+      FROM_HERE,
+      base::BindOnce(
+          [](content::WeakDocumentPtr weak_ptr, const GURL& reload_url) {
+            auto* rfh = weak_ptr.AsRenderFrameHostIfValid();
+            if (!rfh) {
+              return;
+            }
+            content::WebContents* wc =
+                content::WebContents::FromRenderFrameHost(rfh);
+            if (wc && wc->IsLoading() == false) {
+              LOG(WARNING)
+                  << "MigrationManager: Migration timed out, forcing reload.";
+              content::NavigationController::LoadURLParams params(reload_url);
+              params.transition_type = ui::PageTransitionFromInt(
+                  ui::PAGE_TRANSITION_TYPED |
+                  ui::PAGE_TRANSITION_FROM_ADDRESS_BAR);
+              wc->GetController().LoadURLWithParams(params);
+            }
+          },
+          weak_document_ptr, url),
+      base::Seconds(5));
 
   std::vector<Task> tasks;
   tasks.push_back(CookieTask(weak_document_ptr, ToCanonicalCookies(*storage)));
@@ -341,15 +367,17 @@ std::vector<std::unique_ptr<net::CanonicalCookie>>
 MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
   std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
   for (auto& c : storage.cookies()) {
+    bool secure_attribute = true;
+    net::CookieSameSite samesite_mode = net::CookieSameSite::NO_RESTRICTION;
+
     cookies.push_back(net::CanonicalCookie::FromStorage(
         c.name(), c.value(), c.domain(), c.path(),
         base::Time::FromInternalValue(c.creation_time_us()),
         base::Time::FromInternalValue(c.expiration_time_us()),
         base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
-        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false,
-        absl::optional<net::CookiePartitionKey>(),
+        base::Time::FromInternalValue(c.creation_time_us()), secure_attribute,
+        c.http_only(), samesite_mode, net::COOKIE_PRIORITY_DEFAULT, false,
+        absl::nullopt,  // Use absl::nullopt to match the parameter type
         net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
   }
   return cookies;
