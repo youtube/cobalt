@@ -121,8 +121,8 @@ def create_archive(
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files both in the out and source root folders
-      # to be working directory archive whereas Linux tests expect it relative
-      # to the binary.
+      # to be in the working directory of the archive whereas Linux tests
+      # expect it relative to the binary.
       tar_root = '.' if flatten_deps else out_dir
       target_deps = set()
       target_src_root_deps = set()
@@ -137,7 +137,7 @@ def create_archive(
           continue
 
         if flatten_deps and line.startswith('../../'):
-          target_src_root_deps.add(line[6:])
+          target_src_root_deps.add(line.strip()[6:])
         else:
           # Rebase all files to be relative to their respective root (source or
           # out dir) to be able to flatten them below. Chromium test runners

@@ -233,13 +233,17 @@ def main():
     generate_runner_py(os.path.join(stage_dir, 'run_tests.py'), target_map)
 
     logging.info('Creating tarball: %s', args.output)
-    compression_flag = {
-        'gz': '-z',
-        'xz': '-J',
-        'zstd': '--zstd'
-    }[args.compression]
+    if args.compression == 'gz':
+      compression_flag = 'gzip -1'
+    elif args.compression == 'xz':
+      compression_flag = 'xz -T0 -1'
+    elif args.compression == 'zstd':
+      compression_flag = 'zstd -T0 -1'
+    else:
+      raise ValueError(f'Unsupported compression: {args.compression}')
+
     subprocess.run([
-        'tar', '-C', stage_dir, '-c', compression_flag, '-f', args.output, '.'
+        'tar', '-I', compression_flag, '-C', stage_dir, '-cf', args.output, '.'
     ],
                    check=True)
 
