@@ -162,6 +162,43 @@ class TestArchiveTestArtifacts(unittest.TestCase):
     tar_cmd = mock_call.call_args_list[1][0][0]
     self.assertIn('tar', tar_cmd)
 
+  @mock.patch('archive_test_artifacts._make_tar')
+  def test_runtime_deps_discovery(self, unused_mock_make_tar):
+    # Test that it finds deps in gen.runtime even if not explicitly asked
+    target_path = 'cobalt/test'
+    target_name = 'my_test'
+    gen_deps_dir = os.path.join(self.out_dir, 'gen.runtime', target_path)
+    os.makedirs(gen_deps_dir)
+    deps_file = os.path.join(gen_deps_dir,
+                             f'{target_name}__test_runner_script.runtime_deps')
+    with open(deps_file, 'w', encoding='utf-8') as f:
+      f.write('file1\n')
+
+    # This should NOT throw FileNotFoundError now
+    archive_test_artifacts.create_archive(
+        targets=[f'{target_path}:{target_name}'],
+        source_dir=self.source_dir,
+        out_dir=self.out_dir,
+        destination_dir=self.dest_dir,
+        archive_per_target=False,
+        use_android_deps_path=False,
+        compression='gz',
+        compression_level=1,
+        flatten_deps=False)
+
+    # Test FileNotFoundError when missing
+    with self.assertRaises(FileNotFoundError):
+      archive_test_artifacts.create_archive(
+          targets=['nonexistent:target'],
+          source_dir=self.source_dir,
+          out_dir=self.out_dir,
+          destination_dir=self.dest_dir,
+          archive_per_target=False,
+          use_android_deps_path=False,
+          compression='gz',
+          compression_level=1,
+          flatten_deps=False)
+
 
 if __name__ == '__main__':
   unittest.main()
