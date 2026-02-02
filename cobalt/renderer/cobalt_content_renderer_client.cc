@@ -239,11 +239,6 @@ void CobaltContentRendererClient::BindHostReceiver(
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
     ::media::RendererFactoryTraits* renderer_factory_traits) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO(b/383327725) - Cobalt: Inject these values from the web app.
-  renderer_factory_traits->audio_write_duration_local =
-      base::Microseconds(kSbPlayerWriteDurationLocal);
-  renderer_factory_traits->audio_write_duration_remote =
-      base::Microseconds(kSbPlayerWriteDurationRemote);
   renderer_factory_traits->viewport_size = viewport_size_;
 #if BUILDFLAG(IS_STARBOARD)
   // Using base::Unretained(this) is safe here because

@@ -142,8 +142,6 @@ class MediaServiceTest : public testing::Test {
     base::RunLoop run_loop;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   StarboardRendererConfig config(base::UnguessableToken::Create(),
-                                 base::Microseconds(0),
-                                 base::Microseconds(0),
                                  "width=1920; height=1080; framerate=15;",
                                  gfx::Size(1920, 1080));
     interface_factory_->CreateStarboardRenderer(

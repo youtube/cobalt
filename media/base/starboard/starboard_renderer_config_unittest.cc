@@ -23,18 +23,10 @@
 namespace media {
 
 TEST(StarboardRendererConfigTest, SunnyDay) {
-  constexpr base::TimeDelta audio_write_duration_local =
-      base::Microseconds(500000);
-  constexpr base::TimeDelta audio_write_duration_remote =
-      base::Microseconds(100000);
   const std::string max_video_capabilities =
       "width=1920; height=1080; framerate=15;";
   StarboardRendererConfig config(base::UnguessableToken::Create(),
-                                 audio_write_duration_local,
-                                 audio_write_duration_remote,
                                  max_video_capabilities, gfx::Size(1920, 1080));
-  EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
-  EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
   EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
   EXPECT_EQ(config.viewport_size, gfx::Size(1920, 1080));
 }

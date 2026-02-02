@@ -119,8 +119,6 @@ StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     std::unique_ptr<MediaLog> media_log,
     const base::UnguessableToken& overlay_plane_id,
-    TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote,
     const std::string& max_video_capabilities,
     const gfx::Size& viewport_size
 #if BUILDFLAG(IS_ANDROID)
@@ -133,8 +131,10 @@ StarboardRenderer::StarboardRenderer(
       media_log_(std::move(media_log)),
       cdm_context_(nullptr),
       buffering_state_(BUFFERING_HAVE_NOTHING),
-      audio_write_duration_local_(audio_write_duration_local),
-      audio_write_duration_remote_(audio_write_duration_remote),
+      audio_write_duration_local_(
+          base::Milliseconds(kCobaltAudioWriteLocalDurationMs.Get())),
+      audio_write_duration_remote_(
+          base::Milliseconds(kCobaltAudioWriteRemoteDurationMs.Get())),
       max_video_capabilities_(max_video_capabilities),
       viewport_size_(viewport_size)
 #if BUILDFLAG(IS_ANDROID)

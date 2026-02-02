@@ -496,17 +496,17 @@ const base::FeatureParam<bool> kEnforceSystemEchoCancellationAllowNsInTandem{
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-// When enabled, Cobalt uses |kAudioWriteDuration{Local/Remote}| as
-// audio write duration during SbPlayer prerolling.
-// For example, '--enable-features=CobaltAudioWriteDuration:AudioWriteDurationLocal/1s'.
-// TODO: b/433993748 - Disable CobaltAudioWriteDuration and make kAudioWriteDurationLocal to base::Microseconds(kSbPlayerWriteDurationLocal).
-BASE_FEATURE(kCobaltAudioWriteDuration,
-             "CobaltAudioWriteDuration",
+// Cobalt uses |kCobaltAudioWrite| parameters as audio write duration
+// during SbPlayer prerolling.
+// For example, '--enable-features=CobaltAudioWrite:local_duration_ms/1000:remote_duration_ms/10000'.
+BASE_FEATURE(kCobaltAudioWrite,
+             "CobaltAudioWrite",
              base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<base::TimeDelta> kAudioWriteDurationLocal{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationLocal", base::Milliseconds(1000)};
-const base::FeatureParam<base::TimeDelta> kAudioWriteDurationRemote{
-    &kCobaltAudioWriteDuration, "AudioWriteDurationRemote", base::Microseconds(kSbPlayerWriteDurationRemote)};
+const base::FeatureParam<int> kCobaltAudioWriteLocalDurationMs{
+    &kCobaltAudioWrite, "local_duration_ms", 1000};
+const base::FeatureParam<int> kCobaltAudioWriteRemoteDurationMs{
+    &kCobaltAudioWrite, "remote_duration_ms", 10000};
+
 // When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
 BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
              "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
